@@ -1,3 +1,4 @@
 MetaTrader5~=5.0.4803
 pandas~=2.2.3
 ta~=0.11.0
+python-telegram-bot~=21.10

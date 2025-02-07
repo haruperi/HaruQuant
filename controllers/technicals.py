@@ -4,6 +4,7 @@
 from config.settings import *
 import ta
 from telegram import Bot
+import time
 
 
 
@@ -216,7 +217,7 @@ async def send_telegram_message(token=g_token, chat_id=g_chat_id, message="Hello
 
 
 
-def get_server_time(timeshift=0):
+def get_server_time(timeshift=g_time_shift):
     """
     Get the current server time of the trading platform, adjusted for a specified time shift.
 
@@ -247,7 +248,7 @@ def get_server_time(timeshift=0):
 
 
 
-def get_next_bar_time(server_time, interval_mins=5):
+def get_next_bar_time(server_time, interval_mins=g_interval_minutes):
     """
     Calculate the next bar's timestamp based on the provided server time and time interval.
 
@@ -265,3 +266,38 @@ def get_next_bar_time(server_time, interval_mins=5):
     next_bar_time = next_bar_time - timedelta(minutes=server_time.minute % interval_mins)
 
     return next_bar_time
+
+
+
+
+
+def countdown_to_next_bar(interval_min=g_interval_minutes, timeShift=g_time_shift):
+    """
+    Continuously counts down to the opening of the next bar based on the server time and interval.
+
+    This function retrieves the trading server time, determines the next bar time,
+    and continuously sleeps until the new bar time is reached, at which point a task
+    (e.g., live_run) can be executed.
+
+    Parameters:
+        interval_min (int): The time interval in minutes for the next bar's start. Default is 5.
+        timeShift (int): The number of hours to adjust the server time. Default is 0.
+    """
+
+    server_time = get_server_time(timeShift)
+    if server_time is None:
+        return "Failed to get server time. Exiting..."
+
+    next_bar_time = get_next_bar_time(server_time, interval_min)
+    print(f"Next bar in: {next_bar_time}")
+
+    while get_server_time(timeShift) < next_bar_time:
+        time.sleep(1)
+
+    # Perform the task at the opening of the new bar
+    return f"\nNew bar opened at {next_bar_time}. Running the task..."
+
+
+
+
+
