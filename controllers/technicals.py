@@ -409,7 +409,7 @@ def calculate_williamsPCT_signals(df, period=g_willpct_period):
     This function calculates the Williams %R values for the given DataFrame
     and identifies buy and sell signals when the %R crosses key thresholds (-20 for overbought, -80 for oversold).
     Signals are stored in a new 'signal' column:
-    1 for buy, -1 for sell, and 0 for no signal.
+    1 -> buy, -1 -> sell, and 0 for no signal.
 
     Parameters:
         df (pd.DataFrame): The input DataFrame containing 'High', 'Low', and 'Close' columns.
