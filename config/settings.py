@@ -28,7 +28,7 @@ g_symbols_indices = ["US500", "US30", "UK100", "GER40", "NAS100", "USDX", "EURX"
 
 
 g_interval_minutes = 5          # Trading timeframe minutes
-g_time_shift=-3                 # Broker time shift from GMT 0
+g_time_shift=-2                 # Broker time shift from GMT 0
 g_trading_timeframe = f'M{g_interval_minutes}'
 g_core_timeframe = "D1"
 g_start_pos=0                   # Data retrieval index starting point

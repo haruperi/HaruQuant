@@ -211,3 +211,34 @@ async def send_telegram_message(token=g_token, chat_id=g_chat_id, message="Hello
     """
     bot = Bot(token=token)
     await bot.send_message(chat_id=chat_id, text=message)
+
+
+
+
+
+def get_server_time(timeshift=0):
+    """
+    Get the current server time of the trading platform, adjusted for a specified time shift.
+
+    This function retrieves the server time by accessing the latest tick data
+    for a default symbol like 'EURUSD'. If the tick data is unavailable, it
+    returns None. A time shift in hours can be applied to calculate
+    a different time zone.
+
+    Parameters:
+        timeshift (int): The number of hours to adjust the server time. Defaults to 0.
+
+    Returns:
+        datetime: The adjusted server time, or None if the tick data is unavailable.
+    """
+    # Use a symbol that is always available to get the tick data
+    tick = mt5.symbol_info_tick(g_test_symbol)
+    if tick is None:
+        print("Failed to get tick data")
+        return None
+    server_time = datetime.fromtimestamp(tick.time)
+
+    # Apply the time shift
+    adjusted_time = server_time + timedelta(hours=timeshift)
+
+    return adjusted_time
