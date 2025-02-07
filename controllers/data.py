@@ -273,3 +273,54 @@ def fetch_data(symbol, timeframe, start_date=None, end_date=None, start_pos=None
     return dataframe
 
 
+#-----------------------------------------------------------------------------------------------------------#
+
+
+def merge_symbols(symbols, trading_timeframe, start_date, end_date):
+    """
+    Merges historical market data for multiple symbols into a single DataFrame.
+
+    This function fetches historical candlestick data for a list of financial instruments
+    (symbols) in the specified timeframe. The data for each symbol is merged based on the
+    datetime index, with the symbol's 'Close' values used as columns in the result.
+
+    Args:
+        symbols (list): A list of symbol names to fetch and merge (e.g., ["EURUSD", "GBPUSD"]).
+        trading_timeframe (str): The timeframe for the data (e.g., "M5", "H1").
+        start_date (str): The start date for the data in 'YYYY-MM-DD' format.
+        end_date (str): The end date for the data in 'YYYY-MM-DD' format.
+
+    Returns:
+        pandas.DataFrame: A merged DataFrame where each column represents the 'Close' prices
+        for the corresponding symbol. The index is the shared datetime.
+
+    Raises:
+        ValueError: If a symbol's data lacks the 'Close' column or cannot be fetched.
+
+    Note:
+        The merged DataFrame is exported as a CSV file named 'merged_data.csv'.
+
+    Example:
+        >>> merge_symbols(["EURUSD", "GBPUSD"], "M5", "2024-06-01", "2024-07-31")
+    """
+    data = pd.DataFrame()
+
+    for symbol in symbols:
+        df = fetch_data(symbol, trading_timeframe, start_date, end_date)
+
+        # Ensure the DataFrame has a "close" column and a datetime index
+        if "Close" not in df.columns:
+            raise ValueError(f"DataFrame for {symbol} does not have a 'Close' column.")
+
+        if data.empty:
+            # Initialize the merged DataFrame with the first symbol's data
+            data = df[["Close"]].rename(columns={"Close": symbol})
+        else:
+            # Merge on the index, renaming "close" to the symbol name
+            data = data.join(df[["Close"]].rename(columns={"Close": symbol}), how="outer")
+
+    data.to_csv("merged_data.csv")
+
+    return data
+
+
