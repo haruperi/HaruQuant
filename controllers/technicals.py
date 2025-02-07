@@ -34,11 +34,11 @@ def calculate_moving_average(df, ma_type=g_ma_type, col=g_df_col, period=g_slow_
         pd.DataFrame: The DataFrame with an additional column containing the calculated moving average.
                       The column name will include the type and period of the moving average.
     """
-    if ma_type == 'sma':
+    if ma_type == 'SMA':
         df[f"SMA_{period}"] = ta.trend.SMAIndicator(df[col], int(period)).sma_indicator()
-    if ma_type == 'ema':
+    if ma_type == 'EMA':
         df[f"EMA_{period}"] = ta.trend.EMAIndicator(df[col], int(period)).ema_indicator()
-    if ma_type == 'wma':
+    if ma_type == 'WMA':
         df[f"WMA_{period}"] = ta.trend.WMAIndicator(df[col], int(period)).wma()
 
     return df
@@ -301,6 +301,14 @@ def countdown_to_next_bar(interval_min=g_interval_minutes, timeShift=g_time_shif
 
 
 
+########################################################################################################################
+#                                         Strategy Specific functions
+########################################################################################################################
+
+
+
+
+
 def calculate_williamsPCT_signals(df, period=g_willpct_period):
     """
     Generate buy and sell signals based on Williams %R indicator crossovers.
@@ -325,5 +333,56 @@ def calculate_williamsPCT_signals(df, period=g_willpct_period):
 
     df.loc[(df['WPR'].shift(1) > -20) & (df['WPR'].shift(2) <= -20), 'signal'] = 1  # Buy signal
     df.loc[(df['WPR'].shift(1) < -80) & (df['WPR'].shift(2) >= -80), 'signal'] = -1  # Sell signal
+
+    return df
+
+
+
+
+
+def calculate_ma_trend_momentum_signals(df, fastMa=g_fast_ma, slowMA=g_slow_ma, ma_type=g_ma_type, williamsR=g_willpct_period):
+    """
+    Identify trend signals using exponential moving averages (EMA) and the Williams %R indicator.
+
+    The function calculates two EMAs: a fast EMA and a slow EMA. Additionally, it uses the Williams %R
+    momentum indicator to determine potential buy or sell signals. A buy signal is generated when the
+    price is above both EMAs, and the Williams %R crosses above -20 from below. Conversely, a sell signal
+    is generated when the price is below both EMAs, and the Williams %R crosses below -80 from above.
+
+    Parameters:
+        :param df: (pd.DataFrame): The input DataFrame containing 'close', 'high', and 'low' columns.
+        :param fastMa: (int): The period for the fast EMA.
+        :param slowMA: (int): The period for the slow EMA.
+        :param ma_type: (str): To make ability to change MA type
+        :param williamsR: The period for the williams %R momentum indicator.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame including calculated 'Fast_MA', 'Slow_MA', 'Williams %R', and 'signal' columns.
+                      The 'signal' column contains 1 -> buy signals, -1 -> Sell signals, and 0 for no signal.
+
+
+    """
+    # Calculate EMA
+    df = calculate_moving_average(df, ma_type, period=fastMa)
+    df = calculate_moving_average(df, ma_type, period=slowMA)
+
+    # Calculate Williams %R
+    df = calculate_williams_percent(df, williamsR)
+
+    # Create Signal column based on previous row's values including crossover logic
+    df['signal'] = 0
+
+    for i in range(1, len(df)):
+        # Buy signal
+        df.loc[(df['Close'].shift(i + 1) > df[f"{ma_type}_{fastMa}"].shift(i + 1))
+               & (df[f"{ma_type}_{fastMa}"].shift(i + 1) > df[f"{ma_type}_{slowMA}"].shift(i + 1))
+               & (df['WPR'].shift(i + 1) > -20)
+               & (df['WPR'].shift(i + 2) <= -20), 'signal'] = 1
+
+        # Sell signal
+        df.loc[(df['Close'].shift(i + 1) < df[f"{ma_type}_{fastMa}"].shift(i + 1))
+               & (df[f"{ma_type}_{fastMa}"].shift(i + 1) < df[f"{ma_type}_{slowMA}"].shift(i + 1))
+               & (df['WPR'].shift(i + 1) < -80)
+               & (df['WPR'].shift(i + 2) >= -80), 'signal'] = -1
 
     return df
