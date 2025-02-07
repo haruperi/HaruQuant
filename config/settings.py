@@ -2,13 +2,26 @@
 ##                            GLOBAL SETTINGS - VARIABLES (g_)                              ##
 ##############################################################################################
 from datetime import timedelta, datetime
-#from controllers.data import *
+from controllers.data import *
 
 
 #--------------------------------------- Credentials data -----------------------------------#
 
 
 g_credentials_filepath = "./config/credentials.json"
+
+
+#--------------------------------------- Symbols Data -----------------------------------#
+
+
+g_symbols_forex = ["AUDCAD", "AUDCHF", "AUDJPY", "AUDNZD", "AUDUSD",
+    "CADCHF", "CADJPY", "CHFJPY",
+    "EURAUD", "EURCAD", "EURCHF", "EURGBP", "EURJPY", "EURNZD", "EURUSD",
+    "GBPAUD", "GBPCAD", "GBPCHF", "GBPJPY", "GBPNZD", "GBPUSD",
+    "NZDCAD", "NZDCHF", "NZDJPY", "NZDUSD",
+    "USDCHF", "USDCAD", "USDJPY"]
+g_symbols_commodities = ["XAUUSD", "XAUEUR", "XAUGBP", "XAUJPY", "XAUAUD", "XAUCHF", "XAGUSD"]
+g_symbols_indices = ["US500", "US30", "UK100", "GER40", "NAS100", "USDX", "EURX"]
 
 
 #--------------------------------------- Data variables -----------------------------------------#
@@ -62,21 +75,11 @@ g_strength_lookback_period = 144
 #--------------------------------------- GLOBAL INIT -----------------------------------#
 
 
-g_project_settings = get_project_settings(g_settings_filepath)                # Import settings
-g_init_mt5 = initialize_mt5(g_project_settings)                               # Start MT5
-g_init_symbols = enable_all_symbols(g_project_settings)                       # Initialize Symbols
+g_project_settings = get_project_settings(g_credentials_filepath)              # Import settings
+g_init_mt5 = initialize_mt5(g_project_settings)                                # Start MT5
+g_init_symbols = enable_all_symbols(g_symbols_forex)                       # Initialize Symbols
 g_token = g_project_settings['telegram']['token']
 g_chat_id = g_project_settings['telegram']['chat_id']
 
 
-#--------------------------------------- Symbols Data -----------------------------------#
 
-
-g_symbols_forex = ["AUDCAD", "AUDCHF", "AUDJPY", "AUDNZD", "AUDUSD",
-    "CADCHF", "CADJPY", "CHFJPY",
-    "EURAUD", "EURCAD", "EURCHF", "EURGBP", "EURJPY", "EURNZD", "EURUSD",
-    "GBPAUD", "GBPCAD", "GBPCHF", "GBPJPY", "GBPNZD", "GBPUSD",
-    "NZDCAD", "NZDCHF", "NZDJPY", "NZDUSD",
-    "USDCHF", "USDCAD", "USDJPY"],
-g_symbols_commodities = ["XAUUSD", "XAUEUR", "XAUGBP", "XAUJPY", "XAUAUD", "XAUCHF", "XAGUSD"],
-g_symbols_indices = ["US500", "US30", "UK100", "GER40", "NAS100", "USDX", "EURX"]
