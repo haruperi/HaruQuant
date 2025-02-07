@@ -201,3 +201,75 @@ def set_query_timeframe(timeframe):
         raise ValueError
 
 
+
+#----------------------------------------------------------------------------------------------------------#
+
+
+def fetch_data(symbol, timeframe, start_date=None, end_date=None, start_pos=None, end_pos=None):
+    """
+    Fetches historical market data for the given symbol and timeframe.
+
+    This function uses the MetaTrader 5 API to fetch candlestick data for a financial instrument
+    (symbol) in a specified timeframe. The data can be retrieved either by date range or
+    by positional indices.
+
+    Args:
+        symbol (str): The name of the financial instrument (e.g., "EURUSD").
+        timeframe (str): The timeframe for the data (e.g., "M1", "H1").
+        start_date (str, optional): The start date for the data in 'YYYY-MM-DD' format (default: None).
+        end_date (str, optional): The end date for the data in 'YYYY-MM-DD' format (default: None).
+        start_pos (int, optional): The positional index to start fetching data from (default: None).
+        end_pos (int, optional): The positional index to stop fetching data at (default: None).
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing historical data with the following columns:
+            - Open
+            - High
+            - Low
+            - Close
+
+    Raises:
+        ValueError: If no data is fetched for the specified symbol and time range.
+        KeyError: If the 'time' field is not present in the fetched data.
+
+    Note:
+        Either 'start_date' and 'end_date' or 'start_pos' and 'end_pos' must be provided
+        to fetch the data.
+
+    """
+
+    # Convert the timeframe into MT5 friendly format
+    mt5_timeframe, time_delta = set_query_timeframe(timeframe=timeframe)
+
+    # Convert dates to datetime objects
+    start = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
+    end = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
+
+    # Get Candles
+    if start and end:
+        rates = mt5.copy_rates_range(symbol, mt5_timeframe, start, end)
+    else:
+        rates = mt5.copy_rates_from_pos(symbol, mt5_timeframe, start_pos, end_pos)
+
+    # Verify that rates contain data
+    if rates is None or len(rates) == 0:
+        raise ValueError(f"No data fetched for symbol {symbol} within the specified range.")
+
+    # Convert to a dataframe
+    dataframe = pd.DataFrame(rates)
+
+    # Verify that the expected 'time' field is in the dataframe
+    if 'time' not in dataframe:
+        raise KeyError("'time' column is missing in the fetched data.")
+
+    # Convert Datetime to be human-readable
+    dataframe['datetime'] = pd.to_datetime(dataframe['time'], unit='s')
+    # Set Index of the dataframe
+    dataframe.set_index('datetime', inplace=True)
+    # Delete unwanted columns
+    dataframe = dataframe[["open", "high", "low", "close"]]
+    dataframe.columns = ["Open", "High", "Low", "Close"]
+
+    return dataframe
+
+
