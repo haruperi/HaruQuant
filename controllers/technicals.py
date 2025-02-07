@@ -643,3 +643,66 @@ def calculate_fractal_pivot_points(df):
             df.at[max_high_idx, 'isPivot'] = 1
 
     return df
+
+
+
+
+
+
+def calculate_market_structure_signals(df):
+    """
+    Generates market structure signals based on swingline and pivot data.
+
+    This function analyzes the provided DataFrame to detect buy or sell signals
+    by checking conditions of higher highs, higher lows, lower highs, and lower lows
+    based on the swingline and pivot points in the market structure.
+
+    Parameters:
+        df (pd.DataFrame): DataFrame containing columns for 'swingline', 'isPivot',
+                           'high', 'low', and 'close'.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with an additional 'signal' column
+                      containing buy signals (1), sell signals (-1), or no signal (0).
+    """
+
+    df = df.copy()
+    df['signal'] = 0  # Initialize all signals to 0
+
+    swing_highs = []
+    swing_lows = []
+    prev_swingline = None
+
+    for index, row in df.iterrows():
+        current_swingline = row['swingline']
+        is_pivot = row['isPivot']
+
+        # Update pivot lists
+        if is_pivot == 1:
+            swing_highs.append(row['High'])
+        elif is_pivot == -1:
+            swing_lows.append(row['Low'])
+
+        # Check for swingline change
+        if prev_swingline is not None:
+            # Buy signal condition (swingline -1 -> 1)
+            if prev_swingline == -1 and current_swingline == 1:
+                if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+                    higher_highs = swing_highs[-1] > swing_highs[-2]
+                    higher_lows = swing_lows[-1] > swing_lows[-2]
+                    below_high = df['Close'][index] < swing_highs[-1]
+                    if higher_highs and higher_lows and below_high:
+                        df.at[index, 'signal'] = 1
+
+            # Sell signal condition (swingline 1 -> -1)
+            elif prev_swingline == 1 and current_swingline == -1:
+                if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+                    lower_highs = swing_highs[-1] < swing_highs[-2]
+                    lower_lows = swing_lows[-1] < swing_lows[-2]
+                    above_low = df['Close'][index] > swing_lows[-1]
+                    if lower_highs and lower_lows and above_low:
+                        df.at[index, 'signal'] = -1
+
+        prev_swingline = current_swingline
+
+    return df
