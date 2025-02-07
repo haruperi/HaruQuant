@@ -3,6 +3,7 @@
 ########################################################################################################################
 from config.settings import *
 import ta
+from telegram import Bot
 
 
 
@@ -194,3 +195,19 @@ def resample_to_timeframe(df, timeframe):
     resampled_data.dropna(inplace=True)
 
     return resampled_data
+
+
+
+
+
+async def send_telegram_message(token=g_token, chat_id=g_chat_id, message="Hello World"):
+    """
+    Send a message to a Telegram chat.
+
+    Parameters:
+    token (str): The bot token provided by the BotFather.
+    chat_id (str): The chat ID or the username of the recipient.
+    message (str): The message to send.
+    """
+    bot = Bot(token=token)
+    await bot.send_message(chat_id=chat_id, text=message)
