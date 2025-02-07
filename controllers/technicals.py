@@ -351,6 +351,48 @@ def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_tim
 
 
 
+
+def isvalid_signal_using_currency_strength(signal, currency_strengths):
+    """
+    Evaluates a buy/sell signal based on currency strength differences.
+
+    Parameters:
+        signal (str): The trading signal in the format 'EURUSD Buy' or 'EURUSD Sell'.
+        currency_strengths (dict): A dictionary with currency codes as keys and their strengths as values.
+
+    Returns:
+        str: 'Valid' if the signal meets the criteria, 'Excluded' otherwise.
+    """
+    try:
+        # Parse the signal
+        pair, action = signal.split()
+        base_currency = pair[:3]
+        quote_currency = pair[3:]
+
+        # Get strengths for the base and quote currencies
+        base_strength = currency_strengths[base_currency]
+        quote_strength = currency_strengths[quote_currency]
+
+        if base_strength is None or quote_strength is None:
+            return "Excluded: Invalid currency pair or missing strength data"
+
+        # Calculate strength difference
+        strength_diff = abs(base_strength - quote_strength)
+
+        # Check criteria
+        if (
+                strength_diff > 10
+                and ((base_strength > 0 > quote_strength) if action == "Buy" else (quote_strength > 0 > base_strength))
+        ):
+            return True
+        else:
+            return False
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+
+
 ########################################################################################################################
 #                                         Strategy Specific functions
 ########################################################################################################################
