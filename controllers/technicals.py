@@ -601,3 +601,45 @@ def calculate_swingline_alerts(df):
     )
 
     return df
+
+
+
+
+
+
+def calculate_fractal_pivot_points(df):
+    """
+    Identifies fractal pivot points in the DataFrame based on swingline directions.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing a 'swingline' column, as well as 'high' and 'low' columns.
+
+    Returns:
+    pd.DataFrame: The input DataFrame with an added 'isPivot' column.
+                  Each pivot point is marked as:
+                  -1 for a low pivot (local minima) in a downward swing,
+                   1 for a high pivot (local maxima) in an upward swing,
+                   and NaN for non-pivot rows.
+    """
+
+    # Initialize 'isPivot' column with NaN
+    df['isPivot'] = np.nan
+
+    # Create groups of consecutive 'swingline' values
+    group_ids = (df['swingline'] != df['swingline'].shift()).cumsum()
+    groups = df.groupby(group_ids)
+
+    # Iterate over each group
+    for group_id, group_data in groups:
+        sig_value = group_data['swingline'].iloc[0]
+
+        if sig_value == -1:
+            # Find index of the minimum 'low' in this group
+            min_low_idx = group_data['Low'].idxmin()
+            df.at[min_low_idx, 'isPivot'] = -1
+        elif sig_value == 1:
+            # Find index of the maximum 'high' in this group
+            max_high_idx = group_data['High'].idxmax()
+            df.at[max_high_idx, 'isPivot'] = 1
+
+    return df
