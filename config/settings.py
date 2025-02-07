@@ -1,7 +1,7 @@
 ##############################################################################################
 ##                            GLOBAL SETTINGS - VARIABLES (g_)                              ##
 ##############################################################################################
-from datetime import timedelta, datetime
+from datetime import timedelta
 from controllers.data import *
 
 
