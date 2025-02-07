@@ -574,3 +574,30 @@ def calculate_ltf_close_above_below_hft(ltf_df, htf_df):
         'swingline'].ffill()  # Fill NaN values with the previous value (propagate values where conditions are not met)
 
     return df
+
+
+
+
+
+def calculate_swingline_alerts(df):
+    """
+    Determines significant alerts (swing reversals) based on changes in the swingline direction.
+
+    Parameters:
+        df (pd.DataFrame): DataFrame containing a 'swingline' column with directional values.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with an additional 'sig_alert' column indicating
+                      swing reversal alerts (1 for upward reversal, -1 for downward reversal).
+    """
+
+    df['signal'] = np.select(
+        [
+            (df['swingline'] == 1) & (df['swingline'].shift(1) == -1),  # Condition for 1
+            (df['swingline'] == -1) & (df['swingline'].shift(1) == 1)  # Condition for -1
+        ],
+        [1, -1],  # Values to assign (1 for the first condition, -1 for the second condition)
+        default=0
+    )
+
+    return df
