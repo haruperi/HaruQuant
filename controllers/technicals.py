@@ -45,3 +45,19 @@ def calculate_moving_average(df, ma_type=g_ma_type, col=g_df_col, period=g_slow_
 
 
 
+def calculate_rsi(df, col=g_df_col, period=g_rsi_period):
+    """
+    Calculate the Relative Strength Index (RSI) for a given column in the DataFrame.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing price data.
+        col (str): Name of the column for which the RSI will be calculated.
+        period (int): The period (window size) for the RSI calculation.
+
+    Returns:
+        pd.DataFrame: The DataFrame with an additional column containing the calculated RSI.
+                      The column name will be 'RSI'.
+    """
+    df[f"RSI"] = ta.momentum.RSIIndicator(df[col], int(period)).rsi()
+
+    return df
