@@ -75,3 +75,20 @@ def market_structure_strategy(symbol, ltf_df, htf_df):
         return f"{curr_time} {symbol} Sell"
     else:
         return f"{curr_time} {symbol} Neutral"
+
+
+
+def williams_percent_momentum_strategy(symbol, df):
+    df = calculate_willpct_swing_lines(df)
+    df = calculate_swingline_alerts(df)
+
+    # Get current signal and time
+    signal = df["signal"].iloc[-1]
+    curr_time = df.index[-1]
+
+    if signal == 1:
+        return f"{curr_time} {symbol} Buy"
+    elif signal == -1:
+        return f"{curr_time} {symbol} Sell"
+    else:
+        return f"{curr_time} {symbol} Neutral"
