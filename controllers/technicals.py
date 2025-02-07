@@ -301,3 +301,29 @@ def countdown_to_next_bar(interval_min=g_interval_minutes, timeShift=g_time_shif
 
 
 
+def calculate_williamsPCT_signals(df, period=g_willpct_period):
+    """
+    Generate buy and sell signals based on Williams %R indicator crossovers.
+
+    This function calculates the Williams %R values for the given DataFrame
+    and identifies buy and sell signals when the %R crosses key thresholds (-20 for overbought, -80 for oversold).
+    Signals are stored in a new 'signal' column:
+    1 for buy, -1 for sell, and 0 for no signal.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing 'High', 'Low', and 'Close' columns.
+        period (int): The period for calculating the Williams %R indicator.
+
+    Returns:
+        pd.DataFrame: The input DataFrame with added columns for Williams %R values ('WPR') and signals ('signal').
+    """
+    # Calculate Williams %R
+    df = calculate_williams_percent(df, period)
+
+    # Create Signal column based on previous row's values including crossover logic
+    df['signal'] = 0
+
+    df.loc[(df['WPR'].shift(1) > -20) & (df['WPR'].shift(2) <= -20), 'signal'] = 1  # Buy signal
+    df.loc[(df['WPR'].shift(1) < -80) & (df['WPR'].shift(2) >= -80), 'signal'] = -1  # Sell signal
+
+    return df
