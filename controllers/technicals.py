@@ -520,3 +520,57 @@ def calculate_willpct_swing_lines(df, williamsR=g_willpct_period):
     df['swingline'] = df[
         'swingline'].ffill()  # Fill NaN values with the previous value (propagate values where conditions are not met)
     return df
+
+
+
+
+
+
+def calculate_ltf_close_above_below_hft(ltf_df, htf_df):
+    """
+    This function aligns lower time frame (LTF) data with higher time frame (HTF) data
+    to analyze the close price movement above or below previous HTF extremes.
+
+    Parameters:
+        ltf_df (pd.DataFrame): DataFrame containing lower time frame data.
+        htf_df (pd.DataFrame): DataFrame containing higher time frame data.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with additional columns including swingline
+                      and significant close alerts.
+    """
+
+    # Shift htf_df close to ensure we only compare to fully closed m5 bars
+    htf_df['prev_High_HTF'] = htf_df['High'].shift(1)
+    htf_df['prev_Low_HTF'] = htf_df['Low'].shift(1)
+
+    # Merge the two DataFrames on their datetime index
+    aligned_df = pd.merge(
+        ltf_df, htf_df,
+        how='outer',  # Use 'outer' to keep all timestamps from both DataFrames
+        left_index=True,
+        right_index=True,
+        suffixes=('', '_htf')  # Add suffixes to differentiate columns from m1_df and m5_df
+    )
+
+    # Forward-fill missing values using `ffill` directly
+    aligned_df.ffill(inplace=True)  # Forward-fill missing values in place
+
+    aligned_df = aligned_df[["Open", "High", "prev_High_HTF", "Low", "prev_Low_HTF", "Close"]]
+
+    df = aligned_df.copy()
+
+    # Calculate the significant close and then the swingline direction
+    df['swingline'] = np.select(
+        [
+            (df['Close'] > df['prev_High_HTF']) & (df['Close'] > df['open']),  # Condition for 1
+            (df['Close'] < df['prev_Low_HTF']) & (df['Close'] < df['open'])  # Condition for -1
+        ],
+        [1, -1],  # Values to assign (1 for the first condition, -1 for the second condition)
+        default=np.nan  # Set default to NaN to allow forward filling later
+    )
+
+    df['swingline'] = df[
+        'swingline'].ffill()  # Fill NaN values with the previous value (propagate values where conditions are not met)
+
+    return df
