@@ -60,7 +60,7 @@ def calculate_rsi(df, col=g_df_col, period=g_rsi_period):
         pd.DataFrame: The DataFrame with an additional column containing the calculated RSI.
                       The column name will be 'RSI'.
     """
-    df[f"RSI"] = ta.momentum.RSIIndicator(df[col], int(period)).rsi()
+    df["RSI"] = ta.momentum.RSIIndicator(df[col], int(period)).rsi()
 
     return df
 
@@ -297,6 +297,56 @@ def countdown_to_next_bar(interval_min=g_interval_minutes, timeShift=g_time_shif
     # Perform the task at the opening of the new bar
     return f"\nNew bar opened at {next_bar_time}. Running the task..."
 
+
+
+
+
+def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_timeframe, strength_lookback=g_strength_lookback_period, strength_rsi=g_rsi_period, strength_loc=g_strength_loc):
+    """
+    Calculate currency strength based on RSI values for a set of currency pairs.
+
+    The function fetches historical data for each currency pair, computes the RSI for
+    a specified lookback period, and aggregates these values to calculate the relative
+    strength of major currencies (USD, EUR, GBP, CHF, JPY, AUD, CAD, NZD).
+
+    Parameters:
+        symbols (list of str): List of currency pairs (e.g., ['EURUSD', 'GBPUSD']).
+        timeframe (str): Timeframe for fetching data (e.g., 'H1', 'D1').
+        strength_lookback (int): Number of past periods to include in calculating RSI.
+        strength_rsi (int): RSI period for calculation.
+        strength_loc (int): Position index to fetch the latest strength readings.
+
+    Returns:
+        pd.Series: A series of currency strength values (sorted in descending order).
+    """
+    data = pd.DataFrame()
+    for symbol in symbols:
+        df = fetch_data(symbol, timeframe, start_pos=0, end_pos=strength_lookback)
+        df = calculate_rsi(df, g_df_col, strength_rsi)
+        data[symbol] = df['RSI']
+
+    strength = pd.DataFrame()
+    strength["USD"] = 1 / 7 * (
+                (100 - data.EURUSD) + (100 - data.GBPUSD) + data.USDCAD + data.USDJPY + (100 - data.NZDUSD) + (
+                    100 - data.AUDUSD) + data.USDCHF)
+    strength["EUR"] = 1 / 7 * (data.EURUSD + data.EURGBP + data.EURAUD + data.EURNZD + data.EURCHF + data.EURCAD)
+    strength["GBP"] = 1 / 7 * (
+                data.GBPUSD + data.GBPJPY + data.GBPAUD + data.GBPNZD + data.GBPCAD + data.GBPCHF + (100 - data.EURGBP))
+    strength["CHF"] = 1 / 7 * ((100 - data.EURCHF) + (100 - data.GBPCHF) + (100 - data.NZDCHF) + (100 - data.AUDCHF) + (
+                100 - data.CADCHF) + data.CHFJPY + (100 - data.USDCHF))
+    strength["JPY"] = 1 / 7 * ((100 - data.EURJPY) + (100 - data.GBPJPY) + (100 - data.USDJPY) + (100 - data.CHFJPY) + (
+                100 - data.CADJPY) + (100 - data.NZDJPY) + (100 - data.AUDJPY))
+    strength["AUD"] = 1 / 7 * ((100 - data.EURAUD) + (100 - data.GBPAUD) + (
+                100 - data.AUDJPY) + data.AUDNZD + data.AUDCAD + data.AUDCHF + data.AUDUSD)
+    strength["CAD"] = 1 / 7 * (
+                (100 - data.EURCAD) + (100 - data.GBPCAD) + (100 - data.USDCAD) + data.CADJPY + (100 - data.AUDCAD) + (
+                    100 - data.NZDCAD) + data.CADCHF)
+    strength["NZD"] = 1 / 7 * (
+                (100 - data.EURNZD) + (100 - data.GBPNZD) + data.NZDJPY + data.NZDUSD + data.NZDCAD + data.NZDCHF + (
+                    100 - data.AUDNZD))
+    strength_df = strength.iloc[-strength_loc].apply(lambda x: x - 50).round(2).sort_values(ascending=False)
+
+    return strength_df
 
 
 

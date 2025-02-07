@@ -70,6 +70,7 @@ g_rsi_period = 12
 g_willpct_period = 6
 g_adr_period = 10
 g_strength_lookback_period = 144
+g_strength_loc=2
 
 
 #--------------------------------------- GLOBAL INIT -----------------------------------#
