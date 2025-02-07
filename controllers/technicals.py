@@ -165,3 +165,32 @@ def get_position_size(tick_value, stop_points, MaxRiskPerTrade=g_max_risk_per_tr
     lot_size = (money_risk / (stop_points * tick_value))
 
     return round(lot_size, 2)
+
+
+def resample_to_timeframe(df, timeframe):
+    """
+    Resample lower timeframe data into a specified higher timeframe.
+
+    Parameters:
+    df (pd.DataFrame): Lower timeframe DataFrame with index as datetime and columns ['high', 'low', 'close', 'open'].
+    symbol_info: Object containing symbol-specific info (e.g., trade_tick_size).
+    timeframe (str): The target timeframe for resampling (e.g., 'D' for daily, 'W' for weekly).
+
+    Returns:
+    pd.DataFrame: Resampled DataFrame with columns ['Open', 'High', 'Low', 'Close'].
+    """
+    # Ensure the index is datetime
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError("The DataFrame index must be a DatetimeIndex.")
+
+    # Resample to the specified timeframe
+    resampled_data = df.resample(timeframe).agg({
+        'Open': 'first',  # Opening price in the timeframe
+        'High': 'max',  # Maximum price in the timeframe
+        'Low': 'min',  # Minimum price in the timeframe
+        'Close': 'last'  # Closing price in the timeframe
+    })
+
+    resampled_data.dropna(inplace=True)
+
+    return resampled_data
