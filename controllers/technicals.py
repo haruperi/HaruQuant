@@ -5,6 +5,7 @@ from config.settings import *
 import ta
 from telegram import Bot
 import time
+import numpy as np
 
 
 
@@ -477,4 +478,45 @@ def calculate_ma_trend_momentum_signals(df, fastMa=g_fast_ma, slowMA=g_slow_ma, 
                & (df['WPR'].shift(i + 1) < -80)
                & (df['WPR'].shift(i + 2) >= -80), 'signal'] = -1
 
+    return df
+
+
+
+
+
+
+def calculate_willpct_swing_lines(df, williamsR=g_willpct_period):
+    """
+    Identify extreme points based on the Williams %R indicator.
+
+    The function computes the Williams %R indicator for a given DataFrame
+    and uses its movement to detect direction changes swingline direction based on extreme points.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing 'high', 'low', and 'close' columns.
+        williamsR (int): The period for calculating the Williams %R indicator.
+
+    Returns:
+        pd.DataFrame: The input DataFrame with additional columns:
+                      - 'Williams %R': The calculated Williams %R values.
+                      - 'swingline': Indicates direction changes (1 for upward, -1 for downward).
+    """
+
+    # Calculate Williams %R
+    df = calculate_williams_percent(df, williamsR)
+    df['WPR'] = df['WPR'].shift(1)
+    df['prev_WPR'] = df['WPR'].shift(1)
+
+    # Calculate the Williams %R extremes and then the swingline direction
+    df['swingline'] = np.select(
+        [
+            (df['WPR'] > -20) & (df['prev_WPR'] < -20),  # Condition for 1
+            (df['WPR'] < -80) & (df['prev_WPR'] > -80)  # Condition for -1
+        ],
+        [1, -1],  # Values to assign (1 for the first condition, -1 for the second condition)
+        default=np.nan  # Set default to NaN to allow forward filling later
+    )
+
+    df['swingline'] = df[
+        'swingline'].ffill()  # Fill NaN values with the previous value (propagate values where conditions are not met)
     return df
