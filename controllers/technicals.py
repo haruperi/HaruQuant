@@ -84,3 +84,25 @@ def calculate_williams_percent(df, period=g_willpct_period):
     df["WPR"] = ta.momentum.williams_r(df.High, df.Low, df.Close, int(period))
 
     return df
+
+
+
+
+
+def calculate_atr(df, period=g_adr_period):
+    """
+    Calculate the Average True Range (ATR) indicator for a given DataFrame.
+
+    ATR is a measure of market volatility, considering the entire range of an asset's price movements (highs, lows, closes)
+    over a specified period.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing 'high', 'low', and 'close' columns.
+        period (int): The time period for calculating the Average True Range.
+
+    Returns:
+        pd.DataFrame: The input DataFrame with an additional column 'ATR' that contains the calculated values.
+    """
+    df['ATR'] = ta.volatility.AverageTrueRange(df.High, df.Low, df.Close, window=period,fillna=False).average_true_range()
+
+    return df
