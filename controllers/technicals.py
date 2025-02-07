@@ -143,3 +143,25 @@ def get_adr(df, symbol_info, period=g_adr_period):
     current_daily_range_percentage = round((current_daily_range / current_adr) * 100)
 
     return current_adr, current_daily_range_percentage
+
+
+
+
+
+def get_position_size(tick_value, stop_points, MaxRiskPerTrade=g_max_risk_per_trade, RiskBaseAmount=g_risk_base_amount):
+    """
+    Calculate the optimal position size (lot size) for a trade based on risk parameters.
+
+    Parameters:
+        stop_points (float): Number of points from the entry to the stop-loss level.
+        MaxRiskPerTrade (float): Maximum risk percentage of the account balance for one trade.
+        RiskBaseAmount (float): The base amount of capital to calculate the risk in dollars.
+        tick_value (float): The value of one tick or point movement in the currency of the account.
+
+    Returns:
+        float: The calculated lot size, rounded to two decimal places.
+    """
+    money_risk = RiskBaseAmount * (MaxRiskPerTrade / 100)
+    lot_size = (money_risk / (stop_points * tick_value))
+
+    return round(lot_size, 2)
