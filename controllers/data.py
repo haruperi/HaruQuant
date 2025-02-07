@@ -324,3 +324,51 @@ def merge_symbols(symbols, trading_timeframe, start_date, end_date):
     return data
 
 
+
+#------------------------------------------------------------------------------------------------------#
+
+
+def save_dictionary_to_file(data, filename):
+    with open(filename, 'wb') as file:
+        pickle.dump(data, file)
+
+def load_dictionary_from_file(filename):
+    with open(filename, 'rb') as file:
+        return pickle.load(file)
+
+
+def merge_full_symbols_data(symbols, trading_timeframe, start_date, end_date):
+    """
+    Merges historical market data for multiple symbols into unified aligned DataFrames.
+
+    This function fetches candlestick data for a list of symbols within the specified timeframe
+    and start/end dates, aligns their data to a unified index, and back-fills missing values.
+
+    Args:
+        symbols (list): A list of symbol names to fetch and merge (e.g., ["EURUSD", "GBPUSD"]).
+        trading_timeframe (str): The timeframe for the data (e.g., "M5", "H1").
+        start_date (str): The start date for fetching data ('YYYY-MM-DD' format).
+        end_date (str): The end date for fetching data ('YYYY-MM-DD' format).
+
+    Returns:
+        dict: A dictionary with symbols as keys and their aligned DataFrames as values,
+              saved to "merged_full_data.pkl" as a pickle file.
+    """
+    symbols_data = {}
+
+    for symbol in symbols:  # Fetch raw data for all symbols
+        symbols_data[symbol] = fetch_data(symbol, trading_timeframe, start_date, end_date)
+
+    # Create a union of all indices
+    all_indices = pd.concat([df.index.to_series() for df in symbols_data.values()]).drop_duplicates().sort_values()
+
+    # Reindex all dataframes to the combined index and back-fill missing data
+    aligned_data = {}
+    for symbol, df in symbols_data.items():
+        df = df.reindex(all_indices)  # Align to the union index
+        df = df.bfill()  # Back-fill missing values
+        aligned_data[symbol] = df
+
+    save_dictionary_to_file(aligned_data, "merged_full_data.pkl")
+
+    return aligned_data
