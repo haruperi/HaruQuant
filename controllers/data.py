@@ -4,6 +4,9 @@
 import json
 import os
 import MetaTrader5 as mt5
+from datetime import datetime
+import pandas as pd
+import pickle
 
 
 #----------------------------------------------------------------------------------------------#
@@ -135,5 +138,66 @@ def enable_all_symbols(symbols):
 
 
 #------------------------------------------------------------------------------------------------------#
+
+
+def set_query_timeframe(timeframe):
+    """
+    Maps a given timeframe string to its corresponding MetaTrader 5 timeframe constant 
+    and its duration in minutes.
+
+    Args:
+        timeframe (str): The string identifier for the timeframe (e.g., "M1", "H1", "D1").
+
+    Returns:
+        tuple: A tuple containing the MT5 constant for the timeframe and its duration in minutes.
+
+    Raises:
+        ValueError: If an invalid timeframe string is provided.
+    """
+    if timeframe == "M1":
+        return mt5.TIMEFRAME_M1, 1
+    elif timeframe == "M2":
+        return mt5.TIMEFRAME_M2, 2
+    elif timeframe == "M3":
+        return mt5.TIMEFRAME_M3, 3
+    elif timeframe == "M4":
+        return mt5.TIMEFRAME_M4, 4
+    elif timeframe == "M5":
+        return mt5.TIMEFRAME_M5, 5
+    elif timeframe == "M6":
+        return mt5.TIMEFRAME_M6, 6
+    elif timeframe == "M10":
+        return mt5.TIMEFRAME_M10, 10
+    elif timeframe == "M12":
+        return mt5.TIMEFRAME_M12, 12
+    elif timeframe == "M15":
+        return mt5.TIMEFRAME_M15, 15
+    elif timeframe == "M20":
+        return mt5.TIMEFRAME_M20, 20
+    elif timeframe == "M30":
+        return mt5.TIMEFRAME_M30, 30
+    elif timeframe == "H1":
+        return mt5.TIMEFRAME_H1, 60
+    elif timeframe == "H2":
+        return mt5.TIMEFRAME_H2, 120
+    elif timeframe == "H3":
+        return mt5.TIMEFRAME_H3, 180
+    elif timeframe == "H4":
+        return mt5.TIMEFRAME_H4, 240
+    elif timeframe == "H6":
+        return mt5.TIMEFRAME_H6, 360
+    elif timeframe == "H8":
+        return mt5.TIMEFRAME_H8, 480
+    elif timeframe == "H12":
+        return mt5.TIMEFRAME_H12, 720
+    elif timeframe == "D1":
+        return mt5.TIMEFRAME_D1, 1440
+    elif timeframe == "W1":
+        return mt5.TIMEFRAME_W1, 10080
+    elif timeframe == "MN1":
+        return mt5.TIMEFRAME_MN1, 43200
+    else:
+        print(f"Incorrect timeframe provided. {timeframe}")
+        raise ValueError
 
 
