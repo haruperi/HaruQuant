@@ -106,3 +106,40 @@ def calculate_atr(df, period=g_adr_period):
     df['ATR'] = ta.volatility.AverageTrueRange(df.High, df.Low, df.Close, window=period,fillna=False).average_true_range()
 
     return df
+
+
+
+
+########################################################################################################################
+#                                         Basic functions derived from basic indicators
+########################################################################################################################
+
+
+
+
+def get_adr(df, symbol_info, period=g_adr_period):
+    """
+    Calculate the Average Daily Range (ADR) and the current daily range percentage.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing columns ['High', 'Low', 'Close'].
+    period (int): The number of days over which to calculate the ADR.
+
+    Returns:
+    tuple: current ADR and current daily range percentage
+    """
+    # Calculate daily ranges
+    df['daily_range'] = (df['High'] - df['Low']) / symbol_info.trade_tick_size
+
+    # Calculate ADR
+    df['ADR'] = df['daily_range'].rolling(window=period).mean()
+
+    # Shift the ADR by one period to make today's ADR based on the previous value
+    df['ADR'] = df['ADR'].shift(1)
+
+    # Calculate the current daily range percentage
+    current_daily_range = df['daily_range'].iloc[-1]
+    current_adr = round(df['ADR'].iloc[-1])
+    current_daily_range_percentage = round((current_daily_range / current_adr) * 100)
+
+    return current_adr, current_daily_range_percentage
