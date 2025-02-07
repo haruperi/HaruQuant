@@ -61,3 +61,26 @@ def calculate_rsi(df, col=g_df_col, period=g_rsi_period):
     df[f"RSI"] = ta.momentum.RSIIndicator(df[col], int(period)).rsi()
 
     return df
+
+
+
+
+
+def calculate_williams_percent(df, period=g_willpct_period):
+    """
+    Calculate the Williams %R indicator for the given DataFrame.
+
+    The Williams %R indicator measures the level of the current close price
+    relative to the highest high and lowest low within a specified period.
+    It is a momentum indicator that oscillates between -100 and 0.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing 'high', 'low', and 'close' columns.
+        period (int): The time period to calculate Williams %R (e.g., 14).
+
+    Returns:
+        pd.DataFrame: The DataFrame with an additional column 'WPR' containing the Williams %R values.
+    """
+    df["WPR"] = ta.momentum.williams_r(df.High, df.Low, df.Close, int(period))
+
+    return df
