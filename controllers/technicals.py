@@ -242,3 +242,26 @@ def get_server_time(timeshift=0):
     adjusted_time = server_time + timedelta(hours=timeshift)
 
     return adjusted_time
+
+
+
+
+
+def get_next_bar_time(server_time, interval_mins=5):
+    """
+    Calculate the next bar's timestamp based on the provided server time and time interval.
+
+    This function adjusts the server time to the next valid bar opening time by rounding
+    it up to the nearest interval. It ensures the calculated time aligns with the interval period.
+
+    Parameters:
+        server_time (datetime): The current server time to base the calculation on.
+        interval_mins (int): The time interval in minutes (default is 5).
+
+    Returns:
+        datetime: The timestamp representing the next valid bar's start time.
+    """
+    next_bar_time = server_time.replace(second=0, microsecond=0) + timedelta(minutes=interval_mins)
+    next_bar_time = next_bar_time - timedelta(minutes=server_time.minute % interval_mins)
+
+    return next_bar_time
