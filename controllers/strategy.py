@@ -54,3 +54,24 @@ def ma_trend_willpct_strategy(symbol, df, fast_sma_period=g_fast_ma,
         return f"{curr_time} {symbol} Sell"
     else:
         return f"{curr_time} {symbol} Neutral"
+
+
+
+
+def market_structure_strategy(symbol, ltf_df, htf_df):
+    df = calculate_ltf_close_above_below_hft(ltf_df, htf_df)
+    df = calculate_swingline_alerts(df)
+
+    df = calculate_fractal_pivot_points(df)
+    df = calculate_market_structure_signals(df)
+
+    # Get current signal and time
+    signal = df["signal"].iloc[-1]
+    curr_time = df.index[-1]
+
+    if signal == 1:
+        return f"{curr_time} {symbol} Buy"
+    elif signal == -1:
+        return f"{curr_time} {symbol} Sell"
+    else:
+        return f"{curr_time} {symbol} Neutral"
