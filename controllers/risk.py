@@ -28,6 +28,19 @@ class PortfolioRiskMan:
         return self.positions
 
 
+    def add_position(self, symbol, lot_size):
+        # Method to add a position to the portfolio
+        if symbol in self.positions:
+            self.positions[symbol] += lot_size
+            if self.positions[symbol] == 0:
+                self.remove_position(symbol)
+        else:
+            self.positions[symbol] = lot_size
+
+    def remove_position(self, symbol):
+        # Method to remove a position from the portfolio
+        if symbol in self.positions:
+            del self.positions[symbol]
 
 
 
