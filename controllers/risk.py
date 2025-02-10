@@ -193,6 +193,61 @@ class PortfolioRiskMan:
         # Calculate the Value at Risk (VaR)
         self.calculate_var(confidence_level=g_confidence_level)
 
+        return self.portfolio_var
+
+    def optimize_portfolio(self):
+        """
+        Optimize the portfolio by adjusting weights to minimize risk (standard deviation).
+        """
+        symbols = list(self.positions.keys())
+        num_assets = len(symbols)
+
+        cov_matrix = np.zeros((num_assets, num_assets))
+        for i, sym1 in enumerate(symbols):
+            for j, sym2 in enumerate(symbols):
+                if i == j:
+                    cov_matrix[i, j] = self.std_dev_returns[sym1] ** 2
+                else:
+                    cov_matrix[i, j] = self.std_dev_returns[sym1] * self.std_dev_returns[sym2] * \
+                                       self.correlation_objects[sym1][sym2]
+
+        init_weights = np.array([1 / num_assets] * num_assets)
+
+        constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+
+        bounds = tuple((0, 1) for _ in range(num_assets))
+
+        def portfolio_std(weights):
+            return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+        optimized = minimize(portfolio_std, init_weights, method='SLSQP', bounds=bounds, constraints=constraints)
+
+        if optimized.success:
+            optimized_weights = optimized.x
+            self.position_weights = {symbols[i]: optimized_weights[i] for i in range(num_assets)}
+        else:
+            print("Optimization failed:", optimized.message)
+
+        return self.position_weights
+
+    def get_optimized_lot_sizes(self):
+        """
+        Calculate the optimized lot sizes based on the optimized weights.
+        """
+        optimized_weights = self.optimize_portfolio()
+        optimized_lot_sizes = {}
+
+        for symbol, weight in optimized_weights.items():
+            if self.positions[symbol] == 0:
+                nominal_value_per_unit_per_lot = self.nominal_values[symbol]
+            else:
+                nominal_value_per_unit_per_lot = self.nominal_values[symbol] / abs(self.positions[symbol])
+            optimized_nominal_value = weight * self.portfolio_nominal_value
+            optimized_lot_size = optimized_nominal_value / nominal_value_per_unit_per_lot
+            optimized_lot_sizes[symbol] = round(optimized_lot_size, 2) * (1 if self.positions[symbol] > 0 else -1)
+
+        return optimized_lot_sizes
+
 
 
 
