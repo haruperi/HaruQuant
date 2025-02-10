@@ -23,6 +23,20 @@ class PortfolioRiskMan:
         self.correlation_objects = {}
         self.portfolio_var = 0
 
+
+    def get_data(self, symbols):
+        """
+        Fetches historical data from MetaTrader 5 for given symbols within a specified date range and timeframe.
+        """
+        all_data = {}
+        for symbol in symbols:
+            df = fetch_data(symbol, "D1", start_pos=0, end_pos=60)
+            if df is not None:
+                all_data[symbol] = df
+        self.data = all_data
+        return self.data
+
+
     def get_positions(self):
         # Method to return current positions
         return self.positions
@@ -41,6 +55,12 @@ class PortfolioRiskMan:
         # Method to remove a position from the portfolio
         if symbol in self.positions:
             del self.positions[symbol]
+
+
+    def run(self):
+        # Get Data from MT5
+        symbols = list(self.get_positions().keys())
+        self.get_data(symbols)
 
 
 
