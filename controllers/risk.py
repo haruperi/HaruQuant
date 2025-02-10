@@ -37,6 +37,13 @@ class PortfolioRiskMan:
         return self.data
 
 
+    def calculate_returns(self):
+        # Method to calculate returns from the fetched data
+        for symbol, df in self.data.items():
+            df['log_returns'] = np.log(df['Close'] / df['Close'].shift(1))
+        return self.data
+
+
     def get_positions(self):
         # Method to return current positions
         return self.positions
@@ -61,6 +68,10 @@ class PortfolioRiskMan:
         # Get Data from MT5
         symbols = list(self.get_positions().keys())
         self.get_data(symbols)
+
+        # Calculate returns for all positions
+        self.calculate_returns()
+
 
 
 
