@@ -1,7 +1,6 @@
 ########################################################################################################################
 #                                        Risk Management Class (Portfolio)
 ########################################################################################################################
-from .data import *
 from .technicals import *
 from scipy.optimize import minimize
 
@@ -15,6 +14,7 @@ class PortfolioRiskMan:
         self.end_date = end_date
         self.positions = {}
         self.data = {}
+        self.correlations = None
         self.nominal_values = {}
         self.portfolio_std_dev = 0.0
         self.portfolio_nominal_value = 0.0
