@@ -2,6 +2,8 @@
 #                                        Risk Management Class (Portfolio)
 ########################################################################################################################
 from .data import *
+from .technicals import *
+from scipy.optimize import minimize
 
 
 class PortfolioRiskMan:
@@ -20,4 +22,10 @@ class PortfolioRiskMan:
         self.std_dev_returns = {}
         self.correlation_objects = {}
         self.portfolio_var = 0
+
+
+
+
+
+
 
