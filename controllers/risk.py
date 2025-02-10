@@ -44,6 +44,16 @@ class PortfolioRiskMan:
         return self.data
 
 
+    def calculate_volatility(self, volatility_period):
+        # Method to calculate volatility from the returns data
+        for symbol, df in self.data.items():
+            if 'log_returns' not in df.columns:
+                raise ValueError(f"Log returns have not been calculated for {symbol}")
+            df['volatility'] = df['log_returns'].shift(1).rolling(window=volatility_period).std()
+            self.std_dev_returns[symbol] = df['volatility'].iloc[-2]  # Populate std_dev_returns
+        return self.data
+
+
     def get_positions(self):
         # Method to return current positions
         return self.positions
@@ -64,13 +74,18 @@ class PortfolioRiskMan:
             del self.positions[symbol]
 
 
-    def run(self):
+    def run(self, volatility_period=g_volatility_period, correlation_period=g_correlation_period):
         # Get Data from MT5
         symbols = list(self.get_positions().keys())
         self.get_data(symbols)
 
         # Calculate returns for all positions
         self.calculate_returns()
+
+        # Calculate volatility for all positions with specified volatility period
+        self.calculate_volatility(volatility_period)
+
+
 
 
 
