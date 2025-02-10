@@ -137,6 +137,15 @@ class PortfolioRiskMan:
         return self.portfolio_std_dev
 
 
+    def calculate_var(self, confidence_level):
+        """
+        Calculate Value at Risk (VaR) using portfolio standard deviation and specified confidence level.
+        """
+        z_score = np.abs(np.percentile(np.random.normal(0, 1, 100000), (1 - confidence_level) * 100))
+        self.portfolio_var = self.portfolio_std_dev * z_score * self.portfolio_nominal_value
+        return self.portfolio_var
+
+
 
     def get_positions(self):
         # Method to return current positions
@@ -180,6 +189,9 @@ class PortfolioRiskMan:
 
         # Calculate the portfolio standard deviation
         self.calculate_portfolio_std_dev()
+
+        # Calculate the Value at Risk (VaR)
+        self.calculate_var(confidence_level=g_confidence_level)
 
 
 
