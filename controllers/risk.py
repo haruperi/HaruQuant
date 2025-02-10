@@ -23,6 +23,10 @@ class PortfolioRiskMan:
         self.correlation_objects = {}
         self.portfolio_var = 0
 
+    def get_positions(self):
+        # Method to return current positions
+        return self.positions
+
 
 
 
