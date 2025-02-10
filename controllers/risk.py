@@ -81,6 +81,27 @@ class PortfolioRiskMan:
         """
         return self.correlation_objects[pair1][pair2]
 
+    def calculate_portfolio_nominal_value(self):
+        """
+        Calculate the nominal value of each pair and the total portfolio nominal value.
+        """
+        self.nominal_values = {}
+        self.portfolio_nominal_value = 0.0
+
+        for symbol, lot_size in self.positions.items():
+            symbol_info = mt5.symbol_info(symbol)
+            if symbol_info is None:
+                print(f"Failed to get symbol info for {symbol}")
+                continue
+
+            nominal_value_per_unit_per_lot = symbol_info.trade_tick_value / symbol_info.trade_tick_size
+            current_price = mt5.symbol_info_tick(symbol).bid
+            nominal_value = lot_size * nominal_value_per_unit_per_lot * current_price
+            self.nominal_values[symbol] = nominal_value
+            self.portfolio_nominal_value += abs(nominal_value)
+
+        return self.nominal_values, self.portfolio_nominal_value
+
 
     def get_positions(self):
         # Method to return current positions
@@ -115,6 +136,9 @@ class PortfolioRiskMan:
 
         # Calculate rolling correlations for all positions with specified correlation period
         self.calculate_correlations(correlation_period)
+
+        # Calculate nominal values for each pair and the combined portfolio value
+        self.calculate_portfolio_nominal_value()
 
 
 
