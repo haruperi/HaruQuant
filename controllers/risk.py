@@ -53,6 +53,34 @@ class PortfolioRiskMan:
             self.std_dev_returns[symbol] = df['volatility'].iloc[-2]  # Populate std_dev_returns
         return self.data
 
+    def calculate_correlations(self, correlation_period=20):
+        # Method to calculate rolling correlation matrix based on the last N days
+        combined_returns = pd.DataFrame({symbol: df['log_returns'] for symbol, df in self.data.items()})
+        rolling_correlations = combined_returns.rolling(window=correlation_period).corr()
+        self.correlations = rolling_correlations
+
+        # Populate correlation_objects
+        symbols = list(self.positions.keys())
+        for i, pair1 in enumerate(symbols):
+            for j, pair2 in enumerate(symbols):
+                if i < j:
+                    correlation = rolling_correlations.loc[combined_returns.index[-2], pair1][pair2]
+                    self.correlation_objects.setdefault(pair1, {})[pair2] = correlation
+                    self.correlation_objects.setdefault(pair2, {})[pair1] = correlation
+        return self.correlations
+
+    def get_correlations(self, date = None):
+        """
+        Get the correlation matrix for all pairs.
+        """
+        return self.correlations.loc[date] if date else self.correlations.iloc[-2]
+
+    def get_pair_correlation(self, pair1: str, pair2: str) -> float:
+        """
+        Get the correlation between two pairs.
+        """
+        return self.correlation_objects[pair1][pair2]
+
 
     def get_positions(self):
         # Method to return current positions
@@ -85,7 +113,8 @@ class PortfolioRiskMan:
         # Calculate volatility for all positions with specified volatility period
         self.calculate_volatility(volatility_period)
 
-
+        # Calculate rolling correlations for all positions with specified correlation period
+        self.calculate_correlations(correlation_period)
 
 
 
