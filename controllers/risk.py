@@ -102,6 +102,18 @@ class PortfolioRiskMan:
 
         return self.nominal_values, self.portfolio_nominal_value
 
+    def calculate_weights(self):
+        """
+        Calculate the weight of each position in the portfolio.
+        """
+        if self.portfolio_nominal_value == 0:
+            print("Portfolio nominal value is zero. Cannot calculate weights.")
+            return self.position_weights
+
+        self.position_weights = {symbol: nominal_value / self.portfolio_nominal_value
+                                 for symbol, nominal_value in self.nominal_values.items()}
+        return self.position_weights
+
 
     def get_positions(self):
         # Method to return current positions
@@ -139,6 +151,9 @@ class PortfolioRiskMan:
 
         # Calculate nominal values for each pair and the combined portfolio value
         self.calculate_portfolio_nominal_value()
+
+        # Calculate weights for each position
+        self.calculate_weights()
 
 
 
