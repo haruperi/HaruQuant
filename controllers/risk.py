@@ -115,6 +115,29 @@ class PortfolioRiskMan:
         return self.position_weights
 
 
+    def calculate_portfolio_std_dev(self):
+        """
+        Calculate portfolio standard deviation.
+        """
+        position_weights = np.array(list(self.position_weights.values()))
+        std_dev_returns = np.array(list(self.std_dev_returns.values()))
+        symbols = list(self.positions.keys())
+
+        cov_matrix = np.zeros((len(symbols), len(symbols)))
+        for i, sym1 in enumerate(symbols):
+            for j, sym2 in enumerate(symbols):
+                if i == j:
+                    cov_matrix[i, j] = std_dev_returns[i] ** 2
+                else:
+                    cov_matrix[i, j] = std_dev_returns[i] * std_dev_returns[j] * self.correlation_objects[sym1][sym2]
+
+        portfolio_variance = position_weights @ cov_matrix @ position_weights.T
+        portfolio_variance = max(portfolio_variance, 0)  # Ensure non-negative variance
+        self.portfolio_std_dev = np.sqrt(portfolio_variance)
+        return self.portfolio_std_dev
+
+
+
     def get_positions(self):
         # Method to return current positions
         return self.positions
@@ -154,6 +177,9 @@ class PortfolioRiskMan:
 
         # Calculate weights for each position
         self.calculate_weights()
+
+        # Calculate the portfolio standard deviation
+        self.calculate_portfolio_std_dev()
 
 
 
