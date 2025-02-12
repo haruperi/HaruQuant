@@ -30,6 +30,7 @@ def ma_trend_willpct_strategy(symbol, df, fast_sma_period=g_fast_ma,
                               slow_sma_period=g_slow_ma, williamsR_period=g_willpct_period):
     """
     Implements a trading strategy based on moving average trends and Williams %R oscillator.
+    Filters the DataFrame to include only rows where the "isPivot" column is not NaN.
 
     Args:
         symbol (str): The trading symbol to analyze.
@@ -77,7 +78,6 @@ def market_structure_strategy(symbol, ltf_df, htf_df):
         return f"{curr_time} {symbol} Neutral"
 
 
-
 def williams_percent_momentum_strategy(symbol, df):
     df = calculate_willpct_swing_lines(df)
     df = calculate_swingline_alerts(df)
@@ -86,9 +86,30 @@ def williams_percent_momentum_strategy(symbol, df):
     signal = df["signal"].iloc[-1]
     curr_time = df.index[-1]
 
-    if signal == 1:
-        return f"{curr_time} {symbol} Buy"
-    elif signal == -1:
-        return f"{curr_time} {symbol} Sell"
-    else:
+    if signal == 0:
         return f"{curr_time} {symbol} Neutral"
+    
+
+    # df = calculate_fractal_pivot_points(df)
+    # df = df[df["isPivot"].notna()]  # Filter rows where "isPivot" column is not NaN
+    #
+    # highs = df[df['isPivot'] == 1].High.tail(2).values
+    # lows = df[df['isPivot'] == -1].Low.tail(2).values
+    #
+    # valid = highs[1] < highs[0] and lows[1] > lows[0]
+    #
+    # # return df
+    #
+    # if signal == 1 and valid:
+    #     return f"{curr_time} {symbol} Buy"
+    # elif signal == -1 and valid:
+    #     return f"{curr_time} {symbol} Sell"
+    # else:
+    #     return f"{curr_time} {symbol} Neutral"
+
+    if signal == 1:
+        return f"{symbol} Buy"
+    elif signal == -1:
+        return f"{symbol} Sell"
+    else:
+        return f"{symbol} Neutral"

@@ -47,7 +47,7 @@ g_test_symbol = "EURUSD"        # Random symbol for testing purposes
 
 g_stop_adr_ratio = 3            # Stop loss ratio level using ADR
 g_max_risk_per_trade = 5
-g_risk_base_amount = 276        # Manual fix to balance I want to calculate risk from
+g_risk_base_amount = 83000        # Manual fix to balance I want to calculate risk from
 
 
 #--------------------------------------- Risk management variables -----------------------------------#

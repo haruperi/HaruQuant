@@ -120,7 +120,7 @@ def calculate_atr(df, period=g_adr_period):
 
 
 
-def get_adr(df, symbol_info, period=g_adr_period):
+def get_adr(df, symbol_tick, period=g_adr_period):
     """
     Calculate the Average Daily Range (ADR) and the current daily range percentage.
 
@@ -132,7 +132,7 @@ def get_adr(df, symbol_info, period=g_adr_period):
     tuple: current ADR and current daily range percentage
     """
     # Calculate daily ranges
-    df['daily_range'] = (df['High'] - df['Low']) / symbol_info.trade_tick_size
+    df['daily_range'] = (df['High'] - df['Low']) / symbol_tick
 
     # Calculate ADR
     df['ADR'] = df['daily_range'].rolling(window=period).mean()
@@ -323,6 +323,7 @@ def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_tim
     data = pd.DataFrame()
     for symbol in symbols:
         df = fetch_data(symbol, timeframe, start_pos=0, end_pos=strength_lookback)
+        #df = fetch_data(symbol, timeframe, start_pos=140, end_pos=265)
         df = calculate_rsi(df, g_df_col, strength_rsi)
         data[symbol] = df['RSI']
 
@@ -563,8 +564,8 @@ def calculate_ltf_close_above_below_hft(ltf_df, htf_df):
     # Calculate the significant close and then the swingline direction
     df['swingline'] = np.select(
         [
-            (df['Close'] > df['prev_High_HTF']) & (df['Close'] > df['open']),  # Condition for 1
-            (df['Close'] < df['prev_Low_HTF']) & (df['Close'] < df['open'])  # Condition for -1
+            (df['Close'] > df['prev_High_HTF']) & (df['Close'] > df['Open']),  # Condition for 1
+            (df['Close'] < df['prev_Low_HTF']) & (df['Close'] < df['Open'])  # Condition for -1
         ],
         [1, -1],  # Values to assign (1 for the first condition, -1 for the second condition)
         default=np.nan  # Set default to NaN to allow forward filling later
@@ -706,3 +707,5 @@ def calculate_market_structure_signals(df):
         prev_swingline = current_swingline
 
     return df
+
+
