@@ -92,7 +92,7 @@ def calculate_williams_percent(df, period=g_willpct_period):
 
 
 
-def calculate_atr(df, period=g_adr_period):
+def calculate_atr(df, atr_period=12):
     """
     Calculate the Average True Range (ATR) indicator for a given DataFrame.
 
@@ -106,7 +106,21 @@ def calculate_atr(df, period=g_adr_period):
     Returns:
         pd.DataFrame: The input DataFrame with an additional column 'ATR' that contains the calculated values.
     """
-    df['ATR'] = ta.volatility.AverageTrueRange(df.High, df.Low, df.Close, window=period,fillna=False).average_true_range()
+    #df['ATR'] = ta.volatility.AverageTrueRange(df.High, df.Low, df.Close, window=period,fillna=False).average_true_range()
+
+    # Calculate the ATR if it isn't already in the dataframe.
+    # Compute previous close:
+    df['prev_close'] = df['Close'].shift(1)
+    # Calculate the three measures of true range:
+    df['tr1'] = df['High'] - df['Low']
+    df['tr2'] = (df['High'] - df['prev_close']).abs()
+    df['tr3'] = (df['Low'] - df['prev_close']).abs()
+    # True Range is the maximum of the three:
+    df['true_range'] = df[['tr1', 'tr2', 'tr3']].max(axis=1)
+    # ATR: using a simple rolling average
+    df['ATR'] = df['true_range'].rolling(window=atr_period, min_periods=1).mean()
+    # Drop intermediate columns
+    df.drop(['prev_close', 'tr1', 'tr2', 'tr3', 'true_range'], axis=1, inplace=True)
 
     return df
 
@@ -120,7 +134,7 @@ def calculate_atr(df, period=g_adr_period):
 
 
 
-def get_adr(df, symbol_tick, period=g_adr_period):
+def get_adr(df, symbol_info, period=g_adr_period):
     """
     Calculate the Average Daily Range (ADR) and the current daily range percentage.
 
@@ -132,7 +146,7 @@ def get_adr(df, symbol_tick, period=g_adr_period):
     tuple: current ADR and current daily range percentage
     """
     # Calculate daily ranges
-    df['daily_range'] = (df['High'] - df['Low']) / symbol_tick
+    df['daily_range'] = (df['High'] - df['Low']) / symbol_info.trade_tick_size / 10
 
     # Calculate ADR
     df['ADR'] = df['daily_range'].rolling(window=period).mean()
@@ -140,12 +154,17 @@ def get_adr(df, symbol_tick, period=g_adr_period):
     # Shift the ADR by one period to make today's ADR based on the previous value
     df['ADR'] = df['ADR'].shift(1)
 
+    # Stop Loss Level
+    df['SL'] = round(df['ADR'] / g_stop_adr_ratio)
+
     # Calculate the current daily range percentage
     current_daily_range = df['daily_range'].iloc[-1]
     current_adr = round(df['ADR'].iloc[-1])
+    current_sl = df['SL'].iloc[-1]
     current_daily_range_percentage = round((current_daily_range / current_adr) * 100)
 
-    return current_adr, current_daily_range_percentage
+    #return df
+    return current_adr, current_daily_range_percentage, current_sl
 
 
 
@@ -302,7 +321,7 @@ def countdown_to_next_bar(interval_min=g_interval_minutes, timeShift=g_time_shif
 
 
 
-def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_timeframe, strength_lookback=g_strength_lookback_period, strength_rsi=g_rsi_period, strength_loc=g_strength_loc):
+def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_timeframe, strength_lookback=g_strength_lookback_period, strength_rsi=g_rsi_period):
     """
     Calculate currency strength based on RSI values for a set of currency pairs.
 
@@ -323,6 +342,7 @@ def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_tim
     data = pd.DataFrame()
     for symbol in symbols:
         df = fetch_data(symbol, timeframe, start_pos=0, end_pos=strength_lookback)
+        #df = fetch_data(symbol, timeframe, start_date="2023-12-01", end_date="2025-01-01")
         #df = fetch_data(symbol, timeframe, start_pos=140, end_pos=265)
         df = calculate_rsi(df, g_df_col, strength_rsi)
         data[symbol] = df['RSI']
@@ -346,7 +366,10 @@ def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_tim
     strength["NZD"] = 1 / 7 * (
                 (100 - data.EURNZD) + (100 - data.GBPNZD) + data.NZDJPY + data.NZDUSD + data.NZDCAD + data.NZDCHF + (
                     100 - data.AUDNZD))
-    strength_df = strength.iloc[-strength_loc].apply(lambda x: x - 50).round(2).sort_values(ascending=False)
+
+    strength_df = strength.shift(1)  # Shift all columns by one row
+    strength_df = strength_df.iloc[-1].apply(lambda x: x - 50).round(2).sort_values(ascending=False)
+    #strength_df = strength_df.map(lambda x: round(x - 50, 2))  # Adjusting strength around 50 for neutrality
 
     return strength_df
 
@@ -522,6 +545,49 @@ def calculate_willpct_swing_lines(df, williamsR=g_willpct_period):
         'swingline'].ffill()  # Fill NaN values with the previous value (propagate values where conditions are not met)
     return df
 
+
+
+
+
+def calculate_breakout_candles_swing_lines(df, lookback=2):
+    """
+    Calculate breakout trend for a given DataFrame.
+
+    Parameters:
+    - data: DataFrame containing Open, High, Low, Close prices.
+    - lookback: Number of past candles to check for breakouts.
+
+    Returns:
+    - DataFrame with an additional 'trend' column indicating breakout conditions.
+    """
+
+    def is_higher_than_previous(highs, current_close):
+        return all(current_close > h for h in highs)
+
+    def is_lower_than_previous(lows, current_close):
+        return all(current_close < l for l in lows)
+
+    trends = []
+    for i in range(len(df)):
+        if i < lookback:
+            trends.append(0)  # Default trend for early bars
+            continue
+
+        close_price = df.iloc[i]['Close']
+        highs = df['High'].iloc[i - lookback:i].values
+        lows = df['Low'].iloc[i - lookback:i].values
+
+        if is_higher_than_previous(highs, close_price):
+            trends.append(1)
+        elif is_lower_than_previous(lows, close_price):
+            trends.append(-1)
+        else:
+            trends.append(np.nan)
+
+    df['swingline'] = trends
+    df['swingline'] = df['swingline'].ffill()
+
+    return df
 
 
 
@@ -702,6 +768,63 @@ def calculate_market_structure_signals(df):
                     lower_lows = swing_lows[-1] < swing_lows[-2]
                     above_low = df['Close'][index] > swing_lows[-1]
                     if lower_highs and lower_lows and above_low:
+                        df.at[index, 'signal'] = -1
+
+        prev_swingline = current_swingline
+
+    return df
+
+
+def calculate_doubles_signals(df):
+    """
+    Identifies trading signals based on consecutive higher lows (double bottoms) and lower highs (double tops).
+
+    This function calculates buy and sell signals by checking consecutive higher lows for buy signals 
+    and consecutive lower highs for sell signals in the provided DataFrame. It determines trading opportunities 
+    based on the relation between the 'Close' price, swingline direction, and significant pivot levels.
+
+    Parameters:
+        df (pd.DataFrame): The input DataFrame containing columns for 'swingline', 'isPivot', 'High', 'Low', and 'Close'.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with an additional 'signal' column where:
+                      - 1 indicates a buy signal,
+                      - -1 indicates a sell signal,
+                      - 0 indicates no signal.
+    """
+    # Initialize the signal column to 0
+    df['signal'] = 0
+
+    swing_highs = []
+    swing_lows = []
+    prev_swingline = None
+
+    for index, row in df.iterrows():
+        current_swingline = row['swingline']
+        is_pivot = row['isPivot']
+
+        # Update pivot lists
+        if is_pivot == 1:
+            swing_highs.append(row['High'])
+        elif is_pivot == -1:
+            swing_lows.append(row['Low'])
+
+        # Check for swingline change
+        if prev_swingline is not None:
+            # Buy signal condition (swingline -1 -> 1)
+            if prev_swingline == -1 and current_swingline == 1:
+                if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+                    higher_lows = swing_lows[-1] > swing_lows[-2]
+                    below_high = df['Close'][index] < swing_highs[-1]
+                    if higher_lows and below_high:
+                        df.at[index, 'signal'] = 1
+
+            # Sell signal condition (swingline 1 -> -1)
+            elif prev_swingline == 1 and current_swingline == -1:
+                if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+                    lower_highs = swing_highs[-1] < swing_highs[-2]
+                    above_low = df['Close'][index] > swing_lows[-1]
+                    if lower_highs and above_low:
                         df.at[index, 'signal'] = -1
 
         prev_swingline = current_swingline
