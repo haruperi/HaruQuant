@@ -170,25 +170,6 @@ def get_adr(df, symbol_info, period=g_adr_period):
 
 
 
-def get_position_size(tick_value, stop_points, MaxRiskPerTrade=g_max_risk_per_trade, RiskBaseAmount=g_risk_base_amount):
-    """
-    Calculate the optimal position size (lot size) for a trade based on risk parameters.
-
-    Parameters:
-        stop_points (float): Number of points from the entry to the stop-loss level.
-        MaxRiskPerTrade (float): Maximum risk percentage of the account balance for one trade.
-        RiskBaseAmount (float): The base amount of capital to calculate the risk in dollars.
-        tick_value (float): The value of one tick or point movement in the currency of the account.
-
-    Returns:
-        float: The calculated lot size, rounded to two decimal places.
-    """
-    money_risk = RiskBaseAmount * (MaxRiskPerTrade / 100)
-    lot_size = (money_risk / (stop_points * tick_value))
-
-    return round(lot_size, 2)
-
-
 def resample_to_timeframe(df, timeframe):
     """
     Resample lower timeframe data into a specified higher timeframe.
@@ -315,7 +296,7 @@ def countdown_to_next_bar(interval_min=g_interval_minutes, timeShift=g_time_shif
         time.sleep(1)
 
     # Perform the task at the opening of the new bar
-    return f"\nNew bar opened at {next_bar_time}. Running the task..."
+    return f"\n\n\nNew bar opened at {next_bar_time}. Running the task..."
 
 
 
@@ -342,7 +323,7 @@ def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_tim
     data = pd.DataFrame()
     for symbol in symbols:
         df = fetch_data(symbol, timeframe, start_pos=0, end_pos=strength_lookback)
-        #df = fetch_data(symbol, timeframe, start_date="2023-12-01", end_date="2025-01-01")
+        #df = fetch_data(symbol, timeframe, start_date="2025-02-01", end_date="2025-02-19")
         #df = fetch_data(symbol, timeframe, start_pos=140, end_pos=265)
         df = calculate_rsi(df, g_df_col, strength_rsi)
         data[symbol] = df['RSI']
@@ -528,7 +509,7 @@ def calculate_willpct_swing_lines(df, williamsR=g_willpct_period):
 
     # Calculate Williams %R
     df = calculate_williams_percent(df, williamsR)
-    df['WPR'] = df['WPR'].shift(1)
+    #df['WPR'] = df['WPR'].shift(1)
     df['prev_WPR'] = df['WPR'].shift(1)
 
     # Calculate the Williams %R extremes and then the swingline direction
@@ -573,9 +554,9 @@ def calculate_breakout_candles_swing_lines(df, lookback=2):
             trends.append(0)  # Default trend for early bars
             continue
 
-        close_price = df.iloc[i]['Close']
-        highs = df['High'].iloc[i - lookback:i].values
-        lows = df['Low'].iloc[i - lookback:i].values
+        close_price = df.iloc[i-1]['Close']
+        highs = df['High'].iloc[i-1 - lookback:i-1].values
+        lows = df['Low'].iloc[i-1 - lookback:i-1].values
 
         if is_higher_than_previous(highs, close_price):
             trends.append(1)
@@ -775,60 +756,114 @@ def calculate_market_structure_signals(df):
     return df
 
 
-def calculate_doubles_signals(df):
-    """
-    Identifies trading signals based on consecutive higher lows (double bottoms) and lower highs (double tops).
 
-    This function calculates buy and sell signals by checking consecutive higher lows for buy signals 
-    and consecutive lower highs for sell signals in the provided DataFrame. It determines trading opportunities 
-    based on the relation between the 'Close' price, swingline direction, and significant pivot levels.
+def calculate_doubles_signals(df, atr_tolerance=1, loc_atr_period=12):
+    """
+    Generates double top (position -1) or double bottom (position 1) positions based on pivot data,
+    using the Average True Range (ATR) as the atr_tolerance measure.
+
+    A double top (sell position, -1) is detected when:
+      - Two consecutive pivot highs occur whose difference is within atr_tolerance * ATR,
+      - There is at least one pivot low between the two pivot highs.
+
+    A double bottom (buy position, 1) is detected when:
+      - Two consecutive pivot lows occur whose difference is within atr_tolerance * ATR,
+      - There is at least one pivot high between the two pivot lows.
+
+    The ATR is computed using a simple rolling average over `loc_atr_period` periods.
+    For example, if atr_tolerance=1, the pivot values must be within 1 ATR of each other.
 
     Parameters:
-        df (pd.DataFrame): The input DataFrame containing columns for 'swingline', 'isPivot', 'High', 'Low', and 'Close'.
+        df (pd.DataFrame): DataFrame containing columns for 'swingline', 'isPivot',
+                           'High', 'Low', and 'Close'.
+        atr_tolerance (float): Multiplier for the ATR to define the allowed difference
+                           between pivots (default is 1).
+        loc_atr_period (int): Period for computing the ATR (default is 14).
 
     Returns:
-        pd.DataFrame: Updated DataFrame with an additional 'signal' column where:
-                      - 1 indicates a buy signal,
-                      - -1 indicates a sell signal,
-                      - 0 indicates no signal.
+        pd.DataFrame: Updated DataFrame with an additional 'position' column containing:
+                      - A position of -1 when a double top is detected.
+                      - A position of 1 when a double bottom is detected.
+                      - 0 otherwise.
     """
-    # Initialize the signal column to 0
-    df['signal'] = 0
+    # Work on a copy of the dataframe to avoid modifying the original data
+    df = df.copy()
 
-    swing_highs = []
-    swing_lows = []
-    prev_swingline = None
+    # Calculate the ATR if it isn't already in the dataframe.
+    df = calculate_atr(df, loc_atr_period)
 
+    # Initialize the position column to 0
+    df['position'] = 0
+    #print(df[df["signal"] != 0])
+    #print(df[df["isPivot"].notna()])
+
+
+
+
+    # # Iterate over DataFrame rows
     for index, row in df.iterrows():
-        current_swingline = row['swingline']
-        is_pivot = row['isPivot']
+        if row['signal'] != 0:
+            localdf = df.loc[:index]  # Get the DataFrame from the first row to the current row
+            highs = localdf[localdf['isPivot'] == 1].High.tail(3).values
+            idxhighs = localdf[localdf['isPivot'] == 1].index[-3:]
+            lows = localdf[localdf['isPivot'] == -1].Low.tail(3).values
+            idxlows = localdf[localdf['isPivot'] == -1].index[-3:]
 
-        # Update pivot lists
-        if is_pivot == 1:
-            swing_highs.append(row['High'])
-        elif is_pivot == -1:
-            swing_lows.append(row['Low'])
+            if len(highs) > 2 and len(lows) > 2:
+                order_condition = (idxlows[0] < idxhighs[0]
+                                   < idxlows[1] < idxhighs[1]
+                                   < idxlows[2] < idxhighs[2])
 
-        # Check for swingline change
-        if prev_swingline is not None:
-            # Buy signal condition (swingline -1 -> 1)
-            if prev_swingline == -1 and current_swingline == 1:
-                if len(swing_highs) >= 2 and len(swing_lows) >= 2:
-                    higher_lows = swing_lows[-1] > swing_lows[-2]
-                    below_high = df['Close'][index] < swing_highs[-1]
-                    if higher_lows and below_high:
-                        df.at[index, 'signal'] = 1
+                double_bottom = (highs[0] > lows[1] and
+                             lows[1] < highs[0] and
+                             highs[0] > highs[1] > lows[2] > lows[1] and
+                             highs[1] > highs[2] > lows[2]
+                             )
+                double_top = (lows[0] < highs[1] and
+                                   lows[0] < lows[1] < highs[1] and
+                                   highs[1] > highs[2] > lows[1] and
+                                   highs[2] > lows[2] > lows[1]
+                                   )
 
-            # Sell signal condition (swingline 1 -> -1)
-            elif prev_swingline == 1 and current_swingline == -1:
-                if len(swing_highs) >= 2 and len(swing_lows) >= 2:
-                    lower_highs = swing_highs[-1] < swing_highs[-2]
-                    above_low = df['Close'][index] > swing_lows[-1]
-                    if lower_highs and above_low:
-                        df.at[index, 'signal'] = -1
+                if order_condition and double_bottom:
+                    df.at[index, 'position'] = 1  # Double bottom (buy position)
 
-        prev_swingline = current_swingline
+                if order_condition and double_top:
+                    df.at[index, 'position'] = -1  # Double top (sell position)
+
+
+    #         if row['isPivot'] == 1:  # This row is a pivot high
+    #             current_high = row['High']
+    #             # Check for a previous pivot high with a pivot low in between
+    #             if (last_pivot_high is not None and
+    #                 last_pivot_low_index is not None and
+    #                 last_pivot_low_index > last_pivot_high_index):
+    #                 # Use the current ATR value for tolerance
+    #                 atr_value = row['ATR']
+    #                 # If the difference between pivot highs is within tolerance * ATR,
+    #                 # then a double top is detected.
+    #                 if abs(current_high - last_pivot_high) <= atr_tolerance * atr_value:
+    #                     df.at[index, 'position'] = -1  # Double top (sell position)
+    #             # Update the last pivot high information with the current pivot high.
+    #             last_pivot_high = current_high
+    #             last_pivot_high_index = index
+    #
+    #         elif row['isPivot'] == -1:  # This row is a pivot low
+    #             current_low = row['Low']
+    #             # Check for a previous pivot low with a pivot high in between
+    #             if (last_pivot_low is not None and
+    #                 last_pivot_high_index is not None and
+    #                 last_pivot_high_index > last_pivot_low_index):
+    #                 atr_value = row['ATR']
+    #                 # If the difference between pivot lows is within tolerance * ATR,
+    #                 # then a double bottom is detected.
+    #                 if abs(current_low - last_pivot_low) <= atr_tolerance * atr_value:
+    #                     df.at[index, 'position'] = 1  # Double bottom (buy position)
+    #             # Update the last pivot low information with the current pivot low.
+    #             last_pivot_low = current_low
+    #             last_pivot_low_index = index
 
     return df
+
 
 
