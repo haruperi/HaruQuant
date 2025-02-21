@@ -17,6 +17,16 @@ import pickle
 #   - Social Media Feeds
 
 
+# TODO: Fundamental Data (investpy.news)
+#   - Economic Indicators
+#   - News Releases
+#   - Fed Meetings
+
+# TODO: Sentiment Data Order OrderBook
+#   - Stock Twits Placement Access
+#   - Social Media Feeds
+
+
 def get_project_settings(import_filepath):
     """
     Reads credentials from a specified JSON file.
