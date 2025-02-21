@@ -4,12 +4,17 @@
 import json
 import os
 import MetaTrader5 as mt5
-from datetime import datetime
+import requests
+from datetime import datetime, timedelta
 import pandas as pd
 import pickle
 
 
 #----------------------------------------------------------------------------------------------#
+
+# TODO: Sentiment Data Order OrderBook
+#   - Stock Twits Placement Access
+#   - Social Media Feeds
 
 
 def get_project_settings(import_filepath):
@@ -372,3 +377,25 @@ def merge_full_symbols_data(symbols, trading_timeframe, start_date, end_date):
     save_dictionary_to_file(aligned_data, "merged_full_data.pkl")
 
     return aligned_data
+
+
+
+
+def fetch_fundamental_data(api_key):
+    url: str = "https://www.jblanked.com/news/api/forex-factory/calendar/today/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Api-Key {api_key}",
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        return data
+        # for news in data:
+        #    print(f"{news['Date']} {news['Currency']} {news['Name']} STRENGTH : {news['Strength']} OUTCOME : {news['Outcome']} ACTUAL : {news['Actual']} FORECAST : {news['Forecast']} PREVIOUS : {news['Previous']}")
+    else:
+        print(f"Error: {response.status_code}")
+        print(response.json())
+        return None
+
