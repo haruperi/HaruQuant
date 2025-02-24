@@ -6,11 +6,6 @@ from config.settings import g_token, g_chat_id
 from logger import *
 
 
-# TODO: Integrate TeleGram Bot to send alerts and notifications
-#   - Use TeleGram Bot API to send alerts to configured channels using Channel ID.
-#   - Handle network errors, invalid channel IDs, and other exceptions.
-
-
 def send_telegram_alert(token=g_token, chat_id=g_chat_id, message="Hello World"):
     """
     Send an alert or a notification to a specified Telegram channel.
@@ -26,24 +21,20 @@ def send_telegram_alert(token=g_token, chat_id=g_chat_id, message="Hello World")
         try:
             bot = Bot(token=token)
             await bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
-            print("Alert sent successfully")
-            log_info(f"Alert sent to channel {chat_id}", message)
+            logger.info(f"Alert sent to channel {chat_id}: {message}")
 
         except TelegramError as e:
-            print(f"Telegram API error: {e}")
-            log_error(f"Error sending Telegram message: ", e)
+            logger.error(f"Error sending Telegram message: {e}")
             raise
 
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            log_error(f"Error sending Telegram message: ", e)
+            logger.error(f"Error sending Telegram message: {e}")
             raise
 
     try:
         asyncio.run(send_message())
     except Exception as e:
-        print(f"Error sending Telegram message: {e}")
-        log_error(f"Error composing Markdown message: ", e)
+        logger.error(f"Error composing Markdown message: {e}")
         raise
 
 

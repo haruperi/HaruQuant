@@ -27,55 +27,39 @@ def setup_logger(log_file_name='HaruQuant.log', max_file_size=5*1024*1024, backu
 
     # Create logger
     logger = logging.getLogger("bot_logger")
-    logger.setLevel(logging.DEBUG)      # Capture all levels from DEBUG to CRITICAL
 
-    # Create a formatter to include details such as timestamp, logger name, log level, and message
-    #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
+    # Check if the logger already has handlers to avoid duplication
+    if not logger.handlers:
+        logger.setLevel(logging.DEBUG)   # Capture all levels from DEBUG to CRITICAL
 
-    # Create console handler for real-time output
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
+        # Create a formatter to include details such as timestamp, logger name, log level, and message
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
-    # Create rotating file handler to store logs persistently
-    file_handler = RotatingFileHandler(log_file_path, maxBytes=max_file_size, backupCount=backup_count)
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
+        # Create console handler for real-time output
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
 
-    # Add handlers to the logger
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+        # Create rotating file handler to store logs persistently
+        file_handler = RotatingFileHandler(log_file_path, maxBytes=max_file_size, backupCount=backup_count)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+
+        # Add handlers to the logger
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
 
     return logger
 
 # Create the logger instance
 logger = setup_logger()
-    
-def log_debug(event_name, details):
-    logger.debug(f"DEBUG - {event_name}: {details}")
-    
-def log_info(event_name, details):
-    logger.info(f"INFO - {event_name}: {details}")
-    
-def log_warning(event_name, details):
-    logger.warning(f"WARNING - {event_name}: {details}")
-    
-def log_error(event_type, details):
-    logger.error(f"ERROR - {event_type}: {details}")
 
-def log_critical(event_name, details):
-    logger.critical(f"Critical Event - {event_name}: {details}")
+# Disable propagation to prevent double logging
+logger.propagate = False
     
-
 
 
 # # Example logging calls (for reference)
-# # Test logging
-# log_mt5_connection_failure("Unable to establish connection to MT5 server")
-# log_trade_closed("Moving Average Crossover", {"symbol": "EURUSD", "profit": 50})
-# log_critical_event("Data Feed Interruption", "Lost connection to price feed for 5 minutes")
-#
 # # General logging
 # logger.debug("This is a debug message")
 # logger.info("This is an info message")
