@@ -294,7 +294,145 @@ class Trade:
             return {"success": False, "message": error_msg}
 
 
+    def close_all_positions(self):
+        """
+        Close all open positions.
 
+        Returns:
+        dict: A dictionary containing the results of the closing operations.
+        """
+        try:
+            # Get all open positions
+            positions = mt5.positions_get()
+            if positions is None or len(positions) == 0:
+                logger.info("No open positions to close.")
+                return {"success": True, "message": "No open positions to close.", "closed_positions": 0}
+
+            closed_positions = 0
+            failed_closures = []
+
+            for position in positions:
+                # Prepare the request to close the position
+                request = {
+                    "action": mt5.TRADE_ACTION_DEAL,
+                    "symbol": position.symbol,
+                    "volume": position.volume,
+                    "type": mt5.ORDER_TYPE_SELL if position.type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY,
+                    "position": position.ticket,
+                    "price": mt5.symbol_info_tick(
+                        position.symbol).bid if position.type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(
+                        position.symbol).ask,
+                    "deviation": 20,
+                    "magic": position.magic,
+                    "comment": "Position closed by HaruQuant",
+                    "type_time": mt5.ORDER_TIME_GTC,
+                    "type_filling": mt5.ORDER_FILLING_IOC,
+                }
+
+                # Send the order to close the position
+                result = mt5.order_send(request)
+                if result.retcode != mt5.TRADE_RETCODE_DONE:
+                    logger.error(f"Failed to close position {position.ticket}: {result.comment}")
+                    failed_closures.append({"ticket": position.ticket, "reason": result.comment})
+                else:
+                    closed_positions += 1
+                    logger.info(f"Successfully closed position {position.ticket}")
+
+            # Prepare the result message
+            result_message = {
+                "success": True,
+                "closed_positions": closed_positions,
+                "failed_closures": failed_closures,
+                "total_positions": len(positions)
+            }
+
+            # Log and send a Telegram notification
+            log_message = f"Closed {closed_positions} out of {len(positions)} positions."
+            if failed_closures:
+                log_message += f" {len(failed_closures)} positions failed to close."
+            logger.info(log_message)
+
+            notification = compose_markdown_message(
+                title="Position Closure Report",
+                text=log_message,
+                details={},
+                code_blocks={"json": json.dumps(result_message, indent=4)}
+            )
+            send_telegram_alert(message=notification)
+
+            return result_message
+
+        except Exception as e:
+            error_msg = f"Error while closing positions: {str(e)}"
+            logger.error(error_msg)
+            send_telegram_alert(message=error_msg)
+            return {"success": False, "message": error_msg}
+
+
+    def close_all_pending_orders(self):
+        """
+        Close all pending orders.
+
+        Returns:
+        dict: A dictionary containing the results of the closing operations.
+        """
+        try:
+            # Get all pending orders
+            orders = mt5.orders_get()
+            if orders is None or len(orders) == 0:
+                logger.info("No pending orders to close.")
+                return {"success": True, "message": "No pending orders to close.", "closed_orders": 0}
+
+            closed_orders = 0
+            failed_closures = []
+
+            for order in orders:
+                # Prepare the request to delete the pending order
+                request = {
+                    "action": mt5.TRADE_ACTION_REMOVE,
+                    "order": order.ticket,
+                    "comment": "Order removed by script"
+                }
+
+                # Send the request to delete the pending order
+                result = mt5.order_send(request)
+                if result.retcode == mt5.TRADE_RETCODE_DONE:
+                    closed_orders += 1
+                    logger.info(f"Successfully closed pending order {order.ticket}")
+                else:
+                    error = f"Failed with error code: {result.retcode}"
+                    logger.error(f"Failed to close pending order {order.ticket}: {error}")
+                    failed_closures.append({"ticket": order.ticket, "reason": error})
+
+            # Prepare the result message
+            result_message = {
+                "success": True,
+                "closed_orders": closed_orders,
+                "failed_closures": failed_closures,
+                "total_orders": len(orders)
+            }
+
+            # Log and send a Telegram notification
+            log_message = f"Closed {closed_orders} out of {len(orders)} pending orders."
+            if failed_closures:
+                log_message += f" {len(failed_closures)} orders failed to close."
+            logger.info(log_message)
+
+            notification = compose_markdown_message(
+                title="Pending Order Closure Report",
+                text=log_message,
+                details={},
+                code_blocks={"json": json.dumps(result_message, indent=4)}
+            )
+            send_telegram_alert(message=notification)
+
+            return result_message
+
+        except Exception as e:
+            error_msg = f"Error while closing pending orders: {str(e)}"
+            logger.error(error_msg)
+            send_telegram_alert(message=error_msg)
+            return {"success": False, "message": error_msg}
 
 
 # TODO: Modify entry, SL, and TP for pending Limit Orders or cancel pending orders
@@ -305,6 +443,7 @@ class Trade:
 
 # TODO: Close any open positions
 #   - Create routines to liquidate positions when needed
+
 
 # TODO: Report whether open position modification, alerts, and notification results were successful to Telegram
 #   - Confirm changes and send feedback through Telegram for monitoring
