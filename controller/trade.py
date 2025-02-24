@@ -1,5 +1,7 @@
 import json
 import MetaTrader5 as mt5
+import pandas as pd
+
 from logger import logger
 from notification import *
 
@@ -209,10 +211,109 @@ class Trade:
             logger.error(f"Error placing pending order: {str(e)}")
             return {"success": False, "message": str(e)}
 
+    def get_open_positions_and_orders(self):
+        """
+        Retrieve open positions and pending orders from MetaTrader 5.
 
-# Example usage:
-if __name__ == "__main__":
-    trade = Trade()
-    #trade.market_order("EURUSD", 0.1, buy=True, sell=False, stop_loss_pips=10, take_profit_pips=10, slippage=20, magic_number=1988)
-    trade.pending_order("EURUSD", 0.1, "sell_limit", 1.050, stop_loss_pips=10, take_profit_pips=20,
-                                 slippage=20, magic_number=1988)
+        Returns:
+        dict: A dictionary containing two pandas DataFrames:
+              'positions' for open positions and 'orders' for pending orders.
+        """
+        try:
+            # Fetch open positions
+            positions = mt5.positions_get()
+            if positions is None:
+                logger.warning("No open positions")
+                positions_df = pd.DataFrame()
+            else:
+                positions_df = pd.DataFrame(list(positions), columns=positions[0]._asdict().keys())
+                logger.info(f"Retrieved {len(positions_df)} open positions")
+
+            # Fetch pending orders
+            orders = mt5.orders_get()
+            if orders is None:
+                logger.warning("Failed to get orders")
+                orders_df = pd.DataFrame()
+            else:
+                orders_df = pd.DataFrame(list(orders), columns=orders[0]._asdict().keys())
+                logger.info(f"Retrieved {len(orders_df)} pending orders")
+
+
+            # Log the raw data
+            logger.debug(f"Raw positions data: {positions_df.to_dict(orient='records')}")
+            logger.debug(f"Raw orders data: {orders_df.to_dict(orient='records')}")
+
+            # Process and clean the DataFrames
+            for df, df_name in [(positions_df, 'positions'), (orders_df, 'orders')]:
+                if not df.empty:
+                    logger.info(f"Processing {df_name} DataFrame with initial shape: {df.shape}")
+
+                    # Convert time columns to datetime
+                    time_columns = ['time', 'time_setup', 'time_setup_msc', 'time_expiration', 'time_done',
+                                    'time_done_msc']
+                    for col in time_columns:
+                        if col in df.columns:
+                            df[col] = pd.to_datetime(df[col], unit='s', errors='coerce')
+                            logger.debug(f"Converted {col} to datetime for {df_name}")
+
+                    # Convert numeric columns to appropriate types
+                    numeric_columns = ['volume', 'price_open', 'sl', 'tp', 'price_current', 'swap', 'profit']
+                    for col in numeric_columns:
+                        if col in df.columns:
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
+                            logger.debug(f"Converted {col} to numeric for {df_name}")
+
+
+            result = {
+                'positions': positions_df,
+                'orders': orders_df
+            }
+
+            # Log summary
+            logger.info(f"Final count: {len(positions_df)} open positions and {len(orders_df)} pending orders")
+
+            # Prepare and send Telegram notification
+            message = {
+                "open_positions": len(positions_df),
+                "pending_orders": len(orders_df)
+            }
+            notification = compose_markdown_message(
+                title="Account Status Update",
+                text="Open positions and pending orders retrieved.",
+                details={},
+                code_blocks={"json": json.dumps(message, indent=4)}
+            )
+            send_telegram_alert(message=notification)
+
+            return result
+
+        except Exception as e:
+            error_msg = f"Error retrieving open positions and pending orders: {str(e)}"
+            logger.error(error_msg)
+            send_telegram_alert(message=error_msg)
+            return {"success": False, "message": error_msg}
+
+
+
+
+
+# TODO: Modify entry, SL, and TP for pending Limit Orders or cancel pending orders
+#   - Add functionality to update order parameters or cancel pending orders based on conditions
+
+# TODO: Modify SL and TP for open positions
+#   - Implement functions to adjust stop loss (SL) and take profit (TP) for active positions
+
+# TODO: Close any open positions
+#   - Create routines to liquidate positions when needed
+
+# TODO: Report whether open position modification, alerts, and notification results were successful to Telegram
+#   - Confirm changes and send feedback through Telegram for monitoring
+
+# TODO: Access the closed positions and deals from the OrderBook History and return the data table as a pandas DataFrame
+#   - Retrieve historical data from the order book and process it into a DataFrame
+
+# TODO: Print live floating equity and PnL
+#   - Implement real-time monitoring of floating equity and profit & loss
+
+# TODO: Generate time series data of the balance curve
+#   - Store historical balance data and generate a time series representation for performance tracking
