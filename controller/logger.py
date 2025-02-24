@@ -2,7 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logger(log_file_name='bot.log', max_file_size=5*1024*1024, backup_count=3):
+def setup_logger(log_file_name='HaruQuant.log', max_file_size=5*1024*1024, backup_count=3):
     """
     Setup and configure the logger for the bot.
 
@@ -30,7 +30,8 @@ def setup_logger(log_file_name='bot.log', max_file_size=5*1024*1024, backup_coun
     logger.setLevel(logging.DEBUG)      # Capture all levels from DEBUG to CRITICAL
 
     # Create a formatter to include details such as timestamp, logger name, log level, and message
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
     # Create console handler for real-time output
     console_handler = logging.StreamHandler()
@@ -50,16 +51,23 @@ def setup_logger(log_file_name='bot.log', max_file_size=5*1024*1024, backup_coun
 
 # Create the logger instance
 logger = setup_logger()
+    
+def log_debug(event_name, details):
+    logger.debug(f"DEBUG - {event_name}: {details}")
+    
+def log_info(event_name, details):
+    logger.info(f"INFO - {event_name}: {details}")
+    
+def log_warning(event_name, details):
+    logger.warning(f"WARNING - {event_name}: {details}")
+    
+def log_error(event_type, details):
+    logger.error(f"ERROR - {event_type}: {details}")
 
-# Custom log methods for specific events
-def log_mt5_connection_failure(error_message):
-    logger.error(f"MT5 Connection Server Failure: {error_message}")
+def log_critical(event_name, details):
+    logger.critical(f"Critical Event - {event_name}: {details}")
+    
 
-def log_trade_closed(strategy, trade_details):
-    logger.info(f"Trade closed based on strategy '{strategy}': {trade_details}")
-
-def log_critical_event(event_type, details):
-    logger.critical(f"Critical Event - {event_type}: {details}")
 
 
 # # Example logging calls (for reference)
