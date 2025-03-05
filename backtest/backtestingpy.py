@@ -1,0 +1,51 @@
+import controller as ctrl
+import datetime
+import pandas as pd
+from backtesting import Backtest
+from backtesting import Strategy
+from backtesting.lib import crossover
+
+
+def SMA(values, n):
+    """
+    Return simple moving average of `values`, at
+    each step taking into account `n` previous values.
+    """
+    return pd.Series(values).rolling(n).mean()
+
+
+class SmaCross(Strategy):
+
+    def __init__(self, broker, data, params):
+        super().__init__(broker, data, params)
+        self.sma1 = None
+        self.sma2 = None
+        self.n1 = 10
+        self.n2 = 20
+
+    def init(self):
+        # Precompute the two moving averages
+        self.sma1 = self.I(SMA, self.data.Close, self.n1)
+        self.sma2 = self.I(SMA, self.data.Close, self.n2)
+
+    def next(self):
+        # If sma1 crosses above sma2, close any existing
+        # short trades, and buy the asset
+        if crossover(self.sma1, self.sma2):
+            self.position.close()
+            self.buy()
+
+        # Else, if sma1 crosses below sma2, close any existing
+        # long trades, and sell the asset
+        elif crossover(self.sma2, self.sma1):
+            self.position.close()
+            self.sell()
+
+if __name__ == '__main__':
+    # df = ctrl.fetch_data("EURUSD", "M5", start_date="2025-02-16", end_date="2025-02-23")
+    data = ctrl.fetch_data("EURUSD", "M5", start_pos=ctrl.g_start_pos, end_pos=1000)
+
+    bt = Backtest(data, SmaCross, cash=10_000, commission=.002)
+    stats = bt.run()
+    #bt.plot()
+    print(stats)
