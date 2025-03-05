@@ -15,13 +15,9 @@ def SMA(values, n):
 
 
 class SmaCross(Strategy):
-
-    def __init__(self, broker, data, params):
-        super().__init__(broker, data, params)
-        self.sma1 = None
-        self.sma2 = None
-        self.n1 = 10
-        self.n2 = 20
+    # Define parameters as class variables
+    n1 = 10
+    n2 = 20
 
     def init(self):
         # Precompute the two moving averages
@@ -46,6 +42,14 @@ if __name__ == '__main__':
     data = ctrl.fetch_data("EURUSD", "M5", start_pos=ctrl.g_start_pos, end_pos=1000)
 
     bt = Backtest(data, SmaCross, cash=10_000, commission=.002)
-    stats = bt.run()
-    #bt.plot()
+
+    # 1. Run the strategy
+    #stats = bt.run()
+
+    # 2. Optimize the strategy parameters using a grid search
+    stats = bt.optimize(n1=range(5, 30, 5),
+                        n2=range(10, 70, 5),
+                        maximize='Equity Final [$]',
+                        constraint=lambda param: param.n1 < param.n2)
+    bt.plot()
     print(stats)
