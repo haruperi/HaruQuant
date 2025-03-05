@@ -4,6 +4,8 @@ import pandas as pd
 from backtesting import Backtest
 from backtesting import Strategy
 from backtesting.lib import crossover
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def optim_func(series):
     if series['# Trades'] < 10:
@@ -56,11 +58,25 @@ if __name__ == '__main__':
     #                     n2=range(10, 70, 5),
     #                     maximize='Equity Final [$]',
     #                     constraint=lambda param: param.n1 < param.n2)
+    #                     max_tries = 100                 # Random Grid search
 
     # 3. Customize the strategy parameters using a custom optimization function
-    stats = bt.optimize(n1=range(5, 30, 5),
+    # stats = bt.optimize(n1=range(5, 30, 5),
+    #                     n2=range(10, 70, 5),
+    #                     maximize=optim_func,
+    #                     constraint=lambda param: param.n1 < param.n2)
+
+    # 4. Plot the optimized strategy results using a heatmap
+    stats, heatmap  = bt.optimize(n1=range(5, 30, 5),
                         n2=range(10, 70, 5),
                         maximize=optim_func,
-                        constraint=lambda param: param.n1 < param.n2)
-    bt.plot()
+                        constraint=lambda param: param.n1 < param.n2,
+                        return_heatmap = True)
+
+    hm = heatmap.groupby(["n1", "n2"]).mean().unstack()
+    sns.heatmap(hm, cmap="plasma")
+    plt.show()
+
+    # 5. Plot the strategy results using Matplotlib
+   # bt.plot()
     print(stats)
