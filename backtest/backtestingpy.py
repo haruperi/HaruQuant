@@ -5,6 +5,11 @@ from backtesting import Backtest
 from backtesting import Strategy
 from backtesting.lib import crossover
 
+def optim_func(series):
+    if series['# Trades'] < 10:
+        return -1
+    else:
+        return series['Equity Final [$]']/series['Exposure Time [%]']
 
 def SMA(values, n):
     """
@@ -47,9 +52,15 @@ if __name__ == '__main__':
     #stats = bt.run()
 
     # 2. Optimize the strategy parameters using a grid search
+    # stats = bt.optimize(n1=range(5, 30, 5),
+    #                     n2=range(10, 70, 5),
+    #                     maximize='Equity Final [$]',
+    #                     constraint=lambda param: param.n1 < param.n2)
+
+    # 3. Customize the strategy parameters using a custom optimization function
     stats = bt.optimize(n1=range(5, 30, 5),
                         n2=range(10, 70, 5),
-                        maximize='Equity Final [$]',
+                        maximize=optim_func,
                         constraint=lambda param: param.n1 < param.n2)
     bt.plot()
     print(stats)
