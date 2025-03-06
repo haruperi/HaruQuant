@@ -36,3 +36,40 @@ class OrderTypeTime(Enum):
     ORDER_TIME_DAY = 1
     ORDER_TIME_SPECIFIED = 2
     ORDER_TIME_SPECIFIED_DAY = 3
+
+
+# Define position type enum similar to MQL5
+class EnumPositionType(Enum):
+    POSITION_TYPE_BUY = 0
+    POSITION_TYPE_SELL = 1
+    WRONG_VALUE = -1
+
+# Define position property enums similar to MQL5
+class EnumPositionPropertyInteger(Enum):
+    POSITION_TICKET = 0
+    POSITION_TIME = 1
+    POSITION_TIME_MSC = 2
+    POSITION_TIME_UPDATE = 3
+    POSITION_TIME_UPDATE_MSC = 4
+    POSITION_TYPE = 5
+    POSITION_MAGIC = 6
+    POSITION_IDENTIFIER = 7
+
+class EnumPositionPropertyDouble(Enum):
+    POSITION_VOLUME = 0
+    POSITION_PRICE_OPEN = 1
+    POSITION_SL = 2
+    POSITION_TP = 3
+    POSITION_PRICE_CURRENT = 4
+    POSITION_COMMISSION = 5
+    POSITION_SWAP = 6
+    POSITION_PROFIT = 7
+
+class EnumPositionPropertyString(Enum):
+    POSITION_SYMBOL = 0
+    POSITION_COMMENT = 1
+
+class EnumAccountMarginMode(Enum):
+    ACCOUNT_MARGIN_MODE_RETAIL_HEDGING = 0
+    ACCOUNT_MARGIN_MODE_EXCHANGE = 1
+    ACCOUNT_MARGIN_MODE_RETAIL_NETTING = 2
