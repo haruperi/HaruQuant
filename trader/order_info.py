@@ -58,7 +58,9 @@ class OrderInfo:
         self.m_stop_loss = 0.0
         self.m_take_profit = 0.0
 
-
+    def get_ticket(self):
+        """Get order ticket"""
+        return self.m_ticket
 
 
 
