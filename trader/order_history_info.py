@@ -5,7 +5,7 @@ from .order_enums import OrderType, OrderState, OrderTypeFilling, OrderTypeTime
 
 
 
-class HistoryOrderInfo:
+class OrderHistoryInfo:
     """
     Class for accessing history order information.
     Python equivalent of MQL5's CHistoryOrderInfo class.
@@ -15,132 +15,132 @@ class HistoryOrderInfo:
         """Constructor"""
         self.m_ticket = 0
     
-    def ticket(self, ticket=None):
+    def get_ticket(self, ticket=None):
         """Get or set the ticket of history order"""
         if ticket is not None:
             self.m_ticket = ticket
         return self.m_ticket
     
-    def time_setup(self):
+    def get_time_setup(self):
         """Get the property value 'ORDER_TIME_SETUP'"""
         return datetime.fromtimestamp(mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TIME_SETUP))
     
-    def time_setup_msc(self):
+    def get_time_setup_msc(self):
         """Get the property value 'ORDER_TIME_SETUP_MSC'"""
         return mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TIME_SETUP_MSC)
     
-    def time_done(self):
+    def get_time_done(self):
         """Get the property value 'ORDER_TIME_DONE'"""
         return datetime.fromtimestamp(mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TIME_DONE))
     
-    def time_done_msc(self):
+    def get_time_done_msc(self):
         """Get the property value 'ORDER_TIME_DONE_MSC'"""
         return mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TIME_DONE_MSC)
     
-    def order_type(self):
+    def get_order_type(self):
         """Get the property value 'ORDER_TYPE'"""
         return OrderType(mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TYPE))
     
-    def type_description(self):
+    def get_type_description(self):
         """Get the property value 'ORDER_TYPE' as string"""
-        return self.format_type(self.order_type().value)
+        return self.format_type(self.get_order_type().value)
     
-    def state(self):
+    def get_state(self):
         """Get the property value 'ORDER_STATE'"""
         return OrderState(mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_STATE))
     
-    def state_description(self):
+    def get_state_description(self):
         """Get the property value 'ORDER_STATE' as string"""
         return self.format_status(self.state().value)
     
-    def time_expiration(self):
+    def get_time_expiration(self):
         """Get the property value 'ORDER_TIME_EXPIRATION'"""
         expiration_time = mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TIME_EXPIRATION)
         if expiration_time:
             return datetime.fromtimestamp(expiration_time)
         return None
     
-    def type_filling(self):
+    def get_type_filling(self):
         """Get the property value 'ORDER_TYPE_FILLING'"""
         return OrderTypeFilling(mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TYPE_FILLING))
     
-    def type_filling_description(self):
+    def get_type_filling_description(self):
         """Get the property value 'ORDER_TYPE_FILLING' as string"""
         return self.format_type_filling(self.type_filling().value)
     
-    def type_time(self):
+    def get_type_time(self):
         """Get the property value 'ORDER_TYPE_TIME'"""
         return OrderTypeTime(mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_TYPE_TIME))
     
-    def type_time_description(self):
+    def get_type_time_description(self):
         """Get the property value 'ORDER_TYPE_TIME' as string"""
         return self.format_type_time(self.type_time().value)
     
-    def magic(self):
+    def get_magic_number(self):
         """Get the property value 'ORDER_MAGIC'"""
         return mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_MAGIC)
     
-    def position_id(self):
+    def get_position_id(self):
         """Get the property value 'ORDER_POSITION_ID'"""
         return mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_POSITION_ID)
     
-    def position_by_id(self):
+    def get_position_by_id(self):
         """Get the property value 'ORDER_POSITION_BY_ID'"""
         return mt5.history_order_get_integer(self.m_ticket, mt5.ORDER_POSITION_BY_ID)
     
-    def volume_initial(self):
+    def get_volume_initial(self):
         """Get the property value 'ORDER_VOLUME_INITIAL'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_VOLUME_INITIAL)
     
-    def volume_current(self):
+    def get_volume_current(self):
         """Get the property value 'ORDER_VOLUME_CURRENT'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_VOLUME_CURRENT)
     
-    def price_open(self):
+    def get_open_price(self):
         """Get the property value 'ORDER_PRICE_OPEN'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_PRICE_OPEN)
     
-    def stop_loss(self):
+    def get_stop_loss(self):
         """Get the property value 'ORDER_SL'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_SL)
     
-    def take_profit(self):
+    def get_take_profit(self):
         """Get the property value 'ORDER_TP'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_TP)
     
-    def price_current(self):
+    def get_price_current(self):
         """Get the property value 'ORDER_PRICE_CURRENT'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_PRICE_CURRENT)
     
-    def price_stop_limit(self):
+    def get_price_stop_limit(self):
         """Get the property value 'ORDER_PRICE_STOPLIMIT'"""
         return mt5.history_order_get_double(self.m_ticket, mt5.ORDER_PRICE_STOPLIMIT)
     
-    def symbol(self):
+    def get_symbol(self):
         """Get the property value 'ORDER_SYMBOL'"""
         return mt5.history_order_get_string(self.m_ticket, mt5.ORDER_SYMBOL)
     
-    def comment(self):
+    def get_comment(self):
         """Get the property value 'ORDER_COMMENT'"""
         return mt5.history_order_get_string(self.m_ticket, mt5.ORDER_COMMENT)
     
-    def external_id(self):
+    def get_external_id(self):
         """Get the property value 'ORDER_EXTERNAL_ID'"""
         return mt5.history_order_get_string(self.m_ticket, mt5.ORDER_EXTERNAL_ID)
     
-    def info_integer(self, prop_id):
+    def get_info_integer(self, prop_id):
         """Access functions OrderGetInteger(...)"""
         return mt5.history_order_get_integer(self.m_ticket, prop_id)
     
-    def info_double(self, prop_id):
+    def get_info_double(self, prop_id):
         """Access functions OrderGetDouble(...)"""
         return mt5.history_order_get_double(self.m_ticket, prop_id)
     
-    def info_string(self, prop_id):
+    def get_info_string(self, prop_id):
         """Access functions OrderGetString(...)"""
         return mt5.history_order_get_string(self.m_ticket, prop_id)
     
-    def format_type(self, order_type):
+    def get_type(self, order_type):
         """Converts the order type to text"""
         types = {
             0: "buy",
@@ -155,7 +155,7 @@ class HistoryOrderInfo:
         }
         return types.get(order_type, f"unknown order type {order_type}")
     
-    def format_status(self, status):
+    def get_status(self, status):
         """Converts the order status to text"""
         statuses = {
             0: "started",
@@ -168,7 +168,7 @@ class HistoryOrderInfo:
         }
         return statuses.get(status, f"unknown order status {status}")
     
-    def format_type_filling(self, filling_type):
+    def get_type_filling_str(self, filling_type):
         """Converts the order filling type to text"""
         filling_types = {
             0: "FOK",
@@ -177,7 +177,7 @@ class HistoryOrderInfo:
         }
         return filling_types.get(filling_type, f"unknown filling type {filling_type}")
     
-    def format_type_time(self, time_type):
+    def get_type_time_str(self, time_type):
         """Converts the order time type to text"""
         time_types = {
             0: "GTC",
@@ -187,14 +187,14 @@ class HistoryOrderInfo:
         }
         return time_types.get(time_type, f"unknown time type {time_type}")
     
-    def format_order(self):
+    def get_order_str(self):
         """Format order information as a string"""
-        return (f"Ticket: {self.m_ticket}, Symbol: {self.symbol()}, "
-                f"Type: {self.type_description()}, Volume: {self.volume_initial()}, "
-                f"Price: {self.price_open()}, SL: {self.stop_loss()}, TP: {self.take_profit()}, "
-                f"State: {self.state_description()}")
+        return (f"Ticket: {self.m_ticket}, Symbol: {self.get_symbol()}, "
+                f"Type: {self.get_type_description()}, Volume: {self.get_volume_initial()}, "
+                f"Price: {self.get_open_price()}, SL: {self.get_stop_loss()}, TP: {self.get_take_profit()}, "
+                f"State: {self.get_state_description()}")
     
-    def format_price(self, price_order, price_trigger, digits):
+    def get_price_str(self, price_order, price_trigger, digits):
         """Format price information as a string"""
         if price_trigger:
             return f"{price_order:.{digits}f} ({price_trigger:.{digits}f})"
