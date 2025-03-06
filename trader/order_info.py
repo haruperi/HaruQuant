@@ -62,5 +62,10 @@ class OrderInfo:
         """Get order ticket"""
         return self.m_ticket
 
+    def get_time_setup(self):
+        """Get order setup time"""
+        return datetime.fromtimestamp(mt5.order_info(self.m_ticket).time_setup)
+
+
 
 
