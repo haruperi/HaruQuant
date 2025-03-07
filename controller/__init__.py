@@ -40,6 +40,9 @@ if not g_mt5_initialized:
             else:
                 logger.error(f"{symbol} does not exist in MT5 symbols. Please update symbol name.")
 
+        g_token = telegram["token"]
+        g_chat_id = telegram["chat_id"]
+        g_forex_factory_api_key = jblanked_api_key
         g_mt5_initialized = True
 
     except Exception as e:
