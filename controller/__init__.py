@@ -46,7 +46,7 @@ if not g_mt5_initialized:
         logger.error(f"Error initializing MT5: {str(e)}")
 
 from .data import *
-# from .technicals import *
+from .technicals import *
 # from .risk import *
 # from .strategy import *
 

@@ -1,7 +1,10 @@
 ########################################################################################################################
 #                                         Technical Indicators functions
 ########################################################################################################################
+import pandas as pd
+import MetaTrader5 as mt5
 from config.settings import *
+from .data import fetch_data
 import ta
 import time
 import numpy as np
@@ -340,7 +343,6 @@ def calculate_currency_strength(symbols=g_symbols_forex, timeframe=g_trading_tim
 
 
 
-
 def isvalid_signal_using_currency_strength(signal, currency_strengths):
     """
     Evaluates a buy/sell signal based on currency strength differences.
@@ -492,7 +494,7 @@ def calculate_willpct_swing_lines(df, williamsR=g_willpct_period):
 
     # Calculate Williams %R
     df = calculate_williams_percent(df, williamsR)
-    #df['WPR'] = df['WPR'].shift(1)
+    df['WPR'] = df['WPR'].shift(1)
     df['prev_WPR'] = df['WPR'].shift(1)
 
     # Calculate the Williams %R extremes and then the swingline direction
@@ -507,10 +509,10 @@ def calculate_willpct_swing_lines(df, williamsR=g_willpct_period):
 
     df['swingline'] = df[
         'swingline'].ffill()  # Fill NaN values with the previous value (propagate values where conditions are not met)
+
+    df.drop(['WPR', 'prev_WPR'], axis=1, inplace=True)  # Drop the unnecessary columns after use
+
     return df
-
-
-
 
 
 def calculate_breakout_candles_swing_lines(df, lookback=2):
