@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 
 class PortfolioRiskMan:
-    def __init__(self, start_position=0, end_position=0, start_date=None, end_date=None):
+    def __init__(self, start_position=g_start_pos, end_position=g_end_pos_d1, start_date=None, end_date=None):
         # Initialize the portfolio risk manager with necessary attributes
         self.start_position = start_position
         self.end_position = end_position
@@ -30,7 +30,11 @@ class PortfolioRiskMan:
         """
         all_data = {}
         for symbol in symbols:
-            df = fetch_data(symbol, "D1", start_pos=0, end_pos=60)
+            if self.start_date is None and self.end_date is None:
+                df = fetch_data(symbol, "D1", start_pos=self.start_position, end_pos=self.end_position)
+            else:
+                df = fetch_data(symbol, "D1", start_date=self.start_date, end_date=self.end_date,)
+
             if df is not None:
                 all_data[symbol] = df
         self.data = all_data

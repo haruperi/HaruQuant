@@ -47,7 +47,7 @@ if not g_mt5_initialized:
 
 from .data import *
 from .technicals import *
-# from .risk import *
+from .risk import *
 # from .strategy import *
 
 # from .notification import *
