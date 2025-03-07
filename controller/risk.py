@@ -1,6 +1,7 @@
 ########################################################################################################################
 #                                        Risk Management Class (Portfolio)
 ########################################################################################################################
+from config.settings import g_start_pos, g_end_pos_d1, g_volatility_period, g_correlation_period, g_confidence_level
 from .technicals import *
 from scipy.optimize import minimize
 

@@ -1,9 +1,13 @@
 ########################################################################################################################
 #                                         Technical Indicators functions
 ########################################################################################################################
+from datetime import datetime, timedelta
+
 import pandas as pd
 import MetaTrader5 as mt5
-from config.settings import *
+from config.settings import g_ma_type, g_df_col, g_slow_ma, g_rsi_period, g_willpct_period, g_adr_period, \
+    g_stop_adr_ratio, g_time_shift, g_test_symbol, g_interval_minutes, g_symbols_forex, g_trading_timeframe, \
+    g_strength_lookback_period, g_fast_ma
 from .data import fetch_data
 import ta
 import time

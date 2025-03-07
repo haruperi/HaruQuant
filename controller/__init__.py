@@ -28,6 +28,7 @@ if not g_mt5_initialized:
         logger.info(f"MT5 Terminal Info: {mt5.terminal_info()}")
         logger.info(f"MT5 Version: {mt5.version()}")
 
+
         mt5_symbols = mt5.symbols_get()     # Get all symbols from MT5
         mt5_symbols_set = {symbol.name for symbol in mt5_symbols}   # Create a set of all MT5 symbols for quick lookup
 
@@ -44,6 +45,9 @@ if not g_mt5_initialized:
         g_chat_id = telegram["chat_id"]
         g_forex_factory_api_key = jblanked_api_key
         g_mt5_initialized = True
+        
+        
+       
 
     except Exception as e:
         logger.error(f"Error initializing MT5: {str(e)}")
