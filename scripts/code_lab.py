@@ -114,17 +114,15 @@ if __name__ == '__main__':
 
     trade = trd.MT5Trade()
 
-
     if trade.is_connected():
         print("Successfully connected to MT5")
+    else:   print("Failed to connect to MT5")
 
-        # Get account info
-        account_info = trade.account_info()
-        if account_info:
-            print(f"Account Balance: {account_info['balance']} {account_info['currency']}")
-            print(f"Account Equity: {account_info['equity']} {account_info['currency']}")
-            print(f"Account Leverage: 1:{account_info['leverage']}")
-            print(f"Account Name: {account_info['name']}")
+    #trade.sell("GBPUSD", 0.01, 10,10)
+    trade.buy_limit("EURGBP", 0.01, 0.83925)
+
+
+
 
     # if positions == None:
     #     print("No positions on USDCHF, error code={}".format(ctrl.mt5.last_error()))
