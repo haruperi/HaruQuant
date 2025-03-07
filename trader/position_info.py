@@ -1,236 +1,227 @@
 import MetaTrader5 as mt5
-from .order_enums import EnumPositionType, EnumPositionPropertyInteger, EnumPositionPropertyDouble, EnumPositionPropertyString, EnumAccountMarginMode
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
-
-
-class CPositionInfo:
+class PositionInfo:
     def __init__(self):
-        self.m_type = EnumPositionType.WRONG_VALUE
-        self.m_volume = 0.0
-        self.m_price = 0.0
-        self.m_stop_loss = 0.0
-        self.m_take_profit = 0.0
+        """Constructor"""
+        # Core position identification
+        self.m_ticket = 0  # int
+        self.m_identifier = 0  # int
+        self.m_symbol = ""  # str
+        self.m_comment = ""  # str
+        self.m_external_id = ""  # str
+
+        # Position type and reason
+        self.m_type = None  # OrderType enum
+        self.m_reason = 0  # int
+        self.m_magic = 0  # int
+
+        # Time attributes
+        self.m_time = 0  # int (timestamp)
+        self.m_time_msc = 0  # int (milliseconds)
+        self.m_time_update = 0  # int (timestamp)
+        self.m_time_update_msc = 0  # int (milliseconds)
+
+        # Volume and price attributes
+        self.m_volume = 0.0  # float
+        self.m_price_open = 0.0  # float
+        self.m_price_current = 0.0  # float
+        self.m_stop_loss = 0.0  # float (sl)
+        self.m_take_profit = 0.0  # float (tp)
+        self.m_swap = 0.0  # float
+        self.m_profit = 0.0  # float
+
+        # Get broker timezone offset
+        self.broker_timezone_offset = 0
+
+#####################################    Populating of all attributes    ###############################################
+
+    def select(self, category="current", ticket=None, index=None):
+        """Select a position for further work"""
+
+        if category == "current" and ticket is None:
+            positions = mt5.positions_get()
+            if positions is None or len(positions) == 0:
+                return False
+            self.store_state(positions[-1])
+        elif category == "current" and ticket is not None:
+            position = mt5.positions_get(ticket=ticket)
+            if position is None or len(position) == 0:
+                raise Exception(f"position with ticket {ticket} not found.")
+            else:
+                self.store_state(position)
+        elif category == "current" and index is not None:
+            positions = mt5.positions_get()
+            if 0 <= index < len(positions):
+                self.store_state(positions[index])
+        elif category == "history" and ticket is not None:
+            deal = mt5.history_deals_get(ticket=ticket)
+            if deal is None or len(deal) == 0:
+                raise Exception(f"Deal with ticket {ticket} not found.")
+            else:
+                self.store_state(deal)
+        elif category == "history":
+            # Get all history deals
+            from_date = 0  # From the beginning
+            to_date = int(datetime.now().timestamp())  # Until now
+
+            # Get history orders
+            deals = mt5.history_deals_get(from_date, to_date)
+            if deals is None:
+                return False
+            elif index is not None and len(deals) <= index:
+                return False
+            elif index is not None:
+                self.store_state(deals[index])
+            else:
+                self.store_state(deals[-1])
+        else:
+            return False
+
+        return True
+
+    def store_state(self, position):
+        """Store position state"""
+
+        # Core position identification
+        self.m_ticket = position.ticket
+        self.m_identifier = position.identifier
+        self.m_symbol = position.symbol
+        self.m_comment = position.comment
+        self.m_external_id = position.external_id
+
+        # Position type and reason
+        self.m_type = position.type
+        self.m_reason = position.reason
+        self.m_magic = position.magic
+
+        # Time attributes
+        self.m_time = self._convert_to_broker_time(position.time)
+        self.m_time_msc = position.time_msc
+        self.m_time_update = self._convert_to_broker_time(position.time_update)
+        self.m_time_update_msc = position.time_update_msc
+
+        # Volume and price attributes
+        self.m_volume = position.volume
+        self.m_price_open = position.price_open
+        self.m_price_current = position.price_current
+        self.m_stop_loss = position.sl
+        self.m_take_profit = position.tp
+        self.m_swap = position.swap
+        self.m_profit = position.profit
+
+#####################################    Getters for all attributes    #################################################
 
     def get_ticket(self):
-        """Get the property value position ticket"""
-        return mt5.positions_get()[0].ticket if mt5.positions_total() > 0 else 0
+        return self.m_ticket
 
-    def get_time_setup(self):
-        """Get the property value position setup"""
-        return mt5.positions_get()[0].time if mt5.positions_total() > 0 else 0
+    def get_time(self):
+        return self.m_time
 
-    def get_time_setup_msc(self):
-        """Get the property value position setup_msc"""
-        return mt5.positions_get()[0].time_msc if mt5.positions_total() > 0 else 0
+    def get_time_msc(self):
+        return self.m_time_msc
 
     def get_time_update(self):
-        """Get the property value position update"""
-        return mt5.positions_get()[0].time_update if mt5.positions_total() > 0 else 0
+        return self.m_time_update
 
     def get_time_update_msc(self):
-        """Get the property value position update_msc"""
-        return mt5.positions_get()[0].time_update_msc if mt5.positions_total() > 0 else 0
+        return self.m_time_update_msc
 
-    def get_position_type(self):
-        """Get the property value position type"""
-        if mt5.positions_total() > 0:
-            pos_type = mt5.positions_get()[0].type
-            return EnumPositionType.POSITION_TYPE_BUY if pos_type == 0 else EnumPositionType.POSITION_TYPE_SELL
-        return EnumPositionType.WRONG_VALUE
+    def get_type(self):
+        return self.m_type
 
-    def get_type_description(self):
-        """Get the property value position type as string"""
-        str_type = ""
-        return self.get_type(str_type, self.get_position_type())
-
-    def get_magic_number(self):
-        """Get the property value position magic_number"""
-        return mt5.positions_get()[0].magic if mt5.positions_total() > 0 else 0
+    def get_magic(self):
+        return self.m_magic
 
     def get_identifier(self):
-        """Get the property value position identifier"""
-        return mt5.positions_get()[0].identifier if mt5.positions_total() > 0 else 0
+        return self.m_identifier
+
+    def get_reason(self):
+        return self.m_reason
 
     def get_volume(self):
-        """Get the property value position volume"""
-        return mt5.positions_get()[0].volume if mt5.positions_total() > 0 else 0.0
+        return self.m_volume
 
-    def get_open_price(self):
-        """Get the property value position open_price"""
-        return mt5.positions_get()[0].price_open if mt5.positions_total() > 0 else 0.0
+    def get_price_open(self):
+        return self.m_price_open
 
     def get_stop_loss(self):
-        """Get the property value position stop_loss"""
-        return mt5.positions_get()[0].sl if mt5.positions_total() > 0 else 0.0
+        return self.m_stop_loss
 
     def get_take_profit(self):
-        """Get the property value position take_profit"""
-        return mt5.positions_get()[0].tp if mt5.positions_total() > 0 else 0.0
+        return self.m_take_profit
 
-    def get_current_price(self):
-        """Get the property value position current_price"""
-        return mt5.positions_get()[0].price_current if mt5.positions_total() > 0 else 0.0
-
-    def get_commission(self):
-        """Get the property value position commission"""
-        return mt5.positions_get()[0].commission if mt5.positions_total() > 0 else 0.0
+    def get_price_current(self):
+        return self.m_price_current
 
     def get_swap(self):
-        """Get the property value position swap"""
-        return mt5.positions_get()[0].swap if mt5.positions_total() > 0 else 0.0
+        return self.m_swap
 
     def get_profit(self):
-        """Get the property value position profit"""
-        return mt5.positions_get()[0].profit if mt5.positions_total() > 0 else 0.0
+        return self.m_profit
 
     def get_symbol(self):
-        """Get the property value position symbol"""
-        return mt5.positions_get()[0].symbol if mt5.positions_total() > 0 else ""
+        return self.m_symbol
 
     def get_comment(self):
-        """Get the property value position comment"""
-        return mt5.positions_get()[0].comment if mt5.positions_total() > 0 else ""
+        return self.m_comment
 
-    def get_info_integer(self, prop_id, var):
-        """Access functions PositionGetInteger(...)"""
-        if mt5.positions_total() > 0:
-            position = mt5.positions_get()[0]
-            if prop_id == EnumPositionPropertyInteger.POSITION_TICKET:
-                var = position.ticket
-            elif prop_id == EnumPositionPropertyInteger.POSITION_TIME:
-                var = position.time
-            elif prop_id == EnumPositionPropertyInteger.POSITION_TIME_MSC:
-                var = position.time_msc
-            elif prop_id == EnumPositionPropertyInteger.POSITION_TIME_UPDATE:
-                var = position.time_update
-            elif prop_id == EnumPositionPropertyInteger.POSITION_TIME_UPDATE_MSC:
-                var = position.time_update_msc
-            elif prop_id == EnumPositionPropertyInteger.POSITION_TYPE:
-                var = position.type
-            elif prop_id == EnumPositionPropertyInteger.POSITION_MAGIC:
-                var = position.magic
-            elif prop_id == EnumPositionPropertyInteger.POSITION_IDENTIFIER:
-                var = position.identifier
-            else:
-                return False
-            return True
-        return False
+    def get_external_id(self):
+        return self.m_external_id
 
-    def get_info_double(self, prop_id, var):
-        """Access functions PositionGetDouble(...)"""
-        if mt5.positions_total() > 0:
-            position = mt5.positions_get()[0]
-            if prop_id == EnumPositionPropertyDouble.POSITION_VOLUME:
-                var = position.volume
-            elif prop_id == EnumPositionPropertyDouble.POSITION_PRICE_OPEN:
-                var = position.price_open
-            elif prop_id == EnumPositionPropertyDouble.POSITION_SL:
-                var = position.sl
-            elif prop_id == EnumPositionPropertyDouble.POSITION_TP:
-                var = position.tp
-            elif prop_id == EnumPositionPropertyDouble.POSITION_PRICE_CURRENT:
-                var = position.price_current
-            elif prop_id == EnumPositionPropertyDouble.POSITION_COMMISSION:
-                var = position.commission
-            elif prop_id == EnumPositionPropertyDouble.POSITION_SWAP:
-                var = position.swap
-            elif prop_id == EnumPositionPropertyDouble.POSITION_PROFIT:
-                var = position.profit
-            else:
-                return False
-            return True
-        return False
+    #####################################    Getters with descriptions    #################################################
 
-    def get_info_string(self, prop_id, var):
-        """Access functions PositionGetString(...)"""
-        if mt5.positions_total() > 0:
-            position = mt5.positions_get()[0]
-            if prop_id == EnumPositionPropertyString.POSITION_SYMBOL:
-                var = position.symbol
-            elif prop_id == EnumPositionPropertyString.POSITION_COMMENT:
-                var = position.comment
-            else:
-                return False
-            return True
-        return False
+    def get_type_description(self):
+        """Get position type as string"""
+        if self.m_type is None:
+            return "Unknown position type: position details not found."
+        return self.format_type(self.m_type)
 
-    def get_type(self, str_type, pos_type):
+
+    def get_position_description(self):
+        """Get position description in string format"""
+        return f"{self.get_type_description()} {self.m_symbol} {self.m_volume} at {self.m_price_open} sl: {self.m_stop_loss} tp: {self.m_take_profit}"
+
+
+    @staticmethod
+    def format_type(pos_type):
         """Converts the position type to text"""
-        if pos_type == EnumPositionType.POSITION_TYPE_BUY:
+        if pos_type == 0:
             return "buy"
-        elif pos_type == EnumPositionType.POSITION_TYPE_SELL:
+        elif pos_type == 1:
             return "sell"
         else:
             return f"unknown position type {pos_type}"
 
-    def get_position(self, str_pos):
-        """Converts the position parameters to text"""
-        symbol_name = self.get_symbol()
-        digits = mt5.symbol_info(symbol_name).digits if mt5.symbol_info(symbol_name) else 5
-        
-        # Get account margin mode
-        margin_mode = EnumAccountMarginMode.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING  # Default value
-        
-        # Form the position description
-        pos_type = self.get_type("", self.get_position_type())
-        
-        if margin_mode == EnumAccountMarginMode.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING:
-            str_pos = f"#{self.get_ticket()} {pos_type} {self.get_volume():.2f} {symbol_name} {self.get_open_price():.{digits+3}f}"
-        else:
-            str_pos = f"{pos_type} {self.get_volume():.2f} {symbol_name} {self.get_open_price():.{digits+3}f}"
-        
-        # Add stops if there are any
-        sl = self.get_stop_loss()
-        tp = self.get_take_profit()
-        
-        if sl != 0.0:
-            str_pos += f" sl: {sl:.{digits}f}"
-        
-        if tp != 0.0:
-            str_pos += f" tp: {tp:.{digits}f}"
-        
-        return str_pos
 
-    def select(self, symbol):
+    @staticmethod
+    def select_by_symbol(symbol):
         """Access functions PositionSelect(...)"""
         positions = mt5.positions_get(symbol=symbol)
-        return len(positions) > 0
+        if len(positions) > 0:
+            return positions
+        return None
 
-    def select_by_magic(self, symbol, magic):
+    @staticmethod
+    def select_by_magic(magic):
         """Access functions PositionSelect(...) by magic number"""
-        positions = mt5.positions_get(symbol=symbol)
-        for position in positions:
-            if position.magic == magic:
-                return True
-        return False
+        positions = mt5.positions_get(group=magic)
+        if len(positions) > 0:
+            return positions
+        return None
 
-    def select_by_ticket(self, ticket):
-        """Access functions PositionSelectByTicket(...)"""
-        positions = mt5.positions_get(ticket=ticket)
-        return len(positions) > 0
 
-    def select_by_index(self, index):
-        """Select a position on the index"""
-        positions = mt5.positions_get()
-        if 0 <= index < len(positions):
-            return True
-        return False
+#####################################    Helper functions    #################################################
 
-    def store_state(self):
-        """Stored position's current state"""
-        self.m_type = self.get_position_type()
-        self.m_volume = self.get_volume()
-        self.m_price = self.get_open_price()
-        self.m_stop_loss = self.get_stop_loss()
-        self.m_take_profit = self.get_take_profit()
+    def _convert_to_broker_time(self, timestamp):
+        """Convert GMT timestamp to broker's local time"""
+        if timestamp <= 0:
+            return None
 
-    def check_state(self):
-        """Check position change"""
-        if (self.m_type == self.get_position_type() and
-            self.m_volume == self.get_volume() and
-            self.m_price == self.get_open_price() and
-            self.m_stop_loss == self.get_stop_loss() and
-            self.m_take_profit == self.get_take_profit()):
-            return False
-        return True
+        # Convert timestamp to datetime in UTC
+        dt_utc = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+
+        # Apply broker timezone offset
+        dt_broker = dt_utc + timedelta(hours=self.broker_timezone_offset)
+
+        return dt_broker
