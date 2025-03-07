@@ -2,11 +2,12 @@ import asyncio
 import re
 from telegram import Bot
 from telegram.error import TelegramError
-from config.settings import g_token, g_chat_id
-from logger import *
+#from config.settings import g_token, g_chat_id
+from mylogger import *
 
 
-def send_telegram_alert(token=g_token, chat_id=g_chat_id, message="Hello World"):
+
+def send_telegram_alert(token="7364825288:AAGA-xxXNJYMGxcxOy4MrmonyoSsA1USAtw", chat_id="5398524142", message="Hello World"):
     """
     Send an alert or a notification to a specified Telegram channel.
 
@@ -65,8 +66,8 @@ def compose_markdown_message(title: str, text: str, details: dict = None, code_b
     message = f"*{safe_title}*\n\n{safe_text}\n"
 
     # Add details if provided
+    message += "\n*Details:*\n"
     if details:
-        message += "\n*Details:*\n"
         for key, value in details.items():
             safe_key = escape_markdown(key)
             safe_value = escape_markdown(value)
@@ -74,7 +75,6 @@ def compose_markdown_message(title: str, text: str, details: dict = None, code_b
 
     # Add code blocks if provided
     if code_blocks:
-        message += "\n*Code Blocks:*\n"
         for language, code in code_blocks.items():
             # Code blocks don't need escaping
             message += f"\n```{language}\n{code}\n```\n"

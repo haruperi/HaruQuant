@@ -1,5 +1,6 @@
+import json
+
 import controller as ctrl
-import asyncio
 
 def live_run():
     token = ctrl.g_token
@@ -49,18 +50,38 @@ def live_run():
             else:
                 incr_var = ((proposed_value_at_risk - curr_value_at_risk) / curr_value_at_risk) * 100
 
-            str_message = (f"{curr_time} | "
-                           f"{pair} -> ADR: {current_adr} | "
-                           f"Range: {current_daily_range_percentage}% | "
-                           f"SL: {current_sl} | "
-                           f"Lots: {lots} |  "
-                           f"Curr VAR ${round(curr_value_at_risk)} | "
-                           f"Prop VAR ${round(proposed_value_at_risk)} | "
-                           f"Diff VAR {round(incr_var)}% | "
-                           f"Signal: {action}\n")
+            # str_message = (f"{curr_time} | "
+            #                f"{pair} -> ADR: {current_adr} | "
+            #                f"Range: {current_daily_range_percentage}% | "
+            #                f"SL: {current_sl} | "
+            #                f"Lots: {lots} |  "
+            #                f"Curr VAR ${round(curr_value_at_risk)} | "
+            #                f"Prop VAR ${round(proposed_value_at_risk)} | "
+            #                f"Diff VAR {round(incr_var)}% | "
+            #                f"Signal: {action}\n")
 
-            # Run the async function using asyncio
-            asyncio.run(ctrl.send_telegram_message(token, chat_id, str_message))
+            # Send message to Telegram
+            str_message = {
+                "Time": curr_time,
+                "Symbol": pair,
+                "Signal": action,
+                "ADR": current_adr,
+                "Range": current_daily_range_percentage,
+                "SL": current_sl,
+                "Lots": lots,
+                "CurrVAR": f"${round(curr_value_at_risk):,.2f}",
+                "PropVAR": f"${round(proposed_value_at_risk):,.2f}",
+                "DiffVAR": f"{round(incr_var)}%",
+            }
+
+            formatted_message = ctrl.compose_markdown_message(
+                title="Trading Signal Alert!",
+                text="Proposed Trades...",
+                details={},
+                code_blocks={"json": f"{json.dumps(str_message, indent=4, default=str)}"},
+            )
+
+            ctrl.send_telegram_alert(message=formatted_message)
 
             print(str_message)
     print(curr_strength)
