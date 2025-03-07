@@ -102,17 +102,30 @@ def filter_buy_sell_signals(df):
 if __name__ == '__main__':
     print("Starting trading bot.....\n")
     start_time = time.time()
-    current_account_info = ctrl.mt5.account_info()
-    print("------------------------------------------------------------------")
-    print(f"Login: {ctrl.mt5.account_info().login} \tserver: {ctrl.mt5.account_info().server}")
-    print(f"Date: {ctrl.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(
-        f"Balance: {current_account_info.balance} USD, \t Equity: {current_account_info.equity} USD, \t Profit: {current_account_info.profit} USD")
-    print("------------------------------------------------------------------")
+    # current_account_info = ctrl.mt5.account_info()
+    # print("------------------------------------------------------------------")
+    # print(f"Login: {ctrl.mt5.account_info().login} \tserver: {ctrl.mt5.account_info().server}")
+    # print(f"Date: {ctrl.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    # print(
+    #     f"Balance: {current_account_info.balance} USD, \t Equity: {current_account_info.equity} USD, \t Profit: {current_account_info.profit} USD")
+    # print("------------------------------------------------------------------")
 
     # Initialize the OrderInfo object
 
-    # positions = ctrl.mt5.positions_get()
+    trade = trd.MT5Trade()
+
+
+    if trade.is_connected():
+        print("Successfully connected to MT5")
+
+        # Get account info
+        account_info = trade.account_info()
+        if account_info:
+            print(f"Account Balance: {account_info['balance']} {account_info['currency']}")
+            print(f"Account Equity: {account_info['equity']} {account_info['currency']}")
+            print(f"Account Leverage: 1:{account_info['leverage']}")
+            print(f"Account Name: {account_info['name']}")
+
     # if positions == None:
     #     print("No positions on USDCHF, error code={}".format(ctrl.mt5.last_error()))
     # elif len(positions) > 0:
@@ -137,12 +150,12 @@ if __name__ == '__main__':
     #testing_risk()
     #df = ctrl.fetch_data("AUDJPY", "M5", start_pos=ctrl.g_start_pos, end_pos=1000, amibroker=True)
     #df = ctrl.fetch_data("EURUSD", "M5", start_date="2025-02-16", end_date="2025-02-23")
-    df = ctrl.fetch_data("EURUSD", "M5", start_pos=ctrl.g_start_pos, end_pos=1000)
-    df = ctrl.calculate_moving_average(df)
+    #df = ctrl.fetch_data("EURUSD", "M5", start_pos=ctrl.g_start_pos, end_pos=1000)
+    #df = ctrl.calculate_moving_average(df)
     #df = ctrl.williams_percent_momentum_strategy_backtest("EURUSD", df)
     #df = ctrl.williams_percent_momentum_strategy("EURUSD", df)
     #print(df[df["signal"]!=0])
-    print(df.tail(25))
+    #print(df.tail(25))
 
     # i = 1
     # for symbol in ctrl.g_symbols_forex:
