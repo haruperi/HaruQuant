@@ -329,45 +329,45 @@ Test files must follow these naming conventions:
 
 # Scratchpad
 
-## Current Task: Async Framework Implementation
+## Current Task: System Health Monitoring Implementation
 
 ### Progress:
-- [X] Created async framework in app/core/async_framework.py
-- [X] Implemented base classes:
-  - AsyncTask: Base class for async tasks
-  - TaskManager: Manages concurrent task execution
-  - PeriodicTask: Task that runs at regular intervals
-  - TaskGroup: Groups related tasks together
-- [X] Added comprehensive test suite in tests/unit/core/test_async_framework.py
-- [X] Created example trading implementation in app/core/async_trading.py
-- [X] Implemented proper error handling and logging
-- [X] Added task prioritization and timeout handling
+- [X] Create system health monitoring module
+- [X] Implement core monitoring components:
+  - [X] System resource monitoring (CPU, memory, disk)
+  - [X] Network I/O monitoring
+  - [ ] Trading system health checks
+  - [ ] MT5 connection monitoring
+  - [ ] Performance metrics tracking
+  - [ ] Alert system integration
+- [X] Add comprehensive test suite
+- [X] Implement proper error handling and logging
+- [ ] Create monitoring dashboard integration
 
 ### Next Steps:
-1. [ ] Create integration tests for the trading system
-2. [ ] Implement more trading-specific tasks
-3. [ ] Add performance monitoring
-4. [ ] Develop task recovery mechanisms
+1. [ ] Implement trading system health checks
+2. [ ] Add MT5 connection monitoring
+3. [ ] Create alert system
+4. [ ] Add performance metrics tracking
+5. [ ] Create monitoring dashboard
 
 ### Notes:
-- The async framework provides:
-  - Concurrent task execution with semaphore control
-  - Task status tracking and result handling
-  - Periodic task support for market monitoring
-  - Task grouping for related operations
-  - Proper resource cleanup
+- The system health monitoring provides:
+  - Real-time system resource tracking
+  - Network I/O monitoring
+  - Status determination based on thresholds
+  - Historical metrics storage
   - Comprehensive error handling
-  - Priority-based task execution
+  - Type safety and documentation
 
 ### Testing Coverage:
 - Unit tests cover:
-  - Task execution and result handling
-  - Task manager functionality
-  - Periodic task operation
-  - Task group management
-  - Error handling and timeouts
-  - Task cancellation
-  - Priority-based execution
+  - Monitor start/stop functionality
+  - Metric collection
+  - Status determination
+  - Threshold checking
+  - Metrics history management
+  - Error handling
 
 ## Initial Setup & Environment
 - [X] Install Python 3.13.2 or latest stable version
@@ -391,12 +391,10 @@ Test files must follow these naming conventions:
 - [X] Implement crash recovery mechanisms
 - [X] Create configuration management system
 - [X] Set up comprehensive error handling framework
-- [ ] Create core data models for market, trades and performance
-- [ ] Implement abstract base classes and interfaces
-- [ ] Create utility functions and helper methods
+- [X] Create utility functions and helper methods
 - [X] Implement MT5 connection and authentication handling
 - [X] Develop threading or asyncio framework for concurrent operations
-- [ ] Create system health monitoring
+- [X] Create system health monitoring
 
 ## MT5 Data Module
 - [ ] Implement MT5 client connection manager

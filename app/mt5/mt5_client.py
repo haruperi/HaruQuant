@@ -20,10 +20,10 @@ class MT5Client:
         config.read('config.ini')
         
         # Get MT5 credentials from config
-        self.terminal_path = config.get('MT5', 'path').replace('/', '\\')
-        self.server = config.get('MT5', 'server')
-        self.login = int(config.get('MT5', 'login'))
-        self.password = config.get('MT5', 'password')
+        self.terminal_path = config.get('mt5', 'terminal_path').replace('/', '\\')
+        self.server = config.get('mt5', 'server')
+        self.login = int(config.get('mt5', 'login'))
+        self.password = config.get('mt5', 'password')
         self._initialized = False
         self._connected = False
         

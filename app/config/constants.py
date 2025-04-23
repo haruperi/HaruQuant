@@ -48,6 +48,32 @@ MAX_VOLUME = 10.0  # Maximum trade volume
 MIN_VOLUME = 0.01  # Minimum trade volume
 VOLUME_STEP = 0.01  # Volume step size
 
+# Live Trading Configuration
+DEFAULT_TRADING_MODE = "live"  # Default trading mode
+DEFAULT_RISK_PERCENT = 2.0  # Default risk per trade percentage
+DEFAULT_MAX_OPEN_POSITIONS = 5  # Default maximum open positions
+DEFAULT_MAX_DAILY_TRADES = 10  # Default maximum daily trades
+DEFAULT_STOP_LOSS_PIPS = 50  # Default stop loss in pips
+DEFAULT_TAKE_PROFIT_PIPS = 100  # Default take profit in pips
+DEFAULT_TRAILING_STOP = True  # Default trailing stop setting
+DEFAULT_TRAILING_STOP_PIPS = 20  # Default trailing stop pips
+
+# Strategy Configuration
+DEFAULT_ENABLED_STRATEGIES = ["MovingAverageCrossover", "RSIDivergence"]  # Default enabled strategies
+DEFAULT_STRATEGY_TIMEFRAMES = ["M5", "M15", "H1"]  # Default strategy timeframes
+DEFAULT_STRATEGY_SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY"]  # Default strategy symbols
+
+# Moving Average Crossover Strategy Parameters
+MA_CROSSOVER_FAST_PERIOD = 10  # Fast moving average period
+MA_CROSSOVER_SLOW_PERIOD = 20  # Slow moving average period
+MA_CROSSOVER_SIGNAL_TIMEFRAME = "M5"  # Signal timeframe
+
+# RSI Divergence Strategy Parameters
+RSI_DIVERGENCE_PERIOD = 14  # RSI period
+RSI_DIVERGENCE_OVERBOUGHT = 70  # RSI overbought level
+RSI_DIVERGENCE_OVERSOLD = 30  # RSI oversold level
+RSI_DIVERGENCE_SIGNAL_TIMEFRAME = "M15"  # Signal timeframe
+
 # Backtesting Configuration
 BACKTEST_START_DATE = "2024-01-01"  # Default backtest start date
 BACKTEST_END_DATE = "2024-12-31"  # Default backtest end date
