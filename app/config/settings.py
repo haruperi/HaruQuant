@@ -1,110 +1,79 @@
 """
-Configuration settings management
+Configuration settings management for HaruQuant trading bot.
 """
 
 import os
-import logging
+from configparser import ConfigParser
 from pathlib import Path
-from typing import Any, Dict
+from typing import Dict, Any, Optional
+
 from dotenv import load_dotenv
-import configparser
 
-from app.core.exceptions import ConfigurationError
-
-logger = logging.getLogger(__name__)
-
-class Settings:
-    """Configuration settings manager."""
+def load_settings(config_path: str = "config.ini") -> Dict[str, Any]:
+    """
+    Load settings from config file and environment variables.
     
-    def __init__(self):
-        """Initialize the settings manager."""
-        self._config = configparser.ConfigParser()
-        self._env_vars: Dict[str, Any] = {}
+    Args:
+        config_path: Path to the configuration file
         
-    def load(self) -> None:
-        """Load configuration from files and environment variables."""
-        try:
-            # Load environment variables
-            load_dotenv()
-            
-            # Load config file
-            config_path = Path("config.ini")
-            if config_path.exists():
-                self._config.read(config_path)
-                
-            # Load environment variables
-            self._load_env_vars()
-            
-            logger.info("Configuration loaded successfully")
-            
-        except Exception as e:
-            logger.exception("Error loading configuration")
-            raise ConfigurationError("Failed to load configuration") from e
-            
-    def _load_env_vars(self) -> None:
-        """Load environment variables."""
-        self._env_vars = {
-            "MT5_LOGIN": os.getenv("MT5_LOGIN"),
-            "MT5_PASSWORD": os.getenv("MT5_PASSWORD"),
-            "MT5_SERVER": os.getenv("MT5_SERVER"),
-            "MT5_PATH": os.getenv("MT5_PATH"),
-            "DB_HOST": os.getenv("DB_HOST"),
-            "DB_PORT": os.getenv("DB_PORT"),
-            "DB_NAME": os.getenv("DB_NAME"),
-            "DB_USER": os.getenv("DB_USER"),
-            "DB_PASSWORD": os.getenv("DB_PASSWORD"),
-            "TELEGRAM_BOT_TOKEN": os.getenv("TELEGRAM_BOT_TOKEN"),
-            "TELEGRAM_CHAT_ID": os.getenv("TELEGRAM_CHAT_ID"),
-            "NEWS_API_KEY": os.getenv("NEWS_API_KEY"),
-        }
+    Returns:
+        Dictionary containing all settings
+    """
+    # Load environment variables
+    load_dotenv()
+    
+    # Initialize config parser
+    config = ConfigParser()
+    config.read(config_path)
+    
+    # Create settings dictionary
+    settings = {}
+    
+    # Load logging settings
+    settings["logging"] = {
+        "level": config.get("logging", "level", fallback="INFO"),
+        "log_file": config.get("logging", "log_file", fallback="logs/harutrader.log")
+    }
+    
+    # Load MT5 settings
+    settings["mt5"] = {
+        "terminal_path": config.get("mt5", "terminal_path"),
+        "server": config.get("mt5", "server"),
+        "login": int(config.get("mt5", "login")),
+        "password": os.getenv("MT5_PASSWORD", ""),
+        "symbols": [s.strip() for s in config.get("mt5", "symbols").split(",")]
+    }
+    
+    # Load trading settings
+    settings["trading"] = {
+        "risk_per_trade": float(config.get("trading", "risk_per_trade")),
+        "max_open_trades": int(config.get("trading", "max_open_trades")),
+        "stop_loss_pips": int(config.get("trading", "stop_loss_pips")),
+        "take_profit_pips": int(config.get("trading", "take_profit_pips"))
+    }
+    
+    # Load backtesting settings
+    settings["backtesting"] = {
+        "start_date": config.get("backtesting", "start_date"),
+        "end_date": config.get("backtesting", "end_date"),
+        "initial_balance": float(config.get("backtesting", "initial_balance")),
+        "commission_rate": float(config.get("backtesting", "commission_rate"))
+    }
+    
+    return settings
+
+def get_setting(section: str, key: str, settings: Optional[Dict[str, Any]] = None) -> Any:
+    """
+    Get a specific setting value.
+    
+    Args:
+        section: Configuration section name
+        key: Setting key name
+        settings: Optional settings dictionary (will load if not provided)
         
-    def get(self, section: str, key: str, default: Any = None) -> Any:
-        """Get a configuration value.
-        
-        Args:
-            section: The configuration section
-            key: The configuration key
-            default: Default value if not found
-            
-        Returns:
-            The configuration value
-        """
-        try:
-            # Try to get from config file
-            if self._config.has_section(section):
-                if self._config.has_option(section, key):
-                    return self._config.get(section, key)
-                    
-            # Try to get from environment variables
-            env_key = f"{section}_{key}".upper()
-            if env_key in self._env_vars:
-                return self._env_vars[env_key]
-                
-            return default
-            
-        except Exception as e:
-            logger.exception(f"Error getting configuration value: {section}.{key}")
-            return default
-            
-    def set(self, section: str, key: str, value: Any) -> None:
-        """Set a configuration value.
-        
-        Args:
-            section: The configuration section
-            key: The configuration key
-            value: The configuration value
-        """
-        try:
-            if not self._config.has_section(section):
-                self._config.add_section(section)
-            self._config.set(section, key, str(value))
-            
-            # Save to config file
-            with open("config.ini", "w") as f:
-                self._config.write(f)
-                
-            logger.debug(f"Configuration value set: {section}.{key}")
-            
-        except Exception as e:
-            logger.exception(f"Error setting configuration value: {section}.{key}")
-            raise ConfigurationError(f"Failed to set configuration value: {section}.{key}") from e 
+    Returns:
+        The setting value
+    """
+    if settings is None:
+        settings = load_settings()
+    return settings[section][key] 

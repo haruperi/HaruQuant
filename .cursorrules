@@ -335,11 +335,12 @@ Test files must follow these naming conventions:
 - [X] Created and switched to core-module branch
 - [X] Implemented logging service in app/utils/logger.py
 - [X] Created unit tests for logger in tests/unit/utils/test_logger.py
+- [X] Implemented main.py entry point script with argument parsing and bot initialization
 
 ### Next Steps:
-1. Implement main.py entry point script
-2. Create core bot class with lifecycle management
-3. Develop constants.py for system-wide configuration
+1. Create core bot class with lifecycle management
+2. Develop constants.py for system-wide configuration
+3. Implement configuration management system
 
 ## TODO Plan List
 

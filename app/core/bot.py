@@ -1,95 +1,161 @@
 """
-Core Trading Bot Class
+Core trading bot implementation with lifecycle management.
 """
 
 import logging
-from typing import Optional
+from typing import Dict, Any, Optional
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+import MetaTrader5 as mt5
+
+from app.config.settings import load_settings
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 class TradingBot:
-    """Main trading bot class that coordinates all components."""
+    """Core trading bot implementation."""
     
-    def __init__(self):
-        """Initialize the trading bot."""
-        self._is_running = False
-        self._components = {}
+    def __init__(self, config: Optional[Dict[str, Any]] = None, mode: str = "live"):
+        """
+        Initialize the trading bot.
         
-    def initialize(self) -> None:
-        """Initialize all bot components."""
-        try:
-            logger.info("Initializing trading bot components...")
+        Args:
+            config: Optional configuration dictionary
+            mode: Operation mode (live/backtest/optimize)
+        """
+        self.config = config or load_settings()
+        self.mode = mode
+        self.is_running = False
+        self.mt5_initialized = False
+        
+        # Create necessary directories
+        self._create_directories()
+        
+        logger.info(f"Trading bot initialized in {mode} mode")
+        
+    def _create_directories(self) -> None:
+        """Create necessary directories for the bot."""
+        directories = [
+            "logs",
+            "data/historical",
+            "data/backtest_results",
+            "data/optimization_results"
+        ]
+        
+        for directory in directories:
+            Path(directory).mkdir(parents=True, exist_ok=True)
             
-            # TODO: Initialize components
-            # - MT5 client
-            # - Strategy manager
-            # - Risk manager
-            # - Database connection
-            # - Dashboard
-            # - Notification system
-            
-            logger.info("Trading bot components initialized successfully")
-            
-        except Exception as e:
-            logger.exception("Error initializing trading bot components")
-            raise
-    
     def start(self) -> None:
         """Start the trading bot."""
-        if self._is_running:
-            logger.warning("Trading bot is already running")
-            return
-            
         try:
             logger.info("Starting trading bot...")
-            self._is_running = True
             
-            # TODO: Start components
-            # - Start data feed
-            # - Start strategy execution
-            # - Start dashboard
-            # - Start monitoring
+            # Initialize MT5 connection
+            if not self._initialize_mt5():
+                raise RuntimeError("Failed to initialize MT5 connection")
+                
+            self.is_running = True
             
-            logger.info("Trading bot started successfully")
-            
+            # Start main loop based on mode
+            if self.mode == "live":
+                self._run_live_trading()
+            elif self.mode == "backtest":
+                self._run_backtest()
+            elif self.mode == "optimize":
+                self._run_optimization()
+            else:
+                raise ValueError(f"Invalid operation mode: {self.mode}")
+                
         except Exception as e:
             logger.exception("Error starting trading bot")
-            self._is_running = False
+            self.stop()
             raise
-    
+            
     def stop(self) -> None:
         """Stop the trading bot."""
-        if not self._is_running:
-            logger.warning("Trading bot is not running")
-            return
-            
         try:
             logger.info("Stopping trading bot...")
-            self._is_running = False
             
-            # TODO: Stop components
-            # - Stop data feed
-            # - Close positions
-            # - Stop dashboard
-            # - Save state
-            
+            # Shutdown MT5 connection
+            if self.mt5_initialized:
+                mt5.shutdown()
+                self.mt5_initialized = False
+                
+            self.is_running = False
             logger.info("Trading bot stopped successfully")
             
         except Exception as e:
             logger.exception("Error stopping trading bot")
             raise
-    
-    def is_running(self) -> bool:
-        """Check if the bot is running."""
-        return self._is_running
-    
-    def get_status(self) -> dict:
-        """Get the current status of the bot."""
-        return {
-            "running": self._is_running,
-            "components": {
-                name: component.get_status() 
-                for name, component in self._components.items()
-            }
-        } 
+            
+    def _initialize_mt5(self) -> bool:
+        """
+        Initialize MT5 connection.
+        
+        Returns:
+            bool: True if initialization successful, False otherwise
+        """
+        try:
+            # Check if terminal path exists
+            terminal_path = self.config["mt5"]["terminal_path"]
+            if not Path(terminal_path).exists():
+                logger.error(f"MT5 terminal not found at: {terminal_path}")
+                return False
+                
+            # Initialize MT5
+            if not mt5.initialize(
+                path=terminal_path,
+                login=self.config["mt5"]["login"],
+                password=self.config["mt5"]["password"],
+                server=self.config["mt5"]["server"]
+            ):
+                logger.error(f"MT5 initialization failed: {mt5.last_error()}")
+                return False
+                
+            self.mt5_initialized = True
+            logger.info("MT5 initialized successfully")
+            return True
+            
+        except Exception as e:
+            logger.exception("Error initializing MT5")
+            return False
+            
+    def _run_live_trading(self) -> None:
+        """Run live trading mode."""
+        logger.info("Starting live trading...")
+        
+        try:
+            while self.is_running:
+                # TODO: Implement live trading logic
+                pass
+                
+        except KeyboardInterrupt:
+            logger.info("Received keyboard interrupt, stopping...")
+        except Exception as e:
+            logger.exception("Error in live trading")
+            raise
+            
+    def _run_backtest(self) -> None:
+        """Run backtesting mode."""
+        logger.info("Starting backtesting...")
+        
+        try:
+            # TODO: Implement backtesting logic
+            pass
+            
+        except Exception as e:
+            logger.exception("Error in backtesting")
+            raise
+            
+    def _run_optimization(self) -> None:
+        """Run optimization mode."""
+        logger.info("Starting optimization...")
+        
+        try:
+            # TODO: Implement optimization logic
+            pass
+            
+        except Exception as e:
+            logger.exception("Error in optimization")
+            raise 
