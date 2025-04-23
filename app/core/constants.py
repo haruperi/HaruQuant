@@ -47,13 +47,6 @@ DEFAULT_SYMBOL = "EURUSD"
 DEFAULT_RISK_PER_TRADE = 0.02  # 2%
 DEFAULT_MAX_OPEN_POSITIONS = 5
 
-# Database
-DB_HOST = "localhost"
-DB_PORT = 5432
-DB_NAME = "haruquant"
-DB_USER = "postgres"
-DB_PASSWORD = "postgres"
-
 # Logging
 LOG_LEVEL = "INFO"
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

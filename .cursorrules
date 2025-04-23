@@ -338,20 +338,21 @@ Test files must follow these naming conventions:
 # Python-MT5 Bot Implementation Todo List
 
 ## Initial Setup & Environment
-- [ ] Install Python 3.13.2 or latest stable version
-- [ ] Set up virtual environment (venv)
-- [ ] Install MetaTrader 5 platform and create account
-- [ ] Verify API access is enabled in MT5
-- [ ] Install MetaTrader 5 Python package (`pip install MetaTrader5`)
-- [ ] Install additional required packages (pandas, numpy, etc.)
-- [ ] Create new project directory structure
-- [ ] Set up Git repository for version control
-- [ ] Create requirements.txt file
-- [ ] Configure environment settings for different environments (dev, test, prod)
-- [ ] Set up .env file for environment variables and credentials
-- [ ] Create project structure according to architecture diagram
+- [X] Install Python 3.13.2 or latest stable version
+- [X] Set up virtual environment (venv)
+- [X] Install MetaTrader 5 platform and create account
+- [X] Verify API access is enabled in MT5
+- [X] Install MetaTrader 5 Python package (`pip install MetaTrader5`)
+- [X] Install additional required packages (pandas, numpy, etc.)
+- [X] Create new project directory structure
+- [X] Set up Git repository for version control
+- [X] Create requirements.txt file
+- [X] Configure environment settings for different environments (dev, test, prod)
+- [X] Set up .env file for environment variables and credentials
+- [X] Create project structure according to architecture diagram
 
 ## Core Module
+- [ ] Set up logging service for system-wide use
 - [ ] Implement main.py entry point script
 - [ ] Create core bot class with lifecycle management
 - [ ] Develop constants.py for system-wide configuration
@@ -360,7 +361,6 @@ Test files must follow these naming conventions:
 - [ ] Set up comprehensive error handling framework
 - [ ] Create core data models for market, trades and performance
 - [ ] Implement abstract base classes and interfaces
-- [ ] Set up logging service for system-wide use
 - [ ] Create utility functions and helper methods
 - [ ] Implement MT5 connection and authentication handling
 - [ ] Develop threading or asyncio framework for concurrent operations
