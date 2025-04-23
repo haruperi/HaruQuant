@@ -329,22 +329,45 @@ Test files must follow these naming conventions:
 
 # Scratchpad
 
-## Current Task: Core Module Implementation
+## Current Task: Async Framework Implementation
 
 ### Progress:
-- [X] Created and switched to core-module branch
-- [X] Implemented logging service in app/utils/logger.py
-- [X] Created unit tests for logger in tests/unit/utils/test_logger.py
-- [X] Implemented main.py entry point script with argument parsing and bot initialization
+- [X] Created async framework in app/core/async_framework.py
+- [X] Implemented base classes:
+  - AsyncTask: Base class for async tasks
+  - TaskManager: Manages concurrent task execution
+  - PeriodicTask: Task that runs at regular intervals
+  - TaskGroup: Groups related tasks together
+- [X] Added comprehensive test suite in tests/unit/core/test_async_framework.py
+- [X] Created example trading implementation in app/core/async_trading.py
+- [X] Implemented proper error handling and logging
+- [X] Added task prioritization and timeout handling
 
 ### Next Steps:
-1. Create core bot class with lifecycle management
-2. Develop constants.py for system-wide configuration
-3. Implement configuration management system
+1. [ ] Create integration tests for the trading system
+2. [ ] Implement more trading-specific tasks
+3. [ ] Add performance monitoring
+4. [ ] Develop task recovery mechanisms
 
-## TODO Plan List
+### Notes:
+- The async framework provides:
+  - Concurrent task execution with semaphore control
+  - Task status tracking and result handling
+  - Periodic task support for market monitoring
+  - Task grouping for related operations
+  - Proper resource cleanup
+  - Comprehensive error handling
+  - Priority-based task execution
 
-# Python-MT5 Bot Implementation Todo List
+### Testing Coverage:
+- Unit tests cover:
+  - Task execution and result handling
+  - Task manager functionality
+  - Periodic task operation
+  - Task group management
+  - Error handling and timeouts
+  - Task cancellation
+  - Priority-based execution
 
 ## Initial Setup & Environment
 - [X] Install Python 3.13.2 or latest stable version
@@ -361,18 +384,18 @@ Test files must follow these naming conventions:
 - [X] Create project structure according to architecture diagram
 
 ## Core Module
-- [ ] Set up logging service for system-wide use
-- [ ] Implement main.py entry point script
-- [ ] Create core bot class with lifecycle management
-- [ ] Develop constants.py for system-wide configuration
-- [ ] Implement crash recovery mechanisms
-- [ ] Create configuration management system
-- [ ] Set up comprehensive error handling framework
+- [X] Set up logging service for system-wide use
+- [X] Implement main.py entry point script
+- [X] Create core bot class with lifecycle management
+- [X] Develop constants.py for system-wide configuration
+- [X] Implement crash recovery mechanisms
+- [X] Create configuration management system
+- [X] Set up comprehensive error handling framework
 - [ ] Create core data models for market, trades and performance
 - [ ] Implement abstract base classes and interfaces
 - [ ] Create utility functions and helper methods
-- [ ] Implement MT5 connection and authentication handling
-- [ ] Develop threading or asyncio framework for concurrent operations
+- [X] Implement MT5 connection and authentication handling
+- [X] Develop threading or asyncio framework for concurrent operations
 - [ ] Create system health monitoring
 
 ## MT5 Data Module
