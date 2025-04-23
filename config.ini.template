@@ -1,7 +1,7 @@
 [mt5]
-login = 61344744
-password = uy+reDvhs1
-server = Pepperstone-Demo
+login = YOUR_LOGIN
+password = YOUR_PASSWORD
+server = YOUR_SERVER
 terminal_path = C:\\Program Files\\Pepperstone MetaTrader 5\\terminal64.exe
 symbols = EURUSD,GBPUSD,USDJPY
 timeframe = M5
