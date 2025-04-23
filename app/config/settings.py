@@ -37,27 +37,35 @@ def load_settings(config_path: str = "config.ini") -> Dict[str, Any]:
     
     # Load MT5 settings
     settings["mt5"] = {
-        "terminal_path": config.get("mt5", "terminal_path"),
+        "terminal_path": config.get("mt5", "path"),
         "server": config.get("mt5", "server"),
         "login": int(config.get("mt5", "login")),
-        "password": os.getenv("MT5_PASSWORD", ""),
-        "symbols": [s.strip() for s in config.get("mt5", "symbols").split(",")]
+        "password": os.getenv("MT5_PASSWORD", config.get("mt5", "password")),
+        "symbols": [s.strip() for s in config.get("mt5", "symbols").split(",")],
+        "timeframe": config.get("mt5", "timeframe")
     }
     
-    # Load trading settings
-    settings["trading"] = {
-        "risk_per_trade": float(config.get("trading", "risk_per_trade")),
-        "max_open_trades": int(config.get("trading", "max_open_trades")),
-        "stop_loss_pips": int(config.get("trading", "stop_loss_pips")),
-        "take_profit_pips": int(config.get("trading", "take_profit_pips"))
+    # Load database settings
+    settings["database"] = {
+        "host": config.get("database", "host"),
+        "port": int(config.get("database", "port")),
+        "name": config.get("database", "name"),
+        "user": config.get("database", "user"),
+        "password": os.getenv("DB_PASSWORD", config.get("database", "password"))
     }
     
-    # Load backtesting settings
-    settings["backtesting"] = {
-        "start_date": config.get("backtesting", "start_date"),
-        "end_date": config.get("backtesting", "end_date"),
-        "initial_balance": float(config.get("backtesting", "initial_balance")),
-        "commission_rate": float(config.get("backtesting", "commission_rate"))
+    # Load dashboard settings
+    settings["dashboard"] = {
+        "host": config.get("dashboard", "host"),
+        "port": int(config.get("dashboard", "port")),
+        "secret_key": os.getenv("DASHBOARD_SECRET_KEY", config.get("dashboard", "secret_key"))
+    }
+    
+    # Load API settings
+    settings["api"] = {
+        "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN", config.get("api", "telegram_bot_token")),
+        "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", config.get("api", "telegram_chat_id")),
+        "news_api_key": os.getenv("NEWS_API_KEY", config.get("api", "news_api_key"))
     }
     
     return settings
