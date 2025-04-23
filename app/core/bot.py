@@ -17,6 +17,7 @@ from app.trading.order import OrderManager
 from app.strategy.base import StrategyManager
 from app.notification.telegram import TelegramNotifier
 from app.database.connection import DatabaseConnection
+from app.core.crash_recovery import BotState, CrashRecovery
 
 logger = get_logger(__name__)
 
@@ -43,6 +44,10 @@ class TradingBot:
         self.db_connection = None
         self.notifier = None
         
+        # Initialize crash recovery
+        self.bot_state = BotState()
+        self.crash_recovery = CrashRecovery(self.bot_state)
+        
         # Create necessary directories
         self._create_directories()
         
@@ -65,6 +70,9 @@ class TradingBot:
         logger.info("Initializing trading bot components...")
         
         try:
+            # Set up signal handlers for graceful shutdown
+            self.crash_recovery.setup_signal_handlers()
+            
             # Initialize MT5 connection
             if not self._initialize_mt5():
                 raise RuntimeError("Failed to initialize MT5 connection")
@@ -102,6 +110,7 @@ class TradingBot:
             
         except Exception as e:
             logger.exception("Error initializing trading bot components")
+            self.crash_recovery.handle_crash(e)
             self.stop()
             raise
             
@@ -110,9 +119,22 @@ class TradingBot:
         try:
             logger.info("Starting trading bot...")
             
+            # Check if we should restart after previous crash
+            if not self.crash_recovery.should_restart():
+                logger.error("Too many crashes detected, not restarting")
+                if self.notifier:
+                    self.notifier.send_message(
+                        "Bot failed to start due to excessive crashes. "
+                        "Please check logs and restart manually."
+                    )
+                return
+                
             # Initialize components
             self.initialize()
             self.is_running = True
+            
+            # Update state
+            self.bot_state.update_state('last_start_time', datetime.now().isoformat())
             
             # Send notification if enabled
             if self.notifier:
@@ -130,6 +152,7 @@ class TradingBot:
                 
         except Exception as e:
             logger.exception("Error starting trading bot")
+            self.crash_recovery.handle_crash(e)
             self.stop()
             raise
             
@@ -150,10 +173,15 @@ class TradingBot:
                 self.notifier.send_message(f"Bot stopped at {datetime.now()}")
                 
             self.is_running = False
+            
+            # Clean up crash recovery
+            self.crash_recovery.cleanup()
+            
             logger.info("Trading bot stopped successfully")
             
         except Exception as e:
             logger.exception("Error stopping trading bot")
+            self.crash_recovery.handle_crash(e)
             raise
             
     def _initialize_mt5(self) -> bool:
@@ -193,6 +221,7 @@ class TradingBot:
             
         except Exception as e:
             logger.exception("Error initializing MT5")
+            self.crash_recovery.handle_crash(e)
             return False
             
     def _run_live_trading(self) -> None:
@@ -223,6 +252,7 @@ class TradingBot:
             logger.info("Received keyboard interrupt, stopping...")
         except Exception as e:
             logger.exception("Error in live trading")
+            self.crash_recovery.handle_crash(e)
             if self.notifier:
                 self.notifier.send_message(f"Error in trading loop: {e}")
             raise
@@ -237,6 +267,7 @@ class TradingBot:
             
         except Exception as e:
             logger.exception("Error in backtesting")
+            self.crash_recovery.handle_crash(e)
             raise
             
     def _run_optimization(self) -> None:
@@ -249,4 +280,5 @@ class TradingBot:
             
         except Exception as e:
             logger.exception("Error in optimization")
+            self.crash_recovery.handle_crash(e)
             raise 
