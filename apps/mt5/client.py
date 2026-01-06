@@ -812,17 +812,17 @@ class MT5Client:
             # Select and rename columns
             df = df[["time", "open", "high", "low", "close", "tick_volume", "spread"]]
             df.columns = [
-                "Timestamp",
-                "Open",
-                "High",
-                "Low",
-                "Close",
-                "Volume",
-                "Spread",
+                "timestamp",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "spread",
             ]
 
             # Set index to Timestamp
-            df.set_index("Timestamp", inplace=True)
+            df.set_index("timestamp", inplace=True)
 
             return df
 
@@ -893,11 +893,11 @@ class MT5Client:
 
                 # Rename columns
                 df.rename(
-                    columns={"ask": "Ask", "bid": "Bid", "time": "Timestamp"},
+                    columns={"ask": "ask", "bid": "bid", "time": "timestamp"},
                     inplace=True,
                 )
 
-                df.set_index("Timestamp", inplace=True)
+                df.set_index("timestamp", inplace=True)
                 return df
             else:
                 # Convert numpy records to dicts

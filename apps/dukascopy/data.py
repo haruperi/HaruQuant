@@ -113,8 +113,8 @@ def _resample_to_nearest(
 
 def _get_dataframe_columns_for_timeunit(time_unit: str) -> list[str]:
 
-    ohlc_df = ["Timestamp", "Open", "High", "Low", "Close", "Volume"]
-    tick_df = ["Timestamp", "BidPrice", "AskPrice", "BidVolume", "AskVolume"]
+    ohlc_df = ["timestamp", "open", "high", "low", "close", "volume"]
+    tick_df = ["timestamp", "bidprice", "askprice", "bidvolume", "askvolume"]
 
     df = {
         TIME_UNIT_DAY: ohlc_df,
