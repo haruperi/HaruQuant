@@ -68,6 +68,21 @@ class SchemaManager:
             """
             cursor.execute(create_user_settings_table_query)
 
+            # Create user_sessions table
+            create_user_sessions_table_query = """
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token VARCHAR(255) NOT NULL UNIQUE,
+                start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expire_time TIMESTAMP NOT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_user_sessions_table_query)
+
             # Create strategies table
             create_strategies_table_query = """
             CREATE TABLE IF NOT EXISTS strategies (

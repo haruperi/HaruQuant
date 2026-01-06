@@ -1,11 +1,13 @@
 """User management module."""
 
 import json
+import secrets
 import sqlite3
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from apps.logger import logger
-from apps.utils.security import get_encryption_key, hash_password
+from apps.utils.security import get_encryption_key, hash_password, verify_password
 
 from .base import UserAlreadyExistsError
 
@@ -603,3 +605,90 @@ class UserManager:
         except Exception as e:
             logger.error(f"Error retrieving MT5 credentials for {login}: {e}")
             return None
+
+    def delete_user_sessions(self, user_id: int) -> bool:
+        """
+        Delete all active sessions for a user.
+
+        Args:
+            user_id (int): User's ID
+        """
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting sessions for user {user_id}: {e}")
+            return False
+
+    def create_session(self, user_id: int, duration_hours: int = 24) -> str:
+        """
+        Create a new session for a user.
+
+        Args:
+            user_id (int): User's ID
+            duration_hours (int): Session duration in hours
+
+        Returns:
+            str: Session token
+        """
+        conn = None
+        try:
+            token = secrets.token_urlsafe(32)
+            expire_time = datetime.now() + timedelta(hours=duration_hours)
+
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            query = """
+            INSERT INTO user_sessions (user_id, token, expire_time)
+            VALUES (?, ?, ?)
+            """
+            cursor.execute(query, (user_id, token, expire_time))
+            conn.commit()
+
+            logger.info(f"Session created for user {user_id}")
+            return token
+
+        except Exception as e:
+            logger.error(f"Error creating session for user {user_id}: {e}")
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def login_user(self, username: str, password: str) -> Optional[str]:
+        """
+        Authenticate a user and create a session.
+
+        Args:
+            username (str): User's username
+            password (str): User's password
+
+        Returns:
+            str: Session token if successful, None otherwise
+        """
+        # 1. Get user by username
+        user = self.get_user(username=username)
+        if not user:
+            logger.warning(f"Login failed: User '{username}' not found.")
+            return None
+
+        # 2. Verify password
+        if not verify_password(password, user["hashed_password"]):
+            logger.warning(f"Login failed: Invalid password for user '{username}'.")
+            return None
+
+        # 3. Update last_login
+        self.update_user(user_id=user["id"], last_login=datetime.now())
+
+        # 4. Enforce single session: Delete existing sessions
+        self.delete_user_sessions(user["id"])
+
+        # 5. Create session
+        return self.create_session(user["id"])
