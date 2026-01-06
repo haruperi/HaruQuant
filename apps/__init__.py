@@ -1,0 +1,1 @@
+"""HaruQuant applications package."""
