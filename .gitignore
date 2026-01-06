@@ -1,0 +1,733 @@
+# ============================================================================
+# HaruQuant System .gitignore
+# ============================================================================
+
+# ============================================================================
+# Python
+# ============================================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ============================================================================
+# Node / Next.js
+# ============================================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+
+# Production
+dist/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# SQLite Databases
+# ============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ============================================================================
+# Logs
+# ============================================================================
+logs/
+*.log
+*.log.*
+log_*.txt
+
+# ============================================================================
+# Data Files (market data, exports, results)
+# ============================================================================
+# Market data directories
+/data/
+!app/data/
+datasets/
+market_data/
+historical_data/
+
+# Backtest results and exports
+results/
+exports/
+reports/
+output/
+
+# Temporary data
+temp_data/
+tmp/
+cache/
+
+# CSV and Parquet data files
+*.csv
+*.parquet
+*.pq
+*.arrow
+
+# Exclude example/seed data if needed (uncomment to allow)
+# !data/examples/*.csv
+# !data/seed/*.csv
+
+# ============================================================================
+# IDE & Editor Files
+# ============================================================================
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains IDEs (PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Cursor
+.cursor/
+.history/
+
+# ============================================================================
+# Operating System Files
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================================================
+# Application Specific
+# ============================================================================
+# Configuration overrides (use .example versions in repo)
+config/local.json
+config/development.json
+config/production.json
+*.local.json
+
+# User-specific settings
+user_settings.json
+.user.ini
+
+# Profiling and benchmarking data
+*.prof
+*.lprof
+profiling_results/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Compressed archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ============================================================================
+# Project Specific
+# ============================================================================
+# Strategy source files (if keeping proprietary)
+# strategies/proprietary/
+
+# API keys and secrets
+.secrets
+secrets.json
+api_keys.json
+
+# Large exports
+*.pdf
+*.html
+!docs/**/*.html
+!templates/**/*.html
+
+# Job queue files
+job_queue/
+worker_state/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ============================================================================
+# Node / Next.js
+# ============================================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+
+# Production
+dist/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# SQLite Databases
+# ============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ============================================================================
+# Logs
+# ============================================================================
+logs/
+*.log
+*.log.*
+log_*.txt
+
+# ============================================================================
+# Data Files (market data, exports, results)
+# ============================================================================
+# Market data directories
+data/
+datasets/
+market_data/
+historical_data/
+
+# Backtest results and exports
+results/
+exports/
+reports/
+output/
+
+# Temporary data
+temp_data/
+tmp/
+cache/
+
+# CSV and Parquet data files
+*.csv
+*.parquet
+*.pq
+*.arrow
+
+# Exclude example/seed data if needed (uncomment to allow)
+# !data/examples/*.csv
+# !data/seed/*.csv
+
+# ============================================================================
+# IDE & Editor Files
+# ============================================================================
+# VSCode
+.vscode/
+.vs
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains IDEs (PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Cursor
+.cursor/
+.history/
+
+# ============================================================================
+# Operating System Files
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================================================
+# Application Specific
+# ============================================================================
+# Configuration overrides (use .example versions in repo)
+config/local.json
+config/development.json
+config/production.json
+*.local.json
+
+# User-specific settings
+user_settings.json
+.user.ini
+
+# Profiling and benchmarking data
+*.prof
+*.lprof
+profiling_results/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Compressed archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ============================================================================
+# Project Specific
+# ============================================================================
+# Strategy source files (if keeping proprietary)
+# strategies/proprietary/
+
+# API keys and secrets
+.secrets
+secrets.json
+api_keys.json
+
+# Large exports
+*.pdf
+*.html
+!docs/**/*.html
+!templates/**/*.html
+
+# Job queue files
+job_queue/
+worker_state/
+
+# MT5 integration cache
+mt5_cache/
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ============================================================================
+# Node / Next.js
+# ============================================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+
+# Production
+dist/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# SQLite Databases
+# ============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ============================================================================
+# Logs
+# ============================================================================
+logs/
+*.log
+*.log.*
+log_*.txt
+
+# ============================================================================
+# Data Files (market data, exports, results)
+# ============================================================================
+# Market data directories
+data/
+datasets/
+market_data/
+historical_data/
+
+# Backtest results and exports
+results/
+exports/
+reports/
+output/
+
+# Temporary data
+temp_data/
+tmp/
+cache/
+
+# CSV and Parquet data files
+*.csv
+*.parquet
+*.pq
+*.arrow
+
+# Exclude example/seed data if needed (uncomment to allow)
+# !data/examples/*.csv
+# !data/seed/*.csv
+
+# ============================================================================
+# IDE & Editor Files
+# ============================================================================
+# VSCode
+.vscode/
+.vs
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains IDEs (PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Cursor
+.cursor/
+.history/
+
+# ============================================================================
+# Operating System Files
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================================================
+# Application Specific
+# ============================================================================
+# Configuration overrides (use .example versions in repo)
+config/local.json
+config/development.json
+config/production.json
+*.local.json
+
+# User-specific settings
+user_settings.json
+.user.ini
+
+# Profiling and benchmarking data
+*.prof
+*.lprof
+profiling_results/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Compressed archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ============================================================================
+# Project Specific
+# ============================================================================
+# Strategy source files (if keeping proprietary)
+# strategies/proprietary/
+
+# API keys and secrets
+.secrets
+secrets.json
+api_keys.json
+
+# Large exports
+*.pdf
+*.html
+!docs/**/*.html
+!templates/**/*.html
+
+# Job queue files
+job_queue/
+worker_state/
+
+# MT5 integration cache
+mt5_cache/
+mt5_exports/
+
+# INI configuration files (may contain sensitive credentials)
+*.ini
+!alembic.ini
+!mypy.ini
+
+# Whitelist app/data directory
+!app/data/
+!ui/app/data/
+!ui/components/data/
+!ui/lib/

@@ -1,0 +1,56 @@
+# Data Processing & Analysis
+numpy
+pandas
+tqdm
+
+# Testing
+pytest
+pytest-cov
+
+# Web Framework
+fastapi
+uvicorn[standard]
+python-multipart
+websockets
+pydantic[email]
+
+# HTTP Clients
+requests
+httpx
+
+# Cryptography
+cryptography
+passlib
+passlib[bcrypt]
+
+# Trading
+MetaTrader5
+
+# Development Tools
+pre-commit
+black
+isort
+flake8
+pylint
+mypy
+bandit
+bandit[toml]
+
+
+# Finance & Data Libraries
+scipy
+
+# Optimization
+scikit-optimize
+
+# Plotting
+matplotlib
+seaborn
+plotly
+
+# System
+psutil
+
+# Data Processing & Analysis
+fastparquet
+pyarrow
