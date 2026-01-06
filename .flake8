@@ -1,0 +1,25 @@
+[flake8]
+# Match black's line length
+max-line-length = 88
+extend-ignore =
+    # E203: whitespace before ':' (conflicts with black)
+    E203,
+    # W503: line break before binary operator (conflicts with black)
+    W503,
+    # E501: line too long (handled by black)
+    E501
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    build,
+    dist,
+    .eggs,
+    *.egg-info,
+    .tox,
+    .pytest_cache,
+    .mypy_cache
+max-complexity = 10
+per-file-ignores =
+    __init__.py:F401
