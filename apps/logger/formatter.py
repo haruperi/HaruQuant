@@ -648,27 +648,39 @@ class Formatter:
         self, value: Any, format_spec: Optional[str], field_name: str
     ) -> str:
         """Apply format specification to a value."""
-        if format_spec is None or format_spec == "":
+        if not format_spec:
             return str(value)
 
         try:
-            if (isinstance(value, datetime) or field_name == "time") and any(
-                token in format_spec
-                for token in ["YYYY", "MM", "DD", "HH", "mm", "ss", "SSS"]
-            ):
+            if self._is_datetime_custom_format(value, format_spec, field_name):
                 return self._format_datetime(value, format_spec)
 
-            if format_spec and (
-                format_spec[0] in "<>^" or any(c.isdigit() for c in format_spec)
-            ):
-                return format(value, format_spec)
-            else:
-                try:
-                    return format(value, format_spec)
-                except (ValueError, TypeError):
-                    return str(value)
+            return self._try_format(value, format_spec)
 
         except (ValueError, TypeError, AttributeError, OverflowError):
+            return self._format_fallback(value, format_spec)
+
+    def _is_datetime_custom_format(
+        self, value: Any, format_spec: str, field_name: str
+    ) -> bool:
+        """Check if we should use custom datetime formatting."""
+        return (isinstance(value, datetime) or field_name == "time") and any(
+            token in format_spec
+            for token in ["YYYY", "MM", "DD", "HH", "mm", "ss", "SSS"]
+        )
+
+    def _try_format(self, value: Any, format_spec: str) -> str:
+        """Try standard formatting, falling back to string formatting."""
+        try:
+            return format(value, format_spec)
+        except (ValueError, TypeError):
+            return self._format_fallback(value, format_spec)
+
+    def _format_fallback(self, value: Any, format_spec: str) -> str:
+        """Format the string representation of the value."""
+        try:
+            return format(str(value), format_spec)
+        except (ValueError, TypeError):
             return str(value)
 
     def _format_datetime(self, dt: datetime, fmt: str) -> str:
