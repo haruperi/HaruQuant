@@ -32,3 +32,37 @@
   The hooks will now run automatically on every commit. You can also run them manually with:
   - pre-commit run --all-files - Run on all files
   - pre-commit run --files <file> - Run on specific files
+
+  pytest options (line 97)
+
+  - Added --cov-fail-under=80 to make pytest exit with failure if coverage is below 80%
+
+  New coverage.run section (lines 103-114)
+
+  - source: Specifies to measure coverage from the current directory
+  - omit: Excludes test files, virtual environments, and setup files from coverage calculation
+  - branch: Enables branch coverage (not just line coverage)
+
+  New coverage.report section (lines 116-129)
+
+  - precision: Shows coverage percentages with 2 decimal places
+  - show_missing: Displays line numbers that aren't covered
+  - fail_under: Enforces 80% minimum coverage threshold
+  - exclude_lines: Excludes common patterns that shouldn't count against coverage:
+    - pragma: no cover comments
+    - __repr__ methods
+    - AssertionError and NotImplementedError raises
+    - if __name__ == "__main__": blocks
+    - Type checking blocks
+    - Abstract methods
+
+  Now when you run pytest, it will:
+  1. Calculate coverage for all source files (excluding tests and venv)
+  2. Show which lines are missing coverage
+  3. Fail with exit code 1 if coverage is below 80%
+
+  You can test this with:
+  pytest
+
+  Or to see a detailed HTML coverage report:
+  pytest --cov=. --cov-report=html

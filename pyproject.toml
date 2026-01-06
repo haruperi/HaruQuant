@@ -94,8 +94,36 @@ good-names = ["i", "j", "k", "ex", "Run", "_", "df", "mt5", "id"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --cov=. --cov-report=term-missing"
+addopts = "-ra -q --cov=. --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*_test.py",
+    "venv/*",
+    ".venv/*",
+    "*/site-packages/*",
+    "setup.py",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
