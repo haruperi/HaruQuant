@@ -140,7 +140,7 @@ class MT5TerminalProvider:
 
     def _refresh_terminal_data(self) -> None:
         """Refresh terminal data from MT5."""
-        data = self._client.fetch_terminal_info()
+        data = self._client.get_terminal_info()
         if data:
             self._terminal_data = data
         else:

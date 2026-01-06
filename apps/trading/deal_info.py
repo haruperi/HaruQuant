@@ -154,7 +154,7 @@ class MT5DealProvider:
 
     def _refresh_deals(self, date_from=None, date_to=None) -> None:
         """Refresh deals from MT5."""
-        deals = self._client.fetch_history_deals(date_from=date_from, date_to=date_to)
+        deals = self._client.get_history_deals(date_from=date_from, date_to=date_to)
         if deals:
             self._deals = deals
             if self._deals and self._current_index == -1:

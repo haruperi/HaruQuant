@@ -202,7 +202,7 @@ class MT5OrderProvider(OrderDataProvider):
 
     def _refresh_orders(self) -> None:
         """Refresh orders from MT5."""
-        orders = self._client.fetch_orders()
+        orders = self._client.get_orders()
         if orders:
             self._orders = orders
             if self._orders and self._current_index == -1:

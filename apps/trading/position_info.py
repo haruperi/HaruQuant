@@ -150,7 +150,7 @@ class MT5PositionProvider:
 
     def _refresh_positions(self) -> None:
         """Refresh positions from MT5."""
-        positions = self._client.fetch_positions()
+        positions = self._client.get_positions()
         if positions:
             self._positions = positions
             if self._positions and self._current_index == -1:
@@ -282,7 +282,7 @@ class MT5PositionProvider:
 
     def get_margin_mode(self) -> str:
         """Get account margin mode from MT5."""
-        account_info = self._client.fetch_account_info()
+        account_info = self._client.get_account_info()
         if account_info:
             margin_mode = account_info.get("margin_mode", 0)
             if margin_mode == 2:

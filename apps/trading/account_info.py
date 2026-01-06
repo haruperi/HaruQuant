@@ -188,7 +188,7 @@ class MT5AccountProvider:
 
     def _refresh_account_data(self) -> None:
         """Refresh account data from MT5."""
-        account_data = self._client.fetch_account_info()
+        account_data = self._client.get_account_info()
         if account_data is None:
             logger.warning("Failed to fetch account data from MT5")
             self._account_data = {}
@@ -510,7 +510,7 @@ class BacktestAccountProvider:
             ... )
         """
         # Fetch account info from MT5
-        account_data = mt5_client.fetch_account_info()
+        account_data = mt5_client.get_account_info()
         if not account_data:
             logger.error("Failed to fetch account data from MT5")
             return cls()  # Return with defaults

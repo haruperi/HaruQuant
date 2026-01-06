@@ -155,7 +155,7 @@ class MT5HistoryOrderProvider:
 
     def _refresh_orders(self, date_from=None, date_to=None) -> None:
         """Refresh orders from MT5."""
-        orders = self._client.fetch_history_orders(date_from=date_from, date_to=date_to)
+        orders = self._client.get_history_orders(date_from=date_from, date_to=date_to)
         if orders:
             self._orders = orders
             if self._orders and self._current_index == -1:
