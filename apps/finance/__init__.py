@@ -30,6 +30,7 @@ from . import (
     ratios,
     returns,
     risks,
+    statistical_tests,
 )
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     "benchmark",
     "distributions",
     "efficiency",
+    "statistical_tests",
 ]

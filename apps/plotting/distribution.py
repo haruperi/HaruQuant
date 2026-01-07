@@ -441,8 +441,13 @@ def _plot_distribution(  # noqa: C901
     colors = _get_colors(color_mode)
 
     returns_pct = returns.dropna() * 100
+    # Filter out infinite values
+    returns_pct = returns_pct[np.isfinite(returns_pct)]
+
     if len(returns_pct) == 0:
-        raise ValueError("Returns series is empty after removing NaN values")
+        raise ValueError(
+            "Returns series is empty after removing NaN and infinite values"
+        )
 
     logger.debug(
         "Plotting returns distribution",

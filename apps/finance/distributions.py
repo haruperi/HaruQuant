@@ -343,6 +343,46 @@ def higher_moments(data: pd.Series) -> Dict[str, float]:
     }
 
 
+def skewness(data: pd.Series) -> float:
+    """
+    Calculate skewness of a data series.
+
+    Args:
+        data: Data series
+
+    Returns:
+        Skewness value (0.0 for insufficient data)
+    """
+    if len(data) < 3:
+        return 0.0
+
+    value = data.skew()
+    if pd.isna(value):
+        return 0.0
+
+    return float(value)
+
+
+def kurtosis(data: pd.Series) -> float:
+    """
+    Calculate excess kurtosis of a data series.
+
+    Args:
+        data: Data series
+
+    Returns:
+        Excess kurtosis value (0.0 for insufficient data)
+    """
+    if len(data) < 4:
+        return 0.0
+
+    value = data.kurtosis()
+    if pd.isna(value):
+        return 0.0
+
+    return float(value)
+
+
 # =========================================================================
 # Outlier Detection
 # =========================================================================

@@ -1,0 +1,946 @@
+"""
+Vectorized Backtest Engine.
+
+Fast bulk evaluation for research and parameter optimization.
+Trades accuracy for speed - uses simplified execution model.
+"""
+
+from datetime import datetime
+from typing import Any, Dict, Optional, Tuple
+
+import pandas as pd
+
+from apps.logger import logger
+from apps.strategy import BaseStrategy
+
+from ..result import BacktestResult, TradeRecord
+from .base import BaseEngine
+
+
+class VectorizedEngine(BaseEngine):
+    """
+    Vectorized Backtest Engine.
+
+    Characteristics:
+    - Processes entire DataFrame at once
+    - Uses vectorized pandas/numpy operations
+    - Simplified execution model (close-based)
+    - No intra-bar SL/TP checking
+    - Fast but less accurate
+
+    Trade-offs:
+    - 10-100x faster than event-driven
+    - Close-based entry/exit (no high/low consideration)
+    - Simplified position tracking
+    - No mark-to-market updates
+
+    Use for:
+    - Research and experimentation
+    - Parameter optimization
+    - Initial strategy testing
+    - High-level strategy comparison
+
+    NOT for:
+    - Final strategy validation
+    - Pre-live testing
+    - Precise execution modeling
+    """
+
+    def __init__(
+        self,
+        strategy: BaseStrategy,
+        data: pd.DataFrame,
+        initial_balance: float = 10000.0,
+        commission: float = 0.0,
+        slippage_points: float = 0.0,
+        slippage_config: Optional[Dict[str, Any]] = None,
+        spread_config: Optional[Dict[str, Any]] = None,
+        leverage: int = 100,
+        timeframe: str = "H1",
+        config: Optional[Dict[str, Any]] = None,
+        position_sizer: Optional[Any] = None,
+    ):
+        """
+        Initialize vectorized engine.
+
+        Args:
+            strategy: Strategy to backtest
+            data: OHLCV DataFrame
+            initial_balance: Starting balance
+            commission: Commission per trade
+            slippage_points: Slippage in points (legacy)
+            slippage_config: Slippage configuration dict
+            spread_config: Spread configuration dict
+            leverage: Account leverage
+            timeframe: Bar timeframe
+            config: Additional config
+            position_sizer: Optional PositionSizer for dynamic position sizing
+        """
+        config = config or {}
+        config["timeframe"] = timeframe
+
+        super().__init__(
+            strategy,
+            data,
+            initial_balance,
+            commission,
+            slippage_points,
+            slippage_config,
+            spread_config,
+            leverage,
+            config,
+        )
+
+        self.timeframe = timeframe
+        self.position_sizer = position_sizer
+
+        # Initialize SymbolProvider for accurate pip calculations
+        # Try to get MT5 data if available, otherwise use defaults
+        from apps.trading.symbol_info import BacktestSymbolProvider
+
+        # Only try to fetch MT5 symbol info if we have a valid symbol name
+        # Skip MT5 connection if symbol is "UNKNOWN" to avoid errors during optimization
+        if strategy.symbol and strategy.symbol.upper() != "UNKNOWN":
+            try:
+                # Try to import MT5 client
+                from apps.mt5.client import MT5Client
+
+                mt5_client = MT5Client()
+                if mt5_client.is_connected():
+                    self._symbol_provider = BacktestSymbolProvider(
+                        mt5_client=mt5_client, symbol_name=strategy.symbol
+                    )
+                else:
+                    self._symbol_provider = BacktestSymbolProvider(
+                        symbol_name=strategy.symbol
+                    )
+            except Exception:
+                # MT5 not available, use defaults
+                self._symbol_provider = BacktestSymbolProvider(
+                    symbol_name=strategy.symbol
+                )
+        else:
+            # No valid symbol, use defaults
+            self._symbol_provider = BacktestSymbolProvider(
+                symbol_name=strategy.symbol or "EURUSD"
+            )
+
+        # But & Hold Baseline
+        self._first_trade_open: Optional[float] = None
+        self._first_trade_size: Optional[float] = None
+
+    def _get_contract_size(self) -> float:
+        """Get contract size from symbol provider."""
+        try:
+            return float(self._symbol_provider.get_contract_size())
+        except Exception:
+            return 100000.0  # Default forex contract size
+
+    def _get_point(self) -> float:
+        """Get point value from symbol provider."""
+        try:
+            return float(self._symbol_provider.get_point())
+        except Exception:
+            return 0.00001  # Default forex 5-digit point
+
+    def get_slippage(self) -> float:
+        """
+        Get slippage value in price units (points * symbol point value).
+
+        Returns:
+            Slippage value in price units
+        """
+        # Get raw points from base class logic
+        slippage_points = super().get_slippage()
+        # Multiply by symbol point to get price offset
+        return slippage_points * self._get_point()
+
+    def get_spread(self, bar: Optional[pd.Series] = None) -> float:
+        """
+        Get spread value in price units (points * symbol point value).
+
+        All spread values (broker, fixed, variable) are in points.
+
+        Args:
+            bar: Current bar data
+
+        Returns:
+            Spread value in price units
+        """
+        # Get spread in points from base class
+        spread_points = super().get_spread(bar)
+        # Convert points to price units
+        return spread_points * self._get_point()
+
+    def get_backtest_mode(self) -> str:
+        """Return backtest mode."""
+        return "vectorized"
+
+    def run(self) -> BacktestResult:
+        """
+        Run vectorized backtest.
+
+        Returns:
+            BacktestResult with backtest data
+        """
+        logger.info(f"Starting vectorized backtest: {self.strategy.__class__.__name__}")
+        logger.info(f"Period: {self.data.index[0]} to {self.data.index[-1]}")
+        logger.info(f"Bars: {len(self.data)}, Initial balance: ${self.initial_balance}")
+
+        try:
+            self._running = True
+
+            # Phase 1: Initialize strategy
+            self.strategy.on_init()
+
+            # Phase 2: Calculate indicators and generate signals (vectorized)
+            logger.info("Calculating indicators and signals (vectorized)...")
+            self.data = self.strategy.on_bar(self.data)
+
+            # Phase 3: Extract signals from signal column
+            self._extract_signals()
+
+            # Phase 4: Simulate trades (vectorized)
+            self._simulate_trades()
+
+            # Phase 5: Build result
+            final_balance = self._calculate_final_balance()
+            final_equity = final_balance
+            self.result = self._build_result(final_balance, final_equity)
+
+            logger.info(f"Backtest complete: {len(self._trade_records)} trades")
+            logger.info(
+                f"Final balance: ${final_balance:.2f} ({((final_balance - self.initial_balance) / self.initial_balance * 100):.2f}%)"
+            )
+
+            return self.result
+
+        except Exception as e:
+            logger.error(f"Backtest failed: {e}")
+            raise RuntimeError(f"Backtest execution failed: {e}") from e
+        finally:
+            self._running = False
+
+    def _extract_signals(self) -> None:
+        """Extract signals from signal column."""
+        logger.info("Extracting signals...")
+
+        has_signal_col = "signal" in self.data.columns
+
+        if not has_signal_col:
+            logger.warning("No signal columns found in data")
+            self._signals = []
+            return
+
+        signals = []
+
+        for i in range(len(self.data)):
+            signal_found = False
+
+            # Check 'signal' column
+            if has_signal_col:
+                sig_val = self.data.iloc[i].get("signal")
+                if pd.notna(sig_val) and sig_val:
+                    signal_found = True
+
+            if signal_found:
+                # Get signal details from strategy
+                signal_info = self.strategy.get_signal(self.data, i)
+
+                if signal_info:
+                    signals.append(
+                        {
+                            "timestamp": self.data.index[i],
+                            "bar_index": i,
+                            "signal": signal_info["signal"],
+                            "price": signal_info.get(
+                                "entry_price", self.data.iloc[i]["open"]
+                            ),
+                            "stop_loss": signal_info.get("stop_loss"),
+                            "take_profit": signal_info.get("take_profit"),
+                            "reason": signal_info.get("reason", "Signal detected"),
+                        }
+                    )
+
+        self._signals = signals
+        logger.info(f"Extracted {len(signals)} signals")
+
+    def _calculate_position_size(
+        self, signal: Dict[str, Any], bar_index: int, current_balance: float
+    ) -> float:
+        """
+        Calculate position size using PositionSizer if configured.
+
+        Args:
+            signal: Signal dictionary with price, stop_loss
+            bar_index: Index of current bar
+            current_balance: Current account balance
+
+        Returns:
+            Position size in lots
+        """
+        if self.position_sizer:
+            # Build context for sizing calculation
+            context = {}
+
+            # Get the bar data for this signal
+            bar = self.data.iloc[bar_index]
+
+            # Add ATR if available in data
+            atr_period = self.config.get("atr_period", 14)
+            atr_col = f"atr_{atr_period}"
+            if atr_col in bar.index:
+                context["atr"] = bar[atr_col]
+
+            # Calculate position size
+            volume = self.position_sizer.calculate_size(
+                account_balance=current_balance,
+                entry_price=signal["price"],
+                stop_loss=signal["stop_loss"],
+                symbol_info=None,  # VectorizedEngine doesn't have symbol_info
+                context=context,
+            )
+        else:
+            # Fixed position size for consistent backtesting/optimization
+            # Using 0.01 lots (minimum size) to work with small accounts
+            volume = 0.01
+
+        return float(volume)
+
+    def _calculate_pip_value(self) -> float:
+        """
+        Calculate pip value using SymbolProvider (MT5 specs preferred).
+
+        Falls back to pattern matching if provider data unavailable.
+
+        Returns:
+            Pip value for the symbol
+        """
+        try:
+            # Try to get from SymbolProvider (MT5 or defaults)
+            point = float(self._symbol_provider.get_point())
+            digits = int(self._symbol_provider.get_digits())
+
+            # Calculate pip value based on digits
+            # Calculate pip value based on digits
+            if digits >= 2:
+                # 5-digit forex (0.00001) -> 0.0001
+                # 3-digit JPY pairs (0.001) -> 0.01
+                # 2-digit indices: 0.01 * 10 = 0.1
+                return point * 10
+
+            return 1.0  # Default for indices/commodities
+        except Exception:
+            # Fallback to pattern matching if provider fails
+            return self._fallback_pip_calculation()
+
+    def _fallback_pip_calculation(self) -> float:
+        """
+        Fallback pip value calculation using pattern matching.
+
+        Used when SymbolProvider is unavailable or fails.
+
+        Returns:
+            Pip value for the symbol
+        """
+        symbol_upper = self.strategy.symbol.upper()
+
+        # JPY pairs use 2 decimal places for pip (0.01)
+        if "JPY" in symbol_upper:
+            return 0.01
+
+        # Forex pairs are 6 characters with major currencies
+        # e.g., EURUSD, GBPUSD, AUDUSD, etc.
+        forex_currencies = ["EUR", "GBP", "AUD", "NZD", "CAD", "CHF", "USD"]
+        if len(self.strategy.symbol) == 6:
+            base = symbol_upper[:3]
+            quote = symbol_upper[3:6]
+            if base in forex_currencies and quote in forex_currencies:
+                return 0.0001
+
+        # Indices and commodities (XAU, BTC, SPX, NAS, etc.) use whole numbers
+        return 1.0
+
+    def _create_trade_record(
+        self,
+        trade_id: int,
+        entry_time: datetime,
+        exit_time: datetime,
+        position_direction: int,
+        position_entry_price: float,
+        exit_price: float,
+        position_size: float,
+        exit_reason: str,
+        balance: float,
+        position_entry_idx: int,
+        exit_idx: int,
+        slippage_usd: float = 0.0,
+        position_sl: Optional[float] = None,
+        position_tp: Optional[float] = None,
+        margin_used: float = 0.0,
+        equity_at_entry: float = 0.0,
+        spread_at_entry: float = 0.0,
+        drawdown: float = 0.0,
+    ) -> TradeRecord:
+        """
+        Create a TradeRecord with all calculated fields.
+
+        Args:
+            trade_id: Unique trade ID
+            entry_time: Entry timestamp
+            exit_time: Exit timestamp
+            position_direction: 1 for long, -1 for short
+            position_entry_price: Entry price (after slippage applied)
+            exit_price: Exit price (after slippage applied)
+            position_size: Position size in lots
+            exit_reason: Exit reason
+            balance: Current balance after trade
+            position_entry_idx: Bar index where position was opened
+            exit_idx: Bar index where position was closed
+            slippage_usd: Total slippage cost in USD for this trade
+            position_sl: Stop loss price (for R-multiple calculation)
+            position_tp: Take profit price
+            margin_used: Margin required for this position
+            equity_at_entry: Account equity when position opened
+            spread_at_entry: Spread in points when position opened
+            drawdown: Current account drawdown at trade exit
+
+        Returns:
+            TradeRecord instance
+        """
+        # Calculate P&L
+        if position_direction == 1:  # Long
+            gross_pnl = (
+                (exit_price - position_entry_price)
+                * position_size
+                * self._get_contract_size()
+            )
+        else:  # Short
+            gross_pnl = (
+                (position_entry_price - exit_price)
+                * position_size
+                * self._get_contract_size()
+            )
+
+        net_pnl = gross_pnl - self.commission
+
+        # Calculate profit in pips dynamically based on symbol
+        pip_value = self._calculate_pip_value()
+        price_diff = (
+            exit_price - position_entry_price
+            if position_direction == 1
+            else position_entry_price - exit_price
+        )
+        profit_pips = price_diff / pip_value
+
+        # Calculate cumulative pips
+        cumulative_pips = (
+            sum(t.profit_loss_pips for t in self._trade_records) + profit_pips
+        )
+
+        # Calculate trade bars
+        trade_bars = exit_idx - position_entry_idx
+
+        # Calculate duration
+        duration = (exit_time - entry_time).total_seconds() / 3600
+
+        # Calculate MAE (Maximum Adverse Excursion) and MFE (Maximum Favorable Excursion)
+        # Find the highest and lowest prices during the trade
+        trade_slice = self.data.iloc[position_entry_idx : exit_idx + 1]
+        highest_price = trade_slice["high"].max()
+        lowest_price = trade_slice["low"].min()
+
+        if position_direction == 1:  # Long
+            # For long: MAE is how far price went down, MFE is how far it went up
+            mae = (position_entry_price - lowest_price) / pip_value
+            mfe = (highest_price - position_entry_price) / pip_value
+        else:  # Short
+            # For short: MAE is how far price went up, MFE is how far it went down
+            mae = (highest_price - position_entry_price) / pip_value
+            mfe = (position_entry_price - lowest_price) / pip_value
+
+        # Calculate R-multiple (profit relative to initial risk)
+        r_multiple = 0.0
+        sl_distance = 0.0
+        initial_risk_pips = 0.0
+        initial_risk_usd = 0.0
+        if position_sl is not None and position_sl > 0:
+            sl_distance = abs(position_entry_price - position_sl)
+            initial_risk_pips = sl_distance / pip_value
+            initial_risk_usd = sl_distance * position_size * self._get_contract_size()
+            if initial_risk_usd > 0:
+                r_multiple = gross_pnl / initial_risk_usd
+
+        # Get magic number from strategy variables
+        magic_number = 0
+        if hasattr(self.strategy, "params") and self.strategy.params:
+            variables = self.strategy.params.get("variables", {})
+            magic_number = variables.get("magic", 0)
+
+        # Calculate Buy & Hold Return
+        buy_hold_val = 0.0
+        buy_hold_pips = 0.0
+
+        if self._first_trade_open is not None and self._first_trade_size is not None:
+            # Pips: (Close - First_Open) / PipValue
+            # Note: Buy & Hold is implicitly a LONG position from the start.
+            # So we strictly use (Exit - First_Open).
+            price_delta = exit_price - self._first_trade_open
+            buy_hold_pips = price_delta / pip_value
+
+            # Value: (Exit - First_Open) * First_Size * Contract_Size
+            buy_hold_val = (
+                price_delta * self._first_trade_size * self._get_contract_size()
+            )
+
+        return TradeRecord(
+            # 1️⃣ Trade Identification & Attribution
+            trade_id=None,
+            ticket=trade_id,
+            symbol=self.strategy.symbol,
+            type="buy" if position_direction == 1 else "sell",
+            magic_number=magic_number,
+            strategy_name=self.strategy.__class__.__name__,
+            setup=None,
+            sample_type=None,
+            comment="",
+            # 2️⃣ Strategy Context
+            signal_timeframe=self.timeframe,
+            execution_timeframe=self.timeframe,
+            session=None,
+            day_of_week=entry_time.weekday() if entry_time else None,
+            hour_of_day=entry_time.hour if entry_time else None,
+            # 3️⃣ Trade Timing
+            open_time=entry_time,
+            close_time=exit_time,
+            time_in_trade=duration,
+            bars_in_trade=trade_bars,
+            # 4️⃣ Entry Definition
+            open_price=position_entry_price,
+            requested_entry_price=position_entry_price,
+            spread_at_entry=spread_at_entry,
+            size=position_size,
+            # 5️⃣ Exit Definition
+            close_price=exit_price,
+            requested_exit_price=exit_price,
+            close_type=exit_reason.upper() if exit_reason else "UNKNOWN",
+            exit_reason=exit_reason.upper() if exit_reason else "UNKNOWN",
+            # 6️⃣ Trade Plan & Risk
+            stop_loss_price_level=position_sl or 0.0,
+            profit_target_price_level=position_tp or 0.0,
+            initial_risk_pips=initial_risk_pips,
+            initial_risk_usd=initial_risk_usd,
+            # 7️⃣ Account State
+            balance_at_entry=balance - net_pnl,  # Balance before this trade
+            equity_at_entry=equity_at_entry,
+            margin_used=margin_used,
+            free_margin=equity_at_entry - margin_used if equity_at_entry > 0 else 0.0,
+            balance_pips=cumulative_pips,
+            # 8️⃣ Trade Management
+            max_position_size_reached=position_size,
+            partial_close_count=0,
+            trailing_stop_used=False,
+            breakeven_triggered=False,
+            # 9️⃣ Execution Quality
+            slippage_usd=slippage_usd,
+            fill_price_deviation=0.0,
+            execution_latency_ms=0.0,
+            # 🔟 Performance Results
+            profit_loss=net_pnl,
+            profit_loss_pips=profit_pips,
+            commission=self.commission,
+            swap=0.0,
+            r_multiple=r_multiple,
+            buy_hold=buy_hold_val,
+            buy_hold_pips=buy_hold_pips,
+            # 1️⃣1️⃣ Excursion & Drawdown Analytics
+            mae_usd=mae * position_size * self._get_contract_size() * pip_value,
+            mae_pips=mae,
+            mfe_usd=mfe * position_size * self._get_contract_size() * pip_value,
+            mfe_pips=mfe,
+            drawdown=drawdown,
+            # 1️⃣2️⃣ Regime & Research Tags
+            market_regime=None,
+            volatility_bucket=None,
+            correlation_cluster=None,
+            # 1️⃣3️⃣ Compliance & Audit
+            rule_violation_flag=False,
+            manual_intervention=False,
+        )
+
+    def _check_sl_tp_hit(
+        self,
+        bar: pd.Series,
+        direction: int,
+        sl: Optional[float],
+        tp: Optional[float],
+    ) -> Tuple[Optional[float], Optional[str]]:
+        """Check if SL or TP is hit based on current bar close."""
+        if direction == 1:  # Long
+            if sl and bar["close"] <= sl:
+                return float(sl), "sl"
+            if tp and bar["close"] >= tp:
+                return float(tp), "tp"
+        elif direction == -1:  # Short
+            if sl and bar["close"] >= sl:
+                return float(sl), "sl"
+            if tp and bar["close"] <= tp:
+                return float(tp), "tp"
+        return None, None
+
+    def _handle_position_close(
+        self,
+        exit_price: float,
+        exit_reason: str,
+        state: Dict[str, Any],
+        exit_idx: int,
+        timestamp: pd.Timestamp,
+    ) -> None:
+        """Handle position closing logic."""
+        # Calculate exit slippage
+        exit_slippage = self.get_slippage()
+        if state["position_direction"] == 1:  # Long closing (selling)
+            final_exit_price = exit_price - exit_slippage
+        else:  # Short closing (buying)
+            final_exit_price = exit_price + exit_slippage
+
+        # Calculate total slippage
+        total_slippage = state["position_entry_slippage"] + exit_slippage
+        slippage_usd = (
+            total_slippage * state["position_size"] * self._get_contract_size()
+        )
+
+        # Calculate P&L
+        if state["position_direction"] == 1:  # Long
+            pnl = (
+                (final_exit_price - state["position_entry_price"])
+                * state["position_size"]
+                * self._get_contract_size()
+            )
+        else:  # Short
+            pnl = (
+                (state["position_entry_price"] - final_exit_price)
+                * state["position_size"]
+                * self._get_contract_size()
+            )
+
+        pnl -= self.commission
+        state["balance"] += pnl
+
+        if state["balance"] > state["peak_balance"]:
+            state["peak_balance"] = state["balance"]
+        current_drawdown = state["peak_balance"] - state["balance"]
+
+        # Record trade
+        entry_time = self.data.index[state["position_entry_idx"]]
+
+        trade = self._create_trade_record(
+            trade_id=state["trade_id"],
+            entry_time=entry_time.to_pydatetime(),
+            exit_time=timestamp.to_pydatetime(),
+            position_direction=state["position_direction"],
+            position_entry_price=state["position_entry_price"],
+            exit_price=final_exit_price,
+            position_size=state["position_size"],
+            exit_reason=exit_reason,
+            balance=state["balance"],
+            position_entry_idx=state["position_entry_idx"],
+            exit_idx=exit_idx,
+            slippage_usd=slippage_usd,
+            position_sl=state["position_sl"],
+            position_tp=state["position_tp"],
+            margin_used=state["position_entry_margin"],
+            equity_at_entry=state["position_entry_equity"],
+            spread_at_entry=state["position_entry_spread"],
+            drawdown=current_drawdown,
+        )
+
+        self._record_trade(trade)
+        state["trade_id"] += 1
+
+        # Release margin
+        contract_size = self._get_contract_size()
+        self._used_margin -= self.calculate_required_margin(
+            state["position_size"], state["position_entry_price"], contract_size
+        )
+        self._used_margin = max(0.0, self._used_margin)
+
+        # Reset position state
+        state["in_position"] = False
+        state["position_entry_idx"] = -1
+        state["position_direction"] = 0
+        state["position_entry_price"] = 0.0
+
+    def _handle_position_open(
+        self,
+        entry_price: float,
+        direction: int,
+        size: float,
+        sl: Optional[float],
+        tp: Optional[float],
+        state: Dict[str, Any],
+        current_idx: int,
+        entry_slippage: float,
+        bar: pd.Series,
+    ) -> bool:
+        """
+        Handle position opening logic.
+
+        Returns check execution status (True if opened, False if failed).
+        """
+        contract_size = self._get_contract_size()
+
+        # Check margin before opening position
+        if not self.has_sufficient_margin(
+            size, entry_price, contract_size, state["balance"]
+        ):
+            logger.warning(
+                f"Insufficient margin to open position at {entry_price:.5f}. "
+            )
+            return False
+
+        state["in_position"] = True
+        state["position_entry_idx"] = current_idx
+        state["position_direction"] = direction
+        state["position_entry_price"] = entry_price
+        state["position_size"] = size
+        state["position_sl"] = sl
+        state["position_tp"] = tp
+        state["position_entry_slippage"] = entry_slippage
+
+        # Track margin and equity at entry
+        state["position_entry_margin"] = self.calculate_required_margin(
+            size, entry_price, contract_size
+        )
+        state["position_entry_equity"] = state["balance"]
+        state["position_entry_spread"] = self.get_spread(bar)
+
+        # Capture Buy & Hold baseline
+        if self._first_trade_open is None:
+            self._first_trade_open = entry_price
+            self._first_trade_size = size
+
+        # Update used margin
+        self._used_margin += state["position_entry_margin"]
+        return True
+
+    def _simulate_trades(self) -> None:
+        """
+        Simulate trades from signals using vectorized operations.
+
+        Simplified execution:
+        - Entry at signal close price
+        - Exit at SL/TP hit (close-based) or opposite signal
+        - No intra-bar execution
+        """
+        logger.info("Simulating trades (vectorized)...")
+
+        if (
+            not self._signals
+            and "buy_stop" not in self.data.columns
+            and "sell_stop" not in self.data.columns
+        ):
+            logger.warning("No signals to simulate")
+            return
+
+        # Initialize state dictionary
+        state = {
+            "balance": self.initial_balance,
+            "peak_balance": self.initial_balance,
+            "in_position": False,
+            "position_entry_idx": -1,
+            "position_direction": 0,
+            "position_entry_price": 0.0,
+            "position_size": 0.01,
+            "position_sl": None,
+            "position_tp": None,
+            "position_entry_slippage": 0.0,
+            "position_entry_margin": 0.0,
+            "position_entry_equity": 0.0,
+            "position_entry_spread": 0.0,
+            "trade_id": 1,
+        }
+
+        # Process each bar
+        for i in range(len(self.data)):
+            timestamp = self.data.index[i]
+            bar = self.data.iloc[i]
+
+            # 1. Check if position hits SL/TP
+            if state["in_position"]:
+                exit_price, exit_reason = self._check_sl_tp_hit(
+                    bar,
+                    int(state["position_direction"] or 0),
+                    state["position_sl"],
+                    state["position_tp"],
+                )
+
+                if exit_price is not None and exit_reason:
+                    self._handle_position_close(
+                        exit_price, exit_reason, state, i, timestamp
+                    )
+
+            # 2. Check for signals at this bar
+            self._process_bar_signals(i, timestamp, bar, state)
+
+            # 3. Check Pending Orders (only if not in position)
+            if not state["in_position"]:
+                self._process_pending_orders(i, bar, state)
+
+            # Record equity point
+            self._record_equity_point(
+                timestamp.to_pydatetime(),
+                float(state["balance"] or 0.0),
+                float(state["balance"] or 0.0),
+            )
+
+        # Close any remaining position at end
+        if state["in_position"]:
+            exit_price = float(self.data.iloc[-1]["close"])
+            self._handle_position_close(
+                exit_price,
+                "end_of_data",
+                state,
+                len(self.data) - 1,
+                self.data.index[-1],
+            )
+
+    def _process_bar_signals(
+        self, i: int, timestamp: pd.Timestamp, bar: pd.Series, state: Dict[str, Any]
+    ) -> None:
+        """Process signals for a specific bar."""
+        bar_signals = [s for s in self._signals if s["bar_index"] == i]
+
+        for signal in bar_signals:
+            raw_signal = str(signal["signal"]).lower().strip()
+            is_exit_buy = raw_signal in ["exit buy", "close buy", "close_buy"]
+            is_exit_sell = raw_signal in ["exit sell", "close sell", "close_sell"]
+
+            if state["in_position"]:
+                should_close = (state["position_direction"] == 1 and is_exit_buy) or (
+                    state["position_direction"] == -1 and is_exit_sell
+                )
+
+                if should_close:
+                    self._handle_position_close(
+                        float(signal["price"]), "signal", state, i, timestamp
+                    )
+                    continue
+
+            # Handle entry signals
+            signal_is_buy = raw_signal == "buy"
+            signal_direction = 1 if signal_is_buy else -1
+
+            # Close opposite position if signal reverses
+            if state["in_position"] and signal_direction != state["position_direction"]:
+                self._handle_position_close(
+                    float(signal["price"]), "signal", state, i, timestamp
+                )
+
+            # Enter new position from Signal
+            if not state["in_position"]:
+                entry_slippage = self.get_slippage()
+                if signal_is_buy:
+                    proposed_entry_price = signal["price"] + entry_slippage
+                else:
+                    proposed_entry_price = signal["price"] - entry_slippage
+
+                proposed_size = self._calculate_position_size(
+                    signal, i, float(state["balance"] or 0.0)
+                )
+
+                self._handle_position_open(
+                    proposed_entry_price,
+                    signal_direction,
+                    proposed_size,
+                    signal["stop_loss"],
+                    signal["take_profit"],
+                    state,
+                    i,
+                    entry_slippage,
+                    bar,
+                )
+
+    def _process_pending_orders(
+        self, i: int, bar: pd.Series, state: Dict[str, Any]
+    ) -> None:
+        """Process pending orders for a specific bar."""
+        triggered_direction = 0
+        entry_price = 0.0
+
+        # Check Buy Stop
+        if "buy_stop" in bar and pd.notna(bar["buy_stop"]):
+            buy_stop_price = bar["buy_stop"]
+            if bar["high"] >= buy_stop_price:
+                triggered_direction = 1
+                entry_price = max(bar["open"], buy_stop_price)
+
+        # Check Sell Stop
+        if (
+            triggered_direction == 0
+            and "sell_stop" in bar
+            and pd.notna(bar["sell_stop"])
+        ):
+            sell_stop_price = bar["sell_stop"]
+            if bar["low"] <= sell_stop_price:
+                triggered_direction = -1
+                entry_price = min(bar["open"], sell_stop_price)
+
+        if triggered_direction != 0:
+            entry_slippage = self.get_slippage()
+            if triggered_direction == 1:
+                proposed_entry_price = entry_price + entry_slippage
+            else:
+                proposed_entry_price = entry_price - entry_slippage
+
+            proposed_size = 0.01
+            if self.position_sizer:
+                mock_signal = {
+                    "price": entry_price,
+                    "stop_loss": None,
+                    "take_profit": None,
+                }
+                proposed_size = self._calculate_position_size(
+                    mock_signal, i, float(state["balance"] or 0.0)
+                )
+
+            # Get SL/TP from bar columns if present
+            sl = None
+            tp = None
+            if triggered_direction == 1:
+                sl = (
+                    bar.get("buy_stop_sl") if pd.notna(bar.get("buy_stop_sl")) else None
+                )
+                tp = (
+                    bar.get("buy_stop_tp") if pd.notna(bar.get("buy_stop_tp")) else None
+                )
+            else:
+                sl = (
+                    bar.get("sell_stop_sl")
+                    if pd.notna(bar.get("sell_stop_sl"))
+                    else None
+                )
+                tp = (
+                    bar.get("sell_stop_tp")
+                    if pd.notna(bar.get("sell_stop_tp"))
+                    else None
+                )
+
+            self._handle_position_open(
+                proposed_entry_price,
+                triggered_direction,
+                proposed_size,
+                sl,
+                tp,
+                state,
+                i,
+                entry_slippage,
+                bar,
+            )
+
+    def _calculate_final_balance(self) -> float:
+        """Calculate final balance from trades."""
+        balance = self.initial_balance
+        for trade in self._trade_records:
+            balance += trade.profit_loss
+        return balance

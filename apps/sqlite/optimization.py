@@ -4,7 +4,7 @@ import contextlib
 import json
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from apps.logger import logger
 
@@ -708,3 +708,123 @@ class OptimizationManager:
         finally:
             if conn:
                 conn.close()
+
+    def save_optimization_summary(
+        self,
+        strategy_name: str,
+        optimization_type: str,
+        optimization_method: str,
+        start_date: datetime,
+        end_date: datetime,
+        parameter_space: Dict[str, Any],
+        objective_function: str,
+        results: List[
+            Tuple[Dict[str, Any], float, int]
+        ],  # (params, score, backtest_id)
+        symbols: Optional[List[str]] = None,
+        timeframes: Optional[List[str]] = None,
+        constraints: Optional[Dict[str, Any]] = None,
+        n_jobs: int = 1,
+        strategy_version: str = "1.0.0",
+    ) -> int:
+        """Save optimization run summary."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            # Find best result
+            best_result = max(results, key=lambda x: x[1]) if results else None
+            best_params = best_result[0] if best_result else None
+            best_score = best_result[1] if best_result else None
+            best_backtest_id = best_result[2] if best_result else None
+
+            # Create optimization run using existing method
+            optimization_id = self.create_optimization_run(
+                strategy_name=strategy_name,
+                strategy_version=strategy_version,
+                optimization_type=optimization_type,
+                optimization_method=optimization_method,
+                start_date=start_date,
+                end_date=end_date,
+                parameter_space=parameter_space,
+                objective_function=objective_function,
+                symbols=symbols,
+                timeframes=timeframes,
+                constraints=constraints,
+                total_combinations=len(results),
+                n_jobs=n_jobs,
+                status="completed",
+            )
+
+            # Update best results
+            if best_result:
+                self.update_optimization_status(
+                    optimization_id,
+                    status="completed",
+                    completed_combinations=len(results),
+                    best_backtest_id=best_backtest_id,
+                    best_score=best_score,
+                    best_parameters=best_params,
+                )
+
+            # Save all results
+            if results:
+                # Sort by score (descending)
+                sorted_results = sorted(results, key=lambda x: x[1], reverse=True)
+
+                result_data = []
+                for rank, (params, score, backtest_id) in enumerate(sorted_results, 1):
+                    # Get key metrics from backtest
+                    # Since we are in the mixin, we expect get_backtest_finance_metrics to be available
+                    # on self (if mixed into the main DB class) or we might need to handle if it's missing.
+                    # Assuming standard SQLiteDatabase composition.
+                    if hasattr(self, "get_backtest_finance_metrics"):
+                        metrics = self.get_backtest_finance_metrics(backtest_id)
+                    else:
+                        metrics = {}
+
+                    trade_metrics = metrics.get("trade_metrics", {})
+                    ratio_metrics = metrics.get("ratio_metrics", {})
+                    drawdown_metrics = metrics.get("drawdown_metrics", {})
+
+                    result_data.append(
+                        {
+                            "backtest_id": backtest_id,
+                            "parameters": params,
+                            "score": score,
+                            "rank": rank,
+                            "total_trades": trade_metrics.get("total_trades", 0),
+                            "win_rate": trade_metrics.get("win_rate", 0),
+                            "profit_factor": trade_metrics.get("profit_factor", 0),
+                            "sharpe_ratio": ratio_metrics.get("sharpe", 0),
+                            "max_drawdown": drawdown_metrics.get("max_drawdown", 0),
+                            "is_best": rank == 1,
+                            "is_top_10": rank <= 10,
+                            "overfitting_score": None,
+                            "stability_score": None,
+                        }
+                    )
+
+                self.save_optimization_results(optimization_id, result_data)
+
+            logger.info(f"Saved optimization run (ID: {optimization_id})")
+            return optimization_id
+
+        except Exception as e:
+            logger.error(f"Error saving optimization summary: {e}")
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def query_best_parameters(
+        self, optimization_id: int, top_n: int = 10, metric: str = "score"
+    ) -> List[Dict[str, Any]]:
+        """Query best parameters from optimization run."""
+        return self.get_optimization_results(
+            optimization_id,
+            limit=top_n,
+            order_by=metric if metric != "score" else "score",
+            ascending=False,
+        )

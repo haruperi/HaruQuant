@@ -6,6 +6,8 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
+
 from apps.logger import logger
 
 
@@ -110,7 +112,11 @@ class BacktestManager:
                 conn.close()
 
     def save_backtest_result(
-        self, backtest_result, backtest_id: Optional[int] = None
+        self,
+        backtest_result,
+        backtest_id: Optional[int] = None,
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
     ) -> int:
         """
         Save complete BacktestResult to database using 4-layer architecture.
@@ -135,7 +141,26 @@ class BacktestManager:
             # =====================================================================
 
             if backtest_id is None:
-                backtest_id = self._create_backtest_from_result(backtest_result)
+                backtest_id = self._create_backtest_from_result(
+                    backtest_result, alias=alias, description=description
+                )
+            elif alias or description:
+                # Update existing if provided
+                update_parts = []
+                params: list[Any] = []
+                if alias:
+                    update_parts.append("alias = ?")
+                    params.append(alias)
+                if description:
+                    update_parts.append("description = ?")
+                    params.append(description)
+
+                if update_parts:
+                    params.append(backtest_id)
+                    cursor.execute(
+                        f"UPDATE backtest_runs SET {', '.join(update_parts)} WHERE backtest_id = ?",
+                        params,
+                    )
 
             # Update final balance and status
             cursor.execute(
@@ -192,7 +217,12 @@ class BacktestManager:
         except ImportError:
             logger.warning("Could not import BacktestResult for type checking.")
 
-    def _create_backtest_from_result(self, backtest_result: Any) -> int:
+    def _create_backtest_from_result(
+        self,
+        backtest_result: Any,
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> int:
         """Create a new backtest run from a result object."""
         start_date = backtest_result.start_date
         if hasattr(start_date, "to_pydatetime"):
@@ -215,6 +245,8 @@ class BacktestManager:
             symbols=[backtest_result.symbol],
             timeframes=[backtest_result.timeframe],
             initial_balance=backtest_result.initial_balance,
+            alias=alias or backtest_result.metadata.get("alias"),
+            description=description or backtest_result.metadata.get("description"),
         )
 
     def _save_trades(
@@ -798,6 +830,362 @@ class BacktestManager:
             if conn:
                 conn.rollback()
             raise
+        finally:
+            if conn:
+                conn.close()
+
+    def load_backtest_result(self, backtest_id: int) -> Optional[Any]:
+        """
+        Load a BacktestResult from database.
+
+        Args:
+            backtest_id: Backtest ID
+
+        Returns:
+            BacktestResult instance or None if not found
+        """
+        try:
+            from apps.backtest.result import BacktestResult, EquityPoint, TradeRecord
+        except ImportError:
+            logger.error("Could not import apps.backtest.result")
+            return None
+
+        # Get run metadata
+        run = self.get_backtest_run(backtest_id)
+        if not run:
+            logger.warning(f"Backtest {backtest_id} not found")
+            return None
+
+        # Get trades
+        trades_data = self.get_backtest_trades(backtest_id)
+        trades = []
+        for trade_dict in trades_data:
+            trade = TradeRecord(
+                ticket=trade_dict["ticket"],
+                symbol=trade_dict["symbol"],
+                type=trade_dict["side"],
+                open_time=pd.to_datetime(trade_dict["open_time"]),
+                close_time=pd.to_datetime(trade_dict["close_time"]),
+                open_price=trade_dict["open_price"],
+                close_price=trade_dict["close_price"],
+                size=trade_dict["position_size"],
+                profit_loss=trade_dict["pnl"],
+                profit_loss_pips=trade_dict["pnl_pips"],
+                commission=trade_dict["commission"],
+                swap=trade_dict["swap"] or 0.0,
+                mae_usd=trade_dict["mae_usd"],
+                mae_pips=trade_dict["mae_pips"],
+                mfe_usd=trade_dict["mfe_usd"],
+                mfe_pips=trade_dict["mfe_pips"],
+                r_multiple=trade_dict["r_multiple"],
+                initial_risk_pips=trade_dict["initial_risk_pips"],
+                initial_risk_usd=trade_dict["initial_risk_usd"],
+                time_in_trade=trade_dict["time_in_trade_seconds"],
+                bars_in_trade=trade_dict["bars_in_trade"],
+                strategy_name=trade_dict["strategy_name"],
+            )
+            trades.append(trade)
+
+        # Get equity curve
+        equity_data = self.get_backtest_equity_curve(backtest_id)
+        equity_curve = []
+        for point_dict in equity_data:
+            point = EquityPoint(
+                timestamp=pd.to_datetime(point_dict["timestamp"]),
+                balance=point_dict["balance"],
+                equity=point_dict["equity"],
+                drawdown=point_dict["drawdown"],
+                drawdown_percent=0.0,  # Can be calculated if needed
+            )
+            equity_curve.append(point)
+
+        # Extract symbol and timeframe
+        symbols_data = run.get("symbols")
+        if isinstance(symbols_data, str):
+            symbols = json.loads(symbols_data) if symbols_data else ["UNKNOWN"]
+        elif isinstance(symbols_data, list):
+            symbols = symbols_data
+        else:
+            symbols = ["UNKNOWN"]
+
+        timeframes_data = run.get("timeframes")
+        if isinstance(timeframes_data, str):
+            timeframes = json.loads(timeframes_data) if timeframes_data else ["H1"]
+        elif isinstance(timeframes_data, list):
+            timeframes = timeframes_data
+        else:
+            timeframes = ["H1"]
+
+        symbol = symbols[0] if symbols else "UNKNOWN"
+        timeframe = timeframes[0] if timeframes else "H1"
+
+        # Calculate final equity
+        final_equity = equity_curve[-1].equity if equity_curve else run["final_balance"]
+
+        # Create BacktestResult
+        result = BacktestResult(
+            strategy_name=run["strategy_name"],
+            symbol=symbol,
+            timeframe=timeframe,
+            start_date=pd.to_datetime(run["start_date"]),
+            end_date=pd.to_datetime(run["end_date"]),
+            initial_balance=run["initial_balance"],
+            backtest_mode=run.get("engine_type", "vectorized"),
+            data_step_mode=run.get("data_resolution", "trading_timeframe"),
+            final_balance=run["final_balance"],
+            final_equity=final_equity,
+            trades=trades,
+            equity_curve=equity_curve,
+            metadata={
+                "backtest_id": backtest_id,
+                "alias": run.get("alias"),
+                "description": run.get("description"),
+                "strategy_version": run.get("strategy_version"),
+                "config_hash": run.get("config_hash"),
+            },
+        )
+
+        logger.info(f"Loaded BacktestResult (ID: {backtest_id})")
+        return result
+
+    def query_backtests(
+        self,
+        strategy_name: Optional[str] = None,
+        user_id: Optional[int] = None,
+        status: Optional[str] = None,
+        min_sharpe: Optional[float] = None,
+        max_drawdown: Optional[float] = None,
+        min_profit_factor: Optional[float] = None,
+        min_trades: Optional[int] = None,
+        start_date_after: Optional[datetime] = None,
+        start_date_before: Optional[datetime] = None,
+        limit: int = 100,
+        order_by: str = "sharpe",
+        ascending: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Query backtests with filters."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            query = """
+            SELECT
+                br.*,
+                tm.total_trades, tm.win_rate, tm.profit_factor,
+                rm.sharpe, rm.sortino, rm.calmar,
+                dm.max_drawdown_pct,
+                retm.total_return, retm.cagr
+            FROM backtest_runs br
+            LEFT JOIN finance_trade_metrics tm ON br.backtest_id = tm.backtest_id
+            LEFT JOIN finance_ratio_metrics rm ON br.backtest_id = rm.backtest_id
+            LEFT JOIN finance_drawdown_metrics dm ON br.backtest_id = dm.backtest_id
+            LEFT JOIN finance_return_metrics retm ON br.backtest_id = retm.backtest_id
+            WHERE 1=1
+            """
+
+            params: list[Any] = []
+
+            filter_clause, filter_params = self._build_backtest_filters(
+                strategy_name,
+                user_id,
+                status,
+                min_sharpe,
+                max_drawdown,
+                min_profit_factor,
+                min_trades,
+                start_date_after,
+                start_date_before,
+            )
+            query += filter_clause
+            params.extend(filter_params)
+
+            # Order by
+            order_column_map = {
+                "sharpe": "rm.sharpe",
+                "sortino": "rm.sortino",
+                "profit_factor": "tm.profit_factor",
+                "total_return": "retm.total_return",
+                "cagr": "retm.cagr",
+                "win_rate": "tm.win_rate",
+                "total_trades": "tm.total_trades",
+                "max_drawdown": "dm.max_drawdown_pct",
+            }
+            order_col = order_column_map.get(order_by, "rm.sharpe")
+            order_dir = "ASC" if ascending else "DESC"
+
+            query += f" ORDER BY {order_col} {order_dir} LIMIT ?"
+            params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            results = []
+            for row in rows:
+                result_dict = dict(row)
+                # Parse JSON fields
+                if result_dict.get("symbols"):
+                    with contextlib.suppress(Exception):
+                        result_dict["symbols"] = json.loads(result_dict["symbols"])
+                if result_dict.get("timeframes"):
+                    with contextlib.suppress(Exception):
+                        result_dict["timeframes"] = json.loads(
+                            result_dict["timeframes"]
+                        )
+                results.append(result_dict)
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error querying backtests: {e}")
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def _build_backtest_filters(
+        self,
+        strategy_name: Optional[str] = None,
+        user_id: Optional[int] = None,
+        status: Optional[str] = None,
+        min_sharpe: Optional[float] = None,
+        max_drawdown: Optional[float] = None,
+        min_profit_factor: Optional[float] = None,
+        min_trades: Optional[int] = None,
+        start_date_after: Optional[datetime] = None,
+        start_date_before: Optional[datetime] = None,
+    ) -> tuple[str, List[Any]]:
+        """Build SQL filter clause and parameters."""
+        conditions = []
+        params: List[Any] = []
+
+        # List of (value, sql_condition) pairs
+        filters = [
+            (strategy_name, "br.strategy_name = ?"),
+            (user_id, "br.user_id = ?"),
+            (status, "br.status = ?"),
+            (min_sharpe, "rm.sharpe >= ?"),
+            (max_drawdown, "dm.max_drawdown_pct <= ?"),
+            (min_profit_factor, "tm.profit_factor >= ?"),
+            (min_trades, "tm.total_trades >= ?"),
+            (start_date_after, "br.start_date >= ?"),
+            (start_date_before, "br.start_date <= ?"),
+        ]
+
+        for value, condition in filters:
+            if value is not None:
+                conditions.append(condition)
+                params.append(value)
+
+        clause = ""
+        if conditions:
+            clause = " AND " + " AND ".join(conditions)
+
+        return clause, params
+
+    def compare_backtests(
+        self, backtest_ids: List[int], metrics: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """Compare multiple backtests side-by-side."""
+        if metrics is None:
+            metrics = [
+                "total_trades",
+                "win_rate",
+                "profit_factor",
+                "sharpe",
+                "sortino",
+                "max_drawdown_pct",
+                "total_return",
+                "cagr",
+            ]
+
+        rows = self.query_backtests(limit=1000)
+
+        # Filter to requested IDs
+        rows = [r for r in rows if r["backtest_id"] in backtest_ids]
+
+        comparison_data = []
+        for row in rows:
+            data = {
+                "backtest_id": row["backtest_id"],
+                "alias": row.get("alias", "N/A"),
+                "strategy_name": row["strategy_name"],
+            }
+
+            for metric in metrics:
+                data[metric] = row.get(metric)
+
+            comparison_data.append(data)
+
+        df = pd.DataFrame(comparison_data)
+        return df
+
+    def export_backtest_to_json(
+        self,
+        backtest_id: int,
+        output_path: Optional[str] = None,
+        include_trades: bool = True,
+        include_equity: bool = False,
+    ) -> Optional[str]:
+        """Export backtest to JSON file."""
+        run = self.get_backtest_run(backtest_id)
+        if not run:
+            logger.warning(f"Backtest {backtest_id} not found")
+            return None
+
+        export_data: Dict[str, Any] = {
+            "backtest_run": dict(run),
+            "finance_metrics": self.get_backtest_finance_metrics(backtest_id),
+        }
+
+        if include_trades:
+            export_data["trades"] = self.get_backtest_trades(backtest_id)
+
+        if include_equity:
+            export_data["equity_curve"] = self.get_backtest_equity_curve(backtest_id)
+
+        if output_path is None:
+            alias = run.get("alias", "backtest")
+            output_path = f"{alias}_{backtest_id}.json"
+
+        with open(output_path, "w") as f:
+            json.dump(export_data, f, indent=2, default=str)
+
+        logger.info(f"Exported backtest {backtest_id} to {output_path}")
+        return output_path
+
+    def get_database_statistics(self) -> Dict[str, Any]:
+        """Get database statistics."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            stats = {}
+
+            # Count records
+            cursor.execute("SELECT COUNT(*) FROM backtest_runs")
+            stats["total_backtests"] = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM backtest_trades")
+            stats["total_trades"] = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM optimization_runs")
+            stats["total_optimizations"] = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(DISTINCT strategy_name) FROM backtest_runs")
+            stats["unique_strategies"] = cursor.fetchone()[0]
+
+            # Get date range
+            cursor.execute("SELECT MIN(created_at), MAX(created_at) FROM backtest_runs")
+            row = cursor.fetchone()
+            stats["first_backtest"] = row[0]
+            stats["latest_backtest"] = row[1]
+
+            return stats
+        except Exception:
+            return {}
         finally:
             if conn:
                 conn.close()

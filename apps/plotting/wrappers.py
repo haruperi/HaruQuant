@@ -57,6 +57,12 @@ def plot_returns(
     if title is None:
         title = "Cumulative Returns"
 
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
+
     # Convert equity to returns
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)
     returns = equity_series.pct_change().dropna()
@@ -131,6 +137,12 @@ def plot_drawdown(
     if title is None:
         title = "Drawdown"
 
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
+
     # Convert to series if needed
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)
 
@@ -194,6 +206,12 @@ def plot_monthly_heatmap(
     """
     if title is None:
         title = "Monthly Returns Heatmap"
+
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
 
     # Convert to series if needed
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)
@@ -264,6 +282,12 @@ def plot_rolling_sharpe(
     if title is None:
         title = f"Rolling Sharpe Ratio ({window}-period)"
 
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
+
     # Convert equity to returns
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)
     returns = equity_series.pct_change().dropna()
@@ -328,6 +352,12 @@ def plot_yearly_returns(
     """
     if title is None:
         title = "Yearly Returns"
+
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
 
     # Convert to series if needed
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)
@@ -394,6 +424,12 @@ def plot_daily_returns(
     if title is None:
         title = "Daily Returns"
 
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
+
     # Convert to series if needed
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)
     returns = equity_series.pct_change().dropna()
@@ -458,6 +494,12 @@ def plot_distribution(
     """
     if title is None:
         title = "Returns Distribution"
+
+    # Handle save_path alias
+    if "save_path" in kwargs:
+        save_path = kwargs.pop("save_path")
+        if savefig is None:
+            savefig = save_path
 
     # Convert to series if needed
     equity_series = equity if isinstance(equity, pd.Series) else pd.Series(equity)

@@ -70,11 +70,11 @@ def example_get_bars():
             logger.info(f"Retrieved {len(df)} bars for {symbol} {timeframe}")
             logger.info(f"\nFirst 5 bars:\n{df.head()}")
             logger.info(f"\nLast bar:")
-            logger.info(f"  Open: {df['Open'].iloc[-1]}")
-            logger.info(f"  High: {df['High'].iloc[-1]}")
-            logger.info(f"  Low: {df['Low'].iloc[-1]}")
-            logger.info(f"  Close: {df['Close'].iloc[-1]}")
-            logger.info(f"  Volume: {df['Volume'].iloc[-1]}")
+            logger.info(f"  Open: {df['open'].iloc[-1]}")
+            logger.info(f"  High: {df['high'].iloc[-1]}")
+            logger.info(f"  Low: {df['low'].iloc[-1]}")
+            logger.info(f"  Close: {df['close'].iloc[-1]}")
+            logger.info(f"  Volume: {df['volume'].iloc[-1]}")
         else:
             logger.error("Failed to retrieve bars")
 
@@ -104,7 +104,7 @@ def example_multiple_timeframes():
         for tf in timeframes:
             df = client.get_bars(symbol=symbol, timeframe=tf, count=5)
             if not df.empty:
-                last_close = df['Close'].iloc[-1]
+                last_close = df['close'].iloc[-1]
                 logger.info(f"  {tf}: Last Close = {last_close}")
 
 
@@ -144,9 +144,9 @@ def example_bars_date_range():
             logger.info(f"Date range: {df.index[0]} to {df.index[-1]}")
 
             # Calculate some statistics
-            high_price = df['High'].max()
-            low_price = df['Low'].min()
-            avg_volume = df['Volume'].mean()
+            high_price = df['high'].max()
+            low_price = df['low'].min()
+            avg_volume = df['volume'].mean()
 
             logger.info(f"\nStatistics:")
             logger.info(f"  Highest: {high_price}")
@@ -182,9 +182,9 @@ def example_get_ticks():
             logger.info(f"Retrieved {len(df)} ticks for {symbol}")
             logger.info(f"\nFirst 5 ticks:\n{df.head()}")
             logger.info(f"\nLast tick:")
-            logger.info(f"  Bid: {df['Bid'].iloc[-1]}")
-            logger.info(f"  Ask: {df['Ask'].iloc[-1]}")
-            logger.info(f"  Spread: {df['Ask'].iloc[-1] - df['Bid'].iloc[-1]}")
+            logger.info(f"  Bid: {df['bid'].iloc[-1]}")
+            logger.info(f"  Ask: {df['ask'].iloc[-1]}")
+            logger.info(f"  Spread: {df['ask'].iloc[-1] - df['bid'].iloc[-1]}")
 
 
 def example_ticks_date_range():
@@ -216,7 +216,7 @@ def example_ticks_date_range():
             logger.info(f"Retrieved {len(df)} ticks for {symbol} in the last hour")
 
             # Calculate spread statistics
-            spreads = df['Ask'] - df['Bid']
+            spreads = df['ask'] - df['bid']
             logger.info(f"\nSpread Statistics:")
             logger.info(f"  Min Spread: {spreads.min():.5f}")
             logger.info(f"  Max Spread: {spreads.max():.5f}")
