@@ -4,7 +4,7 @@ import json
 import secrets
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from apps.logger import logger
 from apps.utils.security import get_encryption_key, hash_password, verify_password
@@ -692,3 +692,192 @@ class UserManager:
 
         # 5. Create session
         return self.create_session(user["id"])
+
+    def get_notification_settings(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve notification settings for a user.
+
+        Args:
+            user_id (int): User's ID
+
+        Returns:
+            dict: Notification settings if found, None otherwise
+
+        Expected structure:
+        {
+            "email": {
+                "enabled": bool,
+                "smtp_host": str,
+                "smtp_port": int,
+                "smtp_user": str,
+                "smtp_password": str,
+                "recipients": list[str]
+            },
+            "telegram": {
+                "enabled": bool,
+                "bot_token": str,
+                "chat_ids": list[str],
+                "parse_mode": str (default "HTML")
+            },
+            "sms": {
+                "enabled": bool,
+                "account_sid": str,
+                "auth_token": str,
+                "from_number": str,
+                "recipients": list[str]
+            }
+        }
+        """
+        try:
+            settings = self.get_user_settings(user_id)
+
+            if not settings:
+                logger.warning(f"Settings not found for user {user_id}")
+                return None
+
+            notifications = settings.get("notifications", {})
+
+            if not notifications:
+                logger.info(f"Notification settings not configured for user {user_id}")
+                return {}
+
+            logger.info(f"Retrieved notification settings for user {user_id}")
+            return cast(Dict[str, Any], notifications)
+
+        except Exception as e:
+            logger.error(f"Error retrieving notification settings: {e}")
+            return None
+
+    def get_telegram_credentials(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve Telegram credentials for a user.
+
+        Supports two formats:
+        1. Standard: {"telegram": {"enabled": true, "bot_token": "...", "chat_ids": [...]}}
+        2. Channels: {"channels": [{"type": "telegram", "enabled": true, "config": {...}}]}
+
+        Args:
+            user_id (int): User's ID
+
+        Returns:
+            dict: Telegram credentials if found and enabled, None otherwise
+        """
+        try:
+            notifications = self.get_notification_settings(user_id)
+
+            if not notifications:
+                return None
+
+            # Try standard format first
+            standard_creds = self._parse_telegram_standard_creds(notifications, user_id)
+            if standard_creds:
+                return standard_creds
+
+            # Try channels format
+            channel_creds = self._parse_telegram_channel_creds(notifications, user_id)
+            if channel_creds:
+                return channel_creds
+
+            logger.info(f"Telegram not enabled or configured for user {user_id}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error retrieving Telegram credentials: {e}")
+            return None
+
+    def _parse_telegram_standard_creds(
+        self, notifications: Dict[str, Any], user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Parse standard Telegram configuration."""
+        telegram = notifications.get("telegram", {})
+        if telegram and telegram.get("enabled", False):
+            bot_token = telegram.get("bot_token")
+            chat_ids = telegram.get("chat_ids", [])
+
+            if bot_token and chat_ids:
+                logger.info(
+                    f"Retrieved Telegram credentials for user {user_id} (standard format)"
+                )
+                return {
+                    "bot_token": bot_token,
+                    "chat_ids": chat_ids,
+                    "parse_mode": telegram.get("parse_mode", "HTML"),
+                    "disable_web_page_preview": telegram.get(
+                        "disable_web_page_preview", True
+                    ),
+                    "disable_notification": telegram.get("disable_notification", False),
+                }
+        return None
+
+    def _parse_telegram_channel_creds(
+        self, notifications: Dict[str, Any], user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Parse channel-based Telegram configuration."""
+        channels = notifications.get("channels", [])
+        for channel in channels:
+            if channel.get("type") == "telegram" and channel.get("enabled", False):
+                config = channel.get("config", {})
+                bot_token = config.get("botToken") or config.get("bot_token")
+                chat_ids = config.get("chatIds") or config.get("chat_ids")
+
+                # Convert chat_ids to list if it's a string
+                if isinstance(chat_ids, str):
+                    chat_ids = [chat_ids]
+                elif not isinstance(chat_ids, list):
+                    chat_ids = [str(chat_ids)]
+
+                if bot_token and chat_ids:
+                    logger.info(
+                        f"Retrieved Telegram credentials for user {user_id} (channels format)"
+                    )
+                    return {
+                        "bot_token": bot_token,
+                        "chat_ids": chat_ids,
+                        "parse_mode": config.get("parse_mode", "HTML"),
+                        "disable_web_page_preview": True,
+                        "disable_notification": not config.get("soundOn", True),
+                    }
+        return None
+
+    def get_email_credentials(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve email credentials for a user.
+
+        Args:
+            user_id (int): User's ID
+
+        Returns:
+            dict: Email credentials if found and enabled, None otherwise
+        """
+        try:
+            notifications = self.get_notification_settings(user_id)
+
+            if not notifications:
+                return None
+
+            email = notifications.get("email", {})
+
+            if not email or not email.get("enabled", False):
+                logger.info(f"Email not enabled for user {user_id}")
+                return None
+
+            # Validate required fields
+            required_fields = ["smtp_host", "smtp_user", "smtp_password", "recipients"]
+            for field in required_fields:
+                if not email.get(field):
+                    logger.warning(f"Email {field} missing for user {user_id}")
+                    return None
+
+            logger.info(f"Retrieved email credentials for user {user_id}")
+            return {
+                "smtp_host": email.get("smtp_host"),
+                "smtp_port": email.get("smtp_port", 587),
+                "smtp_user": email.get("smtp_user"),
+                "smtp_password": email.get("smtp_password"),
+                "recipients": email.get("recipients", []),
+                "use_tls": email.get("use_tls", True),
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving email credentials: {e}")
+            return None

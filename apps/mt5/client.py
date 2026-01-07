@@ -444,7 +444,7 @@ class MT5Client:
             return None
 
         self.account_info = account_info._asdict()
-        logger.info("Account info fetched and cached")
+        logger.debug("Account info fetched and cached")
 
         return self.account_info
 
@@ -472,7 +472,7 @@ class MT5Client:
         # Convert to dictionary
         self.terminal_info = terminal_info._asdict()
 
-        logger.info("Terminal info fetched and cached")
+        logger.debug("Terminal info fetched and cached")
         return self.terminal_info
 
     def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
@@ -507,7 +507,7 @@ class MT5Client:
         # Cache the symbol info
         self._symbol_info_cache[symbol] = symbol_info._asdict()
 
-        logger.info(f"Symbol info for {symbol} fetched and cached")
+        logger.debug(f"Symbol info for {symbol} fetched and cached")
         return dict(symbol_info._asdict())
 
     def get_positions(

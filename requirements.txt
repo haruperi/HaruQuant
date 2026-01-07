@@ -47,6 +47,7 @@ scikit-optimize
 matplotlib
 seaborn
 plotly
+bokeh
 
 # System
 psutil
@@ -54,3 +55,5 @@ psutil
 # Data Processing & Analysis
 fastparquet
 pyarrow
+
+rich

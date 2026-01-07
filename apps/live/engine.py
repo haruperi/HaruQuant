@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from apps.live.bar_monitor import BarMonitor
-from apps.live.notifications import EmailNotifier
+from apps.live.notification_adapter import LiveTradingNotifier
 from apps.live.portfolio_manager import PortfolioManager
 from apps.live.position_manager import PositionManager
 from apps.live.safety_checks import SafetyChecker
@@ -100,7 +100,7 @@ class MultiStrategyEngine:
 
         # State and notifications
         self.state_manager: Optional[StateManager] = None
-        self.notifier: Optional[EmailNotifier] = None
+        self.notifier: Optional[LiveTradingNotifier] = None
 
         # Strategy instances
         self.strategies: List[StrategyInstance] = []
@@ -126,13 +126,18 @@ class MultiStrategyEngine:
                 "mt5",
                 "portfolio",
                 "strategies",
-                "notifications",
                 "logging",
                 "state",
             ]
             for section in required:
                 if section not in config:
                     raise ValueError(f"Missing required section: {section}")
+
+            # Notifications section is optional if using database (user_id provided)
+            if "user_id" not in config and "notifications" not in config:
+                raise ValueError(
+                    "Must provide either 'user_id' (for database notifications) or 'notifications' section"
+                )
 
             if not config["strategies"]:
                 raise ValueError("No strategies defined in configuration")
@@ -278,17 +283,31 @@ class MultiStrategyEngine:
             self.state_manager = StateManager(self.config["state"]["file"])
             logger.info(f"State: {self.state_manager.get_state_summary()}")
 
-            # 5. Initialize email notifier
-            logger.info("Initializing email notifier...")
-            notif_config = self.config["notifications"]
-            self.notifier = EmailNotifier(
-                notif_config.get("enable_email", False),
-                notif_config.get("smtp_host", ""),
-                notif_config.get("smtp_port", 587),
-                notif_config.get("smtp_user", ""),
-                notif_config.get("smtp_password", ""),
-                notif_config.get("recipients", []),
-            )
+            # 5. Initialize notifier (email and/or Telegram)
+            logger.info("Initializing notification system...")
+
+            # Check if user_id is provided (database-based notifications)
+            if "user_id" in self.config:
+                user_id = self.config["user_id"]
+                logger.info(
+                    f"Loading notification credentials from database for user {user_id}"
+                )
+                self.notifier = LiveTradingNotifier.from_database(
+                    user_id=user_id,
+                    db_path=self.config.get("db_path", "data/database/haruquant.db"),
+                )
+            else:
+                # Fallback to config-based notifications (backward compatibility)
+                logger.info("Using config-based notification settings")
+                notif_config = self.config["notifications"]
+                self.notifier = LiveTradingNotifier(
+                    notif_config.get("enable_email", False),
+                    notif_config.get("smtp_host", ""),
+                    notif_config.get("smtp_port", 587),
+                    notif_config.get("smtp_user", ""),
+                    notif_config.get("smtp_password", ""),
+                    notif_config.get("recipients", []),
+                )
 
             # 6. Initialize each strategy
             logger.info("=" * 80)
@@ -663,10 +682,15 @@ class MultiStrategyEngine:
         else:
             instance.trades_failed += 1
 
-        # Notify
+        # Notify (add symbol and strategy name to signal for notification)
         if self.notifier:
+            notification_signal = signal.copy()
+            notification_signal["symbol"] = instance.symbol
+            notification_signal["strategy_name"] = instance.name
             self.notifier.notify_signal(
-                signal, executed=success, error=message if not success else None
+                notification_signal,
+                executed=success,
+                error=message if not success else None,
             )
 
         logger.info("=" * 60)
