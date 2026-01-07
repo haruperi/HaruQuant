@@ -330,9 +330,37 @@ def pain_ratio(equity_curve: pd.Series, returns: pd.Series) -> float:
     if pain == 0:
         return 0.0
 
-    avg_return = returns.mean()
+    total_return = returns.sum()
 
-    return float(avg_return / pain)
+    return float(total_return / pain)
+
+
+def recovery_factor(equity_curve: pd.Series) -> float:
+    """
+    Recovery Factor - net profit divided by maximum drawdown.
+
+    Measures how many times the profit covers the worst loss.
+    Higher values indicate better recovery from drawdowns.
+
+    Args:
+        equity_curve: Equity series
+
+    Returns:
+        Recovery factor value (net profit / max drawdown)
+    """
+    if len(equity_curve) < 2:
+        return 0.0
+
+    # Calculate net profit
+    net_profit = equity_curve.iloc[-1] - equity_curve.iloc[0]
+
+    # Calculate max drawdown
+    max_dd = max_strategy_drawdown(equity_curve)
+
+    if max_dd == 0:
+        return 0.0 if net_profit == 0 else float("inf")
+
+    return float(net_profit / max_dd)
 
 
 # =========================================================================
