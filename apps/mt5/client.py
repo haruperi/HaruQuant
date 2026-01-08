@@ -448,6 +448,20 @@ class MT5Client:
 
         return self.account_info
 
+    def get_account_equity(self) -> float:
+        """
+        Get current account equity.
+
+        Returns:
+            Account equity as float, or 0.0 if failed
+        """
+        account_info = self.get_account_info()
+        if account_info is None:
+            logger.warning("Cannot get equity: account info unavailable")
+            return 0.0
+
+        return float(account_info.get("equity", 0.0))
+
     def get_terminal_info(self) -> Optional[Dict[str, Any]]:
         """
         Get terminal information from MT5 and cache it.

@@ -9,6 +9,12 @@ Unified engine supporting single or multiple strategies with portfolio managemen
   - Portfolio-level risk management
   - Correlation checks
   - Dashboard monitoring
+- RiskIntegratedEngine: Advanced engine with institutional-grade risk management
+  - Dynamic position sizing (fixed_risk, Kelly, volatility, etc.)
+  - Regime detection (NORMAL vs STRESS)
+  - Risk budget allocation (risk parity)
+  - Hard risk constraints (VaR, ES, margin, concentration)
+  - Cluster limits per asset class
 """
 
 from apps.live.bar_monitor import BarMonitor
@@ -17,6 +23,7 @@ from apps.live.engine import MultiStrategyEngine
 from apps.live.notification_adapter import LiveTradingNotifier
 from apps.live.portfolio_manager import PortfolioManager
 from apps.live.position_manager import PositionManager
+from apps.live.risk_engine import RiskIntegratedEngine
 from apps.live.safety_checks import SafetyChecker
 from apps.live.signal_processor import SignalProcessor
 from apps.live.state_manager import StateManager
@@ -37,4 +44,5 @@ __all__ = [
     "LiveTradingNotifier",
     "PortfolioManager",
     "MultiStrategyEngine",
+    "RiskIntegratedEngine",
 ]

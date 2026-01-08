@@ -216,8 +216,9 @@ class SafetyChecker:
 
             # Check step (volume must be multiple of step)
             if step_vol > 0:
-                remainder = (volume - min_vol) % step_vol
-                if remainder > 1e-8:  # Allow small floating point errors
+                steps = round((volume - min_vol) / step_vol)
+                aligned = min_vol + steps * step_vol
+                if abs(volume - aligned) > 1e-8:  # Allow small floating point errors
                     reason = f"Volume {volume} not aligned with step {step_vol}"
                     logger.error(reason)
                     return False, reason

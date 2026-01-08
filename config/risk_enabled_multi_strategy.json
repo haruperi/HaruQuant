@@ -1,0 +1,182 @@
+{
+  "user_id": 1,
+  "db_path": "data/database/haruquant.db",
+  "mt5": {
+    "login": 61450707,
+    "password": "qmotWcgh3$",
+    "server": "Pepperstone-Demo",
+    "path": "C:\\Program Files\\Pepperstone MetaTrader 5\\terminal64.exe"
+  },
+  "risk_management": {
+    "enabled": true,
+    "limits": {
+      "var_cap_frac": 0.08,
+      "es_cap_frac": 0.12,
+      "delta_var_cap_frac": 0.015,
+      "delta_es_cap_frac": 0.02,
+      "max_margin_used_frac": 0.45,
+      "min_pair_corr": 0.20,
+      "stressed_corr_floor": 0.65,
+      "use_stressed_corr": true,
+      "confidence_level": 0.95,
+      "time_horizon_days": 1,
+      "vol_lookback": 20,
+      "corr_lookback": 60,
+      "max_single_rc_frac": 0.18,
+      "rc_rebalance_tolerance": 0.05,
+      "cluster_var_caps": {
+        "FOREX": 0.05,
+        "METALS": 0.04
+      },
+      "cluster_es_caps": {
+        "FOREX": 0.07,
+        "METALS": 0.06
+      }
+    },
+    "regime_detector": {
+      "vol_spike_mult": 1.8,
+      "corr_spike_level": 0.55,
+      "dd_trigger_frac": 0.05,
+      "lookback": 60,
+      "timeframe": "H4"
+    },
+    "correlation_preference": {
+      "target_corr": 0.50,
+      "penalty_strength": 2.0,
+      "min_budget_frac": 0.30
+    },
+    "governor_config": {
+      "timeframe": "H1",
+      "start_pos": 0,
+      "end_pos": 500
+    }
+  },
+  "position_sizing": {
+    "method": "fixed_risk",
+    "config": {
+      "risk_percent": 1.0,
+      "use_dynamic_stop_loss": true,
+      "atr_period": 10,
+      "atr_target_devider": 3.0,
+      "atr_timeframe": "H4"
+    },
+    "fallback_volume": 0.01
+  },
+  "symbol_clusters": {
+    "XAUUSD": "METALS",
+    "EURUSD": "FOREX",
+    "GBPUSD": "FOREX",
+    "USDJPY": "FOREX"
+  },
+  "portfolio": {
+    "max_total_positions": 100,
+    "max_positions_per_symbol": 3,
+    "max_portfolio_risk_percent": 10.0,
+    "max_correlated_positions": 5
+  },
+  "strategies": [
+    {
+      "name": "XAUUSD_Trend",
+      "strategy_type": "TrendFollowing",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "magic_number": 100001,
+      "params": {
+        "fast_period": 20,
+        "slow_period": 50,
+        "filter_period": 200
+      },
+      "initial_bars": 250,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999,
+      "risk_budget": 0.20
+    },
+    {
+      "name": "XAUUSD_Breakout",
+      "strategy_type": "CloseBreakout",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "magic_number": 100002,
+      "params": {},
+      "initial_bars": 10,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999,
+      "risk_budget": 0.15
+    },
+    {
+      "name": "EURUSD_Trend",
+      "strategy_type": "TrendFollowing",
+      "symbol": "EURUSD",
+      "timeframe": "M1",
+      "magic_number": 100003,
+      "params": {
+        "fast_period": 20,
+        "slow_period": 50,
+        "filter_period": 200
+      },
+      "initial_bars": 250,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999,
+      "risk_budget": 0.20
+    },
+    {
+      "name": "EURUSD_Breakout",
+      "strategy_type": "CloseBreakout",
+      "symbol": "EURUSD",
+      "timeframe": "M1",
+      "magic_number": 100004,
+      "params": {},
+      "initial_bars": 10,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999,
+      "risk_budget": 0.15
+    },
+    {
+      "name": "GBPUSD_Trend",
+      "strategy_type": "TrendFollowing",
+      "symbol": "GBPUSD",
+      "timeframe": "M1",
+      "magic_number": 100005,
+      "params": {
+        "fast_period": 20,
+        "slow_period": 50,
+        "filter_period": 200
+      },
+      "initial_bars": 250,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999,
+      "risk_budget": 0.20
+    },
+    {
+      "name": "GBPUSD_Breakout",
+      "strategy_type": "CloseBreakout",
+      "symbol": "GBPUSD",
+      "timeframe": "M1",
+      "magic_number": 100006,
+      "params": {},
+      "initial_bars": 10,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999,
+      "risk_budget": 0.10
+    }
+  ],
+  "logging": {
+    "dir": "logs/risk_enabled",
+    "level": "INFO"
+  },
+  "state": {
+    "file": "risk_enabled_state.json"
+  }
+}

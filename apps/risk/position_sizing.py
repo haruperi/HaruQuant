@@ -5,11 +5,14 @@ Dynamic position sizing based on various risk management methods.
 Replaces hardcoded 0.1 lot sizing with intelligent, risk-based approaches.
 """
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+import pandas as pd
 
 from apps.logger import logger
 
-from .result import BacktestResult
+if TYPE_CHECKING:
+    from apps.backtest.result import BacktestResult
 
 
 class PositionSizer:
@@ -30,7 +33,10 @@ class PositionSizer:
     """
 
     def __init__(
-        self, method: str = "fixed_risk", config: Optional[Dict[str, Any]] = None
+        self,
+        method: str = "fixed_risk",
+        config: Optional[Dict[str, Any]] = None,
+        mt5_client=None,
     ):
         """
         Initialize position sizer.
@@ -38,9 +44,19 @@ class PositionSizer:
         Args:
             method: Sizing method - "fixed_lot", "milestone", "fixed_risk", "kelly", "volatility", "fixed_fractional"
             config: Method-specific configuration
+            mt5_client: MT5 client for fetching data (needed for dynamic stop loss calculation)
         """
         self.method = method
         self.config = config or {}
+        self.mt5_client = mt5_client
+
+        # Dynamic stop loss configuration (ATR-based)
+        self.atr_period = self.config.get("atr_period", 10)
+        self.atr_target_devider = self.config.get("atr_target_devider", 3.0)
+        self.atr_timeframe = self.config.get(
+            "atr_timeframe", "H4"
+        )  # Use H4 instead of D1
+        self.use_dynamic_stop_loss = self.config.get("use_dynamic_stop_loss", True)
 
         # Validate method
         valid_methods = [
@@ -65,6 +81,8 @@ class PositionSizer:
         stop_loss: Optional[float] = None,
         symbol_info: Optional[Any] = None,
         context: Optional[Dict[str, Any]] = None,
+        symbol: Optional[str] = None,
+        signal_type: Optional[str] = None,
     ) -> float:
         """
         Calculate position size based on configured method.
@@ -72,9 +90,11 @@ class PositionSizer:
         Args:
             account_balance: Current account balance
             entry_price: Planned entry price
-            stop_loss: Stop loss price (required for fixed_risk)
+            stop_loss: Stop loss price (required for fixed_risk, calculated if None)
             symbol_info: SymbolInfo object with contract specs
             context: Additional data (ATR, win rate, etc.)
+            symbol: Trading symbol (needed for dynamic stop loss calculation)
+            signal_type: 'buy' or 'sell' (needed for dynamic stop loss calculation)
 
         Returns:
             Position size in lots
@@ -88,7 +108,12 @@ class PositionSizer:
                 size = self._milestone_sizing(account_balance)
             elif self.method == "fixed_risk":
                 size = self._fixed_risk_sizing(
-                    account_balance, entry_price, stop_loss, symbol_info
+                    account_balance,
+                    entry_price,
+                    stop_loss,
+                    symbol_info,
+                    symbol,
+                    signal_type,
                 )
             elif self.method == "kelly":
                 size = self._kelly_criterion_sizing(
@@ -190,6 +215,8 @@ class PositionSizer:
         entry_price: float,
         stop_loss: Optional[float],
         symbol_info: Any,
+        symbol: Optional[str] = None,
+        signal_type: Optional[str] = None,
     ) -> float:
         """
         Risk fixed percentage of account per trade.
@@ -201,12 +228,26 @@ class PositionSizer:
 
         Config:
             risk_percent: float (default 1.0) - Percentage of account to risk
+            atr_period: int (default 10) - ATR period for dynamic stop loss
+            atr_target_devider: float (default 3.0) - Divide ATR by this for stop loss
+            use_dynamic_stop_loss: bool (default True) - Calculate stop loss from ATR if not provided
         """
         risk_percent = float(self.config.get("risk_percent", 1.0))
 
+        # Calculate dynamic stop loss if not provided
+        if stop_loss is None and self.use_dynamic_stop_loss and symbol:
+            stop_loss = self._calculate_dynamic_stop_loss(
+                entry_price, symbol, signal_type
+            )
+            if stop_loss is not None:
+                logger.info(
+                    f"Calculated dynamic stop loss for {symbol}: {stop_loss:.5f} "
+                    f"(ATR-based: {self.atr_period} period / {self.atr_target_devider})"
+                )
+
         if stop_loss is None:
             logger.warning(
-                "Fixed risk sizing requires stop_loss. Using default 0.1 lots."
+                "Fixed risk sizing requires stop_loss and no dynamic calculation available. Using default 0.1 lots."
             )
             return 0.1
 
@@ -424,6 +465,127 @@ class PositionSizer:
 
         return position_size
 
+    def _calculate_dynamic_stop_loss(
+        self, entry_price: float, symbol: str, signal_type: Optional[str]
+    ) -> Optional[float]:
+        """
+        Calculate dynamic stop loss using ATR.
+
+        Methodology:
+        1. Fetch data for the symbol (timeframe configured, default H4)
+        2. Calculate ATR with configured period (default 10)
+        3. Divide ATR by target_devider (default 3)
+        4. Calculate stop loss:
+           - For BUY: entry_price - (ATR / devider)
+           - For SELL: entry_price + (ATR / devider)
+
+        This gives a stop loss based on the average range of the past N bars
+        divided by the target devider. Example: ATR(10) / 3 = stop at 1/3 of recent range.
+
+        Args:
+            entry_price: Entry price for the trade
+            symbol: Trading symbol
+            signal_type: 'buy' or 'sell' (determines stop direction)
+
+        Returns:
+            Calculated stop loss price, or None if calculation fails
+        """
+        try:
+            if not self.mt5_client:
+                logger.debug(
+                    "MT5 client not available for dynamic stop loss calculation"
+                )
+                return None
+
+            if not signal_type:
+                logger.debug(
+                    "Signal type not provided for dynamic stop loss calculation"
+                )
+                return None
+
+            latest_atr = self._get_latest_atr(symbol)
+            if latest_atr is None:
+                return None
+
+            return self._determine_stop_loss_price(
+                entry_price, latest_atr, signal_type, symbol
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Error calculating dynamic stop loss for {symbol}: {e}", exc_info=True
+            )
+            return None
+
+    def _get_latest_atr(self, symbol: str) -> Optional[float]:
+        """Fetch data and calculate latest ATR."""
+        # Fetch data for ATR calculation (using configured timeframe)
+        bars_needed = self.atr_period + 20  # Extra buffer for ATR smoothing
+        atr_data = self.mt5_client.get_bars(
+            symbol=symbol,
+            timeframe=self.atr_timeframe,
+            count=bars_needed,
+            start_pos=0,
+        )
+
+        if atr_data is None or atr_data.empty:
+            logger.warning(f"Could not fetch {self.atr_timeframe} data for {symbol}")
+            return None
+
+        if len(atr_data) < self.atr_period:
+            logger.warning(
+                f"Insufficient {self.atr_timeframe} data for {symbol}: {len(atr_data)} bars "
+                f"(need {self.atr_period})"
+            )
+            return None
+
+        # Calculate ATR
+        from apps.indicator.volatility.atr import atr
+
+        data_with_atr = atr(atr_data, period=self.atr_period)
+        atr_col = f"atr_{self.atr_period}"
+
+        if atr_col not in data_with_atr.columns:
+            logger.error(f"ATR column {atr_col} not found after calculation")
+            return None
+
+        # Get latest ATR value
+        latest_atr = float(data_with_atr[atr_col].iloc[-1])
+
+        if pd.isna(latest_atr) or latest_atr <= 0:
+            logger.warning(f"Invalid ATR value for {symbol}: {latest_atr}")
+            return None
+
+        return latest_atr
+
+    def _determine_stop_loss_price(
+        self, entry_price: float, atr: float, signal_type: str, symbol: str
+    ) -> Optional[float]:
+        """Calculate stop loss price based on ATR and signal type."""
+        # Calculate stop loss distance
+        stop_distance = atr / self.atr_target_devider
+
+        # Calculate stop loss based on signal type
+        signal_lower = signal_type.lower() if signal_type else ""
+
+        if "buy" in signal_lower:
+            # For buy, stop below entry
+            stop_loss = entry_price - stop_distance
+        elif "sell" in signal_lower:
+            # For sell, stop above entry
+            stop_loss = entry_price + stop_distance
+        else:
+            logger.warning(f"Unknown signal type for stop loss: {signal_type}")
+            return None
+
+        logger.debug(
+            f"Dynamic stop loss calculated for {symbol} ({signal_type}): "
+            f"ATR={atr:.5f}, devider={self.atr_target_devider}, "
+            f"stop_distance={stop_distance:.5f}, stop_loss={stop_loss:.5f}"
+        )
+
+        return float(stop_loss)
+
 
 def validate_position_size(
     size: float, symbol_info: Any, max_size: Optional[float] = None
@@ -466,7 +628,7 @@ def validate_position_size(
     return size
 
 
-def estimate_kelly_parameters(result: BacktestResult) -> Dict[str, float]:
+def estimate_kelly_parameters(result: "BacktestResult") -> Dict[str, float]:
     """
     Estimate Kelly Criterion parameters from backtest result.
 
@@ -483,6 +645,8 @@ def estimate_kelly_parameters(result: BacktestResult) -> Dict[str, float]:
             'kelly_fraction': float (calculated Kelly %)
         }
     """
+    # Type checked via string forward reference
+
     trades_df = result.get_trades_df()
 
     if len(trades_df) == 0:

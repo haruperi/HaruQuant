@@ -626,10 +626,11 @@ class MultiStrategyEngine:
                 logger.error("Portfolio manager not initialized")
                 return False
 
+            volume = signal.get("volume", instance.config.get("volume", 0.01))
             can_trade, portfolio_reason = self.portfolio_manager.can_open_position(
                 symbol=instance.symbol,
                 strategy_name=instance.name,
-                volume=instance.config.get("volume", 0.01),
+                volume=volume,
                 signal_type=str(signal["signal"]),
             )
 
@@ -651,7 +652,7 @@ class MultiStrategyEngine:
             # Actually initialize() ensures it is present.
 
         passed, reason = instance.safety_checker.check_all(
-            volume=instance.config.get("volume", 0.01),
+            volume=signal.get("volume", instance.config.get("volume", 0.01)),
             position_count=instance.position_manager.total_positions(),
             daily_trades=self.state_manager.get_trade_count_today(),
             max_positions=instance.config.get("max_positions", 10),
