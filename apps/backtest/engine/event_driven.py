@@ -5,7 +5,7 @@ High-fidelity bar-by-bar backtest execution.
 Aligned with live trading for realistic simulation.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
@@ -52,9 +52,12 @@ class EventDrivenEngine(BaseEngine):
         slippage_config: Optional[Dict[str, Any]] = None,
         spread_config: Optional[Dict[str, Any]] = None,
         leverage: int = 100,
+        backtest_start_date: Optional[datetime] = None,
+        backtest_end_date: Optional[datetime] = None,
         timeframe: str = "H1",
         config: Optional[Dict[str, Any]] = None,
         position_sizer: Optional[Any] = None,
+        mt5_client: Optional[Any] = None,
     ):
         """
         Initialize event-driven engine.
@@ -73,6 +76,7 @@ class EventDrivenEngine(BaseEngine):
             timeframe: Bar timeframe (e.g., "H1", "M15")
             config: Additional config
             position_sizer: Optional PositionSizer for dynamic position sizing
+            mt5_client: Optional MT5Client for fetching real symbol info (swap rates, etc.)
         """
         config = config or {}
         config["timeframe"] = timeframe
@@ -87,6 +91,8 @@ class EventDrivenEngine(BaseEngine):
             slippage_config,
             spread_config,
             leverage,
+            backtest_start_date,
+            backtest_end_date,
             config,
         )
 
@@ -106,7 +112,9 @@ class EventDrivenEngine(BaseEngine):
         )
         self._position_provider = BacktestPositionProvider()
         self._order_provider = BacktestOrderProvider()
-        self._symbol_provider = BacktestSymbolProvider(symbol_name=strategy.symbol)
+        self._symbol_provider = BacktestSymbolProvider(
+            mt5_client=mt5_client, symbol_name=strategy.symbol
+        )
 
         # Inject trading objects into strategy
         self.strategy.trade = Trade(self._trade_provider)
@@ -149,6 +157,181 @@ class EventDrivenEngine(BaseEngine):
             return self._symbol_provider.get_point()
         except Exception:
             return 0.00001  # Default forex 5-digit point
+
+    def _calculate_commission(self, volume: float) -> float:
+        """
+        Calculate commission for a trade based on volume.
+
+        Commission is per lot, so total commission = commission_per_lot * volume.
+        For example, if commission is $7 per lot and volume is 0.1 lots,
+        the commission will be $0.70.
+
+        Args:
+            volume: Position size in lots
+
+        Returns:
+            Total commission in account currency
+        """
+        return -self.commission * volume
+
+    def _count_swap_days(
+        self, entry_time: datetime, exit_time: datetime, triple_swap_day_mt5: int = 3
+    ) -> int:
+        """
+        Count the number of swap charges between entry and exit time.
+
+        Swap is charged at midnight rollover. To be charged swap for a day,
+        you must hold the position THROUGH that day's midnight (into the next day).
+        The last day before exit doesn't count because you exit before the next midnight.
+
+        Example: Trade from Dec 10 Wed 20:00 to Dec 17 Wed 09:00
+        - Dec 10 Wed night -> Dec 11: charged 3x (triple swap)
+        - Dec 11 Thu night -> Dec 12: charged 1x
+        - Dec 12 Fri night -> Dec 13: charged 1x
+        - Dec 13 Sat night -> Dec 14: NOT charged (weekend)
+        - Dec 14 Sun night -> Dec 15: NOT charged (weekend)
+        - Dec 15 Mon night -> Dec 16: charged 1x
+        - Dec 16 Tue night -> Dec 17: charged 1x
+        - Dec 17 Wed: NOT charged (exit day, didn't hold through midnight)
+        Total: 3 + 1 + 1 + 1 + 1 = 7 swap charges
+
+        Args:
+            entry_time: Position entry timestamp
+            exit_time: Position exit timestamp
+            triple_swap_day_mt5: Day of week with triple swap in MT5 format
+                                 (0=Sunday, 1=Monday, ..., 6=Saturday)
+                                 Default is 3 (Wednesday)
+
+        Returns:
+            Total swap days (including triple swap multiplier)
+        """
+        if exit_time <= entry_time:
+            return 0
+
+        # Convert MT5 day format (0=Sunday) to Python weekday format (0=Monday)
+        # MT5: Sunday=0, Monday=1, Tuesday=2, Wednesday=3, ...
+        # Python: Monday=0, Tuesday=1, Wednesday=2, Thursday=3, ..., Sunday=6
+        triple_swap_day_python = (triple_swap_day_mt5 + 6) % 7
+
+        swap_days = 0
+        current_date = entry_time.date()
+        exit_date = exit_time.date()
+
+        # Count each midnight crossing from entry date up to (but not including) exit date
+        # Skip weekends (Saturday=5, Sunday=6) and holidays since forex market is closed
+        while current_date < exit_date:
+            weekday = current_date.weekday()
+
+            # Check if this is a market holiday (New Year's Day or Christmas Day)
+            is_holiday = (current_date.month == 1 and current_date.day == 1) or (
+                current_date.month == 12 and current_date.day == 25
+            )
+
+            # Skip Saturday (5), Sunday (6), and holidays
+            if weekday not in [5, 6] and not is_holiday:
+                # Check if this night is the triple swap night
+                # Triple swap is charged on the specified day (typically Wednesday)
+                if weekday == triple_swap_day_python:
+                    swap_days += 3  # Triple swap for weekend
+                else:
+                    swap_days += 1
+
+            current_date += timedelta(days=1)
+
+        return swap_days
+
+    def _calculate_swap(
+        self,
+        position_type: int,
+        volume: float,
+        entry_time: datetime,
+        exit_time: datetime,
+        entry_price: float,
+        current_price: float,
+    ) -> float:
+        """
+        Calculate swap fees for a position based on symbol info.
+
+        Swap calculation depends on the swap_mode from symbol specifications:
+        - POINTS: swap_value * volume * contract_size * point
+        - CURRENCY_*: swap_value * volume
+        - INTEREST: swap_value * price * volume * contract_size / 360
+
+        Args:
+            position_type: 0 for BUY (long), 1 for SELL (short)
+            volume: Position size in lots
+            entry_time: Position entry timestamp
+            exit_time: Position exit timestamp
+            entry_price: Entry price of the position
+            current_price: Current/exit price of the position
+
+        Returns:
+            Total swap fee in account currency (positive = cost, negative = credit)
+        """
+        from apps.trading.symbol_info import SymbolSwapMode
+
+        try:
+            swap_mode = self._symbol_provider.get_swap_mode()
+            swap_long = self._symbol_provider.get_swap_long()
+            swap_short = self._symbol_provider.get_swap_short()
+            contract_size = self._get_contract_size()
+            point = self._get_point()
+
+            # Get triple swap day from symbol info (default Wednesday = 3 in MT5 format)
+            try:
+                triple_swap_day_enum = self._symbol_provider.get_swap_rollover3days()
+                # DayOfWeek enum has .value property for the integer
+                triple_swap_day = (
+                    triple_swap_day_enum.value
+                    if hasattr(triple_swap_day_enum, "value")
+                    else int(triple_swap_day_enum)  # type: ignore
+                )
+            except Exception:
+                triple_swap_day = 3  # Default to Wednesday (MT5 format)
+
+            # Get the appropriate swap value based on position type
+            swap_value = swap_long if position_type == 0 else swap_short
+
+            # Count swap days (including triple swap multiplier)
+            swap_days = self._count_swap_days(entry_time, exit_time, triple_swap_day)
+
+            # If no swap days or swap is disabled, no swap
+            if swap_days <= 0 or swap_mode == SymbolSwapMode.DISABLED:
+                return 0.0
+
+            # Calculate daily swap based on mode
+            if swap_mode == SymbolSwapMode.POINTS:
+                # Swap in points: swap_value * volume * contract_size * point
+                daily_swap = swap_value * volume * contract_size * point
+            elif swap_mode in (
+                SymbolSwapMode.CURRENCY_SYMBOL,
+                SymbolSwapMode.CURRENCY_MARGIN,
+                SymbolSwapMode.CURRENCY_DEPOSIT,
+            ):
+                # Swap in currency: swap_value * volume
+                daily_swap = swap_value * volume
+            elif swap_mode == SymbolSwapMode.INTEREST_CURRENT:
+                # Annual interest using current price
+                # swap_value is annual %, daily = value * price * volume * contract / 360
+                daily_swap = (
+                    (swap_value / 100) * current_price * volume * contract_size / 360
+                )
+            elif swap_mode == SymbolSwapMode.INTEREST_OPEN:
+                # Annual interest using open price
+                daily_swap = (
+                    (swap_value / 100) * entry_price * volume * contract_size / 360
+                )
+            else:
+                # Default fallback: treat as points
+                daily_swap = swap_value * volume * contract_size * point
+            # Multiply by swap days (already includes triple swap multiplier)
+            total_swap = daily_swap * swap_days
+
+            return total_swap
+
+        except Exception as e:
+            logger.warning(f"Error calculating swap: {e}, returning 0.0")
+            return 0.0
 
     def get_slippage(self) -> float:
         """
@@ -341,26 +524,37 @@ class EventDrivenEngine(BaseEngine):
                         )
 
                         if signal_info:
-                            # For ticks, price is "close" (last). For M1, "open".
-                            exec_price = (
-                                bar["close"]
-                                if self.data_step_mode == "tick"
-                                else bar["open"]
-                            )
+                            # Check if timestamp is within backtest date range
+                            # Skip signal execution if outside range (warm-up period or after end)
+                            if timestamp < self.backtest_start_date:
+                                logger.debug(
+                                    f"[{timestamp}] Skipping signal (before backtest start: {self.backtest_start_date})"
+                                )
+                            elif timestamp > self.backtest_end_date:
+                                logger.debug(
+                                    f"[{timestamp}] Skipping signal (after backtest end: {self.backtest_end_date})"
+                                )
+                            else:
+                                # For ticks, price is "close" (last). For M1, "open".
+                                exec_price = (
+                                    bar["close"]
+                                    if self.data_step_mode == "tick"
+                                    else bar["open"]
+                                )
 
-                            signal_type = signal_info["signal"]
-                            sl = signal_info.get("stop_loss")
-                            tp = signal_info.get("take_profit")
+                                signal_type = signal_info["signal"]
+                                sl = signal_info.get("stop_loss")
+                                tp = signal_info.get("take_profit")
 
-                            sl_str = f"{sl:.5f}" if sl is not None else "None"
-                            tp_str = f"{tp:.5f}" if tp is not None else "None"
+                                sl_str = f"{sl:.5f}" if sl is not None else "None"
+                                tp_str = f"{tp:.5f}" if tp is not None else "None"
 
-                            logger.info(
-                                f"[{timestamp}] {signal_type} signal detected (Idx: {signal_idx}): {exec_price:.5f} "
-                                f"(SL: {sl_str}, TP: {tp_str}) - Executing on {self.data_step_mode}"
-                            )
+                                logger.info(
+                                    f"[{timestamp}] {signal_type} signal detected (Idx: {signal_idx}): {exec_price:.5f} "
+                                    f"(SL: {sl_str}, TP: {tp_str}) - Executing on {self.data_step_mode}"
+                                )
 
-                            self._execute_signal(signal_info, bar, price=exec_price)
+                                self._execute_signal(signal_info, bar, price=exec_price)
 
                             # Mark this signal index as processed
                             last_processed_signal_idx = signal_idx
@@ -641,18 +835,48 @@ class EventDrivenEngine(BaseEngine):
         if ticket in self._open_positions:
             self._open_positions[ticket]["exit_slippage"] = exit_slippage
 
-        # Calculate profit
+        # Calculate gross profit
         volume = position["volume"]
         if position["type"] == 0:  # BUY position
-            profit = (
+            gross_profit = (
                 (price - position["price_open"]) * volume * self._get_contract_size()
             )
         else:  # SELL position
-            profit = (
+            gross_profit = (
                 (position["price_open"] - price) * volume * self._get_contract_size()
             )
 
-        # Update account balance
+        # Calculate commission (per lot * volume)
+        trade_commission = self._calculate_commission(volume)
+
+        # Calculate swap fees based on overnight rollovers
+        trade_swap = 0.0
+        if ticket in self._open_positions:
+            entry_data = self._open_positions[ticket]
+            exit_time = (
+                self.execution_data.index[self._current_bar_index]
+                if self.execution_data is not None
+                else datetime.now()
+            )
+            if isinstance(exit_time, pd.Timestamp):
+                exit_time = exit_time.to_pydatetime()
+            trade_swap = self._calculate_swap(
+                position_type=position["type"],
+                volume=volume,
+                entry_time=entry_data["entry_time"],
+                exit_time=exit_time,
+                entry_price=position["price_open"],
+                current_price=price,
+            )
+
+        # Calculate net profit (commission and swap are already negative values)
+        logger.debug(
+            f"P&L calc: gross={gross_profit:.2f}, comm={trade_commission:.2f}, swap={trade_swap:.2f}"
+        )
+        profit = gross_profit + trade_commission + trade_swap
+        logger.debug(f"P&L result: {profit:.2f}")
+
+        # Update account balance with net profit
         # pylint: disable=protected-access
         self._trade_provider._balance += profit
         self._trade_provider._equity = self._trade_provider._balance
@@ -1043,13 +1267,28 @@ class EventDrivenEngine(BaseEngine):
         if isinstance(exit_time, pd.Timestamp):
             exit_time = exit_time.to_pydatetime()
 
-        duration = (
+        duration_hours = (
             exit_time - entry_data["entry_time"]
         ).total_seconds() / 3600  # hours
 
+        # Calculate commission (per lot * volume)
+        trade_commission = self._calculate_commission(entry_data["size"])
+
+        # Calculate swap fees based on overnight rollovers
+        trade_swap = self._calculate_swap(
+            position_type=position["type"],
+            volume=entry_data["size"],
+            entry_time=entry_data["entry_time"],
+            exit_time=exit_time,
+            entry_price=entry_data["entry_price"],
+            current_price=exit_price,
+        )
+
         # Calculate profit metrics
         gross_pnl = pnl  # P&L before commission/swap
-        net_pnl = pnl - self.commission  # P&L after commission/swap
+        net_pnl = (
+            pnl + trade_commission + trade_swap
+        )  # P&L after commission/swap (both are negative for costs)
 
         # Calculate profit in pips dynamically based on symbol digits
         # Get symbol point value (smallest price change)
@@ -1157,7 +1396,7 @@ class EventDrivenEngine(BaseEngine):
             # 3️⃣ Trade Timing
             open_time=entry_data["entry_time"],
             close_time=exit_time,
-            time_in_trade=duration,
+            time_in_trade=duration_hours,
             bars_in_trade=trade_bars,
             # 4️⃣ Entry Definition
             open_price=entry_data["entry_price"],
@@ -1207,8 +1446,8 @@ class EventDrivenEngine(BaseEngine):
             # 🔟 Performance Results
             profit_loss=net_pnl,
             profit_loss_pips=profit_pips,
-            commission=self.commission,
-            swap=0.0,
+            commission=trade_commission,
+            swap=trade_swap,
             r_multiple=r_multiple,
             buy_hold=buy_hold_val,
             buy_hold_pips=buy_hold_pips,

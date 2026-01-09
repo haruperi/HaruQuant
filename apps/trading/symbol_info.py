@@ -832,6 +832,11 @@ class BacktestSymbolProvider:
             "currency_base": symbol_name[:3] if len(symbol_name) >= 6 else "USD",
             "currency_profit": symbol_name[3:6] if len(symbol_name) >= 6 else "USD",
             "currency_margin": symbol_name[:3] if len(symbol_name) >= 6 else "USD",
+            # Swap defaults (mode 1 = POINTS, typical forex swap values)
+            "swap_mode": 1,  # SYMBOL_SWAP_MODE_POINTS
+            "swap_long": -0.5,  # Default long swap in points (negative = cost)
+            "swap_short": -0.5,  # Default short swap in points (negative = cost)
+            "swap_rollover3days": 3,  # Wednesday (triple swap day)
         }
 
         # JPY pairs (3 digits)

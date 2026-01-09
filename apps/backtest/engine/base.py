@@ -36,6 +36,8 @@ class BaseEngine(ABC):
         slippage_config: Optional[Dict[str, Any]] = None,
         spread_config: Optional[Dict[str, Any]] = None,
         leverage: int = 100,
+        backtest_start_date: Optional[datetime] = None,
+        backtest_end_date: Optional[datetime] = None,
         config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -58,6 +60,8 @@ class BaseEngine(ABC):
                 - min: Minimum spread for variable mode
                 - max: Maximum spread for variable mode
             leverage: Account leverage (e.g., 100 for 1:100)
+            backtest_start_date: Start date for backtest execution (trades before this are ignored)
+            backtest_end_date: End date for backtest execution (trades after this are ignored)
             config: Additional configuration
         """
         self.strategy = strategy
@@ -79,6 +83,16 @@ class BaseEngine(ABC):
         }
         self.leverage = leverage
         self.config = config or {}
+
+        # Backtest date range (defaults to data range if not specified)
+        self.backtest_start_date = backtest_start_date or data.index[0]
+        self.backtest_end_date = backtest_end_date or data.index[-1]
+
+        # Convert to datetime if needed
+        if isinstance(self.backtest_start_date, pd.Timestamp):
+            self.backtest_start_date = self.backtest_start_date.to_pydatetime()
+        if isinstance(self.backtest_end_date, pd.Timestamp):
+            self.backtest_end_date = self.backtest_end_date.to_pydatetime()
 
         # Validate data
         self._validate_data()

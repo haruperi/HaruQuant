@@ -197,6 +197,45 @@ class TradeRecord:
     rule_violation_flag: bool = False
     manual_intervention: bool = False
 
+    @property
+    def time_in_trade_formatted(self) -> str:
+        """
+        Get human-readable trade duration.
+
+        Format:
+        - Less than 1 hour: "Xm" (e.g., "45m")
+        - 1-24 hours: "Xh Ym" (e.g., "5h 30m")
+        - More than 24 hours: "Xd Yh Zm" (e.g., "2d 5h 30m")
+
+        Returns:
+            Formatted duration string
+        """
+        total_minutes = self.time_in_trade * 60
+
+        if total_minutes < 60:
+            # Less than 1 hour - show minutes only
+            return f"{int(total_minutes)}m"
+        elif self.time_in_trade < 24:
+            # 1 to 24 hours - show hours and minutes
+            hours = int(self.time_in_trade)
+            minutes = int((self.time_in_trade - hours) * 60)
+            if minutes > 0:
+                return f"{hours}h {minutes}m"
+            return f"{hours}h"
+        else:
+            # More than 24 hours - show days, hours, and minutes
+            days = int(self.time_in_trade / 24)
+            remaining_hours = self.time_in_trade - (days * 24)
+            hours = int(remaining_hours)
+            minutes = int((remaining_hours - hours) * 60)
+
+            parts = [f"{days}d"]
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0:
+                parts.append(f"{minutes}m")
+            return " ".join(parts)
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for DataFrame creation."""
         return {
@@ -220,6 +259,7 @@ class TradeRecord:
             "open_time": self.open_time,
             "close_time": self.close_time,
             "time_in_trade": self.time_in_trade,
+            "time_in_trade_formatted": self.time_in_trade_formatted,
             "bars_in_trade": self.bars_in_trade,
             # 4️⃣ Entry Definition
             "open_price": self.open_price,
