@@ -21,25 +21,7 @@ from apps.sqlite.users import UserManager
 from apps.logger import logger
 
 
-# Initialize UserManager to get credentials
-def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
 
-    username = "haruperi"  # Change this to your username
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        sys.exit(1)
-
-    creds = user_manager.get_mt5_credentials(user["id"])
-    if not creds:
-        logger.error(f"No default broker credentials found for {username}")
-        sys.exit(1)
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-    return creds
 
 
 def example_get_bars():
@@ -47,7 +29,11 @@ def example_get_bars():
     logger.info("=== Get Bars Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -84,7 +70,11 @@ def example_multiple_timeframes():
     logger.info("=== Multiple Timeframes Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -113,7 +103,11 @@ def example_bars_date_range():
     logger.info("=== Bars Date Range Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -160,7 +154,11 @@ def example_get_ticks():
     logger.info("=== Get Ticks Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -192,7 +190,11 @@ def example_ticks_date_range():
     logger.info("=== Ticks Date Range Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -228,7 +230,11 @@ def example_history_orders():
     logger.info("=== History Orders Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -265,7 +271,11 @@ def example_history_deals():
     logger.info("=== History Deals Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],

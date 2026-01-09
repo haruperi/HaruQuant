@@ -19,33 +19,15 @@ from apps.sqlite.users import UserManager
 from apps.logger import logger
 
 
-# Initialize UserManager to get credentials
-def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
-
-    username = "haruperi"  # Change this to your username
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        sys.exit(1)
-
-    creds = user_manager.get_mt5_credentials(user["id"])
-    if not creds:
-        logger.error(f"No default broker credentials found for {username}")
-        sys.exit(1)
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-    return creds
-
-
 def example_basic_connection():
     """Example: Basic connection and shutdown."""
     logger.info("=== Basic Connection Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     # Create client with credentials
     client = MT5Client(
@@ -80,7 +62,9 @@ def example_context_manager():
     logger.info("=== Context Manager Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        return
 
     # Context manager ensures shutdown is called even if exception occurs
     with MT5Client(
@@ -109,7 +93,9 @@ def example_reconnection():
     logger.info("=== Reconnection Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        return
 
     client = MT5Client(
         login=creds["login"],

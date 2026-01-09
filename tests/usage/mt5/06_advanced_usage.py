@@ -22,25 +22,7 @@ from apps.sqlite.users import UserManager
 from apps.logger import logger
 
 
-# Initialize UserManager to get credentials
-def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
 
-    username = "haruperi"  # Change this to your username
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        sys.exit(1)
-
-    creds = user_manager.get_mt5_credentials(user["id"])
-    if not creds:
-        logger.error(f"No default broker credentials found for {username}")
-        sys.exit(1)
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-    return creds
 
 
 def example_connection_states():
@@ -48,7 +30,11 @@ def example_connection_states():
     logger.info("=== Connection States Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     client = MT5Client(
         login=creds["login"],
@@ -81,7 +67,11 @@ def example_auto_reconnection():
     logger.info("=== Auto-Reconnection Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     client = MT5Client(
         login=creds["login"],
@@ -122,7 +112,11 @@ def example_error_handling():
     logger.info("=== Error Handling Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     client = MT5Client(
         login=creds["login"],
@@ -170,7 +164,11 @@ def example_connection_statistics():
     logger.info("=== Connection Statistics Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     # First connection
     client = MT5Client(
@@ -218,7 +216,11 @@ def example_data_analysis():
     logger.info("=== Data Analysis Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -271,7 +273,11 @@ def example_multi_symbol_monitoring():
     logger.info("=== Multi-Symbol Monitoring Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     with MT5Client(
         login=creds["login"],
@@ -317,7 +323,11 @@ def example_client_repr():
     logger.info("=== Client Representation Example ===")
 
     # Get credentials from database
-    creds = get_mt5_credentials()
+    # Get credentials from database
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
 
     client = MT5Client(
         login=creds["login"],
