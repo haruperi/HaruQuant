@@ -13,17 +13,6 @@ from apps.mt5.client import MT5Client
 from apps.logger import logger
 from apps.sqlite.users import UserManager
 
-def main():
-    # Initialize UserManager and get credentials
-    # Defaults to 'haruperi' and uses centralized db_path
-    creds = UserManager().get_mt5_credentials()
-    
-    if not creds:
-        logger.error("No default broker credentials found")
-        return
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-
 def on_tick_data(tick_data):
     """Callback for tick data."""
     # tick_data is a dictionary
@@ -34,6 +23,17 @@ def on_bar_data(bar_data):
     # bar_data is a pandas Series (last row of DataFrame)
     # The name of the series is the timestamp
     print(f"[{datetime.now().strftime('%H:%M:%S')}] BAR   - {bar_data.name} | Close: {bar_data['close']:.5f} | Vol: {bar_data['volume']}")
+
+def main():
+    # Initialize UserManager and get credentials
+    # Defaults to 'haruperi' and uses centralized db_path
+    creds = UserManager().get_mt5_credentials()
+    
+    if not creds:
+        logger.error("No default broker credentials found")
+        return
+
+    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
 
     # Initialize client with credentials
     client = MT5Client(
