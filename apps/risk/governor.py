@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Dict, List, Literal, Optional, Tuple
 
@@ -10,10 +9,10 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from apps.logger import logger
+
 from .regime import RegimeState
 from .risk_limits import RiskLimits
-
-logger = logging.getLogger(__name__)
 
 Decision = Literal["ACCEPT", "REJECT"]
 

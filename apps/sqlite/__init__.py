@@ -11,7 +11,6 @@ from .users import UserManager
 
 
 class SQLiteDatabase(
-    DatabaseBase,
     SchemaManager,
     UserManager,
     StrategyManager,
@@ -19,6 +18,7 @@ class SQLiteDatabase(
     OptimizationManager,
     LiveTradingManager,
     MarketDataManager,
+    DatabaseBase,
 ):
     """
     Main SQLite database class combining all functionality.

@@ -9,13 +9,11 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 from apps.logger import logger
 from apps.utils.security import get_encryption_key, hash_password, verify_password
 
-from .base import UserAlreadyExistsError
+from .base import DatabaseBase, UserAlreadyExistsError
 
 
-class UserManager:
+class UserManager(DatabaseBase):
     """User management operations."""
-
-    db_path: str
 
     def create_user(
         self,
@@ -509,38 +507,54 @@ class UserManager:
             if conn:
                 conn.close()
 
-    def get_mt5_credentials(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def _resolve_target_user_id(
+        self, user_id: Optional[int], username: str
+    ) -> Optional[int]:
+        """Resolve user id from username if not provided."""
+        if user_id is not None:
+            return user_id
+
+        user = self.get_user(username=username)
+        if not user:
+            logger.warning(f"User '{username}' not found for credential retrieval")
+            return None
+        return int(user["id"])
+
+    def get_mt5_credentials(
+        self, user_id: Optional[int] = None, username: str = "haruperi"
+    ) -> Optional[Dict[str, Any]]:
         """
         Retrieve MT5 credentials for a user.
 
         Args:
-            user_id (int): User's ID
+            user_id (int, optional): User's ID. If provided, used directly.
+            username (str, optional): User's username. Defaults to "haruperi".
+                                      Used to resolve ID if user_id is None.
 
         Returns:
             dict: MT5 credentials if found, None otherwise
         """
         try:
-            settings = self.get_user_settings(user_id)
+            target_id = self._resolve_target_user_id(user_id, username)
+            if target_id is None:
+                return None
 
+            settings = self.get_user_settings(target_id)
             if not settings:
-                logger.warning(f"Settings not found for user {user_id}")
+                logger.warning(f"Settings not found for user {target_id}")
                 return None
 
             broker_creds = settings.get("broker_credentials", {})
-
             if not broker_creds:
-                logger.warning(f"Broker credentials not found for user {user_id}")
+                logger.warning(f"Broker credentials not found for user {target_id}")
                 return None
 
-            accounts = broker_creds.get("accounts", [])
-
-            for acc in accounts:
+            for acc in broker_creds.get("accounts", []):
                 if acc.get("isDefault"):
                     try:
                         logger.info(
-                            f"Default broker account for user {user_id} is {acc.get('name')}"
+                            f"Default broker account for user {target_id} is {acc.get('name')}"
                         )
-
                         return {
                             "login": int(acc.get("login")),
                             "password": acc.get("password"),
@@ -552,7 +566,7 @@ class UserManager:
                         return None
 
             logger.warning(
-                f"Default broker account for user {user_id} not found in database"
+                f"Default broker account for user {target_id} not found in database"
             )
             return None
 
