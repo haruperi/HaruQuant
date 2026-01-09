@@ -191,10 +191,10 @@ if __name__ == "__main__":
     example_symbol_information()
     print("\n" + "="*60 + "\n")
 
-    example_multiple_symbols()
-    print("\n" + "="*60 + "\n")
+    # example_multiple_symbols()
+    # print("\n" + "="*60 + "\n")
 
-    example_symbol_properties()
-    print("\n" + "="*60 + "\n")
+    # example_symbol_properties()
+    # print("\n" + "="*60 + "\n")
 
-    example_initial_symbols()
+    # example_initial_symbols()

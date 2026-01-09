@@ -13,7 +13,7 @@ Key Concepts:
 - BacktestResult access and summary
 
 Usage:
-    python tests/usage/backtest/01_basic_backtest.py
+    python tests/usage/backtest/00_getting_started/01_basic_backtest.py
 
 Output:
 - Console output with backtest summary
@@ -24,7 +24,7 @@ from pathlib import Path
 import sys
 
 # Add project root to path
-project_root = Path(__file__).parent.parent.parent.parent
+project_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import pandas as pd
@@ -34,26 +34,6 @@ from data.strategies.trend_following import TrendFollowingStrategy
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
 from apps.logger import logger
-
-
-def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
-
-    username = "haruperi"  # Change this to your username
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        raise ValueError(f"User {username} not found")
-
-    creds = user_manager.get_mt5_credentials(user["id"])
-    if not creds:
-        logger.error(f"No default broker credentials found for {username}")
-        raise ValueError(f"No MT5 credentials found for {username}")
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-    return creds
 
 
 def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
@@ -69,7 +49,7 @@ def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: dat
     Returns:
         DataFrame with OHLC data and DatetimeIndex
     """
-    creds = get_mt5_credentials()
+    creds = UserManager().get_mt5_credentials()
     
     with MT5Client(
         login=creds["login"],
