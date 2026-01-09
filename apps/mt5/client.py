@@ -6,6 +6,7 @@ the MetaTrader 5 terminal. It handles connection management, authentication,
 auto-reconnection, multi-account support, and event handling.
 """
 
+import threading
 import time
 from datetime import datetime
 from enum import Enum
@@ -152,6 +153,10 @@ class MT5Client:
         self.account_info: Optional[Dict[str, Any]] = None
         self.terminal_info: Optional[Dict[str, Any]] = None
         self._symbol_info_cache: Dict[str, Dict[str, Any]] = {}
+
+        # Streaming state
+        self._active_streams: Dict[str, bool] = {}
+        self._stream_threads: Dict[str, threading.Thread] = {}
 
         # Initial Symbols
         self.initial_symbols: List[str] = [
@@ -920,6 +925,139 @@ class MT5Client:
         except Exception as e:
             logger.error(f"Error fetching ticks for {symbol}: {e}")
             return None
+
+    # =============================================================================
+    # STREAMING
+    # =============================================================================
+
+    def start_streaming(
+        self,
+        symbol: str,
+        data_type: str,
+        callback: Callable[[Any], None],
+        interval: float = 1.0,
+        timeframe: Optional[str] = None,
+    ) -> bool:
+        """
+        Start streaming real-time data.
+
+        Args:
+            symbol: Trading symbol
+            data_type: Type of data to stream ("ticks" or "bars")
+            callback: Function to call with new data
+            interval: Update interval in seconds (for bars)
+            timeframe: Timeframe for bars (required if data_type="bars")
+
+        Returns:
+            True if streaming started successfully, False otherwise
+        """
+        if not self.is_connected():
+            logger.warning("Cannot start streaming: not connected to MT5")
+            return False
+
+        if data_type == "bars" and not timeframe:
+            logger.error("Timeframe required for bar streaming")
+            return False
+
+        stream_id = f"{symbol}_{data_type}"
+        if self._active_streams.get(stream_id):
+            logger.warning(f"Stream already active for {stream_id}")
+            return True
+
+        self._active_streams[stream_id] = True
+        thread = threading.Thread(
+            target=self._stream_worker,
+            args=(symbol, data_type, callback, interval, timeframe),
+            name=f"MT5Stream_{stream_id}",
+            daemon=True,
+        )
+        self._stream_threads[stream_id] = thread
+        thread.start()
+        logger.info(f"Started streaming {data_type} for {symbol}")
+        return True
+
+    def stop_streaming(self, symbol: str, data_type: str) -> bool:
+        """
+        Stop streaming data for a symbol.
+
+        Args:
+            symbol: Trading symbol
+            data_type: Type of data being streamed
+
+        Returns:
+            True if stopped successfully, False otherwise
+        """
+        stream_id = f"{symbol}_{data_type}"
+        if not self._active_streams.get(stream_id):
+            logger.warning(f"No active stream for {stream_id}")
+            return False
+
+        self._active_streams[stream_id] = False
+        # Remove from threads dict immediately, though thread might take a moment to die
+        if stream_id in self._stream_threads:
+            del self._stream_threads[stream_id]
+
+        logger.info(f"Stopped streaming {data_type} for {symbol}")
+        return True
+
+    def _stream_worker(  # noqa: C901
+        self,
+        symbol: str,
+        data_type: str,
+        callback: Callable[[Any], None],
+        interval: float,
+        timeframe: Optional[str],
+    ) -> None:
+        """Worker thread for streaming data."""
+        stream_id = f"{symbol}_{data_type}"
+        last_data = None
+
+        logger.debug(f"Stream worker started for {stream_id}")
+
+        while self._active_streams.get(stream_id):
+            try:
+                current_data = None
+                if data_type == "ticks":
+                    # Get latest tick
+                    ticks = self.get_ticks(symbol, count=1, as_dataframe=False)
+                    if ticks and len(ticks) > 0:
+                        # ticks is a list of dicts, get first (and only) element
+                        # Copy to avoid modifying original list item if reused (though list is fresh)
+                        current_data = ticks[0].copy()
+                        current_data["symbol"] = symbol
+
+                        # For ticks, we only callback if something changed (e.g. time or price)
+                        # A simple equality check on the dict works
+                        # Note: we compare BEFORE injecting symbol for purity, but ticks[0] is fresh.
+                        if last_data is None or current_data != last_data:
+                            callback(current_data)
+                            last_data = current_data
+
+                    time.sleep(0.1)  # 100ms polling for ticks
+
+                elif data_type == "bars":
+                    # Get latest bar
+                    if timeframe:
+                        df = self.get_bars(symbol, timeframe, count=1)
+                        if not df.empty:
+                            # Convert last row to Series
+                            current_data = df.iloc[-1].copy()
+                            # Inject symbol (will likely cast Series to object dtype if it was float/int)
+                            current_data["symbol"] = symbol
+
+                            # Note: equals check might fail if types changed due to injection.
+                            # But we compare against last_data which also has symbol injected.
+                            if last_data is None or not current_data.equals(last_data):
+                                callback(current_data)
+                                last_data = current_data
+
+                    time.sleep(interval)
+
+            except Exception as e:
+                logger.error(f"Error in stream worker for {stream_id}: {e}")
+                time.sleep(1)  # Backoff on error
+
+        logger.debug(f"Stream worker finished for {stream_id}")
 
     def __repr__(self) -> str:
         """Return string representation of the client."""
