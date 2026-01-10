@@ -12,6 +12,7 @@ import pandas as pd
 
 from apps.logger import logger
 from apps.strategy import BaseStrategy
+from apps.strategy.base import SignalDict
 
 from ..result import BacktestResult, TradeRecord
 from .base import BaseEngine
@@ -385,48 +386,117 @@ class VectorizedEngine(BaseEngine):
             self._running = False
 
     def _extract_signals(self) -> None:
-        """Extract signals from signal column."""
+        """Extract signals from signal columns."""
         logger.info("Extracting signals...")
 
-        has_signal_col = "signal" in self.data.columns
+        # Check for signal columns
+        has_entry = "entry_signal" in self.data.columns
+        has_exit = "exit_signal" in self.data.columns
+        has_pending = "pending_signal" in self.data.columns
+        has_cancel = "cancel_pending_signal" in self.data.columns
+        has_legacy_signal = "signal" in self.data.columns
 
-        if not has_signal_col:
+        if not (
+            has_entry or has_exit or has_pending or has_cancel or has_legacy_signal
+        ):
             logger.warning("No signal columns found in data")
             self._signals = []
             return
 
         signals = []
-
         for i in range(len(self.data)):
-            signal_found = False
-
-            # Check 'signal' column
-            if has_signal_col:
-                sig_val = self.data.iloc[i].get("signal")
-                if pd.notna(sig_val) and sig_val:
-                    signal_found = True
-
-            if signal_found:
-                # Get signal details from strategy
-                signal_info = self.strategy.get_signal(self.data, i)
-
-                if signal_info:
-                    signals.append(
-                        {
-                            "timestamp": self.data.index[i],
-                            "bar_index": i,
-                            "signal": signal_info["signal"],
-                            "price": signal_info.get(
-                                "entry_price", self.data.iloc[i]["open"]
-                            ),
-                            "stop_loss": signal_info.get("stop_loss"),
-                            "take_profit": signal_info.get("take_profit"),
-                            "reason": signal_info.get("reason", "Signal detected"),
-                        }
-                    )
+            sig = self._process_signal_row(
+                i, has_entry, has_exit, has_pending, has_cancel, has_legacy_signal
+            )
+            if sig:
+                signals.append(sig)
 
         self._signals = signals
         logger.info(f"Extracted {len(signals)} signals")
+
+    def _process_signal_row(
+        self,
+        i: int,
+        has_entry: bool,
+        has_exit: bool,
+        has_pending: bool,
+        has_cancel: bool,
+        has_legacy_signal: bool,
+    ) -> Optional[Dict[str, Any]]:
+        """Process a single row for signals."""
+        if not self._is_signal_present(
+            i, has_entry, has_exit, has_pending, has_cancel, has_legacy_signal
+        ):
+            return None
+
+        # Get signal details from strategy
+        signal_info = self.strategy.get_signal(self.data, i)
+
+        if not signal_info:
+            return None
+
+        price: Any = signal_info.get("price")
+        if price is None:
+            price = signal_info.get("entry_price")
+        if price is None:
+            price = float(self.data.iloc[i]["open"])
+
+        return {
+            "timestamp": self.data.index[i],
+            "bar_index": i,
+            "signal": self._derive_signal_type(signal_info),
+            "signal_info": signal_info,
+            "price": float(price),
+            "stop_loss": signal_info.get("stop_loss"),
+            "take_profit": signal_info.get("take_profit"),
+            "reason": signal_info.get("reason", "Signal detected"),
+        }
+
+    def _is_signal_present(
+        self,
+        i: int,
+        has_entry: bool,
+        has_exit: bool,
+        has_pending: bool,
+        has_cancel: bool,
+        has_legacy_signal: bool,
+    ) -> bool:
+        """Check if any signal column indicates a signal."""
+        # Check new columns first
+        if (
+            (has_entry and self.data.iloc[i].get("entry_signal", 0) != 0)
+            or (has_exit and self.data.iloc[i].get("exit_signal", 0) != 0)
+            or (has_pending and self.data.iloc[i].get("pending_signal", 0) != 0)
+            or (has_cancel and self.data.iloc[i].get("cancel_pending_signal", 0) != 0)
+        ):
+            return True
+
+        # Fallback to legacy
+        if has_legacy_signal:
+            sig_val = self.data.iloc[i].get("signal")
+            if pd.notna(sig_val) and sig_val:
+                return True
+
+        return False
+
+    def _derive_signal_type(self, signal_info: SignalDict) -> Optional[str]:
+        """Derive legacy signal string from signal info."""
+        s_type = signal_info.get("signal")  # Legacy key
+        if s_type:
+            return str(s_type)
+
+        entry = signal_info.get("entry_signal", 0)
+        exit_sig = signal_info.get("exit_signal", 0)
+
+        if entry == 1:
+            return "buy"
+        elif entry == -1:
+            return "sell"
+        elif exit_sig == 1:
+            return "exit buy"
+        elif exit_sig == -1:
+            return "exit sell"
+        return None
 
     def _calculate_position_size(
         self, signal: Dict[str, Any], bar_index: int, current_balance: float

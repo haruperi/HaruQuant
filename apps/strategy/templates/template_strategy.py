@@ -15,6 +15,7 @@ import pandas as pd
 
 from apps.logger import logger
 from apps.strategy import BaseStrategy
+from apps.strategy.base import SignalDict
 
 # Import indicators as needed
 # from apps.indicator import atr, ema, rsi, sma
@@ -97,15 +98,12 @@ class TemplateStrategy(BaseStrategy):
         2. Generate 'signal' column (calculate on open based on previous bar data)
         3. Generate 'price' column (usually the opening price of the bar is market price)
 
-        Signal values:
-         - 'buy': Market buy signal
-         - 'sell': Market sell signal
-         - 'buy stop': Pending buy stop signal
-         - 'sell stop': Pending sell stop signal
-         - 'buy limit': Pending buy limit signal
-         - 'sell limit': Pending sell limit signal
-         - 'close buy': Close buy signal
-         - 'close sell': Close sell signal
+        Signal values (Integer columns):
+         - entry_signal: 1 (Buy), -1 (Sell), 0 (None)
+         - exit_signal: 1 (Exit Buy), -1 (Exit Sell), 0 (None)
+         - pending_signal: 1 (Buy Stop), -1 (Sell Stop), 2 (Buy Limit), -2 (Sell Limit)
+         - cancel_pending_signal: 1 (Cancel Entry), 2 (Cancel Exit) - implementation defined
+         - price: Price level for entry/pending
 
         """
         # TODO: 1. Calculate your indicators here
@@ -116,7 +114,10 @@ class TemplateStrategy(BaseStrategy):
         # data[sma_col] = data[sma_col].shift(1)
 
         # 3. Initialize signal columns
-        data["signal"] = None
+        data["entry_signal"] = 0
+        data["exit_signal"] = 0
+        data["pending_signal"] = 0
+        data["cancel_pending_signal"] = 0
         data["price"] = float("nan")
 
         # TODO: 4. Generate Entry Signals
@@ -128,84 +129,58 @@ class TemplateStrategy(BaseStrategy):
         # condition_1_close_sell = data[f"sma_{self.param_name}"] > data[f"sma_{self.param_name}"]
 
         # TODO: 6. Set Entry signals
-        # data.loc[condition_1_buy, "signal"] = "buy"
+        # data.loc[condition_1_buy, "entry_signal"] = 1
         # data.loc[condition_1_buy, 'price'] = data.loc[condition_1_buy, 'open']
 
-        # data.loc[condition_1_sell, "signal"] = "sell"
+        # data.loc[condition_1_sell, "entry_signal"] = -1
         # data.loc[condition_1_sell, 'price'] = data.loc[condition_1_sell, 'open']
 
         # TODO: 6. Set Exit signals
-        # data.loc[condition_1_close_buy, "signal"] = "close buy"
+        # data.loc[condition_1_close_buy, "exit_signal"] = 1  # Exit Buy
         # data.loc[condition_1_close_buy, 'price'] = data.loc[condition_1_close_buy, 'open']
 
+        # data.loc[condition_1_close_sell, "exit_signal"] = -1 # Exit Sell
         # data.loc[condition_1_close_sell, 'price'] = data.loc[condition_1_close_sell, 'open']
-        # data.loc[condition_1_close_sell, "signal"] = "close sell"
 
         return data
 
-    def get_signal(self, data: pd.DataFrame, index: int) -> Optional[Dict[str, Any]]:
-        """
-        Parse the signal at a specific index into a standardized dictionary.
+    def get_signal(self, data: pd.DataFrame, index: int) -> Optional[SignalDict]:
+        """Parse the signal at a specific index into a standardized SignalDict."""
+        bar = data.iloc[index]
 
-        This is used by the execution engine/demo to understand the signal.
-        """
-        signal_type = data.iloc[index]["signal"]
+        entry = int(bar.get("entry_signal", 0))
+        exit_sig = int(bar.get("exit_signal", 0))
+        pending = int(bar.get("pending_signal", 0))
+        cancel = int(bar.get("cancel_pending_signal", 0))
 
-        if signal_type is None:
+        if entry == 0 and exit_sig == 0 and pending == 0 and cancel == 0:
             return None
 
-        # Get bar data
-        bar = data.iloc[index]
-        entry_price = bar["price"]
+        # Get price (fallback to close if None/NaN for safety, though strategies usually set it)
+        price = bar.get("price")
+        if pd.isna(price):
+            price = bar["close"]
 
         # Initialize result variables
-        reason = None
-        signal_name = None  # Display name like "Buy Stop", "Sell Limit"
+        reason = "Signal detected"
         stop_loss = None
         take_profit = None
 
-        if signal_type == "buy":  # Market Buy
-            reason = "Template buy signal triggered"
-            signal_name = "buy"
-            # Optional: Calculate SL/TP
-            # stop_loss = entry_price * 0.99
-
-        elif signal_type == "sell":  # Market Sell
-            reason = "Template sell signal triggered"
-            signal_name = "sell"
-
-        elif signal_type == "buy stop":  # Pending Buy Stop
-            reason = f"Buy Stop at {entry_price}"
-            signal_name = "buy stop"
-
-        elif signal_type == "sell stop":  # Pending Sell Stop
-            reason = f"Sell Stop at {entry_price}"
-            signal_name = "sell stop"
-
-        elif signal_type == "buy limit":  # Pending Buy Limit
-            reason = f"Buy Limit at {entry_price}"
-            signal_name = "buy limit"
-
-        elif signal_type == "sell limit":  # Pending Sell Limit
-            reason = f"Sell Limit at {entry_price}"
-            signal_name = "sell limit"
-
-        elif signal_type == "close buy":  # Close Buy
-            reason = "Template close buy signal triggered"
-            signal_name = "close buy"
-
-        elif signal_type == "close sell":  # Close Sell
-            reason = "Template close sell signal triggered"
-            signal_name = "close sell"
-
-        else:
-            return None
+        # Example custom logic:
+        if entry == 1:
+            reason = "Template buy signal"
+            # stop_loss = price * 0.99
+        elif entry == -1:
+            reason = "Template sell signal"
 
         return {
-            "signal": signal_name,
+            "entry_signal": entry,
+            "exit_signal": exit_sig,
+            "pending_signal": pending,
+            "cancel_pending_signal": cancel,
+            "price": float(price),
             "time": bar.name,
             "reason": reason,
-            "entry_price": entry_price,
             "stop_loss": stop_loss,
             "take_profit": take_profit,
         }

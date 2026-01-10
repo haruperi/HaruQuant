@@ -6,7 +6,7 @@ Simplified API with signal-based approach.
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, TypedDict
 
 import pandas as pd
 
@@ -15,19 +15,53 @@ if TYPE_CHECKING:
     from apps.trading import AccountInfo, OrderInfo, PositionInfo, SymbolInfo, Trade
 
 
+class SignalDict(TypedDict, total=False):
+    """
+    Signal dictionary structure.
+
+    Keys:
+        entry_signal: 1 (Buy), -1 (Sell), 0 (None)
+        exit_signal: 1 (Exit Buy), -1 (Exit Sell), 0 (None)
+        pending_signal: 1 (Buy Stop), -1 (Sell Stop), 2 (Buy Limit), -2 (Sell Limit), 0 (None)
+        cancel_pending_signal: 1 (Cancel Buy Stop), -1 (Cancel Sell Stop), ...
+        price: Price for entry/pending
+        stop_loss: Preventative stop loss
+        take_profit: Profit target
+        reason: Text description of the signal
+        time: Timestamp of the signal
+    """
+
+    entry_signal: Optional[int]
+    exit_signal: Optional[int]
+    pending_signal: Optional[int]
+    cancel_pending_signal: Optional[int]
+    price: Optional[float]
+    stop_loss: Optional[float]
+    take_profit: Optional[float]
+    reason: Optional[str]
+    time: Any
+
+
 class BaseStrategy(ABC):
     """
     Abstract base class for all trading strategies.
 
     Strategies are pure logic - they:
     - Calculate indicators
-    - Generate signals via DataFrame column
+    - Generate signals via DataFrame columns
     - Return signal details when requested
 
     Simple lifecycle:
     1. on_init() - Initialize strategy
-    2. on_bar() - Calculate indicators and add 'signal' column
+    2. on_bar() - Calculate indicators and add signal columns
     3. get_signal() - Get signal details for specific bar
+
+    Required Columns in on_bar:
+    - entry_signal: 1 (Buy), -1 (Sell)
+    - exit_signal: 1 (Exit Buy), -1 (Exit Sell)
+    - pending_signal: 1 (Buy Stop), -1 (Sell Stop), 2 (Buy Limit), -2 (Sell Limit)
+    - cancel_pending_signal: matching pending enum
+    - price: Price for entries/pendings
     """
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
@@ -88,69 +122,62 @@ class BaseStrategy(ABC):
     @abstractmethod
     def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculate indicators and add 'signal' column.
+        Calculate indicators and add signal columns.
 
         This is the main strategy logic. Called with entire DataFrame.
         Should:
         1. Calculate all indicators (EMA, ATR, RSI, etc.)
-        2. Add a 'signal' column with values:
-           - 1: Long signal
-           - 0: No signal
-           - -1: Short signal
+        2. Add signal columns:
+           - entry_signal: 1 (Buy), -1 (Sell)
+           - exit_signal: 1 (Exit Buy), -1 (Exit Sell)
+           - pending_signal: ...
+           - price: ...
 
         Args:
             data: OHLCV DataFrame
 
         Returns:
-            DataFrame with indicators and 'signal' column added
-
-        Example:
-            def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:
-                # Calculate indicators
-                data = ema(data, 20)
-                data = ema(data, 50)
-
-                # Add signal column
-                data['signal'] = 0
-
-                # Detect crossovers
-                for i in range(1, len(data)):
-                    if self.crossover(data['ema_20'].iloc[:i+1],
-                                     data['ema_50'].iloc[:i+1]):
-                        data.loc[data.index[i], 'signal'] = 1
-
-                return data
+            DataFrame with indicators and signal columns added
         """
         pass
 
-    def get_signal(self, data: pd.DataFrame, index: int) -> Optional[Dict[str, Any]]:
+    def get_signal(self, data: pd.DataFrame, index: int) -> Optional[SignalDict]:
         """
         Get signal details for a specific bar.
 
         Args:
-            data: DataFrame with indicators and signal column
+            data: DataFrame with indicators and signal columns
             index: Index of the bar to get signal for
 
         Returns:
-            dict with keys:
-                - signal: 1 (long), 0 (no signal), -1 (short)
+            SignalDict with keys:
+                - entry_signal, exit_signal, pending_signal...
                 - time: Timestamp of the signal
                 - reason: Human-readable reason for signal
                 - stop_loss: Stop loss price (optional)
                 - take_profit: Take profit price (optional)
             or None if no signal at that index
-
-        Example:
-            signal_info = strategy.get_signal(data, 100)
-            if signal_info:
-                print(f"Signal: {signal_info['signal']} at {signal_info['time']}")
         """
-        signal_value = data.iloc[index]["signal"]
-        if signal_value == 0:
+        row = data.iloc[index]
+
+        # Check if any signal exists
+        entry = row.get("entry_signal", 0) or 0
+        exit_sig = row.get("exit_signal", 0) or 0
+        pending = row.get("pending_signal", 0) or 0
+        cancel = row.get("cancel_pending_signal", 0) or 0
+
+        if entry == 0 and exit_sig == 0 and pending == 0 and cancel == 0:
             return None
 
+        # Build basic signal dict - strategy implementations can override to add specific reasons/SL/TP
         return {
-            "signal": int(signal_value),
+            "entry_signal": int(entry),
+            "exit_signal": int(exit_sig),
+            "pending_signal": int(pending),
+            "cancel_pending_signal": int(cancel),
+            "price": (
+                float(row.get("price", 0.0)) if pd.notna(row.get("price")) else None
+            ),
             "time": data.index[index],
             "reason": "Signal detected",
             "stop_loss": None,

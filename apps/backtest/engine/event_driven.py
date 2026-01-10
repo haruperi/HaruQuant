@@ -6,12 +6,13 @@ Aligned with live trading for realistic simulation.
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 import pandas as pd
 
 from apps.logger import logger
 from apps.strategy import BaseStrategy
+from apps.strategy.base import SignalDict
 from apps.trading import AccountInfo, OrderInfo, PositionInfo, SymbolInfo, Trade
 from apps.trading.account_info import BacktestAccountProvider
 from apps.trading.order_info import BacktestOrderProvider
@@ -502,23 +503,28 @@ class EventDrivenEngine(BaseEngine):
                         pass
 
             if signal_bar is not None:
-                # Check signals
-                has_std_signal = (
-                    "signal" in signal_bar
-                    and pd.notna(signal_bar["signal"])
-                    and signal_bar["signal"]
-                )
+                # Check signals (New Multi-Column Schema)
+                has_signal = False
 
-                if has_std_signal:
-                    # (Exit signals are idempotent so we allow re-checking)
-                    # For std signal, we can't easily check if it's entry or exit without parsing,
-                    # but usually signal strings are explicit.
-                    # We rely on last_processed_signal_idx to de-duplicate bar-level signals.
+                # Check if any signal column is non-zero
+                entry_sig = signal_bar.get("entry_signal", 0)
+                exit_sig = signal_bar.get("exit_signal", 0)
+                pending_sig = signal_bar.get("pending_signal", 0)
+                cancel_sig = signal_bar.get("cancel_pending_signal", 0)
 
+                if (
+                    (entry_sig and entry_sig != 0)
+                    or (exit_sig and exit_sig != 0)
+                    or (pending_sig and pending_sig != 0)
+                    or (cancel_sig and cancel_sig != 0)
+                ):
+                    has_signal = True
+
+                if has_signal:
                     if signal_idx == last_processed_signal_idx:
                         pass  # Already processed this signal
                     else:
-                        # Get signal details
+                        # Get signal details (now returns SignalDict)
                         signal_info = self.strategy.get_signal(
                             self._data_with_signals, signal_idx
                         )
@@ -542,7 +548,8 @@ class EventDrivenEngine(BaseEngine):
                                     else bar["open"]
                                 )
 
-                                signal_type = signal_info["signal"]
+                                entry_type = signal_info.get("entry_signal", 0)
+                                exit_type = signal_info.get("exit_signal", 0)
                                 sl = signal_info.get("stop_loss")
                                 tp = signal_info.get("take_profit")
 
@@ -550,7 +557,8 @@ class EventDrivenEngine(BaseEngine):
                                 tp_str = f"{tp:.5f}" if tp is not None else "None"
 
                                 logger.info(
-                                    f"[{timestamp}] {signal_type} signal detected (Idx: {signal_idx}): {exec_price:.5f} "
+                                    f"[{timestamp}] Signal detected (Idx: {signal_idx}): "
+                                    f"Entry={entry_type}, Exit={exit_type} @ {exec_price:.5f} "
                                     f"(SL: {sl_str}, TP: {tp_str}) - Executing on {self.data_step_mode}"
                                 )
 
@@ -906,34 +914,49 @@ class EventDrivenEngine(BaseEngine):
         )
 
     def _execute_signal(
-        self, signal_info: Dict[str, Any], bar: pd.Series, price: Optional[float] = None
+        self,
+        signal_info: SignalDict,
+        bar: pd.Series,
+        price: Optional[float] = None,
     ) -> None:
         """
         Execute signal from strategy.
 
         Args:
-            signal_info: Signal dict from get_signal()
+            signal_info: SignalDict
             bar: Current bar
-            price: Optional execution price (if None, uses bar['close'])
+            price: Optional execution price
         """
         execution_price = price if price is not None else bar["close"]
 
         # 1. Handle Exit Signals
-        if self._handle_exit_signal(signal_info, execution_price, bar):
-            return
+        # Note: We process exits before entries to allow "Reverse" logic (Close then Open)
+        if signal_info.get("exit_signal", 0) != 0:
+            self._handle_exit_signal(signal_info, execution_price, bar)
 
         # 2. Handle Entry Signals
-        if self._process_entry_signal(signal_info, execution_price, bar):
+        if signal_info.get("entry_signal", 0) != 0 and self._process_entry_signal(
+            signal_info, execution_price, bar
+        ):
             self._open_position(signal_info, bar, price=execution_price)
 
+        # 3. Handle Pending Signals (To be implemented fully)
+        # if signal_info.get("pending_signal", 0) != 0:
+        #     self._process_pending_signal(...)
+
     def _handle_exit_signal(
-        self, signal_info: Dict[str, Any], execution_price: float, bar: pd.Series
+        self,
+        signal_info: SignalDict,
+        execution_price: float,
+        bar: pd.Series,
     ) -> bool:
-        """Check and handle exit signals. Returns True if signal was an exit signal."""
-        signal_type = signal_info["signal"]
-        raw_signal = str(signal_type).lower().strip()
-        is_exit_buy = raw_signal in ["exit buy", "close buy", "close_buy"]
-        is_exit_sell = raw_signal in ["exit sell", "close sell", "close_sell"]
+        """Check and handle exit signals."""
+        exit_val = signal_info.get("exit_signal", 0)
+
+        # 1 = Exit Buy (Close Long)
+        # -1 = Exit Sell (Close Short)
+        is_exit_buy = exit_val == 1
+        is_exit_sell = exit_val == -1
 
         if not (is_exit_buy or is_exit_sell):
             return False
@@ -942,78 +965,92 @@ class EventDrivenEngine(BaseEngine):
         if not self._trade_provider._positions:
             return True
 
-        pos_dict = next(iter(self._trade_provider._positions.values()))
-        ticket = pos_dict["ticket"]
-        pos_type = pos_dict["type"]  # 0=Buy, 1=Sell
+        # Process all matching positions (FIFO or All) - currently strictly one-dict approach
+        # The mock provider stores dict of positions, but basic strategy often assumes single position
 
-        if (is_exit_buy and pos_type == 0) or (is_exit_sell and pos_type == 1):
-            if self.strategy.trade is None:
-                raise RuntimeError("trade object must be injected by engine")
+        # Copy values to safely iterate if needed, though we break inside
+        positions = list(self._trade_provider._positions.values())
 
-            success = self.strategy.trade.position_close(ticket=ticket)
+        for pos_dict in positions:
+            ticket = pos_dict["ticket"]
+            pos_type = pos_dict["type"]  # 0=Buy, 1=Sell
 
-            if success:
-                self._record_position_close(pos_dict, execution_price, "signal")
-                position_type = "BUY" if pos_type == 0 else "SELL"
-                bar_time = (
-                    bar.name
-                    if isinstance(bar.name, datetime)
-                    else bar.name.to_pydatetime()
-                )
-                logger.info(
-                    f"[{bar_time}] Position #{ticket} ({position_type}) closed via exit signal '{raw_signal}' at {execution_price:.5f}"
-                )
+            if (is_exit_buy and pos_type == 0) or (is_exit_sell and pos_type == 1):
+                if self.strategy.trade is None:
+                    raise RuntimeError("trade object must be injected by engine")
+
+                success = self.strategy.trade.position_close(ticket=ticket)
+
+                if success:
+                    self._record_position_close(pos_dict, execution_price, "signal")
+                    position_type = "BUY" if pos_type == 0 else "SELL"
+                    bar_time = (
+                        bar.name
+                        if isinstance(bar.name, datetime)
+                        else bar.name.to_pydatetime()
+                    )
+                    logger.info(
+                        f"[{bar_time}] Position #{ticket} ({position_type}) closed via exit signal ({exit_val}) at {execution_price:.5f}"
+                    )
         return True
 
     def _process_entry_signal(
-        self, signal_info: Dict[str, Any], execution_price: float, bar: pd.Series
+        self, signal_info: SignalDict, price: float, bar: pd.Series
     ) -> bool:
         """
         Process entry signals and manage existing positions.
 
         Returns True if a new position should be opened.
         """
-        signal_type = signal_info["signal"]
-        raw_signal = str(signal_type).lower().strip()
-        if raw_signal not in ["buy", "sell"]:
+        entry_val = signal_info.get("entry_signal", 0)
+
+        # 1 = Buy
+        # -1 = Sell
+        if entry_val not in [1, -1]:
             return False
 
         # pylint: disable=protected-access
-        has_position = len(self._trade_provider._positions) > 0
+        # Check existing positions
+        if len(self._trade_provider._positions) > 0:
+            # Simple assumption: Only 1 position allows for now in this logic
+            # OR flip logic
 
-        if not has_position:
-            return True
+            # Iterate positions to see if we need to flip
+            # For now, simplistic approach matching previous logic:
+            pos_dict = next(iter(self._trade_provider._positions.values()))
+            current_is_buy = pos_dict["type"] == 0
+            signal_is_buy = entry_val == 1
 
-        # If we have a position and signal is opposite direction, close first
-        pos_dict = next(iter(self._trade_provider._positions.values()))
-        current_is_buy = pos_dict["type"] == 0
-        signal_is_buy = raw_signal == "buy"
+            if current_is_buy == signal_is_buy:
+                # Same direction, do not open new (simplistic)
+                return False
 
-        if current_is_buy == signal_is_buy:
-            return False
+            # Opposite direction, try to close (Flip)
+            ticket = pos_dict["ticket"]
+            if self.strategy.trade is None:
+                raise RuntimeError("trade object must be injected by engine")
 
-        # Opposite direction, try to close
-        ticket = pos_dict["ticket"]
-        if self.strategy.trade is None:
-            raise RuntimeError("trade object must be injected by engine")
+            success = self.strategy.trade.position_close(ticket=ticket)
 
-        success = self.strategy.trade.position_close(ticket=ticket)
+            if success:
+                self._record_position_close(pos_dict, price, "signal")
+                position_type = "BUY" if pos_dict["type"] == 0 else "SELL"
+                bar_time = (
+                    bar.name
+                    if isinstance(bar.name, datetime)
+                    else bar.name.to_pydatetime()
+                )
+                logger.info(
+                    f"[{bar_time}] Position #{ticket} ({position_type}) closed via opposite signal at {price:.5f}"
+                )
+                return True  # Now proceed to open new
+            else:
+                return False  # Failed to close, so don't open new
 
-        if success:
-            self._record_position_close(pos_dict, execution_price, "signal")
-            position_type = "BUY" if pos_dict["type"] == 0 else "SELL"
-            bar_time = (
-                bar.name if isinstance(bar.name, datetime) else bar.name.to_pydatetime()
-            )
-            logger.info(
-                f"[{bar_time}] Position #{ticket} ({position_type}) closed via opposite signal at {execution_price:.5f}"
-            )
-            return True
-
-        return False
+        return True
 
     def _open_position(
-        self, signal_info: Dict[str, Any], bar: pd.Series, price: Optional[float] = None
+        self, signal_info: SignalDict, bar: pd.Series, price: Optional[float] = None
     ) -> None:
         """
         Open new position from signal.
@@ -1065,15 +1102,21 @@ class EventDrivenEngine(BaseEngine):
             )
 
     def _calculate_entry_price(
-        self, signal_info: Dict[str, Any], bar: pd.Series, price: Optional[float]
+        self, signal_info: SignalDict, bar: pd.Series, price: Optional[float]
     ) -> Tuple[float, float, bool]:
-        signal_type = signal_info["signal"]
-        is_buy = str(signal_type).lower().strip() == "buy"
+        entry_val = signal_info.get("entry_signal", 0)
+        is_buy = entry_val == 1
 
         if price is not None:
             entry_price = price
         else:
-            entry_price = signal_info.get("entry_price", bar["close"])
+            # Use 'price' from SignalDict, fallback to 'entry_price' (legacy) or bar close
+            raw_price = (
+                signal_info.get("price")
+                or signal_info.get("entry_price")
+                or bar.get("close", 0.0)
+            )
+            entry_price = float(cast(Any, raw_price)) if raw_price is not None else 0.0
 
         entry_slippage = self.get_slippage()
         if is_buy:
