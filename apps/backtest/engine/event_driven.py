@@ -15,7 +15,7 @@ from apps.strategy import BaseStrategy
 from apps.strategy.base import SignalDict
 from apps.trading import AccountInfo, OrderInfo, PositionInfo, SymbolInfo, Trade
 from apps.trading.account_info import BacktestAccountProvider
-from apps.trading.order_info import BacktestOrderProvider
+from apps.trading.order_info import BacktestOrderProvider, OrderState, OrderType
 from apps.trading.position_info import BacktestPositionProvider, PositionType
 from apps.trading.symbol_info import BacktestSymbolProvider
 from apps.trading.trade import BacktestTradeProvider
@@ -621,10 +621,10 @@ class EventDrivenEngine(BaseEngine):
         """
         # Iterate over a copy to allow modification
         # pylint: disable=protected-access
-        if not hasattr(self._trade_provider, "_orders"):
+        if not hasattr(self._order_provider, "_orders"):
             return
 
-        orders = list(self._trade_provider._orders.values())
+        orders = list(self._order_provider._orders)  # Copy list
 
         for order in orders:
             ticket = order["ticket"]
@@ -640,20 +640,15 @@ class EventDrivenEngine(BaseEngine):
 
             # Check Buy Stop (Triggered if Ask >= Price)
             # We use High >= Price to simulate triggering during the bar
-            if (
-                order_type == 4 and bar["high"] >= price_open
-            ):  # ORDER_TYPE_BUY_STOP (using magic number 4 from MT5 constant)
+            # Also Check Sell Limit (Triggered if Bid >= Price)
+            if (order_type == 4 or order_type == 3) and bar["high"] >= price_open:
                 triggered = True
-                # Fill at Order Price (Slippage could be added here)
-                # Ideally fill at max(Open, Price) but for Stop, Price is usually above Open on placement
-                # If gap up, fill at Open. If normal trade, fill at Price.
                 execution_price = max(bar["open"], price_open)
 
             # Check Sell Stop (Triggered if Bid <= Price)
             # We use Low <= Price
-            elif (
-                order_type == 5 and bar["low"] <= price_open
-            ):  # ORDER_TYPE_SELL_STOP (magic number 5)
+            # Also Check Buy Limit (Triggered if Ask <= Price)
+            elif (order_type == 5 or order_type == 2) and bar["low"] <= price_open:
                 triggered = True
                 execution_price = min(bar["open"], price_open)
 
@@ -677,8 +672,7 @@ class EventDrivenEngine(BaseEngine):
                 # But since we are INSIDE the engine, we can manipulate the provider directly
 
                 # 1. Remove Order
-                if ticket in self._trade_provider._orders:
-                    del self._trade_provider._orders[ticket]
+                self._order_provider.remove_order(ticket)
 
                 # 2. Add Position
                 pos_ticket = self._position_provider.add_position(
@@ -934,15 +928,19 @@ class EventDrivenEngine(BaseEngine):
         if signal_info.get("exit_signal", 0) != 0:
             self._handle_exit_signal(signal_info, execution_price, bar)
 
-        # 2. Handle Entry Signals
+        # 2. Handle Cancel Pending
+        if signal_info.get("cancel_pending_signal", 0) != 0:
+            self._process_cancel_signal(signal_info)
+
+        # 3. Handle Entry Signals
         if signal_info.get("entry_signal", 0) != 0 and self._process_entry_signal(
             signal_info, execution_price, bar
         ):
             self._open_position(signal_info, bar, price=execution_price)
 
-        # 3. Handle Pending Signals (To be implemented fully)
-        # if signal_info.get("pending_signal", 0) != 0:
-        #     self._process_pending_signal(...)
+        # 4. Handle Pending Signals
+        if signal_info.get("pending_signal", 0) != 0:
+            self._process_pending_signal(signal_info, bar)
 
     def _handle_exit_signal(
         self,
@@ -1048,6 +1046,58 @@ class EventDrivenEngine(BaseEngine):
                 return False  # Failed to close, so don't open new
 
         return True
+
+    def _process_pending_signal(self, signal_info: SignalDict, bar: pd.Series) -> None:
+        """Process pending order signals."""
+        pending_val = signal_info.get("pending_signal", 0)
+        price = float(signal_info.get("price") or 0.0)
+        sl = signal_info.get("stop_loss", 0.0) or 0.0
+        tp = signal_info.get("take_profit", 0.0) or 0.0
+
+        # Map pending signal to OrderType
+        # 1: Buy Stop, -1: Sell Stop, 2: Buy Limit, -2: Sell Limit
+        order_type = OrderType.UNKNOWN
+        if pending_val == 1:
+            order_type = OrderType.BUY_STOP
+        elif pending_val == -1:
+            order_type = OrderType.SELL_STOP
+        elif pending_val == 2:
+            order_type = OrderType.BUY_LIMIT
+        elif pending_val == -2:
+            order_type = OrderType.SELL_LIMIT
+
+        if order_type == OrderType.UNKNOWN:
+            return
+
+        # Calculate volume
+        volume = self._calculate_position_size(bar, price, sl)
+
+        # Add order
+        ticket = self._next_trade_id
+        self._next_trade_id += 1
+
+        self._order_provider.add_order(
+            ticket=ticket,
+            time_setup=datetime.now(),  # Mock time
+            order_type=order_type,
+            state=OrderState.PLACED,
+            symbol=self.strategy.symbol,
+            volume_initial=volume,
+            volume_current=volume,
+            price_open=price,
+            stop_loss=sl,
+            take_profit=tp,
+            magic=self._get_magic_number(),
+            comment="Pending Order",
+        )
+        logger.info(f"Pending order placed: {order_type} @ {price}")
+
+    def _process_cancel_signal(self, signal_info: SignalDict) -> None:
+        """Cancel pending orders."""
+        # Simple implementation: Cancel all if signal is generic, or match magic/type if needed
+        # For now, simplistic "cancel all" if cancel_signal is present
+        self._order_provider.clear_orders()
+        logger.info("All pending orders cancelled by signal")
 
     def _open_position(
         self, signal_info: SignalDict, bar: pd.Series, price: Optional[float] = None

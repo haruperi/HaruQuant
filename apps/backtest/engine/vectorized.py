@@ -1004,7 +1004,7 @@ class VectorizedEngine(BaseEngine):
             return
 
         # Initialize state dictionary
-        state = {
+        state: Dict[str, Any] = {
             "balance": self.initial_balance,
             "peak_balance": self.initial_balance,
             "in_position": False,
@@ -1019,6 +1019,7 @@ class VectorizedEngine(BaseEngine):
             "position_entry_equity": 0.0,
             "position_entry_spread": 0.0,
             "trade_id": 1,
+            "pending_orders": [],  # List of pending orders
         }
 
         # Process each bar
@@ -1099,7 +1100,19 @@ class VectorizedEngine(BaseEngine):
                     self._handle_position_close(
                         float(signal["price"]), "signal", state, i, timestamp
                     )
+                    self._handle_position_close(
+                        float(signal["price"]), "signal", state, i, timestamp
+                    )
                     continue
+
+            # Handle Pending Signals
+            # 1: Buy Stop, -1: Sell Stop, 2: Buy Limit, -2: Sell Limit
+            pending_val = signal["signal_info"].get("pending_signal", 0)
+            cancel_val = signal["signal_info"].get("cancel_pending_signal", 0)
+
+            if cancel_val != 0:
+                # Cancel all pending orders for now (simplistic)
+                state["pending_orders"] = []
 
             # Handle entry signals
             signal_is_buy = raw_signal == "buy"
@@ -1135,77 +1148,89 @@ class VectorizedEngine(BaseEngine):
                     bar,
                 )
 
+            # Handle Pending Signals (Priority 4)
+            # 1: Buy Stop, -1: Sell Stop, 2: Buy Limit, -2: Sell Limit
+            pending_val = signal["signal_info"].get("pending_signal", 0)
+
+            if pending_val != 0:
+                # Add new pending order
+                state["pending_orders"].append(
+                    {
+                        "type": pending_val,
+                        "price": float(signal["price"]),
+                        "sl": signal["stop_loss"],
+                        "tp": signal["take_profit"],
+                        "created_at": timestamp,
+                    }
+                )
+
     def _process_pending_orders(
         self, i: int, bar: pd.Series, state: Dict[str, Any]
     ) -> None:
         """Process pending orders for a specific bar."""
-        triggered_direction = 0
-        entry_price = 0.0
+        if not state["pending_orders"]:
+            return
 
-        # Check Buy Stop
-        if "buy_stop" in bar and pd.notna(bar["buy_stop"]):
-            buy_stop_price = bar["buy_stop"]
-            if bar["high"] >= buy_stop_price:
-                triggered_direction = 1
-                entry_price = max(bar["open"], buy_stop_price)
+        triggered_idx = -1
+        triggered_order = None
+        execution_price = 0.0
 
-        # Check Sell Stop
-        if (
-            triggered_direction == 0
-            and "sell_stop" in bar
-            and pd.notna(bar["sell_stop"])
-        ):
-            sell_stop_price = bar["sell_stop"]
-            if bar["low"] <= sell_stop_price:
-                triggered_direction = -1
-                entry_price = min(bar["open"], sell_stop_price)
+        # Iterate pending orders
+        # Note: simplistic implementation - takes first triggered order and clears others if OCO?
+        # For now, just execute first valid one and clear it.
 
-        if triggered_direction != 0:
+        for idx, order in enumerate(state["pending_orders"]):
+            p_type = order["type"]
+            price = order["price"]
+
+            triggered = False
+
+            # 1: Buy Stop (High >= Price) or -2: Sell Limit (High >= Price)
+            if (p_type == 1 or p_type == -2) and bar["high"] >= price:
+                triggered = True
+                execution_price = max(bar["open"], price)
+
+            # -1: Sell Stop (Low <= Price) or 2: Buy Limit (Low <= Price)
+            elif (p_type == -1 or p_type == 2) and bar["low"] <= price:
+                triggered = True
+                execution_price = min(bar["open"], price)
+
+            if triggered:
+                triggered_idx = idx
+                triggered_order = order
+                break
+
+        if triggered_order:
+            # Remove triggered order
+            state["pending_orders"].pop(triggered_idx)
+
+            # Execute trade
+            is_buy = triggered_order["type"] > 0
+            direction = 1 if is_buy else -1
+
+            # Prepare dummy signal for calculation
+            dummy_signal = {
+                "signal": "buy" if is_buy else "sell",
+                "price": execution_price,
+                "stop_loss": triggered_order["sl"],
+                "take_profit": triggered_order["tp"],
+            }
+
             entry_slippage = self.get_slippage()
-            if triggered_direction == 1:
-                proposed_entry_price = entry_price + entry_slippage
-            else:
-                proposed_entry_price = entry_price - entry_slippage
+            price_with_slip = execution_price + (
+                entry_slippage if is_buy else -entry_slippage
+            )
 
-            proposed_size = 0.01
-            if self.position_sizer:
-                mock_signal = {
-                    "price": entry_price,
-                    "stop_loss": None,
-                    "take_profit": None,
-                }
-                proposed_size = self._calculate_position_size(
-                    mock_signal, i, float(state["balance"] or 0.0)
-                )
-
-            # Get SL/TP from bar columns if present
-            sl = None
-            tp = None
-            if triggered_direction == 1:
-                sl = (
-                    bar.get("buy_stop_sl") if pd.notna(bar.get("buy_stop_sl")) else None
-                )
-                tp = (
-                    bar.get("buy_stop_tp") if pd.notna(bar.get("buy_stop_tp")) else None
-                )
-            else:
-                sl = (
-                    bar.get("sell_stop_sl")
-                    if pd.notna(bar.get("sell_stop_sl"))
-                    else None
-                )
-                tp = (
-                    bar.get("sell_stop_tp")
-                    if pd.notna(bar.get("sell_stop_tp"))
-                    else None
-                )
+            size = self._calculate_position_size(
+                dummy_signal, i, float(state["balance"] or 0.0)
+            )
 
             self._handle_position_open(
-                proposed_entry_price,
-                triggered_direction,
-                proposed_size,
-                sl,
-                tp,
+                price_with_slip,
+                direction,
+                size,
+                triggered_order["sl"],
+                triggered_order["tp"],
                 state,
                 i,
                 entry_slippage,
