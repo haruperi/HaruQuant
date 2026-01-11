@@ -667,6 +667,37 @@ class EventDrivenEngine(BaseEngine):
                 # Create Position
                 position_type = 0 if order_type == 4 else 1  # BUY=0, SELL=1
 
+                # ------------------------------------------------------------------
+                # STOP AND REVERSE LOGIC
+                # ------------------------------------------------------------------
+                # If we have an existing position in the opposite direction, close it first.
+                # This logic is crucial for "Always In" strategies like Breakout/SAR.
+
+                # pylint: disable=protected-access
+                if self._trade_provider._positions:
+                    # Iterate through copy of values to avoid modification issues
+                    existing_positions = list(self._trade_provider._positions.values())
+                    for pos_dict in existing_positions:
+                        if (
+                            pos_dict["symbol"] == order["symbol"]
+                            and position_type != pos_dict["type"]
+                        ):
+                            # Check if opposite direction: New Buy (0) vs Existing Sell (1) OR New Sell (1) vs Existing Buy (0)
+                            ticket_to_close = pos_dict["ticket"]
+                            logger.info(
+                                f"[{bar_time}] Pending Order {ticket} triggered REVERSE. "
+                                f"Closing opposite position #{ticket_to_close}..."
+                            )
+
+                            # Close the existing position
+                            self._close_position_at_price(
+                                pos_dict, execution_price, "stop_reverse"
+                            )
+
+                # ------------------------------------------------------------------
+                # OPEN NEW POSITION
+                # ------------------------------------------------------------------
+
                 # In BacktestTradeProvider, we need a way to convert Order to Position
                 # We'll simulate it by calling buy/sell on the provider directly or via Trade
                 # But since we are INSIDE the engine, we can manipulate the provider directly

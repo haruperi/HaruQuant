@@ -191,22 +191,32 @@ def main():
     print_section("Backtest Trades")
     
     if len(trades_df) > 0:
-        header = f"{'Type':<6} {'Entry Date':<20} {'Exit Date':<20} {'Entry':>10} {'Exit':>10} {'Size':>8} {'Net $':>10} {'Pips':>8}"
+        # Updated header with new columns
+        header = f"{'Type':<6} {'Entry Date':<19} {'Exit Date':<19} {'Entry':>9} {'Exit':>9} {'Size':>6} {'Comm':>8} {'Swap':>8} {'Gross $':>10} {'Net $':>10} {'Pips':>8} {'Duration':>8}"
         logger.info("-" * len(header))
         logger.info(header)
         logger.info("-" * len(header))
         
         for _, trade in trades_df.head(50).iterrows():
             direction = str(trade.get('type', 'UNKNOWN')).upper()
-            entry_time = str(trade.get('open_time', ''))
-            exit_time = str(trade.get('close_time', ''))
+            # Truncate microseconds for cleaner output if needed, or keeping standard str
+            entry_time = str(trade.get('open_time', ''))[:19]
+            exit_time = str(trade.get('close_time', ''))[:19]
             entry_price = trade.get('open_price', 0.0)
             exit_price = trade.get('close_price', 0.0)
             size = trade.get('size', 0.0)
+            
+            comm = trade.get('commission', 0.0)
+            swap = trade.get('swap', 0.0)
             net_pnl = trade.get('profit_loss', 0.0)
+            
+            # Calculate Gross P&L: Net = Gross + Comm + Swap => Gross = Net - Comm - Swap
+            gross_pnl = net_pnl - comm - swap
+            
             pnl_pips = trade.get('profit_loss_pips', 0.0)
+            duration = trade.get('time_in_trade', 0.0)
 
-            row = f"{direction:<6} {entry_time:<20} {exit_time:<20} {entry_price:>10.5f} {exit_price:>10.5f} {size:>8.2f} {net_pnl:>10.2f} {pnl_pips:>8.1f}"
+            row = f"{direction:<6} {entry_time:<19} {exit_time:<19} {entry_price:>9.5f} {exit_price:>9.5f} {size:>6.2f} {comm:>8.2f} {swap:>8.2f} {gross_pnl:>10.2f} {net_pnl:>10.2f} {pnl_pips:>8.1f} {duration:>7.1f}h"
             logger.info(row)
             
         if len(trades_df) > 50:
