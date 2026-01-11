@@ -1,0 +1,67 @@
+# Architecture Overview
+
+This document describes the current HaruQuant application architecture based on the code in `apps/`.
+
+## High-Level Layout
+- `apps/api`: FastAPI application, routing, auth utilities, logging configuration, and WebSocket managers.
+- `apps/sqlite`: Database access layer used by the API and background tasks via `DatabaseManager`.
+- `apps/strategy`: Strategy storage and loading utilities for versioned strategy code.
+- `apps/backtest`: Backtest engines and persistence layer (`BacktestDatabase`) used by strategy routes.
+- `apps/live`: Live trading session orchestration used by live-trading routes.
+- `apps/mt5`: MetaTrader 5 client/data access used by broker, live, and backtest flows.
+- `apps/optimization`: Optimization tasks and models used by optimization routes.
+- `apps/utils`: Shared helpers (data loading, validation, security).
+
+## API Layer
+The FastAPI app is defined in `apps/api/main.py`. It registers route modules for:
+- Auth (`apps/api/routes/auth.py`)
+- Settings (`apps/api/routes/settings.py`)
+- System status/resources (`apps/api/routes/system.py`)
+- Strategies and backtests (`apps/api/routes/strategies.py`)
+- Broker status (`apps/api/routes/broker.py`)
+- Market hours (`apps/api/routes/market_hours.py`)
+- Trades and chart data (`apps/api/routes/trades.py`)
+- Live trading (`apps/api/routes/live.py`)
+- Data ingestion/preview (`apps/api/routes/data.py`)
+- Optimization (`apps/api/routes/optimization.py`)
+- Docs management (`apps/api/routes/docs.py`)
+
+## Authentication
+`apps/api/auth_utils.py` implements file-backed token storage in `data/tokens.json`, token generation/verification, and user authentication via `DatabaseManager`.
+
+## WebSocket Layer
+`apps/api/websocket.py` provides three managers:
+- `BacktestLogManager` for streaming backtest logs.
+- `LiveTradingManager` for live trading updates with channel subscriptions.
+- `OptimizationProgressManager` for optimization progress updates.
+
+Routes in `apps/api/routes/strategies.py`, `apps/api/routes/live.py`, and `apps/api/routes/optimization.py` expose WebSocket endpoints that use these managers.
+
+## Data Ingestion
+`apps/api/routes/data.py` runs an ingest pipeline:
+1. Load market data from MT5 or Dukascopy (`apps/utils/data_getters.py`).
+2. Validate using `DataValidator`.
+3. Save raw data to parquet under `data/raw`.
+4. Store metadata via `DatabaseManager`.
+
+## Strategy & Backtesting
+Strategies are versioned and stored via `apps/strategy/storage.py` and referenced from the database.
+Backtests are launched from `apps/api/routes/strategies.py` and executed with:
+- `VectorizedEngine` or `EventDrivenEngine` (from `apps/backtest`)
+- Optional high-resolution execution data
+Results are persisted using `BacktestDatabase` and queried via `DatabaseManager`.
+
+## Live Trading
+`apps/api/routes/live.py` manages live sessions with:
+- Session CRUD and control
+- Strategy attachment to sessions
+- Signals, positions, and logs
+Active sessions are tracked in-memory and coordinated through `apps/live/session.py`.
+
+## Optimization
+`apps/api/routes/optimization.py` starts optimization, walk-forward, and Monte Carlo tasks in the background.
+Progress updates are streamed through `OptimizationProgressManager`.
+
+## Logging
+`apps/api/logging_config.py` configures log sinks for access and error logs in `logs/`.
+Backtest logs are streamed through WebSockets using `BacktestLogManager`.
