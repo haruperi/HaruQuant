@@ -91,6 +91,7 @@ def load_dukascopy(  # noqa: C901
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     count: Optional[int] = None,
+    cache: bool = True,
 ) -> pd.DataFrame:
     """Download Dukascopy data from Dukascopy API.
 
@@ -100,6 +101,7 @@ def load_dukascopy(  # noqa: C901
         end_date: End date string (YYYY-MM-DD)
         timeframe: Timeframe string (default: 'H1')
         count: Number of bars to retrieve (alternative to date range)
+        cache: Whether to cache loaded data in memory
 
     Returns:
         DataFrame with prepared backtest data
@@ -107,7 +109,7 @@ def load_dukascopy(  # noqa: C901
     Raises:
         FileNotFoundError: If data file not found
     """
-    from apps.dukascopy_api.dukascopy import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch
+    from apps.dukascopy import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch
 
     logger.info(f"Attempting to download {symbol} from Dukascopy...")
 
@@ -147,47 +149,57 @@ def load_dukascopy(  # noqa: C901
 
     logger.info(f"Downloading {dukas_symbol} from {s_date} to {e_date}...")
 
-    try:
-        # Fetch data (M1 Bid)
-        df = fetch(
-            instrument=dukas_symbol,
-            interval=INTERVAL_MIN_1,  # Defaulting to M1 for now based on signature default
-            offer_side=OFFER_SIDE_BID,
-            start=s_date,
-            end=e_date,
-        )
-
-        if df.empty:
-            raise ValueError(f"No data returned from Dukascopy for {dukas_symbol}")
-
-        # Adjust timezone to UTC+2 with DST (Eastern European Time)
-        # 'Europe/Athens' follows EET/EEST (UTC+2 / UTC+3)
+    def _load() -> pd.DataFrame:
         try:
-            # Ensure index is timezone-aware (fetch returns UTC)
-            dt_index = cast(pd.DatetimeIndex, df.index)
-            if dt_index.tz is None:
-                dt_index = dt_index.tz_localize("UTC")
+            # Fetch data (M1 Bid)
+            df = fetch(
+                instrument=dukas_symbol,
+                interval=INTERVAL_MIN_1,  # Defaulting to M1 for now based on signature default
+                offer_side=OFFER_SIDE_BID,
+                start=s_date,
+                end=e_date,
+            )
 
-            # Convert and then remove timezone info
-            df.index = dt_index.tz_convert("Europe/Athens").tz_localize(None)
+            if df.empty:
+                raise ValueError(f"No data returned from Dukascopy for {dukas_symbol}")
 
-            logger.debug("Converted data to Europe/Athens time (EET/EEST)")
+            # Adjust timezone to UTC+2 with DST (Eastern European Time)
+            # 'Europe/Athens' follows EET/EEST (UTC+2 / UTC+3)
+            try:
+                # Ensure index is timezone-aware (fetch returns UTC)
+                dt_index = cast(pd.DatetimeIndex, df.index)
+                if dt_index.tz is None:
+                    dt_index = dt_index.tz_localize("UTC")
+
+                # Convert and then remove timezone info
+                df.index = dt_index.tz_convert("Europe/Athens").tz_localize(None)
+
+                logger.debug("Converted data to Europe/Athens time (EET/EEST)")
+            except Exception as e:
+                logger.error(f"Failed to convert timezone: {e}")
+                # Continue with original time if conversion fails (or raise?)
+                # For consistency with user request, we should probably warn strongly or fail.
+
+            # If count was specified, take only the last N bars
+            if count is not None:
+                df = df.tail(count)
+                logger.info(f"Trimmed to last {count} bars")
+
+            # Use the dataframe we just downloaded
+            return DataValidator.prepare_data(df)
+
         except Exception as e:
-            logger.error(f"Failed to convert timezone: {e}")
-            # Continue with original time if conversion fails (or raise?)
-            # For consistency with user request, we should probably warn strongly or fail.
+            logger.error(f"Failed to download Dukascopy data: {e}")
+            raise FileNotFoundError(f"Dukascopy data for {symbol} download failed: {e}")
 
-        # If count was specified, take only the last N bars
-        if count is not None:
-            df = df.tail(count)
-            logger.info(f"Trimmed to last {count} bars")
+    if cache:
+        cache_key = (
+            f"dukascopy:{dukas_symbol}:{timeframe}:"
+            f"{s_date.isoformat()}:{e_date.isoformat()}:{count}"
+        )
+        return get_cached_data(cache_key, _load)
 
-        # Use the dataframe we just downloaded
-        return DataValidator.prepare_data(df)
-
-    except Exception as e:
-        logger.error(f"Failed to download Dukascopy data: {e}")
-        raise FileNotFoundError(f"Dukascopy data for {symbol} download failed: {e}")
+    return _load()
 
 
 def load_mt5(  # noqa: C901
@@ -218,27 +230,39 @@ def load_mt5(  # noqa: C901
     """
     try:
         from apps.mt5.client import MT5Client
-        from apps.mt5.data import MT5Data, TimeFrame
+        from apps.sqlite.users import UserManager
 
         # Convert string dates to datetime objects if needed
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, "%Y-%m-%d")
         if isinstance(end_date, str):
             end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        if start_date and not end_date:
+            end_date = datetime.now()
+
+        creds = None
+        user_manager = UserManager()
+        if mt5_login:
+            creds = user_manager.get_mt5_credentials_by_login(user_id, mt5_login)
+        else:
+            creds = user_manager.get_mt5_credentials(user_id=user_id)
+
+        if not creds:
+            raise ValueError("No MT5 credentials available")
 
         # Connect
         logger.info(
-            f"Connecting to MT5 for user {user_id} (account: {mt5_login or 'default'})..."
+            f"Connecting to MT5 for user {user_id} (account: {creds.get('login')})..."
         )
-        client = MT5Client(login=mt5_login or 0)
-
-        data_obj = MT5Data(client=client)
-
-        # Get timeframe enum
-        try:
-            tf = TimeFrame.from_string(timeframe)
-        except ValueError:
-            logger.error(f"Invalid timeframe {timeframe}")
+        client = MT5Client(
+            login=creds["login"],
+            password=creds["password"],
+            server=creds["server"],
+            path=creds.get("path") or "",
+        )
+        if not client.is_connected():
+            logger.error("Failed to connect to MT5")
+            client.shutdown()
             return None
 
         # Fetch data
@@ -246,9 +270,17 @@ def load_mt5(  # noqa: C901
             f"Fetching {symbol} {timeframe} data from MT5... from {start_date} to {end_date} or last {count} bars"
         )
         if start_date and end_date:
-            bars = data_obj.get_bars(symbol, tf, start=start_date, end=end_date)
+            bars = client.get_bars(
+                symbol=symbol,
+                timeframe=timeframe,
+                date_from=start_date,
+                date_to=end_date,
+            )
         else:
-            bars = data_obj.get_bars(symbol, tf, count=count)
+            effective_count = count if count and count > 0 else 1000
+            bars = client.get_bars(
+                symbol=symbol, timeframe=timeframe, count=effective_count
+            )
 
         client.shutdown()
 
@@ -285,9 +317,28 @@ def load_mt5(  # noqa: C901
         start_str = to_datestr(start_date)
         end_str = to_datestr(end_date)
 
-        return load_dukascopy(
-            symbol=symbol, start_date=start_str, end_date=end_str, timeframe="M1"
+        if not start_str and not end_str and (not count or count <= 0):
+            end_str = datetime.now().strftime("%Y-%m-%d")
+            start_str = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        duka_data = load_dukascopy(
+            symbol=symbol,
+            start_date=start_str,
+            end_date=end_str,
+            count=count if count and count > 0 else None,
+            timeframe="M1",
         )
+
+        if timeframe and timeframe.upper() != "M1":
+            from apps.utils.data_manipulator import TimeframeManager
+
+            manager = TimeframeManager()
+            resampled = manager.resample(
+                duka_data, target_timeframe=timeframe, source_timeframe="M1"
+            )
+            return DataValidator.prepare_data(resampled)
+
+        return duka_data
 
 
 def main() -> None:

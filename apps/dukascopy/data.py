@@ -185,6 +185,9 @@ def _process_stream_row(
     Returns:
         Processed row or None if past end timestamp
     """
+    if row is None:
+        return None
+
     if end_timestamp is not None and row[0] > end_timestamp:
         return None
 
@@ -354,12 +357,12 @@ def fetch(
         data.append(row)
 
     df = pd.DataFrame(data=data, columns=columns)
-    df["Timestamp"] = pd.to_datetime(
-        df["Timestamp"],
+    df["timestamp"] = pd.to_datetime(
+        df["timestamp"],
         unit="ms",
         utc=True,
     )
-    df = df.set_index("Timestamp")
+    df = df.set_index("timestamp")
     return df
 
 
@@ -400,12 +403,12 @@ def live_fetch(
 
     columns = _get_dataframe_columns_for_timeunit(time_unit)
     df = pd.DataFrame(columns=columns)
-    df["Timestamp"] = pd.to_datetime(
-        df["Timestamp"],
+    df["timestamp"] = pd.to_datetime(
+        df["timestamp"],
         unit="ms",
         utc=True,
     )
-    df = df.set_index("Timestamp")
+    df = df.set_index("timestamp")
 
     datafeed = _stream(
         instrument=instrument,
