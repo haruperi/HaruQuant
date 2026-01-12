@@ -26,7 +26,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 
-from apps.api.auth_utils import verify_token
+from apps.api.auth_utils import get_user_id_from_token
 from apps.api.websocket import live_trading_manager
 from apps.live.models import Signal
 from apps.live.session import LiveTradingSession
@@ -149,39 +149,6 @@ async def _close_positions(trading_session, active_positions):
 # =============================================================================
 # Authentication Helper
 # =============================================================================
-
-
-def get_user_id_from_token(authorization: str) -> int:
-    """
-    Extract and verify user ID from authorization token.
-
-    Args:
-        authorization: Authorization header value
-
-    Returns:
-        User ID if token is valid
-
-    Raises:
-        HTTPException: If token is invalid or missing
-    """
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid authorization header",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token = authorization.replace("Bearer ", "")
-    user_id = verify_token(token, db_manager)
-
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return user_id
 
 
 # =============================================================================

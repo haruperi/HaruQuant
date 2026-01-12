@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Optional
 
+from fastapi import HTTPException, status
+
 from apps.sqlite.database_operations import DatabaseManager
 from apps.utils.security import verify_password
 
@@ -149,3 +151,40 @@ def authenticate_user(
             "is_verified": bool(user_row["is_verified"]),
         },
     }
+
+
+def get_user_id_from_token(token: Optional[str]) -> int:
+    """
+    Validate token and return user ID. Raises 401 if invalid.
+
+    Args:
+        token: The simple API token key, optionally prefixed with 'Bearer '
+
+    Returns:
+        int: The validated user ID
+
+    Raises:
+        HTTPException(401): If token is missing or invalid
+    """
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Strip 'Bearer ' prefix if present
+    if token.lower().startswith("bearer "):
+        token = token[7:]
+
+    db_manager = DatabaseManager()
+    user_id = verify_token(token, db_manager)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user_id

@@ -2,10 +2,11 @@
 
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict
+from typing import Annotated, Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, status
 
+from apps.api.auth_utils import get_user_id_from_token
 from apps.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
@@ -103,8 +104,25 @@ def _fetch_all_trades(backtest_id: int):
     return [dict(row) for row in trades_rows]
 
 
-def _load_chart_bars(symbol: str, timeframe_str: str, start_date, end_date):
-    client = MT5Client()
+def _load_chart_bars(
+    symbol: str, timeframe_str: str, start_date, end_date, user_id: int
+):
+    # Fetch user credentials
+    credentials = db_manager.get_mt5_credentials(user_id)
+    if not credentials:
+        logger.warning(f"No MT5 credentials found for user {user_id}")
+        # Fallback to default/empty login which might fail but preserves old behavior strictly if needed,
+        # but realistically this IS the fix, so we should warn.
+        # However, for robustness we'll try with what we have (user likely needs to set them).
+        client = MT5Client()
+    else:
+        client = MT5Client(
+            path=credentials.get("path", ""),
+            login=credentials.get("login", 0),
+            password=credentials.get("password", ""),
+            server=credentials.get("server", ""),
+        )
+
     if not client.is_connected():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -264,7 +282,10 @@ async def get_trade_by_id(trade_id: int) -> Dict[str, Any]:
 
 @router.get("/{trade_id}/backtest-chart-data")
 async def get_trade_chart_data(
-    trade_id: int, bars_before: int = 25, bars_after: int = 25
+    trade_id: int,
+    bars_before: int = 25,
+    bars_after: int = 25,
+    authorization: Annotated[Optional[str], Header()] = None,
 ) -> Dict[str, Any]:
     """
     Get OHLCV chart data for the entire backtest period containing this trade.
@@ -292,6 +313,7 @@ async def get_trade_chart_data(
         HTTPException: 404 if trade not found, 503 if MT5 unavailable, 500 for other errors
     """
     try:
+        user_id = get_user_id_from_token(authorization)
         # First, get the trade to find its backtest_id
         trade_data = await get_trade_by_id(trade_id)
         backtest_id = trade_data["backtest_id"]
@@ -319,7 +341,7 @@ async def get_trade_chart_data(
             f"Fetching chart data for {symbol} {timeframe_str} from {start_date} to {end_date}"
         )
 
-        bars = _load_chart_bars(symbol, timeframe_str, start_date, end_date)
+        bars = _load_chart_bars(symbol, timeframe_str, start_date, end_date, user_id)
         chart_data = _build_chart_data(bars)
 
         logger.info(

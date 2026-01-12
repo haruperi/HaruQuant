@@ -5,12 +5,13 @@ import os
 import tempfile
 from contextlib import suppress
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     File,
+    Header,
     HTTPException,
     UploadFile,
     WebSocket,
@@ -20,6 +21,7 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from apps.api.auth_utils import get_user_id_from_token
 from apps.api.websocket import backtest_log_manager
 from apps.backtest import EventDrivenEngine, VectorizedEngine
 from apps.backtest.persistence import BacktestDatabase
@@ -364,7 +366,17 @@ def _load_mt5_data(
 ):
     from apps.mt5.client import MT5Client
 
-    client = MT5Client()
+    credentials = db_manager.get_mt5_credentials(user_id)
+    if credentials:
+        client = MT5Client(
+            path=credentials.get("path", ""),
+            login=credentials.get("login", 0),
+            password=credentials.get("password", ""),
+            server=credentials.get("server", ""),
+        )
+    else:
+        logger.warning(f"No MT5 credentials found for user {user_id}, using defaults")
+        client = MT5Client()
     if not client.initialize():
         raise RuntimeError("Failed to connect to MT5")
 
@@ -979,7 +991,7 @@ async def run_backtest(
     strategy_id: int,
     request: BacktestRequest,
     background_tasks: BackgroundTasks,
-    user_id: int = 1,
+    authorization: Annotated[Optional[str], Header()] = None,
 ) -> BacktestResponse:
     """
     Run a backtest for a strategy.
@@ -987,6 +999,7 @@ async def run_backtest(
     Executes asynchronously in the background.
     """
     try:
+        user_id = get_user_id_from_token(authorization)
         # Get strategy and active version
         strategy = db_manager.get_strategy(strategy_id)
 
