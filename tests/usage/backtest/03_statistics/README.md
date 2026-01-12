@@ -4,6 +4,9 @@ Examples demonstrating custom metrics, trade analysis, and performance statistic
 
 ## Examples
 
+### 00_stats_exammples.py
+Comprehensive statistics walkthrough with real data and charts.
+
 ### 01_custom_metrics.py
 Calculate custom performance metrics beyond standard statistics.
 
@@ -19,13 +22,22 @@ Calculate risk-adjusted performance metrics.
 ### 05_performance_attribution.py
 Attribute performance to different factors.
 
+### 06_cache_examples.py
+Demonstrate stats caching benefits and cache management.
+
+### 07_greek_calculations.py
+Greek calculations (alpha, beta, R-squared) with rolling analysis.
+
+### 08_stats_utilities.py
+Utility helpers for returns prep, alignment, formatting, and cache keys.
+
 ## Quick Start
 
 ```python
 from apps.backtest import Backtest, Strategy
-from data_helpers import load_dukascopy
+from apps.utils.data_getters import load_mt5
 
-data = load_dukascopy('EURUSD', start_date='2025-11-03')
+data = load_mt5('EURUSD', timeframe='D1', start_date='2025-11-03')
 bt = Backtest(data, MyStrategy, cash=10000)
 result = bt.run()
 
@@ -43,4 +55,4 @@ print(f"Return: {stats['Total Return [%]']}%")
 - **Trade Stats**: Win rate, avg trade, profit factor
 - **Custom**: Any metric you can calculate
 
-All examples use real Dukascopy data.
+All examples use real MT5 data (with Dukascopy fallback).
