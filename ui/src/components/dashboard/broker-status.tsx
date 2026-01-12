@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet } from "lucide-react"
 import { useEffect, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 
 interface BrokerData {
   status: string
@@ -15,45 +16,53 @@ interface BrokerData {
 }
 
 export function BrokerStatus() {
+  const { authenticatedFetch } = useAuth()
   const [data, setData] = useState<BrokerData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     async function fetchBrokerStatus() {
       try {
-        // Assuming API is proxied or CORS is handled.
-        // If running locally, this should point to the FastAPI backend.
-        // In the user's environment, it seems `npm run dev` and `uvicorn` are separate.
-        // We'll trust the existing proxy setup or use the full URL if needed.
-        // Given existing code doesn't show absolute URLs, we'll try relative first
-        // if there's a proxy, or fall back to localhost:8000.
-        // EDIT: Looking at `main.py`, CORS is allowing localhost:3000.
-        // Let's try the full URL to be safe since we don't know the Next.js proxy config.
-        const response = await fetch("http://localhost:8000/api/broker/")
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+        const response = await authenticatedFetch(`${apiUrl}/api/broker/`)
+
         if (!response.ok) throw new Error("Failed to fetch")
+
         const result = await response.json()
-        setData(result)
+        if (isMounted) {
+            setData(result)
+            setError(false)
+        }
       } catch (err) {
         console.error("Error fetching broker status:", err)
-        setError(true)
+        if (isMounted) {
+            setError(true)
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+            setLoading(false)
+        }
       }
     }
 
     fetchBrokerStatus()
 
-    // Optional: Poll every 5-10 seconds for real-time updates
+    // Optional: Poll every 10 seconds for real-time updates
     const interval = setInterval(() => {
-        // Stop polling if tab is not visible
         if (document.hidden) return
         fetchBrokerStatus()
-    }, 60000)
-    return () => clearInterval(interval)
-  }, [])
+    }, 10000)
 
-  if (loading) {
+    return () => {
+        isMounted = false
+        clearInterval(interval)
+    }
+  }, [authenticatedFetch])
+
+  if (loading && !data) {
      return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

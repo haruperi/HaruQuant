@@ -1,5 +1,6 @@
 """User management module."""
 
+import contextlib
 import json
 import secrets
 import sqlite3
@@ -636,7 +637,80 @@ class UserManager(DatabaseBase):
             return True
         except Exception as e:
             logger.error(f"Error deleting sessions for user {user_id}: {e}")
+            if conn:
+                with contextlib.suppress(Exception):
+                    conn.rollback()
             return False
+        finally:
+            if conn:
+                with contextlib.suppress(Exception):
+                    conn.close()
+
+    def delete_session(self, token: str) -> bool:
+        """
+        Delete a specific session by token (logout).
+
+        Args:
+            token (str): Session token
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM user_sessions WHERE token = ?", (token,))
+
+            if cursor.rowcount == 0:
+                logger.warning("Session not found for deletion.")
+                return False
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting session: {e}")
+            if conn:
+                with contextlib.suppress(Exception):
+                    conn.rollback()
+            return False
+        finally:
+            if conn:
+                with contextlib.suppress(Exception):
+                    conn.close()
+
+    def get_session(self, token: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a session by token.
+
+        Args:
+            token (str): Session token
+
+        Returns:
+            dict: Session details if valid, None otherwise
+        """
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            query = "SELECT * FROM user_sessions WHERE token = ?"
+            cursor.execute(query, (token,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return dict(row)
+
+        except Exception as e:
+            logger.error(f"Error getting session: {e}")
+            return None
+        finally:
+            if conn:
+                with contextlib.suppress(Exception):
+                    conn.close()
 
     def create_session(self, user_id: int, duration_hours: int = 24) -> str:
         """

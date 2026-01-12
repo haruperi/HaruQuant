@@ -10,8 +10,9 @@ Provides REST API endpoints for managing live trading sessions, including:
 - Risk rules management
 """
 
+import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import MetaTrader5 as mt5
 from fastapi import (
@@ -171,7 +172,7 @@ def get_user_id_from_token(authorization: str) -> int:
         )
 
     token = authorization.replace("Bearer ", "")
-    user_id = verify_token(token)
+    user_id = verify_token(token, db_manager)
 
     if not user_id:
         raise HTTPException(
@@ -423,7 +424,9 @@ async def create_session(
             max_drawdown_pct=request.max_drawdown_pct,
             trading_hours_start=request.trading_hours_start,
             trading_hours_end=request.trading_hours_end,
-            allowed_days=request.allowed_days,
+            allowed_days=(
+                json.loads(request.allowed_days) if request.allowed_days else None
+            ),
         )
 
         if not session_id:
@@ -436,7 +439,7 @@ async def create_session(
         session = db_manager.get_live_session(session_id)
         logger.info(f"Live trading session created successfully: {session_id}")
 
-        return SessionResponse(**session)
+        return SessionResponse(**cast(dict, session))
 
     except HTTPException:
         raise
@@ -581,7 +584,7 @@ async def update_session(
         updated_session = db_manager.get_live_session(session_id)
         logger.info(f"Session {session_id} updated successfully")
 
-        return SessionResponse(**updated_session)
+        return SessionResponse(**cast(dict, updated_session))
 
     except HTTPException:
         raise
@@ -1280,7 +1283,10 @@ async def get_session_logs(
 
         # Get logs from database
         logs = db_manager.get_session_logs(
-            session_id=session_id, limit=limit, level=level, category=category
+            session_id=session_id,
+            limit=limit,
+            log_level=level,
+            log_category=category,
         )
 
         return {"logs": logs}
@@ -1415,7 +1421,9 @@ async def remove_strategy_from_session(
             )
 
         # Remove strategy from session
-        success = db_manager.remove_session_strategy(strategy_config_id)
+        success = db_manager.remove_strategy_from_session(
+            session_id, strategy_config_id
+        )
 
         if not success:
             raise HTTPException(
@@ -1533,7 +1541,7 @@ async def modify_position(
             trading_session = active_sessions[session_id]
 
             # Get position
-            position = db_manager.get_position(position_id)
+            position = db_manager.get_live_position(position_id)
             if not position:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,

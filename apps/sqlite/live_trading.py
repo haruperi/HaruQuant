@@ -485,7 +485,7 @@ class LiveTradingManager:
                 conn.close()
 
     def get_session_signals(
-        self, session_id: int, status: Optional[str] = None
+        self, session_id: int, status: Optional[str] = None, limit: int = 50
     ) -> List[Dict[str, Any]]:
         """Retrieve signals for a session."""
         conn = None
@@ -501,7 +501,8 @@ class LiveTradingManager:
                 query += " AND status = ?"
                 params.append(status)
 
-            query += " ORDER BY signal_time DESC"
+            query += " ORDER BY signal_time DESC LIMIT ?"
+            params.append(limit)
 
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -633,6 +634,30 @@ class LiveTradingManager:
             logger.error(f"Error updating live position: {e}")
             if conn:
                 conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def get_live_position(self, position_id: int) -> Optional[Dict[str, Any]]:
+        """Retrieve a single live position."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            query = "SELECT * FROM live_positions WHERE position_id = ?"
+            cursor.execute(query, (position_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return dict(row)
+
+        except Exception as e:
+            logger.error(f"Error getting live position {position_id}: {e}")
             raise
         finally:
             if conn:

@@ -1,123 +1,90 @@
 """Authentication utility functions."""
 
-import json
-import secrets
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from datetime import datetime
+from typing import Optional
 
 from apps.sqlite.database_operations import DatabaseManager
 from apps.utils.security import verify_password
 
-# File-based token storage for persistence across server reloads
-TOKEN_STORAGE_FILE = Path("data/tokens.json")
 
-
-def _load_tokens() -> Dict[str, Dict[str, Any]]:
-    """Load tokens from file."""
-    if not TOKEN_STORAGE_FILE.exists():
-        return {}
-
-    try:
-        with open(TOKEN_STORAGE_FILE, "r") as f:
-            tokens = cast(Dict[str, Dict[str, Any]], json.load(f))
-            # Convert string dates back to datetime
-            for token_data in tokens.values():
-                token_data["created_at"] = datetime.fromisoformat(
-                    token_data["created_at"]
-                )
-                token_data["expires_at"] = datetime.fromisoformat(
-                    token_data["expires_at"]
-                )
-            return tokens
-    except Exception:
-        return {}
-
-
-def _save_tokens(tokens: dict) -> None:
-    """Save tokens to file."""
-    # Ensure directory exists
-    TOKEN_STORAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    # Convert datetime to string for JSON serialization
-    serializable_tokens = {}
-    for token, data in tokens.items():
-        serializable_tokens[token] = {
-            "user_id": data["user_id"],
-            "created_at": data["created_at"].isoformat(),
-            "expires_at": data["expires_at"].isoformat(),
-        }
-
-    with open(TOKEN_STORAGE_FILE, "w") as f:
-        json.dump(serializable_tokens, f, indent=2)
-
-
-def generate_token(user_id: int) -> str:
+def generate_token(user_id: int, db_manager: DatabaseManager) -> str:
     """
-    Generate a secure random token for user authentication.
+    Generate a secure random token for user authentication and store in DB.
 
-    Token expires after 24 hours (extended for development).
+    Token expires after 24 hours.
 
     Args:
         user_id: The user's ID
+        db_manager: DatabaseManager instance
 
     Returns:
         A secure random token
     """
-    token = secrets.token_urlsafe(32)
-    tokens = _load_tokens()
-    tokens[token] = {
-        "user_id": user_id,
-        "created_at": datetime.now(),
-        "expires_at": datetime.now() + timedelta(hours=24),  # Extended to 24 hours
-    }
-    _save_tokens(tokens)
-    return token
+    # Enforce single session: Delete any existing sessions for this user
+    # This ensures that if a user logs in again, their old session is invalidated
+    db_manager.delete_user_sessions(user_id)
+
+    # Use the existing create_session method which handles token generation and storage
+    return db_manager.create_session(user_id, duration_hours=24)
 
 
-def verify_token(token: str) -> Optional[int]:
+def verify_token(token: str, db_manager: DatabaseManager) -> Optional[int]:
     """
     Verify a token and return the associated user ID.
 
     Args:
         token: The token to verify
+        db_manager: DatabaseManager instance
 
     Returns:
         The user ID if token is valid, None otherwise
     """
-    tokens = _load_tokens()
-    token_data = tokens.get(token)
-    if not token_data:
+    # 1. Get session from DB
+    session = db_manager.get_session(token)
+
+    if not session:
         return None
 
-    if datetime.now() > token_data["expires_at"]:
-        # Token expired, remove it
-        del tokens[token]
-        _save_tokens(tokens)
-        return None
-
-    user_id = token_data.get("user_id")
-    if user_id is None:
-        return None
-    if isinstance(user_id, int):
-        return user_id
+    # 2. Check expiration
+    expire_time_str = session["expire_time"]
     try:
-        return int(user_id)
-    except (TypeError, ValueError):
+        # DB stores timestamp as string usually, ensure parsing
+        # Format might be ISO or custom depending on sqlite setup,
+        # but typically "YYYY-MM-DD HH:MM:SS" or ISO
+        # Base class methods usually return strings for timestamps
+
+        # Simple flexible parsing if needed, but lets try fromisoformat first
+        # or simple comparison if they are ISO strings
+        expire_time = datetime.fromisoformat(expire_time_str)
+    except ValueError:
+        # Fallback for standard SQL timestamp "YYYY-MM-DD HH:MM:SS"
+        try:
+            expire_time = datetime.strptime(expire_time_str, "%Y-%m-%d %H:%M:%S.%f")
+        except ValueError:
+            try:
+                expire_time = datetime.strptime(expire_time_str, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                # If we can't parse it, safe fail
+                return None
+
+    if datetime.now() > expire_time:
+        # Token expired, delete from DB
+        db_manager.delete_session(token)
         return None
 
+    # 3. Valid session, return user_id
+    return int(session["user_id"])
 
-def invalidate_token(token: str) -> None:
+
+def invalidate_token(token: str, db_manager: DatabaseManager) -> None:
     """
     Invalidate a token (logout).
 
     Args:
         token: The token to invalidate
+        db_manager: DatabaseManager instance
     """
-    tokens = _load_tokens()
-    if token in tokens:
-        del tokens[token]
-        _save_tokens(tokens)
+    db_manager.delete_session(token)
 
 
 def authenticate_user(

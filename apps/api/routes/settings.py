@@ -35,7 +35,7 @@ def get_user_id_from_token(authorization: str) -> int:
         )
 
     token = authorization.replace("Bearer ", "")
-    user_id = verify_token(token)
+    user_id = verify_token(token, db_manager)
 
     if not user_id:
         raise HTTPException(

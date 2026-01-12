@@ -1,6 +1,8 @@
 """Authentication routes."""
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Header, HTTPException, status
 
 from apps.api.auth_utils import authenticate_user, generate_token
 from apps.api.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
@@ -138,7 +140,7 @@ async def login(request: LoginRequest):
             user_data = auth_result["user"]
 
             # Generate token
-            token = generate_token(user_data["id"])
+            token = generate_token(user_data["id"], db_manager)
 
             # Log successful login
             logger.info(
@@ -169,12 +171,22 @@ async def login(request: LoginRequest):
 
 
 @router.post("/logout")
-async def logout():
+async def logout(authorization: Annotated[Optional[str], Header()] = None):
     """
     Logout the current user.
 
-    Note: In this implementation, token invalidation should be handled client-side
-    by removing the token from storage.
+    Invalidates the session token in the database.
     """
-    logger.info("Logout request received")
+    if not authorization or not authorization.startswith("Bearer "):
+        # If no token provided, just return success (already logged out effectively)
+        return {"message": "Logged out successfully"}
+
+    token = authorization.replace("Bearer ", "")
+
+    # Invalidate token in DB
+    from apps.api.auth_utils import invalidate_token
+
+    invalidate_token(token, db_manager)
+
+    logger.info("Logout request received and session invalidated")
     return {"message": "Logged out successfully"}
