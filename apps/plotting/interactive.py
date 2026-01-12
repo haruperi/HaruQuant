@@ -479,17 +479,31 @@ def configure_interactive_legend(
         logger.warning("Figure has no legend to configure")
         return
 
-    fig.legend.location = location
-    fig.legend.click_policy = click_policy
-    fig.legend.background_fill_alpha = background_fill_alpha
-    fig.legend.border_line_color = border_line_color
-    fig.legend.label_text_font_size = "10pt"
-    fig.legend.spacing = 5
-    fig.legend.padding = 10
+    # Check if legend is actually empty
+    if not fig.legend and hasattr(fig, "renderers"):
+        # Try to find if any renderers have legend labels/fields to know if it's worth warning
+        # But mostly, if fig.legend is empty list, we can't set properties on it easily in some versions
+        # or it just warns.
+        # Let's check if the legend property works.
+        # In newer Bokeh, fig.legend returns a list of Legend objects.
+        # If accessing it creates one, we might be fine, but the warning says "zero legends added".
+        return
 
-    logger.debug(
-        f"Interactive legend configured at {location} with {click_policy} policy"
-    )
+    try:
+        fig.legend.location = location
+        fig.legend.click_policy = click_policy
+        fig.legend.background_fill_alpha = background_fill_alpha
+        fig.legend.border_line_color = border_line_color
+        fig.legend.label_text_font_size = "10pt"
+        fig.legend.spacing = 5
+        fig.legend.padding = 10
+
+        logger.debug(
+            f"Interactive legend configured at {location} with {click_policy} policy"
+        )
+    except Exception as e:
+        # Catch errors if legend doesn't exist or properties fail
+        logger.debug(f"Could not configure legend: {e}")
 
 
 def create_legend_toggles(
@@ -530,6 +544,7 @@ def add_range_selector(
     data_source: Any,
     height: int = 100,
     y_column: str = "close",
+    x_column: str = "date",
 ) -> Tuple[Any, Any]:
     """Add a range selector tool with mini chart.
 
@@ -541,6 +556,7 @@ def add_range_selector(
         data_source: ColumnDataSource with the data
         height: Height of the range selector chart in pixels
         y_column: Column name to plot in the range selector
+        x_column: Column name for x-axis (default: "date")
 
     Returns:
         Tuple of (range_selector_figure, range_tool)
@@ -568,7 +584,7 @@ def add_range_selector(
     )
 
     # Plot data in selector
-    select_fig.line("x", y_column, source=data_source, line_color="#3498db")
+    select_fig.line(x_column, y_column, source=data_source, line_color="#3498db")
 
     # Create range tool
     range_tool = RangeTool(x_range=main_fig.x_range)
@@ -611,8 +627,23 @@ def create_range_selector_layout(
         logger.warning("Bokeh not available - layout not created")
         return None
 
+    # If main_fig is a layout (e.g. Column), find the first figure to link to
+    target_fig = main_fig
+    if not hasattr(target_fig, "y_range") and hasattr(target_fig, "children"):
+        for child in target_fig.children:
+            if hasattr(child, "y_range"):
+                target_fig = child
+                break
+
+    # Verify we have a valid figure to link to
+    if not hasattr(target_fig, "y_range"):
+        logger.warning(
+            "Cannot add range selector: input object has no y_range and no suitable child figure found"
+        )
+        return main_fig
+
     selector_fig, _ = add_range_selector(
-        main_fig, data_source, height=selector_height, y_column=y_column
+        target_fig, data_source, height=selector_height, y_column=y_column
     )
 
     if selector_fig is None:

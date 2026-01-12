@@ -570,7 +570,7 @@ def should_return_figure(
 
 def handle_plot_output(
     fig: Union[Figure, Any],
-    display: bool = True,
+    show: bool = True,
     save: bool = False,
     filepath: Optional[Union[str, Path]] = None,
     return_fig: bool = False,
@@ -584,7 +584,7 @@ def handle_plot_output(
 
     Args:
         fig: Matplotlib Figure or Bokeh LayoutDOM
-        display: Whether to display the plot
+        show: Whether to display the plot
         save: Whether to save the plot to file
         filepath: Output file path (required if save=True)
         return_fig: Whether to return the figure object
@@ -600,13 +600,13 @@ def handle_plot_output(
     Examples:
         >>> fig, ax = plt.subplots()
         >>> ax.plot([1, 2, 3])
-        >>> handle_plot_output(fig, display=True, save=False)
+        >>> handle_plot_output(fig, show=True, save=False)
         >>> # Shows plot, doesn't save, returns None
 
         >>> handle_plot_output(fig, save=True, filepath="output/test.png")
         >>> # Saves plot, returns None
 
-        >>> result = handle_plot_output(fig, display=False, return_fig=True)
+        >>> result = handle_plot_output(fig, show=False, return_fig=True)
         >>> # Doesn't show, returns figure for customization
     """
     # Save if requested
@@ -621,7 +621,7 @@ def handle_plot_output(
             open_in_browser(saved_path)
 
     # Show if requested
-    if display:
+    if show:
         if isinstance(fig, Figure):
             plt.show()
         elif BOKEH_AVAILABLE and isinstance(fig, LayoutDOM):
@@ -630,7 +630,7 @@ def handle_plot_output(
             logger.warning(f"Don't know how to show figure of type {type(fig)}")
 
     # Determine if should return
-    if should_return_figure(display, save, return_fig):
+    if should_return_figure(show, save, return_fig):
         return fig
 
     return None

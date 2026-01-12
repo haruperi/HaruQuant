@@ -667,7 +667,13 @@ def save_figure(
 
     # Apply tight layout
     if tight_layout:
-        fig.tight_layout()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message=".*constrained_layout not applied.*"
+            )
+            warnings.filterwarnings("ignore", message=".*tight_layout not applied.*")
+            with contextlib.suppress(Exception):
+                fig.tight_layout()
 
     # Default DPI
     if dpi is None:
@@ -683,12 +689,20 @@ def save_figure(
             output_path = Path(f"{filepath}.{fmt}")
 
         # Save figure
-        fig.savefig(
-            output_path,
-            dpi=dpi,
-            bbox_inches="tight",
-            **savefig_kw,
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message=".*constrained_layout not applied.*"
+            )
+            warnings.filterwarnings("ignore", message=".*tight_layout not applied.*")
+            try:
+                fig.savefig(
+                    output_path,
+                    dpi=dpi,
+                    bbox_inches="tight",
+                    **savefig_kw,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save figure {output_path}: {e}")
 
         saved_files.append(output_path)
 

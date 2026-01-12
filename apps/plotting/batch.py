@@ -99,6 +99,48 @@ def plot_all(  # noqa: C901
     # Dictionary to store saved file paths
     saved_plots: Dict[str, List[Path]] = {}
 
+    # -------------------------------------------------------------------------
+    # Adapter for BacktestResult object
+    # -------------------------------------------------------------------------
+    # If results is a BacktestResult object (has comprehensive_summary method),
+    # convert it to the expected dictionary format.
+    if hasattr(results, "comprehensive_summary"):
+        logger.debug("Adapting BacktestResult object to dictionary format")
+
+        # Create a simple broker-like object to hold equity series
+        class ResultBroker:
+            def __init__(self, equity_series: Any) -> None:
+                self.equity = equity_series
+
+        # Get summary stats
+        summary_stats = results.comprehensive_summary()
+
+        # Get equity series
+        # Try _get_equity_series first (internal method)
+        if hasattr(results, "_get_equity_series"):
+            equity = results._get_equity_series()
+        # Fallback to reconstructing from equity_curve
+        elif hasattr(results, "equity_curve"):
+            curve = results.equity_curve
+            if curve:
+                times = [p.timestamp for p in curve]
+                values = [p.equity for p in curve]
+                equity = pd.Series(values, index=pd.DatetimeIndex(times))
+            else:
+                equity = pd.Series(dtype=float)
+        else:
+            equity = pd.Series(dtype=float)
+
+        # Create adapted dictionary
+        results_dict: Dict[str, Any] = {
+            "stats": summary_stats,
+            "broker": ResultBroker(equity),
+            "strategy": getattr(results, "strategy_name", "Unknown Strategy"),
+        }
+
+        # Use the adapted dictionary
+        results = results_dict
+
     # Extract data for individual plots
     try:
         broker = results.get("broker")

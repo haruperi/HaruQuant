@@ -238,6 +238,10 @@ def compound_monthly_growth_rate(equity_curve: pd.Series) -> float:
         return 0.0
 
     # CMGR = (End/Start)^(1/months) - 1
+    # Handle negative end value (total loss)
+    if end_value <= 0:
+        return -100.0
+
     cmgr_value = (end_value / start_value) ** (1 / months) - 1
 
     return float(cmgr_value * 100)
@@ -291,6 +295,10 @@ def cagr(equity_curve: pd.Series) -> float:
         return 0.0
 
     # CAGR = (End/Start)^(1/years) - 1
+    # Handle negative end value (total loss)
+    if end_value <= 0:
+        return -100.0
+
     cagr_value = (end_value / start_value) ** (1 / years) - 1
 
     return float(cagr_value * 100)
