@@ -51,6 +51,12 @@ Backtests are launched from `apps/api/routes/strategies.py` and executed with:
 - Optional high-resolution execution data
 Results are persisted using `BacktestDatabase` and queried via `DatabaseManager`.
 
+## Portfolio Backtesting
+Multi-asset portfolio backtests are executed via `apps/backtest/portfolio.py`:
+- `PortfolioStrategy` binds symbols, strategies, and asset specs to their data.
+- `PortfolioEngine` runs an `EventDrivenEngine` per symbol with equal capital allocation.
+- Asset results are aggregated into a `PortfolioBacktestResult`, including trades and summary stats.
+
 ## Live Trading
 `apps/api/routes/live.py` manages live sessions with:
 - Session CRUD and control

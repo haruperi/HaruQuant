@@ -109,7 +109,7 @@ class EventDrivenEngine(BaseEngine):
         # Create backtest providers
         self._trade_provider = BacktestTradeProvider(initial_balance)
         self._account_provider = BacktestAccountProvider(
-            initial_balance, trade_provider=self._trade_provider
+            initial_balance, leverage=leverage, trade_provider=self._trade_provider
         )
         self._position_provider = BacktestPositionProvider()
         self._order_provider = BacktestOrderProvider()

@@ -16,6 +16,7 @@ import pandas as pd
 from apps.logger import logger
 
 from .engine.base import BaseEngine
+from .engine.event_driven import EventDrivenEngine
 from .result import BacktestResult, EquityPoint, TradeRecord
 
 # =========================================================================
@@ -449,17 +450,51 @@ class PortfolioEngine:
         2. Run them with allocated capital
         3. Aggregate results
         """
-        # For now, we'll store placeholder results
-        # Full implementation would integrate with EventDrivenEngine/VectorizedEngine
+        if not self.portfolio_strategy.strategies:
+            return
+
+        num_assets = len(self.portfolio_strategy.strategies)
+        per_asset_balance = (
+            self.initial_balance / num_assets
+            if num_assets > 0
+            else self.initial_balance
+        )
+
+        default_timeframe = self.config.get("timeframe", "H1")
+        default_data_step_mode = self.config.get("data_step_mode", "trading_timeframe")
+        default_slippage_points = self.config.get("slippage_points", 0.0)
+        default_commission = self.config.get("commission", 0.0)
 
         for symbol in self.portfolio_strategy.strategies.keys():
             logger.info(f"Running backtest for {symbol}...")
 
-            # This is where you would run individual asset backtests
-            # For now, create placeholder result
-            # In full implementation, you would:
-            # result = self.engines[symbol].run()
-            # self.asset_results[symbol] = result
+            strategy = self.portfolio_strategy.strategies[symbol]
+            data = self.portfolio_strategy.data[symbol]
+            asset_spec = self.portfolio_strategy.asset_specs.get(symbol)
+
+            engine = self.engines.get(symbol)
+            if engine is None:
+                commission = (
+                    asset_spec.commission
+                    if asset_spec is not None
+                    else default_commission
+                )
+                leverage = asset_spec.leverage if asset_spec is not None else 100
+
+                engine = EventDrivenEngine(
+                    strategy=strategy,
+                    data=data,
+                    initial_balance=per_asset_balance,
+                    commission=commission,
+                    slippage_points=default_slippage_points,
+                    leverage=leverage,
+                    timeframe=default_timeframe,
+                    data_step_mode=default_data_step_mode,
+                    config=self.config,
+                )
+
+            result = engine.run()
+            self.asset_results[symbol] = result
 
             logger.debug(f"Backtest complete for {symbol}")
 
