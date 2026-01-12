@@ -118,6 +118,12 @@ async def update_settings(
         updated_settings = db_manager.get_user_settings(user_id)
         logger.info(f"Settings updated for user_id: {user_id}")
 
+        if updated_settings is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load updated settings",
+            )
+
         return UserSettingsResponse(**updated_settings)
 
     except HTTPException:

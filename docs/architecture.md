@@ -21,7 +21,7 @@ The FastAPI app is defined in `apps/api/main.py`. It registers route modules for
 - Broker status (`apps/api/routes/broker.py`)
 - Market hours (`apps/api/routes/market_hours.py`)
 - Trades and chart data (`apps/api/routes/trades.py`)
-- Live trading (`apps/api/routes/live.py`)
+- Live trading (`apps/api/routes/live.py`, currently disabled in `apps/api/main.py`)
 - Data ingestion/preview (`apps/api/routes/data.py`)
 - Optimization (`apps/api/routes/optimization.py`)
 - Docs management (`apps/api/routes/docs.py`)

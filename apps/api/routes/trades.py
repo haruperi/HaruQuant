@@ -7,12 +7,11 @@ from typing import Any, Dict
 from fastapi import APIRouter, HTTPException, status
 
 from apps.logger import logger
-from apps.mt5.data import MT5Data, TimeFrame
+from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 db_manager = DatabaseManager()
-mt5_data = MT5Data()
 
 
 def _get_backtest_info(backtest_id: int) -> Dict[str, Any]:
@@ -104,35 +103,44 @@ def _fetch_all_trades(backtest_id: int):
     return [dict(row) for row in trades_rows]
 
 
-def _load_chart_bars(
-    symbol: str, timeframe: TimeFrame, start_date, end_date, timeframe_str: str
-):
-    cache_key = f"chart_{symbol}_{timeframe_str}_{start_date.isoformat()}_{end_date.isoformat()}"
-    cached_data = mt5_data.get_cached(cache_key)
-    if cached_data:
-        logger.info(f"Using cached chart data for {symbol} {timeframe_str}")
-        return cached_data
-
-    bars = mt5_data.get_bars(
-        symbol=symbol,
-        timeframe=timeframe,
-        start=start_date,
-        end=end_date,
-        as_dataframe=False,
-    )
-
-    if not bars:
+def _load_chart_bars(symbol: str, timeframe_str: str, start_date, end_date):
+    client = MT5Client()
+    if not client.is_connected():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                f"Failed to fetch chart data for {symbol}. "
-                "MT5 may be unavailable or symbol not found."
-            ),
+            detail="MT5 connection not available",
         )
 
-    mt5_data.cache(cache_key, bars, ttl=3600)
-    logger.info(f"Cached chart data for {symbol} {timeframe_str}: {len(bars)} bars")
-    return bars
+    try:
+        bars_df = client.get_bars(
+            symbol=symbol,
+            timeframe=timeframe_str,
+            date_from=start_date,
+            date_to=end_date,
+        )
+
+        if bars_df is None or bars_df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    f"Failed to fetch chart data for {symbol}. "
+                    "MT5 may be unavailable or symbol not found."
+                ),
+            )
+
+        return [
+            {
+                "time": row["timestamp"],
+                "open": row["open"],
+                "high": row["high"],
+                "low": row["low"],
+                "close": row["close"],
+                "tick_volume": row["volume"],
+            }
+            for row in bars_df.reset_index().to_dict(orient="records")
+        ]
+    finally:
+        client.shutdown()
 
 
 def _to_timestamp(bar_time) -> int:
@@ -290,20 +298,13 @@ async def get_trade_chart_data(
 
         backtest_info = _get_backtest_info(backtest_id)
         symbol, timeframe_str = _resolve_symbol_timeframe(trade_data, backtest_info)
+        timeframe_str = timeframe_str.upper()
 
         if not symbol:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unable to determine trading symbol for chart data",
             )
-
-        # Convert timeframe string to TimeFrame enum
-        try:
-            timeframe = TimeFrame.from_string(timeframe_str)
-        except ValueError:
-            logger.warning(f"Invalid timeframe '{timeframe_str}', defaulting to H1")
-            timeframe = TimeFrame.H1
-            timeframe_str = "H1"
 
         start_date, end_date = _parse_backtest_dates(backtest_info)
         all_trades = _fetch_all_trades(backtest_id)
@@ -318,7 +319,7 @@ async def get_trade_chart_data(
             f"Fetching chart data for {symbol} {timeframe_str} from {start_date} to {end_date}"
         )
 
-        bars = _load_chart_bars(symbol, timeframe, start_date, end_date, timeframe_str)
+        bars = _load_chart_bars(symbol, timeframe_str, start_date, end_date)
         chart_data = _build_chart_data(bars)
 
         logger.info(

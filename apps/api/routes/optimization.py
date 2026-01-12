@@ -1,7 +1,7 @@
 """Optimization API routes."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import (
     APIRouter,
@@ -32,6 +32,16 @@ from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 db_manager = DatabaseManager()
+
+
+def _parse_request_date(value: Optional[str]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    raise ValueError(f"Unsupported date value: {value!r}")
 
 
 @router.post(
@@ -90,13 +100,15 @@ async def start_optimization(
                     param_space[param.name] = [param.min, param.max]
 
         # Create optimization run in database
+        start_dt = _parse_request_date(request.start_date) or datetime.now()
+        end_dt = _parse_request_date(request.end_date) or start_dt
         optimization_id = db_manager.create_optimization_run(
             strategy_name=strategy_name,
             strategy_version=strategy_version,
             optimization_type="parameter",
             optimization_method=request.method,
-            start_date=request.start_date,
-            end_date=request.end_date,
+            start_date=start_dt,
+            end_date=end_dt,
             symbols=[request.symbol],
             timeframes=[request.timeframe],
             parameter_space=param_space,
@@ -267,13 +279,15 @@ async def start_walk_forward(
                 else:
                     param_space[param.name] = [param.min, param.max]
 
+        start_dt = _parse_request_date(request.start_date) or datetime.now()
+        end_dt = _parse_request_date(request.end_date) or start_dt
         optimization_id = db_manager.create_optimization_run(
             strategy_name=strategy_name,
             strategy_version=strategy_version,
             optimization_type="walk_forward",
             optimization_method="grid",
-            start_date=request.start_date,
-            end_date=request.end_date,
+            start_date=start_dt,
+            end_date=end_dt,
             symbols=[request.symbol],
             timeframes=[request.timeframe],
             parameter_space=param_space,

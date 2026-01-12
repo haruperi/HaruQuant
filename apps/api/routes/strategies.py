@@ -4,6 +4,7 @@ import asyncio
 import os
 import tempfile
 from contextlib import suppress
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import (
@@ -224,9 +225,14 @@ def _load_strategy_class(
 ) -> tuple[Dict[str, Any], Any]:
     version = db_manager.get_strategy_version(version_id)
     strategy = db_manager.get_strategy(strategy_id)
+    if version is None:
+        raise ValueError(f"Strategy version {version_id} not found")
+    if strategy is None:
+        raise ValueError(f"Strategy {strategy_id} not found")
+
     user = db_manager.get_user(user_id=user_id)
-    username = user.get("username") if user else ""
-    strategy_name = strategy.get("name") if strategy else ""
+    username = (user.get("username") if user else "") or ""
+    strategy_name = (strategy.get("name") if strategy else "") or ""
 
     strategy_class = storage.load_strategy_class(
         user_id=user_id,
@@ -251,57 +257,81 @@ def _resolve_resolution(request: BacktestRequest) -> tuple[str, str, bool]:
     return resolution, data_step_mode, need_high_res
 
 
-def _fetch_mt5_signal_data(mt5_data, request, tf_enum):
+def _parse_request_date(value: Optional[str]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    raise ValueError(f"Unsupported date value: {value!r}")
+
+
+def _timeframe_to_minutes(timeframe: str) -> int:
+    mapping = {
+        "M1": 1,
+        "M5": 5,
+        "M15": 15,
+        "M30": 30,
+        "H1": 60,
+        "H4": 240,
+        "D1": 1440,
+        "W1": 10080,
+        "MN1": 43200,
+    }
+    tf = timeframe.strip().upper()
+    if tf not in mapping:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+    return mapping[tf]
+
+
+def _fetch_mt5_signal_data(client, request):
     logger.info(f"Fetching Signal Data ({request.timeframe})...")
     if request.range_by == "bars":
         logger.info(f"Loading {request.number_of_bars} bars")
-        data = mt5_data.get_bars(
+        data = client.get_bars(
             symbol=request.symbol,
-            timeframe=tf_enum,
+            timeframe=request.timeframe,
             count=request.number_of_bars,
         )
     else:
-        data = mt5_data.get_bars(
+        data = client.get_bars(
             symbol=request.symbol,
-            timeframe=tf_enum,
-            start=request.start_date,
-            end=request.end_date,
+            timeframe=request.timeframe,
+            date_from=_parse_request_date(request.start_date),
+            date_to=_parse_request_date(request.end_date),
         )
     return data
 
 
-def _fetch_mt5_execution_data(
-    mt5_data, request, time_frame_enum, mt5_module, resolution
-):
+def _fetch_mt5_execution_data(client, request, resolution):
     if resolution == "m1":
         if request.range_by == "bars":
-            tf_minutes = time_frame_enum.from_string(request.timeframe).minutes
+            tf_minutes = _timeframe_to_minutes(request.timeframe)
             m1_count = request.number_of_bars * tf_minutes
-            return mt5_data.get_bars(
+            return client.get_bars(
                 symbol=request.symbol,
-                timeframe=time_frame_enum.M1,
+                timeframe="M1",
                 count=m1_count,
             )
-        return mt5_data.get_bars(
+        return client.get_bars(
             symbol=request.symbol,
-            timeframe=time_frame_enum.M1,
-            start=request.start_date,
-            end=request.end_date,
+            timeframe="M1",
+            date_from=_parse_request_date(request.start_date),
+            date_to=_parse_request_date(request.end_date),
         )
 
     if resolution == "tick":
         if request.range_by == "bars":
             tick_count = request.number_of_bars * 100
-            return mt5_data.get_ticks(
+            return client.get_ticks(
                 symbol=request.symbol,
                 count=tick_count,
-                flags=mt5_module.COPY_TICKS_ALL,
             )
-        return mt5_data.get_ticks(
+        return client.get_ticks(
             symbol=request.symbol,
-            start=request.start_date,
-            end=request.end_date,
-            flags=mt5_module.COPY_TICKS_ALL,
+            start=_parse_request_date(request.start_date),
+            end=_parse_request_date(request.end_date),
         )
 
     return None
@@ -332,22 +362,17 @@ def _load_mt5_data(
     need_high_res: bool,
     data_step_mode: str,
 ):
-    import MetaTrader5 as mt5
-
     from apps.mt5.client import MT5Client
-    from apps.mt5.data import MT5Data, TimeFrame
 
     client = MT5Client()
     if not client.initialize():
         raise RuntimeError("Failed to connect to MT5")
 
-    mt5_data = MT5Data(client=client)
     data = None
     execution_data = None
 
     try:
-        tf_enum = TimeFrame.from_string(request.timeframe)
-        data = _fetch_mt5_signal_data(mt5_data, request, tf_enum)
+        data = _fetch_mt5_signal_data(client, request)
 
         if data is None or data.empty:
             raise ValueError(f"No {request.timeframe} data found for {request.symbol}")
@@ -358,9 +383,7 @@ def _load_mt5_data(
 
         if need_high_res:
             logger.info(f"Fetching Execution Data ({resolution})...")
-            execution_data = _fetch_mt5_execution_data(
-                mt5_data, request, TimeFrame, mt5, resolution
-            )
+            execution_data = _fetch_mt5_execution_data(client, request, resolution)
             execution_data, data_step_mode = _prepare_mt5_execution_data(
                 execution_data, resolution, data_step_mode
             )
@@ -685,6 +708,11 @@ async def create_strategy(
 
         # Get created strategy
         strategy = db_manager.get_strategy(strategy_id)
+        if strategy is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load created strategy",
+            )
 
         logger.info(f"Strategy created successfully: ID={strategy_id}")
 
@@ -789,6 +817,11 @@ async def update_strategy(
 
         # Get updated strategy
         updated_strategy = db_manager.get_strategy(strategy_id)
+        if updated_strategy is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load updated strategy",
+            )
 
         return StrategyResponse(**updated_strategy)
 
@@ -892,15 +925,18 @@ async def get_version_code(
         code = storage.load_strategy_code(
             user_id, strategy_id, version["version"], username, strategy_name
         )
-        metadata = storage.load_strategy_metadata(
-            user_id, strategy_id, version["version"], username, strategy_name
+        metadata = (
+            storage.load_strategy_metadata(
+                user_id, strategy_id, version["version"], username, strategy_name
+            )
+            or {}
         )
 
         return {
             "version_id": version_id,
             "version": version["version"],
             "code": code,
-            "parameters": version["parameters"],
+            "parameters": version.get("parameters") or {},
             "symbol": metadata.get("symbol"),
             "timeframe": metadata.get("timeframe"),
             "type": metadata.get("type"),
@@ -964,11 +1000,14 @@ async def run_backtest(
         version_id = strategy["active_version_id"]
 
         # Create backtest run using new 4-layer system
+        start_dt = _parse_request_date(request.start_date) or datetime.now()
+        end_dt = _parse_request_date(request.end_date) or datetime.now()
+
         backtest_id = db_manager.create_backtest_run(
             strategy_name=strategy["name"],
             strategy_version="1.0.0",  # You can enhance this to get actual version
-            start_date=request.start_date or "N/A",
-            end_date=request.end_date or "N/A",
+            start_date=start_dt,
+            end_date=end_dt,
             engine_type=request.engine_type or "event-driven",
             data_resolution=request.data_resolution or "timeframe",
             config_hash=str(hash((strategy_id, request.symbol, request.timeframe))),
@@ -993,6 +1032,11 @@ async def run_backtest(
 
         # Get backtest record
         backtest_run = db_manager.get_backtest_run(backtest_id)
+        if backtest_run is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load backtest run",
+            )
 
         logger.info(f"Backtest {backtest_id} started for strategy {strategy_id}")
 
@@ -1085,7 +1129,7 @@ async def _run_backtest_task(
         logger.info(f"Total Signal Bars: {len(data)}")
 
         # Run backtest
-        params = version.get("parameters", {})
+        params = dict(version.get("parameters") or {})
 
         # Add symbol and timeframe to params for strategy initialization
         params["symbol"] = request.symbol
@@ -1451,6 +1495,11 @@ async def update_backtest(
 
         # Get updated backtest
         updated_backtest = db_manager.get_backtest_run(backtest_id)
+        if updated_backtest is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to load backtest {backtest_id}",
+            )
 
         # Get finance metrics if completed
         metrics = _get_backtest_metrics(backtest_id, updated_backtest["status"])

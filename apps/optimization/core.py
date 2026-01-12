@@ -6,7 +6,7 @@ Background task execution for optimization, walk-forward analysis, and Monte Car
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from apps.backtest.persistence import BacktestDatabase
 from apps.logger import logger
@@ -33,6 +33,16 @@ OBJECTIVE_FUNCTIONS = {
     "calmar": calmar_score,
     "profit_factor": profit_factor_score,
 }
+
+
+def _parse_request_date(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    raise ValueError(f"Unsupported date value: {value!r}")
 
 
 async def run_optimization_task(  # noqa: C901
@@ -115,34 +125,17 @@ async def run_optimization_task(  # noqa: C901
 
         if data_source in ["metatrader5", "mt5"]:
             try:
-                import MetaTrader5 as mt5
-
                 from apps.mt5.client import MT5Client
-                from apps.mt5.data import MT5Data
-
-                # Map timeframe string to MT5 constant
-                tf_map = {
-                    "M1": mt5.TIMEFRAME_M1,
-                    "M5": mt5.TIMEFRAME_M5,
-                    "M15": mt5.TIMEFRAME_M15,
-                    "M30": mt5.TIMEFRAME_M30,
-                    "H1": mt5.TIMEFRAME_H1,
-                    "H4": mt5.TIMEFRAME_H4,
-                    "D1": mt5.TIMEFRAME_D1,
-                    "W1": mt5.TIMEFRAME_W1,
-                }
-                mt5_tf = tf_map.get(request.timeframe.upper(), mt5.TIMEFRAME_H1)
 
                 client = MT5Client()
                 if not client.initialize():
                     raise ValueError("Failed to initialize MT5")
 
-                mt5_data = MT5Data(client)
-                data = mt5_data.get_bars(
+                data = client.get_bars(
                     symbol=request.symbol,
-                    timeframe=mt5_tf,
-                    start=request.start_date,
-                    end=request.end_date,
+                    timeframe=request.timeframe,
+                    date_from=_parse_request_date(request.start_date),
+                    date_to=_parse_request_date(request.end_date),
                 )
                 client.shutdown()
 
@@ -353,6 +346,9 @@ async def run_optimization_task(  # noqa: C901
         import hashlib
         import json
 
+        start_dt = _parse_request_date(request.start_date) or datetime.now()
+        end_dt = _parse_request_date(request.end_date) or datetime.now()
+
         for opt_result in summary.all_results:
             # Create config hash from optimization parameters
             config_str = json.dumps(opt_result.parameters, sort_keys=True)
@@ -362,8 +358,8 @@ async def run_optimization_task(  # noqa: C901
             backtest_id = db_manager.create_backtest_run(
                 strategy_name=strategy_name,
                 strategy_version="1.0",  # Default version for optimization runs
-                start_date=request.start_date,
-                end_date=request.end_date,
+                start_date=start_dt,
+                end_date=end_dt,
                 engine_type=request.engine_type,
                 data_resolution=request.timeframe,
                 config_hash=config_hash,
@@ -494,33 +490,17 @@ async def run_walk_forward_task(  # noqa: C901
 
         if data_source in ["metatrader5", "mt5"]:
             try:
-                import MetaTrader5 as mt5
-
                 from apps.mt5.client import MT5Client
-                from apps.mt5.data import MT5Data
-
-                tf_map = {
-                    "M1": mt5.TIMEFRAME_M1,
-                    "M5": mt5.TIMEFRAME_M5,
-                    "M15": mt5.TIMEFRAME_M15,
-                    "M30": mt5.TIMEFRAME_M30,
-                    "H1": mt5.TIMEFRAME_H1,
-                    "H4": mt5.TIMEFRAME_H4,
-                    "D1": mt5.TIMEFRAME_D1,
-                    "W1": mt5.TIMEFRAME_W1,
-                }
-                mt5_tf = tf_map.get(request.timeframe.upper(), mt5.TIMEFRAME_H1)
 
                 client = MT5Client()
                 if not client.initialize():
                     raise ValueError("Failed to initialize MT5")
 
-                mt5_data = MT5Data(client)
-                data = mt5_data.get_bars(
+                data = client.get_bars(
                     symbol=request.symbol,
-                    timeframe=mt5_tf,
-                    start=request.start_date,
-                    end=request.end_date,
+                    timeframe=request.timeframe,
+                    date_from=_parse_request_date(request.start_date),
+                    date_to=_parse_request_date(request.end_date),
                 )
                 client.shutdown()
 

@@ -11,7 +11,6 @@ from .routes import (
     broker,
     data,
     docs,
-    live,
     market_hours,
     optimization,
     settings,
@@ -66,7 +65,7 @@ app.include_router(
     market_hours.router, prefix="/api/market-hours", tags=["market-hours"]
 )
 app.include_router(trades.router, prefix="/api/trades", tags=["trades"])
-app.include_router(live.router, prefix="/api/live", tags=["live-trading"])
+# Live trading routes temporarily disabled.
 app.include_router(data.router, prefix="/api/data", tags=["data-management"])
 app.include_router(
     optimization.router, prefix="/api/optimization", tags=["optimization"]
