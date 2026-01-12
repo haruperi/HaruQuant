@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import numpy as np
 
-import apps.backtest.stats as stats
 from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
 from apps.backtest.result import BacktestResult
 from apps.logger import logger
@@ -166,7 +165,7 @@ def genetic_algorithm(  # noqa: C901
             result = engine.run()
 
             # Metrics and score
-            result_metrics = stats.calculate_all_metrics(result)
+            result_metrics = result.summary()
             score = scoring_func(result)
 
             # Store result

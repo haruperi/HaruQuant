@@ -8,7 +8,6 @@ More efficient than random search, intelligently explores parameter space.
 import time
 from typing import Callable, Dict, Optional, Tuple, Type
 
-import apps.backtest.stats as stats
 from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
 from apps.backtest.result import BacktestResult
 from apps.logger import logger
@@ -156,7 +155,7 @@ def bayesian_optimization(  # noqa: C901
             result = engine.run()
 
             # Metrics and score
-            result_metrics = stats.calculate_all_metrics(result)
+            result_metrics = result.summary()
             score = scoring_func(result)
 
             # Store result

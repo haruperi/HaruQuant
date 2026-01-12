@@ -8,7 +8,6 @@ from typing import Any, Callable, Dict, List, Optional, Type
 
 import numpy as np
 
-import apps.backtest.stats as stats
 from apps.backtest.engine import VectorizedEngine
 from apps.backtest.result import BacktestResult
 from apps.logger import logger
@@ -170,7 +169,7 @@ def walk_forward(  # noqa: C901
             "best_params": best_params,
             "train_score": train_score,
             "test_score": scoring_func(test_result),
-            "test_return": stats.total_return(test_result),
+            "test_return": test_result.total_return_pct,
         }
 
         wf_results.append(window_result)

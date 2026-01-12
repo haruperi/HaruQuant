@@ -601,7 +601,7 @@ class BacktestResult:
             DataFrame with all trade records
         """
         if not self.trades:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=TradeRecord().to_dict().keys())
 
         return pd.DataFrame([trade.to_dict() for trade in self.trades])
 

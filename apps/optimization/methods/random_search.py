@@ -13,7 +13,6 @@ from typing import Any, Callable, Dict, Optional, Tuple, Type, cast
 
 import numpy as np
 
-import apps.backtest.stats as stats
 from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
 from apps.backtest.result import BacktestResult
 from apps.logger import logger
@@ -63,7 +62,7 @@ def _run_single_random_backtest(args):
             engine = EventDrivenEngine(strategy, data, initial_balance=initial_balance)
 
         result = engine.run()
-        result_metrics = stats.calculate_all_metrics(result)
+        result_metrics = result.summary()
         score = scoring_func(result)
 
         opt_result = OptimizationResult(
@@ -258,7 +257,7 @@ def random_search(  # noqa: C901
                 result = engine.run()
 
                 # Metrics and score
-                result_metrics = stats.calculate_all_metrics(result)
+                result_metrics = result.summary()
                 score = scoring_func(result)
 
                 opt_result = OptimizationResult(

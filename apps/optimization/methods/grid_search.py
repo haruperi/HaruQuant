@@ -11,7 +11,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Type, cast
 
-import apps.backtest.stats as stats
 from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
 from apps.backtest.result import BacktestResult
 from apps.logger import logger
@@ -65,7 +64,7 @@ def _run_single_backtest(args):
         result = engine.run()
 
         # Calculate metrics
-        result_metrics = stats.calculate_all_metrics(result)
+        result_metrics = result.summary()
 
         # Score
         score = scoring_func(result)
@@ -93,6 +92,7 @@ def grid_search(  # noqa: C901
     progress_callback: Optional[Callable] = None,
     strategy_file_path: Optional[str] = None,
     symbol: Optional[str] = None,
+    constraint: Optional[Callable[[Dict[str, Any]], bool]] = None,
 ) -> OptimizationSummary:
     """
     Grid search over parameter space.
@@ -110,6 +110,7 @@ def grid_search(  # noqa: C901
         verbose: Print progress
         progress_callback: Optional callback(completed, total, current_params, best_score, best_params)
         strategy_file_path: Optional path to strategy file (needed for parallel execution with dynamic classes)
+        constraint: Optional function that returns True for valid parameter sets
 
     Returns:
         OptimizationSummary with results
@@ -138,7 +139,11 @@ def grid_search(  # noqa: C901
     param_values = list(param_grid.values())
     combinations = list(product(*param_values))
 
-    total = len(combinations)
+    param_sets = [dict(zip(param_names, combo)) for combo in combinations]
+    if constraint:
+        param_sets = [params for params in param_sets if constraint(params)]
+
+    total = len(param_sets)
 
     if verbose:
         logger.info(f"Total combinations: {total}")
@@ -188,12 +193,12 @@ def grid_search(  # noqa: C901
                 strategy_info,
                 data,
                 symbol,
-                dict(zip(param_names, combo)),
+                params,
                 initial_balance,
                 engine_type,
                 scoring_func,
             )
-            for combo in combinations
+            for params in param_sets
         ]
 
         # Run in parallel
@@ -236,8 +241,7 @@ def grid_search(  # noqa: C901
 
     else:
         # Sequential execution (original code)
-        for i, combo in enumerate(combinations):
-            params = dict(zip(param_names, combo))
+        for i, params in enumerate(param_sets):
 
             if verbose and (i + 1) % max(1, total // 10) == 0:
                 logger.info(f"Progress: {i + 1}/{total} ({(i + 1) / total * 100:.1f}%)")
@@ -264,7 +268,7 @@ def grid_search(  # noqa: C901
                 result = engine.run()
 
                 # Calculate metrics
-                result_metrics = stats.calculate_all_metrics(result)
+                result_metrics = result.summary()
 
                 # Score
                 score = scoring_func(result)
