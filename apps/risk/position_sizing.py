@@ -5,6 +5,7 @@ Dynamic position sizing based on various risk management methods.
 Replaces hardcoded 0.1 lot sizing with intelligent, risk-based approaches.
 """
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
@@ -83,6 +84,7 @@ class PositionSizer:
         context: Optional[Dict[str, Any]] = None,
         symbol: Optional[str] = None,
         signal_type: Optional[str] = None,
+        allow_fractional: bool = False,
     ) -> float:
         """
         Calculate position size based on configured method.
@@ -95,6 +97,7 @@ class PositionSizer:
             context: Additional data (ATR, win rate, etc.)
             symbol: Trading symbol (needed for dynamic stop loss calculation)
             signal_type: 'buy' or 'sell' (needed for dynamic stop loss calculation)
+            allow_fractional: If True, skip lot step rounding (for crypto/fractional shares)
 
         Returns:
             Position size in lots
@@ -102,43 +105,74 @@ class PositionSizer:
         context = context or {}
 
         try:
-            if self.method == "fixed_lot":
-                size = self._fixed_lot_sizing()
-            elif self.method == "milestone":
-                size = self._milestone_sizing(account_balance)
-            elif self.method == "fixed_risk":
-                size = self._fixed_risk_sizing(
-                    account_balance,
-                    entry_price,
-                    stop_loss,
-                    symbol_info,
-                    symbol,
-                    signal_type,
-                )
-            elif self.method == "kelly":
-                size = self._kelly_criterion_sizing(
-                    account_balance, entry_price, context
-                )
-            elif self.method == "volatility":
-                size = self._volatility_based_sizing(
-                    account_balance, entry_price, context, symbol_info
-                )
-            elif self.method == "fixed_fractional":
-                size = self._fixed_fractional_sizing(
-                    account_balance, entry_price, symbol_info
-                )
-            else:
-                raise ValueError(f"Unknown sizing method: {self.method}")
+            # Calculate raw size using configured method
+            size = self._dispatch_sizing_method(
+                account_balance,
+                entry_price,
+                stop_loss,
+                symbol_info,
+                context,
+                symbol,
+                signal_type,
+            )
 
             # Validate and adjust size
             if symbol_info:
-                size = validate_position_size(size, symbol_info)
+                size = validate_position_size(
+                    size, symbol_info, allow_fractional=allow_fractional
+                )
 
-            return max(size, 0.01)  # Minimum 0.01 lots
+            min_lot = self._get_min_lot(symbol_info)
+            return max(size, min_lot)
 
         except Exception as e:
             logger.error(f"Position sizing error ({self.method}): {e}")
             return 0.1  # Fallback to default
+
+    def _dispatch_sizing_method(
+        self,
+        account_balance: float,
+        entry_price: float,
+        stop_loss: Optional[float],
+        symbol_info: Optional[Any],
+        context: Dict[str, Any],
+        symbol: Optional[str],
+        signal_type: Optional[str],
+    ) -> float:
+        """Dispatch to appropriate sizing method based on self.method."""
+        sizing_methods = {
+            "fixed_lot": lambda: self._fixed_lot_sizing(),
+            "milestone": lambda: self._milestone_sizing(account_balance),
+            "fixed_risk": lambda: self._fixed_risk_sizing(
+                account_balance,
+                entry_price,
+                stop_loss,
+                symbol_info,
+                symbol,
+                signal_type,
+            ),
+            "kelly": lambda: self._kelly_criterion_sizing(
+                account_balance, entry_price, context
+            ),
+            "volatility": lambda: self._volatility_based_sizing(
+                account_balance, entry_price, context, symbol_info
+            ),
+            "fixed_fractional": lambda: self._fixed_fractional_sizing(
+                account_balance, entry_price, symbol_info
+            ),
+        }
+
+        if self.method not in sizing_methods:
+            raise ValueError(f"Unknown sizing method: {self.method}")
+
+        return sizing_methods[self.method]()
+
+    def _get_min_lot(self, symbol_info: Optional[Any]) -> float:
+        """Get minimum lot size from symbol_info or return default."""
+        if symbol_info:
+            with suppress(Exception):
+                return float(symbol_info.get_lots_min())
+        return 0.01
 
     def _fixed_lot_sizing(self) -> float:
         """
@@ -588,12 +622,15 @@ class PositionSizer:
 
 
 def validate_position_size(
-    size: float, symbol_info: Any, max_size: Optional[float] = None
+    size: float,
+    symbol_info: Any,
+    max_size: Optional[float] = None,
+    allow_fractional: bool = False,
 ) -> float:
     """
     Validate and adjust position size to meet constraints.
 
-    - Round to lot step
+    - Round to lot step (unless allow_fractional is True)
     - Enforce min/max lot size
     - Apply optional max size limit
 
@@ -601,14 +638,15 @@ def validate_position_size(
         size: Calculated position size
         symbol_info: SymbolInfo object with constraints
         max_size: Optional maximum size override
+        allow_fractional: If True, skip lot step rounding (for crypto/fractional shares)
 
     Returns:
         Validated position size
     """
     try:
-        min_lot = symbol_info.get_volume_min()
-        max_lot = symbol_info.get_volume_max()
-        lot_step = symbol_info.get_volume_step()
+        min_lot = symbol_info.get_lots_min()
+        max_lot = symbol_info.get_lots_max()
+        lot_step = symbol_info.get_lots_step()
     except Exception:
         # Fallback defaults for forex
         min_lot = 0.01
@@ -619,8 +657,9 @@ def validate_position_size(
     if max_size is not None:
         max_lot = min(max_lot, max_size)
 
-    # Round to lot step
-    size = round(size / lot_step) * lot_step
+    # Round to lot step (unless fractional mode enabled)
+    if not allow_fractional and lot_step > 0:
+        size = round(size / lot_step) * lot_step
 
     # Enforce min/max
     size = max(min_lot, min(size, max_lot))

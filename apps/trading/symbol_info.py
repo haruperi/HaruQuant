@@ -811,12 +811,101 @@ class BacktestSymbolProvider:
         """
         Get default symbol specifications for common symbols.
 
+        Supports forex pairs, JPY pairs, and cryptocurrency symbols.
+        For custom specifications, use set_symbol_spec() after initialization.
+
         Args:
             symbol_name: Symbol name
 
         Returns:
             Dictionary with default symbol specifications
         """
+        symbol_upper = symbol_name.upper()
+
+        # Cryptocurrency presets (fractional volume support)
+        crypto_presets: Dict[str, Dict[str, Any]] = {
+            "BTCUSD": {
+                "name": symbol_name,
+                "digits": 2,
+                "point": 0.01,
+                "spread": 50,
+                "trade_contract_size": 1.0,  # 1 BTC per lot
+                "volume_min": 0.00000001,  # 1 satoshi
+                "volume_max": 1000.0,
+                "volume_step": 0.00000001,
+                "trade_tick_size": 0.01,
+                "trade_tick_value": 0.01,
+                "currency_base": "BTC",
+                "currency_profit": "USD",
+                "currency_margin": "USD",
+                "swap_mode": 0,  # Disabled for crypto
+                "swap_long": 0.0,
+                "swap_short": 0.0,
+                "swap_rollover3days": 3,
+            },
+            "ETHUSD": {
+                "name": symbol_name,
+                "digits": 2,
+                "point": 0.01,
+                "spread": 30,
+                "trade_contract_size": 1.0,  # 1 ETH per lot
+                "volume_min": 0.00000001,
+                "volume_max": 10000.0,
+                "volume_step": 0.00000001,
+                "trade_tick_size": 0.01,
+                "trade_tick_value": 0.01,
+                "currency_base": "ETH",
+                "currency_profit": "USD",
+                "currency_margin": "USD",
+                "swap_mode": 0,
+                "swap_long": 0.0,
+                "swap_short": 0.0,
+                "swap_rollover3days": 3,
+            },
+            "XRPUSD": {
+                "name": symbol_name,
+                "digits": 5,
+                "point": 0.00001,
+                "spread": 10,
+                "trade_contract_size": 1.0,
+                "volume_min": 0.001,
+                "volume_max": 1000000.0,
+                "volume_step": 0.001,
+                "trade_tick_size": 0.00001,
+                "trade_tick_value": 0.00001,
+                "currency_base": "XRP",
+                "currency_profit": "USD",
+                "currency_margin": "USD",
+                "swap_mode": 0,
+                "swap_long": 0.0,
+                "swap_short": 0.0,
+                "swap_rollover3days": 3,
+            },
+            "SOLUSD": {
+                "name": symbol_name,
+                "digits": 2,
+                "point": 0.01,
+                "spread": 20,
+                "trade_contract_size": 1.0,
+                "volume_min": 0.0001,
+                "volume_max": 100000.0,
+                "volume_step": 0.0001,
+                "trade_tick_size": 0.01,
+                "trade_tick_value": 0.01,
+                "currency_base": "SOL",
+                "currency_profit": "USD",
+                "currency_margin": "USD",
+                "swap_mode": 0,
+                "swap_long": 0.0,
+                "swap_short": 0.0,
+                "swap_rollover3days": 3,
+            },
+        }
+
+        # Check for crypto symbol match
+        if symbol_upper in crypto_presets:
+            return crypto_presets[symbol_upper]
+
         # Common forex pairs (5 digits)
         forex_5_digit = {
             "name": symbol_name,
@@ -876,6 +965,33 @@ class BacktestSymbolProvider:
             last=last or bid,
             volume=volume,
         )
+
+    def set_symbol_spec(self, **kwargs: Any) -> None:
+        """
+        Override symbol specifications for custom assets.
+
+        Use this to configure custom symbols not in the presets (forex, crypto),
+        or to override specific properties for backtesting scenarios.
+
+        Example:
+            provider = BacktestSymbolProvider(symbol_name="CUSTOM")
+            provider.set_symbol_spec(
+                volume_min=0.00001,
+                volume_max=10000.0,
+                volume_step=0.00001,
+                trade_contract_size=1.0,
+            )
+
+        Args:
+            **kwargs: Symbol properties to override. Common properties:
+                - volume_min: Minimum trade volume
+                - volume_max: Maximum trade volume
+                - volume_step: Volume increment step
+                - trade_contract_size: Contract size per lot
+                - digits: Price decimal places
+                - point: Minimum price change
+        """
+        self._symbol_data.update(kwargs)
 
     def get_symbol_name(self) -> str:
         """Get symbol name."""

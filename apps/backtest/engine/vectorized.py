@@ -525,18 +525,25 @@ class VectorizedEngine(BaseEngine):
             if atr_col in bar.index:
                 context["atr"] = bar[atr_col]
 
-            # Calculate position size
+            # Calculate position size (sizer validates internally)
             volume = self.position_sizer.calculate_size(
                 account_balance=current_balance,
                 entry_price=signal["price"],
                 stop_loss=signal["stop_loss"],
-                symbol_info=None,  # VectorizedEngine doesn't have symbol_info
+                symbol_info=self._symbol_provider,
                 context=context,
+                allow_fractional=self.allow_fractional_volumes,
             )
         else:
             # Fixed position size for consistent backtesting/optimization
-            # Using 0.01 lots (minimum size) to work with small accounts
-            volume = 0.01
+            # Validate using symbol constraints
+            from apps.risk.position_sizing import validate_position_size
+
+            volume = validate_position_size(
+                0.01,  # Default minimum size
+                self._symbol_provider,
+                allow_fractional=self.allow_fractional_volumes,
+            )
 
         return float(volume)
 

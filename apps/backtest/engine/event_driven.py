@@ -1217,16 +1217,28 @@ class EventDrivenEngine(BaseEngine):
             if atr_col in bar.index:
                 context["atr"] = bar[atr_col]
 
-            return float(
+            # Calculate position size (sizer validates internally)
+            volume = float(
                 self.position_sizer.calculate_size(
                     account_balance=self._account_provider.get_balance(),
                     entry_price=entry_price,
                     stop_loss=stop_loss,
                     symbol_info=self._symbol_provider,
                     context=context,
+                    allow_fractional=self.allow_fractional_volumes,
                 )
             )
-        return 0.1
+        else:
+            # Validate using symbol constraints
+            from apps.risk.position_sizing import validate_position_size
+
+            volume = validate_position_size(
+                0.1,  # Default size
+                self._symbol_provider,
+                allow_fractional=self.allow_fractional_volumes,
+            )
+
+        return float(volume)
 
     def _check_margin(
         self, volume: float, entry_price: float, contract_size: float, bar: pd.Series

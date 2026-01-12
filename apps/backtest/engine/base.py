@@ -84,6 +84,12 @@ class BaseEngine(ABC):
         self.leverage = leverage
         self.config = config or {}
 
+        # Fractional volume support (for crypto, fractional shares)
+        # When True, position sizes are not rounded to lot_step
+        self.allow_fractional_volumes = self.config.get(
+            "allow_fractional_volumes", False
+        )
+
         # Backtest date range (defaults to data range if not specified)
         self.backtest_start_date = backtest_start_date or data.index[0]
         self.backtest_end_date = backtest_end_date or data.index[-1]
