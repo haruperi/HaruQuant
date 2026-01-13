@@ -17,7 +17,7 @@ export function ResourceUsage() {
   useEffect(() => {
     async function fetchResources() {
       try {
-        const response = await fetch("http://localhost:8000/api/system/resources")
+        const response = await fetch("http://localhost:8000/api/dashboard/system/resources")
         if (!response.ok) throw new Error("Failed to fetch")
         const result = await response.json()
         setData(result)

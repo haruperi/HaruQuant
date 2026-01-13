@@ -83,7 +83,7 @@ def _update_mt5_connection(user_id: int) -> None:
         logger.error(f"Error fetching/applying user settings: {e}")
 
 
-@router.get("/", response_model=BrokerStatusResponse)
+@router.get("/broker", response_model=BrokerStatusResponse)
 async def get_broker_status(authorization: Annotated[Optional[str], Header()] = None):
     """
     Get current broker connection status and account info.

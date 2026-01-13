@@ -19,7 +19,7 @@ export function SystemStatus() {
     async function fetchSystemStatus() {
       const start = Date.now()
       try {
-        const response = await fetch("http://localhost:8000/api/system/status")
+        const response = await fetch("http://localhost:8000/api/dashboard/system/status")
         const end = Date.now()
         setLatency(end - start) // Calculate round-trip latency
 

@@ -143,7 +143,7 @@ def get_market_message(
     return ""
 
 
-@router.get("/", response_model=MarketHoursResponse)
+@router.get("/market-hours", response_model=MarketHoursResponse)
 async def get_market_hours():
     """Get status of major financial markets."""
     utc_now = datetime.now(pytz.UTC)

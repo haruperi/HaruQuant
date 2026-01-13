@@ -6,18 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.logger import logger
 
 from .logging_config import setup_logging
-from .routes import (
-    auth,
-    broker,
-    data,
-    docs,
-    market_hours,
-    optimization,
-    settings,
-    strategies,
-    system,
-    trades,
-)
+from .routes import auth, data, docs, optimization, settings, strategies, trades
+from .routes.dashboard import broker as dashboard_broker
+from .routes.dashboard import market_hours as dashboard_market_hours
+from .routes.dashboard import system as dashboard_system
 from .routes.reports import (
     consecutive_winners_losers,
     equity_curve,
@@ -58,12 +50,17 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
-app.include_router(system.router, prefix="/api/system", tags=["system"])
+
+
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
-app.include_router(broker.router, prefix="/api/broker", tags=["broker"])
+
+# Dashboard Routes
+app.include_router(dashboard_broker.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(dashboard_system.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(
-    market_hours.router, prefix="/api/market-hours", tags=["market-hours"]
+    dashboard_market_hours.router, prefix="/api/dashboard", tags=["dashboard"]
 )
+
 app.include_router(trades.router, prefix="/api/trades", tags=["trades"])
 # Live trading routes temporarily disabled.
 app.include_router(data.router, prefix="/api/data", tags=["data-management"])

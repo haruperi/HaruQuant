@@ -18,7 +18,7 @@ except ImportError:
 router = APIRouter()
 
 
-@router.get("/status", response_model=SystemStatusResponse)
+@router.get("/system/status", response_model=SystemStatusResponse)
 async def get_system_status():
     """Get backend and database status."""
     db = DatabaseManager()
@@ -42,7 +42,7 @@ async def get_system_status():
     )
 
 
-@router.get("/resources", response_model=ResourceUsageResponse)
+@router.get("/system/resources", response_model=ResourceUsageResponse)
 async def get_resource_usage():
     """Get system resource usage (CPU, Memory)."""
     if not psutil:
