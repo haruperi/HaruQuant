@@ -2,6 +2,7 @@
 
 from .backtests import BacktestManager
 from .base import DatabaseBase, UserAlreadyExistsError
+from .edge_discovery import EdgeDiscoveryManager
 from .live_trading import LiveTradingManager
 from .market_data import MarketDataManager
 from .optimization import OptimizationManager
@@ -18,6 +19,7 @@ class SQLiteDatabase(
     OptimizationManager,
     LiveTradingManager,
     MarketDataManager,
+    EdgeDiscoveryManager,
     DatabaseBase,
 ):
     """
@@ -33,4 +35,5 @@ __all__ = [
     "SQLiteDatabase",
     "DatabaseBase",
     "UserAlreadyExistsError",
+    "EdgeDiscoveryManager",
 ]

@@ -28,7 +28,8 @@ import { MoreVertical, Loader2, CheckCircle2, Edit, Trash2 } from "lucide-react"
 import { useAllBacktests } from "@/lib/use-strategies"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { EditBacktestDialog } from "./edit-backtest-dialog"
-import { strategyApi, Backtest } from "@/lib/api/strategies"
+import { strategyApi } from "@/lib/api/strategies"
+import backtestApi, { Backtest } from "@/lib/api/backtest"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -85,7 +86,7 @@ export function BacktestRunsTable() {
     data: { alias?: string; description?: string }
   ) => {
     try {
-      await strategyApi.updateBacktest(backtestId, data)
+      await backtestApi.update(backtestId, data)
       toast.success("Backtest updated successfully")
       refetch()
     } catch (error) {
@@ -106,7 +107,7 @@ export function BacktestRunsTable() {
 
     try {
       setDeleting(true)
-      await strategyApi.deleteBacktest(backtestToDelete.backtest_id)
+      await backtestApi.delete(backtestToDelete.backtest_id)
 
       // If the deleted backtest was selected, deselect it
       if (isSelected(backtestToDelete.backtest_id)) {

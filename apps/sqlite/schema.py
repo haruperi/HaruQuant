@@ -695,6 +695,135 @@ class SchemaManager:
             """
             cursor.execute(create_monte_carlo_simulations_table)
 
+            # =========================================================================
+            # EDGE DISCOVERY TABLES
+            # =========================================================================
+
+            create_edge_discovery_runs_table = """
+            CREATE TABLE IF NOT EXISTS edge_discovery_runs (
+                run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+
+                -- Symbol and timeframe
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+
+                -- EDS type
+                eds_name TEXT NOT NULL,
+                eds_type TEXT NOT NULL,
+
+                -- Configuration (JSON)
+                config TEXT NOT NULL,
+
+                -- Data range
+                start_pos INTEGER,
+                end_pos INTEGER,
+                bar_count INTEGER,
+
+                -- Results summary
+                n_trades INTEGER,
+                expectancy_r REAL,
+                win_rate REAL,
+                profit_factor REAL,
+
+                -- Statistical validation
+                ci_low REAL,
+                ci_high REAL,
+                p_value_perm REAL,
+
+                -- Verdict
+                verdict TEXT,
+                edge_confirmed BOOLEAN DEFAULT 0,
+
+                -- Bootstrap/Permutation config
+                n_boot INTEGER,
+                n_perm INTEGER,
+                block_size INTEGER,
+                ci_level REAL,
+
+                -- Extras (JSON for additional stats)
+                extras TEXT,
+
+                -- Timestamps
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+            );
+            """
+            cursor.execute(create_edge_discovery_runs_table)
+
+            create_edge_discovery_trades_table = """
+            CREATE TABLE IF NOT EXISTS edge_discovery_trades (
+                trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+
+                -- Trade timing
+                entry_time TIMESTAMP,
+                exit_time TIMESTAMP,
+
+                -- Trade details
+                side TEXT,
+                entry_price REAL,
+                exit_price REAL,
+
+                -- R-multiple metrics
+                r_multiple REAL,
+                mae_r REAL,
+                mfe_r REAL,
+
+                -- Holding period
+                hold_bars INTEGER,
+
+                -- Metadata (JSON)
+                meta TEXT,
+
+                FOREIGN KEY (run_id) REFERENCES edge_discovery_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_discovery_trades_table)
+
+            create_edge_discovery_stats_table = """
+            CREATE TABLE IF NOT EXISTS edge_discovery_stats (
+                run_id INTEGER PRIMARY KEY,
+
+                -- Core metrics
+                n_trades INTEGER,
+                expectancy_r REAL,
+                win_rate REAL,
+                profit_factor REAL,
+
+                -- Excursion metrics
+                median_mae_r REAL,
+                median_mfe_r REAL,
+                avg_hold_bars REAL,
+
+                -- Statistical validation
+                ci_low REAL,
+                ci_high REAL,
+                p_value_perm REAL,
+
+                -- Additional metrics (JSON)
+                extras TEXT,
+
+                FOREIGN KEY (run_id) REFERENCES edge_discovery_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_discovery_stats_table)
+
+            # Edge discovery indices
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_runs_symbol ON edge_discovery_runs(symbol)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_runs_eds_type ON edge_discovery_runs(eds_type)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_runs_verdict ON edge_discovery_runs(verdict)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_trades_run_id ON edge_discovery_trades(run_id)"
+            )
+
             # Create indices for performance
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_backtest_trades_backtest_id ON backtest_trades(backtest_id)"
@@ -1013,7 +1142,7 @@ class SchemaManager:
 
             conn.commit()
             logger.info(
-                "Database schema initialized successfully with 4-layer architecture + optimization + live trading"
+                "Database schema initialized successfully with 4-layer architecture + optimization + live trading + edge discovery"
             )
             logger.info("  Layer 1 (Run): backtest_runs")
             logger.info(
@@ -1024,6 +1153,9 @@ class SchemaManager:
                 "  Layer 4 (Research): finance_benchmark_metrics, finance_distributions"
             )
             logger.info("  Optimization: optimization_runs, optimization_results")
+            logger.info(
+                "  Edge Discovery: edge_discovery_runs, edge_discovery_trades, edge_discovery_stats"
+            )
             logger.info(
                 "  Live Trading: live_trading_sessions, session_strategies, live_signals, live_positions, etc."
             )

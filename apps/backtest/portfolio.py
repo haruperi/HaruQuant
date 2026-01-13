@@ -314,6 +314,7 @@ class PortfolioEngine:
         initial_balance: float = 10000.0,
         engines: Optional[Dict[str, BaseEngine]] = None,
         config: Optional[Dict[str, Any]] = None,
+        position_sizer: Optional[Any] = None,
     ):
         """
         Initialize portfolio engine.
@@ -323,12 +324,14 @@ class PortfolioEngine:
             initial_balance: Starting portfolio balance
             engines: Pre-configured engines for each asset (optional)
             config: Additional configuration
+            position_sizer: Optional PositionSizer for dynamic position sizing
         """
         self.portfolio_strategy = portfolio_strategy
         self.portfolio_strategy.validate()
 
         self.initial_balance = initial_balance
         self.config = config or {}
+        self.position_sizer = position_sizer
 
         # Asset engines (will be created if not provided)
         self.engines = engines or {}
@@ -491,6 +494,7 @@ class PortfolioEngine:
                     timeframe=default_timeframe,
                     data_step_mode=default_data_step_mode,
                     config=self.config,
+                    position_sizer=self.position_sizer,
                 )
 
             result = engine.run()
@@ -551,6 +555,8 @@ class PortfolioEngine:
         Returns:
             DataFrame with pairwise correlations
         """
+        import warnings
+
         symbols = list(self.portfolio_strategy.data.keys())
 
         if len(symbols) < 2:
@@ -567,8 +573,11 @@ class PortfolioEngine:
             return pd.DataFrame()
 
         # Create DataFrame and calculate correlation
+        # Suppress RuntimeWarning for division by zero (happens with constant data)
         returns_df = pd.DataFrame(returns_data)
-        correlation_matrix = returns_df.corr()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            correlation_matrix = returns_df.corr()
 
         logger.debug(f"Correlation matrix calculated for {len(symbols)} assets")
 

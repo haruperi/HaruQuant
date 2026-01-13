@@ -68,7 +68,16 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
             spreadMax: 50,
             leverage: 100,
             engineType: "vectorized" as "vectorized" | "event-driven",
-            dataResolution: "timeframe" as "tick" | "m1" | "timeframe"
+            dataResolution: "timeframe" as "tick" | "m1" | "timeframe",
+            // Money Management settings
+            positionSizingMethod: "fixed_lot" as "fixed_lot" | "milestone" | "fixed_risk" | "kelly" | "volatility" | "fixed_fractional",
+            lotSize: 0.1,           // for fixed_lot
+            riskPercent: 1.0,       // for fixed_risk, volatility
+            baseLotSize: 0.1,       // for milestone
+            milestoneAmount: 3000,  // for milestone
+            lotIncrement: 0.2,      // for milestone
+            kellyFractionLimit: 0.25, // for kelly
+            fraction: 2.0,          // for fixed_fractional
         },
         metadata: {
             alias: "",
@@ -119,6 +128,15 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                 leverage: config.engineSettings.leverage,
                 engine_type: config.engineSettings.engineType,
                 data_resolution: config.engineSettings.dataResolution,
+                // Money Management / Position Sizing
+                position_sizing_method: config.engineSettings.positionSizingMethod,
+                lot_size: config.engineSettings.lotSize,
+                risk_percent: config.engineSettings.riskPercent,
+                base_lot_size: config.engineSettings.baseLotSize,
+                milestone_amount: config.engineSettings.milestoneAmount,
+                lot_increment: config.engineSettings.lotIncrement,
+                kelly_fraction_limit: config.engineSettings.kellyFractionLimit,
+                fraction: config.engineSettings.fraction,
                 alias: config.metadata.alias,
                 description: config.metadata.description
             }
@@ -132,8 +150,10 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
 
             const result = await backtestApi.run(parseInt(config.strategyId), backtestRequest)
 
-            toast.success("Backtest started successfully!", {
-                description: `Strategy: ${selectedStrategy.name}, Symbol: ${config.symbol}`
+            const symbols = config.symbol.split(",").map(s => s.trim()).filter(Boolean)
+            const isPortfolio = symbols.length > 1
+            toast.success(isPortfolio ? "Portfolio backtest started!" : "Backtest started successfully!", {
+                description: `Strategy: ${selectedStrategy.name}, ${isPortfolio ? "Symbols" : "Symbol"}: ${symbols.join(", ")}`
             })
 
             onSubmit(result.backtest_id, parseInt(config.strategyId))
@@ -198,13 +218,18 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                             <Label htmlFor="symbol">Symbol</Label>
+                             <Label htmlFor="symbol">Symbol(s)</Label>
                              <Input
                                 id="symbol"
-                                placeholder="e.g. EURUSD, BTCUSD"
+                                placeholder="e.g. EURUSD or EURUSD, GBPUSD, USDJPY"
                                 value={config.symbol}
                                 onChange={(e) => setConfig({...config, symbol: e.target.value.toUpperCase()})}
                              />
+                             {config.symbol.includes(",") && (
+                                <p className="text-xs text-muted-foreground">
+                                    Portfolio mode: {config.symbol.split(",").map(s => s.trim()).filter(Boolean).length} symbols
+                                </p>
+                             )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="dataSource">Data Source</Label>
@@ -221,6 +246,145 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                                 </SelectContent>
                             </Select>
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="positionSizing">Money Management</Label>
+                            <Select
+                                value={config.engineSettings.positionSizingMethod}
+                                onValueChange={(val) => setConfig(prev => ({
+                                    ...prev,
+                                    engineSettings: { ...prev.engineSettings, positionSizingMethod: val as any }
+                                }))}
+                            >
+                                <SelectTrigger id="positionSizing">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="fixed_lot">Fixed Lot</SelectItem>
+                                    <SelectItem value="fixed_risk">Fixed Risk %</SelectItem>
+                                    <SelectItem value="milestone">Milestone</SelectItem>
+                                    <SelectItem value="kelly">Kelly Criterion</SelectItem>
+                                    <SelectItem value="volatility">Volatility (ATR)</SelectItem>
+                                    <SelectItem value="fixed_fractional">Fixed Fractional</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {config.engineSettings.positionSizingMethod === "fixed_lot" && (
+                            <div className="space-y-2">
+                                <Label htmlFor="lotSize">Lot Size</Label>
+                                <Input
+                                    id="lotSize"
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    value={config.engineSettings.lotSize}
+                                    onChange={(e) => setConfig(prev => ({
+                                        ...prev,
+                                        engineSettings: { ...prev.engineSettings, lotSize: parseFloat(e.target.value) || 0.1 }
+                                    }))}
+                                />
+                            </div>
+                        )}
+                        {(config.engineSettings.positionSizingMethod === "fixed_risk" ||
+                          config.engineSettings.positionSizingMethod === "volatility") && (
+                            <div className="space-y-2">
+                                <Label htmlFor="riskPercent">Risk %</Label>
+                                <Input
+                                    id="riskPercent"
+                                    type="number"
+                                    step="0.1"
+                                    min="0.1"
+                                    max="100"
+                                    value={config.engineSettings.riskPercent}
+                                    onChange={(e) => setConfig(prev => ({
+                                        ...prev,
+                                        engineSettings: { ...prev.engineSettings, riskPercent: parseFloat(e.target.value) || 1.0 }
+                                    }))}
+                                />
+                            </div>
+                        )}
+                        {config.engineSettings.positionSizingMethod === "milestone" && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="baseLotSize">Base Lot Size</Label>
+                                    <Input
+                                        id="baseLotSize"
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        value={config.engineSettings.baseLotSize}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            engineSettings: { ...prev.engineSettings, baseLotSize: parseFloat(e.target.value) || 0.1 }
+                                        }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="milestoneAmount">Milestone ($)</Label>
+                                    <Input
+                                        id="milestoneAmount"
+                                        type="number"
+                                        step="100"
+                                        min="100"
+                                        value={config.engineSettings.milestoneAmount}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            engineSettings: { ...prev.engineSettings, milestoneAmount: parseFloat(e.target.value) || 3000 }
+                                        }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="lotIncrement">Lot Increment</Label>
+                                    <Input
+                                        id="lotIncrement"
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        value={config.engineSettings.lotIncrement}
+                                        onChange={(e) => setConfig(prev => ({
+                                            ...prev,
+                                            engineSettings: { ...prev.engineSettings, lotIncrement: parseFloat(e.target.value) || 0.2 }
+                                        }))}
+                                    />
+                                </div>
+                            </>
+                        )}
+                        {config.engineSettings.positionSizingMethod === "kelly" && (
+                            <div className="space-y-2">
+                                <Label htmlFor="kellyLimit">Kelly Fraction Limit</Label>
+                                <Input
+                                    id="kellyLimit"
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    max="1"
+                                    value={config.engineSettings.kellyFractionLimit}
+                                    onChange={(e) => setConfig(prev => ({
+                                        ...prev,
+                                        engineSettings: { ...prev.engineSettings, kellyFractionLimit: parseFloat(e.target.value) || 0.25 }
+                                    }))}
+                                />
+                            </div>
+                        )}
+                        {config.engineSettings.positionSizingMethod === "fixed_fractional" && (
+                            <div className="space-y-2">
+                                <Label htmlFor="fraction">Fraction %</Label>
+                                <Input
+                                    id="fraction"
+                                    type="number"
+                                    step="0.1"
+                                    min="0.1"
+                                    max="100"
+                                    value={config.engineSettings.fraction}
+                                    onChange={(e) => setConfig(prev => ({
+                                        ...prev,
+                                        engineSettings: { ...prev.engineSettings, fraction: parseFloat(e.target.value) || 2.0 }
+                                    }))}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
