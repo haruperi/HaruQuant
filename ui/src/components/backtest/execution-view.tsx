@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { AlertCircle, CheckCircle2, Terminal, X, Timer } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { strategyApi } from "@/lib/api/strategies"
+import { backtestApi } from "@/lib/api/backtest"
 
 interface BacktestExecutionViewProps {
     backtestId: number
@@ -38,7 +38,7 @@ export function BacktestExecutionView({ backtestId, strategyId, onCancel, onComp
         // Connect to WebSocket - use API URL from environment
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
         const wsUrl = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://')
-        const ws = new WebSocket(`${wsUrl}/api/strategies/ws/backtest/${backtestId}/logs`)
+        const ws = new WebSocket(`${wsUrl}/api/backtest/ws/${backtestId}/logs`)
         wsRef.current = ws
 
         ws.onopen = () => {
@@ -82,7 +82,7 @@ export function BacktestExecutionView({ backtestId, strategyId, onCancel, onComp
 
         const pollInterval = setInterval(async () => {
             try {
-                const backtest = await strategyApi.getBacktest(strategyId, backtestId)
+                const backtest = await backtestApi.get(backtestId)
 
                 // Estimate progress based on status (backend doesn't provide progress)
                 if (backtest.status === "running") {

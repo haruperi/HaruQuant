@@ -122,3 +122,25 @@ class MarketDataManager:
             return []
         finally:
             conn.close()
+
+    def delete_market_data(self, data_id: int) -> bool:
+        """
+        Delete a market data record by ID.
+
+        Args:
+            data_id: ID of the record to delete
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM market_data WHERE id = ?", (data_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error deleting market data {data_id}: {e}")
+            return False
+        finally:
+            conn.close()

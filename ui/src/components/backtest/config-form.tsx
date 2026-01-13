@@ -33,7 +33,7 @@ import { EngineSettings } from "./engine-settings"
 import { BacktestMetadata } from "./backtest-metadata"
 import { toast } from "sonner"
 import { useStrategies } from "@/lib/use-strategies"
-import { strategyApi } from "@/lib/api/strategies"
+import { backtestApi } from "@/lib/api/backtest"
 import { useSearchParams } from "next/navigation"
 
 interface BacktestConfigFormProps {
@@ -130,7 +130,7 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                 backtestRequest.number_of_bars = numberOfBars
             }
 
-            const result = await strategyApi.runBacktest(parseInt(config.strategyId), backtestRequest)
+            const result = await backtestApi.run(parseInt(config.strategyId), backtestRequest)
 
             toast.success("Backtest started successfully!", {
                 description: `Strategy: ${selectedStrategy.name}, Symbol: ${config.symbol}`

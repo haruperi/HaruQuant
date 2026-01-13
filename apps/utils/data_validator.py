@@ -1485,3 +1485,76 @@ class DataValidator:
             family="monospace",
         )
         ax.set_title("Detailed Metrics", fontsize=12, fontweight="bold")
+
+    # ==================== Heatmap Generation ====================
+
+    def generate_completeness_heatmap(
+        self, data: pd.DataFrame, segments: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate continuity heatmap data by dividing timeline into segments.
+
+        Args:
+            data: DataFrame with datetime index or time column
+            segments: Number of segments to divide the timeline into
+
+        Returns:
+            List of segment info dicts with status, date, range
+        """
+        time_series = self._get_time_series(data)
+        if time_series is None or len(time_series) < 2:
+            return []
+
+        start_time = time_series.min()
+        end_time = time_series.max()
+        total_duration = end_time - start_time
+        segment_duration = total_duration / segments
+
+        heatmap_data = []
+
+        # Convert to dataframe for easier filtering
+        df_times = pd.DataFrame({"time": time_series})
+
+        # Calculate expected count per segment roughly (assuming uniform distribution)
+        # Better approach: check max gap size in segment
+
+        for i in range(segments):
+            seg_start = start_time + (segment_duration * i)
+            seg_end = seg_start + segment_duration
+
+            # Filter data in this segment
+            # Using searchsorted for speed if sorted?
+            # Or just boolean mask for simplicity first
+            mask = (df_times["time"] >= seg_start) & (df_times["time"] < seg_end)
+            seg_data = df_times[mask]
+
+            status = "ok"
+
+            if seg_data.empty:
+                status = "gap"  # Completely empty segment
+            else:
+                # Check for internal gaps if we want to be strict
+                # For heatmap, maybe just existence is enough or coverage?
+                # Let's say if we have less than 10% of expected points?
+                # But we don't know expected freq for sure.
+                # Let's stick to "empty" or "max gap > threshold"
+
+                # Let's use the max gap check if we have enough points
+                if len(seg_data) > 1:
+                    diffs = seg_data["time"].diff().max()
+                    # If max gap is > 20% of segment duration, flag it
+                    if diffs > segment_duration * 0.2:
+                        status = "gap"
+
+            heatmap_data.append(
+                {
+                    "index": i,
+                    "status": status,
+                    "date": seg_start.strftime("%Y-%m-%d"),
+                    "range": f"{seg_start.strftime('%H:%M')} - {seg_end.strftime('%H:%M')}",
+                    "start_iso": seg_start.isoformat(),
+                    "end_iso": seg_end.isoformat(),
+                }
+            )
+
+        return heatmap_data

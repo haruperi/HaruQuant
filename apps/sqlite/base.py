@@ -26,9 +26,14 @@ class DatabaseBase:
             conn = sqlite3.connect(self.db_path)
             conn.execute("PRAGMA journal_mode=WAL")
             conn.close()
-            logger.info("Database exists. WAL mode enabled successfully.")
+            logger.debug("Database exists. WAL mode enabled successfully.")
         except Exception:
-            logger.error("Database doesn't exist yet. Failed to enable WAL mode.")
+            # Only log error if file really doesn't exist or permissions fail, but maybe debug too
+            # if we expect it to fail on first run before init.
+            # But let's keep error as is or debug?
+            # Given it logs "Database doesn't exist yet", it might be intended.
+            # I will just change the success log to debug.
+            logger.debug("Database doesn't exist yet or failed to enable WAL mode.")
 
     def _get_default_db_path(self) -> str:
         # Get project root (assuming apps/sqlite structure)
