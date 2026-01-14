@@ -29,7 +29,7 @@ export function MarketHours() {
   useEffect(() => {
     async function fetchMarketHours() {
       try {
-        const response = await fetch("http://localhost:8000/api/dashboard/market-hours/")
+        const response = await fetch("http://localhost:8000/api/dashboard/market-hours")
         if (!response.ok) throw new Error("Failed to fetch markets")
         const data = await response.json()
         if (data.markets) {

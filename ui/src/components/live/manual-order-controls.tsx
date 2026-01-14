@@ -16,14 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import LiveTradingAPI from "@/lib/api/live"
+import type { PendingOrderType } from "@/types/live"
 import { useSettings } from "@/lib/use-settings"
 import { defaultTradingPreferences } from "@/lib/trading-defaults"
 
 interface ManualOrderControlsProps {
   sessionId?: number
+  defaultSymbol?: string
 }
 
-export function ManualOrderControls({ sessionId }: ManualOrderControlsProps) {
+export function ManualOrderControls({ sessionId, defaultSymbol }: ManualOrderControlsProps) {
   const { toast } = useToast()
   const { getJSONField, settings } = useSettings()
 
@@ -31,8 +33,25 @@ export function ManualOrderControls({ sessionId }: ManualOrderControlsProps) {
   const [slPips, setSlPips] = useState<string>("")
   const [tpPips, setTpPips] = useState<string>("")
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [symbol, setSymbol] = useState<string>("XAUUSD")
+  const [symbol, setSymbol] = useState<string>(defaultSymbol || "XAUUSD")
   const [availableSymbols, setAvailableSymbols] = useState<string[]>(["XAUUSD"])
+  const [pendingType, setPendingType] = useState<PendingOrderType>("buy_limit")
+  const [pendingPrice, setPendingPrice] = useState<string>("")
+  const [lastExecution, setLastExecution] = useState<{
+    type: "buy" | "sell"
+    symbol: string
+    volume: number
+    price: number
+    orderId: number
+    dealId: number
+  } | null>(null)
+
+  // Sync with parent symbol selection
+  useEffect(() => {
+    if (defaultSymbol) {
+      setSymbol(defaultSymbol)
+    }
+  }, [defaultSymbol])
 
   // Load symbols from settings with defaults fallback
   useEffect(() => {
@@ -101,7 +120,7 @@ export function ManualOrderControls({ sessionId }: ManualOrderControlsProps) {
 
     setIsLoading(true)
     try {
-      await LiveTradingAPI.createManualOrder(sessionId, {
+      const result = await LiveTradingAPI.createManualOrder(sessionId, {
         symbol: symbol,
         volume: parseFloat(volume),
         type: type,
@@ -110,9 +129,19 @@ export function ManualOrderControls({ sessionId }: ManualOrderControlsProps) {
         comment: "Manual Execution"
       })
 
+      setLastExecution({
+        type,
+        symbol,
+        volume: result.volume,
+        price: result.price,
+        orderId: result.order_id,
+        dealId: result.deal_id,
+      })
+
+      const idLabel = result.deal_id ? `Deal #${result.deal_id}` : `Order #${result.order_id}`
       toast({
         title: "Order Placed",
-        description: `Successfully placed ${type.toUpperCase()} order for ${volume} lots on ${symbol}.`,
+        description: `Placed ${type.toUpperCase()} ${result.volume} lots on ${symbol} at ${result.price} (${idLabel}).`,
       })
 
       // Reset optional fields
@@ -188,6 +217,62 @@ export function ManualOrderControls({ sessionId }: ManualOrderControlsProps) {
       toast({
         title: "Panic Stop Failed",
         description: error.response?.data?.detail || error.message || "Failed to execute panic stop",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePendingOrder = async () => {
+    if (!sessionId) {
+      toast({
+        title: "No Session",
+        description: "Please start a trading session first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!volume || parseFloat(volume) <= 0) {
+      toast({
+        title: "Invalid Volume",
+        description: "Please enter a valid volume.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!pendingPrice || parseFloat(pendingPrice) <= 0) {
+      toast({
+        title: "Invalid Price",
+        description: "Please enter a valid pending price.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      await LiveTradingAPI.createPendingOrder(sessionId, {
+        symbol: symbol,
+        volume: parseFloat(volume),
+        type: pendingType,
+        price: parseFloat(pendingPrice),
+        sl_pips: slPips ? parseFloat(slPips) : undefined,
+        tp_pips: tpPips ? parseFloat(tpPips) : undefined,
+        comment: "Manual Pending Order",
+      })
+
+      toast({
+        title: "Pending Order Placed",
+        description: `Placed ${pendingType.replace("_", " ").toUpperCase()} for ${symbol}.`,
+      })
+    } catch (error: any) {
+      console.error("Pending order failed:", error)
+      toast({
+        title: "Order Failed",
+        description: error.response?.data?.detail || error.message || "Failed to place pending order",
         variant: "destructive",
       })
     } finally {
@@ -277,11 +362,72 @@ export function ManualOrderControls({ sessionId }: ManualOrderControlsProps) {
                 </div>
             </TabsContent>
             <TabsContent value="pending" className="pt-4">
-                <div className="text-xs text-center text-muted-foreground py-8">
-                    Pending orders coming soon
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Order Type</Label>
+                        <Select
+                          value={pendingType}
+                          onValueChange={(value: PendingOrderType) => setPendingType(value)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="buy_limit">Buy Limit</SelectItem>
+                                <SelectItem value="sell_limit">Sell Limit</SelectItem>
+                                <SelectItem value="buy_stop">Buy Stop</SelectItem>
+                                <SelectItem value="sell_stop">Sell Stop</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Price</Label>
+                        <Input
+                          type="number"
+                          placeholder="Pending price"
+                          value={pendingPrice}
+                          onChange={(e) => setPendingPrice(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">SL (Pips)</Label>
+                            <Input
+                                type="number"
+                                placeholder="Optional"
+                                value={slPips}
+                                onChange={(e) => setSlPips(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">TP (Pips)</Label>
+                            <Input
+                                type="number"
+                                placeholder="Optional"
+                                value={tpPips}
+                                onChange={(e) => setTpPips(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      onClick={handlePendingOrder}
+                      disabled={isLoading}
+                    >
+                        Place Pending Order
+                    </Button>
                 </div>
             </TabsContent>
         </Tabs>
+
+        {lastExecution && (
+          <div className="rounded-md border border-muted px-3 py-2 text-xs text-muted-foreground">
+            Last execution: {lastExecution.type.toUpperCase()} {lastExecution.volume} {lastExecution.symbol} @ {lastExecution.price} (#{lastExecution.dealId || lastExecution.orderId})
+          </div>
+        )}
 
         <div className="pt-4 border-t space-y-2">
              <Button

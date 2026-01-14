@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
 import MetaTrader5 as mt5
+import pandas as pd
 from fastapi import (
     APIRouter,
     Header,
@@ -27,14 +28,83 @@ from fastapi import (
 from pydantic import BaseModel, Field
 
 from apps.api.auth_utils import get_user_id_from_token
+from apps.api.routes.dashboard.broker import client as global_mt5_client
 from apps.api.websocket import live_trading_manager
-from apps.live.models import Signal
 from apps.live.session import LiveTradingSession
 from apps.logger import logger
 from apps.mt5.client import MT5Client
-from apps.mt5.data import fetch_ohlc_data
-from apps.mt5.mt5_util import MT5Utils
+from apps.mt5.util import MT5Utils
 from apps.sqlite.database_operations import DatabaseManager
+
+
+def _fetch_ohlc_data(
+    client: MT5Client, symbol: str, timeframe: str, count: int = 500
+) -> Optional[pd.DataFrame]:
+    """Fetch OHLC data for a symbol from MT5."""
+    # Timeframe mapping
+    tf_map = {
+        "M1": mt5.TIMEFRAME_M1,
+        "M5": mt5.TIMEFRAME_M5,
+        "M15": mt5.TIMEFRAME_M15,
+        "M30": mt5.TIMEFRAME_M30,
+        "H1": mt5.TIMEFRAME_H1,
+        "H4": mt5.TIMEFRAME_H4,
+        "D1": mt5.TIMEFRAME_D1,
+        "W1": mt5.TIMEFRAME_W1,
+        "MN1": mt5.TIMEFRAME_MN1,
+    }
+
+    mt5_tf = tf_map.get(timeframe, mt5.TIMEFRAME_M1)
+
+    # Fetch rates
+    try:
+        rates = mt5.copy_rates_from_pos(symbol, mt5_tf, 0, count)
+        if rates is None:
+            return None
+
+        df = pd.DataFrame(rates)
+        df["time"] = pd.to_datetime(df["time"], unit="s")
+        return df
+    except Exception as e:
+        logger.error(f"Error fetching OHLC data: {e}")
+        return None
+
+
+def _ensure_mt5_connection(user_id: int) -> MT5Client:
+    """Ensure global MT5 client is configured and connected for the user."""
+    # Check if already connected with correct login
+    # For simplicity, we'll fetch creds and ensure configuration matches
+
+    creds = db_manager.get_mt5_credentials(user_id) or {}
+    login = creds.get("login")
+    password = creds.get("password")
+    server = creds.get("server")
+    path = creds.get("path", "")
+
+    if not login or not password or not server:
+        # If no creds, just try to initialize as is (maybe portable mode or config file)
+        if not global_mt5_client.initialize():
+            logger.warning("MT5 initialize failed (no credentials found)")
+        return global_mt5_client
+
+    try:
+        login_int = int(login)
+    except (ValueError, TypeError):
+        login_int = 0
+
+    # Configure client
+    global_mt5_client.account_login = login_int
+    global_mt5_client.account_password = password
+    global_mt5_client.account_server = server
+    if path:
+        global_mt5_client.path = path
+
+    # Initialize
+    if not global_mt5_client.initialize():
+        logger.error("Failed to initialize MT5 client with user credentials")
+
+    return global_mt5_client
+
 
 router = APIRouter()
 db_manager = DatabaseManager()
@@ -126,6 +196,217 @@ def _calculate_sl_tp(
     return stop_loss, take_profit
 
 
+def _get_session_magic_numbers(session_id: int) -> List[int]:
+    strategies = db_manager.get_session_strategies(session_id)
+    magics = {0}
+    for strat in strategies:
+        magic_value = strat.get("magic_number")
+        if magic_value is None:
+            continue
+        try:
+            magics.add(int(magic_value))
+        except (TypeError, ValueError):
+            continue
+    return list(magics)
+
+
+def _normalize_optional_price(value: Optional[float]) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return numeric if numeric > 0 else None
+
+
+def _map_mt5_position(position: Dict[str, Any], session_id: int) -> Dict[str, Any]:
+    pos_type_value = position.get("type")
+    pos_type = "buy" if pos_type_value == 0 else "sell"
+    timestamp = position.get("time") or position.get("time_update")
+    if timestamp:
+        open_time = datetime.fromtimestamp(timestamp).isoformat()
+    else:
+        open_time = datetime.utcnow().isoformat()
+
+    open_price = float(position.get("price_open", 0.0))
+    current_price = position.get("price_current", open_price)
+    profit = position.get("profit")
+    volume = float(position.get("volume", 0.0))
+    ticket = int(position.get("ticket", 0))
+
+    stop_loss = _normalize_optional_price(position.get("sl"))
+    take_profit = _normalize_optional_price(position.get("tp"))
+
+    return {
+        "position_id": ticket,
+        "session_id": session_id,
+        "signal_id": None,
+        "mt5_ticket": ticket,
+        "mt5_order": position.get("order"),
+        "symbol": position.get("symbol", ""),
+        "type": pos_type,
+        "open_time": open_time,
+        "open_price": open_price,
+        "position_size": volume,
+        "current_price": current_price,
+        "current_profit": profit,
+        "current_profit_pct": None,
+        "initial_stop_loss": stop_loss,
+        "current_stop_loss": stop_loss,
+        "initial_take_profit": take_profit,
+        "current_take_profit": take_profit,
+        "breakeven_activated": False,
+        "trailing_stop_activated": False,
+        "partial_close_count": 0,
+        "status": "open",
+        "close_reason": None,
+        "close_time": None,
+        "close_price": None,
+        "final_profit": None,
+        "final_profit_pct": None,
+        "created_at": open_time,
+        "updated_at": open_time,
+    }
+
+
+def _get_session_for_user(session_id: int, user_id: int) -> Dict[str, Any]:
+    session = db_manager.get_live_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found",
+        )
+
+    if session["user_id"] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this session",
+        )
+
+    return session
+
+
+async def _maybe_auto_stop_session(
+    session_id: int, session: Dict[str, Any]
+) -> Dict[str, Any]:
+    stop_mode = session.get("stop_mode") or "manual"
+    stop_at = session.get("stop_at")
+    if stop_mode != "auto" or not stop_at or session.get("status") != "running":
+        return session
+
+    try:
+        stop_at_dt = datetime.fromisoformat(stop_at.replace("Z", ""))
+    except ValueError:
+        logger.warning(f"Invalid stop_at for session {session_id}: {stop_at}")
+        return session
+
+    if datetime.now() < stop_at_dt:
+        return session
+
+    if session_id in active_sessions:
+        await active_sessions[session_id].stop()
+
+    db_manager.update_live_session(
+        session_id,
+        status="stopped",
+        stopped_at=datetime.now().isoformat(),
+    )
+    session = db_manager.get_live_session(session_id) or session
+    await live_trading_manager.send_status_update(
+        session_id,
+        {
+            "session_id": session["session_id"],
+            "session_name": session["session_name"],
+            "status": "stopped",
+            "running": False,
+            "paused": False,
+            "stop_mode": session.get("stop_mode"),
+            "stop_at": session.get("stop_at"),
+            "signals_detected": session.get("total_signals_detected", 0),
+            "signals_approved": session.get("total_signals_executed", 0),
+            "signals_rejected": session.get("total_signals_rejected", 0),
+            "positions_opened": 0,
+            "positions_closed": 0,
+            "active_positions": 0,
+            "current_equity": 0.0,
+            "current_balance": 0.0,
+            "account_name": None,
+            "account_server": None,
+            "account_login": None,
+        },
+    )
+    return session
+
+
+def _get_account_snapshot() -> Dict[str, Any]:
+    account_snapshot: Dict[str, Any] = {
+        "current_equity": 0.0,
+        "current_balance": 0.0,
+        "account_name": None,
+        "account_server": None,
+        "account_login": None,
+    }
+
+    if global_mt5_client.is_connected():
+        account_info = global_mt5_client.get_account_info()
+        if account_info:
+            account_snapshot["current_equity"] = float(account_info.get("equity", 0.0))
+            account_snapshot["current_balance"] = float(
+                account_info.get("balance", 0.0)
+            )
+            account_snapshot["account_name"] = account_info.get("name")
+            account_snapshot["account_server"] = global_mt5_client.account_server
+            account_snapshot["account_login"] = global_mt5_client.account_login
+
+    return account_snapshot
+
+
+def _get_strategy_removal_labels(
+    session_id: int, strategy_config_id: int
+) -> Dict[str, str]:
+    strategy_name = None
+    strategy_version_label = None
+    try:
+        strategies = db_manager.get_session_strategies(session_id)
+        for strategy in strategies:
+            if strategy.get("id") == strategy_config_id:
+                strategy_name = strategy.get("strategy_name")
+                strategy_version_label = strategy.get("version")
+                break
+    except Exception as exc:
+        logger.warning(
+            f"Failed to resolve strategy name for removal {strategy_config_id}: {exc}"
+        )
+
+    strategy_label = strategy_name or f"config_id={strategy_config_id}"
+    version_suffix = f" (v{strategy_version_label})" if strategy_version_label else ""
+    return {
+        "strategy_label": strategy_label,
+        "version_suffix": version_suffix,
+    }
+
+
+def _get_strategy_add_labels(strategy_version_id: int) -> Dict[str, str]:
+    strategy_version = db_manager.get_strategy_version(strategy_version_id)
+    strategy_name = None
+    strategy_version_label = None
+    if strategy_version:
+        strategy_version_label = strategy_version.get("version")
+        strategy_id_value = strategy_version.get("strategy_id")
+        if strategy_id_value is not None:
+            strategy = db_manager.get_strategy(int(strategy_id_value))
+            if strategy:
+                strategy_name = strategy.get("name")
+
+    strategy_label = strategy_name or f"version_id={strategy_version_id}"
+    version_suffix = f" (v{strategy_version_label})" if strategy_version_label else ""
+    return {
+        "strategy_label": strategy_label,
+        "version_suffix": version_suffix,
+    }
+
+
 async def _close_positions(trading_session, active_positions):
     closed_count = 0
     failed_positions = []
@@ -161,6 +442,10 @@ class SessionCreateRequest(BaseModel):
 
     session_name: str = Field(..., description="Name of the session")
     mode: str = Field(default="paper", description="Trading mode: paper or live")
+    stop_mode: str = Field(
+        default="manual", description="Session stop mode: manual or auto"
+    )
+    stop_at: Optional[str] = Field(None, description="Auto stop time (ISO format)")
     max_total_risk_pct: float = Field(
         default=2.0, description="Max % of account at risk"
     )
@@ -185,6 +470,8 @@ class SessionUpdateRequest(BaseModel):
 
     session_name: Optional[str] = None
     mode: Optional[str] = None
+    stop_mode: Optional[str] = None
+    stop_at: Optional[str] = None
     max_total_risk_pct: Optional[float] = None
     max_positions: Optional[int] = None
     max_correlation: Optional[float] = None
@@ -202,6 +489,8 @@ class SessionResponse(BaseModel):
     session_name: str
     status: str
     mode: str
+    stop_mode: Optional[str]
+    stop_at: Optional[str]
     max_total_risk_pct: float
     max_positions: int
     max_correlation: float
@@ -228,6 +517,8 @@ class SessionStatusResponse(BaseModel):
     status: str
     running: bool
     paused: bool
+    stop_mode: Optional[str] = None
+    stop_at: Optional[str] = None
     signals_detected: int
     signals_approved: int
     signals_rejected: int
@@ -302,6 +593,20 @@ class ManualOrderRequest(BaseModel):
     comment: Optional[str] = "Manual Order"
 
 
+class PendingOrderRequest(BaseModel):
+    """Request model for placing a pending order."""
+
+    symbol: str = Field(..., description="Trading symbol")
+    volume: float = Field(..., description="Volume in lots")
+    type: str = Field(
+        ..., description="Order type: buy_limit, sell_limit, buy_stop, sell_stop"
+    )
+    price: float = Field(..., description="Entry price for pending order")
+    sl_pips: Optional[float] = Field(None, description="Stop Loss in pips")
+    tp_pips: Optional[float] = Field(None, description="Take Profit in pips")
+    comment: Optional[str] = "Manual Pending Order"
+
+
 class SignalResponse(BaseModel):
     """Response model for signal data."""
 
@@ -357,6 +662,42 @@ class PositionResponse(BaseModel):
     updated_at: str
 
 
+def _get_session_positions_response(
+    session_id: int, status_filter: Optional[str]
+) -> List[PositionResponse]:
+    if session_id in active_sessions:
+        if status_filter and status_filter != "open":
+            return []
+
+        trading_session = active_sessions[session_id]
+        client = (
+            trading_session.engine.client
+            if trading_session.engine and trading_session.engine.client
+            else trading_session.mt5_client
+        )
+        positions = client.get_positions() if client else []
+        allowed_magics = set(_get_session_magic_numbers(session_id))
+        filtered_positions = []
+        for pos in positions:
+            magic_value = pos.get("magic")
+            try:
+                magic_int = int(magic_value) if magic_value is not None else 0
+            except (TypeError, ValueError):
+                magic_int = 0
+            if magic_int in allowed_magics:
+                filtered_positions.append(pos)
+
+        return [
+            PositionResponse(**_map_mt5_position(pos, session_id))
+            for pos in filtered_positions
+        ]
+
+    positions = db_manager.get_session_positions(session_id)
+    if status_filter:
+        positions = [p for p in positions if p.get("status") == status_filter]
+    return [PositionResponse(**position) for position in positions]
+
+
 # =============================================================================
 # Session Management Endpoints
 # =============================================================================
@@ -385,6 +726,8 @@ async def create_session(
             user_id=user_id,
             session_name=request.session_name,
             mode=request.mode,
+            stop_mode=request.stop_mode,
+            stop_at=request.stop_at,
             max_total_risk_pct=request.max_total_risk_pct,
             max_positions=request.max_positions,
             max_correlation=request.max_correlation,
@@ -672,8 +1015,8 @@ async def start_session(session_id: int, authorization: str = AUTH_HEADER):
             )
 
         # Initialize MT5 client
-        mt5_client = MT5Client()
-        if not mt5_client.initialize():
+        mt5_client = _ensure_mt5_connection(user_id)
+        if not mt5_client.is_connected():
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Failed to initialize MT5 connection",
@@ -701,7 +1044,7 @@ async def start_session(session_id: int, authorization: str = AUTH_HEADER):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error starting session {session_id}: {e}")
+        logger.error(f"Error starting session {session_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while starting session: {str(e)}",
@@ -925,50 +1268,38 @@ async def get_session_status(session_id: int, authorization: str = AUTH_HEADER):
         user_id = get_user_id_from_token(authorization)
 
         # Get session
-        session = db_manager.get_live_session(session_id)
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found",
-            )
-
-        # Verify ownership
-        if session["user_id"] != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access this session",
-            )
-
-        logger.info(
-            f"DEBUG: API get_session_status check. ID: {session_id} in active_sessions: {session_id in active_sessions}"
-        )
+        session = _get_session_for_user(session_id, user_id)
+        session = await _maybe_auto_stop_session(session_id, session)
 
         # If session is running, get live status
         if session_id in active_sessions:
             trading_session = active_sessions[session_id]
             status_data = trading_session.get_status()
+            status_data["stop_mode"] = session.get("stop_mode")
+            status_data["stop_at"] = session.get("stop_at")
             return SessionStatusResponse(**status_data)
 
-        logger.info("DEBUG: Using Fallback status logic (0.0 equity)")
-        # Session is not running, return basic info from database
+        account_snapshot = _get_account_snapshot()
+
         return SessionStatusResponse(
             session_id=session["session_id"],
             session_name=session["session_name"],
             status=session["status"],
             running=False,
             paused=False,
+            stop_mode=session.get("stop_mode"),
+            stop_at=session.get("stop_at"),
             signals_detected=session.get("total_signals_detected", 0),
             signals_approved=session.get("total_signals_executed", 0),
             signals_rejected=session.get("total_signals_rejected", 0),
             positions_opened=0,
             positions_closed=0,
             active_positions=0,
-            current_equity=0.0,
-            current_balance=0.0,
-            account_name=None,
-            account_server=None,
-            account_login=None,
+            current_equity=account_snapshot["current_equity"],
+            current_balance=account_snapshot["current_balance"],
+            account_name=account_snapshot["account_name"],
+            account_server=account_snapshot["account_server"],
+            account_login=account_snapshot["account_login"],
         )
 
     except HTTPException:
@@ -1069,15 +1400,15 @@ async def get_market_data(
             mt5_client = trading_session.mt5_client
         else:
             # Create temporary MT5 client for data fetching
-            mt5_client = MT5Client()
-            if not mt5_client.connect():
+            mt5_client = _ensure_mt5_connection(user_id)
+            if not mt5_client.is_connected():
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="MT5 connection not available",
                 )
 
         # Fetch OHLC data
-        data = fetch_ohlc_data(
+        data = _fetch_ohlc_data(
             client=mt5_client, symbol=symbol, timeframe=timeframe, count=count
         )
 
@@ -1093,10 +1424,10 @@ async def get_market_data(
 
         # Convert DataFrame to list of dicts for JSON response
         candles = []
-        for idx, row in data.iterrows():
+        for _, row in data.iterrows():
             candles.append(
                 {
-                    "time": int(idx.timestamp()),
+                    "time": int(row["time"].timestamp()),
                     "open": float(row["open"]),
                     "high": float(row["high"]),
                     "low": float(row["low"]),
@@ -1181,30 +1512,8 @@ async def get_session_positions(
     try:
         user_id = get_user_id_from_token(authorization)
 
-        # Get session
-        session = db_manager.get_live_session(session_id)
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found",
-            )
-
-        # Verify ownership
-        if session["user_id"] != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to access this session",
-            )
-
-        # Get positions from database
-        positions = db_manager.get_session_positions(session_id)
-
-        # Apply status filter if provided
-        if status_filter:
-            positions = [p for p in positions if p.get("status") == status_filter]
-
-        return [PositionResponse(**position) for position in positions]
+        _get_session_for_user(session_id, user_id)
+        return _get_session_positions_response(session_id, status_filter)
 
     except HTTPException:
         raise
@@ -1284,25 +1593,8 @@ async def add_strategy_to_session(
     """
     try:
         user_id = get_user_id_from_token(authorization)
-        logger.info(
-            f"Adding strategy {request.strategy_version_id} to session {session_id}"
-        )
 
-        # Get session
-        session = db_manager.get_live_session(session_id)
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found",
-            )
-
-        # Verify ownership
-        if session["user_id"] != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to modify this session",
-            )
+        session = _get_session_for_user(session_id, user_id)
 
         # Check session is stopped
         if session["status"] != "stopped":
@@ -1310,6 +1602,14 @@ async def add_strategy_to_session(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Session must be stopped to add strategies",
             )
+
+        labels = _get_strategy_add_labels(request.strategy_version_id)
+        strategy_label = labels["strategy_label"]
+        version_suffix = labels["version_suffix"]
+        session_label = session.get("session_name") or f"id={session_id}"
+        logger.info(
+            f"Adding strategy {strategy_label}{version_suffix} to session {session_label}"
+        )
 
         # Add strategy to session
         strategy_id = db_manager.add_strategy_to_session(
@@ -1330,7 +1630,7 @@ async def add_strategy_to_session(
             )
 
         logger.info(
-            f"Strategy {request.strategy_version_id} added to session {session_id}"
+            f"Strategy {strategy_label}{version_suffix} added to session {session_label}"
         )
 
         return {
@@ -1360,25 +1660,7 @@ async def remove_strategy_from_session(
     """
     try:
         user_id = get_user_id_from_token(authorization)
-        logger.info(
-            f"Removing strategy config {strategy_config_id} from session {session_id}"
-        )
-
-        # Get session
-        session = db_manager.get_live_session(session_id)
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found",
-            )
-
-        # Verify ownership
-        if session["user_id"] != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to modify this session",
-            )
+        session = _get_session_for_user(session_id, user_id)
 
         # Check session is stopped
         if session["status"] != "stopped":
@@ -1386,6 +1668,14 @@ async def remove_strategy_from_session(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Session must be stopped to remove strategies",
             )
+
+        labels = _get_strategy_removal_labels(session_id, strategy_config_id)
+        strategy_label = labels["strategy_label"]
+        version_suffix = labels["version_suffix"]
+        session_label = session.get("session_name") or f"id={session_id}"
+        logger.info(
+            f"Removing strategy {strategy_label}{version_suffix} from session {session_label}"
+        )
 
         # Remove strategy from session
         success = db_manager.remove_strategy_from_session(
@@ -1399,7 +1689,7 @@ async def remove_strategy_from_session(
             )
 
         logger.info(
-            f"Strategy config {strategy_config_id} removed from session {session_id}"
+            f"Strategy {strategy_label}{version_suffix} removed from session {session_label}"
         )
 
         return {
@@ -1506,20 +1796,17 @@ async def modify_position(
         # If session is running, modify through LiveTradingSession
         if session_id in active_sessions:
             trading_session = active_sessions[session_id]
-
-            # Get position
-            position = db_manager.get_live_position(position_id)
-            if not position:
+            if not trading_session.engine or not trading_session.engine.trade:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Position {position_id} not found",
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Trade engine not initialized",
                 )
 
-            # Modify position via ExecutionEngine
-            success = await trading_session.execution_engine.modify_position(
-                position_id=position_id,
-                stop_loss=request.stop_loss,
-                take_profit=request.take_profit,
+            trade = trading_session.engine.trade
+            success = trade.position_modify(
+                ticket=position_id,
+                sl=request.stop_loss or 0.0,
+                tp=request.take_profit or 0.0,
             )
 
             if not success:
@@ -1579,31 +1866,57 @@ async def create_manual_order(
             direction_tp,
         )
 
-        # Create Signal object
-        signal = Signal(
-            symbol=request.symbol,
-            timeframe="D1",  # Irrelevant for manual
-            signal_type=request.type.lower(),
-            signal_time=datetime.now(),
-            entry_price=entry_price,
-            stop_loss=stop_loss,
-            take_profit=take_profit,
-            strategy_name="Manual Order",
-            strategy_version_id=0,
-            signal_reason=request.comment or "Manual Execution",
-            position_size=request.volume,  # Manual volume override
-        )
-
-        # Execute
-        position = await trading_session.execution_engine.execute_signal(signal)
-
-        if not position:
+        engine = trading_session.engine
+        trade = engine.trade if engine else None
+        if not trade:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to execute order",
+                detail="Trade engine not initialized",
             )
 
-        return {"message": "Order executed successfully", "position": position}
+        if engine:
+            trade.set_type_filling(engine._get_supported_filling_mode(request.symbol))
+
+        comment = request.comment or "Manual Execution"
+        order_type = request.type.lower()
+        if order_type == "buy":
+            success = trade.buy(
+                volume=request.volume,
+                symbol=request.symbol,
+                price=entry_price,
+                sl=stop_loss or 0.0,
+                tp=take_profit or 0.0,
+                comment=comment,
+            )
+        elif order_type == "sell":
+            success = trade.sell(
+                volume=request.volume,
+                symbol=request.symbol,
+                price=entry_price,
+                sl=stop_loss or 0.0,
+                tp=take_profit or 0.0,
+                comment=comment,
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown order type: {request.type}",
+            )
+
+        if not success:
+            retcode_desc = trade.result_retcode_description()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to execute order: {retcode_desc}",
+            )
+
+        return {
+            "message": "Order executed successfully",
+            "order_id": trade.result_order(),
+            "deal_id": trade.result_deal(),
+            "price": trade.result_price(),
+            "volume": trade.result_volume(),
+        }
 
     except HTTPException:
         raise
@@ -1612,6 +1925,175 @@ async def create_manual_order(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error placing manual order: {str(e)}",
+        )
+
+
+@router.get("/sessions/{session_id}/orders")
+async def get_session_orders(session_id: int, authorization: str = AUTH_HEADER):
+    """Get pending orders for a session."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+
+        _, trading_session = _get_active_session(
+            session_id, user_id, action="view orders"
+        )
+
+        client = trading_session.engine.client if trading_session.engine else None
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="MT5 client not initialized",
+            )
+
+        orders = client.get_orders() or []
+        return orders
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting orders for session {session_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while retrieving orders",
+        )
+
+
+@router.delete("/sessions/{session_id}/orders/{ticket}")
+async def cancel_order(session_id: int, ticket: int, authorization: str = AUTH_HEADER):
+    """Cancel a pending order by ticket."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+
+        _, trading_session = _get_active_session(
+            session_id, user_id, action="cancel orders"
+        )
+
+        trade = trading_session.engine.trade if trading_session.engine else None
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Trade engine not initialized",
+            )
+
+        success = trade.order_delete(ticket)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to cancel order",
+            )
+
+        return {"message": "Order cancelled successfully", "ticket": ticket}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling order {ticket}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while cancelling order",
+        )
+
+
+@router.post("/sessions/{session_id}/orders/pending")
+async def create_pending_order(
+    session_id: int, request: PendingOrderRequest, authorization: str = AUTH_HEADER
+):
+    """Place a pending order with optional pips-based SL/TP."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+        logger.info(f"Pending order request for session {session_id}: {request}")
+
+        _, trading_session = _get_active_session(
+            session_id, user_id, action="place pending orders"
+        )
+
+        info, symbol_info = _get_symbol_info(request.symbol)
+        entry_price, direction_sl, direction_tp = _get_entry_price_and_direction(
+            "buy" if "buy" in request.type else "sell", info
+        )
+        stop_loss, take_profit = _calculate_sl_tp(
+            request.price,
+            request.sl_pips,
+            request.tp_pips,
+            symbol_info,
+            direction_sl,
+            direction_tp,
+        )
+
+        trade = trading_session.engine.trade if trading_session.engine else None
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Trade engine not initialized",
+            )
+
+        order_type = request.type.lower()
+        success = False
+        if order_type == "buy_limit":
+            success = trade.buy_limit(
+                volume=request.volume,
+                price=request.price,
+                symbol=request.symbol,
+                sl=stop_loss or 0.0,
+                tp=take_profit or 0.0,
+                comment=request.comment or "Manual Pending Order",
+            )
+        elif order_type == "sell_limit":
+            success = trade.sell_limit(
+                volume=request.volume,
+                price=request.price,
+                symbol=request.symbol,
+                sl=stop_loss or 0.0,
+                tp=take_profit or 0.0,
+                comment=request.comment or "Manual Pending Order",
+            )
+        elif order_type == "buy_stop":
+            success = trade.buy_stop(
+                volume=request.volume,
+                price=request.price,
+                symbol=request.symbol,
+                sl=stop_loss or 0.0,
+                tp=take_profit or 0.0,
+                comment=request.comment or "Manual Pending Order",
+            )
+        elif order_type == "sell_stop":
+            success = trade.sell_stop(
+                volume=request.volume,
+                price=request.price,
+                symbol=request.symbol,
+                sl=stop_loss or 0.0,
+                tp=take_profit or 0.0,
+                comment=request.comment or "Manual Pending Order",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown pending order type: {request.type}",
+            )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to place pending order",
+            )
+
+        return {
+            "message": "Pending order placed successfully",
+            "order": {
+                "symbol": request.symbol,
+                "type": request.type,
+                "price": request.price,
+                "volume": request.volume,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error placing pending order: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error placing pending order: {str(e)}",
         )
 
 
@@ -1648,21 +2130,20 @@ async def close_position(
         if session_id in active_sessions:
             trading_session = active_sessions[session_id]
 
-            # Get position from trade manager
-            if not trading_session.trade_manager:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Trade manager not initialized",
-                )
-
-            position = trading_session.trade_manager.active_positions.get(position_id)
-            if not position:
+            client = (
+                trading_session.engine.client
+                if trading_session.engine and trading_session.engine.client
+                else trading_session.mt5_client
+            )
+            positions = client.get_positions(ticket=position_id) if client else []
+            if not positions:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Position {position_id} not found or already closed",
                 )
 
             # Close position via ExecutionEngine
+            position = positions[0]
             success = await trading_session.execution_engine.close_position(
                 position=position, reason="manual"
             )
@@ -1712,11 +2193,22 @@ async def close_all_positions(session_id: int, authorization: str = AUTH_HEADER)
             session_id, user_id, action="close positions"
         )
 
-        active_positions = (
-            trading_session.trade_manager.active_positions
-            if trading_session.trade_manager
-            else {}
+        client = (
+            trading_session.engine.client
+            if trading_session.engine and trading_session.engine.client
+            else trading_session.mt5_client
         )
+        positions = client.get_positions() if client else []
+        allowed_magics = set(_get_session_magic_numbers(session_id))
+        active_positions = {}
+        for pos in positions:
+            magic_value = pos.get("magic")
+            try:
+                magic_int = int(magic_value) if magic_value is not None else 0
+            except (TypeError, ValueError):
+                magic_int = 0
+            if magic_int in allowed_magics:
+                active_positions[int(pos.get("ticket", 0))] = pos
 
         if not active_positions:
             return {

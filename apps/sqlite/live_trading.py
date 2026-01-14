@@ -17,6 +17,8 @@ class LiveTradingManager:
         user_id: int,
         session_name: Optional[str] = None,
         mode: str = "paper",
+        stop_mode: str = "manual",
+        stop_at: Optional[str] = None,
         max_total_risk_pct: float = 2.0,
         max_positions: int = 5,
         max_correlation: float = 0.7,
@@ -35,11 +37,11 @@ class LiveTradingManager:
 
             query = """
             INSERT INTO live_trading_sessions (
-                user_id, session_name, mode,
+                user_id, session_name, mode, stop_mode, stop_at,
                 max_total_risk_pct, max_positions, max_correlation, max_drawdown_pct,
                 trading_hours_start, trading_hours_end, allowed_days,
                 status, started_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stopped', NULL)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stopped', NULL)
             """
 
             cursor.execute(
@@ -48,6 +50,8 @@ class LiveTradingManager:
                     user_id,
                     session_name,
                     mode,
+                    stop_mode,
+                    stop_at,
                     max_total_risk_pct,
                     max_positions,
                     max_correlation,
@@ -156,6 +160,8 @@ class LiveTradingManager:
                 "session_name",
                 "status",
                 "mode",
+                "stop_mode",
+                "stop_at",
                 "max_total_risk_pct",
                 "max_positions",
                 "max_correlation",
@@ -279,7 +285,41 @@ class LiveTradingManager:
             rel_id = cursor.lastrowid
             conn.commit()
 
-            logger.info(f"Strategy {strategy_version_id} added to session {session_id}")
+            session_name = None
+            strategy_name = None
+            strategy_version_label = None
+            try:
+                cursor.execute(
+                    "SELECT session_name FROM live_trading_sessions WHERE session_id = ?",
+                    (session_id,),
+                )
+                session_row = cursor.fetchone()
+                if session_row:
+                    session_name = session_row[0]
+                cursor.execute(
+                    """
+                    SELECT s.name, sv.version
+                    FROM strategy_versions sv
+                    JOIN strategies s ON sv.strategy_id = s.id
+                    WHERE sv.id = ?
+                    """,
+                    (strategy_version_id,),
+                )
+                strategy_row = cursor.fetchone()
+                if strategy_row:
+                    strategy_name = strategy_row[0]
+                    strategy_version_label = strategy_row[1]
+            except Exception as e:
+                logger.warning(f"Failed to resolve strategy/session names: {e}")
+
+            strategy_label = strategy_name or f"version_id={strategy_version_id}"
+            version_suffix = (
+                f" (v{strategy_version_label})" if strategy_version_label else ""
+            )
+            session_label = session_name or f"id={session_id}"
+            logger.info(
+                f"Strategy {strategy_label}{version_suffix} added to session {session_label}"
+            )
             return int(rel_id) if rel_id is not None else 0
 
         except Exception as e:
@@ -300,7 +340,7 @@ class LiveTradingManager:
             cursor = conn.cursor()
 
             query = """
-            SELECT ss.*, sv.version, s.name as strategy_name
+            SELECT ss.*, sv.version, sv.strategy_id, s.name as strategy_name, s.category as strategy_type
             FROM session_strategies ss
             JOIN strategy_versions sv ON ss.strategy_version_id = sv.id
             JOIN strategies s ON sv.strategy_id = s.id
@@ -333,7 +373,7 @@ class LiveTradingManager:
                 conn.close()
 
     def remove_strategy_from_session(
-        self, session_id: int, strategy_version_id: int
+        self, session_id: int, strategy_config_id: int
     ) -> bool:
         """Remove a strategy from a session."""
         conn = None
@@ -343,9 +383,9 @@ class LiveTradingManager:
 
             query = """
             DELETE FROM session_strategies
-            WHERE session_id = ? AND strategy_version_id = ?
+            WHERE session_id = ? AND id = ?
             """
-            cursor.execute(query, (session_id, strategy_version_id))
+            cursor.execute(query, (session_id, strategy_config_id))
             conn.commit()
 
             return True

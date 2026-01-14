@@ -10,6 +10,8 @@ export interface LiveSession {
   session_name: string
   status: SessionStatus
   mode: TradingMode
+  stop_mode?: SessionStopMode
+  stop_at?: string | null
   max_total_risk_pct: number
   max_positions: number
   max_correlation: number
@@ -30,10 +32,13 @@ export interface LiveSession {
 
 export type SessionStatus = "stopped" | "starting" | "running" | "paused" | "stopping" | "error"
 export type TradingMode = "paper" | "live"
+export type SessionStopMode = "manual" | "auto"
 
 export interface SessionCreateRequest {
   session_name: string
   mode?: TradingMode
+  stop_mode?: SessionStopMode
+  stop_at?: string
   max_total_risk_pct?: number
   max_positions?: number
   max_correlation?: number
@@ -46,6 +51,8 @@ export interface SessionCreateRequest {
 export interface SessionUpdateRequest {
   session_name?: string
   mode?: TradingMode
+  stop_mode?: SessionStopMode
+  stop_at?: string
   max_total_risk_pct?: number
   max_positions?: number
   max_correlation?: number
@@ -61,6 +68,8 @@ export interface SessionStatusInfo {
   status: SessionStatus
   running: boolean
   paused: boolean
+  stop_mode?: SessionStopMode
+  stop_at?: string | null
   signals_detected: number
   signals_approved: number
   signals_rejected: number
@@ -178,6 +187,38 @@ export interface ManualOrderRequest {
   sl_pips?: number
   tp_pips?: number
   comment?: string
+}
+
+export interface ManualOrderResponse {
+  message: string
+  order_id: number
+  deal_id: number
+  price: number
+  volume: number
+}
+
+export type PendingOrderType = "buy_limit" | "sell_limit" | "buy_stop" | "sell_stop"
+
+export interface PendingOrderRequest {
+  symbol: string
+  volume: number
+  type: PendingOrderType
+  price: number
+  sl_pips?: number
+  tp_pips?: number
+  comment?: string
+}
+
+export interface Order {
+  ticket: number
+  symbol: string
+  type: number
+  volume_current: number
+  price_open: number
+  price_current?: number
+  time_setup?: number
+  sl?: number
+  tp?: number
 }
 
 export interface SessionStrategy {

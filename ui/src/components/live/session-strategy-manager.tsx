@@ -32,10 +32,10 @@ export function SessionStrategyManager({ sessionId, sessionStatus }: SessionStra
   const [selectedStrategyId, setSelectedStrategyId] = useState<number | null>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [symbols, setSymbols] = useState("EURUSD")
-  const [timeframes, setTimeframes] = useState("M15")
+  const [timeframes, setTimeframes] = useState("M1")
   const [maxRiskPerTrade, setMaxRiskPerTrade] = useState(1.0)
-  const [positionSizeType, setPositionSizeType] = useState<"risk" | "fixed" | "percent">("risk")
-  const [positionSizeValue, setPositionSizeValue] = useState(1.0)
+  const [positionSizeType, setPositionSizeType] = useState<"risk" | "fixed" | "percent">("fixed")
+  const [positionSizeValue, setPositionSizeValue] = useState(0.01)
 
   const isStopped = sessionStatus === "stopped"
 
@@ -83,9 +83,19 @@ export function SessionStrategyManager({ sessionId, sessionStatus }: SessionStra
     try {
       const versions = await strategyApi.listVersions(strategyId)
       setStrategyVersions(versions)
-      // Auto-select the latest version (last in list)
       if (versions.length > 0) {
-        setSelectedVersionId(versions[versions.length - 1].id)
+        const latestVersion = versions.reduce((best, current) => {
+          const bestParts = best.version.split(".").map(Number)
+          const currentParts = current.version.split(".").map(Number)
+          for (let i = 0; i < Math.max(bestParts.length, currentParts.length); i++) {
+            const bestVal = bestParts[i] || 0
+            const currentVal = currentParts[i] || 0
+            if (currentVal > bestVal) return current
+            if (currentVal < bestVal) return best
+          }
+          return best
+        }, versions[0])
+        setSelectedVersionId(latestVersion.id)
       }
     } catch (err) {
       console.error("Error loading strategy versions:", err)
@@ -172,10 +182,10 @@ export function SessionStrategyManager({ sessionId, sessionStatus }: SessionStra
     setSelectedStrategyId(null)
     setSelectedVersionId(null)
     setSymbols("EURUSD")
-    setTimeframes("M15")
+    setTimeframes("M1")
     setMaxRiskPerTrade(1.0)
-    setPositionSizeType("risk")
-    setPositionSizeValue(1.0)
+    setPositionSizeType("fixed")
+    setPositionSizeValue(0.01)
     setStrategyVersions([])
   }
 

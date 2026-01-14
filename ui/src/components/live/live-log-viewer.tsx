@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { useEffect, useRef, useState } from "react"
+import { LiveTradingAPI } from "@/lib/api/live"
+import { useLiveWebSocket } from "@/lib/hooks/use-live-websocket"
 
 interface LogEntry {
   id: number
@@ -12,13 +14,21 @@ interface LogEntry {
   message: string
 }
 
-export function LiveLogViewer() {
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 1, timestamp: "10:30:05", level: "INFO", message: "System initialized. Connected to Broker A." },
-    { id: 2, timestamp: "10:30:06", level: "INFO", message: "Market data stream connected (XAUUSD, EURUSD)." },
-    { id: 3, timestamp: "10:32:15", level: "TRADE", message: "Opened BUY 1.0 XAUUSD @ 2040.50" },
-  ])
+interface LiveLogViewerProps {
+  sessionId?: number
+}
+
+export function LiveLogViewer({ sessionId }: LiveLogViewerProps) {
+  const [logs, setLogs] = useState<LogEntry[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const normalizeLevel = (level?: string, category?: string): LogEntry["level"] => {
+    const levelUpper = (level || "INFO").toUpperCase()
+    if (category && category.toLowerCase().includes("trade")) return "TRADE"
+    if (levelUpper === "WARNING") return "WARN"
+    if (levelUpper === "ERROR" || levelUpper === "CRITICAL") return "ERROR"
+    return "INFO"
+  }
 
   useEffect(() => {
     // Auto-scroll to bottom
@@ -27,32 +37,55 @@ export function LiveLogViewer() {
     }
   }, [logs])
 
-  // Simulate incoming logs
   useEffect(() => {
-    const interval = setInterval(() => {
-        if (Math.random() > 0.7) {
-            const now = new Date().toLocaleTimeString()
-            const types: ("INFO" | "WARN" | "TRADE")[] = ["INFO", "INFO", "TRADE", "WARN"]
-            const type = types[Math.floor(Math.random() * types.length)]
-            const msgs = [
-                "Latency spike detected (150ms)",
-                "Order #12345 modified SL",
-                "Tick data received",
-                "Strategy 'MACD' signal ignored (Validation)",
-                "Connection heartbeat"
-            ]
-            const msg = msgs[Math.floor(Math.random() * msgs.length)]
+    if (!sessionId) return
 
-            setLogs(prev => [...prev.slice(-49), {
-                id: Date.now(),
-                timestamp: now,
-                level: type,
-                message: msg
-            }])
-        }
-    }, 2000)
+    const fetchLogs = async () => {
+      try {
+        const response = await LiveTradingAPI.getLogs(sessionId, 200)
+        const normalized = response.logs
+          .slice()
+          .reverse()
+          .map((log: any) => ({
+            id: log.log_id || Date.now(),
+            timestamp: log.log_time
+              ? new Date(log.log_time).toLocaleTimeString()
+              : new Date().toLocaleTimeString(),
+            level: normalizeLevel(log.log_level, log.log_category),
+            message: log.message,
+          }))
+        setLogs(normalized)
+      } catch (err) {
+        console.error("Error fetching logs:", err)
+      }
+    }
+
+    fetchLogs()
+    const interval = setInterval(fetchLogs, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [sessionId])
+
+  useLiveWebSocket({
+    sessionId: sessionId || 0,
+    channels: ["logs"],
+    onLogMessage: (log) => {
+      if (!sessionId) return
+      const timestamp = new Date().toLocaleTimeString()
+      const level = normalizeLevel(log.level, log.category)
+      setLogs((prev) => [
+        ...prev.slice(-199),
+        {
+          id: Date.now(),
+          timestamp,
+          level,
+          message: log.message,
+        },
+      ])
+    },
+    autoConnect: !!sessionId,
+  })
+
+  const renderEmpty = !sessionId || logs.length === 0
 
   return (
     <Card className="h-full flex flex-col">
@@ -69,7 +102,11 @@ export function LiveLogViewer() {
       <CardContent className="flex-1 p-0">
         <ScrollArea className="h-[200px] w-full p-4">
             <div className="space-y-2">
-                {logs.map((log) => (
+                {renderEmpty ? (
+                  <div className="text-xs text-muted-foreground text-center py-8">
+                    {sessionId ? "No logs yet." : "Select a session to view logs."}
+                  </div>
+                ) : logs.map((log) => (
                     <div key={log.id} className="flex items-start space-x-2 text-xs">
                         <span className="text-muted-foreground font-mono shrink-0">[{log.timestamp}]</span>
                         <Badge

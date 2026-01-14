@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Plus, Trash2 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface MetadataFormProps {
@@ -18,6 +18,7 @@ interface MetadataFormProps {
         status: "active" | "inactive" | "testing"
         category: string
         parameters: Record<string, any>
+        parameterTypes?: Record<string, string>
         symbol: string
         timeframe: string
         type: string
@@ -26,6 +27,7 @@ interface MetadataFormProps {
             positionSize: number
         }
         variables: Record<string, any>
+        variableTypes?: Record<string, string>
     }
     onChange: (metadata: MetadataFormProps["metadata"]) => void
 }
@@ -33,6 +35,18 @@ interface MetadataFormProps {
 export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
     const [paramTypeOverrides, setParamTypeOverrides] = useState<Record<string, string>>({})
     const [varTypeOverrides, setVarTypeOverrides] = useState<Record<string, string>>({})
+
+    useEffect(() => {
+        if (metadata.parameterTypes) {
+            setParamTypeOverrides(metadata.parameterTypes)
+        }
+    }, [metadata.parameterTypes])
+
+    useEffect(() => {
+        if (metadata.variableTypes) {
+            setVarTypeOverrides(metadata.variableTypes)
+        }
+    }, [metadata.variableTypes])
 
     const getEffectiveType = (value: any, key: string, overrides: Record<string, string>): string => {
         if (overrides[key]) return overrides[key]
@@ -60,11 +74,11 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
         const newParams = { ...metadata.parameters }
         delete newParams[key]
 
-        const newOverrides = { ...paramTypeOverrides }
+        const newOverrides = { ...(metadata.parameterTypes || {}) }
         delete newOverrides[key]
         setParamTypeOverrides(newOverrides)
 
-        onChange({ ...metadata, parameters: newParams })
+        onChange({ ...metadata, parameters: newParams, parameterTypes: newOverrides })
     }
 
     const handleParameterAdd = () => {
@@ -83,14 +97,14 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
         delete newParams[oldKey]
         newParams[newKey] = value
 
-        if (paramTypeOverrides[oldKey]) {
-            const newOverrides = { ...paramTypeOverrides }
+        const newOverrides = { ...(metadata.parameterTypes || {}) }
+        if (newOverrides[oldKey]) {
             newOverrides[newKey] = newOverrides[oldKey]
             delete newOverrides[oldKey]
-            setParamTypeOverrides(newOverrides)
         }
+        setParamTypeOverrides(newOverrides)
 
-        onChange({ ...metadata, parameters: newParams })
+        onChange({ ...metadata, parameters: newParams, parameterTypes: newOverrides })
     }
 
     const handleParameterTypeChange = (key: string, newType: string) => {
@@ -114,11 +128,13 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
                 convertedValue = currentValue
         }
 
-        setParamTypeOverrides(prev => ({ ...prev, [key]: newType }))
+        const nextOverrides = { ...(metadata.parameterTypes || {}), [key]: newType }
+        setParamTypeOverrides(nextOverrides)
 
         onChange({
             ...metadata,
-            parameters: { ...metadata.parameters, [key]: convertedValue }
+            parameters: { ...metadata.parameters, [key]: convertedValue },
+            parameterTypes: nextOverrides
         })
     }
 
@@ -133,11 +149,11 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
         const newVars = { ...(metadata.variables || {}) }
         delete newVars[key]
 
-        const newOverrides = { ...varTypeOverrides }
+        const newOverrides = { ...(metadata.variableTypes || {}) }
         delete newOverrides[key]
         setVarTypeOverrides(newOverrides)
 
-        onChange({ ...metadata, variables: newVars })
+        onChange({ ...metadata, variables: newVars, variableTypes: newOverrides })
     }
 
     const handleVariableAdd = () => {
@@ -156,14 +172,14 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
         delete newVars[oldKey]
         newVars[newKey] = value
 
-        if (varTypeOverrides[oldKey]) {
-            const newOverrides = { ...varTypeOverrides }
+        const newOverrides = { ...(metadata.variableTypes || {}) }
+        if (newOverrides[oldKey]) {
             newOverrides[newKey] = newOverrides[oldKey]
             delete newOverrides[oldKey]
-            setVarTypeOverrides(newOverrides)
         }
+        setVarTypeOverrides(newOverrides)
 
-        onChange({ ...metadata, variables: newVars })
+        onChange({ ...metadata, variables: newVars, variableTypes: newOverrides })
     }
 
     const handleVariableTypeChange = (key: string, newType: string) => {
@@ -187,21 +203,13 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
                 convertedValue = currentValue
         }
 
-        setVarTypeOverrides(prev => ({ ...prev, [key]: newType }))
+        const nextOverrides = { ...(metadata.variableTypes || {}), [key]: newType }
+        setVarTypeOverrides(nextOverrides)
 
         onChange({
             ...metadata,
-            variables: { ...(metadata.variables || {}), [key]: convertedValue }
-        })
-    }
-
-    const handleMoneyManagementChange = (field: string, value: any) => {
-        onChange({
-            ...metadata,
-            moneyManagement: {
-                ...(metadata.moneyManagement || { method: "Fixed lot size", positionSize: 0.1 }),
-                [field]: value
-            }
+            variables: { ...(metadata.variables || {}), [key]: convertedValue },
+            variableTypes: nextOverrides
         })
     }
 
@@ -315,44 +323,6 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
             </Card>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>Money Management</CardTitle>
-                    <CardDescription>Capital allocation and position sizing rules.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="mmMethod">Method</Label>
-                            <Select
-                                value={metadata.moneyManagement?.method || "Fixed lot size"}
-                                onValueChange={(value) => handleMoneyManagementChange("method", value)}
-                            >
-                                <SelectTrigger id="mmMethod">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Fixed lot size">Fixed lot size</SelectItem>
-                                    <SelectItem value="Fixed percentage">Fixed percentage</SelectItem>
-                                    <SelectItem value="Risk percentage">Risk percentage</SelectItem>
-                                    <SelectItem value="Kelly Criterion">Kelly Criterion</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="positionSize">Position Size / Risk %</Label>
-                            <Input
-                                id="positionSize"
-                                type="number"
-                                step="0.01"
-                                value={metadata.moneyManagement?.positionSize || 0.1}
-                                onChange={(e) => handleMoneyManagementChange("positionSize", parseFloat(e.target.value))}
-                            />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
                  <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                         <CardTitle>Parameters</CardTitle>
@@ -400,6 +370,15 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
                                                     else if (type === 'float') newValue = e.target.value // Keep as string to allow "0." and decimals
                                                     else if (type === 'boolean') newValue = e.target.value === 'true'
                                                     handleParameterChange(key, newValue)
+                                                }}
+                                                onBlur={(e) => {
+                                                    const type = getEffectiveType(value, key, paramTypeOverrides)
+                                                    if (type === 'float') {
+                                                        const parsed = parseFloat(e.target.value)
+                                                        if (!Number.isNaN(parsed)) {
+                                                            handleParameterChange(key, parsed)
+                                                        }
+                                                    }
                                                 }}
                                             />
                                         </TableCell>

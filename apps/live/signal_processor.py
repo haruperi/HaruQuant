@@ -4,12 +4,12 @@ Maintains rolling window of bars and runs strategy to detect trading signals.
 Handles strategy initialization and real-time signal detection.
 """
 
-from typing import Dict, Optional
+from typing import Optional
 
 import pandas as pd
 
 from apps.logger import logger
-from apps.strategy.base import BaseStrategy
+from apps.strategy.base import BaseStrategy, SignalDict
 
 
 class SignalProcessor:
@@ -53,13 +53,6 @@ class SignalProcessor:
                 logger.error("Strategy returned empty data")
                 return False
 
-            # Check for NaN in last row indicators (shouldn't happen with 200+ bars)
-            last_row = self._data.iloc[-1]
-            if pd.isna(last_row.get("ema_200")):
-                logger.warning(
-                    "EMA indicators have NaN values in last row - may need more historical data"
-                )
-
             logger.info(
                 f"Strategy initialized successfully. Data shape: {self._data.shape}"
             )
@@ -72,7 +65,7 @@ class SignalProcessor:
             logger.error(f"Error initializing signal processor: {e}", exc_info=True)
             return False
 
-    def update_with_new_bar(self, new_bar: pd.Series) -> Optional[Dict]:
+    def update_with_new_bar(self, new_bar: pd.Series) -> Optional[SignalDict]:
         """Update rolling window with new bar and check for signals.
 
         Args:
@@ -86,38 +79,57 @@ class SignalProcessor:
             return None
 
         try:
-            # Create DataFrame from Series if needed
-            if isinstance(new_bar, pd.Series):
-                new_bar_df = pd.DataFrame([new_bar])
-            else:
-                new_bar_df = new_bar
-
-            # Append new bar to existing data
-            self._data = pd.concat([self._data, new_bar_df], ignore_index=False)
-
-            # Trim to max_bars if exceeded
-            if len(self._data) > self.max_bars:
-                self._data = self._data.iloc[-self.max_bars :]
-                logger.debug(f"Trimmed data to {self.max_bars} bars")
-
-            # Re-run strategy on full DataFrame
-            # (Strategy recalculates all indicators - this is by design)
+            self._append_new_bar(new_bar)
             self._data = self.strategy.on_bar(self._data)
 
-            # Get signal from last bar
             last_index = len(self._data) - 1
             signal = self.strategy.get_signal(self._data, last_index)
-
             if signal:
-                logger.info(f"Signal detected: {signal['signal']} at {signal['time']}")
-                logger.info(f"  Reason: {signal['reason']}")
-                logger.info(f"  Entry Price: {signal['entry_price']:.5f}")
+                self._log_signal_details(signal)
 
             return signal
 
         except Exception as e:
             logger.error(f"Error processing new bar: {e}", exc_info=True)
             return None
+
+    def _append_new_bar(self, new_bar: pd.Series) -> None:
+        if isinstance(new_bar, pd.Series):
+            new_bar_df = pd.DataFrame([new_bar])
+        else:
+            new_bar_df = new_bar
+
+        self._data = pd.concat([self._data, new_bar_df], ignore_index=False)
+
+        if len(self._data) > self.max_bars:
+            self._data = self._data.iloc[-self.max_bars :]
+            logger.debug(f"Trimmed data to {self.max_bars} bars")
+
+    def _extract_signal_label(self, signal: SignalDict) -> str:
+        signal_label = signal.get("signal")
+        if signal_label:
+            return str(signal_label)
+
+        entry_signal = signal.get("entry_signal")
+        exit_signal = signal.get("exit_signal")
+        if entry_signal in (1, -1):
+            return "entry_buy" if entry_signal == 1 else "entry_sell"
+        if exit_signal in (1, -1):
+            return "exit_buy" if exit_signal == 1 else "exit_sell"
+        return "signal"
+
+    def _log_signal_details(self, signal: SignalDict) -> None:
+        signal_label = self._extract_signal_label(signal)
+        signal_time = signal.get("time", "unknown")
+        logger.info(f"Signal detected: {signal_label} at {signal_time}")
+
+        reason = signal.get("reason")
+        if reason:
+            logger.info(f"  Reason: {reason}")
+
+        price = signal.get("price", signal.get("entry_price"))
+        if isinstance(price, (int, float)):
+            logger.info(f"  Price: {price:.5f}")
 
     def get_current_data(self) -> Optional[pd.DataFrame]:
         """Get current rolling window of data.
@@ -127,7 +139,7 @@ class SignalProcessor:
         """
         return self._data.copy() if self._data is not None else None
 
-    def get_last_signal(self) -> Optional[Dict]:
+    def get_last_signal(self) -> Optional[SignalDict]:
         """Get signal from the last bar in current data.
 
         Returns:

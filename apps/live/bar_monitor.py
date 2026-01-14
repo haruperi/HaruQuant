@@ -95,8 +95,9 @@ class BarMonitor:
 
             # Check if bar time changed
             if current_bar_time != self._last_bar_time:
+                new_bar_time = bars.index[-1]
                 logger.info(
-                    f"New bar detected: {current_bar_time} (previous: {self._last_bar_time})"
+                    f"New bar detected: {new_bar_time} (previous: {current_bar_time})"
                 )
                 self._last_bar_time = current_bar_time
                 return True

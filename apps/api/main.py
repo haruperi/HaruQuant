@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.logger import logger
 
 from .logging_config import setup_logging
-from .routes import auth, backtest, docs, optimization, settings, strategies
+from .routes import auth, backtest, docs, live, optimization, settings, strategies
 from .routes.dashboard import broker as dashboard_broker
 from .routes.dashboard import market_hours as dashboard_market_hours
 from .routes.dashboard import system as dashboard_system
@@ -65,7 +65,7 @@ app.include_router(
 )
 
 app.include_router(trades.router, prefix="/api/reports/trades", tags=["trades"])
-# Live trading routes temporarily disabled.
+app.include_router(live.router, prefix="/api/live", tags=["live"])
 app.include_router(data_ingestion.router, prefix="/api/data", tags=["data-management"])
 app.include_router(data_datasets.router, prefix="/api/data", tags=["data-management"])
 app.include_router(

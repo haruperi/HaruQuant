@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Loader2 } from "lucide-react"
 import { LiveTradingAPI } from "@/lib/api/live"
 import { useSettings } from "@/lib/use-settings"
-import type { SessionCreateRequest, TradingMode } from "@/types/live"
+import type { SessionCreateRequest, TradingMode, SessionStopMode } from "@/types/live"
 import { toast } from "sonner"
 
 interface SessionCreateDialogProps {
@@ -24,6 +24,8 @@ export function SessionCreateDialog({ onSessionCreated }: SessionCreateDialogPro
   // Form state
   const [sessionName, setSessionName] = useState("")
   const [mode, setMode] = useState<TradingMode>("paper")
+  const [stopMode, setStopMode] = useState<SessionStopMode>("manual")
+  const [stopAt, setStopAt] = useState("")
   const [maxTotalRiskPct, setMaxTotalRiskPct] = useState(2.0)
   const [maxPositions, setMaxPositions] = useState(5)
   const [maxCorrelation, setMaxCorrelation] = useState(0.7)
@@ -62,12 +64,19 @@ export function SessionCreateDialog({ onSessionCreated }: SessionCreateDialogPro
       return
     }
 
+    if (stopMode === "auto" && !stopAt) {
+      toast.error("Stop time is required for auto stop")
+      return
+    }
+
     try {
       setIsCreating(true)
 
       const request: SessionCreateRequest = {
         session_name: sessionName,
         mode,
+        stop_mode: stopMode,
+        stop_at: stopMode === "auto" ? stopAt : undefined,
         max_total_risk_pct: maxTotalRiskPct,
         max_positions: maxPositions,
         max_correlation: maxCorrelation,
@@ -83,6 +92,8 @@ export function SessionCreateDialog({ onSessionCreated }: SessionCreateDialogPro
       // Reset form
       setSessionName("")
       setMode("paper")
+      setStopMode("manual")
+      setStopAt("")
       setIsOpen(false)
 
       // Notify parent
@@ -123,7 +134,7 @@ export function SessionCreateDialog({ onSessionCreated }: SessionCreateDialogPro
         <DialogHeader>
           <DialogTitle>Create Live Trading Session</DialogTitle>
           <DialogDescription>
-            Configure a new trading session with risk management settings
+            Configure a new trading session
           </DialogDescription>
         </DialogHeader>
 
@@ -163,83 +174,30 @@ export function SessionCreateDialog({ onSessionCreated }: SessionCreateDialogPro
             </Select>
           </div>
 
-          {/* Risk Settings */}
-          <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
-            <h4 className="text-sm font-medium">Risk Management</h4>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="maxRisk" className="text-xs">
-                  Max Total Risk (%)
-                </Label>
-                <Input
-                  id="maxRisk"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="10"
-                  value={maxTotalRiskPct}
-                  onChange={(e) => setMaxTotalRiskPct(parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Total portfolio risk limit
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="maxPositions" className="text-xs">
-                  Max Positions
-                </Label>
-                <Input
-                  id="maxPositions"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={maxPositions}
-                  onChange={(e) => setMaxPositions(parseInt(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Concurrent position limit
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="maxCorrelation" className="text-xs">
-                  Max Correlation
-                </Label>
-                <Input
-                  id="maxCorrelation"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="1"
-                  value={maxCorrelation}
-                  onChange={(e) => setMaxCorrelation(parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Position correlation limit
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="maxDrawdown" className="text-xs">
-                  Max Drawdown (%)
-                </Label>
-                <Input
-                  id="maxDrawdown"
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  max="50"
-                  value={maxDrawdownPct}
-                  onChange={(e) => setMaxDrawdownPct(parseFloat(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Auto-stop threshold
-                </p>
-              </div>
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="stopMode">Session Stop</Label>
+            <Select value={stopMode} onValueChange={(value: SessionStopMode) => setStopMode(value)}>
+              <SelectTrigger id="stopMode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual stop</SelectItem>
+                <SelectItem value="auto">Auto stop</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {stopMode === "auto" && (
+            <div className="grid gap-2">
+              <Label htmlFor="stopAt">Stop At</Label>
+              <Input
+                id="stopAt"
+                type="datetime-local"
+                value={stopAt}
+                onChange={(e) => setStopAt(e.target.value)}
+              />
+            </div>
+          )}
 
           {isLoadingSettings && (
             <div className="text-xs text-muted-foreground flex items-center gap-2">

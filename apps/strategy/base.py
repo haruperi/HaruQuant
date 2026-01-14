@@ -72,9 +72,11 @@ class BaseStrategy(ABC):
             params: Strategy parameters dict (e.g., {'symbol': 'EURUSD', 'ema_fast': 20})
         """
         self.params = params or {}
+        if "symbol" not in self.params:
+            self.params["symbol"] = "UNKNOWN"
 
         # Extract symbol from params (required for backtest engines)
-        self.symbol = self.params.get("symbol", "UNKNOWN")
+        self.symbol = self.params["symbol"]
 
         # Optional trading objects (injected by engines for live/backtest)
         self.trade: Optional["Trade"] = None

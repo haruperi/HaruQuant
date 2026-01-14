@@ -27,7 +27,7 @@ export function BrokerStatus() {
     async function fetchBrokerStatus() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-        const response = await authenticatedFetch(`${apiUrl}/api/dashboard/broker/`)
+        const response = await authenticatedFetch(`${apiUrl}/api/dashboard/broker`)
 
         if (!response.ok) throw new Error("Failed to fetch")
 

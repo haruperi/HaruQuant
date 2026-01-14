@@ -1,6 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, LayoutDashboard, Terminal, Activity, TrendingUp } from "lucide-react"
+
 import { LiveStatusCardEnhanced } from "@/components/live/live-status-card-enhanced"
 import { StrategyRunnerEnhanced } from "@/components/live/strategy-runner-enhanced"
 import { SessionStrategyManager } from "@/components/live/session-strategy-manager"
@@ -11,14 +16,14 @@ import { ActivePositionsTableEnhanced } from "@/components/live/active-positions
 import { OpenOrdersTable } from "@/components/live/open-orders-table"
 import { ManualOrderControls } from "@/components/live/manual-order-controls"
 import { LiveLogViewer } from "@/components/live/live-log-viewer"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function LivePage() {
   const [sessionId, setSessionId] = useState<number | undefined>(undefined)
   const [sessionStatus, setSessionStatus] = useState<string>("stopped")
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // Chart state
   const [selectedSymbol, setSelectedSymbol] = useState<string>("XAUUSD")
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>("M15")
 
@@ -28,110 +33,143 @@ export default function LivePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-1 h-full flex flex-col">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Live Command Center</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Live Command Center</h1>
+          <p className="text-muted-foreground">Monitor and control your algorithmic trading strategies in real-time.</p>
+        </div>
         <SessionCreateDialog onSessionCreated={handleSessionCreated} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {sessionId ? (
-          <LiveStatusCardEnhanced sessionId={sessionId} />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">System Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">Select a session to start</div>
-            </CardContent>
-          </Card>
-        )}
-        <StrategyRunnerEnhanced
-          onSessionChange={setSessionId}
-          onStatusChange={setSessionStatus}
-          refreshTrigger={refreshTrigger}
-        />
-        <RiskMonitor sessionId={sessionId} />
+      <div className="grid gap-4 md:grid-cols-12 lg:grid-cols-12">
+        {/* Status Section - Spans top row */}
+        <div className="col-span-12 lg:col-span-4">
+           {sessionId ? (
+            <LiveStatusCardEnhanced sessionId={sessionId} />
+          ) : (
+            <Card className="h-full flex flex-col justify-center items-center text-center p-6 border-dashed">
+              <Activity className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-lg font-medium">No Session Selected</h3>
+              <p className="text-sm text-muted-foreground mt-2">Select a session from the control panel to view status.</p>
+            </Card>
+          )}
+        </div>
+
+        <div className="col-span-12 md:col-span-6 lg:col-span-4">
+           <StrategyRunnerEnhanced
+            onSessionChange={setSessionId}
+            onStatusChange={setSessionStatus}
+            refreshTrigger={refreshTrigger}
+          />
+        </div>
+
+        <div className="col-span-12 md:col-span-6 lg:col-span-4">
+           <RiskMonitor sessionId={sessionId} />
+        </div>
       </div>
 
       {!sessionId && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Active Session</AlertTitle>
-          <AlertDescription>
-            Select or create a trading session using the Strategy Control panel to begin live trading.
+        <Alert variant="default" className="bg-primary/5 border-primary/20">
+          <AlertCircle className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-primary font-medium">Getting Started</AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            Select an existing session from the <strong>Strategy Control</strong> panel above, or create a new session to begin.
           </AlertDescription>
         </Alert>
       )}
 
       {sessionId && (
-        <div className="grid gap-4 grid-cols-1">
-          {/* Strategy Management */}
-          <SessionStrategyManager
-            sessionId={sessionId}
-            sessionStatus={sessionStatus}
-          />
-
-          {/* Main Chart */}
-          <Card className="h-[500px] flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle>Live Chart</CardTitle>
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedSymbol}
-                  onChange={(e) => setSelectedSymbol(e.target.value)}
-                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="XAUUSD">XAUUSD</option>
-                  <option value="EURUSD">EURUSD</option>
-                  <option value="GBPUSD">GBPUSD</option>
-                  <option value="USDJPY">USDJPY</option>
-                  <option value="BTCUSD">BTCUSD</option>
-                </select>
-                <select
-                  value={selectedTimeframe}
-                  onChange={(e) => setSelectedTimeframe(e.target.value)}
-                  className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="M1">M1</option>
-                  <option value="M5">M5</option>
-                  <option value="M15">M15</option>
-                  <option value="M30">M30</option>
-                  <option value="H1">H1</option>
-                  <option value="H4">H4</option>
-                  <option value="D1">D1</option>
-                </select>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-hidden">
-              <LiveCandleChart
-                sessionId={sessionId}
-                symbol={selectedSymbol}
-                timeframe={selectedTimeframe}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Bottom Section: Positions & Orders */}
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <ActivePositionsTableEnhanced sessionId={sessionId} />
-              <OpenOrdersTable />
-            </div>
-            <div className="lg:col-span-1">
-              {/* Right Column - Execution & Tables */}
-              <div className="space-y-4">
-                <div className="grid gap-4 grid-cols-1">
-                   <ManualOrderControls sessionId={sessionId} />
+        <div className="grid gap-6 grid-cols-12 flex-1">
+          {/* Main Chart Column - Left */}
+          <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+            <Card className="flex-1 flex flex-col min-h-[500px]">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-emerald-500" />
+                    <CardTitle>Market Overview</CardTitle>
                 </div>
-              </div>
-            </div>
+                <div className="flex items-center gap-2">
+                   <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
+                    <SelectTrigger className="w-[120px] h-8 text-xs">
+                      <SelectValue placeholder="Symbol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="XAUUSD">XAUUSD</SelectItem>
+                      <SelectItem value="EURUSD">EURUSD</SelectItem>
+                      <SelectItem value="GBPUSD">GBPUSD</SelectItem>
+                      <SelectItem value="USDJPY">USDJPY</SelectItem>
+                      <SelectItem value="BTCUSD">BTCUSD</SelectItem>
+                      <SelectItem value="ETHUSD">ETHUSD</SelectItem>
+                      <SelectItem value="US30">US30</SelectItem>
+                      <SelectItem value="NAS100">NAS100</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+                    <SelectTrigger className="w-[80px] h-8 text-xs">
+                      <SelectValue placeholder="TF" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M1">M1</SelectItem>
+                      <SelectItem value="M5">M5</SelectItem>
+                      <SelectItem value="M15">M15</SelectItem>
+                      <SelectItem value="M30">M30</SelectItem>
+                      <SelectItem value="H1">H1</SelectItem>
+                      <SelectItem value="H4">H4</SelectItem>
+                      <SelectItem value="D1">D1</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-0 relative">
+                 <LiveCandleChart
+                    sessionId={sessionId}
+                    symbol={selectedSymbol}
+                    timeframe={selectedTimeframe}
+                  />
+              </CardContent>
+            </Card>
+
+            {/* Logs Viewer */}
+             <LiveLogViewer sessionId={sessionId} />
           </div>
 
-          {/* Live Log */}
-          <div>
-            <LiveLogViewer />
+          {/* Right Column - Tabs for Management */}
+          <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+            <Tabs defaultValue="positions" className="w-full flex-1 flex flex-col">
+              <TabsList className="w-full grid grid-cols-3 mb-2">
+                <TabsTrigger value="positions">Positions</TabsTrigger>
+                <TabsTrigger value="orders">Orders</TabsTrigger>
+                <TabsTrigger value="strategies">Strategies</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="positions" className="flex-1 mt-0">
+                 <ActivePositionsTableEnhanced sessionId={sessionId} />
+                 <div className="mt-4">
+                     <ManualOrderControls sessionId={sessionId} defaultSymbol={selectedSymbol} />
+                 </div>
+              </TabsContent>
+
+              <TabsContent value="orders" className="flex-1 mt-0 space-y-4">
+                 <OpenOrdersTable sessionId={sessionId} />
+                 <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Quick Trade</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ManualOrderControls sessionId={sessionId} defaultSymbol={selectedSymbol} />
+                    </CardContent>
+                 </Card>
+              </TabsContent>
+
+              <TabsContent value="strategies" className="flex-1 mt-0">
+                 <SessionStrategyManager
+                    sessionId={sessionId}
+                    sessionStatus={sessionStatus}
+                  />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       )}

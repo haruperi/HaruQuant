@@ -7,7 +7,7 @@ Allocation Planning → Risk Gating → Execution
 
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -344,10 +344,9 @@ class RiskIntegratedEngine(MultiStrategyEngine):
                 logger.info(f"[{instance.name}] New bar closed: {last_bar.name}")
 
                 # Process signal
-                signal = instance.signal_processor.update_with_new_bar(last_bar)
-
-                if signal:
-                    # Attach instance reference to signal
+                raw_signal = instance.signal_processor.update_with_new_bar(last_bar)
+                if raw_signal:
+                    signal = dict(raw_signal)
                     signal["_instance"] = instance
                     pending_signals.append(signal)
 
@@ -384,7 +383,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
 
             # 5. Gate and execute
             for signal in all_signals:
-                instance = signal["_instance"]
+                instance = cast(StrategyInstance, signal["_instance"])
                 self._gate_and_execute(instance, signal)
 
         except Exception as e:

@@ -19,6 +19,7 @@ export function LiveStatusCardEnhanced({ sessionId, onStatusUpdate }: LiveStatus
   const [isLoading, setIsLoading] = useState(true)
   const [latency, setLatency] = useState<number>(0)
   const [nextUpdateIn, setNextUpdateIn] = useState<number>(0)
+  const [currentTime, setCurrentTime] = useState<string>("")
 
   // WebSocket for real-time updates
   const { isConnected } = useLiveWebSocket({
@@ -38,6 +39,7 @@ export function LiveStatusCardEnhanced({ sessionId, onStatusUpdate }: LiveStatus
       const secondsIntoMinute = now.getSeconds()
       const secondsUntilNext = 60 - secondsIntoMinute
       setNextUpdateIn(secondsUntilNext)
+      setCurrentTime(now.toLocaleTimeString())
     }
 
     updateCountdown()
@@ -140,6 +142,17 @@ export function LiveStatusCardEnhanced({ sessionId, onStatusUpdate }: LiveStatus
     )
   }
 
+  const getSessionExpireLabel = () => {
+    if (!status || status.stop_mode !== "auto" || !status.stop_at) {
+      return "Manual"
+    }
+    const parsed = new Date(status.stop_at)
+    if (Number.isNaN(parsed.getTime())) {
+      return status.stop_at
+    }
+    return parsed.toLocaleString()
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -169,6 +182,14 @@ export function LiveStatusCardEnhanced({ sessionId, onStatusUpdate }: LiveStatus
             <div className="flex justify-between">
               <span className="text-muted-foreground">Server:</span>
               <span className="font-medium">{status?.account_server || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Time:</span>
+              <span className="font-medium">{currentTime || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Session Expire:</span>
+              <span className="font-medium">{getSessionExpireLabel()}</span>
             </div>
             <div className="flex justify-between border-t border-muted pt-1 mt-1">
               <span className="text-muted-foreground">Next update in:</span>

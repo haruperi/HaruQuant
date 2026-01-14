@@ -46,6 +46,8 @@ Routes in `apps/api/routes/strategies.py`, `apps/api/routes/live.py`, and `apps/
 
 ## Strategy & Backtesting
 Strategies are versioned and stored via `apps/strategy/storage.py` and referenced from the database.
+Strategy metadata stored alongside code includes UI-specific settings like `parameterTypes` and `variableTypes` to preserve types across edits.
+`BaseStrategy` ensures a default `symbol` parameter is present to avoid missing-key errors during strategy init.
 Backtests are launched from `apps/api/routes/strategies.py` and executed with:
 - `VectorizedEngine` or `EventDrivenEngine` (from `apps/backtest`)
 - Optional high-resolution execution data
@@ -63,6 +65,10 @@ Multi-asset portfolio backtests are executed via `apps/backtest/portfolio.py`:
 - Strategy attachment to sessions
 - Signals, positions, and logs
 Active sessions are tracked in-memory and coordinated through `apps/live/session.py`.
+`apps/live/engine.py` normalizes strategy type aliases (and falls back to strategy names) when choosing built-in strategy classes, and skips unknown types with a warning so live sessions can still start.
+Live sessions can also include optional auto-stop settings (`stop_mode`, `stop_at`) stored with the session record.
+For live sessions, the engine first attempts to load the strategy class from versioned strategy storage using the selected `strategy_version_id`, falling back to built-in strategy types if needed.
+When a session is running, live positions are pulled directly from MT5 and mapped into API responses; position close/modify endpoints operate on MT5 tickets.
 
 ## Optimization
 `apps/api/routes/optimization.py` starts optimization, walk-forward, and Monte Carlo tasks in the background.

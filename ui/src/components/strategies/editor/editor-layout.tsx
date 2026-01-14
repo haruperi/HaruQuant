@@ -36,6 +36,7 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
         status: "inactive" as "inactive" | "active" | "testing",
         category: "",
         parameters: {} as Record<string, any>,
+        parameterTypes: {} as Record<string, string>,
         symbol: "",
         timeframe: "H1",
         type: "MetaTrader5 (hedged)",
@@ -43,7 +44,8 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
             method: "Fixed lot size",
             positionSize: 0.1
         },
-        variables: {} as Record<string, any>
+        variables: {} as Record<string, any>,
+        variableTypes: {} as Record<string, string>
     })
     const [hasChanges, setHasChanges] = React.useState(false)
 
@@ -55,6 +57,7 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
         status: "inactive" as "inactive" | "active" | "testing",
         category: "",
         parameters: {} as Record<string, any>,
+        parameterTypes: {} as Record<string, string>,
         symbol: "",
         timeframe: "H1",
         type: "MetaTrader5 (hedged)",
@@ -62,7 +65,8 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
             method: "Fixed lot size",
             positionSize: 0.1
         },
-        variables: {} as Record<string, any>
+        variables: {} as Record<string, any>,
+        variableTypes: {} as Record<string, string>
     })
 
     // Load strategy data when it's fetched
@@ -79,6 +83,7 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
                 status: strategy.status,
                 category: strategy.category || "",
                 parameters: strategyCode?.parameters || {},
+                parameterTypes: strategyCode?.parameterTypes || {},
                 symbol: strategyCode?.symbol || "EURUSD",
                 timeframe: strategyCode?.timeframe || "H1",
                 type: strategyCode?.type || "MetaTrader5 (hedged)",
@@ -86,7 +91,8 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
                     method: "Fixed lot size",
                     positionSize: 0.1
                 },
-                variables: strategyCode?.variables || {}
+                variables: strategyCode?.variables || {},
+                variableTypes: strategyCode?.variableTypes || {}
             }
             setMetadata(meta)
             setOriginalMetadata(meta)
@@ -137,8 +143,10 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
                 symbol: metadata.symbol,
                 timeframe: metadata.timeframe,
                 type: metadata.type,
+                parameterTypes: metadata.parameterTypes,
                 moneyManagement: metadata.moneyManagement,
                 variables: metadata.variables,
+                variableTypes: metadata.variableTypes,
                 changelog: "Updated via editor"
             })
 

@@ -864,6 +864,8 @@ class SchemaManager:
                 -- Session configuration
                 status TEXT DEFAULT 'stopped',
                 mode TEXT DEFAULT 'paper',
+                stop_mode TEXT DEFAULT 'manual',
+                stop_at TIMESTAMP,
 
                 -- Portfolio settings
                 max_total_risk_pct REAL DEFAULT 2.0,
@@ -894,6 +896,16 @@ class SchemaManager:
             );
             """
             cursor.execute(create_live_trading_sessions_table)
+            cursor.execute("PRAGMA table_info(live_trading_sessions)")
+            live_session_columns = {row[1] for row in cursor.fetchall()}
+            if "stop_mode" not in live_session_columns:
+                cursor.execute(
+                    "ALTER TABLE live_trading_sessions ADD COLUMN stop_mode TEXT DEFAULT 'manual'"
+                )
+            if "stop_at" not in live_session_columns:
+                cursor.execute(
+                    "ALTER TABLE live_trading_sessions ADD COLUMN stop_at TIMESTAMP"
+                )
 
             # Session strategies (many-to-many)
             create_session_strategies_table = """
@@ -918,8 +930,7 @@ class SchemaManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
                 FOREIGN KEY (session_id) REFERENCES live_trading_sessions (session_id) ON DELETE CASCADE,
-                FOREIGN KEY (strategy_version_id) REFERENCES strategy_versions (id) ON DELETE CASCADE,
-                UNIQUE(session_id, strategy_version_id)
+                FOREIGN KEY (strategy_version_id) REFERENCES strategy_versions (id) ON DELETE CASCADE
             );
             """
             cursor.execute(create_session_strategies_table)

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { createChart, ColorType, CandlestickSeries, Time } from "lightweight-charts"
-import { useAuth } from "@/lib/auth-context"
+import { LiveTradingAPI } from "@/lib/api/live"
 
 interface LiveCandleChartProps {
   sessionId?: number
@@ -29,7 +29,6 @@ export const LiveCandleChart = ({
   symbol = "EURUSD",
   timeframe = "M5"
 }: LiveCandleChartProps) => {
-  const { authenticatedFetch } = useAuth()
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<any>(null)
   const candlestickSeriesRef = useRef<any>(null)
@@ -44,16 +43,7 @@ export const LiveCandleChart = ({
     }
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-      const url = `${baseUrl}/api/live/sessions/${sessionId}/market-data?symbol=${symbol}&timeframe=${timeframe}&count=500`
-
-      const response = await authenticatedFetch(url)
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch market data: ${response.status}`)
-      }
-
-      const data = await response.json() as MarketDataResponse
+      const data = await LiveTradingAPI.getMarketData(sessionId, symbol, timeframe, 500)
       return data
     } catch (err) {
       console.error("[Chart] Error fetching market data:", err)
@@ -62,7 +52,7 @@ export const LiveCandleChart = ({
       }
       return null
     }
-  }, [sessionId, symbol, timeframe, authenticatedFetch])
+  }, [sessionId, symbol, timeframe])
 
   // Track mount state
   useEffect(() => {
@@ -73,8 +63,6 @@ export const LiveCandleChart = ({
   }, [])
 
   useEffect(() => {
-    // If container is not available yet, we can't do anything.
-    // Given the structure change, it SHOULD be available unless unmounted.
     if (!chartContainerRef.current || !sessionId) return
 
     let chart: any = null
@@ -86,7 +74,6 @@ export const LiveCandleChart = ({
       try {
         if (isCancelled) return
 
-        // Only set loading if we don't have a chart yet (first load)
         if (!chartRef.current) {
             setIsLoading(true)
         }
@@ -99,19 +86,19 @@ export const LiveCandleChart = ({
             chart = createChart(chartContainerRef.current, {
                 layout: {
                     background: { type: ColorType.Solid, color: 'transparent' },
-                    textColor: '#d1d5db', // Lighter gray for better visibility
+                    textColor: '#9ca3af', // gray-400
                 },
                 width: chartContainerRef.current.clientWidth,
                 height: 400,
                 grid: {
-                    vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
-                    horzLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                    vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+                    horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
                 },
                 rightPriceScale: {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
                 },
                 timeScale: {
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
                     timeVisible: true,
                     secondsVisible: false,
                     rightOffset: 12,
@@ -120,8 +107,8 @@ export const LiveCandleChart = ({
             })
 
             const candlestickSeries = chart.addSeries(CandlestickSeries, {
-                upColor: '#10b981',
-                downColor: '#ef4444',
+                upColor: '#10b981', // emerald-500
+                downColor: '#ef4444', // red-500
                 borderVisible: false,
                 wickUpColor: '#10b981',
                 wickDownColor: '#ef4444',
@@ -133,38 +120,18 @@ export const LiveCandleChart = ({
             chart = chartRef.current
         }
 
-        // Apply options unconditionally to ensure HMR and updates work
+        // Apply options
         chart.applyOptions({
-            layout: {
-                background: { type: ColorType.Solid, color: 'transparent' },
-                textColor: '#d1d5db',
-            },
-            grid: {
-                vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
-                horzLines: { color: 'rgba(255, 255, 255, 0.1)' },
-            },
-            rightPriceScale: {
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-            },
-            timeScale: {
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-                timeVisible: true,
-                secondsVisible: false,
-                rightOffset: 12,
-                visible: true,
-            }
+            width: chartContainerRef.current.clientWidth,
+             // height managed by resize observer mostly
         })
 
         // Fetch initial data
         const data = await fetchMarketData()
 
-        if (isCancelled) {
-             // Cleanup handled by return function
-            return
-        }
+        if (isCancelled) return
 
         if (data && data.candles && data.candles.length > 0) {
-          // Update series options with precision
           if (candlestickSeriesRef.current) {
                candlestickSeriesRef.current.applyOptions({
                   priceFormat: {
@@ -174,7 +141,6 @@ export const LiveCandleChart = ({
                   },
               })
 
-              // Sort candles by time
               const sortedCandles = [...data.candles].sort((a, b) => (a.time as number) - (b.time as number))
 
               candlestickSeriesRef.current.setData(sortedCandles.map(c => ({
@@ -191,7 +157,7 @@ export const LiveCandleChart = ({
           }
         } else {
             if (isMountedRef.current) {
-                if (!error) setError("No data available")
+                // Don't show error immediately on empty Data, just stop loading
                 setIsLoading(false)
             }
         }
@@ -201,8 +167,7 @@ export const LiveCandleChart = ({
           if (entries.length === 0 || entries[0].target !== chartContainerRef.current) return
           if (!chart) return
           const newRect = entries[0].contentRect
-          // Subtract 20px from height to ensure x-axis labels are not clipped by parent container
-          chart.applyOptions({ width: newRect.width, height: newRect.height - 20 })
+          chart.applyOptions({ width: newRect.width, height: newRect.height })
         })
 
         resizeObserver.observe(chartContainerRef.current)
@@ -212,7 +177,7 @@ export const LiveCandleChart = ({
           if (isCancelled) return
 
           const now = new Date()
-          const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds()
+          const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 500 // +500ms safety
 
           updateTimeout = setTimeout(async () => {
             if (isCancelled) return
@@ -263,21 +228,21 @@ export const LiveCandleChart = ({
 
   if (!sessionId) {
     return (
-      <div className="w-full h-full min-h-[400px] flex items-center justify-center text-muted-foreground">
+      <div className="w-full h-full min-h-[400px] flex items-center justify-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed border-muted">
         Select a session to view chart
       </div>
     )
   }
 
   return (
-      <div className="w-full h-full relative" style={{ minHeight: '0' }}>
+      <div className="w-full h-full relative group" style={{ minHeight: '400px' }}>
         {error && (
-            <div className="absolute inset-0 flex items-center justify-center flex-col bg-background/80 z-20">
+            <div className="absolute inset-0 flex items-center justify-center flex-col bg-background/80 z-20 backdrop-blur-sm rounded-lg">
                 <p className="text-destructive font-semibold">Error Loading Chart</p>
-                <p className="text-sm text-muted-foreground">{error}</p>
+                <p className="text-sm text-muted-foreground mb-4">{error}</p>
                 <button
                     onClick={() => { setError(null); setIsLoading(true); }}
-                    className="mt-4 px-3 py-1 bg-secondary rounded text-xs hover:bg-secondary/80 pointer-events-auto"
+                    className="px-4 py-2 bg-secondary rounded-md text-sm hover:bg-secondary/80 pointer-events-auto transition-colors"
                 >
                     Retry
                 </button>
@@ -285,12 +250,12 @@ export const LiveCandleChart = ({
         )}
 
         {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 transition-opacity duration-300">
-                <div className="text-muted-foreground animate-pulse">Loading chart...</div>
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 transition-opacity duration-300 backdrop-blur-[1px] rounded-lg">
+                <div className="text-muted-foreground animate-pulse text-sm font-medium">Loading market data...</div>
             </div>
         )}
 
-        <div ref={chartContainerRef} className="w-full h-full min-h-[400px]" />
+        <div ref={chartContainerRef} className="w-full h-full rounded-lg overflow-hidden" />
     </div>
   )
 }

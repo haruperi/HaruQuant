@@ -27,11 +27,13 @@ class StrategyCreateRequest(BaseModel):
     category: Optional[str] = None
     code: str
     parameters: Optional[Dict[str, Any]] = None
+    parameterTypes: Optional[Dict[str, str]] = None
     symbol: Optional[str] = None
     timeframe: Optional[str] = None
     type: Optional[str] = None
     moneyManagement: Optional[Dict[str, Any]] = None
     variables: Optional[Dict[str, Any]] = None
+    variableTypes: Optional[Dict[str, str]] = None
 
 
 class StrategyUpdateRequest(BaseModel):
@@ -43,11 +45,13 @@ class StrategyUpdateRequest(BaseModel):
     category: Optional[str] = None
     code: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
+    parameterTypes: Optional[Dict[str, str]] = None
     symbol: Optional[str] = None
     timeframe: Optional[str] = None
     type: Optional[str] = None
     moneyManagement: Optional[Dict[str, Any]] = None
     variables: Optional[Dict[str, Any]] = None
+    variableTypes: Optional[Dict[str, str]] = None
     changelog: Optional[str] = None
 
 
@@ -131,8 +135,10 @@ def _create_strategy_version(
             "symbol": request.symbol,
             "timeframe": request.timeframe,
             "type": request.type,
+            "parameterTypes": request.parameterTypes,
             "moneyManagement": request.moneyManagement,
             "variables": request.variables,
+            "variableTypes": request.variableTypes,
             "changelog": request.changelog or f"Updated to v{new_version}",
         },
     )
@@ -276,8 +282,10 @@ async def create_strategy(
                 "symbol": request.symbol,
                 "timeframe": request.timeframe,
                 "type": request.type,
+                "parameterTypes": request.parameterTypes,
                 "moneyManagement": request.moneyManagement,
                 "variables": request.variables,
+                "variableTypes": request.variableTypes,
             },
         )
 
@@ -525,8 +533,10 @@ async def get_version_code(
             "symbol": metadata.get("symbol"),
             "timeframe": metadata.get("timeframe"),
             "type": metadata.get("type"),
+            "parameterTypes": metadata.get("parameterTypes"),
             "moneyManagement": metadata.get("moneyManagement"),
             "variables": metadata.get("variables"),
+            "variableTypes": metadata.get("variableTypes"),
         }
 
     except HTTPException:

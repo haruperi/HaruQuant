@@ -553,8 +553,12 @@ class UserManager(DatabaseBase):
             for acc in broker_creds.get("accounts", []):
                 if acc.get("isDefault"):
                     try:
+                        user = self.get_user(user_id=target_id)
+                        username_label = (
+                            user.get("username") if user else f"id={target_id}"
+                        )
                         logger.info(
-                            f"Default broker account for user {target_id} is {acc.get('name')}"
+                            f"Default broker account for user {username_label} is {acc.get('name')}"
                         )
                         return {
                             "login": int(acc.get("login")),

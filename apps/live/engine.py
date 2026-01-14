@@ -20,6 +20,7 @@ from apps.live.state_manager import StateManager
 from apps.live.trade_executor import TradeExecutor
 from apps.logger import logger
 from apps.mt5.client import MT5Client
+from apps.strategy import storage
 from apps.trading import (
     AccountInfo,
     MT5AccountProvider,
@@ -30,6 +31,7 @@ from apps.trading import (
     Trade,
 )
 from data.strategies.close_breakout import CloseBreakoutStrategy
+from data.strategies.mean_reversion import MeanReversionStrategy
 from data.strategies.trend_following import TrendFollowingStrategy
 
 
@@ -76,22 +78,35 @@ class StrategyInstance:
 class MultiStrategyEngine:
     """Multi-strategy live trading engine with portfolio management."""
 
-    def __init__(self, config_path: str):
+    def __init__(
+        self,
+        config_path: Optional[str] = None,
+        config: Optional[Dict] = None,
+        client: Optional[MT5Client] = None,
+    ):
         """Initialize multi-strategy engine.
 
         Args:
             config_path: Path to multi-strategy configuration JSON file
+            config: Configuration dictionary (alternative to config_path)
+            client: Existing MT5Client instance (optional)
         """
         logger.info("=" * 80)
         logger.info("Initializing Multi-Strategy Live Trading Engine")
         logger.info("=" * 80)
 
         # Load configuration
-        self.config = self._load_config(config_path)
-        logger.info(f"Configuration loaded from: {config_path}")
+        if config:
+            self.config = config
+            logger.info("Configuration loaded directly")
+        elif config_path:
+            self.config = self._load_config(config_path)
+            logger.info(f"Configuration loaded from: {config_path}")
+        else:
+            raise ValueError("Must provide either config or config_path")
 
         # Shared components (single MT5 connection)
-        self.client: Optional[MT5Client] = None
+        self.client: Optional[MT5Client] = client
         self.trade: Optional[Trade] = None
         self.account: Optional[AccountInfo] = None
 
@@ -120,33 +135,43 @@ class MultiStrategyEngine:
         try:
             with open(config_path, "r") as f:
                 config = json.load(f)
-
-            # Validate required sections
-            required = [
-                "mt5",
-                "portfolio",
-                "strategies",
-                "logging",
-                "state",
-            ]
-            for section in required:
-                if section not in config:
-                    raise ValueError(f"Missing required section: {section}")
-
-            # Notifications section is optional if using database (user_id provided)
-            if "user_id" not in config and "notifications" not in config:
-                raise ValueError(
-                    "Must provide either 'user_id' (for database notifications) or 'notifications' section"
-                )
-
-            if not config["strategies"]:
-                raise ValueError("No strategies defined in configuration")
-
-            return dict(config)
+            return self._validate_and_normalize_config(config)
 
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
             raise
+
+    def _validate_and_normalize_config(self, config: Dict) -> Dict:
+        """Validate and normalize configuration dictionary."""
+        # Validate required sections
+        required = [
+            # "mt5",  <- MT5 section might be optional if client is injected?
+            # actually we might still need it for safety checks if they read params from it?
+            # but let's keep it required for now unless we change logic elsewhere
+            "portfolio",
+            "strategies",
+            "logging",
+            "state",
+        ]
+
+        # If client is injected, mt5 section might be optional in config,
+        # but let's see how initialize uses it.
+        # initialize() uses self.config["mt5"] to create client if self.client is None.
+
+        for section in required:
+            if section not in config:
+                raise ValueError(f"Missing required section: {section}")
+
+        # Notifications section is optional if using database (user_id provided)
+        if "user_id" not in config and "notifications" not in config:
+            raise ValueError(
+                "Must provide either 'user_id' (for database notifications) or 'notifications' section"
+            )
+
+        if not config["strategies"]:
+            raise ValueError("No strategies defined in configuration")
+
+        return dict(config)
 
     def _setup_logging(self):
         """Configure file logging."""
@@ -231,20 +256,24 @@ class MultiStrategyEngine:
         try:
             # 1. Connect to MT5 (single shared connection)
             logger.info("Connecting to MT5...")
-            mt5_config = self.config["mt5"]
 
-            self.client = MT5Client(
-                login=mt5_config["login"],
-                password=mt5_config["password"],
-                server=mt5_config["server"],
-                path=mt5_config.get("path"),
-            )
+            if not self.client:
+                mt5_config = self.config["mt5"]
 
-            if not self.client.is_connected():
-                logger.error("Failed to connect to MT5")
-                return False
+                self.client = MT5Client(
+                    login=mt5_config["login"],
+                    password=mt5_config["password"],
+                    server=mt5_config["server"],
+                    path=mt5_config.get("path"),
+                )
 
-            logger.info("MT5 connection established (shared across all strategies)")
+                if not self.client.is_connected():
+                    logger.error("Failed to connect to MT5")
+                    return False
+
+                logger.info("MT5 connection established (shared across all strategies)")
+            else:
+                logger.info("Using existing MT5 connection")
 
             # 2. Setup shared trading objects
             logger.info("Setting up shared trading objects...")
@@ -350,26 +379,34 @@ class MultiStrategyEngine:
             True if successful
         """
         try:
-            name = strategy_config["name"]
-            symbol = strategy_config["symbol"]
+            name = strategy_config.get("name", "UnknownStrategy")
+            symbol = strategy_config.get("symbol")
+            if not symbol:
+                logger.error(f"Strategy config missing 'symbol': {strategy_config}")
+                return False
             timeframe = strategy_config["timeframe"]
             strategy_type = strategy_config.get("strategy_type", "TrendFollowing")
+            strategy_id = strategy_config.get("strategy_id")
+            strategy_version = strategy_config.get("strategy_version")
+            strategy_name = strategy_config.get("strategy_name")
+            username = strategy_config.get("username") or ""
 
             logger.info(
                 f"Initializing strategy: {name} ({strategy_type} on {symbol} {timeframe})"
             )
 
-            # Map strategy type to class
-            strategy_classes = {
-                "TrendFollowing": TrendFollowingStrategy,
-                "CloseBreakout": CloseBreakoutStrategy,
-            }
-
-            strategy_class = strategy_classes.get(strategy_type)
+            strategy_class = self._load_strategy_class(
+                strategy_id, strategy_version, strategy_name, username
+            )
             if not strategy_class:
-                logger.error(f"Unknown strategy type: {strategy_type}")
-                logger.error(f"Available types: {list(strategy_classes.keys())}")
-                return False
+                strategy_class = self._resolve_builtin_strategy_class(
+                    strategy_type, strategy_name
+                )
+
+            if not strategy_class:
+                logger.warning(f"Unknown strategy type: {strategy_type}")
+                logger.warning("Unable to load strategy class; skipping instance.")
+                return True
 
             # Create strategy
             strategy_params = strategy_config.get("params", {}).copy()
@@ -430,6 +467,61 @@ class MultiStrategyEngine:
         except Exception as e:
             logger.error(f"Error initializing strategy: {e}", exc_info=True)
             return False
+
+    def _load_strategy_class(
+        self,
+        strategy_id: Optional[int],
+        strategy_version: Optional[str],
+        strategy_name: Optional[str],
+        username: str,
+    ) -> Optional[Any]:
+        if not strategy_id or not strategy_version or not strategy_name:
+            return None
+
+        try:
+            return storage.load_strategy_class(
+                user_id=self.config.get("user_id", 0),
+                strategy_id=int(strategy_id),
+                version=strategy_version,
+                username=username,
+                strategy_name=strategy_name,
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to load strategy class for {strategy_name} v{strategy_version}: {exc}"
+            )
+            return None
+
+    def _resolve_builtin_strategy_class(
+        self, strategy_type: str, strategy_name: Optional[str]
+    ) -> Optional[Any]:
+        normalized_type_key = "".join(
+            ch for ch in str(strategy_type).strip().lower() if ch.isalnum()
+        )
+        strategy_aliases = {
+            "trend": "TrendFollowing",
+            "trendfollowing": "TrendFollowing",
+            "closebreakout": "CloseBreakout",
+            "breakout": "CloseBreakout",
+            "meanreversion": "MeanReversion",
+        }
+        normalized_type = strategy_aliases.get(normalized_type_key, strategy_type)
+        strategy_classes = {
+            "TrendFollowing": TrendFollowingStrategy,
+            "CloseBreakout": CloseBreakoutStrategy,
+            "MeanReversion": MeanReversionStrategy,
+        }
+
+        strategy_class = strategy_classes.get(normalized_type)
+        if not strategy_class and strategy_name:
+            normalized_name = "".join(
+                ch for ch in str(strategy_name).strip().lower() if ch.isalnum()
+            )
+            mapped_type = strategy_aliases.get(normalized_name)
+            if mapped_type:
+                strategy_class = strategy_classes.get(mapped_type)
+
+        return strategy_class
 
     def _setup_signal_processor(
         self, strategy: Any, bar_monitor: BarMonitor, initial_bars: int
@@ -497,13 +589,8 @@ class MultiStrategyEngine:
         self._running = True
 
         # Send startup notification
-        strategy_list = ", ".join([f"{s.name} ({s.symbol})" for s in self.strategies])
-        logger.info(f"Starting multi-strategy engine with: {strategy_list}")
-
         # Send email notification (customize for multi-strategy)
         # self.notifier.notify_startup(strategy_list, "", 0)
-
-        logger.info("Starting main trading loop...")
 
         try:
             while self._running:
@@ -578,12 +665,11 @@ class MultiStrategyEngine:
 
             # Process signal
             signal = instance.signal_processor.update_with_new_bar(last_bar)
-
             if not signal:
                 return
 
             # Handle detected signal
-            self._handle_signal(instance, signal)
+            self._handle_signal(instance, dict(signal))
 
         except Exception as e:
             logger.error(
@@ -592,18 +678,39 @@ class MultiStrategyEngine:
 
     def _handle_signal(self, instance: StrategyInstance, signal: Dict):
         """Handle a detected signal."""
+        normalized_signal = self._normalize_signal(signal)
+
         # Log signal
-        self._log_signal(instance, signal)
+        self._log_signal(instance, normalized_signal)
 
         # Refresh positions
         instance.position_manager.refresh_positions()
 
         # Validate signal
-        if not self._validate_signal(instance, signal):
+        if not self._validate_signal(instance, normalized_signal):
             return
 
         # Execute trade
-        self._execute_trade(instance, signal)
+        self._execute_trade(instance, normalized_signal)
+
+    def _normalize_signal(self, signal: Dict) -> Dict:
+        """Normalize strategy signal into engine-required schema."""
+        normalized = dict(signal)
+
+        if "signal" not in normalized:
+            entry_signal = normalized.get("entry_signal")
+            exit_signal = normalized.get("exit_signal")
+            if entry_signal in (1, -1):
+                normalized["signal"] = "buy" if entry_signal == 1 else "sell"
+            elif exit_signal in (1, -1):
+                normalized["signal"] = "close buy" if exit_signal == 1 else "close sell"
+            else:
+                normalized["signal"] = "unknown"
+
+        if "entry_price" not in normalized and "price" in normalized:
+            normalized["entry_price"] = normalized.get("price")
+
+        return normalized
 
     def _log_signal(self, instance: StrategyInstance, signal: Dict):
         """Log detected signal details."""
@@ -611,12 +718,16 @@ class MultiStrategyEngine:
         instance.last_signal_time = datetime.now()
 
         logger.info("=" * 60)
-        logger.info(f"[{instance.name}] SIGNAL: {signal['signal'].upper()}")
+        logger.info(f"[{instance.name}] SIGNAL: {str(signal.get('signal')).upper()}")
         logger.info("=" * 60)
         logger.info(f"Symbol: {instance.symbol}")
-        logger.info(f"Time: {signal['time']}")
-        logger.info(f"Reason: {signal['reason']}")
-        logger.info(f"Entry Price: {signal['entry_price']:.5f}")
+        logger.info(f"Time: {signal.get('time')}")
+        reason = signal.get("reason")
+        if reason:
+            logger.info(f"Reason: {reason}")
+        entry_price = signal.get("entry_price")
+        if isinstance(entry_price, (int, float)):
+            logger.info(f"Entry Price: {entry_price:.5f}")
 
     def _validate_signal(self, instance: StrategyInstance, signal: Dict) -> bool:
         """Validate if signal can be executed based on portfolio and safety rules."""

@@ -8,7 +8,7 @@ import { Play, Square, Pause, PlayCircle, AlertCircle, Loader2 } from "lucide-re
 import { Badge } from "@/components/ui/badge"
 import { LiveTradingAPI } from "@/lib/api/live"
 import { useLiveWebSocket } from "@/lib/hooks/use-live-websocket"
-import type { LiveSession, SessionStatus } from "@/types/live"
+import type { LiveSession, SessionStatusInfo } from "@/types/live"
 import { toast } from "sonner"
 
 interface StrategyRunnerEnhancedProps {
@@ -22,7 +22,7 @@ export function StrategyRunnerEnhanced({ sessionId: initialSessionId, onSessionC
   const [sessions, setSessions] = useState<LiveSession[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<number | undefined>(initialSessionId)
   const [currentSession, setCurrentSession] = useState<LiveSession | null>(null)
-  const [status, setStatus] = useState<SessionStatus | null>(null)
+  const [status, setStatus] = useState<SessionStatusInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isActionPending, setIsActionPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +34,9 @@ export function StrategyRunnerEnhanced({ sessionId: initialSessionId, onSessionC
     onStatusUpdate: (newStatus) => {
       setStatus(newStatus)
       onStatusChange?.(newStatus.status)
+      setCurrentSession((prev) =>
+        prev ? { ...prev, status: newStatus.status } : prev
+      )
     },
     autoConnect: !!selectedSessionId,
   })
@@ -84,6 +87,37 @@ export function StrategyRunnerEnhanced({ sessionId: initialSessionId, onSessionC
 
     fetchSessionDetails()
   }, [selectedSessionId])
+
+  useEffect(() => {
+    if (!selectedSessionId) return
+
+    let isMounted = true
+
+    const refreshStatus = async () => {
+      try {
+        const statusData = await LiveTradingAPI.getSessionStatus(selectedSessionId)
+        if (!isMounted) return
+        setStatus(statusData)
+        onStatusChange?.(statusData.status)
+        setCurrentSession((prev) =>
+          prev ? { ...prev, status: statusData.status } : prev
+        )
+      } catch (err) {
+        console.error("Error refreshing session status:", err)
+      }
+    }
+
+    refreshStatus()
+    const interval = setInterval(() => {
+      if (document.hidden) return
+      refreshStatus()
+    }, 10000)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [selectedSessionId, onStatusChange])
 
   const handleSessionChange = (sessionIdStr: string) => {
     const sessionId = parseInt(sessionIdStr, 10)
@@ -303,6 +337,12 @@ export function StrategyRunnerEnhanced({ sessionId: initialSessionId, onSessionC
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Session Details</label>
               <div className="text-xs space-y-1 border rounded-md p-2 bg-muted/50">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="font-medium capitalize">
+                    {status?.status || currentSession.status}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Max Positions:</span>
                   <span className="font-medium">{currentSession.max_positions}</span>
