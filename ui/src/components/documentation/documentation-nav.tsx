@@ -91,7 +91,33 @@ const documentationNavItems: NavSection[] = [
   {
     label: "Robustness",
     href: "/documentation/robustness",
-    items: [],
+    items: [
+      {
+        label: "Overview",
+        href: "/documentation/robustness/overview",
+        icon: FileText
+      },
+      {
+        label: "Core Validation",
+        href: "/documentation/robustness/core-validation",
+        icon: FileText
+      },
+      {
+        label: "Stress Test",
+        href: "/documentation/robustness/stress-test",
+        icon: FileText
+      },
+      {
+        label: "Parameter Discovery & Optimization",
+        href: "/documentation/robustness/parameter-discovery-optimization",
+        icon: FileText
+      },
+      {
+        label: "Final Test",
+        href: "/documentation/robustness/final-test",
+        icon: FileText
+      }
+    ],
     icon: ShieldCheck
   },
   {
