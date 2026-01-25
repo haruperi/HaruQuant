@@ -6,6 +6,7 @@ tqdm
 # Testing
 pytest
 pytest-cov
+pytest-benchmark
 
 # Web Framework
 fastapi
@@ -57,3 +58,4 @@ fastparquet
 pyarrow
 
 rich
+numba

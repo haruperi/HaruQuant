@@ -57,7 +57,7 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
         dataSource: "mt5",
         engineSettings: {
             initialCapital: 10000,
-            commission: 0.0,
+            commission: 7,
             slippageType: "fixed" as "fixed" | "variable",
             slippage: 0,
             slippageMin: 0,
@@ -66,8 +66,8 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
             spread: 20,
             spreadMin: 10,
             spreadMax: 50,
-            leverage: 100,
-            engineType: "vectorized" as "vectorized" | "event-driven",
+            leverage: 400,
+            engineType: "event-driven" as "vectorized" | "event-driven",
             dataResolution: "timeframe" as "tick" | "m1" | "timeframe",
             // Money Management settings
             positionSizingMethod: "fixed_lot" as "fixed_lot" | "milestone" | "fixed_risk" | "kelly" | "volatility" | "fixed_fractional",

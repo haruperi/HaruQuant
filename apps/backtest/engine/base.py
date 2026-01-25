@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+import numpy as np
 import pandas as pd
 
 from apps.logger import logger
@@ -108,6 +109,16 @@ class BaseEngine(ABC):
         self._trade_records: list[TradeRecord] = []
         self._equity_points: list[EquityPoint] = []
         self._peak_equity = initial_balance
+
+        # ============================================================
+        # PERFORMANCE OPTIMIZATION: Pre-allocate equity curve array
+        # This avoids repeated list.append() calls and object creation
+        # Array format: [balance, equity, drawdown, drawdown_percent]
+        # ============================================================
+        n_bars = len(data)
+        self._equity_array = np.zeros((n_bars, 4), dtype=np.float64)
+        self._equity_timestamps: list[datetime] = []
+        self._equity_idx = 0  # Current index in equity array
 
         # Margin tracking
         self._used_margin = 0.0
@@ -254,6 +265,9 @@ class BaseEngine(ABC):
         """
         Record an equity curve point.
 
+        PERFORMANCE: Uses pre-allocated NumPy array instead of creating objects.
+        EquityPoint objects are created only at the end in _build_result().
+
         Args:
             timestamp: Current timestamp
             balance: Current balance
@@ -269,15 +283,23 @@ class BaseEngine(ABC):
             (drawdown / self._peak_equity * 100) if self._peak_equity > 0 else 0.0
         )
 
-        point = EquityPoint(
-            timestamp=timestamp,
-            balance=balance,
-            equity=equity,
-            drawdown=drawdown,
-            drawdown_percent=drawdown_percent,
-        )
-
-        self._equity_points.append(point)
+        # PERFORMANCE: Store in pre-allocated array instead of creating objects
+        idx = self._equity_idx
+        if idx < len(self._equity_array):
+            self._equity_array[idx] = [balance, equity, drawdown, drawdown_percent]
+            self._equity_timestamps.append(timestamp)
+            self._equity_idx += 1
+        else:
+            # Fallback: array exhausted (shouldn't happen with correct pre-allocation)
+            # Use the old method
+            point = EquityPoint(
+                timestamp=timestamp,
+                balance=balance,
+                equity=equity,
+                drawdown=drawdown,
+                drawdown_percent=drawdown_percent,
+            )
+            self._equity_points.append(point)
 
     def _record_trade(self, trade: TradeRecord) -> None:
         """
@@ -297,6 +319,9 @@ class BaseEngine(ABC):
         """
         Build final backtest result.
 
+        PERFORMANCE: Converts pre-allocated equity array to EquityPoint objects
+        only at the end, avoiding object creation overhead during the hot loop.
+
         Args:
             final_balance: Final account balance
             final_equity: Final account equity
@@ -304,6 +329,26 @@ class BaseEngine(ABC):
         Returns:
             BacktestResult instance
         """
+        # PERFORMANCE: Convert pre-allocated array to EquityPoint objects
+        # This is done only once at the end, not during the hot loop
+        if self._equity_idx > 0:
+            # Build EquityPoint objects from the pre-allocated array
+            equity_points = [
+                EquityPoint(
+                    timestamp=self._equity_timestamps[i],
+                    balance=self._equity_array[i, 0],
+                    equity=self._equity_array[i, 1],
+                    drawdown=self._equity_array[i, 2],
+                    drawdown_percent=self._equity_array[i, 3],
+                )
+                for i in range(self._equity_idx)
+            ]
+            # Combine with any fallback points
+            equity_points.extend(self._equity_points)
+        else:
+            # Use legacy points if no array points were recorded
+            equity_points = self._equity_points
+
         result = BacktestResult(
             strategy_name=self.strategy.__class__.__name__,
             symbol=self.strategy.symbol,
@@ -316,7 +361,7 @@ class BaseEngine(ABC):
             backtest_mode=self.get_backtest_mode(),
             data_step_mode=self.config.get("data_step_mode", "trading_timeframe"),
             trades=self._trade_records,
-            equity_curve=self._equity_points,
+            equity_curve=equity_points,
             metadata=self.config,
         )
 

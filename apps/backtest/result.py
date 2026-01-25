@@ -5,10 +5,13 @@ Data structure for capturing backtest outcomes.
 Stores all events, state changes, and trade history.
 """
 
+import json
+import pickle
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union, cast
 
 import pandas as pd
 
@@ -809,6 +812,147 @@ class BacktestResult:
                 trades_df
             ),
         }
+
+    # =========================================================================
+    # Serialization Methods (Phase 4.5 - Result Caching)
+    # =========================================================================
+
+    def to_pickle(self, filepath: Union[str, Path]) -> None:
+        """
+        Serialize result to pickle file for fast caching.
+
+        Args:
+            filepath: Path to save pickle file
+
+        Example:
+            >>> result.to_pickle("backtest_result.pkl")
+        """
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(filepath, "wb") as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @classmethod
+    def from_pickle(cls, filepath: Union[str, Path]) -> "BacktestResult":
+        """
+        Load result from pickle file.
+
+        Args:
+            filepath: Path to pickle file
+
+        Returns:
+            BacktestResult instance
+
+        Example:
+            >>> result = BacktestResult.from_pickle("backtest_result.pkl")
+        """
+        with open(filepath, "rb") as f:
+            return cast("BacktestResult", pickle.load(f))
+
+    def to_json(self, filepath: Union[str, Path], indent: int = 2) -> None:
+        """
+        Serialize result to JSON file (human-readable).
+
+        Note: This is slower than pickle but produces human-readable output.
+
+        Args:
+            filepath: Path to save JSON file
+            indent: JSON indentation level
+
+        Example:
+            >>> result.to_json("backtest_result.json")
+        """
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert to JSON-serializable dict
+        data = {
+            "strategy_name": self.strategy_name,
+            "symbol": self.symbol,
+            "timeframe": self.timeframe,
+            "start_date": self.start_date.isoformat(),
+            "end_date": self.end_date.isoformat(),
+            "initial_balance": self.initial_balance,
+            "final_balance": self.final_balance,
+            "final_equity": self.final_equity,
+            "backtest_mode": self.backtest_mode,
+            "data_step_mode": self.data_step_mode,
+            "trades": [trade.to_dict() for trade in self.trades],
+            "equity_curve": [
+                {
+                    "timestamp": point.timestamp.isoformat(),
+                    "balance": point.balance,
+                    "equity": point.equity,
+                    "drawdown": point.drawdown,
+                    "drawdown_percent": point.drawdown_percent,
+                }
+                for point in self.equity_curve
+            ],
+            "metadata": self.metadata,
+            "summary": self.summary(),
+        }
+
+        with open(filepath, "w") as f:
+            json.dump(data, f, indent=indent, default=str)
+
+    @classmethod
+    def from_json(cls, filepath: Union[str, Path]) -> "BacktestResult":
+        """
+        Load result from JSON file.
+
+        Args:
+            filepath: Path to JSON file
+
+        Returns:
+            BacktestResult instance
+
+        Example:
+            >>> result = BacktestResult.from_json("backtest_result.json")
+        """
+        with open(filepath, "r") as f:
+            data = json.load(f)
+
+        # Convert trades back to TradeRecord objects
+        trades = []
+        for trade in data.get("trades", []):
+            trade_data = {
+                k: (
+                    datetime.fromisoformat(v)
+                    if k in ["open_time", "close_time"] and v
+                    else v
+                )
+                for k, v in trade.items()
+            }
+            trades.append(TradeRecord(**cast(Dict[str, Any], trade_data)))
+
+        # Convert equity curve back to EquityPoint objects
+        equity_curve = [
+            EquityPoint(
+                timestamp=datetime.fromisoformat(point["timestamp"]),
+                balance=point["balance"],
+                equity=point["equity"],
+                drawdown=point["drawdown"],
+                drawdown_percent=point["drawdown_percent"],
+            )
+            for point in data.get("equity_curve", [])
+        ]
+
+        return cls(
+            strategy_name=data["strategy_name"],
+            symbol=data["symbol"],
+            timeframe=data["timeframe"],
+            start_date=datetime.fromisoformat(data["start_date"]),
+            end_date=datetime.fromisoformat(data["end_date"]),
+            initial_balance=data["initial_balance"],
+            final_balance=data["final_balance"],
+            final_equity=data["final_equity"],
+            backtest_mode=data["backtest_mode"],
+            data_step_mode=data["data_step_mode"],
+            trades=trades,
+            equity_curve=equity_curve,
+            metadata=data.get("metadata", {}),
+        )
 
     def __repr__(self) -> str:
         """Human-readable representation."""
