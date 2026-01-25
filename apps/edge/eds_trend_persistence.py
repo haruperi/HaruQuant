@@ -11,7 +11,7 @@ import pandas as pd
 from apps.logger import logger
 
 from .config import BootstrapConfig, PermutationConfig, TrendPersistenceConfig
-from .features import atr, rolling_percentile_rank
+from .features import adr, rolling_percentile_rank
 from .metrics import expectancy, median_mae_mfe, profit_factor, win_rate
 from .null_models import block_bootstrap_ci, permutation_test, r_space_null
 from .results_schema import EdgeResult, EdgeStats, TradeSample
@@ -58,10 +58,20 @@ def run_eds_trend_persistence(  # noqa: C901
     high = out[high_col].astype(float)
     low = out[low_col].astype(float)
 
-    out["atr"] = atr(
-        out, cfg.atr_n, high_col=high_col, low_col=low_col, close_col=close_col
-    )
-    out["atr_rank"] = rolling_percentile_rank(out["atr"], cfg.atr_regime_window)
+    adr_n = 10
+
+    def _daily_adr_series(df: pd.DataFrame) -> pd.Series:
+        daily = df.resample("1D").agg(
+            {high_col: "max", low_col: "min", close_col: "last"}
+        )
+        daily = daily.dropna(subset=[high_col, low_col, close_col])
+        daily["adr"] = adr(daily, adr_n, high_col=high_col, low_col=low_col)
+        adr_series = daily["adr"].shift(1)
+        adr_series = adr_series.reindex(df.index, method="ffill")
+        return adr_series
+
+    out["adr"] = _daily_adr_series(out)
+    out["atr_rank"] = rolling_percentile_rank(out["adr"], cfg.atr_regime_window)
 
     trades: List[TradeSample] = []
     i = max(cfg.atr_regime_window, cfg.breakout_n, cfg.atr_n) + 1
@@ -87,8 +97,9 @@ def run_eds_trend_persistence(  # noqa: C901
             continue
 
         entry_price = px
-        atr_i = float(out["atr"].iloc[i])
-        stop_dist = cfg.k_stop_atr * atr_i
+        adr_i = float(out["adr"].iloc[i])
+        adr_session = adr_i / 3 if timeframe.upper() != "D1" else adr_i
+        stop_dist = cfg.k_stop_atr * adr_session
         if stop_dist <= 0 or not np.isfinite(stop_dist):
             i += 1
             continue
@@ -97,12 +108,12 @@ def run_eds_trend_persistence(  # noqa: C901
         segment = close.iloc[i : exit_i + 1].values
 
         if side == "BUY":
-            target = entry_price + cfg.k_target_atr * atr_i
+            target = entry_price + cfg.k_target_atr * adr_session
             hit = np.where(segment >= target)[0]
             if len(hit):
                 exit_i = i + int(hit[0])
         else:
-            target = entry_price - cfg.k_target_atr * atr_i
+            target = entry_price - cfg.k_target_atr * adr_session
             hit = np.where(segment <= target)[0]
             if len(hit):
                 exit_i = i + int(hit[0])
@@ -132,7 +143,11 @@ def run_eds_trend_persistence(  # noqa: C901
                 mae_r=float(mae),
                 mfe_r=float(mfe),
                 hold_bars=int(exit_i - i),
-                meta={"atr_rank": atr_rank, "atr": atr_i, "breakout_n": cfg.breakout_n},
+                meta={
+                    "atr_rank": atr_rank,
+                    "adr_d1": adr_i,
+                    "breakout_n": cfg.breakout_n,
+                },
             )
         )
 
@@ -165,7 +180,7 @@ def run_eds_trend_persistence(  # noqa: C901
         hold_bars=cfg.max_hold_bars,
         side="BUY",
         k_stop_atr=cfg.k_stop_atr,
-        atr_series=out["atr"],
+        atr_series=out["adr"],
         n_perm=perm.n_perm,
         seed=perm.seed,
         close_col=close_col,
@@ -177,6 +192,7 @@ def run_eds_trend_persistence(  # noqa: C901
     )
     logger.debug(f"EDS-2 permutation p-value: {pval:.4f}")
 
+    total_r = float(np.nansum(r)) if len(r) else float("nan")
     stats = EdgeStats(
         n_trades=int(len(trades)),
         expectancy_r=float(exp_r) if np.isfinite(exp_r) else float("nan"),
@@ -189,6 +205,7 @@ def run_eds_trend_persistence(  # noqa: C901
         ci_high=float(ci_high),
         p_value_perm=float(pval),
         extras={
+            "total_r": total_r,
             "atr_q_high": cfg.atr_q_high,
             "breakout_n": cfg.breakout_n,
             "max_hold_bars": cfg.max_hold_bars,

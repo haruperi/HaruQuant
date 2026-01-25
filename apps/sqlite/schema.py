@@ -1151,6 +1151,166 @@ class SchemaManager:
                 "CREATE INDEX IF NOT EXISTS idx_live_logs_time ON live_session_logs(log_time)"
             )
 
+            # =========================================================================
+            # SQX STRATEGY MASTER TABLES
+            # =========================================================================
+
+            # Strategies master table (SQX)
+            create_sqx_strategy_edge_table = """
+            CREATE TABLE IF NOT EXISTS sqx_strategy_edge (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                -- Identity
+                symbol TEXT NOT NULL,                 -- canonical, e.g. 'EURUSD'
+                strategy_name TEXT NOT NULL,          -- from SQX 'Strategy Name'
+                timeframe TEXT,                       -- e.g. 'M1,M5,H1'
+                source_symbol TEXT,                   -- raw SQX symbol (e.g. 'EURUSD_dukascopy')
+                source_timeframe TEXT,                -- raw SQX timeframe field if different
+                stage TEXT,                           -- last stage seen (e.g., 'CORE','SPREAD_P99','MC_OVERALL','WFM'...)
+                last_seen_at TEXT,                    -- ISO timestamp
+                last_import_name TEXT,                -- import label / filename
+
+                -- Baseline / databank metrics (commonly exported)
+                fitness_is REAL,
+                net_profit REAL,
+                trades INTEGER,
+                profit_factor REAL,
+                annual_return_pct REAL,
+                max_drawdown_pct REAL,
+                cagr REAL,
+                cagr_max_dd_pct REAL,
+                ret_dd_ratio REAL,
+                calmar_ratio REAL,
+                sharpe_ratio REAL,
+                standard_dev REAL,
+
+                drawdown REAL,                        -- raw DD value (units depend on SQX settings)
+                actual_drawdown REAL,
+                actual_drawdown_over_maxdd REAL,
+                avg_drawdown REAL,
+                avg_drawdown_pct REAL,
+                ulcer_index_pct REAL,
+                ulcer_performance_index REAL,
+
+                win_percent REAL,                     -- 0..1 preferred (store 0..1)
+                win_loss_ratio REAL,
+                ts_index REAL,
+                ts_win_loss_ratio REAL,
+                zscore REAL,
+                zprobability REAL,
+                worst_year_profit REAL,
+
+                avg_trade REAL,
+                avg_abs_trade REAL,
+                avg_trade_stddev_ratio REAL,
+                avg_win REAL,
+                avg_loss REAL,
+                avg_consec_wins REAL,
+                avg_consec_losses REAL,
+
+                avg_bars_win REAL,
+                avg_bars_loss REAL,
+                avg_bars_in_trade REAL,
+
+                stability REAL,
+                symmetry REAL,
+                trades_symmetry REAL,
+                stagnation REAL,
+                stagnation_pct REAL,
+
+                exposure REAL,
+
+                -- Stage-specific metrics (A1/A2/E1)
+                a1_profit_factor REAL,
+                a1_ret_dd_ratio REAL,
+                a1_annual_return_pct REAL,
+                a1_trades INTEGER,
+                a1_net_profit REAL,
+                a1_max_drawdown_pct REAL,
+                a1_edge_score REAL,
+
+                a2_profit_factor REAL,
+                a2_ret_dd_ratio REAL,
+                a2_annual_return_pct REAL,
+                a2_trades INTEGER,
+                a2_net_profit REAL,
+                a2_max_drawdown_pct REAL,
+                a2_edge_score REAL,
+
+                e1_profit_factor REAL,
+                e1_ret_dd_ratio REAL,
+                e1_annual_return_pct REAL,
+                e1_trades INTEGER,
+                e1_net_profit REAL,
+                e1_max_drawdown_pct REAL,
+                e1_edge_score REAL,
+
+                -- Stress / robustness ratios (baseline-relative). Nullable until computed/imported.
+                spread_p99_retdd_ratio REAL,
+                spread_max_retdd_ratio REAL,
+                slip_retdd_ratio REAL,
+                delay_pf_ratio REAL,
+
+                mc_survival_rate REAL,                -- 0..1
+                mc_retdd_p95_ratio REAL,
+                mc_dd_inflation REAL,
+                mc_overall_survival_rate REAL,         -- 0..1
+                mc_overall_retdd_ratio REAL,
+
+                param_perturb_profitable_rate REAL,    -- 0..1
+                history_perturb_pf_ratio REAL,
+
+                -- MAE/MFE trade-shape metrics (optional)
+                mfe_mae_eff_median REAL,
+                loss_p95_mae_r REAL,
+                mfe_top1_share REAL,
+
+                -- Deployability (optional)
+                parameter_count INTEGER,
+                indicator_count INTEGER,
+                mtf_count INTEGER,
+
+                -- Score outputs
+                edge_score REAL,
+                robust_score REAL,
+                stability_score REAL,
+                risk_score REAL,
+                simple_score REAL,
+                fragility_penalty REAL,
+                base_score_0_1 REAL,
+                final_score REAL,
+                rank_in_symbol INTEGER,
+                rejected INTEGER DEFAULT 0,            -- 0/1
+
+                -- Audit / bookkeeping
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+
+                UNIQUE(strategy_name)
+            );
+            """
+            cursor.execute(create_sqx_strategy_edge_table)
+
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_sqx_strategies_symbol ON sqx_strategy_edge(symbol)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_sqx_strategies_score ON sqx_strategy_edge(symbol, final_score DESC)"
+            )
+
+            # Imports history
+            create_imports_table = """
+            CREATE TABLE IF NOT EXISTS imports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                import_name TEXT NOT NULL,
+                stage TEXT,
+                imported_at TEXT DEFAULT (datetime('now')),
+                row_count INTEGER,
+                notes TEXT
+            );
+            """
+            cursor.execute(create_imports_table)
+
             conn.commit()
             logger.info(
                 "Database schema initialized successfully with 4-layer architecture + optimization + live trading + edge discovery"
@@ -1170,6 +1330,7 @@ class SchemaManager:
             logger.info(
                 "  Live Trading: live_trading_sessions, session_strategies, live_signals, live_positions, etc."
             )
+            logger.info("  SQX Strategy Edge: sqx_strategy_edge, imports")
             return True
 
         except sqlite3.Error as e:

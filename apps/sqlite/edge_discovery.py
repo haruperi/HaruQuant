@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from apps.logger import logger
@@ -306,6 +307,200 @@ class EdgeDiscoveryManager(DatabaseBase):
         finally:
             if conn:
                 conn.close()
+
+    def get_edge_runs_count(
+        self,
+        symbol: Optional[str] = None,
+        timeframe: Optional[str] = None,
+        eds_type: Optional[str] = None,
+        verdict: Optional[str] = None,
+        edge_confirmed_only: bool = False,
+    ) -> int:
+        """
+        Get total count of edge discovery runs with optional filtering.
+
+        Args:
+            symbol: Filter by symbol
+            timeframe: Filter by timeframe
+            eds_type: Filter by EDS type (null, mr, tp, session)
+            verdict: Filter by verdict
+            edge_confirmed_only: Only count confirmed edges
+
+        Returns:
+            Count of runs
+        """
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            query = "SELECT COUNT(*) FROM edge_discovery_runs WHERE 1=1"
+            params: List[Any] = []
+
+            if symbol:
+                query += " AND symbol = ?"
+                params.append(symbol)
+            if timeframe:
+                query += " AND timeframe = ?"
+                params.append(timeframe)
+            if eds_type:
+                query += " AND eds_type = ?"
+                params.append(eds_type)
+            if verdict:
+                query += " AND verdict = ?"
+                params.append(verdict)
+            if edge_confirmed_only:
+                query += " AND edge_confirmed = 1"
+
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            return int(result[0]) if result else 0
+
+        except Exception as e:
+            logger.error(f"Error getting edge run count: {e}")
+            return 0
+        finally:
+            if conn:
+                conn.close()
+
+    def _fetch_summary_runs(
+        self,
+        symbol: Optional[str],
+        timeframe: Optional[str],
+    ) -> List[sqlite3.Row]:
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            query = "SELECT * FROM edge_discovery_runs WHERE 1=1"
+            params: List[Any] = []
+
+            if symbol:
+                query += " AND symbol = ?"
+                params.append(symbol)
+            if timeframe:
+                query += " AND timeframe = ?"
+                params.append(timeframe)
+
+            query += " ORDER BY created_at DESC"
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def _parse_run_dt(value: Any) -> Optional[datetime]:
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                return None
+        return value if isinstance(value, datetime) else None
+
+    def _process_run_row(self, row: sqlite3.Row) -> Dict[str, Any]:
+        run = dict(row)
+        if run.get("config"):
+            run["config"] = json.loads(run["config"])
+        if run.get("extras"):
+            run["extras"] = json.loads(run["extras"])
+        return run
+
+    def _update_grouped_entry(
+        self,
+        entry: Dict[str, Any],
+        run: Dict[str, Any],
+        created_at: Optional[datetime],
+    ) -> None:
+        # Update latest run
+        latest = entry["latest_run"]
+        if latest is None:
+            entry["latest_run"] = run
+        else:
+            latest_dt = self._parse_run_dt(latest.get("created_at"))
+            if created_at and (not latest_dt or created_at > latest_dt):
+                entry["latest_run"] = run
+
+        # Update type-specific runs
+        eds_type = run.get("eds_type")
+        target_key = (
+            "mr_run" if eds_type == "mr" else "bo_run" if eds_type == "tp" else None
+        )
+
+        if target_key:
+            current = entry[target_key]
+            if current is None:
+                entry[target_key] = run
+            else:
+                current_dt = self._parse_run_dt(current.get("created_at"))
+                if created_at and (not current_dt or created_at > current_dt):
+                    entry[target_key] = run
+
+    def _group_summary_rows(self, rows: List[sqlite3.Row]) -> Dict[str, Dict[str, Any]]:
+        grouped: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            run = self._process_run_row(row)
+            key = f"{run.get('symbol')}|{run.get('timeframe')}"
+            created_at = self._parse_run_dt(run.get("created_at"))
+
+            entry = grouped.setdefault(
+                key,
+                {
+                    "symbol": run.get("symbol"),
+                    "timeframe": run.get("timeframe"),
+                    "latest_run": None,
+                    "mr_run": None,
+                    "bo_run": None,
+                },
+            )
+            self._update_grouped_entry(entry, run, created_at)
+        return grouped
+
+    def get_edge_summary_rows(
+        self,
+        symbol: Optional[str] = None,
+        timeframe: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get grouped edge discovery summary rows by symbol and timeframe.
+
+        Returns:
+            List of summary dictionaries with latest MR/TP runs per symbol/timeframe.
+        """
+        try:
+            rows = self._fetch_summary_runs(symbol, timeframe)
+            grouped = self._group_summary_rows(rows)
+
+            summaries: List[Dict[str, Any]] = []
+            for entry in grouped.values():
+                latest = entry["latest_run"]
+                run_meta = (
+                    (latest.get("config") or {}).get("run_meta", {}) if latest else {}
+                )
+
+                summaries.append(
+                    {
+                        "symbol": entry["symbol"],
+                        "timeframe": entry["timeframe"],
+                        "latest_run_id": latest.get("run_id") if latest else None,
+                        "latest_created_at": (
+                            latest.get("created_at") if latest else None
+                        ),
+                        "verdict": latest.get("verdict") if latest else None,
+                        "edge_confirmed": latest.get("edge_confirmed") if latest else 0,
+                        "range_meta": run_meta,
+                        "mr": entry["mr_run"],
+                        "bo": entry["bo_run"],
+                    }
+                )
+
+            return summaries
+
+        except Exception as e:
+            logger.error(f"Error getting edge summary rows: {e}")
+            return []
 
     def get_edge_trades(self, run_id: int) -> List[Dict[str, Any]]:
         """

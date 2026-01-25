@@ -10,6 +10,8 @@ This document describes the current HaruQuant application architecture based on 
 - `apps/live`: Live trading session orchestration used by live-trading routes.
 - `apps/mt5`: MetaTrader 5 client/data access used by broker, live, and backtest flows.
 - `apps/optimization`: Optimization tasks and models used by optimization routes.
+- `apps/edge`: Edge Lab statistical edge discovery toolkit used by edge-lab routes.
+- `apps/edge/seasonality.py`: Seasonality analytics engine that aggregates intraday, weekly, and calendar stats.
 - `apps/utils`: Shared helpers (data loading, validation, security).
 
 ## API Layer
@@ -25,6 +27,8 @@ The FastAPI app is defined in `apps/api/main.py`. It registers route modules for
 - Data ingestion/preview (`apps/api/routes/data.py`)
 - Optimization (`apps/api/routes/optimization.py`)
 - Docs management (`apps/api/routes/docs.py`)
+- Edge Lab (`apps/api/routes/edge.py`)
+  - Seasonality analytics (`POST /api/edge-lab/seasonality`)
 
 ## Authentication
 `apps/api/auth_utils.py` implements file-backed token storage in `data/tokens.json`, token generation/verification, and user authentication via `DatabaseManager`.
@@ -73,6 +77,12 @@ When a session is running, live positions are pulled directly from MT5 and mappe
 ## Optimization
 `apps/api/routes/optimization.py` starts optimization, walk-forward, and Monte Carlo tasks in the background.
 Progress updates are streamed through `OptimizationProgressManager`.
+
+## SQX Strategy Imports
+SQX imports are stored in `sqx_strategy_edge` with one row per `strategy_name`.
+Stage-specific metrics are stored in prefixed columns (e.g., `a1_profit_factor`), and `stage` tracks the latest stage.
+Scores are calculated per strategy name, while symbol is used for grouping and ranking.
+The API exposes `GET /api/sqx/strategies` for listing strategies with scores.
 
 ## Logging
 `apps/api/logging_config.py` configures log sinks for access and error logs in `logs/`.

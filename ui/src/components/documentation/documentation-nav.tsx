@@ -116,6 +116,11 @@ const documentationNavItems: NavSection[] = [
         label: "Final Test",
         href: "/documentation/robustness/final-test",
         icon: FileText
+      },
+      {
+        label: "Workflow",
+        href: "/documentation/robustness/workflow",
+        icon: FileText
       }
     ],
     icon: ShieldCheck

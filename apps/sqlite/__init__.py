@@ -7,6 +7,7 @@ from .live_trading import LiveTradingManager
 from .market_data import MarketDataManager
 from .optimization import OptimizationManager
 from .schema import SchemaManager
+from .sqx import SQXManager
 from .strategies import StrategyManager
 from .users import UserManager
 
@@ -15,6 +16,7 @@ class SQLiteDatabase(
     SchemaManager,
     UserManager,
     StrategyManager,
+    SQXManager,
     BacktestManager,
     OptimizationManager,
     LiveTradingManager,

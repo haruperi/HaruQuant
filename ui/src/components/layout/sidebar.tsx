@@ -23,6 +23,7 @@ import {
   Table,
   LineChart as LineChartIcon,
   BookOpen,
+  Upload,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useState, useEffect } from "react"
@@ -63,6 +64,12 @@ const routes = [
       icon: FlaskConical,
       href: "/optimization",
       color: "text-amber-500",
+    },
+    {
+      label: "Edge Lab",
+      icon: Table,
+      href: "/edge-lab",
+      color: "text-teal-500",
     },
     {
       label: "Performance Report",

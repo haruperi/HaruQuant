@@ -11,7 +11,7 @@ import pandas as pd
 from apps.logger import logger
 
 from .config import BootstrapConfig, MeanReversionConfig, PermutationConfig
-from .features import atr, bb_width, rolling_percentile_rank, zscore
+from .features import adr, bb_width, rolling_percentile_rank, zscore
 from .metrics import expectancy, median_mae_mfe, profit_factor, win_rate
 from .null_models import block_bootstrap_ci, permutation_test, r_space_null
 from .results_schema import EdgeResult, EdgeStats, TradeSample
@@ -56,10 +56,22 @@ def run_eds_mean_reversion(  # noqa: C901
     out = df.copy()
     close = out[close_col].astype(float)
 
+    adr_n = 10
+
+    def _daily_adr_series(df: pd.DataFrame) -> pd.Series:
+        daily = df.resample("1D").agg(
+            {high_col: "max", low_col: "min", close_col: "last"}
+        )
+        daily = daily.dropna(subset=[high_col, low_col, close_col])
+        daily["adr"] = adr(daily, adr_n, high_col=high_col, low_col=low_col)
+        adr_series = daily["adr"].shift(1)
+        adr_series = adr_series.reindex(df.index, method="ffill")
+        return adr_series
+
     out["z"] = zscore(close, cfg.sma_n)
     out["bbw"] = bb_width(close, cfg.bbw_n, cfg.bbw_k)
     out["bbw_rank"] = rolling_percentile_rank(out["bbw"], cfg.compression_window)
-    out["atr"] = atr(out, cfg.atr_n)
+    out["adr"] = _daily_adr_series(out)
 
     trades: List[TradeSample] = []
 
@@ -86,8 +98,9 @@ def run_eds_mean_reversion(  # noqa: C901
             continue
 
         entry_price = float(out[close_col].iloc[i])
-        atr_i = float(out["atr"].iloc[i])
-        stop_dist = cfg.k_stop_atr * atr_i
+        adr_i = float(out["adr"].iloc[i])
+        adr_session = adr_i / 3 if timeframe.upper() != "D1" else adr_i
+        stop_dist = cfg.k_stop_atr * adr_session
         if stop_dist <= 0 or not np.isfinite(stop_dist):
             i += 1
             continue
@@ -124,20 +137,20 @@ def run_eds_mean_reversion(  # noqa: C901
             mae = (entry_price - np.max(segment)) / stop_dist
             mfe = (entry_price - np.min(segment)) / stop_dist
 
-        trades.append(
-            TradeSample(
-                entry_time=out.index[i],
-                exit_time=out.index[exit_i],
-                side=side,
-                entry_price=entry_price,
-                exit_price=exit_price,
-                r_multiple=float(r_mult),
-                mae_r=float(mae),
-                mfe_r=float(mfe),
-                hold_bars=int(exit_i - i),
-                meta={"bbw_rank": bbw_rank, "z": z, "atr": atr_i},
+            trades.append(
+                TradeSample(
+                    entry_time=out.index[i],
+                    exit_time=out.index[exit_i],
+                    side=side,
+                    entry_price=entry_price,
+                    exit_price=exit_price,
+                    r_multiple=float(r_mult),
+                    mae_r=float(mae),
+                    mfe_r=float(mfe),
+                    hold_bars=int(exit_i - i),
+                    meta={"bbw_rank": bbw_rank, "z": z, "adr_d1": adr_i},
+                )
             )
-        )
 
         i = exit_i + 1
 
@@ -168,7 +181,7 @@ def run_eds_mean_reversion(  # noqa: C901
         hold_bars=cfg.max_hold_bars,
         side="BUY",
         k_stop_atr=cfg.k_stop_atr,
-        atr_series=out["atr"],
+        atr_series=out["adr"],
         n_perm=perm.n_perm,
         seed=perm.seed,
         close_col=close_col,
@@ -180,6 +193,7 @@ def run_eds_mean_reversion(  # noqa: C901
     )
     logger.debug(f"EDS-1 permutation p-value: {pval:.4f}")
 
+    total_r = float(np.nansum(r)) if len(r) else float("nan")
     stats = EdgeStats(
         n_trades=int(len(trades)),
         expectancy_r=float(exp_r) if np.isfinite(exp_r) else float("nan"),
@@ -192,6 +206,7 @@ def run_eds_mean_reversion(  # noqa: C901
         ci_high=float(ci_high),
         p_value_perm=float(pval),
         extras={
+            "total_r": total_r,
             "hit_mean_rate": (
                 float(
                     np.mean(

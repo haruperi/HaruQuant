@@ -32,6 +32,19 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
            p: ({node, ...props}) => <p className="leading-7 [&:not(:first-child)]:mt-6" {...props} />,
            ul: ({node, ...props}) => <ul className="my-6 ml-6 list-disc [&>li]:mt-2" {...props} />,
            li: ({node, ...props}) => <li className="" {...props} />,
+           table: ({node, ...props}) => (
+             <div className="my-6 w-full overflow-y-auto">
+               <table className="w-full border-collapse border border-border text-sm" {...props} />
+             </div>
+           ),
+           thead: ({node, ...props}) => <thead className="bg-muted" {...props} />,
+           tr: ({node, ...props}) => <tr className="m-0 border-t p-0 even:bg-muted/50" {...props} />,
+           th: ({node, ...props}) => (
+             <th className="border px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right" {...props} />
+           ),
+           td: ({node, ...props}) => (
+             <td className="border px-4 py-2 text-left [&[align=center]]:text-center [&[align=right]]:text-right" {...props} />
+           ),
         }}
       >
         {content}

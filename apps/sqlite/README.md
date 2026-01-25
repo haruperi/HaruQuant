@@ -778,6 +778,23 @@ If upgrading from an older version:
 3. **Verify Data**: Check all data migrated correctly
 4. **Update Code**: Update code to use new API
 
+### SQX Strategy Edge (strategy_name only)
+
+1. **Backup Database**: Always backup before migration.
+2. **Run Migration Script**:
+   - `python scripts/migrate_sqx_strategy_edge.py`
+3. **Verify Data**:
+   - Confirm stage-prefixed columns are present (e.g., `a1_profit_factor`).
+
+### Reinitialize Database (Clean Rebuild)
+
+1. **Delete Database File**:
+   - `data/database/haruquant.db`
+2. **Recreate Schema**:
+   - `python scripts/initialize_database.py`
+3. **Reimport SQX Exports**:
+   - Import each stage CSV through the SQX Import UI.
+
 ## Troubleshooting
 
 ### Common Issues

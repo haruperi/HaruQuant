@@ -6,7 +6,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.logger import logger
 
 from .logging_config import setup_logging
-from .routes import auth, backtest, docs, live, optimization, settings, strategies
+from .routes import (
+    auth,
+    backtest,
+    docs,
+    edge,
+    live,
+    optimization,
+    settings,
+    sqx,
+    strategies,
+)
 from .routes.dashboard import broker as dashboard_broker
 from .routes.dashboard import market_hours as dashboard_market_hours
 from .routes.dashboard import system as dashboard_system
@@ -55,6 +65,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
+app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
 
 # Dashboard Routes
@@ -72,6 +83,7 @@ app.include_router(
     optimization.router, prefix="/api/optimization", tags=["optimization"]
 )
 app.include_router(docs.router, prefix="/api/docs", tags=["docs"])
+app.include_router(edge.router, prefix="/api/edge-lab", tags=["edge-lab"])
 app.include_router(strategy_performance.router, prefix="/api/reports", tags=["reports"])
 app.include_router(performance_ratios.router, prefix="/api/reports", tags=["reports"])
 app.include_router(time_analysis.router, prefix="/api/reports", tags=["reports"])

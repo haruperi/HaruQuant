@@ -62,7 +62,7 @@ def run_eds_null_baseline(
     out = df.copy()
     close = out[close_col].astype(float)
     # Compute features needed for null models
-    out["atr"] = atr(out, 14, high_col, low_col, close_col)
+    out["atr"] = atr(out, 12, high_col, low_col, close_col)
     out["log_ret"] = log_returns(close)
     logret = out["log_ret"].dropna().values
 
@@ -202,6 +202,7 @@ def run_eds_null_baseline(
         ci_high=float("nan"),
         p_value_perm=float("nan"),
         extras={
+            "total_r": 0.0,
             "null_distributions": null_distributions,
             "thresholds": thresholds,
             "hold_bars_tested": list(cfg.hold_bars_options),

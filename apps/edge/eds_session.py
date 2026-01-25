@@ -563,7 +563,9 @@ def run_eds_session(
         med_mae = med_mfe = float("nan")
         ci_low = ci_high = float("nan")
         overall_pval = float("nan")
+        r = np.array([])
 
+    total_r = float(np.nansum(r)) if len(r) else float("nan")
     stats = EdgeStats(
         n_trades=len(all_trades),
         expectancy_r=float(exp_r) if np.isfinite(exp_r) else float("nan"),
@@ -576,6 +578,7 @@ def run_eds_session(
         ci_high=float(ci_high),
         p_value_perm=float(overall_pval),
         extras={
+            "total_r": total_r,
             "session_stats": session_stats,
             "strategy_results": strategy_results,
             "sessions_analyzed": list(cfg.sessions),
