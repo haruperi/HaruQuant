@@ -1152,6 +1152,47 @@ class SchemaManager:
             )
 
             # =========================================================================
+            # SIMULATOR TABLES
+            # =========================================================================
+
+            create_simulator_deals_table = """
+            CREATE TABLE IF NOT EXISTS simulator_deals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                time TEXT,
+                magic INTEGER,
+                symbol TEXT,
+                type TEXT,
+                direction TEXT,
+                volume REAL,
+                price REAL,
+                spread REAL,
+                sl REAL,
+                tp REAL,
+                commission REAL,
+                margin_required REAL,
+                fee REAL,
+                swap REAL,
+                profit REAL,
+                comment TEXT,
+                reason TEXT,
+                entry_reason TEXT,
+                session_id TEXT
+            );
+            """
+            cursor.execute(create_simulator_deals_table)
+
+            cursor.execute("PRAGMA table_info(simulator_deals)")
+            simulator_columns = {row[1] for row in cursor.fetchall()}
+            if "spread" not in simulator_columns:
+                cursor.execute("ALTER TABLE simulator_deals ADD COLUMN spread REAL")
+            if "entry_reason" not in simulator_columns:
+                cursor.execute(
+                    "ALTER TABLE simulator_deals ADD COLUMN entry_reason TEXT"
+                )
+            if "session_id" not in simulator_columns:
+                cursor.execute("ALTER TABLE simulator_deals ADD COLUMN session_id TEXT")
+
+            # =========================================================================
             # SQX STRATEGY MASTER TABLES
             # =========================================================================
 

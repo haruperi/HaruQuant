@@ -7,6 +7,7 @@ from .live_trading import LiveTradingManager
 from .market_data import MarketDataManager
 from .optimization import OptimizationManager
 from .schema import SchemaManager
+from .simulator import SimulatorManager
 from .sqx import SQXManager
 from .strategies import StrategyManager
 from .users import UserManager
@@ -22,6 +23,7 @@ class SQLiteDatabase(
     LiveTradingManager,
     MarketDataManager,
     EdgeDiscoveryManager,
+    SimulatorManager,
     DatabaseBase,
 ):
     """
@@ -38,4 +40,5 @@ __all__ = [
     "DatabaseBase",
     "UserAlreadyExistsError",
     "EdgeDiscoveryManager",
+    "SimulatorManager",
 ]

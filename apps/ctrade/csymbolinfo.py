@@ -547,3 +547,7 @@ class CSymbolInfo:
         if digits <= 0:
             return float(price)
         return round(float(price), digits)
+
+    def PipSize(self) -> float:
+        """Return the pip size for the symbol."""
+        return self.Point() * 10
