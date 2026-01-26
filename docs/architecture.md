@@ -9,6 +9,7 @@ This document describes the current HaruQuant application architecture based on 
 - `apps/backtest`: Backtest engines and persistence layer (`BacktestDatabase`) used by strategy routes.
 - `apps/live`: Live trading session orchestration used by live-trading routes.
 - `apps/mt5`: MetaTrader 5 client/data access used by broker, live, and backtest flows.
+- `apps/ctrade`: MT5-specific trade classes aligned to the MQL5 Standard Library (`CSymbolInfo`, `CAccountInfo`, `COrderInfo`, `CHistoryOrderInfo`, `CPositionInfo`, `CDealInfo`, `CTrade`, `CTerminalInfo`).
 - `apps/optimization`: Optimization tasks and models used by optimization routes.
 - `apps/edge`: Edge Lab statistical edge discovery toolkit used by edge-lab routes.
 - `apps/edge/seasonality.py`: Seasonality analytics engine that aggregates intraday, weekly, and calendar stats.
