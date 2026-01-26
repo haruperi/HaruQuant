@@ -4,6 +4,7 @@ import React from "react"
 import { usePerformanceData } from "@/components/performance/use-performance-data"
 import { PerformancePageLayout, PageConfig } from "@/components/performance/shared/performance-page-layout"
 import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const overviewConfig: PageConfig = {
   title: "Overview",
@@ -42,32 +43,53 @@ const overviewConfig: PageConfig = {
   ]
 }
 
+// Chart skeleton component for loading state
+function ChartSkeleton({ title }: { title: string }) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-medium">{title}</h3>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading chart data...
+        </div>
+      </div>
+      <Skeleton className="h-[300px] w-full" />
+    </div>
+  )
+}
+
 export default function OverviewPage() {
-  const { metrics, equityCurves, loading, error, selectedBacktest } = usePerformanceData()
+  const {
+    metrics,
+    equityCurves,
+    quickLoading,
+    detailedLoading,
+    error,
+    selectedBacktest,
+    hasQuickData,
+    hasFullData
+  } = usePerformanceData()
 
   if (!selectedBacktest) {
     return <div className="p-8 text-center text-muted-foreground">Select a backtest to view performance.</div>
   }
 
-  if (loading) {
+  // Show spinner only during initial quick metrics fetch
+  if (quickLoading && !hasQuickData) {
     return (
       <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Loading metrics...</span>
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error && !metrics) {
     return <div className="p-8 text-red-500">Error: {error}</div>
   }
-
-  if (!metrics || !equityCurves) {
-      return null
-  }
-
-  // Transform Series Data for Charts
-  // SeriesChart3Way expects data point with { date, all, long, short }
-  // We need to merge the 3 arrays by date.
 
   // Helper to merge 3 equity curves
   const mergeCurves = (key: "equity_close" | "drawdown_usd", all: any[], long: any[], short: any[]) => {
@@ -110,16 +132,47 @@ export default function OverviewPage() {
       })
   }
 
-  const equityChartData = mergeCurves("equity_close", equityCurves.all, equityCurves.long, equityCurves.short)
-  const drawdownChartData = mergeCurves("drawdown_usd", equityCurves.all, equityCurves.long, equityCurves.short)
+  // Prepare chart data (only if equity curves are available)
+  const hasChartData = equityCurves && equityCurves.all.length > 0
+  let equityChartData: any[] = []
+  let drawdownChartData: any[] = []
 
-  const pageData = {
-    metrics: metrics,
-    charts: {
-      equity_curve: equityChartData,
-      drawdown_curve: drawdownChartData
-    }
+  if (hasChartData) {
+    equityChartData = mergeCurves("equity_close", equityCurves.all, equityCurves.long, equityCurves.short)
+    drawdownChartData = mergeCurves("drawdown_usd", equityCurves.all, equityCurves.long, equityCurves.short)
   }
 
-  return <PerformancePageLayout config={overviewConfig} data={pageData} />
+  // Build page data with available metrics
+  const pageData = {
+    metrics: metrics || { all: {}, long: {}, short: {} },
+    charts: hasChartData ? {
+      equity_curve: equityChartData,
+      drawdown_curve: drawdownChartData
+    } : undefined,
+    // Pass loading indicators for the page layout to use
+    chartsLoading: detailedLoading && !hasChartData,
+    chartSkeletons: !hasChartData ? (
+      <div className="grid gap-4 md:grid-cols-2">
+        <ChartSkeleton title="Equity Curve" />
+        <ChartSkeleton title="Drawdown Series" />
+      </div>
+    ) : undefined
+  }
+
+  return (
+    <>
+      {/* Show loading indicator for detailed metrics in background */}
+      {detailedLoading && hasQuickData && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading detailed metrics...
+        </div>
+      )}
+      <PerformancePageLayout
+        config={overviewConfig}
+        data={pageData}
+        chartSkeletons={!hasChartData ? pageData.chartSkeletons : undefined}
+      />
+    </>
+  )
 }

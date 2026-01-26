@@ -29,6 +29,9 @@ The FastAPI app is defined in `apps/api/main.py`. It registers route modules for
 - Docs management (`apps/api/routes/docs.py`)
 - Edge Lab (`apps/api/routes/edge.py`)
   - Seasonality analytics (`POST /api/edge-lab/seasonality`)
+- Performance reports (`apps/api/routes/reports/*`)
+  - Strategy performance summaries (`POST /api/reports/strategy-performance-quick`, `POST /api/reports/strategy-performance-summary`)
+  - Strategy performance distributions (`POST /api/reports/strategy-performance-distributions`)
 
 ## Authentication
 `apps/api/auth_utils.py` implements file-backed token storage in `data/tokens.json`, token generation/verification, and user authentication via `DatabaseManager`.
@@ -56,6 +59,10 @@ Backtests are launched from `apps/api/routes/strategies.py` and executed with:
 - `VectorizedEngine` or `EventDrivenEngine` (from `apps/backtest`)
 - Optional high-resolution execution data
 Results are persisted using `BacktestDatabase` and queried via `DatabaseManager`.
+
+## UI Performance Pages
+Performance dashboards under `ui/src/app/(dashboard)/performance` call report endpoints through `ui/src/components/performance/use-performance-data.ts`.
+That hook loads quick metrics first, then full metrics and equity curves, and returns a combined `all/long/short` metrics object for the performance tables.
 
 ## Portfolio Backtesting
 Multi-asset portfolio backtests are executed via `apps/backtest/portfolio.py`:

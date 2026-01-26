@@ -126,7 +126,7 @@ export default function DistributionsPage() {
             initialBalance = full.initial_balance || 10000
         }
 
-        const stats = await strategyApi.getPerformanceSummary(trades, initialBalance)
+        const stats = await strategyApi.getPerformanceDistributions(trades, initialBalance)
         setData(stats)
 
         // Process trades for DistributionPanel3Way

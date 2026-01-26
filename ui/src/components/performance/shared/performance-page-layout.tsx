@@ -29,11 +29,14 @@ interface PerformancePageLayoutProps {
     metrics: MetricData
     charts?: Record<string, any> // map of id -> data
   }
+  /** Optional skeleton UI to show while charts are loading */
+  chartSkeletons?: React.ReactNode
 }
 
 export function PerformancePageLayout({
   config,
   data,
+  chartSkeletons,
 }: PerformancePageLayoutProps) {
   return (
     <div className="space-y-6 container mx-auto p-6 max-w-[1600px]">
@@ -57,8 +60,15 @@ export function PerformancePageLayout({
         </section>
       )}
 
-      {/* Charts Section */}
-      {config.charts && config.charts.length > 0 && (
+      {/* Charts Section - show skeletons while loading */}
+      {chartSkeletons && !data.charts && (
+        <section className="space-y-4">
+          {chartSkeletons}
+        </section>
+      )}
+
+      {/* Charts Section - render actual charts when data is available */}
+      {config.charts && config.charts.length > 0 && data.charts && (
         <div className="grid grid-cols-1 gap-6">
           {config.charts.map((chartConfig) => {
             const chartData = data.charts?.[chartConfig.id]

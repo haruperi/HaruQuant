@@ -81,6 +81,13 @@ export function MetricGrid3Way({
                 const valShort = data.short?.[metric.accessor]
 
                 const renderCell = (val: any, defaultColor: string) => {
+                  if (val === null || val === undefined) {
+                    return (
+                      <TableCell className={cn("text-right font-mono", defaultColor)}>
+                        -
+                      </TableCell>
+                    )
+                  }
                   const isNegative = typeof val === "number" && val < 0
                   // Use absolute value for formatting if negative
                   const absVal = isNegative ? Math.abs(val) : val

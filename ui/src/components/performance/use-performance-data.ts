@@ -35,7 +35,8 @@ export interface EquityPoint {
 
 // Simple in-memory cache for performance data
 const performanceCache = new Map<number, {
-  metrics: ThreeWayMetrics
+  quickMetrics: ThreeWayMetrics
+  fullMetrics: ThreeWayMetrics
   equityCurves: { all: EquityPoint[], long: EquityPoint[], short: EquityPoint[] }
   timestamp: number
 }>()
@@ -44,13 +45,25 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 export function usePerformanceData() {
   const { selectedBacktest } = useSelectedBacktest()
-  const [metrics, setMetrics] = useState<ThreeWayMetrics | null>(null)
+
+  // Two-phase metrics state
+  const [quickMetrics, setQuickMetrics] = useState<ThreeWayMetrics | null>(null)
+  const [fullMetrics, setFullMetrics] = useState<ThreeWayMetrics | null>(null)
+
+  // Expose combined metrics (prefer full, fallback to quick)
+  const metrics = fullMetrics || quickMetrics
+
   const [equityCurves, setEquityCurves] = useState<{
     all: EquityPoint[]
     long: EquityPoint[]
     short: EquityPoint[]
   } | null>(null)
-  const [loading, setLoading] = useState(false)
+
+  // Separate loading states for progressive UI
+  const [quickLoading, setQuickLoading] = useState(false)
+  const [detailedLoading, setDetailedLoading] = useState(false)
+  const loading = quickLoading || detailedLoading
+
   const [error, setError] = useState<string | null>(null)
 
   // Track the last fetched backtest ID to prevent duplicate fetches
@@ -67,7 +80,7 @@ export function usePerformanceData() {
       }
 
       // Prevent duplicate fetches for same backtest
-      if (lastFetchedId.current === backtestId && (metrics || loading)) {
+      if (lastFetchedId.current === backtestId && (metrics || quickLoading || detailedLoading)) {
         return
       }
 
@@ -79,15 +92,22 @@ export function usePerformanceData() {
       // Check cache first
       const cached = performanceCache.get(backtestId)
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        setMetrics(cached.metrics)
+        setQuickMetrics(cached.quickMetrics)
+        setFullMetrics(cached.fullMetrics)
         setEquityCurves(cached.equityCurves)
         lastFetchedId.current = backtestId
         return
       }
 
       isFetching.current = true
-      setLoading(true)
+      setQuickLoading(true)
+      setDetailedLoading(true)
       setError(null)
+
+      // Reset previous data when loading new backtest
+      setQuickMetrics(null)
+      setFullMetrics(null)
+      setEquityCurves(null)
 
       try {
         let trades = selectedBacktest.trades
@@ -104,7 +124,8 @@ export function usePerformanceData() {
             } catch (err) {
                 console.error("Failed to fetch full backtest details:", err)
                 setError("Failed to load backtest details.")
-                setLoading(false)
+                setQuickLoading(false)
+                setDetailedLoading(false)
                 isFetching.current = false
                 return
             }
@@ -112,16 +133,29 @@ export function usePerformanceData() {
 
         if (!trades || trades.length === 0) {
              setError("No trade data available.")
-             setLoading(false)
+             setQuickLoading(false)
+             setDetailedLoading(false)
              isFetching.current = false
              return
         }
 
-        // 1. Fetch Metrics (Single call, returns 3-way)
-        const metricsData = await strategyApi.getPerformanceSummary(trades, initialBalance)
+        // =================================================================
+        // PHASE 1: Quick metrics (fast first paint ~2-3 sec)
+        // =================================================================
+        try {
+          const quickData = await strategyApi.getPerformanceSummaryQuick(trades, initialBalance)
+          setQuickMetrics(quickData)
+          setQuickLoading(false)
+        } catch (err) {
+          console.error("Error fetching quick metrics:", err)
+          // Continue to full metrics even if quick fails
+        }
 
-        // 2. Fetch Equity Curves (3 calls in parallel)
-        // Robust filtering: check both 'type' and 'side', handle case insensitivity
+        // =================================================================
+        // PHASE 2: Full metrics + equity curves (background)
+        // =================================================================
+
+        // Prepare trade subsets for equity curves
         const longTrades = trades.filter((t: any) => {
             const type = (t.type || t.side || "").toString().toLowerCase()
             return type === "buy" || type === "long"
@@ -131,13 +165,14 @@ export function usePerformanceData() {
             return type === "sell" || type === "short"
         })
 
-        // Helper to fetch curve
+        // Fetch full metrics and equity curves in parallel
         const fetchCurve = async (t: any[]) => {
           if (t.length === 0) return []
           return await strategyApi.getEquityCurveDetailed(t, initialBalance)
         }
 
-        const [allCurve, longCurve, shortCurve] = await Promise.all([
+        const [fullMetricsData, allCurve, longCurve, shortCurve] = await Promise.all([
+          strategyApi.getPerformanceSummary(trades, initialBalance),
           fetchCurve(trades),
           fetchCurve(longTrades),
           fetchCurve(shortTrades)
@@ -149,14 +184,15 @@ export function usePerformanceData() {
           short: shortCurve
         }
 
-        // Update state
-        setMetrics(metricsData)
+        // Update state with full data
+        setFullMetrics(fullMetricsData)
         setEquityCurves(curves)
         lastFetchedId.current = backtestId
 
         // Cache the results
         performanceCache.set(backtestId, {
-          metrics: metricsData,
+          quickMetrics: quickMetrics || fullMetricsData, // Use full as quick if quick wasn't set
+          fullMetrics: fullMetricsData,
           equityCurves: curves,
           timestamp: Date.now()
         })
@@ -165,7 +201,8 @@ export function usePerformanceData() {
         console.error("Error fetching performance data:", err)
         setError(err.message || "Failed to fetch data")
       } finally {
-        setLoading(false)
+        setQuickLoading(false)
+        setDetailedLoading(false)
         isFetching.current = false
       }
     }
@@ -173,5 +210,17 @@ export function usePerformanceData() {
     fetchData()
   }, [backtestId]) // Only depend on backtest ID, not the whole object
 
-  return { metrics, equityCurves, loading, error, selectedBacktest }
+  return {
+    metrics,           // Combined metrics (full if available, else quick)
+    quickMetrics,      // Quick metrics only
+    fullMetrics,       // Full metrics only
+    equityCurves,
+    loading,           // True if either phase is loading
+    quickLoading,      // True only during quick phase
+    detailedLoading,   // True only during detailed phase
+    error,
+    selectedBacktest,
+    hasQuickData: !!quickMetrics,
+    hasFullData: !!fullMetrics
+  }
 }
