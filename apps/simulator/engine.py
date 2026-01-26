@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Optional
 
 import MetaTrader5 as mt5
 
 from apps.ctrade import CSymbolInfo
+from apps.logger import logger
+from apps.simulator.market_data import MarketDataStore, ensure_utc, timeframe_seconds
 from apps.sqlite import SQLiteDatabase
 
 
@@ -38,6 +40,40 @@ class SymbolSnapshot:
     ask: float
 
 
+@dataclass(frozen=True)
+class AccountInfo:
+    """Account information snapshot aligned with MT5 AccountInfo fields."""
+
+    login: int
+    trade_mode: int
+    leverage: int
+    limit_orders: int
+    margin_so_mode: int
+    trade_allowed: bool
+    trade_expert: bool
+    margin_mode: int
+    currency_digits: int
+    fifo_close: bool
+    balance: float
+    credit: float
+    profit: float
+    equity: float
+    margin: float
+    margin_free: float
+    margin_level: float
+    margin_so_call: float
+    margin_so_so: float
+    margin_initial: float
+    margin_maintenance: float
+    assets: float
+    liabilities: float
+    commission_blocked: float
+    name: str
+    server: str
+    currency: str
+    company: str
+
+
 class TradeSimulator:
     """
     Local trade simulator with MT5-aligned behavior.
@@ -51,6 +87,7 @@ class TradeSimulator:
         deposit: float = 10000.0,
         leverage: str | float = "1:100",
         db: Optional[SQLiteDatabase] = None,
+        data_store: Optional[MarketDataStore] = None,
         toolbox_callback: Optional[
             Callable[[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]], None]
         ] = None,
@@ -62,24 +99,61 @@ class TradeSimulator:
         self.simulator_name = simulator_name
         self._leverage = self._parse_leverage(leverage)
         self._db = db
+        self._data_store = data_store or MarketDataStore()
         self._toolbox_callback = toolbox_callback
 
         # Initialize variables
         self._next_id = 1
+        self._is_running = False
+        self._is_tester = False
+        self._symbol_info_cache: dict[str, dict[str, Any]] = {}
+        self._tick_cache: dict[str, dict[str, Any]] = {}
         self.magic_number: Optional[int] = None
         self.deviation_points: Optional[int] = None
         self.filling_type: Optional[int] = None
         self.last_error: str = ""
 
-        # Account's information
-        self.account_info = {
+        # Account's information (simulated, aligned with MT5)
+        mt5_acc_info = mt5.account_info()
+        leverage_value = int(self._leverage)
+        self._account_state: dict[str, Any] = {
+            # ---- identity / broker-controlled ----
+            "login": 11223344,
+            "trade_mode": int(getattr(mt5_acc_info, "trade_mode", 0)),
+            "leverage": leverage_value,
+            "limit_orders": int(getattr(mt5_acc_info, "limit_orders", 0)),
+            "margin_so_mode": int(getattr(mt5_acc_info, "margin_so_mode", 0)),
+            "trade_allowed": bool(getattr(mt5_acc_info, "trade_allowed", True)),
+            "trade_expert": bool(getattr(mt5_acc_info, "trade_expert", True)),
+            "margin_mode": int(getattr(mt5_acc_info, "margin_mode", 0)),
+            "currency_digits": int(getattr(mt5_acc_info, "currency_digits", 2)),
+            "fifo_close": bool(getattr(mt5_acc_info, "fifo_close", False)),
+            # ---- simulator-controlled financials ----
             "balance": float(deposit),
-            "equity": float(deposit),
+            "credit": float(getattr(mt5_acc_info, "credit", 0.0)),
             "profit": 0.0,
+            "equity": float(deposit),
             "margin": 0.0,
-            "free_margin": float(deposit),
+            "margin_free": float(deposit),
             "margin_level": 0.0,
-            "leverage": float(self._leverage),
+            # ---- risk thresholds (copied from broker) ----
+            "margin_so_call": float(getattr(mt5_acc_info, "margin_so_call", 0.0)),
+            "margin_so_so": float(getattr(mt5_acc_info, "margin_so_so", 0.0)),
+            "margin_initial": float(getattr(mt5_acc_info, "margin_initial", 0.0)),
+            "margin_maintenance": float(
+                getattr(mt5_acc_info, "margin_maintenance", 0.0)
+            ),
+            # ---- rarely used but keep parity ----
+            "assets": float(getattr(mt5_acc_info, "assets", 0.0)),
+            "liabilities": float(getattr(mt5_acc_info, "liabilities", 0.0)),
+            "commission_blocked": float(
+                getattr(mt5_acc_info, "commission_blocked", 0.0)
+            ),
+            # ---- descriptive ----
+            "name": "John Doe",
+            "server": "MetaTrader5-Simulator",
+            "currency": str(getattr(mt5_acc_info, "currency", "USD")),
+            "company": str(getattr(mt5_acc_info, "company", "")),
         }
 
         # Position's information
@@ -130,6 +204,14 @@ class TradeSimulator:
         self.simulations_folder: str = "data/simulations"
         os.makedirs(self.simulations_folder, exist_ok=True)
 
+        # Request tracking (MT5-like)
+        self._last_request: dict[str, Any] = {}
+        self._last_result: dict[str, Any] = {}
+        self._last_check: dict[str, Any] = {}
+
+        # Orders history (simulator-only)
+        self.orders_history_container: list[dict[str, Any]] = []
+
     # ------------------------------------------------------------------
     # Trading Simulator 101 (core containers and helpers)
     # ------------------------------------------------------------------
@@ -150,6 +232,16 @@ class TradeSimulator:
         self.last_error = message
         return False
 
+    def start(self, is_tester: bool = True) -> bool:
+        """Start the simulator in tester mode or live passthrough mode."""
+        self._is_running = True
+        self._is_tester = bool(is_tester)
+        return True
+
+    def stop(self) -> None:
+        """Stop the simulator."""
+        self._is_running = False
+
     def set_magic_number(self, magic_number: int) -> None:
         """Set the simulator magic number."""
         self.magic_number = int(magic_number)
@@ -162,7 +254,7 @@ class TradeSimulator:
         """Run the attached toolbox callback if provided."""
         if self._toolbox_callback is not None:
             self._toolbox_callback(
-                self.account_info, self.positions_container, self.orders_container
+                self._account_state, self.positions_container, self.orders_container
             )
 
     def get_positions(self) -> list[dict[str, Any]]:
@@ -202,21 +294,33 @@ class TradeSimulator:
         info = CSymbolInfo(symbol)
         info.Refresh()
         info.RefreshRates()
-
+        cached_info = self.symbol_info(symbol) if self._is_tester else None
         bid, ask = self._resolve_bid_ask(symbol, price_feed, info)
+
+        def _cached_float(key: str, default: float) -> float:
+            if cached_info and key in cached_info and cached_info[key] is not None:
+                return float(cached_info[key])
+            return default
+
+        def _cached_int(key: str, default: int) -> int:
+            if cached_info and key in cached_info and cached_info[key] is not None:
+                return int(cached_info[key])
+            return default
 
         return SymbolSnapshot(
             symbol=symbol,
-            digits=int(info.Digits()),
-            point=float(info.Point()),
-            tick_value=float(info.TickValue()),
-            tick_size=float(info.TickSize()),
-            contract_size=float(info.ContractSize()),
-            volume_min=float(info.LotsMin()),
-            volume_max=float(info.LotsMax()),
-            volume_step=float(info.LotsStep()),
-            stops_level=int(info.StopsLevel()),
-            freeze_level=int(info.FreezeLevel()),
+            digits=_cached_int("digits", int(info.Digits())),
+            point=_cached_float("point", float(info.Point())),
+            tick_value=_cached_float("trade_tick_value", float(info.TickValue())),
+            tick_size=_cached_float("trade_tick_size", float(info.TickSize())),
+            contract_size=_cached_float(
+                "trade_contract_size", float(info.ContractSize())
+            ),
+            volume_min=_cached_float("volume_min", float(info.LotsMin())),
+            volume_max=_cached_float("volume_max", float(info.LotsMax())),
+            volume_step=_cached_float("volume_step", float(info.LotsStep())),
+            stops_level=_cached_int("trade_stops_level", int(info.StopsLevel())),
+            freeze_level=_cached_int("trade_freeze_level", int(info.FreezeLevel())),
             bid=bid,
             ask=ask,
         )
@@ -227,6 +331,9 @@ class TradeSimulator:
         price_feed: Optional[dict[str, Any]],
         info: CSymbolInfo,
     ) -> tuple[float, float]:
+        if self._is_tester and symbol in self._tick_cache:
+            cached = self._tick_cache[symbol]
+            return float(cached.get("bid", 0.0)), float(cached.get("ask", 0.0))
         if price_feed and symbol in price_feed:
             value = price_feed[symbol]
             if isinstance(value, (list, tuple)) and len(value) == 2:
@@ -247,6 +354,815 @@ class TradeSimulator:
         if self._db is None:
             return []
         return self._db.load_simulator_deals(start_time, end_time)
+
+    # ------------------------------------------------------------------
+    # Tester mode data handling (ticks, bars, and MT5 overloads)
+    # ------------------------------------------------------------------
+    def update_tick(self, symbol: str, tick: Any) -> None:
+        """Update cached tick data for tester mode."""
+        if tick is None:
+            return
+        if hasattr(tick, "_asdict"):
+            tick_data = tick._asdict()
+        elif isinstance(tick, dict):
+            tick_data = dict(tick)
+        else:
+            return
+        self._tick_cache[symbol] = tick_data
+
+    def symbol_info_tick(self, symbol: str) -> Optional[dict[str, Any]]:
+        """Return tick info, using tester cache when enabled."""
+        if self._is_tester:
+            return self._tick_cache.get(symbol)
+        info = mt5.symbol_info_tick(symbol)
+        return info._asdict() if info is not None else None
+
+    def symbol_info(self, symbol: str) -> Optional[dict[str, Any]]:
+        """Return symbol info, using cached data in tester mode."""
+        if self._is_tester and symbol in self._symbol_info_cache:
+            return dict(self._symbol_info_cache[symbol])
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            return None
+        data = info._asdict()
+        if self._is_tester:
+            self._symbol_info_cache[symbol] = dict(data)
+        return dict(data)
+
+    def order_send(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Send a trade request using simulator logic when in tester mode."""
+        self._last_request = dict(request)
+        if not self._is_tester:
+            result = mt5.order_send(request)
+            self._last_result = result._asdict() if result is not None else {}
+            self._last_check = {}
+            return dict(self._last_result)
+
+        check = self._check_request(request)
+        self._last_check = dict(check)
+        if check.get("retcode") != mt5.TRADE_RETCODE_DONE:
+            self._last_result = {
+                "retcode": check.get("retcode", mt5.TRADE_RETCODE_REJECT),
+                "comment": check.get("comment", ""),
+            }
+            return dict(self._last_result)
+
+        result = self._execute_request(request)
+        self._last_result = dict(result)
+        return dict(self._last_result)
+
+    def _check_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        action = int(request.get("action", 0))
+        if action == mt5.TRADE_ACTION_MODIFY:
+            return self._check_modify_request(request)
+        if action == mt5.TRADE_ACTION_REMOVE:
+            return self._check_remove_request(request)
+
+        symbol = str(request.get("symbol", ""))
+        snapshot = self._symbol_snapshot(symbol) if symbol else None
+        if snapshot is None or not symbol:
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": "Symbol required."}
+
+        if self._reached_max_orders():
+            return {
+                "retcode": mt5.TRADE_RETCODE_REJECT,
+                "comment": "Maximum number of orders reached.",
+            }
+
+        volume, price, sl, tp = self._request_prices(request)
+        if action == mt5.TRADE_ACTION_DEAL:
+            return self._check_deal_request(
+                request, snapshot, symbol, volume, price, sl, tp
+            )
+        if action == mt5.TRADE_ACTION_PENDING:
+            return self._check_pending_request(
+                request, snapshot, symbol, volume, price, sl, tp
+            )
+        return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": "Unsupported action."}
+
+    def _request_prices(
+        self, request: dict[str, Any]
+    ) -> tuple[float, float, float, float]:
+        volume = float(request.get("volume", 0.0))
+        price = float(request.get("price", 0.0))
+        sl = float(request.get("sl", 0.0))
+        tp = float(request.get("tp", 0.0))
+        return volume, price, sl, tp
+
+    def _check_deal_request(
+        self,
+        request: dict[str, Any],
+        snapshot: SymbolSnapshot,
+        symbol: str,
+        volume: float,
+        price: float,
+        sl: float,
+        tp: float,
+    ) -> dict[str, Any]:
+        order_type = int(request.get("type", mt5.ORDER_TYPE_BUY))
+        action_name = "buy" if order_type == mt5.ORDER_TYPE_BUY else "sell"
+        if not self._validate_trade(
+            action_name, snapshot, volume, price or snapshot.ask, sl, tp
+        ):
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        if not self._validate_volume_limit(symbol, volume):
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        margin_required = self._calc_margin_sim(
+            action_name, symbol, volume, price or snapshot.ask
+        )
+        if not self._ensure_margin(margin_required):
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        return {"retcode": mt5.TRADE_RETCODE_DONE, "comment": "OK"}
+
+    def _check_pending_request(
+        self,
+        request: dict[str, Any],
+        snapshot: SymbolSnapshot,
+        symbol: str,
+        volume: float,
+        price: float,
+        sl: float,
+        tp: float,
+    ) -> dict[str, Any]:
+        order_type = int(request.get("type", mt5.ORDER_TYPE_BUY_LIMIT))
+        order_name = self._pending_order_type(order_type)
+        if not order_name:
+            return {
+                "retcode": mt5.TRADE_RETCODE_REJECT,
+                "comment": "Unsupported pending order type.",
+            }
+        expiration = self._expiration_to_datetime(request.get("expiration"))
+        if not self._validate_pending_order(
+            order_name, snapshot, volume, price, sl, tp, expiration
+        ):
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        if not self._validate_volume_limit(symbol, volume):
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        return {"retcode": mt5.TRADE_RETCODE_DONE, "comment": "OK"}
+
+    def _check_modify_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        order_id = request.get("order")
+        position_id = request.get("position")
+        if order_id is None and position_id is None:
+            return {
+                "retcode": mt5.TRADE_RETCODE_REJECT,
+                "comment": "Missing order/position id.",
+            }
+        return {"retcode": mt5.TRADE_RETCODE_DONE, "comment": "OK"}
+
+    def _check_remove_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        order_id = request.get("order")
+        if order_id is None:
+            return {
+                "retcode": mt5.TRADE_RETCODE_REJECT,
+                "comment": "Missing order id.",
+            }
+        return {"retcode": mt5.TRADE_RETCODE_DONE, "comment": "OK"}
+
+    def _execute_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        action = int(request.get("action", 0))
+        symbol = str(request.get("symbol", ""))
+        volume, price, sl, tp = self._request_prices(request)
+        comment = str(request.get("comment", ""))
+
+        handlers = {
+            mt5.TRADE_ACTION_DEAL: lambda: self._execute_deal_request(
+                request, symbol, volume, price, sl, tp, comment
+            ),
+            mt5.TRADE_ACTION_PENDING: lambda: self._execute_pending_request(
+                request, symbol, volume, price, sl, tp, comment
+            ),
+            mt5.TRADE_ACTION_MODIFY: lambda: self._execute_modify_request(
+                request, price, sl, tp
+            ),
+            mt5.TRADE_ACTION_REMOVE: lambda: self._execute_remove_request(request),
+        }
+        handler = handlers.get(action)
+        if handler is None:
+            return {
+                "retcode": mt5.TRADE_RETCODE_REJECT,
+                "comment": "Unsupported action.",
+            }
+        return handler()
+
+    def _execute_deal_request(
+        self,
+        request: dict[str, Any],
+        symbol: str,
+        volume: float,
+        price: float,
+        sl: float,
+        tp: float,
+        comment: str,
+    ) -> dict[str, Any]:
+        position_id = request.get("position")
+        if position_id is not None:
+            return self._execute_close_position(int(position_id))
+        order_type = int(request.get("type", mt5.ORDER_TYPE_BUY))
+        action_name = "buy" if order_type == mt5.ORDER_TYPE_BUY else "sell"
+        return self._execute_open_position(
+            action_name, symbol, volume, price, sl, tp, comment, request
+        )
+
+    def _execute_close_position(self, position_id: int) -> dict[str, Any]:
+        if self._close_position_by_id(position_id):
+            logger.info(
+                f"{self.simulator_name}.tester | [tester.py:1251 - order_send() ] "
+                f"=> Position: {position_id} closed!"
+            )
+            return {"retcode": mt5.TRADE_RETCODE_DONE, "order": position_id}
+        return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+
+    def _execute_open_position(
+        self,
+        action_name: str,
+        symbol: str,
+        volume: float,
+        price: float,
+        sl: float,
+        tp: float,
+        comment: str,
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        position = self._open_position(
+            action_name, symbol, volume, price, sl, tp, comment
+        )
+        if position is None:
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        magic = int(request.get("magic", position.get("magic", 0)))
+        position["magic"] = magic
+        logger.info(
+            f"{self.simulator_name}.tester | [tester.py:1335 - order_send() ] "
+            f"=> Position: {int(position['id'])} opened!"
+        )
+        return {
+            "retcode": mt5.TRADE_RETCODE_DONE,
+            "order": int(position["id"]),
+            "deal": int(position["id"]),
+            "comment": "OK",
+        }
+
+    def _execute_pending_request(
+        self,
+        request: dict[str, Any],
+        symbol: str,
+        volume: float,
+        price: float,
+        sl: float,
+        tp: float,
+        comment: str,
+    ) -> dict[str, Any]:
+        order_type = int(request.get("type", mt5.ORDER_TYPE_BUY_LIMIT))
+        order_name = self._pending_order_type(order_type)
+        if not order_name:
+            return {
+                "retcode": mt5.TRADE_RETCODE_REJECT,
+                "comment": "Unsupported pending order type.",
+            }
+        order = self._place_pending_order(
+            order_name,
+            volume,
+            symbol,
+            price,
+            sl,
+            tp,
+            comment,
+            expiry_date=self._expiration_to_datetime(request.get("expiration")),
+        )
+        if order is None:
+            return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+        order["magic"] = int(request.get("magic", order.get("magic", 0)))
+        self.orders_history_container.append(dict(order))
+        return {
+            "retcode": mt5.TRADE_RETCODE_DONE,
+            "order": int(order["id"]),
+            "comment": "OK",
+        }
+
+    def _execute_modify_request(
+        self, request: dict[str, Any], price: float, sl: float, tp: float
+    ) -> dict[str, Any]:
+        order_id = request.get("order")
+        if order_id is not None:
+            return self._execute_modify_order(order_id, price, sl, tp, request)
+        position_id = request.get("position")
+        if position_id is not None:
+            return self._execute_modify_position(position_id, sl, tp)
+        return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": "Missing id."}
+
+    def _execute_modify_order(
+        self,
+        order_id: int,
+        price: float,
+        sl: float,
+        tp: float,
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        if self._modify_order(
+            int(order_id),
+            open_price=price,
+            sl=sl,
+            tp=tp,
+            expiry_date=self._expiration_to_datetime(request.get("expiration")),
+            expiration_mode=request.get("type_time"),
+        ):
+            return {"retcode": mt5.TRADE_RETCODE_DONE, "order": int(order_id)}
+        return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+
+    def _execute_modify_position(
+        self, position_id: int, sl: float, tp: float
+    ) -> dict[str, Any]:
+        if self._modify_position(int(position_id), sl=sl, tp=tp):
+            return {"retcode": mt5.TRADE_RETCODE_DONE, "position": int(position_id)}
+        return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+
+    def _execute_remove_request(self, request: dict[str, Any]) -> dict[str, Any]:
+        order_id = request.get("order")
+        if order_id is not None and self._delete_order(int(order_id)):
+            return {"retcode": mt5.TRADE_RETCODE_DONE, "order": int(order_id)}
+        return {"retcode": mt5.TRADE_RETCODE_REJECT, "comment": self.last_error}
+
+    def _pending_order_type(self, order_type: int) -> str:
+        mapping = {
+            mt5.ORDER_TYPE_BUY_LIMIT: "buy limit",
+            mt5.ORDER_TYPE_BUY_STOP: "buy stop",
+            mt5.ORDER_TYPE_SELL_LIMIT: "sell limit",
+            mt5.ORDER_TYPE_SELL_STOP: "sell stop",
+        }
+        return mapping.get(order_type, "")
+
+    def _expiration_to_datetime(self, expiration: Any) -> Optional[datetime]:
+        if expiration is None:
+            return None
+        if isinstance(expiration, datetime):
+            return expiration
+        try:
+            return datetime.fromtimestamp(int(expiration), tz=timezone.utc)
+        except (TypeError, ValueError):
+            return None
+
+    def order_calc_profit(
+        self,
+        action: int,
+        symbol: str,
+        volume: float,
+        price_open: float,
+        price_close: float,
+    ) -> float:
+        """Calculate profit using simulator logic when in tester mode."""
+        price_close = self._resolve_profit_close(action, symbol, price_close)
+        if self._is_tester:
+            return self._order_calc_profit_tester(
+                action, symbol, volume, price_open, price_close
+            )
+        result = mt5.order_calc_profit(action, symbol, volume, price_open, price_close)
+        return float(result) if result is not None else 0.0
+
+    def _order_calc_profit_tester(
+        self,
+        action: int,
+        symbol: str,
+        volume: float,
+        price_open: float,
+        price_close: float,
+    ) -> float:
+        info = self.symbol_info(symbol) or {}
+        contract_size = float(info.get("trade_contract_size", 0.0))
+        calc_mode = int(info.get("trade_calc_mode", 0))
+
+        direction = self._order_direction(action)
+        if direction == 0:
+            return 0.0
+
+        price_delta = (price_close - price_open) * direction
+        profit = 0.0
+
+        if calc_mode in (
+            mt5.SYMBOL_CALC_MODE_FOREX,
+            mt5.SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE,
+            mt5.SYMBOL_CALC_MODE_CFD,
+            mt5.SYMBOL_CALC_MODE_CFDINDEX,
+            mt5.SYMBOL_CALC_MODE_CFDLEVERAGE,
+            mt5.SYMBOL_CALC_MODE_EXCH_STOCKS,
+            mt5.SYMBOL_CALC_MODE_EXCH_STOCKS_MOEX,
+        ):
+            profit = price_delta * contract_size * volume
+        elif calc_mode in (
+            mt5.SYMBOL_CALC_MODE_FUTURES,
+            mt5.SYMBOL_CALC_MODE_EXCH_FUTURES,
+            mt5.SYMBOL_CALC_MODE_EXCH_FUTURES_FORTS,
+        ):
+            tick_value = float(info.get("trade_tick_value", 0.0))
+            tick_size = float(info.get("trade_tick_size", 0.0))
+            if tick_size <= 0:
+                return 0.0
+            profit = price_delta * volume * (tick_value / tick_size)
+        elif calc_mode in (
+            mt5.SYMBOL_CALC_MODE_EXCH_BONDS,
+            mt5.SYMBOL_CALC_MODE_EXCH_BONDS_MOEX,
+        ):
+            face_value = float(info.get("trade_face_value", 0.0))
+            accrued_interest = float(info.get("trade_accrued_interest", 0.0))
+            profit = volume * contract_size * (
+                price_close * face_value + accrued_interest
+            ) - volume * contract_size * (price_open * face_value)
+        elif calc_mode == mt5.SYMBOL_CALC_MODE_SERV_COLLATERAL:
+            liquidity_rate = float(info.get("trade_liquidity_rate", 0.0))
+            tick = self.symbol_info_tick(symbol) or {}
+            market_price = tick.get("ask") if direction > 0 else tick.get("bid")
+            if not market_price:
+                market_price = price_close
+            market_price = float(market_price)
+            profit = volume * contract_size * market_price * liquidity_rate
+        else:
+            profit = price_delta * contract_size * volume
+
+        return round(float(profit), 2)
+
+    def _resolve_profit_close(
+        self, action: int, symbol: str, price_close: float
+    ) -> float:
+        if price_close > 0:
+            return price_close
+        tick = self.symbol_info_tick(symbol) or {}
+        if action in (mt5.ORDER_TYPE_BUY, mt5.POSITION_TYPE_BUY):
+            return float(tick.get("bid", 0.0))
+        return float(tick.get("ask", 0.0))
+
+    def _order_direction(self, order_type: int) -> int:
+        if order_type in (mt5.ORDER_TYPE_BUY, mt5.POSITION_TYPE_BUY):
+            return 1
+        if order_type in (mt5.ORDER_TYPE_SELL, mt5.POSITION_TYPE_SELL):
+            return -1
+        return 0
+
+    def order_calc_margin(
+        self,
+        action: int,
+        symbol: str,
+        volume: float,
+        price_open: float,
+    ) -> float:
+        """Calculate margin using simulator logic when in tester mode."""
+        if volume <= 0 or price_open <= 0:
+            return 0.0
+        price_open = self._resolve_profit_close(action, symbol, price_open)
+        if self._is_tester:
+            return self._order_calc_margin_tester(action, symbol, volume, price_open)
+        result = mt5.order_calc_margin(action, symbol, volume, price_open)
+        return float(result) if result is not None else 0.0
+
+    def _order_calc_margin_tester(
+        self,
+        action: int,
+        symbol: str,
+        volume: float,
+        price_open: float,
+    ) -> float:
+        info = self.symbol_info(symbol) or {}
+        return self._margin_from_info(info, volume, price_open)
+
+    def _margin_from_info(
+        self, info: dict[str, Any], volume: float, price_open: float
+    ) -> float:
+        contract_size = float(info.get("trade_contract_size", 0.0))
+        leverage = max(int(self._account_state.get("leverage", 1)), 1)
+        calc_mode = int(info.get("trade_calc_mode", 0))
+        margin_rate = self._resolve_margin_rate(info, calc_mode)
+        margin = self._margin_by_mode(
+            calc_mode,
+            volume,
+            contract_size,
+            price_open,
+            leverage,
+            margin_rate,
+            info,
+        )
+        return round(float(margin), 2)
+
+    def _resolve_margin_rate(self, info: dict[str, Any], calc_mode: int) -> float:
+        margin_rate = float(info.get("margin_initial", 0.0))
+        if margin_rate <= 0:
+            margin_rate = float(info.get("margin_maintenance", 0.0))
+        if margin_rate <= 0:
+            margin_rate = 1.0
+        if calc_mode in (
+            mt5.SYMBOL_CALC_MODE_FOREX,
+            mt5.SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE,
+        ):
+            return min(margin_rate, 1.0)
+        return margin_rate
+
+    def _margin_by_mode(
+        self,
+        calc_mode: int,
+        volume: float,
+        contract_size: float,
+        price_open: float,
+        leverage: int,
+        margin_rate: float,
+        info: dict[str, Any],
+    ) -> float:
+        if calc_mode == mt5.SYMBOL_CALC_MODE_FOREX:
+            return (volume * contract_size * margin_rate) / leverage
+        if calc_mode == mt5.SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE:
+            return volume * contract_size * margin_rate
+        if calc_mode in (
+            mt5.SYMBOL_CALC_MODE_CFD,
+            mt5.SYMBOL_CALC_MODE_CFDINDEX,
+            mt5.SYMBOL_CALC_MODE_EXCH_STOCKS,
+            mt5.SYMBOL_CALC_MODE_EXCH_STOCKS_MOEX,
+        ):
+            return volume * contract_size * price_open * margin_rate
+        if calc_mode == mt5.SYMBOL_CALC_MODE_CFDLEVERAGE:
+            return (volume * contract_size * price_open * margin_rate) / leverage
+        if calc_mode in (
+            mt5.SYMBOL_CALC_MODE_FUTURES,
+            mt5.SYMBOL_CALC_MODE_EXCH_FUTURES,
+            mt5.SYMBOL_CALC_MODE_EXCH_FUTURES_FORTS,
+        ):
+            return self._futures_margin(volume, margin_rate, info)
+        if calc_mode in (
+            mt5.SYMBOL_CALC_MODE_EXCH_BONDS,
+            mt5.SYMBOL_CALC_MODE_EXCH_BONDS_MOEX,
+        ):
+            face_value = float(info.get("trade_face_value", 0.0))
+            return volume * contract_size * face_value * price_open / 100.0
+        if calc_mode == mt5.SYMBOL_CALC_MODE_SERV_COLLATERAL:
+            return 0.0
+        return (volume * contract_size * price_open) / leverage
+
+    def _futures_margin(
+        self, volume: float, margin_rate: float, info: dict[str, Any]
+    ) -> float:
+        initial_margin = float(info.get("margin_initial", 0.0))
+        maintenance_margin = float(info.get("margin_maintenance", 0.0))
+        base_margin = initial_margin if initial_margin > 0 else maintenance_margin
+        return volume * base_margin * margin_rate
+
+    def copy_rates_from_pos(
+        self, symbol: str, timeframe: int, start_pos: int, count: int
+    ) -> list[dict[str, Any]]:
+        """Copy bars from the current tester time position."""
+        if not self._is_tester:
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, start_pos, count)
+            return self._rates_to_dicts(rates)
+        tick = self._tick_cache.get(symbol)
+        if not tick:
+            return []
+        tf_seconds = timeframe_seconds(timeframe)
+        if tf_seconds <= 0:
+            return []
+        current_time = datetime.fromtimestamp(int(tick["time"]), tz=timezone.utc)
+        start_time = current_time - (count + start_pos + 1) * timedelta(
+            seconds=tf_seconds
+        )
+        bars = self._data_store.read_bars_range(
+            symbol, timeframe, start_time, current_time
+        )
+        bars_sorted = sorted(bars, key=lambda row: row.get("time", 0), reverse=True)
+        sliced = bars_sorted[start_pos : start_pos + count]
+        return list(sliced)
+
+    def copy_rates_from(
+        self, symbol: str, timeframe: int, date_from: datetime, count: int
+    ) -> list[dict[str, Any]]:
+        """Copy bars starting from date_from."""
+        if not self._is_tester:
+            rates = mt5.copy_rates_from(symbol, timeframe, date_from, count)
+            return self._rates_to_dicts(rates)
+        tf_seconds = timeframe_seconds(timeframe)
+        if tf_seconds <= 0:
+            return []
+        start_time = ensure_utc(date_from)
+        end_time = start_time + timedelta(seconds=tf_seconds * count)
+        bars = self._data_store.read_bars_range(symbol, timeframe, start_time, end_time)
+        return list(sorted(bars, key=lambda row: row.get("time", 0))[:count])
+
+    def copy_rates_range(
+        self, symbol: str, timeframe: int, date_from: datetime, date_to: datetime
+    ) -> list[dict[str, Any]]:
+        """Copy bars within a date range."""
+        if not self._is_tester:
+            rates = mt5.copy_rates_range(symbol, timeframe, date_from, date_to)
+            return self._rates_to_dicts(rates)
+        return self._data_store.read_bars_range(symbol, timeframe, date_from, date_to)
+
+    def copy_ticks_from(
+        self, symbol: str, date_from: datetime, count: int, flags: int
+    ) -> list[dict[str, Any]]:
+        """Copy ticks starting from date_from."""
+        if not self._is_tester:
+            ticks = mt5.copy_ticks_from(symbol, date_from, count, flags)
+            return self._rates_to_dicts(ticks)
+        ticks = self._data_store.read_ticks_range(symbol, date_from, self._now())
+        filtered = self._filter_ticks_by_flags(ticks, flags)
+        return filtered[:count]
+
+    def copy_ticks_range(
+        self, symbol: str, date_from: datetime, date_to: datetime, flags: int
+    ) -> list[dict[str, Any]]:
+        """Copy ticks within a date range."""
+        if not self._is_tester:
+            ticks = mt5.copy_ticks_range(symbol, date_from, date_to, flags)
+            return self._rates_to_dicts(ticks)
+        ticks = self._data_store.read_ticks_range(symbol, date_from, date_to)
+        return self._filter_ticks_by_flags(ticks, flags)
+
+    def positions_total(self) -> int:
+        """Return the total number of open positions."""
+        if self._is_tester:
+            return len(self.positions_container)
+        return int(mt5.positions_total())
+
+    def positions_get(self) -> Any:
+        """Return open positions (simulator or MT5)."""
+        if self._is_tester:
+            return list(self.positions_container)
+        return mt5.positions_get()
+
+    def positions_profit_total(self) -> float:
+        """Return total floating profit for open positions."""
+        if self._is_tester:
+            return float(
+                sum(pos.get("profit", 0.0) for pos in self.positions_container)
+            )
+        total = 0.0
+        positions = mt5.positions_get()
+        if positions:
+            total = float(sum(pos.profit for pos in positions))
+        return total
+
+    def positions_margin_total(self) -> float:
+        """Return total margin used by open positions."""
+        if self._is_tester:
+            return float(
+                sum(pos.get("margin_required", 0.0) for pos in self.positions_container)
+            )
+        total = 0.0
+        positions = mt5.positions_get()
+        if positions:
+            total = float(
+                sum(
+                    self.order_calc_margin(
+                        action=pos.type,
+                        symbol=pos.symbol,
+                        volume=float(pos.volume),
+                        price_open=float(pos.price_open),
+                    )
+                    for pos in positions
+                )
+            )
+        return total
+
+    def orders_total(self) -> int:
+        """Return the total number of open orders."""
+        if self._is_tester:
+            return len(self.orders_container)
+        return int(mt5.orders_total())
+
+    def orders_get(self) -> Any:
+        """Return open orders (simulator or MT5)."""
+        if self._is_tester:
+            return list(self.orders_container)
+        return mt5.orders_get()
+
+    def history_deals_total(
+        self, date_from: Optional[datetime] = None, date_to: Optional[datetime] = None
+    ) -> int:
+        """Return the number of historical deals in the date range."""
+        if self._is_tester:
+            return len(self._filter_deals(date_from, date_to))
+        return len(self._history_deals_live(date_from, date_to))
+
+    def history_deals_get(
+        self, date_from: Optional[datetime] = None, date_to: Optional[datetime] = None
+    ) -> Any:
+        """Return historical deals in the date range."""
+        if self._is_tester:
+            return list(self._filter_deals(date_from, date_to))
+        return self._history_deals_live(date_from, date_to)
+
+    def history_orders_total(
+        self, date_from: Optional[datetime] = None, date_to: Optional[datetime] = None
+    ) -> int:
+        """Return the number of historical orders in the date range."""
+        if self._is_tester:
+            return 0
+        return len(self._history_orders_live(date_from, date_to))
+
+    def history_orders_get(
+        self, date_from: Optional[datetime] = None, date_to: Optional[datetime] = None
+    ) -> Any:
+        """Return historical orders in the date range."""
+        if self._is_tester:
+            return []
+        return self._history_orders_live(date_from, date_to)
+
+    def _history_orders_live(
+        self, date_from: Optional[datetime], date_to: Optional[datetime]
+    ) -> Any:
+        if date_from is not None and date_to is not None:
+            return mt5.history_orders_get(date_from, date_to)
+        return mt5.history_orders_get()
+
+    def _history_deals_live(
+        self, date_from: Optional[datetime], date_to: Optional[datetime]
+    ) -> Any:
+        if date_from is not None and date_to is not None:
+            return mt5.history_deals_get(date_from, date_to)
+        return mt5.history_deals_get()
+
+    def _filter_deals(
+        self, date_from: Optional[datetime], date_to: Optional[datetime]
+    ) -> list[dict[str, Any]]:
+        if date_from is None or date_to is None:
+            return list(self.deals_container)
+        start = date_from
+        end = date_to
+        if start > end:
+            start, end = end, start
+        return [
+            deal
+            for deal in self.deals_container
+            if isinstance(deal.get("time"), datetime) and start <= deal["time"] <= end
+        ]
+
+    def account_info(self) -> AccountInfo:
+        """Return account info snapshot (tester uses simulator account)."""
+        if self._is_tester:
+            return self._build_account_info(self._account_state)
+        info = mt5.account_info()
+        if info is None:
+            return self._build_account_info(self._account_state)
+        return self._build_account_info(info._asdict())
+
+    def get_account_info(self) -> AccountInfo:
+        """Backward-compatible wrapper for account_info()."""
+        return self.account_info()
+
+    def _build_account_info(self, data: dict[str, Any]) -> AccountInfo:
+        return AccountInfo(
+            login=int(data.get("login", 0)),
+            trade_mode=int(data.get("trade_mode", 0)),
+            leverage=int(data.get("leverage", int(self._leverage))),
+            limit_orders=int(data.get("limit_orders", 0)),
+            margin_so_mode=int(data.get("margin_so_mode", 0)),
+            trade_allowed=bool(data.get("trade_allowed", True)),
+            trade_expert=bool(data.get("trade_expert", True)),
+            margin_mode=int(data.get("margin_mode", 0)),
+            currency_digits=int(data.get("currency_digits", 2)),
+            fifo_close=bool(data.get("fifo_close", False)),
+            balance=float(data.get("balance", 0.0)),
+            credit=float(data.get("credit", 0.0)),
+            profit=float(data.get("profit", 0.0)),
+            equity=float(data.get("equity", 0.0)),
+            margin=float(data.get("margin", 0.0)),
+            margin_free=float(data.get("margin_free", 0.0)),
+            margin_level=float(data.get("margin_level", 0.0)),
+            margin_so_call=float(data.get("margin_so_call", 0.0)),
+            margin_so_so=float(data.get("margin_so_so", 0.0)),
+            margin_initial=float(data.get("margin_initial", 0.0)),
+            margin_maintenance=float(data.get("margin_maintenance", 0.0)),
+            assets=float(data.get("assets", 0.0)),
+            liabilities=float(data.get("liabilities", 0.0)),
+            commission_blocked=float(data.get("commission_blocked", 0.0)),
+            name=str(data.get("name", "")),
+            server=str(data.get("server", "")),
+            currency=str(data.get("currency", "")),
+            company=str(data.get("company", "")),
+        )
+
+    def _rates_to_dicts(self, rates: Any) -> list[dict[str, Any]]:
+        if rates is None:
+            return []
+        if isinstance(rates, list):
+            return [dict(row) if isinstance(row, dict) else dict(row) for row in rates]
+        if getattr(rates, "dtype", None) is None or rates.dtype.names is None:
+            return []
+        return [
+            {
+                name: r[name].item() if hasattr(r[name], "item") else r[name]
+                for name in rates.dtype.names
+            }
+            for r in rates
+        ]
+
+    def _filter_ticks_by_flags(
+        self, ticks: list[dict[str, Any]], flags: int
+    ) -> list[dict[str, Any]]:
+        if flags is None or flags == getattr(mt5, "COPY_TICKS_ALL", flags):
+            return ticks
+        mask = int(flags)
+        filtered = []
+        for tick in ticks:
+            tick_flags = tick.get("flags")
+            if tick_flags is None:
+                filtered.append(tick)
+                continue
+            if int(tick_flags) & mask:
+                filtered.append(tick)
+        return filtered
 
     # ------------------------------------------------------------------
     # Calculating Profits/Loss Made By a Position
@@ -288,7 +1204,7 @@ class TradeSimulator:
     # ------------------------------------------------------------------
     # Simulating a Position
     # ------------------------------------------------------------------
-    def open_position(
+    def _open_position(
         self,
         action: str,
         symbol: str,
@@ -309,7 +1225,7 @@ class TradeSimulator:
         if not self._validate_trade(action, snapshot, volume, open_price, sl, tp):
             return None
 
-        margin_required = self._calc_margin(symbol, action, volume, open_price)
+        margin_required = self._calc_margin_sim(action, symbol, volume, open_price)
         if not self._ensure_margin(margin_required):
             return None
 
@@ -353,7 +1269,7 @@ class TradeSimulator:
             return float(snapshot.ask)
         return float(snapshot.bid)
 
-    def buy(
+    def _buy(
         self,
         volume: float,
         symbol: str,
@@ -364,11 +1280,11 @@ class TradeSimulator:
         price_feed: Optional[dict[str, Any]] = None,
     ) -> Optional[dict[str, Any]]:
         """Open a simulated buy position."""
-        return self.open_position(
+        return self._open_position(
             "buy", symbol, volume, price, sl, tp, comment, price_feed
         )
 
-    def sell(
+    def _sell(
         self,
         volume: float,
         symbol: str,
@@ -379,7 +1295,7 @@ class TradeSimulator:
         price_feed: Optional[dict[str, Any]] = None,
     ) -> Optional[dict[str, Any]]:
         """Open a simulated sell position."""
-        return self.open_position(
+        return self._open_position(
             "sell", symbol, volume, price, sl, tp, comment, price_feed
         )
 
@@ -426,6 +1342,28 @@ class TradeSimulator:
         if not self._volume_in_step(volume, snapshot.volume_min, snapshot.volume_step):
             return self._set_error("Volume does not align with the symbol step.")
         return True
+
+    def _validate_volume_limit(self, symbol: str, volume: float) -> bool:
+        info = self.symbol_info(symbol) or {}
+        volume_limit = float(info.get("volume_limit", 0.0))
+        if volume_limit <= 0:
+            return True
+        current_volume = 0.0
+        for pos in self.positions_container:
+            if pos.get("symbol") == symbol:
+                current_volume += float(pos.get("volume", 0.0))
+        for order in self.orders_container:
+            if order.get("symbol") == symbol:
+                current_volume += float(order.get("volume", 0.0))
+        if current_volume + volume > volume_limit:
+            return self._set_error("Volume limit exceeded for symbol.")
+        return True
+
+    def _reached_max_orders(self) -> bool:
+        limit = int(self._account_state.get("limit_orders", 0))
+        if limit <= 0:
+            return False
+        return len(self.orders_container) >= limit
 
     def _validate_stop_distances(
         self,
@@ -487,7 +1425,7 @@ class TradeSimulator:
     # ------------------------------------------------------------------
     # Modifying Positions
     # ------------------------------------------------------------------
-    def modify_position(
+    def _modify_position(
         self,
         position_id: int,
         sl: float = 0.0,
@@ -620,7 +1558,7 @@ class TradeSimulator:
             action, snapshot, volume, open_price, sl, tp, check_deviation=False
         )
 
-    def buy_stop(
+    def _buy_stop(
         self,
         volume: float,
         symbol: str,
@@ -646,7 +1584,7 @@ class TradeSimulator:
             price_feed,
         )
 
-    def buy_limit(
+    def _buy_limit(
         self,
         volume: float,
         symbol: str,
@@ -672,7 +1610,7 @@ class TradeSimulator:
             price_feed,
         )
 
-    def sell_stop(
+    def _sell_stop(
         self,
         volume: float,
         symbol: str,
@@ -698,7 +1636,7 @@ class TradeSimulator:
             price_feed,
         )
 
-    def sell_limit(
+    def _sell_limit(
         self,
         volume: float,
         symbol: str,
@@ -727,7 +1665,7 @@ class TradeSimulator:
     # ------------------------------------------------------------------
     # Deleting Pending Orders
     # ------------------------------------------------------------------
-    def delete_order(self, order_id: int) -> bool:
+    def _delete_order(self, order_id: int) -> bool:
         """Delete a pending order by id."""
         for order in list(self.orders_container):
             if order["id"] == order_id:
@@ -738,7 +1676,7 @@ class TradeSimulator:
     # ------------------------------------------------------------------
     # Modifying Pending Orders
     # ------------------------------------------------------------------
-    def modify_order(
+    def _modify_order(
         self,
         order_id: int,
         open_price: float,
@@ -838,7 +1776,7 @@ class TradeSimulator:
         price_feed: Optional[dict[str, Any]],
     ) -> bool:
         return (
-            self.buy(
+            self._buy(
                 order["volume"],
                 order["symbol"],
                 price,
@@ -857,7 +1795,7 @@ class TradeSimulator:
         price_feed: Optional[dict[str, Any]],
     ) -> bool:
         return (
-            self.sell(
+            self._sell(
                 order["volume"],
                 order["symbol"],
                 price,
@@ -879,15 +1817,15 @@ class TradeSimulator:
             print(
                 "Balance: {:.2f} | Equity: {:.2f} | Profit: {:.2f} | "
                 "Margin: {:.2f} | Free margin: {:.2f} | Margin level: {:.2f}%".format(
-                    self.account_info["balance"],
-                    self.account_info["equity"],
-                    self.account_info["profit"],
-                    self.account_info["margin"],
-                    self.account_info["free_margin"],
-                    self.account_info["margin_level"],
+                    self._account_state["balance"],
+                    self._account_state["equity"],
+                    self._account_state["profit"],
+                    self._account_state["margin"],
+                    self._account_state["margin_free"],
+                    self._account_state["margin_level"],
                 )
             )
-        return dict(self.account_info)
+        return dict(self._account_state)
 
     # ------------------------------------------------------------------
     # RealTime Trade Simulation in Python
@@ -975,6 +1913,7 @@ class TradeSimulator:
                 "magic": position.get("magic", 0),
                 "symbol": position["symbol"],
                 "type": position["type"],
+                "entry": "out",
                 "direction": "closed",
                 "volume": position["volume"],
                 "price": float(price),
@@ -991,15 +1930,16 @@ class TradeSimulator:
                 "reason": reason,
                 "entry_reason": position.get("entry_reason", ""),
                 "session_id": position.get("session_id"),
+                "balance": self._account_state.get("balance", 0.0) + float(profit),
             }
         )
         self.deals_container.append(deal)
         self._save_deal(deal)
         self.positions_container.remove(position)
-        self.account_info["balance"] += float(profit)
+        self._account_state["balance"] += float(profit)
         return deal
 
-    def close_position(self, position_id: int, price: float = 0.0) -> bool:
+    def _close_position_by_id(self, position_id: int, price: float = 0.0) -> bool:
         """Close a position manually."""
         position = self._find_position(position_id)
         if position is None:
@@ -1009,6 +1949,50 @@ class TradeSimulator:
         self._close_position(position, close_price, "Manual")
         self._recalculate_account()
         return True
+
+    def close_position(self, position_id: int, price: float = 0.0) -> bool:
+        """Use CTrade(api=sim) to manage positions (deprecated)."""
+        return self._close_position_by_id(position_id, price)
+
+    def open_position(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to open positions (deprecated)."""
+        return self._open_position(*args, **kwargs)
+
+    def buy(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to open buy positions (deprecated)."""
+        return self._buy(*args, **kwargs)
+
+    def sell(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to open sell positions (deprecated)."""
+        return self._sell(*args, **kwargs)
+
+    def modify_position(self, *args: Any, **kwargs: Any) -> bool:
+        """Use CTrade(api=sim) to modify positions (deprecated)."""
+        return self._modify_position(*args, **kwargs)
+
+    def delete_order(self, *args: Any, **kwargs: Any) -> bool:
+        """Use CTrade(api=sim) to delete pending orders (deprecated)."""
+        return self._delete_order(*args, **kwargs)
+
+    def modify_order(self, *args: Any, **kwargs: Any) -> bool:
+        """Use CTrade(api=sim) to modify pending orders (deprecated)."""
+        return self._modify_order(*args, **kwargs)
+
+    def buy_stop(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to place buy stop orders (deprecated)."""
+        return self._buy_stop(*args, **kwargs)
+
+    def buy_limit(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to place buy limit orders (deprecated)."""
+        return self._buy_limit(*args, **kwargs)
+
+    def sell_stop(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to place sell stop orders (deprecated)."""
+        return self._sell_stop(*args, **kwargs)
+
+    def sell_limit(self, *args: Any, **kwargs: Any) -> Optional[dict[str, Any]]:
+        """Use CTrade(api=sim) to place sell limit orders (deprecated)."""
+        return self._sell_limit(*args, **kwargs)
 
     # ------------------------------------------------------------------
     # Utility methods
@@ -1035,10 +2019,20 @@ class TradeSimulator:
         leverage = self._leverage if self._leverage > 0 else 1.0
         return float(notional / leverage)
 
+    def _calc_margin_sim(
+        self, action: str, symbol: str, volume: float, price: float
+    ) -> float:
+        if self._is_tester:
+            order_type = (
+                mt5.ORDER_TYPE_BUY if action.lower() == "buy" else mt5.ORDER_TYPE_SELL
+            )
+            return self._order_calc_margin_tester(order_type, symbol, volume, price)
+        return self._calc_margin(symbol, action, volume, price)
+
     def _ensure_margin(self, margin_required: float) -> bool:
         if margin_required <= 0:
             return True
-        if margin_required > float(self.account_info.get("free_margin", 0.0)):
+        if margin_required > float(self._account_state.get("margin_free", 0.0)):
             return self._set_error("Not enough free margin to open the position.")
         return True
 
@@ -1052,6 +2046,7 @@ class TradeSimulator:
                 "magic": position.get("magic", 0),
                 "symbol": position["symbol"],
                 "type": position["type"],
+                "entry": "in" if direction == "opened" else "out",
                 "direction": direction,
                 "volume": position["volume"],
                 "price": position.get("price", position.get("open_price", 0.0)),
@@ -1068,6 +2063,7 @@ class TradeSimulator:
                 "reason": reason,
                 "entry_reason": position.get("entry_reason", ""),
                 "session_id": position.get("session_id"),
+                "balance": self._account_state.get("balance", 0.0),
             }
         )
         self.deals_container.append(deal)
@@ -1078,17 +2074,17 @@ class TradeSimulator:
             pos.get("profit", 0.0) for pos in self.positions_container
         )
         margin_used = sum(pos.get("margin", 0.0) for pos in self.positions_container)
-        balance = float(self.account_info["balance"])
+        balance = float(self._account_state["balance"])
         equity = balance + float(floating_profit)
         free_margin = equity - float(margin_used)
         margin_level = (equity / margin_used * 100.0) if margin_used > 0 else 0.0
 
-        self.account_info.update(
+        self._account_state.update(
             {
                 "equity": equity,
                 "profit": float(floating_profit),
                 "margin": float(margin_used),
-                "free_margin": float(free_margin),
+                "margin_free": float(free_margin),
                 "margin_level": float(margin_level),
             }
         )

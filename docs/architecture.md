@@ -10,7 +10,7 @@ This document describes the current HaruQuant application architecture based on 
 - `apps/live`: Live trading session orchestration used by live-trading routes.
 - `apps/mt5`: MetaTrader 5 client/data access used by broker, live, and backtest flows.
 - `apps/ctrade`: MT5-specific trade classes aligned to the MQL5 Standard Library (`CSymbolInfo`, `CAccountInfo`, `COrderInfo`, `CHistoryOrderInfo`, `CPositionInfo`, `CDealInfo`, `CTrade`, `CTerminalInfo`).
-- `apps/simulator`: MT5-aligned local trade simulator for positions, validation, and P/L calculations (no live orders).
+- `apps/simulator`: MT5-aligned local trade simulator for positions, validation, and P/L calculations (no live orders), plus tester-mode MT5 overloads, MT5-like order_send handling, a disk-backed market data store for bars/ticks, and a tester runner for real/simulated tick modelling.
 - `apps/optimization`: Optimization tasks and models used by optimization routes.
 - `apps/edge`: Edge Lab statistical edge discovery toolkit used by edge-lab routes.
 - `apps/edge/seasonality.py`: Seasonality analytics engine that aggregates intraday, weekly, and calendar stats.

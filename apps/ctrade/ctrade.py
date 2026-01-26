@@ -21,8 +21,9 @@ class CTrade:
     This class is based on the MQL5 Standard Library CTrade API.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, api: Optional[Any] = None) -> None:
         """Initialize."""
+        self._api = api if api is not None else mt5
         self._log_level: int = 0
         self._magic: int = 0
         self._deviation: int = 0
@@ -39,33 +40,30 @@ class CTrade:
     # Internal helpers
     # ---------------------------------------------------------------------
     def _tick(self, symbol: str) -> Optional[Any]:
-        return mt5.symbol_info_tick(symbol)
+        return self._api.symbol_info_tick(symbol)
 
     def _send_request(self, request: dict[str, Any]) -> bool:
-        def _attempt(req: dict[str, Any]) -> bool:
-            self._last_request = dict(req)
-            if hasattr(mt5, "order_check"):
-                check = mt5.order_check(req)
-                self._last_check = check._asdict() if check is not None else {}
-            result = mt5.order_send(req)
-            self._last_result = result._asdict() if result is not None else {}
-            return bool(
-                result
-                and getattr(result, "retcode", None)
-                in (mt5.TRADE_RETCODE_DONE, mt5.TRADE_RETCODE_PLACED)
-            )
-
-        if _attempt(request):
+        if self._attempt_request(request):
             return True
-
-        if self._last_result.get(
-            "retcode"
-        ) != 10030 and "Unsupported filling mode" not in str(
-            self._last_result.get("comment", "")
-        ):
+        if not self._should_retry_filling():
             return False
+        return self._retry_with_fillings(request)
 
-        # Retry with alternate filling modes and finally without type_filling
+    def _attempt_request(self, request: dict[str, Any]) -> bool:
+        self._last_request = dict(request)
+        self._last_check = self._perform_check(request)
+        result = self._api.order_send(request)
+        self._last_result = self._normalize_result(result)
+        return self._is_success(result)
+
+    def _should_retry_filling(self) -> bool:
+        retcode = self._last_result.get("retcode")
+        comment = str(self._last_result.get("comment", ""))
+        if retcode == 10030:
+            return True
+        return "Unsupported filling mode" in comment
+
+    def _retry_with_fillings(self, request: dict[str, Any]) -> bool:
         for mode in (
             mt5.ORDER_FILLING_RETURN,
             mt5.ORDER_FILLING_IOC,
@@ -73,15 +71,44 @@ class CTrade:
         ):
             request_fallback = dict(request)
             request_fallback["type_filling"] = int(mode)
-            if _attempt(request_fallback):
+            if self._attempt_request(request_fallback):
                 return True
 
         request_fallback = dict(request)
         request_fallback.pop("type_filling", None)
-        return _attempt(request_fallback)
+        return self._attempt_request(request_fallback)
+
+    def _perform_check(self, request: dict[str, Any]) -> dict[str, Any]:
+        if not hasattr(self._api, "order_check"):
+            return {}
+        check = self._api.order_check(request)
+        if check is None:
+            return {}
+        return check._asdict() if hasattr(check, "_asdict") else dict(check)
+
+    def _normalize_result(self, result: Any) -> dict[str, Any]:
+        if result is None:
+            return {}
+        if hasattr(result, "_asdict"):
+            return dict(result._asdict())
+        if isinstance(result, dict):
+            return dict(result)
+        return {"result": result}
+
+    def _is_success(self, result: Any) -> bool:
+        if result is None:
+            return False
+        if hasattr(result, "retcode"):
+            retcode = getattr(result, "retcode", None)
+        elif isinstance(result, dict):
+            retcode = result.get("retcode")
+        else:
+            retcode = None
+        return retcode in (mt5.TRADE_RETCODE_DONE, mt5.TRADE_RETCODE_PLACED)
 
     def _request_base(self, symbol: str) -> dict[str, Any]:
-        mt5.symbol_select(symbol, True)
+        if hasattr(self._api, "symbol_select"):
+            self._api.symbol_select(symbol, True)
         if self._type_filling is None:
             self._type_filling = self._resolve_filling_mode(symbol)
         request: dict[str, Any] = {
@@ -96,18 +123,18 @@ class CTrade:
         return request
 
     def _resolve_filling_mode(self, symbol: str) -> Optional[int]:
-        info = mt5.symbol_info(symbol)
+        info = self._api.symbol_info(symbol)
         if info is None:
             return None
-        data = info._asdict()
+        data = info._asdict() if hasattr(info, "_asdict") else dict(info)
 
         trade_fill = data.get("trade_fill_mode")
-        if trade_fill in (
+        if isinstance(trade_fill, int) and trade_fill in (
             mt5.ORDER_FILLING_FOK,
             mt5.ORDER_FILLING_IOC,
             mt5.ORDER_FILLING_RETURN,
         ):
-            return int(trade_fill)
+            return trade_fill
 
         fill_mask = data.get("filling_mode")
         if isinstance(fill_mask, int):
@@ -122,9 +149,9 @@ class CTrade:
 
     def _get_position(self, symbol: Optional[str] = None, ticket: Optional[int] = None):
         if ticket is not None:
-            positions = mt5.positions_get(ticket=ticket)
+            positions = self._api.positions_get(ticket=ticket)
         elif symbol is not None:
-            positions = mt5.positions_get(symbol=symbol)
+            positions = self._api.positions_get(symbol=symbol)
         else:
             return None
         if not positions:
@@ -168,10 +195,10 @@ class CTrade:
 
     def SetMarginMode(self) -> bool:
         """Set margin calculation mode in accordance with the current account settings."""
-        info = mt5.account_info()
+        info = self._api.account_info()
         if info is None:
             return False
-        data = info._asdict()
+        data = info._asdict() if hasattr(info, "_asdict") else dict(info)
         self._margin_mode = data.get("margin_mode")
         return True
 
@@ -256,7 +283,12 @@ class CTrade:
         tick = self._tick(symbol)
         if tick is None:
             return False
-        tick_data = tick._asdict()
+        if hasattr(tick, "_asdict"):
+            tick_data = tick._asdict()
+        elif isinstance(tick, dict):
+            tick_data = dict(tick)
+        else:
+            return False
         if price == 0.0:
             price = (
                 tick_data.get("ask")
@@ -310,7 +342,12 @@ class CTrade:
         tick = self._tick(symbol_name)
         if tick is None:
             return False
-        tick_data = tick._asdict()
+        if hasattr(tick, "_asdict"):
+            tick_data = tick._asdict()
+        elif isinstance(tick, dict):
+            tick_data = dict(tick)
+        else:
+            return False
         pos_type = data.get("type")
         volume = data.get("volume")
         if pos_type == mt5.POSITION_TYPE_BUY:
@@ -346,7 +383,12 @@ class CTrade:
         tick = self._tick(symbol_name)
         if tick is None:
             return False
-        tick_data = tick._asdict()
+        if hasattr(tick, "_asdict"):
+            tick_data = tick._asdict()
+        elif isinstance(tick, dict):
+            tick_data = dict(tick)
+        else:
+            return False
         pos_type = data.get("type")
         if pos_type == mt5.POSITION_TYPE_BUY:
             order_type = mt5.ORDER_TYPE_SELL
@@ -643,8 +685,8 @@ class CTrade:
     def CheckResultRetcodeDescription(self) -> str:
         """Get the retcode description of MqlTradeCheckResult."""
         retcode = self.CheckResultRetcode()
-        if hasattr(mt5, "trade_retcode_description"):
-            return str(mt5.trade_retcode_description(retcode))
+        if hasattr(self._api, "trade_retcode_description"):
+            return str(self._api.trade_retcode_description(retcode))
         return str(retcode)
 
     def CheckResultBalance(self) -> float:
@@ -687,8 +729,8 @@ class CTrade:
     def ResultRetcodeDescription(self) -> str:
         """Get the code of request result as a string."""
         retcode = self.ResultRetcode()
-        if hasattr(mt5, "trade_retcode_description"):
-            return str(mt5.trade_retcode_description(retcode))
+        if hasattr(self._api, "trade_retcode_description"):
+            return str(self._api.trade_retcode_description(retcode))
         return str(retcode)
 
     def ResultDeal(self) -> int:

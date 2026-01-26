@@ -17,12 +17,22 @@ monitors positions without sending real orders.
 - Monitoring the account (equity, margin, free margin)
 - Realtime simulation step helper
 - Optional GUI/toolbox callback hook
+- Tester-mode MT5 overloads (ticks, bars, orders/positions history)
+- Market data storage for bars/ticks (monthly parquet)
+- MT5-like order_send handling with request/check/result tracking
+- MT5-like tester runner with modelling modes (real ticks, simulated ticks, new bar, 1-minute OHLC)
 
 ## Core Class
 `TradeSimulator` lives in `apps/simulator/engine.py`.
+Market data storage lives in `apps/simulator/market_data.py`.
+CTrade wrapper lives in `apps/ctrade/ctrade.py` and can be used with the simulator API.
+Use `TradeGateway` to obtain a single entry point for live vs simulator trading.
+Tester runner lives in `apps/simulator/tester.py`.
 
 ## Usage Example
 ```python
+import MetaTrader5 as mt5
+
 from apps.simulator import TradeSimulator
 
 from apps.sqlite import SQLiteDatabase
@@ -71,6 +81,31 @@ sim.realtime_step(price_feed=price_feed)
 if pending:
     sim.modify_order(pending["id"], open_price=1.1028, sl=1.1012, tp=1.1052)
     sim.delete_order(pending["id"])
+```
+
+## Tester Mode (Bars/Ticks)
+```python
+from datetime import datetime, timedelta, timezone
+
+from apps.simulator import TradeSimulator
+from apps.simulator.market_data import MarketDataStore
+
+store = MarketDataStore()
+start = datetime.now(timezone.utc) - timedelta(hours=1)
+end = datetime.now(timezone.utc)
+
+store.fetch_bars_range("EURUSD", mt5.TIMEFRAME_M1, start, end)
+store.fetch_ticks_range("EURUSD", start, end, mt5.COPY_TICKS_ALL)
+
+sim = TradeSimulator(simulator_name="Tester", data_store=store)
+sim.start(is_tester=True)
+sim.symbol_info("EURUSD")
+
+ticks = store.read_ticks_range("EURUSD", start, end)
+for tick in ticks[:10]:
+    sim.update_tick("EURUSD", tick)
+    bars = sim.copy_rates_from_pos("EURUSD", mt5.TIMEFRAME_M1, 0, 5)
+    print(len(bars))
 ```
 
 ## Notes

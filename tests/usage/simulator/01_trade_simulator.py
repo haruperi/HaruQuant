@@ -10,7 +10,8 @@ from datetime import datetime, timedelta, timezone
 import MetaTrader5 as mt5
 from apps.ctrade import CSymbolInfo
 from apps.logger import logger
-from apps.simulator import TradeSimulator
+from apps.ctrade import CTrade
+from apps.simulator import TradeGateway, TradeSimulator
 from apps.sqlite import SQLiteDatabase
 
 magic_number = 123456
@@ -36,6 +37,10 @@ def main() -> None:
 
     sim.set_magic_number(magic_number) # Set the simulator magic number
     sim.set_deviation_in_points(slippage) # Set the allowable slippage in points
+    gateway = TradeGateway(sim)
+    trade = gateway.get_trade(is_tester=True)
+    trade.SetExpertMagicNumber(magic_number)
+    trade.SetDeviationInPoints(slippage)
 
     def is_position_exists(position_type: str) -> bool:
         for pos in sim.get_positions():
@@ -54,7 +59,7 @@ def main() -> None:
                 and pos["symbol"] == symbol
                 and pos["type"] == position_type
             ):
-                sim.close_position(pos["id"])
+                trade.PositionClose(pos["id"])
 
     m_symbol = CSymbolInfo(symbol)
     m_symbol.Name(symbol) # sets the symbol name for the class CSymbolInfo
@@ -107,38 +112,36 @@ def main() -> None:
         print(f"{symbol} Feed: {current_bid} / {current_ask}")
             
         if not is_position_exists("buy"): # open a buy trade in a simulator if it doesn't exist
-            buy_position = sim.buy(
+            buy_ok = trade.Buy(
                 volume=0.1,
                 symbol=symbol,
                 price=current_ask,
                 sl=current_ask - sl_pips * pip,
                 tp=current_ask + tp_pips * pip,
-                comment="Demo buy"
+                comment="Demo buy",
             )
-            if not buy_position:
+            if not buy_ok:
                 logger.error(f"Buy failed: {sim.last_error}")
                 return
-            else:
-                log_position(buy_position)
+            log_position(sim.get_positions()[-1])
         else:
             logger.info("Buy position already exists")
         
         close_positions("buy") # close all buy positions
         
         if not is_position_exists("sell"): # open a sell trade in a simulator if it doesn't exist
-            sell_position = sim.sell(
+            sell_ok = trade.Sell(
                 volume=0.1,
                 symbol=symbol,
                 price=current_bid,
                 sl=current_bid + sl_pips * pip,
                 tp=current_bid - tp_pips * pip,
-                comment="Demo sell"
+                comment="Demo sell",
             )
-            if not sell_position:
+            if not sell_ok:
                 logger.error(f"Sell failed: {sim.last_error}")
                 return
-            else:
-                log_position(sell_position)
+            log_position(sim.get_positions()[-1])
         else:
             logger.info("Sell position already exists")
         
