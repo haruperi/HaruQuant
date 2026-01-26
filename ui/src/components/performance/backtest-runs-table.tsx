@@ -35,7 +35,7 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
 export function BacktestRunsTable() {
-  const { backtests, loading, error, refetch } = useAllBacktests(100, true)
+  const { backtests, loading, error, refetch } = useAllBacktests(100, false)
   const { selectedBacktest, selectBacktest, isSelected } = useSelectedBacktest()
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
   const [backtestToEdit, setBacktestToEdit] = React.useState<Backtest | null>(null)
@@ -203,7 +203,6 @@ export function BacktestRunsTable() {
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Showing only backtest runs with aliases</p>
           </div>
           <Button onClick={refetch} variant="outline" size="sm">
             Refresh
@@ -212,9 +211,9 @@ export function BacktestRunsTable() {
         <CardContent>
           {backtests.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
-              <p className="text-sm text-muted-foreground">No backtest runs with aliases found</p>
+              <p className="text-sm text-muted-foreground">No backtest runs found</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Run a backtest and add an alias to it to see it here
+                Run a backtest or import trades to see them here
               </p>
             </div>
           ) : (

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import HTTPException, status
+from fastapi import Header, HTTPException, status
 
 from apps.sqlite.database_operations import DatabaseManager
 from apps.utils.security import verify_password
@@ -153,7 +153,9 @@ def authenticate_user(
     }
 
 
-def get_user_id_from_token(token: Optional[str]) -> int:
+def get_user_id_from_token(
+    authorization: Optional[str] = Header(None),  # noqa: B008
+) -> int:
     """
     Validate token and return user ID. Raises 401 if invalid.
 
@@ -166,13 +168,14 @@ def get_user_id_from_token(token: Optional[str]) -> int:
     Raises:
         HTTPException(401): If token is missing or invalid
     """
-    if not token:
+    if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authorization header",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    token = authorization
     # Strip 'Bearer ' prefix if present
     if token.lower().startswith("bearer "):
         token = token[7:]

@@ -11,6 +11,7 @@ from .routes import (
     backtest,
     docs,
     edge,
+    import_trades,
     live,
     optimization,
     settings,
@@ -66,6 +67,7 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
+app.include_router(import_trades.router, prefix="/api/import", tags=["import"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
 
 # Dashboard Routes

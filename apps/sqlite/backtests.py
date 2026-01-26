@@ -117,6 +117,7 @@ class BacktestManager:
         backtest_id: Optional[int] = None,
         alias: Optional[str] = None,
         description: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> int:
         """
         Save complete BacktestResult to database using 4-layer architecture.
@@ -142,7 +143,10 @@ class BacktestManager:
 
             if backtest_id is None:
                 backtest_id = self._create_backtest_from_result(
-                    backtest_result, alias=alias, description=description
+                    backtest_result,
+                    alias=alias,
+                    description=description,
+                    user_id=user_id,
                 )
             elif alias or description:
                 # Update existing if provided
@@ -222,6 +226,7 @@ class BacktestManager:
         backtest_result: Any,
         alias: Optional[str] = None,
         description: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> int:
         """Create a new backtest run from a result object."""
         start_date = backtest_result.start_date
@@ -247,6 +252,7 @@ class BacktestManager:
             initial_balance=backtest_result.initial_balance,
             alias=alias or backtest_result.metadata.get("alias"),
             description=description or backtest_result.metadata.get("description"),
+            user_id=user_id,
         )
 
     def _save_trades(
