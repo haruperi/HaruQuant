@@ -1,5 +1,5 @@
 """
-MT5Validator - Validation utilities for MetaTrader 5.
+TradeValidator - Validation utilities for trading parameters.
 
 This module provides comprehensive validation functionality for trading parameters,
 ensuring data integrity and preventing invalid operations.
@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
-from apps.mt5.data import TimeFrame
 
 mt5 = get_mt5_api()
 
@@ -29,7 +28,7 @@ class OrderType(IntEnum):
     SELL_STOP_LIMIT = mt5.ORDER_TYPE_SELL_STOP_LIMIT
 
 
-class MT5Validator:
+class TradeValidator:
     """
     Validation utilities class.
 
@@ -43,17 +42,50 @@ class MT5Validator:
     - Credentials and margins
     """
 
-    def __init__(self, client=None):
+    def __init__(
+        self,
+        client=None,
+        logger_instance=None,
+        mt5_instance=mt5,
+    ):
         """
-        Initialize MT5Validator instance.
+        Initialize TradeValidator instance.
 
         Args:
             client: MT5Client instance for connection management (optional)
         """
         self.client = client
+        self.logger = logger_instance or logger
+        self.mt5_instance = mt5_instance
         self._validation_rules = self._initialize_rules()
 
-        logger.info("MT5Validator initialized")
+        self.BUY_ACTIONS = {
+            self.mt5_instance.ORDER_TYPE_BUY,
+            self.mt5_instance.ORDER_TYPE_BUY_LIMIT,
+            self.mt5_instance.ORDER_TYPE_BUY_STOP,
+            self.mt5_instance.ORDER_TYPE_BUY_STOP_LIMIT,
+        }
+
+        self.SELL_ACTIONS = {
+            self.mt5_instance.ORDER_TYPE_SELL,
+            self.mt5_instance.ORDER_TYPE_SELL_LIMIT,
+            self.mt5_instance.ORDER_TYPE_SELL_STOP,
+            self.mt5_instance.ORDER_TYPE_SELL_STOP_LIMIT,
+        }
+
+        self.ORDER_TYPES_MAP = {
+            self.mt5_instance.ORDER_TYPE_BUY: "Market Buy order",
+            self.mt5_instance.ORDER_TYPE_SELL: "Market Sell order",
+            self.mt5_instance.ORDER_TYPE_BUY_LIMIT: "Buy Limit pending order",
+            self.mt5_instance.ORDER_TYPE_SELL_LIMIT: "Sell Limit pending order",
+            self.mt5_instance.ORDER_TYPE_BUY_STOP: "Buy Stop pending order",
+            self.mt5_instance.ORDER_TYPE_SELL_STOP: "Sell Stop pending order",
+            self.mt5_instance.ORDER_TYPE_BUY_STOP_LIMIT: "Buy Stop Limit pending order",
+            self.mt5_instance.ORDER_TYPE_SELL_STOP_LIMIT: "Sell Stop Limit pending order",
+            self.mt5_instance.ORDER_TYPE_CLOSE_BY: "Order to close a position by an opposite one",
+        }
+
+        logger.info("TradeValidator initialized")
 
     def _initialize_rules(self) -> Dict[str, Any]:
         """Initialize validation rules."""
@@ -108,6 +140,18 @@ class MT5Validator:
             "credentials": lambda v, **kw: self._validate_credentials(v),
             "margin": lambda v, **kw: self._validate_margin(v),
             "ticket": lambda v, **kw: self._validate_ticket(v),
+            "freeze_level": lambda v, **kw: self._validate_freeze_level(
+                v,
+                kw.get("stop_price", 0.0),
+                kw.get("order_type", 0),
+                kw.get("symbol"),
+            ),
+            "max_orders": lambda v, **kw: self._validate_max_orders(
+                v, kw.get("account_limit")
+            ),
+            "symbol_volume": lambda v, **kw: self._validate_symbol_volume(
+                v, kw.get("volume_limit"), kw.get("symbol")
+            ),
         }
 
     def validate(self, validation_type: str, value: Any, **kwargs) -> Tuple[bool, str]:
@@ -638,9 +682,7 @@ class MT5Validator:
         except Exception as e:
             return False, f"Expiration validation error: {e}"
 
-    def _validate_timeframe(
-        self, timeframe: Union[str, int, TimeFrame]
-    ) -> Tuple[bool, str]:
+    def _validate_timeframe(self, timeframe: Union[str, int]) -> Tuple[bool, str]:
         """
         Validate timeframe.
 
@@ -651,15 +693,21 @@ class MT5Validator:
             Tuple of (is_valid, error_message)
         """
         try:
-            if isinstance(timeframe, TimeFrame):
-                return True, "Timeframe is valid"
-
-            elif isinstance(timeframe, str):
-                try:
-                    TimeFrame[timeframe.upper()]
+            if isinstance(timeframe, str):
+                valid_names = {
+                    "M1",
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1",
+                    "MN1",
+                }
+                if timeframe.upper() in valid_names:
                     return True, "Timeframe is valid"
-                except KeyError:
-                    return False, f"Invalid timeframe string: {timeframe}"
+                return False, f"Invalid timeframe string: {timeframe}"
 
             elif isinstance(timeframe, int):
                 valid_timeframes = [
@@ -968,6 +1016,224 @@ class MT5Validator:
 
         except Exception as e:
             return False, f"Ticket validation error: {e}"
+
+    def _freeze_fail(
+        self, msg: str, dist: float, point: float, freeze_level: int
+    ) -> Tuple[bool, str]:
+        return (
+            False,
+            f"{msg} | distance={dist/point:.1f} pts < freeze_level={freeze_level} pts",
+        )
+
+    def _freeze_check(
+        self,
+        dist: float,
+        freeze_distance: float,
+        msg: str,
+        point: float,
+        freeze_level: int,
+    ) -> Tuple[bool, str]:
+        if dist < freeze_distance:
+            return self._freeze_fail(msg, dist, point, freeze_level)
+        return True, "OK"
+
+    def _validate_freeze_pending(
+        self,
+        order_type: int,
+        entry: float,
+        bid: float,
+        ask: float,
+        freeze_distance: float,
+        point: float,
+        freeze_level: int,
+    ) -> Optional[Tuple[bool, str]]:
+        if order_type == mt5.ORDER_TYPE_BUY_LIMIT:
+            return self._freeze_check(
+                ask - entry,
+                freeze_distance,
+                "BuyLimit cannot be modified: Ask - OpenPrice",
+                point,
+                freeze_level,
+            )
+        if order_type == mt5.ORDER_TYPE_SELL_LIMIT:
+            return self._freeze_check(
+                entry - bid,
+                freeze_distance,
+                "SellLimit cannot be modified: OpenPrice - Bid",
+                point,
+                freeze_level,
+            )
+        if order_type == mt5.ORDER_TYPE_BUY_STOP:
+            return self._freeze_check(
+                entry - ask,
+                freeze_distance,
+                "BuyStop cannot be modified: OpenPrice - Ask",
+                point,
+                freeze_level,
+            )
+        if order_type == mt5.ORDER_TYPE_SELL_STOP:
+            return self._freeze_check(
+                bid - entry,
+                freeze_distance,
+                "SellStop cannot be modified: Bid - OpenPrice",
+                point,
+                freeze_level,
+            )
+        return None
+
+    def _validate_freeze_position(
+        self,
+        order_type: int,
+        entry: float,
+        stop_price: float,
+        bid: float,
+        ask: float,
+        freeze_distance: float,
+        point: float,
+        freeze_level: int,
+    ) -> Optional[Tuple[bool, str]]:
+        if order_type == mt5.ORDER_TYPE_BUY:
+            if stop_price <= 0:
+                return True, "No stop level to validate"
+            if stop_price < entry:
+                return self._freeze_check(
+                    bid - stop_price,
+                    freeze_distance,
+                    "Buy position SL cannot be modified: Bid - SL",
+                    point,
+                    freeze_level,
+                )
+            return self._freeze_check(
+                stop_price - bid,
+                freeze_distance,
+                "Buy position TP cannot be modified: TP - Bid",
+                point,
+                freeze_level,
+            )
+
+        if order_type == mt5.ORDER_TYPE_SELL:
+            if stop_price <= 0:
+                return True, "No stop level to validate"
+            if stop_price > entry:
+                return self._freeze_check(
+                    stop_price - ask,
+                    freeze_distance,
+                    "Sell position SL cannot be modified: SL - Ask",
+                    point,
+                    freeze_level,
+                )
+            return self._freeze_check(
+                ask - stop_price,
+                freeze_distance,
+                "Sell position TP cannot be modified: Ask - TP",
+                point,
+                freeze_level,
+            )
+        return None
+
+    def _validate_freeze_level(
+        self,
+        entry: float,
+        stop_price: float,
+        order_type: int,
+        symbol: Optional[str],
+    ) -> Tuple[bool, str]:
+        """Validate freeze level constraints for pending orders and SL/TP changes."""
+        try:
+            if symbol is None:
+                return False, "Symbol is required for freeze level validation"
+
+            symbol_info = mt5.symbol_info(symbol)
+            tick = mt5.symbol_info_tick(symbol)
+            if symbol_info is None or tick is None:
+                return False, "Symbol info or tick data not available"
+
+            freeze_level = getattr(symbol_info, "trade_freeze_level", 0)
+            if freeze_level <= 0:
+                return True, "No freeze level restriction"
+
+            point = getattr(symbol_info, "point", 0.0)
+            freeze_distance = freeze_level * point
+            bid = getattr(tick, "bid", 0.0)
+            ask = getattr(tick, "ask", 0.0)
+            pending_result = self._validate_freeze_pending(
+                order_type,
+                entry,
+                bid,
+                ask,
+                freeze_distance,
+                point,
+                freeze_level,
+            )
+            if pending_result is not None:
+                return pending_result
+
+            position_result = self._validate_freeze_position(
+                order_type,
+                entry,
+                stop_price,
+                bid,
+                ask,
+                freeze_distance,
+                point,
+                freeze_level,
+            )
+            if position_result is not None:
+                return position_result
+
+            return False, "Unknown order type"
+
+        except Exception as e:
+            return False, f"Freeze level validation error: {e}"
+
+    def _validate_max_orders(
+        self, open_orders: int, account_limit: Optional[int] = None
+    ) -> Tuple[bool, str]:
+        """Validate account max orders limit."""
+        try:
+            if not isinstance(open_orders, int) or open_orders < 0:
+                return False, "open_orders must be a non-negative integer"
+
+            if account_limit is None:
+                info = mt5.account_info()
+                if info is None:
+                    return False, "Account info not available"
+                account_limit = getattr(info, "limit_orders", 0)
+
+            if account_limit > 0 and open_orders >= account_limit:
+                return False, f"Pending Orders limit of {account_limit} is reached"
+
+            return True, "Order limit not reached"
+
+        except Exception as e:
+            return False, f"Max orders validation error: {e}"
+
+    def _validate_symbol_volume(
+        self,
+        symbol_volume: float,
+        volume_limit: Optional[float] = None,
+        symbol: Optional[str] = None,
+    ) -> Tuple[bool, str]:
+        """Validate per-symbol volume limit."""
+        try:
+            if not isinstance(symbol_volume, (int, float)) or symbol_volume < 0:
+                return False, "symbol_volume must be a non-negative number"
+
+            if volume_limit is None:
+                if symbol is None:
+                    return False, "volume_limit or symbol is required"
+                info = mt5.symbol_info(symbol)
+                if info is None:
+                    return False, f"Symbol '{symbol}' not found"
+                volume_limit = getattr(info, "volume_limit", 0.0)
+
+            if volume_limit > 0 and symbol_volume >= volume_limit:
+                return False, f"Symbol Volume limit of {volume_limit} is reached"
+
+            return True, "Symbol volume within limit"
+
+        except Exception as e:
+            return False, f"Symbol volume validation error: {e}"
 
     def validate_multiple(
         self, validations: List[Dict[str, Any]]
