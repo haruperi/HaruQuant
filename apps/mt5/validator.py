@@ -9,10 +9,11 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import MetaTrader5 as mt5
-
 from apps.logger import logger
+from apps.mt5 import get_mt5_api
 from apps.mt5.data import TimeFrame
+
+mt5 = get_mt5_api()
 
 
 class OrderType(IntEnum):

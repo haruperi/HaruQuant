@@ -12,10 +12,56 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import MetaTrader5 as mt5
+import MetaTrader5 as _mt5_module
 import pandas as pd
 
 from apps.logger import logger
+
+__all__ = ["MT5Api", "get_mt5_api", "MT5Client", "ConnectionState"]
+
+
+class MT5Api:
+    """Thin wrapper around MetaTrader5 with connection tracking."""
+
+    def __init__(self, mt5_module: Optional[Any] = None) -> None:
+        """Initialize MT5Api."""
+        self._mt5 = mt5_module or _mt5_module
+        self._initialized = False
+
+    def initialize(self, *args: Any, **kwargs: Any) -> bool:
+        """Initialize MT5 terminal connection."""
+        ok = bool(self._mt5.initialize(*args, **kwargs))
+        self._initialized = ok
+        return ok
+
+    def shutdown(self) -> bool:
+        """Shutdown MT5 terminal connection."""
+        ok = bool(self._mt5.shutdown())
+        self._initialized = False
+        return ok
+
+    def last_error(self) -> Any:
+        """Return last MT5 error."""
+        return self._mt5.last_error()
+
+    def is_initialized(self) -> bool:
+        """Return whether initialize() succeeded in this process."""
+        return self._initialized
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the underlying MT5 module."""
+        return getattr(self._mt5, name)
+
+
+_MT5_API = MT5Api()
+
+
+def get_mt5_api() -> MT5Api:
+    """Return the shared MT5 API instance."""
+    return _MT5_API
+
+
+mt5 = get_mt5_api()
 
 
 class ConnectionState(Enum):
@@ -65,8 +111,8 @@ class MT5Client:
         retry_delay (int): Delay between retry attempts in seconds
 
     Example:
-        >>> client = MT5Client()
-        >>> client.initialize(login=12345, password="pass", server="Server-Demo")
+        >>> client = MT5Client(login=12345, password="pass", server="Server-Demo")
+        >>> client.connect()
         >>> if client.is_connected():
         ...     print("Connected successfully")
         >>> client.shutdown()
@@ -74,10 +120,6 @@ class MT5Client:
 
     def __init__(
         self,
-        path: str = "",
-        login: int = 0,
-        password: str = "",
-        server: str = "",
         timeout: int = 60000,
         portable: bool = False,
     ):
@@ -85,21 +127,16 @@ class MT5Client:
         Initialize the MT5Client instance.
 
         Args:
-            path: Path to MT5 terminal executable
-            login: Account login number
-            password: Account password
-            server: MT5 server name
             timeout: Connection timeout in milliseconds (default: 60000)
             portable: Whether to use portable mode (default: False)
 
         Example:
-            >>> client = MT5Client(
+            >>> client = MT5Client(timeout=30000)
+            >>> client.connect(
             ...     path="C:/Program Files/MT5/terminal64.exe",
             ...     login=12345,
             ...     password="pass",
-            ...     server="Server-Demo",
-            ...     timeout=30000,
-            ...     portable=False
+            ...     server="Server-Demo"
             ... )
         """
         logger.info("Initializing MT5Client")
@@ -108,18 +145,6 @@ class MT5Client:
         self.connection_state: ConnectionState = ConnectionState.DISCONNECTED
         self.timeout: int = timeout
         self.portable: bool = portable
-
-        # Authentication attributes
-        self.account_login: int = login
-        self.account_password: str = password
-        self.account_server: str = server
-        self.path: str = path
-
-        # Auto-reconnection attributes
-        self.auto_reconnect_enabled: bool = False
-        self.retry_attempts: int = 3
-        self.retry_delay: int = 5
-        self._reconnection_in_progress: bool = False
 
         # Configuration attributes
         self.config: Dict[str, Any] = {}
@@ -204,33 +229,40 @@ class MT5Client:
             "EURX",
         ]
 
-        self.initialize()
-
-        if self.connection_state == ConnectionState.CONNECTED:
-            logger.success("MT5Client initialized successfully")
-        else:
-            logger.warning("MT5Client initialization incomplete")
+        logger.info("MT5Client created (not connected)")
 
         # =============================================================================
         # CONNECTION MANAGEMENT
         # =============================================================================
 
-    def initialize(self) -> bool:
+    def connect(
+        self,
+        path: str,
+        login: int,
+        password: str,
+        server: str,
+    ) -> bool:
         """
-        Initialize connection to MT5 terminal and login to trading account.
+        Connect to MT5 terminal and login to trading account.
+
+        Args:
+            path: Path to MT5 terminal executable
+            login: Account login number
+            password: Account password
+            server: MT5 server name
 
         Returns:
             True if initialization and login successful, False otherwise
         """
-        logger.info("Initializing MT5 terminal connection")
+        logger.info("Connecting to MT5 terminal")
         self.connection_state = ConnectionState.INITIALIZING
         self._connection_attempts += 1
 
         try:
             # 1. Start MT5 terminal
-            logger.debug(f"Starting MT5 terminal from {self.path}")
+            logger.debug(f"Starting MT5 terminal from {path}")
             if not mt5.initialize(
-                path=self.path, timeout=self.timeout, portable=self.portable
+                path=path, timeout=self.timeout, portable=self.portable
             ):
                 error_code, error_desc = mt5.last_error()
                 logger.error(
@@ -241,13 +273,11 @@ class MT5Client:
                 return False
 
             # 2. Login to trading account
-            logger.debug(
-                f"Logging in to account {self.account_login} on server {self.account_server}"
-            )
+            logger.debug(f"Logging in to account {login} on server {server}")
             if not mt5.login(
-                login=self.account_login,
-                password=self.account_password,
-                server=self.account_server,
+                login=login,
+                password=password,
+                server=server,
                 timeout=self.timeout,
             ):
                 error_code, error_desc = mt5.last_error()
@@ -261,16 +291,18 @@ class MT5Client:
             self._successful_connections += 1
             self._last_connection_time = datetime.now()
             self._add_to_watchlist()
-            logger.info(
-                f"Successfully logged in: account={self.account_login}, server={self.account_server}"
-            )
+            logger.info(f"Successfully logged in: account={login}, server={server}")
             return True
 
         except Exception as e:
-            logger.error(f"MT5Client.initialize: {e}")
+            logger.error(f"MT5Client.connect: {e}")
             self.connection_state = ConnectionState.FAILED
             self._failed_connections += 1
             return False
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the underlying MT5 API."""
+        return getattr(mt5, name)
 
     def _add_to_watchlist(self) -> None:
         """Add all default symbols to the Market Watch."""
@@ -312,16 +344,6 @@ class MT5Client:
 
         is_our_state_connected = self.connection_state == ConnectionState.CONNECTED
 
-        # Update our state if there's a mismatch
-        if is_our_state_connected and not is_mt5_connected:
-            logger.warning("Connection state mismatch detected - updating state")
-            self.connection_state = ConnectionState.DISCONNECTED
-
-            # Attempt auto-reconnection if enabled
-            if self.auto_reconnect_enabled and not self._reconnection_in_progress:
-                logger.info("Initiating auto-reconnection")
-                self._handle_reconnection()
-
         return is_mt5_connected and is_our_state_connected
 
     def shutdown(self) -> None:
@@ -333,7 +355,7 @@ class MT5Client:
 
         Example:
             >>> client = MT5Client()
-            >>> client.initialize()
+            >>> client.connect()
             >>> # ... do work ...
             >>> client.shutdown()
         """
@@ -348,80 +370,6 @@ class MT5Client:
 
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
-
-    # =============================================================================
-    # AUTO-RECONNECTION
-    # =============================================================================
-
-    def reconnect(self) -> bool:
-        """
-        Attempt to reconnect to MT5 terminal.
-
-        Uses stored credentials to reconnect. If no credentials are stored,
-        returns False.
-
-        Returns:
-            bool: True if reconnection successful, False otherwise
-
-        Example:
-            >>> if not client.is_connected():
-            ...     client.reconnect()
-        """
-        logger.info("Attempting reconnection to MT5 terminal")
-        self.connection_state = ConnectionState.RECONNECTING
-
-        if not (self.account_login and self.account_password and self.account_server):
-            logger.error("Cannot reconnect: no credentials stored")
-            return False
-
-        # Shutdown existing connection
-        try:
-            mt5.shutdown()
-        except Exception as e:
-            logger.debug(f"Exception during shutdown before reconnect: {e}")
-
-        # Wait a moment before reconnecting
-        time.sleep(1)
-
-        # Attempt to reinitialize and login
-        success = self.initialize()
-
-        if success:
-            logger.success("Reconnection successful")
-        else:
-            logger.error("Reconnection failed")
-            self.connection_state = ConnectionState.FAILED
-
-        return success
-
-    def _handle_reconnection(self) -> bool:
-        """
-        Handle automatic reconnection logic.
-
-        Returns:
-            bool: True if reconnection successful
-        """
-        if self._reconnection_in_progress:
-            return False
-
-        self._reconnection_in_progress = True
-        logger.info("Starting auto-reconnection process")
-
-        for attempt in range(1, self.retry_attempts + 1):
-            logger.info(f"Reconnection attempt {attempt}/{self.retry_attempts}")
-
-            if self.reconnect():
-                self._reconnection_in_progress = False
-                logger.success("Auto-reconnection successful")
-                return True
-
-            if attempt < self.retry_attempts:
-                logger.info(f"Waiting {self.retry_delay} seconds before next attempt")
-                time.sleep(self.retry_delay)
-
-        self._reconnection_in_progress = False
-        logger.error("Auto-reconnection failed after all attempts")
-        return False
 
     # =============================================================================
     # INFO DATA METHODS

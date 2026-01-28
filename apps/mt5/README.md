@@ -66,8 +66,7 @@ Main client class for MetaTrader 5 terminal interaction, providing connection ma
 
 #### Initialization & Connection
 - `__init__(timeout=60000, portable=False, user_id=1)` - Initialize MT5Client instance
-- `initialize(timeout=60000, portable=False)` - Initialize connection to MT5 terminal
-- `connect()` - Connect to MT5 terminal (alias for initialize)
+- `connect()` - Connect to MT5 terminal
 - `disconnect()` - Disconnect from MT5 terminal
 - `shutdown()` - Shutdown MT5 terminal connection and clean up resources
 - `is_connected()` - Check if client is currently connected
@@ -126,7 +125,7 @@ from apps.mt5 import MT5Client
 
 # Basic connection
 client = MT5Client()
-if client.initialize():
+if client.connect():
     print(f"Connected! Account: {client.account_login}")
     print(f"Server: {client.account_server}")
     client.shutdown()
@@ -139,7 +138,7 @@ from apps.mt5 import MT5Client
 
 # Automatic cleanup
 with MT5Client() as client:
-    if client.initialize():
+    if client.connect():
         print("Connected!")
         status = client.get_status()
         print(f"Balance: {status['account_info']['balance']}")
@@ -156,7 +155,7 @@ client = MT5Client()
 # Enable auto-reconnection
 client.enable_auto_reconnect(retry_attempts=5, retry_delay=10)
 
-if client.initialize():
+if client.connect():
     print("Connected with auto-reconnect enabled")
     # If connection drops, client will automatically reconnect
 
@@ -185,7 +184,7 @@ client.on("disconnect", on_disconnect)
 client.on("error", on_error)
 
 # Events will be triggered automatically
-if client.initialize():
+if client.connect():
     print("Connection established")
 
 client.disconnect()
@@ -253,7 +252,7 @@ from apps.mt5 import MT5Client
 
 client = MT5Client()
 
-if client.initialize():
+if client.connect():
     # Get comprehensive status
     status = client.get_status()
     print(f"Connection state: {status['connection_state']}")
@@ -278,7 +277,7 @@ from apps.mt5 import MT5Client
 
 client = MT5Client()
 
-if client.initialize():
+if client.connect():
     # Fetch account information
     account_info = client.fetch_account_info()
     print(f"Balance: {account_info['balance']}")
@@ -399,7 +398,7 @@ Market data retrieval and management class providing OHLCV bar data, tick data, 
 from apps.mt5 import MT5Client, MT5Data, TimeFrame
 
 client = MT5Client()
-client.initialize()
+client.connect()
 
 data = MT5Data(client)
 
@@ -425,7 +424,7 @@ client.shutdown()
 from apps.mt5 import MT5Client, MT5Data
 
 client = MT5Client()
-client.initialize()
+client.connect()
 
 data = MT5Data(client)
 
@@ -460,7 +459,7 @@ def on_new_bar(bar_data):
     print(f"New bar: {bar_data['time']} - Close: {bar_data['close']}")
 
 client = MT5Client()
-client.initialize()
+client.connect()
 
 data = MT5Data(client)
 
@@ -488,7 +487,7 @@ client.shutdown()
 from apps.mt5 import MT5Client, MT5Data, TimeFrame
 
 client = MT5Client()
-client.initialize()
+client.connect()
 
 data = MT5Data(client)
 
@@ -541,7 +540,7 @@ print(f"TimeFrame: {TimeFrame.M15}")  # M15
 from apps.mt5 import MT5Client, MT5Data, TimeFrame
 
 client = MT5Client()
-client.initialize()
+client.connect()
 
 data = MT5Data(client)
 
@@ -581,7 +580,7 @@ client.on("connect", on_connect)
 client.on("error", on_error)
 
 # 3. Initialize connection
-if client.initialize():
+if client.connect():
     # 4. Get account status
     status = client.get_status()
     print(f"Account: {status['account_info']['login']}")
@@ -610,7 +609,7 @@ from apps.mt5 import MT5Client
 client = MT5Client()
 
 try:
-    if not client.initialize():
+    if not client.connect():
         error = client.get_error()
         if error:
             error_code, error_message = error
@@ -638,7 +637,7 @@ from apps.trading import Trade, MT5TradeProvider, OrderType
 
 # Initialize MT5 connection
 client = MT5Client()
-client.initialize()
+client.connect()
 
 # Create trade provider
 provider = MT5TradeProvider(client)

@@ -5,8 +5,8 @@ A comprehensive Python library for interacting with MetaTrader 5 terminal.
 
 Example:
     >>> from apps.mt5 import MT5Client, MT5Account
-    >>> client = MT5Client()
-    >>> client.initialize(login=12345, password='pass', server='server')
+    >>> client = MT5Client(login=12345, password='pass', server='server')
+    >>> client.connect()
     >>> account = MT5Account(client)
     >>> balance = account.get('balance')
     >>> client.shutdown()
@@ -25,7 +25,7 @@ from .__version__ import (
 )
 
 # Core imports
-from .client import MT5Client
+from .client import MT5Api, MT5Client, get_mt5_api
 
 # from .mt5_util import MT5Utils
 # from .data import MT5Data
@@ -44,6 +44,8 @@ __all__ = [
     "__copyright__",
     # Core classes
     "MT5Client",
+    "MT5Api",
+    "get_mt5_api",
     # "MT5Data",
     # "MT5Validator",
     # "MT5Utils",

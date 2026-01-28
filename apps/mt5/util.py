@@ -12,10 +12,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import MetaTrader5 as mt5
 import pandas as pd
 
 from apps.logger import logger
+from apps.mt5 import get_mt5_api
+
+mt5 = get_mt5_api()
 
 logger.info("Loading utils module")
 
@@ -779,5 +781,72 @@ class MT5Utils:
             return int(mt5.ORDER_FILLING_FOK)
 
 
+def timeframe_seconds(timeframe: int) -> int:
+    """Return timeframe length in seconds."""
+    mapping = {
+        mt5.TIMEFRAME_M1: 60,
+        mt5.TIMEFRAME_M2: 120,
+        mt5.TIMEFRAME_M3: 180,
+        mt5.TIMEFRAME_M4: 240,
+        mt5.TIMEFRAME_M5: 300,
+        mt5.TIMEFRAME_M6: 360,
+        mt5.TIMEFRAME_M10: 600,
+        mt5.TIMEFRAME_M12: 720,
+        mt5.TIMEFRAME_M15: 900,
+        mt5.TIMEFRAME_M20: 1200,
+        mt5.TIMEFRAME_M30: 1800,
+        mt5.TIMEFRAME_H1: 3600,
+        mt5.TIMEFRAME_H2: 7200,
+        mt5.TIMEFRAME_H3: 10800,
+        mt5.TIMEFRAME_H4: 14400,
+        mt5.TIMEFRAME_H6: 21600,
+        mt5.TIMEFRAME_H8: 28800,
+        mt5.TIMEFRAME_H12: 43200,
+        mt5.TIMEFRAME_D1: 86400,
+        mt5.TIMEFRAME_W1: 604800,
+        mt5.TIMEFRAME_MN1: 2592000,
+    }
+    return mapping.get(timeframe, 0)
+
+
+class TicksGen:
+    """Generate synthetic ticks from 1-minute bars."""
+
+    @staticmethod
+    def generate_ticks_from_bars(
+        bars: list[dict[str, Any]],
+        symbol: str,
+        symbol_point: float,
+    ) -> list[dict[str, Any]]:
+        """Generate synthetic ticks from a sequence of bars."""
+        ticks: list[dict[str, Any]] = []
+        for bar in bars:
+            open_price = float(bar.get("open", 0.0))
+            high_price = float(bar.get("high", open_price))
+            low_price = float(bar.get("low", open_price))
+            close_price = float(bar.get("close", open_price))
+            base_time = int(bar.get("time", 0))
+            spread = float(bar.get("spread", 0.0))
+            tick_volume = int(bar.get("tick_volume", 0))
+            real_volume = float(bar.get("real_volume", 0.0))
+
+            prices = [open_price, high_price, low_price, close_price]
+            for idx, price in enumerate(prices):
+                ticks.append(
+                    {
+                        "symbol": symbol,
+                        "time": base_time + idx * 10,
+                        "bid": price,
+                        "ask": price + spread * symbol_point,
+                        "last": price,
+                        "volume": tick_volume,
+                        "time_msc": (base_time + idx * 10) * 1000,
+                        "flags": 0,
+                        "volume_real": real_volume,
+                    }
+                )
+        return ticks
+
+
 # Export the class
-__all__ = ["MT5Utils"]
+__all__ = ["MT5Utils", "TicksGen", "timeframe_seconds"]

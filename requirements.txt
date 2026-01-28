@@ -52,6 +52,7 @@ bokeh
 
 # System
 psutil
+APScheduler
 
 # Data Processing & Analysis
 fastparquet
