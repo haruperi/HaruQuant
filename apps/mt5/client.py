@@ -174,11 +174,6 @@ class MT5Client:
         self._last_error: Optional[Tuple[int, str]] = None
         self._error_count: int = 0
 
-        # Cached info data
-        self.account_info: Optional[Dict[str, Any]] = None
-        self.terminal_info: Optional[Dict[str, Any]] = None
-        self._symbol_info_cache: Dict[str, Dict[str, Any]] = {}
-
         # Streaming state
         self._active_streams: Dict[str, bool] = {}
         self._stream_threads: Dict[str, threading.Thread] = {}
@@ -229,7 +224,7 @@ class MT5Client:
             "EURX",
         ]
 
-        logger.info("MT5Client created (not connected)")
+        logger.info("MT5Client created (Terminal not yet connected)")
 
         # =============================================================================
         # CONNECTION MANAGEMENT
@@ -338,13 +333,17 @@ class MT5Client:
             >>> if client.is_connected():
             ...     print("Currently connected")
         """
+        logger.info("Checking connection state")
         # Check both our state and MT5's terminal info
         terminal_info = mt5.terminal_info()
         is_mt5_connected = terminal_info is not None and terminal_info.connected
 
         is_our_state_connected = self.connection_state == ConnectionState.CONNECTED
 
-        return is_mt5_connected and is_our_state_connected
+        connection_state = is_mt5_connected and is_our_state_connected
+        logger.info(f"Connection state: {connection_state}")
+
+        return connection_state
 
     def shutdown(self) -> None:
         """
@@ -374,316 +373,6 @@ class MT5Client:
     # =============================================================================
     # INFO DATA METHODS
     # =============================================================================
-
-    def get_account_info(self) -> Optional[Dict[str, Any]]:
-        """
-        Get account information from MT5 and cache it.
-
-        Returns:
-            Dictionary with account information or None if failed
-
-        Example:
-            >>> client.get_account_info()
-            >>> print(client.account_info['balance'])
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch account info: not connected to MT5")
-            return None
-
-        account_info = mt5.account_info()
-        if account_info is None:
-            error_code, error_desc = mt5.last_error()
-            logger.error(f"Failed to get account info: {error_code} - {error_desc}")
-            return None
-
-        self.account_info = account_info._asdict()
-        logger.debug("Account info fetched and cached")
-
-        return self.account_info
-
-    def get_account_equity(self) -> float:
-        """
-        Get current account equity.
-
-        Returns:
-            Account equity as float, or 0.0 if failed
-        """
-        account_info = self.get_account_info()
-        if account_info is None:
-            logger.warning("Cannot get equity: account info unavailable")
-            return 0.0
-
-        return float(account_info.get("equity", 0.0))
-
-    def get_terminal_info(self) -> Optional[Dict[str, Any]]:
-        """
-        Get terminal information from MT5 and cache it.
-
-        Returns:
-            Dictionary with terminal information or None if failed
-
-        Example:
-            >>> client.get_terminal_info()
-            >>> print(client.terminal_info['build'])
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch terminal info: not connected to MT5")
-            return None
-
-        terminal_info = mt5.terminal_info()
-        if terminal_info is None:
-            error_code, error_desc = mt5.last_error()
-            logger.error(f"Failed to get terminal info: {error_code} - {error_desc}")
-            return None
-
-        # Convert to dictionary
-        self.terminal_info = terminal_info._asdict()
-
-        logger.debug("Terminal info fetched and cached")
-        return self.terminal_info
-
-    def get_symbol_info(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """
-        Get symbol information from MT5 and cache it.
-
-        Args:
-            symbol: Symbol name (e.g., "EURUSD")
-
-        Returns:
-            Dictionary with symbol information or None if failed
-
-        Example:
-            >>> client.get_symbol_info("EURUSD")
-            >>> print(client._symbol_info_cache['EURUSD']['bid'])
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch symbol info: not connected to MT5")
-            return None
-
-        # Try to select symbol first
-        mt5.symbol_select(symbol, True)
-
-        symbol_info = mt5.symbol_info(symbol)
-        if symbol_info is None:
-            error_code, error_desc = mt5.last_error()
-            logger.error(
-                f"Failed to get symbol info for {symbol}: {error_code} - {error_desc}"
-            )
-            return None
-
-        # Cache the symbol info
-        self._symbol_info_cache[symbol] = symbol_info._asdict()
-
-        logger.debug(f"Symbol info for {symbol} fetched and cached")
-        return dict(symbol_info._asdict())
-
-    def get_positions(
-        self,
-        symbol: Optional[str] = None,
-        group: Optional[str] = None,
-        ticket: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Get positions from MT5.
-
-        Args:
-            symbol: Filter by symbol
-            group: Filter by group
-            ticket: Filter by ticket
-
-        Returns:
-            List of dictionaries with position information
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch positions: not connected to MT5")
-            return []
-
-        try:
-            if ticket:
-                positions = mt5.positions_get(ticket=ticket)
-            elif symbol:
-                positions = mt5.positions_get(symbol=symbol)
-            elif group:
-                positions = mt5.positions_get(group=group)
-            else:
-                positions = mt5.positions_get()
-
-            if positions is None:
-                error_code, error_desc = mt5.last_error()
-                # Error code 1 means "no suitable data found" (generic warning),
-                # which is not an error for empty list
-                if error_code != 1:
-                    logger.debug(
-                        f"mt5.positions_get returned None: {error_code} - {error_desc}"
-                    )
-                return []
-
-            return [p._asdict() for p in positions]
-
-        except Exception as e:
-            logger.error(f"Error fetching positions: {e}")
-            return []
-
-    def get_orders(
-        self,
-        symbol: Optional[str] = None,
-        group: Optional[str] = None,
-        ticket: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Get active orders from MT5.
-
-        Args:
-            symbol: Filter by symbol
-            group: Filter by group
-            ticket: Filter by ticket
-
-        Returns:
-            List of dictionaries with order information
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch orders: not connected to MT5")
-            return []
-
-        try:
-            if ticket:
-                orders = mt5.orders_get(ticket=ticket)
-            elif symbol:
-                orders = mt5.orders_get(symbol=symbol)
-            elif group:
-                orders = mt5.orders_get(group=group)
-            else:
-                orders = mt5.orders_get()
-
-            if orders is None:
-                error_code, error_desc = mt5.last_error()
-                if error_code != 1:
-                    logger.debug(
-                        f"mt5.orders_get returned None: {error_code} - {error_desc}"
-                    )
-                return []
-
-            return [o._asdict() for o in orders]
-
-        except Exception as e:
-            logger.error(f"Error fetching orders: {e}")
-            return []
-
-    def get_history_orders(
-        self,
-        date_from: Optional[datetime] = None,
-        date_to: Optional[datetime] = None,
-        group: Optional[str] = None,
-        ticket: Optional[int] = None,
-        position: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Get history orders from MT5.
-
-        Args:
-            date_from: Start date (required if ticket and position are None)
-            date_to: End date (defaults to now)
-            group: Filter by group
-            ticket: Filter by order ticket
-            position: Filter by position ticket
-
-        Returns:
-            List of dictionaries with history order information
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch history orders: not connected to MT5")
-            return []
-
-        try:
-            if ticket:
-                orders = mt5.history_orders_get(ticket=ticket)
-            elif position:
-                orders = mt5.history_orders_get(position=position)
-            elif date_from:
-                d_to = date_to or datetime.now()
-                if group:
-                    orders = mt5.history_orders_get(date_from, d_to, group=group)
-                else:
-                    orders = mt5.history_orders_get(date_from, d_to)
-            else:
-                # Default to last 30 days if nothing specified?
-                # Or return empty? Better to require explicit range or id.
-                # However, for ease of use, we might default to "all history" if user supplies "from=0"?
-                # Let's assume user must provide one of them.
-                logger.warning(
-                    "Fetching history orders requires date_from, ticket, or position"
-                )
-                return []
-
-            if orders is None:
-                error_code, error_desc = mt5.last_error()
-                if error_code != 1:
-                    logger.debug(
-                        f"mt5.history_orders_get returned None: {error_code} - {error_desc}"
-                    )
-                return []
-
-            return [o._asdict() for o in orders]
-
-        except Exception as e:
-            logger.error(f"Error fetching history orders: {e}")
-            return []
-
-    def get_history_deals(
-        self,
-        date_from: Optional[datetime] = None,
-        date_to: Optional[datetime] = None,
-        group: Optional[str] = None,
-        ticket: Optional[int] = None,
-        position: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Fetch history deals from MT5.
-
-        Args:
-            date_from: Start date (required if ticket and position are None)
-            date_to: End date (defaults to now)
-            group: Filter by group
-            ticket: Filter by ticket (order ticket usually)
-            position: Filter by position ticket
-
-        Returns:
-            List of dictionaries with deal information
-        """
-        if not self.is_connected():
-            logger.warning("Cannot fetch history deals: not connected to MT5")
-            return []
-
-        try:
-            if ticket:
-                deals = mt5.history_deals_get(ticket=ticket)
-            elif position:
-                deals = mt5.history_deals_get(position=position)
-            elif date_from:
-                d_to = date_to or datetime.now()
-                if group:
-                    deals = mt5.history_deals_get(date_from, d_to, group=group)
-                else:
-                    deals = mt5.history_deals_get(date_from, d_to)
-            else:
-                logger.warning(
-                    "Fetching history deals requires date_from, ticket, or position"
-                )
-                return []
-
-            if deals is None:
-                error_code, error_desc = mt5.last_error()
-                if error_code != 1:
-                    logger.debug(
-                        f"mt5.history_deals_get returned None: {error_code} - {error_desc}"
-                    )
-                return []
-
-            return [d._asdict() for d in deals]
-
-        except Exception as e:
-            logger.error(f"Error fetching history deals: {e}")
-            return []
 
     def _get_mt5_timeframe(self, timeframe_str: str) -> int:
         """
@@ -790,6 +479,11 @@ class MT5Client:
 
             # Set index to Timestamp
             df.set_index("timestamp", inplace=True)
+
+            if df is not None and not df.empty:
+                logger.info(f"Data for {symbol} {timeframe} fetched successfully")
+            else:
+                logger.warning(f"No data for {symbol} {timeframe}")
 
             return df
 
