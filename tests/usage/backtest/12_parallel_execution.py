@@ -1,4 +1,4 @@
-﻿"""
+"""
 Parallel Backtest Execution Example.
 
 Demonstrates the use of ParallelBacktester for:
