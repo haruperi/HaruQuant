@@ -68,7 +68,7 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
             spreadMax: 50,
             leverage: 400,
             engineType: "event-driven" as "vectorized" | "event-driven",
-            dataResolution: "timeframe" as "tick" | "m1" | "timeframe",
+            dataResolution: "trading_timeframe" as "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks",
             // Money Management settings
             positionSizingMethod: "fixed_lot" as "fixed_lot" | "milestone" | "fixed_risk" | "kelly" | "volatility" | "fixed_fractional",
             lotSize: 0.1,           // for fixed_lot

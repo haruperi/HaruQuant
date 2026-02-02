@@ -24,6 +24,7 @@ import {
   LineChart as LineChartIcon,
   BookOpen,
   Upload,
+  Play,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useState, useEffect } from "react"
@@ -58,6 +59,12 @@ const routes = [
       icon: LineChart,
       href: "/backtest",
       color: "text-orange-700",
+    },
+    {
+      label: "Simulation",
+      icon: Play,
+      href: "/simulation",
+      color: "text-green-600",
     },
     {
       label: "Optimization",

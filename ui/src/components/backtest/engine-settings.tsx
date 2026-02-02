@@ -19,7 +19,7 @@ interface EngineSettingsProps {
         spreadMax: number
         leverage: number
         engineType: "vectorized" | "event-driven"
-        dataResolution: "tick" | "m1" | "timeframe"
+        dataResolution: "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks"
     }
     onChange: (key: string, value: any) => void
 }
@@ -58,9 +58,10 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                                 <SelectValue placeholder="Select Resolution" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="timeframe">Trading Timeframe (Fast)</SelectItem>
-                                <SelectItem value="m1">M1 Bars (Slow)</SelectItem>
-                                <SelectItem value="tick">Tick Data (Slowest)</SelectItem>
+                            <SelectItem value="trading_timeframe">Trading Timeframe (Fast)</SelectItem>
+                            <SelectItem value="m1_ohlc">M1 OHLC (Bar Ticks)</SelectItem>
+                            <SelectItem value="synthetic_ticks">Synthetic Ticks (M1)</SelectItem>
+                            <SelectItem value="real_ticks">Real Ticks (Slowest)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

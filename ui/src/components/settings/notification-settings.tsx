@@ -64,6 +64,7 @@ export function NotificationSettings() {
   const [showToken, setShowToken] = useState(false)
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null)
   const [channels, setChannels] = useState<NotificationChannel[]>([])
+  const [simulatorTradeNotifications, setSimulatorTradeNotifications] = useState(false)
   const [alertTriggers, setAlertTriggers] = useState<AlertTriggers>(defaultTriggers)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [channelToDelete, setChannelToDelete] = useState<{ id: string; name: string } | null>(null)
@@ -92,6 +93,7 @@ export function NotificationSettings() {
         }
         const channelsArray = notificationsData.channels || []
         setChannels(channelsArray)
+        setSimulatorTradeNotifications(Boolean(notificationsData.simulator_trade_notifications))
 
         let triggersData;
         if (typeof settings.alert_triggers === 'string') {
@@ -106,6 +108,18 @@ export function NotificationSettings() {
       }
     }
   }, [settings])
+
+  const handleSimulatorToggle = async (checked: boolean) => {
+    setSimulatorTradeNotifications(checked)
+    try {
+      await updateJSONField("notifications", {
+        channels,
+        simulator_trade_notifications: checked,
+      })
+    } catch (error) {
+      // Error already handled by updateJSONField
+    }
+  }
 
   const handleEditClick = (channelId: string) => {
     const channel = channels.find(ch => ch.id === channelId)
@@ -186,7 +200,10 @@ export function NotificationSettings() {
       }
 
       // Save to database
-      await updateJSONField("notifications", { channels: updatedChannels })
+      await updateJSONField("notifications", {
+        channels: updatedChannels,
+        simulator_trade_notifications: simulatorTradeNotifications,
+      })
 
       setChannels(updatedChannels)
       setIsAdding(false)
@@ -207,7 +224,10 @@ export function NotificationSettings() {
 
     try {
       const updatedChannels = channels.filter(ch => ch.id !== channelToDelete.id)
-      await updateJSONField("notifications", { channels: updatedChannels })
+      await updateJSONField("notifications", {
+        channels: updatedChannels,
+        simulator_trade_notifications: simulatorTradeNotifications,
+      })
       setChannels(updatedChannels)
       toast.success("Channel deleted")
     } catch (error) {
@@ -231,7 +251,10 @@ export function NotificationSettings() {
       }
 
       const updatedChannels = [...channels, clonedChannel]
-      await updateJSONField("notifications", { channels: updatedChannels })
+      await updateJSONField("notifications", {
+        channels: updatedChannels,
+        simulator_trade_notifications: simulatorTradeNotifications,
+      })
       setChannels(updatedChannels)
       toast.success("Channel cloned successfully")
     } catch (error) {
@@ -465,6 +488,30 @@ export function NotificationSettings() {
                 </div>
               </div>
             )}
+        </CardContent>
+      </Card>
+
+      {/* 1b. Simulator Notifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Simulator Alerts</CardTitle>
+          <CardDescription>
+            Enable browser notifications and sound for simulator trades.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label>Simulator trade notifications</Label>
+              <p className="text-xs text-muted-foreground">
+                Uses browser notifications and local sounds when enabled.
+              </p>
+            </div>
+            <Switch
+              checked={simulatorTradeNotifications}
+              onCheckedChange={handleSimulatorToggle}
+            />
+          </div>
         </CardContent>
       </Card>
 

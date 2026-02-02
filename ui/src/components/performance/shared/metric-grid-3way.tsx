@@ -55,6 +55,17 @@ export function MetricGrid3Way({
   data,
   className,
 }: MetricGrid3WayProps) {
+  const resolveMetric = (obj: Record<string, any>, accessor: string) => {
+    if (obj && obj[accessor] !== undefined) {
+      return obj[accessor]
+    }
+    if (accessor === "Total # of Trades") {
+      if (obj && obj["Total Trades"] !== undefined) return obj["Total Trades"]
+      if (obj && obj["total_trades"] !== undefined) return obj["total_trades"]
+    }
+    return obj ? obj[accessor] : undefined
+  }
+
   return (
     <Card className={cn("w-full", className)}>
       {title && (
@@ -76,9 +87,9 @@ export function MetricGrid3Way({
             <TableBody>
               {metrics.map((metric) => {
                 const formatter = metric.format || defaultFormatter
-                const valAll = data.all?.[metric.accessor]
-                const valLong = data.long?.[metric.accessor]
-                const valShort = data.short?.[metric.accessor]
+                const valAll = resolveMetric(data.all, metric.accessor)
+                const valLong = resolveMetric(data.long, metric.accessor)
+                const valShort = resolveMetric(data.short, metric.accessor)
 
                 const renderCell = (val: any, defaultColor: string) => {
                   if (val === null || val === undefined) {
