@@ -254,14 +254,14 @@ def load_mt5(  # noqa: C901
         logger.info(
             f"Connecting to MT5 for user {user_id} (account: {creds.get('login')})..."
         )
-        client = MT5Client(
-            login=creds["login"],
-            password=creds["password"],
-            server=creds["server"],
-            path=creds.get("path") or "",
-        )
-        if not client.is_connected():
-            logger.error("Failed to connect to MT5")
+        client = MT5Client()
+
+        if not client.connect(
+            creds["path"], creds["login"], creds["password"], creds["server"]
+        ):
+            logger.error(
+                "Failed to connect to MT5. Please ensure MT5 terminal is running."
+            )
             client.shutdown()
             return None
 

@@ -23,7 +23,7 @@ from apps.mt5 import MT5Client, get_mt5_api
 mt5 = get_mt5_api()
 
 from apps.trade import AccountInfo
-from apps.trade.simulator_data import SimulatorClient, AccountInfoSimulator
+from apps.simulation.data import SimulatorClient, AccountInfoSimulator
 from apps.logger import logger
 from apps.sqlite.users import UserManager
 

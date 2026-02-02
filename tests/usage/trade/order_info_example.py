@@ -15,7 +15,7 @@ mt5 = get_mt5_api()
 from apps.sqlite.users import UserManager
 from apps.logger import logger
 from apps.trade import OrderInfo
-from apps.trade.simulator_data import SimulatorClient, OrderInfoSimulator
+from apps.simulation.data import SimulatorClient, OrderInfoSimulator
 
 
 def get_mt5_credentials():

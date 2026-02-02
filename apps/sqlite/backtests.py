@@ -570,7 +570,13 @@ class BacktestManager:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
-            query = "SELECT * FROM backtest_runs WHERE backtest_id = ?"
+            query = """
+            SELECT br.*, sv.strategy_id, ftm.total_trades
+            FROM backtest_runs br
+            LEFT JOIN strategy_versions sv ON br.strategy_version_id = sv.id
+            LEFT JOIN finance_trade_metrics ftm ON br.backtest_id = ftm.backtest_id
+            WHERE br.backtest_id = ?
+            """
             cursor.execute(query, (backtest_id,))
             row = cursor.fetchone()
 
@@ -751,9 +757,10 @@ class BacktestManager:
             cursor = conn.cursor()
 
             query = """
-            SELECT br.*, sv.strategy_id
+            SELECT br.*, sv.strategy_id, ftm.total_trades
             FROM backtest_runs br
             LEFT JOIN strategy_versions sv ON br.strategy_version_id = sv.id
+            LEFT JOIN finance_trade_metrics ftm ON br.backtest_id = ftm.backtest_id
             WHERE 1=1
             """
             params: List[Any] = []
@@ -833,6 +840,85 @@ class BacktestManager:
 
         except Exception as e:
             logger.error(f"Error updating backtest status: {e}")
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def save_backtest_trades(self, backtest_id: int, trades: List[Any]) -> bool:
+        """
+        Save simulator trades for an existing backtest run.
+
+        Args:
+            backtest_id (int): Backtest ID
+            trades (list): List of trade record objects
+
+        Returns:
+            bool: True if successful
+        """
+        if not trades:
+            return True
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA foreign_keys = ON")
+            self._save_trades(cursor, backtest_id, trades)
+            conn.commit()
+            logger.info(f"Saved {len(trades)} trades for backtest {backtest_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving backtest trades: {e}")
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    def update_backtest_metadata(
+        self,
+        backtest_id: int,
+        alias: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> bool:
+        """
+        Update backtest metadata fields.
+
+        Args:
+            backtest_id (int): Backtest ID
+            alias (str, optional): New alias
+            description (str, optional): New description
+
+        Returns:
+            bool: True if successful
+        """
+        if alias is None and description is None:
+            return True
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            updates = []
+            params: list[Any] = []
+            if alias is not None:
+                updates.append("alias = ?")
+                params.append(alias)
+            if description is not None:
+                updates.append("description = ?")
+                params.append(description)
+            params.append(backtest_id)
+            cursor.execute(
+                f"UPDATE backtest_runs SET {', '.join(updates)} WHERE backtest_id = ?",
+                tuple(params),
+            )
+            conn.commit()
+            logger.info(f"Backtest {backtest_id} metadata updated")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating backtest metadata: {e}")
             if conn:
                 conn.rollback()
             raise

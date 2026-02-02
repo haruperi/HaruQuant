@@ -18,7 +18,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.logger import logger
 from apps.trade import SymbolInfo
-from apps.trade.simulator_data import SimulatorClient, SymbolInfoSimulator, SymbolTickSimulator
+from apps.simulation.data import SimulatorClient, SymbolInfoSimulator, SymbolTickSimulator
 
 
 def get_mt5_credentials():

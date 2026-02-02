@@ -1192,6 +1192,71 @@ class SchemaManager:
             if "session_id" not in simulator_columns:
                 cursor.execute("ALTER TABLE simulator_deals ADD COLUMN session_id TEXT")
 
+            # Simulation sessions (new simulator flow)
+            create_simulation_sessions_table = """
+            CREATE TABLE IF NOT EXISTS simulation_sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                session_name TEXT,
+                mode TEXT NOT NULL DEFAULT 'manual',
+                status TEXT NOT NULL DEFAULT 'running',
+                symbol TEXT,
+                timeframe TEXT,
+                start_time TIMESTAMP,
+                end_time TIMESTAMP,
+                initial_balance REAL,
+                speed_multiplier REAL DEFAULT 1.0,
+                current_bar_index INTEGER DEFAULT 0,
+                total_bars INTEGER,
+                replay_source TEXT,
+                replay_backtest_id INTEGER,
+                replay_file_name TEXT,
+                config TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_simulation_sessions_table)
+
+            create_simulation_trades_table = """
+            CREATE TABLE IF NOT EXISTS simulation_trades (
+                trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                time TIMESTAMP,
+                symbol TEXT,
+                side TEXT,
+                price REAL,
+                volume REAL,
+                sl REAL,
+                tp REAL,
+                pnl REAL,
+                reason TEXT,
+                source TEXT,
+                payload TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES simulation_sessions (session_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_simulation_trades_table)
+
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_simulation_sessions_user ON simulation_sessions(user_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_simulation_sessions_status ON simulation_sessions(status)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_simulation_sessions_created ON simulation_sessions(created_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_simulation_trades_session ON simulation_trades(session_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_simulation_trades_time ON simulation_trades(time)"
+            )
+
             # =========================================================================
             # SQX STRATEGY MASTER TABLES
             # =========================================================================

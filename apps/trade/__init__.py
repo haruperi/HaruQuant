@@ -18,4 +18,13 @@ __all__ = [
     "PositionInfo",
     "TerminalInfo",
     "Trade",
+    "TradeSimulator",
 ]
+
+
+def __getattr__(name: str):
+    if name == "TradeSimulator":
+        from apps.simulation.simulator import TradeSimulator
+
+        return TradeSimulator
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

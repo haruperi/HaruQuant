@@ -450,6 +450,10 @@ class SymbolInfo:
             "SYMBOL_TRADE_CONTRACT_SIZE", 0.0, "trade_contract_size"
         )
 
+    def TradeFaceValue(self) -> float:
+        """Get the face value of the symbol."""
+        return self._double_prop("SYMBOL_TRADE_FACE_VALUE", 0.0, "trade_face_value")
+
     def LotsMin(self) -> float:
         """Get the minimal volume to close a deal."""
         return self._double_prop("SYMBOL_VOLUME_MIN", 0.0, "volume_min")

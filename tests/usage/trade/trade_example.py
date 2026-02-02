@@ -13,7 +13,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.logger import logger
 from apps.trade import Trade
-from apps.trade.simulator_data import SimulatorClient, SymbolTickSimulator, PositionInfoSimulator
+from apps.simulation.data import SimulatorClient, SymbolTickSimulator, PositionInfoSimulator
 
 # For MQL5 constants (need to import mt5 to access constants if they are used in main)
 # Trade class uses them internally, but we might need them for arguments.
@@ -59,33 +59,32 @@ def main():
     # CHOOSE YOUR OPTION
     # ============================================================
 
+    # Option 1: Live Trading with MT5 (Default)
     use_simulator = False
     simulator = None
 
-    # Option 1: Live Trading with MT5 (Default)
-    # trade = Trade(api=client)
-    # print("Using: MT5 Live Connection")
+    trade = Trade()
+    print("Using: MT5 Live Connection")
 
     # Option 2: Simulator (Uncomment to use)
-    use_simulator = True
-    sim_ticks = {
-        "EURUSD": SymbolTickSimulator(bid=1.19645, ask=1.19645, last=1.19645),
-        "GBPUSD": SymbolTickSimulator(bid=1.37736, ask=1.37738, last=1.37737),
-    }
-    sim_positions = {
-        3001: PositionInfoSimulator(
-            ticket=3001,
-            symbol="EURUSD",
-            type=getattr(mt5, "POSITION_TYPE_BUY", 0),
-            volume=0.1,
-            price_open=1.19645,
-        ),
-    }
-    simulator = SimulatorClient(ticks_data=sim_ticks, positions_data=sim_positions)
-    trade = Trade(api=simulator)
-    print("Using: Simulator (Simulated Trade)")
-
-    print()
+    # use_simulator = True
+    # sim_ticks = {
+    #     "EURUSD": SymbolTickSimulator(bid=1.19645, ask=1.19645, last=1.19645),
+    #     "GBPUSD": SymbolTickSimulator(bid=1.37736, ask=1.37738, last=1.37737),
+    # }
+    # sim_positions = {
+    #     3001: PositionInfoSimulator(
+    #         ticket=3001,
+    #         symbol="EURUSD",
+    #         type=getattr(mt5, "POSITION_TYPE_BUY", 0),
+    #         volume=0.1,
+    #         price_open=1.19645,
+    #     ),
+    # }
+    # simulator = SimulatorClient(ticks_data=sim_ticks, positions_data=sim_positions)
+    # trade = Trade(api=simulator)
+    # print("Using: Simulator (Simulated Trade)")
+    # print()
 
     # Configure trade settings
     trade.SetExpertMagicNumber(12345)
@@ -106,16 +105,16 @@ def main():
     # Get current market prices
     if use_simulator and simulator:
         sim_symbol = simulator.symbol_info("EURUSD")
-        symbol_info = sim_symbol._asdict() if sim_symbol else None
+        symbol_info = sim_symbol if sim_symbol else None
     else:
-        symbol_info = client.get_symbol_info("EURUSD")
+        symbol_info = mt5.symbol_info("EURUSD")
     if not symbol_info:
         print("✗ Failed to get symbol info for EURUSD")
         return
 
-    bid = symbol_info.get('bid', 0)
-    ask = symbol_info.get('ask', 0)
-    point = symbol_info.get('point', 0.00001)
+    bid = symbol_info.bid
+    ask = symbol_info.ask
+    point = symbol_info.point
 
     print(f"Current EURUSD prices:")
     print(f"  Bid: {bid:.5f}")
@@ -158,12 +157,12 @@ def main():
     # Get updated prices
     if use_simulator and simulator:
         sim_symbol = simulator.symbol_info("EURUSD")
-        symbol_info = sim_symbol._asdict() if sim_symbol else None
+        symbol_info = sim_symbol if sim_symbol else None
     else:
-        symbol_info = client.get_symbol_info("EURUSD")
+        symbol_info = mt5.symbol_info("EURUSD")
     if symbol_info:
-        current_bid = symbol_info.get('bid', 0)
-        current_ask = symbol_info.get('ask', 0)
+        current_bid = symbol_info.bid
+        current_ask = symbol_info.ask
 
         # Adjust SL/TP: Move SL closer (30 points), extend TP (150 points)
         new_sl = current_ask - (30 * point)
@@ -215,9 +214,9 @@ def main():
     # Get current GBPUSD prices for pending order
     if use_simulator and simulator:
         sim_symbol = simulator.symbol_info("GBPUSD")
-        gbp_info = sim_symbol._asdict() if sim_symbol else None
+        gbp_info = sim_symbol if sim_symbol else None
     else:
-        gbp_info = client.get_symbol_info("GBPUSD")
+        gbp_info = mt5.symbol_info("GBPUSD")
     if not gbp_info:
         print("✗ Failed to get symbol info for GBPUSD")
     else:
@@ -227,9 +226,9 @@ def main():
         else:
             print("Using default filling mode for GBPUSD")
 
-        gbp_bid = gbp_info.get('bid', 0)
-        gbp_ask = gbp_info.get('ask', 0)
-        gbp_point = gbp_info.get('point', 0.00001)
+        gbp_bid = gbp_info.bid
+        gbp_ask = gbp_info.ask
+        gbp_point = gbp_info.point
 
         print(f"Current GBPUSD prices:")
         print(f"  Bid: {gbp_bid:.5f}")

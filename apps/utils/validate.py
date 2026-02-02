@@ -56,33 +56,41 @@ class TradeValidator:
         """
         self.client = client
         self.logger = logger_instance or logger
-        self.mt5_instance = mt5_instance
+        # Use provided instance for data (symbols/ticks/account) and a constant source for enums.
+        if mt5_instance is None:
+            self.mt5_instance = mt5
+            self._const = mt5
+        else:
+            self.mt5_instance = mt5_instance
+            self._const = (
+                mt5_instance if hasattr(mt5_instance, "ORDER_TYPE_BUY") else mt5
+            )
         self._validation_rules = self._initialize_rules()
 
         self.BUY_ACTIONS = {
-            self.mt5_instance.ORDER_TYPE_BUY,
-            self.mt5_instance.ORDER_TYPE_BUY_LIMIT,
-            self.mt5_instance.ORDER_TYPE_BUY_STOP,
-            self.mt5_instance.ORDER_TYPE_BUY_STOP_LIMIT,
+            self._const.ORDER_TYPE_BUY,
+            self._const.ORDER_TYPE_BUY_LIMIT,
+            self._const.ORDER_TYPE_BUY_STOP,
+            self._const.ORDER_TYPE_BUY_STOP_LIMIT,
         }
 
         self.SELL_ACTIONS = {
-            self.mt5_instance.ORDER_TYPE_SELL,
-            self.mt5_instance.ORDER_TYPE_SELL_LIMIT,
-            self.mt5_instance.ORDER_TYPE_SELL_STOP,
-            self.mt5_instance.ORDER_TYPE_SELL_STOP_LIMIT,
+            self._const.ORDER_TYPE_SELL,
+            self._const.ORDER_TYPE_SELL_LIMIT,
+            self._const.ORDER_TYPE_SELL_STOP,
+            self._const.ORDER_TYPE_SELL_STOP_LIMIT,
         }
 
         self.ORDER_TYPES_MAP = {
-            self.mt5_instance.ORDER_TYPE_BUY: "Market Buy order",
-            self.mt5_instance.ORDER_TYPE_SELL: "Market Sell order",
-            self.mt5_instance.ORDER_TYPE_BUY_LIMIT: "Buy Limit pending order",
-            self.mt5_instance.ORDER_TYPE_SELL_LIMIT: "Sell Limit pending order",
-            self.mt5_instance.ORDER_TYPE_BUY_STOP: "Buy Stop pending order",
-            self.mt5_instance.ORDER_TYPE_SELL_STOP: "Sell Stop pending order",
-            self.mt5_instance.ORDER_TYPE_BUY_STOP_LIMIT: "Buy Stop Limit pending order",
-            self.mt5_instance.ORDER_TYPE_SELL_STOP_LIMIT: "Sell Stop Limit pending order",
-            self.mt5_instance.ORDER_TYPE_CLOSE_BY: "Order to close a position by an opposite one",
+            self._const.ORDER_TYPE_BUY: "Market Buy order",
+            self._const.ORDER_TYPE_SELL: "Market Sell order",
+            self._const.ORDER_TYPE_BUY_LIMIT: "Buy Limit pending order",
+            self._const.ORDER_TYPE_SELL_LIMIT: "Sell Limit pending order",
+            self._const.ORDER_TYPE_BUY_STOP: "Buy Stop pending order",
+            self._const.ORDER_TYPE_SELL_STOP: "Sell Stop pending order",
+            self._const.ORDER_TYPE_BUY_STOP_LIMIT: "Buy Stop Limit pending order",
+            self._const.ORDER_TYPE_SELL_STOP_LIMIT: "Sell Stop Limit pending order",
+            self._const.ORDER_TYPE_CLOSE_BY: "Order to close a position by an opposite one",
         }
 
         logger.info("TradeValidator initialized")
@@ -131,6 +139,7 @@ class TradeValidator:
             "order_type": lambda v, **kw: self._validate_order_type(v),
             "magic": lambda v, **kw: self._validate_magic(v),
             "deviation": lambda v, **kw: self._validate_deviation(v),
+            "expiration_mode": lambda v, **kw: self._validate_expiration_mode(v),
             "expiration": lambda v, **kw: self._validate_expiration(v),
             "timeframe": lambda v, **kw: self._validate_timeframe(v),
             "date_range": lambda v, **kw: self._validate_date_range(
@@ -203,12 +212,14 @@ class TradeValidator:
                 return False, "Symbol must be a non-empty string"
 
             # Check if symbol exists
-            symbol_info = mt5.symbol_info(symbol)
+            symbol_info = self.mt5_instance.symbol_info(symbol)
             if symbol_info is None:
                 return False, f"Symbol '{symbol}' not found"
 
             # Check if symbol is visible
-            if not symbol_info.visible and not mt5.symbol_select(symbol, True):
+            if not symbol_info.visible and not self.mt5_instance.symbol_select(
+                symbol, True
+            ):
                 return False, f"Symbol '{symbol}' cannot be selected"
 
             return True, "Symbol is valid"
@@ -275,8 +286,11 @@ class TradeValidator:
             Tuple of (is_valid, error_message)
         """
         if symbol_info.volume_step > 0:
-            remainder = (volume - symbol_info.volume_min) % symbol_info.volume_step
-            if remainder > 0.0001:  # Small tolerance for floating point
+            step = float(symbol_info.volume_step)
+            vol_min = float(symbol_info.volume_min)
+            steps = round((volume - vol_min) / step)
+            aligned = vol_min + (steps * step)
+            if abs(volume - aligned) > 1e-8:
                 return (
                     False,
                     f"Volume {volume} not aligned with step {symbol_info.volume_step}",
@@ -303,7 +317,7 @@ class TradeValidator:
 
             # If symbol provided, check symbol-specific limits
             if symbol:
-                symbol_info = mt5.symbol_info(symbol)
+                symbol_info = self.mt5_instance.symbol_info(symbol)
                 if symbol_info is None:
                     return False, f"Cannot get info for symbol '{symbol}'"
 
@@ -347,7 +361,7 @@ class TradeValidator:
 
             # Symbol-specific validation
             if symbol:
-                symbol_info = mt5.symbol_info(symbol)
+                symbol_info = self.mt5_instance.symbol_info(symbol)
                 if symbol_info is None:
                     return False, f"Cannot get info for symbol '{symbol}'"
 
@@ -406,14 +420,14 @@ class TradeValidator:
             Tuple of (is_valid, error_message)
         """
         buy_orders = [
-            mt5.ORDER_TYPE_BUY,
-            mt5.ORDER_TYPE_BUY_LIMIT,
-            mt5.ORDER_TYPE_BUY_STOP,
+            self._const.ORDER_TYPE_BUY,
+            self._const.ORDER_TYPE_BUY_LIMIT,
+            self._const.ORDER_TYPE_BUY_STOP,
         ]
         sell_orders = [
-            mt5.ORDER_TYPE_SELL,
-            mt5.ORDER_TYPE_SELL_LIMIT,
-            mt5.ORDER_TYPE_SELL_STOP,
+            self._const.ORDER_TYPE_SELL,
+            self._const.ORDER_TYPE_SELL_LIMIT,
+            self._const.ORDER_TYPE_SELL_STOP,
         ]
 
         if order_type in buy_orders:
@@ -448,7 +462,7 @@ class TradeValidator:
         Returns:
             Tuple of (is_valid, error_message)
         """
-        symbol_info = mt5.symbol_info(symbol)
+        symbol_info = self.mt5_instance.symbol_info(symbol)
         if symbol_info and symbol_info.trade_stops_level > 0:
             min_distance = symbol_info.trade_stops_level * symbol_info.point
             actual_distance = abs(entry_price - level_price)
@@ -681,6 +695,30 @@ class TradeValidator:
 
         except Exception as e:
             return False, f"Expiration validation error: {e}"
+
+    def _validate_expiration_mode(self, expiration_mode: str) -> Tuple[bool, str]:
+        """
+        Validate expiration mode.
+
+        Args:
+            expiration_mode: Expiration mode string
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        try:
+            valid_modes = {"gtc", "daily", "daily_excluding_stops"}
+
+            if not isinstance(expiration_mode, str):
+                return False, "Expiration mode must be a string"
+
+            if expiration_mode not in valid_modes:
+                return False, f"Invalid expiration mode: {expiration_mode}"
+
+            return True, "Expiration mode is valid"
+
+        except Exception as e:
+            return False, f"Expiration mode validation error: {e}"
 
     def _validate_timeframe(self, timeframe: Union[str, int]) -> Tuple[bool, str]:
         """
@@ -978,7 +1016,7 @@ class TradeValidator:
                 return False, "Margin cannot be negative"
 
             # Check account margin
-            account_info = mt5.account_info()
+            account_info = self.mt5_instance.account_info()
             if account_info is None:
                 return False, "Cannot get account information"
 
@@ -1047,7 +1085,7 @@ class TradeValidator:
         point: float,
         freeze_level: int,
     ) -> Optional[Tuple[bool, str]]:
-        if order_type == mt5.ORDER_TYPE_BUY_LIMIT:
+        if order_type == self._const.ORDER_TYPE_BUY_LIMIT:
             return self._freeze_check(
                 ask - entry,
                 freeze_distance,
@@ -1055,7 +1093,7 @@ class TradeValidator:
                 point,
                 freeze_level,
             )
-        if order_type == mt5.ORDER_TYPE_SELL_LIMIT:
+        if order_type == self._const.ORDER_TYPE_SELL_LIMIT:
             return self._freeze_check(
                 entry - bid,
                 freeze_distance,
@@ -1063,7 +1101,7 @@ class TradeValidator:
                 point,
                 freeze_level,
             )
-        if order_type == mt5.ORDER_TYPE_BUY_STOP:
+        if order_type == self._const.ORDER_TYPE_BUY_STOP:
             return self._freeze_check(
                 entry - ask,
                 freeze_distance,
@@ -1071,7 +1109,7 @@ class TradeValidator:
                 point,
                 freeze_level,
             )
-        if order_type == mt5.ORDER_TYPE_SELL_STOP:
+        if order_type == self._const.ORDER_TYPE_SELL_STOP:
             return self._freeze_check(
                 bid - entry,
                 freeze_distance,
@@ -1092,7 +1130,7 @@ class TradeValidator:
         point: float,
         freeze_level: int,
     ) -> Optional[Tuple[bool, str]]:
-        if order_type == mt5.ORDER_TYPE_BUY:
+        if order_type == self._const.ORDER_TYPE_BUY:
             if stop_price <= 0:
                 return True, "No stop level to validate"
             if stop_price < entry:
@@ -1111,7 +1149,7 @@ class TradeValidator:
                 freeze_level,
             )
 
-        if order_type == mt5.ORDER_TYPE_SELL:
+        if order_type == self._const.ORDER_TYPE_SELL:
             if stop_price <= 0:
                 return True, "No stop level to validate"
             if stop_price > entry:
@@ -1143,8 +1181,8 @@ class TradeValidator:
             if symbol is None:
                 return False, "Symbol is required for freeze level validation"
 
-            symbol_info = mt5.symbol_info(symbol)
-            tick = mt5.symbol_info_tick(symbol)
+            symbol_info = self.mt5_instance.symbol_info(symbol)
+            tick = self.mt5_instance.symbol_info_tick(symbol)
             if symbol_info is None or tick is None:
                 return False, "Symbol info or tick data not available"
 
@@ -1195,7 +1233,7 @@ class TradeValidator:
                 return False, "open_orders must be a non-negative integer"
 
             if account_limit is None:
-                info = mt5.account_info()
+                info = self.mt5_instance.account_info()
                 if info is None:
                     return False, "Account info not available"
                 account_limit = getattr(info, "limit_orders", 0)
@@ -1222,7 +1260,7 @@ class TradeValidator:
             if volume_limit is None:
                 if symbol is None:
                     return False, "volume_limit or symbol is required"
-                info = mt5.symbol_info(symbol)
+                info = self.mt5_instance.symbol_info(symbol)
                 if info is None:
                     return False, f"Symbol '{symbol}' not found"
                 volume_limit = getattr(info, "volume_limit", 0.0)

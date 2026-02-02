@@ -190,6 +190,10 @@ class PositionInfo:
         """Get the amount of current profit by position."""
         return self._double_prop("POSITION_PROFIT", 0.0, "profit")
 
+    def MarginRequired(self) -> float:
+        """Get the margin required for the position."""
+        return self._double_prop("POSITION_MARGIN_REQUIRED", 0.0, "margin_required")
+
     # ---------------------------------------------------------------------
     # Position Selection and Access
     # ---------------------------------------------------------------------

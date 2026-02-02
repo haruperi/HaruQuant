@@ -9,43 +9,6 @@ class TradeErrorDescriptions:
     """Helper class for MT5 error descriptions."""
 
     @staticmethod
-    def trade_server_return_code_description(return_code: int) -> str:
-        """Return the description of a trade server return code."""
-        descriptions = {
-            mt5.TRADE_RETCODE_REQUOTE: "Requote",
-            mt5.TRADE_RETCODE_REJECT: "Request rejected",
-            mt5.TRADE_RETCODE_CANCEL: "Request canceled by trader",
-            mt5.TRADE_RETCODE_PLACED: "Order placed",
-            mt5.TRADE_RETCODE_DONE: "Request completed",
-            mt5.TRADE_RETCODE_DONE_PARTIAL: "Only part of the request was completed",
-            mt5.TRADE_RETCODE_ERROR: "Request processing error",
-            mt5.TRADE_RETCODE_TIMEOUT: "Request canceled by timeout",
-            mt5.TRADE_RETCODE_INVALID: "Invalid request",
-            mt5.TRADE_RETCODE_INVALID_VOLUME: "Invalid volume in the request",
-            mt5.TRADE_RETCODE_INVALID_PRICE: "Invalid price in the request",
-            mt5.TRADE_RETCODE_INVALID_STOPS: "Invalid stops in the request",
-            mt5.TRADE_RETCODE_TRADE_DISABLED: "Trade is disabled",
-            mt5.TRADE_RETCODE_MARKET_CLOSED: "Market is closed",
-            mt5.TRADE_RETCODE_NO_MONEY: "There is not enough money to complete the request",
-            mt5.TRADE_RETCODE_PRICE_CHANGED: "Prices changed",
-            mt5.TRADE_RETCODE_PRICE_OFF: "There are no quotes to process the request",
-            mt5.TRADE_RETCODE_INVALID_EXPIRATION: "Invalid order expiration date in the request",
-            mt5.TRADE_RETCODE_ORDER_CHANGED: "Order state changed",
-            mt5.TRADE_RETCODE_TOO_MANY_REQUESTS: "Too frequent requests",
-            mt5.TRADE_RETCODE_NO_CHANGES: "No changes in request",
-            mt5.TRADE_RETCODE_SERVER_DISABLES_AT: "Autotrading disabled by server",
-            mt5.TRADE_RETCODE_CLIENT_DISABLES_AT: "Autotrading disabled by client terminal",
-            mt5.TRADE_RETCODE_LOCKED: "Request locked for processing",
-            mt5.TRADE_RETCODE_FROZEN: "Order or position frozen",
-            mt5.TRADE_RETCODE_INVALID_FILL: "Invalid order filling type",
-            mt5.TRADE_RETCODE_CONNECTION: "No connection with the trade server",
-            mt5.TRADE_RETCODE_ONLY_REAL: "Operation is allowed only for live accounts",
-            mt5.TRADE_RETCODE_LIMIT_ORDERS: "The number of pending orders has reached the limit",
-            mt5.TRADE_RETCODE_LIMIT_VOLUME: "The volume of orders and positions for the symbol has reached the limit",
-        }
-        return descriptions.get(return_code, "Invalid return code of the trade server")
-
-    @staticmethod
     def error_description(err_code: int) -> str:
         """Return the description of a runtime error code."""
         descriptions = {
@@ -192,6 +155,38 @@ class TradeErrorDescriptions:
             5611: "Invalid size of the OpenCL buffer",
             5612: "Invalid offset in the OpenCL buffer",
             5613: "Failed to create and OpenCL buffer",
+            10004: "Requote",
+            10006: "Request rejected",
+            10007: "Request canceled by trader",
+            10008: "Order placed",
+            10009: "Request completed",
+            10010: "Only part of the request was completed",
+            10011: "Request processing error",
+            10012: "Request canceled by timeout",
+            10013: "Invalid request",
+            10014: "Invalid volume",
+            10015: "Invalid price",
+            10016: "Invalid stops",
+            10017: "Trade is disabled",
+            10018: "Market is closed",
+            10019: "There is not enough money to complete the request",
+            10020: "Prices changed",
+            10021: "There are no quotes to process the request",
+            10022: "Invalid expiration",
+            10023: "Order state changed",
+            10024: "Too frequent requests",
+            10025: "No changes in request",
+            10026: "Autotrading disabled by server",
+            10027: "Autotrading disabled by client",
+            10028: "Request locked for processing",
+            10029: "Order or position frozen",
+            10030: "Invalid order filling type",
+            10031: "No connection with the trade server",
+            10032: "Only long positions allowed",
+            10033: "Only short positions allowed",
+            10034: "Only closing positions allowed",
+            10035: "Position closed",
+            10036: "Invalid close volume",
         }
 
         if err_code >= 65536:
