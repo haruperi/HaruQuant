@@ -144,7 +144,7 @@ def whites_reality_check(
     if metric_func is None:
         # Default to Sharpe ratio
         def metric_func(result: "BacktestResult") -> float:
-            return result.sharpe_ratio
+            return float(result.sharpe_ratio or 0.0)
 
     if seed is not None:
         np.random.seed(seed)

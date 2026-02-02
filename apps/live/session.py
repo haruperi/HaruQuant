@@ -21,7 +21,7 @@ class ExecutionEngineWrapper:
         """Initialize wrapper with engine instance."""
         self.engine = engine
 
-    async def close_position(self, position: Dict, reason: str = "manual") -> bool:
+    async def close_position(self, position: Any, reason: str = "manual") -> bool:
         """Close a specific position."""
         engine = self.engine
         if not engine:
@@ -38,23 +38,25 @@ class ExecutionEngineWrapper:
         # Ideally, we should use run_in_executor if called from async context.
         try:
             loop = asyncio.get_running_loop()
-            ticket = position.get("mt5_ticket") or position.get("ticket")
+            ticket = getattr(position, "mt5_ticket", None) or getattr(
+                position, "ticket", None
+            )
             if not ticket:
                 logger.error(f"No ticket found in position: {position}")
                 return False
 
-            symbol = position.get("symbol")
+            symbol = getattr(position, "symbol", None)
             if symbol:
                 try:
                     filling_mode = engine._get_supported_filling_mode(symbol)
-                    trade.set_type_filling(filling_mode)
+                    trade.SetTypeFilling(int(filling_mode))
                 except Exception as exc:
                     logger.warning(f"Failed to set filling mode for {symbol}: {exc}")
 
             success = await loop.run_in_executor(
-                None, lambda: trade.position_close(ticket=ticket)
+                None, lambda: trade.PositionClose(ticket=ticket)
             )
-            return success
+            return bool(success)
         except Exception as e:
             logger.error(f"Error closing position {position}: {e}")
             return False

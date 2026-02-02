@@ -107,15 +107,17 @@ class MT5DataSource:
     def _init_client(self, user_id: int) -> Optional[MT5Client]:
         creds = db_manager.get_mt5_credentials(user_id)
         try:
+            client = MT5Client()
             if not creds:
-                client = MT5Client()
-            else:
-                client = MT5Client(
-                    login=int(creds.get("login") or 0),
-                    password=str(creds.get("password") or ""),
-                    server=str(creds.get("server") or ""),
-                    path=str(creds.get("path") or ""),
-                )
+                return None
+            ok = client.connect(
+                path=str(creds.get("path") or ""),
+                login=int(creds.get("login") or 0),
+                password=str(creds.get("password") or ""),
+                server=str(creds.get("server") or ""),
+            )
+            if not ok:
+                return None
             return client if client.is_connected() else None
         except Exception as exc:
             logger.error(f"Failed to initialize MT5 client: {exc}")
@@ -390,11 +392,12 @@ def _resolve_seasonality_symbol_info(
     resolved_pip_size: Optional[float] = None
 
     if isinstance(source, MT5DataSource) and source.client:
-        symbol_info = source.client.get_symbol_info(symbol)
+        symbol_info = source.client.symbol_info(symbol)
         if symbol_info:
-            symbol_digits = symbol_info.get("digits")
-            if symbol_info.get("point"):
-                resolved_point_size = float(symbol_info.get("point") or 0.0)
+            symbol_digits = getattr(symbol_info, "digits", None)
+            point_value = getattr(symbol_info, "point", None)
+            if point_value:
+                resolved_point_size = float(point_value or 0.0)
         if symbol_digits is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

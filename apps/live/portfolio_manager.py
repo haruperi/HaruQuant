@@ -9,7 +9,8 @@ from typing import Dict, List, Tuple
 
 from apps.logger import logger
 from apps.mt5.client import MT5Client
-from apps.trading import AccountInfo, OrderType
+from apps.trade import AccountInfo
+from apps.utils.validate import OrderType
 
 
 class PortfolioManager:
@@ -66,7 +67,7 @@ class PortfolioManager:
         """Refresh all positions from MT5."""
         try:
             # Get all positions
-            positions = self.client.get_positions()
+            positions = self.client.positions_get()
 
             if positions is None:
                 positions = []
@@ -76,14 +77,14 @@ class PortfolioManager:
             # Group by symbol
             self._positions_by_symbol.clear()
             for pos in positions:
-                symbol = pos.get("symbol")
+                symbol = getattr(pos, "symbol", None)
                 if symbol:
                     self._positions_by_symbol[symbol].append(pos)
 
             # Count by currency
             self._positions_by_currency.clear()
             for pos in positions:
-                symbol = pos.get("symbol")
+                symbol = getattr(pos, "symbol", None)
                 if symbol and len(symbol) >= 6:
                     # Extract base and quote currency (e.g., EURUSD -> EUR, USD)
                     base = symbol[:3]
@@ -165,8 +166,8 @@ class PortfolioManager:
         """
         try:
             # Calculate current portfolio exposure
-            balance = self.account.balance()
-            total_margin = self.account.margin()
+            balance = self.account.Balance()
+            total_margin = self.account.Margin()
 
             if balance <= 0:
                 return False, "Invalid account balance"
@@ -239,7 +240,7 @@ class PortfolioManager:
 
         # Check for opposing direction
         for pos in existing_positions:
-            pos_type = pos.get("type")
+            pos_type = getattr(pos, "type", None)
 
             if signal_type == "buy" and pos_type == OrderType.SELL.value:
                 reason = f"Warning: Opening BUY with existing SELL position on {symbol}"
@@ -258,23 +259,23 @@ class PortfolioManager:
             Dictionary with portfolio stats
         """
         try:
-            balance = self.account.balance()
-            equity = self.account.equity()
-            margin = self.account.margin()
-            free_margin = self.account.free_margin()
-            margin_level = self.account.margin_level()
-            profit = self.account.profit()
+            balance = self.account.Balance()
+            equity = self.account.Equity()
+            margin = self.account.Margin()
+            free_margin = self.account.FreeMargin()
+            margin_level = self.account.MarginLevel()
+            profit = self.account.Profit()
 
             # Count positions by direction
             buy_positions = sum(
                 1
                 for pos in self._all_positions
-                if pos.get("type") == OrderType.BUY.value
+                if getattr(pos, "type", None) == OrderType.BUY.value
             )
             sell_positions = sum(
                 1
                 for pos in self._all_positions
-                if pos.get("type") == OrderType.SELL.value
+                if getattr(pos, "type", None) == OrderType.SELL.value
             )
 
             # Top symbols by position count
@@ -315,20 +316,20 @@ class PortfolioManager:
         """
         positions = self._positions_by_symbol.get(symbol, [])
 
-        total_volume = sum(pos.get("volume", 0) for pos in positions)
+        total_volume = sum(getattr(pos, "volume", 0) for pos in positions)
         buy_volume = sum(
-            pos.get("volume", 0)
+            getattr(pos, "volume", 0)
             for pos in positions
-            if pos.get("type") == OrderType.BUY.value
+            if getattr(pos, "type", None) == OrderType.BUY.value
         )
         sell_volume = sum(
-            pos.get("volume", 0)
+            getattr(pos, "volume", 0)
             for pos in positions
-            if pos.get("type") == OrderType.SELL.value
+            if getattr(pos, "type", None) == OrderType.SELL.value
         )
         net_volume = buy_volume - sell_volume
 
-        total_profit = sum(pos.get("profit", 0) for pos in positions)
+        total_profit = sum(getattr(pos, "profit", 0) for pos in positions)
 
         return {
             "symbol": symbol,

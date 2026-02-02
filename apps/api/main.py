@@ -11,10 +11,9 @@ from .routes import (
     backtest,
     docs,
     edge,
-    import_trades,
     live,
-    optimization,
     settings,
+    simulator,
     sqx,
     strategies,
 )
@@ -67,8 +66,8 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
-app.include_router(import_trades.router, prefix="/api/import", tags=["import"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
+app.include_router(live.router, prefix="/api/live", tags=["live"])
 
 # Dashboard Routes
 app.include_router(dashboard_broker.router, prefix="/api/dashboard", tags=["dashboard"])
@@ -78,12 +77,8 @@ app.include_router(
 )
 
 app.include_router(trades.router, prefix="/api/reports/trades", tags=["trades"])
-app.include_router(live.router, prefix="/api/live", tags=["live"])
 app.include_router(data_ingestion.router, prefix="/api/data", tags=["data-management"])
 app.include_router(data_datasets.router, prefix="/api/data", tags=["data-management"])
-app.include_router(
-    optimization.router, prefix="/api/optimization", tags=["optimization"]
-)
 app.include_router(docs.router, prefix="/api/docs", tags=["docs"])
 app.include_router(edge.router, prefix="/api/edge-lab", tags=["edge-lab"])
 app.include_router(strategy_performance.router, prefix="/api/reports", tags=["reports"])
@@ -117,12 +112,14 @@ async def startup_event():
     logger.info("Starting HaruQuant API server")
 
     # Initialize database
+    from apps.scheduler import start_scheduler
     from apps.sqlite.database_operations import DatabaseManager
 
     try:
         db = DatabaseManager()
         db.initialize_database()
         logger.info("Database initialized successfully on startup.")
+        start_scheduler()
     except Exception as e:
         logger.error(f"Failed to initialize database on startup: {e}")
 
@@ -131,9 +128,15 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Shutting down HaruQuant API server")
+    from apps.scheduler import shutdown_scheduler
+
+    shutdown_scheduler()
 
 
 @app.get("/api/health")
 async def health_check():
     """Return health check status."""
     return {"status": "healthy", "service": "haruquant-api"}
+
+
+app.include_router(simulator.router, prefix="/api/simulator", tags=["simulator"])

@@ -171,7 +171,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
 
             # 6. Initialize equity curve for regime detection
             if self.account:
-                self.equity_curve = [float(self.account.equity())]
+                self.equity_curve = [float(self.account.Equity())]
                 logger.info(f"Initial equity: ${self.equity_curve[0]:,.2f}")
 
             logger.info("=" * 80)
@@ -243,7 +243,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
                 return
 
             # Update equity curve
-            current_equity = float(self.account.equity())
+            current_equity = float(self.account.Equity())
             self.equity_curve.append(current_equity)
 
             # Keep only last 200 points for regime detection
@@ -410,13 +410,13 @@ class RiskIntegratedEngine(MultiStrategyEngine):
 
                 # Get account balance
                 account_balance = (
-                    float(self.account.equity()) if self.account else 10000.0
+                    float(self.account.Equity()) if self.account else 10000.0
                 )
 
                 # Get symbol info
                 symbol_info = None
                 if self.client:
-                    symbol_info = self.client.get_symbol_info(instance.symbol)
+                    symbol_info = self.client.symbol_info(instance.symbol)
 
                 # Calculate size
                 if self.position_sizer:
@@ -526,9 +526,9 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             if not symbol_info:
                 return volume
 
-            min_vol = float(symbol_info.lots_min())
-            max_vol = float(symbol_info.lots_max())
-            step_vol = float(symbol_info.lots_step())
+            min_vol = float(getattr(symbol_info, "volume_min", 0.0) or 0.0)
+            max_vol = float(getattr(symbol_info, "volume_max", 0.0) or 0.0)
+            step_vol = float(getattr(symbol_info, "volume_step", 0.0) or 0.0)
 
             if step_vol > 0:
                 steps = round((volume - min_vol) / step_vol)

@@ -4,51 +4,43 @@
   "state": {
     "enabled": true,
     "paused": false,
-    "last_run": "2026-01-19T10:01:55.627466",
-    "trade_count_today": 2,
-    "last_reset_date": "2026-01-19"
+    "last_run": "2026-02-02T09:21:14.551022",
+    "trade_count_today": 0,
+    "last_reset_date": "2026-02-02"
   },
   "portfolio": {
-    "total_positions": 1,
+    "total_positions": 0,
     "buy_positions": 0,
     "sell_positions": 0,
-    "balance": 53633.99,
-    "equity": 53637.86,
-    "margin": 2.9,
-    "free_margin": 53634.96,
-    "margin_level": 1849581.379310345,
-    "profit": 3.87,
-    "top_symbols": [
-      [
-        "EURUSD",
-        1
-      ]
-    ],
-    "currency_exposure": {
-      "EUR": 1,
-      "USD": 1
-    }
+    "balance": 59098.63,
+    "equity": 59255.73,
+    "margin": 113.75,
+    "free_margin": 59141.98,
+    "margin_level": 52092.94945054945,
+    "profit": 157.1,
+    "top_symbols": [],
+    "currency_exposure": {}
   },
   "strategies": [
     {
       "name": "EURUSD_Mean Reversion_M1",
       "symbol": "EURUSD",
       "timeframe": "M1",
-      "signals_detected": 571,
-      "trades_executed": 1,
+      "signals_detected": 5,
+      "trades_executed": 0,
       "trades_failed": 0,
-      "last_signal_time": "2026-01-19T10:00:00.885200",
-      "last_trade_time": "2026-01-19T00:01:43.113703"
+      "last_signal_time": "2026-02-02T09:21:01.264946",
+      "last_trade_time": null
     },
     {
       "name": "XAUUSD_Trend Following_M1",
       "symbol": "XAUUSD",
       "timeframe": "M1",
-      "signals_detected": 540,
-      "trades_executed": 1,
+      "signals_detected": 5,
+      "trades_executed": 0,
       "trades_failed": 0,
-      "last_signal_time": "2026-01-19T10:01:01.653681",
-      "last_trade_time": "2026-01-19T01:01:00.949662"
+      "last_signal_time": "2026-02-02T09:21:01.884764",
+      "last_trade_time": null
     }
   ]
 }

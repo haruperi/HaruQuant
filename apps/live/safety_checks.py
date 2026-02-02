@@ -8,7 +8,7 @@ from typing import Tuple
 
 from apps.logger import logger
 from apps.mt5.client import MT5Client
-from apps.trading import AccountInfo, SymbolInfo
+from apps.trade import AccountInfo, SymbolInfo
 
 
 class SafetyChecker:
@@ -118,26 +118,26 @@ class SafetyChecker:
         """
         try:
             # Check if trading is allowed
-            if not self.account.trade_allowed():
+            if not self.account.TradeAllowed():
                 reason = "Trading not allowed on this account"
                 logger.error(reason)
                 return False, reason
 
             # Check if expert trading is allowed
-            if not self.account.trade_expert():
+            if not self.account.TradeExpert():
                 reason = "Expert/automated trading not allowed"
                 logger.error(reason)
                 return False, reason
 
             # Check balance
-            balance = self.account.balance()
+            balance = self.account.Balance()
             if balance < self.min_balance:
                 reason = f"Balance too low: {balance} < {self.min_balance}"
                 logger.error(reason)
                 return False, reason
 
             # Check margin level
-            margin_level = self.account.margin_level()
+            margin_level = self.account.MarginLevel()
             if margin_level > 0 and margin_level < self.min_margin_level:
                 reason = f"Margin level too low: {margin_level:.2f}% < {self.min_margin_level}%"
                 logger.error(reason)
@@ -161,17 +161,9 @@ class SafetyChecker:
         """
         try:
             # Check if symbol trading is enabled
-            trade_mode = self.symbol_info.trade_mode()
-            if hasattr(trade_mode, "value"):
-                trade_mode_value = trade_mode.value
-            else:
-                trade_mode_value = str(trade_mode)
-
+            trade_mode_value = str(self.symbol_info.TradeModeDescription())
             if "disabled" in trade_mode_value.lower():
-                if hasattr(self.symbol_info, "name"):
-                    symbol_name = str(self.symbol_info.name)
-                else:
-                    symbol_name = str(self.symbol_info)
+                symbol_name = str(self.symbol_info.Name())
                 reason = f"Trading disabled for {symbol_name}"
                 logger.error(reason)
                 return False, reason
@@ -198,9 +190,9 @@ class SafetyChecker:
             Tuple of (passed: bool, reason: str)
         """
         try:
-            min_vol = self.symbol_info.lots_min()
-            max_vol = self.symbol_info.lots_max()
-            step_vol = self.symbol_info.lots_step()
+            min_vol = self.symbol_info.LotsMin()
+            max_vol = self.symbol_info.LotsMax()
+            step_vol = self.symbol_info.LotsStep()
 
             # Check minimum
             if volume < min_vol:

@@ -47,8 +47,7 @@ def get_user_id_from_token(authorization: str) -> int:
     return user_id
 
 
-@router.get("/", response_model=UserSettingsResponse)
-async def get_settings(authorization: str = AUTH_HEADER):
+async def _get_settings(authorization: str = AUTH_HEADER):
     """
     Get user settings.
 
@@ -78,6 +77,18 @@ async def get_settings(authorization: str = AUTH_HEADER):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while retrieving settings",
         )
+
+
+@router.get("/", response_model=UserSettingsResponse)
+async def get_settings(authorization: str = AUTH_HEADER):
+    """Get settings (slash route)."""
+    return await _get_settings(authorization)
+
+
+@router.get("", response_model=UserSettingsResponse)
+async def get_settings_no_slash(authorization: str = AUTH_HEADER):
+    """Get settings (no-slash route)."""
+    return await _get_settings(authorization)
 
 
 @router.put("/", response_model=UserSettingsResponse)

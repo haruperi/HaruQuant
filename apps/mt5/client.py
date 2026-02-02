@@ -341,7 +341,7 @@ class MT5Client:
         is_our_state_connected = self.connection_state == ConnectionState.CONNECTED
 
         connection_state = is_mt5_connected and is_our_state_connected
-        logger.info(f"Connection state: {connection_state}")
+        logger.info(f"MT5 Connected: {connection_state}")
 
         return connection_state
 
@@ -481,7 +481,9 @@ class MT5Client:
             df.set_index("timestamp", inplace=True)
 
             if df is not None and not df.empty:
-                logger.info(f"Data for {symbol} {timeframe} fetched successfully")
+                logger.info(
+                    f"Data for {symbol} {timeframe} from {df.index[0]} to {df.index[-1]} fetched successfully"
+                )
             else:
                 logger.warning(f"No data for {symbol} {timeframe}")
 
@@ -559,6 +561,9 @@ class MT5Client:
                 )
 
                 df.set_index("timestamp", inplace=True)
+                logger.info(
+                    f"Data for {symbol} ticks from {df.index[0]} to {df.index[-1]} fetched successfully"
+                )
                 return df
             else:
                 # Convert numpy records to dicts

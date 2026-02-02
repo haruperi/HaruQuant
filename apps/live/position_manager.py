@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from apps.logger import logger
 from apps.mt5.client import MT5Client
-from apps.trading import MT5TradeProvider, Trade
+from apps.trade import Trade
 
 
 class PositionManager:
@@ -25,10 +25,9 @@ class PositionManager:
         self.magic_number = magic_number
         self._positions: List[Dict] = []
 
-        # Initialize Trade provider and instance
-        self.trade_provider = MT5TradeProvider(self.client)
-        self.trade = Trade(self.trade_provider)
-        self.trade.set_expert_magic_number(magic_number)
+        # Initialize Trade instance
+        self.trade = Trade()
+        self.trade.SetExpertMagicNumber(magic_number)
 
         logger.info(f"PositionManager initialized with magic number {magic_number}")
 
@@ -36,7 +35,7 @@ class PositionManager:
         """Query MT5 for all positions with our magic number."""
         try:
             # Get all positions from MT5
-            all_positions = self.client.get_positions()
+            all_positions = self.client.positions_get()
 
             if all_positions is None:
                 logger.warning("Failed to fetch positions from MT5")
@@ -45,7 +44,9 @@ class PositionManager:
 
             # Filter by magic number
             self._positions = [
-                pos for pos in all_positions if pos.get("magic") == self.magic_number
+                pos
+                for pos in all_positions
+                if getattr(pos, "magic", None) == self.magic_number
             ]
 
             logger.debug(
@@ -79,7 +80,9 @@ class PositionManager:
 
         mt5_type = 0 if position_type.lower() == "buy" else 1
 
-        positions = [pos for pos in self._positions if pos.get("type") == mt5_type]
+        positions = [
+            pos for pos in self._positions if getattr(pos, "type", None) == mt5_type
+        ]
 
         return positions
 
@@ -121,7 +124,7 @@ class PositionManager:
 
         tickets = []
         for pos in positions:
-            ticket = pos.get("ticket")
+            ticket = getattr(pos, "ticket", None)
             if ticket is not None:
                 tickets.append(int(ticket))
 
@@ -145,12 +148,14 @@ class PositionManager:
 
         # We need the symbol to close the position using Trade.position_close
         # Find the position in our cache to get the symbol
-        pos = next((p for p in self._positions if p.get("ticket") == ticket), None)
+        pos = next(
+            (p for p in self._positions if getattr(p, "ticket", None) == ticket), None
+        )
 
         if not pos:
             # Try to fetch fresh if not found in cache
             try:
-                fresh_pos = self.client.get_positions(ticket=ticket)
+                fresh_pos = self.client.positions_get(ticket=ticket)
                 if fresh_pos:
                     pos = fresh_pos[0]
             except Exception as e:
@@ -160,7 +165,7 @@ class PositionManager:
             logger.error(f"Position #{ticket} not found, cannot close")
             return False
 
-        symbol = pos.get("symbol")
+        symbol = getattr(pos, "symbol", None)
         if not symbol:
             logger.error(f"Position #{ticket} has no symbol, cannot close")
             return False
@@ -176,12 +181,12 @@ class PositionManager:
         # Let's use position_close if available, or construct TradeRequest manually if needed.
         # Assuming standard Trade class:
 
-        if self.trade.position_close(symbol=symbol, ticket=ticket):
+        if self.trade.PositionClose(symbol=symbol, ticket=ticket):
             logger.info(f"Closed position #{ticket} ({symbol})")
             return True
         else:
             logger.error(
-                f"Failed to close position #{ticket}: {self.trade.result_retcode_description()}"
+                f"Failed to close position #{ticket}: {self.trade.ResultRetcodeDescription()}"
             )
             return False
 
@@ -203,7 +208,7 @@ class PositionManager:
 
         count = 0
         for pos in positions_to_close:
-            ticket = pos.get("ticket")
+            ticket = getattr(pos, "ticket", None)
             if ticket and self.close_position(ticket):
                 count += 1
 
@@ -220,7 +225,9 @@ class PositionManager:
         """
         self.refresh_positions()
 
-        positions_to_close = [p for p in self._positions if p.get("symbol") == symbol]
+        positions_to_close = [
+            p for p in self._positions if getattr(p, "symbol", None) == symbol
+        ]
 
         count = 0
         for pos in positions_to_close:

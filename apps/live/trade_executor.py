@@ -4,11 +4,12 @@ Executes trades based on strategy signals with retry logic and error handling.
 """
 
 import time
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, cast
 
 from apps.live.position_manager import PositionManager
 from apps.logger import logger
-from apps.trading import OrderTypeFilling, SymbolInfo, Trade, TradeRetcode
+from apps.mt5 import get_mt5_api
+from apps.trade import SymbolInfo, Trade
 
 
 class TradeExecutor:
@@ -21,7 +22,7 @@ class TradeExecutor:
         position_manager: PositionManager,
         symbol: str,
         volume: float,
-        filling_mode: Optional[OrderTypeFilling] = None,
+        filling_mode: Optional[int] = None,
         max_retries: int = 3,
     ):
         """Initialize trade executor.
@@ -45,7 +46,7 @@ class TradeExecutor:
 
         logger.info(
             f"TradeExecutor initialized (symbol={symbol}, volume={volume}, "
-            f"filling_mode={filling_mode.name if filling_mode else 'None'}, "
+            f"filling_mode={filling_mode if filling_mode is not None else 'None'}, "
             f"max_retries={max_retries})"
         )
 
@@ -95,14 +96,14 @@ class TradeExecutor:
         signal_type = signal.get("signal")
         signal_time = signal.get("time")
 
-        if self.filling_mode:
-            self.trade.set_type_filling(self.filling_mode)
+        if self.filling_mode is not None:
+            self.trade.SetTypeFilling(int(self.filling_mode))
 
         if signal_type == "buy":
-            price = self.symbol_info.ask()
+            price = self.symbol_info.Ask()
             order_type = "BUY"
         elif signal_type == "sell":
-            price = self.symbol_info.bid()
+            price = self.symbol_info.Bid()
             order_type = "SELL"
         else:
             return None
@@ -135,8 +136,8 @@ class TradeExecutor:
                 return self._handle_success(order_type)
 
             # Handle failure
-            retcode = self.trade.result_retcode()
-            retcode_desc = self.trade.result_retcode_description()
+            retcode = self.trade.ResultRetcode()
+            retcode_desc = self.trade.ResultRetcodeDescription()
 
             if self._is_transient_error(retcode) and attempt < self.max_retries:
                 logger.warning(
@@ -146,9 +147,9 @@ class TradeExecutor:
                 time.sleep(0.5)
                 # Refresh price
                 params["price"] = (
-                    self.symbol_info.ask()
+                    self.symbol_info.Ask()
                     if signal_type == "buy"
-                    else self.symbol_info.bid()
+                    else self.symbol_info.Bid()
                 )
                 continue
             else:
@@ -162,7 +163,18 @@ class TradeExecutor:
     def _send_order(self, signal_type: str, params: Dict) -> bool:
         """Send specific buy/sell order."""
         if signal_type == "buy":
-            return self.trade.buy(
+            return bool(
+                self.trade.Buy(
+                    volume=self.volume,
+                    symbol=self.symbol,
+                    price=params["price"],
+                    sl=params["sl"],
+                    tp=params["tp"],
+                    comment=params["comment"],
+                )
+            )
+        return bool(
+            self.trade.Sell(
                 volume=self.volume,
                 symbol=self.symbol,
                 price=params["price"],
@@ -170,44 +182,42 @@ class TradeExecutor:
                 tp=params["tp"],
                 comment=params["comment"],
             )
-        else:
-            return self.trade.sell(
-                volume=self.volume,
-                symbol=self.symbol,
-                price=params["price"],
-                sl=params["sl"],
-                tp=params["tp"],
-                comment=params["comment"],
-            )
+        )
 
     def _handle_success(self, order_type: str) -> Tuple[bool, str]:
         """Handle successful trade execution."""
         message = (
             f"{order_type} order executed successfully | "
-            f"Order: #{self.trade.result_order()} | "
-            f"Deal: #{self.trade.result_deal()} | "
-            f"Price: {self.trade.result_price():.5f} | "
-            f"Volume: {self.trade.result_volume()}"
+            f"Order: #{self.trade.ResultOrder()} | "
+            f"Deal: #{self.trade.ResultDeal()} | "
+            f"Price: {self.trade.ResultPrice():.5f} | "
+            f"Volume: {self.trade.ResultVolume()}"
         )
         logger.info(message, extra={"TRADE": True})
         return True, message
 
-    def _is_transient_error(self, retcode: Union[int, TradeRetcode]) -> bool:
+    def _is_transient_error(self, retcode: Union[int, object]) -> bool:
         """Check if error is transient and can be retried."""
+        mt5 = get_mt5_api()
         transient_codes = {
-            TradeRetcode.REQUOTE.value,
-            TradeRetcode.PRICE_CHANGED.value,
-            TradeRetcode.PRICE_OFF.value,
-            TradeRetcode.TIMEOUT.value,
+            getattr(mt5, "TRADE_RETCODE_REQUOTE", 10004),
+            getattr(mt5, "TRADE_RETCODE_PRICE_CHANGED", 10020),
+            getattr(mt5, "TRADE_RETCODE_PRICE_OFF", 10021),
+            getattr(mt5, "TRADE_RETCODE_TIMEOUT", 10012),
         }
-
-        # Handle both int and Enum input
-        value = retcode.value if isinstance(retcode, TradeRetcode) else retcode
-        return value in transient_codes
+        if hasattr(retcode, "value"):
+            try:
+                return int(retcode.value) in transient_codes
+            except (TypeError, ValueError):
+                return False
+        try:
+            return int(cast(int, retcode)) in transient_codes
+        except (TypeError, ValueError):
+            return False
 
     def _handle_failure(self, order_type: str, retcode_desc: str) -> Tuple[bool, str]:
         """Handle final trade failure."""
-        comment = self.trade.result_comment()
+        comment = self.trade.ResultComment()
         message = (
             f"{order_type} order failed | Retcode: {retcode_desc} | "
             f"Comment: {comment}"
@@ -227,8 +237,8 @@ class TradeExecutor:
         signal_type = signal.get("signal")
 
         try:
-            if self.filling_mode:
-                self.trade.set_type_filling(self.filling_mode)
+            if self.filling_mode is not None:
+                self.trade.SetTypeFilling(int(self.filling_mode))
 
             tickets = self.position_manager.get_positions_to_close(str(signal_type))
 
@@ -266,14 +276,14 @@ class TradeExecutor:
         failed_tickets = []
 
         for ticket in tickets:
-            if self.trade.position_close(ticket=ticket):
+            if self.trade.PositionClose(ticket=ticket):
                 success_count += 1
                 logger.info(
                     f"Position #{ticket} closed successfully", extra={"TRADE": True}
                 )
             else:
                 failed_tickets.append(ticket)
-                retcode_desc = self.trade.result_retcode_description()
+                retcode_desc = self.trade.ResultRetcodeDescription()
                 logger.error(
                     f"Failed to close position #{ticket}: {retcode_desc}",
                     extra={"TRADE": True},

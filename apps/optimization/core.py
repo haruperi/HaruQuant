@@ -126,9 +126,23 @@ async def run_optimization_task(  # noqa: C901
         if data_source in ["metatrader5", "mt5"]:
             try:
                 from apps.mt5.client import MT5Client
+                from apps.sqlite.users import UserManager
+
+                creds = UserManager().get_mt5_credentials(user_id) or {}
+                login = int(creds.get("login") or 0)
+                password = creds.get("password") or ""
+                server = creds.get("server") or ""
+                path = creds.get("path") or ""
+                if not (login and password and server):
+                    raise ValueError("Missing MT5 credentials")
 
                 client = MT5Client()
-                if not client.initialize():
+                if not client.connect(
+                    path=path,
+                    login=login,
+                    password=password,
+                    server=server,
+                ):
                     raise ValueError("Failed to initialize MT5")
 
                 data = client.get_bars(
@@ -491,9 +505,23 @@ async def run_walk_forward_task(  # noqa: C901
         if data_source in ["metatrader5", "mt5"]:
             try:
                 from apps.mt5.client import MT5Client
+                from apps.sqlite.users import UserManager
+
+                creds = UserManager().get_mt5_credentials(user_id) or {}
+                login = int(creds.get("login") or 0)
+                password = creds.get("password") or ""
+                server = creds.get("server") or ""
+                path = creds.get("path") or ""
+                if not (login and password and server):
+                    raise ValueError("Missing MT5 credentials")
 
                 client = MT5Client()
-                if not client.initialize():
+                if not client.connect(
+                    path=path,
+                    login=login,
+                    password=password,
+                    server=server,
+                ):
                     raise ValueError("Failed to initialize MT5")
 
                 data = client.get_bars(

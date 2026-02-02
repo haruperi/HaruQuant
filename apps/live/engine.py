@@ -19,20 +19,15 @@ from apps.live.signal_processor import SignalProcessor
 from apps.live.state_manager import StateManager
 from apps.live.trade_executor import TradeExecutor
 from apps.logger import logger
+from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.strategy import storage
-from apps.trading import (
-    AccountInfo,
-    MT5AccountProvider,
-    MT5SymbolProvider,
-    MT5TradeProvider,
-    OrderTypeFilling,
-    SymbolInfo,
-    Trade,
-)
+from apps.trade import AccountInfo, SymbolInfo, Trade
 from data.strategies.close_breakout import CloseBreakoutStrategy
 from data.strategies.mean_reversion import MeanReversionStrategy
 from data.strategies.trend_following import TrendFollowingStrategy
+
+mt5 = get_mt5_api()
 
 
 class StrategyInstance:
@@ -199,7 +194,7 @@ class MultiStrategyEngine:
 
         logger.info("Multi-strategy logging configured")
 
-    def _get_supported_filling_mode(self, symbol: str) -> OrderTypeFilling:
+    def _get_supported_filling_mode(self, symbol: str) -> int:
         """
         Determine the best filling mode for a symbol.
 
@@ -215,37 +210,37 @@ class MultiStrategyEngine:
         """
         try:
             if not self.client:
-                return OrderTypeFilling.FOK
-            symbol_info = self.client.get_symbol_info(symbol)
+                return int(mt5.ORDER_FILLING_FOK)
+            symbol_info = self.client.symbol_info(symbol)
             if not symbol_info:
                 logger.warning(
                     f"Could not get symbol info for {symbol}, defaulting to FOK"
                 )
-                return OrderTypeFilling.FOK
+                return int(mt5.ORDER_FILLING_FOK)
 
             # Check filling_mode flags (bitwise)
-            filling_mode = symbol_info.get("filling_mode", 0)
+            filling_mode = getattr(symbol_info, "filling_mode", 0) or 0
 
             # Bit flags: 1=RETURN, 2=IOC, 4=FOK
             # For metals/indices, try FOK first
             if filling_mode & 4:  # FOK supported
                 logger.info(f"{symbol} supports FOK filling mode")
-                return OrderTypeFilling.FOK
+                return int(mt5.ORDER_FILLING_FOK)
             elif filling_mode & 2:  # IOC supported
                 logger.info(f"{symbol} supports IOC filling mode")
-                return OrderTypeFilling.IOC
+                return int(mt5.ORDER_FILLING_IOC)
             elif filling_mode & 1:  # RETURN supported
                 logger.info(f"{symbol} supports RETURN filling mode")
-                return OrderTypeFilling.RETURN
+                return int(mt5.ORDER_FILLING_RETURN)
             else:
                 logger.warning(
                     f"No standard filling mode detected for {symbol}, defaulting to FOK"
                 )
-                return OrderTypeFilling.FOK
+                return int(mt5.ORDER_FILLING_FOK)
 
         except Exception as e:
             logger.error(f"Error detecting filling mode for {symbol}: {e}")
-            return OrderTypeFilling.FOK
+            return int(mt5.ORDER_FILLING_FOK)
 
     def initialize(self) -> bool:
         """Initialize all strategies and shared components.
@@ -260,14 +255,15 @@ class MultiStrategyEngine:
             if not self.client:
                 mt5_config = self.config["mt5"]
 
-                self.client = MT5Client(
+                self.client = MT5Client()
+                connected = self.client.connect(
+                    path=mt5_config.get("path", ""),
                     login=mt5_config["login"],
                     password=mt5_config["password"],
                     server=mt5_config["server"],
-                    path=mt5_config.get("path"),
                 )
 
-                if not self.client.is_connected():
+                if not connected:
                     logger.error("Failed to connect to MT5")
                     return False
 
@@ -277,16 +273,14 @@ class MultiStrategyEngine:
 
             # 2. Setup shared trading objects
             logger.info("Setting up shared trading objects...")
-            trade_provider = MT5TradeProvider(self.client)
-            self.trade = Trade(trade_provider)
+            self.trade = Trade()
             # Note: Filling mode will be set per-symbol in strategy initialization
 
-            account_provider = MT5AccountProvider(self.client)
-            self.account = AccountInfo(account_provider)
+            self.account = AccountInfo()
 
             logger.info(
-                f"Account: {self.account.balance()} {self.account.currency()}, "
-                f"Leverage: 1:{self.account.leverage()}"
+                f"Account: {self.account.Balance()} {self.account.Currency()}, "
+                f"Leverage: 1:{self.account.Leverage()}"
             )
 
             # 3. Initialize portfolio manager
@@ -419,14 +413,13 @@ class MultiStrategyEngine:
                 "magic_number", 100000 + len(self.strategies)
             )
             if self.trade:
-                self.trade.set_expert_magic_number(magic_number)
+                self.trade.SetExpertMagicNumber(magic_number)
 
             if not self.client:
                 raise RuntimeError("MT5 Client not initialized")
 
             # Create components
-            symbol_provider = MT5SymbolProvider(self.client, symbol)
-            symbol_info = SymbolInfo(symbol_provider)
+            symbol_info = SymbolInfo(symbol, api=self.client)
             bar_monitor = BarMonitor(self.client, symbol, timeframe)
 
             # Setup signal processor with historical data
@@ -569,7 +562,7 @@ class MultiStrategyEngine:
             raise RuntimeError("Trade object not initialized")
 
         filling_mode = self._get_supported_filling_mode(symbol)
-        logger.info(f"Detected filling mode for {symbol}: {filling_mode.name}")
+        logger.info(f"Detected filling mode for {symbol}: {filling_mode}")
 
         return TradeExecutor(
             self.trade,

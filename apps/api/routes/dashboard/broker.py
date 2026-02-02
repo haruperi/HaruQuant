@@ -10,12 +10,15 @@ from apps.api.models import BrokerStatusResponse
 from apps.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
+from apps.trade import AccountInfo
 
 router = APIRouter()
 db_manager = DatabaseManager()
 
 # Global client instance
 client = MT5Client()
+_last_login: Optional[int] = None
+_last_server: Optional[str] = None
 
 
 def _parse_credentials(credentials: Union[str, Dict[str, Any], None]) -> Dict[str, Any]:
@@ -39,6 +42,7 @@ def _parse_credentials(credentials: Union[str, Dict[str, Any], None]) -> Dict[st
 def _update_mt5_connection(user_id: int) -> None:
     """Update and reconnect MT5 client if user credentials differ."""
     global client
+    global _last_login, _last_server
     try:
         # Use the helper method which handles the nested accounts list logic correctly
         creds = db_manager.get_mt5_credentials(user_id) or {}
@@ -57,27 +61,23 @@ def _update_mt5_connection(user_id: int) -> None:
                 login_int = 0
 
             # Update Client if credentials changed or not connected
-            # We compare current client state with DB credentials
-            credentials_changed = (
-                client.account_login != login_int or client.account_server != server
-            )
+            credentials_changed = (_last_login != login_int) or (_last_server != server)
 
             if credentials_changed or not client.is_connected():
                 if credentials_changed:
                     logger.info(f"Updating MT5 client credentials for user {user_id}")
-                    # If connection details changed, simple re-init might work,
-                    # but explicit update is safer
-                    client.account_login = login_int
-                    client.account_password = password
-                    client.account_server = server
-                    if path:
-                        client.path = path
-
+                    _last_login = login_int
+                    _last_server = server
                     # Force re-initialization
                     client.shutdown()
 
                 logger.info("Connecting to MT5...")
-                client.initialize()
+                client.connect(
+                    path=path,
+                    login=login_int,
+                    password=password,
+                    server=server,
+                )
 
     except Exception as e:
         logger.error(f"Error fetching/applying user settings: {e}")
@@ -110,9 +110,15 @@ async def get_broker_status(authorization: Annotated[Optional[str], Header()] = 
 
     # 4. Return Status
     try:
-        if not client.is_connected() and client.account_login and client.account_server:
+        if not client.is_connected() and _last_login and _last_server:
             # Last ditch attempt to initialize if it was already configured but dropped
-            client.initialize()
+            creds = db_manager.get_mt5_credentials(user_id) or {}
+            client.connect(
+                path=creds.get("path", ""),
+                login=_last_login,
+                password=creds.get("password", ""),
+                server=_last_server,
+            )
 
         if not client.is_connected():
             return BrokerStatusResponse(
@@ -124,11 +130,11 @@ async def get_broker_status(authorization: Annotated[Optional[str], Header()] = 
                 free_margin=0.0,
             )
 
-        account_info = client.get_account_info()
-        if not account_info:
+        account = AccountInfo()
+        if account.Login() == 0:
             return BrokerStatusResponse(
                 status="Connected",
-                broker_name=client.account_server or "Unknown",
+                broker_name=_last_server or "Unknown",
                 equity=0.0,
                 balance=0.0,
                 margin_level=0.0,
@@ -137,11 +143,11 @@ async def get_broker_status(authorization: Annotated[Optional[str], Header()] = 
 
         return BrokerStatusResponse(
             status="Connected",
-            broker_name=client.account_server or "Unknown Broker",
-            equity=float(account_info.get("equity", 0.0)),
-            balance=float(account_info.get("balance", 0.0)),
-            margin_level=float(account_info.get("margin_level", 0.0)),
-            free_margin=float(account_info.get("margin_free", 0.0)),
+            broker_name=_last_server or "Unknown Broker",
+            equity=float(account.Equity()),
+            balance=float(account.Balance()),
+            margin_level=float(account.MarginLevel()),
+            free_margin=float(account.FreeMargin()),
         )
 
     except Exception as e:
