@@ -8,7 +8,6 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from apps.backtest.persistence import BacktestDatabase
 from apps.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy.storage import StrategyStorage
@@ -25,6 +24,10 @@ from .models import MonteCarloRequest, OptimizationRequest, WalkForwardRequest
 from .monte_carlo import monte_carlo_analysis
 from .scoring import calmar_score, profit_factor_score, sharpe_score, sortino_score
 from .walk_forward import walk_forward
+
+# from apps.backtest.persistence import BacktestDatabase
+
+BacktestDatabase = Any
 
 # Map objective names to scoring functions
 OBJECTIVE_FUNCTIONS = {

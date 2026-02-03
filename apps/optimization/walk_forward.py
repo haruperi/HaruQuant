@@ -8,14 +8,18 @@ from typing import Any, Callable, Dict, List, Optional, Type
 
 import numpy as np
 
-from apps.backtest.engine import VectorizedEngine
-from apps.backtest.result import BacktestResult
 from apps.logger import logger
-from apps.strategy import BaseStrategy
 
 from .methods.grid_search import grid_search
 from .result import OptimizationSummary
 from .scoring import sharpe_score
+
+# from apps.backtest.engine import VectorizedEngine
+# from apps.backtest.result import BacktestResult
+VectorizedEngine = Any
+BacktestResult = Any
+# from apps.strategy import BaseStrategy
+BaseStrategy = Any
 
 
 def walk_forward(  # noqa: C901

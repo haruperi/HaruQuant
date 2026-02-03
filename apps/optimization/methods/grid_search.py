@@ -11,13 +11,19 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Type, cast
 
-from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
-from apps.backtest.result import BacktestResult
 from apps.logger import logger
 from apps.strategy import BaseStrategy
 
 from ..result import OptimizationResult, OptimizationSummary
 from ..scoring import sharpe_score
+
+# from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
+# from apps.backtest.result import BacktestResult
+
+BaseEngine = Any
+EventDrivenEngine = Any
+VectorizedEngine = Any
+BacktestResult = Any
 
 
 def _load_strategy_from_path(path: str, class_name: str) -> Type[BaseStrategy]:

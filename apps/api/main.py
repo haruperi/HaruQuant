@@ -12,6 +12,7 @@ from .routes import (
     docs,
     edge,
     live,
+    optimization,
     settings,
     simulator,
     sqx,
@@ -68,6 +69,9 @@ app.include_router(strategies.router, prefix="/api/strategies", tags=["strategie
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
 app.include_router(live.router, prefix="/api/live", tags=["live"])
+app.include_router(
+    optimization.router, prefix="/api/optimization", tags=["optimization"]
+)
 
 # Dashboard Routes
 app.include_router(dashboard_broker.router, prefix="/api/dashboard", tags=["dashboard"])

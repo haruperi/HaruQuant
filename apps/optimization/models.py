@@ -60,10 +60,22 @@ class OptimizationRequest(BaseModel):
     crossover_rate: Optional[float] = Field(0.8, description="Crossover rate (genetic)")
 
     # Execution settings
-    n_jobs: int = Field(-1, description="Number of parallel jobs (-1 for all cores)")
+    n_jobs: int = Field(1, description="Number of parallel jobs")
     engine_type: Literal["event_driven", "vectorized"] = Field(
         "vectorized", description="Backtest engine type"
     )
+
+
+class PositionSizingRequest(BaseModel):
+    """Request for Position Sizing simulation."""
+
+    win_rate: float = Field(..., ge=0.0, le=1.0, description="Win rate (0.0 - 1.0)")
+    reward_risk_ratio: float = Field(..., gt=0.0, description="Reward to Risk Ratio")
+    risk_per_trade: float = Field(
+        ..., gt=0.0, le=1.0, description="Risk per trade (e.g. 0.01 for 1%)"
+    )
+    num_trades: int = Field(..., gt=0, description="Number of trades")
+    initial_balance: float = Field(10000.0, gt=0, description="Initial balance")
 
 
 class OptimizationResponse(BaseModel):
@@ -121,26 +133,29 @@ class OptimizationResultItem(BaseModel):
 class WalkForwardRequest(BaseModel):
     """Request to start walk-forward analysis."""
 
-    strategy_id: int = Field(..., description="Strategy ID to analyze")
+    strategy_id: int = Field(..., description="Strategy ID to optimize")
+    # method: Literal["grid", "random", "bayesian"] = Field("grid", description="Optimization method")
+    objective: Literal[
+        "sharpe", "sortino", "calmar", "profit_factor", "total_return"
+    ] = Field(..., description="Objective function to optimize")
+
+    # Data configuration
     symbol: str = Field(..., description="Trading symbol")
     timeframe: str = Field(..., description="Timeframe")
-    start_date: str = Field(..., description="Start date (YYYY-MM-DD)")
-    end_date: str = Field(..., description="End date (YYYY-MM-DD)")
-    data_source: str = Field("mt5", description="Data source (mt5 or dukascopy)")
+    start_date: str = Field(..., description="Start date")
+    end_date: str = Field(..., description="End date")
+    initial_capital: float = Field(10000.0, description="Initial capital")
+    data_source: str = Field("mt5", description="Data source")
 
-    # Walk-forward settings
+    # Sliding Window configuration
     train_period: int = Field(..., description="Training window size (bars)")
     test_period: int = Field(..., description="Testing window size (bars)")
 
     # Parameter space
     parameters: List[ParameterRange] = Field(..., description="Parameter ranges")
-    objective: Literal["sharpe", "sortino", "calmar", "profit_factor"] = Field(
-        "sharpe", description="Objective function"
-    )
 
     # Execution
     n_jobs: int = Field(-1, description="Number of parallel jobs")
-    initial_capital: float = Field(10000.0, description="Initial capital")
 
 
 class WalkForwardWindow(BaseModel):
@@ -159,7 +174,18 @@ class WalkForwardWindow(BaseModel):
     test_return: float
     test_sharpe: float
     test_drawdown: float
-    overfitting_ratio: Optional[float]
+
+
+class WalkForwardResponse(BaseModel):
+    """Response from Walk-Forward Optimization."""
+
+    task_id: int
+    windows: List[WalkForwardWindow]
+    overall_return: float
+    overall_sharpe: float
+    overall_drawdown: float
+    stability_score: float
+    status: str = "completed"
 
 
 class MonteCarloRequest(BaseModel):
@@ -171,6 +197,23 @@ class MonteCarloRequest(BaseModel):
     )
     num_simulations: int = Field(1000, description="Number of simulations")
     block_size: Optional[int] = Field(10, description="Block size for bootstrap")
+    random_seed: Optional[int] = None
+    initial_balance: float = 10000.0
+
+
+class ParametricMonteCarloRequest(BaseModel):
+    """Request to run parametric Monte Carlo simulation."""
+
+    win_rate: float = Field(
+        ..., ge=0.0, le=1.0, description="Win rate probability (0.0-1.0)"
+    )
+    reward_risk_ratio: float = Field(..., gt=0.0, description="Reward to Risk Ratio")
+    risk_per_trade: float = Field(
+        ..., gt=0.0, le=1.0, description="Risk per trade (0.01 = 1%)"
+    )
+    num_trades: int = Field(1000, gt=0, description="Number of trades per simulation")
+    num_simulations: int = Field(1000, gt=0, description="Number of simulations")
+    initial_balance: float = Field(10000.0, gt=0, description="Initial account balance")
     random_seed: Optional[int] = Field(
         None, description="Random seed for reproducibility"
     )
@@ -213,3 +256,173 @@ class MonteCarloResponse(BaseModel):
     original_max_dd: Optional[float] = None
 
     created_at: str
+
+
+class ConsecutiveLosingRequest(BaseModel):
+    """Request for Consecutive Losing simulation."""
+
+    win_rates: List[float] = Field(
+        ..., description="List of win rates (e.g. [0.3, 0.5])"
+    )
+    rrrs: List[float] = Field(
+        ..., description="List of Risk:Reward ratios (e.g. [3.0, 1.0])"
+    )
+    num_trades: int = Field(1000, gt=0)
+    num_simulations: int = Field(200, gt=0)
+
+
+class ConsecutiveLosingScenario(BaseModel):
+    """Result scenario for consecutive losing simulation."""
+
+    scenario_label: str
+    win_rate: float
+    rrr: float
+    min_losses: int
+    q1_losses: float
+    median_losses: float
+    q3_losses: float
+    max_losses: int
+    mean_losses: float
+    std_losses: float
+
+
+class ConsecutiveLosingResponse(BaseModel):
+    """Response containing multiple consecutive losing scenarios."""
+
+    scenarios: List[ConsecutiveLosingScenario]
+
+
+class ProfitTargetRequest(BaseModel):
+    """Request to calculate probability of reaching a profit target."""
+
+    initial_balance: float = Field(1000, gt=0)
+    target_balance: float = Field(200000, gt=0)
+    num_trades: int = Field(750, gt=0)
+    win_rate: float = Field(0.76, gt=0, le=1)
+    num_simulations: int = Field(500, gt=0)
+
+
+class ProfitTargetResult(BaseModel):
+    """Result for a specific RRR and Risk configuration."""
+
+    rrr: float
+    risk_pct: float
+    success_rate: float
+
+
+class ProfitTargetResponse(BaseModel):
+    """Response validation for Profit Target simulation."""
+
+    results: List[ProfitTargetResult]
+
+
+class ManualPairInput(BaseModel):
+    """Input model for manual WinRate/RRR pairs."""
+
+    win_rate: float = Field(..., gt=0, le=1)
+    rrr: float = Field(..., gt=0)
+
+
+class RandomWinRateRequest(BaseModel):
+    """Request for Random Win Rate simulation."""
+
+    initial_equity: float = Field(1000, gt=0)
+    risk_per_trade: float = Field(0.01, gt=0, le=1)
+    trades_per_run: int = Field(100, gt=0)
+    simulations: int = Field(200, gt=0)
+    manual_pairs: Optional[List[ManualPairInput]] = None
+
+
+class RandomWinRatePair(BaseModel):
+    """Statistics for a WinRate/RRR pair used in simulation."""
+
+    win_rate: float
+    rrr: float
+    expectancy: float
+    usage_count: int
+    usage_pct: float
+
+
+class DistributionStats(BaseModel):
+    """Statistical distribution metrics."""
+
+    min_val: float
+    q1_val: float
+    median_val: float
+    q3_val: float
+    max_val: float
+    mean_val: float
+    std_val: float
+
+
+class RandomWinRateResult(BaseModel):
+    """Result wrapper for Random Win Rate simulation."""
+
+    pairs: List[RandomWinRatePair]
+    drawdown_stats: DistributionStats
+    equity_stats: DistributionStats
+    return_stats: DistributionStats
+
+
+class RandomWinRateResponse(BaseModel):
+    """Response containing Random Win Rate simulation results."""
+
+    result: RandomWinRateResult
+
+
+class RobustnessRequest(BaseModel):
+    """Request parameters for Robustness check."""
+
+    backtest_id: str
+    simulations: int = Field(100, gt=0)
+    simulation_type: str = Field("shuffle")  # shuffle, bootstrap
+    skip_probability: float = Field(0.0, ge=0.0, le=1.0)
+    deterioration_pct: float = Field(0.0, ge=0.0, le=1.0)
+
+
+class RobustnessStats(BaseModel):
+    """Summary statistics from Robustness simulation."""
+
+    original_profit: float
+    min_profit: float
+    max_profit: float
+    mean_profit: float
+    worst_case_drawdown: float
+    risk_of_ruin: float  # Percentage 0-100
+
+
+class RobustnessResponse(BaseModel):
+    """Response containing Robustness simulation results."""
+
+    original_equity: List[float]
+    simulation_equities: List[List[float]]  # Sample of curves (e.g. max 50)
+    stats: RobustnessStats
+
+
+class MultiEntryRequest(BaseModel):
+    """Request for Multi-Entry simulation."""
+
+    win_rate: float = Field(..., ge=0.0, le=1.0)
+    initial_rrr: float = Field(..., gt=0.0)
+    rrr_step: float = Field(0.0, ge=0.0)
+    risk_percent: float = Field(0.01, gt=0.0, le=1.0)  # Total risk per execution
+    simulations: int = Field(100, gt=0)
+    initial_balance: float = Field(1000.0, gt=0)
+
+
+class MultiEntryScenarioResult(BaseModel):
+    """Result for a specific Multi-Entry scenario."""
+
+    mean_equity: float
+    median_equity: float
+    median_drawdown: float
+    profitable_pct: float
+    equity_curve: List[float]  # Mean or representative curve
+
+
+class MultiEntryResponse(BaseModel):
+    """Response containing results for 1, 2, and 3 trade entry scenarios."""
+
+    one_trade: MultiEntryScenarioResult
+    two_trades: MultiEntryScenarioResult
+    three_trades: MultiEntryScenarioResult

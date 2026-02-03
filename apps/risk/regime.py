@@ -17,12 +17,31 @@ class RegimeState:
 
 
 class RiskRegimeDetector:
-    """Detects NORMAL vs STRESS regimes using simple robust signals.
+    """Detects NORMAL vs STRESS regimes using simple robust portfolio signals.
 
-    Signals:
+    Not to be confused with price‑action, market structure regimes detection.
+    Usually at the instrument leve used to adapt strategy logic,
+    e.g. switch a trend‑follower on/off or change indicators.
+
+    Key difference:
+    - RiskRegimeDetector is about portfolio risk stress, not price structure.
+    - It’s risk gating: tighten limits during stress without changing the strategy’s logic.
+    - “Trending/ranging/volatile” is strategy selection/adaptation.
+
+    If you want both:
+    - Use trend/range regimes inside strategies to shape signals.
+    - Use RiskRegimeDetector above the strategy to tighten caps during stress.
+
+    Portfolio‑level risk signals:
     1) Volatility spike on equal-weight portfolio proxy
+        - Goal: detect when the market is moving much more violently than usual.
+        - Why: big swings mean your positions can lose money faster than normal.
     2) Correlation spike (average off-diagonal correlation)
+        - Goal: detect when assets move together more than usual.
+        - Why: diversification breaks down; losses compound faster.
     3) Equity drawdown trigger (optional, if equity_curve provided)
+        - Goal: detect when the portfolio has lost a significant amount of value.
+        - Why: large drawdowns can lead to margin calls and forced liquidation.
 
     If at least 2 signals are triggered => STRESS, else NORMAL.
     """
@@ -33,12 +52,14 @@ class RiskRegimeDetector:
         corr_spike_level: float = 0.55,
         dd_trigger_frac: float = 0.05,
         lookback: int = 60,
+        vol_med_window: int = 20,
     ):
         """Initialize regime detector."""
         self.vol_spike_mult = vol_spike_mult
         self.corr_spike_level = corr_spike_level
         self.dd_trigger_frac = dd_trigger_frac
         self.lookback = lookback
+        self.vol_med_window = vol_med_window
 
     def detect(
         self, returns_df: pd.DataFrame, equity_curve: Optional[pd.Series] = None
@@ -52,7 +73,7 @@ class RiskRegimeDetector:
             if not r.empty:
                 port = r.mean(axis=1)
                 vol_now = float(port.std())
-                vol_med = float(port.rolling(20).std().median())
+                vol_med = float(port.rolling(self.vol_med_window).std().median())
                 if vol_med > 0 and vol_now > self.vol_spike_mult * vol_med:
                     flags += 1
 

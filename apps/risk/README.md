@@ -285,6 +285,32 @@ Computes position changes needed to reach target allocation.
 ### RiskRegimeDetector
 
 **Purpose**: Detects NORMAL vs STRESS market regimes using robust signals.
+Not to be confused with price‑action, market structure regimes detection.
+    Usually at the instrument leve used to adapt strategy logic,
+    e.g. switch a trend‑follower on/off or change indicators.
+
+    Key difference:
+    - RiskRegimeDetector is about portfolio risk stress, not price structure.
+    - It’s risk gating: tighten limits during stress without changing the strategy’s logic.
+    - “Trending/ranging/volatile” is strategy selection/adaptation.
+
+    If you want both:
+    - Use trend/range regimes inside strategies to shape signals.
+    - Use RiskRegimeDetector above the strategy to tighten caps during stress.
+
+    Portfolio‑level risk signals:
+    1) Volatility spike on equal-weight portfolio proxy
+        - Goal: detect when the market is moving much more violently than usual.
+        - Why: big swings mean your positions can lose money faster than normal.
+    2) Correlation spike (average off-diagonal correlation)
+        - Goal: detect when assets move together more than usual.
+        - Why: diversification breaks down; losses compound faster.
+    3) Equity drawdown trigger (optional, if equity_curve provided)
+        - Goal: detect when the portfolio has lost a significant amount of value.
+        - Why: large drawdowns can lead to margin calls and forced liquidation.
+
+    If at least 2 signals are triggered => STRESS, else NORMAL.
+
 
 **Location**: `apps/risk/regime.py`
 
@@ -1532,7 +1558,6 @@ First deployment:
 
 Gradually increase as system proves stable.
 
-
 ### 1. Always Use Regime Detection
 
 Don't manually adjust limits. Let the regime detector tighten them automatically during stress.
@@ -1774,7 +1799,6 @@ Ensure the system handles:
 - For volatility method, ensure ATR is in context
 - For Kelly, ensure win_rate, avg_win, avg_loss are provided
 
-
 ### Issue: Regime Always NORMAL Despite Volatility
 
 **Cause**: Detection thresholds too high or insufficient data
@@ -1837,3 +1861,41 @@ The HaruQuant Risk Engine provides institutional-grade risk management through:
 6. **Auditability** - Detailed reports for every decision
 
 Use it to build trading systems that survive adverse conditions and scale across strategies.
+
+---
+
+## Usage Tests & Examples (Local)
+
+These scripts live under `tests/usage/risk/` and are intended for hands-on learning with your local MT5 setup.
+Most scripts connect to MT5 and use live data. Make sure MT5 is running and your default broker credentials
+exist in the local DB.
+
+### Usage Files Overview
+
+1. `01_position_sizing.py` - Position sizing methods (live MT5)
+2. `02_regime_detection.py` - Regime detection (live + synthetic), includes `main_actual()` bar-by-bar mode
+3. `03_risk_allocation.py` - Risk budget allocation and rebalancing
+4. `04_risk_governor.py` - Accept/reject scenarios and caps
+5. `05_full_scenarios.py` - End-to-end workflows
+6. `06_simple_single_strategy.py` - Single-strategy trading loop
+7. `07_multi_strategy_portfolio.py` - Multi-strategy trading loop
+8. `08_integrate_existing_system.py` - Wrapper pattern for integration
+
+### Run Commands
+
+```bash
+python tests/usage/risk/01_position_sizing.py
+python tests/usage/risk/02_regime_detection.py
+python tests/usage/risk/03_risk_allocation.py
+python tests/usage/risk/04_risk_governor.py
+python tests/usage/risk/05_full_scenarios.py
+python -m tests.usage.risk.06_simple_single_strategy
+python -m tests.usage.risk.07_multi_strategy_portfolio
+python -m tests.usage.risk.08_integrate_existing_system
+```
+
+### Notes
+
+- These scripts are not unit tests; they are live usage demos.
+- If MT5 data is limited, prefer `H1` timeframes and smaller lookbacks.
+- You can customize symbols, limits, and timeframes directly in each script.

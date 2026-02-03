@@ -1,5 +1,6 @@
 """Optimization API routes."""
 
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -20,13 +21,35 @@ from apps.optimization.core import (
     run_walk_forward_task,
 )
 from apps.optimization.models import (
+    ConsecutiveLosingRequest,
+    ConsecutiveLosingResponse,
+    ConsecutiveLosingScenario,
     MonteCarloRequest,
     MonteCarloResponse,
+    MultiEntryRequest,
+    MultiEntryResponse,
     OptimizationRequest,
     OptimizationResponse,
     OptimizationResultItem,
     OptimizationRunDetails,
+    ParametricMonteCarloRequest,
+    PositionSizingRequest,
+    ProfitTargetRequest,
+    ProfitTargetResponse,
+    ProfitTargetResult,
+    RandomWinRateRequest,
+    RandomWinRateResponse,
+    RobustnessRequest,
+    RobustnessResponse,
     WalkForwardRequest,
+)
+from apps.optimization.monte_carlo import (
+    ParametricSimulationResult,
+    consecutive_losing_simulation,
+    parametric_simulation,
+    position_sizing_simulation,
+    profit_target_simulation,
+    random_win_rate_simulation,
 )
 from apps.sqlite.database_operations import DatabaseManager
 
@@ -376,6 +399,175 @@ async def get_monte_carlo(simulation_id: int):
         raise
     except Exception as e:
         logger.error(f"Error retrieving Monte Carlo simulation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post("/monte-carlo/parametric", response_model=ParametricSimulationResult)
+async def run_parametric_monte_carlo(
+    request: ParametricMonteCarloRequest,
+):
+    """
+    Run Parametric Monte Carlo simulation.
+
+    Returns hypothetical simulation results based on statistical inputs.
+    """
+    try:
+        result = parametric_simulation(
+            win_rate=request.win_rate,
+            reward_risk_ratio=request.reward_risk_ratio,
+            risk_per_trade=request.risk_per_trade,
+            num_trades=request.num_trades,
+            num_simulations=request.num_simulations,
+            initial_balance=request.initial_balance,
+        )
+        return result
+
+    except Exception as e:
+        logger.error(f"Error running parametric Monte Carlo: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/monte-carlo/position-sizing",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+)
+async def run_position_sizing(request: PositionSizingRequest):
+    """Run Position Sizing simulation (Linear vs Compounding)."""
+    try:
+        result = position_sizing_simulation(
+            win_rate=request.win_rate,
+            reward_risk_ratio=request.reward_risk_ratio,
+            risk_per_trade=request.risk_per_trade,
+            num_trades=request.num_trades,
+            initial_balance=request.initial_balance,
+        )
+        return asdict(result)
+
+    except Exception as e:
+        logger.error(f"Error running position sizing simulation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/monte-carlo/consecutive-losing",
+    response_model=ConsecutiveLosingResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def run_consecutive_losing(request: ConsecutiveLosingRequest):
+    """Run Consecutive Losing simulation for multiple systems."""
+    try:
+        results = consecutive_losing_simulation(
+            win_rates=request.win_rates,
+            rrrs=request.rrrs,
+            num_trades=request.num_trades,
+            num_simulations=request.num_simulations,
+        )
+        # Convert dataclass list to Pydantic model
+        return ConsecutiveLosingResponse(
+            scenarios=[ConsecutiveLosingScenario(**asdict(r)) for r in results]
+        )
+
+    except Exception as e:
+        logger.error(f"Error running consecutive losing simulation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/monte-carlo/profit-target",
+    response_model=ProfitTargetResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def run_profit_target(request: ProfitTargetRequest):
+    """Run Profit Target simulation."""
+    try:
+        results = profit_target_simulation(
+            initial_balance=request.initial_balance,
+            target_balance=request.target_balance,
+            num_trades=request.num_trades,
+            win_rate=request.win_rate,
+            num_simulations=request.num_simulations,
+        )
+        return ProfitTargetResponse(
+            results=[ProfitTargetResult(**asdict(r)) for r in results]
+        )
+    except Exception as e:
+        logger.error(f"Error running profit target simulation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/monte-carlo/random-win-rate",
+    response_model=RandomWinRateResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def run_random_win_rate(request: RandomWinRateRequest):
+    """Run Random Win Rate simulation."""
+    try:
+        result = random_win_rate_simulation(
+            initial_equity=request.initial_equity,
+            risk_per_trade=request.risk_per_trade,
+            trades_per_run=request.trades_per_run,
+            simulations=request.simulations,
+            manual_pairs=request.manual_pairs,
+        )
+        return RandomWinRateResponse(result=result)
+    except Exception as e:
+        logger.error(f"Error running random win rate simulation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/monte-carlo/robustness",
+    response_model=RobustnessResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def run_robustness(request: RobustnessRequest):
+    """Run Robustness simulation."""
+    try:
+        from apps.optimization.monte_carlo import robustness_simulation
+
+        result = robustness_simulation(
+            backtest_id=request.backtest_id,
+            simulations=request.simulations,
+            simulation_type=request.simulation_type,
+            skip_probability=request.skip_probability,
+            deterioration_pct=request.deterioration_pct,
+        )
+        return RobustnessResponse(**result)
+    except Exception as e:
+        logger.error(f"Error running robustness simulation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@router.post(
+    "/monte-carlo/multi-entry",
+    response_model=MultiEntryResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def run_multi_entry(request: MultiEntryRequest):
+    """Run Multi-Entry simulation."""
+    try:
+        from apps.optimization.monte_carlo import multi_entry_simulation
+
+        result = multi_entry_simulation(request)
+        return result
+    except Exception as e:
+        logger.error(f"Error running multi-entry simulation: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )

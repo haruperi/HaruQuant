@@ -9,6 +9,7 @@ const navItems = [
   { label: "Discovery", href: "/edge-lab" },
   { label: "Seasonality", href: "/edge-lab/seasonality" },
   { label: "SQX Import", href: "/edge-lab/sqx-import" },
+  { label: "Monte Carlo Lab", href: "/edge-lab/monte-carlo-lab" },
 ]
 
 export function EdgeLabNav() {

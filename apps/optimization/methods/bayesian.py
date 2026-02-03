@@ -6,15 +6,20 @@ More efficient than random search, intelligently explores parameter space.
 """
 
 import time
-from typing import Callable, Dict, Optional, Tuple, Type
+from typing import Any, Callable, Dict, Optional, Tuple, Type
 
-from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
-from apps.backtest.result import BacktestResult
 from apps.logger import logger
 from apps.strategy import BaseStrategy
 
 from ..result import OptimizationResult, OptimizationSummary
 from ..scoring import sharpe_score
+
+# from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
+BaseEngine = Any
+EventDrivenEngine = Any
+VectorizedEngine = Any
+# from apps.backtest.result import BacktestResult
+BacktestResult = Any
 
 
 def bayesian_optimization(  # noqa: C901

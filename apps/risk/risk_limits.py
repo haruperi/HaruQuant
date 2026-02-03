@@ -14,36 +14,54 @@ class RiskLimits:
     Example: var_cap_frac=0.10 means portfolio 1-day VaR must be <= 10% of equity.
     """
 
-    # Hard caps (portfolio)
-    var_cap_frac: float = 0.10  # hard cap for VaR (1-day)
-    es_cap_frac: float = 0.15  # hard cap for Expected Shortfall (1-day)
+    # ****************************************
+    # HARD CAPS (fractions of equity)
+    # ****************************************
+
+    # Portfolio-level hard caps
+    var_cap_frac: float = 0.10  # Portfolio VaR (1-day, 10%)
+    es_cap_frac: float = 0.15  # Portfolio Expected Shortfall (1-day, 15%)
 
     # Incremental caps (per new trade / adjustment)
-    delta_var_cap_frac: float = 0.02  # max additional VaR allowed by one action
-    delta_es_cap_frac: float = 0.03  # max additional ES allowed by one action
+    delta_var_cap_frac: float = (
+        0.02  # max additional VaR allowed per individual trade (2%)
+    )
+    delta_es_cap_frac: float = (
+        0.03  # max additional ES allowed per individual trade (3%)
+    )
 
     # Margin safety (optional, requires MT5 margin API)
-    max_margin_used_frac: float = 0.50  # e.g., don't use >50% of equity as margin
+    max_margin_used_frac: float = (
+        0.50  # Max margin usage (e.g., don't use >50% of equity as margin)
+    )
+
+    # ****************************************
+    # Correlation Controls
+    # ****************************************
 
     # Correlation / stress controls
     min_pair_corr: float = 0.20  # conservative floor for off-diagonal correlations
-    stressed_corr_floor: float = 0.60  # stressed floor used in STRESS regime
+    stressed_corr_floor: float = 0.50  # stressed floor used in STRESS regime
     use_stressed_corr: bool = True  # apply stressed floors to covariance building
+
+    # ****************************************
+    # Statistical Settings
+    # ****************************************
 
     # VaR/ES settings
     confidence_level: float = 0.95
     time_horizon_days: int = 1
 
     # Rolling windows
-    vol_lookback: int = 20
-    corr_lookback: int = 60
+    vol_lookback: int = 20  # Volatility lookback (24 if using H1, 5 if using D1)
+    corr_lookback: int = 60  # Correlation lookback (72 if using H1, 10 if using D1)
 
     # Concentration controls (Risk Contribution)
     max_single_rc_frac: float = (
         0.20  # max 20% of total portfolio variance from any single symbol
     )
     rc_rebalance_tolerance: float = (
-        0.05  # allowed deviation band around target RC budget in rebalancing
+        0.05  # allowed deviation band around target RC budget in rebalancing (5%)
     )
 
     # Optional cluster caps (fractions of equity)

@@ -64,7 +64,7 @@ def main():
         path=creds["path"]
     )
     
-    if not mt5_client.initialize():
+    if not mt5_client.connect():
         logger.error("Failed to initialize MT5 client")
         sys.exit(1)
 

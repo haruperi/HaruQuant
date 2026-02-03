@@ -4,7 +4,10 @@ Scoring Functions.
 Functions to score backtest results for optimization.
 """
 
-from apps.backtest.result import BacktestResult
+from typing import Any
+
+# from apps.backtest.result import BacktestResult
+BacktestResult = Any
 
 
 def sharpe_score(result: BacktestResult) -> float:

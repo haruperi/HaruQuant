@@ -10,13 +10,19 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import numpy as np
 
-from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
-from apps.backtest.result import BacktestResult
 from apps.logger import logger
 from apps.strategy import BaseStrategy
 
 from ..result import OptimizationResult, OptimizationSummary
 from ..scoring import sharpe_score
+
+# from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
+
+# from apps.backtest.result import BacktestResult
+BacktestResult = Any
+BaseEngine = Any
+EventDrivenEngine = Any
+VectorizedEngine = Any
 
 
 def genetic_algorithm(  # noqa: C901
