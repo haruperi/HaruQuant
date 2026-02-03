@@ -19,6 +19,18 @@ db_manager = DatabaseManager()
 client = MT5Client()
 _last_login: Optional[int] = None
 _last_server: Optional[str] = None
+_last_password: Optional[str] = None
+_last_path: Optional[str] = None
+
+
+def get_last_credentials() -> Dict[str, Any]:
+    """Get last known MT5 credentials for auto-reconnect."""
+    return {
+        "login": _last_login,
+        "server": _last_server,
+        "password": _last_password,
+        "path": _last_path,
+    }
 
 
 def _parse_credentials(credentials: Union[str, Dict[str, Any], None]) -> Dict[str, Any]:
@@ -42,7 +54,7 @@ def _parse_credentials(credentials: Union[str, Dict[str, Any], None]) -> Dict[st
 def _update_mt5_connection(user_id: int) -> None:
     """Update and reconnect MT5 client if user credentials differ."""
     global client
-    global _last_login, _last_server
+    global _last_login, _last_server, _last_password, _last_path
     try:
         # Use the helper method which handles the nested accounts list logic correctly
         creds = db_manager.get_mt5_credentials(user_id) or {}
@@ -68,8 +80,11 @@ def _update_mt5_connection(user_id: int) -> None:
                     logger.info(f"Updating MT5 client credentials for user {user_id}")
                     _last_login = login_int
                     _last_server = server
-                    # Force re-initialization
-                    client.shutdown()
+                    _last_password = password
+                    _last_path = path
+                    # Note: Don't call client.shutdown() here - it disconnects the global client
+                    # and breaks other endpoints that rely on the connection.
+                    # The connect() method will handle reconnection properly.
 
                 logger.info("Connecting to MT5...")
                 client.connect(

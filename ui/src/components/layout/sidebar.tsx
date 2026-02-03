@@ -25,6 +25,7 @@ import {
   BookOpen,
   Upload,
   Play,
+  TrendingUp,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useState, useEffect } from "react"
@@ -89,6 +90,12 @@ const routes = [
       icon: Activity,
       href: "/live",
       color: "text-emerald-500",
+    },
+    {
+      label: "Tools",
+      icon: TrendingUp,
+      href: "/tools",
+      color: "text-cyan-500",
     },
     {
       label: "Documentation",

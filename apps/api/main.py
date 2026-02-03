@@ -19,6 +19,7 @@ from .routes import (
     strategies,
 )
 from .routes.dashboard import broker as dashboard_broker
+from .routes.dashboard import currency_strength as dashboard_currency_strength
 from .routes.dashboard import market_hours as dashboard_market_hours
 from .routes.dashboard import system as dashboard_system
 from .routes.data import datasets as data_datasets
@@ -78,6 +79,9 @@ app.include_router(dashboard_broker.router, prefix="/api/dashboard", tags=["dash
 app.include_router(dashboard_system.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(
     dashboard_market_hours.router, prefix="/api/dashboard", tags=["dashboard"]
+)
+app.include_router(
+    dashboard_currency_strength.router, prefix="/api/dashboard", tags=["dashboard"]
 )
 
 app.include_router(trades.router, prefix="/api/reports/trades", tags=["trades"])

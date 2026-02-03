@@ -316,3 +316,43 @@ export type LiveWebSocketEvent =
   | StatusUpdateEvent
   | LogMessageEvent
   | SubscriptionUpdatedEvent
+
+// Currency Strength types
+export type CurrencyTrend = "strong_buy" | "buy" | "neutral" | "sell" | "strong_sell"
+
+export interface CurrencyStrength {
+  currency: string
+  strength: number             // -100 to +100
+  rank: number                 // 1 = strongest, 8 = weakest
+  trend: CurrencyTrend
+  confidence: number           // 0-100 (%)
+  updated_at: string
+}
+
+export interface CurrencyPairSignal {
+  pair: string                 // e.g., "EURUSD"
+  base: string                 // e.g., "EUR"
+  quote: string                // e.g., "USD"
+  base_strength: number
+  quote_strength: number
+  pair_strength: number        // base - quote
+  recommendation: "LONG" | "SHORT" | "NEUTRAL"
+  tf1_change?: number          // Timeframe 1 change %
+  tf2_change?: number          // Timeframe 2 change %
+  tf3_change?: number          // Timeframe 3 change %
+}
+
+export interface CurrencyStrengthData {
+  currencies: CurrencyStrength[]
+  strong_pairs: CurrencyPairSignal[]
+  weak_pairs: CurrencyPairSignal[]
+  last_updated: string
+  tf1_label: string            // e.g., "M1", "M5", "H1"
+  tf2_label: string            // e.g., "M5", "H1", "H4"
+  tf3_label: string            // e.g., "H1", "H4", "D1"
+}
+
+export interface CurrencyStrengthUpdateEvent extends WebSocketMessage {
+  type: "currency_strength_updated"
+  data: CurrencyStrengthData
+}

@@ -1,4 +1,4 @@
-"""Market hours routes."""
+"""Market Hours API endpoint."""
 
 from datetime import datetime, time, timedelta
 from typing import List, Optional, TypedDict
