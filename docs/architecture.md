@@ -74,6 +74,14 @@ Vectorized Backtest Engine (Close-Based)
 - Processes the full DataFrame in bulk using pandas/numpy arrays.
 - Simplified execution model: no intra-bar SL/TP and no mark-to-market updates.
 - Intended for fast research and parameter sweeps, not final validation.
+- Position array buffers are preallocated and reused per bar to avoid allocation overhead while keeping per-bar updates intact.
+
+----------------------------
+Numba JIT Core (Optional)
+- Event-driven backtests can enable a Numba-accelerated position update kernel via `use_numba=True`.
+- The JIT kernel only replaces per-position math (profit, margin, SL/TP hit checks) while preserving per-bar behavior.
+- Position arrays can be maintained as a struct-of-arrays to avoid per-bar object traversal in the hot loop.
+- When `use_position_arrays=True` and `use_fast_calc=True`, the engine can compute profit/margin via NumPy array math while still updating PositionInfo and trade records every bar.
 
 ## UI Performance Pages
 Performance dashboards under `ui/src/app/(dashboard)/performance` call report endpoints through `ui/src/components/performance/use-performance-data.ts`.

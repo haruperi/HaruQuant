@@ -130,6 +130,20 @@ class SimulationUtilsMixin:
         if hasattr(pos_data, "fee"):
             pos_data.fee = 0.0
 
+        position_state = getattr(self, "_position_array_state", None)
+        if position_state is not None:
+            symbol_params = None
+            get_params = getattr(self, "_get_symbol_calc_params", None)
+            if callable(get_params):
+                symbol_params = get_params(symbol)
+            leverage = getattr(self._account_data, "leverage", None)
+            position_state.add_or_update(
+                pos_id=int(pos_id),
+                pos_data=pos_data,
+                symbol_params=symbol_params,
+                leverage=leverage,
+            )
+
     # Data Normalization
     def _normalize_pending_type(self, order_type: object) -> str:
         if isinstance(order_type, int):

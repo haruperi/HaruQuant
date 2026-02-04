@@ -13,13 +13,15 @@ Functions:
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Optional, Tuple
+from typing import Any, Callable, Iterable, Optional, Tuple, cast
 
 import numpy as np
 
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.simulation.data import SymbolTickSimulator
+from apps.simulation.numba_core import NUMBA_AVAILABLE, numba_position_update
+from apps.simulation.position_arrays import PositionArrayState
 from apps.simulation.records import TradeRecordMixin
 from apps.trade import PositionInfo
 from apps.utils.validate import TradeValidator
@@ -127,6 +129,34 @@ class SimulationEngine(TradeRecordMixin):
     _ensure_trade_record: Callable[..., Any]
     _update_trade_tracker: Callable[..., Any]
     _completed_trades: list[Any]
+    _vectorized_trade_buffer: Optional[list[Any]]
+    _vectorized_trade_count: int
+    _use_position_arrays: bool
+    _use_fast_calc: bool
+    _symbol_calc_cache: dict[str, dict[str, float]]
+    _pos_buf_size: int
+    _pos_buf_current_prices: np.ndarray
+    _pos_buf_price_open: np.ndarray
+    _pos_buf_volume: np.ndarray
+    _pos_buf_direction: np.ndarray
+    _pos_buf_sl: np.ndarray
+    _pos_buf_tp: np.ndarray
+    _pos_buf_is_buy: np.ndarray
+    _pos_buf_valid: np.ndarray
+    _pos_buf_profit: np.ndarray
+    _pos_buf_margin: np.ndarray
+    _pos_buf_commission: np.ndarray
+    _pos_buf_fee: np.ndarray
+    _pos_buf_swap: np.ndarray
+    _pos_buf_contract_size: np.ndarray
+    _pos_buf_tick_size: np.ndarray
+    _pos_buf_tick_value: np.ndarray
+    _pos_buf_margin_mode: np.ndarray
+    _pos_buf_leverage: np.ndarray
+    _pos_buf_sl_hit: np.ndarray
+    _pos_buf_tp_hit: np.ndarray
+    _use_numba: bool
+    _position_array_state: Optional[PositionArrayState]
 
     def _ensure_tick(self, symbol: str) -> SymbolTickSimulator:
         """Ensure a tick container exists for the symbol."""
@@ -135,6 +165,70 @@ class SimulationEngine(TradeRecordMixin):
             self._ticks_data[symbol] = SymbolTickSimulator()
             tick = self._ticks_data[symbol]
         return tick
+
+    def _fast_calc_profit_margin_arrays(
+        self,
+        current_prices: np.ndarray,
+        price_open: np.ndarray,
+        volume: np.ndarray,
+        direction: np.ndarray,
+        contract_size: np.ndarray,
+        tick_size: np.ndarray,
+        tick_value: np.ndarray,
+        margin_mode: np.ndarray,
+        leverage: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Compute profit/margin arrays with fast calc params (vectorized)."""
+        price_delta = (current_prices - price_open) * direction
+        profit = np.zeros_like(price_delta, dtype=np.float64)
+        margin = np.zeros_like(price_open, dtype=np.float64)
+
+        tick_mask = (tick_size > 0.0) & (tick_value > 0.0)
+        if np.any(tick_mask):
+            profit[tick_mask] = (
+                (price_delta[tick_mask] / tick_size[tick_mask])
+                * tick_value[tick_mask]
+                * volume[tick_mask]
+            )
+
+        contract_mask = (~tick_mask) & (contract_size > 0.0)
+        if np.any(contract_mask):
+            profit[contract_mask] = (
+                price_delta[contract_mask]
+                * contract_size[contract_mask]
+                * volume[contract_mask]
+            )
+
+        lev = np.where(leverage > 0.0, leverage, 1.0)
+        mm = margin_mode
+        mask0 = mm == 0.0
+        if np.any(mask0):
+            margin[mask0] = (volume[mask0] * contract_size[mask0]) / lev[mask0]
+        mask1 = mm == 1.0
+        if np.any(mask1):
+            margin[mask1] = volume[mask1] * contract_size[mask1]
+        mask2 = mm == 2.0
+        if np.any(mask2):
+            margin[mask2] = volume[mask2] * contract_size[mask2] * price_open[mask2]
+        mask3 = mm == 3.0
+        if np.any(mask3):
+            margin[mask3] = (
+                volume[mask3] * contract_size[mask3] * price_open[mask3] / lev[mask3]
+            )
+        mask4 = (mm == 4.0) & (tick_size > 0.0)
+        if np.any(mask4):
+            margin[mask4] = (
+                volume[mask4]
+                * contract_size[mask4]
+                * price_open[mask4]
+                * tick_value[mask4]
+                / tick_size[mask4]
+            )
+        mask56 = (mm == 5.0) | (mm == 6.0)
+        if np.any(mask56):
+            margin[mask56] = volume[mask56] * contract_size[mask56] * price_open[mask56]
+
+        return profit, margin
 
     def _on_tick(
         self,
@@ -159,7 +253,14 @@ class SimulationEngine(TradeRecordMixin):
         tick.ask = float(ask)
         tick.last = float(last)
 
-        if log_every and idx is not None and total and idx % log_every == 0:
+        if (
+            log_every
+            and __debug__
+            and not getattr(self, "_suppress_backtest_logs", False)
+            and idx is not None
+            and total
+            and idx % log_every == 0
+        ):
             logger.info(f"Processed step {idx}/{total} bid={bid:.5f} ask={ask:.5f}")
 
         # Pending orders can be triggered by this tick
@@ -185,13 +286,18 @@ class SimulationEngine(TradeRecordMixin):
 
         Signals are always generated from the trading timeframe, regardless of modeling mode.
         """
-        row = data.iloc[idx]
-        self._current_time = self._to_datetime(row.name)
+        row_name = data.index[idx]
+        self._current_time = self._to_datetime(row_name)
 
         if verbose:
+            row = data.iloc[idx]
             self._print_bar_status(row)
 
-        signal = strategy.get_signal(data, idx)
+        cache = getattr(self, "_signal_cache", None)
+        if cache is not None:
+            signal = cache[idx]
+        else:
+            signal = strategy.get_signal(data, idx)
         if signal is None:
             return
 
@@ -218,7 +324,7 @@ class SimulationEngine(TradeRecordMixin):
                 tick.ask,
                 comment=f"BUY {self.trade.RequestMagic()}",
                 validator=validator,
-                open_time=row.name,
+                open_time=row_name,
             )
         elif entry_signal == -1:
             self.open_position(
@@ -228,7 +334,7 @@ class SimulationEngine(TradeRecordMixin):
                 tick.bid,
                 comment=f"SELL {self.trade.RequestMagic()}",
                 validator=validator,
-                open_time=row.name,
+                open_time=row_name,
             )
 
     def _print_bar_status(self, row) -> None:
@@ -358,6 +464,18 @@ class SimulationEngine(TradeRecordMixin):
 
         Uses current ticks (bid/ask) and the MT5 profit calculation for accuracy.
         """
+        if not self._positions_data:
+            return {
+                "profit": 0.0,
+                "margin": 0.0,
+                "commission": 0.0,
+                "fee": 0.0,
+                "swap": 0.0,
+            }
+
+        if getattr(self, "_use_position_arrays", False):
+            return self._monitor_positions_arrays()
+
         total_profit = 0.0
         total_margin = 0.0
         total_commission = 0.0
@@ -381,12 +499,12 @@ class SimulationEngine(TradeRecordMixin):
             # Update per-position metrics using the latest tick
             position.price_current = current_price
             action = "buy" if is_buy else "sell"
-            position.profit = self.mt5_client.order_calc_profit(
-                0 if action == "buy" else 1,
-                symbol,
-                position.volume,
-                position.price_open,
-                current_price,
+            position.profit = self._calc_profit(
+                action=action,
+                symbol=symbol,
+                volume=position.volume,
+                price_open=position.price_open,
+                price_close=current_price,
             )
             self._ensure_trade_record(
                 pos_id=int(position_id),
@@ -408,11 +526,11 @@ class SimulationEngine(TradeRecordMixin):
                 current_price=current_price,
                 profit_usd=position.profit,
             )
-            position.margin_required = self.mt5_client.order_calc_margin(
-                0 if action == "buy" else 1,
-                symbol,
-                position.volume,
-                position.price_open,
+            position.margin_required = self._calc_margin(
+                action=action,
+                symbol=symbol,
+                volume=position.volume,
+                price=position.price_open,
             )
             total_profit += float(position.profit or 0.0)
             total_margin += float(position.margin_required or 0.0)
@@ -438,6 +556,720 @@ class SimulationEngine(TradeRecordMixin):
             "fee": float(total_fee),
             "swap": float(total_swap),
         }
+
+    def _monitor_positions_arrays(self) -> dict[str, float]:  # noqa: C901
+        """Vectorized-style monitor that still updates all fields per bar."""
+        position_state = getattr(self, "_position_array_state", None)
+        if position_state is not None:
+            if position_state.count != len(self._positions_data):
+                position_state.rebuild_from_positions(
+                    self._positions_data,
+                    get_symbol_params=self._get_symbol_calc_params,
+                    leverage=getattr(self._account_data, "leverage", None),
+                )
+            count = position_state.count
+            if count == 0:
+                return {
+                    "profit": 0.0,
+                    "margin": 0.0,
+                    "commission": 0.0,
+                    "fee": 0.0,
+                    "swap": 0.0,
+                }
+            positions = []
+        else:
+            positions = list(self._positions_data.items())
+            if not positions:
+                return {
+                    "profit": 0.0,
+                    "margin": 0.0,
+                    "commission": 0.0,
+                    "fee": 0.0,
+                    "swap": 0.0,
+                }
+            count = len(positions)
+
+        self._ensure_position_buffers(count)
+        current_prices = self._pos_buf_current_prices[:count]
+        price_open_arr = self._pos_buf_price_open[:count]
+        volume_arr = self._pos_buf_volume[:count]
+        direction_arr = self._pos_buf_direction[:count]
+        sl_arr = self._pos_buf_sl[:count]
+        tp_arr = self._pos_buf_tp[:count]
+        is_buy_arr = self._pos_buf_is_buy[:count]
+        valid_arr = self._pos_buf_valid[:count]
+        profit_arr = self._pos_buf_profit[:count]
+        margin_arr = self._pos_buf_margin[:count]
+        commission_arr = self._pos_buf_commission[:count]
+        fee_arr = self._pos_buf_fee[:count]
+        swap_arr = self._pos_buf_swap[:count]
+        contract_size_arr = self._pos_buf_contract_size[:count]
+        tick_size_arr = self._pos_buf_tick_size[:count]
+        tick_value_arr = self._pos_buf_tick_value[:count]
+        margin_mode_arr = self._pos_buf_margin_mode[:count]
+        leverage_arr = self._pos_buf_leverage[:count]
+        sl_hit_arr = self._pos_buf_sl_hit[:count]
+        tp_hit_arr = self._pos_buf_tp_hit[:count]
+
+        current_prices.fill(0.0)
+        price_open_arr.fill(0.0)
+        volume_arr.fill(0.0)
+        direction_arr.fill(0)
+        sl_arr.fill(0.0)
+        tp_arr.fill(0.0)
+        is_buy_arr.fill(False)
+        valid_arr.fill(False)
+        profit_arr.fill(0.0)
+        margin_arr.fill(0.0)
+        commission_arr.fill(0.0)
+        fee_arr.fill(0.0)
+        swap_arr.fill(0.0)
+        contract_size_arr.fill(0.0)
+        tick_size_arr.fill(0.0)
+        tick_value_arr.fill(0.0)
+        margin_mode_arr.fill(0.0)
+        leverage_arr.fill(0.0)
+        sl_hit_arr.fill(False)
+        tp_hit_arr.fill(False)
+
+        ticks = self._ticks_data
+        mt5_pos_buy = mt5.POSITION_TYPE_BUY
+        mt5_order_buy = mt5.ORDER_TYPE_BUY
+        calc_profit = self._calc_profit
+        calc_margin = self._calc_margin
+        ensure_trade_record = self._ensure_trade_record
+        update_trade_tracker = self._update_trade_tracker
+        close_position = self.close_position
+        use_state = position_state is not None and position_state.count == count
+        fast_ready = bool(use_state and getattr(self, "_use_fast_calc", False))
+        numba_ready = (
+            bool(getattr(self, "_use_numba", False))
+            and bool(getattr(self, "_use_fast_calc", False))
+            and NUMBA_AVAILABLE
+        )
+        numba_ok = True
+        fast_ok = True
+        params_cache = self._symbol_calc_cache
+
+        if use_state:
+            symbols = position_state.symbols
+            pos_objects = position_state.pos_objects
+            for idx in range(count):
+                symbol = symbols[idx]
+                tick = ticks.get(symbol)
+                if tick is None:
+                    continue
+
+                is_buy = position_state.direction[idx] == 1
+                current_price = tick.bid if is_buy else tick.ask
+                if current_price is None:
+                    continue
+
+                valid_arr[idx] = True
+                is_buy_arr[idx] = bool(is_buy)
+                current_prices[idx] = float(current_price)
+
+                price_open_arr[idx] = position_state.price_open[idx]
+                volume_arr[idx] = position_state.volume[idx]
+                sl_arr[idx] = position_state.sl[idx]
+                tp_arr[idx] = position_state.tp[idx]
+                direction_arr[idx] = position_state.direction[idx]
+                commission_arr[idx] = position_state.commission[idx]
+                fee_arr[idx] = position_state.fee[idx]
+                swap_arr[idx] = position_state.swap[idx]
+
+                if numba_ready or fast_ready:
+                    contract_size_arr[idx] = position_state.contract_size[idx]
+                    margin_mode_arr[idx] = position_state.margin_mode[idx]
+                    leverage_arr[idx] = position_state.leverage[idx]
+                    tick_size_arr[idx] = position_state.tick_size[idx]
+                    tick_value_arr[idx] = position_state.tick_value[idx]
+                    if (
+                        contract_size_arr[idx] == 0.0
+                        and tick_size_arr[idx] == 0.0
+                        and tick_value_arr[idx] == 0.0
+                    ):
+                        params = params_cache.get(symbol)
+                        if params is None:
+                            params = self._get_symbol_calc_params(symbol)
+                        if params is None:
+                            numba_ok = False
+                            fast_ok = False
+                        else:
+                            contract_size_arr[idx] = params["contract_size"]
+                            margin_mode_arr[idx] = params["margin_mode"]
+                            leverage_arr[idx] = params["leverage"]
+                            tick_size_arr[idx] = params["tick_size"]
+                            tick_value_arr[idx] = params["tick_value"]
+                            position_state.contract_size[idx] = contract_size_arr[idx]
+                            position_state.margin_mode[idx] = margin_mode_arr[idx]
+                            position_state.leverage[idx] = leverage_arr[idx]
+                            position_state.tick_size[idx] = tick_size_arr[idx]
+                            position_state.tick_value[idx] = tick_value_arr[idx]
+            if fast_ready and fast_ok and not numba_ready:
+                profit_arr[:], margin_arr[:] = self._fast_calc_profit_margin_arrays(
+                    current_prices=current_prices,
+                    price_open=price_open_arr,
+                    volume=volume_arr,
+                    direction=direction_arr,
+                    contract_size=contract_size_arr,
+                    tick_size=tick_size_arr,
+                    tick_value=tick_value_arr,
+                    margin_mode=margin_mode_arr,
+                    leverage=leverage_arr,
+                )
+            if not numba_ready:
+                for idx in range(count):
+                    if not valid_arr[idx]:
+                        continue
+                    pos_obj = pos_objects[idx]
+                    if pos_obj is None:
+                        continue
+                    symbol = symbols[idx]
+                    current_price = float(current_prices[idx])
+                    is_buy = bool(is_buy_arr[idx])
+                    action = "buy" if is_buy else "sell"
+
+                    pos_obj.price_current = current_price
+                    if fast_ready and fast_ok:
+                        pos_obj.profit = float(profit_arr[idx])
+                    else:
+                        pos_obj.profit = calc_profit(
+                            action=action,
+                            symbol=symbol,
+                            volume=volume_arr[idx],
+                            price_open=price_open_arr[idx],
+                            price_close=current_price,
+                        )
+                    ensure_trade_record(
+                        pos_id=int(position_state.pos_id[idx]),
+                        action=action,
+                        symbol=symbol,
+                        volume=volume_arr[idx],
+                        price=price_open_arr[idx],
+                        sl=sl_arr[idx],
+                        tp=tp_arr[idx],
+                        comment=position_state.comments[idx],
+                        requested_entry_price=price_open_arr[idx],
+                        open_time=position_state.open_time[idx],
+                    )
+                    update_trade_tracker(
+                        pos_id=int(position_state.pos_id[idx]),
+                        action=action,
+                        symbol=symbol,
+                        entry_price=price_open_arr[idx],
+                        current_price=current_price,
+                        profit_usd=pos_obj.profit,
+                    )
+                    if fast_ready and fast_ok:
+                        pos_obj.margin_required = float(margin_arr[idx])
+                    else:
+                        pos_obj.margin_required = calc_margin(
+                            action=action,
+                            symbol=symbol,
+                            volume=volume_arr[idx],
+                            price=price_open_arr[idx],
+                        )
+
+                    if not (fast_ready and fast_ok):
+                        profit_arr[idx] = float(pos_obj.profit or 0.0)
+                        margin_arr[idx] = float(pos_obj.margin_required or 0.0)
+                    position_state.profit[idx] = profit_arr[idx]
+                    position_state.margin_required[idx] = margin_arr[idx]
+                    position_state.price_current[idx] = current_price
+        else:
+            for idx, (position_id, position) in enumerate(positions):
+                symbol = position.symbol
+                tick = ticks.get(symbol)
+                if tick is None:
+                    continue
+
+                pos_type = position.type
+                is_buy = pos_type in (mt5_pos_buy, mt5_order_buy)
+                if isinstance(pos_type, str):
+                    is_buy = pos_type.lower() == "buy"
+
+                current_price = tick.bid if is_buy else tick.ask
+                if current_price is None:
+                    continue
+
+                valid_arr[idx] = True
+                is_buy_arr[idx] = bool(is_buy)
+                current_prices[idx] = float(current_price)
+                price_open_arr[idx] = float(position.price_open)
+                volume_arr[idx] = float(position.volume)
+                sl_arr[idx] = float(position.sl or 0.0)
+                tp_arr[idx] = float(position.tp or 0.0)
+                direction_arr[idx] = 1 if is_buy else -1
+
+                if numba_ready:
+                    params = params_cache.get(symbol)
+                    if params is None:
+                        params = self._get_symbol_calc_params(symbol)
+                    if params is None:
+                        numba_ok = False
+                    else:
+                        contract_size_arr[idx] = params["contract_size"]
+                        margin_mode_arr[idx] = params["margin_mode"]
+                        leverage_arr[idx] = params["leverage"]
+                        tick_size_arr[idx] = params["tick_size"]
+                        tick_value_arr[idx] = params["tick_value"]
+                else:
+                    # Update per-position metrics using the latest tick
+                    position.price_current = float(current_price)
+                    action = "buy" if is_buy else "sell"
+                    position.profit = calc_profit(
+                        action=action,
+                        symbol=symbol,
+                        volume=position.volume,
+                        price_open=position.price_open,
+                        price_close=current_price,
+                    )
+                    ensure_trade_record(
+                        pos_id=int(position_id),
+                        action=action,
+                        symbol=symbol,
+                        volume=position.volume,
+                        price=position.price_open,
+                        sl=position.sl,
+                        tp=position.tp,
+                        comment=position.comment,
+                        requested_entry_price=position.price_open,
+                        open_time=position.time,
+                    )
+                    update_trade_tracker(
+                        pos_id=int(position_id),
+                        action=action,
+                        symbol=symbol,
+                        entry_price=position.price_open,
+                        current_price=current_price,
+                        profit_usd=position.profit,
+                    )
+                    position.margin_required = calc_margin(
+                        action=action,
+                        symbol=symbol,
+                        volume=position.volume,
+                        price=position.price_open,
+                    )
+
+                    profit_arr[idx] = float(position.profit or 0.0)
+                    margin_arr[idx] = float(position.margin_required or 0.0)
+                    commission_arr[idx] = float(
+                        getattr(position, "commission", 0.0) or 0.0
+                    )
+                    fee_arr[idx] = float(getattr(position, "fee", 0.0) or 0.0)
+                    swap_arr[idx] = float(getattr(position, "swap", 0.0) or 0.0)
+
+        if numba_ready and not numba_ok:
+            if use_state:
+                for idx in range(count):
+                    if not valid_arr[idx]:
+                        continue
+                    pos_obj = position_state.pos_objects[idx]
+                    if pos_obj is None:
+                        continue
+                    current_price = float(current_prices[idx])
+                    is_buy = bool(is_buy_arr[idx])
+                    action = "buy" if is_buy else "sell"
+
+                    pos_obj.price_current = current_price
+                    pos_obj.profit = calc_profit(
+                        action=action,
+                        symbol=position_state.symbols[idx],
+                        volume=volume_arr[idx],
+                        price_open=price_open_arr[idx],
+                        price_close=current_price,
+                    )
+                    ensure_trade_record(
+                        pos_id=int(position_state.pos_id[idx]),
+                        action=action,
+                        symbol=position_state.symbols[idx],
+                        volume=volume_arr[idx],
+                        price=price_open_arr[idx],
+                        sl=sl_arr[idx],
+                        tp=tp_arr[idx],
+                        comment=position_state.comments[idx],
+                        requested_entry_price=price_open_arr[idx],
+                        open_time=position_state.open_time[idx],
+                    )
+                    update_trade_tracker(
+                        pos_id=int(position_state.pos_id[idx]),
+                        action=action,
+                        symbol=position_state.symbols[idx],
+                        entry_price=price_open_arr[idx],
+                        current_price=current_price,
+                        profit_usd=pos_obj.profit,
+                    )
+                    pos_obj.margin_required = calc_margin(
+                        action=action,
+                        symbol=position_state.symbols[idx],
+                        volume=volume_arr[idx],
+                        price=price_open_arr[idx],
+                    )
+
+                    profit_arr[idx] = float(pos_obj.profit or 0.0)
+                    margin_arr[idx] = float(pos_obj.margin_required or 0.0)
+                    commission_arr[idx] = float(
+                        getattr(pos_obj, "commission", 0.0) or 0.0
+                    )
+                    fee_arr[idx] = float(getattr(pos_obj, "fee", 0.0) or 0.0)
+                    swap_arr[idx] = float(getattr(pos_obj, "swap", 0.0) or 0.0)
+            else:
+                for idx, (position_id, position) in enumerate(positions):
+                    if not valid_arr[idx]:
+                        continue
+                    current_price = float(current_prices[idx])
+                    is_buy = bool(is_buy_arr[idx])
+                    action = "buy" if is_buy else "sell"
+
+                    position.price_current = current_price
+                    position.profit = calc_profit(
+                        action=action,
+                        symbol=position.symbol,
+                        volume=position.volume,
+                        price_open=position.price_open,
+                        price_close=current_price,
+                    )
+                    ensure_trade_record(
+                        pos_id=int(position_id),
+                        action=action,
+                        symbol=position.symbol,
+                        volume=position.volume,
+                        price=position.price_open,
+                        sl=position.sl,
+                        tp=position.tp,
+                        comment=position.comment,
+                        requested_entry_price=position.price_open,
+                        open_time=position.time,
+                    )
+                    update_trade_tracker(
+                        pos_id=int(position_id),
+                        action=action,
+                        symbol=position.symbol,
+                        entry_price=position.price_open,
+                        current_price=current_price,
+                        profit_usd=position.profit,
+                    )
+                    position.margin_required = calc_margin(
+                        action=action,
+                        symbol=position.symbol,
+                        volume=position.volume,
+                        price=position.price_open,
+                    )
+
+                    profit_arr[idx] = float(position.profit or 0.0)
+                    margin_arr[idx] = float(position.margin_required or 0.0)
+                    commission_arr[idx] = float(
+                        getattr(position, "commission", 0.0) or 0.0
+                    )
+                    fee_arr[idx] = float(getattr(position, "fee", 0.0) or 0.0)
+                    swap_arr[idx] = float(getattr(position, "swap", 0.0) or 0.0)
+
+        if numba_ready and numba_ok:
+            profit_arr[:], margin_arr[:], sl_hit_arr[:], tp_hit_arr[:] = (
+                numba_position_update(
+                    current_prices,
+                    price_open_arr,
+                    volume_arr,
+                    direction_arr,
+                    sl_arr,
+                    tp_arr,
+                    valid_arr,
+                    contract_size_arr,
+                    tick_size_arr,
+                    tick_value_arr,
+                    margin_mode_arr,
+                    leverage_arr,
+                )
+            )
+
+            if use_state:
+                for idx in range(count):
+                    if not valid_arr[idx]:
+                        continue
+                    pos_obj = position_state.pos_objects[idx]
+                    if pos_obj is None:
+                        continue
+                    current_price = float(current_prices[idx])
+                    pos_obj.price_current = current_price
+                    action = "buy" if direction_arr[idx] == 1 else "sell"
+                    pos_obj.profit = float(profit_arr[idx])
+                    pos_obj.margin_required = float(margin_arr[idx])
+
+                    ensure_trade_record(
+                        pos_id=int(position_state.pos_id[idx]),
+                        action=action,
+                        symbol=position_state.symbols[idx],
+                        volume=volume_arr[idx],
+                        price=price_open_arr[idx],
+                        sl=sl_arr[idx],
+                        tp=tp_arr[idx],
+                        comment=position_state.comments[idx],
+                        requested_entry_price=price_open_arr[idx],
+                        open_time=position_state.open_time[idx],
+                    )
+                    update_trade_tracker(
+                        pos_id=int(position_state.pos_id[idx]),
+                        action=action,
+                        symbol=position_state.symbols[idx],
+                        entry_price=price_open_arr[idx],
+                        current_price=current_price,
+                        profit_usd=pos_obj.profit,
+                    )
+
+                    commission_arr[idx] = float(
+                        getattr(pos_obj, "commission", 0.0) or 0.0
+                    )
+                    fee_arr[idx] = float(getattr(pos_obj, "fee", 0.0) or 0.0)
+                    swap_arr[idx] = float(getattr(pos_obj, "swap", 0.0) or 0.0)
+
+                    position_state.profit[idx] = profit_arr[idx]
+                    position_state.margin_required[idx] = margin_arr[idx]
+                    position_state.price_current[idx] = current_price
+            else:
+                for idx, (position_id, position) in enumerate(positions):
+                    if not valid_arr[idx]:
+                        continue
+                    current_price = float(current_prices[idx])
+                    position.price_current = current_price
+                    action = "buy" if direction_arr[idx] == 1 else "sell"
+                    position.profit = float(profit_arr[idx])
+                    position.margin_required = float(margin_arr[idx])
+
+                    ensure_trade_record(
+                        pos_id=int(position_id),
+                        action=action,
+                        symbol=position.symbol,
+                        volume=position.volume,
+                        price=position.price_open,
+                        sl=position.sl,
+                        tp=position.tp,
+                        comment=position.comment,
+                        requested_entry_price=position.price_open,
+                        open_time=position.time,
+                    )
+                    update_trade_tracker(
+                        pos_id=int(position_id),
+                        action=action,
+                        symbol=position.symbol,
+                        entry_price=position.price_open,
+                        current_price=current_price,
+                        profit_usd=position.profit,
+                    )
+
+                    commission_arr[idx] = float(
+                        getattr(position, "commission", 0.0) or 0.0
+                    )
+                    fee_arr[idx] = float(getattr(position, "fee", 0.0) or 0.0)
+                    swap_arr[idx] = float(getattr(position, "swap", 0.0) or 0.0)
+
+        total_profit = float(profit_arr.sum())
+        total_margin = float(margin_arr.sum())
+        total_commission = float(commission_arr.sum())
+        total_fee = float(fee_arr.sum())
+        total_swap = float(swap_arr.sum())
+
+        if numba_ready and numba_ok:
+            sl_hit = sl_hit_arr
+            tp_hit = tp_hit_arr
+        else:
+            valid_mask = valid_arr
+            sl_hit = (
+                valid_mask
+                & (sl_arr != 0.0)
+                & (
+                    (is_buy_arr & (current_prices <= sl_arr))
+                    | (~is_buy_arr & (current_prices >= sl_arr))
+                )
+            )
+            tp_hit = (
+                valid_mask
+                & (tp_arr != 0.0)
+                & (
+                    (is_buy_arr & (current_prices >= tp_arr))
+                    | (~is_buy_arr & (current_prices <= tp_arr))
+                )
+            )
+
+        to_close = np.where(sl_hit | tp_hit)[0]
+        for idx in to_close:
+            reason = "Take profit" if bool(tp_hit[int(idx)]) else "Stop loss"
+            if use_state:
+                pos_obj = position_state.pos_objects[int(idx)]
+                if pos_obj is None:
+                    continue
+                close_position(pos_obj._asdict(), reason=reason)
+            else:
+                position = positions[int(idx)][1]
+                close_position(position._asdict(), reason=reason)
+
+        return {
+            "profit": total_profit,
+            "margin": total_margin,
+            "commission": total_commission,
+            "fee": total_fee,
+            "swap": total_swap,
+        }
+
+    def _ensure_position_buffers(self, count: int) -> None:
+        """Ensure reusable position arrays are large enough for the current bar."""
+        size = int(getattr(self, "_pos_buf_size", 0) or 0)
+        if size >= count:
+            return
+
+        new_size = max(count, size * 2 if size else count)
+        self._pos_buf_size = new_size
+        self._pos_buf_current_prices = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_price_open = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_volume = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_direction = np.zeros(new_size, dtype=np.int8)
+        self._pos_buf_sl = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_tp = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_is_buy = np.zeros(new_size, dtype=bool)
+        self._pos_buf_valid = np.zeros(new_size, dtype=bool)
+        self._pos_buf_profit = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_margin = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_commission = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_fee = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_swap = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_contract_size = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_tick_size = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_tick_value = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_margin_mode = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_leverage = np.zeros(new_size, dtype=np.float64)
+        self._pos_buf_sl_hit = np.zeros(new_size, dtype=bool)
+        self._pos_buf_tp_hit = np.zeros(new_size, dtype=bool)
+
+    def _calc_profit(
+        self,
+        action: str,
+        symbol: str,
+        volume: float,
+        price_open: float,
+        price_close: float,
+    ) -> float:
+        if not getattr(self, "_use_fast_calc", False):
+            return float(
+                self.mt5_client.order_calc_profit(
+                    0 if action == "buy" else 1,
+                    symbol,
+                    volume,
+                    price_open,
+                    price_close,
+                )
+                or 0.0
+            )
+
+        params = self._get_symbol_calc_params(symbol)
+        if params is None:
+            return float(
+                self.mt5_client.order_calc_profit(
+                    0 if action == "buy" else 1,
+                    symbol,
+                    volume,
+                    price_open,
+                    price_close,
+                )
+                or 0.0
+            )
+
+        direction = 1.0 if action == "buy" else -1.0
+        price_delta = (price_close - price_open) * direction
+        tick_size = params["tick_size"]
+        tick_value = params["tick_value"]
+        if tick_size > 0 and tick_value > 0:
+            return float((price_delta / tick_size) * tick_value * volume)
+
+        contract_size = params["contract_size"]
+        if contract_size > 0:
+            return float(price_delta * contract_size * volume)
+
+        return 0.0
+
+    def _calc_margin(
+        self,
+        action: str,
+        symbol: str,
+        volume: float,
+        price: float,
+    ) -> float:
+        if not getattr(self, "_use_fast_calc", False):
+            return float(
+                self.mt5_client.order_calc_margin(
+                    0 if action == "buy" else 1,
+                    symbol,
+                    volume,
+                    price,
+                )
+                or 0.0
+            )
+
+        params = self._get_symbol_calc_params(symbol)
+        if params is None:
+            return float(
+                self.mt5_client.order_calc_margin(
+                    0 if action == "buy" else 1,
+                    symbol,
+                    volume,
+                    price,
+                )
+                or 0.0
+            )
+
+        contract_size = params["contract_size"]
+        margin_mode = params["margin_mode"]
+        leverage = params["leverage"]
+        tick_size = params["tick_size"]
+        tick_value = params["tick_value"]
+
+        if margin_mode == 0:
+            return (volume * contract_size) / leverage
+        if margin_mode == 1:
+            return volume * contract_size
+        if margin_mode == 2:
+            return volume * contract_size * price
+        if margin_mode == 3:
+            return (volume * contract_size * price) / leverage
+        if margin_mode == 4 and tick_size > 0:
+            return volume * contract_size * price * tick_value / tick_size
+        if margin_mode in (5, 6):
+            return volume * contract_size * price
+
+        return 0.0
+
+    def _get_symbol_calc_params(self, symbol: str) -> Optional[dict[str, float]]:
+        cache = cast(
+            Optional[dict[str, dict[str, float]]],
+            getattr(self, "_symbol_calc_cache", None),
+        )
+        if cache is None:
+            cache = {}
+            self._symbol_calc_cache = cache
+
+        if symbol in cache:
+            return cache[symbol]
+
+        symbol_info = self._symbols_data.get(symbol)
+        if symbol_info is None:
+            return None
+
+        contract_size = float(getattr(symbol_info, "trade_contract_size", 0.0) or 0.0)
+        margin_mode = float(getattr(symbol_info, "trade_calc_mode", 0) or 0)
+        leverage = float(getattr(self._account_data, "leverage", 100) or 100)
+        tick_size = float(
+            getattr(symbol_info, "trade_tick_size", 0.0)
+            or getattr(symbol_info, "point", 0.0001)
+        )
+        tick_value = float(getattr(symbol_info, "trade_tick_value", 0.0) or 0.0)
+
+        cache[symbol] = {
+            "contract_size": contract_size,
+            "margin_mode": margin_mode,
+            "leverage": leverage,
+            "tick_size": tick_size,
+            "tick_value": tick_value,
+        }
+        return cache[symbol]
 
     def monitor_account(self, totals: Optional[dict[str, float]] = None) -> None:
         """Update account metrics based on current positions."""
@@ -630,6 +1462,9 @@ class SimulationEngine(TradeRecordMixin):
         step_data: Optional[Any] = None,
         data_modelling: str = "trading_timeframe",
         engine_type: str = "event_driven",
+        use_position_arrays: bool = True,
+        use_fast_calc: bool = True,
+        use_numba: bool = True,
     ) -> None:  # noqa: C901
         """
         Run the main simulation engine.
@@ -646,8 +1481,12 @@ class SimulationEngine(TradeRecordMixin):
         - "event_driven": current tick/bar-based simulator (default)
         - "vectorised": close-based vectorized backtest (fast, simplified)
         """
-        logger.info(f"Starting simulation: {self.simulator_name}")
-        logger.info("=" * 70)
+        suppress_logs = bool(not verbose)
+        prev_suppress_logs = bool(getattr(self, "_suppress_backtest_logs", False))
+        self._suppress_backtest_logs = suppress_logs
+        if not suppress_logs:
+            logger.info(f"Starting simulation: {self.simulator_name}")
+            logger.info("=" * 70)
 
         symbol_info = self._symbols_data.get(symbol)
         if symbol_info is None:
@@ -675,6 +1514,9 @@ class SimulationEngine(TradeRecordMixin):
             if metadata is not None:
                 metadata["engine"] = "vectorised"
 
+            self._use_position_arrays = bool(use_position_arrays)
+            self._use_fast_calc = bool(use_fast_calc)
+            self._symbol_calc_cache = {}
             self._run_vectorized(
                 data=data,
                 strategy=strategy,
@@ -688,10 +1530,23 @@ class SimulationEngine(TradeRecordMixin):
             if save_db:
                 self._save_backtest_to_db(metadata)
 
-            logger.info("\n" + "=" * 70)
-            logger.info("Simulation completed")
+            if not suppress_logs:
+                logger.info("\n" + "=" * 70)
+                logger.info("Simulation completed")
+            self._suppress_backtest_logs = prev_suppress_logs
             return
 
+        self._use_position_arrays = bool(use_position_arrays)
+        self._use_fast_calc = bool(use_fast_calc)
+        self._use_numba = bool(use_numba and NUMBA_AVAILABLE)
+        if suppress_logs:
+            log_every = 0
+        self._log_trades = bool((verbose or log_every) and not suppress_logs)
+        self._symbol_calc_cache = {}
+        prev_fast_backtest = None
+        if hasattr(self._simulator, "_fast_backtest"):
+            prev_fast_backtest = self._simulator._fast_backtest
+            self._simulator._fast_backtest = bool(suppress_logs)
         mode = str(data_modelling or "trading_timeframe").strip().lower()
         if mode not in (
             "trading_timeframe",
@@ -721,11 +1576,30 @@ class SimulationEngine(TradeRecordMixin):
             return next_idx
 
         if mode == "trading_timeframe":
+            self._signal_cache = self._build_signal_cache(data, strategy)
+            close_arr = None
+            spread_arr = None
+            try:
+                close_arr = data["close"].to_numpy()
+                if "spread" in data:
+                    spread_arr = data["spread"].to_numpy()
+            except Exception:
+                close_arr = None
+                spread_arr = None
             for idx in range(len(data)):
-                row = data.iloc[idx]
-                self._current_time = self._to_datetime(row.name)
-                close = float(row["close"])
-                spread_points = float(row.get("spread", spread_default))
+                tick_time = data.index[idx]
+                self._current_time = self._to_datetime(tick_time)
+                if close_arr is not None:
+                    close = float(close_arr[idx])
+                    spread_points = (
+                        float(spread_arr[idx])
+                        if spread_arr is not None
+                        else spread_default
+                    )
+                else:
+                    row = data.iloc[idx]
+                    close = float(row["close"])
+                    spread_points = float(row.get("spread", spread_default))
                 spread = spread_points * point
 
                 # Use bar close as bid and add spread for ask.
@@ -734,7 +1608,7 @@ class SimulationEngine(TradeRecordMixin):
 
                 self._on_tick(
                     symbol=symbol,
-                    tick_time=row.name,
+                    tick_time=tick_time,
                     bid=bid,
                     ask=ask,
                     last=close,
@@ -753,7 +1627,9 @@ class SimulationEngine(TradeRecordMixin):
                     validator,
                     verbose,
                 )
+            self._signal_cache = None
         else:
+            self._signal_cache = self._build_signal_cache(data, strategy)
             if step_data is None or len(step_data) == 0:
                 logger.error("step_data is required for the selected data_modelling")
                 return
@@ -789,6 +1665,7 @@ class SimulationEngine(TradeRecordMixin):
                     _advance_bars,
                     next_bar_idx,
                 )
+            self._signal_cache = None
 
         # Close any remaining positions at the end of the run (MT5-style)
         self.close_all_positions(reason="Time exit")
@@ -796,8 +1673,13 @@ class SimulationEngine(TradeRecordMixin):
         if save_db:
             self._save_backtest_to_db(metadata)
 
-        logger.info("\n" + "=" * 70)
-        logger.info("Simulation completed")
+        if prev_fast_backtest is not None:
+            self._simulator._fast_backtest = prev_fast_backtest
+
+        if not suppress_logs:
+            logger.info("\n" + "=" * 70)
+            logger.info("Simulation completed")
+        self._suppress_backtest_logs = prev_suppress_logs
 
     def _run_real_ticks(
         self,
@@ -856,11 +1738,27 @@ class SimulationEngine(TradeRecordMixin):
     ) -> int:
         """Run simulation with M1 OHLC pattern."""
         next_bar_idx = start_idx
+        close_arr = None
+        spread_arr = None
+        try:
+            close_arr = step_data["close"].to_numpy()
+            if "spread" in step_data:
+                spread_arr = step_data["spread"].to_numpy()
+        except Exception:
+            close_arr = None
+            spread_arr = None
         for idx in range(len(step_data)):
-            row = step_data.iloc[idx]
-            self._current_time = self._to_datetime(row.name)
-            close = float(row["close"])
-            spread_points = float(row.get("spread", spread_default))
+            tick_time = step_data.index[idx]
+            self._current_time = self._to_datetime(tick_time)
+            if close_arr is not None:
+                close = float(close_arr[idx])
+                spread_points = (
+                    float(spread_arr[idx]) if spread_arr is not None else spread_default
+                )
+            else:
+                row = step_data.iloc[idx]
+                close = float(row["close"])
+                spread_points = float(row.get("spread", spread_default))
             spread = spread_points * point
 
             bid = close
@@ -868,7 +1766,7 @@ class SimulationEngine(TradeRecordMixin):
 
             self._on_tick(
                 symbol=symbol,
-                tick_time=row.name,
+                tick_time=tick_time,
                 bid=bid,
                 ask=ask,
                 last=close,
@@ -904,6 +1802,45 @@ class SimulationEngine(TradeRecordMixin):
             next_bar_idx = advance_func(self._current_time, next_bar_idx)
         return next_bar_idx
 
+    def _build_signal_cache(self, data: Any, strategy: Any) -> Optional[list]:
+        """Build per-bar signal cache to avoid repeated get_signal() calls."""
+        try:
+            entry = (
+                data["entry_signal"].fillna(0).astype(int).to_numpy()
+                if "entry_signal" in data
+                else None
+            )
+            exit_sig = (
+                data["exit_signal"].fillna(0).astype(int).to_numpy()
+                if "exit_signal" in data
+                else None
+            )
+        except Exception:
+            entry = None
+            exit_sig = None
+
+        if entry is None and exit_sig is None:
+            return None
+
+        cache: list[Optional[dict[str, Any]]] = [None] * len(data)
+        for idx in range(len(data)):
+            e = int(entry[idx]) if entry is not None else 0
+            x = int(exit_sig[idx]) if exit_sig is not None else 0
+            if e == 0 and x == 0:
+                continue
+
+            # Only fall back to strategy.get_signal if we need extras
+            signal = strategy.get_signal(data, idx)
+            if signal is None:
+                cache[idx] = {"entry_signal": e, "exit_signal": x}
+                continue
+
+            signal["entry_signal"] = e
+            signal["exit_signal"] = x
+            cache[idx] = signal
+
+        return cache
+
     # ----------------------------
     # Vectorized Engine (Close-Based)
     # ----------------------------
@@ -935,6 +1872,8 @@ class SimulationEngine(TradeRecordMixin):
             return
 
         arrays = self._vectorized_arrays(data, spread_default)
+        self._vectorized_trade_buffer = [None] * len(data)
+        self._vectorized_trade_count = 0
         self._vectorized_process_signals(
             data=data,
             symbol=symbol,
@@ -943,6 +1882,7 @@ class SimulationEngine(TradeRecordMixin):
             arrays=arrays,
             verbose=verbose,
         )
+        self._vectorized_flush_trades()
 
     def _vectorized_process_signals(
         self,
@@ -1001,7 +1941,11 @@ class SimulationEngine(TradeRecordMixin):
             entry_tp = 0.0
 
         for idx in range(len(data)):
-            if verbose and idx % 500 == 0:
+            if (
+                verbose
+                and not getattr(self, "_suppress_backtest_logs", False)
+                and idx % 500 == 0
+            ):
                 logger.info(f"Vectorized step {idx}/{len(data)}")
 
             if pos_action is None:
@@ -1146,12 +2090,12 @@ class SimulationEngine(TradeRecordMixin):
         tick.ask = float(ask)
         tick.last = float(close_price)
 
-        profit = self.mt5_client.order_calc_profit(
-            0 if action == "buy" else 1,
-            symbol,
-            float(volume),
-            float(entry_price),
-            float(close_price),
+        profit = self._calc_profit(
+            action=action,
+            symbol=symbol,
+            volume=float(volume),
+            price_open=float(entry_price),
+            price_close=float(close_price),
         )
 
         record = self._trade_records_open.get(pos_id)
@@ -1246,7 +2190,7 @@ class SimulationEngine(TradeRecordMixin):
             if record.initial_risk_usd > 0:
                 record.r_multiple = record.profit_loss / record.initial_risk_usd
 
-            self._completed_trades.append(record)
+            self._vectorized_store_trade(record)
             self._trade_records_open.pop(pos_id, None)
             self._trade_trackers.pop(pos_id, None)
 
@@ -1257,3 +2201,33 @@ class SimulationEngine(TradeRecordMixin):
         self._account_data.profit = 0.0
         self._account_data.commission_blocked = 0.0
         self._account_data.liabilities = 0.0
+
+    def _vectorized_store_trade(self, record: Any) -> None:
+        """Store a completed trade with a pre-allocated buffer when available."""
+        buffer = getattr(self, "_vectorized_trade_buffer", None)
+        if not isinstance(buffer, list):
+            self._completed_trades.append(record)
+            return
+
+        idx = int(getattr(self, "_vectorized_trade_count", 0))
+        if idx >= len(buffer):
+            self._completed_trades.append(record)
+            return
+
+        buffer[idx] = record
+        self._vectorized_trade_count = idx + 1
+
+    def _vectorized_flush_trades(self) -> None:
+        """Flush buffered vectorized trades into the completed trades list."""
+        buffer = getattr(self, "_vectorized_trade_buffer", None)
+        if not isinstance(buffer, list):
+            return
+
+        count = int(getattr(self, "_vectorized_trade_count", 0))
+        for idx in range(count):
+            record = buffer[idx]
+            if record is not None:
+                self._completed_trades.append(record)
+
+        self._vectorized_trade_buffer = None
+        self._vectorized_trade_count = 0

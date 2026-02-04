@@ -61,7 +61,7 @@ def main():
     end_date = datetime(2025, 12, 31) 
     data_modelling = "trading_timeframe"       # "real_ticks", "synthetic_ticks", "m1_ohlc", "trading_timeframe"
     # ----------------------------
-    engine_type = "vectorised"                 # "event_driven", "vectorised"
+    engine_type = "event_driven"                 # "event_driven", "vectorised"
     step_data = None
 
     # Initialize AccountInfoSimulator
@@ -148,7 +148,7 @@ def main():
         symbol=eurusd,
         volume=volume,
         verbose=True,
-        save_db=True,
+        save_db=False,
         metadata=backtest_metadata,
         step_data=step_data,
         data_modelling=data_modelling,

@@ -24,13 +24,17 @@ Functions:
 """
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
+from apps.simulation.position_arrays import PositionArrayState
 from apps.utils.error_description import TradeErrorDescriptions
 
 mt5 = get_mt5_api()
+
+if TYPE_CHECKING:
+    from apps.utils.validate import TradeValidator
 
 
 def _get_mt5_val(attr: str, default: Any) -> Any:
@@ -467,6 +471,7 @@ class SimulatorClient:
             terminal_data if terminal_data else TerminalInfoSimulator()
         )
         self._mt5_client = mt5_client
+        self._position_array_state: Optional[PositionArrayState] = None
 
         # Initialize some default symbols if empty
         if not self._symbols_data:
@@ -479,6 +484,8 @@ class SimulatorClient:
         self._next_position_id = 1
         self._next_order_id = 100000
         self._next_deal_id = 200000
+        self._validator: Optional[TradeValidator] = None
+        self._fast_backtest = False
 
     def version(self) -> Tuple[int, int, str]:
         """Get simulated terminal version."""
@@ -555,31 +562,40 @@ class SimulatorClient:
 
         logger.debug("Running order_send in simulator (MT5-like)")
 
-        from apps.utils.validate import TradeValidator
+        fast_backtest = bool(getattr(self, "_fast_backtest", False))
+        validator: Optional[TradeValidator] = None
+        if not fast_backtest:
+            validator = self._validator
+            if validator is None:
+                from apps.utils.validate import TradeValidator
 
-        validator = TradeValidator(mt5_instance=self)
+                new_validator = TradeValidator(mt5_instance=self)
+                validator = new_validator
+                self._validator = new_validator
 
-        # Normalize request structure so all MT5 fields exist.
-        # This mirrors MqlTradeRequest fields and keeps downstream logic stable.
-        req = {
-            "action": request.get("action"),
-            "magic": request.get("magic", 0),
-            "order": request.get("order", 0),
-            "symbol": request.get("symbol", ""),
-            "volume": request.get("volume", 0.0),
-            "price": request.get("price", 0.0),
-            "stoplimit": request.get("stoplimit", 0.0),
-            "sl": request.get("sl", 0.0),
-            "tp": request.get("tp", 0.0),
-            "deviation": request.get("deviation", 0),
-            "type": request.get("type", 0),
-            "type_filling": request.get("type_filling", 0),
-            "type_time": request.get("type_time", 0),
-            "expiration": request.get("expiration", 0),
-            "comment": request.get("comment", ""),
-            "position": request.get("position", 0),
-            "position_by": request.get("position_by", 0),
-        }
+            # Normalize request structure so all MT5 fields exist.
+            # This mirrors MqlTradeRequest fields and keeps downstream logic stable.
+            req = {
+                "action": request.get("action"),
+                "magic": request.get("magic", 0),
+                "order": request.get("order", 0),
+                "symbol": request.get("symbol", ""),
+                "volume": request.get("volume", 0.0),
+                "price": request.get("price", 0.0),
+                "stoplimit": request.get("stoplimit", 0.0),
+                "sl": request.get("sl", 0.0),
+                "tp": request.get("tp", 0.0),
+                "deviation": request.get("deviation", 0),
+                "type": request.get("type", 0),
+                "type_filling": request.get("type_filling", 0),
+                "type_time": request.get("type_time", 0),
+                "expiration": request.get("expiration", 0),
+                "comment": request.get("comment", ""),
+                "position": request.get("position", 0),
+                "position_by": request.get("position_by", 0),
+            }
+        else:
+            req = request
 
         def _response(retcode: int, comment: str, **kwargs: Any) -> Dict[str, Any]:
             """Build an MT5-like response structure."""
@@ -597,6 +613,12 @@ class SimulatorClient:
             }
             base.update(kwargs)
             return base
+
+        def _validate(name: str, value: Any, **kwargs: Any) -> tuple[bool, str]:
+            """Fast-backtest-safe validation wrapper."""
+            if validator is None:
+                return True, ""
+            return validator.validate(name, value, **kwargs)
 
         # Quick environment checks (trade permissions).
         if (
@@ -636,7 +658,7 @@ class SimulatorClient:
             symbol_name: str, volume: float
         ) -> Optional[Dict[str, Any]]:
             """Validate volume, lot steps, and symbol volume limits."""
-            valid, msg = validator.validate("volume", volume, symbol=symbol_name)
+            valid, msg = _validate("volume", volume, symbol=symbol_name)
             if not valid:
                 return _response(10014, f"Invalid volume: {msg}")
 
@@ -651,7 +673,7 @@ class SimulatorClient:
                 for o in self._orders_data.values()
                 if o.symbol == symbol_name
             )
-            valid, msg = validator.validate(
+            valid, msg = _validate(
                 "symbol_volume",
                 open_volume + pending_volume + float(volume),
                 symbol=symbol_name,
@@ -670,7 +692,7 @@ class SimulatorClient:
         ) -> Optional[Dict[str, Any]]:
             """Validate SL/TP vs entry and ensure stops are not too close to market."""
             if sl:
-                valid, msg = validator.validate(
+                valid, msg = _validate(
                     "stop_loss",
                     sl,
                     entry_price=entry_price,
@@ -680,7 +702,7 @@ class SimulatorClient:
                 if not valid:
                     return _response(10016, f"Invalid stop loss: {msg}")
             if tp:
-                valid, msg = validator.validate(
+                valid, msg = _validate(
                     "take_profit",
                     tp,
                     entry_price=entry_price,
@@ -726,7 +748,7 @@ class SimulatorClient:
                 return invalid
 
             # Validate max pending orders
-            valid, msg = validator.validate(
+            valid, msg = _validate(
                 "max_orders",
                 len(self._orders_data),
                 account_limit=self._account_data.limit_orders,
@@ -742,7 +764,7 @@ class SimulatorClient:
             if entry_price <= 0:
                 return _response(10015, "Invalid price for pending order")
 
-            valid, msg = validator.validate("price", entry_price, symbol=symbol)
+            valid, msg = _validate("price", entry_price, symbol=symbol)
             if not valid:
                 return _response(10015, msg)
 
@@ -764,7 +786,7 @@ class SimulatorClient:
             ):
                 if stoplimit <= 0:
                     return _response(10015, "StopLimit price is required")
-                valid, msg = validator.validate("price", stoplimit, symbol=symbol)
+                valid, msg = _validate("price", stoplimit, symbol=symbol)
                 if not valid:
                     return _response(10015, f"Invalid stoplimit price: {msg}")
                 if (
@@ -790,7 +812,7 @@ class SimulatorClient:
                 return invalid
 
             # Freeze level check for pending orders
-            valid, msg = validator.validate(
+            valid, msg = _validate(
                 "freeze_level",
                 entry_price,
                 stop_price=0.0,
@@ -875,7 +897,7 @@ class SimulatorClient:
                 price = market_price
 
             # Validate entry price
-            valid, msg = validator.validate("price", price, symbol=symbol)
+            valid, msg = _validate("price", price, symbol=symbol)
             if not valid:
                 return _response(10015, msg)
 
@@ -897,7 +919,7 @@ class SimulatorClient:
 
             # Margin check
             margin_required = self.order_calc_margin(order_type, symbol, volume, price)
-            valid, msg = validator.validate("margin", margin_required)
+            valid, msg = _validate("margin", margin_required)
             if not valid:
                 return _response(10019, msg)
 
@@ -956,6 +978,13 @@ class SimulatorClient:
             self._account_data.margin_free = float(
                 self._account_data.margin_free - (margin_required or 0.0)
             )
+
+            position_state = getattr(self, "_position_array_state", None)
+            if position_state is not None:
+                position_state.add_or_update(
+                    pos_id=position_id,
+                    pos_data=self._positions_data[position_id],
+                )
 
             return _response(
                 10009,
@@ -1035,8 +1064,18 @@ class SimulatorClient:
                     )
                 position.time_update = current_time
                 position.time_update_msc = current_time * 1000
+                position_state = getattr(self, "_position_array_state", None)
+                if position_state is not None:
+                    position_state.update_volume_margin(
+                        pos_id=position_id,
+                        volume=position.volume,
+                        margin=position.margin_required,
+                    )
             else:
                 self._positions_data.pop(position_id, None)
+                position_state = getattr(self, "_position_array_state", None)
+                if position_state is not None:
+                    position_state.remove(position_id)
 
             # Create deal record (exit)
             deal_id = self._next_deal_id
@@ -1114,7 +1153,7 @@ class SimulatorClient:
 
             # Freeze level checks for SL and TP
             if new_sl:
-                valid, msg = validator.validate(
+                valid, msg = _validate(
                     "freeze_level",
                     entry_price,
                     stop_price=new_sl,
@@ -1124,7 +1163,7 @@ class SimulatorClient:
                 if not valid:
                     return _response(10029, msg)
             if new_tp:
-                valid, msg = validator.validate(
+                valid, msg = _validate(
                     "freeze_level",
                     entry_price,
                     stop_price=new_tp,
@@ -1138,6 +1177,9 @@ class SimulatorClient:
             position.tp = new_tp
             position.time_update = current_time
             position.time_update_msc = current_time * 1000
+            position_state = getattr(self, "_position_array_state", None)
+            if position_state is not None:
+                position_state.update_sl_tp(position_id, new_sl, new_tp)
             return _response(
                 10009, "Position modified", order=position_id, bid=bid, ask=ask
             )
@@ -1177,7 +1219,7 @@ class SimulatorClient:
             new_sl = float(req.get("sl") or stored.sl or 0.0)
             new_tp = float(req.get("tp") or stored.tp or 0.0)
 
-            valid, msg = validator.validate("price", new_price, symbol=symbol)
+            valid, msg = _validate("price", new_price, symbol=symbol)
             if not valid:
                 return _response(10015, msg)
 
@@ -1201,7 +1243,7 @@ class SimulatorClient:
                 return invalid
 
             # Freeze level check for pending orders (entry price check vs market)
-            valid, msg = validator.validate(
+            valid, msg = _validate(
                 "freeze_level",
                 new_price,
                 stop_price=0.0,

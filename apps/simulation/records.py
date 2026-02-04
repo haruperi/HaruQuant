@@ -167,9 +167,20 @@ class TradeRecordMixin:
 
     # Data Calculation
     def _pip_size(self, symbol: str) -> float:
+        cache = getattr(self, "_pip_size_cache", None)
+        if cache is None:
+            cache = {}
+            self._pip_size_cache = cache
+
+        cached = cache.get(symbol)
+        if cached is not None:
+            return float(cached)
+
         symbol_info = self._symbols_data.get(symbol)
         point = symbol_info.point if symbol_info is not None else 0.00001
-        return float(point) * 10.0
+        pip_size = float(point) * 10.0
+        cache[symbol] = pip_size
+        return pip_size
 
     # Record Management
     def _ensure_trade_record(

@@ -41,6 +41,7 @@ from apps.simulation.data import (
     SymbolTickSimulator,
 )
 from apps.simulation.engine import SimulationEngine
+from apps.simulation.position_arrays import PositionArrayState
 from apps.simulation.records import TradeRecord
 from apps.simulation.utils import SimulationUtilsMixin
 from apps.trade import AccountInfo, Trade
@@ -84,6 +85,7 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
         self._trade_trackers: dict[int, dict] = {}
         self._completed_trades: list[TradeRecord] = []
         self._initial_balance = float(self._account_data.balance)
+        self._position_array_state: PositionArrayState = PositionArrayState()
 
         # Create simulator client
         self._simulator = SimulatorClient(
@@ -93,6 +95,7 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
             positions_data=self._positions_data,
             mt5_client=mt5_client,
         )
+        self._simulator._position_array_state = self._position_array_state
 
         # Initialize Trade and info classes
         self.trade = Trade(api=self._simulator)
@@ -129,7 +132,8 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
             logger.error(f"Unknown action: {action}")
             return False
 
-        logger.info(f">>> Entering {action.upper()} position")
+        if getattr(self, "_log_trades", True):
+            logger.info(f">>> Entering {action.upper()} position")
 
         if open_time is None:
             logger.error("open_time is required to record position entry time")
@@ -177,9 +181,10 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
                 comment=comment,
             )
         if result:
-            logger.info(
-                f"{action.upper()} position opened successfully {self.trade.ResultOrder()}"
-            )
+            if getattr(self, "_log_trades", True):
+                logger.info(
+                    f"{action.upper()} position opened successfully {self.trade.ResultOrder()}"
+                )
             pos_id = self._simulator._next_position_id - 1
             self._update_position_entry(
                 action=action,
@@ -267,6 +272,10 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
         if not self.trade.PositionClose(ticket=pos_id):
             logger.error(f"Close failed: {self.trade.ResultRetcodeDescription()}")
             return False
+
+        position_state = getattr(self, "_position_array_state", None)
+        if position_state is not None:
+            position_state.remove(int(pos_id))
 
         record = self._trade_records_open.get(pos_id)
         if record is None:
