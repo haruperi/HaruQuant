@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Optional, Tuple
 
+import numpy as np
+
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.simulation.data import SymbolTickSimulator
@@ -124,6 +126,7 @@ class SimulationEngine(TradeRecordMixin):
     _update_position_entry: Callable[..., Any]
     _ensure_trade_record: Callable[..., Any]
     _update_trade_tracker: Callable[..., Any]
+    _completed_trades: list[Any]
 
     def _ensure_tick(self, symbol: str) -> SymbolTickSimulator:
         """Ensure a tick container exists for the symbol."""
@@ -626,6 +629,7 @@ class SimulationEngine(TradeRecordMixin):
         metadata: Optional[dict] = None,
         step_data: Optional[Any] = None,
         data_modelling: str = "trading_timeframe",
+        engine_type: str = "event_driven",
     ) -> None:  # noqa: C901
         """
         Run the main simulation engine.
@@ -637,6 +641,10 @@ class SimulationEngine(TradeRecordMixin):
         - "m1_ohlc": step through M1 bars using 4-tick OHLC pattern
         - "synthetic_ticks": generate synthetic ticks from M1 data
         - "real_ticks": step through real tick data
+
+        engine_type options:
+        - "event_driven": current tick/bar-based simulator (default)
+        - "vectorised": close-based vectorized backtest (fast, simplified)
         """
         logger.info(f"Starting simulation: {self.simulator_name}")
         logger.info("=" * 70)
@@ -650,8 +658,39 @@ class SimulationEngine(TradeRecordMixin):
         point = symbol_info.point
         spread_default = symbol_info.spread
 
+        engine = str(engine_type or "event_driven").strip().lower().replace("-", "_")
+        if engine not in ("event_driven", "vectorised"):
+            logger.error(f"Unknown engine_type: {engine_type}")
+            return
+
         if validator is None:
             validator = TradeValidator()
+
+        if engine == "vectorised":
+            if str(data_modelling or "trading_timeframe").strip().lower() != (
+                "trading_timeframe"
+            ):
+                logger.error("Vectorized engine only supports trading_timeframe bars")
+                return
+            if metadata is not None:
+                metadata["engine"] = "vectorised"
+
+            self._run_vectorized(
+                data=data,
+                strategy=strategy,
+                symbol=symbol,
+                volume=volume,
+                point=point,
+                spread_default=spread_default,
+                verbose=verbose,
+            )
+
+            if save_db:
+                self._save_backtest_to_db(metadata)
+
+            logger.info("\n" + "=" * 70)
+            logger.info("Simulation completed")
+            return
 
         mode = str(data_modelling or "trading_timeframe").strip().lower()
         if mode not in (
@@ -864,3 +903,357 @@ class SimulationEngine(TradeRecordMixin):
             )
             next_bar_idx = advance_func(self._current_time, next_bar_idx)
         return next_bar_idx
+
+    # ----------------------------
+    # Vectorized Engine (Close-Based)
+    # ----------------------------
+    def _run_vectorized(
+        self,
+        data: Any,
+        strategy: Any,
+        symbol: str,
+        volume: float,
+        point: float,
+        spread_default: float,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Run a vectorized backtest using close-only execution.
+
+        Characteristics:
+        - Processes the entire DataFrame using vectorized arrays
+        - Uses close prices for entry/exit (no intra-bar SL/TP)
+        - Simplified position tracking (single position at a time)
+        - No mark-to-market updates
+        """
+        if data is None or len(data) == 0:
+            logger.error("No data provided for vectorized backtest")
+            return
+
+        if "close" not in data:
+            logger.error("Vectorized backtest requires 'close' column")
+            return
+
+        arrays = self._vectorized_arrays(data, spread_default)
+        self._vectorized_process_signals(
+            data=data,
+            symbol=symbol,
+            volume=volume,
+            point=point,
+            arrays=arrays,
+            verbose=verbose,
+        )
+
+    def _vectorized_process_signals(
+        self,
+        data: Any,
+        symbol: str,
+        volume: float,
+        point: float,
+        arrays: dict[str, Any],
+        verbose: bool,
+    ) -> None:
+        """Process signals and manage simplified positions in vectorized mode."""
+        close = arrays["close"]
+        index = arrays["index"]
+        spread_points = arrays["spread_points"]
+        entry_signal = arrays["entry_signal"]
+        exit_signal = arrays["exit_signal"]
+
+        pos_action: Optional[str] = None
+        pos_id: Optional[int] = None
+        entry_idx: Optional[int] = None
+        entry_price: float = 0.0
+        entry_time: Optional[object] = None
+        entry_sl: float = 0.0
+        entry_tp: float = 0.0
+
+        def _finalize_trade(close_idx: int, reason: str) -> None:
+            nonlocal pos_action, pos_id, entry_idx, entry_price, entry_time
+            nonlocal entry_sl, entry_tp
+
+            if pos_action is None or pos_id is None or entry_idx is None:
+                return
+            self._vectorized_finalize_trade(
+                symbol=symbol,
+                volume=volume,
+                point=point,
+                close=close,
+                index=index,
+                spread_points=spread_points,
+                close_idx=close_idx,
+                reason=reason,
+                pos_id=pos_id,
+                action=pos_action,
+                entry_idx=entry_idx,
+                entry_price=entry_price,
+                entry_time=entry_time,
+                entry_sl=entry_sl,
+                entry_tp=entry_tp,
+            )
+
+            pos_action = None
+            pos_id = None
+            entry_idx = None
+            entry_price = 0.0
+            entry_time = None
+            entry_sl = 0.0
+            entry_tp = 0.0
+
+        for idx in range(len(data)):
+            if verbose and idx % 500 == 0:
+                logger.info(f"Vectorized step {idx}/{len(data)}")
+
+            if pos_action is None:
+                sig = int(entry_signal[idx])
+                if sig in (1, -1):
+                    (
+                        pos_action,
+                        pos_id,
+                        entry_idx,
+                        entry_price,
+                        entry_time,
+                        entry_sl,
+                        entry_tp,
+                    ) = self._vectorized_open_position(
+                        data=data,
+                        symbol=symbol,
+                        volume=volume,
+                        point=point,
+                        spread_points=spread_points,
+                        close=close,
+                        index=index,
+                        idx=idx,
+                        sig=sig,
+                    )
+            else:
+                exit_sig = int(exit_signal[idx])
+                if (pos_action == "buy" and exit_sig == 1) or (
+                    pos_action == "sell" and exit_sig == -1
+                ):
+                    _finalize_trade(idx, reason="Signal exit")
+
+        if pos_action is not None and entry_idx is not None:
+            _finalize_trade(len(data) - 1, reason="Time exit")
+
+    def _vectorized_arrays(self, data: Any, spread_default: float) -> dict[str, Any]:
+        """Prepare vectorized arrays used by the close-based engine."""
+        close = data["close"].astype(float).to_numpy()
+        index = data.index
+        spread_points = (
+            data["spread"].fillna(spread_default).astype(float).to_numpy()
+            if "spread" in data
+            else np.full(len(data), float(spread_default))
+        )
+        entry_signal = (
+            data["entry_signal"].fillna(0).astype(int).to_numpy()
+            if "entry_signal" in data
+            else np.zeros(len(data), dtype=int)
+        )
+        exit_signal = (
+            data["exit_signal"].fillna(0).astype(int).to_numpy()
+            if "exit_signal" in data
+            else np.zeros(len(data), dtype=int)
+        )
+        return {
+            "close": close,
+            "index": index,
+            "spread_points": spread_points,
+            "entry_signal": entry_signal,
+            "exit_signal": exit_signal,
+        }
+
+    def _vectorized_open_position(
+        self,
+        data: Any,
+        symbol: str,
+        volume: float,
+        point: float,
+        spread_points: np.ndarray,
+        close: np.ndarray,
+        index: Any,
+        idx: int,
+        sig: int,
+    ) -> tuple[str, int, int, float, object, float, float]:
+        """Open a simplified position for the vectorized engine."""
+        pos_action = "buy" if sig == 1 else "sell"
+        entry_idx = idx
+        entry_price = float(close[idx])
+        entry_time = index[idx]
+        row = data.iloc[idx]
+        entry_sl = float(row.get("stop_loss", 0.0) or 0.0)
+        entry_tp = float(row.get("take_profit", 0.0) or 0.0)
+
+        bid = entry_price
+        ask = entry_price + (float(spread_points[idx]) * point)
+        tick = self._ensure_tick(symbol)
+        tick.bid = float(bid)
+        tick.ask = float(ask)
+        tick.last = float(entry_price)
+
+        pos_id = int(self._simulator._next_position_id)
+        self._simulator._next_position_id += 1
+        self._ensure_trade_record(
+            pos_id=pos_id,
+            action=pos_action,
+            symbol=symbol,
+            volume=float(volume),
+            price=float(entry_price),
+            sl=float(entry_sl),
+            tp=float(entry_tp),
+            comment="",
+            requested_entry_price=float(entry_price),
+            open_time=entry_time,
+        )
+
+        return (
+            pos_action,
+            pos_id,
+            entry_idx,
+            entry_price,
+            entry_time,
+            entry_sl,
+            entry_tp,
+        )
+
+    def _vectorized_finalize_trade(
+        self,
+        symbol: str,
+        volume: float,
+        point: float,
+        close: np.ndarray,
+        index: Any,
+        spread_points: np.ndarray,
+        close_idx: int,
+        reason: str,
+        pos_id: int,
+        action: str,
+        entry_idx: int,
+        entry_price: float,
+        entry_time: object,
+        entry_sl: float,
+        entry_tp: float,
+    ) -> None:
+        """Finalize a vectorized trade and update records/account."""
+        close_price = float(close[close_idx])
+        close_time = index[close_idx]
+        self._current_time = self._to_datetime(close_time)
+
+        bid = close_price
+        ask = close_price + (float(spread_points[close_idx]) * point)
+        tick = self._ensure_tick(symbol)
+        tick.bid = float(bid)
+        tick.ask = float(ask)
+        tick.last = float(close_price)
+
+        profit = self.mt5_client.order_calc_profit(
+            0 if action == "buy" else 1,
+            symbol,
+            float(volume),
+            float(entry_price),
+            float(close_price),
+        )
+
+        record = self._trade_records_open.get(pos_id)
+        if record is None:
+            self._ensure_trade_record(
+                pos_id=pos_id,
+                action=action,
+                symbol=symbol,
+                volume=float(volume),
+                price=float(entry_price),
+                sl=float(entry_sl),
+                tp=float(entry_tp),
+                comment="",
+                requested_entry_price=float(entry_price),
+                open_time=entry_time,
+            )
+            record = self._trade_records_open.get(pos_id)
+
+        if record is not None:
+            record.close_time = self._to_datetime(close_time)
+            record.close_price = float(close_price)
+            record.requested_exit_price = float(close_price)
+            if reason == "Time exit":
+                record.close_type = "TIME_EXIT"
+                record.exit_reason = "TIMEOUT"
+            else:
+                record.close_type = "SIGNAL_EXIT"
+                record.exit_reason = "STRATEGY_EXIT"
+
+            record.profit_loss = float(profit)
+            pip_size = self._pip_size(symbol)
+            if pip_size > 0:
+                if action == "buy":
+                    record.profit_loss_pips = (
+                        close_price - record.open_price
+                    ) / pip_size
+                else:
+                    record.profit_loss_pips = (
+                        record.open_price - close_price
+                    ) / pip_size
+
+            record.commission = 0.0
+            record.swap = 0.0
+
+            record.bars_in_trade = int(close_idx - entry_idx + 1)
+            record.time_in_trade = float(
+                (
+                    self._to_datetime(close_time) - self._to_datetime(entry_time)
+                ).total_seconds()
+            )
+
+            price_slice = close[entry_idx : close_idx + 1]
+            if price_slice.size > 0:
+                if action == "buy":
+                    mfe_price = float(price_slice.max())
+                    mae_price = float(price_slice.min())
+                    record.mfe_pips = (
+                        (mfe_price - entry_price) / pip_size if pip_size > 0 else 0.0
+                    )
+                    record.mae_pips = (
+                        (mae_price - entry_price) / pip_size if pip_size > 0 else 0.0
+                    )
+                else:
+                    mfe_price = float(price_slice.min())
+                    mae_price = float(price_slice.max())
+                    record.mfe_pips = (
+                        (entry_price - mfe_price) / pip_size if pip_size > 0 else 0.0
+                    )
+                    record.mae_pips = (
+                        (entry_price - mae_price) / pip_size if pip_size > 0 else 0.0
+                    )
+
+                record.mfe_usd = float(
+                    self.mt5_client.order_calc_profit(
+                        0 if action == "buy" else 1,
+                        symbol,
+                        float(volume),
+                        float(entry_price),
+                        float(mfe_price),
+                    )
+                )
+                record.mae_usd = float(
+                    self.mt5_client.order_calc_profit(
+                        0 if action == "buy" else 1,
+                        symbol,
+                        float(volume),
+                        float(entry_price),
+                        float(mae_price),
+                    )
+                )
+
+            if record.initial_risk_usd > 0:
+                record.r_multiple = record.profit_loss / record.initial_risk_usd
+
+            self._completed_trades.append(record)
+            self._trade_records_open.pop(pos_id, None)
+            self._trade_trackers.pop(pos_id, None)
+
+        self._account_data.balance = float(self._account_data.balance + profit)
+        self._account_data.equity = float(self._account_data.balance)
+        self._account_data.margin = 0.0
+        self._account_data.margin_free = float(self._account_data.balance)
+        self._account_data.profit = 0.0
+        self._account_data.commission_blocked = 0.0
+        self._account_data.liabilities = 0.0

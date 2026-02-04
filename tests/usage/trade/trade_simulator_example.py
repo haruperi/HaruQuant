@@ -59,7 +59,9 @@ def main():
     volume = 0.1
     start_date = datetime(2025, 1, 1)
     end_date = datetime(2025, 12, 31) 
-    data_modelling = "real_ticks"       # "real_ticks", "synthetic_ticks", "m1_ohlc", "trading_timeframe"
+    data_modelling = "trading_timeframe"       # "real_ticks", "synthetic_ticks", "m1_ohlc", "trading_timeframe"
+    # ----------------------------
+    engine_type = "vectorised"                 # "event_driven", "vectorised"
     step_data = None
 
     # Initialize AccountInfoSimulator
@@ -78,24 +80,29 @@ def main():
         client.shutdown()
         return
 
-    # M1 data for synthetic and m1_ohlc modeling
-    m1_data = client.get_bars(symbol=eurusd, timeframe="M1", date_from=start_date, date_to=end_date)
-    if m1_data is None or len(m1_data) == 0:
-        print("No M1 data available.")
-        client.shutdown()
-        return
+    if data_modelling in ("real_ticks", "synthetic_ticks", "m1_ohlc"):
+        # M1 data for synthetic and m1_ohlc modeling
+        m1_data = client.get_bars(
+            symbol=eurusd, timeframe="M1", date_from=start_date, date_to=end_date
+        )
+        if m1_data is None or len(m1_data) == 0:
+            print("No M1 data available.")
+            client.shutdown()
+            return
 
-    # Real ticks for real_ticks modeling
-    ticks = client.get_ticks(symbol=eurusd, start=start_date, end=end_date, as_dataframe=True)
-    if ticks is None or len(ticks) == 0:
-        print("No tick data available.")
-        client.shutdown()
-        return
+        # Real ticks for real_ticks modeling
+        ticks = client.get_ticks(
+            symbol=eurusd, start=start_date, end=end_date, as_dataframe=True
+        )
+        if ticks is None or len(ticks) == 0:
+            print("No tick data available.")
+            client.shutdown()
+            return
 
-    if data_modelling == "real_ticks":
-        step_data = ticks
-    elif data_modelling == "synthetic_ticks" or data_modelling == "m1_ohlc":
-        step_data = m1_data
+        if data_modelling == "real_ticks":
+            step_data = ticks
+        elif data_modelling == "synthetic_ticks" or data_modelling == "m1_ohlc":
+            step_data = m1_data
 
 
     # Initialize strategy
@@ -134,6 +141,7 @@ def main():
 
     start_time = time.time()
     
+    # ----------------------------
     simulator.run(
         data=data,
         strategy=strategy,
@@ -144,6 +152,7 @@ def main():
         metadata=backtest_metadata,
         step_data=step_data,
         data_modelling=data_modelling,
+        engine_type=engine_type,
     )
 
     end_time = time.time()

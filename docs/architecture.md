@@ -68,6 +68,13 @@ Backtests are launched from `apps/api/routes/backtest.py` and executed with the 
 - Optional M1/tick execution data depending on the selected mode
 Results are persisted into the backtest tables via the SQLite backtest manager.
 
+----------------------------
+Vectorized Backtest Engine (Close-Based)
+- `engine_type="vectorised"` runs a close-only, vectorized backtest.
+- Processes the full DataFrame in bulk using pandas/numpy arrays.
+- Simplified execution model: no intra-bar SL/TP and no mark-to-market updates.
+- Intended for fast research and parameter sweeps, not final validation.
+
 ## UI Performance Pages
 Performance dashboards under `ui/src/app/(dashboard)/performance` call report endpoints through `ui/src/components/performance/use-performance-data.ts`.
 That hook loads quick metrics first, then full metrics and equity curves, and returns a combined `all/long/short` metrics object for the performance tables.

@@ -133,6 +133,21 @@ def _resolve_modelling(mode: Optional[str]) -> str:
     return resolved
 
 
+# ----------------------------
+# Vectorized Engine Support
+# ----------------------------
+def _resolve_engine_type(value: Optional[str]) -> str:
+    raw = str(value or "event_driven").strip().lower()
+    if raw == "simulator":
+        raw = "event_driven"
+    raw = raw.replace("-", "_")
+    if raw == "vectorized":
+        raw = "vectorised"
+    if raw not in {"event_driven", "vectorised"}:
+        raise ValueError(f"Unsupported engine_type: {value}")
+    return raw
+
+
 def _load_mt5_bars(
     client: MT5Client,
     symbol: str,
@@ -305,7 +320,12 @@ async def _run_backtest_task(
         db_manager.update_backtest_status(backtest_id, "running")
 
         symbol = _parse_symbol(request.symbol)
+        engine_type = _resolve_engine_type(request.engine_type)
         data_mode = _resolve_modelling(request.data_resolution)
+        if engine_type == "vectorised" and data_mode != "trading_timeframe":
+            raise ValueError(
+                "Vectorized engine only supports trading_timeframe data resolution"
+            )
 
         version, strategy_meta, strategy_class = _load_strategy_class(
             user_id=user_id,
@@ -360,9 +380,13 @@ async def _run_backtest_task(
 
         logger.info(
             f"Running simulator backtest {backtest_id} | "
-            f"symbol={symbol} timeframe={request.timeframe} mode={data_mode} source={data_source}"
+            f"symbol={symbol} timeframe={request.timeframe} "
+            f"engine={engine_type} mode={data_mode} source={data_source}"
         )
 
+        # ----------------------------
+        # Vectorized Engine Support
+        # ----------------------------
         simulator.run(
             data=data,
             strategy=strategy_instance,
@@ -372,6 +396,7 @@ async def _run_backtest_task(
             save_db=False,
             step_data=step_data,
             data_modelling=data_mode,
+            engine_type=engine_type,
         )
 
         completed_trades = simulator._completed_trades
@@ -416,6 +441,7 @@ async def run_backtest(
     try:
         user_id = get_user_id_from_token(authorization)
         symbol = _parse_symbol(request.symbol)
+        engine_type = _resolve_engine_type(request.engine_type)
 
         strategy = db_manager.get_strategy(strategy_id)
         if not strategy or not strategy.get("active_version_id"):
@@ -433,7 +459,7 @@ async def run_backtest(
             strategy_version="1.0.0",
             start_date=start_dt,
             end_date=end_dt,
-            engine_type="simulator",
+            engine_type=engine_type,
             data_resolution=request.data_resolution or "trading_timeframe",
             config_hash=str(hash((strategy_id, symbol, request.timeframe))),
             symbols=[symbol],
@@ -479,7 +505,7 @@ async def run_backtest(
             "max_drawdown": None,
             "created_at": backtest_run["created_at"],
             "completed_at": backtest_run.get("completed_at"),
-            "engine_type": "simulator",
+            "engine_type": engine_type,
             "data_resolution": request.data_resolution or "trading_timeframe",
         }
 
