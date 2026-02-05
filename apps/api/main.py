@@ -118,8 +118,8 @@ async def startup_event():
     logger.info("Starting HaruQuant API server")
 
     # Initialize database
-    from apps.scheduler import start_scheduler
     from apps.sqlite.database_operations import DatabaseManager
+    from apps.utils.scheduler import start_scheduler
 
     try:
         db = DatabaseManager()
@@ -134,7 +134,7 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("Shutting down HaruQuant API server")
-    from apps.scheduler import shutdown_scheduler
+    from apps.utils.scheduler import shutdown_scheduler
 
     shutdown_scheduler()
 

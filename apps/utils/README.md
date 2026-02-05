@@ -4,7 +4,7 @@ A comprehensive collection of utility functions and classes for data management,
 
 ## Overview
 
-The `utils` module provides essential utilities for all aspects of the trading platform, from data loading and validation to security management and concurrent processing. It consists of nine independent components that handle different infrastructure concerns.
+The `utils` module provides essential utilities for all aspects of the trading platform, from data loading and validation to security management and concurrent processing. It consists of ten independent components that handle different infrastructure concerns.
 
 ### Key Features
 
@@ -17,6 +17,7 @@ The `utils` module provides essential utilities for all aspects of the trading p
 - **Data Comparison**: DataFrame comparison utilities for testing and validation
 - **Error Handling**: MT5 error code descriptions and lookups
 - **Trade Validation**: Comprehensive trading parameter validation
+- **Task Scheduling**: Background job scheduling with cron triggers for automated maintenance
 
 ## Architecture
 
@@ -33,7 +34,8 @@ apps/utils/
 ├── file_renamer.py         # Batch file renaming
 ├── data_comparator.py      # DataFrame comparison
 ├── error_description.py    # MT5 error code descriptions
-└── validate.py             # Trading parameter validation
+├── validate.py             # Trading parameter validation
+└── scheduler.py            # Background job scheduling
 ```
 
 ### Component Overview
@@ -57,6 +59,8 @@ apps/utils/
 │  Error Description  │  ← MT5 error lookups
 ├─────────────────────┤
 │  Validate           │  ← Trading param validation
+├─────────────────────┤
+│  Scheduler          │  ← Background job scheduling
 └─────────────────────┘
 ```
 
@@ -491,6 +495,122 @@ all_valid, errors = validator.validate_multiple(validations)
 ```
 
 For detailed examples, see [`tests/usage/utils/usage_validate.py`](../../../tests/usage/utils/usage_validate.py).
+
+---
+
+### 10. Scheduler (`scheduler.py`)
+
+**Purpose**: Background job scheduling using APScheduler for automated maintenance tasks like database cleanup.
+
+**Key Functions**:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `start_scheduler()` | `() -> None` | Start the background scheduler with configured jobs |
+| `shutdown_scheduler()` | `() -> None` | Gracefully stop the background scheduler |
+
+**Scheduler Configuration**:
+
+The scheduler is configured with the following background jobs:
+
+| Job ID | Function | Schedule | Description |
+|--------|----------|----------|-------------|
+| `cleanup_simulation_sessions` | `_cleanup_old_simulation_sessions()` | Daily at 3:00 AM | Deletes simulation sessions older than 7 days |
+
+**Features**:
+- **AsyncIO Integration**: Works seamlessly with FastAPI's async framework
+- **Cron Triggers**: Flexible scheduling using cron expressions
+- **Idempotent Operations**: Safe to call `start_scheduler()` multiple times
+- **Graceful Shutdown**: Properly stops all jobs on shutdown
+- **Automatic Cleanup**: Prevents database bloat from old simulation data
+
+**Usage**:
+```python
+from apps.utils.scheduler import start_scheduler, shutdown_scheduler
+
+# Start the scheduler (typically on application startup)
+start_scheduler()
+# Scheduler is now running and will execute jobs on schedule
+
+# Shutdown the scheduler (typically on application shutdown)
+shutdown_scheduler()
+```
+
+**FastAPI Integration**:
+```python
+from fastapi import FastAPI
+from apps.utils.scheduler import start_scheduler, shutdown_scheduler
+
+app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    shutdown_scheduler()
+```
+
+**Adding Custom Jobs** (modify scheduler.py):
+```python
+from apscheduler.triggers.cron import CronTrigger
+
+def _my_custom_job():
+    """Your custom background job."""
+    # Job logic here
+    pass
+
+def start_scheduler():
+    if _scheduler.running:
+        return
+
+    # Add custom job
+    _scheduler.add_job(
+        _my_custom_job,
+        CronTrigger(hour=12, minute=0),  # Run at noon
+        id="my_custom_job",
+        replace_existing=True,
+    )
+
+    _scheduler.start()
+```
+
+**Common Cron Patterns**:
+```python
+# Every hour
+CronTrigger(minute=0)
+
+# Every 30 minutes
+CronTrigger(minute='*/30')
+
+# Weekdays at noon
+CronTrigger(day_of_week='mon-fri', hour=12)
+
+# First day of month
+CronTrigger(day=1, hour=0, minute=0)
+
+# Multiple times per day
+CronTrigger(hour='6,12,18', minute=0)
+```
+
+**Scheduled Cleanup Details**:
+- **Target**: Simulation sessions table in SQLite database
+- **Retention**: 7 days (configurable)
+- **Execution Time**: 3:00 AM server time (off-peak hours)
+- **Logging**: Logs number of deleted sessions
+- **Error Handling**: Failed jobs don't crash the scheduler
+
+**Production Considerations**:
+1. **Timezone**: Ensure server timezone is correctly configured
+2. **Single Instance**: Only run one scheduler instance in multi-server deployments
+3. **Monitoring**: Log all job executions and monitor for failures
+4. **Performance**: Schedule resource-intensive jobs during off-peak hours
+5. **Database Locks**: Cleanup jobs should handle database locks gracefully
+
+For detailed examples, see [`tests/usage/utils/usage_scheduler.py`](../../../tests/usage/utils/usage_scheduler.py).
 
 ---
 
