@@ -22,15 +22,19 @@ The SQLite module provides a comprehensive database solution for managing all as
 
 ```
 apps/sqlite/
-├── __init__.py           # Main SQLiteDatabase class
-├── base.py               # DatabaseBase - Connection management
-├── schema.py             # SchemaManager - Schema initialization
-├── users.py              # UserManager - User operations
-├── market_data.py        # MarketDataManager - Data metadata
-├── strategies.py         # StrategyManager - Strategy versioning
-├── backtests.py          # BacktestManager - Backtest results
-├── optimization.py       # OptimizationManager - Parameter optimization
-└── live_trading.py       # LiveTradingManager - Live trading sessions
+├── __init__.py             # Main SQLiteDatabase class
+├── base.py                 # DatabaseBase - Connection management
+├── schema.py               # SchemaManager - Schema initialization
+├── users.py                # UserManager - User operations
+├── market_data.py          # MarketDataManager - Data metadata
+├── strategies.py           # StrategyManager - Strategy versioning
+├── backtests.py            # BacktestManager - Backtest results
+├── optimization.py         # OptimizationManager - Parameter optimization
+├── live_trading.py         # LiveTradingManager - Live trading sessions
+├── edge_discovery.py       # EdgeDiscoveryManager - Edge discovery & validation
+├── sqx.py                  # SQXManager - StrategyQuant X imports
+├── simulator.py            # SimulatorManager - Trade simulator sessions
+└── database_operations.py  # Legacy compatibility wrapper
 ```
 
 ### Class Hierarchy
@@ -42,9 +46,12 @@ SQLiteDatabase
 ├── UserManager           # User CRUD operations
 ├── MarketDataManager     # Market data metadata
 ├── StrategyManager       # Strategy versioning
+├── SQXManager            # StrategyQuant X imports
 ├── BacktestManager       # Backtest storage & retrieval
 ├── OptimizationManager   # Optimization runs
-└── LiveTradingManager    # Live trading sessions
+├── LiveTradingManager    # Live trading sessions
+├── EdgeDiscoveryManager  # Edge discovery & validation
+└── SimulatorManager      # Trade simulator sessions
 ```
 
 The `SQLiteDatabase` class inherits from all manager mixins, providing a unified interface to all database operations.
@@ -158,6 +165,20 @@ db = DatabaseBase(db_path="my_database.db")
 
 #### Market Data Tables
 - `market_data`: Market data file metadata
+
+#### Edge Discovery Tables
+- `edge_discovery_runs`: Edge discovery run configurations and results
+- `edge_discovery_stats`: Statistical metrics for edge runs
+- `edge_discovery_trades`: Individual trades from edge discovery
+
+#### SQX (StrategyQuant X) Tables
+- `sqx_strategy_edge`: Strategy metrics and scores from SQX imports
+- `imports`: Import history log
+
+#### Simulator Tables
+- `simulation_sessions`: Trade simulator sessions
+- `simulation_trades`: Simulated trades
+- `simulator_deals`: Low-level simulated deal data
 
 **Usage**:
 ```python
@@ -546,6 +567,273 @@ data_id = db.save_market_data_metadata({
 data_list = db.get_market_data_list()
 ```
 
+---
+
+### 9. EdgeDiscoveryManager (`edge_discovery.py`)
+
+**Purpose**: Edge discovery and statistical validation for trading strategies.
+
+**Key Methods**:
+
+| Method | Description |
+|--------|-------------|
+| `save_edge_result()` | Save edge discovery result with stats and trades |
+| `get_edge_run()` | Get edge run by ID |
+| `get_edge_runs()` | Get edge runs with filtering |
+| `get_edge_runs_count()` | Count edge runs with filters |
+| `get_confirmed_edges()` | Get only confirmed edges |
+| `get_edge_summary_rows()` | Get grouped summary by symbol/timeframe |
+| `get_edge_summary()` | Get overall edge statistics |
+| `get_edge_trades()` | Get trades for a run |
+| `get_edge_stats()` | Get statistical metrics for a run |
+| `delete_edge_run()` | Delete edge run and related data |
+
+**Edge Discovery Fields**:
+
+**Run Fields**:
+- `symbol`, `timeframe`, `eds_name`, `eds_type`
+- `n_trades`, `expectancy_r`, `win_rate`, `profit_factor`
+- `ci_low`, `ci_high`, `p_value_perm`
+- `verdict`: EDGE_CONFIRMED, POTENTIAL_EDGE, WEAK_SIGNAL, NO_EDGE, INSUFFICIENT_DATA
+- `edge_confirmed`: Boolean (ci_low > 0 and p_value < 0.05)
+- `config`: Edge detection configuration (JSON)
+
+**Stats Fields**:
+- `n_trades`, `expectancy_r`, `win_rate`, `profit_factor`
+- `median_mae_r`, `median_mfe_r`, `avg_hold_bars`
+- `ci_low`, `ci_high`, `p_value_perm`
+- `extras`: Additional statistical metrics (JSON)
+
+**Trade Fields**:
+- `entry_time`, `exit_time`, `side`
+- `entry_price`, `exit_price`, `r_multiple`
+- `mae_r`, `mfe_r`, `hold_bars`
+- `meta`: Trade metadata (JSON)
+
+**Usage**:
+```python
+# Save edge discovery result
+edge_result = {
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "eds_name": "EDS-1-MeanReversion",
+    "config": {
+        "bootstrap": {"n_boot": 2000, "ci_level": 0.95},
+        "perm": {"n_perm": 2000}
+    },
+    "stats": {
+        "n_trades": 150,
+        "expectancy_r": 0.45,
+        "win_rate": 0.58,
+        "ci_low": 0.32,
+        "ci_high": 0.58,
+        "p_value_perm": 0.023
+    },
+    "trades": [...]
+}
+
+run_id = db.save_edge_result(edge_result, user_id=1, save_trades=True)
+
+# Get confirmed edges
+confirmed = db.get_confirmed_edges(symbol="EURUSD", limit=10)
+
+# Get edge summary by symbol/timeframe
+summary_rows = db.get_edge_summary_rows(symbol="EURUSD")
+
+# Get overall statistics
+summary = db.get_edge_summary()
+print(f"Confirmation Rate: {summary['confirmation_rate']:.1%}")
+print(f"Avg Expectancy: {summary['avg_expectancy_confirmed']:.3f}")
+```
+
+For detailed examples, see [`tests/usage/sqlite/usage_edge_discovery.py`](../../../tests/usage/sqlite/usage_edge_discovery.py).
+
+---
+
+### 10. SQXManager (`sqx.py`)
+
+**Purpose**: StrategyQuant X (SQX) export management and strategy scoring.
+
+**Key Methods**:
+
+| Method | Description |
+|--------|-------------|
+| `merge_sqx_export()` | Merge SQX CSV export into database |
+| `get_sqx_strategies()` | Retrieve SQX strategies |
+| `update_strategy_scores()` | Update strategy scores |
+
+**Merge Features**:
+- **Column Mapping**: Maps CSV columns to canonical database columns
+- **Symbol Canonicalization**: Normalizes symbols (e.g., `EURUSD_dukascopy` → `EURUSD`)
+- **Win Percent Normalization**: Converts 0-100 scale to 0-1 if needed
+- **Stage-Specific Metrics**: Adds stage prefixes (e.g., `a1_profit_factor`, `a2_net_profit`)
+- **Purge Missing**: Optionally removes strategies not in current import
+
+**Strategy Fields**:
+- `strategy_name`, `symbol`, `timeframe`
+- `profit_factor`, `net_profit`, `trades`
+- `max_drawdown_pct`, `annual_return_pct`, `win_percent`
+- `ret_dd_ratio`, `source_symbol`, `source_timeframe`
+- `stage`, `last_seen_at`, `last_import_name`
+
+**Stage-Specific Fields** (auto-generated with prefixes):
+- `a1_*`: A1_OOS2 stage metrics
+- `a2_*`: A2_OOS3 stage metrics
+- `e1_*`: E1_WFM stage metrics
+- `spread_max_retdd_ratio`: B2_SPREAD_MAX metric
+
+**Score Fields**:
+- `edge_score`, `robust_score`, `stability_score`
+- `risk_score`, `simple_score`, `fragility_penalty`
+- `base_score_0_1`, `final_score`
+- `rank_in_symbol`, `rejected`
+
+**Usage**:
+```python
+import pandas as pd
+
+# Load SQX export CSV
+df = pd.read_csv("sqx_export.csv")
+
+# Define column mapping
+mapping = {
+    "strategy_name": "Strategy Name",
+    "symbol": "Symbol (IS)",
+    "timeframe": "TimeFrame (IS)",
+    "profit_factor": "Profit Factor (IS)",
+    "annual_return_pct": "Annual Return % (IS)"
+}
+
+# Merge into database
+rows = db.merge_sqx_export(
+    df=df,
+    mapping=mapping,
+    stage="CORE",
+    import_name="import_2024_01",
+    purge_missing=False
+)
+
+# Retrieve strategies
+strategies = db.get_sqx_strategies(symbol="EURUSD")
+
+# Update scores
+score_df = pd.DataFrame({
+    "strategy_name": ["MA_Cross_v1", "BB_Reversal_v2"],
+    "edge_score": [0.85, 0.92],
+    "final_score": [0.732, 0.813],
+    "rank_in_symbol": [2, 1]
+})
+
+db.update_strategy_scores(score_df)
+```
+
+For detailed examples, see [`tests/usage/sqlite/usage_sqx.py`](../../../tests/usage/sqlite/usage_sqx.py).
+
+---
+
+### 11. SimulatorManager (`simulator.py`)
+
+**Purpose**: Trade simulator session and deal management for practice trading.
+
+**Key Methods**:
+
+**Sessions**:
+- `create_simulation_session()`: Create new simulation session
+- `get_simulation_session()`: Get session by ID
+- `list_simulation_sessions()`: List sessions for user
+- `update_simulation_session()`: Update session fields
+- `update_session_status()`: Update session status
+- `save_simulation_state()`: Save current bar index for resume
+- `get_paused_simulation_sessions()`: Get paused sessions
+- `delete_simulation_session()`: Delete session and trades
+- `delete_simulation_sessions_older_than()`: Clean up old sessions
+
+**Trades**:
+- `save_trade()`: Save simulated trade
+- `get_simulation_trades()`: Get trades for session
+
+**Deals**:
+- `save_simulator_deal()`: Save low-level deal data
+- `load_simulator_deals()`: Load deals by time range
+
+**Session Fields**:
+- `session_name`, `mode`, `status`
+- `symbol`, `timeframe`
+- `start_time`, `end_time`, `initial_balance`
+- `speed_multiplier`, `current_bar_index`, `total_bars`
+- `replay_source`, `replay_backtest_id`, `replay_file_name`
+- `config`: Session configuration (JSON)
+- `completed_at`: Completion timestamp
+
+**Trade Fields**:
+- `time`, `symbol`, `side`, `price`, `volume`
+- `sl`, `tp`, `pnl`
+- `reason`, `source`
+- `payload`: Full trade data (JSON)
+
+**Deal Fields**:
+- `time`, `magic`, `symbol`, `type`, `direction`
+- `volume`, `price`, `spread`, `sl`, `tp`
+- `commission`, `margin_required`, `fee`, `swap`, `profit`
+- `comment`, `reason`, `entry_reason`
+- `session_id`: Associated session
+
+**Usage**:
+```python
+from datetime import datetime
+
+# Create simulation session
+config = {
+    "session_name": "EURUSD Practice",
+    "mode": "manual",
+    "symbol": "EURUSD",
+    "timeframe": "H1",
+    "start_time": datetime(2023, 1, 1),
+    "end_time": datetime(2023, 12, 31),
+    "initial_balance": 10000.0,
+    "total_bars": 8760,
+    "replay_file_name": "EURUSD_H1_2023.csv"
+}
+
+session_id = db.create_simulation_session(user_id=1, config=config)
+
+# Save a trade
+trade = {
+    "time": datetime(2023, 1, 5, 10, 30),
+    "symbol": "EURUSD",
+    "side": "BUY",
+    "price": 1.0850,
+    "volume": 0.1,
+    "sl": 1.0820,
+    "tp": 1.0910,
+    "pnl": 60.0,
+    "reason": "Support bounce",
+    "source": "manual"
+}
+
+trade_id = db.save_trade(session_id, trade)
+
+# Save progress (for resume)
+db.save_simulation_state(session_id, current_bar_index=500)
+
+# Pause session
+db.update_session_status(session_id, status="paused")
+
+# Resume later
+paused = db.get_paused_simulation_sessions(user_id=1)
+db.update_session_status(session_id, status="running")
+
+# Get all trades
+trades = db.get_simulation_trades(session_id)
+
+# Complete session
+db.update_session_status(session_id, status="completed")
+```
+
+For detailed examples, see [`tests/usage/sqlite/usage_simulator.py`](../../../tests/usage/sqlite/usage_simulator.py).
+
+---
+
 ## Advanced Features
 
 ### Foreign Key Constraints
@@ -612,6 +900,9 @@ Comprehensive usage examples are available in `tests/usage/sqlite/`:
 - `usage_optimization.py`: OptimizationManager
 - `usage_live_trading.py`: LiveTradingManager
 - `usage_market_data.py`: MarketDataManager
+- `usage_edge_discovery.py`: EdgeDiscoveryManager
+- `usage_sqx.py`: SQXManager
+- `usage_simulator.py`: SimulatorManager
 
 See `tests/usage/sqlite/README.md` for detailed documentation.
 

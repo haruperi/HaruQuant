@@ -1,360 +1,216 @@
-# Implementation Plan
-
-## Complete Trading System - MVP Development
+# Architecture Overview
 
 **Version:** 1.0
 **Date:** November 23, 2025
-**Status:** Ready for Implementation
-**Timeline:** 32-40 weeks (8-10 months)
+**Status:** Being updated from implementation plan
 
----
-
-## Document Control
-
-| Version | Date       | Author           | Changes                     |
-| ------- | ---------- | ---------------- | --------------------------- |
-| 1.0     | 2025-11-23 | System Architect | Initial implementation plan |
+This document describes the current HaruQuant application architecture
 
 ---
 
 ## Table of Contents
 
-1. [Overview](#1-overview)
-2. [Development Principles](#2-development-principles)
-3. [Parallel Development Strategy](#3-parallel-development-strategy)
-4. [Phase 1: Foundation (Weeks 1-8)](#phase-1-foundation-weeks-1-8)
-5. [Phase 2: Data Infrastructure (Weeks 9-14)](#phase-2-data-infrastructure-weeks-9-14)
-6. [Phase 3: Strategy Framework (Weeks 15-20)](#phase-3-strategy-framework-weeks-15-20)
-7. [Phase 4: Backtesting Engine (Weeks 21-28)](#phase-4-backtesting-engine-weeks-21-28)
-8. [Phase 5: Trading &amp; Execution (Weeks 29-34)](#phase-5-trading--execution-weeks-29-34)
-9. [Phase 6: Integration &amp; Polish (Weeks 35-40)](#phase-6-integration--polish-weeks-35-40)
-10. [Testing Strategy](#10-testing-strategy)
-11. [Deployment Checklist](#11-deployment-checklist)
 
 ---
 
-## 1. Overview
+## Overview
 
-### 1.1 Purpose
 
-This Implementation Plan provides a detailed, step-by-step checklist for building the Complete Trading System MVP over 32-40 weeks. Each task is designed to be:
-
-- **Small and focused**: Individual tasks completable in 1-4 hours
-- **Incremental**: Building on previous work logically
-- **Testable**: Each feature has associated test tasks
-- **Committable**: Regular git commits with clear messages
-
-### 1.2 How to Use This Plan
-
-**For Solo Development:**
-
-- Follow phases sequentially
-- Complete each checkbox before moving to next
-- Commit after completing each major task group
-
-**For Parallel Development (Multiple Agents/Developers):**
-
-- Refer to Section 3 for parallel tracks
-- Assign independent modules to different agents
-- Use integration points to merge work
-
-### 1.3 Success Criteria
-
-✅ All checkboxes completed
-✅ All tests passing (70%+ coverage)
-✅ All examples working
-✅ Documentation up to date
-✅ System runs end-to-end successfully
 
 ---
 
-## 2. Development Principles
+## 1. Foundation
 
-### 2.1 Code Quality Standards
+**Objective:** Project structure, core infrastructure, and development environment
 
-- [ ] Follow PEP 8 style guide
-- [ ] Use type hints for all functions
-- [ ] Write docstrings (Google style) for all public functions
-- [ ] Keep functions under 50 lines where possible
-- [ ] Maintain single responsibility per function/class
-- [ ] Use meaningful variable and function names
+### Project Setup & Environment
 
-### 2.2 Testing Standards
+#### Setup
 
-- [ ] Write unit tests for all business logic
-- [ ] Achieve minimum 70% code coverage
-- [ ] Write integration tests for module interactions
-- [ ] Create example usage for each major feature
-- [ ] Test edge cases and error conditions
+- [pyproject.toml](../../pyproject.toml) - Centralized configuration for:
+    - Black: 88 character line length, Python 3.9+ target
+    - isort: Black-compatible profile, same line length
+    - mypy: Configured with reasonable strictness, ignores missing imports for MetaTrader5
+    - bandit: Excludes test directories, skips assert checks in tests
+    - pylint: Same line length, disabled overly strict rules for trading code
+    - pytest: Coverage and test discovery settings
 
-### 2.3 Git Commit Standards
+- [.flake8](../../.flake8) - Flake8 configuration:
+    - 88 character line length (matching black)
+    - Ignores conflicts with black (E203, W503, E501)
+    - Max complexity of 10
+    - Allows unused imports in __init__.py
 
-**Commit Message Format:**
+- [.pre-commit-config.yaml](../../.pre-commit-config.yaml) - Main pre-commit configuration with:
+    - General file checks: trailing whitespace, end-of-file, large files, private keys
+    - Black (v24.10.0): Code formatting
+    - isort (v5.13.2): Import sorting with black-compatible profile
+    - flake8 (v7.1.1): Linting with additional plugins (docstrings, bugbear, comprehensions, simplify)
+    - bandit (v1.8.0): Security vulnerability scanning
+    - mypy (v1.13.0): Type checking
 
+ **Key Features (No Conflicts)**
+
+  - Consistent line length: All tools use 88 characters
+  - Black-compatible isort: Using --profile black to prevent import conflicts
+  - Coordinated ignores: flake8 ignores rules that conflict with black
+  - Appropriate for trading: Allows common trading variable names (df, mt5, id)
+  - Security-focused: Bandit checks for vulnerabilities, detects private keys
+  - Type safety: mypy configured with good strictness balance
+
+  The hooks will now run automatically on every commit. You can also run them manually with:
+  - pre-commit run --all-files - Run on all files
+  - pre-commit run --files <file> - Run on specific files
+
+  pytest options (line 97)
+
+  - Added --cov-fail-under=80 to make pytest exit with failure if coverage is below 80%
+
+  New coverage.run section (lines 103-114)
+
+  - source: Specifies to measure coverage from the current directory
+  - omit: Excludes test files, virtual environments, and setup files from coverage calculation
+  - branch: Enables branch coverage (not just line coverage)
+
+  New coverage.report section (lines 116-129)
+
+  - precision: Shows coverage percentages with 2 decimal places
+  - show_missing: Displays line numbers that aren't covered
+  - fail_under: Enforces 80% minimum coverage threshold
+  - exclude_lines: Excludes common patterns that shouldn't count against coverage:
+    - pragma: no cover comments
+    - __repr__ methods
+    - AssertionError and NotImplementedError raises
+    - if __name__ == "__main__": blocks
+    - Type checking blocks
+    - Abstract methods
+
+  Now when you run pytest, it will:
+  1. Calculate coverage for all source files (excluding tests and venv)
+  2. Show which lines are missing coverage
+  3. Fail with exit code 1 if coverage is below 80%
+
+  You can test this with:
+  pytest
+
+  Or to see a detailed HTML coverage report:
+  pytest --cov=. --cov-report=html
+
+- [Virtual Environment](../../venv) - Virtual environment for the project
+- [requirements.txt](../../requirements.txt) - Core dependencies for the project
+- Git repository Active
+- [README.md](../../README.md) - Summary of project
+- [.gitignore](../../.gitignore) - Ignoring files written in
+- [LICENSE](../../LICENSE) - LICENSE file in
+- [Agents.md](../../Agents.md) - AI Agents instructions for the project
+
+#### Directory Structure
+
+```text
+.
+├── Reports/
+│   └── template.html
+├── apps/
+│   ├── api/
+│   ├── dukascopy/
+│   ├── edge/
+│   ├── finance/
+│   ├── indicator/
+│   ├── live/
+│   ├── logger/
+│   ├── mt5/
+│   ├── notifications/
+│   ├── optimization/
+│   ├── plotting/
+│   ├── risk/
+│   ├── simulation/
+│   ├── sqlite/
+│   ├── strategy/
+│   ├── trade/
+│   ├── utils/
+│   └── scheduler.py
+├── config/
+│   ├── live_trading_config.json
+│   ├── multi_strategy_config.json
+│   ├── multi_strategy_config_with_db_notifications.json
+│   └── risk_enabled_multi_strategy.json
+├── data/
+│   ├── database/
+│   ├── market_data/
+│   ├── raw/
+│   ├── simulations/
+│   ├── states/
+│   └── strategies/
+├── docs/
+│   ├── development/
+│   ├── fundamentals/
+│   ├── haruquant/
+│   └── robustness/
+├── examples/
+│   ├── compare_api_vs_example.py
+│   ├── currency_strength_example.py
+│   └── verify_timeframe_alignment.py
+├── logs/
+│   ├── access.log
+│   ├── app.log
+│   ├── debug.log
+│   └── errors.log
+├── output/
+│   └── plotting/
+├── production/
+├── scripts/
+│   ├── initialize_database.py
+│   └── show_strategy_storage.py
+├── tests/
+│   ├── benchmarks/
+│   ├── integration/
+│   ├── unit/
+│   ├── usage/
+│   ├── validation/
+├── ui/
+│   ├── public/
+│   ├── src/
+│   ├── README.md
+│   ├── components.json
+│   ├── eslint.config.mjs
+│   ├── next-env.d.ts
+│   ├── next.config.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.mjs
+│   ├── tsconfig.json
+│   └── tsconfig.tsbuildinfo
+├── Agents.md
+├── LICENSE
+├── README.md
+├── multi_strategy_status.json
+├── pyproject.toml
+└── requirements.txt
 ```
-<type>(<scope>): <subject>
 
-<body>
 
-<footer>
-```
-
-**Types:** feat, fix, docs, style, refactor, test, chore
-
-**Examples:**
-
-- `feat(database): add SQLite session management`
-- `test(data): add unit tests for data validator`
-- `docs(api): update endpoint documentation`
-
-### 2.4 Documentation Standards
-
-- [ ] Update relevant .md files with implementation details
-- [ ] Add inline comments for complex logic
-- [ ] Create usage examples for public APIs
-- [ ] Document any deviations from original design
 
 ---
 
-## 3. Parallel Development Strategy
+### 2. Configuration Management
 
-### 3.1 Independent Development Tracks
+#### Configuration System
 
-The system can be developed in parallel using these independent tracks:
+- All Settings and configarations are stored in the `user_settings` table of the database
 
-**Track A: Core Infrastructure (Agent 1)**
-
-- Project setup
-- Database layer
-- Configuration management
-- Logging system
-
-**Track B: Data Pipeline (Agent 2)**
-
-- Data providers
-- Data validation
-- Storage layer
-- Market data models
-
-**Track C: Strategy Framework (Agent 3)**
-
-- Indicator library
-- Strategy base classes
-- Signal generation
-- Parameter validation
-
-**Track D: Testing & Documentation (Agent 4)**
-
-- Test framework setup
-- Example creation
-- Documentation
-- Integration tests
-
-### 3.2 Integration Points
-
-**Integration Point 1 (End of Week 8):**
-
-- Merge: Core infrastructure + Database layer
-- Test: Database operations work correctly
-- Deliverable: Working data persistence layer
-
-**Integration Point 2 (End of Week 14):**
-
-- Merge: Data pipeline + Infrastructure
-- Test: Can download and store market data
-- Deliverable: Complete data management system
-
-**Integration Point 3 (End of Week 20):**
-
-- Merge: Strategy framework + Data pipeline
-- Test: Strategies can access and process data
-- Deliverable: Strategy development environment
-
-**Integration Point 4 (End of Week 28):**
-
-- Merge: Backtesting engine + All previous
-- Test: End-to-end backtest runs successfully
-- Deliverable: Complete backtesting system
-
-**Integration Point 5 (End of Week 34):**
-
-- Merge: Live trading + All previous
-- Test: Paper trading works end-to-end
-- Deliverable: Complete MVP system
-
-### 3.3 Dependency Map
-
-```
-Phase 1 (Foundation)
-    ├─→ Phase 2 (Data) ──────┐
-    │                         ├─→ Phase 4 (Backtest)
-    └─→ Phase 3 (Strategy) ──┘           │
-                                          └─→ Phase 5 (Trading) → Phase 6 (Polish)
-
-Parallel Possible:
-- Phase 2 and Phase 3 can run simultaneously after Phase 1
-- Testing can run parallel to all development
-```
 
 ---
 
-## Phase 1: Foundation (Weeks 1-8)
+### 3. Database Foundation
 
-**Objective:** Set up project structure, core infrastructure, and development environment
+#### Database Management
 
-**Parallel Tracks:** Infrastructure (Agent 1) + Documentation (Agent 4)
+- This was setup as a separate, independent module in the project. Read more in the [Database Readme](../../apps/sqlite/README.md) documentation.
 
-### Week 1: Project Setup & Environment
-
-#### Task 1.1: Repository Initialization
-
-- [X] Create new git repository
-- [X] Initialize with README.md
-- [X] Add .gitignore for Python projects
-- [X] Create LICENSE file
-- [X] Set up branch protection rules (main, develop)
-- [X] **Commit:** `chore(init): initialize project repository`
-
-#### Task 1.2: Directory Structure Creation
-
-- [X] Create all directories as per design document Section 12
-- [X] Add **init**.py files to make packages
-- [X] Create empty .gitkeep files for log and data directories
-- [X] Add README.md files in major directories explaining purpose
-- [X] **Commit:** `chore(structure): create project directory structure`
-
-#### Task 1.3: Python Environment Setup
-
-- [X] Create pyproject.toml with project metadata
-- [X] Create requirements.txt with core dependencies
-- [X] Create requirements-dev.txt for development tools
-- [X] Set up virtual environment (venv or conda)
-- [X] Install all dependencies
-- [X] Verify installations work
-- [X] **Commit:** `chore(deps): add project dependencies`
-
-#### Task 1.4: Development Tools Configuration
-
-- [X] Create .flake8 configuration file
-- [X] Create .pylintrc configuration file
-- [X] Create pyproject.toml Black configuration
-- [X] Create mypy.ini for type checking
-- [X] Set up pre-commit hooks (optional)
-- [X] **Commit:** `chore(tools): configure code quality tools`
-
-**Week 1 Testing:**
-
-- [X] Run `flake8 app/` (should pass with no errors)
-- [X] Run `black --check app/` (should pass)
-- [X] Verify all tools are working
-
-**Week 1 Documentation:**
-
-- [X] Update main README.md with project description
-- [X] Add installation instructions to README.md
-- [X] Create docs/installation.md with detailed setup steps
-- [X] **Commit:** `docs(readme): add project documentation`
 
 ---
 
-### Week 2: Configuration Management
-
-#### Task 2.1: Configuration System
-
-- [X] Create `app/config.py` with Settings class using Pydantic
-- [X] Define all configuration parameters (database, redis, api, etc.)
-- [X] Implement environment variable loading (.env support)
-- [X] Add configuration validation
-- [X] **Commit:** `feat(config): implement configuration management`
-
-#### Task 2.2: Configuration Files
-
-- [X] Create `config/settings.yaml` with default values
-- [X] Create `config/settings.dev.yaml` for development overrides
-- [X] Create `config/settings.prod.yaml` for production
-- [X] Create `.env.template` with all required variables
-- [X] Document each configuration option
-- [X] **Commit:** `feat(config): add configuration files`
-
-#### Task 2.3: Secrets Management
-
-- [X] Implement encryption utility in `app/utils/encryption.py`
-- [X] Add functions for encrypting/decrypting API keys
-- [X] Create secure credential storage mechanism
-- [X] Add validation for required secrets
-- [X] **Commit:** `feat(config): implement secrets management`
-
-**Week 2 Unit Tests:**
-
-- [X] Create `tests/unit/test_config.py`
-- [X] Test configuration loading from YAML
-- [X] Test environment variable overrides
-- [X] Test configuration validation (missing required fields)
-- [X] Test secrets encryption/decryption
-- [X] **Commit:** `test(config): add configuration tests`
-
-**Week 2 Example:**
-
-- [X] Create `examples/configs/example_config.yaml`
-- [X] Add comments explaining each configuration option
-- [X] **Commit:** `docs(examples): add configuration example`
-
----
-
-### Week 3: Database Foundation
-
-#### Task 3.1: Database Session Management
-
-- [X] Create `app/database/session.py` with session factory
-- [X] Implement SQLAlchemy engine creation
-- [X] Add context manager for database sessions
-- [X] Handle connection pooling configuration
-- [X] **Commit:** `feat(database): implement session management`
-
-#### Task 3.2: Base Models
-
-- [X] Create `app/database/base.py` with SQLAlchemy Base
-- [X] Define common model mixins (timestamps, soft delete)
-- [X] Implement base repository class in `app/database/repositories/base.py`
-- [X] Add CRUD operations to base repository
-- [X] **Commit:** `feat(database): create base models and repository`
-
-#### Task 3.3: Initial Schema - Symbols Table
-
-- [X] Create `app/database/models/symbol.py` with Symbol model
-- [X] Define all fields as per ERD (id, name, exchange, asset_class, etc.)
-- [X] Add relationships and constraints
-- [X] Create `app/database/repositories/symbol_repo.py`
-- [X] Implement CRUD methods specific to symbols
-- [X] **Commit:** `feat(database): add Symbol model and repository`
-
-#### Task 3.4: Database Migrations
-
-- [X] Set up Alembic for migrations
-- [X] Create initial migration script
-- [X] Add migration for symbols table
-- [X] Test migration up and down
-- [X] **Commit:** `feat(database): set up Alembic migrations`
-
-**Week 3 Unit Tests:**
-
-- [X] Create `tests/unit/test_database_session.py`
-- [X] Test session creation and cleanup
-- [X] Test transaction rollback on error
-- [X] Create `tests/unit/test_symbol_model.py`
-- [X] Test Symbol model creation and validation
-- [X] Test SymbolRepository CRUD operations
-- [X] **Commit:** `test(database): add database and symbol tests`
-
-**Week 3 Integration Test:**
-
-- [X] Create `tests/integration/test_database_operations.py`
-- [X] Test full database workflow (create, read, update, delete)
-- [X] **Commit:** `test(database): add integration tests`
-
----
-
-### Week 4: Logging System
+### Logging System
 
 #### Task 4.1: Logger Configuration
 
@@ -1308,9 +1164,9 @@ Parallel Possible:
 - [X] Create `app/core/backtest/vectorized_engine.py`
 - [X] Define VectorizedBacktestEngine class
 - [X] Implement basic initialization and run skeleton
-- [x] Implement array-based signal processing
-- [x] Add vectorized position tracking
-- [x] Use NumPy for all calculations
+- [X] Implement array-based signal processing
+- [X] Add vectorized position tracking
+- [X] Use NumPy for all calculations
 - [X] **Commit:** `feat(backtest): create vectorized engine core`
 
 #### Task 24.2: Vectorized Execution
@@ -1765,10 +1621,10 @@ Parallel Possible:
 
 **Week 32 Integration Test:**
 
-- [x] Create `tests/integration/test_mt5_gateway.py`
-- [x] Test actual MT5 connection
-- [x] Test real order submission (small test orders)
-- [x] **Commit:** `test(brokers): add MT5 integration tests`
+- [X] Create `tests/integration/test_mt5_gateway.py`
+- [X] Test actual MT5 connection
+- [X] Test real order submission (small test orders)
+- [X] **Commit:** `test(brokers): add MT5 integration tests`
 
 ---
 
@@ -1802,29 +1658,29 @@ Parallel Possible:
 
 #### Task 33.4: Emergency Shutdown
 
-- [x] Implement emergency_shutdown() method
-- [x] Cancel all pending orders
-- [x] Close all open positions (optional, configurable)
-- [x] Send alerts
-- [x] Log shutdown event
-- [x] **Commit:** `feat(trading): add emergency shutdown`
+- [X] Implement emergency_shutdown() method
+- [X] Cancel all pending orders
+- [X] Close all open positions (optional, configurable)
+- [X] Send alerts
+- [X] Log shutdown event
+- [X] **Commit:** `feat(trading): add emergency shutdown`
 
 #### Task 33.5: State Reconciliation
 
-- [x] Implement reconcile_with_broker() method
-- [x] Compare internal state with broker state
-- [x] Detect and log discrepancies
-- [x] Attempt auto-correction or alert
-- [x] **Commit:** `feat(trading): add state reconciliation`
+- [X] Implement reconcile_with_broker() method
+- [X] Compare internal state with broker state
+- [X] Detect and log discrepancies
+- [X] Attempt auto-correction or alert
+- [X] **Commit:** `feat(trading): add state reconciliation`
 
 **Week 33 Unit Tests:**
 
-- [x] Create `tests/unit/test_live_trading_engine.py`
-- [x] Test engine start/stop
-- [x] Test event handling
-- [x] Test signal processing
-- [x] Test emergency shutdown
-- [x] **Commit:** `test(trading): add live trading engine tests`
+- [X] Create `tests/unit/test_live_trading_engine.py`
+- [X] Test engine start/stop
+- [X] Test event handling
+- [X] Test signal processing
+- [X] Test emergency shutdown
+- [X] **Commit:** `test(trading): add live trading engine tests`
 
 ---
 
@@ -1832,62 +1688,62 @@ Parallel Possible:
 
 #### Task 34.1: Paper Trading Mode
 
-- [x] Add paper_trading flag to LiveTradingEngine
-- [x] Create PaperBrokerGateway (simulated broker)
-- [x] Implement simulated order execution
-- [x] Track paper trading portfolio
-- [x] **Commit:** `feat(trading): implement paper trading mode`
+- [X] Add paper_trading flag to LiveTradingEngine
+- [X] Create PaperBrokerGateway (simulated broker)
+- [X] Implement simulated order execution
+- [X] Track paper trading portfolio
+- [X] **Commit:** `feat(trading): implement paper trading mode`
 
 #### Task 34.2: Trading Service
 
-- [x] Create `app/services/trading_service.py`
-- [x] Orchestrate: strategy → engine → broker → risk
-- [x] Implement start_strategy() method
-- [x] Add stop_strategy() method
-- [x] Implement get_live_performance() method
-- [x] **Commit:** `feat(services): create trading service`
+- [X] Create `app/services/trading_service.py`
+- [X] Orchestrate: strategy → engine → broker → risk
+- [X] Implement start_strategy() method
+- [X] Add stop_strategy() method
+- [X] Implement get_live_performance() method
+- [X] **Commit:** `feat(services): create trading service`
 
 #### Task 34.3: Trade Database Models
 
-- [x] Create `app/database/models/trade.py`
-- [x] Implement Trade ORM model (live trades)
-- [x] Create migrations
-- [x] Create TradeRepository
-- [x] **Commit:** `feat(database): add trade models`
+- [X] Create `app/database/models/trade.py`
+- [X] Implement Trade ORM model (live trades)
+- [X] Create migrations
+- [X] Create TradeRepository
+- [X] **Commit:** `feat(database): add trade models`
 
 #### Task 34.4: Account Snapshots
 
-- [x] Create `app/database/models/account_snapshot.py`
-- [x] Implement periodic account snapshots
-- [x] Store balance, equity, margin, etc.
-- [x] Create AccountSnapshotRepository
-- [x] **Commit:** `feat(database): add account snapshot tracking`
+- [X] Create `app/database/models/account_snapshot.py`
+- [X] Implement periodic account snapshots
+- [X] Store balance, equity, margin, etc.
+- [X] Create AccountSnapshotRepository
+- [X] **Commit:** `feat(database): add account snapshot tracking`
 
 **Week 34 Unit Tests:**
 
-- [x] Create `tests/unit/test_paper_trading.py`
-- [x] Test paper broker gateway
-- [x] Test simulated execution
-- [x] Create `tests/unit/test_trading_service.py`
-- [x] Test service orchestration
-- [x] **Commit:** `test(trading): add paper trading tests`
+- [X] Create `tests/unit/test_paper_trading.py`
+- [X] Test paper broker gateway
+- [X] Test simulated execution
+- [X] Create `tests/unit/test_trading_service.py`
+- [X] Test service orchestration
+- [X] **Commit:** `test(trading): add paper trading tests`
 
 **Week 34 Integration Tests:**
 
-- [x] Create `tests/integration/test_live_trading_flow.py`
-- [x] Test complete flow: start → receive data → generate signal → execute (paper) → track
-- [x] Test emergency shutdown
-- [x] Test reconciliation
-- [x] **Commit:** `test(trading): add live trading integration tests`
+- [X] Create `tests/integration/test_live_trading_flow.py`
+- [X] Test complete flow: start → receive data → generate signal → execute (paper) → track
+- [X] Test emergency shutdown
+- [X] Test reconciliation
+- [X] **Commit:** `test(trading): add live trading integration tests`
 
 **Week 34 Example:**
 
-- [x] Create `examples/paper_trading_demo.py`
-- [x] Show starting paper trading
-- [x] Demonstrate live strategy execution
-- [x] Show position tracking
-- [x] Show stopping and results
-- [x] **Commit:** `docs(examples): add paper trading example`
+- [X] Create `examples/paper_trading_demo.py`
+- [X] Show starting paper trading
+- [X] Demonstrate live strategy execution
+- [X] Show position tracking
+- [X] Show stopping and results
+- [X] **Commit:** `docs(examples): add paper trading example`
 
 **Integration Point 5 Review:**
 
@@ -1911,58 +1767,58 @@ Parallel Possible:
 
 #### Task 35.1: Notification Models
 
-- [x] Create `app/notifications/manager.py`
-- [x] Define Notification dataclass
-- [x] Add NotificationType enum
-- [x] Add NotificationPriority enum
-- [x] **Commit:** `feat(notifications): create notification models`
+- [X] Create `app/notifications/manager.py`
+- [X] Define Notification dataclass
+- [X] Add NotificationType enum
+- [X] Add NotificationPriority enum
+- [X] **Commit:** `feat(notifications): create notification models`
 
 #### Task 35.2: Notification Channels Interface
 
-- [x] Create `app/notifications/channels/base.py`
-- [x] Define NotificationChannel abstract class
-- [x] Add send() method
-- [x] Add is_enabled() method
-- [x] **Commit:** `feat(notifications): create channel interface`
+- [X] Create `app/notifications/channels/base.py`
+- [X] Define NotificationChannel abstract class
+- [X] Add send() method
+- [X] Add is_enabled() method
+- [X] **Commit:** `feat(notifications): create channel interface`
 
 #### Task 35.3: Telegram Channel
 
-- [x] Create `app/notifications/channels/telegram.py`
-- [x] Implement TelegramChannel class
-- [x] Add bot token and chat ID configuration
-- [x] Implement send() using python-telegram-bot
-- [x] Format messages nicely
-- [x] **Commit:** `feat(notifications): implement Telegram channel`
+- [X] Create `app/notifications/channels/telegram.py`
+- [X] Implement TelegramChannel class
+- [X] Add bot token and chat ID configuration
+- [X] Implement send() using python-telegram-bot
+- [X] Format messages nicely
+- [X] **Commit:** `feat(notifications): implement Telegram channel`
 
 #### Task 35.4: Email Channel
 
-- [x] Create `app/notifications/channels/email.py`
-- [x] Implement EmailChannel class
-- [x] Add SMTP configuration
-- [x] Implement send() using smtplib
-- [x] Create email templates
-- [x] **Commit:** `feat(notifications): implement email channel`
+- [X] Create `app/notifications/channels/email.py`
+- [X] Implement EmailChannel class
+- [X] Add SMTP configuration
+- [X] Implement send() using smtplib
+- [X] Create email templates
+- [X] **Commit:** `feat(notifications): implement email channel`
 
 #### Task 35.5: Notification Manager
 
-- [x] Implement NotificationManager class
-- [x] Add send_notification() method
-- [x] Implement send_trade_alert()
-- [x] Add send_error_alert()
-- [x] Implement send_performance_report()
-- [x] Support multiple channels
-- [x] **Commit:** `feat(notifications): implement notification manager`
+- [X] Implement NotificationManager class
+- [X] Add send_notification() method
+- [X] Implement send_trade_alert()
+- [X] Add send_error_alert()
+- [X] Implement send_performance_report()
+- [X] Support multiple channels
+- [X] **Commit:** `feat(notifications): implement notification manager`
 
 **Week 35 Unit Tests:**
 
-- [x] Create `tests/unit/test_notification_manager.py`
-- [x] Test notification creation
-- [x] Test channel selection
-- [x] Create `tests/unit/test_telegram_channel.py`
-- [x] Test Telegram message formatting
-- [x] Create `tests/unit/test_email_channel.py`
-- [x] Test email formatting
-- [x] **Commit:** `test(notifications): add notification tests`
+- [X] Create `tests/unit/test_notification_manager.py`
+- [X] Test notification creation
+- [X] Test channel selection
+- [X] Create `tests/unit/test_telegram_channel.py`
+- [X] Test Telegram message formatting
+- [X] Create `tests/unit/test_email_channel.py`
+- [X] Test email formatting
+- [X] **Commit:** `test(notifications): add notification tests`
 
 **Week 35 Integration Test:**
 
@@ -1977,37 +1833,37 @@ Parallel Possible:
 
 #### Task 36.1: FastAPI Application Setup
 
-- [x] Create `app/api/v1/__init__.py`
-- [x] Set up FastAPI app in `app/main.py`
-- [x] Configure CORS
-- [x] Add startup and shutdown events
-- [x] **Commit:** `feat(api): set up FastAPI application`
+- [X] Create `app/api/v1/__init__.py`
+- [X] Set up FastAPI app in `app/main.py`
+- [X] Configure CORS
+- [X] Add startup and shutdown events
+- [X] **Commit:** `feat(api): set up FastAPI application`
 
 #### Task 36.2: Pydantic Schemas
 
-- [x] Create `app/schemas/strategy.py`
-- [x] Create `app/schemas/backtest.py`
-- [x] Create `app/schemas/trade.py`
-- [x] Create request and response models
-- [x] **Commit:** `feat(api): add Pydantic schemas`
+- [X] Create `app/schemas/strategy.py`
+- [X] Create `app/schemas/backtest.py`
+- [X] Create `app/schemas/trade.py`
+- [X] Create request and response models
+- [X] **Commit:** `feat(api): add Pydantic schemas`
 
 #### Task 36.3: Basic Endpoints
 
-- [x] Create `app/api/v1/system.py`
-- [x] Implement GET /system/health endpoint
-- [x] Implement GET /system/status endpoint
-- [x] Create `app/api/v1/data.py`
-- [x] Implement GET /data/symbols endpoint
-- [x] Add routes for /strategies, /backtest, /orders, /positions, /live/start, /live/stop
-- [x] **Commit:** `feat(api): add basic API endpoints`
+- [X] Create `app/api/v1/system.py`
+- [X] Implement GET /system/health endpoint
+- [X] Implement GET /system/status endpoint
+- [X] Create `app/api/v1/data.py`
+- [X] Implement GET /data/symbols endpoint
+- [X] Add routes for /strategies, /backtest, /orders, /positions, /live/start, /live/stop
+- [X] **Commit:** `feat(api): add basic API endpoints`
 
 **Week 36 Unit Tests:**
 
-- [x] Create `tests/unit/test_api_endpoints.py`
-- [x] Test health endpoint
-- [x] Test schemas validation
-- [x] Test basic endpoint availability
-- [x] **Commit:** `test(api): add API tests`
+- [X] Create `tests/unit/test_api_endpoints.py`
+- [X] Test health endpoint
+- [X] Test schemas validation
+- [X] Test basic endpoint availability
+- [X] **Commit:** `test(api): add API tests`
 
 ---
 
