@@ -22,7 +22,7 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd  # noqa: E402
 
-from apps.backtest.engine import EventDrivenEngine  # noqa: E402
+# No longer need to import engine directly - handled by optimization module
 from apps.logger import logger  # noqa: E402
 from apps.optimization.methods.grid_search import grid_search  # noqa: E402
 from apps.optimization.scoring import sharpe_score  # noqa: E402

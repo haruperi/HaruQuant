@@ -9,14 +9,16 @@ from typing import Any, Callable, Dict, List, Optional, Type
 import numpy as np
 
 from apps.logger import logger
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+
+# from apps.backtest.result import BacktestResult
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 
 from .methods.grid_search import grid_search
 from .result import OptimizationSummary
 from .scoring import sharpe_score
 
-# from apps.backtest.engine import VectorizedEngine
-# from apps.backtest.result import BacktestResult
-VectorizedEngine = Any
 BacktestResult = Any
 # from apps.strategy import BaseStrategy
 BaseStrategy = Any
@@ -128,7 +130,7 @@ def walk_forward(  # noqa: C901
                 param_grid,
                 initial_balance=initial_balance,
                 scoring_func=scoring_func,
-                engine_type="vectorized",
+                engine_type="vectorised",
                 verbose=False,
                 strategy_file_path=strategy_file_path,
                 symbol=symbol,
@@ -143,11 +145,47 @@ def walk_forward(  # noqa: C901
             full_params = {"symbol": symbol}
             strategy = strategy_class(params=full_params)
 
-            # Run on train data to get train score
-            engine = VectorizedEngine(
-                strategy, train_data, initial_balance=initial_balance
+            # Initialize strategy
+            if hasattr(strategy, "on_init"):
+                strategy.on_init()
+
+            # Calculate signals if strategy has on_bar method
+            train_data_copy = train_data.copy()
+            if hasattr(strategy, "on_bar"):
+                train_data_copy = strategy.on_bar(train_data_copy)
+
+            # Setup simulator components
+            account_info = AccountInfoSimulator(
+                balance=initial_balance,
+                equity=initial_balance,
+                margin_free=initial_balance,
             )
-            train_result = engine.run()
+            symbol_info = SymbolInfoSimulator.from_mt5_symbol(symbol)
+            symbol_info.symbol = symbol
+
+            # Create simulator
+            simulator = TradeSimulator(
+                simulator_name=f"WalkForward_{symbol}",
+                mt5_client=None,
+                account_info=account_info,
+                symbols={symbol: symbol_info},
+            )
+
+            # Run simulation
+            simulator.run(
+                data=train_data_copy,
+                strategy=strategy,
+                symbol=symbol,
+                volume=0.1,
+                verbose=False,
+                save_db=False,
+                engine_type="vectorised",
+            )
+
+            # Get results from simulator
+            # from apps.simulation.utils import calculate_metrics_from_simulator
+
+            train_result = calculate_metrics_from_simulator(simulator)
             train_score = scoring_func(train_result)
 
             # Extract the actual params used (excluding symbol)
@@ -157,8 +195,48 @@ def walk_forward(  # noqa: C901
         full_params = best_params.copy()
         full_params["symbol"] = symbol
         strategy = strategy_class(params=full_params)
-        engine = VectorizedEngine(strategy, test_data, initial_balance=initial_balance)
-        test_result = engine.run()
+
+        # Initialize strategy
+        if hasattr(strategy, "on_init"):
+            strategy.on_init()
+
+        # Calculate signals if strategy has on_bar method
+        test_data_copy = test_data.copy()
+        if hasattr(strategy, "on_bar"):
+            test_data_copy = strategy.on_bar(test_data_copy)
+
+        # Setup simulator components for test
+        account_info = AccountInfoSimulator(
+            balance=initial_balance,
+            equity=initial_balance,
+            margin_free=initial_balance,
+        )
+        symbol_info = SymbolInfoSimulator.from_mt5_symbol(symbol)
+        symbol_info.symbol = symbol
+
+        # Create simulator
+        simulator = TradeSimulator(
+            simulator_name=f"WalkForward_{symbol}",
+            mt5_client=None,
+            account_info=account_info,
+            symbols={symbol: symbol_info},
+        )
+
+        # Run simulation
+        simulator.run(
+            data=test_data_copy,
+            strategy=strategy,
+            symbol=symbol,
+            volume=0.1,
+            verbose=False,
+            save_db=False,
+            engine_type="vectorised",
+        )
+
+        # Get results from simulator
+        # from apps.simulation.utils import calculate_metrics_from_simulator
+
+        test_result = calculate_metrics_from_simulator(simulator)
 
         window_result = {
             "window": i + 1,

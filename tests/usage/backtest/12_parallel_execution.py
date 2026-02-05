@@ -38,12 +38,9 @@ from apps.strategy import BaseStrategy
 def get_mt5_client():
     """Get a connected MT5 client with credentials."""
     creds = UserManager().get_mt5_credentials()
-    client = MT5Client(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"]
-    )
+    client = MT5Client()
+    if not client.connect(creds["path"], creds["login"], creds["password"], creds["server"]):
+        raise ConnectionError("Failed to connect to MT5")
     return client
 
 
@@ -58,10 +55,8 @@ def load_mt5_data(symbol: str, timeframe: str, bars: int) -> pd.DataFrame:
     else:
         date_from = date_to - timedelta(days=bars)
     
-    with get_mt5_client() as client:
-        if not client.is_connected():
-            raise ConnectionError("Failed to connect to MT5")
-        
+    client = get_mt5_client()
+    try:
         df = client.get_bars(
             symbol=symbol,
             timeframe=timeframe,
@@ -73,7 +68,13 @@ def load_mt5_data(symbol: str, timeframe: str, bars: int) -> pd.DataFrame:
             raise ValueError(f"No data retrieved from MT5 for {symbol}")
         
         # Get the last N bars
-        return df.tail(bars).copy()
+        return df
+
+        
+        finally:
+
+        
+            client.shutdown().tail(bars).copy()
 
 
 # ============================================================================
@@ -309,12 +310,49 @@ def example_result_caching():
         from apps.backtest.engine.event_driven import EventDrivenEngine
 
         strategy = MovingAverageCrossover(params=params)
-        engine = EventDrivenEngine(
-            strategy=strategy, data=data, initial_balance=10000
-        )
+        # Initialize strategy
+    strategy.on_init()
 
-        start_time = time.time()
-        result = engine.run()
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000,
+        equity=10000,
+        margin_free=10000,
+    )
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Backtest_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=7.0,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
         elapsed = time.time() - start_time
 
         print(f"  Backtest completed in {elapsed:.2f}s")

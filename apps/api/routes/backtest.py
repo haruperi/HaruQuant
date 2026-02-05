@@ -40,6 +40,9 @@ class BacktestRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     number_of_bars: Optional[int] = None
+    warmup_by: Optional[str] = "date"  # "date" or "bars"
+    warmup_start_date: Optional[str] = None
+    warmup_bars: Optional[int] = None
     initial_capital: float = 10000
     commission: float = 0.0
     slippage_type: Optional[str] = "fixed"
@@ -157,15 +160,25 @@ def _load_mt5_bars(
     if request.range_by == "bars":
         if request.number_of_bars is None:
             raise ValueError("number_of_bars is required when range_by='bars'")
+        # Add warmup bars to the total count
+        total_bars = request.number_of_bars
+        if request.warmup_by == "bars" and request.warmup_bars:
+            total_bars += request.warmup_bars
         return client.get_bars(
             symbol=symbol,
             timeframe=timeframe,
-            count=request.number_of_bars,
+            count=total_bars,
         )
+
+    # For date-based range, use warmup_start_date if provided
+    start_date = _parse_request_date(request.start_date)
+    if request.warmup_by == "date" and request.warmup_start_date:
+        start_date = _parse_request_date(request.warmup_start_date)
+
     return client.get_bars(
         symbol=symbol,
         timeframe=timeframe,
-        date_from=_parse_request_date(request.start_date),
+        date_from=start_date,
         date_to=_parse_request_date(request.end_date),
     )
 
@@ -175,10 +188,19 @@ def _load_mt5_ticks(client: MT5Client, symbol: str, request: BacktestRequest):
         if request.number_of_bars is None:
             raise ValueError("number_of_bars is required when range_by='bars'")
         tick_count = request.number_of_bars * 100
+        # Add warmup bars to tick count estimate
+        if request.warmup_by == "bars" and request.warmup_bars:
+            tick_count += request.warmup_bars * 100
         return client.get_ticks(symbol=symbol, count=tick_count)
+
+    # For date-based range, use warmup_start_date if provided
+    start_date = _parse_request_date(request.start_date)
+    if request.warmup_by == "date" and request.warmup_start_date:
+        start_date = _parse_request_date(request.warmup_start_date)
+
     return client.get_ticks(
         symbol=symbol,
-        start=_parse_request_date(request.start_date),
+        start=start_date,
         end=_parse_request_date(request.end_date),
     )
 
@@ -234,16 +256,24 @@ def _load_data(  # noqa: C901
         if request.range_by == "bars":
             if request.number_of_bars is None:
                 raise ValueError("number_of_bars is required when range_by='bars'")
+            # Add warmup bars to total count
+            total_bars = request.number_of_bars
+            if request.warmup_by == "bars" and request.warmup_bars:
+                total_bars += request.warmup_bars
             data = load_dukascopy(
                 symbol=symbol,
                 timeframe=request.timeframe,
-                count=request.number_of_bars,
+                count=total_bars,
             )
         else:
+            # Use warmup_start_date if provided for date range
+            start_date = request.start_date
+            if request.warmup_by == "date" and request.warmup_start_date:
+                start_date = request.warmup_start_date
             data = load_dukascopy(
                 symbol=symbol,
                 timeframe=request.timeframe,
-                start_date=request.start_date,
+                start_date=start_date,
                 end_date=request.end_date,
             )
 
@@ -254,10 +284,14 @@ def _load_data(  # noqa: C901
         if data_mode == "real_ticks":
             raise ValueError("Real ticks are not available for Dukascopy source")
         if data_mode in {"m1_ohlc", "synthetic_ticks"}:
+            # Use warmup_start_date for M1 data as well
+            start_date = request.start_date
+            if request.warmup_by == "date" and request.warmup_start_date:
+                start_date = request.warmup_start_date
             step_data = load_dukascopy(
                 symbol=symbol,
                 timeframe="M1",
-                start_date=request.start_date,
+                start_date=start_date,
                 end_date=request.end_date,
             )
             if step_data is None or step_data.empty:
@@ -387,6 +421,13 @@ async def _run_backtest_task(
         # ----------------------------
         # Vectorized Engine Support
         # ----------------------------
+        # Parse start_date and end_date for trading period (excluding warmup)
+        trading_start_date = _parse_request_date(request.start_date)
+        trading_end_date = _parse_request_date(request.end_date)
+
+        # Determine slippage value based on type
+        slippage_points = request.slippage if request.slippage_type == "fixed" else 0
+
         simulator.run(
             data=data,
             strategy=strategy_instance,
@@ -397,6 +438,10 @@ async def _run_backtest_task(
             step_data=step_data,
             data_modelling=data_mode,
             engine_type=engine_type,
+            commission_per_contract=float(request.commission),
+            slippage_points=slippage_points,
+            start_date=trading_start_date,
+            end_date=trading_end_date,
         )
 
         completed_trades = simulator._completed_trades

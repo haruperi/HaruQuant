@@ -29,8 +29,10 @@ project_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import pandas as pd
-from datetime import datetime
-from apps.backtest import EventDrivenEngine
+from datetime import datetime, timedelta
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from data.strategies.trend_following import TrendFollowingStrategy
 from apps.finance import metrics, ratios, drawdowns, risks, returns, efficiency, distributions
 from apps.mt5.client import MT5Client
@@ -41,21 +43,16 @@ from apps.logger import logger
 def get_mt5_client():
     """Get a connected MT5 client."""
     creds = UserManager().get_mt5_credentials()
-    client = MT5Client(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"]
-    )
+    client = MT5Client()
+    if not client.connect(creds["path"], creds["login"], creds["password"], creds["server"]):
+        raise ConnectionError("Failed to connect to MT5")
     return client
 
 
 def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
     """Load historical data from MT5."""
-    with get_mt5_client() as client:
-        if not client.is_connected():
-            raise ConnectionError("Failed to connect to MT5")
-
+    client = get_mt5_client()
+    try:
         df = client.get_bars(
             symbol=symbol,
             timeframe=timeframe,
@@ -63,10 +60,12 @@ def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: dat
             date_to=date_to
         )
 
-        if df.empty:
+        if df is None or df.empty:
             raise ValueError("No data retrieved from MT5")
 
         return df
+    finally:
+        client.shutdown()
 
 
 def print_section(title: str):
@@ -107,7 +106,6 @@ def main():
     warmup_days = warmup_hours / 24
     
     # Calculate data load start date (before backtest start)
-    from datetime import timedelta
     data_load_start = backtest_start - timedelta(days=warmup_days + 5)  # +5 for weekends
     
     logger.info(f"Backtest period: {backtest_start.date()} to {backtest_end.date()}")
@@ -118,7 +116,7 @@ def main():
     logger.info(f"Loaded {len(data)} bars (includes warm-up period)")
     
     logger.info("\nRunning backtest...")
-    
+
     strategy = TrendFollowingStrategy(params={
         'symbol': 'EURUSD',
         'fast_period': 20,
@@ -126,33 +124,58 @@ def main():
         'filter_period': 200
     })
 
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data = strategy.on_bar(data)
+
     # Get MT5 client with credentials for real symbol info (swap rates, etc.)
     mt5_client = get_mt5_client()
 
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=7.0,
-        slippage_points=0,
-        backtest_start_date=backtest_start,
-        backtest_end_date=backtest_end,
-        timeframe='H1',
-        mt5_client=mt5_client
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Finance_Metrics_Example",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=7.0,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
     logger.info(f"Backtest completed: {result.total_trades} trades executed")
     
     # Step 2: Calculate metrics
     logger.info("\n[2/3] Calculating comprehensive metrics...")
-    
-    # Convert to DataFrame for finance module
-    if len(result.trades) > 0:
-        trades_df = pd.DataFrame([t.to_dict() for t in result.trades])
-    else:
+
+    # Get trades DataFrame (use get_trades_df method which handles conversion)
+    trades_df = result.get_trades_df()
+    if trades_df.empty:
         logger.warning("No trades executed, metrics will be limited")
-        trades_df = pd.DataFrame()
     
     # Get equity series
     equity_series = result._get_equity_series()

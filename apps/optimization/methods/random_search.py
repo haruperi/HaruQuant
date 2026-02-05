@@ -14,17 +14,15 @@ from typing import Any, Callable, Dict, Optional, Tuple, Type, cast
 import numpy as np
 
 from apps.logger import logger
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+
+# from apps.backtest.result import BacktestResult
+from apps.simulation.simulator import TradeSimulator
 from apps.strategy import BaseStrategy
 
 from ..result import OptimizationResult, OptimizationSummary
 from ..scoring import sharpe_score
 
-# from apps.backtest.engine import BaseEngine, EventDrivenEngine, VectorizedEngine
-# from apps.backtest.result import BacktestResult
-
-BaseEngine = Any
-EventDrivenEngine = Any
-VectorizedEngine = Any
 BacktestResult = Any
 
 
@@ -61,13 +59,52 @@ def _run_single_random_backtest(args):
         full_params["symbol"] = symbol
         strategy = strategy_class(params=full_params)
 
-        engine: BaseEngine
-        if engine_type == "vectorized":
-            engine = VectorizedEngine(strategy, data, initial_balance=initial_balance)
-        else:
-            engine = EventDrivenEngine(strategy, data, initial_balance=initial_balance)
+        # Initialize strategy
+        if hasattr(strategy, "on_init"):
+            strategy.on_init()
 
-        result = engine.run()
+        # Calculate signals if strategy has on_bar method
+        if hasattr(strategy, "on_bar"):
+            data = strategy.on_bar(data)
+
+        # Setup simulator components
+        account_info = AccountInfoSimulator(
+            balance=initial_balance,
+            equity=initial_balance,
+            margin_free=initial_balance,
+        )
+        symbol_info = SymbolInfoSimulator.from_mt5_symbol(symbol)
+        symbol_info.symbol = symbol
+
+        # Create simulator
+        simulator = TradeSimulator(
+            simulator_name=f"Optimization_{symbol}",
+            mt5_client=None,
+            account_info=account_info,
+            symbols={symbol: symbol_info},
+        )
+
+        # Normalize engine_type
+        sim_engine_type = engine_type.lower().replace("-", "_")
+        if sim_engine_type == "vectorized":
+            sim_engine_type = "vectorised"
+
+        # Run simulation
+        simulator.run(
+            data=data,
+            strategy=strategy,
+            symbol=symbol,
+            volume=0.1,
+            verbose=False,
+            save_db=False,
+            engine_type=sim_engine_type,
+        )
+
+        # Get results from simulator
+        from apps.simulation.utils import calculate_metrics_from_simulator
+
+        result = calculate_metrics_from_simulator(simulator)
+
         result_metrics = result.summary()
         score = scoring_func(result)
 
@@ -235,6 +272,10 @@ def random_search(  # noqa: C901
 
     else:
         # Sequential execution
+        # Get symbol for sequential execution
+        if not symbol:
+            symbol = data.name if hasattr(data, "name") else "UNKNOWN"
+
         for i, params in enumerate(all_param_combinations):
             if verbose and (i + 1) % max(1, n_iter // 10) == 0:
                 logger.info(
@@ -244,23 +285,55 @@ def random_search(  # noqa: C901
             try:
                 # Create strategy
                 full_params = params.copy()
-                full_params["symbol"] = (
-                    data.name if hasattr(data, "name") else "UNKNOWN"
-                )
+                full_params["symbol"] = symbol
                 strategy = strategy_class(params=full_params)
 
-                # Run backtest
-                engine: BaseEngine
-                if engine_type == "vectorized":
-                    engine = VectorizedEngine(
-                        strategy, data, initial_balance=initial_balance
-                    )
-                else:
-                    engine = EventDrivenEngine(
-                        strategy, data, initial_balance=initial_balance
-                    )
+                # Initialize strategy
+                if hasattr(strategy, "on_init"):
+                    strategy.on_init()
 
-                result = engine.run()
+                # Calculate signals if strategy has on_bar method
+                data_copy = data.copy()
+                if hasattr(strategy, "on_bar"):
+                    data_copy = strategy.on_bar(data_copy)
+
+                # Setup simulator components
+                account_info = AccountInfoSimulator(
+                    balance=initial_balance,
+                    equity=initial_balance,
+                    margin_free=initial_balance,
+                )
+                symbol_info = SymbolInfoSimulator.from_mt5_symbol(symbol)
+                symbol_info.symbol = symbol
+
+                # Create simulator
+                simulator = TradeSimulator(
+                    simulator_name=f"Optimization_{symbol}",
+                    mt5_client=None,
+                    account_info=account_info,
+                    symbols={symbol: symbol_info},
+                )
+
+                # Normalize engine_type
+                sim_engine_type = engine_type.lower().replace("-", "_")
+                if sim_engine_type == "vectorized":
+                    sim_engine_type = "vectorised"
+
+                # Run simulation
+                simulator.run(
+                    data=data_copy,
+                    strategy=strategy,
+                    symbol=symbol,
+                    volume=0.1,
+                    verbose=False,
+                    save_db=False,
+                    engine_type=sim_engine_type,
+                )
+
+                # Get results from simulator
+                from apps.simulation.utils import calculate_metrics_from_simulator
+
+                result = calculate_metrics_from_simulator(simulator)
 
                 # Metrics and score
                 result_metrics = result.summary()

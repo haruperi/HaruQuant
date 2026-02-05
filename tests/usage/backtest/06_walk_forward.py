@@ -36,7 +36,9 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 from datetime import datetime
-from apps.backtest import VectorizedEngine, EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from data.strategies.trend_following import TrendFollowingStrategy
 from apps.finance import ratios
 from apps.mt5.client import MT5Client
@@ -64,21 +66,25 @@ def get_mt5_credentials():
     return creds
 
 
+def get_mt5_client():
+    """Get a connected MT5 client."""
+    creds = get_mt5_credentials()
+    client = MT5Client()
+    if not client.connect(creds["path"], creds["login"], creds["password"], creds["server"]):
+        raise ConnectionError("Failed to connect to MT5")
+    return client
+
+
 def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
     """Load historical data from MT5."""
-    creds = get_mt5_credentials()
-    with MT5Client(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"]
-    ) as client:
-        if not client.is_connected():
-            raise ConnectionError("Failed to connect to MT5")
+    client = get_mt5_client()
+    try:
         df = client.get_bars(symbol=symbol, timeframe=timeframe, date_from=date_from, date_to=date_to)
-        if df.empty:
+        if df is None or df.empty:
             raise ValueError("No data retrieved from MT5")
         return df
+    finally:
+        client.shutdown()
 
 
 def sharpe_score(result) -> float:
@@ -113,22 +119,58 @@ def optimize_on_data(data, param_grid):
         
         try:
             strategy = TrendFollowingStrategy(params=params)
-            engine = VectorizedEngine(
-                strategy=strategy,
-                data=data.copy(),
-                initial_balance=10000.0,
-                commission=7.0,
-                slippage_points=1.0,
-                timeframe='H1'
+
+            # Initialize strategy
+            strategy.on_init()
+
+            # Calculate signals on a copy
+            data_copy = data.copy()
+            data_copy = strategy.on_bar(data_copy)
+
+            # Get MT5 client for symbol info
+            mt5_client = get_mt5_client()
+
+            # Setup simulator components
+            account_info = AccountInfoSimulator(
+                balance=10000.0,
+                equity=10000.0,
+                margin_free=10000.0,
             )
-            
-            result = engine.run()
+            symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+            symbol_info.symbol = 'EURUSD'
+
+            # Create simulator
+            simulator = TradeSimulator(
+                simulator_name="WalkForward_EURUSD",
+                mt5_client=mt5_client,
+                account_info=account_info,
+                symbols={'EURUSD': symbol_info},
+            )
+
+            # Run simulation
+            simulator.run(
+                data=data_copy,
+                strategy=strategy,
+                symbol='EURUSD',
+                volume=0.1,
+                verbose=False,
+                save_db=False,
+                engine_type="vectorised",
+                commission_per_contract=7.0,
+                slippage_points=1,
+            )
+
+            # Get results from simulator
+            result = calculate_metrics_from_simulator(simulator)
             score = sharpe_score(result)
-            
+
             if score > best_score:
                 best_score = score
                 best_params = params
-                
+
+            # Cleanup
+            mt5_client.shutdown()
+
         except Exception:
             continue
     
@@ -138,21 +180,59 @@ def optimize_on_data(data, param_grid):
 def test_on_data(data, params):
     """
     Test parameters on given data.
-    
+
     Returns:
         BacktestResult
     """
     strategy = TrendFollowingStrategy(params=params)
-    engine = VectorizedEngine(
-        strategy=strategy,
-        data=data.copy(),
-        initial_balance=10000.0,
-        commission=7.0,
-        slippage_points=1.0,
-        timeframe='H1'
+
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data_copy = data.copy()
+    data_copy = strategy.on_bar(data_copy)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    
-    return engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Test_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data_copy,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="vectorised",
+        commission_per_contract=7.0,
+        slippage_points=1,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
+
+    # Cleanup
+    mt5_client.shutdown()
+
+    return result
 
 
 def walk_forward_analysis(data, param_grid, train_size=500, test_size=100, verbose=True):
@@ -239,7 +319,7 @@ def walk_forward_analysis(data, param_grid, train_size=500, test_size=100, verbo
         }
         
         results.append(window_result)
-    
+
     return results
 
 

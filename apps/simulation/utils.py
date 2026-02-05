@@ -39,6 +39,205 @@ from apps.trade import PositionInfo
 mt5 = get_mt5_api()
 
 
+class SimulatorBacktestResult:
+    """Backtest result wrapper for simulator to match old BacktestResult interface."""
+
+    def __init__(self, simulator):
+        """Initialize from simulator instance."""
+        self.simulator = simulator
+        self.trades = simulator._completed_trades
+        self.initial_balance = simulator._initial_balance
+        self.final_balance = simulator._account_data.balance
+        self.total_return = self.final_balance - self.initial_balance
+        self.total_return_pct = (
+            ((self.final_balance - self.initial_balance) / self.initial_balance) * 100
+            if self.initial_balance > 0
+            else 0.0
+        )
+
+        # Get start and end dates from trades or simulator
+        if self.trades:
+            self.start_date = self.trades[0].open_time
+            self.end_date = self.trades[-1].close_time
+        else:
+            # Fallback to current time
+            from datetime import datetime
+
+            self.start_date = datetime.now()
+            self.end_date = datetime.now()
+
+        # Calculate trade statistics
+        if self.trades:
+            winning_trades = [t for t in self.trades if t.profit_loss > 0]
+            losing_trades = [t for t in self.trades if t.profit_loss < 0]
+            breakeven_trades = [t for t in self.trades if t.profit_loss == 0]
+
+            self.total_trades = len(self.trades)
+            self.winning_trades = len(winning_trades)
+            self.losing_trades = len(losing_trades)
+            self.breakeven_trades = len(breakeven_trades)
+            self.win_rate = (
+                (self.winning_trades / self.total_trades) * 100
+                if self.total_trades > 0
+                else 0.0
+            )
+
+            self.gross_profit = sum(t.profit_loss for t in winning_trades)
+            self.gross_loss = abs(sum(t.profit_loss for t in losing_trades))
+            self.profit_factor = (
+                self.gross_profit / self.gross_loss
+                if self.gross_loss > 0
+                else float("inf")
+            )
+
+            # Average win/loss
+            self.avg_win = (
+                self.gross_profit / len(winning_trades) if winning_trades else 0.0
+            )
+            self.avg_loss = (
+                self.gross_loss / len(losing_trades) if losing_trades else 0.0
+            )
+
+            # Expectancy
+            self.expectancy = (self.win_rate / 100 * self.avg_win) - (
+                (100 - self.win_rate) / 100 * self.avg_loss
+            )
+
+            # Calculate drawdown (in dollars and percentage)
+            equity_curve = [self.initial_balance]
+            running_balance = self.initial_balance
+            for trade in self.trades:
+                running_balance += trade.profit_loss
+                equity_curve.append(running_balance)
+
+            peak = equity_curve[0]
+            max_dd_dollars = 0.0
+            max_dd_pct = 0.0
+            for equity in equity_curve:
+                if equity > peak:
+                    peak = equity
+                dd_dollars = peak - equity
+                dd_pct = ((peak - equity) / peak) * 100 if peak > 0 else 0.0
+                if dd_dollars > max_dd_dollars:
+                    max_dd_dollars = dd_dollars
+                if dd_pct > max_dd_pct:
+                    max_dd_pct = dd_pct
+
+            self.max_drawdown = max_dd_dollars
+            self.max_drawdown_pct = max_dd_pct
+        else:
+            self.total_trades = 0
+            self.winning_trades = 0
+            self.losing_trades = 0
+            self.breakeven_trades = 0
+            self.win_rate = 0.0
+            self.gross_profit = 0.0
+            self.gross_loss = 0.0
+            self.profit_factor = 0.0
+            self.avg_win = 0.0
+            self.avg_loss = 0.0
+            self.expectancy = 0.0
+            self.max_drawdown = 0.0
+            self.max_drawdown_pct = 0.0
+
+        # Calculate Sharpe ratio (simplified version)
+        if self.trades and len(self.trades) > 1:
+            import numpy as np
+
+            returns = [t.profit_loss / self.initial_balance for t in self.trades]
+            mean_return = np.mean(returns)
+            std_return = np.std(returns)
+            self.sharpe_ratio = (
+                (mean_return / std_return) * np.sqrt(252) if std_return > 0 else 0.0
+            )
+        else:
+            self.sharpe_ratio = 0.0
+
+    def summary(self):
+        """Return summary metrics dictionary."""
+        return {
+            "total_return_pct": self.total_return_pct,
+            "sharpe_ratio": self.sharpe_ratio,
+            "max_drawdown_pct": self.max_drawdown_pct,
+            "win_rate_pct": self.win_rate,
+            "profit_factor": self.profit_factor,
+            "total_trades": self.total_trades,
+            "winning_trades": self.winning_trades,
+            "losing_trades": self.losing_trades,
+        }
+
+    def _get_equity_series(self):
+        """Get equity curve as pandas Series."""
+        import pandas as pd
+
+        if not self.trades:
+            return pd.Series([self.initial_balance])
+
+        # Build equity curve from trades
+        equity_curve = [self.initial_balance]
+        running_balance = self.initial_balance
+        timestamps = [self.trades[0].open_time]
+
+        for trade in self.trades:
+            running_balance += trade.profit_loss
+            equity_curve.append(running_balance)
+            timestamps.append(trade.close_time)
+
+        return pd.Series(equity_curve, index=timestamps)
+
+    def _get_returns_series(self):
+        """Get returns series as pandas Series."""
+        import pandas as pd
+
+        equity_series = self._get_equity_series()
+        if len(equity_series) <= 1:
+            return pd.Series([])
+
+        # Calculate percentage returns
+        returns = equity_series.pct_change().dropna()
+        return returns * 100  # Return as percentage
+
+    def get_trades_df(self):
+        """Get trades as pandas DataFrame."""
+        import pandas as pd
+
+        if not self.trades:
+            return pd.DataFrame()
+
+        # Convert trades to list of dicts
+        trades_data = []
+        for trade in self.trades:
+            trade_dict = {
+                "type": "BUY" if trade.type == 0 else "SELL",
+                "open_time": trade.open_time,
+                "close_time": trade.close_time,
+                "open_price": trade.open_price,
+                "close_price": trade.close_price,
+                "size": trade.size,
+                "commission": trade.commission,
+                "swap": trade.swap,
+                "profit_loss": trade.profit_loss,
+                "profit_loss_pips": trade.profit_loss_pips,
+                "time_in_trade_formatted": f"{int((trade.close_time - trade.open_time).total_seconds() / 3600)}h",
+            }
+            trades_data.append(trade_dict)
+
+        return pd.DataFrame(trades_data)
+
+
+def calculate_metrics_from_simulator(simulator):
+    """
+    Create a BacktestResult-like object from simulator state.
+
+    Args:
+        simulator: TradeSimulator instance
+
+    Returns:
+        SimulatorBacktestResult with metrics and summary() method
+    """
+    return SimulatorBacktestResult(simulator)
+
+
 class SimulationUtilsMixin:
     """Helper methods used by the TradeSimulator."""
 

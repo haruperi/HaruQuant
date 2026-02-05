@@ -24,13 +24,11 @@ def print_metric(name: str, value, unit: str = ""):
 
 def display_metrics(result):
     """Display comprehensive metrics for a backtest result."""
-    
-    # Convert to DataFrame for finance module
-    if len(result.trades) > 0:
-        trades_df = pd.DataFrame([t.to_dict() for t in result.trades])
-    else:
+
+    # Get trades DataFrame (use get_trades_df method which handles conversion)
+    trades_df = result.get_trades_df()
+    if trades_df.empty:
         logger.warning("No trades executed, metrics will be limited")
-        trades_df = pd.DataFrame()
     
     # Get equity series
     equity_series = result._get_equity_series()
@@ -207,10 +205,7 @@ def display_metrics(result):
 
     # ========================================================================
     # TRADES
-    # ========================================================================    
-    # Get trades DataFrame
-    trades_df = result.get_trades_df()
-    
+    # ========================================================================
     print_section("Backtest Trades")
     
     if len(trades_df) > 0:

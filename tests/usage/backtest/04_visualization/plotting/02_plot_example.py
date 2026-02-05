@@ -19,7 +19,9 @@ import pandas as pd
 project_root = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(project_root))
 
-from apps.backtest import EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from apps.indicator import sma
 from apps.plotting import plot_drawdown, plot_returns, plot_snapshot
 from apps.strategy import BaseStrategy
@@ -57,6 +59,16 @@ class SMAStrategy(BaseStrategy):
         result.loc[buy, "price"] = result.loc[buy, "open"]
         result.loc[sell, "exit_signal"] = 1
 
+
+        # Cleanup
+
+
+        mt5_client.shutdown()
+
+
+        
+
+
         return result
 
 
@@ -73,25 +85,71 @@ def get_real_data(symbol="EURUSD", start_date="2023-01-01", end_date="2023-12-31
 
 
 def run_backtest(symbol: str, params: dict | None = None):
-    """Run a simple MA backtest and return result and equity series."""
+    """Run a simple MA backtest and
+ # Cleanup
+ mt5_client.shutdown()
+ 
+ return result and equity series."""
     data = get_real_data(symbol)
     if data.empty:
         return None, pd.Series(dtype=float)
 
     strategy = SMAStrategy(params={"symbol": symbol, **(params or {})})
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=0.0001,
-        timeframe="D1",
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Backtest_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=0.0001,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
 
     equity_df = result.get_equity_df()
     equity = pd.Series(
         equity_df["equity"].values, index=pd.to_datetime(equity_df["timestamp"])
     )
+
+    # Cleanup
+
+    mt5_client.shutdown()
+
+    
+
     return result, equity
 
 

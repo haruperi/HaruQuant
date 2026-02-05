@@ -24,6 +24,7 @@ Functions:
 """
 
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from apps.logger import logger
@@ -486,6 +487,48 @@ class SimulatorClient:
         self._next_deal_id = 200000
         self._validator: Optional[TradeValidator] = None
         self._fast_backtest = False
+        self._backtest_commission_per_contract = 0.0
+        self._backtest_slippage_points = 0.0
+
+    def _calc_close_costs(
+        self,
+        symbol_info: SymbolInfoSimulator,
+        pos_type: int,
+        volume: float,
+        open_time: int,
+        close_time: int,
+    ) -> tuple[float, float, float]:
+        """Compute commission, fee, and swap for a closed volume."""
+        commission_per_contract = float(
+            getattr(self, "_backtest_commission_per_contract", 0.0) or 0.0
+        )
+        commission = commission_per_contract * float(volume)
+        if commission > 0:
+            commission = -commission
+
+        fee = 0.0
+        swap = 0.0
+        swap_mode = int(getattr(symbol_info, "swap_mode", 0) or 0)
+        if swap_mode != 0 and open_time and close_time:
+            swap_long = float(getattr(symbol_info, "swap_long", 0.0) or 0.0)
+            swap_short = float(getattr(symbol_info, "swap_short", 0.0) or 0.0)
+            swap_rate = swap_long if pos_type == mt5.ORDER_TYPE_BUY else swap_short
+            rollover_day = int(getattr(symbol_info, "swap_rollover3days", -1) or -1)
+
+            open_dt = datetime.utcfromtimestamp(int(open_time))
+            close_dt = datetime.utcfromtimestamp(int(close_time))
+            days = (close_dt.date() - open_dt.date()).days
+            if days > 0:
+                swap_days = 0
+                for step in range(1, days + 1):
+                    day = open_dt.date() + timedelta(days=step)
+                    if rollover_day in range(7) and day.weekday() == rollover_day:
+                        swap_days += 3
+                    else:
+                        swap_days += 1
+                swap = float(swap_rate) * float(volume) * float(swap_days)
+
+        return float(commission), float(fee), float(swap)
 
     def version(self) -> Tuple[int, int, str]:
         """Get simulated terminal version."""
@@ -896,6 +939,16 @@ class SimulatorClient:
             if price <= 0:
                 price = market_price
 
+            slippage_points = float(
+                getattr(self, "_backtest_slippage_points", 0.0) or 0.0
+            )
+            if slippage_points > 0 and point > 0:
+                slippage = slippage_points * point
+                if order_type == mt5.ORDER_TYPE_BUY:
+                    price = float(price + slippage)
+                else:
+                    price = float(price - slippage)
+
             # Validate entry price
             valid, msg = _validate("price", price, symbol=symbol)
             if not valid:
@@ -1052,6 +1105,13 @@ class SimulatorClient:
                 float(position.price_open or 0.0),
                 price,
             )
+            commission, fee, swap = self._calc_close_costs(
+                symbol_info=symbol_info,
+                pos_type=pos_type,
+                volume=float(close_volume),
+                open_time=int(position.time or current_time),
+                close_time=int(current_time),
+            )
 
             # Update or remove position
             margin_required = float(position.margin_required or 0.0)
@@ -1092,10 +1152,10 @@ class SimulatorClient:
                 price=price,
                 symbol=symbol,
                 comment=str(req.get("comment") or ""),
-                commission=0.0,
-                swap=0.0,
+                commission=float(commission),
+                swap=float(swap),
                 profit=float(profit),
-                fee=0.0,
+                fee=float(fee),
                 entry=getattr(mt5, "DEAL_ENTRY_OUT", 1),
                 order=0,
             )
@@ -1112,7 +1172,9 @@ class SimulatorClient:
             self._account_data.margin_free = float(
                 self._account_data.margin_free + margin_release
             )
-            self._account_data.balance = float(self._account_data.balance + profit)
+            self._account_data.balance = float(
+                self._account_data.balance + profit + commission + fee + swap
+            )
 
             return _response(
                 10009,

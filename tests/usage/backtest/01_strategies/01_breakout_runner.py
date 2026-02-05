@@ -20,7 +20,9 @@ except Exception as e:
     print(f"Error setting up path: {e}")
     sys.exit(1)
 
-from apps.backtest import EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
 from apps.logger import logger
@@ -38,10 +40,23 @@ except Exception as e:
     logger.error(f"Failed to import strategy from {file_path}: {e}")
     sys.exit(1)
 
-def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
+def get_mt5_client():
+    """Get a connected MT5 client."""
     creds = UserManager().get_mt5_credentials()
-    with MT5Client(login=creds["login"], password=creds["password"], server=creds["server"], path=creds["path"]) as client:
-        return client.get_bars(symbol=symbol, timeframe=timeframe, date_from=date_from, date_to=date_to)
+    client = MT5Client()
+    if not client.connect(creds["path"], creds["login"], creds["password"], creds["server"]):
+        raise ConnectionError("Failed to connect to MT5")
+    return client
+
+def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
+    client = get_mt5_client()
+    try:
+        df = client.get_bars(symbol=symbol, timeframe=timeframe, date_from=date_from, date_to=date_to)
+        if df is None or df.empty:
+            raise ValueError("No data retrieved from MT5")
+        return df
+    finally:
+        client.shutdown()
 
 def main():
     logger.info("Starting 01 Breakout Strategy Backtest...")
@@ -57,18 +72,79 @@ def main():
         return
 
     strategy = BreakoutStrategy(params={'symbol': 'EURUSD'})
-    engine = EventDrivenEngine(
-        strategy=strategy, 
-        data=data, 
-        initial_balance=10000.0, 
-        commission=7.0,
-        backtest_start_date=backtest_start, 
-        backtest_end_date=backtest_end, 
-        timeframe='D1')
-    result = engine.run()
+
+    # Initialize strategy
+
+    strategy.on_init()
+
+    # Calculate signals
+
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
+    )
+
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+
+    simulator = TradeSimulator(
+        simulator_name="BreakoutStrategy_Backtest",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+
+    simulator.run(
+
+        data=data,
+
+        strategy=strategy,
+
+        symbol='EURUSD',
+
+        volume=0.1,
+
+        verbose=False,
+
+        save_db=False,
+
+        engine_type="event_driven",
+
+        commission_per_contract=7.0,
+
+        slippage_points=0,
+
+        start_date=backtest_start,
+
+        end_date=backtest_end,
+
+    )
+
+    # Get results from simulator
+
+    result = calculate_metrics_from_simulator(simulator)
     
     # Display metrics
     display_metrics(result)
+
+    # Cleanup
+    mt5_client.shutdown()
+# Cleanup
+    mt5_client.shutdown()
 
 if __name__ == "__main__":
     main()

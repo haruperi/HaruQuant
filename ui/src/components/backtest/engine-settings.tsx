@@ -18,7 +18,7 @@ interface EngineSettingsProps {
         spreadMin: number
         spreadMax: number
         leverage: number
-        engineType: "vectorized" | "event-driven"
+        engineType: "vectorised" | "event-driven"
         dataResolution: "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks"
     }
     onChange: (key: string, value: any) => void
@@ -42,7 +42,7 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                                 <SelectValue placeholder="Select Engine" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="vectorized">Vectorized (Fast)</SelectItem>
+                                <SelectItem value="vectorised">Vectorised (Fast)</SelectItem>
                                 <SelectItem value="event-driven">Event-Driven (Detailed)</SelectItem>
                             </SelectContent>
                         </Select>

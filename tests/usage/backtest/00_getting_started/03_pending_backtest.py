@@ -23,7 +23,9 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 from datetime import datetime
-from apps.backtest import EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from data.strategies.breakout import BreakoutStrategy
 from apps.finance import metrics, ratios, drawdowns, risks, returns, efficiency, distributions
 from apps.mt5.client import MT5Client
@@ -34,21 +36,16 @@ from apps.logger import logger
 def get_mt5_client():
     """Get a connected MT5 client."""
     creds = UserManager().get_mt5_credentials()
-    client = MT5Client(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"]
-    )
+    client = MT5Client()
+    if not client.connect(creds["path"], creds["login"], creds["password"], creds["server"]):
+        raise ConnectionError("Failed to connect to MT5")
     return client
 
 
 def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
     """Load historical data from MT5."""
-    with get_mt5_client() as client:
-        if not client.is_connected():
-            raise ConnectionError("Failed to connect to MT5")
-
+    client = get_mt5_client()
+    try:
         df = client.get_bars(
             symbol=symbol,
             timeframe=timeframe,
@@ -56,10 +53,12 @@ def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: dat
             date_to=date_to
         )
 
-        if df.empty:
+        if df is None or df.empty:
             raise ValueError("No data retrieved from MT5")
 
         return df
+    finally:
+        client.shutdown()
 
 
 def print_section(title: str):
@@ -121,36 +120,58 @@ def main():
         'timeframe': 'D1'
     })
 
-    # Get MT5 client for symbol info
-    try:
-        mt5_client = get_mt5_client()
-    except Exception as e:
-        logger.warning(f"Could not connect to MT5 for symbol info: {e}")
-        mt5_client = None
+    # Initialize strategy
+    strategy.on_init()
 
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=7.0,
-        slippage_points=0,
-        backtest_start_date=backtest_start,
-        backtest_end_date=backtest_end,
-        timeframe='D1',
-        mt5_client=mt5_client
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="PendingOrders_Backtest",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=7.0,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
     logger.info(f"Backtest completed: {result.total_trades} trades executed")
     
     # Step 2: Calculate metrics
     logger.info("\n[2/3] Calculating comprehensive metrics...")
-    
-    if len(result.trades) > 0:
-        trades_df = pd.DataFrame([t.to_dict() for t in result.trades])
-    else:
+
+    # Get trades DataFrame
+    trades_df = result.get_trades_df()
+    if trades_df.empty:
         logger.warning("No trades executed, metrics will be limited")
-        trades_df = pd.DataFrame()
     
     equity_series = result._get_equity_series()
     returns_series = result._get_returns_series()
@@ -187,7 +208,6 @@ def main():
     print_metric("Profit Factor", result.profit_factor)
     
     # TRADES LIST
-    trades_df = result.get_trades_df()
     print_section("Backtest Trades")
     
     if len(trades_df) > 0:
@@ -221,6 +241,9 @@ def main():
             
         if len(trades_df) > 50:
             logger.info(f"... and {len(trades_df) - 50} more trades ...")
+
+    # Cleanup
+    mt5_client.shutdown()
 
     return result
 

@@ -60,7 +60,7 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
     def __init__(
         self,
         simulator_name: str,
-        mt5_client: MT5Client,
+        mt5_client: Optional[MT5Client],
         account_info: AccountInfoSimulator,
         symbols: Optional[dict[str, SymbolInfoSimulator]] = None,
     ) -> None:
@@ -143,12 +143,15 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
             logger.error("SL/TP pips must be non-negative")
             return False
 
-        margin_req = self.mt5_client.order_calc_margin(
-            0 if action == "buy" else 1,
-            symbol,
-            volume,
-            price,
-        )
+        if self.mt5_client:
+            margin_req = self.mt5_client.order_calc_margin(
+                0 if action == "buy" else 1,
+                symbol,
+                volume,
+                price,
+            )
+        else:
+            margin_req = 0.0
 
         sl_price_calc, tp_price_calc = self._sl_tp_from_pips(
             action=action,
@@ -255,16 +258,44 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
                 elif np.isclose(float(selected_pos.get("sl", 0.0)), ask, atol=tol):
                     deal_info["reason"] = "Stop loss"
 
-        profit = self.mt5_client.order_calc_profit(
-            0 if action == "buy" else 1,
-            symbol,
-            float(selected_pos.get("volume", 0.0)),
-            float(selected_pos.get("price_open", 0.0)),
-            close_price,
-        )
-        commission = float(selected_pos.get("commission", 0.0) or 0.0)
-        fee = float(selected_pos.get("fee", 0.0) or 0.0)
-        swap = float(selected_pos.get("swap", 0.0) or 0.0)
+        if self.mt5_client:
+            profit = self.mt5_client.order_calc_profit(
+                0 if action == "buy" else 1,
+                symbol,
+                float(selected_pos.get("volume", 0.0)),
+                float(selected_pos.get("price_open", 0.0)),
+                close_price,
+            )
+        else:
+            # Fallback profit calculation if no MT5 client
+            # Simple (close - open) * volume * contract_size
+            vol = float(selected_pos.get("volume", 0.0))
+            open_p = float(selected_pos.get("price_open", 0.0))
+            contract_size = 100000.0  # Default fallback
+            if symbol_info:
+                contract_size = getattr(symbol_info, "trade_contract_size", 100000.0)
+
+            if action == "buy":
+                profit = (close_price - open_p) * vol * contract_size
+            else:
+                profit = (open_p - close_price) * vol * contract_size
+        symbol_info = self._symbols_data.get(symbol)
+        pos_type = int(selected_pos.get("type") or 0)
+        close_costs = None
+        if symbol_info is not None and hasattr(self._simulator, "_calc_close_costs"):
+            close_costs = self._simulator._calc_close_costs(
+                symbol_info=symbol_info,
+                pos_type=pos_type,
+                volume=float(selected_pos.get("volume", 0.0)),
+                open_time=int(selected_pos.get("time") or 0),
+                close_time=int(self._current_sim_time().timestamp()),
+            )
+        if close_costs is None:
+            commission = float(selected_pos.get("commission", 0.0) or 0.0)
+            fee = float(selected_pos.get("fee", 0.0) or 0.0)
+            swap = float(selected_pos.get("swap", 0.0) or 0.0)
+        else:
+            commission, fee, swap = close_costs
 
         selected_pos["direction"] = "closed"
 

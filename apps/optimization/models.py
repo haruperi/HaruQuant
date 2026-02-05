@@ -61,8 +61,8 @@ class OptimizationRequest(BaseModel):
 
     # Execution settings
     n_jobs: int = Field(1, description="Number of parallel jobs")
-    engine_type: Literal["event_driven", "vectorized"] = Field(
-        "vectorized", description="Backtest engine type"
+    engine_type: Literal["event_driven", "vectorised"] = Field(
+        "vectorised", description="Backtest engine type"
     )
 
 

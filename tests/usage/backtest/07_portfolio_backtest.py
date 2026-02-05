@@ -32,7 +32,9 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 from datetime import datetime
-from apps.backtest import EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from apps.backtest.portfolio import (
     AssetClass,
     AssetSpecification,

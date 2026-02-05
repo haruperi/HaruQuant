@@ -32,7 +32,9 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 from datetime import datetime
-from apps.backtest import EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from data.strategies.trend_following import TrendFollowingStrategy
 from apps.finance import metrics, ratios, drawdowns, risks, returns, efficiency, distributions
 from apps.plotting import (
@@ -202,16 +204,49 @@ def main():
     
     strategy = TrendFollowingStrategy(params=strategy_params)
     
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=7.0,
-        slippage_points=1.0,
-        timeframe='H1'
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Backtest_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=7.0,
+        slippage_points=1,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
     logger.info(f"Backtest completed: {result.total_trades} trades executed")
     
     # Step 4: Calculate comprehensive metrics
@@ -348,6 +383,16 @@ def main():
             logger.info(f"  - {file.name}")
     
     logger.info("\n" + "=" * 70)
+
+    
+    # Cleanup
+
+    
+    mt5_client.shutdown()
+
+    
+    
+
     
     return result
 

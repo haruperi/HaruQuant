@@ -37,7 +37,9 @@ sys.path.insert(0, str(project_root))
 
 import pandas as pd
 from datetime import datetime
-from apps.backtest import VectorizedEngine, EventDrivenEngine
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator
 from data.strategies.trend_following import TrendFollowingStrategy
 from apps.finance import ratios
 from apps.mt5.client import MT5Client
@@ -65,21 +67,25 @@ def get_mt5_credentials():
     return creds
 
 
+def get_mt5_client():
+    """Get a connected MT5 client."""
+    creds = get_mt5_credentials()
+    client = MT5Client()
+    if not client.connect(creds["path"], creds["login"], creds["password"], creds["server"]):
+        raise ConnectionError("Failed to connect to MT5")
+    return client
+
+
 def load_mt5_data(symbol: str, timeframe: str, date_from: datetime, date_to: datetime) -> pd.DataFrame:
     """Load historical data from MT5."""
-    creds = get_mt5_credentials()
-    with MT5Client(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"]
-    ) as client:
-        if not client.is_connected():
-            raise ConnectionError("Failed to connect to MT5")
+    client = get_mt5_client()
+    try:
         df = client.get_bars(symbol=symbol, timeframe=timeframe, date_from=date_from, date_to=date_to)
-        if df.empty:
+        if df is None or df.empty:
             raise ValueError("No data retrieved from MT5")
         return df
+    finally:
+        client.shutdown()
 
 
 def sharpe_score(result) -> float:
@@ -165,24 +171,58 @@ def grid_search(data, param_grid, scoring_func, verbose=True):
         try:
             # Create strategy with these params
             strategy = TrendFollowingStrategy(params=params)
-            
-            # Run backtest with VectorizedEngine for speed
-            engine = VectorizedEngine(
-                strategy=strategy,
-                data=data.copy(),
-                initial_balance=10000.0,
-                commission=7.0,
-                slippage_points=1.0,
-                timeframe='H1'
+
+            # Initialize strategy
+            strategy.on_init()
+
+            # Calculate signals on a copy of the data
+            data_copy = data.copy()
+            data_copy = strategy.on_bar(data_copy)
+
+            # Get MT5 client for symbol info
+            mt5_client = get_mt5_client()
+
+            # Setup simulator components
+            account_info = AccountInfoSimulator(
+                balance=10000.0,
+                equity=10000.0,
+                margin_free=10000.0,
             )
-            
-            result = engine.run()
-            
+            symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+            symbol_info.symbol = 'EURUSD'
+
+            # Create simulator
+            simulator = TradeSimulator(
+                simulator_name="Optimization_EURUSD",
+                mt5_client=mt5_client,
+                account_info=account_info,
+                symbols={'EURUSD': symbol_info},
+            )
+
+            # Run simulation
+            simulator.run(
+                data=data_copy,
+                strategy=strategy,
+                symbol='EURUSD',
+                volume=0.1,
+                verbose=False,
+                save_db=False,
+                engine_type="vectorised",
+                commission_per_contract=7.0,
+                slippage_points=1,
+            )
+
+            # Get results from simulator
+            result = calculate_metrics_from_simulator(simulator)
+
             # Calculate score
             score = scoring_func(result)
-            
+
             results.append((params, score, result))
-            
+
+            # Cleanup
+            mt5_client.shutdown()
+
         except Exception as e:
             if verbose:
                 logger.warning(f"  Error with params {params}: {e}")
@@ -190,7 +230,7 @@ def grid_search(data, param_grid, scoring_func, verbose=True):
     
     # Sort by score (descending)
     results.sort(key=lambda x: x[1], reverse=True)
-    
+
     return results
 
 
@@ -308,32 +348,68 @@ def main():
     custom_path = OUTPUT_DIR / "optimization_custom.csv"
     save_optimization_results(custom_results, custom_path)
     
-    # Validate best result with EventDrivenEngine
-    logger.info("\n[4/4] Validating best parameters with EventDrivenEngine...")
-    
+    # Validate best result with Event-Driven Engine
+    logger.info("\n[4/4] Validating best parameters with Event-Driven Engine...")
+
     best_params, best_score, _ = sharpe_results[0]
-    
+
     logger.info(f"\nRe-running best parameters with high-fidelity engine...")
     logger.info(f"Parameters: {best_params}")
-    
+
     strategy = TrendFollowingStrategy(params=best_params)
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=7.0,
-        slippage_points=1.0,
-        timeframe='H1'
+
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data_validated = data.copy()
+    data_validated = strategy.on_bar(data_validated)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    
-    validated_result = engine.run()
-    
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Validation_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation with event-driven engine
+    simulator.run(
+        data=data_validated,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=7.0,
+        slippage_points=1,
+    )
+
+    # Get results from simulator
+    validated_result = calculate_metrics_from_simulator(simulator)
+
     logger.info(f"\nValidation Results:")
     logger.info(f"  Total Return: {validated_result.total_return_pct:.2f}%")
     logger.info(f"  Max Drawdown: {validated_result.max_drawdown_pct:.2f}%")
     logger.info(f"  Win Rate: {validated_result.win_rate:.2f}%")
     logger.info(f"  Profit Factor: {validated_result.profit_factor:.2f}")
     logger.info(f"  Total Trades: {validated_result.total_trades}")
+
+    # Cleanup
+    mt5_client.shutdown()
     
     # Summary
     logger.info("\n" + "=" * 70)

@@ -5,7 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from apps.logger import logger
 
-from .logging_config import setup_logging
 from .routes import (
     auth,
     backtest,
@@ -116,7 +115,6 @@ app.include_router(risk_distribution.router, prefix="/api/reports", tags=["repor
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
-    setup_logging()
     logger.info("Starting HaruQuant API server")
 
     # Initialize database

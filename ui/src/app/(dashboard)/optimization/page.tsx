@@ -67,7 +67,7 @@ export default function OptimizationPage() {
                 data_source: config.dataSource || "mt5",
                 parameters,
                 n_jobs: config.workers,
-                engine_type: "vectorized",
+                engine_type: "vectorised",
                 // Method-specific parameters
                 n_iter: config.method === "random" ? config.nIter : undefined,
                 n_initial_points: config.method === "bayesian" ? config.nInitialPoints : undefined,

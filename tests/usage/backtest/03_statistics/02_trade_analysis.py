@@ -13,7 +13,9 @@ project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
 import pandas as pd  # noqa: E402
-from apps.backtest import EventDrivenEngine  # noqa: E402
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator  # noqa: E402
 from apps.indicator import sma  # noqa: E402
 from apps.strategy import BaseStrategy  # noqa: E402
 from apps.utils.data_getters import load_mt5  # noqa: E402
@@ -78,17 +80,62 @@ def main():
             result.loc[above, "price"] = result.loc[above, "open"]
             result.loc[below, "exit_signal"] = 1
 
+
+            # Cleanup
+
+
+            mt5_client.shutdown()
+
+
+            
+
+
             return result
 
     strategy = MAStrategy(params={"symbol": "EURUSD"})
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=0.0002,
-        timeframe="M1",
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Backtest_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=0.0002,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
 
     analyze_trades(result)
     

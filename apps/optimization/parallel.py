@@ -173,8 +173,10 @@ def parallel_grid_search(
         ```python
         def engine_factory(params):
             strategy = MyStrategy(params)
-            engine = EventDrivenEngine(strategy, data)
-            return engine.run()
+            # Use simulator with event_driven or vectorised engine
+            simulator = TradeSimulator(...)
+            simulator.run(data=data, strategy=strategy, engine_type="vectorised")
+            return calculate_metrics_from_simulator(simulator)
 
         results = parallel_grid_search(
             engine_factory,
@@ -365,8 +367,10 @@ def parallel_walk_forward(
         ```python
         def engine_factory(params, data, is_train):
             strategy = MyStrategy(params)
-            engine = EventDrivenEngine(strategy, data)
-            result = engine.run()
+            # Use simulator with event_driven or vectorised engine
+            simulator = TradeSimulator(...)
+            simulator.run(data=data, strategy=strategy, engine_type="vectorised")
+            result = calculate_metrics_from_simulator(simulator)
             result.metadata['is_train'] = is_train
             return result
 

@@ -54,12 +54,21 @@ def main():
 
     # Global variables
     magic_number = 12345
-    slippage = 10
+    slippage = 0
+    commission_per_contract = 7
     eurusd = "EURUSD"
     volume = 0.1
-    start_date = datetime(2025, 1, 1)
-    end_date = datetime(2025, 12, 31) 
-    data_modelling = "trading_timeframe"       # "real_ticks", "synthetic_ticks", "m1_ohlc", "trading_timeframe"
+
+    # Warmup period configuration (similar to MT5 Strategy Tester):
+    # - warmup_start_date: Start downloading data from this date (for indicator warmup)
+    # - start_date: Start executing trades from this date (active trading period begins)
+    # - end_date: Stop executing trades after this date (active trading period ends)
+    # This allows indicators to calculate properly from day 1 of the backtest
+    warmup_start_date = datetime(2024, 1, 1)  # Data download starts here
+    start_date = datetime(2025, 1, 1)          # Trading starts here
+    end_date = datetime(2025, 12, 31)          # Trading ends here
+
+    data_modelling = "m1_ohlc"       # "real_ticks", "synthetic_ticks", "m1_ohlc", "trading_timeframe"
     # ----------------------------
     engine_type = "event_driven"                 # "event_driven", "vectorised"
     step_data = None
@@ -74,7 +83,7 @@ def main():
     simulator = TradeSimulator(simulator_name="EURUSD_Backtest",mt5_client=client, account_info=account_info, symbols={eurusd: eurusd_info})
 
     # Trading timeframe data (signals are generated from this)
-    data = client.get_bars(symbol=eurusd, timeframe="H1", date_from=start_date, date_to=end_date)
+    data = client.get_bars(symbol=eurusd, timeframe="H1", date_from=warmup_start_date, date_to=end_date)
     if data is None or len(data) == 0:
         print("No H1 data available.")
         client.shutdown()
@@ -83,7 +92,7 @@ def main():
     if data_modelling in ("real_ticks", "synthetic_ticks", "m1_ohlc"):
         # M1 data for synthetic and m1_ohlc modeling
         m1_data = client.get_bars(
-            symbol=eurusd, timeframe="M1", date_from=start_date, date_to=end_date
+            symbol=eurusd, timeframe="M1", date_from=warmup_start_date, date_to=end_date
         )
         if m1_data is None or len(m1_data) == 0:
             print("No M1 data available.")
@@ -92,7 +101,7 @@ def main():
 
         # Real ticks for real_ticks modeling
         ticks = client.get_ticks(
-            symbol=eurusd, start=start_date, end=end_date, as_dataframe=True
+            symbol=eurusd, start=warmup_start_date, end=end_date, as_dataframe=True
         )
         if ticks is None or len(ticks) == 0:
             print("No tick data available.")
@@ -126,8 +135,8 @@ def main():
     backtest_metadata = {
         "strategy_name": "TrendFollowingStrategy",
         "strategy_version": "1.0.0",
-        "start_date": datetime(2025, 1, 1),
-        "end_date": datetime(2025, 12, 31),
+        "start_date": start_date,
+        "end_date": end_date,
         "engine_type": "simulator",
         "data_resolution": "H1",
         "config_hash": "trend_following_eurusd_h1",
@@ -153,6 +162,10 @@ def main():
         step_data=step_data,
         data_modelling=data_modelling,
         engine_type=engine_type,
+        commission_per_contract=commission_per_contract,
+        slippage_points=slippage,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     end_time = time.time()

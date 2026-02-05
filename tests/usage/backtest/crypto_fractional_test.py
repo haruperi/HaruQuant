@@ -84,17 +84,49 @@ def test_vectorized_fractional():
     )
     
     # Test WITH fractional volumes enabled
-    engine = VectorizedEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=0.0,
-        leverage=1,  # No leverage for crypto
-        config={"allow_fractional_volumes": True},
-        position_sizer=position_sizer,
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Backtest_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="vectorised",
+        commission_per_contract=0.0,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
     
     print(f"\nWith allow_fractional_volumes=True:")
     print(f"  Trades: {result.total_trades}")

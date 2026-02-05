@@ -295,7 +295,10 @@ class SimulationEngine(TradeRecordMixin):
 
         cache = getattr(self, "_signal_cache", None)
         if cache is not None:
-            signal = cache[idx]
+            # Account for warmup offset when accessing signal cache
+            cache_offset = getattr(self, "_signal_cache_offset", 0)
+            cache_idx = idx + cache_offset
+            signal = cache[cache_idx]
         else:
             signal = strategy.get_signal(data, idx)
         if signal is None:
@@ -1465,6 +1468,10 @@ class SimulationEngine(TradeRecordMixin):
         use_position_arrays: bool = True,
         use_fast_calc: bool = True,
         use_numba: bool = True,
+        commission_per_contract: float = 0.0,
+        slippage_points: float = 0.0,
+        start_date: Optional[Any] = None,
+        end_date: Optional[Any] = None,
     ) -> None:  # noqa: C901
         """
         Run the main simulation engine.
@@ -1480,6 +1487,10 @@ class SimulationEngine(TradeRecordMixin):
         engine_type options:
         - "event_driven": current tick/bar-based simulator (default)
         - "vectorised": close-based vectorized backtest (fast, simplified)
+
+        Args:
+            start_date: Optional start date for active trading period (warmup before this)
+            end_date: Optional end date for active trading period (no trading after this)
         """
         suppress_logs = bool(not verbose)
         prev_suppress_logs = bool(getattr(self, "_suppress_backtest_logs", False))
@@ -1496,6 +1507,46 @@ class SimulationEngine(TradeRecordMixin):
         tick = self._ensure_tick(symbol)
         point = symbol_info.point
         spread_default = symbol_info.spread
+
+        # Convert start_date and end_date to datetime for warmup period handling
+        trading_start = None
+        trading_end = None
+        warmup_bars = 0
+
+        if start_date is not None:
+            trading_start = self._to_datetime(start_date)
+            if not suppress_logs:
+                logger.info(f"Trading period starts: {trading_start}")
+        if end_date is not None:
+            trading_end = self._to_datetime(end_date)
+            if not suppress_logs:
+                logger.info(f"Trading period ends: {trading_end}")
+
+        # Slice data to trading period for efficiency (skip warmup bars in simulation)
+        # Note: Indicators are already calculated on the full dataset by the strategy
+        original_data = data
+        original_len = len(data)
+
+        if trading_start is not None:
+            # Find the first bar >= trading_start
+            mask = data.index >= trading_start
+            if mask.any():
+                warmup_bars = (~mask).sum()
+                data = data[mask].copy()
+                if not suppress_logs:
+                    logger.info(
+                        f"Skipping {warmup_bars} warmup bars (data loaded from earlier for indicators)"
+                    )
+
+        if trading_end is not None:
+            # Find the last bar <= trading_end
+            mask = data.index <= trading_end
+            if mask.any():
+                data = data[mask].copy()
+                if not suppress_logs:
+                    bars_after = original_len - warmup_bars - len(data)
+                    if bars_after > 0:
+                        logger.info(f"Skipping {bars_after} bars after end_date")
 
         engine = str(engine_type or "event_driven").strip().lower().replace("-", "_")
         if engine not in ("event_driven", "vectorised"):
@@ -1517,6 +1568,8 @@ class SimulationEngine(TradeRecordMixin):
             self._use_position_arrays = bool(use_position_arrays)
             self._use_fast_calc = bool(use_fast_calc)
             self._symbol_calc_cache = {}
+
+            # Slice data for vectorized mode (data is already sliced above)
             self._run_vectorized(
                 data=data,
                 strategy=strategy,
@@ -1544,9 +1597,19 @@ class SimulationEngine(TradeRecordMixin):
         self._log_trades = bool((verbose or log_every) and not suppress_logs)
         self._symbol_calc_cache = {}
         prev_fast_backtest = None
+        prev_commission = None
+        prev_slippage = None
         if hasattr(self._simulator, "_fast_backtest"):
             prev_fast_backtest = self._simulator._fast_backtest
             self._simulator._fast_backtest = bool(suppress_logs)
+        if hasattr(self._simulator, "_backtest_commission_per_contract"):
+            prev_commission = self._simulator._backtest_commission_per_contract
+            self._simulator._backtest_commission_per_contract = float(
+                commission_per_contract or 0.0
+            )
+        if hasattr(self._simulator, "_backtest_slippage_points"):
+            prev_slippage = self._simulator._backtest_slippage_points
+            self._simulator._backtest_slippage_points = float(slippage_points or 0.0)
         mode = str(data_modelling or "trading_timeframe").strip().lower()
         if mode not in (
             "trading_timeframe",
@@ -1562,6 +1625,7 @@ class SimulationEngine(TradeRecordMixin):
             while next_idx < len(data) and current_time >= self._to_datetime(
                 data.index[next_idx]
             ):
+                # Data is already sliced to trading period, so process all bars
                 self._process_bar_signal(
                     data,
                     next_idx,
@@ -1576,7 +1640,11 @@ class SimulationEngine(TradeRecordMixin):
             return next_idx
 
         if mode == "trading_timeframe":
-            self._signal_cache = self._build_signal_cache(data, strategy)
+            # Build signal cache from the original full dataset
+            self._signal_cache = self._build_signal_cache(original_data, strategy)
+            # Account for warmup offset when accessing signal cache
+            self._signal_cache_offset = warmup_bars
+
             close_arr = None
             spread_arr = None
             try:
@@ -1586,9 +1654,11 @@ class SimulationEngine(TradeRecordMixin):
             except Exception:
                 close_arr = None
                 spread_arr = None
+
             for idx in range(len(data)):
                 tick_time = data.index[idx]
                 self._current_time = self._to_datetime(tick_time)
+
                 if close_arr is not None:
                     close = float(close_arr[idx])
                     spread_points = (
@@ -1617,6 +1687,7 @@ class SimulationEngine(TradeRecordMixin):
                     total=len(data),
                 )
 
+                # Process bar signal (data is already sliced to trading period)
                 self._process_bar_signal(
                     data,
                     idx,
@@ -1628,11 +1699,33 @@ class SimulationEngine(TradeRecordMixin):
                     verbose,
                 )
             self._signal_cache = None
+            self._signal_cache_offset = 0
         else:
-            self._signal_cache = self._build_signal_cache(data, strategy)
+            # Build signal cache from the original full dataset
+            self._signal_cache = self._build_signal_cache(original_data, strategy)
+            # Account for warmup offset when accessing signal cache
+            self._signal_cache_offset = warmup_bars
+
             if step_data is None or len(step_data) == 0:
                 logger.error("step_data is required for the selected data_modelling")
                 return
+
+            # Slice step_data to trading period for efficiency
+            # original_step_data = step_data
+            if trading_start is not None:
+                mask = step_data.index >= trading_start
+                if mask.any():
+                    step_data = step_data[mask].copy()
+                    if not suppress_logs:
+                        warmup_steps = (~mask).sum()
+                        logger.info(
+                            f"Skipping {warmup_steps} warmup steps in step_data"
+                        )
+
+            if trading_end is not None:
+                mask = step_data.index <= trading_end
+                if mask.any():
+                    step_data = step_data[mask].copy()
 
             next_bar_idx = 0
 
@@ -1666,6 +1759,7 @@ class SimulationEngine(TradeRecordMixin):
                     next_bar_idx,
                 )
             self._signal_cache = None
+            self._signal_cache_offset = 0
 
         # Close any remaining positions at the end of the run (MT5-style)
         self.close_all_positions(reason="Time exit")
@@ -1675,6 +1769,10 @@ class SimulationEngine(TradeRecordMixin):
 
         if prev_fast_backtest is not None:
             self._simulator._fast_backtest = prev_fast_backtest
+        if prev_commission is not None:
+            self._simulator._backtest_commission_per_contract = prev_commission
+        if prev_slippage is not None:
+            self._simulator._backtest_slippage_points = prev_slippage
 
         if not suppress_logs:
             logger.info("\n" + "=" * 70)
@@ -1862,6 +1960,8 @@ class SimulationEngine(TradeRecordMixin):
         - Uses close prices for entry/exit (no intra-bar SL/TP)
         - Simplified position tracking (single position at a time)
         - No mark-to-market updates
+
+        Note: Data should already be sliced to the trading period before calling this function
         """
         if data is None or len(data) == 0:
             logger.error("No data provided for vectorized backtest")
@@ -1950,6 +2050,7 @@ class SimulationEngine(TradeRecordMixin):
 
             if pos_action is None:
                 sig = int(entry_signal[idx])
+                # Data is already sliced to trading period, process all entry signals
                 if sig in (1, -1):
                     (
                         pos_action,

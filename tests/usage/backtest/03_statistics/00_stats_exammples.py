@@ -28,7 +28,9 @@ import pandas as pd
 project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
-from apps.backtest import EventDrivenEngine  # noqa: E402
+from apps.simulation.simulator import TradeSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
+from apps.simulation.utils import calculate_metrics_from_simulator  # noqa: E402
 from apps.finance import (  # noqa: E402
     benchmark,
     distributions,
@@ -104,6 +106,16 @@ class MAStrategy(BaseStrategy):
         result.loc[buy, "price"] = result.loc[buy, "open"]
         result.loc[sell, "exit_signal"] = 1
 
+
+        # Cleanup
+
+
+        mt5_client.shutdown()
+
+
+        
+
+
         return result
 
 
@@ -117,14 +129,49 @@ def run_backtest(
     data = load_market_data(symbol, start_date, end_date, timeframe=timeframe)
 
     strategy = MAStrategy(params={"symbol": symbol})
-    engine = EventDrivenEngine(
-        strategy=strategy,
-        data=data,
-        initial_balance=10000.0,
-        commission=0.0002,
-        timeframe=timeframe,
+    # Initialize strategy
+    strategy.on_init()
+
+    # Calculate signals
+    data = strategy.on_bar(data)
+
+    # Get MT5 client for symbol info
+    mt5_client = get_mt5_client()
+
+    # Setup simulator components
+    account_info = AccountInfoSimulator(
+        balance=10000.0,
+        equity=10000.0,
+        margin_free=10000.0,
     )
-    result = engine.run()
+    symbol_info = SymbolInfoSimulator.from_mt5_symbol('EURUSD')
+    symbol_info.symbol = 'EURUSD'
+
+    # Create simulator
+    simulator = TradeSimulator(
+        simulator_name="Backtest_EURUSD",
+        mt5_client=mt5_client,
+        account_info=account_info,
+        symbols={'EURUSD': symbol_info},
+    )
+
+    # Run simulation
+    simulator.run(
+        data=data,
+        strategy=strategy,
+        symbol='EURUSD',
+        volume=0.1,
+        verbose=False,
+        save_db=False,
+        engine_type="event_driven",
+        commission_per_contract=0.0002,
+        slippage_points=0,
+        start_date=backtest_start,
+        end_date=backtest_end,
+    )
+
+    # Get results from simulator
+    result = calculate_metrics_from_simulator(simulator)
 
     equity_df = result.get_equity_df()
     equity = pd.Series(
