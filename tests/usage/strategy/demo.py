@@ -5,54 +5,46 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from datetime import datetime, timedelta
-from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
 from apps.logger import logger
 from data.strategies.trend_following import TrendFollowingStrategy
+from apps.mt5 import MT5Client, get_mt5_api
+mt5 = get_mt5_api()
 
 
-# Initialize UserManager to get credentials
 def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
-
-    username = "haruperi"  # Change this to your username
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        sys.exit(1)
-
-    creds = user_manager.get_mt5_credentials(user["id"])
+    """Get MT5 credentials from the database."""
+    creds = UserManager().get_mt5_credentials()
     if not creds:
-        logger.error(f"No default broker credentials found for {username}")
+        logger.error("No default broker credentials found")
         sys.exit(1)
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
     return creds
 
 
 def main():
     """Main function to run the strategy."""
 
-     # Get credentials from database
+    # Get credentials from database
     creds = get_mt5_credentials()
 
-    with MT5Client(
+    # Initialize MT5 client (needed for Option 1)
+    client = MT5Client()
+    connected = client.connect(
         login=creds["login"],
         password=creds["password"],
         server=creds["server"],
         path=creds["path"]
-    ) as client:
-        if not client.is_connected():
-            logger.error("Failed to connect to MT5")
-            return
+    )
+
+    if not connected:
+        logger.error("Failed to connect to MT5. Please ensure MT5 terminal is running.")
+        return
 
 
-        # Get bars
-        data = client.get_bars(symbol="EURUSD", timeframe="H1", date_from=datetime(2025, 1, 1), date_to=datetime(2025, 12, 31))
+    # Get bars
+    data = client.get_bars(symbol="EURUSD", timeframe="H1", date_from=datetime(2025, 1, 1), date_to=datetime(2025, 12, 31))
 
-         # Initialize strategy
+    # Initialize strategy
     strategy = TrendFollowingStrategy(
         params={
             'symbol': 'EURUSD',
