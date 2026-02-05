@@ -1,33 +1,51 @@
-# Data Processing & Analysis
+# Data Science & Analysis
 numpy
 pandas
+scipy
+fastparquet
+pyarrow
 tqdm
 
-# Testing
-pytest
-pytest-cov
-pytest-benchmark
+# Optimization & High Performance
+scikit-optimize
+numba
 
-# Web Framework
+# Visualization & Reporting
+matplotlib
+seaborn
+plotly
+bokeh
+rich
+
+# Web Framework & API
 fastapi
 uvicorn[standard]
 python-multipart
 websockets
 pydantic[email]
 
-# HTTP Clients
+# HTTP Networking
 requests
 httpx
 
-# Cryptography
+# Trading & Finance Interface
+MetaTrader5
+
+# System & Scheduling
+psutil
+APScheduler
+
+# Security & Cryptography
 cryptography
 passlib
 passlib[bcrypt]
 
-# Trading
-MetaTrader5
+# Testing
+pytest
+pytest-cov
+pytest-benchmark
 
-# Development Tools
+# Development Tools & Linters
 pre-commit
 black
 isort
@@ -36,27 +54,3 @@ pylint
 mypy
 bandit
 bandit[toml]
-
-
-# Finance & Data Libraries
-scipy
-
-# Optimization
-scikit-optimize
-
-# Plotting
-matplotlib
-seaborn
-plotly
-bokeh
-
-# System
-psutil
-APScheduler
-
-# Data Processing & Analysis
-fastparquet
-pyarrow
-
-rich
-numba
