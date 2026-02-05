@@ -201,7 +201,16 @@ This document describes the current HaruQuant application architecture
 
 ---
 
-### 3. Database Foundation
+### 3. Logging System
+
+#### Logger Setup, Configuration, and Handlers
+
+- This was setup as a separate, independent module in the project. Read more in the [Logger Readme](../../apps/logger/README.md) documentation.
+
+
+---
+
+### 4. Database Foundation
 
 #### Database Management
 
@@ -210,194 +219,9 @@ This document describes the current HaruQuant application architecture
 
 ---
 
-### Logging System
+### 5. Utility Functions
 
-#### Task 4.1: Logger Configuration
-
-- [X] Create `app/logger/config.py` with logger setup
-- [X] Define log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- [X] Configure log format (timestamp, level, module, message)
-- [X] Set up log rotation parameters
-- [X] **Commit:** `feat(logger): implement logger configuration`
-
-#### Task 4.2: Log Handlers
-
-- [X] Create `app/logger/handlers.py`
-- [X] Implement file handler with rotation (by size and time)
-- [X] Implement console handler with colored output
-- [X] Add handler for different log levels
-- [X] **Commit:** `feat(logger): add log handlers`
-
-#### Task 4.3: Log Formatters
-
-- [X] Create `app/logger/formatters.py`
-- [X] Implement JSON formatter for structured logging
-- [X] Implement readable formatter for console
-- [X] Add context enrichment (user, request_id, etc.)
-- [X] **Commit:** `feat(logger): implement log formatters`
-
-#### Task 4.4: Logger Initialization
-
-- [X] Create `app/logger/__init__.py` with get_logger function
-- [X] Set up loggers for different modules
-- [X] Configure log file locations (logs/application/, logs/errors/)
-- [X] Implement log level configuration from settings
-- [X] **Commit:** `feat(logger): finalize logging system`
-
-**Week 4 Unit Tests:**
-
-- [X] Create `tests/unit/test_logger.py`
-- [X] Test logger creation
-- [X] Test log level filtering
-- [X] Test log file creation and rotation
-- [X] Test context enrichment
-- [X] **Commit:** `test(logger): add logging tests`
-
-**Week 4 Example:**
-
-- [X] Create `examples/logging_example.py`
-- [X] Demonstrate different log levels
-- [X] Show context logging
-- [X] Show exception logging with stack traces
-- [X] **Commit:** `docs(examples): add logging example`
-
----
-
-### Week 5: Redis Integration
-
-#### Task 5.1: Redis Connection Manager
-
-- [X] Create `app/database/redis_client.py`
-- [X] Implement connection factory
-- [X] Add connection pooling
-- [X] Handle connection errors and retries
-- [X] **Commit:** `feat(redis): implement connection manager`
-
-#### Task 5.2: Redis Cache Repository
-
-- [X] Create `app/database/repositories/cache.py`
-- [X] Implement get/set/delete operations
-- [X] Add TTL support for cached items
-- [X] Implement hash operations for structured data
-- [X] **Commit:** `feat(redis): add cache repository`
-
-#### Task 5.3: Redis Key Patterns
-
-- [X] Define key naming conventions as per design
-- [X] Create key builder utility functions
-- [X] Implement key pattern for ticks, bars, positions, etc.
-- [X] Add key expiration logic
-- [X] **Commit:** `feat(redis): implement key patterns`
-
-**Week 5 Unit Tests:**
-
-- [X] Create `tests/unit/test_redis_client.py`
-- [X] Test connection creation
-- [X] Test connection pooling
-- [X] Test error handling
-- [X] Create `tests/unit/test_cache_repository.py`
-- [X] Test cache operations (get, set, delete)
-- [X] Test TTL functionality
-- [X] Test hash operations
-- [X] **Commit:** `test(redis): add Redis tests`
-
-**Week 5 Integration Test:**
-
-- [X] Create `tests/integration/test_redis_operations.py`
-- [X] Test Redis operations with actual Redis instance
-- [X] Test concurrent access
-- [X] **Commit:** `test(redis): add integration tests`
-  - Note: Live Redis verification performed via `pytest tests/integration/test_redis_operations.py -k live` (requires Redis running locally).
-
----
-
-### Week 6: Exception Handling
-
-#### Task 6.1: Custom Exception Classes
-
-- [X] Create `app/exceptions/base.py` with base exception
-- [X] Create `app/exceptions/validation.py` for validation errors
-- [X] Create `app/exceptions/broker.py` for broker errors
-- [X] Create `app/exceptions/data.py` for data errors
-- [X] Create `app/exceptions/trading.py` for trading errors
-- [X] **Commit:** `feat(exceptions): add custom exception classes`
-
-#### Task 6.2: Error Handlers
-
-- [X] Create global error handler utility
-- [X] Implement error logging for all exceptions
-- [X] Add error message formatting
-- [X] Create error response models (for API later)
-- [X] **Commit:** `feat(exceptions): implement error handlers`
-
-**Week 6 Unit Tests:**
-
-- [X] Create `tests/unit/test_exceptions.py`
-- [X] Test exception creation and attributes
-- [X] Test exception inheritance
-- [X] Test error message formatting
-- [X] **Commit:** `test(exceptions): add exception tests`
-
----
-
-### Week 7: Utility Functions
-
-#### Task 7.1: DateTime Utilities
-
-- [X] Create `app/utils/datetime_utils.py`
-- [X] Implement timezone conversion functions
-- [X] Add market hours checking
-- [X] Create timestamp formatting utilities
-- [X] Add date range generation for backtesting
-- [X] **Commit:** `feat(utils): add datetime utilities`
-
-#### Task 7.2: Validation Utilities
-
-- [X] Create `app/utils/validators.py`
-- [X] Implement symbol name validation
-- [X] Add parameter range validators
-- [X] Create OHLC data validator
-- [X] Add email/phone validators for notifications
-- [X] **Commit:** `feat(utils): add validation utilities`
-
-#### Task 7.3: Calculation Utilities
-
-- [X] Create `app/utils/calculations.py`
-- [X] Implement percentage change calculator
-- [X] Add pip value calculator
-- [X] Create position size calculator helpers
-- [X] Add statistical calculation utilities
-- [X] **Commit:** `feat(utils): add calculation utilities`
-
-#### Task 7.4: Helper Functions
-
-- [X] Create `app/utils/helpers.py`
-- [X] Implement retry decorator for API calls
-- [X] Add data chunking utilities
-- [X] Create hash generation for cache keys
-- [X] Add file I/O helpers
-- [X] **Commit:** `feat(utils): add helper functions`
-
-**Week 7 Unit Tests:**
-
-- [X] Create `tests/unit/test_datetime_utils.py`
-- [X] Test timezone conversions
-- [X] Test date range generation
-- [X] Create `tests/unit/test_validators.py`
-- [X] Test all validation functions
-- [X] Create `tests/unit/test_calculations.py`
-- [X] Test calculation accuracy
-- [X] Create `tests/unit/test_helpers.py`
-- [X] Test retry logic, chunking, etc.
-- [X] **Commit:** `test(utils): add utility tests`
-
-**Week 7 Examples:**
-
-- [X] Create `examples/utilities_demo.py`
-- [X] Show datetime utilities usage
-- [X] Demonstrate validators
-- [X] Show calculation examples
-- [X] **Commit:** `docs(examples): add utilities examples`
+- This was setup as a separate, independent module in the project. Read more in the [Utils Readme](../../apps/utils/README.md) documentation.
 
 ---
 

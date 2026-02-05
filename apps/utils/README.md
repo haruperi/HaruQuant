@@ -1,584 +1,496 @@
 # Utils Module
 
-A comprehensive collection of utility functions and classes for data management, validation, security, and concurrent execution in the HaruQuant trading platform.
+A comprehensive collection of utility functions and classes for data management, validation, security, file operations, and concurrent execution in the HaruQuant algorithmic trading platform.
 
 ## Overview
 
-The `utils` module provides essential utilities for working with market data, ensuring data quality, managing security, and enabling concurrent task execution. It consists of five main components that handle different aspects of the trading platform's infrastructure.
+The `utils` module provides essential utilities for all aspects of the trading platform, from data loading and validation to security management and concurrent processing. It consists of nine independent components that handle different infrastructure concerns.
 
-## Key Features
+### Key Features
 
-- **Data Management**: Load and cache market data from multiple sources
-- **Data Validation**: Comprehensive quality checks for market data
-- **Data Manipulation**: Timeframe resampling and bar aggregation
-- **Security**: Password hashing and data encryption
-- **Multitasking**: Concurrent execution with thread/process pools
+- **Security**: Password hashing and encryption using industry-standard algorithms (bcrypt, Fernet)
+- **Data Loading**: Multi-source data retrieval from MT5, Dukascopy, and Parquet files
+- **Data Validation**: Comprehensive quality checks for market data (gaps, spikes, sanity)
+- **Data Manipulation**: Timeframe resampling and real-time bar aggregation
+- **Multitasking**: Concurrent task execution with thread/process pools
+- **File Operations**: Batch file renaming with regex and pattern matching
+- **Data Comparison**: DataFrame comparison utilities for testing and validation
+- **Error Handling**: MT5 error code descriptions and lookups
+- **Trade Validation**: Comprehensive trading parameter validation
 
 ## Architecture
 
-The module consists of five independent utility components:
+### Module Structure
 
 ```
-┌──────────────────┐
-│  Data Getters    │  ← Load data from MT5/Dukascopy
-├──────────────────┤
-│  Data Validator  │  ← Validate data quality
-├──────────────────┤
-│  Data Manipulator│  ← Resample & aggregate bars
-├──────────────────┤
-│  Security        │  ← Hash passwords & encrypt data
-├──────────────────┤
-│  Multitasking    │  ← Concurrent task execution
-└──────────────────┘
+apps/utils/
+├── __init__.py             # Package exports
+├── security.py             # Password hashing & encryption
+├── data_getters.py         # Multi-source data loading
+├── data_validator.py       # Data quality validation
+├── data_manipulator.py     # Timeframe resampling & aggregation
+├── multitasking.py         # Concurrent execution utilities
+├── file_renamer.py         # Batch file renaming
+├── data_comparator.py      # DataFrame comparison
+├── error_description.py    # MT5 error code descriptions
+└── validate.py             # Trading parameter validation
 ```
 
----
+### Component Overview
 
-## 1. Security Utilities
+```
+┌─────────────────────┐
+│  Security           │  ← Password hashing & encryption
+├─────────────────────┤
+│  Data Getters       │  ← Load from MT5/Dukascopy/Parquet
+├─────────────────────┤
+│  Data Validator     │  ← Quality checks & validation
+├─────────────────────┤
+│  Data Manipulator   │  ← Resample & aggregate bars
+├─────────────────────┤
+│  Multitasking       │  ← Concurrent execution
+├─────────────────────┤
+│  File Renamer       │  ← Batch file operations
+├─────────────────────┤
+│  Data Comparator    │  ← DataFrame comparison
+├─────────────────────┤
+│  Error Description  │  ← MT5 error lookups
+├─────────────────────┤
+│  Validate           │  ← Trading param validation
+└─────────────────────┘
+```
 
-Password hashing and data encryption utilities using industry-standard algorithms.
+## Installation & Setup
 
-### Functions
+### Basic Setup
 
-- **`hash_password()`** - Hash passwords using bcrypt
-- **`verify_password()`** - Verify password against hash
-- **`get_encryption_key()`** - Generate encryption key
-- **`encrypt_data()`** - Encrypt string data
-- **`decrypt_data()`** - Decrypt encrypted data
-
-### hash_password()
-
-Hash a password using bcrypt.
-
-**Function Signature:**
 ```python
-hash_password(password: str) -> str
+# Import individual modules
+from apps.utils.security import hash_password, encrypt_data
+from apps.utils.data_getters import load_mt5, load_dukascopy
+from apps.utils.data_validator import DataValidator
+from apps.utils.data_manipulator import TimeframeManager
+from apps.utils.multitasking import task, wait_for_tasks
+
+# Ready to use - no initialization needed
+validator = DataValidator()
+tf_manager = TimeframeManager()
 ```
 
-**Parameters:**
-- `password: str` - Plain text password to hash
+## Components
 
-**Returns:**
-- `str` - Hashed password
+### 1. Security (`security.py`)
 
-**Example:**
-```python
-from apps.utils.security import hash_password
+**Purpose**: Cryptographic functions for password hashing and data encryption using bcrypt and Fernet.
 
-hashed = hash_password("my_secure_password")
-print(hashed)  # $2b$12$...
-```
+**Key Functions**:
 
-### verify_password()
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `hash_password()` | `(password: str) -> str` | Hash password with bcrypt |
+| `verify_password()` | `(plain: str, hashed: str) -> bool` | Verify password against hash |
+| `get_encryption_key()` | `() -> bytes` | Generate Fernet encryption key |
+| `encrypt_data()` | `(data: str, key: bytes) -> str` | Encrypt string data |
+| `decrypt_data()` | `(token: str, key: bytes) -> str` | Decrypt encrypted data |
 
-Verify a plain password against a hashed password.
-
-**Function Signature:**
-```python
-verify_password(plain_password: str, hashed_password: str) -> bool
-```
-
-**Parameters:**
-- `plain_password: str` - Plain text password
-- `hashed_password: str` - Hashed password to verify against
-
-**Returns:**
-- `bool` - True if password matches, False otherwise
-
-**Example:**
-```python
-from apps.utils.security import hash_password, verify_password
-
-hashed = hash_password("my_password")
-is_valid = verify_password("my_password", hashed)  # True
-is_invalid = verify_password("wrong_password", hashed)  # False
-```
-
-### get_encryption_key()
-
-Generate a new Fernet encryption key.
-
-**Function Signature:**
-```python
-get_encryption_key() -> bytes
-```
-
-**Returns:**
-- `bytes` - Encryption key
-
-**Example:**
-```python
-from apps.utils.security import get_encryption_key
-
-key = get_encryption_key()
-# Store this key securely - you'll need it to decrypt data
-```
-
-### encrypt_data()
-
-Encrypt string data using Fernet symmetric encryption.
-
-**Function Signature:**
-```python
-encrypt_data(data: str, key: bytes) -> str
-```
-
-**Parameters:**
-- `data: str` - String data to encrypt
-- `key: bytes` - Encryption key
-
-**Returns:**
-- `str` - Encrypted data (URL-safe base64 encoded)
-
-**Example:**
-```python
-from apps.utils.security import get_encryption_key, encrypt_data
-
-key = get_encryption_key()
-encrypted = encrypt_data("sensitive_data", key)
-print(encrypted)  # gAAAAABh...
-```
-
-### decrypt_data()
-
-Decrypt an encrypted string token.
-
-**Function Signature:**
-```python
-decrypt_data(token: str, key: bytes) -> str
-```
-
-**Parameters:**
-- `token: str` - Encrypted string token
-- `key: bytes` - Encryption key (same key used for encryption)
-
-**Returns:**
-- `str` - Decrypted string data
-
-**Example:**
-```python
-from apps.utils.security import get_encryption_key, encrypt_data, decrypt_data
-
-key = get_encryption_key()
-encrypted = encrypt_data("secret_message", key)
-decrypted = decrypt_data(encrypted, key)
-print(decrypted)  # "secret_message"
-```
-
-### Security Example
-
-**Complete Authentication Flow:**
-
+**Usage**:
 ```python
 from apps.utils.security import hash_password, verify_password, get_encryption_key, encrypt_data, decrypt_data
 
-# User registration
-password = "user_password123"
-hashed_password = hash_password(password)
+# Hash password
+hashed = hash_password("my_password")
 
-# Generate encryption key for user
-encryption_key = get_encryption_key()
+# Verify password
+is_valid = verify_password("my_password", hashed)  # True
 
-# Store sensitive data
-api_key = "mt5_api_key_12345"
-encrypted_api_key = encrypt_data(api_key, encryption_key)
-
-# User login
-login_password = "user_password123"
-if verify_password(login_password, hashed_password):
-    print("Login successful")
-
-    # Decrypt sensitive data
-    decrypted_api_key = decrypt_data(encrypted_api_key, encryption_key)
-    print(f"API Key: {decrypted_api_key}")
+# Encrypt sensitive data
+key = get_encryption_key()
+encrypted = encrypt_data("api_key_12345", key)
+decrypted = decrypt_data(encrypted, key)  # "api_key_12345"
 ```
+
+For detailed examples, see [`tests/usage/utils/usage_security.py`](../../../tests/usage/utils/usage_security.py).
 
 ---
 
-## 2. Data Getters
+### 2. Data Getters (`data_getters.py`)
 
-Load and cache market data from multiple sources (MT5, Dukascopy, Parquet files).
+**Purpose**: Load and cache market data from multiple sources (MT5, Dukascopy API, Parquet files).
 
-### Functions
+**Key Functions**:
 
-- **`load_mt5()`** - Load data from MT5 terminal
-- **`load_dukascopy()`** - Load data from Dukascopy API
-- **`load_parquet()`** - Load data from Parquet file
-- **`get_data_dir()`** - Get path to data directory
-- **`clear_data_cache()`** - Clear data cache
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `load_mt5()` | `(symbol: str, timeframe: str, start_date, end_date, count) -> pd.DataFrame` | Load from MT5 terminal |
+| `load_dukascopy()` | `(symbol: str, timeframe: str, start_date, end_date) -> pd.DataFrame` | Load from Dukascopy API |
+| `load_parquet()` | `(file_path: Union[str, Path]) -> pd.DataFrame` | Load from Parquet file |
+| `get_data_dir()` | `() -> Path` | Get path to data directory |
+| `clear_data_cache()` | `() -> None` | Clear cached data |
 
-### load_mt5()
-
-Load data from MT5 connection with automatic fallback to Dukascopy.
-
-**Function Signature:**
+**Usage**:
 ```python
-load_mt5(symbol: str, timeframe: str = "H1", start_date: Optional[Union[str, datetime]] = None, end_date: Optional[Union[str, datetime]] = None, count: Optional[int] = 0) -> pd.DataFrame
-```
+from apps.utils.data_getters import load_mt5, load_dukascopy, load_parquet
 
-**Parameters:**
-- `symbol: str` - Trading symbol (e.g., "EURUSD")
-- `timeframe: str = "H1"` - Timeframe (M1, M5, M15, M30, H1, H4, D1, W1, MN1)
-- `start_date: Optional[Union[str, datetime]] = None` - Start date
-- `end_date: Optional[Union[str, datetime]] = None` - End date
-- `count: Optional[int] = 0` - Number of bars (if dates not specified)
-
-**Returns:**
-- `pd.DataFrame` - OHLCV data
-
-**Example:**
-```python
-from apps.utils.data_getters import load_mt5
-
-# Load last 1000 bars
+# Load from MT5 (last 1000 bars)
 data = load_mt5("EURUSD", timeframe="H1", count=1000)
 
 # Load by date range
-data = load_mt5("EURUSD", timeframe="H1", start_date="2024-01-01", end_date="2024-12-31")
-```
+data = load_mt5("EURUSD", "H1", start_date="2024-01-01", end_date="2024-12-31")
 
-### load_dukascopy()
+# Load from Dukascopy API
+data = load_dukascopy("EURUSD", "H1", "2024-01-01", "2024-12-31")
 
-Download data from Dukascopy API.
-
-**Function Signature:**
-```python
-load_dukascopy(symbol: str, timeframe: Optional[str] = "H1", start_date: Optional[str] = None, end_date: Optional[str] = None) -> pd.DataFrame
-```
-
-**Parameters:**
-- `symbol: str` - Trading symbol
-- `timeframe: Optional[str] = "H1"` - Timeframe
-- `start_date: Optional[str] = None` - Start date (YYYY-MM-DD)
-- `end_date: Optional[str] = None` - End date (YYYY-MM-DD)
-
-**Returns:**
-- `pd.DataFrame` - OHLCV data
-
-**Example:**
-```python
-from apps.utils.data_getters import load_dukascopy
-
-data = load_dukascopy("EURUSD", timeframe="H1", start_date="2024-01-01", end_date="2024-12-31")
-```
-
-### load_parquet()
-
-Load Parquet file with caching.
-
-**Function Signature:**
-```python
-load_parquet(file_path: Union[str, Path]) -> pd.DataFrame
-```
-
-**Parameters:**
-- `file_path: Union[str, Path]` - Path to Parquet file
-
-**Returns:**
-- `pd.DataFrame` - Loaded data
-
-**Example:**
-```python
-from apps.utils.data_getters import load_parquet
-
+# Load from Parquet file (with caching)
 data = load_parquet("data/eurusd_h1.parquet")
 ```
 
+For detailed examples, see [`tests/usage/utils/usage_data_getters.py`](../../../tests/usage/utils/usage_data_getters.py).
+
 ---
 
-## 3. Data Validator
+### 3. Data Validator (`data_validator.py`)
 
-Comprehensive data quality validation for market data.
+**Purpose**: Comprehensive data quality validation for OHLCV market data.
 
-### Class: DataValidator
+**Class: DataValidator**
 
-**Constructor:**
+**Constructor**:
 ```python
 DataValidator(z_score_threshold: float = 3.0, iqr_multiplier: float = 1.5)
 ```
 
-**Parameters:**
-- `z_score_threshold: float = 3.0` - Z-score threshold for spike detection
-- `iqr_multiplier: float = 1.5` - IQR multiplier for outlier detection
+**Key Methods**:
 
-### Methods
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `prepare_data()` | `(df: pd.DataFrame) -> pd.DataFrame` | Standardize column names and format |
+| `validate_price_sanity()` | `(data: pd.DataFrame, mark_invalid: bool) -> Tuple[bool, pd.DataFrame, List[str]]` | Validate OHLC relationships |
+| `detect_gaps()` | `(data: pd.DataFrame, expected_frequency, tolerance) -> Tuple[pd.DataFrame, List[Dict]]` | Detect missing timestamps |
+| `detect_spikes()` | `(data: pd.DataFrame, columns, method, mark_anomalies) -> Tuple[pd.DataFrame, List[Dict]]` | Detect price anomalies |
 
-#### prepare_data()
+**Validation Checks**:
+- **Price Sanity**: High >= Low, Close/Open within [Low, High], no negatives/zeros
+- **Gaps**: Missing timestamps based on expected frequency
+- **Spikes**: Statistical anomalies using Z-score or IQR methods
 
-Prepare data for backtesting (standardize column names, add spread).
-
-**Function Signature:**
-```python
-DataValidator.prepare_data(df: pd.DataFrame) -> pd.DataFrame
-```
-
-**Parameters:**
-- `df: pd.DataFrame` - Raw OHLCV data
-
-**Returns:**
-- `pd.DataFrame` - Standardized data with columns: open, high, low, close, volume, spread
-
-**Example:**
+**Usage**:
 ```python
 from apps.utils.data_validator import DataValidator
 
-validator = DataValidator()
-raw_data = load_mt5("EURUSD", "H1", count=1000)
+validator = DataValidator(z_score_threshold=3.0, iqr_multiplier=1.5)
+
+# Prepare and standardize data
 clean_data = validator.prepare_data(raw_data)
-```
 
-#### validate_price_sanity()
-
-Validate price sanity checks for OHLCV data.
-
-**Function Signature:**
-```python
-validate_price_sanity(data: pd.DataFrame, mark_invalid: bool = False) -> Tuple[bool, pd.DataFrame, List[str]]
-```
-
-**Parameters:**
-- `data: pd.DataFrame` - OHLCV data
-- `mark_invalid: bool = False` - Add 'invalid' column marking bad rows
-
-**Returns:**
-- `Tuple[bool, pd.DataFrame, List[str]]` - (all_valid, dataframe, issues_list)
-
-**Checks:**
-- High >= Low
-- Close within [Low, High]
-- Open within [Low, High]
-- No negative prices
-- No zero prices
-
-**Example:**
-```python
-from apps.utils.data_validator import DataValidator
-
-validator = DataValidator()
-all_valid, df, issues = validator.validate_price_sanity(data, mark_invalid=True)
-
+# Validate price sanity
+all_valid, df, issues = validator.validate_price_sanity(clean_data, mark_invalid=True)
 if not all_valid:
-    print(f"Found {len(issues)} issues:")
-    for issue in issues:
-        print(f"  - {issue}")
-```
+    print(f"Found {len(issues)} price issues")
 
-#### detect_gaps()
-
-Detect gaps in time series data.
-
-**Function Signature:**
-```python
-detect_gaps(data: pd.DataFrame, expected_frequency: Optional[Union[str, timedelta]] = None, tolerance: float = 1.5) -> Tuple[pd.DataFrame, List[Dict]]
-```
-
-**Parameters:**
-- `data: pd.DataFrame` - Data with datetime index or time column
-- `expected_frequency: Optional[Union[str, timedelta]] = None` - Expected frequency (auto-detected if None)
-- `tolerance: float = 1.5` - Tolerance multiplier for gap detection
-
-**Returns:**
-- `Tuple[pd.DataFrame, List[Dict]]` - (gaps_dataframe, gap_info_list)
-
-**Example:**
-```python
-from apps.utils.data_validator import DataValidator
-
-validator = DataValidator()
-gaps_df, gap_info = validator.detect_gaps(data, expected_frequency="1H")
-
+# Detect gaps
+gaps_df, gap_info = validator.detect_gaps(df, expected_frequency="1H")
 print(f"Found {len(gap_info)} gaps")
-for gap in gap_info:
-    print(f"Gap from {gap['start']} to {gap['end']}: {gap['missing_bars']} bars")
-```
 
-#### detect_spikes()
-
-Detect spikes and anomalies in price data.
-
-**Function Signature:**
-```python
-detect_spikes(data: pd.DataFrame, columns: Optional[List[str]] = None, method: str = "zscore", mark_anomalies: bool = True) -> Tuple[pd.DataFrame, List[Dict]]
-```
-
-**Parameters:**
-- `data: pd.DataFrame` - Price data
-- `columns: Optional[List[str]] = None` - Columns to check (default: all OHLC)
-- `method: str = "zscore"` - Detection method ('zscore', 'iqr', or 'both')
-- `mark_anomalies: bool = True` - Add anomaly columns to dataframe
-
-**Returns:**
-- `Tuple[pd.DataFrame, List[Dict]]` - (dataframe_with_marks, anomaly_list)
-
-**Example:**
-```python
-from apps.utils.data_validator import DataValidator
-
-validator = DataValidator(z_score_threshold=3.0)
-df_marked, anomalies = validator.detect_spikes(data, method="zscore")
-
+# Detect spikes
+df_marked, anomalies = validator.detect_spikes(df, method="zscore")
 print(f"Found {len(anomalies)} anomalies")
-for anomaly in anomalies:
-    print(f"{anomaly['column']} spike at {anomaly['timestamp']}: {anomaly['value']}")
 ```
+
+For detailed examples, see [`tests/usage/utils/usage_data_validator.py`](../../../tests/usage/utils/usage_data_validator.py).
 
 ---
 
-## 4. Data Manipulator
+### 4. Data Manipulator (`data_manipulator.py`)
 
-Timeframe resampling and bar aggregation utilities.
+**Purpose**: Timeframe resampling and real-time bar aggregation for multi-timeframe analysis.
 
-### Class: TimeframeManager
+**Class: TimeframeManager**
 
-**Methods:**
+**Key Methods**:
 
-#### resample()
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `resample()` | `(data: pd.DataFrame, target_timeframe: str, source_timeframe) -> pd.DataFrame` | Resample to different timeframe |
 
-Resample OHLCV data to a different timeframe.
+**Class: BarAggregator**
 
-**Function Signature:**
-```python
-resample(data: pd.DataFrame, target_timeframe: str, source_timeframe: Optional[str] = None) -> pd.DataFrame
-```
-
-**Parameters:**
-- `data: pd.DataFrame` - OHLCV data with DatetimeIndex
-- `target_timeframe: str` - Target timeframe (M5, H1, D1, etc.)
-- `source_timeframe: Optional[str] = None` - Source timeframe (auto-detected if None)
-
-**Returns:**
-- `pd.DataFrame` - Resampled data
-
-**Example:**
-```python
-from apps.utils.data_manipulator import TimeframeManager
-
-manager = TimeframeManager()
-
-# Resample M1 data to H1
-m1_data = load_mt5("EURUSD", "M1", count=10000)
-h1_data = manager.resample(m1_data, "H1")
-
-# Resample to multiple timeframes
-m5_data = manager.resample(m1_data, "M5")
-h4_data = manager.resample(m1_data, "H4")
-d1_data = manager.resample(m1_data, "D1")
-```
-
-### Class: BarAggregator
-
-Incremental bar aggregator for live trading.
-
-**Constructor:**
+**Constructor**:
 ```python
 BarAggregator(target_timeframe: str)
 ```
 
-**Parameters:**
-- `target_timeframe: str` - Target timeframe for aggregated bars
+**Key Methods**:
 
-**Methods:**
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `add_tick()` | `(timestamp: datetime, bid: float, ask: float, volume: float) -> Optional[Dict]` | Add tick and get completed bar |
+| `get_current_bar()` | `() -> Optional[Dict]` | Get current incomplete bar |
+| `reset()` | `() -> None` | Reset aggregator state |
 
-#### add_tick()
+**Supported Timeframes**: M1, M5, M15, M30, H1, H4, D1, W1, MN1
 
-Add a tick to the aggregator.
-
-**Function Signature:**
+**Usage**:
 ```python
-add_tick(timestamp: datetime, bid: float, ask: float, volume: float = 0) -> Optional[Dict]
-```
+from apps.utils.data_manipulator import TimeframeManager, BarAggregator
 
-**Parameters:**
-- `timestamp: datetime` - Tick timestamp
-- `bid: float` - Bid price
-- `ask: float` - Ask price
-- `volume: float = 0` - Tick volume
+# Resample M1 data to H1
+manager = TimeframeManager()
+m1_data = load_mt5("EURUSD", "M1", count=10000)
+h1_data = manager.resample(m1_data, "H1")
+h4_data = manager.resample(m1_data, "H4")
 
-**Returns:**
-- `Optional[Dict]` - Completed bar if bar finished, None otherwise
-
-**Example:**
-```python
-from apps.utils.data_manipulator import BarAggregator
-from datetime import datetime
-
+# Real-time bar aggregation for live trading
 aggregator = BarAggregator("M5")
 
 # Add ticks
 completed_bar = aggregator.add_tick(datetime.now(), 1.0950, 1.0952, 100)
 if completed_bar:
-    print(f"Bar completed: {completed_bar}")
+    print(f"M5 bar completed: {completed_bar}")
 ```
+
+For detailed examples, see [`tests/usage/utils/usage_data_manipulator.py`](../../../tests/usage/utils/usage_data_manipulator.py).
 
 ---
 
-## 5. Multitasking Utilities
+### 5. Multitasking (`multitasking.py`)
 
-Concurrent task execution with thread/process pools.
+**Purpose**: Concurrent task execution with thread and process pools for parallel processing.
 
-### Functions
+**Key Functions**:
 
-- **`@task`** - Decorator to make function asynchronous
-- **`createPool()`** - Create execution pool
-- **`set_max_threads()`** - Set maximum concurrent threads
-- **`wait_for_tasks()`** - Wait for all tasks to complete
-- **`get_active_tasks()`** - Get currently running tasks
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `@task` | Decorator | Convert function to async task |
+| `createPool()` | `(name: str, threads: int, engine: str) -> None` | Create execution pool |
+| `set_max_threads()` | `(threads: int) -> None` | Set max concurrent threads |
+| `wait_for_tasks()` | `() -> None` | Wait for all tasks to complete |
+| `get_active_tasks()` | `() -> List` | Get currently running tasks |
 
-### @task Decorator
+**Engines**: `"thread"` (I/O-bound), `"process"` (CPU-bound)
 
-Convert a function into an asynchronous task.
-
-**Example:**
+**Usage**:
 ```python
-from apps.utils.multitasking import task, wait_for_tasks
+from apps.utils.multitasking import task, createPool, wait_for_tasks
 
+# Create pool
+createPool("data_processing", threads=4, engine="thread")
+
+# Define async task
 @task
 def process_symbol(symbol):
     data = load_mt5(symbol, "H1", count=1000)
     # Process data...
     return f"Processed {symbol}"
 
-# Run tasks concurrently
-process_symbol("EURUSD")
-process_symbol("GBPUSD")
-process_symbol("USDJPY")
-
-# Wait for all to complete
-wait_for_tasks()
-```
-
-### createPool()
-
-Create a new execution pool.
-
-**Function Signature:**
-```python
-createPool(name: str = "main", threads: Optional[int] = None, engine: Optional[str] = None) -> None
-```
-
-**Parameters:**
-- `name: str = "main"` - Pool name
-- `threads: Optional[int] = None` - Max concurrent threads (default: CPU count)
-- `engine: Optional[str] = None` - Engine type ("thread" or "process")
-
-**Example:**
-```python
-from apps.utils.multitasking import createPool, task, wait_for_tasks
-
-# Create pool with 4 threads
-createPool("data_processing", threads=4, engine="thread")
-
-@task
-def download_data(symbol):
-    return load_dukascopy(symbol, "H1", "2024-01-01", "2024-12-31")
-
-# Process multiple symbols
+# Execute tasks concurrently
 symbols = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD"]
 for symbol in symbols:
-    download_data(symbol)
+    process_symbol(symbol)
 
+# Wait for completion
 wait_for_tasks()
 ```
+
+For detailed examples, see [`tests/usage/utils/usage_multitasking.py`](../../../tests/usage/utils/usage_multitasking.py).
+
+---
+
+### 6. File Renamer (`file_renamer.py`)
+
+**Purpose**: Batch file renaming utilities with pattern matching, regex, and various transformations.
+
+**Key Functions**:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `rename_file()` | `(old_path, new_path, overwrite, dry_run) -> bool` | Rename single file |
+| `rename_with_pattern()` | `(directory, pattern, replacement, regex, recursive, extensions, dry_run) -> Dict` | Pattern-based renaming |
+| `add_prefix()` | `(directory, prefix, recursive, extensions, dry_run) -> Dict` | Add prefix to filenames |
+| `add_suffix()` | `(directory, suffix, recursive, extensions, dry_run) -> Dict` | Add suffix before extension |
+| `rename_with_numbering()` | `(directory, base_name, start_number, padding, recursive, extensions, dry_run) -> Dict` | Sequential numbering |
+| `normalize_filenames()` | `(directory, lowercase, replace_spaces, remove_special_chars, recursive, extensions, dry_run) -> Dict` | Normalize filenames |
+| `change_extension()` | `(directory, old_extension, new_extension, recursive, dry_run) -> Dict` | Change file extensions |
+| `rename_with_custom_function()` | `(directory, rename_function, recursive, extensions, dry_run) -> Dict` | Custom renaming logic |
+
+**Usage**:
+```python
+from apps.utils.file_renamer import rename_with_pattern, add_prefix, normalize_filenames
+
+# Pattern-based renaming with regex
+renamed = rename_with_pattern(
+    directory="data/raw/",
+    pattern=r"(.+)_dukascopy-H1-No Session\.csv",
+    replacement=r"\1_H1.csv",
+    regex=True,
+    dry_run=False
+)
+
+# Add prefix to all CSV files
+renamed = add_prefix("data/processed/", "backtest_", extensions=[".csv"])
+
+# Normalize filenames (lowercase, replace spaces, remove special chars)
+renamed = normalize_filenames("data/", lowercase=True, replace_spaces="_")
+```
+
+For detailed examples, see [`tests/usage/utils/usage_file_renamer.py`](../../../tests/usage/utils/usage_file_renamer.py).
+
+---
+
+### 7. Data Comparator (`data_comparator.py`)
+
+**Purpose**: DataFrame comparison utilities for testing data equality and validating transformations.
+
+**Key Functions**:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `compare_dataframes()` | `(df1, df2, columns, tolerance, check_index, align_by_datetime, verbose) -> bool` | Compare DataFrames with tolerance |
+| `align_dataframes_by_datetime()` | `(df1, df2, verbose) -> Tuple[pd.DataFrame, pd.DataFrame]` | Align DataFrames by datetime index |
+| `compare_ohlcv()` | `(df1, df2, **kwargs) -> bool` | Compare OHLCV columns |
+| `compare_ohlc()` | `(df1, df2, **kwargs) -> bool` | Compare OHLC columns |
+
+**Features**:
+- Tolerance-based floating point comparison
+- Datetime index alignment
+- Partial column comparison
+- Detailed difference reporting
+
+**Usage**:
+```python
+from apps.utils.data_comparator import compare_dataframes, compare_ohlcv, align_dataframes_by_datetime
+
+# Compare specific columns with tolerance
+is_equal = compare_dataframes(
+    df1, df2,
+    columns=['Open', 'High', 'Low', 'Close'],
+    tolerance=1e-5,
+    verbose=True
+)
+
+# Compare OHLCV data
+is_equal = compare_ohlcv(df1, df2, tolerance=1e-5, align_by_datetime=True, verbose=True)
+
+# Align by datetime before comparison
+df1_aligned, df2_aligned = align_dataframes_by_datetime(df1, df2, verbose=True)
+```
+
+For detailed examples, see [`tests/usage/utils/usage_data_comparator.py`](../../../tests/usage/utils/usage_data_comparator.py).
+
+---
+
+### 8. Error Description (`error_description.py`)
+
+**Purpose**: MT5 error code descriptions and lookup for debugging trading operations.
+
+**Class: TradeErrorDescriptions**
+
+**Key Methods**:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `error_description()` | `(err_code: int) -> str` | Get error description for code |
+
+**Error Categories**:
+- **Runtime Errors** (0-14): Internal errors, memory issues
+- **Chart Errors** (4001-4015): Chart operations
+- **Symbol Errors** (4301-4305): Symbol not found, MarketWatch issues
+- **Trade Errors** (4701-4707, 10004-10036): Trading operations
+- **File Errors** (5001-5026): File operations
+- **Technical Errors** (4401-5613): History, indicators, OpenCL
+
+**Usage**:
+```python
+from apps.utils.error_description import TradeErrorDescriptions
+
+error_desc = TradeErrorDescriptions()
+
+# Get error description
+desc = error_desc.error_description(10019)  # "There is not enough money to complete the request"
+desc = error_desc.error_description(4301)   # "Unknown symbol"
+desc = error_desc.error_description(10013)  # "Invalid request"
+```
+
+For detailed examples, see [`tests/usage/utils/usage_error_description.py`](../../../tests/usage/utils/usage_error_description.py).
+
+---
+
+### 9. Validate (`validate.py`)
+
+**Purpose**: Comprehensive trading parameter validation for MT5 trading operations.
+
+**Class: TradeValidator**
+
+**Constructor**:
+```python
+TradeValidator(client=None, logger_instance=None, mt5_instance=None)
+```
+
+**Key Methods**:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `validate()` | `(validation_type: str, value: Any, **kwargs) -> Tuple[bool, str]` | Master validation method |
+| `validate_multiple()` | `(validations: List[Dict]) -> Tuple[bool, List[str]]` | Batch validation |
+| `get_validation_rules()` | `() -> Dict` | Get validation rules |
+| `update_validation_rule()` | `(rule_type, rule_name, value) -> None` | Update validation rule |
+
+**Validation Types**:
+- `symbol` - Trading symbol
+- `volume` - Trade volume with symbol limits
+- `price` - Price value and tick alignment
+- `stop_loss` - SL level validation
+- `take_profit` - TP level validation
+- `order_type` - Order type (BUY, SELL, LIMIT, STOP)
+- `magic` - Magic number
+- `deviation` - Price deviation
+- `expiration` - Order expiration time
+- `timeframe` - Timeframe validity
+- `date_range` - Date range validation
+- `trade_request` - Complete trade request
+- `credentials` - MT5 credentials
+- `margin` - Margin sufficiency
+- `ticket` - Ticket number
+- `freeze_level` - Freeze level constraints
+- `max_orders` - Order limit
+- `symbol_volume` - Per-symbol volume limit
+
+**Usage**:
+```python
+from apps.utils.validate import TradeValidator
+
+validator = TradeValidator()
+
+# Validate symbol
+valid, msg = validator.validate('symbol', 'EURUSD')
+
+# Validate volume with symbol limits
+valid, msg = validator.validate('volume', 0.1, symbol='EURUSD')
+
+# Validate stop loss
+valid, msg = validator.validate('stop_loss', 1.0820, entry_price=1.0850, order_type='BUY', symbol='EURUSD')
+
+# Validate complete trade request
+request = {
+    'action': 'BUY',
+    'symbol': 'EURUSD',
+    'volume': 0.1,
+    'type': 'BUY',
+    'price': 1.0850,
+    'sl': 1.0820,
+    'tp': 1.0910
+}
+valid, msg = validator.validate('trade_request', request)
+
+# Batch validation
+validations = [
+    {'type': 'symbol', 'value': 'EURUSD'},
+    {'type': 'volume', 'value': 0.1, 'symbol': 'EURUSD'},
+    {'type': 'price', 'value': 1.0850, 'symbol': 'EURUSD'}
+]
+all_valid, errors = validator.validate_multiple(validations)
+```
+
+For detailed examples, see [`tests/usage/utils/usage_validate.py`](../../../tests/usage/utils/usage_validate.py).
 
 ---
 
@@ -597,14 +509,10 @@ data = load_mt5("EURUSD", "M1", count=100000)
 # 2. Validate data
 validator = DataValidator()
 clean_data = validator.prepare_data(data)
-
 all_valid, df, issues = validator.validate_price_sanity(clean_data)
-if not all_valid:
-    print(f"Data quality issues: {len(issues)}")
 
 # 3. Detect anomalies
 df_marked, anomalies = validator.detect_spikes(df, method="zscore")
-print(f"Found {len(anomalies)} anomalies")
 
 # 4. Resample to multiple timeframes
 manager = TimeframeManager()
@@ -620,34 +528,20 @@ from apps.utils.multitasking import createPool, task, wait_for_tasks
 from apps.utils.data_getters import load_dukascopy
 from apps.utils.data_validator import DataValidator
 
-# Create processing pool
-createPool("data_download", threads=8)
+createPool("data_download", threads=8, engine="thread")
 
 @task
 def process_symbol(symbol):
-    # Download data
     data = load_dukascopy(symbol, "H1", "2024-01-01", "2024-12-31")
-
-    # Validate
     validator = DataValidator()
     clean_data = validator.prepare_data(data)
-
-    # Check quality
     all_valid, df, issues = validator.validate_price_sanity(clean_data)
+    return {"symbol": symbol, "rows": len(df), "valid": all_valid}
 
-    return {
-        "symbol": symbol,
-        "rows": len(df),
-        "valid": all_valid,
-        "issues": len(issues)
-    }
-
-# Process multiple symbols concurrently
-symbols = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
+symbols = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD"]
 for symbol in symbols:
     process_symbol(symbol)
 
-# Wait for completion
 wait_for_tasks()
 ```
 
@@ -655,68 +549,120 @@ wait_for_tasks()
 
 ```python
 from apps.utils.security import hash_password, get_encryption_key, encrypt_data, decrypt_data
-from apps.sqlite import DatabaseManager
 
-# Initialize database
-db = DatabaseManager()
+# Hash password
+hashed_password = hash_password("user_password")
 
-# Create user with hashed password
-password = "user_password"
-hashed_password = hash_password(password)
+# Encrypt API credentials
 encryption_key = get_encryption_key()
-
-user_id = db.create_user(
-    email="trader@example.com",
-    username="trader",
-    password=password,  # Will be hashed automatically
-    encryption_key=encryption_key
-)
-
-# Encrypt sensitive credentials
 mt5_password = "mt5_password123"
 encrypted_mt5_password = encrypt_data(mt5_password, encryption_key)
 
-# Store encrypted credentials
-db.update_user_settings(
-    user_id=user_id,
-    broker_credentials={
-        "mt5_account": "12345",
-        "mt5_password": encrypted_mt5_password,
-        "mt5_server": "Demo-Server"
-    }
-)
+# Store encrypted credentials (in database or config)
+credentials = {
+    "mt5_account": "12345",
+    "mt5_password": encrypted_mt5_password,
+    "mt5_server": "Demo-Server"
+}
 
 # Later: Retrieve and decrypt
-user = db.get_user(user_id=user_id)
-settings = db.get_user_settings(user_id)
-encrypted_password = settings["broker_credentials"]["mt5_password"]
-decrypted_password = decrypt_data(encrypted_password, user["encryption_key"])
+decrypted_password = decrypt_data(credentials["mt5_password"], encryption_key)
 ```
 
----
+### Trade Validation Pipeline
+
+```python
+from apps.utils.validate import TradeValidator
+
+validator = TradeValidator()
+
+# Validate all trade parameters before sending
+trade_params = {
+    'symbol': 'EURUSD',
+    'volume': 0.1,
+    'order_type': 'BUY',
+    'price': 1.0850,
+    'sl': 1.0820,
+    'tp': 1.0910
+}
+
+# Batch validation
+validations = [
+    {'type': 'symbol', 'value': trade_params['symbol']},
+    {'type': 'volume', 'value': trade_params['volume'], 'symbol': trade_params['symbol']},
+    {'type': 'price', 'value': trade_params['price'], 'symbol': trade_params['symbol']},
+    {'type': 'stop_loss', 'value': trade_params['sl'], 'entry_price': trade_params['price'],
+     'order_type': trade_params['order_type'], 'symbol': trade_params['symbol']},
+    {'type': 'take_profit', 'value': trade_params['tp'], 'entry_price': trade_params['price'],
+     'order_type': trade_params['order_type'], 'symbol': trade_params['symbol']}
+]
+
+all_valid, errors = validator.validate_multiple(validations)
+if all_valid:
+    # Execute trade
+    pass
+else:
+    print(f"Validation failed: {errors}")
+```
+
+## Usage Examples
+
+Comprehensive usage examples are available in `tests/usage/utils/`:
+- `usage_security.py`: Security utilities (hashing, encryption)
+- `usage_data_getters.py`: Data loading from multiple sources
+- `usage_data_validator.py`: Data quality validation
+- `usage_data_manipulator.py`: Timeframe resampling and aggregation
+- `usage_multitasking.py`: Concurrent task execution
+- `usage_file_renamer.py`: Batch file renaming operations
+- `usage_data_comparator.py`: DataFrame comparison utilities
+- `usage_error_description.py`: MT5 error code lookups
+- `usage_validate.py`: Trading parameter validation
 
 ## Best Practices
 
 ### Data Management
-1. **Use caching**: Load data once and cache it
-2. **Validate early**: Always validate data before processing
-3. **Handle missing data**: Check for gaps and missing timestamps
-4. **Resample carefully**: Only resample to larger timeframes
-5. **Monitor quality**: Regularly check for spikes and anomalies
+1. **Validate Early**: Always validate data before processing
+2. **Use Caching**: Load data once and cache it
+3. **Handle Gaps**: Check for and address missing timestamps
+4. **Resample Wisely**: Only resample to larger timeframes
+5. **Monitor Quality**: Regularly check for spikes and anomalies
 
 ### Security
-1. **Never store plain passwords**: Always use `hash_password()`
-2. **Secure encryption keys**: Store keys securely (environment variables, secrets manager)
-3. **Use same key**: Use the same encryption key for encrypt/decrypt
-4. **Rotate keys**: Periodically rotate encryption keys
-5. **Validate inputs**: Always validate user inputs before hashing/encrypting
+1. **Never Store Plain Passwords**: Always use `hash_password()`
+2. **Secure Keys**: Store encryption keys in environment variables or secrets manager
+3. **Consistent Keys**: Use same encryption key for encrypt/decrypt
+4. **Rotate Keys**: Periodically rotate encryption keys
+5. **Validate Inputs**: Always validate before hashing/encrypting
 
 ### Multitasking
-1. **Choose appropriate pool size**: Don't exceed CPU count for CPU-bound tasks
-2. **Use threads for I/O**: Use thread pools for network/disk operations
-3. **Use processes for CPU**: Use process pools for computation-heavy tasks
-4. **Wait for completion**: Always call `wait_for_tasks()` before exiting
-5. **Handle errors**: Wrap task functions in try-except blocks
+1. **Right Pool Size**: Don't exceed CPU count for CPU-bound tasks
+2. **Thread vs Process**: Use threads for I/O, processes for CPU-intensive work
+3. **Wait for Completion**: Always call `wait_for_tasks()` before exiting
+4. **Handle Errors**: Wrap task functions in try-except blocks
+5. **Monitor Resources**: Use `get_active_tasks()` to monitor execution
+
+### Validation
+1. **Validate Before Trade**: Always validate parameters before MT5 operations
+2. **Batch Validation**: Use `validate_multiple()` for efficiency
+3. **Check Margins**: Always validate margin before opening positions
+4. **Respect Freeze Levels**: Check freeze level constraints for pending orders
+5. **Handle Errors Gracefully**: Log validation errors for debugging
+
+## Testing
+
+### Unit Testing
+
+Run individual usage examples:
+```bash
+python tests/usage/utils/usage_security.py
+python tests/usage/utils/usage_data_getters.py
+python tests/usage/utils/usage_data_validator.py
+# ... etc
+```
+
+### Integration Testing
+
+See `tests/usage/utils/` for comprehensive integration examples.
 
 ## License
 
@@ -728,3 +674,4 @@ Copyright 2025, HaruQuant
 - `apps/dukascopy_api/` - Dukascopy API client
 - `apps/sqlite/` - Database management
 - `apps/indicator/` - Technical indicators
+- `apps/backtest/` - Backtesting engine
