@@ -41,9 +41,8 @@ from apps.simulation.data import (
     SymbolTickSimulator,
 )
 from apps.simulation.engine import SimulationEngine
-from apps.simulation.position_arrays import PositionArrayState
 from apps.simulation.records import TradeRecord
-from apps.simulation.utils import SimulationUtilsMixin
+from apps.simulation.utils import PositionArrayState, SimulationUtilsMixin
 from apps.trade import AccountInfo, Trade
 from apps.utils.validate import TradeValidator
 
@@ -380,6 +379,24 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
 
         self._positions_data.pop(pos_id, None)
         return True
+
+    def close_all_positions(self, reason: str = "Time exit") -> None:
+        """Close all open positions using the latest tick data.
+
+        This method iterates through all open positions and closes them with
+        the specified reason. Useful for cleanup at end of backtest or when
+        strategy needs to exit all positions.
+
+        Args:
+            reason: Exit reason to record for all closed positions.
+                   Default is "Time exit".
+        """
+        positions = self._simulator.positions_get() or []
+        for position in positions:
+            pos_data = (
+                position._asdict() if hasattr(position, "_asdict") else dict(position)
+            )
+            self.close_position(pos_data, reason=reason)
 
     # Pending Orders
     def _place_pending_order(

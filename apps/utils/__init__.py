@@ -1,8 +1,4 @@
 """Utility modules for the application."""
 
-from .scheduler import shutdown_scheduler, start_scheduler
-
-__all__ = [
-    "start_scheduler",
-    "shutdown_scheduler",
-]
+# Note: scheduler is not imported here to avoid circular dependencies
+# Import directly: from apps.utils.scheduler import start_scheduler, shutdown_scheduler

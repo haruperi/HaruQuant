@@ -20,9 +20,12 @@ import numpy as np
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.simulation.data import SymbolTickSimulator
-from apps.simulation.numba_core import NUMBA_AVAILABLE, numba_position_update
-from apps.simulation.position_arrays import PositionArrayState
 from apps.simulation.records import TradeRecordMixin
+from apps.simulation.utils import (
+    NUMBA_AVAILABLE,
+    PositionArrayState,
+    numba_position_update,
+)
 from apps.trade import PositionInfo
 from apps.utils.validate import TradeValidator
 

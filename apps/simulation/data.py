@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
-from apps.simulation.position_arrays import PositionArrayState
+from apps.simulation.utils import PositionArrayState
 from apps.utils.error_description import TradeErrorDescriptions
 
 mt5 = get_mt5_api()

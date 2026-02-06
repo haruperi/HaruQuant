@@ -524,6 +524,15 @@ The scheduler is configured with the following background jobs:
 - **Graceful Shutdown**: Properly stops all jobs on shutdown
 - **Automatic Cleanup**: Prevents database bloat from old simulation data
 
+**Import Note**: Due to circular dependency prevention, scheduler must be imported directly from the module:
+
+```python
+# Direct import (required to avoid circular dependencies)
+from apps.utils.scheduler import start_scheduler, shutdown_scheduler
+
+# NOT from the package: from apps.utils import start_scheduler  # This won't work
+```
+
 **Usage**:
 ```python
 from apps.utils.scheduler import start_scheduler, shutdown_scheduler

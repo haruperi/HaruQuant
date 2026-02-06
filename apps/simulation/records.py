@@ -48,7 +48,7 @@ class TradeRecord:
     type: str = "buy"
     magic_number: int = 0
     strategy_name: Optional[str] = None
-    setup: Optional[str] = None
+    setup_id: Optional[str] = None  # Aligned with backtest_trades.setup_id column
     sample_type: Optional[str] = None
     comment: str = ""
 

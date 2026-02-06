@@ -10,12 +10,9 @@ This document describes the current HaruQuant application architecture
 
 ## Table of Contents
 
-
 ---
 
 ## Overview
-
-
 
 ---
 
@@ -28,67 +25,67 @@ This document describes the current HaruQuant application architecture
 #### Setup
 
 - [pyproject.toml](../../pyproject.toml) - Centralized configuration for:
-    - Black: 88 character line length, Python 3.9+ target
-    - isort: Black-compatible profile, same line length
-    - mypy: Configured with reasonable strictness, ignores missing imports for MetaTrader5
-    - bandit: Excludes test directories, skips assert checks in tests
-    - pylint: Same line length, disabled overly strict rules for trading code
-    - pytest: Coverage and test discovery settings
 
+  - Black: 88 character line length, Python 3.9+ target
+  - isort: Black-compatible profile, same line length
+  - mypy: Configured with reasonable strictness, ignores missing imports for MetaTrader5
+  - bandit: Excludes test directories, skips assert checks in tests
+  - pylint: Same line length, disabled overly strict rules for trading code
+  - pytest: Coverage and test discovery settings
 - [.flake8](../../.flake8) - Flake8 configuration:
-    - 88 character line length (matching black)
-    - Ignores conflicts with black (E203, W503, E501)
-    - Max complexity of 10
-    - Allows unused imports in __init__.py
 
+  - 88 character line length (matching black)
+  - Ignores conflicts with black (E203, W503, E501)
+  - Max complexity of 10
+  - Allows unused imports in __init__.py
 - [.pre-commit-config.yaml](../../.pre-commit-config.yaml) - Main pre-commit configuration with:
-    - General file checks: trailing whitespace, end-of-file, large files, private keys
-    - Black (v24.10.0): Code formatting
-    - isort (v5.13.2): Import sorting with black-compatible profile
-    - flake8 (v7.1.1): Linting with additional plugins (docstrings, bugbear, comprehensions, simplify)
-    - bandit (v1.8.0): Security vulnerability scanning
-    - mypy (v1.13.0): Type checking
+
+  - General file checks: trailing whitespace, end-of-file, large files, private keys
+  - Black (v24.10.0): Code formatting
+  - isort (v5.13.2): Import sorting with black-compatible profile
+  - flake8 (v7.1.1): Linting with additional plugins (docstrings, bugbear, comprehensions, simplify)
+  - bandit (v1.8.0): Security vulnerability scanning
+  - mypy (v1.13.0): Type checking
 
  **Key Features (No Conflicts)**
 
-  - Consistent line length: All tools use 88 characters
-  - Black-compatible isort: Using --profile black to prevent import conflicts
-  - Coordinated ignores: flake8 ignores rules that conflict with black
-  - Appropriate for trading: Allows common trading variable names (df, mt5, id)
-  - Security-focused: Bandit checks for vulnerabilities, detects private keys
-  - Type safety: mypy configured with good strictness balance
+- Consistent line length: All tools use 88 characters
+- Black-compatible isort: Using --profile black to prevent import conflicts
+- Coordinated ignores: flake8 ignores rules that conflict with black
+- Appropriate for trading: Allows common trading variable names (df, mt5, id)
+- Security-focused: Bandit checks for vulnerabilities, detects private keys
+- Type safety: mypy configured with good strictness balance
 
   The hooks will now run automatically on every commit. You can also run them manually with:
-  - pre-commit run --all-files - Run on all files
-  - pre-commit run --files <file> - Run on specific files
+- pre-commit run --all-files - Run on all files
+- pre-commit run --files `<file>` - Run on specific files
 
   pytest options (line 97)
-
-  - Added --cov-fail-under=80 to make pytest exit with failure if coverage is below 80%
+- Added --cov-fail-under=80 to make pytest exit with failure if coverage is below 80%
 
   New coverage.run section (lines 103-114)
-
-  - source: Specifies to measure coverage from the current directory
-  - omit: Excludes test files, virtual environments, and setup files from coverage calculation
-  - branch: Enables branch coverage (not just line coverage)
+- source: Specifies to measure coverage from the current directory
+- omit: Excludes test files, virtual environments, and setup files from coverage calculation
+- branch: Enables branch coverage (not just line coverage)
 
   New coverage.report section (lines 116-129)
+- precision: Shows coverage percentages with 2 decimal places
+- show_missing: Displays line numbers that aren't covered
+- fail_under: Enforces 80% minimum coverage threshold
+- exclude_lines: Excludes common patterns that shouldn't count against coverage:
 
-  - precision: Shows coverage percentages with 2 decimal places
-  - show_missing: Displays line numbers that aren't covered
-  - fail_under: Enforces 80% minimum coverage threshold
-  - exclude_lines: Excludes common patterns that shouldn't count against coverage:
-    - pragma: no cover comments
-    - __repr__ methods
-    - AssertionError and NotImplementedError raises
-    - if __name__ == "__main__": blocks
-    - Type checking blocks
-    - Abstract methods
+  - pragma: no cover comments
+  - __repr__ methods
+  - AssertionError and NotImplementedError raises
+  - if __name__ == "__main__": blocks
+  - Type checking blocks
+  - Abstract methods
 
   Now when you run pytest, it will:
-  1. Calculate coverage for all source files (excluding tests and venv)
-  2. Show which lines are missing coverage
-  3. Fail with exit code 1 if coverage is below 80%
+
+1. Calculate coverage for all source files (excluding tests and venv)
+2. Show which lines are missing coverage
+3. Fail with exit code 1 if coverage is below 80%
 
   You can test this with:
   pytest
@@ -188,256 +185,118 @@ This document describes the current HaruQuant application architecture
 └── requirements.txt
 ```
 
-
-
 ---
 
-### 2. Configuration Management
-
-#### Configuration System
+### Configuration Management
 
 - All Settings and configarations are stored in the `user_settings` table of the database
 
-
 ---
 
-### 3. Logging System
-
-#### Logger Setup, Configuration, and Handlers
+### Logging System
 
 - This was setup as a separate, independent module in the project. Read more in the [Logger Readme](../../apps/logger/README.md) documentation.
 
-
 ---
 
-### 4. Database Foundation
-
-#### Database Management
+### Database Management
 
 - This was setup as a separate, independent module in the project. Read more in the [Database Readme](../../apps/sqlite/README.md) documentation.
 
-
 ---
 
-### 5. Utility Functions
+### Utility Functions
 
 - This was setup as a separate, independent module in the project. Read more in the [Utils Readme](../../apps/utils/README.md) documentation.
 
 ---
 
-## Data Infrastructure
+## 2. Data Infrastructure
+
+**Objective:** Build data infrastructure for data providers and trade functions
 
 ### MT5 Data Provider
 
 - This was setup as a separate, independent module in the project. Read more in the [MT5 Readme](../../apps/mt5/README.md) documentation.
 
-
 ### Dukascopy Data Provider
 
 - This was setup as a separate, independent module in the project. Read more in the [Dukascopy Readme](../../apps/dukascopy/README.md) documentation.
 
+### Trade functions
 
-## Strategy Framework
+- This was setup as a separate, independent module in the project. Read more in the [Trade Readme](../../apps/trade/README.md) documentation.
+- These classes and functions are used to Live and Simulation trade aligned with the MQL5 Standard Library
 
-- This was setup as a separate, independent module in the project. Read more in the [Strategy Readme](../../apps/strategy/README.md) documentation.
+## 3. Strategy Framework
 
-### Indicator Base Framework
+**Objective:** Build strategy development framework with indicators and signal generation
+
+### Indicator Framework
 
 - This was setup as a separate, independent module in the project. Read more in the [Indicator Readme](../../apps/indicator/README.md) documentation.
+- Adds relevent indicator columns to the dataframe and returns the full dataframe
+- Trend Indicators
+- Momentum Indicators
+- Volume Indicators
+- Volatility Indicators
+- Price Indicators
+- Sentiment Indicators
+
+### Strategy Base Framework
+
+- This was setup as a separate, independent module in the project. Read more in the [Strategy Readme](../../apps/strategy/README.md) documentation.
+- Strategy Base Class
+- Entry and Exit columns for signal generation
 
 ---
 
-## Phase 4: Backtesting Engine (Weeks 21-28)
+## 4. Backtesting Engine
 
 **Objective:** Build event-driven and vectorized backtesting engines with optimization
 
-**Parallel Tracks:** Event-Driven Engine (Agent 1) + Metrics/Visualization (Agent 2) + Optimizer (Agent 3) + Testing (Agent 4)
+- This was setup as a separate, independent module in the project. Read more in the [Simulation Readme](../../apps/simulation/README.md) documentation.
 
-### Week 21: Portfolio & Position Management
+### Portfolio & Position Management (11 functionalities)
 
-#### Task 21.1: Position Model
+| Functionality | Primary File | Class/Method | Line Reference |
+|--------------|--------------|--------------|----------------|
+| Position Tracking | utils.py | PositionArrayState | 180-450 |
+| Price Update | utils.py / engine.py | numba_position_update() / monitor_positions() | 70-178 / 467-650 |
+| Equity Updates | engine.py | monitor_account() | 1280-1330 |
+| Unrealized PnL | utils.py | numba_position_update() | 112-121 |
+| Adding Position | simulator.py | open_position() | 111-220 |
+| Positions List | data.py | positions_get() | 1401-1425 |
+| Closing Position | simulator.py | close_position() | 222-382 |
+| Closed Trades List | simulator.py | _completed_trades | 85 |
+| Swap Tracking | data.py | _calc_close_costs() | 493-544 |
+| Commission Addition | data.py | _calc_close_costs() | 493-544 |
+| Trade Recording | records.py | TradeRecord / _ensure_trade_record() | 35-131 / 186-250 |
 
-- [X] Create `app/core/backtest/portfolio.py`
-- [X] Define Position class (symbol, quantity, entry_price, etc.)
-- [X] Implement update_price() method
-- [X] Add unrealized_pnl calculation
-- [X] Implement close() method
-- [X] **Commit:** `feat(backtest): create Position class`
+### Order Execution & Fill Logic (6 functionalities)
 
-#### Task 21.2: Portfolio Class
+| Functionality | Primary File | Class/Method | Line Reference |
+|--------------|--------------|--------------|----------------|
+| Market Order Fills | data.py | order_send() - market execution | 595-1370 (936-1050) |
+| Limit Order Fills | simulator.py / engine.py | _place_pending_order() / trigger check | 402-453 / ~600-650 |
+| Stop Order Fills | simulator.py / engine.py | _place_pending_order() / trigger check | 402-453 / ~600-650 |
+| Slippage Calculations | data.py | order_send() - slippage application | 942-950 |
+| Commission Calculations | data.py | _calc_close_costs() | 493-544 |
+| Spread Application | data.py | order_send() - bid/ask usage | 936-941 |
 
-- [X] Define Portfolio class
-- [X] Add initial_capital, cash, equity properties
-- [X] Implement add_position() method
-- [X] Implement close_position() method
-- [X] Add update_equity() method
-- [X] Maintain positions list and closed_trades list
-- [X] **Commit:** `feat(backtest): create Portfolio class`
+### Simulation Engine Modes (6 functionalities)
 
-#### Task 21.3: Trade Recording
+| Functionality | Primary File | Class/Method | Line Reference |
+|--------------|--------------|--------------|----------------|
+| Event-Driven Engine | engine.py | SimulationEngine.run() | 1457-1800+ |
+| Vectorized Engine | engine.py | SimulationEngine.run() - vectorized mode | 1457-1800+ |
+| Engine Initialization | simulator.py | TradeSimulator.__init__() | 52-106 |
+| Backtest Execution | engine.py | run() main loop | 1657-1768 |
+| Signal Processing | engine.py | _process_bar_signal() | 270-347 |
+| Position Monitoring | engine.py | monitor_positions() | 467-650 |
 
-- [X] Define Trade class
-- [X] Add entry/exit time, price, quantity, pnl
-- [X] Implement calculate_pnl() method
-- [X] Add commission tracking
-- [X] **Commit:** `feat(backtest): implement Trade recording`
 
-**Week 21 Unit Tests:**
-
-- [X] Create `tests/unit/test_position.py`
-- [X] Test position creation
-- [X] Test PnL calculations
-- [X] Test position updates
-- [X] Create `tests/unit/test_portfolio.py`
-- [X] Test portfolio initialization
-- [X] Test adding/closing positions
-- [X] Test equity calculations
-- [X] Create `tests/unit/test_trade.py`
-- [X] Test trade recording
-- [X] Test PnL calculation
-- [X] **Commit:** `test(backtest): add portfolio tests`
-
----
-
-### Week 22: Execution Simulator
-
-#### Task 22.1: Order Execution
-
-- [X] Create `app/core/backtest/execution.py`
-- [X] Define ExecutionSimulator class
-- [X] Implement fill_order() method
-- [X] Add order type handling (market, limit, stop)
-- [X] Implement fill price calculation
-- [X] **Commit:** `feat(backtest): implement order execution`
-
-#### Task 22.2: Slippage Modeling
-
-- [X] Add calculate_slippage() method
-- [X] Implement fixed slippage model
-- [X] Implement percentage-based slippage
-- [X] Add configurable slippage parameters
-- [X] **Commit:** `feat(backtest): implement slippage models`
-
-#### Task 22.3: Commission Calculation
-
-- [X] Implement calculate_commission() method
-- [X] Add fixed commission per trade
-- [X] Add percentage-based commission
-- [X] Support tiered commission structures
-- [X] **Commit:** `feat(backtest): implement commission calculation`
-
-#### Task 22.4: Spread Handling
-
-- [X] Add spread to order fill price
-- [X] Use historical spread data if available
-- [X] Implement configurable default spread
-- [X] **Commit:** `feat(backtest): add spread handling`
-
-**Week 22 Unit Tests:**
-
-- [X] Create `tests/unit/test_execution_simulator.py`
-- [X] Test market order fills
-- [X] Test limit order fills
-- [X] Test stop order fills
-- [X] Test slippage calculations
-- [X] Test commission calculations
-- [X] Test spread application
-- [X] **Commit:** `test(backtest): add execution simulator tests`
-
----
-
-### Week 23: Event-Driven Backtesting Engine
-
-#### Task 23.1: Backtest Engine Core
-
-- [X] Create `app/core/backtest/engine.py`
-- [X] Define BacktestEngine class
-- [X] Implement initialize() method (strategy, data, portfolio setup)
-- [X] Add run() method with main loop
-- [X] Implement on_bar() event handler
-- [X] **Commit:** `feat(backtest): create event-driven engine core`
-
-#### Task 23.2: Backtest Loop Implementation
-
-- [X] Implement bar-by-bar iteration
-- [X] Call strategy.on_bar() for each bar
-- [X] Process generated signals
-- [X] Execute orders through ExecutionSimulator
-- [X] Update portfolio after each bar
-- [X] Track equity curve
-- [X] **Commit:** `feat(backtest): implement backtest main loop`
-
-#### Task 23.3: Backtest Configuration
-
-- [X] Create BacktestConfig dataclass
-- [X] Add parameters: initial_capital, commission, slippage, etc.
-- [X] Implement configuration validation
-- [X] **Commit:** `feat(backtest): add backtest configuration`
-
-**Week 23 Unit Tests:**
-
-- [X] Create `tests/unit/test_backtest_engine.py`
-- [X] Test engine initialization
-- [X] Test backtest execution with simple strategy
-- [X] Test order generation and execution
-- [X] Test equity tracking
-- [X] **Commit:** `test(backtest): add backtest engine tests`
-
-**Week 23 Integration Test:**
-
-- [X] Create `tests/integration/test_full_backtest.py`
-- [X] Run complete backtest with example strategy
-- [X] Verify trade execution
-- [X] Verify equity curve generation
-- [X] **Commit:** `test(backtest): add full backtest integration test`
-
----
-
-### Week 24: Vectorized Backtesting Engine
-
-#### Task 24.1: Vectorized Engine Core
-
-- [X] Create `app/core/backtest/vectorized_engine.py`
-- [X] Define VectorizedBacktestEngine class
-- [X] Implement basic initialization and run skeleton
-- [X] Implement array-based signal processing
-- [X] Add vectorized position tracking
-- [X] Use NumPy for all calculations
-- [X] **Commit:** `feat(backtest): create vectorized engine core`
-
-#### Task 24.2: Vectorized Execution
-
-- [X] Implement vectorized order fills
-- [X] Calculate all trades in batch
-- [X] Vectorize commission and slippage
-- [X] Generate equity curve in one pass
-- [X] **Commit:** `feat(backtest): implement vectorized execution`
-
-#### Task 24.3: Numba Optimization
-
-- [X] Add @jit decorators to hot functions
-- [X] Optimize equity curve calculation with Numba
-- [X] Optimize position calculation with Numba
-- [X] Profile and verify performance improvement
-- [X] **Commit:** `feat(backtest): add Numba optimization`
-
-**Week 24 Unit Tests:**
-
-- [X] Create `tests/unit/test_vectorized_engine.py`
-- [X] Test vectorized signal processing
-- [X] Test vectorized execution
-- [X] Compare results with event-driven engine
-- [X] **Commit:** `test(backtest): add vectorized engine tests`
-
-**Week 24 Performance Test:**
-
-- [X] Create `tests/performance/test_backtest_speed.py`
-- [X] Test 1,000,000 orders execution time *(adjusted to logged runtime in CI env)*
-- [X] Verify meets target (70-100ms on M1/equivalent) *(manual/observed; logged)*
-- [X] Document performance results
-- [X] **Commit:** `test(backtest): add performance benchmarks`
-
----
+-------------------------------------------------------------------------------------
 
 ### Week 25: Performance Metrics
 

@@ -2,10 +2,15 @@
 Simulation helper utilities.
 
 This module provides helper methods and mixins for the Trading Simulator,
-handling calculations, data normalization, and state updates.
+handling calculations, data normalization, state updates, and performance optimizations.
 
 Classes:
+    PositionArrayState: Struct-of-arrays for efficient position tracking.
+    SimulatorBacktestResult: Backtest result wrapper for the simulator.
     SimulationUtilsMixin: Helper methods used by the TradeSimulator.
+
+Functions:
+    numba_position_update: JIT-compiled position profit/margin calculations.
 
 SimulationUtilsMixin Methods:
     Data Normalization:
@@ -19,24 +24,353 @@ SimulationUtilsMixin Methods:
         _update_position_entry: Record open position details.
         _ensure_trade_record: Maintain trade records for reporting.
 
-    Database & Cleanup:
-        close_all_positions: Bulk closure of open positions.
+    Database:
         _save_backtest_to_db: Persist results to the database.
 
 """
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
+import numpy as np
+
 from apps.logger import logger
 from apps.mt5 import get_mt5_api
-from apps.sqlite import SQLiteDatabase
+from apps.sqlite.backtests import BacktestManager
+from apps.sqlite.database_operations import DatabaseManager
 from apps.trade import PositionInfo
 
 mt5 = get_mt5_api()
+
+# =============================================================================
+# Numba JIT Compilation Support
+# =============================================================================
+
+try:
+    from numba import njit as _njit
+
+    NUMBA_AVAILABLE = True
+except Exception:
+    _njit = None
+    NUMBA_AVAILABLE = False
+
+
+def _no_jit(*_args, **_kwargs):
+    def wrapper(func: Callable) -> Callable:
+        return func
+
+    return wrapper
+
+
+_jit = _njit if NUMBA_AVAILABLE else _no_jit
+
+
+@_jit(cache=True)
+def numba_position_update(  # noqa: C901
+    current_prices: np.ndarray,
+    price_open: np.ndarray,
+    volume: np.ndarray,
+    direction: np.ndarray,
+    sl: np.ndarray,
+    tp: np.ndarray,
+    valid: np.ndarray,
+    contract_size: np.ndarray,
+    tick_size: np.ndarray,
+    tick_value: np.ndarray,
+    margin_mode: np.ndarray,
+    leverage: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Compute profit/margin arrays and SL/TP hits in a JIT-friendly loop.
+
+    This function is JIT-compiled with Numba for performance when available.
+    Falls back to pure Python implementation when Numba is not installed.
+
+    Args:
+        current_prices: Current market prices for each position
+        price_open: Opening prices for each position
+        volume: Position volumes
+        direction: Position directions (1 for buy, -1 for sell)
+        sl: Stop loss prices
+        tp: Take profit prices
+        valid: Boolean mask of valid positions
+        contract_size: Contract sizes for each symbol
+        tick_size: Tick sizes for each symbol
+        tick_value: Tick values for each symbol
+        margin_mode: Margin calculation modes
+        leverage: Leverage values
+
+    Returns:
+        Tuple of (profit, margin, sl_hit, tp_hit) arrays
+    """
+    count = current_prices.shape[0]
+    profit = np.zeros(count, dtype=np.float64)
+    margin = np.zeros(count, dtype=np.float64)
+    sl_hit = np.zeros(count, dtype=np.bool_)
+    tp_hit = np.zeros(count, dtype=np.bool_)
+
+    for i in range(count):
+        if not valid[i]:
+            continue
+
+        direction_val = direction[i]
+        price_delta = (current_prices[i] - price_open[i]) * direction_val
+        ts = tick_size[i]
+        tv = tick_value[i]
+        cs = contract_size[i]
+
+        if ts > 0.0 and tv > 0.0:
+            profit[i] = (price_delta / ts) * tv * volume[i]
+        elif cs > 0.0:
+            profit[i] = price_delta * cs * volume[i]
+
+        mm = margin_mode[i]
+        lv = leverage[i] if leverage[i] > 0.0 else 1.0
+        if mm == 0.0:
+            margin[i] = (volume[i] * cs) / lv
+        elif mm == 1.0:
+            margin[i] = volume[i] * cs
+        elif mm == 2.0:
+            margin[i] = volume[i] * cs * price_open[i]
+        elif mm == 3.0:
+            margin[i] = (volume[i] * cs * price_open[i]) / lv
+        elif mm == 4.0:
+            if ts > 0.0:
+                margin[i] = volume[i] * cs * price_open[i] * tv / ts
+        elif mm == 5.0 or mm == 6.0:
+            margin[i] = volume[i] * cs * price_open[i]
+
+        sl_val = sl[i]
+        if sl_val != 0.0:
+            if direction_val > 0:
+                if current_prices[i] <= sl_val:
+                    sl_hit[i] = True
+            else:
+                if current_prices[i] >= sl_val:
+                    sl_hit[i] = True
+
+        tp_val = tp[i]
+        if tp_val != 0.0:
+            if direction_val > 0:
+                if current_prices[i] >= tp_val:
+                    tp_hit[i] = True
+            else:
+                if current_prices[i] <= tp_val:
+                    tp_hit[i] = True
+
+    return profit, margin, sl_hit, tp_hit
+
+
+# =============================================================================
+# Position Array State (Struct-of-Arrays Pattern)
+# =============================================================================
+
+
+class PositionArrayState:
+    """Maintain a struct-of-arrays mirror of open positions.
+
+    This class uses the struct-of-arrays pattern for efficient position tracking
+    in the simulation hot loop. All position data is stored in contiguous NumPy
+    arrays for cache-friendly access and potential vectorization.
+    """
+
+    def __init__(self, initial_size: int = 16) -> None:
+        """Initialize the position arrays with an optional initial capacity."""
+        self._capacity = max(int(initial_size), 1)
+        self.count = 0
+        self.id_to_index: dict[int, int] = {}
+        self.pos_id = np.zeros(self._capacity, dtype=np.int64)
+        self.direction = np.zeros(self._capacity, dtype=np.int8)
+        self.volume = np.zeros(self._capacity, dtype=np.float64)
+        self.price_open = np.zeros(self._capacity, dtype=np.float64)
+        self.price_current = np.zeros(self._capacity, dtype=np.float64)
+        self.sl = np.zeros(self._capacity, dtype=np.float64)
+        self.tp = np.zeros(self._capacity, dtype=np.float64)
+        self.profit = np.zeros(self._capacity, dtype=np.float64)
+        self.margin_required = np.zeros(self._capacity, dtype=np.float64)
+        self.commission = np.zeros(self._capacity, dtype=np.float64)
+        self.fee = np.zeros(self._capacity, dtype=np.float64)
+        self.swap = np.zeros(self._capacity, dtype=np.float64)
+        self.contract_size = np.zeros(self._capacity, dtype=np.float64)
+        self.tick_size = np.zeros(self._capacity, dtype=np.float64)
+        self.tick_value = np.zeros(self._capacity, dtype=np.float64)
+        self.margin_mode = np.zeros(self._capacity, dtype=np.float64)
+        self.leverage = np.zeros(self._capacity, dtype=np.float64)
+        self.symbols: list[str] = [""] * self._capacity
+        self.comments: list[str] = [""] * self._capacity
+        self.open_time: list[object] = [None] * self._capacity
+        self.pos_objects: list[Any] = [None] * self._capacity
+
+    def _ensure_capacity(self, needed: int) -> None:
+        if needed <= self._capacity:
+            return
+        new_cap = max(needed, self._capacity * 2)
+        self.pos_id = self._grow(self.pos_id, new_cap)
+        self.direction = self._grow(self.direction, new_cap)
+        self.volume = self._grow(self.volume, new_cap)
+        self.price_open = self._grow(self.price_open, new_cap)
+        self.price_current = self._grow(self.price_current, new_cap)
+        self.sl = self._grow(self.sl, new_cap)
+        self.tp = self._grow(self.tp, new_cap)
+        self.profit = self._grow(self.profit, new_cap)
+        self.margin_required = self._grow(self.margin_required, new_cap)
+        self.commission = self._grow(self.commission, new_cap)
+        self.fee = self._grow(self.fee, new_cap)
+        self.swap = self._grow(self.swap, new_cap)
+        self.contract_size = self._grow(self.contract_size, new_cap)
+        self.tick_size = self._grow(self.tick_size, new_cap)
+        self.tick_value = self._grow(self.tick_value, new_cap)
+        self.margin_mode = self._grow(self.margin_mode, new_cap)
+        self.leverage = self._grow(self.leverage, new_cap)
+        self.symbols.extend([""] * (new_cap - self._capacity))
+        self.comments.extend([""] * (new_cap - self._capacity))
+        self.open_time.extend([None] * (new_cap - self._capacity))
+        self.pos_objects.extend([None] * (new_cap - self._capacity))
+        self._capacity = new_cap
+
+    @staticmethod
+    def _grow(arr: np.ndarray, new_cap: int) -> np.ndarray:
+        new_arr = np.zeros(new_cap, dtype=arr.dtype)
+        new_arr[: arr.shape[0]] = arr
+        return new_arr
+
+    def clear(self) -> None:
+        """Reset the arrays to an empty state."""
+        self.count = 0
+        self.id_to_index.clear()
+
+    def add_or_update(
+        self,
+        pos_id: int,
+        pos_data: Any,
+        symbol_params: Optional[dict[str, float]] = None,
+        leverage: Optional[float] = None,
+    ) -> None:
+        """Insert or update a position row in the arrays."""
+        idx = self.id_to_index.get(int(pos_id))
+        if idx is None:
+            idx = self.count
+            self._ensure_capacity(idx + 1)
+            self.count += 1
+            self.id_to_index[int(pos_id)] = idx
+        self.pos_id[idx] = int(pos_id)
+        pos_type = getattr(pos_data, "type", 0)
+        if pos_type == mt5.POSITION_TYPE_BUY or pos_type == mt5.ORDER_TYPE_BUY:
+            self.direction[idx] = 1
+        else:
+            self.direction[idx] = -1
+        self.volume[idx] = float(getattr(pos_data, "volume", 0.0) or 0.0)
+        self.price_open[idx] = float(getattr(pos_data, "price_open", 0.0) or 0.0)
+        self.price_current[idx] = float(
+            getattr(pos_data, "price_current", self.price_open[idx]) or 0.0
+        )
+        self.sl[idx] = float(getattr(pos_data, "sl", 0.0) or 0.0)
+        self.tp[idx] = float(getattr(pos_data, "tp", 0.0) or 0.0)
+        self.profit[idx] = float(getattr(pos_data, "profit", 0.0) or 0.0)
+        self.margin_required[idx] = float(
+            getattr(pos_data, "margin_required", 0.0) or 0.0
+        )
+        self.commission[idx] = float(getattr(pos_data, "commission", 0.0) or 0.0)
+        self.fee[idx] = float(getattr(pos_data, "fee", 0.0) or 0.0)
+        self.swap[idx] = float(getattr(pos_data, "swap", 0.0) or 0.0)
+        self.symbols[idx] = str(getattr(pos_data, "symbol", "") or "")
+        self.comments[idx] = str(getattr(pos_data, "comment", "") or "")
+        self.open_time[idx] = getattr(pos_data, "time", None)
+        self.pos_objects[idx] = pos_data
+
+        if symbol_params is not None:
+            self.contract_size[idx] = float(symbol_params.get("contract_size", 0.0))
+            self.tick_size[idx] = float(symbol_params.get("tick_size", 0.0))
+            self.tick_value[idx] = float(symbol_params.get("tick_value", 0.0))
+            self.margin_mode[idx] = float(symbol_params.get("margin_mode", 0.0))
+            if leverage is None:
+                self.leverage[idx] = float(symbol_params.get("leverage", 1.0))
+            else:
+                self.leverage[idx] = float(leverage)
+        elif leverage is not None:
+            self.leverage[idx] = float(leverage)
+
+    def remove(self, pos_id: int) -> None:
+        """Remove a position row by id, keeping arrays compact."""
+        idx = self.id_to_index.pop(int(pos_id), None)
+        if idx is None:
+            return
+        last = self.count - 1
+        if idx != last:
+            self._swap(idx, last)
+            moved_id = int(self.pos_id[idx])
+            self.id_to_index[moved_id] = idx
+        self.count -= 1
+
+    def _swap(self, i: int, j: int) -> None:
+        for arr in (
+            self.pos_id,
+            self.direction,
+            self.volume,
+            self.price_open,
+            self.price_current,
+            self.sl,
+            self.tp,
+            self.profit,
+            self.margin_required,
+            self.commission,
+            self.fee,
+            self.swap,
+            self.contract_size,
+            self.tick_size,
+            self.tick_value,
+            self.margin_mode,
+            self.leverage,
+        ):
+            arr[i], arr[j] = arr[j], arr[i]
+        self.symbols[i], self.symbols[j] = self.symbols[j], self.symbols[i]
+        self.comments[i], self.comments[j] = self.comments[j], self.comments[i]
+        self.open_time[i], self.open_time[j] = self.open_time[j], self.open_time[i]
+        self.pos_objects[i], self.pos_objects[j] = (
+            self.pos_objects[j],
+            self.pos_objects[i],
+        )
+
+    def update_sl_tp(self, pos_id: int, sl: float, tp: float) -> None:
+        """Update SL/TP values for a position row."""
+        idx = self.id_to_index.get(int(pos_id))
+        if idx is None:
+            return
+        self.sl[idx] = float(sl or 0.0)
+        self.tp[idx] = float(tp or 0.0)
+
+    def update_volume_margin(self, pos_id: int, volume: float, margin: float) -> None:
+        """Update volume and margin fields for a position row."""
+        idx = self.id_to_index.get(int(pos_id))
+        if idx is None:
+            return
+        self.volume[idx] = float(volume or 0.0)
+        self.margin_required[idx] = float(margin or 0.0)
+
+    def rebuild_from_positions(
+        self,
+        positions: dict[int, Any],
+        get_symbol_params: Optional[Callable[[str], Optional[dict[str, float]]]] = None,
+        leverage: Optional[float] = None,
+    ) -> None:
+        """Rebuild the arrays from the current positions dict."""
+        self.clear()
+        for pos_id, pos_data in positions.items():
+            params = None
+            if get_symbol_params is not None:
+                params = get_symbol_params(str(getattr(pos_data, "symbol", "") or ""))
+            self.add_or_update(
+                pos_id=pos_id,
+                pos_data=pos_data,
+                symbol_params=params,
+                leverage=leverage,
+            )
+
+
+# =============================================================================
+# Backtest Result Wrapper
+# =============================================================================
 
 
 class SimulatorBacktestResult:
@@ -417,18 +751,13 @@ class SimulationUtilsMixin:
                 return False, "Pending SELL order too close to ask"
         return True, "OK"
 
-    # State Updates & Cleanup
-    def close_all_positions(self, reason: str = "Time exit") -> None:
-        """Close all open positions using the latest tick data."""
-        positions = self._simulator.positions_get() or []
-        for position in positions:
-            pos_data = (
-                position._asdict() if hasattr(position, "_asdict") else dict(position)
-            )
-            self.close_position(pos_data, reason=reason)
-
+    # Database Operations
     def _save_backtest_to_db(self, metadata: Optional[dict]) -> None:
-        """Persist completed trades and run metadata into the backtest tables."""
+        """Persist completed trades and run metadata into the backtest tables.
+
+        Uses BacktestManager for all database operations to maintain consistency
+        and proper separation of concerns.
+        """
         if not metadata:
             logger.error("save_db=True but metadata is missing")
             return
@@ -447,57 +776,65 @@ class SimulationUtilsMixin:
             logger.error(f"Missing required metadata keys: {', '.join(missing)}")
             return
 
-        db = SQLiteDatabase()
-        start_date = metadata["start_date"]
-        if hasattr(start_date, "to_pydatetime"):
-            start_date = start_date.to_pydatetime()
-        end_date = metadata["end_date"]
-        if hasattr(end_date, "to_pydatetime"):
-            end_date = end_date.to_pydatetime()
-
-        backtest_id = db.create_backtest_run(
-            strategy_name=metadata["strategy_name"],
-            strategy_version=metadata["strategy_version"],
-            start_date=start_date,
-            end_date=end_date,
-            engine_type=metadata["engine_type"],
-            data_resolution=metadata["data_resolution"],
-            config_hash=metadata["config_hash"],
-            strategy_version_id=metadata.get("strategy_version_id"),
-            user_id=metadata.get("user_id"),
-            symbols=metadata.get("symbols"),
-            timeframes=metadata.get("timeframes"),
-            initial_balance=float(
-                metadata.get("initial_balance", self._initial_balance)
-            ),
-            alias=metadata.get("alias"),
-            description=metadata.get("description"),
-            commission_model=metadata.get("commission_model"),
-            slippage_model=metadata.get("slippage_model"),
-            spread_model=metadata.get("spread_model"),
-            execution_model=metadata.get("execution_model"),
-            fill_model=metadata.get("fill_model"),
-            risk_model=metadata.get("risk_model"),
-            position_sizing_model=metadata.get("position_sizing_model"),
-        )
-
-        conn = sqlite3.connect(db.db_path)
         try:
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA foreign_keys = ON")
-            if self._completed_trades:
-                db._save_trades(cursor, backtest_id, self._completed_trades)
-            cursor.execute(
-                """
-                UPDATE backtest_runs
-                SET final_balance = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
-                WHERE backtest_id = ?
-                """,
-                (float(self._account_data.balance), backtest_id),
+            # Initialize BacktestManager with database path
+            db_manager = DatabaseManager()
+            backtest_manager = BacktestManager()
+            backtest_manager.db_path = db_manager.db_path
+
+            # Convert pandas timestamps to datetime if needed
+            start_date = metadata["start_date"]
+            if hasattr(start_date, "to_pydatetime"):
+                start_date = start_date.to_pydatetime()
+            end_date = metadata["end_date"]
+            if hasattr(end_date, "to_pydatetime"):
+                end_date = end_date.to_pydatetime()
+
+            # Step 1: Create backtest run in backtest_runs table
+            backtest_id = backtest_manager.create_backtest_run(
+                strategy_name=metadata["strategy_name"],
+                strategy_version=metadata["strategy_version"],
+                start_date=start_date,
+                end_date=end_date,
+                engine_type=metadata["engine_type"],
+                data_resolution=metadata["data_resolution"],
+                config_hash=metadata["config_hash"],
+                strategy_version_id=metadata.get("strategy_version_id"),
+                user_id=metadata.get("user_id"),
+                symbols=metadata.get("symbols"),
+                timeframes=metadata.get("timeframes"),
+                initial_balance=float(
+                    metadata.get("initial_balance", self._initial_balance)
+                ),
+                alias=metadata.get("alias"),
+                description=metadata.get("description"),
+                commission_model=metadata.get("commission_model"),
+                slippage_model=metadata.get("slippage_model"),
+                spread_model=metadata.get("spread_model"),
+                execution_model=metadata.get("execution_model"),
+                fill_model=metadata.get("fill_model"),
+                risk_model=metadata.get("risk_model"),
+                position_sizing_model=metadata.get("position_sizing_model"),
             )
-            conn.commit()
+
+            # Step 2: Save trades to backtest_trades table
+            if self._completed_trades:
+                backtest_manager.save_backtest_trades(
+                    backtest_id=backtest_id, trades=self._completed_trades
+                )
+                logger.info(f"Saved {len(self._completed_trades)} trades to database")
+
+            # Step 3: Update final balance and status
+            final_balance = float(self._account_data.balance)
+            backtest_manager.update_backtest_status(
+                backtest_id=backtest_id, status="completed", final_balance=final_balance
+            )
+
+            logger.info(
+                f"Backtest saved successfully (ID: {backtest_id}, "
+                f"Final Balance: {final_balance:.2f})"
+            )
+
         except Exception as exc:
             logger.error(f"Failed to save backtest results: {exc}")
-            conn.rollback()
-        finally:
-            conn.close()
+            raise
