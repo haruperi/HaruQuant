@@ -104,6 +104,56 @@ class BacktestUpdateRequest(BaseModel):
     description: Optional[str] = None
 
 
+class PortfolioBacktestRequest(BaseModel):
+    """Request payload for running a multi-symbol portfolio backtest."""
+
+    symbols: str  # Comma-separated list of symbols
+    timeframe: str
+    range_by: Optional[str] = "dates"  # "dates" or "bars"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    warmup_by: Optional[str] = "date"  # "date" or "bars"
+    warmup_start_date: Optional[str] = None
+    warmup_bars: Optional[int] = None
+    initial_capital: float = 50000  # Higher default for portfolio
+    commission: float = 0.0
+    slippage_type: Optional[str] = "fixed"
+    slippage: int = 0
+    leverage: int = 100
+    data_source: Optional[str] = "mt5"
+    data_resolution: Optional[str] = "trading_timeframe"
+    allocation_method: Optional[str] = "equal_weight"  # "equal_weight" or "risk_parity"
+    lot_size: float = 0.1  # Base lot size per symbol
+    alias: Optional[str] = None
+    description: Optional[str] = None
+
+
+class PortfolioBacktestResponse(BaseModel):
+    """Response model for portfolio backtest runs."""
+
+    backtest_id: int
+    status: str
+    portfolio_name: str
+    symbols: List[str]
+    timeframe: str
+    start_date: Optional[str]
+    end_date: Optional[str]
+    initial_balance: float
+    final_balance: Optional[float]
+    total_return: Optional[float]
+    total_return_pct: Optional[float]
+    total_trades: Optional[int]
+    win_rate: Optional[float]
+    profit_factor: Optional[float]
+    sharpe_ratio: Optional[float]
+    max_drawdown_pct: Optional[float]
+    created_at: str
+    completed_at: Optional[str]
+    allocation_method: str
+    asset_results: Optional[Dict[str, Dict[str, Any]]] = None
+
+
 def _parse_request_date(value: Optional[str]) -> Optional[datetime]:
     if value is None:
         return None
@@ -115,12 +165,21 @@ def _parse_request_date(value: Optional[str]) -> Optional[datetime]:
 
 
 def _parse_symbol(value: str) -> str:
+    """Parse single symbol from string (for backward compatibility)."""
     symbols = [s.strip().upper() for s in value.split(",") if s.strip()]
     if not symbols:
         raise ValueError("Symbol is required")
     if len(symbols) > 1:
-        raise ValueError("Simulator backtests support one symbol at a time")
+        raise ValueError("Use /portfolio/run endpoint for multi-symbol backtests")
     return symbols[0]
+
+
+def _parse_symbols(value: str) -> List[str]:
+    """Parse multiple symbols from comma-separated string."""
+    symbols = [s.strip().upper() for s in value.split(",") if s.strip()]
+    if not symbols:
+        raise ValueError("At least one symbol is required")
+    return symbols
 
 
 def _resolve_modelling(mode: Optional[str]) -> str:
@@ -834,4 +893,258 @@ async def delete_backtest_endpoint(backtest_id: int) -> None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete backtest: {str(exc)}",
+        )
+
+
+# ========================================
+# Portfolio Backtest Endpoints
+# ========================================
+
+
+async def _run_portfolio_backtest_task(
+    backtest_id: int,
+    user_id: int,
+    strategy_id: int,
+    version_id: int,
+    request: PortfolioBacktestRequest,
+) -> None:
+    """Background task to run a portfolio backtest."""
+    loop = asyncio.get_event_loop()
+
+    def log_sink(record: Any) -> None:
+        log_data = {
+            "timestamp": record.time.isoformat(),
+            "level": record.level.name,
+            "message": record.message,
+            "source": record.name,
+            "backtest_id": backtest_id,
+        }
+        with suppress(Exception):
+            asyncio.run_coroutine_threadsafe(
+                backtest_log_manager.broadcast(backtest_id, log_data), loop
+            )
+
+    handler_id = logger.add(log_sink, level="INFO", raw=True)
+
+    try:
+        await asyncio.sleep(2.0)
+        db_manager.update_backtest_status(backtest_id, "running")
+
+        symbols = _parse_symbols(request.symbols)
+        data_mode = _resolve_modelling(request.data_resolution)
+
+        # Load strategy class
+        version, strategy_meta, strategy_class = _load_strategy_class(
+            user_id=user_id,
+            strategy_id=strategy_id,
+            version_id=version_id,
+        )
+
+        # Load data and create strategies for each symbol
+        data_dict = {}
+        strategy_dict = {}
+        symbol_specs = {}
+
+        for symbol in symbols:
+            # Load data for this symbol
+            data, step_data, data_source = _load_data(
+                request=BacktestRequest(
+                    symbol=symbol,
+                    timeframe=request.timeframe,
+                    range_by=request.range_by,
+                    start_date=request.start_date,
+                    end_date=request.end_date,
+                    number_of_bars=request.number_of_bars,
+                    warmup_by=request.warmup_by,
+                    warmup_start_date=request.warmup_start_date,
+                    warmup_bars=request.warmup_bars,
+                    initial_capital=request.initial_capital,
+                    commission=request.commission,
+                    slippage=request.slippage,
+                    leverage=request.leverage,
+                    data_source=request.data_source,
+                    data_resolution=request.data_resolution,
+                    lot_size=request.lot_size,
+                ),
+                symbol=symbol,
+                data_mode=data_mode,
+                user_id=user_id,
+            )
+
+            # Create strategy instance for this symbol
+            params = dict(version.get("parameters") or {})
+            params["symbol"] = symbol
+            params["timeframe"] = request.timeframe
+            strategy_instance = strategy_class(params=params)
+            if hasattr(strategy_instance, "on_init"):
+                strategy_instance.on_init()
+            if hasattr(strategy_instance, "on_bar"):
+                data = strategy_instance.on_bar(data)
+
+            data_dict[symbol] = data
+            strategy_dict[symbol] = strategy_instance
+
+            # Create symbol spec
+            symbol_info = SymbolInfoSimulator.from_mt5_symbol(symbol)
+            symbol_info.symbol = symbol
+            symbol_specs[symbol] = symbol_info
+
+        # Create portfolio strategy and engine
+        from apps.simulation.portfolio import PortfolioEngine, PortfolioStrategy
+
+        portfolio_strategy = PortfolioStrategy(
+            strategies=strategy_dict,
+            symbol_specs=symbol_specs,
+            data=data_dict,
+            allocation_method=request.allocation_method or "equal_weight",  # type: ignore[arg-type]
+        )
+
+        portfolio_engine = PortfolioEngine(
+            portfolio_strategy=portfolio_strategy,
+            initial_balance=float(request.initial_capital),
+            config={
+                "portfolio_name": f"Portfolio Backtest {backtest_id}",
+                "volume": float(request.lot_size),
+                "commission": float(request.commission),
+                "slippage": float(request.slippage),
+                "verbose": False,
+            },
+        )
+
+        logger.info(
+            f"Running portfolio backtest {backtest_id} | "
+            f"symbols={symbols} timeframe={request.timeframe} "
+            f"allocation={request.allocation_method}"
+        )
+
+        # Run portfolio backtest
+        result = portfolio_engine.run(synchronize_data=True, sync_method="ffill")
+
+        # Save trades to database
+        if result.trades:
+            db_manager.save_backtest_trades(backtest_id, result.trades)
+
+        # Update backtest status with final balance
+        db_manager.update_backtest_status(
+            backtest_id,
+            "completed",
+            final_balance=float(result.final_balance),
+        )
+
+        logger.info(f"Portfolio backtest {backtest_id} completed successfully")
+        logger.info(f"Final balance: ${result.final_balance:,.2f}")
+        logger.info(f"Total trades: {len(result.trades)}")
+
+    except Exception as exc:
+        logger.error(f"Portfolio backtest {backtest_id} failed: {exc}")
+        db_manager.update_backtest_status(backtest_id, "failed")
+    finally:
+        try:
+            logger.remove(handler_id)
+            logger.info(
+                f"WebSocket handler removed for portfolio backtest {backtest_id}"
+            )
+        except Exception as exc:
+            logger.warning(f"Error removing WebSocket handler: {exc}")
+
+        try:
+            await asyncio.sleep(5.0)
+            await backtest_log_manager.clear_buffer(backtest_id)
+            logger.info(f"Log buffer cleared for portfolio backtest {backtest_id}")
+        except Exception as exc:
+            logger.warning(f"Error clearing log buffer: {exc}")
+
+        logger.info(f"Portfolio backtest task completed for backtest {backtest_id}")
+
+
+@router.post("/portfolio/run/{strategy_id}", response_model=PortfolioBacktestResponse)
+async def run_portfolio_backtest(
+    strategy_id: int,
+    request: PortfolioBacktestRequest,
+    background_tasks: BackgroundTasks,
+    authorization: Annotated[Optional[str], Header()] = None,
+) -> PortfolioBacktestResponse:
+    """Run a portfolio backtest with multiple symbols."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+        symbols = _parse_symbols(request.symbols)
+
+        strategy = db_manager.get_strategy(strategy_id)
+        if not strategy or not strategy.get("active_version_id"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Strategy or active version not found",
+            )
+
+        version_id = int(strategy["active_version_id"])
+        start_dt = _parse_request_date(request.start_date) or datetime.utcnow()
+        end_dt = _parse_request_date(request.end_date) or datetime.utcnow()
+
+        # Create backtest run in database
+        backtest_id = db_manager.create_backtest_run(
+            strategy_name=strategy["name"],
+            strategy_version="1.0.0",
+            start_date=start_dt,
+            end_date=end_dt,
+            engine_type="event_driven",
+            data_resolution=request.data_resolution or "trading_timeframe",
+            config_hash=str(hash((strategy_id, tuple(symbols), request.timeframe))),
+            symbols=symbols,
+            timeframes=[request.timeframe],
+            initial_balance=request.initial_capital,
+            alias=request.alias,
+            description=request.description,
+            strategy_version_id=version_id,
+            user_id=user_id,
+        )
+
+        # Add background task
+        background_tasks.add_task(
+            _run_portfolio_backtest_task,
+            backtest_id=backtest_id,
+            user_id=user_id,
+            strategy_id=strategy_id,
+            version_id=version_id,
+            request=request,
+        )
+
+        backtest_run = db_manager.get_backtest_run(backtest_id)
+        if backtest_run is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load backtest run",
+            )
+
+        response_data = {
+            "backtest_id": backtest_run["backtest_id"],
+            "status": backtest_run["status"],
+            "portfolio_name": backtest_run["strategy_name"],
+            "symbols": symbols,
+            "timeframe": request.timeframe,
+            "start_date": backtest_run["start_date"],
+            "end_date": backtest_run["end_date"],
+            "initial_balance": backtest_run["initial_balance"],
+            "final_balance": backtest_run.get("final_balance"),
+            "total_return": None,
+            "total_return_pct": None,
+            "total_trades": backtest_run.get("total_trades"),
+            "win_rate": None,
+            "profit_factor": None,
+            "sharpe_ratio": None,
+            "max_drawdown_pct": None,
+            "created_at": backtest_run["created_at"],
+            "completed_at": backtest_run.get("completed_at"),
+            "allocation_method": request.allocation_method or "equal_weight",
+            "asset_results": None,
+        }
+
+        return PortfolioBacktestResponse(**response_data)
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Error starting portfolio backtest: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start portfolio backtest: {str(exc)}",
         )

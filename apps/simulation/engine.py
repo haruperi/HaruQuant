@@ -13,7 +13,7 @@ Functions:
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Optional, Tuple, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
 import numpy as np
 
@@ -1454,11 +1454,233 @@ class SimulationEngine(TradeRecordMixin):
             open_time=now,
         )
 
+    def _run_portfolio(  # noqa: C901
+        self,
+        data: Dict[str, Any],
+        strategy: Dict[str, Any],
+        symbols: List[str],
+        volume: float,
+        validator: Optional[TradeValidator] = None,
+        log_every: int = 500,
+        verbose: bool = False,
+        save_db: bool = False,
+        metadata: Optional[dict] = None,
+        engine_type: str = "event_driven",
+        use_position_arrays: bool = True,
+        use_fast_calc: bool = True,
+        use_numba: bool = True,
+        commission_per_contract: float = 0.0,
+        slippage_points: float = 0.0,
+        start_date: Optional[Any] = None,
+        end_date: Optional[Any] = None,
+        allocations: Optional[Dict[str, float]] = None,
+    ) -> None:
+        """
+        Run portfolio backtest with multiple symbols.
+
+        Args:
+            data: Dictionary mapping symbol to DataFrame
+            strategy: Dictionary mapping symbol to Strategy
+            symbols: List of symbols to trade
+            volume: Base volume for each symbol
+            allocations: Dictionary mapping symbol to allocation weight (0.0-1.0)
+        """
+        suppress_logs = bool(not verbose)
+
+        if not suppress_logs:
+            logger.info(f"Portfolio backtest: {len(symbols)} symbols")
+            logger.info(f"Symbols: {', '.join(symbols)}")
+
+        # Validate inputs
+        if not symbols:
+            logger.error("No symbols provided for portfolio backtest")
+            return
+
+        # Check that all symbols have data and strategy
+        for symbol in symbols:
+            if symbol not in data:
+                logger.error(f"Missing data for symbol: {symbol}")
+                return
+            if symbol not in strategy:
+                logger.error(f"Missing strategy for symbol: {symbol}")
+                return
+            if symbol not in self._symbols_data:
+                logger.error(f"Symbol not found in simulator: {symbol}")
+                return
+
+        # Use equal allocations if not provided
+        if allocations is None:
+            allocation_weight = 1.0 / len(symbols)
+            allocations = {symbol: allocation_weight for symbol in symbols}
+        else:
+            # Validate allocations
+            for symbol in symbols:
+                if symbol not in allocations:
+                    logger.warning(
+                        f"Missing allocation for {symbol}, defaulting to 0.0"
+                    )
+                    allocations[symbol] = 0.0
+
+        if not suppress_logs:
+            logger.info(f"Allocations: {allocations}")
+
+        # Vectorized mode not supported for portfolio
+        if engine_type == "vectorised":
+            logger.error("Vectorized engine not supported for portfolio mode yet")
+            return
+
+        # Get common timeline (assuming data is already synchronized)
+        first_symbol = symbols[0]
+        common_index = data[first_symbol].index
+
+        # Verify all symbols have same index
+        for symbol in symbols[1:]:
+            if not data[symbol].index.equals(common_index):
+                logger.warning(
+                    f"Data for {symbol} has different index than {first_symbol}. "
+                    "Data should be synchronized before running portfolio backtest."
+                )
+
+        if not suppress_logs:
+            logger.info(f"Common timeline: {len(common_index)} bars")
+            logger.info(f"Period: {common_index[0]} to {common_index[-1]}")
+
+        # Initialize
+        if validator is None:
+            validator = TradeValidator()
+
+        self._use_position_arrays = bool(use_position_arrays)
+        self._use_fast_calc = bool(use_fast_calc)
+        self._use_numba = bool(use_numba and NUMBA_AVAILABLE)
+
+        # Store backtest settings
+        self._backtest_commission_per_contract = float(commission_per_contract)
+        self._backtest_slippage_points = float(slippage_points)
+
+        # Initialize equity curve
+        equity_curve = []
+        initial_balance = self._account_data.balance
+
+        # Main simulation loop - iterate over common timeline
+        for i, timestamp in enumerate(common_index):
+
+            # Update ticks for ALL symbols
+            for symbol in symbols:
+                bar = data[symbol].loc[timestamp]
+                symbol_info = self._symbols_data[symbol]
+
+                # Update tick data
+                tick = self._ensure_tick(symbol)
+                tick.bid = float(bar.get("close", bar.get("Close", 0.0)))
+                tick.ask = tick.bid + (symbol_info.spread * symbol_info.point)
+                tick.last = tick.bid
+                tick.time = (
+                    int(timestamp.timestamp()) if hasattr(timestamp, "timestamp") else 0
+                )
+                tick.time_msc = tick.time * 1000
+
+            # Process signals for EACH symbol
+            # Note: _process_bar_signal() handles pending orders and position monitoring
+            for symbol in symbols:
+                # Get strategy for this symbol
+                strat = strategy[symbol]
+                symbol_data = data[symbol]
+
+                # Apply allocation to volume
+                adjusted_volume = volume * allocations.get(symbol, 0.0)
+
+                if adjusted_volume > 0:
+                    # Get tick for this symbol (guaranteed to exist from _ensure_tick above)
+                    sym_tick = self._ticks_data.get(symbol)
+                    if sym_tick is None:
+                        continue
+
+                    # Process bar signal using existing infrastructure
+                    self._process_bar_signal(
+                        symbol_data,
+                        i,
+                        strat,
+                        symbol,
+                        adjusted_volume,
+                        sym_tick,
+                        validator,
+                        verbose,
+                    )
+
+            # Update account metrics (calculate equity from all positions)
+            total_profit = 0.0
+            for _pos_id, pos_info in self._positions_data.items():
+                if pos_info is None:
+                    continue
+
+                symbol = pos_info.symbol
+                pos_tick = self._ticks_data.get(symbol)
+                if pos_tick is None:
+                    continue
+
+                # Calculate floating P&L
+                if pos_info.type == 0:  # Buy
+                    profit = (pos_tick.bid - pos_info.price_open) * pos_info.volume
+                else:  # Sell
+                    profit = (pos_info.price_open - pos_tick.ask) * pos_info.volume
+
+                total_profit += profit
+
+            # Update equity
+            current_equity = self._account_data.balance + total_profit
+            self._account_data.equity = current_equity
+
+            # Append to equity curve
+            equity_curve.append((timestamp, current_equity))
+
+            # Logging
+            if not suppress_logs and log_every > 0 and (i + 1) % log_every == 0:
+                logger.info(
+                    f"Bar {i + 1}/{len(common_index)} | "
+                    f"Equity: ${current_equity:,.2f} | "
+                    f"Open Positions: {len(self._positions_data)}"
+                )
+
+        # Close all positions at end
+        self.close_all_positions(reason="Portfolio backtest end")
+
+        # Final summary
+        final_balance = self._account_data.balance
+        total_return = final_balance - initial_balance
+        total_return_pct = (
+            (total_return / initial_balance * 100) if initial_balance > 0 else 0.0
+        )
+
+        if not suppress_logs:
+            logger.info("=" * 70)
+            logger.info("Portfolio Backtest Complete")
+            logger.info(f"Initial Balance: ${initial_balance:,.2f}")
+            logger.info(f"Final Balance: ${final_balance:,.2f}")
+            logger.info(f"Total Return: ${total_return:,.2f} ({total_return_pct:.2f}%)")
+            logger.info(f"Total Trades: {len(self._completed_trades)}")
+
+            # Per-symbol breakdown
+            symbol_trade_counts: dict[str, int] = {}
+            for trade in self._completed_trades:
+                symbol = trade.symbol
+                symbol_trade_counts[symbol] = symbol_trade_counts.get(symbol, 0) + 1
+
+            logger.info("\nPer-Symbol Breakdown:")
+            for symbol in symbols:
+                count = symbol_trade_counts.get(symbol, 0)
+                alloc = allocations.get(symbol, 0.0)
+                logger.info(f"  {symbol}: {count} trades (allocation: {alloc:.1%})")
+
+            logger.info("=" * 70)
+
+        if save_db:
+            self._save_backtest_to_db(metadata)
+
     def run(  # noqa: C901
         self,
-        data: Any,
-        strategy: Any,
-        symbol: str,
+        data: Any,  # Union[DataFrame, Dict[str, DataFrame]] for portfolio mode
+        strategy: Any,  # Union[Strategy, Dict[str, Strategy]] for portfolio mode
+        symbol: Any,  # Union[str, List[str]] for portfolio mode
         volume: float,
         validator: Optional[TradeValidator] = None,
         log_every: int = 500,
@@ -1475,6 +1697,7 @@ class SimulationEngine(TradeRecordMixin):
         slippage_points: float = 0.0,
         start_date: Optional[Any] = None,
         end_date: Optional[Any] = None,
+        allocations: Optional[Dict[str, float]] = None,  # For portfolio mode
     ) -> None:  # noqa: C901
         """
         Run the main simulation engine.
@@ -1491,13 +1714,52 @@ class SimulationEngine(TradeRecordMixin):
         - "event_driven": current tick/bar-based simulator (default)
         - "vectorised": close-based vectorized backtest (fast, simplified)
 
+        Portfolio mode:
+        - Pass data as Dict[str, DataFrame] for multiple symbols
+        - Pass strategy as Dict[str, Strategy] for multiple symbols
+        - Pass symbol as List[str] for multiple symbols
+        - Pass allocations as Dict[str, float] for position sizing
+
         Args:
             start_date: Optional start date for active trading period (warmup before this)
             end_date: Optional end date for active trading period (no trading after this)
+            allocations: Optional dict of symbol -> allocation weight (0.0-1.0) for portfolio mode
         """
         suppress_logs = bool(not verbose)
         prev_suppress_logs = bool(getattr(self, "_suppress_backtest_logs", False))
         self._suppress_backtest_logs = suppress_logs
+
+        # Detect portfolio mode
+        is_portfolio = isinstance(data, dict)
+
+        if is_portfolio:
+            if not suppress_logs:
+                logger.info(f"Starting PORTFOLIO simulation: {self.simulator_name}")
+                logger.info("=" * 70)
+
+            # Route to portfolio execution
+            return self._run_portfolio(
+                data=data,
+                strategy=strategy,
+                symbols=symbol if isinstance(symbol, list) else list(data.keys()),
+                volume=volume,
+                validator=validator,
+                log_every=log_every,
+                verbose=verbose,
+                save_db=save_db,
+                metadata=metadata,
+                engine_type=engine_type,
+                use_position_arrays=use_position_arrays,
+                use_fast_calc=use_fast_calc,
+                use_numba=use_numba,
+                commission_per_contract=commission_per_contract,
+                slippage_points=slippage_points,
+                start_date=start_date,
+                end_date=end_date,
+                allocations=allocations,
+            )
+
+        # Single-symbol mode (existing code)
         if not suppress_logs:
             logger.info(f"Starting simulation: {self.simulator_name}")
             logger.info("=" * 70)
