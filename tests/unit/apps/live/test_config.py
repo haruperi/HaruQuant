@@ -1,0 +1,114 @@
+
+import json
+import os
+import pytest
+from apps.live.config import Config, ConfigError
+
+def test_load_valid_config(tmp_path, mock_config_data):
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    config = Config(str(config_file))
+    
+    # MT5
+    assert config.mt5_login == 123456
+    assert config.mt5_password == "password"
+    assert config.mt5_server == "MetaQuotes-Demo"
+    assert config.mt5_path == "C:/Program Files/MetaTrader 5/terminal64.exe"
+    
+    # Strategy
+    assert config.strategy_symbol == "EURUSD"
+    assert config.strategy_params == {"period": 14}
+    
+    # Trading
+    assert config.trading_timeframe == "M15"
+    assert config.trading_volume == 0.1
+    assert config.trading_magic_number == 123456
+    assert config.trading_initial_bars == 100
+    assert config.trading_deviation == 20
+    
+    # Safety
+    assert config.safety_min_balance == 1000.0
+    assert config.safety_min_margin_level == 50.0
+    assert config.safety_max_positions == 5
+    assert config.safety_max_daily_trades == 10
+    
+    # Notifications
+    assert config.notifications_enabled is True
+    assert config.smtp_host == "smtp.example.com"
+    assert config.smtp_port == 587
+    assert config.smtp_user == "user@example.com"
+    assert config.smtp_password == "password"
+    assert config.email_recipients == ["admin@example.com"]
+    
+    # Logging
+    assert config.logging_dir == "logs"
+    assert config.logging_level == "DEBUG"
+    
+    # State
+    assert config.state_file == "state.json"
+
+def test_config_file_not_found():
+    with pytest.raises(ConfigError, match="Config file not found"):
+        Config("non_existent_file.json")
+
+def test_invalid_json(tmp_path):
+    config_file = tmp_path / "bad_config.json"
+    config_file.write_text("{invalid json")
+    
+    with pytest.raises(ConfigError, match="Invalid JSON"):
+        Config(str(config_file))
+
+def test_env_var_substitution(tmp_path, mock_config_data):
+    mock_config_data["mt5"]["password"] = "${MT5_PASSWORD}"
+    config_file = tmp_path / "env_config.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    os.environ["MT5_PASSWORD"] = "secret_password"
+    try:
+        config = Config(str(config_file))
+        assert config.mt5_password == "secret_password"
+    finally:
+        del os.environ["MT5_PASSWORD"]
+
+def test_missing_env_var(tmp_path, mock_config_data):
+    mock_config_data["mt5"]["password"] = "${MISSING_VAR}"
+    config_file = tmp_path / "env_config_error.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    with pytest.raises(ConfigError, match="Environment variable not found"):
+        Config(str(config_file))
+
+def test_missing_section(tmp_path, mock_config_data):
+    del mock_config_data["mt5"]
+    config_file = tmp_path / "missing_section.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    with pytest.raises(ConfigError, match="Missing required section: mt5"):
+        Config(str(config_file))
+
+def test_missing_field(tmp_path, mock_config_data):
+    del mock_config_data["mt5"]["login"]
+    config_file = tmp_path / "missing_field.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    with pytest.raises(ConfigError, match="Missing required field: mt5.login"):
+        Config(str(config_file))
+
+def test_get_method(tmp_path, mock_config_data):
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    config = Config(str(config_file))
+    
+    assert config.get("mt5.login") == 123456
+    assert config.get("strategy.params") == {"period": 14}
+    assert config.get("non.existent.key") is None
+    assert config.get("non.existent.key", "default") == "default"
+
+def test_repr(tmp_path, mock_config_data):
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    
+    config = Config(str(config_file))
+    assert "Config(symbol=EURUSD, timeframe=M15, volume=0.1)" in repr(config)
