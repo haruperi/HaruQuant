@@ -249,8 +249,8 @@ class PortfolioEngine:
             synchronized_data = DataSynchronizer.synchronize(
                 self.portfolio_strategy.data,
                 method=sync_method,
-                handle_leading_nans="drop",
-                handle_trailing_nans="drop",
+                handle_leading_nans="fill",  # Fill instead of drop to keep all bars
+                handle_trailing_nans="fill",  # Fill instead of drop to keep all bars
             )
         else:
             logger.info("Step 3: Skipping data synchronization...")
@@ -262,11 +262,14 @@ class PortfolioEngine:
         )
 
         # Step 5: Create account
+        leverage = int(self.config.get("leverage", 100))
         logger.info(
-            f"Step 5: Creating account with initial balance=${self.initial_balance:,.2f}..."
+            f"Step 5: Creating account with initial balance=${self.initial_balance:,.2f}, leverage={leverage}..."
         )
         account_info = AccountInfoSimulator(
-            balance=self.initial_balance, equity=self.initial_balance
+            balance=self.initial_balance,
+            equity=self.initial_balance,
+            leverage=leverage,
         )
 
         # Step 6: Create TradeSimulator (which inherits from SimulationEngine)
@@ -288,16 +291,37 @@ class PortfolioEngine:
 
         symbols = list(self.portfolio_strategy.strategies.keys())
 
+        # Get trading period dates (excluding warmup)
+        start_date = self.config.get("start_date")
+        end_date = self.config.get("end_date")
+
+        if start_date:
+            logger.info(f"Trading period: {start_date} to {end_date or 'latest'}")
+            logger.info(
+                "(Warmup period data loaded but trades will only be counted from start_date)"
+            )
+
+        # Get backtest parameters
+        commission = float(self.config.get("commission", 0.0))
+        slippage = float(self.config.get("slippage", 0.0))
+        volume = float(self.config.get("volume", 0.1))
+
+        logger.info(
+            f"Backtest parameters: volume={volume}, commission=${commission}/contract, slippage={slippage} points"
+        )
+
         engine.run(
             data=synchronized_data,
             strategy=self.portfolio_strategy.strategies,
             symbol=symbols,
-            volume=self.config.get("volume", 0.1),
+            volume=volume,
             verbose=self.config.get("verbose", False),  # Default to non-verbose
-            commission_per_contract=self.config.get("commission", 0.0),
-            slippage_points=self.config.get("slippage", 0.0),
+            commission_per_contract=commission,
+            slippage_points=slippage,
             allocations=allocations,
             engine_type="event_driven",
+            start_date=start_date,
+            end_date=end_date,
         )
 
         # Step 8: Extract results from simulator

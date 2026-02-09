@@ -1,0 +1,23 @@
+[run]
+include = apps/edge/*
+
+[report]
+show_missing = True
+omit =
+    apps/api/*
+    apps/finance/*
+    apps/indicator/*
+    apps/live/*
+    apps/logger/*
+    apps/notifications/*
+    apps/optimization/*
+    apps/plotting/*
+    apps/risk/*
+    apps/simulation/*
+    apps/sqlite/*
+    apps/strategy/*
+    apps/trade/*
+    apps/utils/*
+    data/*
+    scripts/*
+    tests/*

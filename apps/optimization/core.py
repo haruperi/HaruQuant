@@ -25,9 +25,19 @@ from .monte_carlo import monte_carlo_analysis
 from .scoring import calmar_score, profit_factor_score, sharpe_score, sortino_score
 from .walk_forward import walk_forward
 
-# from apps.backtest.persistence import BacktestDatabase
 
-BacktestDatabase = Any
+# from apps.backtest.persistence import BacktestDatabase
+class BacktestDatabase:
+    """Dummy class when module missing."""
+
+    def save_result(self, *args, **kwargs):
+        """Save result dummy method."""
+        pass
+
+    def load_result(self, *args, **kwargs):
+        """Load result dummy method."""
+        return None
+
 
 # Map objective names to scoring functions
 OBJECTIVE_FUNCTIONS = {

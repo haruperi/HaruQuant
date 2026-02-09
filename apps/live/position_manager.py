@@ -231,7 +231,7 @@ class PositionManager:
 
         count = 0
         for pos in positions_to_close:
-            ticket = pos.get("ticket")
+            ticket = getattr(pos, "ticket", None)
             if ticket and self.close_position(ticket):
                 count += 1
 
@@ -262,7 +262,7 @@ class PositionManager:
         Returns:
             True if position exists for symbol
         """
-        return any(pos.get("symbol") == symbol for pos in self._positions)
+        return any(getattr(pos, "symbol", None) == symbol for pos in self._positions)
 
     def get_position_summary(self) -> Dict[str, int]:
         """Get summary of positions by type.

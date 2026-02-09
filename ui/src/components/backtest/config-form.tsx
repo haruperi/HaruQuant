@@ -163,10 +163,25 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                 backtestRequest.warmup_bars = warmupBars
             }
 
-            const result = await backtestApi.run(parseInt(config.strategyId), backtestRequest)
-
+            // Detect if this is a portfolio backtest (multiple symbols)
             const symbols = config.symbol.split(",").map(s => s.trim()).filter(Boolean)
             const isPortfolio = symbols.length > 1
+
+            // Use the appropriate endpoint based on symbol count
+            let result: any
+            if (isPortfolio) {
+                // Portfolio backtest - use symbols field instead of symbol
+                const portfolioRequest = {
+                    ...backtestRequest,
+                    symbols: config.symbol, // Keep comma-separated format
+                }
+                delete (portfolioRequest as any).symbol // Remove single symbol field
+                result = await backtestApi.runPortfolio(parseInt(config.strategyId), portfolioRequest)
+            } else {
+                // Single symbol backtest
+                result = await backtestApi.run(parseInt(config.strategyId), backtestRequest)
+            }
+
             toast.success(isPortfolio ? "Portfolio backtest started!" : "Backtest started successfully!", {
                 description: `Strategy: ${selectedStrategy.name}, ${isPortfolio ? "Symbols" : "Symbol"}: ${symbols.join(", ")}`
             })

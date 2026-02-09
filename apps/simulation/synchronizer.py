@@ -132,6 +132,23 @@ class DataSynchronizer:
                 synchronized = {
                     symbol: df.bfill() for symbol, df in synchronized.items()
                 }
+            # If handle_*_nans='drop', drop remaining NaN rows after ffill
+            # This handles indicator warmup periods (e.g., 200-EMA has 200 leading NaNs)
+            elif handle_leading_nans == "drop":
+                # Find timestamps where ALL symbols have NO NaNs
+                valid_indices = [df.dropna().index for df in synchronized.values()]
+                if valid_indices:
+                    common_valid_index = valid_indices[0]
+                    for idx in valid_indices[1:]:
+                        common_valid_index = common_valid_index.intersection(idx)
+                    # Filter all DataFrames to common valid index
+                    synchronized = {
+                        symbol: df.loc[common_valid_index]
+                        for symbol, df in synchronized.items()
+                    }
+                    logger.info(
+                        f"Dropped NaN rows: {len(final_index) - len(common_valid_index)} rows removed"
+                    )
         elif method == "interpolate":
             synchronized = {
                 symbol: df.interpolate(method="linear")

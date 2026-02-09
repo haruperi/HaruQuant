@@ -120,11 +120,24 @@ class PortfolioBacktestRequest(BaseModel):
     commission: float = 0.0
     slippage_type: Optional[str] = "fixed"
     slippage: int = 0
+    slippage_min: int = 0
+    slippage_max: int = 10
+    spread_type: Optional[str] = "use-broker"
+    spread: int = 20
+    spread_min: int = 10
+    spread_max: int = 50
     leverage: int = 100
     data_source: Optional[str] = "mt5"
     data_resolution: Optional[str] = "trading_timeframe"
     allocation_method: Optional[str] = "equal_weight"  # "equal_weight" or "risk_parity"
     lot_size: float = 0.1  # Base lot size per symbol
+    position_sizing_method: Optional[str] = "fixed_lot"
+    risk_percent: float = 1.0
+    base_lot_size: float = 0.1
+    milestone_amount: float = 3000
+    lot_increment: float = 0.2
+    kelly_fraction_limit: float = 0.25
+    fraction: float = 2.0
     alias: Optional[str] = None
     description: Optional[str] = None
 
@@ -170,7 +183,10 @@ def _parse_symbol(value: str) -> str:
     if not symbols:
         raise ValueError("Symbol is required")
     if len(symbols) > 1:
-        raise ValueError("Use /portfolio/run endpoint for multi-symbol backtests")
+        raise ValueError(
+            f"Multi-symbol backtest detected ({', '.join(symbols)}). "
+            "Please use the POST /api/backtest/portfolio/run/{{strategy_id}} endpoint for multi-symbol backtests."
+        )
     return symbols[0]
 
 
@@ -617,6 +633,12 @@ async def run_backtest(
 
     except HTTPException:
         raise
+    except ValueError as exc:
+        logger.warning(f"Invalid backtest request: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
     except Exception as exc:
         logger.error(f"Error starting backtest: {exc}")
         raise HTTPException(
@@ -999,6 +1021,10 @@ async def _run_portfolio_backtest_task(
             allocation_method=request.allocation_method or "equal_weight",  # type: ignore[arg-type]
         )
 
+        # Parse start_date and end_date for trading period (excluding warmup)
+        trading_start_date = _parse_request_date(request.start_date)
+        trading_end_date = _parse_request_date(request.end_date)
+
         portfolio_engine = PortfolioEngine(
             portfolio_strategy=portfolio_strategy,
             initial_balance=float(request.initial_capital),
@@ -1007,6 +1033,10 @@ async def _run_portfolio_backtest_task(
                 "volume": float(request.lot_size),
                 "commission": float(request.commission),
                 "slippage": float(request.slippage),
+                "slippage_type": request.slippage_type or "fixed",
+                "leverage": int(request.leverage),
+                "start_date": trading_start_date,
+                "end_date": trading_end_date,
                 "verbose": False,
             },
         )
@@ -1014,7 +1044,8 @@ async def _run_portfolio_backtest_task(
         logger.info(
             f"Running portfolio backtest {backtest_id} | "
             f"symbols={symbols} timeframe={request.timeframe} "
-            f"allocation={request.allocation_method}"
+            f"allocation={request.allocation_method} "
+            f"trading_period={trading_start_date.strftime('%Y-%m-%d') if trading_start_date else 'N/A'} to {trading_end_date.strftime('%Y-%m-%d') if trading_end_date else 'N/A'}"
         )
 
         # Run portfolio backtest
@@ -1142,6 +1173,12 @@ async def run_portfolio_backtest(
 
     except HTTPException:
         raise
+    except ValueError as exc:
+        logger.warning(f"Invalid portfolio backtest request: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
     except Exception as exc:
         logger.error(f"Error starting portfolio backtest: {exc}")
         raise HTTPException(

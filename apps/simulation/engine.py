@@ -1545,6 +1545,40 @@ class SimulationEngine(TradeRecordMixin):
             logger.info(f"Common timeline: {len(common_index)} bars")
             logger.info(f"Period: {common_index[0]} to {common_index[-1]}")
 
+        # Handle warmup period - slice data to trading period
+        trading_start = None
+        trading_end = None
+        warmup_bars = 0
+
+        if start_date is not None:
+            trading_start = self._to_datetime(start_date)
+            if not suppress_logs:
+                logger.info(f"Trading period starts: {trading_start}")
+
+            # Filter data for all symbols to trading period
+            mask = common_index >= trading_start
+            if mask.any():
+                warmup_bars = (~mask).sum()
+                common_index = common_index[mask]
+                data = {sym: df[mask].copy() for sym, df in data.items()}
+
+                if not suppress_logs:
+                    logger.info(
+                        f"Warmup period: {warmup_bars} bars (signals calculated but trades excluded)"
+                    )
+                    logger.info(f"Trading period: {len(common_index)} bars")
+
+        if end_date is not None:
+            trading_end = self._to_datetime(end_date)
+            if not suppress_logs:
+                logger.info(f"Trading period ends: {trading_end}")
+
+            # Filter data to end date
+            mask = common_index <= trading_end
+            if mask.any():
+                common_index = common_index[mask]
+                data = {sym: df[mask].copy() for sym, df in data.items()}
+
         # Initialize
         if validator is None:
             validator = TradeValidator()
@@ -1553,9 +1587,21 @@ class SimulationEngine(TradeRecordMixin):
         self._use_fast_calc = bool(use_fast_calc)
         self._use_numba = bool(use_numba and NUMBA_AVAILABLE)
 
-        # Store backtest settings
+        # Store backtest settings in simulator (where commission is calculated)
         self._backtest_commission_per_contract = float(commission_per_contract)
         self._backtest_slippage_points = float(slippage_points)
+
+        # IMPORTANT: Set commission and slippage on the simulator client
+        if hasattr(self, "_simulator"):
+            self._simulator._backtest_commission_per_contract = float(
+                commission_per_contract
+            )
+            self._simulator._backtest_slippage_points = float(slippage_points)
+            if not suppress_logs:
+                logger.info(
+                    f"Commission set to: ${commission_per_contract} per contract"
+                )
+                logger.info(f"Slippage set to: {slippage_points} points")
 
         # Initialize equity curve
         equity_curve = []
@@ -1589,6 +1635,18 @@ class SimulationEngine(TradeRecordMixin):
                 # Apply allocation to volume
                 adjusted_volume = volume * allocations.get(symbol, 0.0)
 
+                # Round volume to symbol's volume step to ensure valid volume
+                symbol_info = self._symbols_data.get(symbol)
+                if symbol_info and adjusted_volume > 0:
+                    vol_step = float(getattr(symbol_info, "volume_step", 0.01))
+                    vol_min = float(getattr(symbol_info, "volume_min", 0.01))
+                    if vol_step > 0:
+                        # Round to nearest valid step
+                        steps = round((adjusted_volume - vol_min) / vol_step)
+                        adjusted_volume = vol_min + (steps * vol_step)
+                        # Ensure volume is at least vol_min
+                        adjusted_volume = max(adjusted_volume, vol_min)
+
                 if adjusted_volume > 0:
                     # Get tick for this symbol (guaranteed to exist from _ensure_tick above)
                     sym_tick = self._ticks_data.get(symbol)
@@ -1607,28 +1665,15 @@ class SimulationEngine(TradeRecordMixin):
                         verbose,
                     )
 
-            # Update account metrics (calculate equity from all positions)
-            total_profit = 0.0
-            for _pos_id, pos_info in self._positions_data.items():
-                if pos_info is None:
-                    continue
+            # Monitor positions to update P&L, MAE/MFE, and check SL/TP
+            # This also updates trade trackers for MAE/MFE calculation
+            totals = self.monitor_positions()
 
-                symbol = pos_info.symbol
-                pos_tick = self._ticks_data.get(symbol)
-                if pos_tick is None:
-                    continue
+            # Update account metrics based on positions
+            self.monitor_account(totals)
 
-                # Calculate floating P&L
-                if pos_info.type == 0:  # Buy
-                    profit = (pos_tick.bid - pos_info.price_open) * pos_info.volume
-                else:  # Sell
-                    profit = (pos_info.price_open - pos_tick.ask) * pos_info.volume
-
-                total_profit += profit
-
-            # Update equity
-            current_equity = self._account_data.balance + total_profit
-            self._account_data.equity = current_equity
+            # Get current equity for equity curve
+            current_equity = self._account_data.equity
 
             # Append to equity curve
             equity_curve.append((timestamp, current_equity))

@@ -1,5 +1,7 @@
 """FastAPI application main entry point."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -45,11 +47,39 @@ from .routes.reports import (
     winning_trades,
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events."""
+    # Startup
+    logger.info("Starting HaruQuant API server")
+
+    from apps.sqlite.database_operations import DatabaseManager
+    from apps.utils.scheduler import start_scheduler
+
+    try:
+        db = DatabaseManager()
+        db.initialize_database()
+        logger.info("Database initialized successfully on startup.")
+        start_scheduler()
+    except Exception as e:
+        logger.error(f"Failed to initialize database on startup: {e}")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down HaruQuant API server")
+    from apps.utils.scheduler import shutdown_scheduler
+
+    shutdown_scheduler()
+
+
 # Create FastAPI app
 app = FastAPI(
     title="HaruQuant API",
     description="Backend API for HaruQuant trading platform",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -110,33 +140,6 @@ app.include_router(
     performance_ratio_chart.router, prefix="/api/reports", tags=["reports"]
 )
 app.include_router(risk_distribution.router, prefix="/api/reports", tags=["reports"])
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup."""
-    logger.info("Starting HaruQuant API server")
-
-    # Initialize database
-    from apps.sqlite.database_operations import DatabaseManager
-    from apps.utils.scheduler import start_scheduler
-
-    try:
-        db = DatabaseManager()
-        db.initialize_database()
-        logger.info("Database initialized successfully on startup.")
-        start_scheduler()
-    except Exception as e:
-        logger.error(f"Failed to initialize database on startup: {e}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    logger.info("Shutting down HaruQuant API server")
-    from apps.utils.scheduler import shutdown_scheduler
-
-    shutdown_scheduler()
 
 
 @app.get("/api/health")

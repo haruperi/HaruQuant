@@ -253,7 +253,7 @@ def genetic_algorithm(  # noqa: C901
         parent1: np.ndarray, parent2: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Single-point crossover."""
-        if np.random.random() < crossover_rate:
+        if np.random.random() < crossover_rate and n_params > 1:
             point = np.random.randint(1, n_params)
             child1 = np.concatenate([parent1[:point], parent2[point:]])
             child2 = np.concatenate([parent2[:point], parent1[point:]])
