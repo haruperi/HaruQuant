@@ -12,6 +12,7 @@ add_library(hqt_core STATIC
     src/sim/tick_model.cpp
     src/sim/trade_record.cpp
     src/sim/portfolio_engine.cpp
+    src/sim/result_metrics.cpp
 )
 
 target_include_directories(hqt_core PUBLIC
