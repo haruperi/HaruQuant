@@ -19,11 +19,15 @@ namespace hqt::sim {
 struct TradeRequest {
     int action{0};
     int type{0};
+    uint64_t order{0};
     std::string symbol{};
     double volume{0.0};
     double price{0.0};
+    double stoplimit{0.0};
     double sl{0.0};
     double tp{0.0};
+    int type_time{0};
+    int64_t expiration{0};
     std::string comment{};
 };
 
@@ -62,4 +66,3 @@ private:
 };
 
 }  // namespace hqt::sim
-

@@ -15,6 +15,7 @@ add_executable(hqt_tests
     test_sim_calculators.cpp
     test_simulator_client_getters.cpp
     test_sim_order_send_market.cpp
+    test_sim_pending_orders.cpp
     test_data_structures.cpp
     test_utilities.cpp
     test_event_loop.cpp

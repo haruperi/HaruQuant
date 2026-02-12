@@ -22,48 +22,93 @@ void TradeGateway::register_symbol(const SymbolInfoData& symbol) {
 }
 
 TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTickData* tick) {
-    if (request.action != 1) {
-        return invalid_result("Invalid request: missing or unsupported action", 10013);
-    }
-    if (request.symbol.empty()) {
-        return invalid_result("Invalid request: missing symbol", 10013);
-    }
-    if (request.volume <= 0.0) {
-        return invalid_result("Invalid volume", 10014);
-    }
-
-    const auto sym_it = symbols_.find(request.symbol);
-    if (sym_it == symbols_.end()) {
-        return invalid_result("No quotes to process the request", 10021);
-    }
-
-    const double bid = tick ? tick->bid : sym_it->second.bid;
-    const double ask = tick ? tick->ask : sym_it->second.ask;
-    if (bid <= 0.0 || ask <= 0.0) {
-        return invalid_result("No quotes to process the request", 10021);
-    }
-
-    trade_.UpdatePrices(request.symbol, bid, ask, tick ? (tick->time_msc * 1000) : 0);
-
     bool ok = false;
-    if (request.type == 0) {  // BUY
-        ok = trade_.Buy(
-            request.volume,
-            request.symbol,
+
+    if (request.action == 1 || request.action == 5) {
+        if (request.symbol.empty()) {
+            return invalid_result("Invalid request: missing symbol", 10013);
+        }
+        if (request.volume <= 0.0) {
+            return invalid_result("Invalid volume", 10014);
+        }
+
+        const auto sym_it = symbols_.find(request.symbol);
+        if (sym_it == symbols_.end()) {
+            return invalid_result("No quotes to process the request", 10021);
+        }
+
+        const double bid = tick ? tick->bid : sym_it->second.bid;
+        const double ask = tick ? tick->ask : sym_it->second.ask;
+        if (bid <= 0.0 || ask <= 0.0) {
+            return invalid_result("No quotes to process the request", 10021);
+        }
+        trade_.UpdatePrices(request.symbol, bid, ask, tick ? (tick->time_msc * 1000) : 0);
+
+        if (request.action == 1) {
+            if (request.type == 0) {  // BUY
+                ok = trade_.Buy(
+                    request.volume,
+                    request.symbol,
+                    request.price,
+                    request.sl,
+                    request.tp,
+                    request.comment);
+            } else if (request.type == 1) {  // SELL
+                ok = trade_.Sell(
+                    request.volume,
+                    request.symbol,
+                    request.price,
+                    request.sl,
+                    request.tp,
+                    request.comment);
+            } else {
+                return invalid_result("Invalid order type for market execution", 10013);
+            }
+        } else {
+            // Pending place flow
+            using OT = hqt::ENUM_ORDER_TYPE;
+            OT order_type;
+            switch (request.type) {
+                case 2: order_type = OT::ORDER_TYPE_BUY_LIMIT; break;
+                case 3: order_type = OT::ORDER_TYPE_SELL_LIMIT; break;
+                case 4: order_type = OT::ORDER_TYPE_BUY_STOP; break;
+                case 5: order_type = OT::ORDER_TYPE_SELL_STOP; break;
+                case 6: order_type = OT::ORDER_TYPE_BUY_STOP_LIMIT; break;
+                case 7: order_type = OT::ORDER_TYPE_SELL_STOP_LIMIT; break;
+                default:
+                    return invalid_result("Invalid pending order type", 10013);
+            }
+
+            ok = trade_.OrderOpen(
+                request.symbol,
+                order_type,
+                request.volume,
+                request.price,
+                request.stoplimit,
+                request.sl,
+                request.tp,
+                static_cast<hqt::ENUM_ORDER_TYPE_TIME>(request.type_time),
+                request.expiration,
+                request.comment);
+        }
+    } else if (request.action == 7) {
+        if (request.order == 0) {
+            return invalid_result("Invalid request: missing order", 10013);
+        }
+        ok = trade_.OrderModify(
+            request.order,
             request.price,
             request.sl,
             request.tp,
-            request.comment);
-    } else if (request.type == 1) {  // SELL
-        ok = trade_.Sell(
-            request.volume,
-            request.symbol,
-            request.price,
-            request.sl,
-            request.tp,
-            request.comment);
+            request.stoplimit,
+            request.expiration);
+    } else if (request.action == 8) {
+        if (request.order == 0) {
+            return invalid_result("Invalid request: missing order", 10013);
+        }
+        ok = trade_.OrderDelete(request.order);
     } else {
-        return invalid_result("Invalid order type for market execution", 10013);
+        return invalid_result("Invalid request: missing or unsupported action", 10013);
     }
 
     TradeResult result;
@@ -115,4 +160,3 @@ hqt::SymbolInfo TradeGateway::to_symbol_info(const SymbolInfoData& data) {
 }
 
 }  // namespace hqt::sim
-
