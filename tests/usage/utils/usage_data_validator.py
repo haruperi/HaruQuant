@@ -29,22 +29,37 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from apps.utils.data_validator import DataValidator, DataQualityReport
-from apps.utils.data_getters import load_dukascopy
+from datetime import datetime
+from apps.sqlite.users import UserManager
 from apps.logger import logger
 import pandas as pd
 import numpy as np
+from apps.mt5 import MT5Client
+from apps.mt5 import get_mt5_api
+mt5 = get_mt5_api()
+
+def get_mt5_credentials():
+    """Get MT5 credentials from the database."""
+    creds = UserManager().get_mt5_credentials()
+    if not creds:
+        logger.error("No default broker credentials found")
+        sys.exit(1)
+    return creds
 
 
-def example_01_basic_price_sanity():
+def example_01_basic_price_sanity(data=None):
     """Example 1: Basic price sanity validation."""
     logger.info("=" * 70)
     logger.info("EXAMPLE 1: Basic Price Sanity Validation")
     logger.info("=" * 70)
 
-    # Create sample data with some invalid prices
-    dates = pd.date_range('2025-01-01', periods=10, freq='1h')
-    data = pd.DataFrame({
-        'open': [1.1000, 1.1010, 1.1020, 1.1015, 1.1030, 1.1025, 1.1040, 1.1035, 1.1050, 1.1045],
+    if data is not None:
+        data = data
+    else:
+        # Create sample data with some invalid prices
+        dates = pd.date_range('2025-01-01', periods=10, freq='1h')
+        data = pd.DataFrame({
+            'open': [1.1000, 1.1010, 1.1020, 1.1015, 1.1030, 1.1025, 1.1040, 1.1035, 1.1050, 1.1045],
         'high': [1.1020, 1.1030, 1.1040, 1.1035, 1.1050, 1.1045, 1.1060, 1.1055, 1.1070, 1.1065],
         'low': [1.0990, 1.1000, 1.1010, 1.1005, 1.1020, 1.1015, 1.1030, 1.1025, 1.1040, 1.1035],
         'close': [1.1010, 1.1020, 1.1030, 1.1025, 1.1040, 1.1035, 1.1050, 1.1045, 1.1060, 1.1055],
@@ -52,8 +67,8 @@ def example_01_basic_price_sanity():
         'spread': [0.0002, 0.0002, 0.0002, 0.0002, 0.0002, 0.0002, 0.0002, 0.0002, 0.0002, 0.0002],
     }, index=dates)
 
-    # Introduce an invalid price (high < low)
-    data.loc[dates[5], 'high'] = 1.1000  # Lower than low price
+        # Introduce an invalid price (high < low)
+        data.loc[dates[5], 'high'] = 1.1000  # Lower than low price
 
     validator = DataValidator()
     is_valid, df_marked, issues = validator.validate_price_sanity(data, mark_invalid=True)
@@ -67,27 +82,30 @@ def example_01_basic_price_sanity():
         logger.info(f"Count: {issue['count']}")
 
 
-def example_02_detect_gaps():
+def example_02_detect_gaps(data=None):
     """Example 2: Gap detection in time series."""
     logger.info("\n" + "=" * 70)
     logger.info("EXAMPLE 2: Gap Detection")
     logger.info("=" * 70)
 
-    # Create data with gaps
-    dates = []
-    for i in range(20):
-        if i in [5, 6, 7, 15]:  # Skip these indices to create gaps
-            continue
-        dates.append(datetime(2025, 1, 1) + timedelta(hours=i))
+    if data is not None:
+        data = data
+    else:
+        # Create data with gaps
+        dates = []
+        for i in range(20):
+            if i in [5, 6, 7, 15]:  # Skip these indices to create gaps
+                continue
+            dates.append(datetime(2025, 1, 1) + timedelta(hours=i))
 
-    data = pd.DataFrame({
-        'open': np.random.uniform(1.10, 1.11, len(dates)),
-        'high': np.random.uniform(1.11, 1.12, len(dates)),
-        'low': np.random.uniform(1.09, 1.10, len(dates)),
-        'close': np.random.uniform(1.10, 1.11, len(dates)),
-        'volume': np.random.randint(100, 200, len(dates)),
-        'spread': [0.0002] * len(dates),
-    }, index=pd.DatetimeIndex(dates))
+        data = pd.DataFrame({
+            'open': np.random.uniform(1.10, 1.11, len(dates)),
+            'high': np.random.uniform(1.11, 1.12, len(dates)),
+            'low': np.random.uniform(1.09, 1.10, len(dates)),
+            'close': np.random.uniform(1.10, 1.11, len(dates)),
+            'volume': np.random.randint(100, 200, len(dates)),
+            'spread': [0.0002] * len(dates),
+        }, index=pd.DatetimeIndex(dates))
 
     validator = DataValidator()
     gaps_df, gap_info = validator.detect_gaps(
@@ -445,16 +463,38 @@ def main():
     logger.info("DATA VALIDATOR - COMPREHENSIVE USAGE EXAMPLES")
     logger.info("=" * 80)
 
-    example_01_basic_price_sanity()
-    example_02_detect_gaps()
-    example_03_spike_detection()
-    example_04_missing_timestamps()
-    example_05_comprehensive_validation()
-    example_06_data_quality_report()
-    example_07_data_cleaning()
-    example_08_zero_volume_detection()
-    example_09_duplicate_detection()
-    example_10_spread_analysis()
+    # Get credentials from database
+    creds = get_mt5_credentials()
+
+    # Initialize MT5 client (needed for Option 1)
+    client = MT5Client()
+    connected = client.connect(
+        login=creds["login"],
+        password=creds["password"],
+        server=creds["server"],
+        path=creds["path"]
+    )
+
+    if not connected:
+        logger.error("Failed to connect to MT5. Please ensure MT5 terminal is running.")
+        return
+
+    eurusd = "EURUSD"
+    start_date = datetime(2025, 1, 1)
+    end_date = datetime(2025, 12, 31) 
+
+    data = client.get_bars(symbol=eurusd, timeframe="H1", date_from=start_date, date_to=end_date)
+
+    #example_01_basic_price_sanity()
+    example_02_detect_gaps(data=data)
+    # example_03_spike_detection(real_data=True)
+    # example_04_missing_timestamps(real_data=True)
+    # example_05_comprehensive_validation(real_data=True)
+    # example_06_data_quality_report(real_data=True)
+    # example_07_data_cleaning(real_data=True)
+    # example_08_zero_volume_detection(real_data=True)
+    # example_09_duplicate_detection(real_data=True)
+    # example_10_spread_analysis(real_data=True)
 
     logger.info("\n" + "=" * 80)
     logger.info("ALL EXAMPLES COMPLETED")
