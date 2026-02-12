@@ -60,6 +60,8 @@ public:
         double price_close) const;
     [[nodiscard]] TradeResult order_send(const TradeRequest& request);
     [[nodiscard]] TradeResult close_position(uint64_t ticket);
+    bool set_history_order_state(uint64_t ticket, uint64_t state);
+    bool set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc);
 
     // Test/data-seeding helpers used by incremental migration PRs.
     void set_account_info(const AccountInfoData& data);

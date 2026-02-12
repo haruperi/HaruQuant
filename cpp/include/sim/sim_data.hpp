@@ -110,7 +110,9 @@ struct TradeRecordData {
     uint64_t order{0};
     int64_t time{0};
     int64_t time_msc{0};
+    int64_t expiration{0};
     uint64_t type{0};
+    uint64_t type_time{0};
     uint64_t magic{0};
     uint64_t identifier{0};
     uint64_t reason{0};

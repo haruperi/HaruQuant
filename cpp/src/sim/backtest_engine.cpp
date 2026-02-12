@@ -44,6 +44,7 @@ void BacktestEngine::run_trading_timeframe(
         tick.last = bar.close;
         client_.set_symbol_tick(symbol, tick);
 
+        monitor_pending_orders(symbol, bid, ask, bar.time_msc);
         monitor_positions_and_account(symbol, bid, ask);
         apply_exit_signal(symbol, bar.exit_signal);
         apply_entry_signal(symbol, volume, bar.entry_signal, bid, ask, bar.sl, bar.tp);
@@ -73,6 +74,67 @@ std::optional<AutoCloseReason> BacktestEngine::close_reason(uint64_t ticket) con
     return it->second;
 }
 
+void BacktestEngine::monitor_pending_orders(
+    const std::string& symbol,
+    double bid,
+    double ask,
+    int64_t current_time_msc) {
+    const auto orders = client_.orders_get(std::nullopt, symbol);
+    for (const auto& order : orders) {
+        const bool expires = (order.type_time == 2U || order.type_time == 3U) &&
+            (order.expiration > 0) &&
+            ((current_time_msc / 1000) >= order.expiration);
+
+        if (expires) {
+            TradeRequest remove;
+            remove.action = 8;  // TRADE_ACTION_REMOVE
+            remove.order = order.ticket;
+            const TradeResult result = client_.order_send(remove);
+            if (result.retcode == 10009 || result.retcode == 10010) {
+                client_.set_history_order_state(order.ticket, 6U);  // ORDER_STATE_EXPIRED
+                client_.set_history_order_done_time(order.ticket, current_time_msc / 1000, current_time_msc);
+            }
+            continue;
+        }
+
+        if (!should_trigger_order(order, bid, ask)) {
+            continue;
+        }
+
+        TradeRequest deal;
+        deal.action = 1;  // TRADE_ACTION_DEAL
+        deal.symbol = symbol;
+        deal.volume = order.volume;
+        deal.sl = order.sl;
+        deal.tp = order.tp;
+        deal.comment = order.comment;
+
+        if (order.type == 2U || order.type == 4U || order.type == 6U) {
+            deal.type = 0;      // ORDER_TYPE_BUY
+            deal.price = ask;
+        } else if (order.type == 3U || order.type == 5U || order.type == 7U) {
+            deal.type = 1;      // ORDER_TYPE_SELL
+            deal.price = bid;
+        } else {
+            continue;
+        }
+
+        const TradeResult fill = client_.order_send(deal);
+        if (!(fill.retcode == 10009 || fill.retcode == 10010)) {
+            continue;
+        }
+
+        TradeRequest remove;
+        remove.action = 8;  // TRADE_ACTION_REMOVE
+        remove.order = order.ticket;
+        const TradeResult removed = client_.order_send(remove);
+        if (removed.retcode == 10009 || removed.retcode == 10010) {
+            client_.set_history_order_state(order.ticket, 4U);  // ORDER_STATE_FILLED
+            client_.set_history_order_done_time(order.ticket, current_time_msc / 1000, current_time_msc);
+        }
+    }
+}
+
 void BacktestEngine::monitor_positions_and_account(const std::string& symbol, double bid, double ask) {
     const auto positions = client_.positions_get(std::nullopt, symbol);
     for (const auto& pos : positions) {
@@ -93,6 +155,18 @@ void BacktestEngine::monitor_positions_and_account(const std::string& symbol, do
 
     const PositionTotals totals = account_monitor_.monitor_positions(client_, symbol, bid, ask);
     account_snapshot_ = account_monitor_.monitor_account(client_.account_info(), totals);
+}
+
+bool BacktestEngine::should_trigger_order(const TradeRecordData& order, double bid, double ask) {
+    switch (order.type) {
+        case 2U: return ask <= order.price_open;  // BUY_LIMIT
+        case 3U: return bid >= order.price_open;  // SELL_LIMIT
+        case 4U: return ask >= order.price_open;  // BUY_STOP
+        case 5U: return bid <= order.price_open;  // SELL_STOP
+        case 6U: return ask >= order.price_open;  // BUY_STOP_LIMIT
+        case 7U: return bid <= order.price_open;  // SELL_STOP_LIMIT
+        default: return false;
+    }
 }
 
 void BacktestEngine::apply_exit_signal(const std::string& symbol, int exit_signal) {

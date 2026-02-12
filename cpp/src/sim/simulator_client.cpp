@@ -157,6 +157,25 @@ TradeResult SimulatorClient::close_position(uint64_t ticket) {
     return result;
 }
 
+bool SimulatorClient::set_history_order_state(uint64_t ticket, uint64_t state) {
+    const auto it = history_orders_data_.find(ticket);
+    if (it == history_orders_data_.end()) {
+        return false;
+    }
+    it->second.reason = state;
+    return true;
+}
+
+bool SimulatorClient::set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) {
+    const auto it = history_orders_data_.find(ticket);
+    if (it == history_orders_data_.end()) {
+        return false;
+    }
+    it->second.time = time_sec;
+    it->second.time_msc = time_msc;
+    return true;
+}
+
 void SimulatorClient::set_account_info(const AccountInfoData& data) {
     account_data_ = data;
     trade_gateway_ = TradeGateway(account_data_);
@@ -240,6 +259,8 @@ void SimulatorClient::sync_state_from_trade() {
         data.reason = static_cast<uint64_t>(ord.State());
         data.time = ord.TimeSetup();
         data.time_msc = ord.TimeSetupMsc();
+        data.expiration = ord.TimeExpiration();
+        data.type_time = static_cast<uint64_t>(ord.TypeTime());
         data.volume = ord.VolumeCurrent();
         data.price_open = ord.PriceOpen();
         data.price_current = ord.PriceCurrent();
@@ -275,6 +296,8 @@ void SimulatorClient::sync_state_from_trade() {
         data.reason = static_cast<uint64_t>(hist.State());
         data.time = hist.TimeSetup();
         data.time_msc = hist.TimeSetupMsc();
+        data.expiration = hist.TimeExpiration();
+        data.type_time = static_cast<uint64_t>(hist.TypeTime());
         data.volume = hist.VolumeCurrent();
         data.price_open = hist.PriceOpen();
         data.sl = hist.StopLoss();

@@ -61,7 +61,9 @@ public:
     [[nodiscard]] std::optional<AutoCloseReason> close_reason(uint64_t ticket) const;
 
 private:
+    void monitor_pending_orders(const std::string& symbol, double bid, double ask, int64_t current_time_msc);
     void monitor_positions_and_account(const std::string& symbol, double bid, double ask);
+    static bool should_trigger_order(const TradeRecordData& order, double bid, double ask);
     void apply_exit_signal(const std::string& symbol, int exit_signal);
     void apply_entry_signal(
         const std::string& symbol,
