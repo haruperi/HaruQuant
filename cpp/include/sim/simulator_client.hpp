@@ -8,6 +8,7 @@
 #pragma once
 
 #include "sim/sim_data.hpp"
+#include "sim/trade_gateway.hpp"
 
 #include <optional>
 #include <string>
@@ -57,6 +58,7 @@ public:
         double volume,
         double price_open,
         double price_close) const;
+    [[nodiscard]] TradeResult order_send(const TradeRequest& request);
 
     // Test/data-seeding helpers used by incremental migration PRs.
     void set_account_info(const AccountInfoData& data);
@@ -69,6 +71,8 @@ public:
     void set_last_error(int code, const std::string& message);
 
 private:
+    void sync_state_from_trade();
+
     template <typename Container>
     [[nodiscard]] static std::vector<TradeRecordData> collect_records(
         const Container& records,
@@ -76,6 +80,7 @@ private:
         std::optional<std::string_view> symbol);
 
     AccountInfoData account_data_{};
+    TradeGateway trade_gateway_{account_data_};
     std::unordered_map<std::string, SymbolInfoData> symbols_data_{};
     std::unordered_map<std::string, SymbolTickData> ticks_data_{};
 
