@@ -299,22 +299,22 @@ tests/unit/test_hqt_engine.py — 3 Python bridge tests
 ### Tasks
 
 - [ ] **1.1** Implement fixed-point arithmetic utilities
-  - [ ] 1.1.1 Create `cpp/include/hqt/util/fixed_point.hpp` — `to_double()`, `from_double()`, arithmetic helpers
-  - [ ] 1.1.2 Create `cpp/tests/test_fixed_point.cpp` — edge cases: zero, negative, large values, all digit counts (0-6)
-  - [ ] 1.1.3 Benchmark fixed-point vs double arithmetic
+  - [x] 1.1.1 Create `cpp/include/util/fixed_point.hpp` — `to_double()`, `from_double()`, arithmetic helpers
+  - [x] 1.1.2 Validate via `cpp/tests/test_utilities.cpp` (`FixedPointTest` suite: conversions, arithmetic, bounds)
+  - [ ] 1.1.3 Add dedicated fixed-point benchmark file in `cpp/benchmarks/` (currently no fixed-point-specific benchmark file)
 
 - [ ] **1.2** Define core C++ data structures
-  - [ ] 1.2.1 Create `cpp/include/hqt/data/tick.hpp` — `Tick` struct (aligned, fixed-point prices)
-  - [ ] 1.2.2 Create `cpp/include/hqt/data/bar.hpp` — `Bar` struct (aligned, fixed-point OHLC)
-  - [ ] 1.2.3 Create `cpp/include/hqt/market/symbol_info.hpp` — `SymbolInfo` struct
-  - [ ] 1.2.4 Create `cpp/include/hqt/state/position.hpp` — `Position` struct
-  - [ ] 1.2.5 Create `cpp/include/hqt/state/order.hpp` — `Order` struct
-  - [ ] 1.2.6 Create `cpp/include/hqt/state/deal.hpp` — `Deal` struct (closed trade)
-  - [ ] 1.2.7 Create `cpp/include/hqt/state/account_state.hpp` — `AccountState` struct
-  - [ ] 1.2.8 Create `cpp/tests/test_data_types.cpp` — construction, field access, serialization
+  - [x] 1.2.1 Create `cpp/include/data/tick.hpp` — `Tick` struct (aligned, fixed-point prices)
+  - [x] 1.2.2 Create `cpp/include/data/bar.hpp` — `Bar` struct (aligned, fixed-point OHLC)
+  - [x] 1.2.3 Create `cpp/include/trading/symbol_info.hpp` — `SymbolInfo` struct
+  - [x] 1.2.4 Create `cpp/include/trading/position_info.hpp` — `PositionInfo` struct
+  - [x] 1.2.5 Create `cpp/include/trading/order_info.hpp` — `OrderInfo` struct
+  - [x] 1.2.6 Create `cpp/include/trading/deal_info.hpp` — `DealInfo` struct (closed trade)
+  - [x] 1.2.7 Create `cpp/include/trading/account_info.hpp` — `AccountInfo` struct
+  - [x] 1.2.8 Create `cpp/tests/test_data_structures.cpp` — construction, field access, serialization
 
 - [ ] **1.3** Implement C++ position kernel
-  - [ ] 1.3.1 Create `cpp/include/hqt/matching/position_kernel.hpp` — function declaration
+  - [ ] 1.3.1 Create `cpp/include/matching/position_kernel.hpp` — function declaration
   - [ ] 1.3.2 Create `cpp/src/matching/position_kernel.cpp` — implementation (profit, margin, SL/TP hits for all 6 margin modes)
   - [ ] 1.3.3 Create `cpp/tests/test_position_kernel.cpp` — comprehensive tests
   - [ ] 1.3.4 Create `cpp/benchmarks/bench_position_kernel.cpp` — benchmark vs expected performance

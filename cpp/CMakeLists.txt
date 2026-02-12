@@ -1,6 +1,7 @@
 # HQT Core C++ Library
 add_library(hqt_core STATIC
     src/hello.cpp
+    src/trading/trade.cpp
 )
 
 target_include_directories(hqt_core PUBLIC

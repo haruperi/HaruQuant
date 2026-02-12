@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="235" failures="30" disabled="0" errors="0" time="0.184" timestamp="2026-02-12T18:37:34.480" name="AllTests">
+  <testsuite name="TickTest" tests="5" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="DefaultConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="17" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TickTest" />
+    <testcase name="ParameterizedConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="28" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TickTest" />
+    <testcase name="IsValid" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="39" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TickTest" />
+    <testcase name="MidPrice" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="50" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TickTest" />
+    <testcase name="CacheLineAlignment" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="55" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TickTest" />
+  </testsuite>
+  <testsuite name="BarTest" tests="8" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="DefaultConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="64" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="ParameterizedConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="75" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="IsValid" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="86" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="IsBullish" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="97" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="IsBearish" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="103" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="Range" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="109" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="Body" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="114" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+    <testcase name="Alignment" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="122" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="BarTest" />
+  </testsuite>
+  <testsuite name="TimeframeTest" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="ToStringConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="131" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimeframeTest" />
+    <testcase name="MinuteValues" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_data_structures.cpp" line="141" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimeframeTest" />
+  </testsuite>
+  <testsuite name="FixedPointTest" tests="14" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="FromDoubleConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="20" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="ToDoubleConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="31" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="RoundTrip" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="40" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="Addition" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="48" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="Subtraction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="55" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="MultiplyInt" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="62" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="DivideInt" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="68" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="MultiplyFixedPoint" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="74" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="DivideFixedPoint" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="82" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="DivideByZero" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="90" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="Abs" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="99" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="Compare" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="107" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="MinMax" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="116" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+    <testcase name="Clamp" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="124" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="FixedPointTest" />
+  </testsuite>
+  <testsuite name="TimestampTest" tests="5" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="NowUs" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="142" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimestampTest" />
+    <testcase name="Conversions" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="150" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimestampTest" />
+    <testcase name="FloorOperations" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="160" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimestampTest" />
+    <testcase name="ISO8601Conversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="177" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimestampTest" />
+    <testcase name="ToDate" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="187" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="TimestampTest" />
+  </testsuite>
+  <testsuite name="SeededRNGTest" tests="7" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="Determinism" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="198" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+    <testcase name="DifferentSeeds" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="208" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+    <testcase name="Reset" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="222" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+    <testcase name="NextIntRange" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="233" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+    <testcase name="NextDoubleRange" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="243" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+    <testcase name="NextBool" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="253" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+    <testcase name="GetSeed" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="268" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="SeededRNGTest" />
+  </testsuite>
+  <testsuite name="EventTest" tests="8" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.480">
+    <testcase name="DefaultConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="278" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="TickEventCreation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="284" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="BarCloseEventCreation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="291" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="OrderTriggerEventCreation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="299" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="TimerEventCreation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="306" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="Comparison" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="313" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="Equality" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="322" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+    <testcase name="ComparatorForPriorityQueue" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_utilities.cpp" line="331" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventTest" />
+  </testsuite>
+  <testsuite name="EventLoopTest" tests="16" failures="0" disabled="0" skipped="0" errors="0" time="0.095" timestamp="2026-02-12T18:37:34.480">
+    <testcase name="DefaultConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="21" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="PushSingleEvent" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="32" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="PushMultipleEvents" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="40" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="ChronologicalOrdering" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="49" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="ProcessAllEvents" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="70" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="CurrentTimestampTracking" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="87" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="StopEarly" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="102" status="run" result="completed" time="0.006" timestamp="2026-02-12T18:37:34.480" classname="EventLoopTest" />
+    <testcase name="StepExactly" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="128" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.487" classname="EventLoopTest" />
+    <testcase name="StepMultipleTimes" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="145" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.487" classname="EventLoopTest" />
+    <testcase name="StepBeyondAvailable" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="167" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.487" classname="EventLoopTest" />
+    <testcase name="PauseResume" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="184" status="run" result="completed" time="0.026" timestamp="2026-02-12T18:37:34.487" classname="EventLoopTest" />
+    <testcase name="Clear" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="225" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.513" classname="EventLoopTest" />
+    <testcase name="PushBatch" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="242" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.514" classname="EventLoopTest" />
+    <testcase name="MixedEventTypes" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="254" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.514" classname="EventLoopTest" />
+    <testcase name="EmptyRun" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="274" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.514" classname="EventLoopTest" />
+    <testcase name="AlreadyRunningError" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="285" status="run" result="completed" time="0.061" timestamp="2026-02-12T18:37:34.514" classname="EventLoopTest" />
+  </testsuite>
+  <testsuite name="GlobalClockTest" tests="13" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="DefaultConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="312" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="SingleSymbolUpdate" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="318" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="MultipleSymbolsMinimum" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="328" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="SymbolAdvancement" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="340" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="CanAdvanceCheck" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="356" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="SingleSymbolCanAlwaysAdvance" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="375" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="GetSymbolLag" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="385" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="RemoveSymbol" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="405" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="GetAllTimestamps" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="422" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="UpdateBatch" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="437" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="Clear" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="452" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="Reset" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="464" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+    <testcase name="GetNonExistentSymbol" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="476" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="GlobalClockTest" />
+  </testsuite>
+  <testsuite name="PITEnforcerTest" tests="3" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="ClampQueryTime" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="490" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="PITEnforcerTest" />
+    <testcase name="IsValidQuery" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="507" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="PITEnforcerTest" />
+    <testcase name="MaxQueryTime" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="521" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="PITEnforcerTest" />
+  </testsuite>
+  <testsuite name="IntegrationTest" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="EventLoopWithGlobalClock" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="535" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="IntegrationTest" />
+    <testcase name="PITEnforcementInEventLoop" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_event_loop.cpp" line="557" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="IntegrationTest" />
+  </testsuite>
+  <testsuite name="CTradeTest" tests="43" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="ConfigurationMethods" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="50" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="BuyPositionOpensSuccessfully" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="70" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="SellPositionOpensSuccessfully" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="86" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionOpenWithStopLossAndTakeProfit" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="99" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="MultiplePositionsTracked" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="119" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionModifyUpdatesStopLoss" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="133" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionModifyBySymbol" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="146" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionCloseRemovesPosition" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="162" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionCloseBySymbol" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="178" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionClosePartial" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="188" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="PositionCloseByOpposite" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="201" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="BuyPositionProfitCalculation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="222" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="SellPositionProfitCalculation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="235" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="EquityUpdatesWithUnrealizedPnL" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="248" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="BuyLimitOrderCreated" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="266" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="SellStopOrderCreated" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="279" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="OrderModifyUpdatesPrice" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="289" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="OrderDeleteRemovesOrder" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="302" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="QuickBuyMethod" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="322" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="QuickSellMethod" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="331" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="AllPendingOrderMethods" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="340" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="TrailingStopEnableAndUpdate" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="354" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="TrailingStopWithStep" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="375" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="TrailingStopDisable" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="398" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="TrailingStopNeverMovesDown" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="410" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="AccountBalanceTracking" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="436" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="MarginCalculation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="451" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="MarginFreeCalculation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="459" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="MarginLevelCalculation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="468" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="RequestAccessAfterTrade" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="479" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="ResultAccessAfterTrade" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="490" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="SnapshotCapturesCompleteState" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="503" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="RestoreSnapshotRecreatesState" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="516" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="SnapshotPreservesTicketCounter" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="536" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="DealsRecordedOnClose" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="555" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="DealProfitRecorded" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="570" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="InvalidSymbolRejected" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="588" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="InvalidVolumeRejected" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="594" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="ModifyNonexistentPositionFails" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="600" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="CloseNonexistentPositionFails" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="605" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="DeleteNonexistentOrderFails" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="610" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="CompleteTradeLifecycle" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="619" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+    <testcase name="MultipleSymbolsSupported" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_trade.cpp" line="649" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CTradeTest" />
+  </testsuite>
+  <testsuite name="CurrencyConverterTest" tests="17" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="DirectConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="22" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="InvertedConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="29" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="SameCurrencyConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="37" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="MultiHopConversion" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="42" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="MultiHopWithInverse" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="51" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="NoPathThrowsError" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="61" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="UpdateRate" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="71" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="HasPair" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="82" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="GetRateThrowsForMissingPair" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="92" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="FindPathDirect" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="99" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="FindPathMultiHop" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="108" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="FindPathNoPath" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="119" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="FindPathSameCurrency" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="126" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="ValidatePaths" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="132" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="ValidatePathsDisconnected" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="141" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="PairCount" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="149" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+    <testcase name="Clear" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="159" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="CurrencyConverterTest" />
+  </testsuite>
+  <testsuite name="MarginCalculatorTest" tests="15" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="RequiredMargin" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="206" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="RequiredMarginMiniLot" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="220" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="RequiredMarginHighLeverage" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="233" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="MarginLevel" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="246" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="MarginLevelLowEquity" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="254" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="MarginLevelZeroMargin" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="262" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="FreeMargin" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="270" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="HasSufficientMargin" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="278" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="InsufficientMargin" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="296" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="ShouldStopOutFalse" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="321" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="FindLargestLoser" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="330" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="FindLargestLoserAllProfitable" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="346" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="IsMarginCall" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="360" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="MaxVolume" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="369" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+    <testcase name="HedgingMode" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="387" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarginCalculatorTest" />
+  </testsuite>
+  <testsuite name="MarketStateTest" tests="7" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.576">
+    <testcase name="UpdatePrice" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="401" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+    <testcase name="GetSpread" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="411" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+    <testcase name="GetMid" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="420" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+    <testcase name="HasSymbolFalse" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="429" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+    <testcase name="RemoveSymbol" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="440" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+    <testcase name="Clear" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="450" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+    <testcase name="IsStale" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_currency_margin.cpp" line="461" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="MarketStateTest" />
+  </testsuite>
+  <testsuite name="SlippageModelTest" tests="5" failures="3" disabled="0" skipped="0" errors="0" time="0.002" timestamp="2026-02-12T18:37:34.576">
+    <testcase name="ZeroSlippage" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="134" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.576" classname="SlippageModelTest" />
+    <testcase name="FixedSlippage" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="140" status="run" result="completed" time="0.001" timestamp="2026-02-12T18:37:34.576" classname="SlippageModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:143&#x0A;Expected equality of these values:&#x0A;  slippage&#x0A;    Which is: 0&#x0A;  2 * 10&#x0A;    Which is: 20&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:143
+Expected equality of these values:
+  slippage
+    Which is: 0
+  2 * 10
+    Which is: 20
+]]></failure>
+    </testcase>
+    <testcase name="RandomSlippageRange" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="146" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.578" classname="SlippageModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:149&#x0A;Expected: (slippage) &gt;= (1 * 10), actual: 0 vs 10&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:149
+Expected: (slippage) >= (1 * 10), actual: 0 vs 10
+]]></failure>
+    </testcase>
+    <testcase name="VolumeSlippage" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="153" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.578" classname="SlippageModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:158&#x0A;Expected equality of these values:&#x0A;  slippage1&#x0A;    Which is: 0&#x0A;  2 * 10&#x0A;    Which is: 20&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:158
+Expected equality of these values:
+  slippage1
+    Which is: 0
+  2 * 10
+    Which is: 20
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:162&#x0A;Expected equality of these values:&#x0A;  slippage10&#x0A;    Which is: 0&#x0A;  6 * 10&#x0A;    Which is: 60&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:162
+Expected equality of these values:
+  slippage10
+    Which is: 0
+  6 * 10
+    Which is: 60
+]]></failure>
+    </testcase>
+    <testcase name="LatencyProfileSlippage" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="165" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SlippageModelTest" />
+  </testsuite>
+  <testsuite name="CommissionModelTest" tests="6" failures="1" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.579">
+    <testcase name="ZeroCommission" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="175" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CommissionModelTest" />
+    <testcase name="FixedPerLot" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="181" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CommissionModelTest" />
+    <testcase name="FixedPerTrade" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="193" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CommissionModelTest" />
+    <testcase name="SpreadMarkup" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="204" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CommissionModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:207&#x0A;Expected: (commission) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:207
+Expected: (commission) > (0), actual: 0 vs 0
+]]></failure>
+    </testcase>
+    <testcase name="PercentageOfValue" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="210" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CommissionModelTest" />
+    <testcase name="TieredCommission" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="220" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CommissionModelTest" />
+  </testsuite>
+  <testsuite name="SwapModelTest" tests="5" failures="1" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.579">
+    <testcase name="ZeroSwap" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="244" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SwapModelTest" />
+    <testcase name="StandardSwapPoints" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="251" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SwapModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:256&#x0A;Expected: (swap_long) &lt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:256
+Expected: (swap_long) < (0), actual: 0 vs 0
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:260&#x0A;Expected: (swap_short) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:260
+Expected: (swap_short) > (0), actual: 0 vs 0
+]]></failure>
+    </testcase>
+    <testcase name="StandardSwapPercentage" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="263" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SwapModelTest" />
+    <testcase name="TripleSwapMultiplier" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="270" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SwapModelTest" />
+    <testcase name="IslamicSwap" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="278" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SwapModelTest" />
+  </testsuite>
+  <testsuite name="SpreadModelTest" tests="5" failures="5" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.579">
+    <testcase name="FixedSpread" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="300" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SpreadModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:303&#x0A;Expected equality of these values:&#x0A;  spread&#x0A;    Which is: 0&#x0A;  15 * 10&#x0A;    Which is: 150&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:303
+Expected equality of these values:
+  spread
+    Which is: 0
+  15 * 10
+    Which is: 150
+]]></failure>
+    </testcase>
+    <testcase name="HistoricalSpread" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="306" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SpreadModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:313&#x0A;Expected equality of these values:&#x0A;  spread&#x0A;    Which is: 20&#x0A;  expected_spread&#x0A;    Which is: 100&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:313
+Expected equality of these values:
+  spread
+    Which is: 20
+  expected_spread
+    Which is: 100
+]]></failure>
+    </testcase>
+    <testcase name="TimeOfDaySpread" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="316" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SpreadModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:321&#x0A;Expected: (spread) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:321
+Expected: (spread) > (0), actual: 0 vs 0
+]]></failure>
+    </testcase>
+    <testcase name="RandomSpread" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="324" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SpreadModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:327&#x0A;Expected: (spread) &gt;= (5 * 10), actual: 0 vs 50&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:327
+Expected: (spread) >= (5 * 10), actual: 0 vs 50
+]]></failure>
+    </testcase>
+    <testcase name="VolatilitySpread" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="330" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="SpreadModelTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:335&#x0A;Expected: (spread1) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:335
+Expected: (spread1) > (0), actual: 0 vs 0
+]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="CostsEngineTest" tests="10" failures="3" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.579">
+    <testcase name="ConstructionRequiresAllModels" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="347" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="MarketOrderExecution" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="355" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:362&#x0A;Expected: (result.fill_price) &gt; (tick.ask), actual: 1100020 vs 1100020&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:362
+Expected: (result.fill_price) > (tick.ask), actual: 1100020 vs 1100020
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:363&#x0A;Expected: (result.slippage) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:363
+Expected: (result.slippage) > (0), actual: 0 vs 0
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:369&#x0A;Expected: (result.fill_price) &lt; (tick.bid), actual: 1100000 vs 1100000&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:369
+Expected: (result.fill_price) < (tick.bid), actual: 1100000 vs 1100000
+]]></failure>
+    </testcase>
+    <testcase name="LimitOrderTrigger" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="372" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="LimitOrderDoesNotTrigger" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="386" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="StopOrderTrigger" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="399" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="PositionStopLossTrigger" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="412" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="PositionTakeProfitTrigger" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="428" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="GapScenarioFillsAtGapPrice" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="443" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:457&#x0A;Value of: result.executed&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:457
+Value of: result.executed
+  Actual: false
+Expected: true
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:459&#x0A;Expected: (result.fill_price) &gt; (long_position.sl), actual: 0 vs 1105000&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:459
+Expected: (result.fill_price) > (long_position.sl), actual: 0 vs 1105000
+]]></failure>
+    </testcase>
+    <testcase name="DeterministicExecution" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="462" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest" />
+    <testcase name="SwapCalculation" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp" line="477" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="CostsEngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:497&#x0A;Expected: (swap) != (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_costs_engine.cpp:497
+Expected: (swap) != (0), actual: 0 vs 0
+]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="EngineTest" tests="18" failures="11" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-02-12T18:37:34.579">
+    <testcase name="EngineConstruction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="56" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:62&#x0A;Expected equality of these values:&#x0A;  account.Balance() / 1e6&#x0A;    Which is: 0.01&#x0A;  10000.0&#x0A;    Which is: 10000&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:62
+Expected equality of these values:
+  account.Balance() / 1e6
+    Which is: 0.01
+  10000.0
+    Which is: 10000
+]]></failure>
+    </testcase>
+    <testcase name="LoadSymbol" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="67" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="LoadSymbolNotFound" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="75" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="DataFeedAccess" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="84" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="PITDataAccess" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="113" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="BuyOrder" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="146" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:151&#x0A;Value of: success&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:151
+Value of: success
+  Actual: false
+Expected: true
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:154&#x0A;Expected equality of these values:&#x0A;  positions.size()&#x0A;    Which is: 0&#x0A;  1&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:154
+Expected equality of these values:
+  positions.size()
+    Which is: 0
+  1
+]]></failure>
+      <failure message="unknown file&#x0A;SEH exception with code 0xc0000005 thrown in the test body." type=""><![CDATA[unknown file
+SEH exception with code 0xc0000005 thrown in the test body.
+Stack trace:
+
+]]></failure>
+    </testcase>
+    <testcase name="SellOrder" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="160" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:162&#x0A;Value of: success&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:162
+Value of: success
+  Actual: false
+Expected: true
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:165&#x0A;Expected equality of these values:&#x0A;  positions.size()&#x0A;    Which is: 0&#x0A;  1&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:165
+Expected equality of these values:
+  positions.size()
+    Which is: 0
+  1
+]]></failure>
+      <failure message="unknown file&#x0A;SEH exception with code 0xc0000005 thrown in the test body." type=""><![CDATA[unknown file
+SEH exception with code 0xc0000005 thrown in the test body.
+Stack trace:
+
+]]></failure>
+    </testcase>
+    <testcase name="MarginCheck" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="169" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:176&#x0A;Value of: success&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:176
+Value of: success
+  Actual: false
+Expected: true
+]]></failure>
+    </testcase>
+    <testcase name="ModifyPosition" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="183" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:187&#x0A;Expected equality of these values:&#x0A;  positions.size()&#x0A;    Which is: 0&#x0A;  1&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:187
+Expected equality of these values:
+  positions.size()
+    Which is: 0
+  1
+]]></failure>
+    </testcase>
+    <testcase name="ClosePosition" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="199" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:203&#x0A;Expected equality of these values:&#x0A;  positions.size()&#x0A;    Which is: 0&#x0A;  1&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:203
+Expected equality of these values:
+  positions.size()
+    Which is: 0
+  1
+]]></failure>
+    </testcase>
+    <testcase name="TickCallbackExecution" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="222" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="BarCallbackExecution" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="243" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="TradeCallbackExecution" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="279" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:289&#x0A;Expected equality of these values:&#x0A;  positions.size()&#x0A;    Which is: 0&#x0A;  1&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:289
+Expected equality of these values:
+  positions.size()
+    Which is: 0
+  1
+]]></failure>
+    </testcase>
+    <testcase name="RunSteps" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="301" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest" />
+    <testcase name="PauseResume" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="321" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:347&#x0A;Expected equality of these values:&#x0A;  tick_count&#x0A;    Which is: 5&#x0A;  10&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:347
+Expected equality of these values:
+  tick_count
+    Which is: 5
+  10
+]]></failure>
+    </testcase>
+    <testcase name="Stop" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="350" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:373&#x0A;Expected equality of these values:&#x0A;  tick_count&#x0A;    Which is: 9&#x0A;  10&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:373
+Expected equality of these values:
+  tick_count
+    Which is: 9
+  10
+]]></failure>
+    </testcase>
+    <testcase name="CompleteBacktestScenario" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="380" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:446&#x0A;Expected: (trades_executed) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:446
+Expected: (trades_executed) > (0), actual: 0 vs 0
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:450&#x0A;Expected: (deals.size()) &gt; (0), actual: 0 vs 0&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:450
+Expected: (deals.size()) > (0), actual: 0 vs 0
+]]></failure>
+    </testcase>
+    <testcase name="MultiSymbolTrading" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp" line="462" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="EngineTest">
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:481&#x0A;Value of: eur_success&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:481
+Value of: eur_success
+  Actual: false
+Expected: true
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:482&#x0A;Value of: gbp_success&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:482
+Value of: gbp_success
+  Actual: false
+Expected: true
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:485&#x0A;Expected equality of these values:&#x0A;  positions.size()&#x0A;    Which is: 0&#x0A;  2&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:485
+Expected equality of these values:
+  positions.size()
+    Which is: 0
+  2
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:492&#x0A;Expected equality of these values:&#x0A;  symbols.size()&#x0A;    Which is: 0&#x0A;  2&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:492
+Expected equality of these values:
+  symbols.size()
+    Which is: 0
+  2
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:493&#x0A;Value of: symbols.count(&quot;EURUSD&quot;) &gt; 0&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:493
+Value of: symbols.count("EURUSD") > 0
+  Actual: false
+Expected: true
+]]></failure>
+      <failure message="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:494&#x0A;Value of: symbols.count(&quot;GBPUSD&quot;) &gt; 0&#x0A;  Actual: false&#x0A;Expected: true&#x0A;" type=""><![CDATA[C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_engine.cpp:494
+Value of: symbols.count("GBPUSD") > 0
+  Actual: false
+Expected: true
+]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="ZmqBroadcaster" tests="10" failures="0" disabled="0" skipped="0" errors="0" time="0.078" timestamp="2026-02-12T18:37:34.579">
+    <testcase name="Construction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="18" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.579" classname="ZmqBroadcaster" />
+    <testcase name="StartStop" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="25" status="run" result="completed" time="0.012" timestamp="2026-02-12T18:37:34.579" classname="ZmqBroadcaster" />
+    <testcase name="PublishTick" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="37" status="run" result="completed" time="0.006" timestamp="2026-02-12T18:37:34.592" classname="ZmqBroadcaster" />
+    <testcase name="PublishBar" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="50" status="run" result="completed" time="0.009" timestamp="2026-02-12T18:37:34.598" classname="ZmqBroadcaster" />
+    <testcase name="PublishTrade" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="63" status="run" result="completed" time="0.007" timestamp="2026-02-12T18:37:34.608" classname="ZmqBroadcaster" />
+    <testcase name="PublishOrder" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="76" status="run" result="completed" time="0.009" timestamp="2026-02-12T18:37:34.615" classname="ZmqBroadcaster" />
+    <testcase name="PublishEquity" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="89" status="run" result="completed" time="0.009" timestamp="2026-02-12T18:37:34.624" classname="ZmqBroadcaster" />
+    <testcase name="PublishAccount" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="102" status="run" result="completed" time="0.007" timestamp="2026-02-12T18:37:34.634" classname="ZmqBroadcaster" />
+    <testcase name="MultipleMessages" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="115" status="run" result="completed" time="0.006" timestamp="2026-02-12T18:37:34.642" classname="ZmqBroadcaster" />
+    <testcase name="NonBlockingPublish" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="130" status="run" result="completed" time="0.008" timestamp="2026-02-12T18:37:34.649" classname="ZmqBroadcaster" />
+  </testsuite>
+  <testsuite name="WriteAheadLog" tests="11" failures="6" disabled="0" skipped="0" errors="0" time="0.005" timestamp="2026-02-12T18:37:34.658">
+    <testcase name="Construction" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="154" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.658" classname="WriteAheadLog" />
+    <testcase name="OpenClose" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="161" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.658" classname="WriteAheadLog" />
+    <testcase name="AppendEntry" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="173" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.658" classname="WriteAheadLog" />
+    <testcase name="ReadAll" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="187" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.659" classname="WriteAheadLog">
+      <failure message="unknown file&#x0A;C++ exception with description &quot;Failed to read WAL: Corrupted WAL: CRC32 mismatch&quot; thrown in the test body.&#x0A;" type=""><![CDATA[unknown file
+C++ exception with description "Failed to read WAL: Corrupted WAL: CRC32 mismatch" thrown in the test body.
+]]></failure>
+    </testcase>
+    <testcase name="CRC32Verification" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="210" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.659" classname="WriteAheadLog">
+      <failure message="unknown file&#x0A;C++ exception with description &quot;Failed to read WAL: Corrupted WAL: CRC32 mismatch&quot; thrown in the test body.&#x0A;" type=""><![CDATA[unknown file
+C++ exception with description "Failed to read WAL: Corrupted WAL: CRC32 mismatch" thrown in the test body.
+]]></failure>
+    </testcase>
+    <testcase name="Checkpoint" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="230" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.660" classname="WriteAheadLog">
+      <failure message="unknown file&#x0A;C++ exception with description &quot;Failed to read WAL: Corrupted WAL: CRC32 mismatch&quot; thrown in the test body.&#x0A;" type=""><![CDATA[unknown file
+C++ exception with description "Failed to read WAL: Corrupted WAL: CRC32 mismatch" thrown in the test body.
+]]></failure>
+    </testcase>
+    <testcase name="MultipleCheckpoints" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="256" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.660" classname="WriteAheadLog">
+      <failure message="unknown file&#x0A;C++ exception with description &quot;Failed to read WAL: Corrupted WAL: CRC32 mismatch&quot; thrown in the test body.&#x0A;" type=""><![CDATA[unknown file
+C++ exception with description "Failed to read WAL: Corrupted WAL: CRC32 mismatch" thrown in the test body.
+]]></failure>
+    </testcase>
+    <testcase name="Clear" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="284" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.661" classname="WriteAheadLog" />
+    <testcase name="LargeEntry" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="305" status="run" result="completed" time="0.001" timestamp="2026-02-12T18:37:34.662" classname="WriteAheadLog">
+      <failure message="unknown file&#x0A;C++ exception with description &quot;Failed to read WAL: Corrupted WAL: CRC32 mismatch&quot; thrown in the test body.&#x0A;" type=""><![CDATA[unknown file
+C++ exception with description "Failed to read WAL: Corrupted WAL: CRC32 mismatch" thrown in the test body.
+]]></failure>
+    </testcase>
+    <testcase name="EmptyEntry" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="330" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.663" classname="WriteAheadLog" />
+    <testcase name="Persistence" file="C:\Users\rharu\Documents\MyApplications\HaruQuant\cpp\tests\test_zmq_wal.cpp" line="344" status="run" result="completed" time="0." timestamp="2026-02-12T18:37:34.663" classname="WriteAheadLog">
+      <failure message="unknown file&#x0A;C++ exception with description &quot;Failed to read WAL: Corrupted WAL: CRC32 mismatch&quot; thrown in the test body.&#x0A;" type=""><![CDATA[unknown file
+C++ exception with description "Failed to read WAL: Corrupted WAL: CRC32 mismatch" thrown in the test body.
+]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>
