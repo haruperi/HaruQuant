@@ -85,6 +85,7 @@ struct SymbolInfoData {
     double trade_tick_value_loss{1.0};
     double trade_tick_size{0.00001};
     double trade_contract_size{100000.0};
+    double margin_initial{0.0};
 
     int32_t swap_mode{1};
     double swap_long{-1.0};
@@ -127,4 +128,3 @@ struct TradeRecordData {
 };
 
 }  // namespace hqt::sim
-

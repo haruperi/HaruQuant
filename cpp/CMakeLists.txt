@@ -4,6 +4,7 @@ add_library(hqt_core STATIC
     src/trading/trade.cpp
     src/sim/simulator_state.cpp
     src/sim/sim_data.cpp
+    src/sim/calculators.cpp
     src/sim/simulator_client.cpp
 )
 

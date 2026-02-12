@@ -1,4 +1,5 @@
 #include "sim/simulator_client.hpp"
+#include "sim/calculators.hpp"
 
 namespace hqt::sim {
 
@@ -60,6 +61,47 @@ std::string SimulatorClient::trade_retcode_description(int retcode) const {
         case 10021: return "No quotes";
         default: return "Unknown retcode";
     }
+}
+
+double SimulatorClient::order_calc_margin(
+    int action,
+    const std::string& symbol,
+    double volume,
+    double price) const {
+    (void)action;
+    const auto* info = symbol_info(symbol);
+    if (info == nullptr) {
+        return 0.0;
+    }
+    return calc_margin(
+        info->trade_calc_mode,
+        volume,
+        price,
+        info->trade_contract_size,
+        static_cast<double>(account_data_.leverage),
+        info->trade_tick_size > 0.0 ? info->trade_tick_size : info->point,
+        info->trade_tick_value,
+        info->margin_initial);
+}
+
+double SimulatorClient::order_calc_profit(
+    int action,
+    const std::string& symbol,
+    double volume,
+    double price_open,
+    double price_close) const {
+    const auto* info = symbol_info(symbol);
+    if (info == nullptr) {
+        return 0.0;
+    }
+    return calc_profit(
+        action,
+        volume,
+        price_open,
+        price_close,
+        info->trade_tick_size > 0.0 ? info->trade_tick_size : info->point,
+        info->trade_tick_value,
+        info->trade_contract_size);
 }
 
 void SimulatorClient::set_account_info(const AccountInfoData& data) {
@@ -124,4 +166,3 @@ std::vector<TradeRecordData> SimulatorClient::collect_records(
 }
 
 }  // namespace hqt::sim
-

@@ -75,6 +75,7 @@ Dict SymbolInfoData::to_dict() const {
         {"trade_tick_value_loss", to_string_num(trade_tick_value_loss)},
         {"trade_tick_size", to_string_num(trade_tick_size)},
         {"trade_contract_size", to_string_num(trade_contract_size)},
+        {"margin_initial", to_string_num(margin_initial)},
         {"swap_mode", to_string_num(swap_mode)},
         {"swap_long", to_string_num(swap_long)},
         {"swap_short", to_string_num(swap_short)},
@@ -110,4 +111,3 @@ Dict TradeRecordData::to_dict() const {
 }
 
 }  // namespace hqt::sim
-

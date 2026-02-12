@@ -46,6 +46,17 @@ public:
 
     [[nodiscard]] std::pair<int, std::string> last_error() const;
     [[nodiscard]] std::string trade_retcode_description(int retcode) const;
+    [[nodiscard]] double order_calc_margin(
+        int action,
+        const std::string& symbol,
+        double volume,
+        double price) const;
+    [[nodiscard]] double order_calc_profit(
+        int action,
+        const std::string& symbol,
+        double volume,
+        double price_open,
+        double price_close) const;
 
     // Test/data-seeding helpers used by incremental migration PRs.
     void set_account_info(const AccountInfoData& data);
@@ -78,4 +89,3 @@ private:
 };
 
 }  // namespace hqt::sim
-
