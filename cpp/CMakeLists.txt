@@ -10,6 +10,7 @@ add_library(hqt_core STATIC
     src/sim/simulator_client.cpp
     src/sim/backtest_engine.cpp
     src/sim/tick_model.cpp
+    src/sim/trade_record.cpp
 )
 
 target_include_directories(hqt_core PUBLIC

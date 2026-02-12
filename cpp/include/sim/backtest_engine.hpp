@@ -9,6 +9,7 @@
 #include "sim/simulator_client.hpp"
 #include "sim/simulator_state.hpp"
 #include "sim/tick_model.hpp"
+#include "sim/trade_record.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -65,8 +66,12 @@ public:
     [[nodiscard]] const SimulatorState& state() const noexcept;
     [[nodiscard]] const AccountInfoData& account_snapshot() const noexcept;
     [[nodiscard]] std::optional<AutoCloseReason> close_reason(uint64_t ticket) const;
+    [[nodiscard]] const std::vector<TradeRecord>& completed_trades() const noexcept;
 
 private:
+    void ensure_trade_record_for_position(const TradeRecordData& pos, int64_t now_msc);
+    void close_position_and_track(const TradeRecordData& pos, int64_t now_msc, double close_price);
+    double lookup_deal_profit_or_fallback(uint64_t deal_ticket, const TradeRecordData& pos, double close_price) const;
     void monitor_pending_orders(const std::string& symbol, double bid, double ask, int64_t current_time_msc);
     void monitor_positions_and_account(const std::string& symbol, double bid, double ask);
     static bool should_trigger_order(const TradeRecordData& order, double bid, double ask);
@@ -83,6 +88,7 @@ private:
     SimulatorClient& client_;
     SimulatorState state_{};
     AccountMonitor account_monitor_{};
+    TradeRecordTracker trade_record_tracker_{};
     AccountInfoData account_snapshot_{};
     std::unordered_map<uint64_t, AutoCloseReason> close_reasons_{};
     BarProcessedCallback on_bar_processed_{};

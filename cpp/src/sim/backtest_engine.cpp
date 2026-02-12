@@ -1,5 +1,6 @@
 #include "sim/backtest_engine.hpp"
 
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -19,6 +20,7 @@ void BacktestEngine::run_trading_timeframe(
     state_.reset();
     state_.running = true;
     close_reasons_.clear();
+    trade_record_tracker_.reset();
     account_snapshot_ = client_.account_info();
 
     const SymbolInfoData* info = client_.symbol_info(symbol);
@@ -66,6 +68,7 @@ void BacktestEngine::run_trading_timeframe_with_ticks(
     state_.reset();
     state_.running = true;
     close_reasons_.clear();
+    trade_record_tracker_.reset();
     account_snapshot_ = client_.account_info();
 
     if (client_.symbol_info(symbol) == nullptr || volume <= 0.0 || bars.empty() || ticks.empty()) {
@@ -75,6 +78,8 @@ void BacktestEngine::run_trading_timeframe_with_ticks(
 
     std::size_t next_bar_idx = 0;
     for (const auto& tick_model : ticks) {
+        state_.current_time_us = tick_model.time_msc * 1000;
+
         SymbolTickData tick;
         tick.time = tick_model.time_msc / 1000;
         tick.time_msc = tick_model.time_msc;
@@ -119,6 +124,65 @@ std::optional<AutoCloseReason> BacktestEngine::close_reason(uint64_t ticket) con
         return std::nullopt;
     }
     return it->second;
+}
+
+const std::vector<TradeRecord>& BacktestEngine::completed_trades() const noexcept {
+    return trade_record_tracker_.completed_trades();
+}
+
+void BacktestEngine::ensure_trade_record_for_position(const TradeRecordData& pos, int64_t now_msc) {
+    if (trade_record_tracker_.has_open(pos.ticket)) {
+        return;
+    }
+
+    const bool is_buy = (pos.type == 0U);
+    const int action = is_buy ? 0 : 1;
+    double initial_risk_usd = 0.0;
+    if (pos.sl > 0.0) {
+        initial_risk_usd = std::abs(client_.order_calc_profit(
+            action,
+            pos.symbol,
+            pos.volume,
+            pos.price_open,
+            pos.sl));
+    }
+
+    trade_record_tracker_.on_open(
+        pos.ticket,
+        pos.symbol,
+        is_buy,
+        pos.volume,
+        pos.price_open,
+        pos.sl,
+        pos.tp,
+        now_msc,
+        initial_risk_usd);
+}
+
+void BacktestEngine::close_position_and_track(const TradeRecordData& pos, int64_t now_msc, double close_price) {
+    const TradeResult result = client_.close_position(pos.ticket);
+    if (!(result.retcode == 10009 || result.retcode == 10010)) {
+        return;
+    }
+
+    const double pnl = lookup_deal_profit_or_fallback(result.deal, pos, close_price);
+    (void)trade_record_tracker_.on_close(pos.ticket, now_msc, close_price, pnl);
+}
+
+double BacktestEngine::lookup_deal_profit_or_fallback(
+    uint64_t deal_ticket,
+    const TradeRecordData& pos,
+    double close_price) const {
+    if (deal_ticket > 0) {
+        const auto deals = client_.history_deals_get(deal_ticket);
+        if (!deals.empty()) {
+            return deals.front().profit;
+        }
+    }
+
+    const bool is_buy = (pos.type == 0U);
+    const int action = is_buy ? 0 : 1;
+    return client_.order_calc_profit(action, pos.symbol, pos.volume, pos.price_open, close_price);
 }
 
 void BacktestEngine::monitor_pending_orders(
@@ -171,6 +235,13 @@ void BacktestEngine::monitor_pending_orders(
             continue;
         }
 
+        if (fill.order > 0) {
+            const auto opened = client_.positions_get(fill.order);
+            if (!opened.empty()) {
+                ensure_trade_record_for_position(opened.front(), current_time_msc);
+            }
+        }
+
         TradeRequest remove;
         remove.action = 8;  // TRADE_ACTION_REMOVE
         remove.order = order.ticket;
@@ -187,16 +258,23 @@ void BacktestEngine::monitor_positions_and_account(const std::string& symbol, do
     for (const auto& pos : positions) {
         const bool is_buy = (pos.type == 0U);
         const double current_price = is_buy ? bid : ask;
+        ensure_trade_record_for_position(pos, state_.current_time_us / 1000);
+        const double pnl = client_.order_calc_profit(
+            is_buy ? 0 : 1,
+            symbol,
+            pos.volume,
+            pos.price_open,
+            current_price);
+        trade_record_tracker_.on_update(pos.ticket, pnl);
+
         const bool sl_hit = (pos.sl > 0.0) &&
             (is_buy ? (current_price <= pos.sl) : (current_price >= pos.sl));
         const bool tp_hit = (pos.tp > 0.0) &&
             (is_buy ? (current_price >= pos.tp) : (current_price <= pos.tp));
 
         if (sl_hit || tp_hit) {
-            const TradeResult result = client_.close_position(pos.ticket);
-            if (result.retcode == 10009 || result.retcode == 10010) {
-                close_reasons_[pos.ticket] = tp_hit ? AutoCloseReason::TakeProfit : AutoCloseReason::StopLoss;
-            }
+            close_position_and_track(pos, state_.current_time_us / 1000, current_price);
+            close_reasons_[pos.ticket] = tp_hit ? AutoCloseReason::TakeProfit : AutoCloseReason::StopLoss;
         }
     }
 
@@ -222,10 +300,16 @@ void BacktestEngine::apply_exit_signal(const std::string& symbol, int exit_signa
     }
 
     const auto positions = client_.positions_get(std::nullopt, symbol);
+    const auto* tick = client_.symbol_info_tick(symbol);
+    if (tick == nullptr) {
+        return;
+    }
+
     for (const auto& pos : positions) {
         const bool is_buy = (pos.type == 0U);
         if ((exit_signal == 1 && is_buy) || (exit_signal == -1 && !is_buy)) {
-            (void)client_.close_position(pos.ticket);
+            const double close_price = is_buy ? tick->bid : tick->ask;
+            close_position_and_track(pos, state_.current_time_us / 1000, close_price);
         }
     }
 }
@@ -251,7 +335,16 @@ void BacktestEngine::apply_entry_signal(
     request.sl = sl;
     request.tp = tp;
 
-    (void)client_.order_send(request);
+    const TradeResult result = client_.order_send(request);
+    if (!(result.retcode == 10009 || result.retcode == 10010) || result.order == 0) {
+        return;
+    }
+
+    const auto opened = client_.positions_get(result.order);
+    if (opened.empty()) {
+        return;
+    }
+    ensure_trade_record_for_position(opened.front(), state_.current_time_us / 1000);
 }
 
 }  // namespace hqt::sim
