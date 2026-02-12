@@ -202,6 +202,15 @@ void SimulatorClient::sync_state_from_trade() {
     history_orders_data_.clear();
 
     const auto& trade = trade_gateway_.trade();
+    const auto& account = trade.Account();
+
+    account_data_.balance = account.Balance();
+    account_data_.credit = account.Credit();
+    account_data_.profit = account.Profit();
+    account_data_.equity = account.Equity();
+    account_data_.margin = account.Margin();
+    account_data_.margin_free = account.FreeMargin();
+    account_data_.margin_level = account.MarginLevel();
 
     for (const auto& pos : trade.GetPositions()) {
         TradeRecordData data;

@@ -5,6 +5,7 @@ add_library(hqt_core STATIC
     src/sim/simulator_state.cpp
     src/sim/sim_data.cpp
     src/sim/calculators.cpp
+    src/sim/account_monitor.cpp
     src/sim/trade_gateway.cpp
     src/sim/simulator_client.cpp
     src/sim/backtest_engine.cpp

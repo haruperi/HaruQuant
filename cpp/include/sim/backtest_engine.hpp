@@ -5,13 +5,16 @@
 
 #pragma once
 
+#include "sim/account_monitor.hpp"
 #include "sim/simulator_client.hpp"
 #include "sim/simulator_state.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace hqt::sim {
@@ -25,6 +28,13 @@ struct BacktestBarStep {
     double spread_points{-1.0};
     int entry_signal{0};  // 1=buy, -1=sell, 0=none
     int exit_signal{0};   // 1=close buys, -1=close sells, 0=none
+    double sl{0.0};
+    double tp{0.0};
+};
+
+enum class AutoCloseReason {
+    StopLoss = 1,
+    TakeProfit = 2,
 };
 
 /**
@@ -47,15 +57,27 @@ public:
         const std::vector<BacktestBarStep>& bars);
 
     [[nodiscard]] const SimulatorState& state() const noexcept;
+    [[nodiscard]] const AccountInfoData& account_snapshot() const noexcept;
+    [[nodiscard]] std::optional<AutoCloseReason> close_reason(uint64_t ticket) const;
 
 private:
+    void monitor_positions_and_account(const std::string& symbol, double bid, double ask);
     void apply_exit_signal(const std::string& symbol, int exit_signal);
-    void apply_entry_signal(const std::string& symbol, double volume, int entry_signal, double bid, double ask);
+    void apply_entry_signal(
+        const std::string& symbol,
+        double volume,
+        int entry_signal,
+        double bid,
+        double ask,
+        double sl,
+        double tp);
 
     SimulatorClient& client_;
     SimulatorState state_{};
+    AccountMonitor account_monitor_{};
+    AccountInfoData account_snapshot_{};
+    std::unordered_map<uint64_t, AutoCloseReason> close_reasons_{};
     BarProcessedCallback on_bar_processed_{};
 };
 
 }  // namespace hqt::sim
-
