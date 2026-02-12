@@ -12,6 +12,11 @@ __pycache__/
 
 # C extensions
 *.so
+*.pyd
+
+# C++ build artifacts
+vcpkg_installed/
+CMakeUserPresets.json
 
 # Distribution / packaging
 .Python

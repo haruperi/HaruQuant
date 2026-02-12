@@ -1,0 +1,11 @@
+{
+    "name": "hqt",
+    "version-string": "0.1.0",
+    "description": "HaruQuant C++ core engine",
+    "dependencies": [
+        "gtest",
+        "benchmark",
+        "spdlog",
+        "tomlplusplus"
+    ]
+}

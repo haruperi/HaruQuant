@@ -54,3 +54,19 @@ pylint
 mypy
 bandit
 bandit[toml]
+
+# C++ Build System
+cmake>=3.21
+
+# C++ Testing & Benchmarking
+gtest>=1.12
+benchmark>=1.7
+
+# C++ Logging
+spdlog>=1.10
+
+# C++ Configuration
+tomlplusplus>=3.0
+
+# Python/C++ Bridge
+nanobind>=1.6
