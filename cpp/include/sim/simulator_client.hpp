@@ -59,6 +59,7 @@ public:
         double price_open,
         double price_close) const;
     [[nodiscard]] TradeResult order_send(const TradeRequest& request);
+    [[nodiscard]] TradeResult close_position(uint64_t ticket);
 
     // Test/data-seeding helpers used by incremental migration PRs.
     void set_account_info(const AccountInfoData& data);

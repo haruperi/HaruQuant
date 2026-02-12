@@ -114,6 +114,49 @@ TradeResult SimulatorClient::order_send(const TradeRequest& request) {
     return result;
 }
 
+TradeResult SimulatorClient::close_position(uint64_t ticket) {
+    if (ticket == 0) {
+        TradeResult invalid;
+        invalid.retcode = 10013;
+        invalid.comment = "Invalid request: missing position ticket";
+        return invalid;
+    }
+
+    std::string symbol;
+    const auto pos_it = positions_data_.find(ticket);
+    if (pos_it != positions_data_.end()) {
+        symbol = pos_it->second.symbol;
+    }
+
+    if (!symbol.empty()) {
+        const auto tick_it = ticks_data_.find(symbol);
+        if (tick_it != ticks_data_.end()) {
+            const auto& tick = tick_it->second;
+            trade_gateway_.trade().UpdatePrices(symbol, tick.bid, tick.ask, tick.time_msc * 1000);
+        }
+    }
+
+    const bool ok = trade_gateway_.trade().PositionClose(ticket);
+
+    TradeResult result;
+    result.retcode = static_cast<int>(trade_gateway_.trade().ResultRetcode());
+    result.deal = trade_gateway_.trade().ResultDeal();
+    result.order = trade_gateway_.trade().ResultOrder();
+    result.volume = trade_gateway_.trade().ResultVolume();
+    result.price = trade_gateway_.trade().ResultPrice();
+    result.bid = trade_gateway_.trade().ResultBid();
+    result.ask = trade_gateway_.trade().ResultAsk();
+    result.comment = trade_gateway_.trade().ResultComment();
+
+    if (ok && (result.retcode == 10009 || result.retcode == 10010)) {
+        sync_state_from_trade();
+    } else if (!ok && result.retcode == 0) {
+        result.retcode = 10011;
+    }
+
+    return result;
+}
+
 void SimulatorClient::set_account_info(const AccountInfoData& data) {
     account_data_ = data;
     trade_gateway_ = TradeGateway(account_data_);
