@@ -8,6 +8,7 @@
 #include "sim/account_monitor.hpp"
 #include "sim/simulator_client.hpp"
 #include "sim/simulator_state.hpp"
+#include "sim/tick_model.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -55,6 +56,11 @@ public:
         const std::string& symbol,
         double volume,
         const std::vector<BacktestBarStep>& bars);
+    void run_trading_timeframe_with_ticks(
+        const std::string& symbol,
+        double volume,
+        const std::vector<BacktestBarStep>& bars,
+        const std::vector<ModelTick>& ticks);
 
     [[nodiscard]] const SimulatorState& state() const noexcept;
     [[nodiscard]] const AccountInfoData& account_snapshot() const noexcept;

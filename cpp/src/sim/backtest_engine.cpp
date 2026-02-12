@@ -58,6 +58,53 @@ void BacktestEngine::run_trading_timeframe(
     state_.running = false;
 }
 
+void BacktestEngine::run_trading_timeframe_with_ticks(
+    const std::string& symbol,
+    double volume,
+    const std::vector<BacktestBarStep>& bars,
+    const std::vector<ModelTick>& ticks) {
+    state_.reset();
+    state_.running = true;
+    close_reasons_.clear();
+    account_snapshot_ = client_.account_info();
+
+    if (client_.symbol_info(symbol) == nullptr || volume <= 0.0 || bars.empty() || ticks.empty()) {
+        state_.running = false;
+        return;
+    }
+
+    std::size_t next_bar_idx = 0;
+    for (const auto& tick_model : ticks) {
+        SymbolTickData tick;
+        tick.time = tick_model.time_msc / 1000;
+        tick.time_msc = tick_model.time_msc;
+        tick.bid = tick_model.bid;
+        tick.ask = tick_model.ask;
+        tick.last = tick_model.last;
+        client_.set_symbol_tick(symbol, tick);
+
+        monitor_pending_orders(symbol, tick.bid, tick.ask, tick.time_msc);
+        monitor_positions_and_account(symbol, tick.bid, tick.ask);
+
+        while (next_bar_idx < bars.size() && tick.time_msc >= bars[next_bar_idx].time_msc) {
+            const BacktestBarStep& bar = bars[next_bar_idx];
+            state_.current_bar_index = next_bar_idx;
+            state_.current_time_us = bar.time_msc * 1000;
+
+            apply_exit_signal(symbol, bar.exit_signal);
+            apply_entry_signal(symbol, volume, bar.entry_signal, tick.bid, tick.ask, bar.sl, bar.tp);
+
+            ++state_.processed_events;
+            if (on_bar_processed_) {
+                on_bar_processed_(next_bar_idx, bar, state_);
+            }
+            ++next_bar_idx;
+        }
+    }
+
+    state_.running = false;
+}
+
 const SimulatorState& BacktestEngine::state() const noexcept {
     return state_;
 }
