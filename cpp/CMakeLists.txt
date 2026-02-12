@@ -2,6 +2,7 @@
 add_library(hqt_core STATIC
     src/hello.cpp
     src/trading/trade.cpp
+    src/sim/simulator_state.cpp
 )
 
 target_include_directories(hqt_core PUBLIC

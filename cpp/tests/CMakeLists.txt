@@ -10,6 +10,7 @@ enable_testing()
 
 # Test executable
 add_executable(hqt_tests
+    test_simulator_state.cpp
     test_data_structures.cpp
     test_utilities.cpp
     test_event_loop.cpp
