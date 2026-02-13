@@ -4,6 +4,8 @@
 
 namespace nb = nanobind;
 
+void register_sim_bindings(nb::module_& m);
+
 NB_MODULE(hqt_engine, m) {
     m.doc() = "HQT Engine - C++ core for HaruQuant";
 
@@ -20,4 +22,7 @@ NB_MODULE(hqt_engine, m) {
         });
 
     m.def("version", &hqt::version, "Returns the engine version struct.");
+
+    nb::module_ sim = m.def_submodule("sim", "Simulation engine bindings");
+    register_sim_bindings(sim);
 }

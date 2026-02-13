@@ -21,6 +21,7 @@ find_package(nanobind CONFIG REQUIRED)
 nanobind_add_module(hqt_engine
     STABLE_ABI
     src/module.cpp
+    src/sim_bindings.cpp
 )
 
 target_link_libraries(hqt_engine PRIVATE hqt_core)
