@@ -66,14 +66,14 @@ def main():
         # CHOOSE PROVIDER (uncomment one option)
         
         # Option 1: Live Trading with MT5 AccountInfo instance
-        #account = AccountInfo()
+        account = AccountInfo()
 
         # Option 2: Simulator with Custom Settings
-        simulator_account_data = AccountInfoSimulator(
-            #balance=50000,
-        )
-        simulator = SimulatorClient(simulator_account_data)
-        account = AccountInfo(api=simulator)
+        # simulator_account_data = AccountInfoSimulator(
+        #     #balance=50000,
+        # )
+        # simulator = SimulatorClient(simulator_account_data)
+        # account = AccountInfo(api=simulator)
   
 
 

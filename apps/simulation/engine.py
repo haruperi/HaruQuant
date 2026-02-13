@@ -1950,6 +1950,56 @@ class SimulationEngine(TradeRecordMixin):
             return next_idx
 
         if mode == "trading_timeframe":
+            # --- C++ backend routing ---
+            from apps.simulation.backend import (
+                SimBackend,
+                get_backend,
+                is_cpp_available,
+                run_trading_timeframe_cpp,
+            )
+
+            _backend = get_backend()
+            if _backend == SimBackend.CPP and is_cpp_available():
+                try:
+                    cpp_result = run_trading_timeframe_cpp(
+                        data=data,
+                        original_data=original_data,
+                        strategy=strategy,
+                        symbol=symbol,
+                        volume=volume,
+                        symbol_info=symbol_info,
+                        warmup_bars=warmup_bars,
+                        account_data=self._account_data,
+                    )
+                    self._completed_trades.extend(cpp_result.completed_trades)
+                    self._account_data.balance = cpp_result.final_balance
+                    self._account_data.equity = cpp_result.final_equity
+                    self._account_data.margin = cpp_result.final_margin
+                    self._account_data.margin_free = cpp_result.final_margin_free
+                    self._account_data.profit = cpp_result.final_profit
+                except Exception as exc:
+                    logger.error(
+                        f"C++ backend failed, falling back to Python: {exc}"
+                    )
+                else:
+                    # C++ succeeded — skip Python loop, do post-run cleanup, return.
+                    if save_db:
+                        self._save_backtest_to_db(metadata)
+                    if prev_fast_backtest is not None:
+                        self._simulator._fast_backtest = prev_fast_backtest
+                    if prev_commission is not None:
+                        self._simulator._backtest_commission_per_contract = (
+                            prev_commission
+                        )
+                    if prev_slippage is not None:
+                        self._simulator._backtest_slippage_points = prev_slippage
+                    if not suppress_logs:
+                        logger.info("\n" + "=" * 70)
+                        logger.info("Simulation completed (C++ backend)")
+                    self._suppress_backtest_logs = prev_suppress_logs
+                    return
+
+            # --- Python bar-by-bar loop (default / fallback) ---
             # Build signal cache from the original full dataset
             self._signal_cache = self._build_signal_cache(original_data, strategy)
             # Account for warmup offset when accessing signal cache
