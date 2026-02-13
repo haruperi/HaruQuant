@@ -1,9 +1,9 @@
 """Build the C++ Python bridge reliably from Python.
 
 This script avoids common local issues by:
-1) Using a dedicated Visual Studio build directory (default: build_vs)
+1) Using the standard Visual Studio build directory (default: build)
 2) Building only the bridge target (hqt_engine)
-3) Copying the built module into build/bridge/Release for existing Python usage scripts
+3) Ensuring the built module is available at build/bridge/Release
 
 Usage:
     python scripts/build_cpp_bridge.py
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_BUILD_DIR = PROJECT_ROOT / "build_vs"
+DEFAULT_BUILD_DIR = PROJECT_ROOT / "build"
 DEFAULT_GENERATOR = "Visual Studio 18 2026"
 DEFAULT_ARCH = "x64"
 DEFAULT_CONFIG = "Release"
@@ -32,7 +32,36 @@ def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, cwd=str(PROJECT_ROOT))
 
 
+def _normalize_path(path: Path) -> str:
+    return str(path.resolve()).replace("\\", "/").lower()
+
+
+def _repair_stale_cache(build_dir: Path) -> None:
+    """Remove stale CMake cache when a build directory was renamed."""
+    cache = build_dir / "CMakeCache.txt"
+    if not cache.exists():
+        return
+
+    text = cache.read_text(encoding="utf-8", errors="ignore")
+    expected = _normalize_path(build_dir)
+
+    # CMake stores the originating binary dir in cache internals.
+    mismatch = (
+        "CMAKE_CACHEFILE_DIR:INTERNAL=" in text
+        and expected not in text.replace("\\", "/").lower()
+    )
+    if not mismatch:
+        return
+
+    cmake_files = build_dir / "CMakeFiles"
+    if cmake_files.exists():
+        shutil.rmtree(cmake_files, ignore_errors=True)
+    cache.unlink(missing_ok=True)
+    print(f"Repaired stale CMake cache in {build_dir}")
+
+
 def configure(build_dir: Path, config: str, generator: str, arch: str, toolchain: Path) -> None:
+    _repair_stale_cache(build_dir)
     cmd = [
         "cmake",
         "-B",
@@ -73,6 +102,12 @@ def copy_module(build_dir: Path, config: str) -> Path:
     dst_dir = PROJECT_ROOT / "build" / "bridge" / "Release"
     dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / src.name
+
+    # When build_dir is already "build", src and dst are the same file.
+    if src.resolve() == dst.resolve():
+        print(f"Module ready: {dst}")
+        return dst
+
     shutil.copy2(src, dst)
     print(f"Copied module: {src} -> {dst}")
     return dst
@@ -114,4 +149,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

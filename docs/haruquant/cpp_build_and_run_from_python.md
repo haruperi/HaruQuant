@@ -21,10 +21,10 @@ python scripts/build_cpp_bridge.py
 ```
 
 What it does:
-- Configures CMake in a separate directory: `build_vs/`
+- Configures CMake in: `build/`
 - Uses Visual Studio generator by default
 - Builds only target `hqt_engine`
-- Copies built module to `build/bridge/Release/` so Python usage scripts can import it
+- Ensures built module is available in `build/bridge/Release/` so Python usage scripts can import it
 
 ## Build + run C++ logging usage example
 
@@ -39,7 +39,7 @@ This runs:
 
 ```powershell
 python scripts/build_cpp_bridge.py --config Debug
-python scripts/build_cpp_bridge.py --build-dir build_vs_custom
+python scripts/build_cpp_bridge.py --build-dir build_custom
 python scripts/build_cpp_bridge.py --generator "Visual Studio 18 2026" --arch x64
 ```
 
@@ -48,10 +48,10 @@ python scripts/build_cpp_bridge.py --generator "Visual Studio 18 2026" --arch x6
 ### Error: generator does not match previous one
 
 Do not reuse the conflicted build directory.  
-Use a dedicated directory:
+Use a clean directory:
 
 ```powershell
-python scripts/build_cpp_bridge.py --build-dir build_vs
+python scripts/build_cpp_bridge.py --build-dir build
 ```
 
 ### Error: cannot open file `kernel32.lib`
@@ -68,4 +68,3 @@ Then run the usage script from project root:
 ```powershell
 python tests/usage/utils/usage_cpp_logger.py
 ```
-
