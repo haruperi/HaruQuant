@@ -4,8 +4,8 @@
  */
 
 #include <gtest/gtest.h>
-#include "core/zmq_broadcaster.hpp"
-#include "core/write_ahead_log.hpp"
+#include "engine/zmq_broadcaster.hpp"
+#include "engine/write_ahead_log.hpp"
 #include <thread>
 #include <chrono>
 

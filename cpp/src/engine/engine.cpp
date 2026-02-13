@@ -1,4 +1,4 @@
-#include "sim/backtest_engine.hpp"
+#include "engine/engine.hpp"
 #include "util/logger.hpp"
 
 #include <cmath>
@@ -376,3 +376,37 @@ void BacktestEngine::apply_entry_signal(
 }
 
 }  // namespace hqt::sim
+
+namespace hqt::engine {
+
+Engine::Engine(hqt::sim::SimulatorClient& client)
+    : impl_(client) {}
+
+void Engine::run_trading_timeframe(
+    const std::string& symbol,
+    double volume,
+    const std::vector<hqt::sim::BacktestBarStep>& bars) {
+    impl_.run_trading_timeframe(symbol, volume, bars);
+}
+
+void Engine::run_trading_timeframe_with_ticks(
+    const std::string& symbol,
+    double volume,
+    const std::vector<hqt::sim::BacktestBarStep>& bars,
+    const std::vector<hqt::sim::ModelTick>& ticks) {
+    impl_.run_trading_timeframe_with_ticks(symbol, volume, bars, ticks);
+}
+
+const hqt::sim::SimulatorState& Engine::state() const noexcept {
+    return impl_.state();
+}
+
+const hqt::sim::AccountInfoData& Engine::account_snapshot() const noexcept {
+    return impl_.account_snapshot();
+}
+
+const std::vector<hqt::sim::TradeRecord>& Engine::completed_trades() const noexcept {
+    return impl_.completed_trades();
+}
+
+}  // namespace hqt::engine

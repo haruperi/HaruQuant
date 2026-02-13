@@ -4,7 +4,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "sim/simulator_client.hpp"
+#include "engine/engine.hpp"
 
 namespace {
 

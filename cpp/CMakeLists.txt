@@ -1,20 +1,14 @@
 # HQT Core C++ Library
 add_library(hqt_core STATIC
-    src/util/logger.cpp
-    src/usage/logger_usage.cpp
+    src/engine/engine.cpp
+    src/engine/models.cpp
+    src/engine/trading.cpp
+    src/engine/analytics.cpp
+    src/engine/infrastructure.cpp
+    src/engine/logger.cpp
+    src/engine/usage.cpp
     src/hello.cpp
     src/trading/trade.cpp
-    src/sim/simulator_state.cpp
-    src/sim/sim_data.cpp
-    src/sim/calculators.cpp
-    src/sim/account_monitor.cpp
-    src/sim/trade_gateway.cpp
-    src/sim/simulator_client.cpp
-    src/sim/backtest_engine.cpp
-    src/sim/tick_model.cpp
-    src/sim/trade_record.cpp
-    src/sim/portfolio_engine.cpp
-    src/sim/result_metrics.cpp
 )
 
 target_include_directories(hqt_core PUBLIC

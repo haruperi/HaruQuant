@@ -1,0 +1,346 @@
+/**
+ * @file analytics.cpp
+ * @brief Unified engine analytics compilation unit.
+ */
+
+#include "engine/engine.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
+namespace hqt::sim {
+
+std::vector<ModelTick> TickModel::generate_m1_ohlc(
+    const std::vector<TickModelBar>& bars,
+    double point,
+    double spread_default_points) {
+    std::vector<ModelTick> out;
+    out.reserve(bars.size() * 4);
+
+    for (const auto& bar : bars) {
+        const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : spread_default_points;
+        const bool bullish = bar.close >= bar.open;
+
+        const double p0 = bar.open;
+        const double p1 = bullish ? bar.low : bar.high;
+        const double p2 = bullish ? bar.high : bar.low;
+        const double p3 = bar.close;
+        const double prices[4]{p0, p1, p2, p3};
+
+        for (int i = 0; i < 4; ++i) {
+            const double bid = prices[i];
+            out.push_back(ModelTick{
+                bar.time_msc + i,
+                bid,
+                bid + (spread_points * point),
+                bid,
+            });
+        }
+    }
+
+    return out;
+}
+
+std::vector<ModelTick> TickModel::generate_synthetic_ticks(
+    const std::vector<TickModelBar>& bars,
+    double point,
+    double spread_default_points,
+    int support_points) {
+    std::vector<ModelTick> out;
+    const int clamped_support = std::max(0, support_points);
+
+    for (const auto& bar : bars) {
+        const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : spread_default_points;
+        const bool bullish = bar.close >= bar.open;
+
+        const double p0 = bar.open;
+        const double p1 = bullish ? bar.low : bar.high;
+        const double p2 = bullish ? bar.high : bar.low;
+        const double p3 = bar.close;
+
+        const std::vector<double> s01 = support_point_split(p0, p1, clamped_support);
+        const std::vector<double> s12 = support_point_split(p1, p2, clamped_support);
+        const std::vector<double> s23 = support_point_split(p2, p3, clamped_support);
+
+        int64_t offset = 0;
+        const auto append_prices = [&](const std::vector<double>& prices, bool skip_first) {
+            const std::size_t begin = skip_first ? 1U : 0U;
+            for (std::size_t i = begin; i < prices.size(); ++i) {
+                const double bid = prices[i];
+                out.push_back(ModelTick{
+                    bar.time_msc + offset,
+                    bid,
+                    bid + (spread_points * point),
+                    bid,
+                });
+                ++offset;
+            }
+        };
+
+        append_prices(s01, false);
+        append_prices(s12, true);
+        append_prices(s23, true);
+    }
+
+    return out;
+}
+
+std::vector<ModelTick> TickModel::passthrough_real_ticks(const std::vector<ModelTick>& ticks) {
+    return ticks;
+}
+
+std::vector<double> TickModel::support_point_split(
+    double start,
+    double end,
+    int support_points) {
+    std::vector<double> out;
+    const int points = std::max(0, support_points);
+    out.reserve(static_cast<std::size_t>(points + 2));
+    out.push_back(start);
+
+    const double step = (end - start) / static_cast<double>(points + 1);
+    for (int i = 1; i <= points; ++i) {
+        out.push_back(start + (step * static_cast<double>(i)));
+    }
+    out.push_back(end);
+    return out;
+}
+
+namespace {
+
+double population_stddev(const std::vector<double>& values, double mean) {
+    if (values.empty()) {
+        return 0.0;
+    }
+    double accum = 0.0;
+    for (const double v : values) {
+        const double d = v - mean;
+        accum += d * d;
+    }
+    return std::sqrt(accum / static_cast<double>(values.size()));
+}
+
+}  // namespace
+
+ResultMetricsSummary ResultMetrics::from_trades(
+    const std::vector<TradeRecord>& trades,
+    double initial_balance,
+    double final_balance) {
+    ResultMetricsSummary out;
+    out.initial_balance = initial_balance;
+    out.final_balance = final_balance;
+    out.total_return = out.final_balance - out.initial_balance;
+    out.total_return_pct = (out.initial_balance > 0.0)
+        ? ((out.total_return / out.initial_balance) * 100.0)
+        : 0.0;
+
+    if (trades.empty()) {
+        return out;
+    }
+
+    out.total_trades = trades.size();
+    std::vector<double> trade_returns;
+    trade_returns.reserve(trades.size());
+
+    std::vector<double> equity_curve;
+    equity_curve.reserve(trades.size() + 1);
+    equity_curve.push_back(initial_balance);
+    double running_balance = initial_balance;
+
+    for (const auto& t : trades) {
+        if (t.profit_loss > 0.0) {
+            ++out.winning_trades;
+            out.gross_profit += t.profit_loss;
+        } else if (t.profit_loss < 0.0) {
+            ++out.losing_trades;
+            out.gross_loss += -t.profit_loss;
+        } else {
+            ++out.breakeven_trades;
+        }
+
+        if (initial_balance > 0.0) {
+            trade_returns.push_back(t.profit_loss / initial_balance);
+        } else {
+            trade_returns.push_back(0.0);
+        }
+
+        running_balance += t.profit_loss;
+        equity_curve.push_back(running_balance);
+    }
+
+    out.win_rate = (out.total_trades > 0)
+        ? (static_cast<double>(out.winning_trades) / static_cast<double>(out.total_trades) * 100.0)
+        : 0.0;
+
+    if (out.gross_loss > 0.0) {
+        out.profit_factor = out.gross_profit / out.gross_loss;
+    } else {
+        out.profit_factor = std::numeric_limits<double>::infinity();
+    }
+
+    double peak = equity_curve.front();
+    for (const double equity : equity_curve) {
+        if (equity > peak) {
+            peak = equity;
+        }
+        const double dd_abs = peak - equity;
+        const double dd_pct = (peak > 0.0) ? ((dd_abs / peak) * 100.0) : 0.0;
+        if (dd_abs > out.max_drawdown) {
+            out.max_drawdown = dd_abs;
+        }
+        if (dd_pct > out.max_drawdown_pct) {
+            out.max_drawdown_pct = dd_pct;
+        }
+    }
+
+    if (trade_returns.size() > 1U) {
+        double mean = 0.0;
+        for (const double r : trade_returns) {
+            mean += r;
+        }
+        mean /= static_cast<double>(trade_returns.size());
+
+        const double stdev = population_stddev(trade_returns, mean);
+        out.sharpe_ratio = (stdev > 0.0)
+            ? ((mean / stdev) * std::sqrt(252.0))
+            : 0.0;
+    }
+
+    return out;
+}
+
+PortfolioEngine::PortfolioEngine(SimulatorClient& client)
+    : client_(client) {}
+
+void PortfolioEngine::run_equal_weight(
+    const std::vector<PortfolioSymbolInput>& inputs,
+    double base_volume) {
+    if (inputs.empty()) {
+        effective_allocations_.clear();
+        return;
+    }
+
+    const double w = 1.0 / static_cast<double>(inputs.size());
+    std::unordered_map<std::string, double> allocations;
+    for (const auto& input : inputs) {
+        allocations[input.symbol] = w;
+    }
+    run_with_allocations(inputs, base_volume, allocations);
+}
+
+void PortfolioEngine::run_with_allocations(
+    const std::vector<PortfolioSymbolInput>& inputs,
+    double base_volume,
+    const std::unordered_map<std::string, double>& allocations) {
+    effective_allocations_.clear();
+    if (inputs.empty() || base_volume <= 0.0) {
+        return;
+    }
+
+    std::vector<std::size_t> indices(inputs.size(), 0U);
+    for (const auto& input : inputs) {
+        const auto it = allocations.find(input.symbol);
+        effective_allocations_[input.symbol] = (it != allocations.end()) ? it->second : 0.0;
+    }
+
+    while (true) {
+        int64_t next_time = std::numeric_limits<int64_t>::max();
+        bool has_next = false;
+        for (std::size_t i = 0; i < inputs.size(); ++i) {
+            if (indices[i] >= inputs[i].bars.size()) {
+                continue;
+            }
+            next_time = std::min(next_time, inputs[i].bars[indices[i]].time_msc);
+            has_next = true;
+        }
+        if (!has_next) {
+            break;
+        }
+
+        for (std::size_t i = 0; i < inputs.size(); ++i) {
+            if (indices[i] >= inputs[i].bars.size()) {
+                continue;
+            }
+            const auto& bar = inputs[i].bars[indices[i]];
+            if (bar.time_msc != next_time) {
+                continue;
+            }
+            process_bar(inputs[i].symbol, bar, base_volume);
+            ++indices[i];
+        }
+    }
+}
+
+const std::unordered_map<std::string, double>& PortfolioEngine::effective_allocations() const noexcept {
+    return effective_allocations_;
+}
+
+double PortfolioEngine::normalize_volume(double requested, const SymbolInfoData& symbol_info) {
+    if (requested <= 0.0) {
+        return 0.0;
+    }
+
+    const double vol_min = symbol_info.volume_min > 0.0 ? symbol_info.volume_min : 0.01;
+    const double vol_step = symbol_info.volume_step > 0.0 ? symbol_info.volume_step : 0.01;
+    const double vol_max = symbol_info.volume_max > 0.0 ? symbol_info.volume_max : requested;
+
+    double vol = requested;
+    const double steps = std::round((vol - vol_min) / vol_step);
+    vol = vol_min + (steps * vol_step);
+    vol = std::max(vol, vol_min);
+    vol = std::min(vol, vol_max);
+    return vol;
+}
+
+void PortfolioEngine::process_bar(const std::string& symbol, const BacktestBarStep& bar, double base_volume) {
+    const auto* symbol_info = client_.symbol_info(symbol);
+    if (symbol_info == nullptr) {
+        return;
+    }
+
+    const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(symbol_info->spread);
+    const double bid = bar.close;
+    const double ask = bar.close + (spread_points * symbol_info->point);
+
+    SymbolTickData tick;
+    tick.time = bar.time_msc / 1000;
+    tick.time_msc = bar.time_msc;
+    tick.bid = bid;
+    tick.ask = ask;
+    tick.last = bar.close;
+    client_.set_symbol_tick(symbol, tick);
+
+    if (bar.exit_signal != 0) {
+        const auto positions = client_.positions_get(std::nullopt, symbol);
+        for (const auto& pos : positions) {
+            const bool is_buy = (pos.type == 0U);
+            if ((bar.exit_signal == 1 && is_buy) || (bar.exit_signal == -1 && !is_buy)) {
+                (void)client_.close_position(pos.ticket);
+            }
+        }
+    }
+
+    if (bar.entry_signal != 1 && bar.entry_signal != -1) {
+        return;
+    }
+
+    const double alloc = effective_allocations_.count(symbol) > 0 ? effective_allocations_[symbol] : 0.0;
+    const double requested = base_volume * alloc;
+    const double volume = normalize_volume(requested, *symbol_info);
+    if (volume <= 0.0) {
+        return;
+    }
+
+    TradeRequest request;
+    request.action = 1;  // TRADE_ACTION_DEAL
+    request.type = (bar.entry_signal == 1) ? 0 : 1;
+    request.symbol = symbol;
+    request.volume = volume;
+    request.price = (bar.entry_signal == 1) ? ask : bid;
+    request.sl = bar.sl;
+    request.tp = bar.tp;
+    (void)client_.order_send(request);
+}
+
+}  // namespace hqt::sim

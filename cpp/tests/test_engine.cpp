@@ -10,7 +10,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "core/engine.hpp"
+#include "engine/engine.hpp"
 #include "data/bar.hpp"
 #include "trading/symbol_info.hpp"
 #include <memory>

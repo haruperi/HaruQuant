@@ -4,7 +4,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "sim/backtest_engine.hpp"
+#include "engine/engine.hpp"
 
 #include <optional>
 #include <vector>

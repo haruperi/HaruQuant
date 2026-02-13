@@ -4,8 +4,8 @@
  */
 
 #include <gtest/gtest.h>
-#include "core/event_loop.hpp"
-#include "core/global_clock.hpp"
+#include "engine/event_loop.hpp"
+#include "engine/global_clock.hpp"
 #include "data/bar.hpp"
 #include <vector>
 #include <atomic>

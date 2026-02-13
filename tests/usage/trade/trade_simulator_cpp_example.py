@@ -12,6 +12,7 @@ Requires:
 
 import sys
 import os
+import argparse
 
 # Select the C++ backend BEFORE any simulation imports.
 os.environ["SIM_ENGINE"] = "cpp"
@@ -42,7 +43,73 @@ def get_mt5_credentials():
     return creds
 
 
-def main():
+def _import_cpp_bridge():
+    """Import the C++ bridge and return (module, sim_submodule)."""
+    import hqt_engine
+    import hqt_engine.sim as csim
+
+    return hqt_engine, csim
+
+
+def _run_cpp_smoke() -> None:
+    """Run a minimal in-process C++ smoke test without MT5 dependency."""
+    hqt_engine, csim = _import_cpp_bridge()
+
+    # Ensure the new bridge surface exists and basic logging can be wired.
+    for required in ("set_log_level", "set_stderr_logging", "set_log_callback"):
+        if not hasattr(hqt_engine, required):
+            print(f"ERROR: hqt_engine missing required API: {required}")
+            return
+
+    def on_cpp_log(level: str, message: str) -> None:
+        logger.info(f"[C++ smoke:{level}] {message}")
+
+    hqt_engine.set_stderr_logging(False)
+    hqt_engine.set_log_level("info")
+    hqt_engine.set_log_callback(on_cpp_log)
+
+    client = csim.SimulatorClient()
+    symbol = csim.SymbolInfoData()
+    symbol.symbol = "EURUSD"
+    symbol.point = 0.00001
+    symbol.spread = 10
+    symbol.bid = 1.10000
+    symbol.ask = 1.10010
+    client.set_symbol_info(symbol)
+
+    tick = csim.SymbolTickData()
+    tick.time = 1
+    tick.time_msc = 1000
+    tick.bid = 1.10000
+    tick.ask = 1.10010
+    tick.last = 1.10000
+    client.set_symbol_tick("EURUSD", tick)
+
+    engine = csim.BacktestEngine(client)
+
+    bars = []
+    b1 = csim.BacktestBarStep()
+    b1.time_msc = 60_000
+    b1.close = 1.10000
+    b1.entry_signal = 1
+    bars.append(b1)
+
+    b2 = csim.BacktestBarStep()
+    b2.time_msc = 120_000
+    b2.close = 1.10020
+    b2.exit_signal = 1
+    bars.append(b2)
+
+    engine.run_trading_timeframe("EURUSD", 0.01, bars)
+
+    print("C++ smoke run complete")
+    print(f"Processed events : {engine.state().processed_events}")
+    print(f"Completed trades : {len(engine.completed_trades())}")
+
+    hqt_engine.set_log_callback(None)
+
+
+def main(smoke: bool = False):
     print("=" * 70)
     print("Trade Simulator Example  [C++ Backend]")
     print("=" * 70)
@@ -57,6 +124,10 @@ def main():
 
     if not cpp_available:
         print("ERROR: hqt_engine.sim is not installed. Build the C++ extension first.")
+        return
+
+    if smoke:
+        _run_cpp_smoke()
         return
 
     # Get credentials and connect to MT5
@@ -179,4 +250,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Trade simulator C++ example")
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help="Run minimal C++ bridge smoke test without MT5 dependency.",
+    )
+    args = parser.parse_args()
+    main(smoke=args.smoke)

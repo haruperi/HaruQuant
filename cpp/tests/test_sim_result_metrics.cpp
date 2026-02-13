@@ -4,7 +4,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "sim/result_metrics.hpp"
+#include "engine/engine.hpp"
 
 #include <cmath>
 #include <limits>

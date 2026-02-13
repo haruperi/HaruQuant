@@ -1,10 +1,369 @@
-#include "sim/simulator_client.hpp"
-#include "sim/calculators.hpp"
+/**
+ * @file trading.cpp
+ * @brief Unified engine trading compilation unit.
+ */
+
+#include "engine/engine.hpp"
 #include "util/logger.hpp"
 
+#include <cmath>
+#include <optional>
 #include <string>
 
 namespace hqt::sim {
+
+double calc_margin(
+    int trade_calc_mode,
+    double volume,
+    double price,
+    double contract_size,
+    double leverage,
+    double tick_size,
+    double tick_value,
+    double margin_initial) {
+    const double lv = leverage > 0.0 ? leverage : 1.0;
+
+    switch (trade_calc_mode) {
+        case 0:  // FOREX
+            return (volume * contract_size) / lv;
+        case 1:  // FOREX_NO_LEVERAGE
+            return volume * contract_size;
+        case 2:  // CFD
+            return volume * contract_size * price;
+        case 3:  // CFDLEVERAGE
+            return (volume * contract_size * price) / lv;
+        case 4:  // CFDINDEX
+            if (tick_size > 0.0) {
+                return volume * contract_size * price * tick_value / tick_size;
+            }
+            break;
+        case 5:  // EXCH_STOCKS
+        case 6:  // EXCH_STOCKS_MOEX
+            return volume * contract_size * price;
+        case 7:  // FUTURES
+        case 8:  // EXCH_FUTURES
+            return volume * margin_initial;
+        default:
+            break;
+    }
+
+    return (volume * contract_size * price) / lv;
+}
+
+double calc_profit(
+    int action,
+    double volume,
+    double price_open,
+    double price_close,
+    double tick_size,
+    double tick_value,
+    double contract_size) {
+    const double direction = (action == 0) ? 1.0 : -1.0;
+    const double price_delta = (price_close - price_open) * direction;
+
+    if (tick_size > 0.0 && tick_value > 0.0) {
+        return (price_delta / tick_size) * tick_value * volume;
+    }
+    if (contract_size > 0.0) {
+        return price_delta * contract_size * volume;
+    }
+    return 0.0;
+}
+
+PositionTotals AccountMonitor::monitor_positions(
+    const SimulatorClient& client,
+    const std::string& symbol,
+    double bid,
+    double ask) const {
+    PositionTotals totals;
+    if (bid <= 0.0 || ask <= 0.0) {
+        return totals;
+    }
+
+    const auto positions = client.positions_get(std::nullopt, symbol);
+    for (const auto& pos : positions) {
+        const bool is_buy = (pos.type == 0U);
+        const int action = is_buy ? 0 : 1;
+        const double close_price = is_buy ? bid : ask;
+
+        totals.profit += client.order_calc_profit(
+            action,
+            symbol,
+            pos.volume,
+            pos.price_open,
+            close_price);
+        totals.margin += client.order_calc_margin(
+            action,
+            symbol,
+            pos.volume,
+            pos.price_open);
+        totals.commission += 0.0;
+        totals.fee += 0.0;
+        totals.swap += pos.swap;
+    }
+
+    return totals;
+}
+
+AccountInfoData AccountMonitor::monitor_account(
+    const AccountInfoData& base,
+    const PositionTotals& totals) const {
+    AccountInfoData updated = base;
+    updated.profit = totals.profit;
+    updated.margin = totals.margin;
+    updated.commission_blocked = totals.commission + totals.fee;
+    updated.equity = updated.balance + updated.credit + totals.profit +
+        totals.commission + totals.fee + totals.swap;
+    updated.margin_free = updated.equity - totals.margin;
+    updated.margin_level = (updated.margin > 0.0)
+        ? ((updated.equity / updated.margin) * 100.0)
+        : 0.0;
+    return updated;
+}
+
+void TradeRecordTracker::reset() {
+    open_.clear();
+    completed_.clear();
+}
+
+bool TradeRecordTracker::has_open(uint64_t ticket) const {
+    return open_.find(ticket) != open_.end();
+}
+
+void TradeRecordTracker::on_open(
+    uint64_t ticket,
+    const std::string& symbol,
+    bool is_buy,
+    double volume,
+    double open_price,
+    double sl,
+    double tp,
+    int64_t open_time_msc,
+    double initial_risk_usd) {
+    if (ticket == 0 || has_open(ticket)) {
+        return;
+    }
+
+    OpenTradeState state;
+    state.record.ticket = ticket;
+    state.record.symbol = symbol;
+    state.record.is_buy = is_buy;
+    state.record.volume = volume;
+    state.record.open_price = open_price;
+    state.record.stop_loss = sl;
+    state.record.take_profit = tp;
+    state.record.open_time_msc = open_time_msc;
+    state.record.initial_risk_usd = initial_risk_usd;
+    open_[ticket] = state;
+}
+
+void TradeRecordTracker::on_update(uint64_t ticket, double profit_usd) {
+    const auto it = open_.find(ticket);
+    if (it == open_.end()) {
+        return;
+    }
+
+    OpenTradeState& state = it->second;
+    state.record.bars_in_trade += 1;
+    if (profit_usd > state.mfe_usd) {
+        state.mfe_usd = profit_usd;
+    }
+    if (profit_usd < state.mae_usd) {
+        state.mae_usd = profit_usd;
+    }
+}
+
+bool TradeRecordTracker::on_close(
+    uint64_t ticket,
+    int64_t close_time_msc,
+    double close_price,
+    double profit_loss_usd) {
+    const auto it = open_.find(ticket);
+    if (it == open_.end()) {
+        return false;
+    }
+
+    TradeRecord record = it->second.record;
+    record.close_time_msc = close_time_msc;
+    record.close_price = close_price;
+    record.time_in_trade_seconds = static_cast<double>(record.close_time_msc - record.open_time_msc) / 1000.0;
+    record.profit_loss = profit_loss_usd;
+    record.mfe_usd = it->second.mfe_usd;
+    record.mae_usd = std::abs(it->second.mae_usd);
+    if (record.initial_risk_usd > 0.0) {
+        record.r_multiple = record.profit_loss / record.initial_risk_usd;
+    }
+
+    completed_.push_back(record);
+    open_.erase(it);
+    return true;
+}
+
+const std::vector<TradeRecord>& TradeRecordTracker::completed_trades() const noexcept {
+    return completed_;
+}
+
+namespace {
+
+TradeResult invalid_result(const std::string& comment, int retcode = 10013) {
+    util::warning("TradeGateway invalid request: " + comment + " (retcode=" + std::to_string(retcode) + ")");
+    TradeResult result;
+    result.retcode = retcode;
+    result.comment = comment;
+    return result;
+}
+
+}  // namespace
+
+TradeGateway::TradeGateway(const AccountInfoData& account)
+    : trade_(account.balance, account.currency, static_cast<uint32_t>(account.leverage)) {}
+
+void TradeGateway::register_symbol(const SymbolInfoData& symbol) {
+    symbols_[symbol.symbol] = symbol;
+    trade_.RegisterSymbol(to_symbol_info(symbol));
+}
+
+TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTickData* tick) {
+    bool ok = false;
+
+    if (request.action == 1 || request.action == 5) {
+        if (request.symbol.empty()) {
+            return invalid_result("Invalid request: missing symbol", 10013);
+        }
+        if (request.volume <= 0.0) {
+            return invalid_result("Invalid volume", 10014);
+        }
+
+        const auto sym_it = symbols_.find(request.symbol);
+        if (sym_it == symbols_.end()) {
+            return invalid_result("No quotes to process the request", 10021);
+        }
+
+        const double bid = tick ? tick->bid : sym_it->second.bid;
+        const double ask = tick ? tick->ask : sym_it->second.ask;
+        if (bid <= 0.0 || ask <= 0.0) {
+            return invalid_result("No quotes to process the request", 10021);
+        }
+        trade_.UpdatePrices(request.symbol, bid, ask, tick ? (tick->time_msc * 1000) : 0);
+
+        if (request.action == 1) {
+            if (request.type == 0) {  // BUY
+                ok = trade_.Buy(
+                    request.volume,
+                    request.symbol,
+                    request.price,
+                    request.sl,
+                    request.tp,
+                    request.comment);
+            } else if (request.type == 1) {  // SELL
+                ok = trade_.Sell(
+                    request.volume,
+                    request.symbol,
+                    request.price,
+                    request.sl,
+                    request.tp,
+                    request.comment);
+            } else {
+                return invalid_result("Invalid order type for market execution", 10013);
+            }
+        } else {
+            // Pending place flow
+            using OT = hqt::ENUM_ORDER_TYPE;
+            OT order_type;
+            switch (request.type) {
+                case 2: order_type = OT::ORDER_TYPE_BUY_LIMIT; break;
+                case 3: order_type = OT::ORDER_TYPE_SELL_LIMIT; break;
+                case 4: order_type = OT::ORDER_TYPE_BUY_STOP; break;
+                case 5: order_type = OT::ORDER_TYPE_SELL_STOP; break;
+                case 6: order_type = OT::ORDER_TYPE_BUY_STOP_LIMIT; break;
+                case 7: order_type = OT::ORDER_TYPE_SELL_STOP_LIMIT; break;
+                default:
+                    return invalid_result("Invalid pending order type", 10013);
+            }
+
+            ok = trade_.OrderOpen(
+                request.symbol,
+                order_type,
+                request.volume,
+                request.price,
+                request.stoplimit,
+                request.sl,
+                request.tp,
+                static_cast<hqt::ENUM_ORDER_TYPE_TIME>(request.type_time),
+                request.expiration,
+                request.comment);
+        }
+    } else if (request.action == 7) {
+        if (request.order == 0) {
+            return invalid_result("Invalid request: missing order", 10013);
+        }
+        ok = trade_.OrderModify(
+            request.order,
+            request.price,
+            request.sl,
+            request.tp,
+            request.stoplimit,
+            request.expiration);
+    } else if (request.action == 8) {
+        if (request.order == 0) {
+            return invalid_result("Invalid request: missing order", 10013);
+        }
+        ok = trade_.OrderDelete(request.order);
+    } else {
+        return invalid_result("Invalid request: missing or unsupported action", 10013);
+    }
+
+    TradeResult result;
+    result.retcode = static_cast<int>(trade_.ResultRetcode());
+    result.deal = trade_.ResultDeal();
+    result.order = trade_.ResultOrder();
+    result.volume = trade_.ResultVolume();
+    result.price = trade_.ResultPrice();
+    result.bid = trade_.ResultBid();
+    result.ask = trade_.ResultAsk();
+    result.comment = trade_.ResultComment();
+
+    if (!ok && result.retcode == 0) {
+        result.retcode = 10011;
+    }
+    if (!ok) {
+        util::warning("TradeGateway order_send failed: " + result.comment +
+                      " (retcode=" + std::to_string(result.retcode) + ")");
+    }
+    return result;
+}
+
+hqt::SymbolInfo TradeGateway::to_symbol_info(const SymbolInfoData& data) {
+    hqt::SymbolInfo info;
+    info.Name(data.symbol);
+    info.SetSymbolId(static_cast<uint32_t>(std::hash<std::string>{}(data.symbol) & 0x7fffffff));
+    info.SetDigits(data.digits);
+    info.SetPoint(data.point);
+    info.SetSpread(data.spread);
+    info.SetSpreadFloat(data.spread_float);
+    info.SetTradeCalcMode(static_cast<hqt::ENUM_SYMBOL_CALC_MODE>(data.trade_calc_mode));
+    info.SetTradeMode(static_cast<hqt::ENUM_SYMBOL_TRADE_MODE>(data.trade_mode));
+    info.SetStopsLevel(data.trade_stops_level);
+    info.SetFreezeLevel(data.trade_freeze_level);
+    info.SetVolumeMin(data.volume_min);
+    info.SetVolumeMax(data.volume_max);
+    info.SetVolumeStep(data.volume_step);
+    info.SetVolumeLimit(data.volume_limit);
+    info.SetTickValue(data.trade_tick_value);
+    info.SetTickValueProfit(data.trade_tick_value_profit);
+    info.SetTickValueLoss(data.trade_tick_value_loss);
+    info.SetTickSize(data.trade_tick_size);
+    info.SetContractSize(data.trade_contract_size);
+    info.SetMarginInitial(data.margin_initial);
+    info.SetSwapLong(data.swap_long);
+    info.SetSwapShort(data.swap_short);
+    info.SetSwapMode(static_cast<hqt::ENUM_SYMBOL_SWAP_MODE>(data.swap_mode));
+    info.SetSwapRollover3days(static_cast<hqt::ENUM_DAY_OF_WEEK>(data.swap_rollover3days));
+    if (data.bid > 0.0 && data.ask > 0.0) {
+        info.UpdatePrice(data.bid, data.ask, 0);
+    }
+    return info;
+}
 
 SimulatorClient::SimulatorClient(AccountInfoData account_data)
     : account_data_(std::move(account_data)),

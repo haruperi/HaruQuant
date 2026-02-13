@@ -7,14 +7,15 @@
 
 ## Main Components
 - `apps/simulation/backend.py`: backend selector and adapter that routes simulation calls to Python or C++ engine.
-- `cpp/src/sim/*`: C++ simulation engine modules (`SimulatorClient`, `BacktestEngine`, calculators, monitors, trackers).
+- `cpp/src/engine/*`: C++ simulation engine modules (`SimulatorClient`, `BacktestEngine`, calculators, monitors, trackers).
+- `cpp/include/engine/engine.hpp`: unified non-infrastructure C++ API header for sim/trading/analytics types and engine facade.
 - `bridge/src/module.cpp` and `bridge/src/sim_bindings.cpp`: Python extension entrypoint and C++ API bindings.
 - `apps/logger/*`: Python logging subsystem that writes to terminal and rotating files under `logs/`.
 
 ## C++ Logging Bridge
 - C++ logger implementation:
   - Header: `cpp/include/util/logger.hpp`
-  - Source: `cpp/src/util/logger.cpp`
+  - Source: `cpp/src/engine/logger.cpp`
 - C++ logging behavior:
   - Supports levels: `DEBUG`, `INFO`, `WARNING`, `ERROR`.
   - Supports optional stderr output.
@@ -40,8 +41,19 @@
 
 ## Usage Examples
 - C++ usage source:
-  - `cpp/src/usage/logger_usage.cpp`
+  - `cpp/src/engine/usage.cpp`
 - C++ usage header:
   - `cpp/include/usage/logger_usage.hpp`
 - Python runner that triggers the C++ usage path via bridge:
   - `tests/usage/utils/usage_cpp_logger.py`
+
+## Engine Merge Status
+- Merge complete for folder layout:
+  - Legacy `cpp/include/core`, `cpp/include/sim`, and `cpp/src/sim` were removed.
+  - Unified C++ execution surface is now under `cpp/include/engine/*` and `cpp/src/engine/*`.
+- Header compression (Option A) complete:
+  - Non-infrastructure declarations consolidated into `cpp/include/engine/engine.hpp`.
+  - Infrastructure headers remain separate: `event.hpp`, `event_loop.hpp`, `global_clock.hpp`, `write_ahead_log.hpp`, `zmq_broadcaster.hpp`.
+- Runtime behavior is preserved:
+  - `hqt::engine::Engine` remains the facade entrypoint.
+  - Simulation model/execution types continue to use `hqt::sim` namespace for bridge compatibility.

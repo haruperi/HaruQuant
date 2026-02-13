@@ -4,8 +4,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "sim/calculators.hpp"
-#include "sim/simulator_client.hpp"
+#include "engine/engine.hpp"
 
 namespace {
 

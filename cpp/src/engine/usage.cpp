@@ -1,7 +1,11 @@
+/**
+ * @file usage.cpp
+ * @brief Unified engine usage compilation unit.
+ */
+
 #include "usage/logger_usage.hpp"
 
-#include "sim/backtest_engine.hpp"
-#include "sim/simulator_client.hpp"
+#include "engine/engine.hpp"
 #include "util/logger.hpp"
 
 #include <vector>
@@ -49,4 +53,3 @@ void run_logger_usage_example() {
 }
 
 }  // namespace hqt::usage
-

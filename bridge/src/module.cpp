@@ -1,7 +1,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
-#include <hqt/hello.hpp>
 #include <usage/logger_usage.hpp>
+#include <hqt/hello.hpp>
 #include <util/logger.hpp>
 
 #include <algorithm>

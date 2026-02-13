@@ -1,8 +1,14 @@
+/**
+ * @file logger.cpp
+ * @brief Unified engine logger module.
+ */
+
 #include "util/logger.hpp"
 
 #include <atomic>
 #include <iostream>
 #include <mutex>
+#include <string>
 #include <utility>
 
 namespace hqt::util {
@@ -83,3 +89,15 @@ void error(const std::string& message) {
 }
 
 }  // namespace hqt::util
+
+namespace hqt::engine {
+
+void log_info(const std::string& message) {
+    hqt::util::info(message);
+}
+
+void log_warning(const std::string& message) {
+    hqt::util::warning(message);
+}
+
+}  // namespace hqt::engine

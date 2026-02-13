@@ -16,6 +16,7 @@ Functions:
 
 from __future__ import annotations
 
+import atexit
 import os
 import warnings
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from apps.logger import logger
 from apps.simulation.records import TradeRecord
 
 _CPP_LOG_BRIDGE_READY = False
+_CPP_LOG_CLEANUP_REGISTERED = False
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +199,7 @@ def run_trading_timeframe_cpp(
 def _setup_cpp_logging_bridge() -> None:
     """Attach C++ logging callback to the Python logger once per process."""
     global _CPP_LOG_BRIDGE_READY
+    global _CPP_LOG_CLEANUP_REGISTERED
 
     if _CPP_LOG_BRIDGE_READY:
         return
@@ -225,9 +228,26 @@ def _setup_cpp_logging_bridge() -> None:
         hqt_engine.set_stderr_logging(False)
         hqt_engine.set_log_callback(_cpp_log_callback)
         hqt_engine.set_log_level(os.environ.get("HQT_CPP_LOG_LEVEL", "info"))
+        if not _CPP_LOG_CLEANUP_REGISTERED:
+            atexit.register(_teardown_cpp_logging_bridge)
+            _CPP_LOG_CLEANUP_REGISTERED = True
         _CPP_LOG_BRIDGE_READY = True
     except Exception as exc:
         logger.warning(f"Failed to initialize C++ logging bridge: {exc}")
+
+
+def _teardown_cpp_logging_bridge() -> None:
+    """Best-effort teardown for C++->Python log callback."""
+    global _CPP_LOG_BRIDGE_READY
+    try:
+        import hqt_engine
+
+        if hasattr(hqt_engine, "set_log_callback"):
+            hqt_engine.set_log_callback(None)
+    except Exception:
+        pass
+    finally:
+        _CPP_LOG_BRIDGE_READY = False
 
 
 def _build_bar_steps(

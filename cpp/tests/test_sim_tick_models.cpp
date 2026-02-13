@@ -4,7 +4,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "sim/tick_model.hpp"
+#include "engine/engine.hpp"
 
 #include <vector>
 

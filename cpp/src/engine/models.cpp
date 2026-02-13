@@ -1,4 +1,9 @@
-#include "sim/sim_data.hpp"
+/**
+ * @file models.cpp
+ * @brief Unified engine models compilation unit.
+ */
+
+#include "engine/engine.hpp"
 
 #include <sstream>
 
@@ -110,6 +115,14 @@ Dict TradeRecordData::to_dict() const {
         {"symbol", symbol},
         {"comment", comment},
     };
+}
+
+void SimulatorState::reset() noexcept {
+    running = false;
+    paused = false;
+    current_time_us = 0;
+    current_bar_index = 0;
+    processed_events = 0;
 }
 
 }  // namespace hqt::sim

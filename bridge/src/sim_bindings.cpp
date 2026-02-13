@@ -13,17 +13,7 @@
 #include <nanobind/stl/unordered_map.h>
 #include <nanobind/stl/function.h>
 
-#include "sim/simulator_state.hpp"
-#include "sim/sim_data.hpp"
-#include "sim/trade_gateway.hpp"
-#include "sim/backtest_engine.hpp"
-#include "sim/account_monitor.hpp"
-#include "sim/tick_model.hpp"
-#include "sim/trade_record.hpp"
-#include "sim/portfolio_engine.hpp"
-#include "sim/result_metrics.hpp"
-#include "sim/simulator_client.hpp"
-#include "sim/calculators.hpp"
+#include "engine/engine.hpp"
 
 namespace nb = nanobind;
 using namespace hqt::sim;

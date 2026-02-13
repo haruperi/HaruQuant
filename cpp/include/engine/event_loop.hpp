@@ -6,7 +6,7 @@
  * order using a min-heap priority queue. Supports pause/resume/step for interactive
  * debugging and integrates with GlobalClock for multi-asset synchronization.
  *
- * Performance target: ≥1M ticks/second throughput
+ * Performance target: =1M ticks/second throughput
  */
 
 #pragma once
