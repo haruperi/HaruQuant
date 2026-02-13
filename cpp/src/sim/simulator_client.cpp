@@ -1,5 +1,8 @@
 #include "sim/simulator_client.hpp"
 #include "sim/calculators.hpp"
+#include "util/logger.hpp"
+
+#include <string>
 
 namespace hqt::sim {
 
@@ -72,6 +75,7 @@ double SimulatorClient::order_calc_margin(
     (void)action;
     const auto* info = symbol_info(symbol);
     if (info == nullptr) {
+        util::warning("SimulatorClient::order_calc_margin unknown symbol: " + symbol);
         return 0.0;
     }
     return calc_margin(
@@ -93,6 +97,7 @@ double SimulatorClient::order_calc_profit(
     double price_close) const {
     const auto* info = symbol_info(symbol);
     if (info == nullptr) {
+        util::warning("SimulatorClient::order_calc_profit unknown symbol: " + symbol);
         return 0.0;
     }
     return calc_profit(
@@ -110,12 +115,17 @@ TradeResult SimulatorClient::order_send(const TradeRequest& request) {
     TradeResult result = trade_gateway_.order_send(request, tick);
     if (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010) {
         sync_state_from_trade();
+        util::debug("SimulatorClient::order_send success retcode=" + std::to_string(result.retcode));
+    } else {
+        util::warning("SimulatorClient::order_send failed retcode=" + std::to_string(result.retcode) +
+                      " comment=" + result.comment);
     }
     return result;
 }
 
 TradeResult SimulatorClient::close_position(uint64_t ticket) {
     if (ticket == 0) {
+        util::warning("SimulatorClient::close_position called with ticket=0");
         TradeResult invalid;
         invalid.retcode = 10013;
         invalid.comment = "Invalid request: missing position ticket";
@@ -150,8 +160,10 @@ TradeResult SimulatorClient::close_position(uint64_t ticket) {
 
     if (ok && (result.retcode == 10009 || result.retcode == 10010)) {
         sync_state_from_trade();
+        util::debug("SimulatorClient::close_position success ticket=" + std::to_string(ticket));
     } else if (!ok && result.retcode == 0) {
         result.retcode = 10011;
+        util::warning("SimulatorClient::close_position failed ticket=" + std::to_string(ticket));
     }
 
     return result;
@@ -187,6 +199,7 @@ void SimulatorClient::set_account_info(const AccountInfoData& data) {
 void SimulatorClient::set_symbol_info(const SymbolInfoData& data) {
     symbols_data_[data.symbol] = data;
     trade_gateway_.register_symbol(data);
+    util::debug("SimulatorClient::set_symbol_info symbol=" + data.symbol);
 }
 
 void SimulatorClient::set_symbol_tick(const std::string& symbol, const SymbolTickData& tick) {
@@ -212,6 +225,7 @@ void SimulatorClient::upsert_deal(const TradeRecordData& data) {
 void SimulatorClient::set_last_error(int code, const std::string& message) {
     last_error_code_ = code;
     last_error_message_ = message;
+    util::warning("SimulatorClient::set_last_error code=" + std::to_string(code) + " message=" + message);
 }
 
 void SimulatorClient::sync_state_from_trade() {
@@ -305,6 +319,12 @@ void SimulatorClient::sync_state_from_trade() {
         data.comment = hist.Comment();
         history_orders_data_[data.ticket] = data;
     }
+
+    util::debug(
+        "SimulatorClient::sync_state_from_trade positions=" + std::to_string(positions_data_.size()) +
+        " orders=" + std::to_string(orders_data_.size()) +
+        " deals=" + std::to_string(deals_data_.size()) +
+        " history_orders=" + std::to_string(history_orders_data_.size()));
 }
 
 template <typename Container>

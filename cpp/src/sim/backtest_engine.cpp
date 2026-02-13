@@ -1,7 +1,9 @@
 #include "sim/backtest_engine.hpp"
+#include "util/logger.hpp"
 
 #include <cmath>
 #include <optional>
+#include <string>
 #include <utility>
 
 namespace hqt::sim {
@@ -25,9 +27,14 @@ void BacktestEngine::run_trading_timeframe(
 
     const SymbolInfoData* info = client_.symbol_info(symbol);
     if (info == nullptr || volume <= 0.0) {
+        util::warning("BacktestEngine::run_trading_timeframe invalid start state "
+                      "symbol=" + symbol + " volume=" + std::to_string(volume));
         state_.running = false;
         return;
     }
+
+    util::info("BacktestEngine::run_trading_timeframe start symbol=" + symbol +
+               " bars=" + std::to_string(bars.size()));
 
     for (std::size_t idx = 0; idx < bars.size(); ++idx) {
         const BacktestBarStep& bar = bars[idx];
@@ -58,6 +65,8 @@ void BacktestEngine::run_trading_timeframe(
     }
 
     state_.running = false;
+    util::info("BacktestEngine::run_trading_timeframe finish processed_events=" +
+               std::to_string(state_.processed_events));
 }
 
 void BacktestEngine::run_trading_timeframe_with_ticks(
@@ -72,9 +81,18 @@ void BacktestEngine::run_trading_timeframe_with_ticks(
     account_snapshot_ = client_.account_info();
 
     if (client_.symbol_info(symbol) == nullptr || volume <= 0.0 || bars.empty() || ticks.empty()) {
+        util::warning("BacktestEngine::run_trading_timeframe_with_ticks invalid start state "
+                      "symbol=" + symbol +
+                      " volume=" + std::to_string(volume) +
+                      " bars=" + std::to_string(bars.size()) +
+                      " ticks=" + std::to_string(ticks.size()));
         state_.running = false;
         return;
     }
+
+    util::info("BacktestEngine::run_trading_timeframe_with_ticks start symbol=" + symbol +
+               " bars=" + std::to_string(bars.size()) +
+               " ticks=" + std::to_string(ticks.size()));
 
     std::size_t next_bar_idx = 0;
     for (const auto& tick_model : ticks) {
@@ -108,6 +126,8 @@ void BacktestEngine::run_trading_timeframe_with_ticks(
     }
 
     state_.running = false;
+    util::info("BacktestEngine::run_trading_timeframe_with_ticks finish processed_events=" +
+               std::to_string(state_.processed_events));
 }
 
 const SimulatorState& BacktestEngine::state() const noexcept {
@@ -162,6 +182,8 @@ void BacktestEngine::ensure_trade_record_for_position(const TradeRecordData& pos
 void BacktestEngine::close_position_and_track(const TradeRecordData& pos, int64_t now_msc, double close_price) {
     const TradeResult result = client_.close_position(pos.ticket);
     if (!(result.retcode == 10009 || result.retcode == 10010)) {
+        util::warning("BacktestEngine::close_position_and_track failed ticket=" +
+                      std::to_string(pos.ticket) + " retcode=" + std::to_string(result.retcode));
         return;
     }
 
@@ -309,6 +331,7 @@ void BacktestEngine::apply_exit_signal(const std::string& symbol, int exit_signa
         const bool is_buy = (pos.type == 0U);
         if ((exit_signal == 1 && is_buy) || (exit_signal == -1 && !is_buy)) {
             const double close_price = is_buy ? tick->bid : tick->ask;
+            util::debug("BacktestEngine::apply_exit_signal closing ticket=" + std::to_string(pos.ticket));
             close_position_and_track(pos, state_.current_time_us / 1000, close_price);
         }
     }
@@ -337,13 +360,18 @@ void BacktestEngine::apply_entry_signal(
 
     const TradeResult result = client_.order_send(request);
     if (!(result.retcode == 10009 || result.retcode == 10010) || result.order == 0) {
+        util::warning("BacktestEngine::apply_entry_signal order_send failed retcode=" +
+                      std::to_string(result.retcode));
         return;
     }
 
     const auto opened = client_.positions_get(result.order);
     if (opened.empty()) {
+        util::warning("BacktestEngine::apply_entry_signal no opened position for order=" +
+                      std::to_string(result.order));
         return;
     }
+    util::debug("BacktestEngine::apply_entry_signal opened order=" + std::to_string(result.order));
     ensure_trade_record_for_position(opened.front(), state_.current_time_us / 1000);
 }
 

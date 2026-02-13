@@ -4,6 +4,7 @@
  */
 
 #include "trading/trade.hpp"
+#include "util/logger.hpp"
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -405,13 +406,12 @@ bool CTrade::OrderDelete(uint64_t ticket) noexcept {
 
 void CTrade::PrintRequest() const noexcept {
     std::string formatted = FormatRequest(last_request_);
-    // In real implementation, would log to file or console
-    // For now, just format it
+    util::info(formatted);
 }
 
 void CTrade::PrintResult() const noexcept {
     std::string formatted = FormatRequestResult(last_request_, last_result_);
-    // In real implementation, would log to file or console
+    util::info(formatted);
 }
 
 std::string CTrade::FormatRequest(const MqlTradeRequest& request) const noexcept {

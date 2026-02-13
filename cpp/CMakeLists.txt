@@ -1,5 +1,7 @@
 # HQT Core C++ Library
 add_library(hqt_core STATIC
+    src/util/logger.cpp
+    src/usage/logger_usage.cpp
     src/hello.cpp
     src/trading/trade.cpp
     src/sim/simulator_state.cpp

@@ -1,10 +1,14 @@
 #include "sim/trade_gateway.hpp"
+#include "util/logger.hpp"
+
+#include <string>
 
 namespace hqt::sim {
 
 namespace {
 
 TradeResult invalid_result(const std::string& comment, int retcode = 10013) {
+    util::warning("TradeGateway invalid request: " + comment + " (retcode=" + std::to_string(retcode) + ")");
     TradeResult result;
     result.retcode = retcode;
     result.comment = comment;
@@ -123,6 +127,10 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
 
     if (!ok && result.retcode == 0) {
         result.retcode = 10011;
+    }
+    if (!ok) {
+        util::warning("TradeGateway order_send failed: " + result.comment +
+                      " (retcode=" + std::to_string(result.retcode) + ")");
     }
     return result;
 }

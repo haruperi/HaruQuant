@@ -25,6 +25,8 @@ from typing import Any, List, Optional
 from apps.logger import logger
 from apps.simulation.records import TradeRecord
 
+_CPP_LOG_BRIDGE_READY = False
+
 
 # ---------------------------------------------------------------------------
 # Backend enum & helpers
@@ -142,6 +144,8 @@ def run_trading_timeframe_cpp(
     -------
     CppBacktestResult
     """
+    _setup_cpp_logging_bridge()
+
     import hqt_engine.sim as csim
 
     bars = _build_bar_steps(data, original_data, strategy, warmup_bars)
@@ -188,6 +192,42 @@ def run_trading_timeframe_cpp(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _setup_cpp_logging_bridge() -> None:
+    """Attach C++ logging callback to the Python logger once per process."""
+    global _CPP_LOG_BRIDGE_READY
+
+    if _CPP_LOG_BRIDGE_READY:
+        return
+
+    try:
+        import hqt_engine
+    except Exception:
+        return
+
+    if not hasattr(hqt_engine, "set_log_callback"):
+        return
+
+    def _cpp_log_callback(level: str, message: str) -> None:
+        text = f"[C++] {message}"
+        lvl = (level or "").upper()
+        if lvl == "DEBUG":
+            logger.debug(text)
+        elif lvl == "WARNING":
+            logger.warning(text)
+        elif lvl == "ERROR":
+            logger.error(text)
+        else:
+            logger.info(text)
+
+    try:
+        hqt_engine.set_stderr_logging(False)
+        hqt_engine.set_log_callback(_cpp_log_callback)
+        hqt_engine.set_log_level(os.environ.get("HQT_CPP_LOG_LEVEL", "info"))
+        _CPP_LOG_BRIDGE_READY = True
+    except Exception as exc:
+        logger.warning(f"Failed to initialize C++ logging bridge: {exc}")
 
 
 def _build_bar_steps(
