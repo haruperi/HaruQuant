@@ -5,6 +5,7 @@ add_library(hqt_core STATIC
     src/engine/trading.cpp
     src/engine/analytics.cpp
     src/engine/infrastructure.cpp
+    src/engine/error.cpp
     src/engine/logger.cpp
     src/engine/usage.cpp
     src/hello.cpp

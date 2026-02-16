@@ -4,6 +4,7 @@
  */
 
 #include "engine/engine.hpp"
+#include "util/error.hpp"
 #include "util/logger.hpp"
 
 #include <cmath>
@@ -410,20 +411,7 @@ std::pair<int, std::string> SimulatorClient::last_error() const {
 }
 
 std::string SimulatorClient::trade_retcode_description(int retcode) const {
-    switch (retcode) {
-        case 10008: return "Order placed";
-        case 10009: return "Request completed";
-        case 10010: return "Request partially completed";
-        case 10013: return "Invalid request";
-        case 10014: return "Invalid volume";
-        case 10015: return "Invalid price";
-        case 10016: return "Invalid stops";
-        case 10017: return "Trade disabled";
-        case 10018: return "Market closed";
-        case 10019: return "No money";
-        case 10021: return "No quotes";
-        default: return "Unknown retcode";
-    }
+    return util::error_from_retcode(retcode).message;
 }
 
 double SimulatorClient::order_calc_margin(

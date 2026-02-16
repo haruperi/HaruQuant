@@ -51,6 +51,20 @@
   - C++ log callback forwards records into `apps.logger.logger`.
   - Result: C++ log events flow through the same Python logger handlers, so they appear in terminal and `logs/` files.
 
+## Shared Error Taxonomy (Python/C++)
+- C++ taxonomy source:
+  - Header: `cpp/include/util/error.hpp`
+  - Source: `cpp/src/engine/error.cpp`
+- Taxonomy payload schema (shared to Python):
+  - `code` (int), `name` (str), `message` (str), `domain` (str), `retryable` (bool).
+- Bridge API exposed on `hqt_engine`:
+  - `error_from_retcode(code)` -> taxonomy payload dict.
+  - `error_name(code)` -> stable symbolic name.
+- Python typed errors:
+  - `apps/utils/errors.py` defines `ErrorDescriptor` and typed exceptions (`CppTradeError` + specific subclasses).
+- Backend integration:
+  - `apps/simulation/backend.py` maps C++ execution failures to typed Python exceptions using bridge taxonomy, with graceful fallback to `CppBridgeError`.
+
 ## Logging Flow
 1. C++ code emits log via `hqt::util::info/warning/error/debug`.
 2. Logger checks level and dispatches to:

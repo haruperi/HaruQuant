@@ -85,3 +85,20 @@ class TestLoggingBridge:
         assert received
         assert received[-1][0] == "WARNING"
         assert received[-1][1] == "legacy callback"
+
+
+class TestErrorTaxonomy:
+    def test_error_taxonomy_api_is_available(self):
+        assert hasattr(hqt_engine, "error_from_retcode")
+        assert hasattr(hqt_engine, "error_name")
+
+    def test_error_from_retcode_returns_structured_payload(self):
+        payload = hqt_engine.error_from_retcode(10013)
+        assert isinstance(payload, dict)
+        assert payload["code"] == 10013
+        assert payload["name"] == "TRADE_RETCODE_INVALID"
+        assert payload["domain"] == "trade"
+        assert isinstance(payload["retryable"], bool)
+
+    def test_error_name_returns_expected_value(self):
+        assert hqt_engine.error_name(10014) == "TRADE_RETCODE_INVALID_VOLUME"

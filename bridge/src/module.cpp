@@ -2,6 +2,7 @@
 #include <nanobind/stl/string.h>
 #include <usage/logger_usage.hpp>
 #include <hqt/hello.hpp>
+#include <util/error.hpp>
 #include <util/logger.hpp>
 
 #include <algorithm>
@@ -155,6 +156,18 @@ NB_MODULE(hqt_engine, m) {
     }, "Emit a C++ log message (primarily for integration testing).");
     m.def("run_cpp_logger_usage_example", &hqt::usage::run_logger_usage_example,
           "Run minimal C++ logger usage example.");
+    m.def("error_from_retcode", [](int code) {
+        const hqt::util::ErrorInfo info = hqt::util::error_from_retcode(code);
+        nb::dict payload;
+        payload["code"] = info.code;
+        payload["name"] = nb::str(info.name.c_str());
+        payload["message"] = nb::str(info.message.c_str());
+        payload["domain"] = nb::str(info.domain.c_str());
+        payload["retryable"] = info.retryable;
+        return payload;
+    }, "Return structured error taxonomy payload for a C++ trade retcode.");
+    m.def("error_name", &hqt::util::error_name,
+          "Return taxonomy error name for a C++ trade retcode.");
 
     nb::module_ sim = m.def_submodule("sim", "Simulation engine bindings");
     register_sim_bindings(sim);

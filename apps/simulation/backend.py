@@ -25,6 +25,12 @@ from typing import Any, List, Optional
 
 from apps.logger import logger
 from apps.simulation.records import TradeRecord
+from apps.utils.errors import (
+    CppBridgeError,
+    ErrorDescriptor,
+    descriptor_from_payload,
+    trade_exception_from_descriptor,
+)
 
 _CPP_LOG_BRIDGE_READY = False
 _CPP_LOG_CLEANUP_REGISTERED = False
@@ -174,7 +180,10 @@ def run_trading_timeframe_cpp(
         client.set_symbol_tick(symbol, tick)
 
     engine = csim.BacktestEngine(client)
-    engine.run_trading_timeframe(symbol, volume, bars)
+    try:
+        engine.run_trading_timeframe(symbol, volume, bars)
+    except Exception as exc:
+        raise _translate_cpp_exception(exc, client) from exc
 
     # Harvest results.
     snapshot = engine.account_snapshot()
@@ -342,6 +351,69 @@ def _build_bar_steps(
         steps.append(step)
 
     return steps
+
+
+def _extract_retcode(raw: str) -> Optional[int]:
+    """Extract retcode=<int> from an error string when present."""
+    marker = "retcode="
+    pos = raw.find(marker)
+    if pos < 0:
+        return None
+    pos += len(marker)
+    end = pos
+    while end < len(raw) and raw[end].isdigit():
+        end += 1
+    if end == pos:
+        return None
+    try:
+        return int(raw[pos:end])
+    except Exception:
+        return None
+
+
+def _cpp_error_payload_from_code(code: int) -> Optional[dict[str, Any]]:
+    """Query C++ bridge taxonomy payload for a retcode."""
+    try:
+        import hqt_engine
+    except Exception:
+        return None
+    if not hasattr(hqt_engine, "error_from_retcode"):
+        return None
+    try:
+        payload = hqt_engine.error_from_retcode(int(code))
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _translate_cpp_exception(exc: Exception, client: Any) -> Exception:
+    """Map raw C++ exception into typed Python exception."""
+    raw_message = str(exc)
+    retcode = _extract_retcode(raw_message)
+    detail = raw_message
+
+    if retcode is None:
+        try:
+            code, msg = client.last_error()
+            retcode = int(code)
+            if msg:
+                detail = str(msg)
+        except Exception:
+            retcode = None
+
+    if retcode is not None and retcode not in (0, 1):
+        payload = _cpp_error_payload_from_code(retcode)
+        descriptor = descriptor_from_payload(payload, fallback_code=retcode)
+        return trade_exception_from_descriptor(descriptor, detail=detail)
+
+    descriptor = ErrorDescriptor(
+        code=retcode if retcode is not None else -1,
+        name="CPP_BRIDGE_ERROR",
+        message="C++ bridge execution failed",
+        domain="bridge",
+        retryable=False,
+    )
+    return CppBridgeError(descriptor=descriptor, detail=detail)
 
 
 def _to_cpp_account(account: Any) -> Any:
