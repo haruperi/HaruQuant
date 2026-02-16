@@ -15,8 +15,21 @@
 
 #include "engine/engine.hpp"
 
+#include <functional>
+#include <utility>
+
 namespace nb = nanobind;
 using namespace hqt::sim;
+
+namespace {
+
+template <typename Func, typename... Args>
+decltype(auto) call_without_gil(Func&& func, Args&&... args) {
+    nb::gil_scoped_release release;
+    return std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
+}
+
+}  // namespace
 
 void register_sim_bindings(nb::module_& m) {
     // ── Structs ──────────────────────────────────────────────────────
@@ -297,9 +310,21 @@ void register_sim_bindings(nb::module_& m) {
                     callback(index, bar, state);
                 });
         })
-        .def("run_trading_timeframe", &BacktestEngine::run_trading_timeframe)
+        .def("run_trading_timeframe",
+             [](BacktestEngine& self, const std::string& symbol, double volume,
+                const std::vector<BacktestBarStep>& bars) {
+                 call_without_gil([&]() {
+                     self.run_trading_timeframe(symbol, volume, bars);
+                 });
+             })
         .def("run_trading_timeframe_with_ticks",
-             &BacktestEngine::run_trading_timeframe_with_ticks)
+             [](BacktestEngine& self, const std::string& symbol, double volume,
+                const std::vector<BacktestBarStep>& bars,
+                const std::vector<ModelTick>& ticks) {
+                 call_without_gil([&]() {
+                     self.run_trading_timeframe_with_ticks(symbol, volume, bars, ticks);
+                 });
+             })
         .def("state", &BacktestEngine::state,
              nb::rv_policy::reference_internal)
         .def("account_snapshot", &BacktestEngine::account_snapshot,
@@ -341,8 +366,21 @@ void register_sim_bindings(nb::module_& m) {
 
     nb::class_<PortfolioEngine>(m, "PortfolioEngine")
         .def(nb::init<SimulatorClient&>(), nb::keep_alive<1, 2>())
-        .def("run_equal_weight", &PortfolioEngine::run_equal_weight)
-        .def("run_with_allocations", &PortfolioEngine::run_with_allocations)
+        .def("run_equal_weight",
+             [](PortfolioEngine& self, const std::vector<PortfolioSymbolInput>& inputs,
+                double base_volume) {
+                 call_without_gil([&]() {
+                     self.run_equal_weight(inputs, base_volume);
+                 });
+             })
+        .def("run_with_allocations",
+             [](PortfolioEngine& self, const std::vector<PortfolioSymbolInput>& inputs,
+                double base_volume,
+                const std::unordered_map<std::string, double>& allocations) {
+                 call_without_gil([&]() {
+                     self.run_with_allocations(inputs, base_volume, allocations);
+                 });
+             })
         .def("effective_allocations", &PortfolioEngine::effective_allocations,
              nb::rv_policy::reference_internal);
 

@@ -1,5 +1,6 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 #include <usage/logger_usage.hpp>
 #include <hqt/hello.hpp>
 #include <util/error.hpp>
@@ -9,6 +10,7 @@
 #include <cctype>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace nb = nanobind;
 
@@ -106,6 +108,46 @@ void dispatch_log_to_python(const hqt::util::LogRecord& record) {
     }
 }
 
+double sum_1d_numeric_sequence(const nb::object& values) {
+    if (values.is_none()) {
+        throw nb::type_error("sum expects a 1D numeric sequence, got None.");
+    }
+
+    if (PyUnicode_Check(values.ptr()) || PyBytes_Check(values.ptr())) {
+        throw nb::type_error("sum expects a 1D numeric sequence, got string-like input.");
+    }
+
+    if (!PySequence_Check(values.ptr())) {
+        throw nb::type_error("sum expects a 1D numeric sequence.");
+    }
+
+    const Py_ssize_t n = PySequence_Size(values.ptr());
+    if (n < 0) {
+        throw nb::type_error("sum could not determine sequence size.");
+    }
+
+    double total = 0.0;
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        nb::object item = nb::steal(PySequence_GetItem(values.ptr(), i));
+        if (!item.is_valid()) {
+            throw nb::type_error("sum failed to access sequence item.");
+        }
+
+        // Treat nested sequences as shape errors (expect 1D scalar values only).
+        if (!item.is_none() && !PyUnicode_Check(item.ptr()) && !PyBytes_Check(item.ptr()) &&
+            PySequence_Check(item.ptr())) {
+            throw nb::value_error("sum expects a 1D sequence; nested sequence found.");
+        }
+
+        if (!(PyFloat_Check(item.ptr()) || PyLong_Check(item.ptr()))) {
+            throw nb::type_error("sum expects numeric elements (int/float).");
+        }
+
+        total += nb::cast<double>(item);
+    }
+    return total;
+}
+
 }  // namespace
 
 NB_MODULE(hqt_engine, m) {
@@ -124,6 +166,8 @@ NB_MODULE(hqt_engine, m) {
         });
 
     m.def("version", &hqt::version, "Returns the engine version struct.");
+    m.def("sum", &sum_1d_numeric_sequence,
+          "Smoke function: sum a 1D numeric sequence with explicit dtype/shape validation.");
     m.def("set_log_level", [](const std::string& level) {
         hqt::util::set_log_level(parse_level(level));
     }, "Set C++ logger level: debug|info|warning|error.");

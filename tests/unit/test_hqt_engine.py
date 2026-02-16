@@ -34,6 +34,19 @@ class TestHello:
         v = hqt_engine.version()
         assert repr(v) == "Version(0, 1, 0)"
 
+    def test_sum_smoke_function(self):
+        assert hasattr(hqt_engine, "sum")
+        assert hqt_engine.sum([1.0, 2.5, 3.5]) == pytest.approx(7.0)
+        assert hqt_engine.sum([]) == pytest.approx(0.0)
+
+    def test_sum_dtype_error_maps_to_type_error(self):
+        with pytest.raises(TypeError):
+            hqt_engine.sum([1.0, "x", 3.0])
+
+    def test_sum_shape_error_maps_to_value_error(self):
+        with pytest.raises(ValueError):
+            hqt_engine.sum([[1.0, 2.0], [3.0, 4.0]])
+
 
 class TestLoggingBridge:
     def test_logging_controls_are_available(self):
