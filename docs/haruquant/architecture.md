@@ -47,6 +47,63 @@
 - Python runner that triggers the C++ usage path via bridge:
   - `tests/usage/utils/usage_cpp_logger.py`
 
+## Sequence: `trade_simulator_cpp_example.py`
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant EX as trade_simulator_cpp_example.py
+    participant TS as TradeSimulator
+    participant SE as SimulationEngine.run()
+    participant BE as apps/simulation/backend.py
+    participant BR as hqt_engine bridge (nanobind)
+    participant CE as C++ BacktestEngine
+    participant SC as C++ SimulatorClient
+    participant LG as Python Logger
+
+    U->>EX: Run script
+    EX->>EX: Set SIM_ENGINE=cpp
+    EX->>BE: get_backend(), is_cpp_available()
+    alt --smoke mode
+        EX->>BE: _run_cpp_smoke()
+        BE->>BR: Create C++ DTOs + Engine
+        BR->>CE: run_trading_timeframe(...)
+        CE-->>BR: snapshot + completed_trades
+        BR-->>BE: C++ result
+        BE-->>EX: smoke success
+        EX-->>U: exit
+    else full simulation mode
+        EX->>EX: Load MT5 credentials + connect MT5
+        EX->>TS: Build TradeSimulator(account, symbol, trade API)
+        EX->>EX: Fetch bars + strategy.on_bar(data)
+        EX->>TS: run(..., data_modelling=trading_timeframe)
+        TS->>SE: enter run()
+        SE->>SE: Validate inputs, warmup/trading slice
+        SE->>BE: run_trading_timeframe_cpp(...)
+        BE->>BR: set_log_callback/set_log_level/set_stderr_logging
+        BR-->>LG: Forward C++ logs to Python logger
+        BE->>BE: Build BacktestBarStep[] from dataframe
+        BE->>BR: Construct SimulatorClient + BacktestEngine
+        BR->>SC: seed symbol info + initial tick
+        BR->>CE: run_trading_timeframe(symbol, volume, bars)
+        loop each bar
+            CE->>SC: update tick/bid/ask
+            CE->>CE: monitor pending orders
+            CE->>CE: monitor positions + account
+            CE->>CE: apply exit signal
+            CE->>CE: apply entry signal
+        end
+        CE-->>BR: account_snapshot() + completed_trades()
+        BR-->>BE: C++ result DTOs
+        BE->>BE: Convert C++ trades to Python TradeRecord
+        BE-->>SE: CppBacktestResult
+        SE->>TS: apply snapshot + append completed trades
+        TS-->>EX: simulation result
+        EX->>EX: Print summary + shutdown MT5
+        EX-->>U: done
+    end
+```
+
 ## Engine Merge Status
 - Merge complete for folder layout:
   - Legacy `cpp/include/core`, `cpp/include/sim`, and `cpp/src/sim` were removed.
