@@ -1,0 +1,41 @@
+[mt5]
+login = 61450707
+password = "qmotWcgh3$"
+server = "Pepperstone-Demo"
+path = "C:\\Program Files\\Pepperstone MetaTrader 5\\terminal64.exe"
+
+[strategy]
+symbol = "XAUUSD"
+
+[strategy.params]
+fast_period = 20
+slow_period = 50
+filter_period = 200
+
+[trading]
+timeframe = "M1"
+volume = 0.01
+magic_number = 123456
+initial_bars = 250
+deviation = 10
+
+[safety]
+min_balance = 100.0
+min_margin_level = 200.0
+max_positions = 10
+max_daily_trades = 50
+
+[notifications]
+enable_email = false
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+smtp_user = "rufaroh59@gmail.com"
+smtp_password = "qmotWcgh3$"
+recipients = ["rufaroh59@gmail.com"]
+
+[logging]
+dir = "logs/live_trading"
+level = "INFO"
+
+[state]
+file = "live_trading_state.json"

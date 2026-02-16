@@ -55,7 +55,7 @@ For more information, see the documentation.
         "--config",
         type=str,
         required=True,
-        help="Path to configuration JSON file (single or multi-strategy)",
+        help="Path to configuration file (TOML preferred, JSON supported)",
     )
 
     return parser.parse_args()
@@ -80,9 +80,9 @@ def validate_config_path(config_path: str) -> bool:
         logger.error(f"Configuration path is not a file: {config_path}")
         return False
 
-    if path.suffix.lower() != ".json":
+    if path.suffix.lower() not in {".toml", ".json"}:
         logger.warning(
-            f"Configuration file does not have .json extension: {config_path}"
+            f"Configuration file does not have .toml or .json extension: {config_path}"
         )
 
     return True

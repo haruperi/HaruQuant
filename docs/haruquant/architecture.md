@@ -12,6 +12,15 @@
 - `bridge/src/module.cpp` and `bridge/src/sim_bindings.cpp`: Python extension entrypoint and C++ API bindings.
 - `apps/logger/*`: Python logging subsystem that writes to terminal and rotating files under `logs/`.
 
+## Typed Config Loader
+- `apps/live/config.py` now provides typed live config loading with:
+  - file formats: `.toml` (preferred) and `.json` (supported),
+  - `${ENV_VAR}` substitution inside config files,
+  - environment overlay using `HQT_` prefix and nested keys via `__`.
+- Overlay precedence:
+  - `HQT_...` environment variables override file values after parse.
+  - Example: `HQT_MT5__PASSWORD`, `HQT_TRADING__VOLUME`.
+
 ## C++ Logging Bridge
 - C++ logger implementation:
   - Header: `cpp/include/util/logger.hpp`

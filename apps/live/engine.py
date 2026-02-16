@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from apps.live.bar_monitor import BarMonitor
+from apps.live.config import load_config_mapping
 from apps.live.notification_adapter import LiveTradingNotifier
 from apps.live.portfolio_manager import PortfolioManager
 from apps.live.position_manager import PositionManager
@@ -126,10 +127,9 @@ class MultiStrategyEngine:
         self._setup_logging()
 
     def _load_config(self, config_path: str) -> Dict:
-        """Load multi-strategy configuration."""
+        """Load multi-strategy configuration from TOML/JSON + env overlay."""
         try:
-            with open(config_path, "r") as f:
-                config = json.load(f)
+            config = load_config_mapping(config_path)
             return self._validate_and_normalize_config(config)
 
         except Exception as e:

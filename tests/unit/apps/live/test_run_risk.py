@@ -8,6 +8,11 @@ def test_validate_config_path_success(tmp_path):
     config_file.touch()
     assert validate_config_path(str(config_file)) is True
 
+def test_validate_config_path_toml_success(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.touch()
+    assert validate_config_path(str(config_file)) is True
+
 def test_setup_engine_success():
     with patch("apps.live.run_risk.RiskIntegratedEngine") as MockEngine:
         MockEngine.return_value.initialize.return_value = True

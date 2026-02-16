@@ -10,6 +10,11 @@ def test_validate_config_path_success(tmp_path):
     config_file.touch()
     assert validate_config_path(str(config_file)) is True
 
+def test_validate_config_path_toml_success(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.touch()
+    assert validate_config_path(str(config_file)) is True
+
 def test_validate_config_path_missing():
     assert validate_config_path("non_existent.json") is False
 
