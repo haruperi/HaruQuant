@@ -212,17 +212,43 @@ def _setup_cpp_logging_bridge() -> None:
     if not hasattr(hqt_engine, "set_log_callback"):
         return
 
-    def _cpp_log_callback(level: str, message: str) -> None:
+    def _cpp_log_callback(*args: Any) -> None:
+        payload: dict[str, Any] | None = None
+        level = "INFO"
+        message = ""
+        extra: dict[str, Any] = {}
+
+        # New structured callback: callback(record_dict)
+        if len(args) == 1 and isinstance(args[0], dict):
+            payload = args[0]
+            level = str(payload.get("level", {}).get("name", "INFO")).upper()
+            message = str(payload.get("message", ""))
+            if isinstance(payload.get("extra"), dict):
+                extra.update(payload["extra"])
+            extra["cpp_logger"] = payload.get("name")
+            extra["cpp_module"] = payload.get("module")
+            extra["cpp_function"] = payload.get("function")
+            extra["cpp_line"] = payload.get("line")
+            if isinstance(payload.get("file"), dict):
+                extra["cpp_file"] = payload["file"].get("path")
+            if isinstance(payload.get("time"), dict):
+                extra["cpp_time"] = payload["time"].get("repr")
+        # Legacy callback: callback(level, message)
+        elif len(args) >= 2:
+            level = str(args[0] or "INFO").upper()
+            message = str(args[1] or "")
+
         text = f"[C++] {message}"
-        lvl = (level or "").upper()
-        if lvl == "DEBUG":
-            logger.debug(text)
-        elif lvl == "WARNING":
-            logger.warning(text)
-        elif lvl == "ERROR":
-            logger.error(text)
+        if level == "DEBUG":
+            logger.debug(text, extra=extra)
+        elif level == "WARNING":
+            logger.warning(text, extra=extra)
+        elif level == "ERROR":
+            logger.error(text, extra=extra)
+        elif level == "CRITICAL":
+            logger.critical(text, extra=extra)
         else:
-            logger.info(text)
+            logger.info(text, extra=extra)
 
     try:
         hqt_engine.set_stderr_logging(False)

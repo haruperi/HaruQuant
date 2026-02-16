@@ -18,16 +18,6 @@ namespace {
 std::mutex g_log_callback_mutex;
 nb::object g_log_callback;
 
-std::string level_to_string(const hqt::util::LogLevel level) {
-    switch (level) {
-        case hqt::util::LogLevel::Debug: return "DEBUG";
-        case hqt::util::LogLevel::Info: return "INFO";
-        case hqt::util::LogLevel::Warning: return "WARNING";
-        case hqt::util::LogLevel::Error: return "ERROR";
-        default: return "INFO";
-    }
-}
-
 hqt::util::LogLevel parse_level(const std::string& raw_level) {
     std::string level = raw_level;
     std::transform(level.begin(), level.end(), level.begin(), [](unsigned char c) {
@@ -50,7 +40,7 @@ hqt::util::LogLevel parse_level(const std::string& raw_level) {
     throw nb::value_error("Invalid C++ log level. Use debug|info|warning|error.");
 }
 
-void dispatch_log_to_python(const hqt::util::LogLevel level, const std::string& message) {
+void dispatch_log_to_python(const hqt::util::LogRecord& record) {
     nb::gil_scoped_acquire gil;
 
     nb::object callback;
@@ -63,10 +53,55 @@ void dispatch_log_to_python(const hqt::util::LogLevel level, const std::string& 
         return;
     }
 
+    nb::dict extra_dict;
+    for (const auto& [k, v] : record.extra) {
+        extra_dict[nb::str(k.c_str())] = nb::str(v.c_str());
+    }
+
+    nb::dict payload;
+    nb::dict elapsed_dict;
+    elapsed_dict["seconds"] = 0.0;
+    elapsed_dict["repr"] = "0:00:00";
+    payload["elapsed"] = elapsed_dict;
+    payload["exception"] = nb::none();
+    payload["extra"] = extra_dict;
+    nb::dict file_dict;
+    file_dict["name"] = nb::str(record.file_name.c_str());
+    file_dict["path"] = nb::str(record.file_path.c_str());
+    payload["file"] = file_dict;
+    payload["function"] = nb::str(record.function.c_str());
+    nb::dict level_dict;
+    level_dict["name"] = nb::str(record.level_name.c_str());
+    level_dict["no"] = record.level_no;
+    level_dict["icon"] = "";
+    payload["level"] = level_dict;
+    payload["line"] = record.line;
+    payload["message"] = nb::str(record.message.c_str());
+    payload["module"] = nb::str(record.module.c_str());
+    payload["name"] = nb::str(record.logger_name.c_str());
+    nb::dict process_dict;
+    process_dict["id"] = record.process_id;
+    process_dict["name"] = nb::str(record.process_name.c_str());
+    payload["process"] = process_dict;
+    nb::dict thread_dict;
+    thread_dict["id"] = record.thread_id;
+    thread_dict["name"] = nb::str(record.thread_name.c_str());
+    payload["thread"] = thread_dict;
+    nb::dict time_dict;
+    time_dict["timestamp"] = record.timestamp;
+    time_dict["repr"] = nb::str(record.time_repr.c_str());
+    payload["time"] = time_dict;
+
     try {
-        callback(level_to_string(level), message);
+        // Preferred path: callback(record_dict)
+        callback(payload);
     } catch (...) {
-        // Logging should never throw back into execution code.
+        // Backward compatibility: callback(level, message)
+        try {
+            callback(nb::str(record.level_name.c_str()), nb::str(record.message.c_str()));
+        } catch (...) {
+            // Logging should never throw back into execution code.
+        }
     }
 }
 

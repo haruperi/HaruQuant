@@ -42,11 +42,11 @@ class TestLoggingBridge:
         assert hasattr(hqt_engine, "set_log_callback")
         assert hasattr(hqt_engine, "emit_log")
 
-    def test_log_callback_receives_cpp_log(self):
+    def test_log_callback_receives_structured_cpp_log(self):
         received = []
 
-        def callback(level, message):
-            received.append((level, message))
+        def callback(record):
+            received.append(record)
 
         hqt_engine.set_stderr_logging(False)
         hqt_engine.set_log_level("debug")
@@ -57,5 +57,31 @@ class TestLoggingBridge:
         hqt_engine.set_log_callback(None)
 
         assert received
-        assert received[-1][0] == "INFO"
-        assert received[-1][1] == "bridge test message"
+        record = received[-1]
+        assert isinstance(record, dict)
+        assert record["level"]["name"] == "INFO"
+        assert record["message"] == "bridge test message"
+        assert record["module"]
+        assert record["function"]
+        assert isinstance(record["line"], int)
+        assert record["time"]["repr"]
+        assert "process" in record
+        assert "thread" in record
+
+    def test_log_callback_legacy_signature_still_works(self):
+        received = []
+
+        def callback(level, message):
+            received.append((level, message))
+
+        hqt_engine.set_stderr_logging(False)
+        hqt_engine.set_log_level("debug")
+        hqt_engine.set_log_callback(callback)
+
+        hqt_engine.emit_log("warning", "legacy callback")
+
+        hqt_engine.set_log_callback(None)
+
+        assert received
+        assert received[-1][0] == "WARNING"
+        assert received[-1][1] == "legacy callback"

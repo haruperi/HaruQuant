@@ -20,8 +20,10 @@
   - Supports levels: `DEBUG`, `INFO`, `WARNING`, `ERROR`.
   - Supports optional stderr output.
   - Supports optional callback sink for forwarding logs to Python.
+  - Emits structured records aligned to Python logger schema keys:
+    - `time`, `level`, `message`, `module`, `name`, `function`, `line`, `file`, `process`, `thread`, `extra`.
 - Bridge API exposed on `hqt_engine`:
-  - `set_log_callback(callable_or_none)`
+  - `set_log_callback(callable_or_none)` (supports both `callback(record_dict)` and legacy `callback(level, message)`)
   - `set_log_level(level_str)`
   - `set_stderr_logging(enabled)`
   - `emit_log(level_str, message)` (utility/testing emitter)

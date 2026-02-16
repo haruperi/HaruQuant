@@ -6,6 +6,9 @@
 #pragma once
 
 #include <functional>
+#include <cstdint>
+#include <map>
+#include <source_location>
 #include <string>
 
 namespace hqt::util {
@@ -17,7 +20,32 @@ enum class LogLevel {
     Error = 40,
 };
 
-using LogSink = std::function<void(LogLevel, const std::string&)>;
+using LogExtra = std::map<std::string, std::string>;
+
+struct LogRecord {
+    std::string logger_name;
+    std::string module;
+    std::string file_name;
+    std::string file_path;
+    std::string function;
+    int line;
+
+    std::string level_name;
+    int level_no;
+    std::string message;
+
+    double timestamp;
+    std::string time_repr;
+
+    int process_id;
+    std::string process_name;
+    std::uint64_t thread_id;
+    std::string thread_name;
+
+    LogExtra extra;
+};
+
+using LogSink = std::function<void(const LogRecord&)>;
 
 void set_log_level(LogLevel level) noexcept;
 [[nodiscard]] LogLevel get_log_level() noexcept;
@@ -27,11 +55,21 @@ void set_stderr_logging(bool enabled) noexcept;
 
 void set_log_sink(LogSink sink);
 
-void log(LogLevel level, const std::string& message);
+void log(LogLevel level, const std::string& message,
+         const std::source_location& location = std::source_location::current(),
+         LogExtra extra = {});
 
-void debug(const std::string& message);
-void info(const std::string& message);
-void warning(const std::string& message);
-void error(const std::string& message);
+void debug(const std::string& message,
+           const std::source_location& location = std::source_location::current(),
+           LogExtra extra = {});
+void info(const std::string& message,
+          const std::source_location& location = std::source_location::current(),
+          LogExtra extra = {});
+void warning(const std::string& message,
+             const std::source_location& location = std::source_location::current(),
+             LogExtra extra = {});
+void error(const std::string& message,
+           const std::source_location& location = std::source_location::current(),
+           LogExtra extra = {});
 
 }  // namespace hqt::util
