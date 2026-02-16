@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.logger import logger
+from apps.api.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
     auth,
@@ -90,6 +91,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecretRedactionMiddleware)
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])

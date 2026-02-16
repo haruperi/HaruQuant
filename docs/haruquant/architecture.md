@@ -21,6 +21,15 @@
   - `HQT_...` environment variables override file values after parse.
   - Example: `HQT_MT5__PASSWORD`, `HQT_TRADING__VOLUME`.
 
+## Secret Redaction
+- Central redaction helpers live in `apps/utils/redaction.py`.
+- Logger-level enforcement:
+  - `apps/logger/logger.py` redacts secret patterns in free-form messages.
+  - `apps/logger/logger.py` redacts sensitive keys in `extra` payloads recursively.
+- API middleware:
+  - `apps/api/middleware/security.py` sanitizes request headers/query metadata before debug logging.
+  - Registered in `apps/api/main.py` as `SecretRedactionMiddleware`.
+
 ## C++ Logging Bridge
 - C++ logger implementation:
   - Header: `cpp/include/util/logger.hpp`

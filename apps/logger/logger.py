@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 
+from apps.utils.redaction import redact_mapping, redact_text
+
 from .formatter import Formatter
 from .handler import AsyncHandler, CallableHandler, FileHandler, Handler, StreamHandler
 from .record import ExceptionInfo, FileInfo, Level, LogRecord, ProcessInfo, ThreadInfo
@@ -477,6 +479,7 @@ class Logger:
             exception_info = None
 
         formatted_message = self._format_message(message, args, kwargs)
+        formatted_message = redact_text(formatted_message)
 
         frame = FrameInspector.get_caller_frame(depth=_depth)
         frame_info = FrameInspector.extract_frame_info(frame)
@@ -505,6 +508,7 @@ class Logger:
             record_extra.update(kwargs.pop("extra"))
         else:
             record_extra.update(kwargs)
+        record_extra = redact_mapping(record_extra)
 
         record = LogRecord(
             elapsed=elapsed,
