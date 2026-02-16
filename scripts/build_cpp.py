@@ -33,9 +33,52 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     return result
 
 
+def _normalize_path(path: Path) -> str:
+    return str(path.resolve()).replace("\\", "/").lower()
+
+
+def _extract_cache_value(cache_text: str, key: str) -> str | None:
+    prefix = f"{key}:INTERNAL="
+    for line in cache_text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip()
+    return None
+
+
+def _repair_incompatible_cache(build_dir: Path, expected_generator: str) -> None:
+    """Drop stale CMake cache when generator/path no longer matches."""
+    cache = build_dir / "CMakeCache.txt"
+    if not cache.exists():
+        return
+
+    text = cache.read_text(encoding="utf-8", errors="ignore")
+    cache_dir = _extract_cache_value(text, "CMAKE_CACHEFILE_DIR")
+    cache_gen = _extract_cache_value(text, "CMAKE_GENERATOR")
+    expected_dir = _normalize_path(build_dir)
+
+    mismatch = False
+    if cache_dir:
+        mismatch = mismatch or (_normalize_path(Path(cache_dir)) != expected_dir)
+    if cache_gen:
+        mismatch = mismatch or (cache_gen != expected_generator)
+
+    if not mismatch:
+        return
+
+    cmake_files = build_dir / "CMakeFiles"
+    if cmake_files.exists():
+        shutil.rmtree(cmake_files, ignore_errors=True)
+    cache.unlink(missing_ok=True)
+    print(
+        f"Repaired stale CMake cache in {build_dir} "
+        f"(generator/path mismatch with {expected_generator})"
+    )
+
+
 def configure(build_type: str = "Release"):
     """Run CMake configure step."""
     BUILD_DIR.mkdir(exist_ok=True)
+    _repair_incompatible_cache(BUILD_DIR, CMAKE_GENERATOR)
 
     cmd = [
         "cmake",

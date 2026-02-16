@@ -37,7 +37,7 @@ def _normalize_path(path: Path) -> str:
 
 
 def _repair_stale_cache(build_dir: Path) -> None:
-    """Remove stale CMake cache when a build directory was renamed."""
+    """Remove stale CMake cache when path/generator no longer matches."""
     cache = build_dir / "CMakeCache.txt"
     if not cache.exists():
         return
@@ -46,10 +46,20 @@ def _repair_stale_cache(build_dir: Path) -> None:
     expected = _normalize_path(build_dir)
 
     # CMake stores the originating binary dir in cache internals.
-    mismatch = (
-        "CMAKE_CACHEFILE_DIR:INTERNAL=" in text
-        and expected not in text.replace("\\", "/").lower()
-    )
+    mismatch = False
+    cache_dir = None
+    cache_gen = None
+    for line in text.splitlines():
+        if line.startswith("CMAKE_CACHEFILE_DIR:INTERNAL="):
+            cache_dir = line.split("=", 1)[1].strip()
+        elif line.startswith("CMAKE_GENERATOR:INTERNAL="):
+            cache_gen = line.split("=", 1)[1].strip()
+
+    if cache_dir:
+        mismatch = mismatch or (_normalize_path(Path(cache_dir)) != expected)
+    if cache_gen:
+        mismatch = mismatch or (cache_gen != DEFAULT_GENERATOR)
+
     if not mismatch:
         return
 
