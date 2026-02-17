@@ -257,6 +257,21 @@
   - `artifacts/evidence/data_quality/sample_report.json`
   - `docs/haruquant/usage/ops/data_quality_runbook.md`
 
+## Multi-Symbol Ingestion (IP-11)
+
+- Core module:
+  - `apps/adapters/multisymbol_ingestion.py`
+- Capabilities:
+  - synchronized multi-symbol timeline ingestion (`synchronize`)
+  - incremental download compaction (`compact_incremental`)
+  - memory-mapped lazy historical reads (`MemmapHistoricalStore.read_memmap`)
+- Synchronization implementation reuses:
+  - `apps/simulation/synchronizer.py` (`DataSynchronizer`)
+- Evidence:
+  - `tests/integration/test_multisymbol_sync.py`
+  - `docs/haruquant/usage/ops/multisymbol_ingestion.md`
+  - `artifacts/benchmarks/ingestion/multisymbol_sync_perf.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:

@@ -335,21 +335,21 @@
   * Bench/log: `artifacts/evidence/data_quality/sample_report.json`
   * Commit: `TBD`
 
-#### [ ] IP-11 Multi-symbol synchronized ingestion
+#### [X] IP-11 Multi-symbol synchronized ingestion
 
 * **Sub-tasks**
-  * [ ] Implement synchronized multi-symbol ingestion pipeline. (FR-DATA-004)
-  * [ ] Implement memory-mapped (mmap) lazy loading for historical data. (FR-CPP-002)
-  * [ ] Support data compaction for incremental downloads. (FR-DATA-013)
+  * [X] Implement synchronized multi-symbol ingestion pipeline. (FR-DATA-004)
+  * [X] Implement memory-mapped (mmap) lazy loading for historical data. (FR-CPP-002)
+  * [X] Support data compaction for incremental downloads. (FR-DATA-013)
 * **Deliverables**
   * Cross-symbol sync and ordering policy
 * **SRS refs:** FR-DATA-004, FR-DATA-013, FR-CPP-002, NFR-SCL-001..003
 * **SDD refs:** §3, §5.1.2, §13
 * **Dependencies:** IP-06, IP-09
 * **Completion evidence**
-  * Tests: `py/tests/integration/test_multisymbol_sync.py`
-  * Usage: `usage/data/multisymbol_ingestion.md`
-  * Bench/log: `benchmarks/data/multisymbol_sync_perf.md`
+  * Tests: `tests/integration/test_multisymbol_sync.py`
+  * Usage: `docs/haruquant/usage/ops/multisymbol_ingestion.md`
+  * Bench/log: `artifacts/benchmarks/ingestion/multisymbol_sync_perf.md`
   * Commit: `TBD`
 
 #### [ ] IP-12 Message contracts and schema registry (events/API/storage)
