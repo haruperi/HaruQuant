@@ -1,421 +1,1376 @@
+([Past chat][1])([Past chat][1])([Past chat][2])([Past chat][3])
+
 # ImplementationPlan.md
 
-## Hybrid C++/Python Quantitative Trading & Backtesting System  
-**Baseline:** Nanobind + Signal-Driven first  
-**Derived from:** `01_software_requirements_specification_updated.md`, `02_system_design_document_updated.md`, `requirements_traceability_matrix.xlsx`  
-**Date:** 2026-02-16
+## Hybrid C++/Python Quant Trading & Backtesting Platform
+
+**Based on:** `01_software_requirements_specification.md` (edited) and rewritten `02_system_design.md`
+**Version:** v2.0 (re-baselined)
+**Goal:** 100% implementation coverage of SRS + SDD with task-level traceability.
 
 ---
 
-## How to use this checklist
+## 0) Plan Rules and Completion Policy
 
-- Mark items as done by replacing `[ ]` with `[x]`.
-- Keep PRs small and traceable.
-- Every completed item must link to:
-  - requirement IDs,
-  - test file(s),
-  - benchmark/log evidence (when applicable).
+### 0.1 Mandatory Execution Rules
 
----
+* Keep PRs **small and traceable** (target: 1 primary task per PR).
+* Every task has explicit references to:
 
-## Definition of Done (Global)
+  * **SRS IDs**
+  * **SDD sections**
+* Every completed task must include:
 
-- [ ] Code merged with passing CI (unit + integration + lint/type checks)
-- [ ] Requirement IDs referenced in PR description
-- [ ] Tests added/updated with clear assertions
-- [ ] Reproducibility metadata included in outputs where applicable
-- [ ] Docs updated (SRS/SDD/README/module docs)
-- [ ] Performance-sensitive paths benchmarked (if touched)
+  * test file(s),
+  * usage file(s),
+  * benchmark/log evidence (when applicable),
+  * git commit hash.
 
----
+### 0.2 Checkbox Policy
 
-## Phase 0 — Project Foundation & Build Skeleton (P0)
-
-### 0.1 Repository and Toolchain
-- [ ] Create canonical repo layout:
-  - [ ] `hybrid_backtester/python/...`
-  - [ ] `hybrid_backtester/cpp_core/...`
-  - [ ] `hybrid_backtester/bridge/...`
-  - [ ] `config/`, `scripts/`, `docs/`, `tests/`
-- [ ] Setup Python packaging (`pyproject.toml`) and env management
-- [ ] Setup C++ build system (`CMakeLists.txt`) for core + tests + benchmarks
-- [ ] Setup cross-platform CI (Windows + Linux matrix)
-- [ ] Add linting/formatting:
-  - [ ] Python: ruff/black/mypy
-  - [ ] C++: clang-format/clang-tidy
-- [ ] Add commit hooks and quality gates
-
-**Req IDs:** FND-FR-001..006, NFR-MNT-001..002  
-**Primary tests:** `tests/quality/test_ci_guards.py`
-
-### 0.2 Logging/Config/Secrets Baseline
-- [ ] Implement structured logger in Python with `run_id` correlation
-- [ ] Implement structured logger in C++ and harmonize schema with Python
-- [ ] Implement typed config loader (TOML + environment overlay)
-- [ ] Implement secret redaction middleware/helpers
-- [ ] Implement error taxonomy shared across Python/C++
-
-**Req IDs:** FND-FR-001..005, NFR-SEC-001..002  
-**Primary tests:** `tests/unit/test_foundation.py`, `tests/security/test_secrets_redaction.py`
-
-### 0.3 Nanobind Hello-Path
-- [ ] Create Nanobind module `hqt_engine`
-- [ ] Expose `version()` and simple array op (`sum` smoke function)
-- [ ] Validate dtype/shape errors map to Python exceptions
-- [ ] Add GIL release pattern for long native calls template
-
-**Req IDs:** BRG-FR-001..004  
-**Primary tests:** `tests/integration/test_nanobind_bridge.py`
+* Use `[ ]` for not done.
+* Replace with `[x]` **only** when Item-Level DoD is fully satisfied.
 
 ---
 
-## Phase 1 — Data Contracts + Signal-Driven Core v1 (P0)
+## 1) Definition of Done
 
-### 1.1 Market Data Contracts (Python side)
-- [ ] Implement loaders (`parquet/csv`) with symbol/timeframe metadata
-- [ ] Implement normalization to required arrays:
-  - [ ] `ts:int64`
-  - [ ] `open/high/low/close:float64`
-  - [ ] `volume:float64` (optional)
-  - [ ] `spread:float64` (optional)
-- [ ] Implement validators:
-  - [ ] monotonic timestamps
-  - [ ] duplicates/gaps checks
-  - [ ] spread sanity checks
-  - [ ] schema contract enforcement
-- [ ] Persist data version/hash and lineage metadata
+### 1.1 Program-Level DoD
 
-**Req IDs:** DAT-FR-001..005, STR-FR-003  
-**Primary tests:** `tests/unit/test_data_validation.py`
+* Backtest and live share canonical contracts.
+* Risk decisions parity-tested between Python and C++.
+* Live system supports reconcile/kill-switch/degraded mode.
+* UI shows live health + research outputs from same event/data model.
+* CI enforces contracts, tests, lint, and migration integrity.
 
-### 1.2 Signal Contract SDK (Python side)
-- [ ] Implement signal adapters with required alignment checks
-- [ ] Implement baseline strategies as signal generators:
-  - [ ] EMA crossover
-  - [ ] Williams %R example
-- [ ] Ensure outputs support:
-  - [ ] `entry_long`, `entry_short`
-  - [ ] optional `exit_long`, `exit_short`
-  - [ ] optional `size`, `sl_points`, `tp_points`
+### 1.2 Item-Level DoD
 
-**Req IDs:** STR-FR-001..004, BKT-FR-001  
-**Primary tests:** `tests/unit/test_signal_contracts.py`
-
-### 1.3 C++ SignalEngine v1
-- [ ] Implement deterministic bar loop
-- [ ] Implement entry/exit policy order (document tie-breaking)
-- [ ] Implement netting position model (one position per symbol)
-- [ ] Implement fill logic with spread/slippage
-- [ ] Implement commission/swap hooks (default no-op configurable)
-- [ ] Implement portfolio accounting:
-  - [ ] balance/equity
-  - [ ] floating and realized PnL
-  - [ ] margin/free margin baseline
-- [ ] Emit outputs:
-  - [ ] trades array
-  - [ ] equity curve
-  - [ ] summary metrics baseline
-
-**Req IDs:** CPP-FR-001..005, BKT-FR-001..005, TRD-FR-001..003  
-**Primary tests:** `cpp_core/tests/test_core_engine.cpp`, `tests/integration/test_backtest_modes.py`
-
-### 1.4 Nanobind bridge for run_bars_signals
-- [ ] Bind `run_bars_signals(market, signals, config)`
-- [ ] Add input validation and exception mapping
-- [ ] Ensure no per-row marshaling (buffer protocol usage)
-- [ ] Add long-run GIL release guard
-- [ ] Return structured result object (trades/equity/metrics/meta)
-
-**Req IDs:** BRG-FR-001..004, NFR-PERF-002..003  
-**Primary tests:** `tests/integration/test_nanobind_bridge.py`
-
-### 1.5 Persistence + Repro bundle v1
-- [ ] Implement `runs`, `run_configs`, `run_metrics`, `run_trades`, `artifacts`
-- [ ] Implement run reproducibility bundle:
-  - [ ] config hash
-  - [ ] data hash/version
-  - [ ] engine version/commit
-  - [ ] seed
-- [ ] Save top-level report artifact and references
-
-**Req IDs:** NFR-DET-001..002, DAT-FR-005  
-**Primary tests:** `tests/regression/test_deterministic_replay.py`
+* Code merged with passing CI (unit + integration + lint/type checks)
+* Requirement IDs referenced in PR description
+* Tests added/updated with clear assertions (100% coverage for touched scope)
+* Usage case added/updated with clear examples (100% coverage for touched scope)
+* Reproducibility metadata included where applicable
+* Docs updated (SRS/SDD/README/module docs)
+* Performance-sensitive paths benchmarked (if touched)
+* Git commit recorded
 
 ---
 
-## Phase 2 — Batch Optimization & Throughput Scaling (P0/P1)
+## 2) Coverage Strategy (100% SRS + 100% SDD)
 
-### 2.1 C++ BatchRunner
-- [ ] Implement thread-pool based parallel run scheduling
-- [ ] Implement per-run deterministic seed assignment
-- [ ] Implement top-K reduction and leaderboard output
-- [ ] Add failure isolation per job and partial-result handling
+## 2.1 SRS Coverage Matrix (Module/Category → Tasks)
 
-**Req IDs:** BKT-FR-003..006, OPT-FR-004, NFR-PERF-001  
-**Primary tests:** `tests/integration/test_batch_optimization.py`
+| SRS Area           | Coverage Tasks                    |
+| ------------------ | --------------------------------- |
+| FR-UTIL-001..005   | IP-01, IP-02, IP-03               |
+| FR-CONF-001..006   | IP-04, IP-05                      |
+| FR-BRIDGE-001..006 | IP-18, IP-19, IP-20, IP-21        |
+| FR-TIME-001..005   | IP-06, IP-07, IP-08               |
+| FR-DATA-001..006   | IP-09, IP-10, IP-11, IP-12        |
+| FR-FEAT-001..005   | IP-13, IP-14                      |
+| FR-STRAT-001..006  | IP-22, IP-23, IP-24               |
+| FR-PORT-001..005   | IP-25, IP-26                      |
+| FR-RISK-001..006   | IP-27, IP-28, IP-29, IP-30        |
+| FR-OMS-001..006    | IP-31, IP-32, IP-33               |
+| FR-EXEC-001..006   | IP-34, IP-35, IP-36               |
+| FR-BT-001..007     | IP-37, IP-38, IP-39, IP-40        |
+| FR-RSCH-001..006   | IP-41, IP-42, IP-43               |
+| FR-MET-001..005    | IP-44                             |
+| FR-LIVE-001..006   | IP-45, IP-46, IP-47               |
+| FR-STOR-001..006   | IP-15, IP-16, IP-17, IP-48        |
+| FR-API-001..006    | IP-49, IP-50, IP-51               |
+| FR-UI-001..006     | IP-52, IP-53, IP-54               |
+| FR-OBS-001..006    | IP-55, IP-56, IP-57               |
+| FR-TEST-001..006   | IP-58, IP-59                      |
+| FR-CICD-001..006   | IP-60, IP-61, IP-62               |
+| FR-INT-001..007    | IP-12, IP-34, IP-49, IP-50        |
+| FR-DQ-001..003     | IP-10, IP-14, IP-16               |
+| FR-SAFE-001..005   | IP-28, IP-29, IP-33, IP-46        |
+| NFR-PERF-001..005  | IP-03, IP-21, IP-36, IP-39, IP-62 |
+| NFR-REL-001..005   | IP-45, IP-46, IP-47, IP-57        |
+| NFR-REC-001..004   | IP-47                             |
+| NFR-REP-001..004   | IP-08, IP-17, IP-24, IP-40, IP-43 |
+| NFR-SEC-001..006   | IP-05, IP-51, IP-57, IP-63        |
+| NFR-OBS-001..004   | IP-01, IP-55, IP-56, IP-57        |
+| NFR-SCL-001..003   | IP-12, IP-39, IP-41, IP-64        |
+| NFR-MNT-001..004   | IP-00, IP-04, IP-60               |
+| NFR-USE-001..003   | IP-52, IP-53, IP-54               |
+| NFR-TST-001..004   | IP-58, IP-59, IP-62               |
+| NFR-AUD-001..003   | IP-16, IP-30, IP-51               |
 
-### 2.2 Python orchestration for batch/wfo
-- [ ] Implement `run_batch.py` with config pack creation
-- [ ] Implement `run_wfo.py` scaffold (windowing + fold orchestration)
-- [ ] Implement persistent optimization tables:
-  - [ ] `optimization_jobs`
-  - [ ] `optimization_results`
-- [ ] Add resumable/restartable batch job control
+## 2.2 SDD Coverage Matrix (Section → Tasks)
 
-**Req IDs:** OPT-FR-001..004  
-**Primary tests:** `tests/integration/test_batch_optimization.py`
-
-### 2.3 Performance benchmarking suite
-- [ ] Add benchmarks for:
-  - [ ] single-run throughput (bars/sec)
-  - [ ] batch throughput (runs/sec)
-  - [ ] bridge overhead and memory
-- [ ] Establish baseline thresholds and CI perf report artifact
-- [ ] Compare Python-only vs hybrid speedup on fixed dataset
-
-**Req IDs:** NFR-PERF-001..003  
-**Primary tests:** `tests/perf/test_perf_benchmarks.py`
-
----
-
-## Phase 3 — Event-Driven Engine Parity (P1)
-
-### 3.1 EventEngine core
-- [ ] Implement event queue and dispatch loop
-- [ ] Implement pending orders (limit/stop) lifecycle
-- [ ] Implement order modify/cancel semantics
-- [ ] Implement partial close support and lifecycle transitions
-- [ ] Implement intrabar SL/TP policy options
-
-**Req IDs:** BKT-FR-002, TRD-FR-002..003, CPP-FR-001  
-**Primary tests:** `tests/unit/test_order_lifecycle.py`, `tests/integration/test_backtest_modes.py`
-
-### 3.2 Unified interface parity
-- [ ] Ensure strategy/trading API uniformity between signal/event modes
-- [ ] Ensure output schema parity between modes
-- [ ] Add mode comparison tool for diagnostics
-
-**Req IDs:** TRD-FR-001, BKT-FR-004  
-**Primary tests:** `tests/integration/test_backtest_modes.py`
-
----
-
-## Phase 4 — Risk Governor + Live/Paper Hardening (P0 for live safety, otherwise P1)
-
-### 4.1 Risk Governor
-- [ ] Implement hard daily loss limit
-- [ ] Implement max exposure and max concurrent positions
-- [ ] Implement symbol/session throttles
-- [ ] Implement circuit breaker and kill-switch interfaces
-- [ ] Add audit logs for blocked actions
-
-**Req IDs:** RSK-FR-001..003  
-**Primary tests:** `tests/integration/test_risk_governor.py`
-
-### 4.2 MT5 Gateway integration (live path)
-- [ ] Implement ZeroMQ protocol contracts
-- [ ] Implement connect/reconnect + heartbeat
-- [ ] Implement startup reconciliation:
-  - [ ] open positions
-  - [ ] pending orders
-  - [ ] account state
-- [ ] Implement fail-safe halt on ambiguity/disconnect
-- [ ] Add critical notifications integration
-
-**Req IDs:** LIV-FR-001..003, NTF-FR-003, NFR-REL-002  
-**Primary tests:** `tests/integration/test_live_gateway_reconcile.py`, `tests/integration/test_recovery_and_reconnect.py`
-
-### 4.3 Paper mode parity
-- [ ] Implement paper engine using same strategy interface as live
-- [ ] Implement configurable fill realism profiles
-- [ ] Validate behavior consistency vs signal/event backtest semantics
-
-**Req IDs:** PAP-FR-001..002  
-**Primary tests:** `tests/integration/test_paper_mode_parity.py`
+| SDD Section                  | Coverage Tasks                           |
+| ---------------------------- | ---------------------------------------- |
+| §1 Objectives               | IP-00                                    |
+| §2 Principles/Constraints   | IP-00, IP-04, IP-60                      |
+| §3 Architecture Overview    | IP-12, IP-18, IP-49                      |
+| §4 Architectural Decisions  | IP-18, IP-31, IP-47                      |
+| §5 Component Design         | IP-06..IP-57 (core implementation tasks) |
+| §6 Class Diagrams           | IP-22, IP-25, IP-31, IP-34, IP-65        |
+| §7 Interface Design         | IP-12, IP-22, IP-49, IP-50               |
+| §8 Data Model/Persistence   | IP-15, IP-16, IP-17, IP-48               |
+| §9 State Machines           | IP-31, IP-45, IP-46                      |
+| §10 User Sequence Flows     | IP-37, IP-45, IP-46, IP-53               |
+| §11 Security                | IP-05, IP-51, IP-57, IP-63               |
+| §12 Error/Resilience        | IP-29, IP-33, IP-47                      |
+| §13 Performance/Scalability | IP-21, IP-39, IP-41, IP-62, IP-64        |
+| §14 Observability           | IP-55, IP-56, IP-57                      |
+| §15 Deployment Architecture | IP-60, IP-61, IP-64                      |
+| §16 Verification Design     | IP-58, IP-59, IP-62                      |
+| §17 Traceability            | IP-00, IP-61                             |
+| §18 Migration Guidance      | IP-15, IP-48, IP-61                      |
+| §19 Appendices/Contracts    | IP-12, IP-22, IP-49, IP-65               |
 
 ---
 
-### 4.4 Live Hardening Addendum (Institutional Safety)
-- [ ] Implement idempotent order keys for all live order submissions
-- [ ] Implement retry-safe deduplication on reconnect/replay windows
-- [ ] Implement clock-sync guard (reject/hold trading on excessive drift)
-- [ ] Implement broker rule snapshot cache:
-  - [ ] min lot / lot step
-  - [ ] min stop distance
-  - [ ] symbol trading permissions/session windows
-- [ ] Implement daily reconciliation report:
-  - [ ] local state vs broker state diff
-  - [ ] unmatched orders/positions/deals
-  - [ ] operator action checklist
-- [ ] Implement manual kill-switch command channel (operator override)
-- [ ] Implement latency telemetry:
-  - [ ] signal->risk_check->send_order
-  - [ ] send_order->broker_ack/fill
-  - [ ] p50/p95/p99 dashboards and alerts
-- [ ] Implement degraded-mode policy:
-  - [ ] quote stale detection
-  - [ ] spread blowout guard
-  - [ ] auto-throttle/auto-halt thresholds
+## 3) Work Breakdown Structure (Task-Level Traceability)
 
-**Req IDs (newly emphasized mapping):** LIV-FR-001..003, RSK-FR-001..003, NFR-REL-002, NFR-SEC-001..002, NTF-FR-003  
-**Primary tests:** `tests/integration/test_live_idempotency_and_dedup.py`, `tests/integration/test_clock_sync_guard.py`, `tests/integration/test_broker_rules_cache.py`, `tests/integration/test_daily_reconciliation_report.py`, `tests/integration/test_kill_switch_channel.py`, `tests/integration/test_latency_telemetry_slos.py`
-
-
-## Phase 5 — API, Desktop UI, and Reporting (P1)
-
-### 5.1 REST/WS API
-- [ ] Implement endpoints:
-  - [ ] `POST /runs/backtest/signal`
-  - [ ] `POST /runs/backtest/event`
-  - [ ] `POST /runs/optimize`
-  - [ ] `GET /runs/{run_id}`
-  - [ ] `GET /health`
-  - [ ] `WS /stream/runs/{run_id}`
-- [ ] Add auth/token guards for non-local deployments
-- [ ] Add pagination and filtering for run history
-
-**Req IDs:** API-FR-001..003  
-**Primary tests:** `tests/api/test_routes_and_ws.py`
-
-### 5.2 Desktop UI (PySide6)
-- [ ] Implement run launcher panel
-- [ ] Implement equity/drawdown chart views
-- [ ] Implement trade blotter + metrics panels
-- [ ] Implement optimization leaderboard view
-- [ ] Implement reproducibility bundle viewer
-
-**Req IDs:** GUI-FR-001..003  
-**Primary tests:** `tests/ui/test_desktop_panels.py`
-
-### 5.3 Reporting pipeline
-- [ ] Generate markdown/html run reports
-- [ ] Include strategy params, metrics, trade stats, plot artifacts
-- [ ] Include repro metadata in report footer/metadata block
-
-**Req IDs:** BKT-FR-004, NFR-DET-002  
-**Primary tests:** `tests/integration/test_reporting_pipeline.py`
+> **Completion fields are included under each task** and must be filled when marking `[x]`.
 
 ---
 
-## Phase 6 — Reliability, Security, and Ops Excellence (P0/P1 depending environment)
+### Phase A — Baseline, Governance, and Traceability
 
-### 6.1 WAL and crash recovery
-- [ ] Implement WAL for state-changing operations
-- [ ] Implement replay/recovery routines
-- [ ] Add stale lock cleanup and restart checks
-- [ ] Add crash simulation integration tests
+#### [ ] IP-00 Re-baseline docs and traceability skeleton
 
-**Req IDs:** FND-FR-006, NFR-REL-001  
-**Primary tests:** `tests/integration/test_recovery_and_reconnect.py`
+* **Sub-tasks**
+  * [X] Initialize `ImplementationPlan.md` with version 2.0 baseline.
+  * [ ] Create traceability matrix structure in `docs/requirements_traceability_matrix.md`.
+  * [ ] Map all `FR-###` and `NFR-###` IDs to implementation tasks.
+  * [ ] Define program-level and item-level Definition of Done (DoD).
+* **Deliverables**
+  * Rewritten `02_system_design.md`
+  * Updated implementation baseline and task IDs
+  * Coverage matrices scaffold
+* **SRS refs:** All FR/NFR families (baseline alignment task)
+* **SDD refs:** §1–§19
+* **Dependencies:** None
+* **Completion evidence**
+  * Tests: N/A (docs baseline)
+  * Usage files: `docs/architecture.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
 
-### 6.2 Security hardening
-- [ ] Enforce secret source policy (env/secure store)
-- [ ] Redact sensitive fields in logs/APIs/UI exports
-- [ ] Add permission boundaries for live operations
-- [ ] Add security review checklist in CI template
+#### [ ] IP-01 Unified structured logging (C++ + Python)
 
-**Req IDs:** NFR-SEC-001..002  
-**Primary tests:** `tests/security/test_secrets_redaction.py`
+* **Sub-tasks**
+  * [ ] Implement C++ thread-safe async logging using `spdlog`. (FR-CPP-006)
+  * [ ] Implement Python logger adapter using `structlog`.
+  * [ ] Normalize severity levels between C++ and Python. (FR-UTIL-001)
+  * [ ] Add correlation, run, and trace IDs to log schema. (FR-UTIL-002)
+  * [ ] Implement dynamic filtering by component and severity at runtime. (FR-UTIL-006)
+  * [ ] Implement automatic sensitive field redaction (API keys, passwords). (FR-UTIL-008)
+* **Deliverables**
+  * Shared log schema and adapters
+  * Correlation/run/trace IDs in all critical logs
+* **SRS refs:** FR-UTIL-001..002, FR-UTIL-006, FR-UTIL-008, FR-OBS-001, NFR-OBS-001, FR-CPP-006
+* **SDD refs:** §5.1, §12, §14.1
+* **Dependencies:** IP-00
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_logger_cpp.cpp`, `py/tests/unit/test_logger_py.py`
+  * Usage: `usage/ops/logging.md`
+  * Bench/log: `artifacts/logs/structured_log_samples.json`
+  * Commit: `TBD`
 
-### 6.3 Observability and SLOs
-- [ ] Implement health metrics export (engine/api/bridge)
-- [ ] Add throughput and latency dashboards
-- [ ] Define SLOs and alert thresholds
-- [ ] Add on-call runbook
+#### [ ] IP-02 Validators/manipulators library
 
-**Req IDs:** FND-FR-001..002, NFR-REL-001..002, NFR-PERF-001  
-**Primary tests:** `tests/integration/test_observability_contracts.py`
+* **Sub-tasks**
+  * [ ] Implement Pydantic-based schema validators for market/trade/config objects. (FR-UTIL-003)
+  * [ ] Implement C++ schema validation primitives (JSON-schema or equivalent). (FR-UTIL-003)
+  * [ ] Implement date/time and timezone normalization helpers. (FR-UTIL-004)
+  * [ ] Implement platform-independent path handling using `pathlib`. (NFR-PERF-001/Constraint)
+* **Deliverables**
+  * Schema validators, datetime/string manipulators
+* **SRS refs:** FR-UTIL-003..004
+* **SDD refs:** §5.1.2, §7
+* **Dependencies:** IP-00
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_validators.py`, `py/tests/unit/test_time_string_utils.py`
+  * Usage: `usage/ops/validation_and_utils.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-03 C++ math/stat helper kernels
+
+* **Sub-tasks**
+  * [ ] Implement rolling stats kernels (SMA, EMA, StdDev, Z-Score). (FR-UTIL-005, FR-STRAT-007)
+  * [ ] Implement statistical kernels (Moments, Skew, Kurtosis, Correlation, Rank). (FR-UTIL-005)
+  * [ ] Expose kernels to Python via Nanobind buffer protocols. (FR-BRIDGE-001, FR-BRIDGE-002)
+* **Deliverables**
+  * Rolling stats, zscore, corr, rank kernels exposed to Python
+* **SRS refs:** FR-UTIL-005, NFR-PERF-002..005
+* **SDD refs:** §5.1.2, §13
+* **Dependencies:** IP-18
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_math_kernels.cpp`, `py/tests/contracts/test_math_bindings.py`
+  * Usage: `usage/research/math_stat_kernels.md`
+  * Bench/log: `benchmarks/utils/math_kernel_perf.md`
+  * Commit: `TBD`
+
+#### [ ] IP-04 Configuration profiles + precedence + schema versioning
+
+* **Sub-tasks**
+  * [ ] Implement TOML-based hierarchical config loader (file + env + runtime overrides). (FR-CONF-001)
+  * [ ] Support `DEV/BACKTEST/PAPER/LIVE` profile switching. (FR-CONF-002)
+  * [ ] Implement config validation against versioned schemas with descriptions/safeguards. (FR-CONF-003, FR-CONF-008)
+  * [ ] Implement runtime reloading of non-critical config (log levels, risk limits). (FR-CONF-007)
+* **Deliverables**
+  * Config loader with DEV/BACKTEST/PAPER/LIVE policies
+* **SRS refs:** FR-CONF-001..003, FR-CONF-005, FR-CONF-007..008, NFR-MNT-001..004
+* **SDD refs:** §2, §3.2, §5.3.1
+* **Dependencies:** IP-00
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_config_loader.py`, `py/tests/contracts/test_config_schema_versions.py`
+  * Usage: `usage/ops/config_profiles.md`
+  * Bench/log: `artifacts/logs/config_validation.log`
+  * Commit: `TBD`
+
+#### [ ] IP-05 Secrets and privileged live config controls
+
+* **Sub-tasks**
+  * [ ] Integrate OS-level secret storage (Windows Credential Locker / Keyring). (FR-CONF-009)
+  * [ ] Implement privileged config mutation path with authorization and audit logging. (FR-CONF-006)
+  * [ ] Implement configurable DB connection pooling in C++ core. (FR-CONF-010)
+* **Deliverables**
+  * Secret provider integration
+  * Privileged config mutation path with audit
+* **SRS refs:** FR-CONF-004, FR-CONF-006, FR-CONF-009..010, NFR-SEC-001..006
+* **SDD refs:** §11, §5.3.5
+* **Dependencies:** IP-04, IP-16
+* **Completion evidence**
+  * Tests: `py/tests/security/test_secret_redaction.py`, `py/tests/integration/test_live_config_authorization.py`
+  * Usage: `usage/ops/secrets_and_privileged_changes.md`
+  * Bench/log: `artifacts/logs/security/secret_access_audit.json`
+  * Commit: `TBD`
 
 ---
 
-## Cross-Cutting Workstreams (run in parallel)
+### Phase B — Time, Data Contracts, Ingestion, and Features
 
-### A) Data quality & model realism
-- [ ] Add spread regime analysis and anomaly flags
-- [ ] Add slippage model calibration tools
-- [ ] Add broker metadata versioning/validation
+#### [ ] IP-06 Event/Time engine (ClockService + EventSequencer)
 
-### B) Determinism governance
-- [ ] Enforce deterministic seed injection in all modes
-- [ ] Record deterministic tie-break policy in metadata
-- [ ] Add “replay exact run” CLI command
+* **Sub-tasks**
+  * [ ] Implement `ClockService` supporting event-time and processing-time. (FR-TIME-001)
+  * [ ] Implement `EventSequencer` for deterministic event ordering per-symbol and merged. (FR-TIME-002, FR-CPP-001)
+  * [ ] Standardize timezone handling with explicit DST policies. (FR-TIME-003)
+* **Deliverables**
+  * Canonical event-time model and deterministic ordering
+* **SRS refs:** FR-TIME-001..003, FR-CPP-001
+* **SDD refs:** §5.1.1, §9
+* **Dependencies:** IP-00
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_clock_service.cpp`, `cpp/tests/unit/test_event_sequencer.cpp`
+  * Usage: `usage/backtest/event_time_model.md`
+  * Bench/log: `benchmarks/time/event_ordering_perf.md`
+  * Commit: `TBD`
 
-### C) Documentation governance
-- [ ] Keep SRS/SDD updated per major milestone
-- [ ] Maintain module READMEs with API contracts
-- [ ] Maintain sequence/class diagrams in design docs
+#### [ ] IP-07 Session calendar (hours/holidays/timezone/DST)
+
+* **Sub-tasks**
+  * [ ] Implement `SessionCalendar` with exchange holiday and trading session rules. (FR-TIME-004)
+  * [ ] Expose trading session restrictions to strategy runtime and live controller. (FR-LIVE-001)
+  * [ ] Implement symbol metadata mapping (sessions, digits, point value). (FR-DATA-006)
+* **Deliverables**
+  * SessionCalendar service for all modes
+* **SRS refs:** FR-TIME-004, FR-LIVE-001, FR-DATA-006
+* **SDD refs:** §5.1.1, §10.2
+* **Dependencies:** IP-06
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_session_calendar.cpp`, `py/tests/unit/test_calendar_policies.py`
+  * Usage: `usage/live/session_calendar.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-08 ReplayClock and deterministic replay hooks
+
+* **Sub-tasks**
+  * [ ] Implement `ReplayClock` for deterministic event playback. (FR-TIME-005)
+  * [ ] Implement deterministic replay hooks for incident reproduction. (FR-BT-007)
+  * [ ] Support `pause`, `resume`, and `step-by-bar` debugging in replay. (FR-STRAT-010)
+* **Deliverables**
+  * Deterministic replay clock and event playback control
+* **SRS refs:** FR-TIME-005, FR-BT-007, FR-STRAT-010, NFR-REP-001..004
+* **SDD refs:** §5.1.1, §10.1, §16
+* **Dependencies:** IP-06
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_replay_clock.cpp`, `py/tests/replay/test_replay_clock_consistency.py`
+  * Usage: `usage/backtest/replay_clock.md`
+  * Bench/log: `artifacts/benchmarks/replay/replay_clock_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-09 Data source adapters + normalization pipeline
+
+* **Sub-tasks**
+  * [ ] Implement MT5 adapter via ZeroMQ (MQL5 EA streaming). (FR-INT-008)
+  * [ ] Implement Dukascopy historical data adapter. (FR-INT-008)
+  * [ ] Normalize provider-specific payloads to canonical tick/bar schemas. (FR-DATA-001..002)
+  * [ ] Implement progress callbacks for long-running ingestion. (FR-DATA-014)
+* **Deliverables**
+  * MT5/Dukascopy adapters
+  * Canonical tick/bar normalization
+* **SRS refs:** FR-DATA-001..002, FR-DATA-014, FR-INT-001..003, FR-INT-008
+* **SDD refs:** §5.1.2, §7
+* **Dependencies:** IP-06, IP-12
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_data_adapter_normalization.py`, `py/tests/contracts/test_tick_bar_contract.py`
+  * Usage: `usage/data/ingestion_and_normalization.md`
+  * Bench/log: `benchmarks/data/ingestion_throughput.md`
+  * Commit: `TBD`
+
+#### [ ] IP-10 Data quality guardrails (missing/duplicate/out-of-order)
+
+* **Sub-tasks**
+  * [ ] Implement price sanity, gap detection, and spike filtering checks. (FR-DATA-011, FR-DQ-001)
+  * [ ] Implement detection of zero-volume bars and spread widening alerts. (FR-DATA-011)
+  * [ ] Implement DQ remediation flagging and reporting. (FR-DATA-003, FR-DQ-002)
+* **Deliverables**
+  * DQ detection + severity + remediation flags
+* **SRS refs:** FR-DATA-003, FR-DATA-011, FR-DQ-001..003
+* **SDD refs:** §5.1.2, §8
+* **Dependencies:** IP-09
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_data_quality_guard.cpp`, `py/tests/integration/test_data_quality_alerts.py`
+  * Usage: `usage/data/data_quality_runbook.md`
+  * Bench/log: `artifacts/logs/data_quality/sample_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-11 Multi-symbol synchronized ingestion
+
+* **Sub-tasks**
+  * [ ] Implement synchronized multi-symbol ingestion pipeline. (FR-DATA-004)
+  * [ ] Implement memory-mapped (mmap) lazy loading for historical data. (FR-CPP-002)
+  * [ ] Support data compaction for incremental downloads. (FR-DATA-013)
+* **Deliverables**
+  * Cross-symbol sync and ordering policy
+* **SRS refs:** FR-DATA-004, FR-DATA-013, FR-CPP-002, NFR-SCL-001..003
+* **SDD refs:** §3, §5.1.2, §13
+* **Dependencies:** IP-06, IP-09
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_multisymbol_sync.py`
+  * Usage: `usage/data/multisymbol_ingestion.md`
+  * Bench/log: `benchmarks/data/multisymbol_sync_perf.md`
+  * Commit: `TBD`
+
+#### [ ] IP-12 Message contracts and schema registry (events/API/storage)
+
+* **Sub-tasks**
+  * [ ] Initialize versioned schema registry with backward compatibility checks. (FR-INT-005, FR-API-003)
+  * [ ] Define canonical schemas for Ticks, Bars, Orders, Fills, and Positions. (SRS §6.1)
+  * [ ] Implement schema validation for run manifests and reports. (FR-STOR-004, FR-INT-007)
+* **Deliverables**
+  * Versioned schema registry + compatibility checks
+* **SRS refs:** FR-INT-004..007, FR-API-003, FR-STOR-004, SRS §6.1
+* **SDD refs:** §7, §8, §19
+* **Dependencies:** IP-00
+* **Completion evidence**
+  * Tests: `py/tests/contracts/test_schema_registry.py`, `py/tests/migrations/test_schema_backward_compat.py`
+  * Usage: `usage/ops/schema_registry.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-13 Feature pipeline (batch + streaming)
+
+* **Sub-tasks**
+  * [ ] Implement technical indicator library (Trend, Momentum, Volatility, Volume). (FR-STRAT-007)
+  * [ ] Implement batch and incremental (streaming) feature computation. (FR-FEAT-001, FR-FEAT-003)
+  * [ ] Implement feature computation graph inspection. (FR-FEAT-005)
+* **Deliverables**
+  * Feature graph engine + versioned pipeline
+* **SRS refs:** FR-FEAT-001..003, FR-FEAT-005, FR-STRAT-007
+* **SDD refs:** §5.1.2, §8
+* **Dependencies:** IP-09, IP-12
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_feature_pipeline.cpp`, `py/tests/integration/test_feature_pipeline_stream_batch.py`
+  * Usage: `usage/research/feature_pipeline.md`
+  * Bench/log: `benchmarks/feature/feature_compute_perf.md`
+  * Commit: `TBD`
+
+#### [ ] IP-14 Leakage prevention + split policy enforcement
+
+* **Sub-tasks**
+  * [ ] Implement Point-in-Time (PIT) correctness guards in core engine. (FR-STRAT-009, FR-FEAT-004)
+  * [ ] Implement train/validation/test split enforcement policy. (FR-RSCH-005)
+  * [ ] Implement sensitive data masking in research artifacts. (FR-UTIL-008)
+* **Deliverables**
+  * No-lookahead guards and split validators
+* **SRS refs:** FR-FEAT-004, FR-RSCH-005, FR-STRAT-009, FR-DQ-001, FR-UTIL-008
+* **SDD refs:** §5.1.2, §16
+* **Dependencies:** IP-13, IP-41
+* **Completion evidence**
+  * Tests: `py/tests/contracts/test_no_lookahead.py`, `py/tests/integration/test_split_enforcement.py`
+  * Usage: `usage/research/leakage_prevention.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
 
 ---
 
-## Milestone Checklist (Executive View)
+### Phase C — Storage, Lineage, and Audit Foundations
 
-### M1 — Signal-Driven MVP
-- [ ] Phase 0 complete
-- [ ] Phase 1 complete
-- [ ] Deterministic replay test passing
-- [ ] Baseline benchmark report published
+#### [ ] IP-15 Storage schema + migrations baseline
 
-### M2 — Optimization Engine
-- [ ] Phase 2 complete
-- [ ] Top-K optimization workflow stable
-- [ ] Throughput target reached and documented
+* **Sub-tasks**
+  * [ ] Initialize SQLAlchemy models and Alembic migrations. (FR-STOR-009)
+  * [ ] Define schemas for: `sessions`, `backtests`, `users`, `live_trades`, `paper_trades`, `account_snapshots`. (FR-STOR-012)
+  * [ ] Implement Write-Ahead Logging (WAL) for critical state changes. (FR-STOR-010)
+  * [ ] Implement state reconstruction from WAL + Snapshot upon recovery. (FR-STOR-011)
+* **Deliverables**
+  * SQL schema for manifests/orders/fills/positions/risk/audit
+  * migration scripts
+* **SRS refs:** FR-STOR-001, FR-STOR-004, FR-STOR-006, FR-STOR-009..012
+* **SDD refs:** §8, §18
+* **Dependencies:** IP-12
+* **Completion evidence**
+  * Tests: `py/tests/migrations/test_initial_schema.py`, `py/tests/migrations/test_migration_integrity.py`
+  * Usage: `usage/ops/storage_migrations.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
 
-### M3 — Event Parity
-- [ ] Phase 3 complete
-- [ ] Event vs Signal consistency diagnostics added
+#### [ ] IP-16 Append-only journals + immutable audit trail
 
-### M4 — Live/Paper Safety
-- [ ] Phase 4 complete
-- [ ] Risk governor and reconciliation validated
+* **Sub-tasks**
+  * [ ] Implement append-only journal writers for orders and fills. (FR-STOR-002)
+  * [ ] Implement `AuditService` for risk decisions, overrides, and security events. (FR-RISK-006, NFR-AUD-001)
+  * [ ] Enforce immutability and record actor identity, timestamp, and reason code. (NFR-AUD-002)
+  * [ ] Implement 90-day retention for access logs and permanent for trade audit. (FR-STOR-008)
+* **Deliverables**
+  * order/fill/risk/audit append-only writes
+* **SRS refs:** FR-STOR-002, FR-STOR-008, FR-RISK-006, NFR-AUD-001..003, FR-SAFE-004
+* **SDD refs:** §8, §11, §12
+* **Dependencies:** IP-15
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_append_only_journal.py`, `py/tests/integration/test_audit_integrity.py`
+  * Usage: `usage/ops/audit_journal_queries.md`
+  * Bench/log: `artifacts/logs/audit/sample_chain.json`
+  * Commit: `TBD`
 
-### M5 — Platform Completeness
-- [ ] Phase 5 complete
-- [ ] Phase 6 critical items complete
+#### [ ] IP-17 Lineage catalog + run manifest binding
 
----
-
-## Suggested Sprint Breakdown (Checklist)
-
-### Sprint 1
-- [ ] Phase 0.1, 0.2, 0.3
-
-### Sprint 2
-- [ ] Phase 1.1, 1.2
-
-### Sprint 3
-- [ ] Phase 1.3, 1.4, 1.5
-
-### Sprint 4
-- [ ] Phase 2.1, 2.2, 2.3
-
-### Sprint 5
-- [ ] Phase 3.1, 3.2
-
-### Sprint 6
-- [ ] Phase 4.1, 4.2, 4.3
-- [ ] Phase 4.4 live hardening addendum tasks
-
-### Sprint 7
-- [ ] Phase 5.1, 5.2, 5.3
-
-### Sprint 8
-- [ ] Phase 6.1, 6.2, 6.3 + closure hardening
-
----
-
-## Completion Criteria
-
-- [ ] All P0 requirements closed or formally deferred with sign-off
-- [ ] Regression suite stable
-- [ ] Performance acceptance met
-- [ ] Live safety acceptance passed (if live enabled)
-- [ ] Documentation and traceability artifacts current
+* **Sub-tasks**
+  * [ ] Implement `RunManifestService` to capture strategy version, config hash, data snapshot, and code commit. (FR-STOR-003, SRS §6.1)
+  * [ ] Link every output artifact (trade log, metrics) to a unique Run Manifest ID. (FR-STOR-003)
+  * [ ] Implement `reproduce(run_id)` command scaffold to retrieve config/data/seed. (FR-BT-012)
+* **Deliverables**
+  * lineage IDs attached to outputs/reports/artifacts
+* **SRS refs:** FR-STOR-003, FR-CONF-005, FR-BT-012, NFR-REP-003..004, SRS §6.1
+* **SDD refs:** §8, §10.4
+* **Dependencies:** IP-15, IP-41
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_lineage_linking.py`
+  * Usage: `usage/research/lineage_and_manifest.md`
+  * Bench/log: `artifacts/logs/lineage/lineage_examples.json`
+  * Commit: `TBD`
 
 ---
 
-## Linked Artifacts
+### Phase D — Interop Bridge (Nanobind)
 
-- [ ] `01_software_requirements_specification_updated.md`
-- [ ] `02_system_design_document_updated.md`
-- [ ] `requirements_traceability_matrix.xlsx`
-- [ ] `requirements_traceability_matrix.csv`
+#### [ ] IP-18 Nanobind module skeleton and lifecycle
+
+* **Sub-tasks**
+  * [ ] Initialize binding modules: `_event`, `_data`, `_risk`, `_oms`, `_execution`, `_backtest`, `_metrics`. (FR-BRIDGE-001)
+  * [ ] Implement lifecycle hooks for initialization, teardown, and health checks. (FR-BRIDGE-006)
+  * [ ] Assert **Zero Memory Leaks** on shutdown, verified by ASan in CI. (NFR-REL-007)
+* **Deliverables**
+  * `_event`, `_data`, `_risk`, `_oms`, `_execution`, `_backtest`, `_metrics` modules
+* **SRS refs:** FR-BRIDGE-001, FR-BRIDGE-006, NFR-REL-007
+* **SDD refs:** §3, §5.2
+* **Dependencies:** IP-00
+* **Completion evidence**
+  * Tests: `py/tests/contracts/test_nanobind_module_load.py`
+  * Usage: `usage/dev/nanobind_module_layout.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-19 Ownership contracts and object lifetime safety
+
+* **Sub-tasks**
+  * [ ] Define C++/Python ownership policies (C++ owned, Python view, shared ownership). (FR-BRIDGE-003)
+  * [ ] Strictly enforce RAII resource management and smart pointer exposure. (FR-CPP-003)
+* **Deliverables**
+  * C++ owned/Python view and shared-ownership policies
+* **SRS refs:** FR-BRIDGE-003, FR-CPP-003
+* **SDD refs:** §5.2.2
+* **Dependencies:** IP-18
+* **Completion evidence**
+  * Tests: `py/tests/contracts/test_bridge_lifetime.py`
+  * Usage: `usage/dev/bridge_ownership_rules.md`
+  * Bench/log: `artifacts/logs/bridge/lifetime_validation.log`
+  * Commit: `TBD`
+
+#### [ ] IP-20 Exception mapping C++→Python
+
+* **Sub-tasks**
+  * [ ] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
+  * [ ] Implement crash handling for segfaults/panics with log flushing and state persistence. (FR-UTIL-009)
+* **Deliverables**
+  * typed exceptions and propagation for all engine boundaries
+* **SRS refs:** FR-UTIL-007, FR-UTIL-009, FR-BRIDGE-004
+* **SDD refs:** §5.2.3, §12
+* **Dependencies:** IP-18
+* **Completion evidence**
+  * Tests: `py/tests/contracts/test_exception_mapping.py`
+  * Usage: `usage/dev/error_taxonomy.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-21 Zero-copy path + serialization fallback
+
+* **Sub-tasks**
+  * [ ] Implement zero-copy buffer views for contiguous numeric layouts. (FR-BRIDGE-002)
+  * [ ] Optimize bridge call latency to < 1μs. (NFR-PERF-010)
+  * [ ] Implement Arrow/Protobuf fallback path for incompatible data layouts. (FR-BRIDGE-005)
+* **Deliverables**
+  * zero-copy buffers for compatible layouts
+  * Arrow/Protobuf fallback for incompatible/cross-process flows
+* **SRS refs:** FR-BRIDGE-002, FR-BRIDGE-005, NFR-PERF-005, NFR-PERF-010
+* **SDD refs:** §5.2.4, §13
+* **Dependencies:** IP-18, IP-12
+* **Completion evidence**
+  * Tests: `py/tests/contracts/test_zero_copy.py`, `py/tests/integration/test_fallback_serialization.py`
+  * Usage: `usage/dev/zero_copy_and_fallback.md`
+  * Bench/log: `benchmarks/bridge/zero_copy_vs_fallback.md`
+  * Commit: `TBD`
+
+---
+
+### Phase E — Strategy Runtime, Portfolio, Risk, OMS, Execution
+
+#### [ ] IP-22 Strategy SDK lifecycle and canonical event contract
+
+* **Sub-tasks**
+  * [ ] Implement `BaseStrategy` with `initialize`, `on_bar`, `on_tick`, `on_trade`, `on_order_update`, `on_timer`, `on_shutdown`. (FR-STRAT-002)
+  * [ ] Define `StrategyEvent` contract for all operating modes. (FR-STRAT-001)
+  * [ ] Implement strategy isolation and per-strategy state containers. (FR-STRAT-003)
+* **Deliverables**
+  * `BaseStrategy` hooks
+  * `StrategyEvent` contract used in backtest + live
+* **SRS refs:** FR-STRAT-001..003, FR-STRAT-006
+* **SDD refs:** §5.3.2, §6, §7
+* **Dependencies:** IP-12, IP-18
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_strategy_sdk.py`, `py/tests/contracts/test_strategy_event_contract.py`
+  * Usage: `usage/strategy/create_strategy.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-23 Strategy adapter and signal router
+
+* **Sub-tasks**
+  * [ ] Implement `StrategyAdapter` to bridge Python logic with C++ engine. (FR-STRAT-004)
+  * [ ] Define canonical `SignalIntent` (Action, Qty, OrderType, Price, TIF). (FR-OMS-001, SDD §7.2)
+  * [ ] Implement signal explainability metadata emission for audit trail. (FR-STRAT-006)
+* **Deliverables**
+  * adapter between Python strategies and C++ engines
+  * canonical `SignalIntent`
+* **SRS refs:** FR-STRAT-004, FR-STRAT-001, FR-STRAT-006, FR-OMS-001
+* **SDD refs:** §5.3.2, §7
+* **Dependencies:** IP-22, IP-21
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_strategy_adapter_flow.py`
+  * Usage: `usage/strategy/signal_intent_contract.md`
+  * Bench/log: `benchmarks/strategy/adapter_latency.md`
+  * Commit: `TBD`
+
+#### [ ] IP-24 Strategy artifact versioning + reproducibility metadata
+
+* **Sub-tasks**
+  * [ ] Bind strategy version and model artifacts to run manifests. (FR-STRAT-005, FR-CONF-005)
+  * [ ] Implement stability scoring and sensitivity analysis metadata. (FR-RSCH-004)
+* **Deliverables**
+  * strategy/model versions embedded in run outputs
+* **SRS refs:** FR-STRAT-005, FR-CONF-005, FR-RSCH-004, NFR-REP-001..004
+* **SDD refs:** §5.3.2, §8, §10.4
+* **Dependencies:** IP-17, IP-23
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_strategy_version_binding.py`
+  * Usage: `usage/research/reproducible_strategy_runs.md`
+  * Bench/log: `artifacts/logs/repro/sample_manifest.json`
+  * Commit: `TBD`
+
+#### [ ] IP-25 Portfolio state engine
+
+* **Sub-tasks**
+  * [ ] Implement `PortfolioState` tracking capital, margin, realized/unrealized PnL. (FR-PORT-005)
+  * [ ] Support concurrent multi-strategy, multi-symbol portfolio state. (FR-PORT-001)
+* **Deliverables**
+  * canonical portfolio/account/position state updates
+* **SRS refs:** FR-PORT-001, FR-PORT-005
+* **SDD refs:** §5.1.3, §6
+* **Dependencies:** IP-23, IP-31
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_portfolio_state.cpp`, `py/tests/integration/test_portfolio_updates.py`
+  * Usage: `usage/portfolio/portfolio_state.md`
+  * Bench/log: `benchmarks/portfolio/state_update_perf.md`
+  * Commit: `TBD`
+
+#### [ ] IP-26 Allocation/rebalance/exposure models
+
+* **Sub-tasks**
+  * [ ] Implement allocation models: static weights, risk parity, custom. (FR-PORT-002)
+  * [ ] Implement portfolio-level exposure constraints (asset, symbol, strategy). (FR-PORT-003)
+  * [ ] Implement scheduled and event-triggered rebalancing policies. (FR-PORT-004)
+* **Deliverables**
+  * static/custom allocators + rebalance triggers + exposure caps
+* **SRS refs:** FR-PORT-002..004, FR-RISK-004
+* **SDD refs:** §5.1.3, §5.1.4
+* **Dependencies:** IP-25
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_allocation_models.py`, `py/tests/integration/test_rebalance_policies.py`
+  * Usage: `usage/portfolio/allocation_and_rebalance.md`
+  * Bench/log: `benchmarks/portfolio/rebalance_cost.md`
+  * Commit: `TBD`
+
+#### [ ] IP-27 Risk pre-trade checks (policy engine)
+
+* **Sub-tasks**
+  * [ ] Implement pre-trade checks: size, margin, max exposure, policy. (FR-RISK-001, FR-SAFE-001)
+  * [ ] Implement position sizing methods: fixed, volatility-based, Kelly. (FR-RISK-004)
+  * [ ] Support mode-specific risk rules (backtest vs live). (FR-RISK-005)
+* **Deliverables**
+  * margin/size/exposure checks with policy codes
+* **SRS refs:** FR-RISK-001, FR-RISK-004..005, FR-SAFE-001
+* **SDD refs:** §5.1.4, §12
+* **Dependencies:** IP-25, IP-26
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_risk_pretrade.cpp`, `py/tests/contracts/test_risk_policy_contract.py`
+  * Usage: `usage/risk/pretrade_risk.md`
+  * Bench/log: `benchmarks/risk/pretrade_latency.md`
+  * Commit: `TBD`
+
+#### [ ] IP-28 In-trade monitoring + circuit breakers
+
+* **Sub-tasks**
+  * [ ] Implement in-trade monitoring for drawdown and volatility spikes. (FR-RISK-002)
+  * [ ] Implement strategy-level and global circuit breakers. (FR-RISK-003, FR-RISK-009)
+  * [ ] Integrate HMM-based regime detection for dynamic risk inputs. (FR-RISK-010)
+* **Deliverables**
+  * drawdown/volatility monitors and auto-protect logic
+* **SRS refs:** FR-RISK-002..003, FR-RISK-009..010, FR-SAFE-002..003
+* **SDD refs:** §5.1.4, §12, §14
+* **Dependencies:** IP-27
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_intraday_risk.cpp`, `py/tests/e2e/test_circuit_breaker.py`
+  * Usage: `usage/risk/intrade_controls.md`
+  * Bench/log: `artifacts/logs/risk/circuit_breaker_drill.json`
+  * Commit: `TBD`
+
+#### [ ] IP-29 Kill-switch controller and safe-mode transitions
+
+* **Sub-tasks**
+  * [ ] Implement global kill-switch functionality. (FR-RISK-003, FR-LIVE-009)
+  * [ ] Define safe-mode state machine transitions (halt trading, reduce exposure). (FR-SAFE-002..005)
+  * [ ] Implement emergency shutdown triggerable via UI and API. (FR-LIVE-009)
+* **Deliverables**
+  * global/strategy kill-switch
+  * safe-mode state transitions
+* **SRS refs:** FR-RISK-003, FR-LIVE-009, FR-SAFE-002..005
+* **SDD refs:** §9.2, §10.3, §14
+* **Dependencies:** IP-28, IP-45
+* **Completion evidence**
+  * Tests: `py/tests/e2e/test_killswitch_state_machine.py`
+  * Usage: `usage/live/killswitch_runbook.md`
+  * Bench/log: `artifacts/logs/live/killswitch_trace.log`
+  * Commit: `TBD`
+
+#### [ ] IP-30 Risk audit/override workflow
+
+* **Sub-tasks**
+  * [ ] Implement role-bound risk override flow with reason logging. (FR-RISK-006, FR-SAFE-004)
+  * [ ] Implement secure authorization for live risk limit updates. (FR-CONF-006)
+* **Deliverables**
+  * role-bound override flow with immutable reason logging
+* **SRS refs:** FR-RISK-006, FR-CONF-006, NFR-AUD-001..003, FR-SAFE-004
+* **SDD refs:** §11, §12
+* **Dependencies:** IP-16, IP-51
+* **Completion evidence**
+  * Tests: `py/tests/security/test_risk_override_audit.py`
+  * Usage: `usage/risk/risk_override_policy.md`
+  * Bench/log: `artifacts/logs/audit/risk_override_sample.json`
+  * Commit: `TBD`
+
+#### [ ] IP-31 OMS order state machine + idempotency
+
+* **Sub-tasks**
+  * [ ] Implement order state machine (NEW -> ACCEPTED -> FILLED/CANCELED). (FR-OMS-001, SDD §9.1)
+  * [ ] Support Market, Limit, Stop, Stop-Limit, Trailing-Stop order types. (FR-OMS-002)
+  * [ ] Implement idempotent submission via client order IDs. (FR-OMS-003)
+* **Deliverables**
+  * `NEW→...→terminal` transitions + duplicate guard
+* **SRS refs:** FR-OMS-001..004
+* **SDD refs:** §5.1.5, §9.1
+* **Dependencies:** IP-23
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_order_state_machine.cpp`, `py/tests/integration/test_order_idempotency.py`
+  * Usage: `usage/live/order_lifecycle.md`
+  * Bench/log: `benchmarks/oms/state_machine_perf.md`
+  * Commit: `TBD`
+
+#### [ ] IP-32 Position book and broker reconciliation hooks
+
+* **Sub-tasks**
+  * [ ] Implement `PositionBook` updating from fills and account events. (FR-OMS-004)
+  * [ ] Support Netting and Hedging modes per symbol/account. (FR-OMS-007)
+  * [ ] Implement periodic and on-reconnect reconciliation hooks. (FR-OMS-005)
+* **Deliverables**
+  * position updates from fills + reconcile entry points
+* **SRS refs:** FR-OMS-004..005, FR-OMS-007
+* **SDD refs:** §5.1.5, §10.2, §10.3
+* **Dependencies:** IP-31, IP-34
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_position_book.cpp`, `py/tests/integration/test_reconcile_hooks.py`
+  * Usage: `usage/live/position_book_and_reconcile.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-33 Reconciliation mismatch handling and escalation
+
+* **Sub-tasks**
+  * [ ] Implement mismatch detection and incident report generation. (FR-OMS-006)
+  * [ ] Implement split reconciliation policies (Auto vs Manual). (FR-LIVE-011)
+  * [ ] Enforce blocking policy on major discrepancies. (FR-SAFE-005)
+* **Deliverables**
+  * mismatch detection, incident report, blocking policy
+* **SRS refs:** FR-OMS-006, FR-LIVE-005..006, FR-LIVE-011, FR-SAFE-005
+* **SDD refs:** §10.3, §12, §14
+* **Dependencies:** IP-32, IP-46
+* **Completion evidence**
+  * Tests: `py/tests/e2e/test_reconcile_mismatch_blocking.py`
+  * Usage: `usage/live/reconcile_escalation.md`
+  * Bench/log: `artifacts/logs/live/reconcile_discrepancy_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-34 Broker adapter abstraction + mock broker
+
+* **Sub-tasks**
+  * [ ] Define standardized `BrokerAdapter` interface (connect, submit, fetch). (FR-INT-001)
+  * [ ] Implement `MockBroker` with deterministic fill behavior for backtesting. (FR-BT-004)
+  * [ ] Implement `Paper Trading Engine` for execution simulation using live data. (FR-EXEC-008)
+* **Deliverables**
+  * unified broker interface + deterministic mock broker
+* **SRS refs:** FR-INT-001..003, FR-EXEC-001, FR-EXEC-008, FR-BT-004
+* **SDD refs:** §5.1.6, §7
+* **Dependencies:** IP-12
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_broker_adapter_interface.cpp`, `py/tests/integration/test_mock_broker.py`
+  * Usage: `usage/live/broker_adapter.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-35 Execution router + retry + bounded failure policies
+
+* **Sub-tasks**
+  * [ ] Implement execution routing to adapters with final pre-send risk checks. (FR-EXEC-001, FR-EXEC-006)
+  * [ ] Implement retry policies with bounded attempts and escalation. (FR-EXEC-004)
+  * [ ] Implement `Order Spam Prevention` rate limiting. (FR-LIVE-008)
+* **Deliverables**
+  * routing and retry with escalation policies
+* **SRS refs:** FR-EXEC-001, FR-EXEC-004, FR-EXEC-006, FR-LIVE-008, FR-SAFE-004
+* **SDD refs:** §5.1.6, §12
+* **Dependencies:** IP-34, IP-31
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_execution_retry.cpp`, `py/tests/integration/test_execution_escalation.py`
+  * Usage: `usage/live/execution_retry_policy.md`
+  * Bench/log: `benchmarks/execution/router_latency.md`
+  * Commit: `TBD`
+
+#### [ ] IP-36 TWAP/VWAP + partial fills + latency/slippage metrics
+
+* **Sub-tasks**
+  * [ ] Implement basic execution algorithms (TWAP, VWAP). (FR-EXEC-002)
+  * [ ] Model and track slippage, spread, and partial fills. (FR-EXEC-003)
+  * [ ] Track p99 latency from intent to dispatch and ack. (FR-EXEC-005, NFR-PERF-004)
+* **Deliverables**
+  * TWAP/VWAP algorithms
+  * partial fill handling
+  * latency/slippage tracking
+* **SRS refs:** FR-EXEC-002..003, FR-EXEC-005..006, NFR-PERF-004
+* **SDD refs:** §5.1.6, §10.2, §13
+* **Dependencies:** IP-35, IP-44
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_twap_vwap.cpp`, `py/tests/integration/test_partial_fills.py`
+  * Usage: `usage/live/execution_quality.md`
+  * Bench/log: `artifacts/benchmarks/execution/quality_report.json`
+  * Commit: `TBD`
+
+---
+
+### Phase F — Backtesting, Research, Metrics
+
+#### [ ] IP-37 Event-driven backtest engine
+
+* **Sub-tasks**
+  * [ ] Implement deterministic event runner with strategy/risk/OMS path. (FR-BT-001)
+  * [ ] Support tick-level and bar-level simulations. (FR-BT-002)
+  * [ ] Implement `on_bar`, `on_tick`, `on_trade` lifecycle events. (FR-STRAT-002)
+* **Deliverables**
+  * deterministic event runner with strategy/risk/OMS path
+* **SRS refs:** FR-BT-001..002, FR-BT-006, FR-STRAT-002
+* **SDD refs:** §5.1.7, §10.1
+* **Dependencies:** IP-22, IP-27, IP-31
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_backtest_event_runner.cpp`, `py/tests/e2e/test_backtest_event_path.py`
+  * Usage: `usage/backtest/event_runner.md`
+  * Bench/log: `benchmarks/backtest/event_tps.md`
+  * Commit: `TBD`
+
+#### [ ] IP-38 Vectorized backtest engine
+
+* **Sub-tasks**
+  * [ ] Implement vectorized simulation path for high-throughput research. (FR-BT-001)
+  * [ ] Optimize throughput to 1M orders in 70-100ms. (NFR-PERF-006)
+  * [ ] Implement parity checks between event-driven and vectorized engines. (FR-TEST-004)
+* **Deliverables**
+  * vectorized simulation path and parity checks
+* **SRS refs:** FR-BT-001, NFR-PERF-006, FR-TEST-004
+* **SDD refs:** §5.1.7, §13
+* **Dependencies:** IP-37
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_backtest_vectorized.cpp`, `py/tests/parity/test_event_vs_vectorized_parity.py`
+  * Usage: `usage/backtest/vectorized_runner.md`
+  * Bench/log: `benchmarks/backtest/vectorized_perf.md`
+  * Commit: `TBD`
+
+#### [ ] IP-39 Fill simulator + transaction cost model
+
+* **Sub-tasks**
+  * [ ] Implement realistic fill simulation (spread, slippage, partials). (FR-BT-003..004)
+  * [ ] Implement transaction cost model (commission [fixed/%, tiered], swap). (FR-BT-003)
+  * [ ] Use seeded RNG for all stochastic simulation processes. (FR-BT-018)
+* **Deliverables**
+  * spread/commission/slippage/financing simulation
+* **SRS refs:** FR-BT-003..004, FR-BT-018, NFR-PERF-001..003
+* **SDD refs:** §5.1.7, §13
+* **Dependencies:** IP-37
+* **Completion evidence**
+  * Tests: `cpp/tests/unit/test_fill_simulator.cpp`, `py/tests/integration/test_cost_model.py`
+  * Usage: `usage/backtest/cost_and_fill_models.md`
+  * Bench/log: `benchmarks/backtest/cost_model_overhead.md`
+  * Commit: `TBD`
+
+#### [ ] IP-40 Replay certification + WFO/WFM orchestration
+
+* **Sub-tasks**
+  * [ ] Implement replay verifier comparing trade sequences across runs. (FR-BT-007, FR-BT-011)
+  * [ ] Implement WFO and Matrix evaluation orchestrator. (FR-BT-005)
+  * [ ] Generate **Edge Detector** reports (skill vs luck, p-values). (FR-BT-017)
+* **Deliverables**
+  * replay verifier
+  * WFO/WFM runner integration
+* **SRS refs:** FR-BT-005, FR-BT-007, FR-BT-011, FR-BT-017, NFR-REP-001..004
+* **SDD refs:** §5.1.7, §10.4, §16
+* **Dependencies:** IP-37, IP-42
+* **Completion evidence**
+  * Tests: `py/tests/replay/test_replay_certification.py`, `py/tests/integration/test_wfo_wfm.py`
+  * Usage: `usage/research/wfo_wfm.md`
+  * Bench/log: `artifacts/benchmarks/replay_wfo_wfm_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-41 Experiment manager and registry
+
+* **Sub-tasks**
+  * [ ] Implement searchable experiment registry by strategy, symbol, period. (FR-RSCH-006)
+  * [ ] Support symbol classification (Asset class, Volatility regime). (FR-RSCH-007)
+  * [ ] Implement seasonal pattern analysis (Day of week, Holiday impacts). (FR-RSCH-009)
+* **Deliverables**
+  * experiment metadata and searchable registry
+* **SRS refs:** FR-RSCH-006, FR-RSCH-007, FR-RSCH-009, FR-STOR-003
+* **SDD refs:** §5.3.3, §8
+* **Dependencies:** IP-17
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_experiment_manager.py`
+  * Usage: `usage/research/experiment_registry.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-42 Optimization runners (grid/random/genetic/Bayesian)
+
+* **Sub-tasks**
+
+  * [ ] Implement parallel optimization runners (Grid, Bayesian, etc.). (FR-RSCH-001, FR-RSCH-002)
+  * [ ] Integrate Ray-based distributed workers for scaling. (FR-BT-009, FR-BT-013)
+  * [ ] Implement worker health monitoring and auto-restart. (FR-BT-016)
+* **Deliverables**
+
+  * Optimization algorithms and distributed execution
+  * optimization orchestration with parallel execution policies
+* **SRS refs:** FR-RSCH-001..002, NFR-SCL-001..003
+* **SDD refs:** §5.3.3, §13
+* **Dependencies:** IP-41
+* **Completion evidence**
+
+  * Tests: `py/tests/unit/test_optimizers.py`, `py/tests/integration/test_parallel_optimization.py`
+  * Usage: `usage/research/optimization_runner.md`
+  * Bench/log: `benchmarks/research/optimizer_scaling.md`
+  * Commit: `TBD`
+
+#### [ ] IP-43 Monte Carlo + sensitivity analysis
+
+* **Deliverables**
+
+  * MC perturbation and sensitivity modules
+* **SRS refs:** FR-RSCH-003..005, NFR-REP-004
+* **SDD refs:** §5.3.3, §16
+* **Dependencies:** IP-41
+* **Completion evidence**
+
+  * Tests: `py/tests/unit/test_monte_carlo.py`, `py/tests/unit/test_sensitivity.py`
+  * Usage: `usage/research/monte_carlo_sensitivity.md`
+  * Bench/log: `artifacts/benchmarks/research/mc_sensitivity_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-44 Metrics engine and benchmark comparison
+
+* **Deliverables**
+
+  * return/risk/efficiency metrics
+  * benchmark-relative metrics
+* **SRS refs:** FR-MET-001..005
+* **SDD refs:** §5.1.8, §8
+* **Dependencies:** IP-37
+* **Completion evidence**
+
+  * Tests: `cpp/tests/unit/test_metrics_engine.cpp`, `py/tests/integration/test_metrics_benchmarking.py`
+  * Usage: `usage/backtest/metrics_reference.md`
+  * Bench/log: `benchmarks/metrics/compute_cost.md`
+  * Commit: `TBD`
+
+---
+
+### Phase G — Live Control Plane, Recovery, and Safety
+
+#### [ ] IP-45 Live session controller and readiness gates
+
+* **Sub-tasks**
+  * [ ] Implement `LiveSessionController` with startup readiness gates. (FR-LIVE-002)
+  * [ ] Implement heartbeat monitoring and service readiness checks. (FR-LIVE-002, FR-OBS-005)
+  * [ ] Implement graceful shutdown and emergency stop policies. (FR-LIVE-003, FR-LIVE-009)
+* **Deliverables**
+  * live session controller and readiness policy
+* **SRS refs:** FR-LIVE-001..003, FR-LIVE-009, FR-OBS-005, NFR-REL-002..003
+* **SDD refs:** §5.3.4, §9.2, §10.2
+* **Dependencies:** IP-29
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_live_session_controller.py`, `py/tests/e2e/test_live_startup_gating.py`
+  * Usage: `usage/live/session_controller_usage.md`
+  * Bench/log: `artifacts/logs/live/session_startup.log`
+  * Commit: `TBD`
+
+#### [ ] IP-46 Warm recovery and state reconstruction
+
+* **Sub-tasks**
+  * [ ] Implement checkpointing for warm recovery state. (FR-LIVE-004, FR-STOR-011)
+  * [ ] Implement broker reconnection with exponential backoff (target <30s). (FR-LIVE-007)
+  * [ ] Implement position and order reconciliation before resuming flow. (FR-LIVE-005)
+* **Deliverables**
+  * warm restart and state reconstruction logic
+* **SRS refs:** FR-LIVE-004..005, FR-LIVE-007, FR-STOR-011, NFR-REC-001..004
+* **SDD refs:** §5.3.4, §10.3, §12
+* **Dependencies:** IP-45, IP-15
+* **Completion evidence**
+  * Tests: `py/tests/e2e/test_warm_restart_recovery.py`
+  * Usage: `usage/live/recovery_runbook.md`
+  * Bench/log: `artifacts/logs/live/recovery_trace.log`
+  * Commit: `TBD`
+
+#### [ ] IP-47 Automated incident response and recovery workflows
+
+* **Sub-tasks**
+  * [ ] Implement auto-recovery for minor connection/data issues. (FR-LIVE-011, FR-LIVE-007)
+  * [ ] Implement manual intervention workflows with authorization. (FR-LIVE-006, FR-LIVE-011)
+* **Deliverables**
+  * auto-recovery and manual override playbooks
+* **SRS refs:** FR-LIVE-005..006, FR-LIVE-011, NFR-REL-005
+* **SDD refs:** §5.3.4, §12
+* **Dependencies:** IP-46
+* **Completion evidence**
+  * Tests: `py/tests/e2e/test_incident_response_flow.py`
+  * Usage: `usage/live/incident_management.md`
+  * Bench/log: `artifacts/logs/live/incident_sample.json`
+  * Commit: `TBD`
+
+#### [ ] IP-48 Retention, archival, and fast replay data access
+
+* **Deliverables**
+
+  * retention policy executor + archive reader for replay
+* **SRS refs:** FR-STOR-005..006
+* **SDD refs:** §8, §18
+* **Dependencies:** IP-15, IP-17, IP-40
+* **Completion evidence**
+
+  * Tests: `py/tests/integration/test_retention_and_archive.py`
+  * Usage: `usage/ops/retention_and_archive.md`
+  * Bench/log: `benchmarks/storage/archive_replay_access.md`
+  * Commit: `TBD`
+
+---
+
+### Phase H — API, UI, and User Workflows
+
+#### [ ] IP-49 REST API gateway v1
+
+* **Deliverables**
+
+  * run control, orders, positions, metrics, health APIs
+* **SRS refs:** FR-API-001, FR-API-003, FR-API-006, FR-INT-006
+* **SDD refs:** §5.3.5, §7.5
+* **Dependencies:** IP-12, IP-51
+* **Completion evidence**
+
+  * Tests: `py/tests/integration/test_api_rest_v1.py`, `py/tests/contracts/test_api_contracts.py`
+  * Usage: `usage/api/rest_reference.md`
+  * Bench/log: `benchmarks/api/rest_latency.md`
+  * Commit: `TBD`
+
+#### [ ] IP-50 WebSocket streaming gateway
+
+* **Sub-tasks**
+  * [ ] Implement streaming channels for orders/fills/pnl/risk/health/alerts. (FR-API-002)
+  * [ ] Implement real-time system status updates via WebSocket. (FR-API-002)
+* **Deliverables**
+  * streaming channels for orders/fills/pnl/risk/health/alerts
+* **SRS refs:** FR-API-002, FR-INT-005
+* **SDD refs:** §5.3.5, §7.5
+* **Dependencies:** IP-49, IP-55
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_api_ws_streams.py`
+  * Usage: `usage/api/websocket_reference.md`
+  * Bench/log: `benchmarks/api/ws_throughput.md`
+  * Commit: `TBD`
+
+#### [ ] IP-51 RBAC enforcement and secure API controls
+
+* **Sub-tasks**
+  * [ ] Implement JWT Authentication and RBAC roles. (FR-API-004, NFR-SEC-002)
+  * [ ] Implement elevated permission flow for live trading actions. (FR-API-005, NFR-SEC-005)
+  * [ ] Enforce password complexity and account locking policies. (NFR-SEC-007..008)
+  * [ ] Use Argon2/Bcrypt for password hashing (no plaintext storage). (NFR-SEC-012)
+* **Deliverables**
+  * Auth/AuthZ layer for API and UI
+* **SRS refs:** FR-API-004..005, NFR-SEC-002, NFR-SEC-005..012, NFR-AUD-001..003
+* **SDD refs:** §11, §5.3.5
+* **Dependencies:** IP-16
+* **Completion evidence**
+  * Tests: `py/tests/security/test_rbac.py`, `py/tests/security/test_privileged_audit.py`
+  * Usage: `usage/api/rbac_and_permissions.md`
+  * Bench/log: `artifacts/logs/security/rbac_audit_events.json`
+  * Commit: `TBD`
+
+#### [ ] IP-52 UI shell + role-aware navigation
+
+* **Deliverables**
+
+  * authenticated dashboard shell and permission-aware menus
+* **SRS refs:** FR-UI-001, FR-UI-006, NFR-USE-001
+* **SDD refs:** §5.3.6, §11
+* **Dependencies:** IP-51
+* **Completion evidence**
+
+  * Tests: `py/tests/e2e/test_ui_navigation_rbac.py`
+  * Usage: `usage/ui/navigation.md`
+  * Bench/log: N/A
+  * Commit: `TBD`
+
+#### [ ] IP-53 Live health/risk/execution dashboards
+
+* **Deliverables**
+
+  * real-time health and risk visualizations
+* **SRS refs:** FR-UI-001, FR-UI-005, FR-OBS-005, NFR-USE-001
+* **SDD refs:** §10.2, §10.3, §14
+* **Dependencies:** IP-50, IP-55, IP-46
+* **Completion evidence**
+
+  * Tests: `py/tests/e2e/test_ui_live_health.py`
+  * Usage: `usage/ui/live_health_dashboard.md`
+  * Bench/log: `artifacts/logs/ui/live_dashboard_snapshot.log`
+  * Commit: `TBD`
+
+#### [ ] IP-54 Research/backtest UI + reporting exports
+
+* **Deliverables**
+
+  * research outputs + charts + export flows
+* **SRS refs:** FR-UI-002..004, NFR-USE-002..003
+* **SDD refs:** §10.1, §10.4, §5.3.6
+* **Dependencies:** IP-44, IP-49
+* **Completion evidence**
+
+  * Tests: `py/tests/e2e/test_ui_research_reporting.py`
+  * Usage: `usage/ui/research_and_reports.md`
+  * Bench/log: `artifacts/logs/ui/report_export_examples.json`
+  * Commit: `TBD`
+
+---
+
+### Phase I — Observability, Notifications, Security Hardening
+
+#### [ ] IP-55 Metrics instrumentation and health endpoints
+
+* **Sub-tasks**
+  * [ ] Collect operational metrics: latency, throughput, failures. (FR-OBS-002)
+  * [ ] Implement SLO dashboards (Latency <200ms, Freshness). (NFR-OBS-004, NFR-PERF-010)
+  * [ ] Implement health endpoints and service readiness checks. (FR-OBS-005)
+* **Deliverables**
+  * system metrics, SLO probes, health endpoints
+* **SRS refs:** FR-OBS-002, FR-OBS-005, NFR-OBS-002..004, NFR-PERF-010
+* **SDD refs:** §12, §14, §5.3.7
+* **Dependencies:** IP-01
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_metrics_pipeline.py`, `py/tests/integration/test_health_endpoints.py`
+  * Usage: `usage/ops/metrics_and_health.md`
+  * Bench/log: `artifacts/benchmarks/obs/metrics_capacity.json`
+  * Commit: `TBD`
+
+#### [ ] IP-56 Distributed tracing across critical flow
+
+* **Sub-tasks**
+  * [ ] Implement trace propagation: ingestion → strategy → risk → OMS → execution. (FR-OBS-003)
+  * [ ] Configure trace sampling based on operating mode and severity. (NFR-OBS-003)
+* **Deliverables**
+  * trace propagation ingest→strategy→risk→OMS→execution
+* **SRS refs:** FR-OBS-003, NFR-OBS-003
+* **SDD refs:** §14.3
+* **Dependencies:** IP-55, IP-23, IP-35
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_trace_propagation.py`
+  * Usage: `usage/ops/distributed_tracing.md`
+  * Bench/log: `artifacts/logs/tracing/sample_trace.json`
+  * Commit: `TBD`
+
+#### [ ] IP-57 Real-time alerting and notification channels
+
+* **Sub-tasks**
+  * [ ] Implement Telegram notification channel (Bot API). (FR-NOTIF-001)
+  * [ ] Implement Email notification channel (SMTP). (FR-NOTIF-002)
+  * [ ] Support granular configuration (channel per event, rate limiting). (FR-NOTIF-004, FR-NOTIF-006)
+  * [ ] Implement notification audit trail in database. (FR-NOTIF-007)
+* **Deliverables**
+  * alert routing and incident logging
+* **SRS refs:** FR-OBS-004, FR-OBS-006, FR-NOTIF-001..007, NFR-REL-005, NFR-SEC-006
+* **SDD refs:** §12, §14.4, §5.3.7
+* **Dependencies:** IP-55
+* **Completion evidence**
+  * Tests: `py/tests/integration/test_alert_routing.py`, `py/tests/integration/test_escalation_policy.py`, `py/tests/integration/test_notifications.py`
+  * Usage: `usage/ops/alerts_and_escalations.md`
+  * Bench/log: `artifacts/logs/alerts/delivery_report.json`
+  * Commit: `TBD`
+
+---
+
+### Phase J — Testing, CI/CD, Performance Gates, Release
+
+#### [ ] IP-58 Test architecture implementation (unit/integration/contract/parity/e2e)
+
+* **Sub-tasks**
+  * [ ] Implement unit test harnesses for C++ (Google Test) and Python (pytest). (FR-TEST-001)
+  * [ ] Implement integration tests for bridge contracts and cross-language flows. (FR-TEST-002)
+  * [ ] Implement fault-injection tests (disconnects, price gaps, rejects). (FR-TEST-005)
+  * [ ] Enforce minimum coverage thresholds (>70% MVP, >90% V2). (NFR-TST-001, NFR-TST-007)
+* **Deliverables**
+  * test harnesses and fixtures for all layers
+* **SRS refs:** FR-TEST-001..002, FR-TEST-005..006, NFR-TST-001..004, NFR-TST-007
+* **SDD refs:** §16
+* **Dependencies:** IP-12, IP-22, IP-31, IP-37
+* **Completion evidence**
+  * Tests: `py/tests/**`, `cpp/tests/**` (suite index file required)
+  * Usage: `usage/ops/test_strategy.md`
+  * Bench/log: `artifacts/logs/tests/test_matrix_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-59 Risk parity tests (Python vs C++)
+
+* **Sub-tasks**
+  * [ ] Implement parity test harness comparing risk decisions across both layers. (FR-TEST-004)
+  * [ ] Validate position sizing and margin calculations against manual baseline. (Acceptance Criteria 9.2)
+* **Deliverables**
+  * parity harness and policy consistency assertions
+* **SRS refs:** FR-RISK-001..006, FR-TEST-004, Program DoD #2
+* **SDD refs:** §16, §5.1.4
+* **Dependencies:** IP-27, IP-28
+* **Completion evidence**
+  * Tests: `py/tests/parity/test_risk_parity.py`
+  * Usage: `usage/risk/parity_testing.md`
+  * Bench/log: `artifacts/benchmarks/parity/risk_parity_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-60 CI pipeline (build/lint/type/unit/integration)
+
+* **Sub-tasks**
+  * [ ] Implement CI build matrix for C++20 and Python 3.11+. (FR-CICD-001)
+  * [ ] Integrate linting (clang-tidy, ruff) and static analysis (mypy). (FR-CICD-002, NFR-MNT-004)
+  * [ ] Enforce secure secret scanning in protected branches. (NFR-SEC-011)
+* **Deliverables**
+  * CI matrix for C++ + Python
+* **SRS refs:** FR-CICD-001..003, NFR-MNT-004, NFR-SEC-011
+* **SDD refs:** §15, §16
+* **Dependencies:** IP-58
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_ci_manifest.py`
+  * Usage: `usage/ops/ci_pipeline.md`
+  * Bench/log: CI artifacts and run logs
+  * Commit: `TBD`
+
+#### [ ] IP-61 Contract + migration integrity gates
+
+* **Sub-tasks**
+  * [ ] Implement blocking gates for schema evolution and backward compatibility. (FR-CICD-005, FR-STOR-004)
+  * [ ] Automate `requirements_traceability_matrix.md` updates from run manifests. (SRS §10)
+* **Deliverables**
+  * blocking gates for schema and migrations
+* **SRS refs:** FR-CICD-002, FR-CICD-005..006, FR-STOR-004, FR-INT-005, SRS §10
+* **SDD refs:** §8, §15, §17, §18
+* **Dependencies:** IP-12, IP-15, IP-60
+* **Completion evidence**
+  * Tests: `py/tests/migrations/test_ci_migration_gate.py`, `py/tests/contracts/test_ci_contract_gate.py`
+  * Usage: `usage/ops/contract_migration_gates.md`
+  * Bench/log: CI gate logs
+  * Commit: `TBD`
+
+#### [ ] IP-62 Performance regression gates
+
+* **Sub-tasks**
+  * [ ] Implement regression suite for throughput (ticks/sec) and latency (ms). (NFR-TST-003)
+  * [ ] Benchmark bridge overhead and event-driven processing speed. (NFR-PERF-001..005)
+* **Deliverables**
+  * baseline + delta checks for throughput/latency/bridge overhead
+* **SRS refs:** NFR-PERF-001..005, FR-CICD-005, NFR-TST-003
+* **SDD refs:** §13, §16
+* **Dependencies:** IP-21, IP-36, IP-39, IP-60
+* **Completion evidence**
+  * Tests: `py/tests/perf/test_perf_regressions.py`
+  * Usage: `usage/ops/performance_gates.md`
+  * Bench/log: `artifacts/benchmarks/perf_gate/perf_delta.json`
+  * Commit: `TBD`
+
+#### [ ] IP-63 Security hardening and penetration checklist
+
+* **Sub-tasks**
+  * [ ] Implement security audit for auth, secrets, and permissions. (NFR-SEC-001..006)
+  * [ ] Validate input sanitization and rate limiting controls. (NFR-SEC-009..010)
+* **Deliverables**
+  * security review, secret scanning, permission hardening
+* **SRS refs:** NFR-SEC-001..006, NFR-SEC-009..010, FR-CICD-005
+* **SDD refs:** §11, §15
+* **Dependencies:** IP-51, IP-60
+* **Completion evidence**
+  * Tests: `py/tests/security/test_security_controls.py`
+  * Usage: `usage/ops/security_hardening.md`
+  * Bench/log: `artifacts/logs/security/hardening_report.json`
+  * Commit: `TBD`
+
+#### [ ] IP-64 Deployment topology and rollout playbooks
+
+* **Sub-tasks**
+  * [ ] Define dev/staging/live deployment manifests (Windows/Linux/OSX). (SRS §3.3)
+  * [ ] Implement failover and rollback procedures. (FR-CICD-004, NFR-REL-006)
+* **Deliverables**
+  * dev/staging/prod manifests, canary and rollback
+* **SRS refs:** FR-CICD-003..004, NFR-SCL-001..003, NFR-REL-001..003, NFR-REL-006, SRS §3.3
+* **SDD refs:** §15
+* **Dependencies:** IP-60, IP-61
+* **Completion evidence**
+  * Tests: `py/tests/e2e/test_deployment_smoke.py`
+  * Usage: `usage/ops/deployment_rollout.md`
+  * Bench/log: rollout simulation logs
+  * Commit: `TBD`
+
+#### [ ] IP-65 UML/sequence diagrams and docs sync gate
+
+* **Sub-tasks**
+  * [ ] Automate Sphinx/Doxygen generation for code-level documentation. (NFR-DOC-001)
+  * [ ] Enforce sync between implementation and SDD/SRS diagrams in CI. (NFR-DOC-003, SDD §17)
+* **Deliverables**
+  * class diagrams and user sequence diagrams kept in sync with code/contracts
+* **SRS refs:** FR-CICD-006, FR-TEST-006, NFR-DOC-001, NFR-DOC-003, SDD §17
+* **SDD refs:** §6, §10, §17, §19
+* **Dependencies:** IP-22, IP-31, IP-37, IP-49, IP-53
+* **Completion evidence**
+  * Tests: `py/tests/unit/test_docs_sync_gate.py`
+  * Usage: `usage/ops/diagram_sync_process.md`
+  * Bench/log: docs sync CI logs
+  * Commit: `TBD`
+
+---
+
+## 4) PR Slicing Plan (Small, Traceable PRs)
+
+* **PR-1:** IP-01
+* **PR-2:** IP-02 + IP-04 (if LOC budget allows; else separate)
+* **PR-3:** IP-12
+* **PR-4:** IP-15 + IP-16
+* **PR-5:** IP-06 + IP-07
+* **PR-6:** IP-18 + IP-19
+* **PR-7:** IP-20 + IP-21
+* **PR-8:** IP-22 + IP-23
+* **PR-9:** IP-25 + IP-27 + IP-31 (split if too large)
+* **PR-10:** IP-34 + IP-35
+* **PR-11:** IP-37 + IP-39
+* **PR-12:** IP-41 + IP-42 + IP-43
+* **PR-13:** IP-45 + IP-46 + IP-47
+* **PR-14:** IP-49 + IP-50 + IP-51
+* **PR-15:** IP-52 + IP-53 + IP-54
+* **PR-16:** IP-55 + IP-56 + IP-57
+* **PR-17:** IP-58 + IP-59 + IP-60
+* **PR-18:** IP-61 + IP-62 + IP-63 + IP-64 + IP-65
+
+> If any PR exceeds size budget, split by single task ID and keep dependency order.
+
+---
+
+## 5) Milestone Gates
+
+### M1 Foundation Complete
+
+* IP-01..IP-05, IP-12 complete.
+
+### M2 Core Engine + Bridge Complete
+
+* IP-06..IP-11, IP-13..IP-21 complete.
+
+### M3 Trading Core Complete
+
+* IP-22..IP-36 complete.
+
+### M4 Research/Backtest/Storage Complete
+
+* IP-37..IP-44, IP-48 complete.
+
+### M5 Live Ops + UX Complete
+
+* IP-45..IP-57 complete.
+
+### M6 Quality + Release Complete
+
+* IP-58..IP-65 complete.
+
+---
+
+## 6) Completion Ledger Template (Required Per Task)
+
+| Task ID | Status  | SRS refs | SDD refs | Test files | Usage files | Bench/Log evidence | Commit |
+| ------- | ------- | -------- | -------- | ---------- | ----------- | ------------------ | ------ |
+| IP-XX   | [ ]/[x] | ...      | ...      | ...        | ...         | ...                | ...    |
+
+---
+
+## 7) Global Exit Checklist (Program DoD Validation)
+
+* [ ] Backtest/live canonical contracts validated (IP-22, IP-23, IP-37, IP-45)
+* [ ] Python vs C++ risk parity green (IP-59)
+* [ ] Reconcile/kill-switch/degraded mode proven in e2e drills (IP-29, IP-33, IP-46, IP-47)
+* [ ] UI unified model for live + research outputs (IP-53, IP-54)
+* [ ] CI enforces contracts/tests/lint/migrations/perf gates (IP-60..IP-62)
+
+---
+
+## 8) Notes for Execution
+
+1. Do not mark any task `[x]` without all completion evidence fields populated.
+2. Keep one primary task per PR for clean traceability.
+3. Any change touching hot path **must** include benchmark artifact.
+4. Any change touching live safety **must** include e2e drill evidence.
+5. `requirements_traceability_matrix.md` must be auto-updated in CI on every merged task.
+
+---
