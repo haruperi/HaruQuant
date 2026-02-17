@@ -202,3 +202,48 @@ class TestErrorTaxonomy:
 
     def test_error_name_returns_expected_value(self):
         assert hqt_engine.error_name(10014) == "TRADE_RETCODE_INVALID_VOLUME"
+
+
+class TestSchemaValidationBridge:
+    def test_schema_validation_api_is_available(self):
+        assert hasattr(hqt_engine, "validate_market_schema")
+        assert hasattr(hqt_engine, "validate_trade_schema")
+        assert hasattr(hqt_engine, "validate_config_schema")
+
+    def test_validate_market_schema_cpp_bridge(self):
+        payload = {
+            "symbol": "EURUSD",
+            "timestamp": "2026-02-17T13:30:00Z",
+            "bid": 1.1000,
+            "ask": 1.1002,
+            "volume": 1000.0,
+        }
+        result = hqt_engine.validate_market_schema(payload)
+        assert result["ok"] is True
+
+    def test_validate_trade_schema_cpp_bridge_rejects_invalid_side(self):
+        payload = {
+            "symbol": "EURUSD",
+            "side": "HOLD",
+            "order_type": "MARKET",
+            "volume": 0.1,
+        }
+        result = hqt_engine.validate_trade_schema(payload)
+        assert result["ok"] is False
+        assert "side" in result["message"].lower()
+
+    def test_validate_config_schema_cpp_bridge_with_nested_payload(self):
+        payload = {
+            "mode": "paper",
+            "logging": {
+                "level": "warn",
+                "stderr_enabled": True,
+            },
+            "risk": {
+                "max_positions": 5,
+                "max_drawdown_pct": 20.0,
+                "max_risk_per_trade_pct": 2.0,
+            },
+        }
+        result = hqt_engine.validate_config_schema(payload)
+        assert result["ok"] is True

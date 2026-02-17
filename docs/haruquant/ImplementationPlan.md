@@ -173,13 +173,13 @@
   * Bench/log: `artifacts/logs/structured_log_samples.json`
   * Commit: `TBD`
 
-#### [ ] IP-02 Validators/manipulators library
+#### [X] IP-02 Validators/manipulators library
 
 * **Sub-tasks**
-  * [ ] Implement Pydantic-based schema validators for market/trade/config objects. (FR-UTIL-003)
-  * [ ] Implement C++ schema validation primitives (JSON-schema or equivalent). (FR-UTIL-003)
-  * [ ] Implement date/time and timezone normalization helpers. (FR-UTIL-004)
-  * [ ] Implement platform-independent path handling using `pathlib`. (NFR-PERF-001/Constraint)
+  * [X] Implement Pydantic-based schema validators for market/trade/config objects. (FR-UTIL-003)
+  * [X] Implement C++ schema validation primitives (JSON-schema or equivalent). (FR-UTIL-003)
+  * [X] Implement date/time and timezone normalization helpers. (FR-UTIL-004)
+  * [X] Implement platform-independent path handling using `pathlib`. (NFR-PERF-001/Constraint)
 * **Deliverables**
   * Schema validators, datetime/string manipulators
 * **SRS refs:** FR-UTIL-003..004

@@ -9,10 +9,180 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
 from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 
 mt5 = get_mt5_api()
+
+
+class MarketTickSchema(BaseModel):
+    """Schema validator for normalized market tick payloads."""
+
+    model_config = ConfigDict(extra="allow")
+
+    symbol: str = Field(min_length=1)
+    timestamp: datetime
+    bid: float = Field(gt=0)
+    ask: float = Field(gt=0)
+    last: Optional[float] = Field(default=None, gt=0)
+    volume: float = Field(ge=0)
+
+    @field_validator("symbol")
+    @classmethod
+    def _symbol_not_blank(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("symbol must be non-empty")
+        return text
+
+    @field_validator("ask")
+    @classmethod
+    def _ask_ge_bid(cls, ask: float, info: Any) -> float:
+        bid = info.data.get("bid")
+        if bid is not None and ask < bid:
+            raise ValueError("ask must be greater than or equal to bid")
+        return ask
+
+
+class TradeSchema(BaseModel):
+    """Schema validator for trade request payloads."""
+
+    model_config = ConfigDict(extra="allow")
+
+    symbol: str = Field(min_length=1)
+    side: str
+    order_type: str
+    volume: float = Field(gt=0)
+    price: Optional[float] = Field(default=None, gt=0)
+    stop_loss: Optional[float] = Field(default=None, ge=0)
+    take_profit: Optional[float] = Field(default=None, ge=0)
+    magic: Optional[int] = Field(default=None, ge=0)
+    deviation: Optional[int] = Field(default=None, ge=0)
+
+    @field_validator("symbol")
+    @classmethod
+    def _trade_symbol_not_blank(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("symbol must be non-empty")
+        return text
+
+    @field_validator("side")
+    @classmethod
+    def _normalize_side(cls, value: str) -> str:
+        side = value.strip().upper()
+        if side not in {"BUY", "SELL"}:
+            raise ValueError("side must be BUY or SELL")
+        return side
+
+    @field_validator("order_type")
+    @classmethod
+    def _normalize_order_type(cls, value: str) -> str:
+        order_type = value.strip().upper()
+        valid_order_types = {
+            "MARKET",
+            "LIMIT",
+            "STOP",
+            "STOP_LIMIT",
+            "BUY",
+            "SELL",
+            "BUY_LIMIT",
+            "SELL_LIMIT",
+            "BUY_STOP",
+            "SELL_STOP",
+            "BUY_STOP_LIMIT",
+            "SELL_STOP_LIMIT",
+        }
+        if order_type not in valid_order_types:
+            raise ValueError("order_type is not supported")
+        return order_type
+
+
+class LoggingConfigSchema(BaseModel):
+    """Minimal runtime logging configuration schema."""
+
+    model_config = ConfigDict(extra="allow")
+
+    level: str = "INFO"
+    component_levels: Dict[str, str] = Field(default_factory=dict)
+    stderr_enabled: bool = True
+
+    @field_validator("level")
+    @classmethod
+    def _normalize_level(cls, value: str) -> str:
+        level = value.strip().upper()
+        aliases = {"WARN": "WARNING", "FATAL": "CRITICAL"}
+        normalized = aliases.get(level, level)
+        allowed = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if normalized not in allowed:
+            raise ValueError("invalid logging level")
+        return normalized
+
+
+class RiskConfigSchema(BaseModel):
+    """Minimal runtime risk configuration schema."""
+
+    model_config = ConfigDict(extra="allow")
+
+    max_positions: int = Field(ge=1)
+    max_drawdown_pct: float = Field(ge=0, le=100)
+    max_risk_per_trade_pct: float = Field(ge=0, le=100)
+
+
+class RuntimeConfigSchema(BaseModel):
+    """Schema validator for top-level runtime config payloads."""
+
+    model_config = ConfigDict(extra="allow")
+
+    mode: str
+    logging: LoggingConfigSchema
+    risk: RiskConfigSchema
+
+    @field_validator("mode")
+    @classmethod
+    def _normalize_mode(cls, value: str) -> str:
+        mode = value.strip().upper()
+        if mode not in {"BACKTEST", "PAPER", "LIVE"}:
+            raise ValueError("mode must be BACKTEST, PAPER, or LIVE")
+        return mode
+
+
+def _schema_validation_error_message(error: ValidationError) -> str:
+    first = error.errors()[0] if error.errors() else {"msg": str(error)}
+    location = ".".join(str(item) for item in first.get("loc", []))
+    message = first.get("msg", "invalid payload")
+    if location:
+        return f"{location}: {message}"
+    return message
+
+
+def validate_market_schema(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    """Validate market payload against MarketTickSchema."""
+    try:
+        MarketTickSchema.model_validate(payload)
+        return True, "Market schema is valid"
+    except ValidationError as error:
+        return False, _schema_validation_error_message(error)
+
+
+def validate_trade_schema(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    """Validate trade payload against TradeSchema."""
+    try:
+        TradeSchema.model_validate(payload)
+        return True, "Trade schema is valid"
+    except ValidationError as error:
+        return False, _schema_validation_error_message(error)
+
+
+def validate_config_schema(payload: Dict[str, Any]) -> Tuple[bool, str]:
+    """Validate runtime config payload against RuntimeConfigSchema."""
+    try:
+        RuntimeConfigSchema.model_validate(payload)
+        return True, "Config schema is valid"
+    except ValidationError as error:
+        return False, _schema_validation_error_message(error)
 
 
 class OrderType(IntEnum):

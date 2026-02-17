@@ -86,3 +86,46 @@
   - free-form message patterns such as `password=...`, `token=...`, `api_key=...`, and `Bearer ...` are redacted
 - Redaction happens before sink/callback dispatch and before stderr output to prevent accidental secret leakage in downstream handlers.
 
+## Schema Validators (FR-UTIL-003)
+
+- Pydantic-based schema validators are implemented in `apps/utils/validate.py`.
+- Models:
+  - `MarketTickSchema`
+  - `TradeSchema`
+  - `RuntimeConfigSchema` (with nested `LoggingConfigSchema` and `RiskConfigSchema`)
+- Helper entry points:
+  - `validate_market_schema(payload)`
+  - `validate_trade_schema(payload)`
+  - `validate_config_schema(payload)`
+- These helpers perform schema contract validation and return `(is_valid, message)` for compatibility with existing utility call patterns.
+- Existing `TradeValidator` remains unchanged and continues to provide deeper business/MT5-aware validation.
+- C++ schema primitives are implemented in:
+  - `cpp/include/util/schema_validator.hpp`
+  - `cpp/src/engine/schema_validator.cpp`
+- C++/bridge validation entry points exposed via `hqt_engine`:
+  - `validate_market_schema(payload)`
+  - `validate_trade_schema(payload)`
+  - `validate_config_schema(payload)`
+- Bridge payload handling supports nested config dictionaries by flattening keys into schema paths (e.g., `logging.level`, `risk.max_positions`).
+
+## Date/Time Normalization (FR-UTIL-004)
+
+- Centralized helpers are implemented in `apps/utils/datetime_utils.py`.
+- Core entry points:
+  - `parse_datetime(value, assume_tz="UTC")`
+  - `to_utc(dt, assume_tz="UTC")`
+  - `to_naive_utc(dt, assume_tz="UTC")`
+  - `normalize_timestamp(value, output=...)`
+  - `normalize_timezone_for_series(series_or_index, target_tz=..., make_naive=...)`
+- Input support includes `datetime`, ISO-8601 strings (including `Z`), and unix epoch seconds/milliseconds.
+- Default normalization policy is UTC with explicit `assume_tz` behavior for naive datetimes.
+
+## Path Handling (NFR-PERF-001 Constraint)
+
+- Platform-independent path helpers are centralized in `apps/utils/path_utils.py`.
+- Core helpers:
+  - `normalize_path(path, base=None)`
+  - `ensure_parent_dir(path)`
+  - `ensure_dir(path)`
+- Utility modules use `pathlib.Path` semantics for file/dir operations to avoid OS-specific path branching.
+

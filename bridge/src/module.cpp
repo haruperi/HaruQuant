@@ -5,11 +5,14 @@
 #include <hqt/hello.hpp>
 #include <util/error.hpp>
 #include <util/logger.hpp>
+#include <util/schema_validator.hpp>
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace nb = nanobind;
@@ -154,6 +157,74 @@ double sum_1d_numeric_sequence(const nb::object& values) {
     return total;
 }
 
+bool flatten_py_dict(PyObject* dict_obj, const std::string& prefix,
+                     hqt::util::SchemaPayload& out, std::string& error) {
+    PyObject* key = nullptr;
+    PyObject* value = nullptr;
+    Py_ssize_t pos = 0;
+
+    while (PyDict_Next(dict_obj, &pos, &key, &value)) {
+        if (!PyUnicode_Check(key)) {
+            error = "payload keys must be strings";
+            return false;
+        }
+
+        const std::string key_str = nb::cast<std::string>(nb::borrow<nb::object>(key));
+        const std::string full_key = prefix.empty() ? key_str : (prefix + "." + key_str);
+
+        if (PyDict_Check(value)) {
+            if (!flatten_py_dict(value, full_key, out, error)) {
+                return false;
+            }
+            continue;
+        }
+
+        if (PyBool_Check(value)) {
+            out[full_key] = PyObject_IsTrue(value) == 1;
+            continue;
+        }
+        if (PyLong_Check(value)) {
+            const long long raw = PyLong_AsLongLong(value);
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+                error = "invalid integer value at key: " + full_key;
+                return false;
+            }
+            out[full_key] = static_cast<std::int64_t>(raw);
+            continue;
+        }
+        if (PyFloat_Check(value)) {
+            out[full_key] = PyFloat_AsDouble(value);
+            continue;
+        }
+        if (PyUnicode_Check(value)) {
+            out[full_key] = nb::cast<std::string>(nb::borrow<nb::object>(value));
+            continue;
+        }
+
+        error = "unsupported value type at key: " + full_key;
+        return false;
+    }
+
+    return true;
+}
+
+std::pair<hqt::util::SchemaPayload, std::string> parse_schema_payload(const nb::dict& payload) {
+    hqt::util::SchemaPayload out;
+    std::string error;
+    if (!flatten_py_dict(payload.ptr(), "", out, error)) {
+        return {hqt::util::SchemaPayload{}, error};
+    }
+    return {std::move(out), ""};
+}
+
+nb::dict validation_result_payload(const hqt::util::ValidationResult& result) {
+    nb::dict payload;
+    payload["ok"] = result.ok;
+    payload["message"] = nb::str(result.message.c_str());
+    return payload;
+}
+
 }  // namespace
 
 NB_MODULE(hqt_engine, m) {
@@ -227,6 +298,33 @@ NB_MODULE(hqt_engine, m) {
     }, "Return structured error taxonomy payload for a C++ trade retcode.");
     m.def("error_name", &hqt::util::error_name,
           "Return taxonomy error name for a C++ trade retcode.");
+    m.def("validate_market_schema", [](const nb::dict& payload) {
+        const auto [parsed, error] = parse_schema_payload(payload);
+        if (!error.empty()) {
+            hqt::util::ValidationResult result{false, error};
+            return validation_result_payload(result);
+        }
+        return validation_result_payload(hqt::util::validate_market_schema(parsed));
+    }, nb::arg("payload"),
+       "Validate market payload against C++ schema primitives.");
+    m.def("validate_trade_schema", [](const nb::dict& payload) {
+        const auto [parsed, error] = parse_schema_payload(payload);
+        if (!error.empty()) {
+            hqt::util::ValidationResult result{false, error};
+            return validation_result_payload(result);
+        }
+        return validation_result_payload(hqt::util::validate_trade_schema(parsed));
+    }, nb::arg("payload"),
+       "Validate trade payload against C++ schema primitives.");
+    m.def("validate_config_schema", [](const nb::dict& payload) {
+        const auto [parsed, error] = parse_schema_payload(payload);
+        if (!error.empty()) {
+            hqt::util::ValidationResult result{false, error};
+            return validation_result_payload(result);
+        }
+        return validation_result_payload(hqt::util::validate_config_schema(parsed));
+    }, nb::arg("payload"),
+       "Validate runtime config payload against C++ schema primitives.");
 
     nb::module_ sim = m.def_submodule("sim", "Simulation engine bindings");
     register_sim_bindings(sim);

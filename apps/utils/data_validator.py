@@ -8,12 +8,14 @@ and validation reporting.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
 
 from apps.utils.logger import logger
+from apps.utils.path_utils import ensure_parent_dir
 
 
 @dataclass
@@ -1273,7 +1275,7 @@ class DataValidator:
 
     def export_report(
         self,
-        filepath: str,
+        filepath: Union[str, Path],
         results: Optional[Dict[str, Any]] = None,
         format: str = "json",
     ):
@@ -1288,22 +1290,24 @@ class DataValidator:
         if results is None:
             results = self._validation_results
 
+        output_path = ensure_parent_dir(filepath)
+
         if format == "json":
             import json
 
-            with open(filepath, "w") as f:
+            with output_path.open("w", encoding="utf-8") as f:
                 json.dump(results, f, default=str, indent=2)
         elif format == "txt":
             report_text = self.generate_report(results, format="text")
             if isinstance(report_text, str):
-                with open(filepath, "w") as f:
+                with output_path.open("w", encoding="utf-8") as f:
                     f.write(report_text)
             else:
                 raise ValueError("Expected string report but got dict")
         else:
             raise ValueError(f"Unknown format: {format}")
 
-        logger.info(f"Validation report exported to {filepath}")
+        logger.info(f"Validation report exported to {output_path}")
 
     # ==================== Visualization ====================
 

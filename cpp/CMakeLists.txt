@@ -8,6 +8,7 @@ add_library(hqt_core STATIC
     src/engine/analytics.cpp
     src/engine/infrastructure.cpp
     src/engine/error.cpp
+    src/engine/schema_validator.cpp
     src/engine/logger.cpp
     src/engine/usage.cpp
     src/hello.cpp
