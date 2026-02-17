@@ -2,6 +2,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <usage/logger_usage.hpp>
+#include <engine/replay_clock.hpp>
 #include <hqt/hello.hpp>
 #include <util/error.hpp>
 #include <util/logger.hpp>
@@ -241,6 +242,52 @@ NB_MODULE(hqt_engine, m) {
                    + std::to_string(v.minor) + ", "
                    + std::to_string(v.patch) + ")";
         });
+
+    nb::class_<hqt::ReplayClockState>(m, "ReplayClockState")
+        .def_ro("cursor", &hqt::ReplayClockState::cursor)
+        .def_ro("current_time_us", &hqt::ReplayClockState::current_time_us)
+        .def_ro("paused", &hqt::ReplayClockState::paused)
+        .def_ro("speed_multiplier", &hqt::ReplayClockState::speed_multiplier)
+        .def_ro("timeline_signature", &hqt::ReplayClockState::timeline_signature);
+
+    nb::class_<hqt::ReplayClock>(m, "ReplayClock")
+        .def(nb::init<>())
+        .def(nb::init<std::vector<int64_t>>(), nb::arg("timeline_us"))
+        .def("load_timeline", &hqt::ReplayClock::load_timeline, nb::arg("timeline_us"))
+        .def("empty", &hqt::ReplayClock::empty)
+        .def("size", &hqt::ReplayClock::size)
+        .def("cursor", &hqt::ReplayClock::cursor)
+        .def("paused", &hqt::ReplayClock::paused)
+        .def("finished", &hqt::ReplayClock::finished)
+        .def("set_speed_multiplier", &hqt::ReplayClock::set_speed_multiplier, nb::arg("speed"))
+        .def("speed_multiplier", &hqt::ReplayClock::speed_multiplier)
+        .def("pause", &hqt::ReplayClock::pause)
+        .def("resume", &hqt::ReplayClock::resume)
+        .def("reset", &hqt::ReplayClock::reset)
+        .def("peek_next", [](const hqt::ReplayClock& clock) -> nb::object {
+            const auto value = clock.peek_next();
+            if (!value.has_value()) {
+                return nb::none();
+            }
+            return nb::int_(*value);
+        })
+        .def("advance", [](hqt::ReplayClock& clock) -> nb::object {
+            const auto value = clock.advance();
+            if (!value.has_value()) {
+                return nb::none();
+            }
+            return nb::int_(*value);
+        })
+        .def("step_by_bar", [](hqt::ReplayClock& clock, std::size_t bars) -> nb::object {
+            const auto value = clock.step_by_bar(bars);
+            if (!value.has_value()) {
+                return nb::none();
+            }
+            return nb::int_(*value);
+        }, nb::arg("bars") = 1)
+        .def("current_time", &hqt::ReplayClock::current_time)
+        .def("timeline_signature", &hqt::ReplayClock::timeline_signature)
+        .def("state", &hqt::ReplayClock::state);
 
     m.def("version", &hqt::version, "Returns the engine version struct.");
     m.def("sum", &sum_1d_numeric_sequence,

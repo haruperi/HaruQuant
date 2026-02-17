@@ -190,6 +190,21 @@
 - Validation:
   - `cpp/tests/test_session_calendar.cpp`
 
+## Replay Clock (IP-08)
+
+- Core class:
+  - `cpp/include/engine/replay_clock.hpp`
+- Capabilities:
+  - deterministic timeline playback cursor over event/bar timestamps
+  - replay controls: `pause()`, `resume()`, `advance()`, `step_by_bar(n)`
+  - deterministic replay signature (`timeline_signature`) and reproducible cursor snapshot (`state()`)
+- Replay hooks:
+  - Python reproducibility helpers in `apps/simulation/replay_hooks.py`
+  - deterministic fingerprint comparison for baseline vs candidate replay runs
+- Validation:
+  - `cpp/tests/test_replay_clock.cpp`
+  - `tests/replay/test_replay_clock_consistency.py`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:

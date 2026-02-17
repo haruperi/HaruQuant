@@ -282,20 +282,20 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-08 ReplayClock and deterministic replay hooks
+#### [X] IP-08 ReplayClock and deterministic replay hooks
 
 * **Sub-tasks**
-  * [ ] Implement `ReplayClock` for deterministic event playback. (FR-TIME-005)
-  * [ ] Implement deterministic replay hooks for incident reproduction. (FR-BT-007)
-  * [ ] Support `pause`, `resume`, and `step-by-bar` debugging in replay. (FR-STRAT-010)
+  * [X] Implement `ReplayClock` for deterministic event playback. (FR-TIME-005)
+  * [X] Implement deterministic replay hooks for incident reproduction. (FR-BT-007)
+  * [X] Support `pause`, `resume`, and `step-by-bar` debugging in replay. (FR-STRAT-010)
 * **Deliverables**
   * Deterministic replay clock and event playback control
 * **SRS refs:** FR-TIME-005, FR-BT-007, FR-STRAT-010, NFR-REP-001..004
 * **SDD refs:** §5.1.1, §10.1, §16
 * **Dependencies:** IP-06
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_replay_clock.cpp`, `py/tests/replay/test_replay_clock_consistency.py`
-  * Usage: `usage/backtest/replay_clock.md`
+  * Tests: `cpp/tests/test_replay_clock.cpp`, `tests/replay/test_replay_clock_consistency.py`
+  * Usage: `docs/haruquant/usage/backtest/replay_clock.md`
   * Bench/log: `artifacts/benchmarks/replay/replay_clock_report.json`
   * Commit: `TBD`
 

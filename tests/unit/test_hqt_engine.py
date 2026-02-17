@@ -9,6 +9,7 @@ import pytest
 _build_dir = Path(__file__).resolve().parents[2] / "build" / "bridge" / "Release"
 if _build_dir.exists():
     sys.path.insert(0, str(_build_dir))
+sys.modules.pop("hqt_engine", None)
 
 try:
     import hqt_engine
@@ -247,3 +248,39 @@ class TestSchemaValidationBridge:
         }
         result = hqt_engine.validate_config_schema(payload)
         assert result["ok"] is True
+
+
+class TestReplayClockBridge:
+    def test_replay_clock_api_is_available(self):
+        assert hasattr(hqt_engine, "ReplayClock")
+        assert hasattr(hqt_engine, "ReplayClockState")
+
+    def test_replay_clock_deterministic_progression(self):
+        timeline = [1000, 2000, 3000]
+        a = hqt_engine.ReplayClock(timeline)
+        b = hqt_engine.ReplayClock(timeline)
+
+        out_a = []
+        out_b = []
+        while not a.finished():
+            out_a.append(a.advance())
+        while not b.finished():
+            out_b.append(b.advance())
+
+        assert out_a == [1000, 2000, 3000]
+        assert out_b == [1000, 2000, 3000]
+        assert a.timeline_signature() == b.timeline_signature()
+
+    def test_replay_clock_pause_step_and_state(self):
+        clock = hqt_engine.ReplayClock([10, 20, 30, 40])
+        clock.pause()
+        assert clock.advance() is None
+        assert clock.step_by_bar(2) == 20
+        clock.resume()
+        assert clock.advance() == 30
+
+        state = clock.state()
+        assert state.cursor == 3
+        assert state.current_time_us == 30
+        assert state.paused is False
+        assert state.timeline_signature == clock.timeline_signature()
