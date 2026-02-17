@@ -388,6 +388,11 @@ def _cpp_error_payload_from_code(code: int) -> Optional[dict[str, Any]]:
 
 def _translate_cpp_exception(exc: Exception, client: Any) -> Exception:
     """Map raw C++ exception into typed Python exception."""
+    exc_module = getattr(exc.__class__, "__module__", "")
+    exc_name = getattr(exc.__class__, "__name__", "")
+    if exc_module == "hqt_engine" and exc_name.endswith("Error"):
+        return exc
+
     raw_message = str(exc)
     retcode = _extract_retcode(raw_message)
     detail = raw_message

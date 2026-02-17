@@ -56,3 +56,11 @@ def test_translate_cpp_exception_falls_back_to_bridge_error() -> None:
     client = SimpleNamespace(last_error=lambda: (1, "Success"))
     exc = _translate_cpp_exception(RuntimeError("boom"), client)
     assert isinstance(exc, CppBridgeError)
+
+
+def test_translate_cpp_exception_preserves_bridge_typed_exception() -> None:
+    BridgeOrderError = type("OrderStateError", (Exception,), {"__module__": "hqt_engine"})
+    original = BridgeOrderError("order transition invalid")
+    client = SimpleNamespace(last_error=lambda: (10013, "Invalid request"))
+    translated = _translate_cpp_exception(original, client)
+    assert translated is original

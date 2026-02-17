@@ -27,6 +27,14 @@ nb::object g_log_callback;
 std::mutex g_bridge_lifecycle_mutex;
 bool g_bridge_initialized = false;
 std::uint64_t g_bridge_init_count = 0;
+PyObject* g_exc_bridge_error = nullptr;
+PyObject* g_exc_configuration_error = nullptr;
+PyObject* g_exc_validation_error = nullptr;
+PyObject* g_exc_risk_violation_error = nullptr;
+PyObject* g_exc_order_state_error = nullptr;
+PyObject* g_exc_execution_error = nullptr;
+PyObject* g_exc_transient_connectivity_error = nullptr;
+PyObject* g_exc_fatal_engine_error = nullptr;
 
 hqt::util::LogLevel parse_level(const std::string& raw_level) {
     std::string level = raw_level;
@@ -276,6 +284,52 @@ nb::list make_str_list(std::initializer_list<const char*> values) {
     return out;
 }
 
+[[noreturn]] void raise_bridge_exception(
+    PyObject* exception_type,
+    const std::string& message) {
+    PyErr_SetString(exception_type, message.c_str());
+    throw nb::python_error();
+}
+
+PyObject* exception_type_for_category(const std::string& category) {
+    if (category == "bridge") {
+        return g_exc_bridge_error;
+    }
+    if (category == "configuration" || category == "config") {
+        return g_exc_configuration_error;
+    }
+    if (category == "validation") {
+        return g_exc_validation_error;
+    }
+    if (category == "risk") {
+        return g_exc_risk_violation_error;
+    }
+    if (category == "order") {
+        return g_exc_order_state_error;
+    }
+    if (category == "execution") {
+        return g_exc_execution_error;
+    }
+    if (category == "transient" || category == "connectivity") {
+        return g_exc_transient_connectivity_error;
+    }
+    if (category == "fatal") {
+        return g_exc_fatal_engine_error;
+    }
+    return g_exc_bridge_error;
+}
+
+PyObject* exception_type_for_retcode(int code) {
+    const hqt::util::ErrorInfo info = hqt::util::error_from_retcode(code);
+    if (info.retryable) {
+        return g_exc_transient_connectivity_error;
+    }
+    if (info.domain == "trade") {
+        return g_exc_order_state_error;
+    }
+    return g_exc_bridge_error;
+}
+
 void annotate_skeleton_submodule(nb::module_& m, const std::string& component_name) {
     m.attr("__component__") = nb::str(component_name.c_str());
     m.attr("__schema_version__") = nb::str("1.0");
@@ -349,6 +403,37 @@ NB_MODULE(hqt_engine, m) {
         "Return bridge lifecycle and health payload.");
 
     m.def("hello", &hqt::hello, "Returns the engine version string.");
+
+    g_exc_bridge_error = PyErr_NewException("hqt_engine.BridgeError", PyExc_RuntimeError, nullptr);
+    g_exc_configuration_error =
+        PyErr_NewException("hqt_engine.ConfigurationError", g_exc_bridge_error, nullptr);
+    g_exc_validation_error =
+        PyErr_NewException("hqt_engine.ValidationError", g_exc_bridge_error, nullptr);
+    g_exc_risk_violation_error =
+        PyErr_NewException("hqt_engine.RiskViolationError", g_exc_bridge_error, nullptr);
+    g_exc_order_state_error =
+        PyErr_NewException("hqt_engine.OrderStateError", g_exc_bridge_error, nullptr);
+    g_exc_execution_error =
+        PyErr_NewException("hqt_engine.ExecutionError", g_exc_bridge_error, nullptr);
+    g_exc_transient_connectivity_error =
+        PyErr_NewException("hqt_engine.TransientConnectivityError", g_exc_bridge_error, nullptr);
+    g_exc_fatal_engine_error =
+        PyErr_NewException("hqt_engine.FatalEngineError", g_exc_bridge_error, nullptr);
+    if (g_exc_bridge_error == nullptr || g_exc_configuration_error == nullptr ||
+        g_exc_validation_error == nullptr || g_exc_risk_violation_error == nullptr ||
+        g_exc_order_state_error == nullptr || g_exc_execution_error == nullptr ||
+        g_exc_transient_connectivity_error == nullptr || g_exc_fatal_engine_error == nullptr) {
+        throw nb::python_error();
+    }
+    m.attr("BridgeError") = nb::borrow<nb::object>(g_exc_bridge_error);
+    m.attr("ConfigurationError") = nb::borrow<nb::object>(g_exc_configuration_error);
+    m.attr("ValidationError") = nb::borrow<nb::object>(g_exc_validation_error);
+    m.attr("RiskViolationError") = nb::borrow<nb::object>(g_exc_risk_violation_error);
+    m.attr("OrderStateError") = nb::borrow<nb::object>(g_exc_order_state_error);
+    m.attr("ExecutionError") = nb::borrow<nb::object>(g_exc_execution_error);
+    m.attr("TransientConnectivityError") =
+        nb::borrow<nb::object>(g_exc_transient_connectivity_error);
+    m.attr("FatalEngineError") = nb::borrow<nb::object>(g_exc_fatal_engine_error);
 
     nb::class_<hqt::Version>(m, "Version")
         .def_ro("major", &hqt::Version::major)
@@ -500,6 +585,18 @@ NB_MODULE(hqt_engine, m) {
     }, "Return structured error taxonomy payload for a C++ trade retcode.");
     m.def("error_name", &hqt::util::error_name,
           "Return taxonomy error name for a C++ trade retcode.");
+    m.def("raise_exception_for_retcode", [](int code, const std::string& detail) {
+        const hqt::util::ErrorInfo info = hqt::util::error_from_retcode(code);
+        const std::string msg =
+            detail.empty() ? (info.name + ": " + info.message) : (info.name + ": " + detail);
+        raise_bridge_exception(exception_type_for_retcode(code), msg);
+    }, nb::arg("code"), nb::arg("detail") = "",
+       "Raise a typed Python exception mapped from C++ retcode taxonomy.");
+    m.def("raise_exception_for_category", [](const std::string& category, const std::string& detail) {
+        const std::string msg = detail.empty() ? ("category=" + category) : detail;
+        raise_bridge_exception(exception_type_for_category(category), msg);
+    }, nb::arg("category"), nb::arg("detail") = "",
+       "Raise a typed Python exception by category for bridge contract testing.");
     m.def("validate_market_schema", [](const nb::dict& payload) {
         const auto [parsed, error] = parse_schema_payload(payload);
         if (!error.empty()) {

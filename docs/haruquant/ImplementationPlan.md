@@ -502,7 +502,7 @@
 #### [ ] IP-20 Exception mapping Cpp +  Python
 
 * **Sub-tasks**
-  * [ ] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
+  * [x] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
   * [ ] Implement crash handling for segfaults/panics with log flushing and state persistence. (FR-UTIL-009)
 * **Deliverables**
   * typed exceptions and propagation for all engine boundaries
@@ -510,8 +510,8 @@
 * **SDD refs:** Â§5.2.3, Â§12
 * **Dependencies:** IP-18
 * **Completion evidence**
-  * Tests: `py/tests/contracts/test_exception_mapping.py`
-  * Usage: `usage/dev/error_taxonomy.md`
+  * Tests: `tests/contracts/test_exception_mapping.py`, `tests/unit/apps/utils/test_errors.py`
+  * Usage: `docs/haruquant/usage/dev/exception_mapping.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

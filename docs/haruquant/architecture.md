@@ -369,6 +369,27 @@
   - `docs/haruquant/usage/dev/bridge_ownership_rules.md`
   - `artifacts/logs/bridge/lifetime_validation.log`
 
+## Exception Mapping C++ + Python (IP-20)
+
+- Bridge-level typed exception classes exported by `hqt_engine`:
+  - `BridgeError`
+  - `ConfigurationError`
+  - `ValidationError`
+  - `RiskViolationError`
+  - `OrderStateError`
+  - `ExecutionError`
+  - `TransientConnectivityError`
+  - `FatalEngineError`
+- Mapping helpers:
+  - `hqt_engine.raise_exception_for_retcode(code, detail="")`
+  - `hqt_engine.raise_exception_for_category(category, detail="")`
+- Python adapter behavior:
+  - `apps/simulation/backend.py::_translate_cpp_exception(...)` preserves typed `hqt_engine.*Error` exceptions and uses retcode taxonomy fallback when needed.
+- Evidence:
+  - `tests/contracts/test_exception_mapping.py`
+  - `tests/unit/apps/utils/test_errors.py`
+  - `docs/haruquant/usage/dev/exception_mapping.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
