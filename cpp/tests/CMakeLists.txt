@@ -28,6 +28,7 @@ add_executable(hqt_tests
     test_event_loop.cpp
     test_clock_service.cpp
     test_event_sequencer.cpp
+    test_session_calendar.cpp
     test_trade.cpp
     test_currency_margin.cpp
     test_costs_engine.cpp

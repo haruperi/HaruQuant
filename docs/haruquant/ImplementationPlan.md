@@ -265,20 +265,20 @@
   * Bench/log: `benchmarks/time/event_ordering_perf.md`
   * Commit: `TBD`
 
-#### [ ] IP-07 Session calendar (hours/holidays/timezone/DST)
+#### [X] IP-07 Session calendar (hours/holidays/timezone/DST)
 
 * **Sub-tasks**
-  * [ ] Implement `SessionCalendar` with exchange holiday and trading session rules. (FR-TIME-004)
-  * [ ] Expose trading session restrictions to strategy runtime and live controller. (FR-LIVE-001)
-  * [ ] Implement symbol metadata mapping (sessions, digits, point value). (FR-DATA-006)
+  * [X] Implement `SessionCalendar` with exchange holiday and trading session rules. (FR-TIME-004)
+  * [X] Expose trading session restrictions to strategy runtime and live controller. (FR-LIVE-001)
+  * [X] Implement symbol metadata mapping (sessions, digits, point value). (FR-DATA-006)
 * **Deliverables**
   * SessionCalendar service for all modes
 * **SRS refs:** FR-TIME-004, FR-LIVE-001, FR-DATA-006
 * **SDD refs:** §5.1.1, §10.2
 * **Dependencies:** IP-06
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_session_calendar.cpp`, `py/tests/unit/test_calendar_policies.py`
-  * Usage: `usage/live/session_calendar.md`
+  * Tests: `cpp/tests/test_session_calendar.cpp`
+  * Usage: `docs/haruquant/usage/live/session_calendar.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

@@ -172,6 +172,24 @@
   - `cpp/tests/test_clock_service.cpp`
   - `cpp/tests/test_event_sequencer.cpp`
 
+## Session Calendar (IP-07)
+
+- Core class:
+  - `cpp/include/engine/session_calendar.hpp`
+- Capabilities:
+  - weekday session windows (`start_minute`/`end_minute`)
+  - holiday exclusion by session id
+  - timezone offset and DST policy-aware gate checks
+  - deterministic next-open timestamp lookup
+- Symbol metadata mapping:
+  - reuses `cpp/include/trading/symbol_info.hpp` (`SymbolInfo`) instead of duplicating symbol metadata structs
+  - calendar maps `symbol_id -> SymbolInfo + session_id`
+- Runtime exposure:
+  - `can_trade_symbol(symbol_id, ts, is_dst)` returns allow/deny + reason
+  - `is_market_open(...)` and `next_open_time(...)` support strategy and live-controller gating flows
+- Validation:
+  - `cpp/tests/test_session_calendar.cpp`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
