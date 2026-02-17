@@ -100,8 +100,8 @@
 
 ## 2.2 SDD Coverage Matrix (Section â†’ Tasks)
 
-| SDD Section                  | Coverage Tasks                           |
-| ---------------------------- | ---------------------------------------- |
+| SDD Section                    | Coverage Tasks                           |
+| ------------------------------ | ---------------------------------------- |
 | Â§1 Objectives               | IP-00                                    |
 | Â§2 Principles/Constraints   | IP-00, IP-04, IP-60                      |
 | Â§3 Architecture Overview    | IP-12, IP-18, IP-49                      |
@@ -499,7 +499,7 @@
   * Bench/log: `artifacts/logs/bridge/lifetime_validation.log`
   * Commit: `TBD`
 
-#### [ ] IP-20 Exception mapping C++â†’Python
+#### [ ] IP-20 Exception mapping Cpp +  Python
 
 * **Sub-tasks**
   * [ ] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
@@ -1378,4 +1378,3 @@
 5. `requirements_traceability_matrix.md` must be auto-updated in CI on every merged task.
 
 ---
-
