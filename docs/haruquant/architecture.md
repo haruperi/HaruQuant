@@ -205,6 +205,33 @@
   - `cpp/tests/test_replay_clock.cpp`
   - `tests/replay/test_replay_clock_consistency.py`
 
+## Data Adapters and Normalization Pipeline (IP-09)
+
+- Python adapters:
+  - `apps/adapters/mt5_zmq_adapter.py`
+  - `apps/adapters/dukascopy_adapter.py`
+- Normalization layer:
+  - `apps/adapters/normalization.py`
+- Pipeline wrapper:
+  - `apps/adapters/pipeline.py`
+- Scope:
+  - Subscribe to MQL5 EA `PUB` stream via `SUB` socket.
+  - Decode one-frame or two-frame (`topic`, `json`) messages.
+  - Fetch Dukascopy historical bars via adapter abstraction.
+  - Normalize provider payloads into canonical `tick` and `bar` schemas.
+  - Support ingestion progress callbacks `(done, total, percent)`.
+- Topic convention:
+  - `tick.<symbol>`
+  - `bar.<symbol>.<timeframe>`
+  - `heartbeat`
+  - `status`
+- Canonical contracts:
+  - `CanonicalTick` fields include: `provider`, `schema_version`, `symbol`, `timestamp`, `bid`, `ask`, `volume`.
+  - `CanonicalBar` fields include: `provider`, `schema_version`, `symbol`, `timeframe`, `timestamp`, `open`, `high`, `low`, `close`, `volume`.
+- Validation evidence:
+  - contract tests: `tests/contracts/test_tick_bar_contract.py`
+  - integration tests: `tests/integration/test_data_adapter_normalization.py` (includes real local ZMQ PUB/SUB when `pyzmq` is installed)
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:

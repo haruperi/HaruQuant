@@ -299,13 +299,13 @@
   * Bench/log: `artifacts/benchmarks/replay/replay_clock_report.json`
   * Commit: `TBD`
 
-#### [ ] IP-09 Data source adapters + normalization pipeline
+#### [X] IP-09 Data source adapters + normalization pipeline
 
 * **Sub-tasks**
-  * [ ] Implement MT5 adapter via ZeroMQ (MQL5 EA streaming). (FR-INT-008)
-  * [ ] Implement Dukascopy historical data adapter. (FR-INT-008)
-  * [ ] Normalize provider-specific payloads to canonical tick/bar schemas. (FR-DATA-001..002)
-  * [ ] Implement progress callbacks for long-running ingestion. (FR-DATA-014)
+  * [X] Implement MT5 adapter via ZeroMQ (MQL5 EA streaming). (FR-INT-008)
+  * [X] Implement Dukascopy historical data adapter. (FR-INT-008)
+  * [X] Normalize provider-specific payloads to canonical tick/bar schemas. (FR-DATA-001..002)
+  * [X] Implement progress callbacks for long-running ingestion. (FR-DATA-014)
 * **Deliverables**
   * MT5/Dukascopy adapters
   * Canonical tick/bar normalization
@@ -313,9 +313,9 @@
 * **SDD refs:** §5.1.2, §7
 * **Dependencies:** IP-06, IP-12
 * **Completion evidence**
-  * Tests: `py/tests/integration/test_data_adapter_normalization.py`, `py/tests/contracts/test_tick_bar_contract.py`
-  * Usage: `usage/data/ingestion_and_normalization.md`
-  * Bench/log: `benchmarks/data/ingestion_throughput.md`
+  * Tests: `tests/integration/test_data_adapter_normalization.py`, `tests/contracts/test_tick_bar_contract.py`
+  * Usage: `docs/haruquant/usage/ops/ingestion_and_normalization.md`, `tests/usage/utils/usage_mt5_zmq_adapter.py`
+  * Bench/log: `artifacts/benchmarks/ingestion/ingestion_throughput.md`
   * Commit: `TBD`
 
 #### [ ] IP-10 Data quality guardrails (missing/duplicate/out-of-order)
