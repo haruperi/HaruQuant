@@ -369,20 +369,20 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-13 Feature pipeline (batch + streaming)
+#### [X] IP-13 Feature pipeline (batch + streaming)
 
 * **Sub-tasks**
-  * [ ] Implement technical indicator library (Trend, Momentum, Volatility, Volume). (FR-STRAT-007)
-  * [ ] Implement batch and incremental (streaming) feature computation. (FR-FEAT-001, FR-FEAT-003)
-  * [ ] Implement feature computation graph inspection. (FR-FEAT-005)
+  * [X] Implement technical indicator library (Trend, Momentum, Volatility, Volume). (FR-STRAT-007)
+  * [X] Implement batch and incremental (streaming) feature computation. (FR-FEAT-001, FR-FEAT-003)
+  * [X] Implement feature computation graph inspection. (FR-FEAT-005)
 * **Deliverables**
   * Feature graph engine + versioned pipeline
 * **SRS refs:** FR-FEAT-001..003, FR-FEAT-005, FR-STRAT-007
 * **SDD refs:** Â§5.1.2, Â§8
 * **Dependencies:** IP-09, IP-12
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_feature_pipeline.cpp`, `py/tests/integration/test_feature_pipeline_stream_batch.py`
-  * Usage: `usage/research/feature_pipeline.md`
+  * Tests: `tests/integration/test_feature_pipeline_stream_batch.py`
+  * Usage: `docs/haruquant/usage/research/feature_pipeline.md`, `tests/usage/utils/usage_feature_pipeline.py`
   * Bench/log: `benchmarks/feature/feature_compute_perf.md`
   * Commit: `TBD`
 

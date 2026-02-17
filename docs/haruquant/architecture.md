@@ -297,6 +297,26 @@
   - `tests/migrations/test_schema_backward_compat.py`
   - `docs/haruquant/usage/ops/schema_registry.md`
 
+## Feature Pipeline (IP-13)
+
+- Core module:
+  - `apps/features/pipeline.py`
+- Capabilities:
+  - versioned feature pipeline metadata (`pipeline_version`)
+  - batch feature computation (`compute_batch`)
+  - incremental streaming feature updates (`compute_incremental`)
+  - inspectable feature dependency graph (`inspect_graph`)
+- Uses existing indicator library:
+  - trend: `sma`, `ema`, `wma`
+  - momentum: `rsi`
+  - volatility: `atr`, `bbands`
+  - volume: `accumulation_distribution` (`adl`)
+- Evidence:
+  - `tests/integration/test_feature_pipeline_stream_batch.py`
+  - `tests/usage/utils/usage_feature_pipeline.py`
+  - `docs/haruquant/usage/research/feature_pipeline.md`
+  - `benchmarks/feature/feature_compute_perf.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
