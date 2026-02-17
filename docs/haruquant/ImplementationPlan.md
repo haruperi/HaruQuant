@@ -386,20 +386,20 @@
   * Bench/log: `benchmarks/feature/feature_compute_perf.md`
   * Commit: `TBD`
 
-#### [ ] IP-14 Leakage prevention + split policy enforcement
+#### [X] IP-14 Leakage prevention + split policy enforcement
 
 * **Sub-tasks**
-  * [ ] Implement Point-in-Time (PIT) correctness guards in core engine. (FR-STRAT-009, FR-FEAT-004)
-  * [ ] Implement train/validation/test split enforcement policy. (FR-RSCH-005)
-  * [ ] Implement sensitive data masking in research artifacts. (FR-UTIL-008)
+  * [X] Implement Point-in-Time (PIT) correctness guards in core engine. (FR-STRAT-009, FR-FEAT-004)
+  * [X] Implement train/validation/test split enforcement policy. (FR-RSCH-005)
+  * [X] Implement sensitive data masking in research artifacts. (FR-UTIL-008)
 * **Deliverables**
   * No-lookahead guards and split validators
 * **SRS refs:** FR-FEAT-004, FR-RSCH-005, FR-STRAT-009, FR-DQ-001, FR-UTIL-008
 * **SDD refs:** Â§5.1.2, Â§16
 * **Dependencies:** IP-13, IP-41
 * **Completion evidence**
-  * Tests: `py/tests/contracts/test_no_lookahead.py`, `py/tests/integration/test_split_enforcement.py`
-  * Usage: `usage/research/leakage_prevention.md`
+  * Tests: `tests/contracts/test_no_lookahead.py`, `tests/integration/test_split_enforcement.py`
+  * Usage: `docs/haruquant/usage/research/leakage_prevention.md`, `tests/usage/utils/usage_leakage_prevention.py`
   * Bench/log: N/A
   * Commit: `TBD`
 

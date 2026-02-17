@@ -317,6 +317,22 @@
   - `docs/haruquant/usage/research/feature_pipeline.md`
   - `benchmarks/feature/feature_compute_perf.md`
 
+## Leakage Prevention and Split Enforcement (IP-14)
+
+- Core module:
+  - `apps/features/leakage.py`
+- Capabilities:
+  - point-in-time/no-lookahead validation for computed features
+  - chronological train/validation/test split enforcement with optional purge gap
+  - sensitive-field masking helper for research artifacts
+- Integration:
+  - `apps/edge/reporting.py::save_json` now masks artifact payloads before writing JSON reports
+- Evidence:
+  - `tests/contracts/test_no_lookahead.py`
+  - `tests/integration/test_split_enforcement.py`
+  - `tests/usage/utils/usage_leakage_prevention.py`
+  - `docs/haruquant/usage/research/leakage_prevention.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:

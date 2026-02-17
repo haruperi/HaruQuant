@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from apps.features.leakage import dump_masked_research_json
 from apps.utils.logger import logger
 
 from .results_schema import EdgeResult, EdgeStats
@@ -285,7 +286,7 @@ def save_json(res: EdgeResult, path: str | Path) -> Path:
         Path to saved file
     """
     p = Path(path)
-    content = json.dumps(res.to_dict(), indent=2, default=str)
+    content = dump_masked_research_json(res.to_dict())
     p.write_text(content, encoding="utf-8")
     logger.info(f"Saved JSON report to {p}")
     return p
