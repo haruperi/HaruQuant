@@ -997,11 +997,11 @@ db.delete_database()  # Clean up
 ### With Logger Module
 
 ```python
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite import SQLiteDatabase
 
 db = SQLiteDatabase()
-# All operations automatically logged via apps.logger
+# All operations automatically logged via apps.utils.logger
 ```
 
 ### With Security Module
@@ -1129,3 +1129,4 @@ For issues, questions, or contributions:
 - Check usage examples in `tests/usage/sqlite/`
 - Review source code docstrings
 - Consult main project documentation
+

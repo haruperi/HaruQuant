@@ -21,7 +21,7 @@ from apps.indicator.custom import (
     MAJOR_CURRENCIES,
     currency_strength_indicator,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -545,3 +545,4 @@ async def get_currency_strength(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to calculate currency strength: {str(e)}",
         )
+

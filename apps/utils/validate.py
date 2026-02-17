@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 
 mt5 = get_mt5_api()
@@ -1359,3 +1359,4 @@ class TradeValidator:
                 logger.warning(f"Rule name '{rule_name}' not found in '{rule_type}'")
         else:
             logger.warning(f"Rule type '{rule_type}' not found")
+

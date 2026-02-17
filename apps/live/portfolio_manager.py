@@ -7,7 +7,7 @@ Enforces portfolio-wide rules before allowing trade execution.
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.trade import AccountInfo
 from apps.utils.validate import OrderType
@@ -348,3 +348,4 @@ class PortfolioManager:
             f"symbols={len(self._positions_by_symbol)}, "
             f"max_total={self.max_total_positions})"
         )
+

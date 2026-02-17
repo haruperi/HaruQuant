@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # =============================================================================
 # BASIC TRADE METRICS
@@ -575,3 +575,4 @@ def compute_equity_metrics(returns: np.ndarray, periods_per_year: int = 252) -> 
     }
 
     return metrics
+

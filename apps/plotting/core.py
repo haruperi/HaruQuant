@@ -27,7 +27,7 @@ import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 OutputCallable = Optional[Callable[..., None]]
 output_file: OutputCallable = None
@@ -745,3 +745,4 @@ def initialize_plotting(
 
 # Initialize on import
 initialize_plotting()
+

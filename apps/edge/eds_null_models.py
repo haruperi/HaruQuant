@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .config import BootstrapConfig, NullModelsConfig, PermutationConfig
 from .features import atr, log_returns
@@ -304,3 +304,4 @@ def get_acceptance_criteria(null_result: EdgeResult) -> Dict[str, float]:
 
     logger.debug(f"Acceptance criteria: {criteria}")
     return criteria
+

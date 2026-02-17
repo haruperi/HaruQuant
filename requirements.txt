@@ -60,3 +60,6 @@ cmake
 
 # Python/C++ Bridge
 nanobind
+
+# Structured Logging
+structlog

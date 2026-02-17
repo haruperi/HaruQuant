@@ -4,7 +4,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 
 from apps.api.auth_utils import verify_token
 from apps.api.models import UpdateUserSettingsRequest, UserSettingsResponse
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -145,3 +145,4 @@ async def update_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while updating settings",
         )
+

@@ -42,7 +42,7 @@ from apps.finance import (  # noqa: E402
     risks,
 )
 from apps.indicator import sma  # noqa: E402
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.strategy import BaseStrategy  # noqa: E402
 from apps.utils.data_getters import load_mt5  # noqa: E402
 
@@ -501,3 +501,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

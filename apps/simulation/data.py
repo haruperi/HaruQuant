@@ -27,7 +27,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.simulation.utils import PositionArrayState
 from apps.utils.error_description import TradeErrorDescriptions
@@ -1505,3 +1505,4 @@ class SimulatorClient:
             return float(price_delta * contract_size * volume)
 
         return 0.0
+

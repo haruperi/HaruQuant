@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.optimization.models import (
     MultiEntryRequest,
     MultiEntryResponse,
@@ -1471,3 +1471,4 @@ def multi_entry_simulation(request: MultiEntryRequest) -> MultiEntryResponse:
     res_3 = run_scenario(3)
 
     return MultiEntryResponse(one_trade=res_1, two_trades=res_2, three_trades=res_3)
+

@@ -24,7 +24,7 @@ project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
 from apps.finance import benchmark  # noqa: E402
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 
 try:  # Optional dependency
     import matplotlib.pyplot as plt  # noqa: E402
@@ -405,3 +405,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

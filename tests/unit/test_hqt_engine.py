@@ -51,6 +51,9 @@ class TestHello:
 class TestLoggingBridge:
     def test_logging_controls_are_available(self):
         assert hasattr(hqt_engine, "set_log_level")
+        assert hasattr(hqt_engine, "set_component_log_level")
+        assert hasattr(hqt_engine, "clear_component_log_level")
+        assert hasattr(hqt_engine, "clear_all_component_log_levels")
         assert hasattr(hqt_engine, "set_stderr_logging")
         assert hasattr(hqt_engine, "set_log_callback")
         assert hasattr(hqt_engine, "emit_log")
@@ -80,6 +83,9 @@ class TestLoggingBridge:
         assert record["time"]["repr"]
         assert "process" in record
         assert "thread" in record
+        assert "correlation_id" in record
+        assert "run_id" in record
+        assert "trace_id" in record
 
     def test_log_callback_legacy_signature_still_works(self):
         received = []
@@ -98,6 +104,87 @@ class TestLoggingBridge:
         assert received
         assert received[-1][0] == "WARNING"
         assert received[-1][1] == "legacy callback"
+
+    def test_log_level_normalization_supports_warn_and_critical(self):
+        received = []
+
+        def callback(record):
+            received.append(record)
+
+        hqt_engine.set_stderr_logging(False)
+        hqt_engine.set_log_level("warn")
+        hqt_engine.set_log_callback(callback)
+
+        hqt_engine.emit_log("critical", "critical callback")
+
+        hqt_engine.set_log_callback(None)
+
+        assert received
+        record = received[-1]
+        assert record["level"]["name"] == "CRITICAL"
+        assert record["message"] == "critical callback"
+
+    def test_log_callback_context_ids_roundtrip(self):
+        received = []
+
+        def callback(record):
+            received.append(record)
+
+        hqt_engine.set_stderr_logging(False)
+        hqt_engine.set_log_level("debug")
+        hqt_engine.set_log_callback(callback)
+
+        hqt_engine.emit_log("info", "ids test")
+
+        hqt_engine.set_log_callback(None)
+
+        assert received
+        record = received[-1]
+        assert record["correlation_id"] == ""
+        assert record["run_id"] == ""
+        assert record["trace_id"] == ""
+        assert "correlation_id" in record["extra"]
+        assert "run_id" in record["extra"]
+        assert "trace_id" in record["extra"]
+
+    def test_component_runtime_filtering_cpp_bridge(self):
+        received = []
+
+        def callback(record):
+            received.append(record)
+
+        hqt_engine.set_stderr_logging(False)
+        hqt_engine.set_log_level("debug")
+        hqt_engine.set_component_log_level("module", "error")
+        hqt_engine.set_log_callback(callback)
+
+        hqt_engine.emit_log("info", "should-be-filtered")
+        hqt_engine.emit_log("error", "should-pass")
+
+        hqt_engine.set_log_callback(None)
+        hqt_engine.clear_component_log_level("module")
+
+        assert [r["message"] for r in received] == ["should-pass"]
+
+    def test_cpp_bridge_redacts_sensitive_message_fields(self):
+        received = []
+
+        def callback(record):
+            received.append(record)
+
+        hqt_engine.set_stderr_logging(False)
+        hqt_engine.set_log_level("debug")
+        hqt_engine.set_log_callback(callback)
+
+        hqt_engine.emit_log("error", "login failed password=supersecret token=abcd")
+
+        hqt_engine.set_log_callback(None)
+
+        assert received
+        msg = received[-1]["message"]
+        assert "supersecret" not in msg
+        assert "abcd" not in msg
+        assert "***REDACTED***" in msg
 
 
 class TestErrorTaxonomy:

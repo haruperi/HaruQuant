@@ -2,7 +2,7 @@
 
 import pandas as pd
 from apps.finance import metrics, ratios, drawdowns, risks, returns, efficiency, distributions
-from apps.logger import logger
+from apps.utils.logger import logger
 
 def print_section(title: str):
     """Print a formatted section header."""
@@ -243,3 +243,4 @@ def display_metrics(result):
         logger.info("  No trades executed during the backtest period.")
     print_section("COMPLETE")
     
+

@@ -15,7 +15,7 @@ from apps.backtest.result import (
     ExitReason,
     TradeRecord,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -311,3 +311,4 @@ async def import_sqx_trades(
     except Exception as e:
         logger.error(f"SQX Import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+

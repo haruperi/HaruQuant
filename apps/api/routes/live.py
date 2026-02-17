@@ -38,7 +38,7 @@ from apps.api.auth_utils import get_user_id_from_token
 from apps.api.routes.dashboard.broker import client as global_mt5_client
 from apps.api.websocket import live_trading_manager
 from apps.live.session import LiveTradingSession
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.mt5.util import MT5Utils
@@ -3096,3 +3096,4 @@ async def websocket_endpoint(websocket: WebSocket, session_id: int):
         logger.error(f"WebSocket error for session {session_id}: {e}")
 
         await live_trading_manager.disconnect(session_id, websocket)
+

@@ -8,7 +8,7 @@ More efficient than random search, intelligently explores parameter space.
 import time
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 
 # from apps.backtest.result import BacktestResult
@@ -271,3 +271,4 @@ def bayesian_optimization(  # noqa: C901
         logger.info(f"Completed: {completed}/{n_iterations}")
 
     return summary
+

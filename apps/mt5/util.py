@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 
 mt5 = get_mt5_api()
@@ -850,3 +850,4 @@ class TicksGen:
 
 # Export the class
 __all__ = ["MT5Utils", "TicksGen", "timeframe_seconds"]
+

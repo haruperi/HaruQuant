@@ -21,7 +21,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.utils.data_getters import (  # noqa: E402
     clear_data_cache,
     get_data_dir,
@@ -260,3 +260,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

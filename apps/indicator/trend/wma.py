@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def wma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFrame:
@@ -34,3 +34,4 @@ def wma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFra
     result[f"wma_{window}"] = weighted_sum
     logger.success("WMA calculation complete")
     return result
+

@@ -34,7 +34,7 @@ from apps.utils.data_getters import (
     clear_data_cache,
     get_cached_data,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def example_01_get_data_directory():
@@ -419,3 +419,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

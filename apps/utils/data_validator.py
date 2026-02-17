@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 @dataclass
@@ -1655,3 +1655,4 @@ class DataValidator:
             )
 
         return heatmap_data
+

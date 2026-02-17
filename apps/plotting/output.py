@@ -29,7 +29,7 @@ try:
 except ImportError:
     BOKEH_AVAILABLE = False
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # =============================================================================
 # TYPE DEFINITIONS
@@ -690,3 +690,4 @@ def print_output_config() -> None:
     print(f"Default DPI: {config['default_dpi']}")
     print(f"Default Figure Size: {config['default_figsize']}")
     print("=" * 50)
+

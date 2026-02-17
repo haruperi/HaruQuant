@@ -25,7 +25,7 @@ from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.simulation.utils import calculate_metrics_from_simulator
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # Dynamic import for strategy
 module_name = "01_breakout"
@@ -148,3 +148,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

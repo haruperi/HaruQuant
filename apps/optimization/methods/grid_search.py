@@ -11,7 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Type, cast
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 
 # from apps.backtest.result import BacktestResult
@@ -407,3 +407,4 @@ def grid_search(  # noqa: C901
         logger.info(f"Completed: {completed}/{total}, Failed: {failed}")
 
     return summary
+

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 if TYPE_CHECKING:
     from apps.backtest.result import BacktestResult
@@ -726,3 +726,4 @@ def estimate_kelly_parameters(result: "BacktestResult") -> Dict[str, float]:
         "avg_loss": avg_loss,
         "kelly_fraction": kelly_fraction,
     }
+

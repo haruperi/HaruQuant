@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Protocol, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class DataSource(Protocol):
@@ -360,3 +360,4 @@ def validate_data_quality(
 
     logger.debug(f"Data quality diagnostics: {diagnostics}")
     return diagnostics
+

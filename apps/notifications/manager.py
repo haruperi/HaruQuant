@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .base import (
     BaseNotifier,
@@ -484,3 +484,4 @@ class NotificationManager:
     def get_notifier(self, service_name: str) -> Optional[BaseNotifier]:
         """Get a specific notifier by name."""
         return self.notifiers.get(service_name)
+

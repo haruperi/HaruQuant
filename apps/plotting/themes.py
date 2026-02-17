@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from bokeh.themes import Theme as BokehTheme
@@ -852,3 +852,4 @@ def get_line_colors(
     full_cycles = num_colors // len(colors)
     remainder = num_colors % len(colors)
     return colors * full_cycles + colors[:remainder]
+

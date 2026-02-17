@@ -35,7 +35,7 @@ from apps.plotting.output import (  # noqa: E402
     save_multiple_formats,
     should_return_figure,
 )
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.utils.data_getters import load_mt5
 
 # Create output directory
@@ -495,3 +495,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

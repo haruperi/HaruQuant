@@ -1,46 +1,28 @@
-﻿"""
-Context binding.
-
-Covers:
-- bind() for permanent context
-- contextualize() for temporary context
-- extra merging across contexts
-"""
-
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(project_root))
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-from apps.logger import Logger  # noqa: E402
+import sys
+from apps.utils.logger import Logger
 
 
 def main() -> None:
-    print("=" * 60)
-    print("Logger Example 03: Context Binding")
-    print("=" * 60)
+    print('--- Context Binding ---')
+    logger = Logger(name='context-demo')
+    logger.add(sys.stdout, level='INFO', format='{level} | {message} | {extra}')
 
-    logger = Logger()
-    logger.add(
-        sys.stdout,
-        level="INFO",
-        format="{level} | user={extra.user} request={extra.request_id} | {message}",
-    )
+    user_logger = logger.bind(user='alice')
+    user_logger.info('User session started')
 
-    user_logger = logger.bind(user="alice")
+    with logger.contextualize(request_id='req-100') as ctx:
+        ctx.info('Request processing')
 
-    user_logger.info("User session started", request_id="req-100")
-
-    with logger.contextualize(request_id="req-200"):
-        user_logger.info("Processing request")
-        user_logger.info("Request complete")
-
-    user_logger.info("Request context cleared", request_id="req-300")
-
-    logger.remove()
-    print("=" * 60)
+    user_logger.info('Session complete')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
+

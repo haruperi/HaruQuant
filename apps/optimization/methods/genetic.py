@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 
 # from apps.backtest.result import BacktestResult
@@ -360,3 +360,4 @@ def genetic_algorithm(  # noqa: C901
         logger.info(f"Total evaluations: {completed}/{total_evaluations}")
 
     return summary
+

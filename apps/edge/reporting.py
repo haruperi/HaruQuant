@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .results_schema import EdgeResult, EdgeStats
 
@@ -378,3 +378,4 @@ def print_result_summary(res: EdgeResult) -> None:
     print(f"  p-value:     {_format_value(s.p_value_perm)}")
     print(f"  VERDICT:     {verdict}")
     print(f"{'='*60}\n")
+

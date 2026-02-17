@@ -39,7 +39,7 @@ from apps.utils.file_renamer import (
     batch_rename_from_mapping,
     rename_with_custom_function,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def setup_test_files(test_dir):
@@ -379,3 +379,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

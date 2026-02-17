@@ -31,7 +31,7 @@ from apps.plotting import (
     save_plotly_html,
     to_plotly,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.utils.data_getters import load_mt5
 
 
@@ -339,3 +339,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

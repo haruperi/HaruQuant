@@ -31,7 +31,7 @@ from apps.simulation.portfolio import (  # noqa: E402
     PortfolioStrategy,
 )
 from apps.simulation.data import SymbolInfoSimulator  # noqa: E402
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.mt5 import MT5Client  # noqa: E402
 from apps.sqlite.users import UserManager  # noqa: E402
 
@@ -396,3 +396,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

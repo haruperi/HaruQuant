@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Type, cast
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 
 # from apps.backtest.result import BacktestResult
@@ -392,3 +392,4 @@ def random_search(  # noqa: C901
         logger.info(f"Best score: {summary.best_score:.4f}")
 
     return summary
+

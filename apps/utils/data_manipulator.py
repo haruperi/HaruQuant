@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, cast
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class TimeframeManager:
@@ -696,3 +696,4 @@ def create_signal_mapping(
     )
 
     return signal_map
+

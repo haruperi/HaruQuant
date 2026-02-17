@@ -69,7 +69,7 @@ For full usage examples, please refer to the `tests/usage/trade` directory.
 ```python
 from datetime import datetime
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import MT5Client
 from apps.mt5 import get_mt5_api
 mt5 = get_mt5_api()
@@ -121,3 +121,4 @@ def on_tick(tick):
 
 client.start_streaming("EURUSD", "ticks", on_tick)
 ```
+

@@ -36,7 +36,7 @@ except ImportError:
         "Bokeh not available. Interactive plotting features disabled.", stacklevel=2
     )
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # =============================================================================
 # CROSSHAIR TOOL
@@ -801,3 +801,4 @@ __all__ = [
     "apply_standard_tools",
     "create_linked_chart_layout",
 ]
+

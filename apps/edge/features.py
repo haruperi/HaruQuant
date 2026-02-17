@@ -11,7 +11,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # =============================================================================
 # BASIC RETURNS & STATISTICS
@@ -641,3 +641,4 @@ def detect_trend_regime(
     regime = regime.where(diff.abs() <= threshold, np.sign(diff).astype(int))
 
     return regime
+

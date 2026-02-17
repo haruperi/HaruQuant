@@ -23,7 +23,7 @@ sys.path.insert(0, str(project_root))
 import pandas as pd  # noqa: E402
 
 # No longer need to import engine directly - handled by optimization module
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.optimization.methods.grid_search import grid_search  # noqa: E402
 from apps.optimization.scoring import sharpe_score  # noqa: E402
 from apps.utils.data_getters import load_mt5  # noqa: E402
@@ -258,3 +258,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

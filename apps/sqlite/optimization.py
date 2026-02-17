@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class OptimizationManager:
@@ -828,3 +828,4 @@ class OptimizationManager:
             order_by=metric if metric != "score" else "score",
             ascending=False,
         )
+

@@ -9,7 +9,7 @@ from typing import Optional
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 
 
@@ -152,3 +152,4 @@ class BarMonitor:
     def __repr__(self) -> str:
         """Return string representation of BarMonitor."""
         return f"BarMonitor(symbol={self.symbol}, timeframe={self.timeframe}, last_bar={self._last_bar_time})"
+

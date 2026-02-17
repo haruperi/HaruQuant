@@ -52,7 +52,7 @@ For a complete runnable example, see [`tests/usage/strategy/demo.py`](../../test
 from typing import Optional, Dict, Any
 import pandas as pd
 from apps.indicator import ema
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.strategy import BaseStrategy
 
 
@@ -246,3 +246,4 @@ signal = strategy.get_signal(df_with_signals, last_bar_idx)
 if signal:
     print(f"Signal generated: {signal}")
 ```
+

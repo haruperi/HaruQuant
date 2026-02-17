@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class BacktestManager:
@@ -1320,3 +1320,4 @@ class BacktestManager:
         finally:
             if conn:
                 conn.close()
+

@@ -1,6 +1,6 @@
 from io import StringIO
 
-from apps.logger.logger import Logger
+from apps.utils.logger import Logger
 from apps.utils.redaction import REDACTED
 
 
@@ -20,3 +20,4 @@ def test_logger_redacts_secret_message_and_extra():
     assert "never-log-this" not in output
     assert REDACTED in output
     assert "ok" in output
+

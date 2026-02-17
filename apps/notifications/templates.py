@@ -8,7 +8,7 @@ and allows for custom template creation and management.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .base import NotificationError, NotificationMessage
 
@@ -478,3 +478,4 @@ This is a test message to verify notification configuration.
             "body_length": len(template["body"]),
             "total_length": len(template["title"]) + len(template["body"]),
         }
+

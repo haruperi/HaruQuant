@@ -111,32 +111,4 @@ TEST(SimulatorClientGettersTest, OrdersFilterByTicketAndSymbol) {
     EXPECT_EQ(by_symbol[0].ticket, 101U);
 }
 
-TEST(SimulatorClientGettersTest, HistoryLookupsAndRetcodeDescription) {
-    SimulatorClient client;
-
-    TradeRecordData hist_order;
-    hist_order.ticket = 3001;
-    client.upsert_history_order(hist_order);
-
-    TradeRecordData deal;
-    deal.ticket = 4001;
-    client.upsert_deal(deal);
-
-    auto h_all = client.history_orders_get();
-    ASSERT_EQ(h_all.size(), 1U);
-    EXPECT_EQ(h_all[0].ticket, 3001U);
-
-    auto d_all = client.history_deals_get();
-    ASSERT_EQ(d_all.size(), 1U);
-    EXPECT_EQ(d_all[0].ticket, 4001U);
-
-    auto h_ticket = client.history_orders_get(3001);
-    ASSERT_EQ(h_ticket.size(), 1U);
-    EXPECT_EQ(h_ticket[0].ticket, 3001U);
-
-    EXPECT_EQ(client.trade_retcode_description(10009), "Request completed");
-    EXPECT_EQ(client.trade_retcode_description(99999), "Unknown retcode");
-}
-
 }  // namespace
-

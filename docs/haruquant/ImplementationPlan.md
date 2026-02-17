@@ -136,9 +136,9 @@
 
 * **Sub-tasks**
   * [X] Initialize `ImplementationPlan.md` with version 2.0 baseline.
-  * [ ] Create traceability matrix structure in `docs/requirements_traceability_matrix.md`.
-  * [ ] Map all `FR-###` and `NFR-###` IDs to implementation tasks.
-  * [ ] Define program-level and item-level Definition of Done (DoD).
+  * [X] Create traceability matrix structure in `docs/requirements_traceability_matrix.md`.
+  * [X] Map all `FR-###` and `NFR-###` IDs to implementation tasks.
+  * [X] Define program-level and item-level Definition of Done (DoD).
 * **Deliverables**
   * Rewritten `02_system_design.md`
   * Updated implementation baseline and task IDs
@@ -152,15 +152,15 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-01 Unified structured logging (C++ + Python)
+#### [X] IP-01 Unified structured logging (C++ + Python)
 
 * **Sub-tasks**
-  * [ ] Implement C++ thread-safe async logging using `spdlog`. (FR-CPP-006)
-  * [ ] Implement Python logger adapter using `structlog`.
-  * [ ] Normalize severity levels between C++ and Python. (FR-UTIL-001)
-  * [ ] Add correlation, run, and trace IDs to log schema. (FR-UTIL-002)
-  * [ ] Implement dynamic filtering by component and severity at runtime. (FR-UTIL-006)
-  * [ ] Implement automatic sensitive field redaction (API keys, passwords). (FR-UTIL-008)
+  * [X] Implement C++ thread-safe async logging using `spdlog`. (FR-CPP-006)
+  * [X] Implement Python logger adapter using `structlog`.
+  * [X] Normalize severity levels between C++ and Python. (FR-UTIL-001)
+  * [X] Add correlation, run, and trace IDs to log schema. (FR-UTIL-002)
+  * [X] Implement dynamic filtering by component and severity at runtime. (FR-UTIL-006)
+  * [X] Implement automatic sensitive field redaction (API keys, passwords). (FR-UTIL-008)
 * **Deliverables**
   * Shared log schema and adapters
   * Correlation/run/trace IDs in all critical logs
@@ -169,7 +169,7 @@
 * **Dependencies:** IP-00
 * **Completion evidence**
   * Tests: `cpp/tests/unit/test_logger_cpp.cpp`, `py/tests/unit/test_logger_py.py`
-  * Usage: `usage/ops/logging.md`
+  * Usage:  `docs/haruquant/usage/ops/logging.md`
   * Bench/log: `artifacts/logs/structured_log_samples.json`
   * Commit: `TBD`
 

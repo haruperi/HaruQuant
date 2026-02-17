@@ -22,8 +22,8 @@ from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.simulation.utils import calculate_metrics_from_simulator
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
-from apps.logger import logger
-from apps.logger import logger
+from apps.utils.logger import logger
+from apps.utils.logger import logger
 
 module_name = "05_rsi_mean_reversion"
 file_path = project_root / "data/strategies/edge/05_rsi_mean_reversion.py"
@@ -136,3 +136,4 @@ def main():
     mt5_client.shutdown()
 if __name__ == "__main__":
     main()
+

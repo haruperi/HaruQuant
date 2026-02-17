@@ -6,7 +6,7 @@ Supports loading credentials from database or direct configuration.
 
 from typing import Dict, List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.notifications import (
     NotificationLevel,
     NotificationManager,
@@ -326,3 +326,4 @@ Report generated at end of trading day.""",
     def __repr__(self) -> str:
         """Return string representation of LiveTradingNotifier."""
         return f"LiveTradingNotifier(enabled={self.enabled})"
+

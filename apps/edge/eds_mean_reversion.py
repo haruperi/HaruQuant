@@ -8,7 +8,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .config import BootstrapConfig, MeanReversionConfig, PermutationConfig
 from .features import adr, bb_width, rolling_percentile_rank, zscore
@@ -233,3 +233,4 @@ def run_eds_mean_reversion(  # noqa: C901
         stats=stats,
         trades=trades,
     )
+

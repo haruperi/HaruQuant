@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.DataFrame:
@@ -63,3 +63,4 @@ def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.Da
 
     logger.success("RSI calculation complete")
     return result
+

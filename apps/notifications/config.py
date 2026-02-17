@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .base import NotificationLevel
 from .email import EmailConfig
@@ -573,3 +573,4 @@ class NotificationPresets:
         config.sms_from_number = from_number
         config.sms_default_recipients = recipients
         return config
+

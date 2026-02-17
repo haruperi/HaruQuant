@@ -15,7 +15,7 @@ from scipy import stats
 if TYPE_CHECKING:
     from apps.backtest.result import BacktestResult
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # ============================================================================
 # DATA MODELS
@@ -732,3 +732,4 @@ def print_statistical_validation_report(
         )
 
     print("\n" + "=" * 70 + "\n")
+

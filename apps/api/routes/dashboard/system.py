@@ -5,7 +5,7 @@ import sqlite3
 from fastapi import APIRouter
 
 from apps.api.models import ResourceUsageResponse, SystemStatusResponse
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 # Try to import psutil, handle if missing
@@ -68,3 +68,4 @@ async def get_resource_usage():
         return ResourceUsageResponse(
             cpu_percent=0.0, memory_percent=0.0, memory_used_gb=0.0, memory_total_gb=0.0
         )
+

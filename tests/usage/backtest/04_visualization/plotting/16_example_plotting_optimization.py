@@ -32,7 +32,7 @@ from apps.plotting.optimization import (
     optimize_dataframe_memory,
     should_downsample,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.utils.data_getters import load_mt5
 
 
@@ -464,3 +464,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

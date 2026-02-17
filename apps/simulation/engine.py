@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.simulation.data import SymbolTickSimulator
 from apps.simulation.records import TradeRecordMixin
@@ -2692,3 +2692,4 @@ class SimulationEngine(TradeRecordMixin):
 
         self._vectorized_trade_buffer = None
         self._vectorized_trade_count = 0
+

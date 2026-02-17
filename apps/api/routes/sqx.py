@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict, List, Optional, cast
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -280,3 +280,4 @@ async def list_strategies(
     except Exception as e:
         logger.error(f"Listing SQX strategies failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+

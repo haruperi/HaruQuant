@@ -24,7 +24,7 @@ else:
     except ImportError:
         LayoutDOM = Any  # type: ignore
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.plotting.core import BOKEH_AVAILABLE, save_figure
 from apps.plotting.distribution import _plot_distribution
 from apps.plotting.drawdown import _plot_drawdown
@@ -823,3 +823,4 @@ def create_html_report(  # noqa: C901
     logger.success(f"HTML report saved to {output_path}")
 
     return output_path
+

@@ -7,7 +7,7 @@ from typing import Any, Dict
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.utils.redaction import redact_mapping
 
 
@@ -34,3 +34,4 @@ class SecretRedactionMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         return response
+

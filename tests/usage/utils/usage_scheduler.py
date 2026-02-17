@@ -32,7 +32,7 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from apps.utils.scheduler import start_scheduler, shutdown_scheduler
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def example_01_basic_scheduler_usage():
@@ -315,3 +315,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

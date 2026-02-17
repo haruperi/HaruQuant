@@ -9,7 +9,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from apps.api.auth_utils import get_user_id_from_token
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.simulation.session import SimulatorSession
 from apps.sqlite.database_operations import DatabaseManager
@@ -876,3 +876,4 @@ async def delete_session(session_id: int, authorization: str = AUTH_HEADER):
 
     db_manager.delete_simulation_session(session_id)
     return {"session_id": session_id, "status": "deleted"}
+

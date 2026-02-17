@@ -13,7 +13,7 @@ from apps.mt5 import MT5Client, get_mt5_api
 mt5 = get_mt5_api()
 
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.trade import HistoryOrderInfo
 from apps.simulation.data import SimulatorClient, HistoryOrderInfoSimulator
 
@@ -170,3 +170,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

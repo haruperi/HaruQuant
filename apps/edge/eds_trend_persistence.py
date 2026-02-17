@@ -8,7 +8,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .config import BootstrapConfig, PermutationConfig, TrendPersistenceConfig
 from .features import adr, rolling_percentile_rank
@@ -221,3 +221,4 @@ def run_eds_trend_persistence(  # noqa: C901
         stats=stats,
         trades=trades,
     )
+

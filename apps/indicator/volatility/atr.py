@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:
@@ -53,3 +53,4 @@ def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:
 
     logger.success("ATR calculation complete")
     return result
+

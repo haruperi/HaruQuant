@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from apps.simulation.simulator import TradeSimulator
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator, SymbolTickSimulator
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.sqlite.users import UserManager
 
@@ -164,3 +164,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

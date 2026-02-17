@@ -263,7 +263,7 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from apps.utils.module_name import functions
-from apps.logger import logger
+from apps.utils.logger import logger
 ```
 
 ### Example Function Pattern
@@ -358,3 +358,4 @@ For issues or questions:
 - Check the main utility module documentation in `apps/utils/`
 - Review the example code for similar use cases
 - Consult the logger output for detailed error messages
+

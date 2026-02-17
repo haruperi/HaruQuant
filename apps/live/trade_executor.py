@@ -7,7 +7,7 @@ import time
 from typing import Dict, Optional, Tuple, Union, cast
 
 from apps.live.position_manager import PositionManager
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.trade import SymbolInfo, Trade
 
@@ -294,3 +294,4 @@ class TradeExecutor:
     def __repr__(self) -> str:
         """Return string representation."""
         return f"TradeExecutor(symbol={self.symbol}, volume={self.volume})"
+

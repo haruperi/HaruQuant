@@ -25,7 +25,7 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from apps.utils.error_description import TradeErrorDescriptions
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def example_01_basic_error_lookup():
@@ -295,3 +295,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

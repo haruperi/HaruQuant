@@ -6,7 +6,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 
 from apps.api.auth_utils import authenticate_user, generate_token
 from apps.api.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager, UserAlreadyExistsError
 
 router = APIRouter()
@@ -190,3 +190,4 @@ async def logout(authorization: Annotated[Optional[str], Header()] = None):
 
     logger.info("Logout request received and session invalidated")
     return {"message": "Logged out successfully"}
+

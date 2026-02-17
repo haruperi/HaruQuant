@@ -40,7 +40,7 @@ from apps.plotting.themes import (  # noqa: E402
     set_custom_font,
     set_theme,
 )
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.utils.data_getters import load_mt5
 
 # Create output directory
@@ -489,3 +489,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

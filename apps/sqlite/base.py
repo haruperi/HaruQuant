@@ -4,7 +4,7 @@ import os
 import sqlite3
 from typing import Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class UserAlreadyExistsError(Exception):
@@ -43,3 +43,4 @@ class DatabaseBase:
         # Ensure directory exists
         os.makedirs(db_dir, exist_ok=True)
         return os.path.join(db_dir, "haruquant.db")
+

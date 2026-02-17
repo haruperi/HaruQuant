@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class MarketDataManager:
@@ -144,3 +144,4 @@ class MarketDataManager:
             return False
         finally:
             conn.close()
+

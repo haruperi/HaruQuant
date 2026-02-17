@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def sma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFrame:
@@ -29,3 +29,4 @@ def sma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFra
     )
     logger.success("SMA calculation complete")
     return result
+

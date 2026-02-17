@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Type
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 
 # from apps.backtest.result import BacktestResult
@@ -331,3 +331,4 @@ def print_optimization_report(summary: OptimizationSummary, top_n: int = 10) -> 
         )
 
     print("\n" + "=" * 80)
+

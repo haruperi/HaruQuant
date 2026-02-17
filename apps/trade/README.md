@@ -2506,7 +2506,7 @@ with mt5_connection(12345678, "password", "Broker-Server") as mt5:
 
 ```python
 from apps.trade import Trade
-from apps.logger import logger
+from apps.utils.logger import logger
 
 class MonitoredTrade(Trade):
     """Trade class with enhanced logging."""
@@ -2528,7 +2528,7 @@ class MonitoredTrade(Trade):
 
 ```python
 from apps.trade import Trade, PositionInfo
-from apps.logger import logger
+from apps.utils.logger import logger
 
 def emergency_close_all_positions(reason: str = "Emergency"):
     """Close all open positions immediately."""
@@ -2666,3 +2666,4 @@ When contributing to this module:
 ---
 
 *Last Updated: 2026-02-05*
+

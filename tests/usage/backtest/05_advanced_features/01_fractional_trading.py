@@ -29,7 +29,7 @@ from apps.strategy import BaseStrategy  # noqa: E402
 from apps.backtest.engine.vectorized import VectorizedEngine  # noqa: E402
 from apps.risk.position_sizing import PositionSizer  # noqa: E402
 from apps.trading.symbol_info import BacktestSymbolProvider  # noqa: E402
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 
 
 # =============================================================================
@@ -429,3 +429,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

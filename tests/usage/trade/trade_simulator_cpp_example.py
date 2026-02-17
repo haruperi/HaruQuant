@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from apps.simulation.simulator import TradeSimulator
 from apps.simulation.data import SymbolInfoSimulator, AccountInfoSimulator
 from apps.simulation.backend import get_backend, is_cpp_available
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.sqlite.users import UserManager
 from data.strategies.trend_following import TrendFollowingStrategy
@@ -258,3 +258,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     main(smoke=args.smoke)
+

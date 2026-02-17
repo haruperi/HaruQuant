@@ -36,7 +36,7 @@ from apps.utils.multitasking import (
     get_list_of_tasks,
     getPool,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def example_01_basic_task():
@@ -388,3 +388,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

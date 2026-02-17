@@ -31,7 +31,7 @@ sys.path.insert(0, str(project_root))
 from apps.utils.data_validator import DataValidator, DataQualityReport
 from datetime import datetime
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 import pandas as pd
 import numpy as np
 from apps.mt5 import MT5Client
@@ -523,3 +523,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

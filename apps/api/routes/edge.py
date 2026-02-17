@@ -24,7 +24,7 @@ from apps.edge.eds_session import run_eds_session
 from apps.edge.eds_trend_persistence import run_eds_trend_persistence
 from apps.edge.results_schema import EdgeResult, EdgeStats
 from apps.edge.seasonality import SeasonalityFilters, run_seasonality
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
 from apps.utils.data_getters import load_dukascopy
@@ -825,3 +825,4 @@ async def delete_edge_run(run_id: int):
             detail=f"Edge run {run_id} not found.",
         )
     return None
+

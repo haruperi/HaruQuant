@@ -19,7 +19,7 @@ from apps.live.safety_checks import SafetyChecker
 from apps.live.signal_processor import SignalProcessor
 from apps.live.state_manager import StateManager
 from apps.live.trade_executor import TradeExecutor
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.strategy import storage
@@ -917,3 +917,4 @@ class MultiStrategyEngine:
             f"MultiStrategyEngine(strategies={len(self.strategies)}, "
             f"initialized={self._initialized}, running={self._running})"
         )
+

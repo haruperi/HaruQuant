@@ -4,7 +4,7 @@ import json
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class LiveTradingManager:
@@ -873,3 +873,4 @@ class LiveTradingManager:
         finally:
             if conn:
                 conn.close()
+

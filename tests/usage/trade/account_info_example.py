@@ -24,7 +24,7 @@ mt5 = get_mt5_api()
 
 from apps.trade import AccountInfo
 from apps.simulation.data import SimulatorClient, AccountInfoSimulator
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.users import UserManager
 
 
@@ -233,3 +233,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

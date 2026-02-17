@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.records import TradeRecord
 from apps.utils.errors import (
     CppBridgeError,
@@ -511,3 +511,4 @@ def _cpp_trade_to_py(cpp_trade: Any, symbol: str) -> TradeRecord:
         mfe_usd=float(cpp_trade.mfe_usd),
         r_multiple=float(cpp_trade.r_multiple),
     )
+

@@ -31,7 +31,7 @@ from typing import Optional
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.simulation.data import (
     AccountInfoSimulator,
@@ -681,3 +681,4 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
                 tp=float(new_tp) if new_tp is not None else 0.0,
             )
         )
+

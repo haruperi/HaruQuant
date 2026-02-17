@@ -13,7 +13,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # Check for plotly availability
 try:
@@ -595,3 +595,4 @@ __all__ = [
     "create_plotly_time_series",
     "create_plotly_candlestick",
 ]
+

@@ -25,7 +25,7 @@ from apps.plotting.trades import (
     _plot_trade_sizes,
     _plot_win_loss_streaks,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.utils.data_getters import load_mt5
 
 # Configure output directory
@@ -478,3 +478,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

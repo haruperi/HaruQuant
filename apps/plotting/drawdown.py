@@ -19,7 +19,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.ticker import FuncFormatter
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.plotting.core import (
     BOKEH_AVAILABLE,
     _format_axis,
@@ -471,3 +471,4 @@ __all__ = [
     "_plot_drawdown",
     "_plot_drawdown_periods",
 ]
+

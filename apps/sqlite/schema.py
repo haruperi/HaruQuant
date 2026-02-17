@@ -3,7 +3,7 @@
 import os
 import sqlite3
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class SchemaManager:
@@ -1464,3 +1464,4 @@ class SchemaManager:
         else:
             logger.warning(f"Database file not found at: {self.db_path}")
             return False
+

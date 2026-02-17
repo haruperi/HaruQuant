@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def ema(
@@ -31,3 +31,4 @@ def ema(
     )
     logger.success("EMA calculation complete")
     return result
+

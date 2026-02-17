@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def align_dataframes_by_datetime(
@@ -376,3 +376,4 @@ def compare_ohlc(df1: pd.DataFrame, df2: pd.DataFrame, **kwargs) -> bool:
         raise ValueError("No OHLC columns found in both dataframes")
 
     return compare_dataframes(df1, df2, columns=available_columns, **kwargs)
+

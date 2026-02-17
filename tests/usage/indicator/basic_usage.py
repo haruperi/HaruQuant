@@ -3,7 +3,7 @@
 import pandas as pd
 from datetime import datetime
 from apps.indicator import accumulation_distribution, atr, ema, rsi, sma, wma
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
 import sys
@@ -56,3 +56,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

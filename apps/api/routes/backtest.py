@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from apps.api.auth_utils import get_user_id_from_token
 from apps.api.websocket import backtest_log_manager
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.simulation.simulator import TradeSimulator
@@ -1185,3 +1185,4 @@ async def run_portfolio_backtest(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start portfolio backtest: {str(exc)}",
         )
+

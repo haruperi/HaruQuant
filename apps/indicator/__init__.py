@@ -4,7 +4,7 @@ from apps.indicator.momentum import rsi
 from apps.indicator.trend import ema, sma, wma
 from apps.indicator.volatility import atr, bbands
 from apps.indicator.volume import accumulation_distribution
-from apps.logger import logger
+from apps.utils.logger import logger
 
 __all__ = [
     "rsi",
@@ -16,3 +16,4 @@ __all__ = [
     "accumulation_distribution",
     "logger",
 ]
+

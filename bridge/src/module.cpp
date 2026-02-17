@@ -39,8 +39,11 @@ hqt::util::LogLevel parse_level(const std::string& raw_level) {
     if (level == "error") {
         return hqt::util::LogLevel::Error;
     }
+    if (level == "critical" || level == "fatal") {
+        return hqt::util::LogLevel::Critical;
+    }
 
-    throw nb::value_error("Invalid C++ log level. Use debug|info|warning|error.");
+    throw nb::value_error("Invalid C++ log level. Use debug|info|warning|error|critical.");
 }
 
 void dispatch_log_to_python(const hqt::util::LogRecord& record) {
@@ -80,6 +83,9 @@ void dispatch_log_to_python(const hqt::util::LogRecord& record) {
     payload["level"] = level_dict;
     payload["line"] = record.line;
     payload["message"] = nb::str(record.message.c_str());
+    payload["correlation_id"] = nb::str(record.correlation_id.c_str());
+    payload["run_id"] = nb::str(record.run_id.c_str());
+    payload["trace_id"] = nb::str(record.trace_id.c_str());
     payload["module"] = nb::str(record.module.c_str());
     payload["name"] = nb::str(record.logger_name.c_str());
     nb::dict process_dict;
@@ -170,7 +176,16 @@ NB_MODULE(hqt_engine, m) {
           "Smoke function: sum a 1D numeric sequence with explicit dtype/shape validation.");
     m.def("set_log_level", [](const std::string& level) {
         hqt::util::set_log_level(parse_level(level));
-    }, "Set C++ logger level: debug|info|warning|error.");
+    }, "Set C++ logger level: debug|info|warning|error|critical.");
+    m.def("set_component_log_level", [](const std::string& component, const std::string& level) {
+        hqt::util::set_component_log_level(component, parse_level(level));
+    }, nb::arg("component"), nb::arg("level"),
+       "Set C++ logger level for a component at runtime.");
+    m.def("clear_component_log_level", &hqt::util::clear_component_log_level,
+          nb::arg("component"),
+          "Clear component-specific C++ logger level override.");
+    m.def("clear_all_component_log_levels", &hqt::util::clear_all_component_log_levels,
+          "Clear all component-specific C++ logger level overrides.");
     m.def("set_stderr_logging", &hqt::util::set_stderr_logging,
           "Enable/disable direct C++ stderr logging.");
     m.def("set_log_callback", [](nb::object callback) {

@@ -406,7 +406,7 @@ Create `data/strategies/my_strategy.py`:
 
 from typing import Any, Dict, Optional
 import pandas as pd
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.strategy import BaseStrategy
 
 
@@ -1034,3 +1034,4 @@ You now have a production-ready unified trading system with:
 - One command: `python -m apps.live.run --config config/multi_strategy_config.json`
 
 Happy trading! 🚀
+

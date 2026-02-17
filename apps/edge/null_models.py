@@ -14,7 +14,7 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # =============================================================================
 # BLOCK BOOTSTRAP
@@ -565,3 +565,4 @@ def exceeds_null_threshold(
         f"Null check: observed={observed:.4f}, threshold (p{percentile:.0f})={threshold:.4f}, exceeds={exceeds}"
     )
     return exceeds
+

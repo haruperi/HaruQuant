@@ -36,7 +36,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.sqlite.backtests import BacktestManager
 from apps.sqlite.database_operations import DatabaseManager
@@ -838,3 +838,4 @@ class SimulationUtilsMixin:
         except Exception as exc:
             logger.error(f"Failed to save backtest results: {exc}")
             raise
+

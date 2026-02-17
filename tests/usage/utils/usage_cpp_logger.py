@@ -9,7 +9,7 @@ import sys
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def _load_engine():
@@ -46,3 +46,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

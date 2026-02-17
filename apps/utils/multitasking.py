@@ -17,7 +17,7 @@ from sys import exit as sysexit
 from threading import Semaphore, Thread
 from typing import Any, Callable, Dict, List, Optional, TypedDict, Union
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class PoolConfig(TypedDict):
@@ -410,3 +410,4 @@ def killall(self: Any = None, cls: Any = None) -> None:
     except SystemExit:
         # Force immediate termination if graceful exit fails
         osexit(0)
+

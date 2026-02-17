@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def bbands(
@@ -68,3 +68,4 @@ def bbands(
 
     logger.success("Bollinger Bands calculation complete")
     return result
+

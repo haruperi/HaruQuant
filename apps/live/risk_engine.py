@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from apps.live.engine import MultiStrategyEngine, StrategyInstance
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.risk.allocator import RiskBudgetAllocator
 from apps.risk.governor import RiskGovernor
 from apps.risk.position_sizing import PositionSizer
@@ -734,3 +734,4 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         finally:
             # Restore original volume
             instance.trade_executor.volume = original_volume
+

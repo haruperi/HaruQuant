@@ -8,7 +8,7 @@ from typing import Optional
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.strategy.base import BaseStrategy, SignalDict
 
 
@@ -167,3 +167,4 @@ class SignalProcessor:
         """Return string representation of the signal processor."""
         bars_count = len(self._data) if self._data is not None else 0
         return f"SignalProcessor(strategy={self.strategy.__class__.__name__}, bars={bars_count}, initialized={self._initialized})"
+

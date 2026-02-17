@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.plotting.core import save_figure
 from apps.plotting.distribution import _plot_distribution
 from apps.plotting.drawdown import _plot_drawdown
@@ -531,3 +531,4 @@ def plot_distribution(
         plt.show()
 
     return fig
+

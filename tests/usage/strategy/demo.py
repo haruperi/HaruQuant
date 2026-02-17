@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from datetime import datetime, timedelta
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 from data.strategies.trend_following import TrendFollowingStrategy
 from apps.mt5 import MT5Client, get_mt5_api
 mt5 = get_mt5_api()
@@ -105,3 +105,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

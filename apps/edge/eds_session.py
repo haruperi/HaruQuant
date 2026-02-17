@@ -22,7 +22,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .config import BootstrapConfig, PermutationConfig, SessionConfig, SessionEdgeConfig
 from .datasets import tag_sessions
@@ -598,3 +598,4 @@ def run_eds_session(
         stats=stats,
         trades=all_trades,
     )
+

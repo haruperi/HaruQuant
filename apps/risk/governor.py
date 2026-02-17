@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .regime import RegimeState
 from .risk_limits import RiskLimits
@@ -729,3 +729,4 @@ class RiskGovernor:
                 proposed[under_sym] += bump
 
         return {s: d for s, d in proposed.items() if abs(d) > 1e-8}
+

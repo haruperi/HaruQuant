@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from datetime import datetime
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.simulation.records import TradeRecord
 from apps.simulation.utils import SimulationUtilsMixin
 from apps.sqlite.backtests import BacktestManager
@@ -173,3 +173,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .base import BaseStrategy
 
@@ -582,3 +582,4 @@ class StrategyStorage:
 
 # Global instance
 storage = StrategyStorage()
+

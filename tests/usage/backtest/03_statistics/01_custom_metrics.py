@@ -17,7 +17,7 @@ from apps.simulation.simulator import TradeSimulator
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.simulation.utils import calculate_metrics_from_simulator  # noqa: E402
 from apps.indicator import sma  # noqa: E402
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.strategy import BaseStrategy  # noqa: E402
 from apps.utils.data_getters import load_mt5  # noqa: E402
 
@@ -239,3 +239,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

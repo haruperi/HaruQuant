@@ -3,7 +3,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 _scheduler = AsyncIOScheduler()
@@ -35,3 +35,4 @@ def shutdown_scheduler() -> None:
     if _scheduler.running:
         _scheduler.shutdown()
         logger.info("Background scheduler stopped")
+

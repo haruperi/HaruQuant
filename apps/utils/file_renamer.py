@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def rename_file(
@@ -487,3 +487,4 @@ if __name__ == "__main__":
                 logger.info(f"  {old_name} -> {new_name}")
         else:
             logger.info("No files matched the pattern.")
+

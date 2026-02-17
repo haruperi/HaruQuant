@@ -31,7 +31,7 @@ from apps.simulation.simulator import TradeSimulator
 from apps.simulation.data import SymbolInfoSimulator, AccountInfoSimulator
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 from data.strategies.trend_following import TrendFollowingStrategy
 
 def get_mt5_credentials():
@@ -213,3 +213,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

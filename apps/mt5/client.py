@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import MetaTrader5 as _mt5_module
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 __all__ = ["MT5Api", "get_mt5_api", "MT5Client", "ConnectionState"]
 
@@ -728,3 +728,4 @@ class MT5Client:
 
 # Export the client class
 __all__ = ["MT5Client"]
+

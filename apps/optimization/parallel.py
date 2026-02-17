@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # =========================================================================
 # Progress Tracking
@@ -666,3 +666,4 @@ def analyze_walk_forward_results(wf_results: List[Dict[str, Any]]) -> Dict[str, 
         analysis["overfitting_assessment"] = "No overfitting detected"
 
     return analysis
+

@@ -14,7 +14,7 @@ import pandas as pd
 from apps.indicator.momentum.rsi import rsi
 from apps.indicator.trend.ema import ema
 from apps.indicator.trend.sma import sma
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.simulation.simulator import TradeSimulator
@@ -533,3 +533,4 @@ class SimulatorSession:
         """Stop the simulation session."""
         self._is_running = False
         self.db.update_session_status(self.session_id, "completed")
+

@@ -8,7 +8,7 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy.storage import StrategyStorage
 from apps.utils.data_getters import load_dukascopy
@@ -696,3 +696,4 @@ async def run_monte_carlo_task(
     except Exception as e:
         logger.error(f"Monte Carlo {simulation_id} failed: {e}")
         raise
+

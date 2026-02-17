@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 class NotificationLevel(Enum):
@@ -332,3 +332,4 @@ Stack Trace: {stack_trace}
     def list_templates(self) -> List[str]:
         """List all available template names."""
         return list(self.templates.keys())
+

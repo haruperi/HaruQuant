@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # Major currency pairs to analyze (28 pairs covering 8 major currencies)
 CURRENCY_PAIRS = [
@@ -616,3 +616,4 @@ def currency_strength_indicator(
 
     logger.success("Currency strength analysis complete")
     return result
+

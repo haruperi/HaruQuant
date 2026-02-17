@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.api.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
@@ -151,3 +151,4 @@ async def health_check():
 
 
 app.include_router(simulator.router, prefix="/api/simulator", tags=["simulator"])
+

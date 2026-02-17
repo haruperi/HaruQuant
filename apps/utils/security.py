@@ -5,7 +5,7 @@ from typing import cast
 from cryptography.fernet import Fernet
 from passlib.context import CryptContext
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 # Password hashing configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -86,3 +86,4 @@ def decrypt_data(token: str, key: bytes) -> str:
     except Exception as e:
         logger.error(f"Decryption failed: {e}")
         raise
+

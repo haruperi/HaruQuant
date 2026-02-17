@@ -27,7 +27,7 @@ sys.path.insert(0, str(project_root))
 
 from apps.utils.data_manipulator import TimeframeManager, BarAggregator, create_signal_mapping
 from apps.utils.data_getters import load_dukascopy
-from apps.logger import logger
+from apps.utils.logger import logger
 import pandas as pd
 import numpy as np
 
@@ -507,3 +507,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

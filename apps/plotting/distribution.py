@@ -21,7 +21,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from scipy import stats
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.plotting.core import _format_axis, _format_grid, _get_colors
 
 
@@ -639,3 +639,4 @@ __all__ = [
     "_plot_qq",
     "_plot_distribution",
 ]
+

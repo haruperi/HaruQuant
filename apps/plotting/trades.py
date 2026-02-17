@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 import matplotlib.pyplot as plt
 import numpy as np
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.plotting.core import _format_axis, _format_grid, _get_colors
 
 
@@ -617,3 +617,4 @@ __all__ = [
     "_plot_trade_scatter",
     "_plot_win_loss_streaks",
 ]
+

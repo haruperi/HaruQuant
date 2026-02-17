@@ -28,7 +28,7 @@ sys.path.insert(0, str(project_root))
 
 from datetime import datetime  # noqa: E402
 
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.utils.data_getters import load_dukascopy, load_mt5  # noqa: E402
 
 
@@ -282,3 +282,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

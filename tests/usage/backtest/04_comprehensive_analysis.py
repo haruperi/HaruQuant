@@ -48,7 +48,7 @@ from apps.plotting import (
 )
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 # Create output directory with timestamp
@@ -399,3 +399,4 @@ def main():
 
 if __name__ == "__main__":
     result = main()
+

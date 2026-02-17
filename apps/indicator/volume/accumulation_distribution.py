@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def accumulation_distribution(data: pd.DataFrame) -> pd.DataFrame:
@@ -45,3 +45,4 @@ def accumulation_distribution(data: pd.DataFrame) -> pd.DataFrame:
 
     logger.success("Accumulation/Distribution calculation complete")
     return result
+

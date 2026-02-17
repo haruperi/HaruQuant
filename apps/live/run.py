@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from apps.live.engine import MultiStrategyEngine
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def parse_arguments():
@@ -187,3 +187,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

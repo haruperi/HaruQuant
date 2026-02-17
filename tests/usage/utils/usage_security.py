@@ -31,7 +31,7 @@ from apps.utils.security import (
     encrypt_data,
     decrypt_data,
 )
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def example_01_basic_password_hashing():
@@ -403,3 +403,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

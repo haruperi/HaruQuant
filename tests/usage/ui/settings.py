@@ -13,7 +13,7 @@ import sys
 # Add parent directory to path to allow imports from apps
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from apps.logger import logger  # noqa: E402
+from apps.utils.logger import logger  # noqa: E402
 from apps.sqlite.users import UserManager  # noqa: E402
 
 
@@ -135,3 +135,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from apps.logger import logger
+from apps.utils.logger import logger
 
 from .base import DatabaseBase
 
@@ -699,3 +699,4 @@ class EdgeDiscoveryManager(DatabaseBase):
         finally:
             if conn:
                 conn.close()
+

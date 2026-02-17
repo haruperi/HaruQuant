@@ -29,8 +29,8 @@ add_executable(hqt_tests
     test_trade.cpp
     test_currency_margin.cpp
     test_costs_engine.cpp
-    test_engine.cpp
     test_zmq_wal.cpp
+    test_logger.cpp
 )
 
 # Link against Google Test and our library

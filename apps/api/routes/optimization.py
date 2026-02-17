@@ -14,7 +14,7 @@ from fastapi import (
 )
 
 from apps.api.websocket import optimization_progress_manager
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.optimization.core import (
     run_monte_carlo_task,
     run_optimization_task,
@@ -583,3 +583,4 @@ async def optimization_progress_websocket(websocket: WebSocket, optimization_id:
             await websocket.receive_text()
     except WebSocketDisconnect:
         await optimization_progress_manager.disconnect(optimization_id, websocket)
+

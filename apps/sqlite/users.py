@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, cast
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.utils.security import get_encryption_key, hash_password, verify_password
 
 from .base import DatabaseBase, UserAlreadyExistsError
@@ -973,3 +973,4 @@ class UserManager(DatabaseBase):
         except Exception as e:
             logger.error(f"Error retrieving email credentials: {e}")
             return None
+

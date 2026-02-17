@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.strategy import BaseStrategy
 from apps.strategy.base import SignalDict
 
@@ -184,3 +184,4 @@ class TemplateStrategy(BaseStrategy):
             "stop_loss": stop_loss,
             "take_profit": take_profit,
         }
+

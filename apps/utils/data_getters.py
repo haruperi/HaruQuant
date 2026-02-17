@@ -14,7 +14,7 @@ from typing import Callable, Dict, Optional, Union, cast
 
 import pandas as pd
 
-from apps.logger import logger
+from apps.utils.logger import logger
 from apps.utils.data_validator import DataValidator
 
 # Cache for loaded data to avoid repeated reads
@@ -356,3 +356,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

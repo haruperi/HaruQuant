@@ -30,7 +30,7 @@ from data.strategies.breakout import BreakoutStrategy
 from apps.finance import metrics, ratios, drawdowns, risks, returns, efficiency, distributions
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 
 
 def get_mt5_client():
@@ -249,3 +249,4 @@ def main():
 
 if __name__ == "__main__":
     result = main()
+

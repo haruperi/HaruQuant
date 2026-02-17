@@ -43,7 +43,7 @@ from data.strategies.trend_following import TrendFollowingStrategy
 from apps.finance import ratios
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
-from apps.logger import logger
+from apps.utils.logger import logger
 from itertools import product
 
 
@@ -481,3 +481,4 @@ def main():
 
 if __name__ == "__main__":
     results = main()
+
