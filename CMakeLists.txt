@@ -15,6 +15,17 @@ enable_testing()
 option(HQT_BUILD_TESTS "Build C++ tests" ON)
 option(HQT_BUILD_BENCHMARKS "Build C++ benchmarks" ON)
 option(HQT_BUILD_BRIDGE "Build Python bridge (nanobind)" ON)
+option(HQT_ENABLE_ASAN "Enable AddressSanitizer instrumentation for C++ targets" OFF)
+
+if(HQT_ENABLE_ASAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+        message(STATUS "HQT_ENABLE_ASAN=ON (compiler: ${CMAKE_CXX_COMPILER_ID})")
+    else()
+        message(WARNING "HQT_ENABLE_ASAN requested, but compiler '${CMAKE_CXX_COMPILER_ID}' is not configured for ASan flags in this project.")
+    endif()
+endif()
 
 # C++ core library
 add_subdirectory(cpp)

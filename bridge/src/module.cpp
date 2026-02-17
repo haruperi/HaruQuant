@@ -24,6 +24,9 @@ namespace {
 
 std::mutex g_log_callback_mutex;
 nb::object g_log_callback;
+std::mutex g_bridge_lifecycle_mutex;
+bool g_bridge_initialized = false;
+std::uint64_t g_bridge_init_count = 0;
 
 hqt::util::LogLevel parse_level(const std::string& raw_level) {
     std::string level = raw_level;
@@ -226,10 +229,77 @@ nb::dict validation_result_payload(const hqt::util::ValidationResult& result) {
     return payload;
 }
 
+void annotate_skeleton_submodule(nb::module_& m, const std::string& component_name) {
+    m.attr("__component__") = nb::str(component_name.c_str());
+    m.attr("__schema_version__") = nb::str("1.0");
+    m.attr("__module_version__") = nb::str("0.1.0");
+    m.def(
+        "health_check",
+        [component_name]() {
+            nb::dict payload;
+            payload["component"] = nb::str(component_name.c_str());
+            payload["ok"] = true;
+            payload["status"] = nb::str("ready");
+            return payload;
+        },
+        "Return lightweight health payload for the skeleton submodule.");
+}
+
 }  // namespace
 
 NB_MODULE(hqt_engine, m) {
     m.doc() = "HQT Engine - C++ core for HaruQuant";
+
+    m.def(
+        "initialize",
+        []() {
+            std::lock_guard<std::mutex> lock(g_bridge_lifecycle_mutex);
+            if (!g_bridge_initialized) {
+                g_bridge_initialized = true;
+                ++g_bridge_init_count;
+            }
+            return g_bridge_initialized;
+        },
+        "Initialize bridge lifecycle state.");
+    m.def(
+        "teardown",
+        []() {
+            {
+                std::lock_guard<std::mutex> lock(g_log_callback_mutex);
+                g_log_callback = nb::object();
+            }
+            hqt::util::set_log_sink(hqt::util::LogSink{});
+            std::lock_guard<std::mutex> lock(g_bridge_lifecycle_mutex);
+            g_bridge_initialized = false;
+            return true;
+        },
+        "Tear down bridge lifecycle state and clear callbacks.");
+    m.def(
+        "health_check",
+        []() {
+            nb::dict payload;
+            bool initialized = false;
+            std::uint64_t init_count = 0;
+            {
+                std::lock_guard<std::mutex> lock(g_bridge_lifecycle_mutex);
+                initialized = g_bridge_initialized;
+                init_count = g_bridge_init_count;
+            }
+            bool callback_attached = false;
+            {
+                std::lock_guard<std::mutex> lock(g_log_callback_mutex);
+                callback_attached =
+                    (g_log_callback.ptr() != nullptr && !g_log_callback.is_none());
+            }
+            payload["ok"] = true;
+            payload["initialized"] = initialized;
+            payload["init_count"] = init_count;
+            payload["callback_attached"] = callback_attached;
+            payload["module"] = nb::str("hqt_engine");
+            payload["status"] = nb::str("ready");
+            return payload;
+        },
+        "Return bridge lifecycle and health payload.");
 
     m.def("hello", &hqt::hello, "Returns the engine version string.");
 
@@ -372,6 +442,21 @@ NB_MODULE(hqt_engine, m) {
         return validation_result_payload(hqt::util::validate_config_schema(parsed));
     }, nb::arg("payload"),
        "Validate runtime config payload against C++ schema primitives.");
+
+    nb::module_ event = m.def_submodule("_event", "Event module skeleton.");
+    annotate_skeleton_submodule(event, "_event");
+    nb::module_ data = m.def_submodule("_data", "Data module skeleton.");
+    annotate_skeleton_submodule(data, "_data");
+    nb::module_ risk = m.def_submodule("_risk", "Risk module skeleton.");
+    annotate_skeleton_submodule(risk, "_risk");
+    nb::module_ oms = m.def_submodule("_oms", "OMS module skeleton.");
+    annotate_skeleton_submodule(oms, "_oms");
+    nb::module_ execution = m.def_submodule("_execution", "Execution module skeleton.");
+    annotate_skeleton_submodule(execution, "_execution");
+    nb::module_ backtest = m.def_submodule("_backtest", "Backtest module skeleton.");
+    annotate_skeleton_submodule(backtest, "_backtest");
+    nb::module_ metrics = m.def_submodule("_metrics", "Metrics module skeleton.");
+    annotate_skeleton_submodule(metrics, "_metrics");
 
     nb::module_ sim = m.def_submodule("sim", "Simulation engine bindings");
     register_sim_bindings(sim);

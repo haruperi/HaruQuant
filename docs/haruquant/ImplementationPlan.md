@@ -465,21 +465,21 @@
 
 ### Phase D â€” Interop Bridge (Nanobind)
 
-#### [ ] IP-18 Nanobind module skeleton and lifecycle
+#### [X] IP-18 Nanobind module skeleton and lifecycle
 
 * **Sub-tasks**
-  * [ ] Initialize binding modules: `_event`, `_data`, `_risk`, `_oms`, `_execution`, `_backtest`, `_metrics`. (FR-BRIDGE-001)
-  * [ ] Implement lifecycle hooks for initialization, teardown, and health checks. (FR-BRIDGE-006)
-  * [ ] Assert **Zero Memory Leaks** on shutdown, verified by ASan in CI. (NFR-REL-007)
+  * [X] Initialize binding modules: `_event`, `_data`, `_risk`, `_oms`, `_execution`, `_backtest`, `_metrics`. (FR-BRIDGE-001)
+  * [X] Implement lifecycle hooks for initialization, teardown, and health checks. (FR-BRIDGE-006)
+  * [X] Assert **Zero Memory Leaks** on shutdown, verified by ASan in CI. (NFR-REL-007)
 * **Deliverables**
   * `_event`, `_data`, `_risk`, `_oms`, `_execution`, `_backtest`, `_metrics` modules
 * **SRS refs:** FR-BRIDGE-001, FR-BRIDGE-006, NFR-REL-007
 * **SDD refs:** Â§3, Â§5.2
 * **Dependencies:** IP-00
 * **Completion evidence**
-  * Tests: `py/tests/contracts/test_nanobind_module_load.py`
-  * Usage: `usage/dev/nanobind_module_layout.md`
-  * Bench/log: N/A
+  * Tests: `tests/contracts/test_nanobind_module_load.py`, `tests/contracts/asan_bridge_lifecycle_check.py`
+  * Usage: `docs/haruquant/usage/dev/nanobind_module_layout.md`
+  * Bench/log: `.github/workflows/asan_leak_check.yml` (ASan leak gate)
   * Commit: `TBD`
 
 #### [ ] IP-19 Ownership contracts and object lifetime safety

@@ -333,6 +333,23 @@
   - `tests/usage/utils/usage_leakage_prevention.py`
   - `docs/haruquant/usage/research/leakage_prevention.md`
 
+## Nanobind Module Skeleton and Lifecycle (IP-18)
+
+- Core bridge module:
+  - `bridge/src/module.cpp`
+- Added skeleton submodules:
+  - `_event`, `_data`, `_risk`, `_oms`, `_execution`, `_backtest`, `_metrics`
+- Added lifecycle hooks:
+  - `initialize()`
+  - `teardown()`
+  - `health_check()`
+- Leak-safety verification:
+  - ASan CI workflow: `.github/workflows/asan_leak_check.yml`
+  - lifecycle stress script: `tests/contracts/asan_bridge_lifecycle_check.py`
+- Evidence:
+  - `tests/contracts/test_nanobind_module_load.py`
+  - `docs/haruquant/usage/dev/nanobind_module_layout.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
