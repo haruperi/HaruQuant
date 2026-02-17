@@ -208,6 +208,26 @@ double sum_buffer_zero_copy_impl(const nb::object& buffer_like) {
     }
 }
 
+nb::dict sum_auto_impl(const nb::object& values) {
+    nb::dict payload;
+    if (PyObject_CheckBuffer(values.ptr()) == 1) {
+        try {
+            const double total = sum_buffer_zero_copy_impl(values);
+            payload["total"] = total;
+            payload["path"] = nb::str("zero_copy");
+            return payload;
+        } catch (...) {
+            if (PyErr_Occurred()) {
+                PyErr_Clear();
+            }
+        }
+    }
+    const double total = sum_1d_numeric_sequence(values);
+    payload["total"] = total;
+    payload["path"] = nb::str("copy_fallback");
+    return payload;
+}
+
 bool flatten_py_dict(PyObject* dict_obj, const std::string& prefix,
                      hqt::util::SchemaPayload& out, std::string& error) {
     PyObject* key = nullptr;
@@ -496,6 +516,17 @@ NB_MODULE(hqt_engine, m) {
           "Smoke function: sum a 1D numeric sequence with explicit dtype/shape validation.");
     m.def("sum_buffer_zero_copy", &sum_buffer_zero_copy_impl,
           "Sum a 1D contiguous float64 buffer via zero-copy ownership handover.");
+    m.def("sum_auto", &sum_auto_impl,
+          "Sum numeric input with zero-copy first, then copy fallback.");
+    m.def("bridge_transfer_capabilities", []() {
+        nb::dict payload;
+        payload["zero_copy"] = true;
+        payload["zero_copy_requirements"] =
+            make_str_list({"contiguous", "1D", "float64", "buffer_protocol"});
+        payload["fallbacks"] =
+            make_str_list({"python_copy", "arrow_optional", "protobuf_optional"});
+        return payload;
+    }, "Return bridge transfer path capabilities.");
     m.def("ownership_contracts", []() {
         nb::dict payload;
         payload["version"] = nb::str("1.0");

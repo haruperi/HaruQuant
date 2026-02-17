@@ -395,6 +395,26 @@
   - `docs/haruquant/usage/dev/exception_mapping.md`
   - `docs/haruquant/usage/ops/crash_handling.md`
 
+## Zero-Copy + Serialization Fallback (IP-21)
+
+- Zero-copy paths:
+  - `hqt_engine.sum_buffer_zero_copy(buffer)` for contiguous `float64` buffers.
+  - `hqt_engine.sum_auto(values)` uses zero-copy when buffer-compatible, otherwise copy fallback.
+- Capability API:
+  - `hqt_engine.bridge_transfer_capabilities()`
+- Python fallback helper:
+  - `apps/utils/bridge_transfer.py::sum_with_fallback(values, serialization=...)`
+  - supported modes:
+    - `auto` (bridge-selected zero-copy/copy fallback)
+    - `arrow` (explicit Arrow IPC roundtrip fallback; optional dependency)
+    - `protobuf` (explicit protobuf roundtrip fallback; optional dependency)
+- Performance evidence:
+  - `benchmarks/bridge/zero_copy_vs_fallback.md`
+- Validation evidence:
+  - `tests/contracts/test_zero_copy.py`
+  - `tests/integration/test_fallback_serialization.py`
+  - `docs/haruquant/usage/dev/zero_copy_and_fallback.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:

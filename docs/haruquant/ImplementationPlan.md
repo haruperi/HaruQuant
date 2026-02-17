@@ -502,8 +502,8 @@
 #### [x] IP-20 Exception mapping Cpp +  Python
 
 * **Sub-tasks**
-  * [x] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
-  * [x] Implement crash handling for segfaults/panics with log flushing and state persistence. (FR-UTIL-009)
+  * [X] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
+  * [X] Implement crash handling for segfaults/panics with log flushing and state persistence. (FR-UTIL-009)
 * **Deliverables**
   * typed exceptions and propagation for all engine boundaries
 * **SRS refs:** FR-UTIL-007, FR-UTIL-009, FR-BRIDGE-004
@@ -515,13 +515,13 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-21 Zero-copy path + serialization fallback
+#### [x] IP-21 Zero-copy path + serialization fallback
 
 * **Sub-tasks**
-  * [ ] Implement zero-copy buffer views for contiguous numeric layouts. (FR-BRIDGE-002)
-  * [ ] Optimize bridge call latency to < 1Î¼s. (NFR-PERF-010)
-  * [ ] Implement zero-copy ownership handover via Nanobind. (FR-CPP-004)
-  * [ ] Implement Arrow/Protobuf fallback path for incompatible data layouts. (FR-BRIDGE-005)
+  * [x] Implement zero-copy buffer views for contiguous numeric layouts. (FR-BRIDGE-002)
+  * [x] Optimize bridge call latency to < 1Î¼s. (NFR-PERF-010)
+  * [x] Implement zero-copy ownership handover via Nanobind. (FR-CPP-004)
+  * [x] Implement Arrow/Protobuf fallback path for incompatible data layouts. (FR-BRIDGE-005)
 * **Deliverables**
   * zero-copy buffers for compatible layouts
   * Arrow/Protobuf fallback for incompatible/cross-process flows
@@ -529,8 +529,8 @@
 * **SDD refs:** Â§5.2.4, Â§13
 * **Dependencies:** IP-18, IP-12
 * **Completion evidence**
-  * Tests: `py/tests/contracts/test_zero_copy.py`, `py/tests/integration/test_fallback_serialization.py`
-  * Usage: `usage/dev/zero_copy_and_fallback.md`
+  * Tests: `tests/contracts/test_zero_copy.py`, `tests/integration/test_fallback_serialization.py`
+  * Usage: `docs/haruquant/usage/dev/zero_copy_and_fallback.md`
   * Bench/log: `benchmarks/bridge/zero_copy_vs_fallback.md`
   * Commit: `TBD`
 
