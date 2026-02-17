@@ -248,20 +248,20 @@
 
 ### Phase B — Time, Data Contracts, Ingestion, and Features
 
-#### [ ] IP-06 Event/Time engine (ClockService + EventSequencer)
+#### [X] IP-06 Event/Time engine (ClockService + EventSequencer)
 
 * **Sub-tasks**
-  * [ ] Implement `ClockService` supporting event-time and processing-time. (FR-TIME-001)
-  * [ ] Implement `EventSequencer` for deterministic event ordering per-symbol and merged. (FR-TIME-002, FR-CPP-001)
-  * [ ] Standardize timezone handling with explicit DST policies. (FR-TIME-003)
+  * [X] Implement `ClockService` supporting event-time and processing-time. (FR-TIME-001)
+  * [X] Implement `EventSequencer` for deterministic event ordering per-symbol and merged. (FR-TIME-002, FR-CPP-001)
+  * [X] Standardize timezone handling with explicit DST policies. (FR-TIME-003)
 * **Deliverables**
   * Canonical event-time model and deterministic ordering
 * **SRS refs:** FR-TIME-001..003, FR-CPP-001
 * **SDD refs:** §5.1.1, §9
 * **Dependencies:** IP-00
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_clock_service.cpp`, `cpp/tests/unit/test_event_sequencer.cpp`
-  * Usage: `usage/backtest/event_time_model.md`
+  * Tests: `cpp/tests/test_clock_service.cpp`, `cpp/tests/test_event_sequencer.cpp`
+  * Usage: `docs/haruquant/usage/backtest/event_time_model.md`
   * Bench/log: `benchmarks/time/event_ordering_perf.md`
   * Commit: `TBD`
 

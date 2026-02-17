@@ -147,6 +147,31 @@
 - Self-documenting schema metadata:
   - Exposed by `get_schema_spec()` with `description`, `safeguards`, and `units`.
 
+## Event/Time Engine (IP-06)
+
+- Clock service:
+  - `cpp/include/engine/clock_service.hpp`
+  - Supports explicit event-time vs processing-time canonical mode selection.
+  - Exposes timezone normalization policies:
+    - `UTC_ONLY`
+    - `APPLY_OFFSET`
+    - `REJECT_NON_UTC`
+  - Exposes explicit DST handling policy:
+    - `NO_DST`
+    - `APPLY_ONE_HOUR`
+    - `REJECT`
+- Event sequencing:
+  - `cpp/include/engine/event_sequencer.hpp`
+  - Deterministic merged ordering and per-symbol ordering.
+  - Stable tie-breaker chain:
+    1. `timestamp_us`
+    2. `symbol_id`
+    3. `stream_id`
+    4. insertion sequence
+- Validation:
+  - `cpp/tests/test_clock_service.cpp`
+  - `cpp/tests/test_event_sequencer.cpp`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
