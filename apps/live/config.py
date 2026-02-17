@@ -8,12 +8,13 @@ Supports:
 
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 try:
     import tomllib  # Python 3.11+
@@ -23,6 +24,40 @@ except ImportError:  # pragma: no cover
 
 class ConfigError(Exception):
     """Configuration error."""
+
+
+SUPPORTED_SCHEMA_VERSIONS = {"1.0.0"}
+DEFAULT_SCHEMA_VERSION = "1.0.0"
+SUPPORTED_PROFILES = {"dev", "backtest", "paper", "live"}
+
+# Self-documenting schema metadata (FR-CONF-008)
+CONFIG_SCHEMA_SPEC: Dict[str, Dict[str, str]] = {
+    "mt5.login": {
+        "description": "MT5 account login ID.",
+        "safeguards": "Must be a valid positive account integer.",
+        "units": "id",
+    },
+    "trading.volume": {
+        "description": "Order volume (lot size).",
+        "safeguards": "Must be > 0 and aligned with symbol constraints.",
+        "units": "lots",
+    },
+    "logging.level": {
+        "description": "Runtime logging severity threshold.",
+        "safeguards": "Allowed levels: DEBUG/INFO/WARNING/ERROR/CRITICAL.",
+        "units": "level",
+    },
+    "safety.max_positions": {
+        "description": "Maximum open positions allowed.",
+        "safeguards": "Must be >= 1.",
+        "units": "positions",
+    },
+    "safety.max_daily_trades": {
+        "description": "Maximum daily executed trades.",
+        "safeguards": "Must be >= 0.",
+        "units": "trades/day",
+    },
+}
 
 
 @dataclass
@@ -140,6 +175,64 @@ def _get_nested(data: Dict[str, Any], path: List[str]) -> Any:
     return cursor
 
 
+def _deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
+    """Deep-merge overlay into base and return merged mapping."""
+    out = deepcopy(base)
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _deep_merge(out[key], value)
+        else:
+            out[key] = deepcopy(value)
+    return out
+
+
+def _normalize_profile_name(profile: Optional[str]) -> Optional[str]:
+    if profile is None:
+        return None
+    profile_name = profile.strip().lower()
+    if not profile_name:
+        return None
+    return profile_name
+
+
+def _apply_profile(data: Dict[str, Any], profile: Optional[str]) -> Dict[str, Any]:
+    """
+    Apply profile overlay from top-level `profiles` section if present.
+
+    Precedence:
+    - base config
+    - selected profile overlay
+    """
+    profile_name = _normalize_profile_name(profile)
+    if profile_name is None:
+        return dict(data)
+
+    if profile_name not in SUPPORTED_PROFILES:
+        raise ConfigError(
+            f"Unsupported profile: {profile_name}. "
+            f"Supported profiles: {', '.join(sorted(SUPPORTED_PROFILES))}"
+        )
+
+    profiles_data = data.get("profiles")
+    if profiles_data is None:
+        return dict(data)
+    if not isinstance(profiles_data, dict):
+        raise ConfigError("Invalid profiles section: expected object")
+
+    # Allow case-insensitive profile keys in config files.
+    lookup: Dict[str, Any] = {str(k).strip().lower(): v for k, v in profiles_data.items()}
+    if profile_name not in lookup:
+        return dict(data)
+
+    profile_overlay = lookup[profile_name]
+    if not isinstance(profile_overlay, dict):
+        raise ConfigError(f"Invalid profile data for '{profile_name}': expected object")
+
+    base = dict(data)
+    base.pop("profiles", None)
+    return _deep_merge(base, profile_overlay)
+
+
 def _convert_overlay_value(raw: str, reference: Any) -> Any:
     if isinstance(reference, bool):
         return raw.strip().lower() in {"1", "true", "yes", "on"}
@@ -173,8 +266,79 @@ def _apply_env_overlay(data: Dict[str, Any], prefix: str = "HQT_") -> Dict[str, 
     return out
 
 
-def load_config_mapping(config_path: str | Path) -> Dict[str, Any]:
-    """Load raw config mapping from TOML/JSON with env substitution + overlay."""
+def _apply_runtime_overrides(
+    data: Dict[str, Any], runtime_overrides: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Apply runtime overrides.
+
+    Supports two styles:
+    - dotted path keys: {"logging.level": "DEBUG"}
+    - nested mapping: {"logging": {"level": "DEBUG"}}
+    """
+    if not runtime_overrides:
+        return dict(data)
+
+    out = dict(data)
+    for key, value in runtime_overrides.items():
+        if isinstance(value, dict) and "." not in key:
+            current = _get_nested(out, [key])
+            current_dict = current if isinstance(current, dict) else {}
+            _set_nested(out, [key], _deep_merge(current_dict, value))
+            continue
+
+        path = [token.strip().lower() for token in str(key).split(".") if token.strip()]
+        if not path:
+            continue
+        _set_nested(out, path, value)
+    return out
+
+
+def _validate_schema_version(data: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(data)
+    version = out.get("schema_version", DEFAULT_SCHEMA_VERSION)
+    version_text = str(version).strip()
+    if version_text not in SUPPORTED_SCHEMA_VERSIONS:
+        raise ConfigError(
+            f"Unsupported schema_version: {version_text}. "
+            f"Supported: {', '.join(sorted(SUPPORTED_SCHEMA_VERSIONS))}"
+        )
+    out["schema_version"] = version_text
+    return out
+
+
+def _validate_schema_spec() -> None:
+    required_meta = {"description", "safeguards", "units"}
+    for key, metadata in CONFIG_SCHEMA_SPEC.items():
+        if not isinstance(metadata, dict):
+            raise ConfigError(f"Invalid schema metadata for {key}: expected object")
+        missing = required_meta - set(metadata.keys())
+        if missing:
+            raise ConfigError(
+                f"Schema metadata for {key} missing: {', '.join(sorted(missing))}"
+            )
+
+
+def get_schema_spec() -> Dict[str, Dict[str, str]]:
+    """Return self-documenting schema metadata."""
+    return deepcopy(CONFIG_SCHEMA_SPEC)
+
+
+def load_config_mapping(
+    config_path: str | Path,
+    *,
+    profile: Optional[str] = None,
+    runtime_overrides: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Load raw config mapping from TOML/JSON with precedence layers.
+
+    Precedence:
+    - base file config
+    - selected profile overlay (`profiles.<profile>`)
+    - environment overlay (`HQT_` variables)
+    - runtime overrides
+    """
     path = Path(config_path)
     if not path.exists():
         raise ConfigError(f"Config file not found: {config_path}")
@@ -183,7 +347,20 @@ def load_config_mapping(config_path: str | Path) -> Dict[str, Any]:
         content = path.read_text(encoding="utf-8")
         content = _substitute_env_vars(content)
         loaded = _parse_file(path, content)
-        return _apply_env_overlay(loaded)
+        loaded = _validate_schema_version(loaded)
+        _validate_schema_spec()
+
+        # Profile can be passed explicitly, via HQT_PROFILE, or `profile` key in file.
+        profile_name = (
+            _normalize_profile_name(profile)
+            or _normalize_profile_name(os.environ.get("HQT_PROFILE"))
+            or _normalize_profile_name(str(loaded.get("profile", "")))
+        )
+
+        with_profile = _apply_profile(loaded, profile_name)
+        with_env = _apply_env_overlay(with_profile)
+        with_runtime = _apply_runtime_overrides(with_env, runtime_overrides)
+        return with_runtime
     except ConfigError:
         raise
     except Exception as exc:
@@ -315,11 +492,88 @@ def parse_live_config(data: Dict[str, Any]) -> LiveConfigModel:
 class Config:
     """Typed configuration loader for single-strategy live runtime."""
 
-    def __init__(self, config_path: str):
+    _NON_CRITICAL_RUNTIME_KEYS = (
+        "logging.level",
+        "safety.max_positions",
+        "safety.max_daily_trades",
+        "safety.min_balance",
+        "safety.min_margin_level",
+        "trading.volume",
+        "trading.deviation",
+    )
+
+    def __init__(
+        self,
+        config_path: str,
+        *,
+        profile: Optional[str] = None,
+        runtime_overrides: Optional[Dict[str, Any]] = None,
+    ):
         self.config_path = Path(config_path)
-        loaded = load_config_mapping(self.config_path)
+        self._profile = _normalize_profile_name(profile)
+        self._runtime_overrides: Dict[str, Any] = dict(runtime_overrides or {})
+        self._config = self._load_current_mapping()
+        self._model = parse_live_config(self._config)
+
+    def _load_current_mapping(self) -> Dict[str, Any]:
+        return load_config_mapping(
+            self.config_path,
+            profile=self._profile,
+            runtime_overrides=self._runtime_overrides,
+        )
+
+    def reload(self) -> None:
+        """Reload entire config with current profile/env/runtime precedence."""
+        loaded = self._load_current_mapping()
         self._model = parse_live_config(loaded)
         self._config = loaded
+
+    def set_runtime_override(self, key: str, value: Any) -> None:
+        """Set runtime override using dotted-path key syntax."""
+        key_text = str(key).strip()
+        if not key_text:
+            raise ConfigError("Runtime override key cannot be empty")
+        self._runtime_overrides[key_text] = value
+        self.reload()
+
+    def clear_runtime_override(self, key: Optional[str] = None) -> None:
+        """Clear one runtime override by key, or all when key is None."""
+        if key is None:
+            self._runtime_overrides.clear()
+        else:
+            self._runtime_overrides.pop(str(key).strip(), None)
+        self.reload()
+
+    def reload_non_critical(self) -> List[str]:
+        """
+        Reload only non-critical config keys (logging levels, safety/risk limits).
+
+        Returns:
+            List of keys that changed.
+        """
+        loaded = self._load_current_mapping()
+        changed: List[str] = []
+
+        updated_config = deepcopy(self._config)
+        for key in self._NON_CRITICAL_RUNTIME_KEYS:
+            path = [token.strip() for token in key.split(".") if token.strip()]
+            old_value = _get_nested(updated_config, path)
+            new_value = _get_nested(loaded, path)
+            if old_value != new_value:
+                _set_nested(updated_config, [p.lower() for p in path], new_value)
+                changed.append(key)
+
+        self._model = parse_live_config(updated_config)
+        self._config = updated_config
+        return changed
+
+    @property
+    def schema_version(self) -> str:
+        return str(self._config.get("schema_version", DEFAULT_SCHEMA_VERSION))
+
+    @property
+    def active_profile(self) -> Optional[str]:
+        return self._profile
 
     # MT5 Configuration
     @property

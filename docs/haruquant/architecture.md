@@ -129,3 +129,21 @@
   - `ensure_dir(path)`
 - Utility modules use `pathlib.Path` semantics for file/dir operations to avoid OS-specific path branching.
 
+## Configuration Layering (IP-04)
+
+- Config loader entry point: `apps/live/config.py::load_config_mapping(...)`
+- Supported file formats:
+  - TOML (primary)
+  - JSON (supported for compatibility)
+- Effective precedence:
+  - base file config
+  - profile overlay (`profiles.<dev|backtest|paper|live>`)
+  - env overlay (`HQT_...` keys with `__` nesting)
+  - runtime overrides (dotted keys)
+- Versioning:
+  - `schema_version` is validated against supported versions before startup parsing.
+- Runtime reload:
+  - `Config.reload_non_critical()` updates non-critical knobs (logging level and safety/risk limits) without full restart.
+- Self-documenting schema metadata:
+  - Exposed by `get_schema_spec()` with `description`, `safeguards`, and `units`.
+

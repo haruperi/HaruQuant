@@ -208,13 +208,13 @@
   * Bench/log: `benchmarks/utils/math_kernel_perf.md`
   * Commit: `TBD`
 
-#### [ ] IP-04 Configuration profiles + precedence + schema versioning
+#### [X] IP-04 Configuration profiles + precedence + schema versioning
 
 * **Sub-tasks**
-  * [ ] Implement TOML-based hierarchical config loader (file + env + runtime overrides). (FR-CONF-001)
-  * [ ] Support `DEV/BACKTEST/PAPER/LIVE` profile switching. (FR-CONF-002)
-  * [ ] Implement config validation against versioned schemas with descriptions/safeguards. (FR-CONF-003, FR-CONF-008)
-  * [ ] Implement runtime reloading of non-critical config (log levels, risk limits). (FR-CONF-007)
+  * [X] Implement TOML-based hierarchical config loader (file + env + runtime overrides). (FR-CONF-001)
+  * [X] Support `DEV/BACKTEST/PAPER/LIVE` profile switching. (FR-CONF-002)
+  * [X] Implement config validation against versioned schemas with descriptions/safeguards. (FR-CONF-003, FR-CONF-008)
+  * [X] Implement runtime reloading of non-critical config (log levels, risk limits). (FR-CONF-007)
 * **Deliverables**
   * Config loader with DEV/BACKTEST/PAPER/LIVE policies
 * **SRS refs:** FR-CONF-001..003, FR-CONF-005, FR-CONF-007..008, NFR-MNT-001..004
@@ -487,9 +487,10 @@
 * **Sub-tasks**
   * [ ] Define C++/Python ownership policies (C++ owned, Python view, shared ownership). (FR-BRIDGE-003)
   * [ ] Strictly enforce RAII resource management and smart pointer exposure. (FR-CPP-003)
+  * [ ] Guarantee zero-copy ownership contracts for heavy payloads. (FR-CPP-004)
 * **Deliverables**
   * C++ owned/Python view and shared-ownership policies
-* **SRS refs:** FR-BRIDGE-003, FR-CPP-003
+* **SRS refs:** FR-BRIDGE-003, FR-CPP-003, FR-CPP-004
 * **SDD refs:** §5.2.2
 * **Dependencies:** IP-18
 * **Completion evidence**
@@ -519,11 +520,12 @@
 * **Sub-tasks**
   * [ ] Implement zero-copy buffer views for contiguous numeric layouts. (FR-BRIDGE-002)
   * [ ] Optimize bridge call latency to < 1μs. (NFR-PERF-010)
+  * [ ] Implement zero-copy ownership handover via Nanobind. (FR-CPP-004)
   * [ ] Implement Arrow/Protobuf fallback path for incompatible data layouts. (FR-BRIDGE-005)
 * **Deliverables**
   * zero-copy buffers for compatible layouts
   * Arrow/Protobuf fallback for incompatible/cross-process flows
-* **SRS refs:** FR-BRIDGE-002, FR-BRIDGE-005, NFR-PERF-005, NFR-PERF-010
+* **SRS refs:** FR-BRIDGE-002, FR-BRIDGE-005, NFR-PERF-005, NFR-PERF-010, FR-CPP-004
 * **SDD refs:** §5.2.4, §13
 * **Dependencies:** IP-18, IP-12
 * **Completion evidence**
@@ -694,10 +696,11 @@
 * **Sub-tasks**
   * [ ] Implement order state machine (NEW -> ACCEPTED -> FILLED/CANCELED). (FR-OMS-001, SDD §9.1)
   * [ ] Support Market, Limit, Stop, Stop-Limit, Trailing-Stop order types. (FR-OMS-002)
+  * [ ] Implement gap handling for matching engine (executing at gap price). (FR-CPP-005)
   * [ ] Implement idempotent submission via client order IDs. (FR-OMS-003)
 * **Deliverables**
   * `NEW→...→terminal` transitions + duplicate guard
-* **SRS refs:** FR-OMS-001..004
+* **SRS refs:** FR-OMS-001..004, FR-CPP-005
 * **SDD refs:** §5.1.5, §9.1
 * **Dependencies:** IP-23
 * **Completion evidence**
@@ -835,11 +838,12 @@
 
 * **Sub-tasks**
   * [ ] Implement realistic fill simulation (spread, slippage, partials). (FR-BT-003..004)
+  * [ ] Handle price gap scenarios (executing at gap price, not stop level). (FR-CPP-005)
   * [ ] Implement transaction cost model (commission [fixed/%, tiered], swap). (FR-BT-003)
   * [ ] Use seeded RNG for all stochastic simulation processes. (FR-BT-018)
 * **Deliverables**
   * spread/commission/slippage/financing simulation
-* **SRS refs:** FR-BT-003..004, FR-BT-018, NFR-PERF-001..003
+* **SRS refs:** FR-BT-003..004, FR-BT-018, NFR-PERF-001..003, FR-CPP-005
 * **SDD refs:** §5.1.7, §13
 * **Dependencies:** IP-37
 * **Completion evidence**

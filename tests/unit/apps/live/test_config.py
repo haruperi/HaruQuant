@@ -2,7 +2,12 @@
 import json
 import os
 import pytest
-from apps.live.config import Config, ConfigError
+from apps.live.config import (
+    Config,
+    ConfigError,
+    get_schema_spec,
+    load_config_mapping,
+)
 
 def test_load_valid_config(tmp_path, mock_config_data):
     config_file = tmp_path / "config.json"
@@ -177,3 +182,97 @@ def test_env_overlay_precedence(tmp_path, mock_config_data):
     finally:
         del os.environ["HQT_TRADING__VOLUME"]
         del os.environ["HQT_MT5__LOGIN"]
+
+
+def test_profile_overlay_applies_from_file(tmp_path, mock_config_data):
+    payload = dict(mock_config_data)
+    payload["profiles"] = {
+        "dev": {"trading": {"volume": 0.05}, "logging": {"level": "DEBUG"}},
+        "live": {"trading": {"volume": 0.2}, "logging": {"level": "WARNING"}},
+    }
+    config_file = tmp_path / "profile_config.json"
+    config_file.write_text(json.dumps(payload))
+
+    config = Config(str(config_file), profile="live")
+    assert config.trading_volume == 0.2
+    assert config.logging_level == "WARNING"
+    assert config.active_profile == "live"
+
+
+def test_precedence_runtime_overrides_highest(tmp_path, mock_config_data):
+    payload = dict(mock_config_data)
+    payload["profiles"] = {"paper": {"trading": {"volume": 0.15}}}
+    config_file = tmp_path / "precedence_config.json"
+    config_file.write_text(json.dumps(payload))
+
+    os.environ["HQT_TRADING__VOLUME"] = "0.25"
+    try:
+        config = Config(
+            str(config_file),
+            profile="paper",
+            runtime_overrides={"trading.volume": 0.33},
+        )
+        assert config.trading_volume == 0.33
+    finally:
+        del os.environ["HQT_TRADING__VOLUME"]
+
+
+def test_invalid_schema_version_rejected(tmp_path, mock_config_data):
+    payload = dict(mock_config_data)
+    payload["schema_version"] = "9.9.9"
+    config_file = tmp_path / "bad_schema_version.json"
+    config_file.write_text(json.dumps(payload))
+
+    with pytest.raises(ConfigError, match="Unsupported schema_version"):
+        Config(str(config_file))
+
+
+def test_schema_version_defaults_when_missing(tmp_path, mock_config_data):
+    config_file = tmp_path / "default_schema_version.json"
+    config_file.write_text(json.dumps(mock_config_data))
+    config = Config(str(config_file))
+    assert config.schema_version == "1.0.0"
+
+
+def test_runtime_reload_non_critical(tmp_path, mock_config_data):
+    config_file = tmp_path / "reload_non_critical.json"
+    config_file.write_text(json.dumps(mock_config_data))
+
+    config = Config(str(config_file))
+    assert config.logging_level == "DEBUG"
+    assert config.safety_max_positions == 5
+
+    payload = dict(mock_config_data)
+    payload["logging"] = dict(payload["logging"])
+    payload["safety"] = dict(payload["safety"])
+    payload["logging"]["level"] = "ERROR"
+    payload["safety"]["max_positions"] = 7
+    config_file.write_text(json.dumps(payload))
+
+    changed = config.reload_non_critical()
+    assert "logging.level" in changed
+    assert "safety.max_positions" in changed
+    assert config.logging_level == "ERROR"
+    assert config.safety_max_positions == 7
+
+
+def test_schema_spec_is_self_documenting():
+    spec = get_schema_spec()
+    assert "logging.level" in spec
+    assert "description" in spec["logging.level"]
+    assert "safeguards" in spec["logging.level"]
+    assert "units" in spec["logging.level"]
+
+
+def test_hqt_profile_env_is_used_when_profile_not_passed(tmp_path, mock_config_data):
+    payload = dict(mock_config_data)
+    payload["profiles"] = {"backtest": {"trading": {"volume": 0.07}}}
+    config_file = tmp_path / "env_profile.json"
+    config_file.write_text(json.dumps(payload))
+
+    os.environ["HQT_PROFILE"] = "BACKTEST"
+    try:
+        loaded = load_config_mapping(str(config_file))
+        assert loaded["trading"]["volume"] == 0.07
+    finally:
+        del os.environ["HQT_PROFILE"]
