@@ -272,6 +272,31 @@
   - `docs/haruquant/usage/ops/multisymbol_ingestion.md`
   - `artifacts/benchmarks/ingestion/multisymbol_sync_perf.md`
 
+## Message Contracts and Schema Registry (IP-12)
+
+- Core module:
+  - `apps/contracts/schema_registry.py`
+- Provides:
+  - versioned in-memory schema registry with lookup and payload validation
+  - backward-compatibility guard for schema evolution
+- Canonical contracts:
+  - events: `TickMessage`, `BarMessage`
+  - API: `OrderMessage`, `FillMessage`
+  - storage: `PositionMessage`, `RunManifestSchema`, `RunReportSchema`
+- Default registry entries:
+  - `event.tick:1.0`, `event.bar:1.0`
+  - `api.order:1.0`, `api.fill:1.0`
+  - `storage.position:1.0`
+  - `storage.run_manifest:1.0`, `storage.run_report:1.0`
+- Compatibility policy (conservative):
+  - old fields cannot be removed
+  - optional old fields cannot become required
+  - field type changes are rejected
+- Evidence:
+  - `tests/contracts/test_schema_registry.py`
+  - `tests/migrations/test_schema_backward_compat.py`
+  - `docs/haruquant/usage/ops/schema_registry.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
