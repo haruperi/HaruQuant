@@ -482,20 +482,20 @@
   * Bench/log: `.github/workflows/asan_leak_check.yml` (ASan leak gate)
   * Commit: `TBD`
 
-#### [ ] IP-19 Ownership contracts and object lifetime safety
+#### [X] IP-19 Ownership contracts and object lifetime safety
 
 * **Sub-tasks**
-  * [ ] Define C++/Python ownership policies (C++ owned, Python view, shared ownership). (FR-BRIDGE-003)
-  * [ ] Strictly enforce RAII resource management and smart pointer exposure. (FR-CPP-003)
-  * [ ] Guarantee zero-copy ownership contracts for heavy payloads. (FR-CPP-004)
+  * [X] Define C++/Python ownership policies (C++ owned, Python view, shared ownership). (FR-BRIDGE-003)
+  * [X] Strictly enforce RAII resource management and smart pointer exposure. (FR-CPP-003)
+  * [X] Guarantee zero-copy ownership contracts for heavy payloads. (FR-CPP-004)
 * **Deliverables**
   * C++ owned/Python view and shared-ownership policies
 * **SRS refs:** FR-BRIDGE-003, FR-CPP-003, FR-CPP-004
 * **SDD refs:** Â§5.2.2
 * **Dependencies:** IP-18
 * **Completion evidence**
-  * Tests: `py/tests/contracts/test_bridge_lifetime.py`
-  * Usage: `usage/dev/bridge_ownership_rules.md`
+  * Tests: `tests/contracts/test_bridge_lifetime.py`
+  * Usage: `docs/haruquant/usage/dev/bridge_ownership_rules.md`
   * Bench/log: `artifacts/logs/bridge/lifetime_validation.log`
   * Commit: `TBD`
 

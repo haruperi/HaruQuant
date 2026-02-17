@@ -161,6 +161,45 @@ double sum_1d_numeric_sequence(const nb::object& values) {
     return total;
 }
 
+double sum_buffer_zero_copy_impl(const nb::object& buffer_like) {
+    if (buffer_like.is_none()) {
+        throw nb::type_error("sum_buffer_zero_copy expects a buffer-compatible object.");
+    }
+
+    Py_buffer view{};
+    if (PyObject_GetBuffer(buffer_like.ptr(), &view, PyBUF_FORMAT | PyBUF_C_CONTIGUOUS) != 0) {
+        throw nb::type_error("sum_buffer_zero_copy requires a contiguous buffer.");
+    }
+
+    auto release_view = [&]() { PyBuffer_Release(&view); };
+    try {
+        if (view.ndim != 1) {
+            throw nb::value_error("sum_buffer_zero_copy expects a 1D buffer.");
+        }
+        if (view.itemsize != static_cast<Py_ssize_t>(sizeof(double))) {
+            throw nb::type_error("sum_buffer_zero_copy expects float64 (itemsize=8).");
+        }
+        if (view.format == nullptr || std::string(view.format) != "d") {
+            throw nb::type_error("sum_buffer_zero_copy expects format='d' (float64).");
+        }
+        if (view.len % static_cast<Py_ssize_t>(sizeof(double)) != 0) {
+            throw nb::value_error("sum_buffer_zero_copy received invalid buffer length.");
+        }
+
+        const auto* ptr = static_cast<const double*>(view.buf);
+        const std::size_t n = static_cast<std::size_t>(view.len / sizeof(double));
+        double total = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            total += ptr[i];
+        }
+        release_view();
+        return total;
+    } catch (...) {
+        release_view();
+        throw;
+    }
+}
+
 bool flatten_py_dict(PyObject* dict_obj, const std::string& prefix,
                      hqt::util::SchemaPayload& out, std::string& error) {
     PyObject* key = nullptr;
@@ -227,6 +266,14 @@ nb::dict validation_result_payload(const hqt::util::ValidationResult& result) {
     payload["ok"] = result.ok;
     payload["message"] = nb::str(result.message.c_str());
     return payload;
+}
+
+nb::list make_str_list(std::initializer_list<const char*> values) {
+    nb::list out;
+    for (const char* v : values) {
+        out.append(nb::str(v));
+    }
+    return out;
 }
 
 void annotate_skeleton_submodule(nb::module_& m, const std::string& component_name) {
@@ -362,6 +409,44 @@ NB_MODULE(hqt_engine, m) {
     m.def("version", &hqt::version, "Returns the engine version struct.");
     m.def("sum", &sum_1d_numeric_sequence,
           "Smoke function: sum a 1D numeric sequence with explicit dtype/shape validation.");
+    m.def("sum_buffer_zero_copy", &sum_buffer_zero_copy_impl,
+          "Sum a 1D contiguous float64 buffer via zero-copy ownership handover.");
+    m.def("ownership_contracts", []() {
+        nb::dict payload;
+        payload["version"] = nb::str("1.0");
+
+        nb::dict cpp_owned_python_view;
+        cpp_owned_python_view["policy"] = nb::str("cpp_owned_python_view");
+        cpp_owned_python_view["description"] =
+            nb::str("C++ owns lifetime; Python receives non-owning views/references.");
+        cpp_owned_python_view["examples"] =
+            make_str_list({"BacktestEngine.state", "SimulatorClient.account_info"});
+        payload["cpp_owned_python_view"] = cpp_owned_python_view;
+
+        nb::dict shared_ownership;
+        shared_ownership["policy"] = nb::str("shared_ownership");
+        shared_ownership["description"] =
+            nb::str("Long-lived bridge objects use shared_ptr holders across C++/Python.");
+        shared_ownership["examples"] =
+            make_str_list({"SimulatorClient", "BacktestEngine", "PortfolioEngine"});
+        payload["shared_ownership"] = shared_ownership;
+
+        nb::dict callback_rules;
+        callback_rules["policy"] = nb::str("python_callback_owner");
+        callback_rules["description"] =
+            nb::str("Python owns callback object; C++ stores callable handle and clears on teardown.");
+        callback_rules["examples"] = make_str_list({"set_log_callback"});
+        payload["callback_rules"] = callback_rules;
+
+        nb::dict zero_copy;
+        zero_copy["policy"] = nb::str("buffer_view_zero_copy");
+        zero_copy["description"] =
+            nb::str("Contiguous float64 buffers are consumed through the Python buffer protocol without copy.");
+        zero_copy["examples"] = make_str_list({"sum_buffer_zero_copy"});
+        payload["zero_copy"] = zero_copy;
+
+        return payload;
+    }, "Return explicit bridge ownership and lifetime policy contract.");
     m.def("set_log_level", [](const std::string& level) {
         hqt::util::set_log_level(parse_level(level));
     }, "Set C++ logger level: debug|info|warning|error|critical.");

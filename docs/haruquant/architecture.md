@@ -350,6 +350,25 @@
   - `tests/contracts/test_nanobind_module_load.py`
   - `docs/haruquant/usage/dev/nanobind_module_layout.md`
 
+## Bridge Ownership and Lifetime Safety (IP-19)
+
+- Ownership contract API:
+  - `hqt_engine.ownership_contracts()`
+  - explicit policies for:
+    - C++ owned / Python view
+    - shared ownership
+    - callback ownership
+    - zero-copy buffer ingestion
+- Lifetime enforcement in bindings:
+  - long-lived parent/child relationships are guarded with nanobind `keep_alive`
+  - view-returning accessors use `reference_internal` for parent-bound lifetimes
+- Zero-copy contract path:
+  - `hqt_engine.sum_buffer_zero_copy(buffer)` consumes contiguous `float64` buffers via Python buffer protocol without copy
+- Evidence:
+  - `tests/contracts/test_bridge_lifetime.py`
+  - `docs/haruquant/usage/dev/bridge_ownership_rules.md`
+  - `artifacts/logs/bridge/lifetime_validation.log`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
