@@ -205,42 +205,52 @@ def example_04_missing_timestamps():
             logger.info(f"  {ts}")
 
 
-def example_05_comprehensive_validation():
+def example_05_comprehensive_validation(data=None):
     """Example 5: Comprehensive data validation."""
     logger.info("\n" + "=" * 70)
     logger.info("EXAMPLE 5: Comprehensive Validation")
     logger.info("=" * 70)
 
-    logger.info("Loading real market data...")
+    logger.info("Running comprehensive validation...")
 
     try:
-        data = load_dukascopy(
-            symbol="EURUSD",
-            timeframe="H1",
-            count=200,
-            cache=True
-        )
+        if data is None:
+            # Fallback synthetic data if caller does not provide market bars.
+            dates = pd.date_range('2025-01-01', periods=200, freq='1h')
+            data = pd.DataFrame({
+                'Open': np.random.uniform(1.10, 1.11, len(dates)),
+                'High': np.random.uniform(1.11, 1.12, len(dates)),
+                'Low': np.random.uniform(1.09, 1.10, len(dates)),
+                'Close': np.random.uniform(1.10, 1.11, len(dates)),
+                'Volume': np.random.randint(100, 200, len(dates)),
+                'Spread': [0.0002] * len(dates),
+                'Datetime': dates,
+            })
 
         logger.info(f"Data loaded: {len(data)} bars")
 
         validator = DataValidator()
 
-        # Run all validation checks
-        results = validator.validate(
-            data,
-            checks=[
-                'price_sanity',
-                'gaps',
-                'spikes',
-                'missing_timestamps',
-                'zero_volume',
-                'duplicates',
-                'spread'
-            ],
-            expected_frequency='1h'
-        )
+        # 1) Normalize schema contract first (canonical pipeline entrypoint).
+        prepared = DataValidator.prepare_data(data)
+
+        # 2) Run all 9 validation checks in the pipeline.
+        checks = [
+            'monotonic_timestamps',
+            'normalized_schema',
+            'price_sanity',
+            'gaps',
+            'spikes',
+            'missing_timestamps',
+            'zero_volume',
+            'duplicates',
+            'spread',
+        ]
+        results = validator.validate(prepared, checks=checks, expected_frequency='1h')
 
         logger.info(f"\nValidation Results:")
+        logger.info(f"  Checks requested: {len(checks)}")
+        logger.info(f"  Checks performed: {len(results['checks_performed'])}")
         logger.info(f"  Quality Score: {results['summary']['quality_score']:.2f}%")
         logger.info(f"  Total Issues: {results['summary']['total_issues']}")
         logger.info(f"  Valid: {results['summary']['is_valid']}")
@@ -486,7 +496,8 @@ def main():
     data = client.get_bars(symbol=eurusd, timeframe="H1", date_from=start_date, date_to=end_date)
 
     #example_01_basic_price_sanity()
-    example_02_detect_gaps(data=data)
+    #example_02_detect_gaps(data=data)
+    example_05_comprehensive_validation(data=data)
     # example_03_spike_detection(real_data=True)
     # example_04_missing_timestamps(real_data=True)
     # example_05_comprehensive_validation(real_data=True)

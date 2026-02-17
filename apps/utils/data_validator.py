@@ -740,6 +740,46 @@ class DataValidator:
         logger.info("No duplicate timestamps found")
         return pd.DataFrame(), []
 
+    def check_monotonic_timestamps(
+        self, data: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+        """
+        Check that timestamps are monotonic non-decreasing.
+
+        Args:
+            data: DataFrame with datetime index or time column
+
+        Returns:
+            Tuple of (non_monotonic_rows_dataframe, list_of_issues)
+        """
+        time_series = self._get_time_series(data)
+        if time_series is None:
+            logger.error("Data must have a datetime index or time column")
+            return pd.DataFrame(), []
+
+        timestamps = pd.Series(pd.to_datetime(time_series.values))
+        if len(timestamps) <= 1:
+            return pd.DataFrame(), []
+
+        # Non-monotonic points are where the current timestamp is earlier than previous.
+        disorder_mask = timestamps < timestamps.shift(1)
+        disorder_idx = disorder_mask[disorder_mask].index
+
+        if len(disorder_idx) > 0:
+            issue = {
+                "type": "monotonic_timestamps",
+                "check": "timestamps_non_decreasing",
+                "count": int(len(disorder_idx)),
+                "positions": disorder_idx.astype(int).tolist()[:100],
+            }
+            logger.warning(
+                f"Found {len(disorder_idx)} non-monotonic timestamp transitions"
+            )
+            return data.iloc[disorder_idx], [issue]
+
+        logger.info("Timestamps are monotonic non-decreasing")
+        return pd.DataFrame(), []
+
     # ==================== Spread Analysis ====================
 
     def analyze_spread(
@@ -929,7 +969,8 @@ class DataValidator:
         Args:
             data: DataFrame with market data
             checks: List of checks to run (default: all)
-                   Options: 'price_sanity', 'gaps', 'spikes', 'missing_timestamps',
+                   Options: 'monotonic_timestamps', 'normalized_schema',
+                           'price_sanity', 'gaps', 'spikes', 'missing_timestamps',
                            'zero_volume', 'duplicates', 'spread'
             return_report: If True, return DataQualityReport instead of dict
             **kwargs: Additional parameters for specific checks
@@ -939,6 +980,8 @@ class DataValidator:
         """
         if checks is None:
             checks = [
+                "monotonic_timestamps",
+                "normalized_schema",
                 "price_sanity",
                 "gaps",
                 "spikes",
@@ -955,6 +998,60 @@ class DataValidator:
             "issues_found": [],
             "summary": {},
         }
+
+        # Monotonic timestamp check (run before normalization so input ordering issues are visible).
+        if "monotonic_timestamps" in checks:
+            logger.info("Checking timestamp monotonicity...")
+            non_monotonic_df, monotonic_issues = self.check_monotonic_timestamps(data)
+            results["checks_performed"].append("monotonic_timestamps")
+            results["issues_found"].extend(monotonic_issues)
+            results["summary"]["monotonic_timestamps"] = {
+                "is_monotonic": len(monotonic_issues) == 0,
+                "disorder_count": (
+                    monotonic_issues[0]["count"] if monotonic_issues else 0
+                ),
+            }
+
+        # Schema normalization / standardization
+        if "normalized_schema" in checks:
+            logger.info("Running schema normalization check...")
+            try:
+                data = self.prepare_data(data)
+                results["checks_performed"].append("normalized_schema")
+                results["summary"]["normalized_schema"] = {
+                    "valid": True,
+                    "columns": list(data.columns),
+                    "rows": len(data),
+                }
+            except Exception as exc:
+                issue = {
+                    "type": "schema_validation",
+                    "check": "prepare_data",
+                    "count": 1,
+                    "message": str(exc),
+                }
+                results["checks_performed"].append("normalized_schema")
+                results["issues_found"].append(issue)
+                results["summary"]["normalized_schema"] = {
+                    "valid": False,
+                    "message": str(exc),
+                }
+                results["summary"]["total_issues"] = 1
+                results["summary"]["quality_score"] = 0.0
+                results["summary"]["is_valid"] = False
+                self._validation_results = results
+
+                if return_report:
+                    return DataQualityReport(
+                        timestamp=results["timestamp"],
+                        total_rows=results["total_rows"],
+                        checks_performed=results["checks_performed"],
+                        issues_found=results["issues_found"],
+                        summary=results["summary"],
+                        quality_score=results["summary"]["quality_score"],
+                        is_valid=results["summary"]["is_valid"],
+                    )
+                return results
 
         # Price sanity checks
         if "price_sanity" in checks:
