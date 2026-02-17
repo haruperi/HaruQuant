@@ -318,21 +318,21 @@
   * Bench/log: `artifacts/benchmarks/ingestion/ingestion_throughput.md`
   * Commit: `TBD`
 
-#### [ ] IP-10 Data quality guardrails (missing/duplicate/out-of-order)
+#### [X] IP-10 Data quality guardrails (missing/duplicate/out-of-order)
 
 * **Sub-tasks**
-  * [ ] Implement price sanity, gap detection, and spike filtering checks. (FR-DATA-011, FR-DQ-001)
-  * [ ] Implement detection of zero-volume bars and spread widening alerts. (FR-DATA-011)
-  * [ ] Implement DQ remediation flagging and reporting. (FR-DATA-003, FR-DQ-002)
+  * [X] Implement price sanity, gap detection, and spike filtering checks. (FR-DATA-011, FR-DQ-001)
+  * [X] Implement detection of zero-volume bars and spread widening alerts. (FR-DATA-011)
+  * [X] Implement DQ remediation flagging and reporting. (FR-DATA-003, FR-DQ-002)
 * **Deliverables**
   * DQ detection + severity + remediation flags
 * **SRS refs:** FR-DATA-003, FR-DATA-011, FR-DQ-001..003
 * **SDD refs:** §5.1.2, §8
 * **Dependencies:** IP-09
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_data_quality_guard.cpp`, `py/tests/integration/test_data_quality_alerts.py`
-  * Usage: `usage/data/data_quality_runbook.md`
-  * Bench/log: `artifacts/logs/data_quality/sample_report.json`
+  * Tests: `tests/integration/test_data_quality_alerts.py`, `tests/unit/apps/utils/test_data_validator_pipeline.py`
+  * Usage: `docs/haruquant/usage/ops/data_quality_runbook.md`
+  * Bench/log: `artifacts/evidence/data_quality/sample_report.json`
   * Commit: `TBD`
 
 #### [ ] IP-11 Multi-symbol synchronized ingestion

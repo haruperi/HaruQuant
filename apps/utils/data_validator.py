@@ -958,6 +958,86 @@ class DataValidator:
 
     # ==================== Comprehensive Validation ====================
 
+    def _issue_severity(self, issue: Dict[str, Any]) -> str:
+        """Map issue to normalized severity."""
+        issue_type = str(issue.get("type", "")).lower()
+        issue_name = str(issue.get("issue", "")).lower()
+        check_name = str(issue.get("check", "")).lower()
+
+        if issue_type == "schema_validation":
+            return "critical"
+        if issue_type in {"monotonic_timestamps", "duplicates", "gap"}:
+            return "high"
+        if issue_type == "missing_timestamps":
+            return "high"
+        if issue_type == "price_sanity":
+            return "high"
+        if issue_type == "spread_anomaly" and issue_name == "negative_spread":
+            return "high"
+        if issue_type == "spread_anomaly" and issue_name == "wide_spread":
+            return "medium"
+        if issue_type == "spike":
+            return "medium"
+        if issue_type == "zero_volume":
+            return "medium"
+        if "timestamps_non_decreasing" in check_name:
+            return "high"
+        return "low"
+
+    def _issue_remediation_action(self, issue: Dict[str, Any]) -> str:
+        """Map issue to recommended remediation action."""
+        issue_type = str(issue.get("type", "")).lower()
+        issue_name = str(issue.get("issue", "")).lower()
+
+        if issue_type == "schema_validation":
+            return "normalize_schema"
+        if issue_type == "monotonic_timestamps":
+            return "sort_by_timestamp"
+        if issue_type == "duplicates":
+            return "deduplicate_timestamps_keep_first"
+        if issue_type in {"gap", "missing_timestamps"}:
+            return "backfill_or_drop_missing_intervals"
+        if issue_type == "spike":
+            return "review_or_filter_outliers"
+        if issue_type == "zero_volume":
+            return "flag_or_drop_zero_volume_bars"
+        if issue_type == "price_sanity":
+            return "drop_invalid_ohlc_rows"
+        if issue_type == "spread_anomaly" and issue_name == "negative_spread":
+            return "drop_negative_spread_rows"
+        if issue_type == "spread_anomaly" and issue_name == "wide_spread":
+            return "flag_wide_spread_regime"
+        return "review_manually"
+
+    def _annotate_issues(self, issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Add severity and remediation metadata to issue payloads."""
+        annotated: List[Dict[str, Any]] = []
+        for issue in issues:
+            item = dict(issue)
+            severity = self._issue_severity(item)
+            action = self._issue_remediation_action(item)
+            item["severity"] = severity
+            item["remediation_action"] = action
+            item["remediation_required"] = severity in {"critical", "high"}
+            annotated.append(item)
+        return annotated
+
+    def _build_remediation_summary(self, issues: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Build remediation summary for reporting."""
+        severity_counts: Dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        action_counts: Dict[str, int] = {}
+        for issue in issues:
+            severity = str(issue.get("severity", "low")).lower()
+            if severity in severity_counts:
+                severity_counts[severity] += 1
+            action = str(issue.get("remediation_action", "review_manually"))
+            action_counts[action] = action_counts.get(action, 0) + 1
+        return {
+            "severity_counts": severity_counts,
+            "actions": action_counts,
+            "needs_immediate_action": severity_counts["critical"] > 0 or severity_counts["high"] > 0,
+        }
+
     def validate(
         self,
         data: pd.DataFrame,
@@ -1038,6 +1118,10 @@ class DataValidator:
                     "valid": False,
                     "message": str(exc),
                 }
+                results["issues_found"] = self._annotate_issues(results["issues_found"])
+                results["summary"]["remediation"] = self._build_remediation_summary(
+                    results["issues_found"]
+                )
                 results["summary"]["total_issues"] = 1
                 results["summary"]["quality_score"] = 0.0
                 results["summary"]["is_valid"] = False
@@ -1156,6 +1240,10 @@ class DataValidator:
             }
 
         # Calculate overall quality score
+        results["issues_found"] = self._annotate_issues(results["issues_found"])
+        results["summary"]["remediation"] = self._build_remediation_summary(
+            results["issues_found"]
+        )
         total_issues = len(results["issues_found"])
         results["summary"]["total_issues"] = total_issues
         results["summary"]["quality_score"] = max(

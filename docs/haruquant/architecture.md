@@ -232,6 +232,31 @@
   - contract tests: `tests/contracts/test_tick_bar_contract.py`
   - integration tests: `tests/integration/test_data_adapter_normalization.py` (includes real local ZMQ PUB/SUB when `pyzmq` is installed)
 
+## Data Quality Guardrails (IP-10)
+
+- Core module:
+  - `apps/utils/data_validator.py`
+- Covered checks:
+  - price sanity (`High >= Low`, `Open/Close in [Low, High]`, negative/zero prices)
+  - missing intervals (`gaps`, `missing_timestamps`)
+  - ordering/duplication (`monotonic_timestamps`, `duplicates`)
+  - spike/outlier detection (`zscore|iqr|mad`)
+  - zero-volume bars
+  - spread anomaly checks (`negative_spread`, `wide_spread`)
+- Remediation reporting:
+  - each issue is annotated with:
+    - `severity`
+    - `remediation_action`
+    - `remediation_required`
+  - summary includes:
+    - `summary.remediation.severity_counts`
+    - `summary.remediation.actions`
+    - `summary.remediation.needs_immediate_action`
+- Evidence:
+  - `tests/integration/test_data_quality_alerts.py`
+  - `artifacts/evidence/data_quality/sample_report.json`
+  - `docs/haruquant/usage/ops/data_quality_runbook.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
