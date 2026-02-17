@@ -499,19 +499,19 @@
   * Bench/log: `artifacts/logs/bridge/lifetime_validation.log`
   * Commit: `TBD`
 
-#### [ ] IP-20 Exception mapping Cpp +  Python
+#### [x] IP-20 Exception mapping Cpp +  Python
 
 * **Sub-tasks**
   * [x] Implement `Unified Exception Hierarchy` mapping C++ to typed Python exceptions. (FR-UTIL-007, FR-BRIDGE-004)
-  * [ ] Implement crash handling for segfaults/panics with log flushing and state persistence. (FR-UTIL-009)
+  * [x] Implement crash handling for segfaults/panics with log flushing and state persistence. (FR-UTIL-009)
 * **Deliverables**
   * typed exceptions and propagation for all engine boundaries
 * **SRS refs:** FR-UTIL-007, FR-UTIL-009, FR-BRIDGE-004
 * **SDD refs:** Â§5.2.3, Â§12
 * **Dependencies:** IP-18
 * **Completion evidence**
-  * Tests: `tests/contracts/test_exception_mapping.py`, `tests/unit/apps/utils/test_errors.py`
-  * Usage: `docs/haruquant/usage/dev/exception_mapping.md`
+  * Tests: `tests/contracts/test_exception_mapping.py`, `tests/unit/apps/utils/test_errors.py`, `tests/unit/apps/utils/test_crash_handler.py`
+  * Usage: `docs/haruquant/usage/dev/exception_mapping.md`, `docs/haruquant/usage/ops/crash_handling.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

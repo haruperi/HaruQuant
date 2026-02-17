@@ -63,6 +63,7 @@ void set_stderr_logging(bool enabled) noexcept;
 [[nodiscard]] bool stderr_logging_enabled() noexcept;
 
 void set_log_sink(LogSink sink);
+void flush_logs() noexcept;
 
 void log(LogLevel level, const std::string& message,
          const std::source_location& location = std::source_location::current(),

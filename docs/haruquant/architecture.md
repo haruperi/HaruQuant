@@ -385,10 +385,15 @@
   - `hqt_engine.raise_exception_for_category(category, detail="")`
 - Python adapter behavior:
   - `apps/simulation/backend.py::_translate_cpp_exception(...)` preserves typed `hqt_engine.*Error` exceptions and uses retcode taxonomy fallback when needed.
+- Crash handling:
+  - `apps/utils/crash_handler.py` installs process-level handlers (`faulthandler`, uncaught exception hook, signal hooks).
+  - Crash path flushes Python and C++ loggers, then appends snapshot payload to `artifacts/logs/crash/crash_state.json`.
 - Evidence:
   - `tests/contracts/test_exception_mapping.py`
   - `tests/unit/apps/utils/test_errors.py`
+  - `tests/unit/apps/utils/test_crash_handler.py`
   - `docs/haruquant/usage/dev/exception_mapping.md`
+  - `docs/haruquant/usage/ops/crash_handling.md`
 
 ## Secrets and Privileged Config Controls (IP-05)
 

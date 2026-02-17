@@ -305,6 +305,17 @@ void set_log_sink(LogSink sink) {
     g_sink = std::move(sink);
 }
 
+void flush_logs() noexcept {
+    try {
+        ensure_async_logger_initialized();
+        if (g_async_logger) {
+            g_async_logger->flush();
+        }
+    } catch (...) {
+        // Flush must never throw into callers.
+    }
+}
+
 void log(const LogLevel level, const std::string& message,
          const std::source_location& location, LogExtra extra) {
     redact_extra(extra);

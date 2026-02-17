@@ -220,6 +220,17 @@ class StructlogAdapter:
                     except Exception:
                         pass
 
+    def flush(self) -> None:
+        with self._core.lock:
+            entries = list(self._core.sinks.values())
+
+        for entry in entries:
+            try:
+                if hasattr(entry.sink, "flush"):
+                    entry.sink.flush()
+            except Exception:
+                pass
+
     def bind(self, **kwargs: Any) -> "StructlogAdapter":
         merged = {**self._bound_extra, **kwargs}
         return StructlogAdapter(name=self._name, core=self._core, bound_extra=merged)

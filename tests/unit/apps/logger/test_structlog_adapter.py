@@ -77,3 +77,25 @@ def test_structlog_adapter_runtime_filter_by_component():
 
     assert [r.message for r in received] == ["risk error pass", "other info pass"]
 
+
+def test_structlog_adapter_flush_calls_sink_flush():
+    logger = StructlogAdapter(name="test.flush")
+
+    class _Sink:
+        def __init__(self) -> None:
+            self.flushed = 0
+
+        def write(self, _: str) -> None:
+            return None
+
+        def flush(self) -> None:
+            self.flushed += 1
+
+    sink = _Sink()
+    sink_id = logger.add(sink)
+    logger.info("hello")
+    logger.flush()
+    logger.remove(sink_id)
+
+    assert sink.flushed >= 1
+

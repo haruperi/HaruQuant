@@ -546,6 +546,8 @@ NB_MODULE(hqt_engine, m) {
           "Clear all component-specific C++ logger level overrides.");
     m.def("set_stderr_logging", &hqt::util::set_stderr_logging,
           "Enable/disable direct C++ stderr logging.");
+    m.def("flush_logs", &hqt::util::flush_logs,
+          "Force flush C++ async logger sinks.");
     m.def("set_log_callback", [](nb::object callback) {
         if (callback.is_none()) {
             {
