@@ -147,3 +147,19 @@
 - Self-documenting schema metadata:
   - Exposed by `get_schema_spec()` with `description`, `safeguards`, and `units`.
 
+## Secrets and Privileged Config Controls (IP-05)
+
+- Secret provider integration:
+  - Live config supports `keyring://<service>/<account>` references.
+  - Resolution is performed at config-load time via `apps/live/secrets.py`.
+  - Missing/invalid keyring entries fail fast with `ConfigError`.
+- Privileged runtime mutation:
+  - `apps/live/config.py::Config.apply_privileged_mutation(...)` is the single privileged mutation path.
+  - In `live` profile, mutation requires valid session token + superuser role.
+  - Mutable keys are allowlisted to non-critical runtime parameters.
+- Security audit logging:
+  - Each privileged mutation writes a JSON-line event to `artifacts/logs/security/secret_access_audit.json`.
+  - Audit payload is redacted with `apps/utils/redaction.py` before persistence.
+- C++ pooling primitive:
+  - `cpp/include/util/connection_pool.hpp` and `cpp/src/engine/connection_pool.cpp` provide configurable pool/overflow/timeout controls for DB-adjacent concurrency paths.
+

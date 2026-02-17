@@ -226,12 +226,12 @@
   * Bench/log: `artifacts/logs/config_validation.log`
   * Commit: `TBD`
 
-#### [ ] IP-05 Secrets and privileged live config controls
+#### [X] IP-05 Secrets and privileged live config controls
 
 * **Sub-tasks**
-  * [ ] Integrate OS-level secret storage (Windows Credential Locker / Keyring). (FR-CONF-009)
-  * [ ] Implement privileged config mutation path with authorization and audit logging. (FR-CONF-006)
-  * [ ] Implement configurable DB connection pooling in C++ core. (FR-CONF-010)
+  * [X] Integrate OS-level secret storage (Windows Credential Locker / Keyring). (FR-CONF-009)
+  * [X] Implement privileged config mutation path with authorization and audit logging. (FR-CONF-006)
+  * [X] Implement configurable DB connection pooling in C++ core. (FR-CONF-010)
 * **Deliverables**
   * Secret provider integration
   * Privileged config mutation path with audit

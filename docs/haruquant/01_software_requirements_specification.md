@@ -189,7 +189,7 @@ The platform shall implement a three-layer sandwich architecture:
 
 ## 4.5 Module 5 — Event/Time & Calendar Engine
 
-* **FR-TIME-001**: The system shall maintain a canonical event timestamp model supporting event-time and processing-time.
+* **proceed**: The system shall maintain a canonical event timestamp model supporting event-time and processing-time.
 * **FR-TIME-002**: The system shall enforce deterministic event ordering policies per symbol and across merged streams.
 * **FR-TIME-003**: The system shall normalize timezone handling with explicit DST policies.
 * **FR-TIME-004**: The system shall support exchange/broker holiday calendars and trading session rules.
@@ -409,14 +409,14 @@ The platform shall implement a three-layer sandwich architecture:
 
 #### 4.17.1 Data Volume Estimates
 
-| Data Type | Estimate |
-|-----------|----------|
-| 1 year of M1 bars, 1 symbol | ~525,600 records (~25 MB in Parquet) |
+| Data Type                                | Estimate                              |
+| ---------------------------------------- | ------------------------------------- |
+| 1 year of M1 bars, 1 symbol              | ~525,600 records (~25 MB in Parquet)  |
 | 1 year of tick data, 1 symbol (major FX) | ~50-100M records (~2-5 GB in Parquet) |
-| 50 symbols, 10 years, M1 bars | ~263M records (~12 GB) |
-| 50 symbols, 10 years, tick data | ~25-50 billion records (~1-2.5 TB) |
-| 10,000 optimization runs (metadata) | ~50 MB in database |
-| Single backtest trade log (1000 trades) | ~500 KB in database |
+| 50 symbols, 10 years, M1 bars            | ~263M records (~12 GB)                |
+| 50 symbols, 10 years, tick data          | ~25-50 billion records (~1-2.5 TB)    |
+| 10,000 optimization runs (metadata)      | ~50 MB in database                    |
+| Single backtest trade log (1000 trades)  | ~500 KB in database                   |
 
 ## 4.18 Module 18 — API Gateway (REST/WebSocket)
 
@@ -693,28 +693,28 @@ The platform shall implement a three-layer sandwich architecture:
 
 ### 9.2 Minimum Acceptance Criteria
 
-| Module | Acceptance Criteria |
-|--------|-------------------|
-| C++ Core Engine | Processes 1M+ ticks/sec; all order types execute correctly; matching engine handles gap scenarios |
-| Nanobind Bridge | Zero-copy verified; < 1μs call latency; no memory leaks under 1M+ call stress test |
-| Event-Driven Backtester | Produces identical results to a reference implementation for 5 known strategies on known data |
-| Vectorized Backtester | Results match event-driven engine within acceptable tolerance for equivalent configurations |
-| Risk Management | All risk limits enforced; position sizing matches manual calculations; governor blocks correctly |
-| Live Trading | Successfully executes round-trip trade (open + close) on demo account; reconnection works after simulated disconnect |
-| Paper Trading | Results are statistically consistent with backtesting results on the same data period |
-| Performance Metrics | All metrics match manual/spreadsheet calculations for a reference trade log |
-| Data Validation | Correctly identifies all planted data quality issues in a test dataset |
-| Notifications | Telegram and Email delivery confirmed within 5 seconds of trigger |
+| Module                  | Acceptance Criteria                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| C++ Core Engine         | Processes 1M+ ticks/sec; all order types execute correctly; matching engine handles gap scenarios                    |
+| Nanobind Bridge         | Zero-copy verified; < 1μs call latency; no memory leaks under 1M+ call stress test                                  |
+| Event-Driven Backtester | Produces identical results to a reference implementation for 5 known strategies on known data                        |
+| Vectorized Backtester   | Results match event-driven engine within acceptable tolerance for equivalent configurations                          |
+| Risk Management         | All risk limits enforced; position sizing matches manual calculations; governor blocks correctly                     |
+| Live Trading            | Successfully executes round-trip trade (open + close) on demo account; reconnection works after simulated disconnect |
+| Paper Trading           | Results are statistically consistent with backtesting results on the same data period                                |
+| Performance Metrics     | All metrics match manual/spreadsheet calculations for a reference trade log                                          |
+| Data Validation         | Correctly identifies all planted data quality issues in a test dataset                                               |
+| Notifications           | Telegram and Email delivery confirmed within 5 seconds of trigger                                                    |
 
 ### 9.3 System-Level Acceptance
 
-| Criterion | Test |
-|-----------|------|
-| End-to-end backtest | Run a moving average crossover strategy on EURUSD 2020-2024 M1 data and produce a complete report |
-| End-to-end optimization | Grid search over 1000 parameter combinations on 8 cores, all complete successfully |
-| End-to-end live trading | Strategy runs on demo account for 24 hours without crash, executing at least one trade |
-| Deterministic replay | Re-run a stored backtest and verify bit-identical results |
-| Crash recovery | Kill the process during a backtest, restart, and verify state recovery |
+| Criterion               | Test                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| End-to-end backtest     | Run a moving average crossover strategy on EURUSD 2020-2024 M1 data and produce a complete report |
+| End-to-end optimization | Grid search over 1000 parameter combinations on 8 cores, all complete successfully                |
+| End-to-end live trading | Strategy runs on demo account for 24 hours without crash, executing at least one trade            |
+| Deterministic replay    | Re-run a stored backtest and verify bit-identical results                                         |
+| Crash recovery          | Kill the process during a backtest, restart, and verify state recovery                            |
 
 ---
 
@@ -793,18 +793,18 @@ A traceability matrix shall be maintained as:
 
 ## 15. Appendix C — Glossary of Financial Terms
 
-| Term | Definition |
-|------|-----------|
-| **Pip** | Smallest price increment for a currency pair (typically 0.0001 for majors) |
-| **Lot** | Standard unit of trade (100,000 units of base currency in FX) |
-| **Spread** | Difference between ask and bid price |
-| **Swap** | Overnight financing charge/credit for holding a position past rollover |
-| **Margin** | Collateral required to open a leveraged position |
-| **Drawdown** | Peak-to-trough decline in account equity |
-| **Sharpe Ratio** | Risk-adjusted return: (return − risk-free rate) / standard deviation |
-| **Walk-Forward** | Optimization technique that validates on unseen data to test robustness |
-| **Stop-Out** | Broker-forced liquidation when margin level drops below threshold |
-| **Slippage** | Difference between expected and actual execution price |
+| Term                   | Definition                                                                 |
+| ---------------------- | -------------------------------------------------------------------------- |
+| **Pip**          | Smallest price increment for a currency pair (typically 0.0001 for majors) |
+| **Lot**          | Standard unit of trade (100,000 units of base currency in FX)              |
+| **Spread**       | Difference between ask and bid price                                       |
+| **Swap**         | Overnight financing charge/credit for holding a position past rollover     |
+| **Margin**       | Collateral required to open a leveraged position                           |
+| **Drawdown**     | Peak-to-trough decline in account equity                                   |
+| **Sharpe Ratio** | Risk-adjusted return: (return − risk-free rate) / standard deviation      |
+| **Walk-Forward** | Optimization technique that validates on unseen data to test robustness    |
+| **Stop-Out**     | Broker-forced liquidation when margin level drops below threshold          |
+| **Slippage**     | Difference between expected and actual execution price                     |
 
 ## 16. Appendix D — Visual Traceability Diagrams
 

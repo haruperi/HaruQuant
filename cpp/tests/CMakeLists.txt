@@ -31,6 +31,7 @@ add_executable(hqt_tests
     test_costs_engine.cpp
     test_zmq_wal.cpp
     test_logger.cpp
+    test_connection_pool.cpp
     test_schema_validator.cpp
 )
 

@@ -9,6 +9,7 @@ Supports:
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 import os
 import re
@@ -21,6 +22,9 @@ try:
 except ImportError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-redef]
 
+from apps.live.secrets import SecretProviderError, resolve_secret_reference
+from apps.utils.redaction import redact_mapping
+
 
 class ConfigError(Exception):
     """Configuration error."""
@@ -29,6 +33,7 @@ class ConfigError(Exception):
 SUPPORTED_SCHEMA_VERSIONS = {"1.0.0"}
 DEFAULT_SCHEMA_VERSION = "1.0.0"
 SUPPORTED_PROFILES = {"dev", "backtest", "paper", "live"}
+DEFAULT_AUDIT_LOG_PATH = Path("artifacts/logs/security/secret_access_audit.json")
 
 # Self-documenting schema metadata (FR-CONF-008)
 CONFIG_SCHEMA_SPEC: Dict[str, Dict[str, str]] = {
@@ -294,6 +299,26 @@ def _apply_runtime_overrides(
     return out
 
 
+def _resolve_secret_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _resolve_secret_values(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_resolve_secret_values(v) for v in value]
+    if isinstance(value, str):
+        return resolve_secret_reference(value)
+    return value
+
+
+def _resolve_secrets_in_mapping(data: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        resolved = _resolve_secret_values(data)
+        if not isinstance(resolved, dict):
+            raise ConfigError("Failed to resolve secrets: invalid mapping structure")
+        return resolved
+    except SecretProviderError as exc:
+        raise ConfigError(f"Secret resolution error: {exc}") from exc
+
+
 def _validate_schema_version(data: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(data)
     version = out.get("schema_version", DEFAULT_SCHEMA_VERSION)
@@ -360,7 +385,8 @@ def load_config_mapping(
         with_profile = _apply_profile(loaded, profile_name)
         with_env = _apply_env_overlay(with_profile)
         with_runtime = _apply_runtime_overrides(with_env, runtime_overrides)
-        return with_runtime
+        with_secrets = _resolve_secrets_in_mapping(with_runtime)
+        return with_secrets
     except ConfigError:
         raise
     except Exception as exc:
@@ -501,6 +527,7 @@ class Config:
         "trading.volume",
         "trading.deviation",
     )
+    _PRIVILEGED_MUTABLE_KEYS = frozenset(_NON_CRITICAL_RUNTIME_KEYS)
 
     def __init__(
         self,
@@ -543,6 +570,59 @@ class Config:
         else:
             self._runtime_overrides.pop(str(key).strip(), None)
         self.reload()
+
+    def apply_privileged_mutation(
+        self,
+        key: str,
+        value: Any,
+        *,
+        authorization_token: str,
+        reason: str,
+        actor: Optional[str] = None,
+        audit_log_path: str | Path = DEFAULT_AUDIT_LOG_PATH,
+    ) -> None:
+        """
+        Apply a runtime config mutation under privileged controls.
+
+        Live profile requires explicit authorization and emits audit logs.
+        """
+        key_text = str(key).strip()
+        if key_text not in self._PRIVILEGED_MUTABLE_KEYS:
+            raise ConfigError(
+                f"Key not allowed for privileged mutation: {key_text}. "
+                f"Allowed: {', '.join(sorted(self._PRIVILEGED_MUTABLE_KEYS))}"
+            )
+        reason_text = str(reason).strip()
+        if not reason_text:
+            raise ConfigError("Privileged mutation requires non-empty reason")
+
+        token = str(authorization_token).strip()
+        if not token:
+            raise ConfigError("authorization_token is required for privileged mutation")
+
+        user_id = None
+        username = actor
+        if self.active_profile == "live":
+            user_id, username = _authorize_privileged_actor(token, actor)
+
+        before_value = self.get(key_text)
+        self.set_runtime_override(key_text, value)
+        after_value = self.get(key_text)
+
+        _append_privileged_audit_event(
+            audit_log_path=Path(audit_log_path),
+            event={
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "event": "live_config_mutation",
+                "profile": self.active_profile or "",
+                "key": key_text,
+                "reason": reason_text,
+                "user_id": user_id,
+                "actor": username or "",
+                "before": before_value,
+                "after": after_value,
+            },
+        )
 
     def reload_non_critical(self) -> List[str]:
         """
@@ -694,3 +774,39 @@ class Config:
             f"timeframe={self.trading_timeframe}, "
             f"volume={self.trading_volume})"
         )
+
+
+def _authorize_privileged_actor(
+    authorization_token: str, actor: Optional[str] = None
+) -> tuple[int, str]:
+    try:
+        from apps.api.auth_utils import verify_token
+        from apps.sqlite.database_operations import DatabaseManager
+    except Exception as exc:  # pragma: no cover - import environment specific
+        raise ConfigError(f"Authorization subsystem unavailable: {exc}") from exc
+
+    token = str(authorization_token).strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+
+    db = DatabaseManager()
+    user_id = verify_token(token, db)
+    if not user_id:
+        raise ConfigError("Unauthorized privileged mutation: invalid or expired token")
+
+    user = db.get_user(user_id=int(user_id))
+    if not user:
+        raise ConfigError("Unauthorized privileged mutation: actor not found")
+    if not bool(user.get("is_superuser", False)):
+        raise ConfigError("Unauthorized privileged mutation: superuser role required")
+
+    username = actor or str(user.get("username", ""))
+    return int(user_id), username
+
+
+def _append_privileged_audit_event(audit_log_path: Path, event: Dict[str, Any]) -> None:
+    audit_log_path.parent.mkdir(parents=True, exist_ok=True)
+    safe_event = redact_mapping(dict(event))
+    line = json.dumps(safe_event, ensure_ascii=True)
+    with audit_log_path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
