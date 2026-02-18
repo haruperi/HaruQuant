@@ -210,7 +210,23 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("trigger", &ReconciliationReport::trigger)
         .def_rw("position_mismatch_count", &ReconciliationReport::position_mismatch_count)
         .def_rw("account_mismatch_count", &ReconciliationReport::account_mismatch_count)
-        .def_rw("issues", &ReconciliationReport::issues);
+        .def_rw("issues", &ReconciliationReport::issues)
+        .def_rw("severity", &ReconciliationReport::severity)
+        .def_rw("requires_manual_resolution", &ReconciliationReport::requires_manual_resolution)
+        .def_rw("block_new_orders", &ReconciliationReport::block_new_orders);
+
+    nb::class_<BrokerSnapshot>(m, "BrokerSnapshot")
+        .def(nb::init<>())
+        .def_rw("account", &BrokerSnapshot::account)
+        .def_rw("positions", &BrokerSnapshot::positions);
+
+    nb::class_<EscalationDecision>(m, "EscalationDecision")
+        .def(nb::init<>())
+        .def_rw("allow_new_orders", &EscalationDecision::allow_new_orders)
+        .def_rw("requires_manual_resolution", &EscalationDecision::requires_manual_resolution)
+        .def_rw("escalate_alert", &EscalationDecision::escalate_alert)
+        .def_rw("policy", &EscalationDecision::policy)
+        .def_rw("reason", &EscalationDecision::reason);
 
     nb::class_<TickModelBar>(m, "TickModelBar")
         .def(nb::init<>())
@@ -296,6 +312,10 @@ void register_sim_bindings(nb::module_& m) {
         .value("Netting", PositionMode::Netting)
         .value("Hedging", PositionMode::Hedging);
 
+    nb::enum_<ReconcilePolicy>(m, "ReconcilePolicy")
+        .value("Auto", ReconcilePolicy::Auto)
+        .value("Manual", ReconcilePolicy::Manual);
+
     nb::enum_<OmsOrderState>(m, "OmsOrderState")
         .value("Unknown", OmsOrderState::Unknown)
         .value("New", OmsOrderState::New)
@@ -362,6 +382,26 @@ void register_sim_bindings(nb::module_& m) {
         .def("upsert_history_order", &SimulatorClient::upsert_history_order)
         .def("upsert_deal", &SimulatorClient::upsert_deal)
         .def("set_last_error", &SimulatorClient::set_last_error);
+
+    nb::class_<MockBroker>(m, "MockBroker")
+        .def(nb::init<>())
+        .def(nb::init<SimulatorClient>())
+        .def("connect", &MockBroker::connect)
+        .def("submit", &MockBroker::submit, nb::arg("request"))
+        .def("cancel", &MockBroker::cancel, nb::arg("order_id"))
+        .def("fetch_state", &MockBroker::fetch_state)
+        .def("set_partial_fill_ratio", &MockBroker::set_partial_fill_ratio, nb::arg("ratio"))
+        .def("set_deterministic_price", &MockBroker::set_deterministic_price, nb::arg("price"))
+        .def("clear_deterministic_price", &MockBroker::clear_deterministic_price);
+
+    nb::class_<PaperTradingEngine>(m, "PaperTradingEngine")
+        .def("__init__", [](PaperTradingEngine* self, MockBroker broker) {
+            new (self) PaperTradingEngine(std::make_shared<MockBroker>(std::move(broker)));
+        }, nb::arg("broker"))
+        .def("connect", &PaperTradingEngine::connect)
+        .def("submit_order", &PaperTradingEngine::submit_order, nb::arg("request"))
+        .def("cancel_order", &PaperTradingEngine::cancel_order, nb::arg("order_id"))
+        .def("snapshot_state", &PaperTradingEngine::snapshot_state);
 
     // ── BacktestEngine ───────────────────────────────────────────────
 
@@ -452,7 +492,17 @@ void register_sim_bindings(nb::module_& m) {
         .def("reconnect_reconcile",
              &PositionBook::reconnect_reconcile,
              nb::arg("broker_positions"),
-             nb::arg("broker_account"));
+             nb::arg("broker_account"))
+        .def("evaluate_reconciliation",
+             &PositionBook::evaluate_reconciliation,
+             nb::arg("report"),
+             nb::arg("policy") = ReconcilePolicy::Auto,
+             nb::arg("major_threshold") = 2)
+        .def("write_incident_report",
+             &PositionBook::write_incident_report,
+             nb::arg("path"),
+             nb::arg("report"),
+             nb::arg("decision"));
 
     // ── TickModel ────────────────────────────────────────────────────
 

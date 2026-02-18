@@ -7,6 +7,7 @@
 #include "util/error.hpp"
 #include "util/logger.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <sstream>
@@ -826,6 +827,124 @@ std::vector<TradeRecordData> SimulatorClient::collect_records(
     }
 
     return out;
+}
+
+MockBroker::MockBroker(SimulatorClient client)
+    : client_(std::move(client)) {}
+
+void MockBroker::set_partial_fill_ratio(double ratio) {
+    partial_fill_ratio_ = std::clamp(ratio, 0.0, 1.0);
+}
+
+void MockBroker::set_deterministic_price(double price) {
+    if (price > 0.0) {
+        deterministic_price_ = price;
+    }
+}
+
+void MockBroker::clear_deterministic_price() {
+    deterministic_price_.reset();
+}
+
+bool MockBroker::connect() {
+    connected_ = true;
+    return true;
+}
+
+TradeResult MockBroker::submit(const TradeRequest& request) {
+    if (!connected_) {
+        TradeResult out;
+        out.retcode = 10031;
+        out.comment = "MockBroker not connected";
+        return out;
+    }
+
+    TradeRequest effective = scaled_request(request, partial_fill_ratio_);
+    if (deterministic_price_.has_value()) {
+        effective.price = *deterministic_price_;
+    }
+    return client_.order_send(effective);
+}
+
+TradeResult MockBroker::cancel(uint64_t order_id) {
+    if (!connected_) {
+        TradeResult out;
+        out.retcode = 10031;
+        out.comment = "MockBroker not connected";
+        return out;
+    }
+    TradeRequest req;
+    req.action = 8;
+    req.order = order_id;
+    return client_.order_send(req);
+}
+
+BrokerSnapshot MockBroker::fetch_state() const {
+    BrokerSnapshot snapshot;
+    snapshot.account = client_.account_info();
+    snapshot.positions = aggregate_positions();
+    return snapshot;
+}
+
+TradeRequest MockBroker::scaled_request(const TradeRequest& request, double ratio) {
+    TradeRequest out = request;
+    if (out.volume > 0.0) {
+        out.volume = std::max(0.0, out.volume * std::clamp(ratio, 0.0, 1.0));
+    }
+    return out;
+}
+
+std::unordered_map<std::string, PositionAggregate> MockBroker::aggregate_positions() const {
+    std::unordered_map<std::string, PositionAggregate> out;
+    for (const auto& pos : client_.positions_get()) {
+        auto& agg = out[pos.symbol];
+        const bool is_buy = (pos.type == 0U);
+        if (is_buy) {
+            agg.long_volume += pos.volume;
+            agg.net_volume += pos.volume;
+        } else {
+            agg.short_volume += pos.volume;
+            agg.net_volume -= pos.volume;
+        }
+    }
+    return out;
+}
+
+PaperTradingEngine::PaperTradingEngine(std::shared_ptr<BrokerAdapter> adapter)
+    : adapter_(std::move(adapter)) {}
+
+bool PaperTradingEngine::connect() {
+    if (!adapter_) {
+        return false;
+    }
+    return adapter_->connect();
+}
+
+TradeResult PaperTradingEngine::submit_order(const TradeRequest& request) {
+    if (!adapter_) {
+        TradeResult out;
+        out.retcode = 10031;
+        out.comment = "PaperTradingEngine adapter missing";
+        return out;
+    }
+    return adapter_->submit(request);
+}
+
+TradeResult PaperTradingEngine::cancel_order(uint64_t order_id) {
+    if (!adapter_) {
+        TradeResult out;
+        out.retcode = 10031;
+        out.comment = "PaperTradingEngine adapter missing";
+        return out;
+    }
+    return adapter_->cancel(order_id);
+}
+
+BrokerSnapshot PaperTradingEngine::snapshot_state() const {
+    if (!adapter_) {
+        return {};
+    }
+    return adapter_->fetch_state();
 }
 
 }  // namespace hqt::sim

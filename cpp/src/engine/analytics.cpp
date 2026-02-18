@@ -7,8 +7,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <numeric>
+#include <sstream>
 #include <unordered_set>
 
 namespace hqt::sim {
@@ -267,7 +270,21 @@ ReconciliationReport PositionBook::reconcile_with_broker(
         report.issues.push_back("account.margin mismatch");
     }
 
-    report.ok = (report.position_mismatch_count == 0 && report.account_mismatch_count == 0);
+    const std::size_t total_mismatches = report.position_mismatch_count + report.account_mismatch_count;
+    report.ok = (total_mismatches == 0);
+    if (total_mismatches == 0) {
+        report.severity = "none";
+        report.requires_manual_resolution = false;
+        report.block_new_orders = false;
+    } else if (total_mismatches <= 2) {
+        report.severity = "minor";
+        report.requires_manual_resolution = false;
+        report.block_new_orders = false;
+    } else {
+        report.severity = "major";
+        report.requires_manual_resolution = true;
+        report.block_new_orders = true;
+    }
     return report;
 }
 
@@ -281,6 +298,109 @@ ReconciliationReport PositionBook::reconnect_reconcile(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
     const AccountInfoData& broker_account) const {
     return reconcile_with_broker(broker_positions, broker_account, "reconnect");
+}
+
+EscalationDecision PositionBook::evaluate_reconciliation(
+    const ReconciliationReport& report,
+    ReconcilePolicy policy,
+    std::size_t major_threshold) const {
+    EscalationDecision decision;
+    decision.policy = (policy == ReconcilePolicy::Manual) ? "manual" : "auto";
+
+    const std::size_t total_mismatches = report.position_mismatch_count + report.account_mismatch_count;
+    const bool major = total_mismatches >= major_threshold;
+
+    if (policy == ReconcilePolicy::Manual) {
+        decision.allow_new_orders = report.ok;
+        decision.requires_manual_resolution = !report.ok;
+        decision.escalate_alert = !report.ok;
+        decision.reason = report.ok ? "manual_policy_clean" : "manual_policy_requires_operator";
+        return decision;
+    }
+
+    if (report.ok) {
+        decision.allow_new_orders = true;
+        decision.requires_manual_resolution = false;
+        decision.escalate_alert = false;
+        decision.reason = "auto_policy_clean";
+        return decision;
+    }
+
+    if (major) {
+        decision.allow_new_orders = false;
+        decision.requires_manual_resolution = true;
+        decision.escalate_alert = true;
+        decision.reason = "auto_policy_major_mismatch_blocked";
+    } else {
+        decision.allow_new_orders = true;
+        decision.requires_manual_resolution = false;
+        decision.escalate_alert = true;
+        decision.reason = "auto_policy_minor_mismatch_alerted";
+    }
+    return decision;
+}
+
+bool PositionBook::write_incident_report(
+    const std::string& path,
+    const ReconciliationReport& report,
+    const EscalationDecision& decision) const {
+    if (path.empty()) {
+        return false;
+    }
+
+    std::filesystem::path p(path);
+    std::error_code ec;
+    if (p.has_parent_path()) {
+        std::filesystem::create_directories(p.parent_path(), ec);
+        if (ec) {
+            return false;
+        }
+    }
+
+    std::ofstream out(path, std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
+
+    auto esc = [](const std::string& s) {
+        std::string r;
+        r.reserve(s.size());
+        for (char c : s) {
+            if (c == '"' || c == '\\') {
+                r.push_back('\\');
+            }
+            r.push_back(c);
+        }
+        return r;
+    };
+
+    out << "{\n";
+    out << "  \"trigger\": \"" << esc(report.trigger) << "\",\n";
+    out << "  \"ok\": " << (report.ok ? "true" : "false") << ",\n";
+    out << "  \"severity\": \"" << esc(report.severity) << "\",\n";
+    out << "  \"position_mismatch_count\": " << report.position_mismatch_count << ",\n";
+    out << "  \"account_mismatch_count\": " << report.account_mismatch_count << ",\n";
+    out << "  \"requires_manual_resolution\": " << (report.requires_manual_resolution ? "true" : "false") << ",\n";
+    out << "  \"block_new_orders\": " << (report.block_new_orders ? "true" : "false") << ",\n";
+    out << "  \"decision\": {\n";
+    out << "    \"allow_new_orders\": " << (decision.allow_new_orders ? "true" : "false") << ",\n";
+    out << "    \"requires_manual_resolution\": " << (decision.requires_manual_resolution ? "true" : "false") << ",\n";
+    out << "    \"escalate_alert\": " << (decision.escalate_alert ? "true" : "false") << ",\n";
+    out << "    \"policy\": \"" << esc(decision.policy) << "\",\n";
+    out << "    \"reason\": \"" << esc(decision.reason) << "\"\n";
+    out << "  },\n";
+    out << "  \"issues\": [\n";
+    for (std::size_t i = 0; i < report.issues.size(); ++i) {
+        out << "    \"" << esc(report.issues[i]) << "\"";
+        if (i + 1 < report.issues.size()) {
+            out << ",";
+        }
+        out << "\n";
+    }
+    out << "  ]\n";
+    out << "}\n";
+    out.close();
+    return out.good();
 }
 
 bool PositionBook::almost_equal(double lhs, double rhs, double eps) noexcept {

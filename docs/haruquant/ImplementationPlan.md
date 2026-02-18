@@ -727,37 +727,37 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-33 Reconciliation mismatch handling and escalation
+#### [X] IP-33 Reconciliation mismatch handling and escalation
 
 * **Sub-tasks**
-  * [ ] Implement mismatch detection and incident report generation. (FR-OMS-006)
-  * [ ] Implement split reconciliation policies (Auto vs Manual). (FR-LIVE-011)
-  * [ ] Enforce blocking policy on major discrepancies. (FR-SAFE-005)
+  * [X] Implement mismatch detection and incident report generation. (FR-OMS-006)
+  * [X] Implement split reconciliation policies (Auto vs Manual). (FR-LIVE-011)
+  * [X] Enforce blocking policy on major discrepancies. (FR-SAFE-005)
 * **Deliverables**
   * mismatch detection, incident report, blocking policy
 * **SRS refs:** FR-OMS-006, FR-LIVE-005..006, FR-LIVE-011, FR-SAFE-005
 * **SDD refs:** Â§10.3, Â§12, Â§14
 * **Dependencies:** IP-32, IP-46
 * **Completion evidence**
-  * Tests: `py/tests/e2e/test_reconcile_mismatch_blocking.py`
-  * Usage: `usage/live/reconcile_escalation.md`
+  * Tests: `cpp/tests/test_reconcile_escalation.cpp`, `tests/e2e/test_reconcile_mismatch_blocking.py`
+  * Usage: `docs/haruquant/usage/live/reconcile_escalation.md`
   * Bench/log: `artifacts/logs/live/reconcile_discrepancy_report.json`
   * Commit: `TBD`
 
-#### [ ] IP-34 Broker adapter abstraction + mock broker
+#### [X] IP-34 Broker adapter abstraction + mock broker
 
 * **Sub-tasks**
-  * [ ] Define standardized `BrokerAdapter` interface (connect, submit, fetch). (FR-INT-001)
-  * [ ] Implement `MockBroker` with deterministic fill behavior for backtesting. (FR-BT-004)
-  * [ ] Implement `Paper Trading Engine` for execution simulation using live data. (FR-EXEC-008)
+  * [X] Define standardized `BrokerAdapter` interface (connect, submit, fetch). (FR-INT-001)
+  * [X] Implement `MockBroker` with deterministic fill behavior for backtesting. (FR-BT-004)
+  * [X] Implement `Paper Trading Engine` for execution simulation using live data. (FR-EXEC-008)
 * **Deliverables**
   * unified broker interface + deterministic mock broker
 * **SRS refs:** FR-INT-001..003, FR-EXEC-001, FR-EXEC-008, FR-BT-004
 * **SDD refs:** Â§5.1.6, Â§7
 * **Dependencies:** IP-12
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_broker_adapter_interface.cpp`, `py/tests/integration/test_mock_broker.py`
-  * Usage: `usage/live/broker_adapter.md`
+  * Tests: `cpp/tests/test_broker_adapter_interface.cpp`, `tests/integration/test_mock_broker.py`
+  * Usage: `docs/haruquant/usage/live/broker_adapter.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

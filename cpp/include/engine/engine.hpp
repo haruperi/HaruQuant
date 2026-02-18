@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -380,6 +381,22 @@ struct ReconciliationReport {
     std::size_t position_mismatch_count{0};
     std::size_t account_mismatch_count{0};
     std::vector<std::string> issues{};
+    std::string severity{"none"};
+    bool requires_manual_resolution{false};
+    bool block_new_orders{false};
+};
+
+enum class ReconcilePolicy {
+    Auto = 0,
+    Manual = 1,
+};
+
+struct EscalationDecision {
+    bool allow_new_orders{true};
+    bool requires_manual_resolution{false};
+    bool escalate_alert{false};
+    std::string policy{"auto"};
+    std::string reason{"ok"};
 };
 
 class PositionBook {
@@ -407,6 +424,14 @@ public:
     [[nodiscard]] ReconciliationReport reconnect_reconcile(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
         const AccountInfoData& broker_account) const;
+    [[nodiscard]] EscalationDecision evaluate_reconciliation(
+        const ReconciliationReport& report,
+        ReconcilePolicy policy = ReconcilePolicy::Auto,
+        std::size_t major_threshold = 2) const;
+    bool write_incident_report(
+        const std::string& path,
+        const ReconciliationReport& report,
+        const EscalationDecision& decision) const;
 
 private:
     [[nodiscard]] static bool almost_equal(double lhs, double rhs, double eps = 1e-9) noexcept;
@@ -433,6 +458,56 @@ public:
     [[nodiscard]] AccountInfoData monitor_account(
         const AccountInfoData& base,
         const PositionTotals& totals) const;
+};
+
+struct BrokerSnapshot {
+    AccountInfoData account{};
+    std::unordered_map<std::string, PositionAggregate> positions{};
+};
+
+class BrokerAdapter {
+public:
+    virtual ~BrokerAdapter() = default;
+    virtual bool connect() = 0;
+    [[nodiscard]] virtual TradeResult submit(const TradeRequest& request) = 0;
+    [[nodiscard]] virtual TradeResult cancel(uint64_t order_id) = 0;
+    [[nodiscard]] virtual BrokerSnapshot fetch_state() const = 0;
+};
+
+class MockBroker final : public BrokerAdapter {
+public:
+    explicit MockBroker(SimulatorClient client = SimulatorClient{});
+
+    void set_partial_fill_ratio(double ratio);
+    void set_deterministic_price(double price);
+    void clear_deterministic_price();
+
+    bool connect() override;
+    [[nodiscard]] TradeResult submit(const TradeRequest& request) override;
+    [[nodiscard]] TradeResult cancel(uint64_t order_id) override;
+    [[nodiscard]] BrokerSnapshot fetch_state() const override;
+
+private:
+    static TradeRequest scaled_request(const TradeRequest& request, double ratio);
+    [[nodiscard]] std::unordered_map<std::string, PositionAggregate> aggregate_positions() const;
+
+    SimulatorClient client_{};
+    bool connected_{false};
+    double partial_fill_ratio_{1.0};
+    std::optional<double> deterministic_price_{};
+};
+
+class PaperTradingEngine {
+public:
+    explicit PaperTradingEngine(std::shared_ptr<BrokerAdapter> adapter);
+
+    bool connect();
+    [[nodiscard]] TradeResult submit_order(const TradeRequest& request);
+    [[nodiscard]] TradeResult cancel_order(uint64_t order_id);
+    [[nodiscard]] BrokerSnapshot snapshot_state() const;
+
+private:
+    std::shared_ptr<BrokerAdapter> adapter_;
 };
 
 struct TradeRecord {

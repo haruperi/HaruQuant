@@ -674,3 +674,61 @@
   - `tests/integration/test_reconcile_hooks.py`
   - `docs/haruquant/usage/live/position_book_and_reconcile.md`
 
+## Reconciliation Escalation Workflow (IP-33)
+
+- Adds policy-aware escalation over IP-32 reconciliation reports.
+- Core additions:
+  - `ReconcilePolicy` (`Auto`, `Manual`)
+  - `EscalationDecision`
+  - extended `ReconciliationReport` with severity + blocking fields
+- Behavior:
+  - `Auto` policy:
+    - clean: continue
+    - minor mismatch: alert
+    - major mismatch: block new orders + require manual resolution
+  - `Manual` policy:
+    - any mismatch requires manual resolution and blocks new orders
+- Incident artifacts:
+  - `PositionBook::write_incident_report(...)` writes JSON discrepancy reports
+  - default operational evidence path:
+    - `artifacts/logs/live/reconcile_discrepancy_report.json`
+- Bridge exposure (`hqt_engine.sim`):
+  - `ReconcilePolicy`
+  - `EscalationDecision`
+  - `PositionBook.evaluate_reconciliation(...)`
+  - `PositionBook.write_incident_report(...)`
+- Evidence:
+  - `cpp/tests/test_reconcile_escalation.cpp`
+  - `tests/e2e/test_reconcile_mismatch_blocking.py`
+  - `docs/haruquant/usage/live/reconcile_escalation.md`
+
+## Broker Adapter Abstraction + Mock Broker (IP-34)
+
+- Core C++ types:
+  - `cpp/include/engine/engine.hpp::BrokerAdapter`
+  - `cpp/include/engine/engine.hpp::MockBroker`
+  - `cpp/include/engine/engine.hpp::PaperTradingEngine`
+  - `cpp/include/engine/engine.hpp::BrokerSnapshot`
+- Implementation:
+  - `cpp/src/engine/trading.cpp`
+- Responsibilities:
+  - `BrokerAdapter` defines a standardized broker contract:
+    - `connect()`
+    - `submit(...)`
+    - `cancel(...)`
+    - `fetch_state()`
+  - `MockBroker` wraps `SimulatorClient` to provide deterministic execution behavior.
+  - `PaperTradingEngine` routes execution flow through an injected broker adapter.
+- Determinism controls:
+  - `MockBroker.set_partial_fill_ratio(...)`
+  - `MockBroker.set_deterministic_price(...)`
+  - `MockBroker.clear_deterministic_price()`
+- Bridge exposure (`hqt_engine.sim`):
+  - `MockBroker`
+  - `BrokerSnapshot`
+  - `PaperTradingEngine`
+- Evidence:
+  - `cpp/tests/test_broker_adapter_interface.cpp`
+  - `tests/integration/test_mock_broker.py`
+  - `docs/haruquant/usage/live/broker_adapter.md`
+
