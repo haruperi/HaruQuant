@@ -65,6 +65,23 @@ class StrategyEvent(TypedDict):
     correlation_id: str
 
 
+class SignalIntent(TypedDict, total=False):
+    """Canonical signal intent contract for strategy -> execution routing."""
+
+    action: Literal["BUY", "SELL", "EXIT", "REDUCE", "HOLD"]
+    qty: float
+    order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"]
+    price: Optional[float]
+    time_in_force: Literal["GTC", "IOC", "FOK", "DAY"]
+    strategy_id: str
+    symbol: str
+    reason: str
+    confidence: float
+    features: Dict[str, Any]
+    tags: Dict[str, str]
+    metadata: Dict[str, Any]
+
+
 class BaseStrategy(ABC):
     """
     Abstract base class for all trading strategies.

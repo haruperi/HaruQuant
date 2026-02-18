@@ -13,11 +13,17 @@ Core Principles:
 Key Components:
 - BaseStrategy: Abstract base class for all strategies
 - StrategyEvent: Canonical event contract
+- SignalIntent: Canonical signal intent contract
+- StrategyAdapter: Signal/event normalization adapter
+- SignalRouter: Intent forwarding/validation helper
+- Repro helpers: run manifest/version binding and stability metadata
 - StrategyStorage: File storage for strategies
 Strategies work across all engines (vectorized, event-driven, live) without modification.
 """
 
-from .base import BaseStrategy, StrategyEvent
+from .base import BaseStrategy, SignalIntent, StrategyEvent
+from .adapter import StrategyAdapter, SignalRouter
+from .repro import attach_stability_metadata, build_run_manifest, compute_config_hash, validate_manifest_payload
 from .storage import StrategyStorage, storage
 
 __version__ = "2.0.0"
@@ -25,7 +31,14 @@ __version__ = "2.0.0"
 __all__ = [
     # Core classes
     "BaseStrategy",
+    "SignalIntent",
     "StrategyEvent",
+    "StrategyAdapter",
+    "SignalRouter",
+    "compute_config_hash",
+    "build_run_manifest",
+    "attach_stability_metadata",
+    "validate_manifest_payload",
     "StrategyStorage",
     "storage",
 ]

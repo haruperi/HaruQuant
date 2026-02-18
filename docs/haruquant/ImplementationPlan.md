@@ -556,12 +556,12 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-23 Strategy adapter and signal router
+#### [x] IP-23 Strategy adapter and signal router
 
 * **Sub-tasks**
-  * [ ] Implement `StrategyAdapter` to bridge Python logic with C++ engine. (FR-STRAT-004)
-  * [ ] Define canonical `SignalIntent` (Action, Qty, OrderType, Price, TIF). (FR-OMS-001, SDD Â§7.2)
-  * [ ] Implement signal explainability metadata emission for audit trail. (FR-STRAT-006)
+  * [x] Implement `StrategyAdapter` to bridge Python logic with C++ engine. (FR-STRAT-004)
+  * [x] Define canonical `SignalIntent` (Action, Qty, OrderType, Price, TIF). (FR-OMS-001, SDD Â§7.2)
+  * [x] Implement signal explainability metadata emission for audit trail. (FR-STRAT-006)
 * **Deliverables**
   * adapter between Python strategies and C++ engines
   * canonical `SignalIntent`
@@ -569,24 +569,24 @@
 * **SDD refs:** Â§5.3.2, Â§7
 * **Dependencies:** IP-22, IP-21
 * **Completion evidence**
-  * Tests: `py/tests/integration/test_strategy_adapter_flow.py`
-  * Usage: `usage/strategy/signal_intent_contract.md`
+  * Tests: `tests/integration/test_strategy_adapter_flow.py`
+  * Usage: `docs/haruquant/usage/strategy/signal_intent_contract.md`
   * Bench/log: `benchmarks/strategy/adapter_latency.md`
   * Commit: `TBD`
 
-#### [ ] IP-24 Strategy artifact versioning + reproducibility metadata
+#### [x] IP-24 Strategy artifact versioning + reproducibility metadata
 
 * **Sub-tasks**
-  * [ ] Bind strategy version and model artifacts to run manifests. (FR-STRAT-005, FR-CONF-005)
-  * [ ] Implement stability scoring and sensitivity analysis metadata. (FR-RSCH-004)
+  * [x] Bind strategy version and model artifacts to run manifests. (FR-STRAT-005, FR-CONF-005)
+  * [x] Implement stability scoring and sensitivity analysis metadata. (FR-RSCH-004)
 * **Deliverables**
   * strategy/model versions embedded in run outputs
 * **SRS refs:** FR-STRAT-005, FR-CONF-005, FR-RSCH-004, NFR-REP-001..004
 * **SDD refs:** Â§5.3.2, Â§8, Â§10.4
 * **Dependencies:** IP-17, IP-23
 * **Completion evidence**
-  * Tests: `py/tests/unit/test_strategy_version_binding.py`
-  * Usage: `usage/research/reproducible_strategy_runs.md`
+  * Tests: `tests/unit/apps/strategy/test_strategy_version_binding.py`
+  * Usage: `docs/haruquant/usage/research/reproducible_strategy_runs.md`, `tests/usage/strategy/02_reproducible_manifest.py`
   * Bench/log: `artifacts/logs/repro/sample_manifest.json`
   * Commit: `TBD`
 

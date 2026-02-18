@@ -432,6 +432,41 @@
   - `tests/contracts/test_strategy_event_contract.py`
   - `docs/haruquant/usage/strategy/create_strategy.md`
 
+## Strategy Adapter and Signal Router (IP-23)
+
+- Canonical contracts:
+  - `apps/strategy/base.py::SignalIntent`
+  - includes explainability metadata fields (`reason`, `features`, `confidence`, `tags`, `metadata`)
+- Adapter:
+  - `apps/strategy/adapter.py::StrategyAdapter`
+  - normalizes strategy output from `get_signal(...)` into canonical `SignalIntent`
+  - emits `StrategyEvent` payload for downstream audit/routing contexts
+- Router:
+  - `apps/strategy/adapter.py::SignalRouter`
+  - validates canonical intent fields and forwards to provided handler
+- Evidence:
+  - `tests/integration/test_strategy_adapter_flow.py`
+  - `docs/haruquant/usage/strategy/signal_intent_contract.md`
+  - `benchmarks/strategy/adapter_latency.md`
+
+## Strategy Reproducibility Metadata (IP-24)
+
+- Binder helpers:
+  - `apps/strategy/repro.py`
+  - `compute_config_hash(config)` for deterministic config fingerprinting
+  - `build_run_manifest(...)` for strategy version + artifact binding
+  - `attach_stability_metadata(...)` for stability/sensitivity payloads
+  - `validate_manifest_payload(...)` via `storage.run_manifest:1.0` schema
+- Canonical reproducibility fields:
+  - `strategy_version`, `config_hash`, `code_version`, `seed`
+  - artifact bindings: `strategy_artifacts`, `model_artifacts`
+  - stability section: `stability_score`, `sensitivity`, `notes`
+- Evidence:
+  - `tests/unit/apps/strategy/test_strategy_version_binding.py`
+  - `docs/haruquant/usage/research/reproducible_strategy_runs.md`
+  - `tests/usage/strategy/02_reproducible_manifest.py`
+  - `artifacts/logs/repro/sample_manifest.json`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
