@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ bridge not availa
 
 def _client_with_symbol() -> "sim.TradeSimulator":
     client = sim.TradeSimulator()
-    symbol = sim.SymbolInfoData()
+    symbol = sim.SymbolInfo()
     symbol.symbol = "EURUSD"
     symbol.point = 0.00001
     symbol.spread = 10
@@ -75,5 +75,6 @@ def test_paper_engine_routes_to_mock_broker():
 
     canceled = engine.cancel_order(placed.order)
     assert canceled.retcode == 10009
+
 
 

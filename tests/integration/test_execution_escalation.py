@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ bridge not availa
 
 def _client_with_symbol() -> "sim.TradeSimulator":
     client = sim.TradeSimulator()
-    symbol = sim.SymbolInfoData()
+    symbol = sim.SymbolInfo()
     symbol.symbol = "EURUSD"
     symbol.point = 0.00001
     symbol.spread = 10
@@ -78,5 +78,6 @@ def test_execution_router_rate_limit_triggers():
     assert second.rate_limited is True
     assert second.policy_code == "RATE_LIMIT"
     assert second.result.retcode == 10024
+
 
 

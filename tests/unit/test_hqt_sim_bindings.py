@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ engine not built"
 # ── DTO defaults ──────────────────────────────────────────────────────
 
 
-class TestDTODefaults:
+class TestBridgeDefaults:
     def test_simulator_state_defaults(self):
         s = sim.SimulatorState()
         assert s.running is False
@@ -33,9 +33,9 @@ class TestDTODefaults:
         assert s.current_bar_index == 0
         assert s.processed_events == 0
 
-    def test_account_info_data_defaults(self):
-        a = sim.AccountInfoData()
-        assert a.login == 12345678
+    def test_account_info_defaults(self):
+        a = sim.AccountInfo()
+        assert a.login == 0
         assert a.leverage == 100
         assert a.balance == 10000.0
         assert a.trade_allowed is True
@@ -47,12 +47,12 @@ class TestDTODefaults:
         assert t.bid == 0.0
         assert t.ask == 0.0
 
-    def test_symbol_info_data_defaults(self):
-        si = sim.SymbolInfoData()
-        assert si.symbol == "EURUSD"
-        assert si.digits == 5
-        assert si.point == pytest.approx(0.00001)
-        assert si.trade_contract_size == 100000.0
+    def test_symbol_info_defaults(self):
+        si = sim.SymbolInfo()
+        assert si.symbol == ""
+        assert si.digits == 0
+        assert si.point == pytest.approx(0.0)
+        assert si.trade_contract_size == pytest.approx(0.0)
 
     def test_trade_record_data_defaults(self):
         r = sim.TradeRecordData()
@@ -115,7 +115,7 @@ class TestDTODefaults:
 # ── DTO mutation ──────────────────────────────────────────────────────
 
 
-class TestDTOMutation:
+class TestBridgeMutation:
     def test_simulator_state_mutation(self):
         s = sim.SimulatorState()
         s.running = True
@@ -123,11 +123,11 @@ class TestDTOMutation:
         assert s.running is True
         assert s.processed_events == 42
 
-    def test_account_info_data_mutation(self):
-        a = sim.AccountInfoData()
-        a.balance = 50000.0
+    def test_account_info_mutation(self):
+        a = sim.AccountInfo(50000.0, "USD", 100)
         a.leverage = 200
-        assert a.balance == 50000.0
+        a.login = 42
+        assert a.login == 42
         assert a.leverage == 200
 
     def test_backtest_bar_step_mutation(self):
@@ -143,20 +143,7 @@ class TestDTOMutation:
 # ── to_dict ───────────────────────────────────────────────────────────
 
 
-class TestToDict:
-    def test_account_info_to_dict(self):
-        a = sim.AccountInfoData()
-        d = a.to_dict()
-        assert isinstance(d, dict)
-        assert "balance" in d
-        assert isinstance(d["balance"], str)
-
-    def test_symbol_info_to_dict(self):
-        si = sim.SymbolInfoData()
-        d = si.to_dict()
-        assert isinstance(d, dict)
-        assert "symbol" in d
-
+class TestBridgeBasics:
     def test_symbol_tick_to_dict(self):
         t = sim.SymbolTickData()
         d = t.to_dict()
@@ -180,14 +167,23 @@ class TestTradeSimulator:
         assert acct.balance == 10000.0
 
     def test_custom_account(self):
-        acct = sim.AccountInfoData()
-        acct.balance = 50000.0
+        acct = sim.AccountInfo(50000.0, "USD", 100)
         client = sim.TradeSimulator(acct)
         assert client.account_info().balance == 50000.0
 
+    def test_custom_account_mt5_style(self):
+        acct = sim.AccountInfo(25000.0, "USD", 200)
+        acct.login = 777
+        acct.name = "Bridge User"
+        client = sim.TradeSimulator(acct)
+        snapshot = client.account_info()
+        assert snapshot.balance == 25000.0
+        assert snapshot.leverage == 200
+        assert snapshot.login == 777
+
     def test_symbol_info_roundtrip(self):
         client = sim.TradeSimulator()
-        si = sim.SymbolInfoData()
+        si = sim.SymbolInfo()
         si.symbol = "GBPUSD"
         si.digits = 5
         client.set_symbol_info(si)
@@ -195,6 +191,20 @@ class TestTradeSimulator:
         assert result is not None
         assert result.symbol == "GBPUSD"
         assert result.digits == 5
+
+    def test_symbol_info_roundtrip_mt5_style(self):
+        client = sim.TradeSimulator()
+        si = sim.SymbolInfo()
+        si.symbol = "USDJPY"
+        si.digits = 3
+        si.point = 0.001
+        si.bid = 150.123
+        si.ask = 150.133
+        client.set_symbol_info(si)
+        result = client.symbol_info("USDJPY")
+        assert result is not None
+        assert result.symbol == "USDJPY"
+        assert result.digits == 3
 
     def test_symbol_info_unknown_returns_none(self):
         client = sim.TradeSimulator()
@@ -217,7 +227,7 @@ class TestTradeSimulator:
 class TestCalcFunctions:
     def test_order_calc_margin(self):
         client = sim.TradeSimulator()
-        si = sim.SymbolInfoData()
+        si = sim.SymbolInfo()
         si.symbol = "EURUSD"
         client.set_symbol_info(si)
         margin = client.order_calc_margin(0, "EURUSD", 1.0, 1.10000)
@@ -225,7 +235,7 @@ class TestCalcFunctions:
 
     def test_order_calc_profit(self):
         client = sim.TradeSimulator()
-        si = sim.SymbolInfoData()
+        si = sim.SymbolInfo()
         si.symbol = "EURUSD"
         client.set_symbol_info(si)
         profit = client.order_calc_profit(0, "EURUSD", 1.0, 1.10000, 1.10100)
@@ -250,7 +260,7 @@ class TestCalcFunctions:
 def _make_client_with_symbol(symbol="EURUSD"):
     """Helper: create client with registered symbol + initial tick."""
     client = sim.TradeSimulator()
-    si = sim.SymbolInfoData()
+    si = sim.SymbolInfo()
     si.symbol = symbol
     client.set_symbol_info(si)
     tick = sim.SymbolTickData()
@@ -378,7 +388,7 @@ class TestPortfolioEngine:
         client = sim.TradeSimulator()
 
         for sym in ["EURUSD", "GBPUSD"]:
-            si = sim.SymbolInfoData()
+            si = sim.SymbolInfo()
             si.symbol = sym
             client.set_symbol_info(si)
             tick = sim.SymbolTickData()
@@ -436,5 +446,6 @@ class TestAutoCloseReason:
 
     def test_enum_identity(self):
         assert sim.AutoCloseReason.StopLoss != sim.AutoCloseReason.TakeProfit
+
 
 

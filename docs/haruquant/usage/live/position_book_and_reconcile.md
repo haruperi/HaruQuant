@@ -40,9 +40,7 @@ fill.volume = 1.0
 fill.price = 1.1000
 book.apply_fill(fill)
 
-account = sim.AccountInfoData()
-account.balance = 10000.0
-account.equity = 10000.0
+account = sim.AccountInfo(10000.0, "USD", 100)
 book.apply_account_snapshot(account)
 
 report = book.periodic_reconcile(book.snapshot_positions(), book.snapshot_account())
@@ -53,4 +51,5 @@ print(report.ok, report.trigger, report.issues)
 
 - C++ tests: `cpp/tests/test_position_book.cpp`
 - Python integration: `tests/integration/test_reconcile_hooks.py`
+
 

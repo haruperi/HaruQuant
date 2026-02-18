@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ bridge not availa
 
 def _make_client() -> "sim.TradeSimulator":
     client = sim.TradeSimulator()
-    symbol = sim.SymbolInfoData()
+    symbol = sim.SymbolInfo()
     symbol.symbol = "EURUSD"
     symbol.point = 0.00001
     symbol.spread = 10
@@ -61,5 +61,6 @@ def test_event_runner_lifecycle_path():
     assert bar_calls == [0, 1, 2]
     assert tick_calls == [1000, 2000, 3000]
     assert trade_events == ["open", "close"]
+
 
 

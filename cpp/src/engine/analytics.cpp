@@ -21,22 +21,21 @@
 
 namespace hqt::sim {
 
+namespace {
+
+int64_t to_fixed(double value) {
+    return static_cast<int64_t>(std::llround(value * 1'000'000.0));
+}
+
+}  // namespace
+
 PortfolioState::PortfolioState(double initial_balance, std::string currency) {
     reset(initial_balance, currency);
 }
 
 void PortfolioState::reset(double initial_balance, const std::string& currency) {
     std::lock_guard<std::mutex> lock(mutex_);
-    account_ = AccountInfoData{};
-    account_.currency = currency;
-    account_.balance = initial_balance;
-    account_.credit = 0.0;
-    account_.profit = 0.0;
-    account_.equity = initial_balance;
-    account_.margin = 0.0;
-    account_.margin_free = initial_balance;
-    account_.margin_level = 0.0;
-    account_.commission_blocked = 0.0;
+    account_ = hqt::AccountInfo(initial_balance, currency, 100);
     total_realized_pnl_ = 0.0;
     strategy_symbol_positions_.clear();
     symbol_positions_.clear();
@@ -44,8 +43,8 @@ void PortfolioState::reset(double initial_balance, const std::string& currency) 
 
 void PortfolioState::set_capital(double balance, double credit) {
     std::lock_guard<std::mutex> lock(mutex_);
-    account_.balance = balance;
-    account_.credit = credit;
+    (void)credit;
+    account_ = hqt::AccountInfo(balance, account_.Currency(), account_.Leverage());
     recompute_unlocked();
 }
 
@@ -101,12 +100,12 @@ void PortfolioState::apply_realized_pnl(
     std::lock_guard<std::mutex> lock(mutex_);
     const double net_realized = realized_pnl - commission + swap;
     total_realized_pnl_ += net_realized;
-    account_.balance += net_realized;
+    account_.AddBalance(to_fixed(net_realized));
     strategy_symbol_positions_[strategy_id][symbol].realized_pnl += net_realized;
     recompute_unlocked();
 }
 
-AccountInfoData PortfolioState::account_snapshot() const {
+hqt::AccountInfo PortfolioState::account_snapshot() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return account_;
 }
@@ -118,7 +117,7 @@ double PortfolioState::total_realized_pnl() const {
 
 double PortfolioState::total_unrealized_pnl() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return account_.profit;
+    return account_.Profit();
 }
 
 std::unordered_map<std::string, PositionAggregate> PortfolioState::positions_by_symbol() const {
@@ -159,11 +158,8 @@ void PortfolioState::recompute_unlocked() {
         total_unrealized += aggregate.unrealized_pnl;
     }
 
-    account_.profit = total_unrealized;
-    account_.margin = total_margin;
-    account_.equity = account_.balance + account_.credit + total_unrealized;
-    account_.margin_free = account_.equity - total_margin;
-    account_.margin_level = (total_margin > 0.0) ? ((account_.equity / total_margin) * 100.0) : 0.0;
+    account_.SetMargin(to_fixed(total_margin));
+    account_.UpdateEquity(to_fixed(total_unrealized));
 }
 
 PositionBook::PositionBook(PositionMode mode)
@@ -183,7 +179,7 @@ void PositionBook::reset() {
     net_positions_.clear();
     hedged_legs_.clear();
     next_leg_id_ = 1;
-    account_ = AccountInfoData{};
+    account_ = hqt::AccountInfo();
 }
 
 void PositionBook::apply_fill(const FillEvent& fill) {
@@ -196,11 +192,11 @@ void PositionBook::apply_fill(const FillEvent& fill) {
     } else {
         apply_fill_hedging_unlocked(fill);
     }
-    account_.balance -= fill.commission;
-    account_.balance += fill.swap;
+    account_.AddBalance(-to_fixed(fill.commission));
+    account_.AddBalance(to_fixed(fill.swap));
 }
 
-void PositionBook::apply_account_snapshot(const AccountInfoData& account) {
+void PositionBook::apply_account_snapshot(const hqt::AccountInfo& account) {
     std::lock_guard<std::mutex> lock(mutex_);
     account_ = account;
 }
@@ -210,7 +206,7 @@ std::unordered_map<std::string, PositionAggregate> PositionBook::snapshot_positi
     return snapshot_positions_unlocked();
 }
 
-AccountInfoData PositionBook::snapshot_account() const {
+hqt::AccountInfo PositionBook::snapshot_account() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return account_;
 }
@@ -226,7 +222,7 @@ std::vector<PositionLeg> PositionBook::legs_for_symbol(const std::string& symbol
 
 ReconciliationReport PositionBook::reconcile_with_broker(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-    const AccountInfoData& broker_account,
+    const hqt::AccountInfo& broker_account,
     const std::string& trigger) const {
     std::lock_guard<std::mutex> lock(mutex_);
     ReconciliationReport report;
@@ -262,15 +258,15 @@ ReconciliationReport PositionBook::reconcile_with_broker(
         }
     }
 
-    if (!almost_equal(account_.balance, broker_account.balance)) {
+    if (!almost_equal(account_.Balance(), broker_account.Balance())) {
         ++report.account_mismatch_count;
         report.issues.push_back("account.balance mismatch");
     }
-    if (!almost_equal(account_.equity, broker_account.equity)) {
+    if (!almost_equal(account_.Equity(), broker_account.Equity())) {
         ++report.account_mismatch_count;
         report.issues.push_back("account.equity mismatch");
     }
-    if (!almost_equal(account_.margin, broker_account.margin)) {
+    if (!almost_equal(account_.Margin(), broker_account.Margin())) {
         ++report.account_mismatch_count;
         report.issues.push_back("account.margin mismatch");
     }
@@ -295,13 +291,13 @@ ReconciliationReport PositionBook::reconcile_with_broker(
 
 ReconciliationReport PositionBook::periodic_reconcile(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-    const AccountInfoData& broker_account) const {
+    const hqt::AccountInfo& broker_account) const {
     return reconcile_with_broker(broker_positions, broker_account, "periodic");
 }
 
 ReconciliationReport PositionBook::reconnect_reconcile(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-    const AccountInfoData& broker_account) const {
+    const hqt::AccountInfo& broker_account) const {
     return reconcile_with_broker(broker_positions, broker_account, "reconnect");
 }
 
@@ -915,14 +911,14 @@ const std::unordered_map<std::string, double>& PortfolioEngine::effective_alloca
     return effective_allocations_;
 }
 
-double PortfolioEngine::normalize_volume(double requested, const SymbolInfoData& symbol_info) {
+double PortfolioEngine::normalize_volume(double requested, const hqt::SymbolInfo& symbol_info) {
     if (requested <= 0.0) {
         return 0.0;
     }
 
-    const double vol_min = symbol_info.volume_min > 0.0 ? symbol_info.volume_min : 0.01;
-    const double vol_step = symbol_info.volume_step > 0.0 ? symbol_info.volume_step : 0.01;
-    const double vol_max = symbol_info.volume_max > 0.0 ? symbol_info.volume_max : requested;
+    const double vol_min = symbol_info.LotsMin() > 0.0 ? symbol_info.LotsMin() : 0.01;
+    const double vol_step = symbol_info.LotsStep() > 0.0 ? symbol_info.LotsStep() : 0.01;
+    const double vol_max = symbol_info.LotsMax() > 0.0 ? symbol_info.LotsMax() : requested;
 
     double vol = requested;
     const double steps = std::round((vol - vol_min) / vol_step);
@@ -938,9 +934,9 @@ void PortfolioEngine::process_bar(const std::string& symbol, const BacktestBarSt
         return;
     }
 
-    const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(symbol_info->spread);
+    const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(symbol_info->Spread());
     const double bid = bar.close;
-    const double ask = bar.close + (spread_points * symbol_info->point);
+    const double ask = bar.close + (spread_points * symbol_info->Point());
 
     SymbolTickData tick;
     tick.time = bar.time_msc / 1000;
@@ -1011,9 +1007,9 @@ void VectorizedBacktestEngine::run(
         ++processed_bars_;
 
         const double spread_points =
-            (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(symbol_info->spread);
+            (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(symbol_info->Spread());
         const double bid = bar.close;
-        const double ask = bar.close + (spread_points * symbol_info->point);
+        const double ask = bar.close + (spread_points * symbol_info->Point());
 
         SymbolTickData tick;
         tick.time = bar.time_msc / 1000;
@@ -1054,7 +1050,7 @@ void VectorizedBacktestEngine::run(
     }
 }
 
-const AccountInfoData& VectorizedBacktestEngine::account_snapshot() const noexcept {
+const hqt::AccountInfo& VectorizedBacktestEngine::account_snapshot() const noexcept {
     return account_snapshot_;
 }
 
@@ -1066,13 +1062,13 @@ std::size_t VectorizedBacktestEngine::total_trades() const noexcept {
     return total_trades_;
 }
 
-double VectorizedBacktestEngine::normalize_volume(double requested, const SymbolInfoData& symbol_info) {
+double VectorizedBacktestEngine::normalize_volume(double requested, const hqt::SymbolInfo& symbol_info) {
     if (requested <= 0.0) {
         return 0.0;
     }
-    const double vol_min = symbol_info.volume_min > 0.0 ? symbol_info.volume_min : 0.01;
-    const double vol_step = symbol_info.volume_step > 0.0 ? symbol_info.volume_step : 0.01;
-    const double vol_max = symbol_info.volume_max > 0.0 ? symbol_info.volume_max : requested;
+    const double vol_min = symbol_info.LotsMin() > 0.0 ? symbol_info.LotsMin() : 0.01;
+    const double vol_step = symbol_info.LotsStep() > 0.0 ? symbol_info.LotsStep() : 0.01;
+    const double vol_max = symbol_info.LotsMax() > 0.0 ? symbol_info.LotsMax() : requested;
 
     double vol = requested;
     const double steps = std::round((vol - vol_min) / vol_step);

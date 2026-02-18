@@ -14,7 +14,7 @@ def main() -> None:
 
     client = sim.TradeSimulator()
 
-    symbol = sim.SymbolInfoData()
+    symbol = sim.SymbolInfo()
     symbol.symbol = "EURUSD"
     symbol.point = 0.00001
     symbol.spread = 10
@@ -62,5 +62,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 

@@ -30,6 +30,14 @@ decltype(auto) call_without_gil(Func&& func, Args&&... args) {
     return std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
 }
 
+hqt::AccountInfo to_mt5_account(const hqt::AccountInfo& src) {
+    return src;
+}
+
+hqt::SymbolInfo to_mt5_symbol(const hqt::SymbolInfo& src) {
+    return src;
+}
+
 }  // namespace
 
 void register_sim_bindings(nb::module_& m) {
@@ -44,26 +52,45 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("processed_events", &SimulatorState::processed_events)
         .def("reset", &SimulatorState::reset);
 
-    nb::class_<AccountInfoData>(m, "AccountInfoData")
-        .def(nb::init<>())
-        .def_rw("login", &AccountInfoData::login)
-        .def_rw("leverage", &AccountInfoData::leverage)
-        .def_rw("margin_mode", &AccountInfoData::margin_mode)
-        .def_rw("trade_allowed", &AccountInfoData::trade_allowed)
-        .def_rw("trade_expert", &AccountInfoData::trade_expert)
-        .def_rw("balance", &AccountInfoData::balance)
-        .def_rw("credit", &AccountInfoData::credit)
-        .def_rw("profit", &AccountInfoData::profit)
-        .def_rw("equity", &AccountInfoData::equity)
-        .def_rw("margin", &AccountInfoData::margin)
-        .def_rw("margin_free", &AccountInfoData::margin_free)
-        .def_rw("margin_level", &AccountInfoData::margin_level)
-        .def_rw("commission_blocked", &AccountInfoData::commission_blocked)
-        .def_rw("name", &AccountInfoData::name)
-        .def_rw("server", &AccountInfoData::server)
-        .def_rw("currency", &AccountInfoData::currency)
-        .def_rw("company", &AccountInfoData::company)
-        .def("to_dict", &AccountInfoData::to_dict);
+    nb::class_<hqt::AccountInfo>(m, "AccountInfo")
+        .def(nb::init<double, const std::string&, int>(),
+             nb::arg("initial_balance") = 10000.0,
+             nb::arg("currency") = "USD",
+             nb::arg("leverage") = 100)
+        .def_prop_rw("login",
+            [](const hqt::AccountInfo& self) { return self.Login(); },
+            [](hqt::AccountInfo& self, int value) { self.SetLogin(value); })
+        .def_prop_rw("name",
+            [](const hqt::AccountInfo& self) { return self.Name(); },
+            [](hqt::AccountInfo& self, const std::string& value) { self.SetName(value); })
+        .def_prop_rw("server",
+            [](const hqt::AccountInfo& self) { return self.Server(); },
+            [](hqt::AccountInfo& self, const std::string& value) { self.SetServer(value); })
+        .def_prop_rw("company",
+            [](const hqt::AccountInfo& self) { return self.Company(); },
+            [](hqt::AccountInfo& self, const std::string& value) { self.SetCompany(value); })
+        .def_prop_rw("leverage",
+            [](const hqt::AccountInfo& self) { return self.Leverage(); },
+            [](hqt::AccountInfo& self, int value) { self.SetLeverage(value); })
+        .def_prop_ro("currency", &hqt::AccountInfo::Currency)
+        .def_prop_ro("balance", &hqt::AccountInfo::Balance)
+        .def_prop_ro("credit", &hqt::AccountInfo::Credit)
+        .def_prop_ro("profit", &hqt::AccountInfo::Profit)
+        .def_prop_ro("equity", &hqt::AccountInfo::Equity)
+        .def_prop_ro("margin", &hqt::AccountInfo::Margin)
+        .def_prop_ro("margin_free", &hqt::AccountInfo::FreeMargin)
+        .def_prop_ro("margin_level", &hqt::AccountInfo::MarginLevel)
+        .def_prop_rw("margin_mode",
+            [](const hqt::AccountInfo& self) { return static_cast<int>(self.MarginMode()); },
+            [](hqt::AccountInfo& self, int value) {
+                self.SetMarginMode(static_cast<hqt::ENUM_ACCOUNT_MARGIN_MODE>(value));
+            })
+        .def_prop_rw("trade_allowed",
+            [](const hqt::AccountInfo& self) { return self.TradeAllowed(); },
+            [](hqt::AccountInfo& self, bool value) { self.SetTradeAllowed(value); })
+        .def_prop_rw("trade_expert",
+            [](const hqt::AccountInfo& self) { return self.TradeExpert(); },
+            [](hqt::AccountInfo& self, bool value) { self.SetTradeExpert(value); });
 
     nb::class_<SymbolTickData>(m, "SymbolTickData")
         .def(nb::init<>())
@@ -77,38 +104,105 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("volume_real", &SymbolTickData::volume_real)
         .def("to_dict", &SymbolTickData::to_dict);
 
-    nb::class_<SymbolInfoData>(m, "SymbolInfoData")
+    nb::class_<hqt::SymbolInfo>(m, "SymbolInfo")
         .def(nb::init<>())
-        .def_rw("symbol", &SymbolInfoData::symbol)
-        .def_rw("digits", &SymbolInfoData::digits)
-        .def_rw("spread", &SymbolInfoData::spread)
-        .def_rw("spread_float", &SymbolInfoData::spread_float)
-        .def_rw("point", &SymbolInfoData::point)
-        .def_rw("trade_calc_mode", &SymbolInfoData::trade_calc_mode)
-        .def_rw("trade_mode", &SymbolInfoData::trade_mode)
-        .def_rw("trade_stops_level", &SymbolInfoData::trade_stops_level)
-        .def_rw("trade_freeze_level", &SymbolInfoData::trade_freeze_level)
-        .def_rw("trade_exemode", &SymbolInfoData::trade_exemode)
-        .def_rw("volume_min", &SymbolInfoData::volume_min)
-        .def_rw("volume_max", &SymbolInfoData::volume_max)
-        .def_rw("volume_step", &SymbolInfoData::volume_step)
-        .def_rw("volume_limit", &SymbolInfoData::volume_limit)
-        .def_rw("trade_tick_value", &SymbolInfoData::trade_tick_value)
-        .def_rw("trade_tick_value_profit", &SymbolInfoData::trade_tick_value_profit)
-        .def_rw("trade_tick_value_loss", &SymbolInfoData::trade_tick_value_loss)
-        .def_rw("trade_tick_size", &SymbolInfoData::trade_tick_size)
-        .def_rw("trade_contract_size", &SymbolInfoData::trade_contract_size)
-        .def_rw("margin_initial", &SymbolInfoData::margin_initial)
-        .def_rw("swap_mode", &SymbolInfoData::swap_mode)
-        .def_rw("swap_long", &SymbolInfoData::swap_long)
-        .def_rw("swap_short", &SymbolInfoData::swap_short)
-        .def_rw("swap_rollover3days", &SymbolInfoData::swap_rollover3days)
-        .def_rw("bid", &SymbolInfoData::bid)
-        .def_rw("ask", &SymbolInfoData::ask)
-        .def_rw("last", &SymbolInfoData::last)
-        .def_rw("select", &SymbolInfoData::select)
-        .def_rw("visible", &SymbolInfoData::visible)
-        .def("to_dict", &SymbolInfoData::to_dict);
+        .def_prop_rw("symbol",
+            [](const hqt::SymbolInfo& self) { return self.Name(); },
+            [](hqt::SymbolInfo& self, const std::string& value) { self.Name(value); })
+        .def_prop_rw("digits",
+            [](const hqt::SymbolInfo& self) { return self.Digits(); },
+            [](hqt::SymbolInfo& self, int value) { self.SetDigits(value); })
+        .def_prop_rw("spread",
+            [](const hqt::SymbolInfo& self) { return self.Spread(); },
+            [](hqt::SymbolInfo& self, int value) { self.SetSpread(value); })
+        .def_prop_rw("spread_float",
+            [](const hqt::SymbolInfo& self) { return self.SpreadFloat(); },
+            [](hqt::SymbolInfo& self, bool value) { self.SetSpreadFloat(value); })
+        .def_prop_rw("point",
+            [](const hqt::SymbolInfo& self) { return self.Point(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetPoint(value); })
+        .def_prop_rw("trade_calc_mode",
+            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeCalcMode()); },
+            [](hqt::SymbolInfo& self, int value) {
+                self.SetTradeCalcMode(static_cast<hqt::ENUM_SYMBOL_CALC_MODE>(value));
+            })
+        .def_prop_rw("trade_mode",
+            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeMode()); },
+            [](hqt::SymbolInfo& self, int value) {
+                self.SetTradeMode(static_cast<hqt::ENUM_SYMBOL_TRADE_MODE>(value));
+            })
+        .def_prop_rw("trade_stops_level",
+            [](const hqt::SymbolInfo& self) { return self.StopsLevel(); },
+            [](hqt::SymbolInfo& self, int value) { self.SetStopsLevel(value); })
+        .def_prop_rw("trade_freeze_level",
+            [](const hqt::SymbolInfo& self) { return self.FreezeLevel(); },
+            [](hqt::SymbolInfo& self, int value) { self.SetFreezeLevel(value); })
+        .def_prop_rw("trade_exemode",
+            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeExecution()); },
+            [](hqt::SymbolInfo& self, int value) {
+                self.SetTradeExecution(static_cast<hqt::ENUM_SYMBOL_TRADE_EXECUTION>(value));
+            })
+        .def_prop_rw("volume_min",
+            [](const hqt::SymbolInfo& self) { return self.LotsMin(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetVolumeMin(value); })
+        .def_prop_rw("volume_max",
+            [](const hqt::SymbolInfo& self) { return self.LotsMax(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetVolumeMax(value); })
+        .def_prop_rw("volume_step",
+            [](const hqt::SymbolInfo& self) { return self.LotsStep(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetVolumeStep(value); })
+        .def_prop_rw("volume_limit",
+            [](const hqt::SymbolInfo& self) { return self.LotsLimit(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetVolumeLimit(value); })
+        .def_prop_rw("trade_tick_value",
+            [](const hqt::SymbolInfo& self) { return self.TickValue(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetTickValue(value); })
+        .def_prop_rw("trade_tick_value_profit",
+            [](const hqt::SymbolInfo& self) { return self.TickValueProfit(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetTickValueProfit(value); })
+        .def_prop_rw("trade_tick_value_loss",
+            [](const hqt::SymbolInfo& self) { return self.TickValueLoss(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetTickValueLoss(value); })
+        .def_prop_rw("trade_tick_size",
+            [](const hqt::SymbolInfo& self) { return self.TickSize(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetTickSize(value); })
+        .def_prop_rw("trade_contract_size",
+            [](const hqt::SymbolInfo& self) { return self.ContractSize(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetContractSize(value); })
+        .def_prop_rw("margin_initial",
+            [](const hqt::SymbolInfo& self) { return self.MarginInitial(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetMarginInitial(value); })
+        .def_prop_rw("swap_mode",
+            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapMode()); },
+            [](hqt::SymbolInfo& self, int value) {
+                self.SetSwapMode(static_cast<hqt::ENUM_SYMBOL_SWAP_MODE>(value));
+            })
+        .def_prop_rw("swap_long",
+            [](const hqt::SymbolInfo& self) { return self.SwapLong(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetSwapLong(value); })
+        .def_prop_rw("swap_short",
+            [](const hqt::SymbolInfo& self) { return self.SwapShort(); },
+            [](hqt::SymbolInfo& self, double value) { self.SetSwapShort(value); })
+        .def_prop_rw("swap_rollover3days",
+            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapRollover3days()); },
+            [](hqt::SymbolInfo& self, int value) {
+                self.SetSwapRollover3days(static_cast<hqt::ENUM_DAY_OF_WEEK>(value));
+            })
+        .def_prop_rw("select",
+            [](const hqt::SymbolInfo& self) { return self.Select(); },
+            [](hqt::SymbolInfo& self, bool value) { self.Select(value); })
+        .def_prop_rw("visible",
+            [](const hqt::SymbolInfo& self) { return self.Select(); },
+            [](hqt::SymbolInfo& self, bool value) { self.Select(value); })
+        .def_prop_rw("bid",
+            [](const hqt::SymbolInfo& self) { return self.Bid(); },
+            [](hqt::SymbolInfo& self, double value) { self.UpdatePrice(value, self.Ask(), self.Time()); })
+        .def_prop_rw("ask",
+            [](const hqt::SymbolInfo& self) { return self.Ask(); },
+            [](hqt::SymbolInfo& self, double value) { self.UpdatePrice(self.Bid(), value, self.Time()); })
+        .def_prop_ro("last", &hqt::SymbolInfo::Last)
+        .def("update_price", &hqt::SymbolInfo::UpdatePrice,
+             nb::arg("bid"), nb::arg("ask"), nb::arg("timestamp") = 0);
 
     nb::class_<TradeRecordData>(m, "TradeRecordData")
         .def(nb::init<>())
@@ -218,7 +312,14 @@ void register_sim_bindings(nb::module_& m) {
 
     nb::class_<BrokerSnapshot>(m, "BrokerSnapshot")
         .def(nb::init<>())
-        .def_rw("account", &BrokerSnapshot::account)
+        .def_prop_rw(
+            "account",
+            [](const BrokerSnapshot& self) {
+                return to_mt5_account(self.account);
+            },
+            [](BrokerSnapshot& self, const hqt::AccountInfo& account) {
+                self.account = account;
+            })
         .def_rw("positions", &BrokerSnapshot::positions);
 
     nb::class_<EscalationDecision>(m, "EscalationDecision")
@@ -331,13 +432,14 @@ void register_sim_bindings(nb::module_& m) {
 
     nb::class_<TradeSimulator>(m, "TradeSimulator")
         .def(nb::init<>())
-        .def(nb::init<AccountInfoData>())
-        .def("account_info", &TradeSimulator::account_info,
-             nb::rv_policy::reference_internal)
+        .def(nb::init<hqt::AccountInfo>())
+        .def("account_info", [](const TradeSimulator& self) {
+            return to_mt5_account(self.account_info());
+        })
         .def("symbol_info", [](const TradeSimulator& self, const std::string& symbol)
-                -> std::optional<SymbolInfoData> {
+                -> std::optional<hqt::SymbolInfo> {
             const auto* p = self.symbol_info(symbol);
-            if (p) return *p;
+            if (p) return to_mt5_symbol(*p);
             return std::nullopt;
         })
         .def("symbol_info_tick", [](const TradeSimulator& self, const std::string& symbol)
@@ -375,8 +477,12 @@ void register_sim_bindings(nb::module_& m) {
         .def("idempotency_cache_size", &TradeSimulator::idempotency_cache_size)
         .def("set_history_order_state", &TradeSimulator::set_history_order_state)
         .def("set_history_order_done_time", &TradeSimulator::set_history_order_done_time)
-        .def("set_account_info", &TradeSimulator::set_account_info)
-        .def("set_symbol_info", &TradeSimulator::set_symbol_info)
+        .def("set_account_info", [](TradeSimulator& self, const hqt::AccountInfo& data) {
+            self.set_account_info(data);
+        })
+        .def("set_symbol_info", [](TradeSimulator& self, const hqt::SymbolInfo& data) {
+            self.set_symbol_info(data);
+        })
         .def("set_symbol_tick", &TradeSimulator::set_symbol_tick)
         .def("upsert_position", &TradeSimulator::upsert_position)
         .def("upsert_order", &TradeSimulator::upsert_order)
@@ -528,8 +634,9 @@ void register_sim_bindings(nb::module_& m) {
              })
         .def("state", &BacktestEngine::state,
              nb::rv_policy::reference_internal)
-        .def("account_snapshot", &BacktestEngine::account_snapshot,
-             nb::rv_policy::reference_internal)
+        .def("account_snapshot", [](const BacktestEngine& self) {
+            return to_mt5_account(self.account_snapshot());
+        })
         .def("close_reason", &BacktestEngine::close_reason)
         .def("completed_trades", &BacktestEngine::completed_trades,
              nb::rv_policy::reference_internal);
@@ -544,7 +651,11 @@ void register_sim_bindings(nb::module_& m) {
     nb::class_<AccountMonitor>(m, "AccountMonitor")
         .def(nb::init<>())
         .def("monitor_positions", &AccountMonitor::monitor_positions)
-        .def("monitor_account", &AccountMonitor::monitor_account);
+        .def("monitor_account", [](const AccountMonitor& self,
+                                   const hqt::AccountInfo& base,
+                                   const PositionTotals& totals) {
+            return to_mt5_account(self.monitor_account(base, totals));
+        });
 
     nb::class_<PortfolioState>(m, "PortfolioState")
         .def(nb::init<double, std::string>(), nb::arg("initial_balance") = 10000.0, nb::arg("currency") = "USD")
@@ -565,7 +676,9 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("realized_pnl"),
              nb::arg("commission") = 0.0,
              nb::arg("swap") = 0.0)
-        .def("account_snapshot", &PortfolioState::account_snapshot)
+        .def("account_snapshot", [](const PortfolioState& self) {
+            return to_mt5_account(self.account_snapshot());
+        })
         .def("total_realized_pnl", &PortfolioState::total_realized_pnl)
         .def("total_unrealized_pnl", &PortfolioState::total_unrealized_pnl)
         .def("positions_by_symbol", &PortfolioState::positions_by_symbol)
@@ -577,21 +690,47 @@ void register_sim_bindings(nb::module_& m) {
         .def("mode", &PositionBook::mode)
         .def("reset", &PositionBook::reset)
         .def("apply_fill", &PositionBook::apply_fill, nb::arg("fill"))
-        .def("apply_account_snapshot", &PositionBook::apply_account_snapshot, nb::arg("account"))
+        .def("apply_account_snapshot",
+             [](PositionBook& self, const hqt::AccountInfo& account) {
+                 self.apply_account_snapshot(account);
+             },
+             nb::arg("account"))
         .def("snapshot_positions", &PositionBook::snapshot_positions)
-        .def("snapshot_account", &PositionBook::snapshot_account)
+        .def("snapshot_account", [](const PositionBook& self) {
+            return to_mt5_account(self.snapshot_account());
+        })
         .def("legs_for_symbol", &PositionBook::legs_for_symbol, nb::arg("symbol"))
         .def("reconcile_with_broker",
-             &PositionBook::reconcile_with_broker,
+             [](const PositionBook& self,
+                const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+                const hqt::AccountInfo& broker_account,
+                const std::string& trigger) {
+                 return self.reconcile_with_broker(
+                     broker_positions,
+                     broker_account,
+                     trigger);
+             },
              nb::arg("broker_positions"),
              nb::arg("broker_account"),
              nb::arg("trigger") = "manual")
         .def("periodic_reconcile",
-             &PositionBook::periodic_reconcile,
+             [](const PositionBook& self,
+                const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+                const hqt::AccountInfo& broker_account) {
+                 return self.periodic_reconcile(
+                     broker_positions,
+                     broker_account);
+             },
              nb::arg("broker_positions"),
              nb::arg("broker_account"))
         .def("reconnect_reconcile",
-             &PositionBook::reconnect_reconcile,
+             [](const PositionBook& self,
+                const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+                const hqt::AccountInfo& broker_account) {
+                 return self.reconnect_reconcile(
+                     broker_positions,
+                     broker_account);
+             },
              nb::arg("broker_positions"),
              nb::arg("broker_account"))
         .def("evaluate_reconciliation",
@@ -680,7 +819,9 @@ void register_sim_bindings(nb::module_& m) {
             nb::arg("symbol"),
             nb::arg("volume"),
             nb::arg("bars"))
-        .def("account_snapshot", &VectorizedBacktestEngine::account_snapshot, nb::rv_policy::reference_internal)
+        .def("account_snapshot", [](const VectorizedBacktestEngine& self) {
+            return to_mt5_account(self.account_snapshot());
+        })
         .def("processed_bars", &VectorizedBacktestEngine::processed_bars)
         .def("total_trades", &VectorizedBacktestEngine::total_trades);
 

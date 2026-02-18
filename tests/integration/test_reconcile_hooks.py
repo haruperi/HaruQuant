@@ -34,10 +34,7 @@ def test_periodic_reconcile_ok_when_snapshots_match():
     book = sim.PositionBook(sim.PositionMode.Netting)
     book.apply_fill(_build_fill("EURUSD", True, 1.0, 1.1000))
 
-    account = sim.AccountInfoData()
-    account.balance = 10000.0
-    account.equity = 10000.0
-    account.margin = 0.0
+    account = sim.AccountInfo(10000.0, "USD", 100)
     book.apply_account_snapshot(account)
 
     report = book.periodic_reconcile(book.snapshot_positions(), book.snapshot_account())
@@ -60,4 +57,5 @@ def test_reconnect_reconcile_reports_mismatch():
     assert report.trigger == "reconnect"
     assert report.position_mismatch_count > 0
     assert len(report.issues) > 0
+
 

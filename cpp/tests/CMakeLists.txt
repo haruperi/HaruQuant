@@ -9,53 +9,8 @@ find_package(cppzmq CONFIG REQUIRED)
 enable_testing()
 
 # Test executable
-add_executable(hqt_tests
-    test_simulator_state.cpp
-    test_sim_data.cpp
-    test_sim_calculators.cpp
-    test_simulator_client_getters.cpp
-    test_sim_order_send_market.cpp
-    test_sim_pending_orders.cpp
-    test_sim_oms_state_machine.cpp
-    test_sim_backtest_single_symbol.cpp
-    test_sim_position_monitor.cpp
-    test_sim_pending_trigger_monitor.cpp
-    test_sim_tick_models.cpp
-    test_sim_trade_record.cpp
-    test_sim_portfolio_engine.cpp
-    test_position_book.cpp
-    test_reconcile_escalation.cpp
-    test_broker_adapter_interface.cpp
-    test_execution_retry.cpp
-    test_twap_vwap.cpp
-    test_backtest_event_runner.cpp
-    test_backtest_vectorized.cpp
-    test_replay_certification.cpp
-    test_wfo_wfm.cpp
-    test_experiment_registry.cpp
-    test_optimization_runners.cpp
-    test_distributed_optimization_runner.cpp
-    test_monte_carlo_sensitivity.cpp
-    test_portfolio_state.cpp
-    test_allocation_models.cpp
-    test_rebalance_policies.cpp
-    test_risk_engine.cpp
-    test_sim_result_metrics.cpp
-    test_data_structures.cpp
-    test_utilities.cpp
-    test_event_loop.cpp
-    test_clock_service.cpp
-    test_event_sequencer.cpp
-    test_session_calendar.cpp
-    test_replay_clock.cpp
-    test_trade.cpp
-    test_currency_margin.cpp
-    test_costs_engine.cpp
-    test_zmq_wal.cpp
-    test_logger.cpp
-    test_connection_pool.cpp
-    test_schema_validator.cpp
-)
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "test_*.cpp")
+add_executable(hqt_tests ${TEST_SOURCES})
 
 # Link against Google Test and our library
 target_link_libraries(hqt_tests

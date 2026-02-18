@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ bridge not availa
 
 def _make_client() -> "sim.TradeSimulator":
     client = sim.TradeSimulator()
-    info = sim.SymbolInfoData()
+    info = sim.SymbolInfo()
     info.symbol = "EURUSD"
     info.point = 0.00001
     info.spread = 10
@@ -69,4 +69,5 @@ def test_event_and_vectorized_match_trade_count_and_balance():
     assert vec_engine.processed_bars() == len(bars)
     assert event_trades == vec_trades
     assert event_balance == pytest.approx(vec_balance, abs=1e-5)
+
 

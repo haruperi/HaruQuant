@@ -33,7 +33,7 @@ void BacktestEngine::run_trading_timeframe(
     trade_record_tracker_.reset();
     account_snapshot_ = client_.account_info();
 
-    const SymbolInfoData* info = client_.symbol_info(symbol);
+    const hqt::SymbolInfo* info = client_.symbol_info(symbol);
     if (info == nullptr || volume <= 0.0) {
         util::warning("BacktestEngine::run_trading_timeframe invalid start state "
                       "symbol=" + symbol + " volume=" + std::to_string(volume));
@@ -49,9 +49,9 @@ void BacktestEngine::run_trading_timeframe(
         state_.current_bar_index = idx;
         state_.current_time_us = bar.time_msc * 1000;
 
-        const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(info->spread);
+        const double spread_points = (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(info->Spread());
         const double bid = bar.close;
-        const double ask = bar.close + (spread_points * info->point);
+        const double ask = bar.close + (spread_points * info->Point());
 
         SymbolTickData tick;
         tick.time = bar.time_msc / 1000;
@@ -150,7 +150,7 @@ const SimulatorState& BacktestEngine::state() const noexcept {
     return state_;
 }
 
-const AccountInfoData& BacktestEngine::account_snapshot() const noexcept {
+const hqt::AccountInfo& BacktestEngine::account_snapshot() const noexcept {
     return account_snapshot_;
 }
 
@@ -434,7 +434,7 @@ const hqt::sim::SimulatorState& Engine::state() const noexcept {
     return impl_.state();
 }
 
-const hqt::sim::AccountInfoData& Engine::account_snapshot() const noexcept {
+const hqt::AccountInfo& Engine::account_snapshot() const noexcept {
     return impl_.account_snapshot();
 }
 

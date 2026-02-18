@@ -1,5 +1,16 @@
 # HaruQuant Architecture Notes
 
+## Engine Data Model Consistency
+
+- The C++ simulation engine now uses MT5-style classes as the single source of truth:
+  - `hqt::AccountInfo`
+  - `hqt::SymbolInfo`
+- Legacy DTOs `AccountInfoData` and `SymbolInfoData` were removed from:
+  - `cpp/include/engine/engine.hpp`
+  - `cpp/src/engine/*`
+  - `bridge/src/sim_bindings.cpp`
+- Python bridge surfaces account/symbol objects directly as `hqt_engine.sim.AccountInfo` and `hqt_engine.sim.SymbolInfo`.
+
 ## C++ Logging Backend
 
 - C++ logging API remains `hqt::util` (`cpp/include/util/logger.hpp`) to keep bridge and Python integrations stable.

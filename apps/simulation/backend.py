@@ -422,35 +422,30 @@ def _translate_cpp_exception(exc: Exception, client: Any) -> Exception:
 
 
 def _to_cpp_account(account: Any) -> Any:
-    """Map a Python ``AccountInfoSimulator`` to ``csim.AccountInfoData``."""
+    """Map a Python ``AccountInfoSimulator`` to ``csim.AccountInfo``."""
     import hqt_engine.sim as csim
 
-    cpp = csim.AccountInfoData()
+    cpp = csim.AccountInfo(
+        float(getattr(account, "balance", 10000.0)),
+        str(getattr(account, "currency", "USD")),
+        int(getattr(account, "leverage", 100)),
+    )
     cpp.login = int(getattr(account, "login", 12345678))
     cpp.leverage = int(getattr(account, "leverage", 100))
-    cpp.balance = float(getattr(account, "balance", 10000.0))
-    cpp.credit = float(getattr(account, "credit", 0.0))
-    cpp.profit = float(getattr(account, "profit", 0.0))
-    cpp.equity = float(getattr(account, "equity", 0.0) or getattr(account, "balance", 10000.0))
-    cpp.margin = float(getattr(account, "margin", 0.0))
-    cpp.margin_free = float(getattr(account, "margin_free", 0.0) or getattr(account, "balance", 10000.0))
-    cpp.margin_level = float(getattr(account, "margin_level", 0.0))
     cpp.margin_mode = int(getattr(account, "margin_mode", 0))
-    cpp.commission_blocked = float(getattr(account, "commission_blocked", 0.0))
     cpp.trade_allowed = bool(getattr(account, "trade_allowed", True))
     cpp.trade_expert = bool(getattr(account, "trade_expert", True))
     cpp.name = str(getattr(account, "name", "Simulated Trader"))
     cpp.server = str(getattr(account, "server", "Sim-Server"))
-    cpp.currency = str(getattr(account, "currency", "USD"))
     cpp.company = str(getattr(account, "company", "Simulated Company"))
     return cpp
 
 
 def _to_cpp_symbol_info(sym: Any) -> Any:
-    """Map a Python ``SymbolInfoSimulator`` to ``csim.SymbolInfoData``."""
+    """Map a Python ``SymbolInfoSimulator`` to ``csim.SymbolInfo``."""
     import hqt_engine.sim as csim
 
-    cpp = csim.SymbolInfoData()
+    cpp = csim.SymbolInfo()
     cpp.symbol = str(getattr(sym, "symbol", "EURUSD"))
     cpp.digits = int(getattr(sym, "digits", 5))
     cpp.spread = int(getattr(sym, "spread", 10))
@@ -477,7 +472,6 @@ def _to_cpp_symbol_info(sym: Any) -> Any:
     cpp.swap_rollover3days = int(getattr(sym, "swap_rollover3days", 3))
     cpp.bid = float(getattr(sym, "bid", 0.0))
     cpp.ask = float(getattr(sym, "ask", 0.0))
-    cpp.last = float(getattr(sym, "last", 0.0))
     cpp.select = bool(getattr(sym, "select", True))
     cpp.visible = bool(getattr(sym, "visible", True))
     return cpp

@@ -69,7 +69,7 @@ def _run_cpp_smoke() -> None:
     hqt_engine.set_log_callback(on_cpp_log)
 
     client = csim.TradeSimulator()
-    symbol = csim.SymbolInfoData()
+    symbol = csim.SymbolInfo()
     symbol.symbol = "EURUSD"
     symbol.point = 0.00001
     symbol.spread = 10
@@ -258,5 +258,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     main(smoke=args.smoke)
+
 
 

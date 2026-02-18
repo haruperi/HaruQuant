@@ -25,10 +25,7 @@ pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ bridge not availa
 def test_major_mismatch_blocks_in_auto_policy(tmp_path):
     book = sim.PositionBook(sim.PositionMode.Netting)
 
-    local = sim.AccountInfoData()
-    local.balance = 10000.0
-    local.equity = 10000.0
-    local.margin = 0.0
+    local = sim.AccountInfo(10000.0, "USD", 100)
     book.apply_account_snapshot(local)
 
     broker_positions = {}
@@ -42,10 +39,7 @@ def test_major_mismatch_blocks_in_auto_policy(tmp_path):
     pb.short_volume = 1.0
     broker_positions["GBPUSD"] = pb
 
-    broker = sim.AccountInfoData()
-    broker.balance = 9800.0
-    broker.equity = 9700.0
-    broker.margin = 300.0
+    broker = sim.AccountInfo(9800.0, "USD", 100)
 
     report = book.reconnect_reconcile(broker_positions, broker)
     decision = book.evaluate_reconciliation(report, sim.ReconcilePolicy.Auto, 2)
@@ -72,11 +66,12 @@ def test_manual_policy_blocks_on_any_mismatch():
     pa.net_volume = 0.1
     broker_positions["EURUSD"] = pa
 
-    broker = sim.AccountInfoData()
+    broker = sim.AccountInfo()
     report = book.periodic_reconcile(broker_positions, broker)
     decision = book.evaluate_reconciliation(report, sim.ReconcilePolicy.Manual, 10)
 
     assert report.ok is False
     assert decision.allow_new_orders is False
     assert decision.requires_manual_resolution is True
+
 

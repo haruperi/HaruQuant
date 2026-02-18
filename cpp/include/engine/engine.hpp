@@ -28,30 +28,6 @@ namespace hqt::sim {
 
 using Dict = std::unordered_map<std::string, std::string>;
 
-struct AccountInfoData {
-    int64_t login{12345678};
-    int32_t leverage{100};
-    int32_t margin_mode{0};
-    bool trade_allowed{true};
-    bool trade_expert{true};
-
-    double balance{10000.0};
-    double credit{0.0};
-    double profit{0.0};
-    double equity{0.0};
-    double margin{0.0};
-    double margin_free{10000.0};
-    double margin_level{0.0};
-    double commission_blocked{0.0};
-
-    std::string name{"Simulated Trader"};
-    std::string server{"Sim-Server"};
-    std::string currency{"USD"};
-    std::string company{"Simulated Company"};
-
-    [[nodiscard]] Dict to_dict() const;
-};
-
 struct SymbolTickData {
     int64_t time{0};
     double bid{0.0};
@@ -61,47 +37,6 @@ struct SymbolTickData {
     int64_t time_msc{0};
     int32_t flags{0};
     double volume_real{0.0};
-
-    [[nodiscard]] Dict to_dict() const;
-};
-
-struct SymbolInfoData {
-    std::string symbol{"EURUSD"};
-
-    int32_t digits{5};
-    int32_t spread{10};
-    bool spread_float{true};
-    double point{0.00001};
-
-    int32_t trade_calc_mode{0};
-    int32_t trade_mode{4};
-    int32_t trade_stops_level{0};
-    int32_t trade_freeze_level{0};
-    int32_t trade_exemode{1};
-
-    double volume_min{0.01};
-    double volume_max{100.0};
-    double volume_step{0.01};
-    double volume_limit{0.0};
-
-    double trade_tick_value{1.0};
-    double trade_tick_value_profit{1.0};
-    double trade_tick_value_loss{1.0};
-    double trade_tick_size{0.00001};
-    double trade_contract_size{100000.0};
-    double margin_initial{0.0};
-
-    int32_t swap_mode{1};
-    double swap_long{-1.0};
-    double swap_short{-1.0};
-    int32_t swap_rollover3days{3};
-
-    double bid{0.0};
-    double ask{0.0};
-    double last{0.0};
-
-    bool select{true};
-    bool visible{true};
 
     [[nodiscard]] Dict to_dict() const;
 };
@@ -199,28 +134,26 @@ enum class OmsOrderState {
 
 class TradeGateway {
 public:
-    explicit TradeGateway(const AccountInfoData& account);
+    explicit TradeGateway(const hqt::AccountInfo& account);
 
-    void register_symbol(const SymbolInfoData& symbol);
+    void register_symbol(const hqt::SymbolInfo& symbol);
     [[nodiscard]] TradeResult order_send(const TradeRequest& request, const SymbolTickData* tick);
 
     [[nodiscard]] const hqt::CTrade& trade() const noexcept { return trade_; }
     [[nodiscard]] hqt::CTrade& trade() noexcept { return trade_; }
 
 private:
-    static hqt::SymbolInfo to_symbol_info(const SymbolInfoData& data);
-
     hqt::CTrade trade_;
-    std::unordered_map<std::string, SymbolInfoData> symbols_;
+    std::unordered_map<std::string, hqt::SymbolInfo> symbols_;
 };
 
 class TradeSimulator {
 public:
     TradeSimulator() = default;
-    explicit TradeSimulator(AccountInfoData account_data);
+    explicit TradeSimulator(hqt::AccountInfo account);
 
-    [[nodiscard]] const AccountInfoData& account_info() const noexcept;
-    [[nodiscard]] const SymbolInfoData* symbol_info(const std::string& symbol) const noexcept;
+    [[nodiscard]] const hqt::AccountInfo& account_info() const noexcept;
+    [[nodiscard]] const hqt::SymbolInfo* symbol_info(const std::string& symbol) const noexcept;
     [[nodiscard]] const SymbolTickData* symbol_info_tick(const std::string& symbol) const noexcept;
 
     [[nodiscard]] std::vector<TradeRecordData> positions_get(
@@ -258,8 +191,8 @@ public:
     bool set_history_order_state(uint64_t ticket, uint64_t state);
     bool set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc);
 
-    void set_account_info(const AccountInfoData& data);
-    void set_symbol_info(const SymbolInfoData& data);
+    void set_account_info(const hqt::AccountInfo& data);
+    void set_symbol_info(const hqt::SymbolInfo& data);
     void set_symbol_tick(const std::string& symbol, const SymbolTickData& tick);
     void upsert_position(const TradeRecordData& data);
     void upsert_order(const TradeRecordData& data);
@@ -286,9 +219,9 @@ private:
         std::optional<uint64_t> ticket,
         std::optional<std::string_view> symbol);
 
-    AccountInfoData account_data_{};
-    TradeGateway trade_gateway_{account_data_};
-    std::unordered_map<std::string, SymbolInfoData> symbols_data_{};
+    hqt::AccountInfo account_info_{};
+    TradeGateway trade_gateway_{account_info_};
+    std::unordered_map<std::string, hqt::SymbolInfo> symbols_data_{};
     std::unordered_map<std::string, SymbolTickData> ticks_data_{};
 
     std::unordered_map<uint64_t, TradeRecordData> positions_data_{};
@@ -339,7 +272,7 @@ public:
         double commission = 0.0,
         double swap = 0.0);
 
-    [[nodiscard]] AccountInfoData account_snapshot() const;
+    [[nodiscard]] hqt::AccountInfo account_snapshot() const;
     [[nodiscard]] double total_realized_pnl() const;
     [[nodiscard]] double total_unrealized_pnl() const;
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> positions_by_symbol() const;
@@ -349,7 +282,7 @@ public:
 private:
     void recompute_unlocked();
 
-    AccountInfoData account_{};
+    hqt::AccountInfo account_{};
     double total_realized_pnl_{0.0};
     std::unordered_map<std::string, std::unordered_map<std::string, PositionAggregate>>
         strategy_symbol_positions_{};
@@ -413,22 +346,22 @@ public:
     void reset();
 
     void apply_fill(const FillEvent& fill);
-    void apply_account_snapshot(const AccountInfoData& account);
+    void apply_account_snapshot(const hqt::AccountInfo& account);
 
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> snapshot_positions() const;
-    [[nodiscard]] AccountInfoData snapshot_account() const;
+    [[nodiscard]] hqt::AccountInfo snapshot_account() const;
     [[nodiscard]] std::vector<PositionLeg> legs_for_symbol(const std::string& symbol) const;
 
     [[nodiscard]] ReconciliationReport reconcile_with_broker(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-        const AccountInfoData& broker_account,
+        const hqt::AccountInfo& broker_account,
         const std::string& trigger = "manual") const;
     [[nodiscard]] ReconciliationReport periodic_reconcile(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-        const AccountInfoData& broker_account) const;
+        const hqt::AccountInfo& broker_account) const;
     [[nodiscard]] ReconciliationReport reconnect_reconcile(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-        const AccountInfoData& broker_account) const;
+        const hqt::AccountInfo& broker_account) const;
     [[nodiscard]] EscalationDecision evaluate_reconciliation(
         const ReconciliationReport& report,
         ReconcilePolicy policy = ReconcilePolicy::Auto,
@@ -445,7 +378,7 @@ private:
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> snapshot_positions_unlocked() const;
 
     PositionMode mode_{PositionMode::Netting};
-    AccountInfoData account_{};
+    hqt::AccountInfo account_{};
     uint64_t next_leg_id_{1};
     std::unordered_map<std::string, PositionAggregate> net_positions_{};
     std::unordered_map<std::string, std::vector<PositionLeg>> hedged_legs_{};
@@ -460,13 +393,13 @@ public:
         double bid,
         double ask) const;
 
-    [[nodiscard]] AccountInfoData monitor_account(
-        const AccountInfoData& base,
+    [[nodiscard]] hqt::AccountInfo monitor_account(
+        const hqt::AccountInfo& base,
         const PositionTotals& totals) const;
 };
 
 struct BrokerSnapshot {
-    AccountInfoData account{};
+    hqt::AccountInfo account{};
     std::unordered_map<std::string, PositionAggregate> positions{};
 };
 
@@ -762,7 +695,7 @@ public:
         const std::vector<ModelTick>& ticks);
 
     [[nodiscard]] const SimulatorState& state() const noexcept;
-    [[nodiscard]] const AccountInfoData& account_snapshot() const noexcept;
+    [[nodiscard]] const hqt::AccountInfo& account_snapshot() const noexcept;
     [[nodiscard]] std::optional<AutoCloseReason> close_reason(uint64_t ticket) const;
     [[nodiscard]] const std::vector<TradeRecord>& completed_trades() const noexcept;
 
@@ -787,7 +720,7 @@ private:
     SimulatorState state_{};
     AccountMonitor account_monitor_{};
     TradeRecordTracker trade_record_tracker_{};
-    AccountInfoData account_snapshot_{};
+    hqt::AccountInfo account_snapshot_{};
     std::unordered_map<uint64_t, AutoCloseReason> close_reasons_{};
     BarProcessedCallback on_bar_processed_{};
     TickProcessedCallback on_tick_processed_{};
@@ -862,7 +795,7 @@ public:
     [[nodiscard]] const std::unordered_map<std::string, double>& effective_allocations() const noexcept;
 
 private:
-    static double normalize_volume(double requested, const SymbolInfoData& symbol_info);
+    static double normalize_volume(double requested, const hqt::SymbolInfo& symbol_info);
     void process_bar(const std::string& symbol, const BacktestBarStep& bar, double base_volume);
 
     TradeSimulator& client_;
@@ -878,15 +811,15 @@ public:
         double volume,
         const std::vector<BacktestBarStep>& bars);
 
-    [[nodiscard]] const AccountInfoData& account_snapshot() const noexcept;
+    [[nodiscard]] const hqt::AccountInfo& account_snapshot() const noexcept;
     [[nodiscard]] std::size_t processed_bars() const noexcept;
     [[nodiscard]] std::size_t total_trades() const noexcept;
 
 private:
-    static double normalize_volume(double requested, const SymbolInfoData& symbol_info);
+    static double normalize_volume(double requested, const hqt::SymbolInfo& symbol_info);
 
     TradeSimulator& client_;
-    AccountInfoData account_snapshot_{};
+    hqt::AccountInfo account_snapshot_{};
     std::size_t processed_bars_{0};
     std::size_t total_trades_{0};
 };
@@ -1208,7 +1141,7 @@ public:
         const std::vector<hqt::sim::ModelTick>& ticks);
 
     [[nodiscard]] const hqt::sim::SimulatorState& state() const noexcept;
-    [[nodiscard]] const hqt::sim::AccountInfoData& account_snapshot() const noexcept;
+    [[nodiscard]] const hqt::AccountInfo& account_snapshot() const noexcept;
     [[nodiscard]] const std::vector<hqt::sim::TradeRecord>& completed_trades() const noexcept;
 
 private:

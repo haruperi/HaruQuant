@@ -16,12 +16,11 @@ void run_logger_usage_example() {
     util::info("C++ logger usage example start");
 
     hqt::sim::TradeSimulator client;
-    hqt::sim::SymbolInfoData symbol;
-    symbol.symbol = "EURUSD";
-    symbol.point = 0.00001;
-    symbol.spread = 10;
-    symbol.bid = 1.10000;
-    symbol.ask = 1.10010;
+    hqt::SymbolInfo symbol;
+    symbol.Name("EURUSD");
+    symbol.SetPoint(0.00001);
+    symbol.SetSpread(10);
+    symbol.UpdatePrice(1.10000, 1.10010, 1);
     client.set_symbol_info(symbol);
 
     hqt::sim::SymbolTickData tick;

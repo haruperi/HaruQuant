@@ -18,7 +18,7 @@ IP-38 adds a C++ `VectorizedBacktestEngine` for batch-style bar processing with 
 from hqt_engine import sim
 
 client = sim.TradeSimulator()
-info = sim.SymbolInfoData()
+info = sim.SymbolInfo()
 info.symbol = "EURUSD"
 client.set_symbol_info(info)
 
@@ -42,5 +42,6 @@ print(engine.processed_bars(), engine.total_trades(), engine.account_snapshot().
 
 - `cpp/tests/test_backtest_vectorized.cpp`
 - `tests/parity/test_event_vs_vectorized_parity.py`
+
 
 

@@ -109,19 +109,14 @@ PositionTotals AccountMonitor::monitor_positions(
     return totals;
 }
 
-AccountInfoData AccountMonitor::monitor_account(
-    const AccountInfoData& base,
+hqt::AccountInfo AccountMonitor::monitor_account(
+    const hqt::AccountInfo& base,
     const PositionTotals& totals) const {
-    AccountInfoData updated = base;
-    updated.profit = totals.profit;
-    updated.margin = totals.margin;
-    updated.commission_blocked = totals.commission + totals.fee;
-    updated.equity = updated.balance + updated.credit + totals.profit +
-        totals.commission + totals.fee + totals.swap;
-    updated.margin_free = updated.equity - totals.margin;
-    updated.margin_level = (updated.margin > 0.0)
-        ? ((updated.equity / updated.margin) * 100.0)
-        : 0.0;
+    hqt::AccountInfo updated = base;
+    const auto margin_fp = static_cast<int64_t>(std::llround(totals.margin * 1'000'000.0));
+    const auto profit_fp = static_cast<int64_t>(std::llround(totals.profit * 1'000'000.0));
+    updated.SetMargin(margin_fp);
+    updated.UpdateEquity(profit_fp);
     return updated;
 }
 
@@ -219,12 +214,12 @@ TradeResult invalid_result(const std::string& comment, int retcode = 10013) {
 
 }  // namespace
 
-TradeGateway::TradeGateway(const AccountInfoData& account)
-    : trade_(account.balance, account.currency, static_cast<uint32_t>(account.leverage)) {}
+TradeGateway::TradeGateway(const hqt::AccountInfo& account)
+    : trade_(account.Balance(), account.Currency(), static_cast<uint32_t>(account.Leverage())) {}
 
-void TradeGateway::register_symbol(const SymbolInfoData& symbol) {
-    symbols_[symbol.symbol] = symbol;
-    trade_.RegisterSymbol(to_symbol_info(symbol));
+void TradeGateway::register_symbol(const hqt::SymbolInfo& symbol) {
+    symbols_[symbol.Name()] = symbol;
+    trade_.RegisterSymbol(symbol);
 }
 
 TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTickData* tick) {
@@ -243,8 +238,8 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
             return invalid_result("No quotes to process the request", 10021);
         }
 
-        const double bid = tick ? tick->bid : sym_it->second.bid;
-        const double ask = tick ? tick->ask : sym_it->second.ask;
+        const double bid = tick ? tick->bid : sym_it->second.Bid();
+        const double ask = tick ? tick->ask : sym_it->second.Ask();
         if (bid <= 0.0 || ask <= 0.0) {
             return invalid_result("No quotes to process the request", 10021);
         }
@@ -337,47 +332,15 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
     return result;
 }
 
-hqt::SymbolInfo TradeGateway::to_symbol_info(const SymbolInfoData& data) {
-    hqt::SymbolInfo info;
-    info.Name(data.symbol);
-    info.SetSymbolId(static_cast<uint32_t>(std::hash<std::string>{}(data.symbol) & 0x7fffffff));
-    info.SetDigits(data.digits);
-    info.SetPoint(data.point);
-    info.SetSpread(data.spread);
-    info.SetSpreadFloat(data.spread_float);
-    info.SetTradeCalcMode(static_cast<hqt::ENUM_SYMBOL_CALC_MODE>(data.trade_calc_mode));
-    info.SetTradeMode(static_cast<hqt::ENUM_SYMBOL_TRADE_MODE>(data.trade_mode));
-    info.SetStopsLevel(data.trade_stops_level);
-    info.SetFreezeLevel(data.trade_freeze_level);
-    info.SetVolumeMin(data.volume_min);
-    info.SetVolumeMax(data.volume_max);
-    info.SetVolumeStep(data.volume_step);
-    info.SetVolumeLimit(data.volume_limit);
-    info.SetTickValue(data.trade_tick_value);
-    info.SetTickValueProfit(data.trade_tick_value_profit);
-    info.SetTickValueLoss(data.trade_tick_value_loss);
-    info.SetTickSize(data.trade_tick_size);
-    info.SetContractSize(data.trade_contract_size);
-    info.SetMarginInitial(data.margin_initial);
-    info.SetSwapLong(data.swap_long);
-    info.SetSwapShort(data.swap_short);
-    info.SetSwapMode(static_cast<hqt::ENUM_SYMBOL_SWAP_MODE>(data.swap_mode));
-    info.SetSwapRollover3days(static_cast<hqt::ENUM_DAY_OF_WEEK>(data.swap_rollover3days));
-    if (data.bid > 0.0 && data.ask > 0.0) {
-        info.UpdatePrice(data.bid, data.ask, 0);
-    }
-    return info;
+TradeSimulator::TradeSimulator(hqt::AccountInfo account)
+    : account_info_(std::move(account)),
+      trade_gateway_(account_info_) {}
+
+const hqt::AccountInfo& TradeSimulator::account_info() const noexcept {
+    return account_info_;
 }
 
-TradeSimulator::TradeSimulator(AccountInfoData account_data)
-    : account_data_(std::move(account_data)),
-      trade_gateway_(account_data_) {}
-
-const AccountInfoData& TradeSimulator::account_info() const noexcept {
-    return account_data_;
-}
-
-const SymbolInfoData* TradeSimulator::symbol_info(const std::string& symbol) const noexcept {
+const hqt::SymbolInfo* TradeSimulator::symbol_info(const std::string& symbol) const noexcept {
     const auto it = symbols_data_.find(symbol);
     return it == symbols_data_.end() ? nullptr : &it->second;
 }
@@ -429,14 +392,14 @@ double TradeSimulator::order_calc_margin(
         return 0.0;
     }
     return calc_margin(
-        info->trade_calc_mode,
+        static_cast<int>(info->TradeCalcMode()),
         volume,
         price,
-        info->trade_contract_size,
-        static_cast<double>(account_data_.leverage),
-        info->trade_tick_size > 0.0 ? info->trade_tick_size : info->point,
-        info->trade_tick_value,
-        info->margin_initial);
+        info->ContractSize(),
+        static_cast<double>(account_info_.Leverage()),
+        info->TickSize() > 0.0 ? info->TickSize() : info->Point(),
+        info->TickValue(),
+        info->MarginInitial());
 }
 
 double TradeSimulator::order_calc_profit(
@@ -455,9 +418,9 @@ double TradeSimulator::order_calc_profit(
         volume,
         price_open,
         price_close,
-        info->trade_tick_size > 0.0 ? info->trade_tick_size : info->point,
-        info->trade_tick_value,
-        info->trade_contract_size);
+        info->TickSize() > 0.0 ? info->TickSize() : info->Point(),
+        info->TickValue(),
+        info->ContractSize());
 }
 
 TradeResult TradeSimulator::order_send(const TradeRequest& request) {
@@ -588,18 +551,18 @@ bool TradeSimulator::set_history_order_done_time(uint64_t ticket, int64_t time_s
     return true;
 }
 
-void TradeSimulator::set_account_info(const AccountInfoData& data) {
-    account_data_ = data;
-    trade_gateway_ = TradeGateway(account_data_);
+void TradeSimulator::set_account_info(const hqt::AccountInfo& data) {
+    account_info_ = data;
+    trade_gateway_ = TradeGateway(account_info_);
     for (const auto& [_, symbol] : symbols_data_) {
         trade_gateway_.register_symbol(symbol);
     }
 }
 
-void TradeSimulator::set_symbol_info(const SymbolInfoData& data) {
-    symbols_data_[data.symbol] = data;
+void TradeSimulator::set_symbol_info(const hqt::SymbolInfo& data) {
+    symbols_data_[data.Name()] = data;
     trade_gateway_.register_symbol(data);
-    util::debug("TradeSimulator::set_symbol_info symbol=" + data.symbol);
+    util::debug("TradeSimulator::set_symbol_info symbol=" + data.Name());
 }
 
 void TradeSimulator::set_symbol_tick(const std::string& symbol, const SymbolTickData& tick) {
@@ -711,13 +674,7 @@ void TradeSimulator::sync_state_from_trade() {
     const auto& trade = trade_gateway_.trade();
     const auto& account = trade.Account();
 
-    account_data_.balance = account.Balance();
-    account_data_.credit = account.Credit();
-    account_data_.profit = account.Profit();
-    account_data_.equity = account.Equity();
-    account_data_.margin = account.Margin();
-    account_data_.margin_free = account.FreeMargin();
-    account_data_.margin_level = account.MarginLevel();
+    account_info_ = account;
 
     for (const auto& pos : trade.GetPositions()) {
         TradeRecordData data;
@@ -1239,4 +1196,5 @@ ExecutionQualitySummary ExecutionRouter::quality_summary() const {
 }
 
 }  // namespace hqt::sim
+
 
