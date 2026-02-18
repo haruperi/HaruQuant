@@ -835,22 +835,22 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-39 Fill simulator + transaction cost model
+#### [X] IP-39 Fill simulator + transaction cost model
 
 * **Sub-tasks**
-  * [ ] Implement realistic fill simulation (spread, slippage, partials). (FR-BT-003..004)
-  * [ ] Handle price gap scenarios (executing at gap price, not stop level). (FR-CPP-005)
-  * [ ] Implement transaction cost model (commission [fixed/%, tiered], swap). (FR-BT-003)
-  * [ ] Use seeded RNG for all stochastic simulation processes. (FR-BT-018)
+  * [X] Implement realistic fill simulation (spread, slippage, partials). (FR-BT-003..004)
+  * [X] Handle price gap scenarios (executing at gap price, not stop level). (FR-CPP-005)
+  * [X] Implement transaction cost model (commission [fixed/%, tiered], swap). (FR-BT-003)
+  * [X] Use seeded RNG for all stochastic simulation processes. (FR-BT-018)
 * **Deliverables**
   * spread/commission/slippage/financing simulation
 * **SRS refs:** FR-BT-003..004, FR-BT-018, NFR-PERF-001..003, FR-CPP-005
 * **SDD refs:** Â§5.1.7, Â§13
 * **Dependencies:** IP-37
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_fill_simulator.cpp`, `py/tests/integration/test_cost_model.py`
-  * Usage: `usage/backtest/cost_and_fill_models.md`
-  * Bench/log: `benchmarks/backtest/cost_model_overhead.md`
+  * Tests: `cpp/tests/test_costs_engine.cpp`
+  * Usage: `docs/haruquant/usage/backtest/cost_and_fill_models.md`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-40 Replay certification + WFO/WFM orchestration

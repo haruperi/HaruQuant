@@ -821,3 +821,21 @@
   - `tests/parity/test_event_vs_vectorized_parity.py`
   - `docs/haruquant/usage/backtest/vectorized_runner.md`
 
+## Fill Simulator and Transaction Cost Model (IP-39)
+
+- Core C++ components:
+  - `cpp/include/costs/costs_engine.hpp::CostsEngine`
+  - `cpp/include/costs/slippage_model.hpp`
+  - `cpp/include/costs/commission_model.hpp`
+  - `cpp/include/costs/swap_model.hpp`
+  - `cpp/include/costs/spread_model.hpp`
+- Behavior:
+  - pending and market order fill evaluation
+  - SL/TP exit evaluation
+  - gap-price handling for stop/take-profit executions
+  - commission/swap/slippage/spread cost computation
+  - seeded deterministic RNG for stochastic cost models
+- Evidence:
+  - `cpp/tests/test_costs_engine.cpp`
+  - `docs/haruquant/usage/backtest/cost_and_fill_models.md`
+
