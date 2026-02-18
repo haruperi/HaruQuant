@@ -16,6 +16,7 @@ add_executable(hqt_tests
     test_simulator_client_getters.cpp
     test_sim_order_send_market.cpp
     test_sim_pending_orders.cpp
+    test_sim_oms_state_machine.cpp
     test_sim_backtest_single_symbol.cpp
     test_sim_position_monitor.cpp
     test_sim_pending_trigger_monitor.cpp

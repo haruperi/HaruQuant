@@ -612,3 +612,36 @@
   - `docs/haruquant/usage/portfolio/allocation_and_rebalance.md`
   - `benchmarks/portfolio/rebalance_cost.md`
 
+## OMS Order State Machine and Idempotency (IP-31)
+
+- Core APIs:
+  - `cpp/include/engine/engine.hpp::TradeRequest`
+  - `cpp/include/engine/engine.hpp::SimulatorClient`
+  - implementation in `cpp/src/engine/trading.cpp`
+- Order lifecycle model:
+  - explicit logical states in `OmsOrderState`:
+    - `NEW`
+    - `ACCEPTED`
+    - `PARTIALLY_FILLED`
+    - `FILLED`
+    - `CANCELED`
+    - `EXPIRED`
+    - `REJECTED`
+  - order state query:
+    - `SimulatorClient::order_state(...)`
+    - `SimulatorClient::order_state_name(...)`
+- Idempotent submission:
+  - `TradeRequest.client_order_id` enables duplicate-guarded submit flow.
+  - Same `client_order_id` + same payload returns cached original result.
+  - Same `client_order_id` + different payload is rejected.
+- Bridge exposure:
+  - `bridge/src/sim_bindings.cpp`:
+    - `sim.TradeRequest.client_order_id`
+    - `sim.OmsOrderState`
+    - `sim.SimulatorClient.order_state(...)`
+    - `sim.SimulatorClient.order_state_name(...)`
+- Evidence:
+  - `cpp/tests/test_sim_oms_state_machine.cpp`
+  - `docs/haruquant/usage/trade/oms_state_machine_idempotency.md`
+  - `tests/usage/trade/oms_state_machine_idempotency_cpp.py`
+

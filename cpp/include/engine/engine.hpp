@@ -157,6 +157,7 @@ struct TradeRequest {
     int action{0};
     int type{0};
     uint64_t order{0};
+    std::string client_order_id{};
     std::string symbol{};
     double volume{0.0};
     double price{0.0};
@@ -177,6 +178,17 @@ struct TradeResult {
     double bid{0.0};
     double ask{0.0};
     std::string comment{};
+};
+
+enum class OmsOrderState {
+    Unknown = 0,
+    New = 1,
+    Accepted = 2,
+    PartiallyFilled = 3,
+    Filled = 4,
+    Canceled = 5,
+    Expired = 6,
+    Rejected = 7,
 };
 
 class TradeGateway {
@@ -234,6 +246,9 @@ public:
         double price_close) const;
     [[nodiscard]] TradeResult order_send(const TradeRequest& request);
     [[nodiscard]] TradeResult close_position(uint64_t ticket);
+    [[nodiscard]] OmsOrderState order_state(uint64_t ticket) const;
+    [[nodiscard]] std::string order_state_name(uint64_t ticket) const;
+    [[nodiscard]] std::size_t idempotency_cache_size() const noexcept;
     bool set_history_order_state(uint64_t ticket, uint64_t state);
     bool set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc);
 
@@ -247,6 +262,16 @@ public:
     void set_last_error(int code, const std::string& message);
 
 private:
+    struct IdempotencyEntry {
+        std::string fingerprint{};
+        TradeResult result{};
+    };
+
+    [[nodiscard]] static std::string submission_fingerprint(const TradeRequest& request);
+    [[nodiscard]] static OmsOrderState map_order_state(uint64_t raw_state) noexcept;
+    [[nodiscard]] static std::string order_state_label(OmsOrderState state);
+    void set_order_state(uint64_t ticket, OmsOrderState state);
+    void rebuild_order_states_from_snapshots();
     void sync_state_from_trade();
 
     template <typename Container>
@@ -264,6 +289,8 @@ private:
     std::unordered_map<uint64_t, TradeRecordData> orders_data_{};
     std::unordered_map<uint64_t, TradeRecordData> history_orders_data_{};
     std::unordered_map<uint64_t, TradeRecordData> deals_data_{};
+    std::unordered_map<uint64_t, OmsOrderState> order_states_{};
+    std::unordered_map<std::string, IdempotencyEntry> idempotency_by_client_order_id_{};
 
     int last_error_code_{1};
     std::string last_error_message_{"Success"};

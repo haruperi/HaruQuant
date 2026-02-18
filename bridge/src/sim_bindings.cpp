@@ -137,6 +137,7 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("action", &TradeRequest::action)
         .def_rw("type", &TradeRequest::type)
         .def_rw("order", &TradeRequest::order)
+        .def_rw("client_order_id", &TradeRequest::client_order_id)
         .def_rw("symbol", &TradeRequest::symbol)
         .def_rw("volume", &TradeRequest::volume)
         .def_rw("price", &TradeRequest::price)
@@ -265,6 +266,16 @@ void register_sim_bindings(nb::module_& m) {
         .value("StopLoss", AutoCloseReason::StopLoss)
         .value("TakeProfit", AutoCloseReason::TakeProfit);
 
+    nb::enum_<OmsOrderState>(m, "OmsOrderState")
+        .value("Unknown", OmsOrderState::Unknown)
+        .value("New", OmsOrderState::New)
+        .value("Accepted", OmsOrderState::Accepted)
+        .value("PartiallyFilled", OmsOrderState::PartiallyFilled)
+        .value("Filled", OmsOrderState::Filled)
+        .value("Canceled", OmsOrderState::Canceled)
+        .value("Expired", OmsOrderState::Expired)
+        .value("Rejected", OmsOrderState::Rejected);
+
     // ── SimulatorClient ──────────────────────────────────────────────
 
     nb::class_<SimulatorClient>(m, "SimulatorClient")
@@ -308,6 +319,9 @@ void register_sim_bindings(nb::module_& m) {
         .def("order_calc_profit", &SimulatorClient::order_calc_profit)
         .def("order_send", &SimulatorClient::order_send)
         .def("close_position", &SimulatorClient::close_position)
+        .def("order_state", &SimulatorClient::order_state)
+        .def("order_state_name", &SimulatorClient::order_state_name)
+        .def("idempotency_cache_size", &SimulatorClient::idempotency_cache_size)
         .def("set_history_order_state", &SimulatorClient::set_history_order_state)
         .def("set_history_order_done_time", &SimulatorClient::set_history_order_done_time)
         .def("set_account_info", &SimulatorClient::set_account_info)

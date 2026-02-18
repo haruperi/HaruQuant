@@ -692,22 +692,22 @@
   * Bench/log: `TBD`
   * Commit: `TBD`
 
-#### [ ] IP-31 OMS order state machine + idempotency
+#### [X] IP-31 OMS order state machine + idempotency
 
 * **Sub-tasks**
-  * [ ] Implement order state machine (NEW -> ACCEPTED -> FILLED/CANCELED). (FR-OMS-001, SDD Â§9.1)
-  * [ ] Support Market, Limit, Stop, Stop-Limit, Trailing-Stop order types. (FR-OMS-002)
-  * [ ] Implement gap handling for matching engine (executing at gap price). (FR-CPP-005)
-  * [ ] Implement idempotent submission via client order IDs. (FR-OMS-003)
+  * [X] Implement order state machine (NEW -> ACCEPTED -> FILLED/CANCELED). (FR-OMS-001, SDD Â§9.1)
+  * [X] Support Market, Limit, Stop, Stop-Limit, Trailing-Stop order types. (FR-OMS-002)
+  * [X] Implement gap handling for matching engine (executing at gap price). (FR-CPP-005)
+  * [X] Implement idempotent submission via client order IDs. (FR-OMS-003)
 * **Deliverables**
   * `NEWâ†’...â†’terminal` transitions + duplicate guard
 * **SRS refs:** FR-OMS-001..004, FR-CPP-005
 * **SDD refs:** Â§5.1.5, Â§9.1
 * **Dependencies:** IP-23
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_order_state_machine.cpp`, `py/tests/integration/test_order_idempotency.py`
-  * Usage: `usage/live/order_lifecycle.md`
-  * Bench/log: `benchmarks/oms/state_machine_perf.md`
+  * Tests: `cpp/tests/test_sim_oms_state_machine.cpp`, `cpp/tests/test_sim_pending_orders.cpp`, `cpp/tests/test_sim_pending_trigger_monitor.cpp`
+  * Usage: `docs/haruquant/usage/trade/oms_state_machine_idempotency.md`, `tests/usage/trade/oms_state_machine_idempotency_cpp.py`
+  * Bench/log: `TBD`
   * Commit: `TBD`
 
 #### [ ] IP-32 Position book and broker reconciliation hooks

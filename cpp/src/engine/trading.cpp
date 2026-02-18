@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <optional>
+#include <sstream>
 #include <string>
 
 namespace hqt::sim {
@@ -458,6 +459,19 @@ double SimulatorClient::order_calc_profit(
 }
 
 TradeResult SimulatorClient::order_send(const TradeRequest& request) {
+    const bool is_submission = (request.action == 1 || request.action == 5);
+    const std::string client_order_id = request.client_order_id;
+    const std::string fingerprint = submission_fingerprint(request);
+    if (is_submission && !client_order_id.empty()) {
+        const auto idem_it = idempotency_by_client_order_id_.find(client_order_id);
+        if (idem_it != idempotency_by_client_order_id_.end()) {
+            if (idem_it->second.fingerprint != fingerprint) {
+                return invalid_result("Duplicate client_order_id with different payload", 10013);
+            }
+            return idem_it->second.result;
+        }
+    }
+
     const SymbolTickData* tick = symbol_info_tick(request.symbol);
     TradeResult result = trade_gateway_.order_send(request, tick);
     if (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010) {
@@ -467,6 +481,34 @@ TradeResult SimulatorClient::order_send(const TradeRequest& request) {
         util::warning("SimulatorClient::order_send failed retcode=" + std::to_string(result.retcode) +
                       " comment=" + result.comment);
     }
+
+    if (is_submission && !client_order_id.empty()) {
+        if (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010) {
+            idempotency_by_client_order_id_[client_order_id] = IdempotencyEntry{fingerprint, result};
+        }
+    }
+
+    if (request.action == 1 || request.action == 5) {
+        if (result.order > 0) {
+            set_order_state(result.order, OmsOrderState::New);
+            if (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010) {
+                set_order_state(result.order, OmsOrderState::Accepted);
+                if (request.action == 1) {
+                    if (result.retcode == 10010) {
+                        set_order_state(result.order, OmsOrderState::PartiallyFilled);
+                    } else if (result.retcode == 10009) {
+                        set_order_state(result.order, OmsOrderState::Filled);
+                    }
+                }
+            } else {
+                set_order_state(result.order, OmsOrderState::Rejected);
+            }
+        }
+    } else if (request.action == 8 && request.order > 0 &&
+               (result.retcode == 10009 || result.retcode == 10010)) {
+        set_order_state(request.order, OmsOrderState::Canceled);
+    }
+
     return result;
 }
 
@@ -517,12 +559,21 @@ TradeResult SimulatorClient::close_position(uint64_t ticket) {
 }
 
 bool SimulatorClient::set_history_order_state(uint64_t ticket, uint64_t state) {
-    const auto it = history_orders_data_.find(ticket);
-    if (it == history_orders_data_.end()) {
-        return false;
+    const auto hist_it = history_orders_data_.find(ticket);
+    if (hist_it != history_orders_data_.end()) {
+        hist_it->second.reason = state;
+        set_order_state(ticket, map_order_state(state));
+        return true;
     }
-    it->second.reason = state;
-    return true;
+
+    const auto active_it = orders_data_.find(ticket);
+    if (active_it != orders_data_.end()) {
+        active_it->second.reason = state;
+        set_order_state(ticket, map_order_state(state));
+        return true;
+    }
+
+    return false;
 }
 
 bool SimulatorClient::set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) {
@@ -573,6 +624,80 @@ void SimulatorClient::set_last_error(int code, const std::string& message) {
     last_error_code_ = code;
     last_error_message_ = message;
     util::warning("SimulatorClient::set_last_error code=" + std::to_string(code) + " message=" + message);
+}
+
+OmsOrderState SimulatorClient::order_state(uint64_t ticket) const {
+    const auto it = order_states_.find(ticket);
+    if (it == order_states_.end()) {
+        return OmsOrderState::Unknown;
+    }
+    return it->second;
+}
+
+std::string SimulatorClient::order_state_name(uint64_t ticket) const {
+    return order_state_label(order_state(ticket));
+}
+
+std::size_t SimulatorClient::idempotency_cache_size() const noexcept {
+    return idempotency_by_client_order_id_.size();
+}
+
+std::string SimulatorClient::submission_fingerprint(const TradeRequest& request) {
+    std::ostringstream oss;
+    oss << request.action << '|'
+        << request.type << '|'
+        << request.symbol << '|'
+        << request.volume << '|'
+        << request.price << '|'
+        << request.stoplimit << '|'
+        << request.sl << '|'
+        << request.tp << '|'
+        << request.type_time << '|'
+        << request.expiration << '|'
+        << request.comment;
+    return oss.str();
+}
+
+OmsOrderState SimulatorClient::map_order_state(uint64_t raw_state) noexcept {
+    switch (raw_state) {
+        case 0: return OmsOrderState::New;
+        case 1: return OmsOrderState::Accepted;
+        case 2: return OmsOrderState::Canceled;
+        case 3: return OmsOrderState::PartiallyFilled;
+        case 4: return OmsOrderState::Filled;
+        case 5: return OmsOrderState::Rejected;
+        case 6: return OmsOrderState::Expired;
+        default: return OmsOrderState::Unknown;
+    }
+}
+
+std::string SimulatorClient::order_state_label(OmsOrderState state) {
+    switch (state) {
+        case OmsOrderState::New: return "NEW";
+        case OmsOrderState::Accepted: return "ACCEPTED";
+        case OmsOrderState::PartiallyFilled: return "PARTIALLY_FILLED";
+        case OmsOrderState::Filled: return "FILLED";
+        case OmsOrderState::Canceled: return "CANCELED";
+        case OmsOrderState::Expired: return "EXPIRED";
+        case OmsOrderState::Rejected: return "REJECTED";
+        default: return "UNKNOWN";
+    }
+}
+
+void SimulatorClient::set_order_state(uint64_t ticket, OmsOrderState state) {
+    if (ticket == 0) {
+        return;
+    }
+    order_states_[ticket] = state;
+}
+
+void SimulatorClient::rebuild_order_states_from_snapshots() {
+    for (const auto& [ticket, record] : orders_data_) {
+        order_states_[ticket] = map_order_state(record.reason);
+    }
+    for (const auto& [ticket, record] : history_orders_data_) {
+        order_states_[ticket] = map_order_state(record.reason);
+    }
 }
 
 void SimulatorClient::sync_state_from_trade() {
@@ -672,6 +797,7 @@ void SimulatorClient::sync_state_from_trade() {
         " orders=" + std::to_string(orders_data_.size()) +
         " deals=" + std::to_string(deals_data_.size()) +
         " history_orders=" + std::to_string(history_orders_data_.size()));
+    rebuild_order_states_from_snapshots();
 }
 
 template <typename Container>
