@@ -7,12 +7,15 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
+#include <condition_variable>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits>
 #include <numeric>
+#include <random>
 #include <sstream>
 #include <unordered_set>
 
@@ -1449,6 +1452,397 @@ SeasonalAnalysis SeasonalPatternAnalyzer::analyze(
         out.holiday_vs_non_holiday.push_back(b);
     }
 
+    return out;
+}
+
+namespace {
+
+using ParamMap = std::unordered_map<std::string, double>;
+
+std::vector<std::pair<std::string, std::vector<double>>> canonical_dimensions(
+    const OptimizationParamSpace& space) {
+    std::vector<std::pair<std::string, std::vector<double>>> dims;
+    dims.reserve(space.size());
+    for (const auto& [key, values] : space) {
+        if (key.empty() || values.empty()) {
+            continue;
+        }
+        dims.push_back({key, values});
+    }
+    std::sort(dims.begin(), dims.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs.first < rhs.first;
+    });
+    return dims;
+}
+
+void rank_trials(std::vector<OptimizationTrial>& trials) {
+    std::sort(trials.begin(), trials.end(), [](const OptimizationTrial& lhs, const OptimizationTrial& rhs) {
+        if (lhs.score != rhs.score) {
+            return lhs.score > rhs.score;
+        }
+        return lhs.iteration < rhs.iteration;
+    });
+}
+
+ParamMap random_candidate(
+    const std::vector<std::pair<std::string, std::vector<double>>>& dims,
+    std::mt19937_64& rng) {
+    ParamMap out;
+    out.reserve(dims.size());
+    for (const auto& [name, values] : dims) {
+        std::uniform_int_distribution<std::size_t> pick(0U, values.size() - 1U);
+        out[name] = values[pick(rng)];
+    }
+    return out;
+}
+
+std::size_t nearest_index(const std::vector<double>& values, double v) {
+    std::size_t best = 0U;
+    double best_dist = std::numeric_limits<double>::max();
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        const double d = std::abs(values[i] - v);
+        if (d < best_dist) {
+            best_dist = d;
+            best = i;
+        }
+    }
+    return best;
+}
+
+OptimizationTrial evaluate_trial(
+    const ParamMap& params,
+    std::size_t iteration,
+    std::size_t generation,
+    const std::function<double(const ParamMap&)>& evaluator) {
+    OptimizationTrial t;
+    t.params = params;
+    t.score = evaluator(params);
+    t.iteration = iteration;
+    t.generation = generation;
+    return t;
+}
+
+}  // namespace
+
+std::vector<OptimizationTrial> GridSearchRunner::run(
+    const OptimizationParamSpace& space,
+    const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+    std::size_t max_evals) {
+    std::vector<OptimizationTrial> trials;
+    if (!evaluator) {
+        return trials;
+    }
+
+    const auto dims = canonical_dimensions(space);
+    if (dims.empty()) {
+        return trials;
+    }
+
+    ParamMap current;
+    current.reserve(dims.size());
+    std::size_t emitted = 0U;
+
+    std::function<void(std::size_t)> walk = [&](std::size_t idx) {
+        if (max_evals > 0U && emitted >= max_evals) {
+            return;
+        }
+        if (idx == dims.size()) {
+            trials.push_back(evaluate_trial(current, emitted, 0U, evaluator));
+            ++emitted;
+            return;
+        }
+        const auto& [name, values] = dims[idx];
+        for (const double v : values) {
+            current[name] = v;
+            walk(idx + 1U);
+            if (max_evals > 0U && emitted >= max_evals) {
+                return;
+            }
+        }
+    };
+
+    walk(0U);
+    rank_trials(trials);
+    return trials;
+}
+
+std::vector<OptimizationTrial> RandomSearchRunner::run(
+    const OptimizationParamSpace& space,
+    std::size_t samples,
+    std::uint64_t seed,
+    const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator) {
+    std::vector<OptimizationTrial> trials;
+    if (!evaluator || samples == 0U) {
+        return trials;
+    }
+
+    const auto dims = canonical_dimensions(space);
+    if (dims.empty()) {
+        return trials;
+    }
+
+    std::mt19937_64 rng(seed);
+    trials.reserve(samples);
+    for (std::size_t i = 0; i < samples; ++i) {
+        const ParamMap params = random_candidate(dims, rng);
+        trials.push_back(evaluate_trial(params, i, 0U, evaluator));
+    }
+    rank_trials(trials);
+    return trials;
+}
+
+std::vector<OptimizationTrial> GeneticSearchRunner::run(
+    const OptimizationParamSpace& space,
+    std::size_t population_size,
+    std::size_t generations,
+    std::uint64_t seed,
+    const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+    double mutation_rate) {
+    std::vector<OptimizationTrial> all_trials;
+    if (!evaluator || population_size == 0U || generations == 0U) {
+        return all_trials;
+    }
+
+    const auto dims = canonical_dimensions(space);
+    if (dims.empty()) {
+        return all_trials;
+    }
+
+    std::mt19937_64 rng(seed);
+    std::uniform_real_distribution<double> unit(0.0, 1.0);
+    std::vector<ParamMap> population;
+    population.reserve(population_size);
+    for (std::size_t i = 0; i < population_size; ++i) {
+        population.push_back(random_candidate(dims, rng));
+    }
+
+    std::size_t iteration = 0U;
+    for (std::size_t gen = 0; gen < generations; ++gen) {
+        std::vector<OptimizationTrial> ranked;
+        ranked.reserve(population.size());
+        for (const auto& p : population) {
+            ranked.push_back(evaluate_trial(p, iteration++, gen, evaluator));
+        }
+        rank_trials(ranked);
+        all_trials.insert(all_trials.end(), ranked.begin(), ranked.end());
+
+        const std::size_t elite_count = std::max<std::size_t>(1U, population_size / 4U);
+        std::vector<ParamMap> next;
+        next.reserve(population_size);
+        for (std::size_t i = 0; i < elite_count && i < ranked.size(); ++i) {
+            next.push_back(ranked[i].params);
+        }
+
+        std::uniform_int_distribution<std::size_t> elite_pick(0U, next.size() - 1U);
+        while (next.size() < population_size) {
+            const ParamMap& a = next[elite_pick(rng)];
+            const ParamMap& b = next[elite_pick(rng)];
+            ParamMap child;
+            child.reserve(dims.size());
+            for (const auto& [name, values] : dims) {
+                const double base = (unit(rng) < 0.5) ? a.at(name) : b.at(name);
+                double v = base;
+                if (unit(rng) < mutation_rate) {
+                    std::uniform_int_distribution<std::size_t> pick(0U, values.size() - 1U);
+                    v = values[pick(rng)];
+                }
+                child[name] = v;
+            }
+            next.push_back(std::move(child));
+        }
+        population = std::move(next);
+    }
+
+    rank_trials(all_trials);
+    return all_trials;
+}
+
+std::vector<OptimizationTrial> BayesianSearchRunner::run(
+    const OptimizationParamSpace& space,
+    std::size_t iterations,
+    std::uint64_t seed,
+    const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+    std::size_t random_warmup,
+    double exploration_weight) {
+    std::vector<OptimizationTrial> trials;
+    if (!evaluator || iterations == 0U) {
+        return trials;
+    }
+
+    const auto dims = canonical_dimensions(space);
+    if (dims.empty()) {
+        return trials;
+    }
+
+    std::mt19937_64 rng(seed);
+    std::uniform_real_distribution<double> unit(0.0, 1.0);
+    trials.reserve(iterations);
+
+    const std::size_t warmup = std::min(random_warmup, iterations);
+    for (std::size_t i = 0; i < warmup; ++i) {
+        trials.push_back(evaluate_trial(random_candidate(dims, rng), i, 0U, evaluator));
+    }
+
+    for (std::size_t i = warmup; i < iterations; ++i) {
+        const auto best_it = std::max_element(
+            trials.begin(),
+            trials.end(),
+            [](const OptimizationTrial& lhs, const OptimizationTrial& rhs) { return lhs.score < rhs.score; });
+
+        ParamMap candidate = best_it->params;
+        for (const auto& [name, values] : dims) {
+            const std::size_t current_idx = nearest_index(values, candidate[name]);
+            std::size_t target_idx = current_idx;
+
+            const bool explore = unit(rng) < std::clamp(exploration_weight, 0.0, 1.0);
+            if (explore) {
+                std::uniform_int_distribution<std::size_t> pick(0U, values.size() - 1U);
+                target_idx = pick(rng);
+            } else {
+                if (current_idx == 0U) {
+                    target_idx = std::min<std::size_t>(1U, values.size() - 1U);
+                } else if (current_idx + 1U >= values.size()) {
+                    target_idx = current_idx - 1U;
+                } else {
+                    target_idx = (unit(rng) < 0.5) ? (current_idx - 1U) : (current_idx + 1U);
+                }
+            }
+            candidate[name] = values[target_idx];
+        }
+
+        trials.push_back(evaluate_trial(candidate, i, 0U, evaluator));
+    }
+
+    rank_trials(trials);
+    return trials;
+}
+
+DistributedOptimizationResult DistributedOptimizationRunner::run(
+    const std::vector<std::unordered_map<std::string, double>>& params_list,
+    const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+    OptimizationWorkerPolicy policy) {
+    DistributedOptimizationResult out;
+    out.health.submitted = params_list.size();
+    if (!evaluator || params_list.empty()) {
+        return out;
+    }
+
+    const std::size_t total = params_list.size();
+    const std::size_t worker_count = std::max<std::size_t>(
+        1U,
+        std::min<std::size_t>(
+            (policy.max_workers > 0U) ? policy.max_workers : 1U,
+            total));
+    const auto timeout_ms = std::max<int64_t>(1, policy.task_timeout_ms);
+    const auto heartbeat_ms = std::max<int64_t>(1, policy.heartbeat_ms);
+
+    std::vector<std::size_t> attempts(total, 0U);
+    std::vector<bool> settled(total, false);
+    std::queue<std::size_t> pending;
+    for (std::size_t i = 0; i < total; ++i) {
+        pending.push(i);
+    }
+
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::vector<OptimizationTrial> trials;
+    trials.reserve(total);
+
+    std::atomic<std::size_t> settled_count{0U};
+    std::atomic<std::size_t> completed_count{0U};
+    std::atomic<std::size_t> failed_count{0U};
+    std::atomic<std::size_t> restarted_count{0U};
+    std::atomic<std::size_t> timeout_restarts{0U};
+    std::atomic<bool> stop{false};
+
+    auto worker = [&]() {
+        while (!stop.load()) {
+            std::size_t idx = std::numeric_limits<std::size_t>::max();
+            {
+                std::unique_lock<std::mutex> lock(mutex);
+                cv.wait_for(lock, std::chrono::milliseconds(heartbeat_ms), [&]() {
+                    return stop.load() || !pending.empty();
+                });
+                if (stop.load()) {
+                    break;
+                }
+                if (pending.empty()) {
+                    continue;
+                }
+                idx = pending.front();
+                pending.pop();
+            }
+
+            const auto started = std::chrono::steady_clock::now();
+            bool ok = false;
+            double score = 0.0;
+            try {
+                score = evaluator(params_list[idx]);
+                ok = true;
+            } catch (...) {
+                ok = false;
+            }
+            const auto ended = std::chrono::steady_clock::now();
+            const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(ended - started).count();
+            const bool timed_out = elapsed_ms > timeout_ms;
+
+            std::lock_guard<std::mutex> lock(mutex);
+            if (settled[idx]) {
+                continue;
+            }
+
+            if (ok && !timed_out) {
+                OptimizationTrial t;
+                t.params = params_list[idx];
+                t.score = score;
+                t.iteration = completed_count.fetch_add(1U);
+                t.generation = attempts[idx];
+                trials.push_back(std::move(t));
+                settled[idx] = true;
+                settled_count.fetch_add(1U);
+                continue;
+            }
+
+            if (timed_out) {
+                timeout_restarts.fetch_add(1U);
+            }
+
+            if (attempts[idx] < policy.max_restarts) {
+                attempts[idx] += 1U;
+                restarted_count.fetch_add(1U);
+                pending.push(idx);
+                cv.notify_one();
+            } else {
+                settled[idx] = true;
+                settled_count.fetch_add(1U);
+                failed_count.fetch_add(1U);
+            }
+        }
+    };
+
+    std::vector<std::thread> workers;
+    workers.reserve(worker_count);
+    for (std::size_t i = 0; i < worker_count; ++i) {
+        workers.emplace_back(worker);
+    }
+
+    while (settled_count.load() < total) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(heartbeat_ms));
+    }
+    stop.store(true);
+    cv.notify_all();
+    for (auto& t : workers) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+
+    rank_trials(trials);
+    out.trials = std::move(trials);
+    out.health.completed = completed_count.load();
+    out.health.failed = failed_count.load();
+    out.health.restarted = restarted_count.load();
+    out.health.timeout_restarts = timeout_restarts.load();
     return out;
 }
 

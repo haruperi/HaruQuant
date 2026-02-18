@@ -15,8 +15,10 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <queue>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -1061,6 +1063,82 @@ public:
         const std::vector<int64_t>& timestamps_msc,
         const std::vector<double>& returns,
         const std::unordered_set<int64_t>& holiday_days_epoch = {});
+};
+
+using OptimizationParamSpace = std::unordered_map<std::string, std::vector<double>>;
+
+struct OptimizationTrial {
+    std::unordered_map<std::string, double> params{};
+    double score{0.0};
+    std::size_t iteration{0};
+    std::size_t generation{0};
+};
+
+struct OptimizationWorkerPolicy {
+    std::size_t max_workers{4};
+    std::size_t max_restarts{1};
+    int64_t task_timeout_ms{30000};
+    int64_t heartbeat_ms{100};
+};
+
+struct OptimizationWorkerHealth {
+    std::size_t submitted{0};
+    std::size_t completed{0};
+    std::size_t failed{0};
+    std::size_t restarted{0};
+    std::size_t timeout_restarts{0};
+};
+
+struct DistributedOptimizationResult {
+    std::vector<OptimizationTrial> trials{};
+    OptimizationWorkerHealth health{};
+};
+
+class GridSearchRunner {
+public:
+    [[nodiscard]] static std::vector<OptimizationTrial> run(
+        const OptimizationParamSpace& space,
+        const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+        std::size_t max_evals = 0);
+};
+
+class RandomSearchRunner {
+public:
+    [[nodiscard]] static std::vector<OptimizationTrial> run(
+        const OptimizationParamSpace& space,
+        std::size_t samples,
+        std::uint64_t seed,
+        const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator);
+};
+
+class GeneticSearchRunner {
+public:
+    [[nodiscard]] static std::vector<OptimizationTrial> run(
+        const OptimizationParamSpace& space,
+        std::size_t population_size,
+        std::size_t generations,
+        std::uint64_t seed,
+        const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+        double mutation_rate = 0.15);
+};
+
+class BayesianSearchRunner {
+public:
+    [[nodiscard]] static std::vector<OptimizationTrial> run(
+        const OptimizationParamSpace& space,
+        std::size_t iterations,
+        std::uint64_t seed,
+        const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+        std::size_t random_warmup = 5,
+        double exploration_weight = 0.20);
+};
+
+class DistributedOptimizationRunner {
+public:
+    [[nodiscard]] static DistributedOptimizationResult run(
+        const std::vector<std::unordered_map<std::string, double>>& params_list,
+        const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+        OptimizationWorkerPolicy policy = {});
 };
 
 }  // namespace hqt::sim

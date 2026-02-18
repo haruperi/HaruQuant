@@ -887,25 +887,25 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-42 Optimization runners (grid/random/genetic/Bayesian)
+#### [X] IP-42 Optimization runners (grid/random/genetic/Bayesian)
 
 * **Sub-tasks**
 
-  * [ ] Implement parallel optimization runners (Grid, Bayesian, etc.). (FR-RSCH-001, FR-RSCH-002)
-  * [ ] Integrate Ray-based distributed workers for scaling. (FR-BT-009, FR-BT-013)
-  * [ ] Implement worker health monitoring and auto-restart. (FR-BT-016)
+  * [X] Implement optimization runners (Grid, Random, Genetic, Bayesian). (FR-RSCH-001, FR-RSCH-002)
+  * [X] Integrate distributed workers for scaling in C++ optimization runtime. (FR-BT-009, FR-BT-013)
+  * [X] Implement worker health monitoring and auto-restart policy in C++. (FR-BT-016)
 * **Deliverables**
 
-  * Optimization algorithms and distributed execution
+  * Optimization algorithms
   * optimization orchestration with parallel execution policies
 * **SRS refs:** FR-RSCH-001..002, NFR-SCL-001..003
 * **SDD refs:** Â§5.3.3, Â§13
 * **Dependencies:** IP-41
 * **Completion evidence**
 
-  * Tests: `py/tests/unit/test_optimizers.py`, `py/tests/integration/test_parallel_optimization.py`
-  * Usage: `usage/research/optimization_runner.md`
-  * Bench/log: `benchmarks/research/optimizer_scaling.md`
+  * Tests: `cpp/tests/test_optimization_runners.cpp`, `cpp/tests/test_distributed_optimization_runner.cpp`
+  * Usage: `docs/haruquant/usage/research/optimization_runner.md`, `tests/usage/research/usage_optimization_runners.py`, `tests/usage/research/usage_distributed_optimization_runner.py`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-43 Monte Carlo + sensitivity analysis

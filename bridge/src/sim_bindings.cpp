@@ -826,6 +826,142 @@ void register_sim_bindings(nb::module_& m) {
                     nb::arg("returns"),
                     nb::arg("holiday_days_epoch") = std::unordered_set<int64_t>{});
 
+    nb::class_<OptimizationTrial>(m, "OptimizationTrial")
+        .def(nb::init<>())
+        .def_rw("params", &OptimizationTrial::params)
+        .def_rw("score", &OptimizationTrial::score)
+        .def_rw("iteration", &OptimizationTrial::iteration)
+        .def_rw("generation", &OptimizationTrial::generation);
+
+    nb::class_<OptimizationWorkerPolicy>(m, "OptimizationWorkerPolicy")
+        .def(nb::init<>())
+        .def_rw("max_workers", &OptimizationWorkerPolicy::max_workers)
+        .def_rw("max_restarts", &OptimizationWorkerPolicy::max_restarts)
+        .def_rw("task_timeout_ms", &OptimizationWorkerPolicy::task_timeout_ms)
+        .def_rw("heartbeat_ms", &OptimizationWorkerPolicy::heartbeat_ms);
+
+    nb::class_<OptimizationWorkerHealth>(m, "OptimizationWorkerHealth")
+        .def(nb::init<>())
+        .def_rw("submitted", &OptimizationWorkerHealth::submitted)
+        .def_rw("completed", &OptimizationWorkerHealth::completed)
+        .def_rw("failed", &OptimizationWorkerHealth::failed)
+        .def_rw("restarted", &OptimizationWorkerHealth::restarted)
+        .def_rw("timeout_restarts", &OptimizationWorkerHealth::timeout_restarts);
+
+    nb::class_<DistributedOptimizationResult>(m, "DistributedOptimizationResult")
+        .def(nb::init<>())
+        .def_rw("trials", &DistributedOptimizationResult::trials)
+        .def_rw("health", &DistributedOptimizationResult::health);
+
+    nb::class_<GridSearchRunner>(m, "GridSearchRunner")
+        .def_static(
+            "run",
+            [](const OptimizationParamSpace& space, nb::callable evaluator, std::size_t max_evals) {
+                std::function<double(const std::unordered_map<std::string, double>&)> eval =
+                    [evaluator](const std::unordered_map<std::string, double>& p) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(p));
+                    };
+                return GridSearchRunner::run(space, eval, max_evals);
+            },
+            nb::arg("space"),
+            nb::arg("evaluator"),
+            nb::arg("max_evals") = 0U);
+
+    nb::class_<RandomSearchRunner>(m, "RandomSearchRunner")
+        .def_static(
+            "run",
+            [](const OptimizationParamSpace& space,
+               std::size_t samples,
+               std::uint64_t seed,
+               nb::callable evaluator) {
+                std::function<double(const std::unordered_map<std::string, double>&)> eval =
+                    [evaluator](const std::unordered_map<std::string, double>& p) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(p));
+                    };
+                return RandomSearchRunner::run(space, samples, seed, eval);
+            },
+            nb::arg("space"),
+            nb::arg("samples"),
+            nb::arg("seed"),
+            nb::arg("evaluator"));
+
+    nb::class_<GeneticSearchRunner>(m, "GeneticSearchRunner")
+        .def_static(
+            "run",
+            [](const OptimizationParamSpace& space,
+               std::size_t population_size,
+               std::size_t generations,
+               std::uint64_t seed,
+               nb::callable evaluator,
+               double mutation_rate) {
+                std::function<double(const std::unordered_map<std::string, double>&)> eval =
+                    [evaluator](const std::unordered_map<std::string, double>& p) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(p));
+                    };
+                return GeneticSearchRunner::run(
+                    space,
+                    population_size,
+                    generations,
+                    seed,
+                    eval,
+                    mutation_rate);
+            },
+            nb::arg("space"),
+            nb::arg("population_size"),
+            nb::arg("generations"),
+            nb::arg("seed"),
+            nb::arg("evaluator"),
+            nb::arg("mutation_rate") = 0.15);
+
+    nb::class_<BayesianSearchRunner>(m, "BayesianSearchRunner")
+        .def_static(
+            "run",
+            [](const OptimizationParamSpace& space,
+               std::size_t iterations,
+               std::uint64_t seed,
+               nb::callable evaluator,
+               std::size_t random_warmup,
+               double exploration_weight) {
+                std::function<double(const std::unordered_map<std::string, double>&)> eval =
+                    [evaluator](const std::unordered_map<std::string, double>& p) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(p));
+                    };
+                return BayesianSearchRunner::run(
+                    space,
+                    iterations,
+                    seed,
+                    eval,
+                    random_warmup,
+                    exploration_weight);
+            },
+            nb::arg("space"),
+            nb::arg("iterations"),
+            nb::arg("seed"),
+            nb::arg("evaluator"),
+            nb::arg("random_warmup") = 5U,
+            nb::arg("exploration_weight") = 0.20);
+
+    nb::class_<DistributedOptimizationRunner>(m, "DistributedOptimizationRunner")
+        .def_static(
+            "run",
+            [](const std::vector<std::unordered_map<std::string, double>>& params_list,
+               nb::callable evaluator,
+               const OptimizationWorkerPolicy& policy) {
+                std::function<double(const std::unordered_map<std::string, double>&)> eval =
+                    [evaluator](const std::unordered_map<std::string, double>& p) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(p));
+                    };
+                return DistributedOptimizationRunner::run(params_list, eval, policy);
+            },
+            nb::arg("params_list"),
+            nb::arg("evaluator"),
+            nb::arg("policy") = OptimizationWorkerPolicy{});
+
     nb::class_<ResultMetrics>(m, "ResultMetrics")
         .def_static("from_trades", &ResultMetrics::from_trades);
 

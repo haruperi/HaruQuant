@@ -243,6 +243,42 @@
   - `cpp/tests/test_experiment_registry.cpp`
   - `docs/haruquant/usage/research/experiment_registry.md`
 
+## Optimization Runners (IP-42)
+
+- Core C++ APIs:
+  - `cpp/include/engine/engine.hpp::GridSearchRunner`
+  - `cpp/include/engine/engine.hpp::RandomSearchRunner`
+  - `cpp/include/engine/engine.hpp::GeneticSearchRunner`
+  - `cpp/include/engine/engine.hpp::BayesianSearchRunner`
+  - `cpp/include/engine/engine.hpp::DistributedOptimizationRunner`
+- Trial contract:
+  - `cpp/include/engine/engine.hpp::OptimizationTrial`
+  - fields: `params`, `score`, `iteration`, `generation`
+  - worker policy/health:
+    - `OptimizationWorkerPolicy`
+    - `OptimizationWorkerHealth`
+    - `DistributedOptimizationResult`
+- Bridge exposure (`hqt_engine.sim`):
+  - `GridSearchRunner`
+  - `RandomSearchRunner`
+  - `GeneticSearchRunner`
+  - `BayesianSearchRunner`
+  - `OptimizationTrial`
+  - `DistributedOptimizationRunner`
+  - `OptimizationWorkerPolicy`
+  - `OptimizationWorkerHealth`
+  - `DistributedOptimizationResult`
+- Design:
+  - optimization orchestration runs in C++
+  - Python objective callbacks are invoked through nanobind for scoring
+  - distributed worker execution, health monitoring, timeout retry, and restart policy are implemented in C++
+- Validation:
+  - `cpp/tests/test_optimization_runners.cpp`
+  - `cpp/tests/test_distributed_optimization_runner.cpp`
+  - `docs/haruquant/usage/research/optimization_runner.md`
+  - `tests/usage/research/usage_optimization_runners.py`
+  - `tests/usage/research/usage_distributed_optimization_runner.py`
+
 ## Data Adapters and Normalization Pipeline (IP-09)
 
 - Python adapters:
