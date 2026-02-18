@@ -12,7 +12,7 @@ namespace {
 
 using hqt::sim::BacktestBarStep;
 using hqt::sim::BacktestEngine;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::TradeRequest;
 
@@ -34,7 +34,7 @@ protected:
         client.set_symbol_info(symbol);
     }
 
-    SimulatorClient client;
+    TradeSimulator client;
     SymbolInfoData symbol;
 };
 
@@ -101,4 +101,5 @@ TEST_F(SimPendingTriggerMonitorTest, ExpiredPendingMovesToExpiredHistory) {
 }
 
 }  // namespace
+
 

@@ -25,7 +25,7 @@ from apps.mt5 import get_mt5_api
 from apps.simulation.data import (
     AccountInfoSimulator,
     OrderInfoSimulator,
-    SimulatorClient,
+    TradeSimulator,
     SymbolInfoSimulator,
     SymbolTickSimulator,
 )
@@ -50,7 +50,7 @@ class TestMarketOrderFills:
             ask=1.10010,  # 1 pip spread
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -91,7 +91,7 @@ class TestMarketOrderFills:
             ask=1.10010,  # 1 pip spread
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -124,7 +124,7 @@ class TestMarketOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD", trade_contract_size=100000.0)
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -157,7 +157,7 @@ class TestMarketOrderFills:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -193,7 +193,7 @@ class TestLimitOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD", trade_contract_size=100000.0)
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -226,7 +226,7 @@ class TestLimitOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD", trade_contract_size=100000.0)
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -259,7 +259,7 @@ class TestLimitOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD")
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -286,7 +286,7 @@ class TestLimitOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD")
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -317,7 +317,7 @@ class TestStopOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD", trade_contract_size=100000.0)
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -350,7 +350,7 @@ class TestStopOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD", trade_contract_size=100000.0)
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -383,7 +383,7 @@ class TestStopOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD")
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -410,7 +410,7 @@ class TestStopOrderFills:
         symbol = SymbolInfoSimulator(symbol="EURUSD")
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -446,7 +446,7 @@ class TestSlippageCalculations:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -483,7 +483,7 @@ class TestSlippageCalculations:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -519,7 +519,7 @@ class TestSlippageCalculations:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -567,7 +567,7 @@ class TestSlippageCalculations:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -602,7 +602,7 @@ class TestCommissionCalculations:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -655,7 +655,7 @@ class TestCommissionCalculations:
             trade_contract_size=100000.0,
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account, symbols_data={"EURUSD": symbol}
         )
 
@@ -684,7 +684,7 @@ class TestCommissionCalculations:
             symbol="EURUSD",
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account, symbols_data={"EURUSD": symbol}
         )
 
@@ -716,7 +716,7 @@ class TestCommissionCalculations:
             swap_long=-0.50,  # $0.50 per lot per day
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account, symbols_data={"EURUSD": symbol}
         )
 
@@ -746,7 +746,7 @@ class TestCommissionCalculations:
             swap_long=-0.50,  # $0.50 per lot per day
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account, symbols_data={"EURUSD": symbol}
         )
 
@@ -777,7 +777,7 @@ class TestCommissionCalculations:
             swap_short=0.30,  # Earn $0.30/day for short
         )
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account, symbols_data={"EURUSD": symbol}
         )
 
@@ -826,7 +826,7 @@ class TestSpreadApplication:
         # Bid = 1.09995, Ask = 1.10005
         tick = SymbolTickSimulator(bid=1.09995, ask=1.10005)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -870,7 +870,7 @@ class TestSpreadApplication:
         )
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10020)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -936,7 +936,7 @@ class TestSpreadApplication:
 
             tick = SymbolTickSimulator(bid=bid, ask=ask)
 
-            client = SimulatorClient(
+            client = TradeSimulator(
                 account_data=account,
                 symbols_data={"EURUSD": symbol},
                 ticks_data={"EURUSD": tick},
@@ -967,7 +967,7 @@ class TestOrderValidation:
         symbol = SymbolInfoSimulator(symbol="EURUSD")
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -990,7 +990,7 @@ class TestOrderValidation:
         symbol = SymbolInfoSimulator(symbol="EURUSD")
         tick = SymbolTickSimulator(bid=1.10000, ask=1.10010)
 
-        client = SimulatorClient(
+        client = TradeSimulator(
             account_data=account,
             symbols_data={"EURUSD": symbol},
             ticks_data={"EURUSD": tick},
@@ -1010,3 +1010,4 @@ class TestOrderValidation:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

@@ -12,7 +12,7 @@ from apps.simulation.data import (
     HistoryOrderInfoSimulator,
     PositionInfoSimulator,
     TerminalInfoSimulator,
-    SimulatorClient,
+    TradeSimulator,
     _get_mt5_val,
     _get_mt5_symbol_val
 )
@@ -110,7 +110,7 @@ def test_terminal_info_simulator():
     assert term.trade_allowed is True
     assert isinstance(term._asdict(), dict)
 
-class TestSimulatorClient:
+class TestTradeSimulator:
     @pytest.fixture
     def client(self):
         symbols = {
@@ -119,7 +119,7 @@ class TestSimulatorClient:
         ticks = {
             "EURUSD": SymbolTickSimulator(bid=1.1000, ask=1.1002)
         }
-        return SimulatorClient(symbols_data=symbols, ticks_data=ticks)
+        return TradeSimulator(symbols_data=symbols, ticks_data=ticks)
 
     def test_initialization(self, client):
         assert client.version() == (500, 2980, "25 Mar 2026")
@@ -186,4 +186,6 @@ class TestSimulatorClient:
         assert fee == 0.0
         # Swap calculation includes rollover logic
         assert swap < 0 # Negative swap
+
+
 

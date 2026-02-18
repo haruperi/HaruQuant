@@ -8,7 +8,7 @@
 
 namespace hqt::sim {
 
-BacktestEngine::BacktestEngine(SimulatorClient& client)
+BacktestEngine::BacktestEngine(TradeSimulator& client)
     : client_(client) {}
 
 void BacktestEngine::set_on_bar_processed(BarProcessedCallback callback) {
@@ -412,7 +412,7 @@ void BacktestEngine::apply_entry_signal(
 
 namespace hqt::engine {
 
-Engine::Engine(hqt::sim::SimulatorClient& client)
+Engine::Engine(hqt::sim::TradeSimulator& client)
     : impl_(client) {}
 
 void Engine::run_trading_timeframe(
@@ -443,3 +443,4 @@ const std::vector<hqt::sim::TradeRecord>& Engine::completed_trades() const noexc
 }
 
 }  // namespace hqt::engine
+

@@ -15,7 +15,7 @@ Classes:
     HistoryOrderInfoSimulator: Data structure mirroring MT5 HistoryOrderInfo.
     PositionInfoSimulator: Data structure mirroring MT5 PositionInfo.
     TerminalInfoSimulator: Data structure mirroring MT5 TerminalInfo.
-    SimulatorClient: Client for simulating MT5 API.
+    TradeSimulator: Client for simulating MT5 API.
 
 Functions:
     _get_mt5_val: Safely get value from MT5 account info or return default.
@@ -69,7 +69,7 @@ class AccountInfoSimulator:
     Data structure mirroring MT5 AccountInfo.
 
     This class contains all fields returned by mt5.account_info() as default values.
-    Values can be overridden by passing a custom AccountInfoSimulator object to the SimulatorClient.
+    Values can be overridden by passing a custom AccountInfoSimulator object to the TradeSimulator.
     """
 
     # Integer properties
@@ -431,11 +431,11 @@ class TerminalInfoSimulator:
         return asdict(self)
 
 
-class SimulatorClient:
+class TradeSimulator:
     """
     Simulator API adapter.
 
-    A Low-Level API (SimulatorClient mimics MT5 API)
+    A Low-Level API (TradeSimulator mimics MT5 API)
     providing raw API methods that the real MT5 provides.
 
     This class acts as a drop-in replacement for the `mt5` module,
@@ -1505,4 +1505,5 @@ class SimulatorClient:
             return float(price_delta * contract_size * volume)
 
         return 0.0
+
 

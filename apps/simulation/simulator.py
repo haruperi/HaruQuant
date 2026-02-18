@@ -36,7 +36,7 @@ from apps.mt5 import MT5Client, get_mt5_api
 from apps.simulation.data import (
     AccountInfoSimulator,
     PositionInfoSimulator,
-    SimulatorClient,
+    TradeSimulator,
     SymbolInfoSimulator,
     SymbolTickSimulator,
 )
@@ -87,7 +87,7 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
         self._position_array_state: PositionArrayState = PositionArrayState()
 
         # Create simulator client
-        self._simulator = SimulatorClient(
+        self._simulator = TradeSimulator(
             account_data=self._account_data,
             symbols_data=self._symbols_data,
             ticks_data=self._ticks_data,
@@ -681,4 +681,5 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
                 tp=float(new_tp) if new_tp is not None else 0.0,
             )
         )
+
 

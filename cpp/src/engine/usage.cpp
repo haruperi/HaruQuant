@@ -15,7 +15,7 @@ namespace hqt::usage {
 void run_logger_usage_example() {
     util::info("C++ logger usage example start");
 
-    hqt::sim::SimulatorClient client;
+    hqt::sim::TradeSimulator client;
     hqt::sim::SymbolInfoData symbol;
     symbol.symbol = "EURUSD";
     symbol.point = 0.00001;
@@ -53,3 +53,4 @@ void run_logger_usage_example() {
 }
 
 }  // namespace hqt::usage
+

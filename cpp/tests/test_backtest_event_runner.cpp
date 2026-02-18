@@ -14,11 +14,11 @@ namespace {
 using hqt::sim::BacktestBarStep;
 using hqt::sim::BacktestEngine;
 using hqt::sim::ModelTick;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 
-SimulatorClient make_client() {
-    SimulatorClient client;
+TradeSimulator make_client() {
+    TradeSimulator client;
 
     SymbolInfoData symbol;
     symbol.symbol = "EURUSD";
@@ -38,7 +38,7 @@ SimulatorClient make_client() {
 }
 
 TEST(BacktestEventRunnerTest, EmitsBarTickAndTradeLifecycleEvents) {
-    SimulatorClient client = make_client();
+    TradeSimulator client = make_client();
     BacktestEngine engine(client);
 
     std::size_t bar_events = 0;
@@ -70,7 +70,7 @@ TEST(BacktestEventRunnerTest, EmitsBarTickAndTradeLifecycleEvents) {
 }
 
 TEST(BacktestEventRunnerTest, TickModeEmitsTickEventsDeterministically) {
-    SimulatorClient client = make_client();
+    TradeSimulator client = make_client();
     BacktestEngine engine(client);
 
     std::vector<int64_t> observed_times;
@@ -99,4 +99,5 @@ TEST(BacktestEventRunnerTest, TickModeEmitsTickEventsDeterministically) {
 }
 
 }  // namespace
+
 

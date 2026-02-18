@@ -12,7 +12,7 @@ def main() -> None:
         print("hqt_engine.sim not available. Build bridge first.")
         return
 
-    client = sim.SimulatorClient()
+    client = sim.TradeSimulator()
 
     symbol = sim.SymbolInfoData()
     symbol.symbol = "EURUSD"
@@ -62,4 +62,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

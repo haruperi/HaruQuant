@@ -62,7 +62,7 @@ def test_zero_copy_sum_rejects_noncontiguous_or_wrong_dtype() -> None:
 
 
 def test_keep_alive_lifetime_for_engine_client_relationship() -> None:
-    client = sim.SimulatorClient()
+    client = sim.TradeSimulator()
     engine = sim.BacktestEngine(client)
 
     # Drop Python reference to client; keep_alive/shared ownership contract should keep it valid.
@@ -71,3 +71,4 @@ def test_keep_alive_lifetime_for_engine_client_relationship() -> None:
 
     state = engine.state()
     assert state is not None
+

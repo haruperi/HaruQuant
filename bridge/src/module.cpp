@@ -537,7 +537,7 @@ NB_MODULE(hqt_engine, m) {
         cpp_owned_python_view["description"] =
             nb::str("C++ owns lifetime; Python receives non-owning views/references.");
         cpp_owned_python_view["examples"] =
-            make_str_list({"BacktestEngine.state", "SimulatorClient.account_info"});
+            make_str_list({"BacktestEngine.state", "TradeSimulator.account_info"});
         payload["cpp_owned_python_view"] = cpp_owned_python_view;
 
         nb::dict shared_ownership;
@@ -545,7 +545,7 @@ NB_MODULE(hqt_engine, m) {
         shared_ownership["description"] =
             nb::str("Long-lived bridge objects use shared_ptr holders across C++/Python.");
         shared_ownership["examples"] =
-            make_str_list({"SimulatorClient", "BacktestEngine", "PortfolioEngine"});
+            make_str_list({"TradeSimulator", "BacktestEngine", "PortfolioEngine"});
         payload["shared_ownership"] = shared_ownership;
 
         nb::dict callback_rules;

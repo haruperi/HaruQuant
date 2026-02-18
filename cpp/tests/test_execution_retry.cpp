@@ -15,14 +15,14 @@ using hqt::sim::ExecutionRouter;
 using hqt::sim::MockBroker;
 using hqt::sim::BrokerAdapter;
 using hqt::sim::BrokerSnapshot;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::SymbolTickData;
 using hqt::sim::TradeResult;
 using hqt::sim::TradeRequest;
 
-SimulatorClient make_client() {
-    SimulatorClient client;
+TradeSimulator make_client() {
+    TradeSimulator client;
 
     SymbolInfoData symbol;
     symbol.symbol = "EURUSD";
@@ -142,3 +142,4 @@ TEST(ExecutionRouterTest, RateLimitBlocksSecondOrderInWindow) {
 }
 
 }  // namespace
+

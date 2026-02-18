@@ -23,7 +23,7 @@ from apps.mt5 import MT5Client, get_mt5_api
 mt5 = get_mt5_api()
 
 from apps.trade import AccountInfo
-from apps.simulation.data import SimulatorClient, AccountInfoSimulator
+from apps.simulation.data import TradeSimulator, AccountInfoSimulator
 from apps.utils.logger import logger
 from apps.sqlite.users import UserManager
 
@@ -72,7 +72,7 @@ def main():
         # simulator_account_data = AccountInfoSimulator(
         #     #balance=50000,
         # )
-        # simulator = SimulatorClient(simulator_account_data)
+        # simulator = TradeSimulator(simulator_account_data)
         # account = AccountInfo(api=simulator)
   
 
@@ -233,4 +233,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

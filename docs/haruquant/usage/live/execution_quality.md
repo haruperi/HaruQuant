@@ -27,7 +27,7 @@ from hqt_engine import sim
 twap = sim.ExecutionAlgoTWAP.build_schedule(1.0, 0, 3000, 4)
 vwap = sim.ExecutionAlgoVWAP.build_schedule(1.0, 0, 3000, [1, 2, 3, 4])
 
-client = sim.SimulatorClient()
+client = sim.TradeSimulator()
 broker = sim.MockBroker(client)
 broker.set_partial_fill_ratio(0.5)
 
@@ -50,4 +50,5 @@ print(out.result.retcode, summary.partial_fill_rate, summary.p99_latency_ms)
 
 - `cpp/tests/test_twap_vwap.cpp`
 - `tests/integration/test_partial_fills.py`
+
 

@@ -11,7 +11,7 @@ Implementation is in C++ (`hqt_engine.sim`), used for both backtest and live-pat
 
 ## State Machine
 
-`SimulatorClient.order_state_name(order_ticket)` returns:
+`TradeSimulator.order_state_name(order_ticket)` returns:
 
 - `NEW`
 - `ACCEPTED`
@@ -39,4 +39,5 @@ See:
 ## Test Evidence
 
 - `cpp/tests/test_sim_oms_state_machine.cpp`
+
 

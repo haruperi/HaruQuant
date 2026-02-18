@@ -1,6 +1,6 @@
 /**
  * @file test_simulator_client_getters.cpp
- * @brief Tests for SimulatorClient getter API.
+ * @brief Tests for TradeSimulator getter API.
  */
 
 #include <gtest/gtest.h>
@@ -8,13 +8,13 @@
 
 namespace {
 
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::SymbolTickData;
 using hqt::sim::TradeRecordData;
 
-TEST(SimulatorClientGettersTest, AccountInfoAndLastErrorDefaults) {
-    SimulatorClient client;
+TEST(TradeSimulatorGettersTest, AccountInfoAndLastErrorDefaults) {
+    TradeSimulator client;
 
     const auto& account = client.account_info();
     EXPECT_DOUBLE_EQ(account.balance, 10000.0);
@@ -25,8 +25,8 @@ TEST(SimulatorClientGettersTest, AccountInfoAndLastErrorDefaults) {
     EXPECT_EQ(message, "Success");
 }
 
-TEST(SimulatorClientGettersTest, SymbolInfoAndTickLookup) {
-    SimulatorClient client;
+TEST(TradeSimulatorGettersTest, SymbolInfoAndTickLookup) {
+    TradeSimulator client;
 
     SymbolInfoData symbol;
     symbol.symbol = "EURUSD";
@@ -52,8 +52,8 @@ TEST(SimulatorClientGettersTest, SymbolInfoAndTickLookup) {
     EXPECT_EQ(client.symbol_info_tick("GBPUSD"), nullptr);
 }
 
-TEST(SimulatorClientGettersTest, EmptyContainersReturnEmptyVectors) {
-    SimulatorClient client;
+TEST(TradeSimulatorGettersTest, EmptyContainersReturnEmptyVectors) {
+    TradeSimulator client;
 
     EXPECT_TRUE(client.positions_get().empty());
     EXPECT_TRUE(client.orders_get().empty());
@@ -61,8 +61,8 @@ TEST(SimulatorClientGettersTest, EmptyContainersReturnEmptyVectors) {
     EXPECT_TRUE(client.history_deals_get().empty());
 }
 
-TEST(SimulatorClientGettersTest, PositionsFilterByTicketAndSymbol) {
-    SimulatorClient client;
+TEST(TradeSimulatorGettersTest, PositionsFilterByTicketAndSymbol) {
+    TradeSimulator client;
 
     TradeRecordData eurusd;
     eurusd.ticket = 10;
@@ -89,8 +89,8 @@ TEST(SimulatorClientGettersTest, PositionsFilterByTicketAndSymbol) {
     EXPECT_TRUE(no_match.empty());
 }
 
-TEST(SimulatorClientGettersTest, OrdersFilterByTicketAndSymbol) {
-    SimulatorClient client;
+TEST(TradeSimulatorGettersTest, OrdersFilterByTicketAndSymbol) {
+    TradeSimulator client;
 
     TradeRecordData a;
     a.ticket = 101;
@@ -112,3 +112,5 @@ TEST(SimulatorClientGettersTest, OrdersFilterByTicketAndSymbol) {
 }
 
 }  // namespace
+
+

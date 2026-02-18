@@ -32,7 +32,7 @@ IP-35 adds a C++ execution router with:
 ```python
 from hqt_engine import sim
 
-client = sim.SimulatorClient()
+client = sim.TradeSimulator()
 broker = sim.MockBroker(client)
 
 policy = sim.ExecutionPolicy()
@@ -59,4 +59,5 @@ print(out.policy_code, out.reason, out.result.retcode)
 
 - `cpp/tests/test_execution_retry.cpp`
 - `tests/integration/test_execution_escalation.py`
+
 

@@ -160,7 +160,7 @@ def run_trading_timeframe_cpp(
     cpp_account = _to_cpp_account(account_data)
     cpp_symbol = _to_cpp_symbol_info(symbol_info)
 
-    client = csim.SimulatorClient(cpp_account)
+    client = csim.TradeSimulator(cpp_account)
     client.set_symbol_info(cpp_symbol)
 
     # Seed an initial tick so the engine can process bar 0.
@@ -516,4 +516,5 @@ def _cpp_trade_to_py(cpp_trade: Any, symbol: str) -> TradeRecord:
         mfe_usd=float(cpp_trade.mfe_usd),
         r_multiple=float(cpp_trade.r_multiple),
     )
+
 

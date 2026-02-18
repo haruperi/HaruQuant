@@ -15,7 +15,7 @@ mt5 = get_mt5_api()
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import OrderInfo
-from apps.simulation.data import SimulatorClient, OrderInfoSimulator
+from apps.simulation.data import TradeSimulator, OrderInfoSimulator
 
 
 def get_mt5_credentials():
@@ -65,7 +65,7 @@ def main():
         5001: OrderInfoSimulator(ticket=5001, symbol="EURUSD", type=2, volume_initial=0.1, price_open=1.0500), # Buy Limit
         5002: OrderInfoSimulator(ticket=5002, symbol="GBPUSD", type=3, volume_initial=0.2, price_open=1.3000), # Sell Limit
     }
-    simulator = SimulatorClient(orders_data=sim_orders)
+    simulator = TradeSimulator(orders_data=sim_orders)
     order = OrderInfo(api=simulator)
     print("Using: Simulator (Simulated Active Orders)")
 
@@ -172,4 +172,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

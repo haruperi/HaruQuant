@@ -21,8 +21,8 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not CPP_AVAILABLE, reason="C++ bridge not available")
 
 
-def _client_with_symbol() -> "sim.SimulatorClient":
-    client = sim.SimulatorClient()
+def _client_with_symbol() -> "sim.TradeSimulator":
+    client = sim.TradeSimulator()
     symbol = sim.SymbolInfoData()
     symbol.symbol = "EURUSD"
     symbol.point = 0.00001
@@ -81,4 +81,5 @@ def test_partial_fill_and_quality_metrics():
     assert summary.partial_fill_count >= 1
     assert summary.partial_fill_rate > 0.0
     assert summary.p99_latency_ms >= 0.0
+
 

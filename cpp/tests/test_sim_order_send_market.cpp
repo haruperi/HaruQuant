@@ -1,6 +1,6 @@
 /**
  * @file test_sim_order_send_market.cpp
- * @brief Tests for SimulatorClient order_send market execution.
+ * @brief Tests for TradeSimulator order_send market execution.
  */
 
 #include <gtest/gtest.h>
@@ -8,7 +8,7 @@
 
 namespace {
 
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::SymbolTickData;
 using hqt::sim::TradeRequest;
@@ -35,7 +35,7 @@ protected:
         tick.time_msc = 1700000000000;
     }
 
-    SimulatorClient client;
+    TradeSimulator client;
     SymbolInfoData symbol;
     SymbolTickData tick;
 };
@@ -111,4 +111,5 @@ TEST_F(SimOrderSendMarketTest, InvalidRequestRetcodes) {
 }
 
 }  // namespace
+
 

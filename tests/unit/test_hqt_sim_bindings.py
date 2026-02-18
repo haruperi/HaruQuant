@@ -170,23 +170,23 @@ class TestToDict:
         assert "ticket" in d
 
 
-# ── SimulatorClient basics ────────────────────────────────────────────
+# ── TradeSimulator basics ────────────────────────────────────────────
 
 
-class TestSimulatorClient:
+class TestTradeSimulator:
     def test_default_construction(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         acct = client.account_info()
         assert acct.balance == 10000.0
 
     def test_custom_account(self):
         acct = sim.AccountInfoData()
         acct.balance = 50000.0
-        client = sim.SimulatorClient(acct)
+        client = sim.TradeSimulator(acct)
         assert client.account_info().balance == 50000.0
 
     def test_symbol_info_roundtrip(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         si = sim.SymbolInfoData()
         si.symbol = "GBPUSD"
         si.digits = 5
@@ -197,15 +197,15 @@ class TestSimulatorClient:
         assert result.digits == 5
 
     def test_symbol_info_unknown_returns_none(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         assert client.symbol_info("UNKNOWN") is None
 
     def test_symbol_info_tick_unknown_returns_none(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         assert client.symbol_info_tick("UNKNOWN") is None
 
     def test_last_error(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         code, msg = client.last_error()
         assert code == 1
         assert msg == "Success"
@@ -216,7 +216,7 @@ class TestSimulatorClient:
 
 class TestCalcFunctions:
     def test_order_calc_margin(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         si = sim.SymbolInfoData()
         si.symbol = "EURUSD"
         client.set_symbol_info(si)
@@ -224,7 +224,7 @@ class TestCalcFunctions:
         assert margin > 0.0
 
     def test_order_calc_profit(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
         si = sim.SymbolInfoData()
         si.symbol = "EURUSD"
         client.set_symbol_info(si)
@@ -249,7 +249,7 @@ class TestCalcFunctions:
 
 def _make_client_with_symbol(symbol="EURUSD"):
     """Helper: create client with registered symbol + initial tick."""
-    client = sim.SimulatorClient()
+    client = sim.TradeSimulator()
     si = sim.SymbolInfoData()
     si.symbol = symbol
     client.set_symbol_info(si)
@@ -375,7 +375,7 @@ class TestTickModel:
 
 class TestPortfolioEngine:
     def test_run_equal_weight(self):
-        client = sim.SimulatorClient()
+        client = sim.TradeSimulator()
 
         for sym in ["EURUSD", "GBPUSD"]:
             si = sim.SymbolInfoData()
@@ -436,3 +436,5 @@ class TestAutoCloseReason:
 
     def test_enum_identity(self):
         assert sim.AutoCloseReason.StopLoss != sim.AutoCloseReason.TakeProfit
+
+

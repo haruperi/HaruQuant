@@ -2,7 +2,7 @@
 
 ## Scope
 
-IP-37 uses the C++ `BacktestEngine` as the deterministic event runner with OMS path through `SimulatorClient`.
+IP-37 uses the C++ `BacktestEngine` as the deterministic event runner with OMS path through `TradeSimulator`.
 
 Lifecycle hooks now available:
 
@@ -23,7 +23,7 @@ Lifecycle hooks now available:
 ```python
 from hqt_engine import sim
 
-client = sim.SimulatorClient()
+client = sim.TradeSimulator()
 info = sim.SymbolInfoData()
 info.symbol = "EURUSD"
 client.set_symbol_info(info)
@@ -51,4 +51,5 @@ engine.run_trading_timeframe("EURUSD", 0.1, bars)
 
 - `cpp/tests/test_backtest_event_runner.cpp`
 - `tests/e2e/test_backtest_event_path.py`
+
 

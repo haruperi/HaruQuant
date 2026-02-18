@@ -18,7 +18,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import SymbolInfo
-from apps.simulation.data import SimulatorClient, SymbolInfoSimulator, SymbolTickSimulator
+from apps.simulation.data import TradeSimulator, SymbolInfoSimulator, SymbolTickSimulator
 
 
 def get_mt5_credentials():
@@ -86,7 +86,7 @@ def main():
         # Override some values if needed
         sim_info.spread = 5
         sim_tick = SymbolTickSimulator(bid=1.2345, ask=1.2350, last=1.2348)
-        simulator = SimulatorClient(
+        simulator = TradeSimulator(
             symbols_data={symbol_name: sim_info},
             ticks_data={symbol_name: sim_tick}
         )
@@ -247,4 +247,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

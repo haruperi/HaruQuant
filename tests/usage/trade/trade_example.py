@@ -13,7 +13,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import Trade
-from apps.simulation.data import SimulatorClient, SymbolTickSimulator, PositionInfoSimulator
+from apps.simulation.data import TradeSimulator, SymbolTickSimulator, PositionInfoSimulator
 
 # For MQL5 constants (need to import mt5 to access constants if they are used in main)
 # Trade class uses them internally, but we might need them for arguments.
@@ -81,7 +81,7 @@ def main():
     #         price_open=1.19645,
     #     ),
     # }
-    # simulator = SimulatorClient(ticks_data=sim_ticks, positions_data=sim_positions)
+    # simulator = TradeSimulator(ticks_data=sim_ticks, positions_data=sim_positions)
     # trade = Trade(api=simulator)
     # print("Using: Simulator (Simulated Trade)")
     # print()
@@ -277,4 +277,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

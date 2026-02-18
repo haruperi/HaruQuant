@@ -12,7 +12,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import TerminalInfo
-from apps.simulation.data import SimulatorClient, TerminalInfoSimulator
+from apps.simulation.data import TradeSimulator, TerminalInfoSimulator
 
 
 def get_mt5_credentials():
@@ -72,7 +72,7 @@ def main():
     sim_terminal = TerminalInfoSimulator(
         name="HaruQuant Simulator", company="HaruCorp", build=1234, connected=True
     )
-    simulator = SimulatorClient(terminal_data=sim_terminal)
+    simulator = TradeSimulator(terminal_data=sim_terminal)
     terminal = TerminalInfo(api=simulator)
     print("Using: Simulator (Simulated Terminal)")
 
@@ -160,4 +160,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

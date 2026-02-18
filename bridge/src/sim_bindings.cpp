@@ -327,66 +327,66 @@ void register_sim_bindings(nb::module_& m) {
         .value("Expired", OmsOrderState::Expired)
         .value("Rejected", OmsOrderState::Rejected);
 
-    // ── SimulatorClient ──────────────────────────────────────────────
+    // ── TradeSimulator ──────────────────────────────────────────────
 
-    nb::class_<SimulatorClient>(m, "SimulatorClient")
+    nb::class_<TradeSimulator>(m, "TradeSimulator")
         .def(nb::init<>())
         .def(nb::init<AccountInfoData>())
-        .def("account_info", &SimulatorClient::account_info,
+        .def("account_info", &TradeSimulator::account_info,
              nb::rv_policy::reference_internal)
-        .def("symbol_info", [](const SimulatorClient& self, const std::string& symbol)
+        .def("symbol_info", [](const TradeSimulator& self, const std::string& symbol)
                 -> std::optional<SymbolInfoData> {
             const auto* p = self.symbol_info(symbol);
             if (p) return *p;
             return std::nullopt;
         })
-        .def("symbol_info_tick", [](const SimulatorClient& self, const std::string& symbol)
+        .def("symbol_info_tick", [](const TradeSimulator& self, const std::string& symbol)
                 -> std::optional<SymbolTickData> {
             const auto* p = self.symbol_info_tick(symbol);
             if (p) return *p;
             return std::nullopt;
         })
-        .def("positions_get", [](const SimulatorClient& self,
+        .def("positions_get", [](const TradeSimulator& self,
                                   std::optional<uint64_t> ticket,
                                   std::optional<std::string> symbol) {
             std::optional<std::string_view> sv;
             if (symbol) sv = *symbol;
             return self.positions_get(ticket, sv);
         }, nb::arg("ticket") = nb::none(), nb::arg("symbol") = nb::none())
-        .def("orders_get", [](const SimulatorClient& self,
+        .def("orders_get", [](const TradeSimulator& self,
                                std::optional<uint64_t> ticket,
                                std::optional<std::string> symbol) {
             std::optional<std::string_view> sv;
             if (symbol) sv = *symbol;
             return self.orders_get(ticket, sv);
         }, nb::arg("ticket") = nb::none(), nb::arg("symbol") = nb::none())
-        .def("history_orders_get", &SimulatorClient::history_orders_get,
+        .def("history_orders_get", &TradeSimulator::history_orders_get,
              nb::arg("ticket") = nb::none())
-        .def("history_deals_get", &SimulatorClient::history_deals_get,
+        .def("history_deals_get", &TradeSimulator::history_deals_get,
              nb::arg("ticket") = nb::none())
-        .def("last_error", &SimulatorClient::last_error)
-        .def("trade_retcode_description", &SimulatorClient::trade_retcode_description)
-        .def("order_calc_margin", &SimulatorClient::order_calc_margin)
-        .def("order_calc_profit", &SimulatorClient::order_calc_profit)
-        .def("order_send", &SimulatorClient::order_send)
-        .def("close_position", &SimulatorClient::close_position)
-        .def("order_state", &SimulatorClient::order_state)
-        .def("order_state_name", &SimulatorClient::order_state_name)
-        .def("idempotency_cache_size", &SimulatorClient::idempotency_cache_size)
-        .def("set_history_order_state", &SimulatorClient::set_history_order_state)
-        .def("set_history_order_done_time", &SimulatorClient::set_history_order_done_time)
-        .def("set_account_info", &SimulatorClient::set_account_info)
-        .def("set_symbol_info", &SimulatorClient::set_symbol_info)
-        .def("set_symbol_tick", &SimulatorClient::set_symbol_tick)
-        .def("upsert_position", &SimulatorClient::upsert_position)
-        .def("upsert_order", &SimulatorClient::upsert_order)
-        .def("upsert_history_order", &SimulatorClient::upsert_history_order)
-        .def("upsert_deal", &SimulatorClient::upsert_deal)
-        .def("set_last_error", &SimulatorClient::set_last_error);
+        .def("last_error", &TradeSimulator::last_error)
+        .def("trade_retcode_description", &TradeSimulator::trade_retcode_description)
+        .def("order_calc_margin", &TradeSimulator::order_calc_margin)
+        .def("order_calc_profit", &TradeSimulator::order_calc_profit)
+        .def("order_send", &TradeSimulator::order_send)
+        .def("close_position", &TradeSimulator::close_position)
+        .def("order_state", &TradeSimulator::order_state)
+        .def("order_state_name", &TradeSimulator::order_state_name)
+        .def("idempotency_cache_size", &TradeSimulator::idempotency_cache_size)
+        .def("set_history_order_state", &TradeSimulator::set_history_order_state)
+        .def("set_history_order_done_time", &TradeSimulator::set_history_order_done_time)
+        .def("set_account_info", &TradeSimulator::set_account_info)
+        .def("set_symbol_info", &TradeSimulator::set_symbol_info)
+        .def("set_symbol_tick", &TradeSimulator::set_symbol_tick)
+        .def("upsert_position", &TradeSimulator::upsert_position)
+        .def("upsert_order", &TradeSimulator::upsert_order)
+        .def("upsert_history_order", &TradeSimulator::upsert_history_order)
+        .def("upsert_deal", &TradeSimulator::upsert_deal)
+        .def("set_last_error", &TradeSimulator::set_last_error);
 
     nb::class_<MockBroker>(m, "MockBroker")
         .def(nb::init<>())
-        .def(nb::init<SimulatorClient>())
+        .def(nb::init<TradeSimulator>())
         .def("connect", &MockBroker::connect)
         .def("submit", &MockBroker::submit, nb::arg("request"))
         .def("cancel", &MockBroker::cancel, nb::arg("order_id"))
@@ -488,7 +488,7 @@ void register_sim_bindings(nb::module_& m) {
     // ── BacktestEngine ───────────────────────────────────────────────
 
     nb::class_<BacktestEngine>(m, "BacktestEngine")
-        .def(nb::init<SimulatorClient&>(), nb::keep_alive<1, 2>())
+        .def(nb::init<TradeSimulator&>(), nb::keep_alive<1, 2>())
         .def("set_on_bar_processed", [](BacktestEngine& self, nb::object callback) {
             self.set_on_bar_processed(
                 [callback](std::size_t index, const BacktestBarStep& bar,
@@ -630,7 +630,7 @@ void register_sim_bindings(nb::module_& m) {
     // ── PortfolioEngine ──────────────────────────────────────────────
 
     nb::class_<PortfolioEngine>(m, "PortfolioEngine")
-        .def(nb::init<SimulatorClient&>(), nb::keep_alive<1, 2>())
+        .def(nb::init<TradeSimulator&>(), nb::keep_alive<1, 2>())
         .def("run_equal_weight",
              [](PortfolioEngine& self, const std::vector<PortfolioSymbolInput>& inputs,
                 double base_volume) {
@@ -670,7 +670,7 @@ void register_sim_bindings(nb::module_& m) {
         .def("last_rebalance_msc", &RebalanceController::last_rebalance_msc);
 
     nb::class_<VectorizedBacktestEngine>(m, "VectorizedBacktestEngine")
-        .def(nb::init<SimulatorClient&>(), nb::keep_alive<1, 2>())
+        .def(nb::init<TradeSimulator&>(), nb::keep_alive<1, 2>())
         .def(
             "run",
             [](VectorizedBacktestEngine& self, const std::string& symbol, double volume,
@@ -1027,3 +1027,5 @@ void register_sim_bindings(nb::module_& m) {
     m.def("calc_profit", &calc_profit,
           "Calculate profit for BUY/SELL actions.");
 }
+
+

@@ -9,7 +9,7 @@
 namespace {
 
 using hqt::sim::OmsOrderState;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::SymbolTickData;
 using hqt::sim::TradeRequest;
@@ -39,7 +39,7 @@ protected:
         client.set_symbol_tick("EURUSD", tick);
     }
 
-    SimulatorClient client;
+    TradeSimulator client;
     SymbolInfoData symbol;
     SymbolTickData tick;
 };
@@ -135,4 +135,5 @@ TEST_F(SimOmsStateMachineTest, PendingOrderCanBeMarkedExpired) {
 }
 
 }  // namespace
+
 

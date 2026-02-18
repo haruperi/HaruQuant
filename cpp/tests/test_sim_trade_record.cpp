@@ -12,7 +12,7 @@ namespace {
 
 using hqt::sim::BacktestBarStep;
 using hqt::sim::BacktestEngine;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 
 class SimTradeRecordTest : public ::testing::Test {
@@ -33,7 +33,7 @@ protected:
         client.set_symbol_info(symbol);
     }
 
-    SimulatorClient client;
+    TradeSimulator client;
     SymbolInfoData symbol;
 };
 
@@ -64,4 +64,5 @@ TEST_F(SimTradeRecordTest, TracksMfeMaeBarsTimeAndRMultiple) {
 }
 
 }  // namespace
+
 

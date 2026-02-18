@@ -19,7 +19,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import DealInfo
-from apps.simulation.data import SimulatorClient, DealInfoSimulator
+from apps.simulation.data import TradeSimulator, DealInfoSimulator
 
 
 def get_mt5_credentials():
@@ -86,7 +86,7 @@ def main():
             symbol="EURUSD", comment="Exit deal", profit=50.0, type=1 # Sell
         )
     }
-    simulator = SimulatorClient(deals_data=sim_deals)
+    simulator = TradeSimulator(deals_data=sim_deals)
     deal = DealInfo(api=simulator)
     print("Using: Simulator (Simulated Deals)")
 
@@ -179,4 +179,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

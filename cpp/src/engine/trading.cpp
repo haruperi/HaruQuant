@@ -75,7 +75,7 @@ double calc_profit(
 }
 
 PositionTotals AccountMonitor::monitor_positions(
-    const SimulatorClient& client,
+    const TradeSimulator& client,
     const std::string& symbol,
     double bid,
     double ask) const {
@@ -369,55 +369,55 @@ hqt::SymbolInfo TradeGateway::to_symbol_info(const SymbolInfoData& data) {
     return info;
 }
 
-SimulatorClient::SimulatorClient(AccountInfoData account_data)
+TradeSimulator::TradeSimulator(AccountInfoData account_data)
     : account_data_(std::move(account_data)),
       trade_gateway_(account_data_) {}
 
-const AccountInfoData& SimulatorClient::account_info() const noexcept {
+const AccountInfoData& TradeSimulator::account_info() const noexcept {
     return account_data_;
 }
 
-const SymbolInfoData* SimulatorClient::symbol_info(const std::string& symbol) const noexcept {
+const SymbolInfoData* TradeSimulator::symbol_info(const std::string& symbol) const noexcept {
     const auto it = symbols_data_.find(symbol);
     return it == symbols_data_.end() ? nullptr : &it->second;
 }
 
-const SymbolTickData* SimulatorClient::symbol_info_tick(const std::string& symbol) const noexcept {
+const SymbolTickData* TradeSimulator::symbol_info_tick(const std::string& symbol) const noexcept {
     const auto it = ticks_data_.find(symbol);
     return it == ticks_data_.end() ? nullptr : &it->second;
 }
 
-std::vector<TradeRecordData> SimulatorClient::positions_get(
+std::vector<TradeRecordData> TradeSimulator::positions_get(
     std::optional<uint64_t> ticket,
     std::optional<std::string_view> symbol) const {
     return collect_records(positions_data_, ticket, symbol);
 }
 
-std::vector<TradeRecordData> SimulatorClient::orders_get(
+std::vector<TradeRecordData> TradeSimulator::orders_get(
     std::optional<uint64_t> ticket,
     std::optional<std::string_view> symbol) const {
     return collect_records(orders_data_, ticket, symbol);
 }
 
-std::vector<TradeRecordData> SimulatorClient::history_orders_get(
+std::vector<TradeRecordData> TradeSimulator::history_orders_get(
     std::optional<uint64_t> ticket) const {
     return collect_records(history_orders_data_, ticket, std::nullopt);
 }
 
-std::vector<TradeRecordData> SimulatorClient::history_deals_get(
+std::vector<TradeRecordData> TradeSimulator::history_deals_get(
     std::optional<uint64_t> ticket) const {
     return collect_records(deals_data_, ticket, std::nullopt);
 }
 
-std::pair<int, std::string> SimulatorClient::last_error() const {
+std::pair<int, std::string> TradeSimulator::last_error() const {
     return {last_error_code_, last_error_message_};
 }
 
-std::string SimulatorClient::trade_retcode_description(int retcode) const {
+std::string TradeSimulator::trade_retcode_description(int retcode) const {
     return util::error_from_retcode(retcode).message;
 }
 
-double SimulatorClient::order_calc_margin(
+double TradeSimulator::order_calc_margin(
     int action,
     const std::string& symbol,
     double volume,
@@ -425,7 +425,7 @@ double SimulatorClient::order_calc_margin(
     (void)action;
     const auto* info = symbol_info(symbol);
     if (info == nullptr) {
-        util::warning("SimulatorClient::order_calc_margin unknown symbol: " + symbol);
+        util::warning("TradeSimulator::order_calc_margin unknown symbol: " + symbol);
         return 0.0;
     }
     return calc_margin(
@@ -439,7 +439,7 @@ double SimulatorClient::order_calc_margin(
         info->margin_initial);
 }
 
-double SimulatorClient::order_calc_profit(
+double TradeSimulator::order_calc_profit(
     int action,
     const std::string& symbol,
     double volume,
@@ -447,7 +447,7 @@ double SimulatorClient::order_calc_profit(
     double price_close) const {
     const auto* info = symbol_info(symbol);
     if (info == nullptr) {
-        util::warning("SimulatorClient::order_calc_profit unknown symbol: " + symbol);
+        util::warning("TradeSimulator::order_calc_profit unknown symbol: " + symbol);
         return 0.0;
     }
     return calc_profit(
@@ -460,7 +460,7 @@ double SimulatorClient::order_calc_profit(
         info->trade_contract_size);
 }
 
-TradeResult SimulatorClient::order_send(const TradeRequest& request) {
+TradeResult TradeSimulator::order_send(const TradeRequest& request) {
     const bool is_submission = (request.action == 1 || request.action == 5);
     const std::string client_order_id = request.client_order_id;
     const std::string fingerprint = submission_fingerprint(request);
@@ -478,9 +478,9 @@ TradeResult SimulatorClient::order_send(const TradeRequest& request) {
     TradeResult result = trade_gateway_.order_send(request, tick);
     if (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010) {
         sync_state_from_trade();
-        util::debug("SimulatorClient::order_send success retcode=" + std::to_string(result.retcode));
+        util::debug("TradeSimulator::order_send success retcode=" + std::to_string(result.retcode));
     } else {
-        util::warning("SimulatorClient::order_send failed retcode=" + std::to_string(result.retcode) +
+        util::warning("TradeSimulator::order_send failed retcode=" + std::to_string(result.retcode) +
                       " comment=" + result.comment);
     }
 
@@ -514,9 +514,9 @@ TradeResult SimulatorClient::order_send(const TradeRequest& request) {
     return result;
 }
 
-TradeResult SimulatorClient::close_position(uint64_t ticket) {
+TradeResult TradeSimulator::close_position(uint64_t ticket) {
     if (ticket == 0) {
-        util::warning("SimulatorClient::close_position called with ticket=0");
+        util::warning("TradeSimulator::close_position called with ticket=0");
         TradeResult invalid;
         invalid.retcode = 10013;
         invalid.comment = "Invalid request: missing position ticket";
@@ -551,16 +551,16 @@ TradeResult SimulatorClient::close_position(uint64_t ticket) {
 
     if (ok && (result.retcode == 10009 || result.retcode == 10010)) {
         sync_state_from_trade();
-        util::debug("SimulatorClient::close_position success ticket=" + std::to_string(ticket));
+        util::debug("TradeSimulator::close_position success ticket=" + std::to_string(ticket));
     } else if (!ok && result.retcode == 0) {
         result.retcode = 10011;
-        util::warning("SimulatorClient::close_position failed ticket=" + std::to_string(ticket));
+        util::warning("TradeSimulator::close_position failed ticket=" + std::to_string(ticket));
     }
 
     return result;
 }
 
-bool SimulatorClient::set_history_order_state(uint64_t ticket, uint64_t state) {
+bool TradeSimulator::set_history_order_state(uint64_t ticket, uint64_t state) {
     const auto hist_it = history_orders_data_.find(ticket);
     if (hist_it != history_orders_data_.end()) {
         hist_it->second.reason = state;
@@ -578,7 +578,7 @@ bool SimulatorClient::set_history_order_state(uint64_t ticket, uint64_t state) {
     return false;
 }
 
-bool SimulatorClient::set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) {
+bool TradeSimulator::set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) {
     const auto it = history_orders_data_.find(ticket);
     if (it == history_orders_data_.end()) {
         return false;
@@ -588,7 +588,7 @@ bool SimulatorClient::set_history_order_done_time(uint64_t ticket, int64_t time_
     return true;
 }
 
-void SimulatorClient::set_account_info(const AccountInfoData& data) {
+void TradeSimulator::set_account_info(const AccountInfoData& data) {
     account_data_ = data;
     trade_gateway_ = TradeGateway(account_data_);
     for (const auto& [_, symbol] : symbols_data_) {
@@ -596,39 +596,39 @@ void SimulatorClient::set_account_info(const AccountInfoData& data) {
     }
 }
 
-void SimulatorClient::set_symbol_info(const SymbolInfoData& data) {
+void TradeSimulator::set_symbol_info(const SymbolInfoData& data) {
     symbols_data_[data.symbol] = data;
     trade_gateway_.register_symbol(data);
-    util::debug("SimulatorClient::set_symbol_info symbol=" + data.symbol);
+    util::debug("TradeSimulator::set_symbol_info symbol=" + data.symbol);
 }
 
-void SimulatorClient::set_symbol_tick(const std::string& symbol, const SymbolTickData& tick) {
+void TradeSimulator::set_symbol_tick(const std::string& symbol, const SymbolTickData& tick) {
     ticks_data_[symbol] = tick;
 }
 
-void SimulatorClient::upsert_position(const TradeRecordData& data) {
+void TradeSimulator::upsert_position(const TradeRecordData& data) {
     positions_data_[data.ticket] = data;
 }
 
-void SimulatorClient::upsert_order(const TradeRecordData& data) {
+void TradeSimulator::upsert_order(const TradeRecordData& data) {
     orders_data_[data.ticket] = data;
 }
 
-void SimulatorClient::upsert_history_order(const TradeRecordData& data) {
+void TradeSimulator::upsert_history_order(const TradeRecordData& data) {
     history_orders_data_[data.ticket] = data;
 }
 
-void SimulatorClient::upsert_deal(const TradeRecordData& data) {
+void TradeSimulator::upsert_deal(const TradeRecordData& data) {
     deals_data_[data.ticket] = data;
 }
 
-void SimulatorClient::set_last_error(int code, const std::string& message) {
+void TradeSimulator::set_last_error(int code, const std::string& message) {
     last_error_code_ = code;
     last_error_message_ = message;
-    util::warning("SimulatorClient::set_last_error code=" + std::to_string(code) + " message=" + message);
+    util::warning("TradeSimulator::set_last_error code=" + std::to_string(code) + " message=" + message);
 }
 
-OmsOrderState SimulatorClient::order_state(uint64_t ticket) const {
+OmsOrderState TradeSimulator::order_state(uint64_t ticket) const {
     const auto it = order_states_.find(ticket);
     if (it == order_states_.end()) {
         return OmsOrderState::Unknown;
@@ -636,15 +636,15 @@ OmsOrderState SimulatorClient::order_state(uint64_t ticket) const {
     return it->second;
 }
 
-std::string SimulatorClient::order_state_name(uint64_t ticket) const {
+std::string TradeSimulator::order_state_name(uint64_t ticket) const {
     return order_state_label(order_state(ticket));
 }
 
-std::size_t SimulatorClient::idempotency_cache_size() const noexcept {
+std::size_t TradeSimulator::idempotency_cache_size() const noexcept {
     return idempotency_by_client_order_id_.size();
 }
 
-std::string SimulatorClient::submission_fingerprint(const TradeRequest& request) {
+std::string TradeSimulator::submission_fingerprint(const TradeRequest& request) {
     std::ostringstream oss;
     oss << request.action << '|'
         << request.type << '|'
@@ -660,7 +660,7 @@ std::string SimulatorClient::submission_fingerprint(const TradeRequest& request)
     return oss.str();
 }
 
-OmsOrderState SimulatorClient::map_order_state(uint64_t raw_state) noexcept {
+OmsOrderState TradeSimulator::map_order_state(uint64_t raw_state) noexcept {
     switch (raw_state) {
         case 0: return OmsOrderState::New;
         case 1: return OmsOrderState::Accepted;
@@ -673,7 +673,7 @@ OmsOrderState SimulatorClient::map_order_state(uint64_t raw_state) noexcept {
     }
 }
 
-std::string SimulatorClient::order_state_label(OmsOrderState state) {
+std::string TradeSimulator::order_state_label(OmsOrderState state) {
     switch (state) {
         case OmsOrderState::New: return "NEW";
         case OmsOrderState::Accepted: return "ACCEPTED";
@@ -686,14 +686,14 @@ std::string SimulatorClient::order_state_label(OmsOrderState state) {
     }
 }
 
-void SimulatorClient::set_order_state(uint64_t ticket, OmsOrderState state) {
+void TradeSimulator::set_order_state(uint64_t ticket, OmsOrderState state) {
     if (ticket == 0) {
         return;
     }
     order_states_[ticket] = state;
 }
 
-void SimulatorClient::rebuild_order_states_from_snapshots() {
+void TradeSimulator::rebuild_order_states_from_snapshots() {
     for (const auto& [ticket, record] : orders_data_) {
         order_states_[ticket] = map_order_state(record.reason);
     }
@@ -702,7 +702,7 @@ void SimulatorClient::rebuild_order_states_from_snapshots() {
     }
 }
 
-void SimulatorClient::sync_state_from_trade() {
+void TradeSimulator::sync_state_from_trade() {
     positions_data_.clear();
     orders_data_.clear();
     deals_data_.clear();
@@ -795,7 +795,7 @@ void SimulatorClient::sync_state_from_trade() {
     }
 
     util::debug(
-        "SimulatorClient::sync_state_from_trade positions=" + std::to_string(positions_data_.size()) +
+        "TradeSimulator::sync_state_from_trade positions=" + std::to_string(positions_data_.size()) +
         " orders=" + std::to_string(orders_data_.size()) +
         " deals=" + std::to_string(deals_data_.size()) +
         " history_orders=" + std::to_string(history_orders_data_.size()));
@@ -803,7 +803,7 @@ void SimulatorClient::sync_state_from_trade() {
 }
 
 template <typename Container>
-std::vector<TradeRecordData> SimulatorClient::collect_records(
+std::vector<TradeRecordData> TradeSimulator::collect_records(
     const Container& records,
     std::optional<uint64_t> ticket,
     std::optional<std::string_view> symbol) {
@@ -830,7 +830,7 @@ std::vector<TradeRecordData> SimulatorClient::collect_records(
     return out;
 }
 
-MockBroker::MockBroker(SimulatorClient client)
+MockBroker::MockBroker(TradeSimulator client)
     : client_(std::move(client)) {}
 
 void MockBroker::set_partial_fill_ratio(double ratio) {
@@ -1239,3 +1239,4 @@ ExecutionQualitySummary ExecutionRouter::quality_summary() const {
 }
 
 }  // namespace hqt::sim
+

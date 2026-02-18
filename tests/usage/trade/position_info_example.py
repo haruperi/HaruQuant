@@ -13,7 +13,7 @@ from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import PositionInfo
-from apps.simulation.data import SimulatorClient, PositionInfoSimulator
+from apps.simulation.data import TradeSimulator, PositionInfoSimulator
 
 
 def get_mt5_credentials():
@@ -74,7 +74,7 @@ def main():
         3001: PositionInfoSimulator(ticket=3001, symbol="EURUSD", type=0, volume=1.0, price_open=1.1000, profit=100.0),
         3002: PositionInfoSimulator(ticket=3002, symbol="USDJPY", type=1, volume=0.5, price_open=145.00, profit=-50.0),
     }
-    simulator = SimulatorClient(positions_data=sim_positions)
+    simulator = TradeSimulator(positions_data=sim_positions)
     position = PositionInfo(api=simulator)
     print("Using: Simulator (Simulated Positions)")
 
@@ -151,4 +151,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

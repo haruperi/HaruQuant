@@ -849,7 +849,7 @@ int64_t RebalanceController::last_rebalance_msc() const noexcept {
     return last_rebalance_msc_;
 }
 
-PortfolioEngine::PortfolioEngine(SimulatorClient& client)
+PortfolioEngine::PortfolioEngine(TradeSimulator& client)
     : client_(client) {}
 
 void PortfolioEngine::run_equal_weight(
@@ -982,7 +982,7 @@ void PortfolioEngine::process_bar(const std::string& symbol, const BacktestBarSt
     (void)client_.order_send(request);
 }
 
-VectorizedBacktestEngine::VectorizedBacktestEngine(SimulatorClient& client)
+VectorizedBacktestEngine::VectorizedBacktestEngine(TradeSimulator& client)
     : client_(client) {}
 
 void VectorizedBacktestEngine::run(
@@ -1984,3 +1984,4 @@ SensitivityReport SensitivityAnalyzer::analyze(
 }
 
 }  // namespace hqt::sim
+

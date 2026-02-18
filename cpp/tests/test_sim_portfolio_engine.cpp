@@ -13,7 +13,7 @@ namespace {
 using hqt::sim::BacktestBarStep;
 using hqt::sim::PortfolioEngine;
 using hqt::sim::PortfolioSymbolInput;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 
 class SimPortfolioEngineTest : public ::testing::Test {
@@ -40,7 +40,7 @@ protected:
         client.set_symbol_info(gbpusd);
     }
 
-    SimulatorClient client;
+    TradeSimulator client;
     SymbolInfoData eurusd;
     SymbolInfoData gbpusd;
 };
@@ -91,4 +91,5 @@ TEST_F(SimPortfolioEngineTest, AllocationAppliedToVolumeBySymbol) {
 }
 
 }  // namespace
+
 

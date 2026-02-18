@@ -709,7 +709,7 @@
 
 - Core APIs:
   - `cpp/include/engine/engine.hpp::TradeRequest`
-  - `cpp/include/engine/engine.hpp::SimulatorClient`
+  - `cpp/include/engine/engine.hpp::TradeSimulator`
   - implementation in `cpp/src/engine/trading.cpp`
 - Order lifecycle model:
   - explicit logical states in `OmsOrderState`:
@@ -721,8 +721,8 @@
     - `EXPIRED`
     - `REJECTED`
   - order state query:
-    - `SimulatorClient::order_state(...)`
-    - `SimulatorClient::order_state_name(...)`
+    - `TradeSimulator::order_state(...)`
+    - `TradeSimulator::order_state_name(...)`
 - Idempotent submission:
   - `TradeRequest.client_order_id` enables duplicate-guarded submit flow.
   - Same `client_order_id` + same payload returns cached original result.
@@ -731,8 +731,8 @@
   - `bridge/src/sim_bindings.cpp`:
     - `sim.TradeRequest.client_order_id`
     - `sim.OmsOrderState`
-    - `sim.SimulatorClient.order_state(...)`
-    - `sim.SimulatorClient.order_state_name(...)`
+    - `sim.TradeSimulator.order_state(...)`
+    - `sim.TradeSimulator.order_state_name(...)`
 - Evidence:
   - `cpp/tests/test_sim_oms_state_machine.cpp`
   - `docs/haruquant/usage/trade/oms_state_machine_idempotency.md`
@@ -810,7 +810,7 @@
     - `submit(...)`
     - `cancel(...)`
     - `fetch_state()`
-  - `MockBroker` wraps `SimulatorClient` to provide deterministic execution behavior.
+  - `MockBroker` wraps `TradeSimulator` to provide deterministic execution behavior.
   - `PaperTradingEngine` routes execution flow through an injected broker adapter.
 - Determinism controls:
   - `MockBroker.set_partial_fill_ratio(...)`
@@ -878,7 +878,7 @@
   - `cpp/src/engine/engine.cpp`
 - Execution path:
   - deterministic bar/tick loop
-  - order lifecycle routed through `SimulatorClient` (OMS path)
+  - order lifecycle routed through `TradeSimulator` (OMS path)
   - account/position monitoring with close-reason tracking
 - Lifecycle callbacks:
   - `set_on_bar_processed(...)`
@@ -900,7 +900,7 @@
   - `cpp/src/engine/analytics.cpp`
 - Design:
   - batch-style deterministic bar processing loop
-  - reuses `SimulatorClient` order path for consistent OMS semantics
+  - reuses `TradeSimulator` order path for consistent OMS semantics
   - tracks processed bars and executed trade count
 - Bridge exposure (`hqt_engine.sim`):
   - `VectorizedBacktestEngine.run(...)`
@@ -931,4 +931,5 @@
 - Evidence:
   - `cpp/tests/test_costs_engine.cpp`
   - `docs/haruquant/usage/backtest/cost_and_fill_models.md`
+
 

@@ -214,10 +214,10 @@ private:
     std::unordered_map<std::string, SymbolInfoData> symbols_;
 };
 
-class SimulatorClient {
+class TradeSimulator {
 public:
-    SimulatorClient() = default;
-    explicit SimulatorClient(AccountInfoData account_data);
+    TradeSimulator() = default;
+    explicit TradeSimulator(AccountInfoData account_data);
 
     [[nodiscard]] const AccountInfoData& account_info() const noexcept;
     [[nodiscard]] const SymbolInfoData* symbol_info(const std::string& symbol) const noexcept;
@@ -455,7 +455,7 @@ private:
 class AccountMonitor {
 public:
     [[nodiscard]] PositionTotals monitor_positions(
-        const SimulatorClient& client,
+        const TradeSimulator& client,
         const std::string& symbol,
         double bid,
         double ask) const;
@@ -481,7 +481,7 @@ public:
 
 class MockBroker final : public BrokerAdapter {
 public:
-    explicit MockBroker(SimulatorClient client = SimulatorClient{});
+    explicit MockBroker(TradeSimulator client = TradeSimulator{});
 
     void set_partial_fill_ratio(double ratio);
     void set_deterministic_price(double price);
@@ -496,7 +496,7 @@ private:
     static TradeRequest scaled_request(const TradeRequest& request, double ratio);
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> aggregate_positions() const;
 
-    SimulatorClient client_{};
+    TradeSimulator client_{};
     bool connected_{false};
     double partial_fill_ratio_{1.0};
     std::optional<double> deterministic_price_{};
@@ -745,7 +745,7 @@ using TradeEventCallback = std::function<void(const BacktestTradeEvent&, const S
 
 class BacktestEngine {
 public:
-    explicit BacktestEngine(SimulatorClient& client);
+    explicit BacktestEngine(TradeSimulator& client);
 
     void set_on_bar_processed(BarProcessedCallback callback);
     void set_on_tick_processed(TickProcessedCallback callback);
@@ -783,7 +783,7 @@ private:
         double sl,
         double tp);
 
-    SimulatorClient& client_;
+    TradeSimulator& client_;
     SimulatorState state_{};
     AccountMonitor account_monitor_{};
     TradeRecordTracker trade_record_tracker_{};
@@ -848,7 +848,7 @@ private:
 
 class PortfolioEngine {
 public:
-    explicit PortfolioEngine(SimulatorClient& client);
+    explicit PortfolioEngine(TradeSimulator& client);
 
     void run_equal_weight(
         const std::vector<PortfolioSymbolInput>& inputs,
@@ -865,13 +865,13 @@ private:
     static double normalize_volume(double requested, const SymbolInfoData& symbol_info);
     void process_bar(const std::string& symbol, const BacktestBarStep& bar, double base_volume);
 
-    SimulatorClient& client_;
+    TradeSimulator& client_;
     std::unordered_map<std::string, double> effective_allocations_{};
 };
 
 class VectorizedBacktestEngine {
 public:
-    explicit VectorizedBacktestEngine(SimulatorClient& client);
+    explicit VectorizedBacktestEngine(TradeSimulator& client);
 
     void run(
         const std::string& symbol,
@@ -885,7 +885,7 @@ public:
 private:
     static double normalize_volume(double requested, const SymbolInfoData& symbol_info);
 
-    SimulatorClient& client_;
+    TradeSimulator& client_;
     AccountInfoData account_snapshot_{};
     std::size_t processed_bars_{0};
     std::size_t total_trades_{0};
@@ -1194,7 +1194,7 @@ namespace hqt::engine {
 
 class Engine {
 public:
-    explicit Engine(hqt::sim::SimulatorClient& client);
+    explicit Engine(hqt::sim::TradeSimulator& client);
 
     void run_trading_timeframe(
         const std::string& symbol,
@@ -1216,3 +1216,4 @@ private:
 };
 
 }  // namespace hqt::engine
+

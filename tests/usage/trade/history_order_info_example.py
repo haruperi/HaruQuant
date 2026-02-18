@@ -15,7 +15,7 @@ mt5 = get_mt5_api()
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
 from apps.trade import HistoryOrderInfo
-from apps.simulation.data import SimulatorClient, HistoryOrderInfoSimulator
+from apps.simulation.data import TradeSimulator, HistoryOrderInfoSimulator
 
 
 def get_mt5_credentials():
@@ -65,7 +65,7 @@ def main():
         1001: HistoryOrderInfoSimulator(ticket=1001, symbol="EURUSD", type=0, volume_initial=1.0, state=4), # Filled Buy
         1002: HistoryOrderInfoSimulator(ticket=1002, symbol="GBPUSD", type=1, volume_initial=0.5, state=5), # Canceled Sell
     }
-    simulator = SimulatorClient(history_orders_data=sim_orders)
+    simulator = TradeSimulator(history_orders_data=sim_orders)
     history_order = HistoryOrderInfo(api=simulator)
     print("Using: Simulator (Simulated History Orders)")
 
@@ -170,4 +170,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

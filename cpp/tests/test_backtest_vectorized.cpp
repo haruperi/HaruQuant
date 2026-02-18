@@ -11,12 +11,12 @@
 namespace {
 
 using hqt::sim::BacktestBarStep;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::VectorizedBacktestEngine;
 
-SimulatorClient make_client() {
-    SimulatorClient client;
+TradeSimulator make_client() {
+    TradeSimulator client;
     SymbolInfoData symbol;
     symbol.symbol = "EURUSD";
     symbol.digits = 5;
@@ -45,7 +45,7 @@ std::vector<BacktestBarStep> sample_bars() {
 }
 
 TEST(VectorizedBacktestTest, RunsAndTracksProcessedBarsAndTrades) {
-    SimulatorClient client = make_client();
+    TradeSimulator client = make_client();
     VectorizedBacktestEngine engine(client);
     const auto bars = sample_bars();
     engine.run("EURUSD", 0.10, bars);
@@ -55,8 +55,8 @@ TEST(VectorizedBacktestTest, RunsAndTracksProcessedBarsAndTrades) {
 }
 
 TEST(VectorizedBacktestTest, DeterministicRepeatability) {
-    SimulatorClient client1 = make_client();
-    SimulatorClient client2 = make_client();
+    TradeSimulator client1 = make_client();
+    TradeSimulator client2 = make_client();
     VectorizedBacktestEngine engine1(client1);
     VectorizedBacktestEngine engine2(client2);
     const auto bars = sample_bars();
@@ -70,7 +70,7 @@ TEST(VectorizedBacktestTest, DeterministicRepeatability) {
 }
 
 TEST(VectorizedBacktestTest, LargeBatchSmoke) {
-    SimulatorClient client = make_client();
+    TradeSimulator client = make_client();
     VectorizedBacktestEngine engine(client);
 
     std::vector<BacktestBarStep> bars;
@@ -92,4 +92,5 @@ TEST(VectorizedBacktestTest, LargeBatchSmoke) {
 }
 
 }  // namespace
+
 

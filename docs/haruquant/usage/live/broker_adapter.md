@@ -10,7 +10,7 @@ IP-34 introduces a standardized broker abstraction in C++ and a deterministic mo
 
 ## Core API (`hqt_engine.sim`)
 
-- `MockBroker(client: SimulatorClient)`
+- `MockBroker(client: TradeSimulator)`
 - `MockBroker.connect()`
 - `MockBroker.submit(request)`
 - `MockBroker.cancel(order_id)`
@@ -35,7 +35,7 @@ IP-34 introduces a standardized broker abstraction in C++ and a deterministic mo
 ```python
 from hqt_engine import sim
 
-client = sim.SimulatorClient()
+client = sim.TradeSimulator()
 broker = sim.MockBroker(client)
 broker.connect()
 broker.set_partial_fill_ratio(0.5)
@@ -57,4 +57,5 @@ state = engine.snapshot_state()
 
 - `cpp/tests/test_broker_adapter_interface.cpp`
 - `tests/integration/test_mock_broker.py`
+
 

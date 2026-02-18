@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from apps.mt5 import get_mt5_api
 from apps.trade import Trade
 from apps.simulation.data import (
-    SimulatorClient,
+    TradeSimulator,
     AccountInfoSimulator,
     SymbolInfoSimulator,
     SymbolTickSimulator,
@@ -44,7 +44,7 @@ def main() -> None:
         )
     }
 
-    sim = SimulatorClient(
+    sim = TradeSimulator(
         account_data=account,
         symbols_data=symbols,
         ticks_data=ticks,
@@ -127,3 +127,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

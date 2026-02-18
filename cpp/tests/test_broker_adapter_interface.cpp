@@ -12,13 +12,13 @@ namespace {
 
 using hqt::sim::MockBroker;
 using hqt::sim::PaperTradingEngine;
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::SymbolTickData;
 using hqt::sim::TradeRequest;
 
-SimulatorClient make_client() {
-    SimulatorClient client;
+TradeSimulator make_client() {
+    TradeSimulator client;
 
     SymbolInfoData symbol;
     symbol.symbol = "EURUSD";
@@ -106,3 +106,4 @@ TEST(BrokerAdapterTest, PaperTradingEngineRoutesThroughAdapter) {
 }
 
 }  // namespace
+

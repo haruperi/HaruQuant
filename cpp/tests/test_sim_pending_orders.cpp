@@ -1,6 +1,6 @@
 /**
  * @file test_sim_pending_orders.cpp
- * @brief Tests for pending order lifecycle via SimulatorClient order_send.
+ * @brief Tests for pending order lifecycle via TradeSimulator order_send.
  */
 
 #include <gtest/gtest.h>
@@ -8,7 +8,7 @@
 
 namespace {
 
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 using hqt::sim::SymbolTickData;
 using hqt::sim::TradeRequest;
@@ -38,7 +38,7 @@ protected:
         client.set_symbol_tick("EURUSD", tick);
     }
 
-    SimulatorClient client;
+    TradeSimulator client;
     SymbolInfoData symbol;
     SymbolTickData tick;
 };
@@ -111,4 +111,5 @@ TEST_F(SimPendingOrdersTest, InvalidModifyAndDeleteRetcodes) {
 }
 
 }  // namespace
+
 

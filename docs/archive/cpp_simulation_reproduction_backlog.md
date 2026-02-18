@@ -46,7 +46,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 
 ---
 
-## PR-003: SimulatorClient Read API Parity
+## PR-003: TradeSimulator Read API Parity
 **Scope**
 - Implement non-mutating API methods:
   - `account_info`, `symbol_info`, `symbol_info_tick`, `positions_get`, `orders_get`, `history_orders_get`, `history_deals_get`, `last_error`, `trade_retcode_description`.
@@ -314,3 +314,4 @@ Before default cutover:
 ## Notes
 - Volume constraints currently have hardcoded fallback in C++ engine (`TODO` already added); keep that until MT5 metadata sourcing is wired.
 - Keep changes additive and localized per PR to minimize merge risk.
+

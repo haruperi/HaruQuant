@@ -8,7 +8,7 @@
 
 namespace {
 
-using hqt::sim::SimulatorClient;
+using hqt::sim::TradeSimulator;
 using hqt::sim::SymbolInfoData;
 
 constexpr double kEps = 1e-9;
@@ -70,8 +70,8 @@ TEST(SimCalculatorsTest, ProfitFallsBackToContractSizeWhenTickValueUnavailable) 
     EXPECT_NEAR(profit, (close - open) * contract_size * volume, kEps);
 }
 
-TEST(SimCalculatorsTest, SimulatorClientUsesSymbolCalculatorParams) {
-    SimulatorClient client;
+TEST(SimCalculatorsTest, TradeSimulatorUsesSymbolCalculatorParams) {
+    TradeSimulator client;
     SymbolInfoData info;
     info.symbol = "EURUSD";
     info.trade_calc_mode = 3;
@@ -88,12 +88,14 @@ TEST(SimCalculatorsTest, SimulatorClientUsesSymbolCalculatorParams) {
     EXPECT_NEAR(profit, ((1.1010 - 1.1000) / 0.0001) * 10.0, 1e-6);
 }
 
-TEST(SimCalculatorsTest, SimulatorClientReturnsZeroForUnknownSymbol) {
-    SimulatorClient client;
+TEST(SimCalculatorsTest, TradeSimulatorReturnsZeroForUnknownSymbol) {
+    TradeSimulator client;
 
     EXPECT_DOUBLE_EQ(client.order_calc_margin(0, "UNKNOWN", 1.0, 1.2), 0.0);
     EXPECT_DOUBLE_EQ(client.order_calc_profit(0, "UNKNOWN", 1.0, 1.1, 1.2), 0.0);
 }
 
 }  // namespace
+
+
 
