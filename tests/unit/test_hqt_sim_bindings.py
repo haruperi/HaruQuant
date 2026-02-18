@@ -54,11 +54,11 @@ class TestBridgeDefaults:
         assert si.point == pytest.approx(0.0)
         assert si.trade_contract_size == pytest.approx(0.0)
 
-    def test_trade_record_data_defaults(self):
-        r = sim.TradeRecordData()
-        assert r.ticket == 0
-        assert r.volume == 0.0
-        assert r.symbol == ""
+    def test_position_info_defaults(self):
+        p = sim.PositionInfo()
+        assert p.Ticket() == 0
+        assert p.Volume() == 0.0
+        assert p.Symbol() == ""
 
     def test_trade_request_defaults(self):
         r = sim.TradeRequest()
@@ -150,11 +150,14 @@ class TestBridgeBasics:
         assert isinstance(d, dict)
         assert "bid" in d
 
-    def test_trade_record_data_to_dict(self):
-        r = sim.TradeRecordData()
-        d = r.to_dict()
-        assert isinstance(d, dict)
-        assert "ticket" in d
+    def test_position_info_basic_access(self):
+        p = sim.PositionInfo()
+        p.ticket = 123
+        p.symbol = "EURUSD"
+        p.volume = 0.5
+        assert p.Ticket() == 123
+        assert p.Symbol() == "EURUSD"
+        assert p.Volume() == pytest.approx(0.5)
 
 
 # ── TradeSimulator basics ────────────────────────────────────────────

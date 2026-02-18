@@ -43,7 +43,7 @@ from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.mt5.util import MT5Utils
 from apps.sqlite.database_operations import DatabaseManager
-from apps.trade import AccountInfo
+from apps.mt5 import AccountInfo
 
 mt5 = get_mt5_api()
 
@@ -3096,4 +3096,5 @@ async def websocket_endpoint(websocket: WebSocket, session_id: int):
         logger.error(f"WebSocket error for session {session_id}: {e}")
 
         await live_trading_manager.disconnect(session_id, websocket)
+
 

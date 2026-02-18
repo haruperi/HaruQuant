@@ -49,6 +49,10 @@ enum class ENUM_ACCOUNT_MARGIN_MODE {
  */
 class AccountInfo {
 private:
+    static int64_t ToFixed(double value) noexcept {
+        return static_cast<int64_t>(value * 1'000'000.0);
+    }
+
     // Internal state (fixed-point for precision)
     int64_t balance_;           ///< Account balance (fixed-point)
     int64_t equity_;            ///< Current equity (fixed-point)
@@ -459,6 +463,29 @@ public:
     void SetTradeAllowed(bool allowed) noexcept { trade_allowed_ = allowed; }
     void SetTradeExpert(bool allowed) noexcept { trade_expert_ = allowed; }
     void SetLimitOrders(int limit) noexcept { limit_orders_ = limit; }
+
+    /**
+     * @brief Apply an account snapshot from external source (e.g. live MT5).
+     * @param balance Current balance
+     * @param credit Current credit
+     * @param profit Current floating profit
+     * @param margin Current used margin
+     * @param margin_call Margin call threshold
+     * @param margin_stopout Stopout threshold
+     */
+    void ApplySnapshot(double balance,
+                       double credit,
+                       double profit,
+                       double margin,
+                       double margin_call,
+                       double margin_stopout) noexcept {
+        balance_ = ToFixed(balance);
+        credit_ = ToFixed(credit);
+        margin_ = ToFixed(margin);
+        margin_so_call_ = margin_call;
+        margin_so_so_ = margin_stopout;
+        UpdateEquity(ToFixed(profit));
+    }
 
     // --- Additional Statistics (Backtesting specific) ---
 

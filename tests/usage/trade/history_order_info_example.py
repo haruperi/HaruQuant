@@ -1,21 +1,28 @@
 """
-Example usage of HistoryOrderInfo with different providers.
+Example usage of C++ HistoryOrderInfo with different providers.
 """
 
-import sys
 import os
+import sys
 from datetime import datetime, timedelta
 
 # Add repo root to path for local imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, PROJECT_ROOT)
+
+# Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
+BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
+if BRIDGE_BUILD_DIR not in sys.path:
+    sys.path.insert(0, BRIDGE_BUILD_DIR)
+if hasattr(os, "add_dll_directory"):
+    os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Client, get_mt5_api
-mt5 = get_mt5_api()
-
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
-from apps.trade import HistoryOrderInfo
-from apps.simulation.data import TradeSimulator, HistoryOrderInfoSimulator
+import hqt_engine.sim as csim
+
+mt5 = get_mt5_api()
 
 
 def get_mt5_credentials():
@@ -27,142 +34,146 @@ def get_mt5_credentials():
     return creds
 
 
+def _load_live_history_orders(simulator: "csim.TradeSimulator", start: datetime, end: datetime) -> None:
+    orders = mt5.history_orders_get(start, end)
+    if orders is None:
+        return
+    for o in orders:
+        row = csim.HistoryOrderInfo()
+        row.ticket = int(getattr(o, "ticket", 0))
+        row.symbol = str(getattr(o, "symbol", ""))
+        row.magic = int(getattr(o, "magic", 0))
+        row.position_id = int(getattr(o, "position_id", 0))
+        row.type = int(getattr(o, "type", 0))
+        row.state = int(getattr(o, "state", 0))
+        row.volume_initial = float(getattr(o, "volume_initial", 0.0))
+        row.volume_current = float(getattr(o, "volume_current", 0.0))
+        row.price_open = float(getattr(o, "price_open", 0.0))
+        row.price_current = float(getattr(o, "price_current", 0.0))
+        row.price_stoplimit = float(getattr(o, "price_stoplimit", 0.0))
+        row.sl = float(getattr(o, "sl", 0.0))
+        row.tp = float(getattr(o, "tp", 0.0))
+        row.set_time_setup(int(getattr(o, "time_setup", 0)), int(getattr(o, "time_setup_msc", 0)))
+        row.set_time_expiration(int(getattr(o, "time_expiration", 0)))
+        row.set_time_done(int(getattr(o, "time_done", 0)), int(getattr(o, "time_done_msc", 0)))
+        row.set_type_filling(int(getattr(o, "type_filling", 0)))
+        row.set_type_time(int(getattr(o, "type_time", 0)))
+        row.comment = str(getattr(o, "comment", ""))
+        simulator.upsert_history_order_info(row)
+
+
 def main():
     print("=" * 70)
-    print("HistoryOrderInfo Example")
+    print("HistoryOrderInfo Example (C++ TradeSimulator)")
     print("=" * 70)
     print()
 
-    # Get credentials from database
     creds = get_mt5_credentials()
 
-    # Initialize MT5 client (needed for Option 1)
     client = MT5Client()
     connected = client.connect(
         login=creds["login"],
         password=creds["password"],
         server=creds["server"],
-        path=creds["path"]
+        path=creds["path"],
     )
-
     if not connected:
         print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
         return
 
-    print(f"Connected successfully!")
+    print("Connected successfully!")
     print()
 
-    # ============================================================
+    now = datetime.now()
+    start = now - timedelta(days=30)
+
     # CHOOSE YOUR OPTION
-    # ============================================================
+    # Option 1: Live history orders into C++ simulator (default)
+    # simulator = csim.TradeSimulator()
+    # _load_live_history_orders(simulator, start, now)
+    # print("Using: MT5 Live History Orders -> C++ TradeSimulator")
 
-    # Option 1: Live Trading with MT5 (Default)
-    # history_order = HistoryOrderInfo()
-    # print("Using: MT5 Live Connection (Last 30 Days)")
+    # Option 2: Simulator with custom HistoryOrderInfo
+    simulator = csim.TradeSimulator()
+    o1 = csim.HistoryOrderInfo()
+    o1.ticket = 1001
+    o1.symbol = "EURUSD"
+    o1.type = 0
+    o1.state = 4
+    o1.volume_initial = 1.0
+    o1.volume_current = 0.0
+    o1.price_open = 1.1000
+    o1.set_time_setup(int(now.timestamp()))
+    o1.set_time_done(int(now.timestamp()))
+    simulator.upsert_history_order_info(o1)
 
-    # Option 2: Simulator (Uncomment to use)
-    sim_orders = {
-        1001: HistoryOrderInfoSimulator(ticket=1001, symbol="EURUSD", type=0, volume_initial=1.0, state=4), # Filled Buy
-        1002: HistoryOrderInfoSimulator(ticket=1002, symbol="GBPUSD", type=1, volume_initial=0.5, state=5), # Canceled Sell
-    }
-    simulator = TradeSimulator(history_orders_data=sim_orders)
-    history_order = HistoryOrderInfo(api=simulator)
+    o2 = csim.HistoryOrderInfo()
+    o2.ticket = 1002
+    o2.symbol = "GBPUSD"
+    o2.type = 1
+    o2.state = 2
+    o2.volume_initial = 0.5
+    o2.volume_current = 0.5
+    o2.price_open = 1.2500
+    o2.set_time_setup(int(now.timestamp()))
+    o2.set_time_done(int(now.timestamp()))
+    simulator.upsert_history_order_info(o2)
     print("Using: Simulator (Simulated History Orders)")
 
     print()
 
-    # Example 1: Iterate through all historical orders
+    orders = simulator.history_order_infos_get()
+    orders = sorted(orders, key=lambda x: int(x.TimeSetupMsc()))
+
     print("\n" + "=" * 70)
     print("Example 1: All Historical Orders")
     print("=" * 70)
+    print(f"Total orders: {len(orders)}\n")
 
-    # Using total_orders()
-    # Select history for the last year + 1 day ahead (to include everything)
-    now = datetime.now()
-    history_order.HistorySelect(now - timedelta(days=365), now + timedelta(days=1))
-    
-    total = history_order.HistoryOrdersTotal()
-    print(f"Total orders: {total}\n")
+    for i, order in enumerate(orders):
+        print(f"{i + 1}. Ticket #{order.Ticket()} {order.Symbol()} {order.OrderTypeDescription()}")
+        print(f"   State: {order.StateDescription()}")
+        print(f"   Setup: {order.TimeSetup()}")
+        print(f"   Done: {order.TimeDone()}")
+        print(f"   Type: {order.OrderTypeDescription()}")
+        print(f"   Symbol: {order.Symbol()}")
+        print(f"   Volume: {order.VolumeCurrent()}/{order.VolumeInitial()}")
+        print(f"   Price: {order.PriceOpen()}")
+        print(f"   SL: {order.StopLoss()}, TP: {order.TakeProfit()}")
+        print(f"   Magic: {order.Magic()}")
+        print(f"   Position By ID: {order.PositionByID()}")
+        print(f"   External ID: {order.ExternalID()}")
+        print(f"   Vol Initial: {order.VolumeInitial()}")
+        print(f"   Vol Current: {order.VolumeCurrent()}")
+        print(f"   Price Open: {order.PriceOpen()}")
+        print(f"   Price Current: {order.PriceCurrent()}")
+        print(f"   Stop Limit: {order.PriceStopLimit()}")
+        print(f"   SL: {order.StopLoss()}")
+        print(f"   TP: {order.TakeProfit()}")
+        print(f"   Comment: {order.Comment()}")
+        print("-" * 30)
 
-    for i in range(total):
-        if history_order.SelectByIndex(i):
-            print(f"{i + 1}. {history_order.FormatOrder()}")
-            print(f"   State: {history_order.StateDescription()}")
-            print(f"   Setup: {history_order.TimeSetup()}")
-            print(f"   Done: {history_order.TimeDone()}")
-            print(f"   Type: {history_order.OrderTypeDescription()}")
-            print(f"   Symbol: {history_order.Symbol()}")
-            print(f"   Volume: {history_order.VolumeCurrent()}/{history_order.VolumeInitial()}")
-            print(f"   Price: {history_order.PriceOpen()}")
-            print(f"   SL: {history_order.StopLoss()}, TP: {history_order.TakeProfit()}")
-            print(f"   Magic: {history_order.Magic()}")
-            print(f"   Position By ID: {history_order.PositionByID()}")
-            print(f"   External ID: {history_order.ExternalID()}")
-
-            # Volumes and Prices
-            print(f"   Vol Initial: {history_order.VolumeInitial()}")
-            print(f"   Vol Current: {history_order.VolumeCurrent()}")
-            print(f"   Price Open: {history_order.PriceOpen()}")
-            print(f"   Price Current: {history_order.PriceCurrent()}")
-            print(f"   Stop Limit: {history_order.PriceStopLimit()}")
-            print(f"   SL: {history_order.StopLoss()}")
-            print(f"   TP: {history_order.TakeProfit()}")
-
-            # Comment
-            print(f"   Comment: {history_order.Comment()}")
-
-            # Test static formatters
-            print(
-                f"   Format Type: {HistoryOrderInfo.format_type(history_order.OrderType())}"
-            )
-            print(
-                f"   Format Status: {HistoryOrderInfo.format_status(history_order.State())}"
-            )
-            print(
-                f"   Format Filling: {HistoryOrderInfo.format_type_filling(history_order.TypeFilling())}"
-            )
-            print(
-                f"   Format Time: {HistoryOrderInfo.format_type_time(history_order.TypeTime())}"
-            )
-            if history_order.PriceStopLimit() > 0:
-                print(
-                    f"   Format Price: {HistoryOrderInfo.format_price(history_order.PriceOpen(), history_order.PriceStopLimit(), 5)}"
-                )
-
-        # Example 2: Statistics
     print("\n" + "=" * 70)
-    print("Example 2: history_order Statistics")
+    print("Example 2: History Order Statistics")
     print("=" * 70)
 
-    filled_count = 0
-    canceled_count = 0
-    total_vol = 0.0
-
-    for i in range(total):
-        if history_order.SelectByIndex(i):
-            total_vol += history_order.VolumeInitial()
-            if history_order.State() == getattr(mt5, "ORDER_STATE_FILLED", 4):
-                filled_count += 1
-            elif history_order.State() == getattr(mt5, "ORDER_STATE_CANCELED", 2):
-                canceled_count += 1
-
+    filled_count = sum(1 for o in orders if o.WasFilled())
+    canceled_count = sum(1 for o in orders if o.WasCanceled())
+    total_vol = sum(float(o.VolumeInitial()) for o in orders)
     print(f"Filled: {filled_count}")
     print(f"Canceled: {canceled_count}")
     print(f"Total Volume Ordered: {total_vol:.2f}")
 
-    # Example 3: String Representation
     print("\n" + "=" * 70)
     print("Example 3: String Representation")
     print("=" * 70)
-
-    if total > 0 and history_order.SelectByIndex(0):
-        print(f"repr(): {repr(history_order)}")
+    if orders:
+        print(f"Ticket #{orders[0].Ticket()} {orders[0].Symbol()} {orders[0].OrderTypeDescription()}")
 
     print("\n" + "=" * 70)
     print("Example Complete")
     print("=" * 70)
 
-    # Shutdown MT5 connection
     print("\nShutting down MT5 connection...")
     client.shutdown()
     print("Disconnected.")
@@ -170,5 +181,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

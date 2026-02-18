@@ -11,6 +11,33 @@
   - `bridge/src/sim_bindings.cpp`
 - Python bridge surfaces account/symbol objects directly as `hqt_engine.sim.AccountInfo` and `hqt_engine.sim.SymbolInfo`.
 
+## Trade Container Boundary
+
+- Public Python/C++ bridge usage should use MT5-style trade containers directly:
+  - `hqt_engine.sim.PositionInfo`
+  - `hqt_engine.sim.OrderInfo`
+  - `hqt_engine.sim.HistoryOrderInfo`
+  - `hqt_engine.sim.DealInfo`
+- Flattened bridge APIs were removed from `hqt_engine.sim.TradeSimulator`:
+  - removed: `positions_get`, `orders_get`, `history_orders_get`, `history_deals_get`
+  - removed: `upsert_position`, `upsert_order`, `upsert_history_order`, `upsert_deal`
+  - use instead: `positions_info_get`, `orders_info_get`, `history_order_infos_get`, `history_deal_infos_get`, and `upsert_*_info`
+- `TradeRecordData` has been removed from C++ engine internals.
+- New usage examples and bindings should prefer direct MT5-style classes to avoid adapter/mapping layers.
+
+## Trade Execution Boundary
+
+- C++ simulator execution path:
+  - `hqt_engine.sim.CTrade` (for simulation/backtest)
+- Live MT5 execution path:
+  - `apps.mt5.Trade` (Python MT5 transport)
+- Usage split:
+  - `tests/usage/trade/trade_cpp_example.py` -> C++ simulator execution
+  - `tests/usage/trade/trade_example.py` -> live MT5 execution
+- Cleanup status:
+  - `apps/trade/{account_info,symbol_info,position_info,order_info,history_order_info,deal_info,terminal_info}.py`
+    are now explicitly marked legacy wrappers and should not be used for new simulation/backtest code.
+
 ## C++ Logging Backend
 
 - C++ logging API remains `hqt::util` (`cpp/include/util/logger.hpp`) to keep bridge and Python integrations stable.

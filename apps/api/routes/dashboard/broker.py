@@ -10,7 +10,7 @@ from apps.api.models import BrokerStatusResponse
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
-from apps.trade import AccountInfo
+from apps.mt5 import AccountInfo
 
 router = APIRouter()
 db_manager = DatabaseManager()
@@ -175,4 +175,5 @@ async def get_broker_status(authorization: Annotated[Optional[str], Header()] = 
             margin_level=0.0,
             free_margin=0.0,
         )
+
 

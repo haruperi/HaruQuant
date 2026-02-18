@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from apps.mt5 import get_mt5_api
-from apps.trade import Trade
+from apps.mt5 import Trade
 from apps.simulation.data import (
     TradeSimulator,
     AccountInfoSimulator,
@@ -113,7 +113,12 @@ def main() -> None:
     print(f"   success={ok} retcode={trade.ResultRetcode()} {trade.ResultRetcodeDescription()}")
     print()
 
-    history = sim.history_orders_get() or []
+    # Prefer direct C++ info API; fallback keeps example runnable on wrappers.
+    history = []
+    if hasattr(sim, "_simulator") and hasattr(sim._simulator, "history_order_infos_get"):
+        history = sim._simulator.history_order_infos_get() or []
+    else:
+        history = sim.history_orders_get() or []
     print(f"History orders count: {len(history)}")
     if history:
         last = history[-1]._asdict() if hasattr(history[-1], "_asdict") else dict(history[-1])
@@ -127,4 +132,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

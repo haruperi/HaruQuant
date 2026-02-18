@@ -23,7 +23,7 @@ from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.strategy import storage
-from apps.trade import AccountInfo, SymbolInfo, Trade
+from apps.mt5 import AccountInfo, SymbolInfo, Trade
 from data.strategies.close_breakout import CloseBreakoutStrategy
 from data.strategies.mean_reversion import MeanReversionStrategy
 from data.strategies.trend_following import TrendFollowingStrategy
@@ -917,4 +917,5 @@ class MultiStrategyEngine:
             f"MultiStrategyEngine(strategies={len(self.strategies)}, "
             f"initialized={self._initialized}, running={self._running})"
         )
+
 

@@ -4,6 +4,10 @@ Trade class (MT5-specific).
 This module mirrors the MQL5 Standard Library Trade interface and
 order/grouping for MT5 usage.
 Reference: https://www.mql5.com/en/docs/standardlibrary/tradeclasses/ctrade
+
+Execution boundary:
+- This module is the live MT5 Python transport path.
+- For simulation/backtest execution, prefer `hqt_engine.sim.CTrade`.
 """
 
 from __future__ import annotations

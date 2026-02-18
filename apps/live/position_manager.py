@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
-from apps.trade import Trade
+from apps.mt5 import Trade
 
 
 class PositionManager:
@@ -279,4 +279,5 @@ class PositionManager:
         """Return string representation of PositionManager."""
         summary = self.get_position_summary()
         return f"PositionManager(total={summary['total']}, buy={summary['buy']}, sell={summary['sell']})"
+
 

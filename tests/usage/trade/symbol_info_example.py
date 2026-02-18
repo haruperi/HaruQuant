@@ -1,24 +1,30 @@
 """
-Example usage of SymbolInfo with different providers.
+Example usage of C++ SymbolInfo with different providers.
 
-This example demonstrates two ways to use SymbolInfo:
-1. SymbolInfo(symbol, api=client) - Live trading with MT5 connection
-2. SymbolInfo(symbol, api=simulator) - Simulation with custom settings
-
-Simply uncomment the option you want to use.
+This example demonstrates two ways to source symbol data:
+1. Live MT5 symbol data seeded into C++ TradeSimulator
+2. Simulated SymbolInfo data seeded into C++ TradeSimulator
 """
 
 import os
 import sys
 
 # Add repo root to path for local imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, PROJECT_ROOT)
+
+# Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
+BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
+if BRIDGE_BUILD_DIR not in sys.path:
+    sys.path.insert(0, BRIDGE_BUILD_DIR)
+if hasattr(os, "add_dll_directory"):
+    os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Client
 from apps.sqlite.users import UserManager
 from apps.utils.logger import logger
-from apps.trade import SymbolInfo
-from apps.simulation.data import TradeSimulator, SymbolInfoSimulator, SymbolTickSimulator
+from apps.simulation.data import SymbolInfoSimulator
+import hqt_engine.sim as csim
 
 
 def get_mt5_credentials():
@@ -77,24 +83,25 @@ def main():
         print(f"\nProcessing {symbol_name}...")
         print("=" * 60)
 
-        # Option 1: Live Trading with MT5 (Default)
-        # symbol = SymbolInfo(symbol_name)
-        # print("Using: MT5 Live Connection")
+        # Option 1: Live MT5 data loaded into C++ TradeSimulator (default)
+        simulator = csim.TradeSimulator()
+        simulator.set_symbol_info(SymbolInfoSimulator.from_mt5_symbol_cpp(symbol_name))
+        symbol = simulator.symbol_info(symbol_name)
+        print("Using: MT5 Live Connection -> C++ TradeSimulator")
 
-        # Option 2: Simulator with Custom Settings (Uncomment to use)
-        sim_info = SymbolInfoSimulator.from_mt5_symbol(symbol_name)
-        # Override some values if needed
-        sim_info.spread = 5
-        sim_tick = SymbolTickSimulator(bid=1.2345, ask=1.2350, last=1.2348)
-        simulator = TradeSimulator(
-            symbols_data={symbol_name: sim_info},
-            ticks_data={symbol_name: sim_tick}
-        )
-        symbol = SymbolInfo(symbol_name, api=simulator)
-        print("Using: Simulator (Custom Data)")
+        # Option 2: Simulator with custom settings loaded into C++ TradeSimulator
+        # sim_info = SymbolInfoSimulator.from_mt5_symbol(symbol_name)
+        # sim_info.symbol = symbol_name
+        # sim_info.spread = 5
+        # simulator = csim.TradeSimulator()
+        # simulator.set_symbol_info(sim_info.to_cpp())
+        # symbol = simulator.symbol_info(symbol_name)
+        # print("Using: Simulator (Custom Data) -> C++ TradeSimulator")
 
-        if hasattr(symbol._api, "symbol_select"):
-            symbol.Select(True)
+        if symbol is None:
+            print(f"Failed to get symbol {symbol_name}")
+            continue
+        symbol.Select(True)
         symbol.Refresh()
         symbol.RefreshRates()
 
@@ -169,21 +176,6 @@ def main():
         print("-" * 60)
         print(f"Margin Initial: {symbol.MarginInitial():.2f}")
         print(f"Margin Maint.:  {symbol.MarginMaintenance():.2f}")
-        # Display session information (if available)
-        print("\nSESSION INFORMATION")
-        print("-" * 60)
-        # SymbolInfo exposes session methods directly
-        deals = symbol.SessionDeals()
-        if deals > 0:
-            print(f"Deals:          {deals}")
-            print(f"Buy Orders:     {symbol.SessionBuyOrders()}")
-            print(f"Sell Orders:    {symbol.SessionSellOrders()}")
-            print(f"Turnover:       {symbol.SessionTurnover():.2f}")
-            print(f"Session Open:   {symbol.SessionOpen():.{digits}f}")
-            print(f"Session Close:  {symbol.SessionClose():.{digits}f}")
-        else:
-            print("Session data not available")
-
         # Test normalize_price function
         print("\n" + "=" * 60)
         print("PRICE NORMALIZATION TEST")
@@ -211,7 +203,6 @@ def main():
         print(f"Volume High: {symbol.VolumeHigh()}")
         print(f"Volume Low: {symbol.VolumeLow()}")
 
-        print(f"Is Synchronized: {symbol.IsSynchronized()}")
         print(f"Selected: {symbol.Select()}")
 
         # Test Refresh methods
@@ -228,12 +219,6 @@ def main():
         print(f"Margin Limit: {symbol.MarginLimit()}")
         print(f"Margin Stop: {symbol.MarginStop()}")
         print(f"Margin Stop Limit: {symbol.MarginStopLimit()}")
-
-        # Test direct info access
-        print(f"Info Double (Bid): {symbol.InfoDouble('bid')}")
-        print(f"Info Integer (Digits): {symbol.InfoInteger('digits')}")
-        print(f"Info String (Name): {symbol.InfoString('name')}")
-
 
     print("\n" + "=" * 70)
     print("Example completed successfully!")

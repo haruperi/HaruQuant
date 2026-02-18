@@ -17,6 +17,7 @@ Functions:
 from __future__ import annotations
 
 import atexit
+from collections import namedtuple
 import os
 import warnings
 from datetime import datetime, timezone
@@ -34,6 +35,163 @@ from apps.utils.errors import (
 
 _CPP_LOG_BRIDGE_READY = False
 _CPP_LOG_CLEANUP_REGISTERED = False
+
+AccountInfoTuple = namedtuple(
+    "AccountInfoTuple",
+    [
+        "login",
+        "name",
+        "server",
+        "currency",
+        "company",
+        "trade_mode",
+        "leverage",
+        "trade_allowed",
+        "trade_expert",
+        "limit_orders",
+        "balance",
+        "credit",
+        "profit",
+        "equity",
+        "margin",
+        "margin_free",
+        "margin_level",
+        "margin_so_call",
+        "margin_so_so",
+        "margin_mode",
+        "margin_so_mode",
+    ],
+)
+
+SymbolInfoTuple = namedtuple(
+    "SymbolInfoTuple",
+    [
+        "name",
+        "digits",
+        "spread",
+        "spread_float",
+        "point",
+        "trade_calc_mode",
+        "trade_mode",
+        "trade_stops_level",
+        "trade_freeze_level",
+        "trade_exemode",
+        "volume_min",
+        "volume_max",
+        "volume_step",
+        "volume_limit",
+        "trade_tick_value",
+        "trade_tick_value_profit",
+        "trade_tick_value_loss",
+        "trade_tick_size",
+        "trade_contract_size",
+        "margin_initial",
+        "swap_mode",
+        "swap_long",
+        "swap_short",
+        "swap_rollover3days",
+        "bid",
+        "ask",
+        "last",
+        "select",
+        "visible",
+    ],
+)
+
+
+class CppMt5ApiFacade:
+    """MT5-like API facade backed by hqt_engine.sim.TradeSimulator."""
+
+    def __init__(self, simulator: Any) -> None:
+        self._sim = simulator
+
+    def account_info(self) -> AccountInfoTuple:
+        acc = self._sim.account_info()
+        return AccountInfoTuple(
+            login=int(acc.login),
+            name=str(acc.name),
+            server=str(acc.server),
+            currency=str(acc.currency),
+            company=str(acc.company),
+            trade_mode=0,
+            leverage=int(acc.leverage),
+            trade_allowed=bool(acc.trade_allowed),
+            trade_expert=bool(acc.trade_expert),
+            limit_orders=0,
+            balance=float(acc.balance),
+            credit=float(acc.credit),
+            profit=float(acc.profit),
+            equity=float(acc.equity),
+            margin=float(acc.margin),
+            margin_free=float(acc.margin_free),
+            margin_level=float(acc.margin_level),
+            margin_so_call=0.0,
+            margin_so_so=0.0,
+            margin_mode=int(acc.margin_mode),
+            margin_so_mode=0,
+        )
+
+    def symbol_info(self, symbol: str) -> Optional[SymbolInfoTuple]:
+        info = self._sim.symbol_info(symbol)
+        if info is None:
+            return None
+        return SymbolInfoTuple(
+            name=str(info.symbol),
+            digits=int(info.digits),
+            spread=int(info.spread),
+            spread_float=bool(info.spread_float),
+            point=float(info.point),
+            trade_calc_mode=int(info.trade_calc_mode),
+            trade_mode=int(info.trade_mode),
+            trade_stops_level=int(info.trade_stops_level),
+            trade_freeze_level=int(info.trade_freeze_level),
+            trade_exemode=int(info.trade_exemode),
+            volume_min=float(info.volume_min),
+            volume_max=float(info.volume_max),
+            volume_step=float(info.volume_step),
+            volume_limit=float(info.volume_limit),
+            trade_tick_value=float(info.trade_tick_value),
+            trade_tick_value_profit=float(info.trade_tick_value_profit),
+            trade_tick_value_loss=float(info.trade_tick_value_loss),
+            trade_tick_size=float(info.trade_tick_size),
+            trade_contract_size=float(info.trade_contract_size),
+            margin_initial=float(info.margin_initial),
+            swap_mode=int(info.swap_mode),
+            swap_long=float(info.swap_long),
+            swap_short=float(info.swap_short),
+            swap_rollover3days=int(info.swap_rollover3days),
+            bid=float(info.bid),
+            ask=float(info.ask),
+            last=float(info.last),
+            select=bool(info.select),
+            visible=bool(info.visible),
+        )
+
+    def order_calc_margin(self, order_type: int, symbol: str, volume: float, price: float) -> float:
+        return float(self._sim.order_calc_margin(int(order_type), symbol, float(volume), float(price)))
+
+    def order_calc_profit(
+        self,
+        order_type: int,
+        symbol: str,
+        volume: float,
+        price_open: float,
+        price_close: float,
+    ) -> float:
+        return float(
+            self._sim.order_calc_profit(
+                int(order_type),
+                symbol,
+                float(volume),
+                float(price_open),
+                float(price_close),
+            )
+        )
+
+
+def create_cpp_mt5_api(simulator: Any) -> CppMt5ApiFacade:
+    """Create an MT5-like API facade over a C++ TradeSimulator instance."""
+    return CppMt5ApiFacade(simulator)
 
 
 # ---------------------------------------------------------------------------

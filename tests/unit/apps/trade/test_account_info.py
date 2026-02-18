@@ -1,7 +1,7 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from apps.trade.account_info import AccountInfo
+from apps.mt5.account_info import AccountInfo
 
 @pytest.fixture
 def mock_api():
@@ -57,3 +57,4 @@ def test_trading_checks(account_info, mock_api):
     
     mock_api.order_calc_margin.return_value = 50.0
     assert account_info.MarginCheck("EURUSD", 0, 1.0, 1.1) == 50.0
+

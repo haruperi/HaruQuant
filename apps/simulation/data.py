@@ -63,6 +63,27 @@ def _get_mt5_symbol_val(symbol: str, attr: str, default: Any) -> Any:
         return default
 
 
+def _assign_known_attributes(target: Any, values: Dict[str, Any]) -> Any:
+    """Assign only attributes that exist on target."""
+    for key, value in values.items():
+        if not hasattr(target, key):
+            continue
+        try:
+            setattr(target, key, value)
+        except (AttributeError, TypeError, ValueError):
+            # Skip read-only or incompatible fields exposed by bindings.
+            continue
+    return target
+
+
+def _safe_setattr(target: Any, key: str, value: Any) -> None:
+    """Set attribute if writable on target; ignore unsupported fields."""
+    try:
+        setattr(target, key, value)
+    except (AttributeError, TypeError, ValueError):
+        return
+
+
 @dataclass
 class AccountInfoSimulator:
     """
@@ -102,7 +123,7 @@ class AccountInfoSimulator:
     profit: float = 0
     equity: float = 0
     margin: float = 0
-    margin_free: float = 10000
+    margin_free: float = balance
     margin_level: float = 0
     margin_so_call: float = field(
         default_factory=lambda: _get_mt5_val("margin_so_call", 50.0)
@@ -142,6 +163,80 @@ class AccountInfoSimulator:
 
         data = info._asdict()
         return cls(**data)
+
+    @classmethod
+    def defaults(cls) -> "AccountInfoSimulator":
+        """Create simulator defaults without seeding from live MT5 values."""
+        return cls(
+            trade_mode=0,
+            leverage=100,
+            limit_orders=0,
+            margin_so_mode=0,
+            trade_allowed=True,
+            trade_expert=True,
+            margin_mode=0,
+            currency_digits=2,
+            fifo_close=False,
+            margin_so_call=50.0,
+            margin_so_so=30.0,
+            commission_blocked=0.0,
+            currency="USD",
+        )
+
+    def to_cpp(self) -> Any:
+        """Build a C++ ``hqt_engine.sim.AccountInfo`` from this simulator data."""
+        import hqt_engine.sim as csim
+
+        cpp = csim.AccountInfo(
+            float(self.balance),
+            str(self.currency),
+            int(self.leverage),
+        )
+        cpp.apply_snapshot(
+            float(self.balance),
+            float(self.credit),
+            float(self.profit),
+            float(self.margin),
+            float(self.margin_so_call),
+            float(self.margin_so_so),
+        )
+        # Explicitly attempt to hydrate all AccountInfoSimulator fields.
+        _safe_setattr(cpp, "login", int(self.login))
+        _safe_setattr(cpp, "trade_mode", int(self.trade_mode))
+        _safe_setattr(cpp, "leverage", int(self.leverage))
+        _safe_setattr(cpp, "limit_orders", int(self.limit_orders))
+        _safe_setattr(cpp, "margin_so_mode", int(self.margin_so_mode))
+        _safe_setattr(cpp, "trade_allowed", bool(self.trade_allowed))
+        _safe_setattr(cpp, "trade_expert", bool(self.trade_expert))
+        _safe_setattr(cpp, "margin_mode", int(self.margin_mode))
+        _safe_setattr(cpp, "currency_digits", int(self.currency_digits))
+        _safe_setattr(cpp, "fifo_close", bool(self.fifo_close))
+        _safe_setattr(cpp, "balance", float(self.balance))
+        _safe_setattr(cpp, "credit", float(self.credit))
+        _safe_setattr(cpp, "profit", float(self.profit))
+        _safe_setattr(cpp, "equity", float(self.equity))
+        _safe_setattr(cpp, "margin", float(self.margin))
+        _safe_setattr(cpp, "margin_free", float(self.margin_free))
+        _safe_setattr(cpp, "margin_level", float(self.margin_level))
+        _safe_setattr(cpp, "margin_so_call", float(self.margin_so_call))
+        _safe_setattr(cpp, "margin_so_so", float(self.margin_so_so))
+        _safe_setattr(cpp, "margin_initial", float(self.margin_initial))
+        _safe_setattr(cpp, "margin_maintenance", float(self.margin_maintenance))
+        _safe_setattr(cpp, "assets", float(self.assets))
+        _safe_setattr(cpp, "liabilities", float(self.liabilities))
+        _safe_setattr(cpp, "commission_blocked", float(self.commission_blocked))
+        _safe_setattr(cpp, "name", str(self.name))
+        _safe_setattr(cpp, "server", str(self.server))
+        _safe_setattr(cpp, "currency", str(self.currency))
+        _safe_setattr(cpp, "company", str(self.company))
+        return cpp
+
+    @classmethod
+    def from_mt5_account_cpp(cls, seed_from_mt5: bool = True) -> Any:
+        """Build C++ ``hqt_engine.sim.AccountInfo`` from MT5 or simulator defaults."""
+        if seed_from_mt5:
+            return cls.from_mt5_account().to_cpp()
+        return cls.defaults().to_cpp()
 
 
 @dataclass
@@ -310,6 +405,56 @@ class SymbolInfoSimulator:
         valid = {f.name for f in fields(cls)}
         filtered = {k: v for k, v in data.items() if k in valid}
         return cls(**filtered)
+
+    def to_cpp(self) -> Any:
+        """Build a C++ ``hqt_engine.sim.SymbolInfo`` from this simulator data."""
+        import hqt_engine.sim as csim
+
+        cpp = csim.SymbolInfo()
+        # Explicitly attempt to hydrate all SymbolInfoSimulator fields.
+        _safe_setattr(cpp, "symbol", str(self.symbol))
+        _safe_setattr(cpp, "digits", int(self.digits))
+        _safe_setattr(cpp, "spread", int(self.spread))
+        _safe_setattr(cpp, "spread_float", bool(self.spread_float))
+        _safe_setattr(cpp, "point", float(self.point))
+        _safe_setattr(cpp, "trade_calc_mode", int(self.trade_calc_mode))
+        _safe_setattr(cpp, "trade_mode", int(self.trade_mode))
+        _safe_setattr(cpp, "start_time", int(self.start_time))
+        _safe_setattr(cpp, "expiration_time", int(self.expiration_time))
+        _safe_setattr(cpp, "trade_stops_level", int(self.trade_stops_level))
+        _safe_setattr(cpp, "trade_freeze_level", int(self.trade_freeze_level))
+        _safe_setattr(cpp, "trade_exemode", int(self.trade_exemode))
+        _safe_setattr(cpp, "volume_min", float(self.volume_min))
+        _safe_setattr(cpp, "volume_max", float(self.volume_max))
+        _safe_setattr(cpp, "volume_step", float(self.volume_step))
+        _safe_setattr(cpp, "volume_limit", float(self.volume_limit))
+        _safe_setattr(cpp, "trade_tick_value", float(self.trade_tick_value))
+        _safe_setattr(cpp, "trade_tick_value_profit", float(self.trade_tick_value_profit))
+        _safe_setattr(cpp, "trade_tick_value_loss", float(self.trade_tick_value_loss))
+        _safe_setattr(cpp, "trade_tick_size", float(self.trade_tick_size))
+        _safe_setattr(cpp, "trade_contract_size", float(self.trade_contract_size))
+        _safe_setattr(cpp, "swap_mode", int(self.swap_mode))
+        _safe_setattr(cpp, "swap_long", float(self.swap_long))
+        _safe_setattr(cpp, "swap_short", float(self.swap_short))
+        _safe_setattr(cpp, "swap_rollover3days", int(self.swap_rollover3days))
+        _safe_setattr(cpp, "margin_initial", float(self.margin_initial))
+        _safe_setattr(cpp, "margin_maintenance", float(self.margin_maintenance))
+        _safe_setattr(cpp, "currency_base", str(self.currency_base))
+        _safe_setattr(cpp, "currency_profit", str(self.currency_profit))
+        _safe_setattr(cpp, "currency_margin", str(self.currency_margin))
+        _safe_setattr(cpp, "description", str(self.description))
+        _safe_setattr(cpp, "path", str(self.path))
+        _safe_setattr(cpp, "bid", float(self.bid))
+        _safe_setattr(cpp, "ask", float(self.ask))
+        _safe_setattr(cpp, "last", float(self.last))
+        _safe_setattr(cpp, "select", bool(self.select))
+        _safe_setattr(cpp, "visible", bool(self.visible))
+        return cpp
+
+    @classmethod
+    def from_mt5_symbol_cpp(cls, symbol_name: str) -> Any:
+        """Build a C++ ``hqt_engine.sim.SymbolInfo`` seeded from MT5 symbol data."""
+        return cls.from_mt5_symbol(symbol_name).to_cpp()
 
 
 @dataclass

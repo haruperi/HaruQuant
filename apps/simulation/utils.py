@@ -40,7 +40,6 @@ from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.sqlite.backtests import BacktestManager
 from apps.sqlite.database_operations import DatabaseManager
-from apps.trade import PositionInfo
 
 mt5 = get_mt5_api()
 
@@ -631,10 +630,12 @@ class SimulationUtilsMixin:
             logger.error("open_time is required to record position entry time")
             return
         if pos_id is None:
-            pos_info = PositionInfo(api=self._simulator)
-            if not pos_info.Select(symbol):
+            for ticket, candidate in self._positions_data.items():
+                if getattr(candidate, "symbol", "") == symbol:
+                    pos_id = int(ticket)
+                    break
+            if pos_id is None:
                 return
-            pos_id = pos_info.Identifier()
         pos_data = self._positions_data.get(int(pos_id))
         if pos_data is None:
             return

@@ -29,7 +29,7 @@ if repo_root not in sys.path:
 from apps.mt5 import MT5Client
 from apps.risk import RiskRegimeDetector
 from apps.sqlite.users import UserManager
-from apps.trade import AccountInfo
+from apps.mt5 import AccountInfo
 
 
 def _get_mt5_credentials() -> Optional[dict]:
@@ -252,3 +252,4 @@ def main_actual() -> None:
 if __name__ == "__main__":
     # main()
     main_actual()
+

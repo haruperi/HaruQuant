@@ -8,7 +8,7 @@ from typing import Tuple
 
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
-from apps.trade import AccountInfo, SymbolInfo
+from apps.mt5 import AccountInfo, SymbolInfo
 
 
 class SafetyChecker:
@@ -269,4 +269,5 @@ class SafetyChecker:
     def __repr__(self) -> str:
         """Return string representation."""
         return f"SafetyChecker(min_balance={self.min_balance}, min_margin_level={self.min_margin_level}%)"
+
 

@@ -84,26 +84,26 @@ PositionTotals AccountMonitor::monitor_positions(
         return totals;
     }
 
-    const auto positions = client.positions_get(std::nullopt, symbol);
+    const auto positions = client.positions_info_get(std::nullopt, symbol);
     for (const auto& pos : positions) {
-        const bool is_buy = (pos.type == 0U);
+        const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
         const int action = is_buy ? 0 : 1;
         const double close_price = is_buy ? bid : ask;
 
         totals.profit += client.order_calc_profit(
             action,
             symbol,
-            pos.volume,
-            pos.price_open,
+            pos.Volume(),
+            pos.PriceOpen(),
             close_price);
         totals.margin += client.order_calc_margin(
             action,
             symbol,
-            pos.volume,
-            pos.price_open);
+            pos.Volume(),
+            pos.PriceOpen());
         totals.commission += 0.0;
         totals.fee += 0.0;
-        totals.swap += pos.swap;
+        totals.swap += pos.Swap();
     }
 
     return totals;
@@ -350,26 +350,87 @@ const SymbolTickData* TradeSimulator::symbol_info_tick(const std::string& symbol
     return it == ticks_data_.end() ? nullptr : &it->second;
 }
 
-std::vector<TradeRecordData> TradeSimulator::positions_get(
+std::vector<hqt::PositionInfo> TradeSimulator::positions_info_get(
     std::optional<uint64_t> ticket,
     std::optional<std::string_view> symbol) const {
-    return collect_records(positions_data_, ticket, symbol);
+    std::vector<hqt::PositionInfo> out;
+    if (ticket.has_value()) {
+        const auto it = positions_info_data_.find(*ticket);
+        if (it != positions_info_data_.end()) {
+            if (!symbol.has_value() || it->second.Symbol() == *symbol) {
+                out.push_back(it->second);
+            }
+        }
+        return out;
+    }
+
+    out.reserve(positions_info_data_.size());
+    for (const auto& [_, pos] : positions_info_data_) {
+        if (symbol.has_value() && pos.Symbol() != *symbol) {
+            continue;
+        }
+        out.push_back(pos);
+    }
+    return out;
 }
 
-std::vector<TradeRecordData> TradeSimulator::orders_get(
+std::vector<hqt::OrderInfo> TradeSimulator::orders_info_get(
     std::optional<uint64_t> ticket,
     std::optional<std::string_view> symbol) const {
-    return collect_records(orders_data_, ticket, symbol);
+    std::vector<hqt::OrderInfo> out;
+    if (ticket.has_value()) {
+        const auto it = orders_info_data_.find(*ticket);
+        if (it != orders_info_data_.end()) {
+            if (!symbol.has_value() || it->second.Symbol() == *symbol) {
+                out.push_back(it->second);
+            }
+        }
+        return out;
+    }
+
+    out.reserve(orders_info_data_.size());
+    for (const auto& [_, order] : orders_info_data_) {
+        if (symbol.has_value() && order.Symbol() != *symbol) {
+            continue;
+        }
+        out.push_back(order);
+    }
+    return out;
 }
 
-std::vector<TradeRecordData> TradeSimulator::history_orders_get(
+std::vector<hqt::HistoryOrderInfo> TradeSimulator::history_order_infos_get(
     std::optional<uint64_t> ticket) const {
-    return collect_records(history_orders_data_, ticket, std::nullopt);
+    std::vector<hqt::HistoryOrderInfo> out;
+    if (ticket.has_value()) {
+        const auto it = history_orders_info_data_.find(*ticket);
+        if (it != history_orders_info_data_.end()) {
+            out.push_back(it->second);
+        }
+        return out;
+    }
+    out.reserve(history_orders_info_data_.size());
+    for (const auto& [_, order] : history_orders_info_data_) {
+        out.push_back(order);
+    }
+    return out;
 }
 
-std::vector<TradeRecordData> TradeSimulator::history_deals_get(
+std::vector<hqt::DealInfo> TradeSimulator::history_deal_infos_get(
     std::optional<uint64_t> ticket) const {
-    return collect_records(deals_data_, ticket, std::nullopt);
+    std::vector<hqt::DealInfo> out;
+    if (ticket.has_value()) {
+        const auto it = deals_info_data_.find(*ticket);
+        if (it != deals_info_data_.end()) {
+            out.push_back(it->second);
+        }
+        return out;
+    }
+
+    out.reserve(deals_info_data_.size());
+    for (const auto& [_, deal] : deals_info_data_) {
+        out.push_back(deal);
+    }
+    return out;
 }
 
 std::pair<int, std::string> TradeSimulator::last_error() const {
@@ -487,9 +548,9 @@ TradeResult TradeSimulator::close_position(uint64_t ticket) {
     }
 
     std::string symbol;
-    const auto pos_it = positions_data_.find(ticket);
-    if (pos_it != positions_data_.end()) {
-        symbol = pos_it->second.symbol;
+    const auto pos_it = positions_info_data_.find(ticket);
+    if (pos_it != positions_info_data_.end()) {
+        symbol = pos_it->second.Symbol();
     }
 
     if (!symbol.empty()) {
@@ -524,16 +585,16 @@ TradeResult TradeSimulator::close_position(uint64_t ticket) {
 }
 
 bool TradeSimulator::set_history_order_state(uint64_t ticket, uint64_t state) {
-    const auto hist_it = history_orders_data_.find(ticket);
-    if (hist_it != history_orders_data_.end()) {
-        hist_it->second.reason = state;
+    const auto hist_it = history_orders_info_data_.find(ticket);
+    if (hist_it != history_orders_info_data_.end()) {
+        hist_it->second.SetState(static_cast<hqt::ENUM_ORDER_STATE>(state));
         set_order_state(ticket, map_order_state(state));
         return true;
     }
 
-    const auto active_it = orders_data_.find(ticket);
-    if (active_it != orders_data_.end()) {
-        active_it->second.reason = state;
+    const auto active_it = orders_info_data_.find(ticket);
+    if (active_it != orders_info_data_.end()) {
+        active_it->second.SetState(static_cast<hqt::ENUM_ORDER_STATE>(state));
         set_order_state(ticket, map_order_state(state));
         return true;
     }
@@ -542,12 +603,11 @@ bool TradeSimulator::set_history_order_state(uint64_t ticket, uint64_t state) {
 }
 
 bool TradeSimulator::set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) {
-    const auto it = history_orders_data_.find(ticket);
-    if (it == history_orders_data_.end()) {
+    const auto it = history_orders_info_data_.find(ticket);
+    if (it == history_orders_info_data_.end()) {
         return false;
     }
-    it->second.time = time_sec;
-    it->second.time_msc = time_msc;
+    it->second.SetTimeDone(time_sec, time_msc);
     return true;
 }
 
@@ -569,20 +629,20 @@ void TradeSimulator::set_symbol_tick(const std::string& symbol, const SymbolTick
     ticks_data_[symbol] = tick;
 }
 
-void TradeSimulator::upsert_position(const TradeRecordData& data) {
-    positions_data_[data.ticket] = data;
+void TradeSimulator::upsert_position_info(const hqt::PositionInfo& data) {
+    positions_info_data_[data.Ticket()] = data;
 }
 
-void TradeSimulator::upsert_order(const TradeRecordData& data) {
-    orders_data_[data.ticket] = data;
+void TradeSimulator::upsert_order_info(const hqt::OrderInfo& data) {
+    orders_info_data_[data.Ticket()] = data;
 }
 
-void TradeSimulator::upsert_history_order(const TradeRecordData& data) {
-    history_orders_data_[data.ticket] = data;
+void TradeSimulator::upsert_history_order_info(const hqt::HistoryOrderInfo& data) {
+    history_orders_info_data_[data.Ticket()] = data;
 }
 
-void TradeSimulator::upsert_deal(const TradeRecordData& data) {
-    deals_data_[data.ticket] = data;
+void TradeSimulator::upsert_deal_info(const hqt::DealInfo& data) {
+    deals_info_data_[data.Ticket()] = data;
 }
 
 void TradeSimulator::set_last_error(int code, const std::string& message) {
@@ -657,19 +717,19 @@ void TradeSimulator::set_order_state(uint64_t ticket, OmsOrderState state) {
 }
 
 void TradeSimulator::rebuild_order_states_from_snapshots() {
-    for (const auto& [ticket, record] : orders_data_) {
-        order_states_[ticket] = map_order_state(record.reason);
+    for (const auto& [ticket, record] : orders_info_data_) {
+        order_states_[ticket] = map_order_state(static_cast<uint64_t>(record.State()));
     }
-    for (const auto& [ticket, record] : history_orders_data_) {
-        order_states_[ticket] = map_order_state(record.reason);
+    for (const auto& [ticket, record] : history_orders_info_data_) {
+        order_states_[ticket] = map_order_state(static_cast<uint64_t>(record.State()));
     }
 }
 
 void TradeSimulator::sync_state_from_trade() {
-    positions_data_.clear();
-    orders_data_.clear();
-    deals_data_.clear();
-    history_orders_data_.clear();
+    positions_info_data_.clear();
+    orders_info_data_.clear();
+    deals_info_data_.clear();
+    history_orders_info_data_.clear();
 
     const auto& trade = trade_gateway_.trade();
     const auto& account = trade.Account();
@@ -677,114 +737,27 @@ void TradeSimulator::sync_state_from_trade() {
     account_info_ = account;
 
     for (const auto& pos : trade.GetPositions()) {
-        TradeRecordData data;
-        data.ticket = pos.Ticket();
-        data.identifier = pos.Identifier();
-        data.symbol = pos.Symbol();
-        data.magic = pos.Magic();
-        data.type = static_cast<uint64_t>(pos.PositionType());
-        data.time = pos.Time();
-        data.time_msc = pos.TimeMsc();
-        data.volume = pos.Volume();
-        data.price_open = pos.PriceOpen();
-        data.price_current = pos.PriceCurrent();
-        data.sl = pos.StopLoss();
-        data.tp = pos.TakeProfit();
-        data.profit = pos.Profit();
-        data.comment = pos.Comment();
-        positions_data_[data.ticket] = data;
+        positions_info_data_[pos.Ticket()] = pos;
     }
 
     for (const auto& ord : trade.GetOrders()) {
-        TradeRecordData data;
-        data.ticket = ord.Ticket();
-        data.symbol = ord.Symbol();
-        data.magic = ord.Magic();
-        data.type = static_cast<uint64_t>(ord.OrderType());
-        data.reason = static_cast<uint64_t>(ord.State());
-        data.time = ord.TimeSetup();
-        data.time_msc = ord.TimeSetupMsc();
-        data.expiration = ord.TimeExpiration();
-        data.type_time = static_cast<uint64_t>(ord.TypeTime());
-        data.volume = ord.VolumeCurrent();
-        data.price_open = ord.PriceOpen();
-        data.price_current = ord.PriceCurrent();
-        data.sl = ord.StopLoss();
-        data.tp = ord.TakeProfit();
-        data.comment = ord.Comment();
-        orders_data_[data.ticket] = data;
+        orders_info_data_[ord.Ticket()] = ord;
     }
 
     for (const auto& deal : trade.GetDeals()) {
-        TradeRecordData data;
-        data.ticket = deal.Ticket();
-        data.order = deal.Order();
-        data.identifier = deal.PositionId();
-        data.symbol = deal.Symbol();
-        data.magic = deal.Magic();
-        data.type = static_cast<uint64_t>(deal.DealType());
-        data.reason = static_cast<uint64_t>(deal.Entry());
-        data.time = deal.Time();
-        data.time_msc = deal.TimeMsc();
-        data.volume = deal.Volume();
-        data.price_open = deal.Price();
-        data.profit = deal.Profit();
-        data.comment = deal.Comment();
-        deals_data_[data.ticket] = data;
+        deals_info_data_[deal.Ticket()] = deal;
     }
 
     for (const auto& hist : trade.GetHistoryOrders()) {
-        TradeRecordData data;
-        data.ticket = hist.Ticket();
-        data.symbol = hist.Symbol();
-        data.type = static_cast<uint64_t>(hist.OrderType());
-        data.reason = static_cast<uint64_t>(hist.State());
-        data.time = hist.TimeSetup();
-        data.time_msc = hist.TimeSetupMsc();
-        data.expiration = hist.TimeExpiration();
-        data.type_time = static_cast<uint64_t>(hist.TypeTime());
-        data.volume = hist.VolumeCurrent();
-        data.price_open = hist.PriceOpen();
-        data.sl = hist.StopLoss();
-        data.tp = hist.TakeProfit();
-        data.comment = hist.Comment();
-        history_orders_data_[data.ticket] = data;
+        history_orders_info_data_[hist.Ticket()] = hist;
     }
 
     util::debug(
-        "TradeSimulator::sync_state_from_trade positions=" + std::to_string(positions_data_.size()) +
-        " orders=" + std::to_string(orders_data_.size()) +
-        " deals=" + std::to_string(deals_data_.size()) +
-        " history_orders=" + std::to_string(history_orders_data_.size()));
+        "TradeSimulator::sync_state_from_trade positions=" + std::to_string(positions_info_data_.size()) +
+        " orders=" + std::to_string(orders_info_data_.size()) +
+        " deals=" + std::to_string(deals_info_data_.size()) +
+        " history_orders=" + std::to_string(history_orders_info_data_.size()));
     rebuild_order_states_from_snapshots();
-}
-
-template <typename Container>
-std::vector<TradeRecordData> TradeSimulator::collect_records(
-    const Container& records,
-    std::optional<uint64_t> ticket,
-    std::optional<std::string_view> symbol) {
-    std::vector<TradeRecordData> out;
-
-    if (ticket.has_value()) {
-        const auto it = records.find(*ticket);
-        if (it != records.end()) {
-            if (!symbol.has_value() || it->second.symbol == *symbol) {
-                out.push_back(it->second);
-            }
-        }
-        return out;
-    }
-
-    out.reserve(records.size());
-    for (const auto& [_, record] : records) {
-        if (symbol.has_value() && record.symbol != *symbol) {
-            continue;
-        }
-        out.push_back(record);
-    }
-
-    return out;
 }
 
 MockBroker::MockBroker(TradeSimulator client)
@@ -863,15 +836,15 @@ TradeRequest MockBroker::scaled_request(const TradeRequest& request, double rati
 
 std::unordered_map<std::string, PositionAggregate> MockBroker::aggregate_positions() const {
     std::unordered_map<std::string, PositionAggregate> out;
-    for (const auto& pos : client_.positions_get()) {
-        auto& agg = out[pos.symbol];
-        const bool is_buy = (pos.type == 0U);
+    for (const auto& pos : client_.positions_info_get()) {
+        auto& agg = out[pos.Symbol()];
+        const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
         if (is_buy) {
-            agg.long_volume += pos.volume;
-            agg.net_volume += pos.volume;
+            agg.long_volume += pos.Volume();
+            agg.net_volume += pos.Volume();
         } else {
-            agg.short_volume += pos.volume;
-            agg.net_volume -= pos.volume;
+            agg.short_volume += pos.Volume();
+            agg.net_volume -= pos.Volume();
         }
     }
     return out;

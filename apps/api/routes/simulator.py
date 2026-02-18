@@ -76,6 +76,59 @@ def _normalize_order(order: dict) -> dict:
     }
 
 
+def _position_info_to_dict(position: Any) -> dict:
+    if isinstance(position, dict):
+        return position
+    if hasattr(position, "_asdict"):
+        return dict(position._asdict())
+    time_value = position.Time() if hasattr(position, "Time") else None
+    return {
+        "ticket": int(getattr(position, "ticket", 0) or 0),
+        "identifier": int(getattr(position, "identifier", 0) or 0),
+        "symbol": getattr(position, "symbol", ""),
+        "type": int(getattr(position, "type", 0) or 0),
+        "volume": float(getattr(position, "volume", 0.0) or 0.0),
+        "price_open": float(getattr(position, "price_open", 0.0) or 0.0),
+        "price_current": float(getattr(position, "price_current", 0.0) or 0.0),
+        "sl": float(getattr(position, "sl", 0.0) or 0.0),
+        "tp": float(getattr(position, "tp", 0.0) or 0.0),
+        "profit": float(getattr(position, "profit", 0.0) or 0.0),
+        "swap": float(getattr(position, "swap", 0.0) or 0.0),
+        "commission": float(getattr(position, "commission", 0.0) or 0.0),
+        "time": int(time_value) if time_value is not None else None,
+        "comment": getattr(position, "comment", ""),
+    }
+
+
+def _order_info_to_dict(order: Any) -> dict:
+    if isinstance(order, dict):
+        return order
+    if hasattr(order, "_asdict"):
+        return dict(order._asdict())
+    time_value = order.TimeSetup() if hasattr(order, "TimeSetup") else None
+    return {
+        "ticket": int(getattr(order, "ticket", 0) or 0),
+        "identifier": int(getattr(order, "position_id", 0) or 0),
+        "symbol": getattr(order, "symbol", ""),
+        "type": int(getattr(order, "type", 0) or 0),
+        "volume_initial": float(getattr(order, "volume_initial", 0.0) or 0.0),
+        "volume_current": float(getattr(order, "volume_current", 0.0) or 0.0),
+        "price_open": float(getattr(order, "price_open", 0.0) or 0.0),
+        "sl": float(getattr(order, "sl", 0.0) or 0.0),
+        "tp": float(getattr(order, "tp", 0.0) or 0.0),
+        "time": int(time_value) if time_value is not None else None,
+        "comment": getattr(order, "comment", ""),
+    }
+
+
+def _collect_positions_orders(active: SimulatorSession) -> tuple[list[dict], list[dict]]:
+    positions_raw = active.simulator._simulator.positions_info_get() or []
+    orders_raw = active.simulator._simulator.orders_info_get() or []
+    positions = [_normalize_position(_position_info_to_dict(pos)) for pos in positions_raw]
+    orders = [_normalize_order(_order_info_to_dict(order)) for order in orders_raw]
+    return positions, orders
+
+
 # session_id -> SimulatorSession
 active_sessions: Dict[int, SimulatorSession] = {}
 
@@ -408,18 +461,7 @@ async def advance_bars(
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
 
-    positions_raw = active.simulator._simulator.positions_get() or []
-    orders_raw = active.simulator._simulator.orders_get() or []
-
-    positions = []
-    for pos in positions_raw:
-        data = pos._asdict() if hasattr(pos, "_asdict") else dict(pos)
-        positions.append(_normalize_position(data))
-
-    orders = []
-    for order in orders_raw:
-        data = order._asdict() if hasattr(order, "_asdict") else dict(order)
-        orders.append(_normalize_order(data))
+    positions, orders = _collect_positions_orders(active)
 
     return {
         "bars": bars,
@@ -447,18 +489,7 @@ async def get_positions(session_id: int, authorization: str = AUTH_HEADER):
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
 
-    positions_raw = active.simulator._simulator.positions_get() or []
-    orders_raw = active.simulator._simulator.orders_get() or []
-
-    positions = []
-    for pos in positions_raw:
-        data = pos._asdict() if hasattr(pos, "_asdict") else dict(pos)
-        positions.append(_normalize_position(data))
-
-    orders = []
-    for order in orders_raw:
-        data = order._asdict() if hasattr(order, "_asdict") else dict(order)
-        orders.append(_normalize_order(data))
+    positions, orders = _collect_positions_orders(active)
 
     return {
         "positions": positions,
@@ -494,18 +525,7 @@ async def execute_trade(
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
 
-    positions_raw = active.simulator._simulator.positions_get() or []
-    orders_raw = active.simulator._simulator.orders_get() or []
-
-    positions = []
-    for pos in positions_raw:
-        data = pos._asdict() if hasattr(pos, "_asdict") else dict(pos)
-        positions.append(_normalize_position(data))
-
-    orders = []
-    for order in orders_raw:
-        data = order._asdict() if hasattr(order, "_asdict") else dict(order)
-        orders.append(_normalize_order(data))
+    positions, orders = _collect_positions_orders(active)
 
     # Return updated positions and orders
     return {
@@ -536,18 +556,7 @@ async def place_pending_order(
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
 
-    positions_raw = active.simulator._simulator.positions_get() or []
-    orders_raw = active.simulator._simulator.orders_get() or []
-
-    positions = []
-    for pos in positions_raw:
-        data = pos._asdict() if hasattr(pos, "_asdict") else dict(pos)
-        positions.append(_normalize_position(data))
-
-    orders = []
-    for order_row in orders_raw:
-        data = order_row._asdict() if hasattr(order_row, "_asdict") else dict(order_row)
-        orders.append(_normalize_order(data))
+    positions, orders = _collect_positions_orders(active)
 
     return {
         "order": order,
@@ -598,22 +607,7 @@ async def modify_position(
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
 
-        positions_raw = active.simulator._simulator.positions_get() or []
-        orders_raw = active.simulator._simulator.orders_get() or []
-
-        positions = []
-        for pos_row in positions_raw:
-            data = pos_row._asdict() if hasattr(pos_row, "_asdict") else dict(pos_row)
-            positions.append(_normalize_position(data))
-
-        orders = []
-        for order_row in orders_raw:
-            data = (
-                order_row._asdict()
-                if hasattr(order_row, "_asdict")
-                else dict(order_row)
-            )
-            orders.append(_normalize_order(data))
+        positions, orders = _collect_positions_orders(active)
 
         return {"positions": positions, "orders": orders}
     except HTTPException:
@@ -661,22 +655,7 @@ async def close_position(
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
 
-        positions_raw = active.simulator._simulator.positions_get() or []
-        orders_raw = active.simulator._simulator.orders_get() or []
-
-        positions = []
-        for pos_row in positions_raw:
-            data = pos_row._asdict() if hasattr(pos_row, "_asdict") else dict(pos_row)
-            positions.append(_normalize_position(data))
-
-        orders = []
-        for order_row in orders_raw:
-            data = (
-                order_row._asdict()
-                if hasattr(order_row, "_asdict")
-                else dict(order_row)
-            )
-            orders.append(_normalize_order(data))
+        positions, orders = _collect_positions_orders(active)
 
         return {"positions": positions, "orders": orders}
     except HTTPException:
@@ -732,22 +711,7 @@ async def modify_order(
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
 
-        positions_raw = active.simulator._simulator.positions_get() or []
-        orders_raw = active.simulator._simulator.orders_get() or []
-
-        positions = []
-        for pos_row in positions_raw:
-            data = pos_row._asdict() if hasattr(pos_row, "_asdict") else dict(pos_row)
-            positions.append(_normalize_position(data))
-
-        orders = []
-        for order_row in orders_raw:
-            data = (
-                order_row._asdict()
-                if hasattr(order_row, "_asdict")
-                else dict(order_row)
-            )
-            orders.append(_normalize_order(data))
+        positions, orders = _collect_positions_orders(active)
 
         return {"positions": positions, "orders": orders}
     except HTTPException:
@@ -791,22 +755,7 @@ async def delete_order(
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
 
-        positions_raw = active.simulator._simulator.positions_get() or []
-        orders_raw = active.simulator._simulator.orders_get() or []
-
-        positions = []
-        for pos_row in positions_raw:
-            data = pos_row._asdict() if hasattr(pos_row, "_asdict") else dict(pos_row)
-            positions.append(_normalize_position(data))
-
-        orders = []
-        for order_row in orders_raw:
-            data = (
-                order_row._asdict()
-                if hasattr(order_row, "_asdict")
-                else dict(order_row)
-            )
-            orders.append(_normalize_order(data))
+        positions, orders = _collect_positions_orders(active)
 
         return {"positions": positions, "orders": orders}
     except HTTPException:

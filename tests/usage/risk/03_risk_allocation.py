@@ -30,7 +30,7 @@ from apps.mt5 import MT5Client, get_mt5_api
 from apps.risk import RiskBudgetAllocator, RiskGovernor, RiskLimits, RegimeState
 from apps.risk.risk_limits import CorrelationPreference
 from apps.sqlite.users import UserManager
-from apps.trade import AccountInfo
+from apps.mt5 import AccountInfo
 
 mt5 = get_mt5_api()
 
@@ -178,3 +178,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -144,16 +144,19 @@ def main():
         simulator.monitor_pending_orders()
 
     print("\nPositions after triggers:")
-    from apps.trade import PositionInfo
-    pos_info = PositionInfo(api=simulator._simulator)
-    total_positions = simulator._simulator.positions_get()
+    total_positions = simulator._simulator.positions_info_get()
     if total_positions:
-        for idx in range(len(total_positions)):
-            if pos_info.SelectByIndex(idx):
-                print(
-                    f"Position #{pos_info.Identifier()} {pos_info.TypeDescription()} "
-                    f"{pos_info.Symbol()} {pos_info.Volume()} at {pos_info.PriceOpen()}"
-                )
+        for pos in total_positions:
+            symbol = getattr(pos, "symbol", "")
+            ticket = getattr(pos, "identifier", getattr(pos, "ticket", 0))
+            pos_type = int(getattr(pos, "type", 0))
+            type_desc = "BUY" if pos_type == int(mt5.POSITION_TYPE_BUY) else "SELL"
+            volume = float(getattr(pos, "volume", 0.0))
+            open_price = float(getattr(pos, "price_open", 0.0))
+            print(
+                f"Position #{ticket} {type_desc} "
+                f"{symbol} {volume} at {open_price}"
+            )
     else:
         print("No positions opened.")
 

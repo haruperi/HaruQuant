@@ -43,7 +43,7 @@ from apps.simulation.data import (
 from apps.simulation.engine import SimulationEngine
 from apps.simulation.records import TradeRecord
 from apps.simulation.utils import PositionArrayState, SimulationUtilsMixin
-from apps.trade import AccountInfo, Trade
+from apps.mt5 import AccountInfo, Trade
 from apps.utils.validate import TradeValidator
 
 mt5 = get_mt5_api()
@@ -391,11 +391,23 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
             reason: Exit reason to record for all closed positions.
                    Default is "Time exit".
         """
-        positions = self._simulator.positions_get() or []
+        positions = self._simulator.positions_info_get() or []
         for position in positions:
-            pos_data = (
-                position._asdict() if hasattr(position, "_asdict") else dict(position)
-            )
+            pos_data = {
+                "ticket": int(getattr(position, "ticket", 0) or 0),
+                "identifier": int(getattr(position, "identifier", 0) or 0),
+                "symbol": getattr(position, "symbol", ""),
+                "type": int(getattr(position, "type", 0) or 0),
+                "volume": float(getattr(position, "volume", 0.0) or 0.0),
+                "price_open": float(getattr(position, "price_open", 0.0) or 0.0),
+                "price_current": float(getattr(position, "price_current", 0.0) or 0.0),
+                "sl": float(getattr(position, "sl", 0.0) or 0.0),
+                "tp": float(getattr(position, "tp", 0.0) or 0.0),
+                "profit": float(getattr(position, "profit", 0.0) or 0.0),
+                "swap": float(getattr(position, "swap", 0.0) or 0.0),
+                "commission": float(getattr(position, "commission", 0.0) or 0.0),
+                "comment": getattr(position, "comment", ""),
+            }
             self.close_position(pos_data, reason=reason)
 
     # Pending Orders
@@ -681,5 +693,6 @@ class TradeSimulator(SimulationEngine, SimulationUtilsMixin):
                 tp=float(new_tp) if new_tp is not None else 0.0,
             )
         )
+
 
 

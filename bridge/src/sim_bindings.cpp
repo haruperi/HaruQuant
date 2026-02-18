@@ -57,6 +57,37 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("initial_balance") = 10000.0,
              nb::arg("currency") = "USD",
              nb::arg("leverage") = 100)
+        .def("Login", &hqt::AccountInfo::Login)
+        .def("Name", &hqt::AccountInfo::Name)
+        .def("Server", &hqt::AccountInfo::Server)
+        .def("Currency", &hqt::AccountInfo::Currency)
+        .def("Company", &hqt::AccountInfo::Company)
+        .def("TradeMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.TradeMode()); })
+        .def("TradeModeDescription", &hqt::AccountInfo::TradeModeDescription)
+        .def("Leverage", &hqt::AccountInfo::Leverage)
+        .def("TradeAllowed", &hqt::AccountInfo::TradeAllowed)
+        .def("TradeExpert", &hqt::AccountInfo::TradeExpert)
+        .def("LimitOrders", &hqt::AccountInfo::LimitOrders)
+        .def("Balance", &hqt::AccountInfo::Balance)
+        .def("Credit", &hqt::AccountInfo::Credit)
+        .def("Profit", &hqt::AccountInfo::Profit)
+        .def("Equity", &hqt::AccountInfo::Equity)
+        .def("Margin", &hqt::AccountInfo::Margin)
+        .def("FreeMargin", &hqt::AccountInfo::FreeMargin)
+        .def("MarginLevel", &hqt::AccountInfo::MarginLevel)
+        .def("MarginCall", &hqt::AccountInfo::MarginCall)
+        .def("MarginStopOut", &hqt::AccountInfo::MarginStopOut)
+        .def("MarginMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.MarginMode()); })
+        .def("MarginModeDescription", &hqt::AccountInfo::MarginModeDescription)
+        .def("StopoutMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); })
+        .def("StopoutModeDescription", &hqt::AccountInfo::StopoutModeDescription)
+        .def("apply_snapshot", &hqt::AccountInfo::ApplySnapshot,
+             nb::arg("balance"),
+             nb::arg("credit"),
+             nb::arg("profit"),
+             nb::arg("margin"),
+             nb::arg("margin_call"),
+             nb::arg("margin_stopout"))
         .def_prop_rw("login",
             [](const hqt::AccountInfo& self) { return self.Login(); },
             [](hqt::AccountInfo& self, int value) { self.SetLogin(value); })
@@ -106,9 +137,72 @@ void register_sim_bindings(nb::module_& m) {
 
     nb::class_<hqt::SymbolInfo>(m, "SymbolInfo")
         .def(nb::init<>())
+        .def("Name", [](const hqt::SymbolInfo& self) { return self.Name(); })
+        .def("Description", &hqt::SymbolInfo::Description)
+        .def("Path", &hqt::SymbolInfo::Path)
+        .def("Select", [](hqt::SymbolInfo& self) { return self.Select(); })
+        .def("Select", [](hqt::SymbolInfo& self, bool selected) {
+            self.Select(selected);
+            return self.Select();
+        }, nb::arg("selected"))
+        .def("Bid", &hqt::SymbolInfo::Bid)
+        .def("BidHigh", &hqt::SymbolInfo::BidHigh)
+        .def("BidLow", &hqt::SymbolInfo::BidLow)
+        .def("Ask", &hqt::SymbolInfo::Ask)
+        .def("AskHigh", &hqt::SymbolInfo::AskHigh)
+        .def("AskLow", &hqt::SymbolInfo::AskLow)
+        .def("Last", &hqt::SymbolInfo::Last)
+        .def("Spread", &hqt::SymbolInfo::Spread)
+        .def("SpreadFloat", &hqt::SymbolInfo::SpreadFloat)
+        .def("Time", &hqt::SymbolInfo::Time)
+        .def("Volume", &hqt::SymbolInfo::Volume)
+        .def("VolumeHigh", &hqt::SymbolInfo::VolumeHigh)
+        .def("VolumeLow", &hqt::SymbolInfo::VolumeLow)
+        .def("Digits", &hqt::SymbolInfo::Digits)
+        .def("Point", &hqt::SymbolInfo::Point)
+        .def("TickValue", &hqt::SymbolInfo::TickValue)
+        .def("TickSize", &hqt::SymbolInfo::TickSize)
+        .def("TickValueProfit", &hqt::SymbolInfo::TickValueProfit)
+        .def("TickValueLoss", &hqt::SymbolInfo::TickValueLoss)
+        .def("ContractSize", &hqt::SymbolInfo::ContractSize)
+        .def("LotsMin", &hqt::SymbolInfo::LotsMin)
+        .def("LotsMax", &hqt::SymbolInfo::LotsMax)
+        .def("LotsStep", &hqt::SymbolInfo::LotsStep)
+        .def("LotsLimit", &hqt::SymbolInfo::LotsLimit)
+        .def("MarginInitial", &hqt::SymbolInfo::MarginInitial)
+        .def("MarginMaintenance", &hqt::SymbolInfo::MarginMaintenance)
+        .def("MarginLong", &hqt::SymbolInfo::MarginLong)
+        .def("MarginShort", &hqt::SymbolInfo::MarginShort)
+        .def("MarginLimit", &hqt::SymbolInfo::MarginLimit)
+        .def("MarginStop", &hqt::SymbolInfo::MarginStop)
+        .def("MarginStopLimit", &hqt::SymbolInfo::MarginStopLimit)
+        .def("SwapLong", &hqt::SymbolInfo::SwapLong)
+        .def("SwapShort", &hqt::SymbolInfo::SwapShort)
+        .def("SwapMode", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapMode()); })
+        .def("SwapModeDescription", &hqt::SymbolInfo::SwapModeDescription)
+        .def("SwapRollover3days", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapRollover3days()); })
+        .def("SwapRollover3daysDescription", &hqt::SymbolInfo::SwapRollover3daysDescription)
+        .def("SwapRollover3DaysDescription", &hqt::SymbolInfo::SwapRollover3daysDescription)
+        .def("TradeMode", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeMode()); })
+        .def("TradeModeDescription", &hqt::SymbolInfo::TradeModeDescription)
+        .def("TradeExecution", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeExecution()); })
+        .def("TradeExecutionDescription", &hqt::SymbolInfo::TradeExecutionDescription)
+        .def("TradeCalcMode", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeCalcMode()); })
+        .def("TradeCalcModeDescription", &hqt::SymbolInfo::TradeCalcModeDescription)
+        .def("StopsLevel", &hqt::SymbolInfo::StopsLevel)
+        .def("FreezeLevel", &hqt::SymbolInfo::FreezeLevel)
+        .def("CurrencyBase", &hqt::SymbolInfo::CurrencyBase)
+        .def("CurrencyProfit", &hqt::SymbolInfo::CurrencyProfit)
+        .def("CurrencyMargin", &hqt::SymbolInfo::CurrencyMargin)
+        .def("NormalizePrice", &hqt::SymbolInfo::NormalizePrice)
+        .def("Refresh", &hqt::SymbolInfo::Refresh)
+        .def("RefreshRates", &hqt::SymbolInfo::RefreshRates)
         .def_prop_rw("symbol",
             [](const hqt::SymbolInfo& self) { return self.Name(); },
             [](hqt::SymbolInfo& self, const std::string& value) { self.Name(value); })
+        .def_prop_rw("symbol_id",
+            [](const hqt::SymbolInfo& self) { return self.SymbolId(); },
+            [](hqt::SymbolInfo& self, uint32_t value) { self.SetSymbolId(value); })
         .def_prop_rw("digits",
             [](const hqt::SymbolInfo& self) { return self.Digits(); },
             [](hqt::SymbolInfo& self, int value) { self.SetDigits(value); })
@@ -204,28 +298,385 @@ void register_sim_bindings(nb::module_& m) {
         .def("update_price", &hqt::SymbolInfo::UpdatePrice,
              nb::arg("bid"), nb::arg("ask"), nb::arg("timestamp") = 0);
 
-    nb::class_<TradeRecordData>(m, "TradeRecordData")
+    nb::class_<hqt::CTrade>(m, "CTrade")
+        .def(nb::init<double, const std::string&, uint32_t>(),
+             nb::arg("initial_balance") = 10000.0,
+             nb::arg("currency") = "USD",
+             nb::arg("leverage") = 100)
+        .def("LogLevel", [](const hqt::CTrade& self) { return self.LogLevel(); })
+        .def("SetLogLevel", [](hqt::CTrade& self, int level) { self.LogLevel(level); })
+        .def("SetExpertMagicNumber", &hqt::CTrade::SetExpertMagicNumber)
+        .def("ExpertMagicNumber", &hqt::CTrade::ExpertMagicNumber)
+        .def("SetDeviationInPoints", &hqt::CTrade::SetDeviationInPoints)
+        .def("DeviationInPoints", &hqt::CTrade::DeviationInPoints)
+        .def("SetTypeFillingBySymbol", &hqt::CTrade::SetTypeFillingBySymbol)
+        .def("SetAsyncMode", &hqt::CTrade::SetAsyncMode)
+        .def("AsyncMode", &hqt::CTrade::AsyncMode)
+        .def("PositionOpen",
+            [](hqt::CTrade& self,
+               const std::string& symbol,
+               int order_type,
+               double volume,
+               double price,
+               double sl,
+               double tp,
+               const std::string& comment) {
+                return self.PositionOpen(
+                    symbol,
+                    static_cast<hqt::ENUM_ORDER_TYPE>(order_type),
+                    volume,
+                    price,
+                    sl,
+                    tp,
+                    comment
+                );
+            },
+            nb::arg("symbol"),
+            nb::arg("order_type"),
+            nb::arg("volume"),
+            nb::arg("price") = 0.0,
+            nb::arg("sl") = 0.0,
+            nb::arg("tp") = 0.0,
+            nb::arg("comment") = "")
+        .def("PositionModify",
+            [](hqt::CTrade& self, const std::string& symbol, double sl, double tp) {
+                return self.PositionModify(symbol, sl, tp);
+            },
+            nb::arg("symbol"), nb::arg("sl"), nb::arg("tp"))
+        .def("PositionClose",
+            [](hqt::CTrade& self, const std::string& symbol, uint64_t deviation) {
+                return self.PositionClose(symbol, deviation);
+            },
+            nb::arg("symbol"), nb::arg("deviation") = 0)
+        .def("OrderOpen",
+            [](hqt::CTrade& self,
+               const std::string& symbol,
+               int order_type,
+               double volume,
+               double limit_price,
+               double stop_price,
+               double sl,
+               double tp,
+               int type_time,
+               int64_t expiration,
+               const std::string& comment) {
+                return self.OrderOpen(
+                    symbol,
+                    static_cast<hqt::ENUM_ORDER_TYPE>(order_type),
+                    volume,
+                    limit_price,
+                    stop_price,
+                    sl,
+                    tp,
+                    static_cast<hqt::ENUM_ORDER_TYPE_TIME>(type_time),
+                    expiration,
+                    comment
+                );
+            },
+            nb::arg("symbol"),
+            nb::arg("order_type"),
+            nb::arg("volume"),
+            nb::arg("limit_price"),
+            nb::arg("stop_price") = 0.0,
+            nb::arg("sl") = 0.0,
+            nb::arg("tp") = 0.0,
+            nb::arg("type_time") = 0,
+            nb::arg("expiration") = 0,
+            nb::arg("comment") = "")
+        .def("RequestOrder", &hqt::CTrade::RequestOrder)
+        .def("RequestSymbol", &hqt::CTrade::RequestSymbol)
+        .def("RequestVolume", &hqt::CTrade::RequestVolume)
+        .def("RequestPrice", &hqt::CTrade::RequestPrice)
+        .def("ResultRetcode",
+            [](const hqt::CTrade& self) { return static_cast<int>(self.ResultRetcode()); })
+        .def("ResultOrder", &hqt::CTrade::ResultOrder)
+        .def("ResultDeal", &hqt::CTrade::ResultDeal)
+        .def("ResultVolume", &hqt::CTrade::ResultVolume)
+        .def("ResultPrice", &hqt::CTrade::ResultPrice)
+        .def("ResultComment", &hqt::CTrade::ResultComment)
+        .def("CheckResultComment", &hqt::CTrade::CheckResultComment)
+        .def("RegisterSymbol", &hqt::CTrade::RegisterSymbol)
+        .def("UpdatePrices", &hqt::CTrade::UpdatePrices,
+             nb::arg("symbol"), nb::arg("bid"), nb::arg("ask"), nb::arg("timestamp") = 0)
+        .def("Account", [](const hqt::CTrade& self) { return self.Account(); });
+
+    nb::class_<hqt::DealInfo>(m, "DealInfo")
         .def(nb::init<>())
-        .def_rw("ticket", &TradeRecordData::ticket)
-        .def_rw("order", &TradeRecordData::order)
-        .def_rw("time", &TradeRecordData::time)
-        .def_rw("time_msc", &TradeRecordData::time_msc)
-        .def_rw("expiration", &TradeRecordData::expiration)
-        .def_rw("type", &TradeRecordData::type)
-        .def_rw("type_time", &TradeRecordData::type_time)
-        .def_rw("magic", &TradeRecordData::magic)
-        .def_rw("identifier", &TradeRecordData::identifier)
-        .def_rw("reason", &TradeRecordData::reason)
-        .def_rw("volume", &TradeRecordData::volume)
-        .def_rw("price_open", &TradeRecordData::price_open)
-        .def_rw("sl", &TradeRecordData::sl)
-        .def_rw("tp", &TradeRecordData::tp)
-        .def_rw("price_current", &TradeRecordData::price_current)
-        .def_rw("swap", &TradeRecordData::swap)
-        .def_rw("profit", &TradeRecordData::profit)
-        .def_rw("symbol", &TradeRecordData::symbol)
-        .def_rw("comment", &TradeRecordData::comment)
-        .def("to_dict", &TradeRecordData::to_dict);
+        .def("Ticket", &hqt::DealInfo::Ticket)
+        .def("Order", &hqt::DealInfo::Order)
+        .def("Time", &hqt::DealInfo::Time)
+        .def("TimeMsc", &hqt::DealInfo::TimeMsc)
+        .def("DealType", [](const hqt::DealInfo& self) { return static_cast<int>(self.DealType()); })
+        .def("DealTypeDescription", &hqt::DealInfo::TypeDescription)
+        .def("Entry", [](const hqt::DealInfo& self) { return static_cast<int>(self.Entry()); })
+        .def("EntryDescription", &hqt::DealInfo::EntryDescription)
+        .def("Magic", &hqt::DealInfo::Magic)
+        .def("PositionId", &hqt::DealInfo::PositionId)
+        .def("Volume", &hqt::DealInfo::Volume)
+        .def("Price", &hqt::DealInfo::Price)
+        .def("Commission", &hqt::DealInfo::Commission)
+        .def("Commision", &hqt::DealInfo::Commision)
+        .def("Swap", &hqt::DealInfo::Swap)
+        .def("Profit", &hqt::DealInfo::Profit)
+        .def("Symbol", &hqt::DealInfo::Symbol)
+        .def("Comment", &hqt::DealInfo::Comment)
+        .def("ExternalId", [](const hqt::DealInfo&) { return std::string{}; })
+        .def("Select", &hqt::DealInfo::Select)
+        .def("SelectByIndex", &hqt::DealInfo::SelectByIndex)
+        .def("NetProfit", &hqt::DealInfo::NetProfit)
+        .def("HoldingTime", &hqt::DealInfo::HoldingTime)
+        .def("HoldingTimeDays", &hqt::DealInfo::HoldingTimeDays)
+        .def("IsWinner", &hqt::DealInfo::IsWinner)
+        .def("IsLoser", &hqt::DealInfo::IsLoser)
+        .def("IsTrade", &hqt::DealInfo::IsTrade)
+        .def("IsBuy", &hqt::DealInfo::IsBuy)
+        .def("IsSell", &hqt::DealInfo::IsSell)
+        .def("IsEntry", &hqt::DealInfo::IsEntry)
+        .def("IsExit", &hqt::DealInfo::IsExit)
+        .def("PriceMovementPoints", &hqt::DealInfo::PriceMovementPoints)
+        .def("ROIPercent", &hqt::DealInfo::ROIPercent)
+        .def("EntryPrice", &hqt::DealInfo::EntryPrice)
+        .def("ExitPrice", &hqt::DealInfo::ExitPrice)
+        .def("EntryTime", &hqt::DealInfo::EntryTime)
+        .def("ExitTime", &hqt::DealInfo::ExitTime)
+        .def_prop_rw("ticket", &hqt::DealInfo::Ticket, &hqt::DealInfo::SetTicket)
+        .def_prop_rw("order", &hqt::DealInfo::Order, &hqt::DealInfo::SetOrder)
+        .def_prop_rw("position_id", &hqt::DealInfo::PositionId, &hqt::DealInfo::SetPositionId)
+        .def_prop_rw("symbol", &hqt::DealInfo::Symbol, &hqt::DealInfo::SetSymbol)
+        .def_prop_rw("magic",
+            [](const hqt::DealInfo& self) { return self.Magic(); },
+            [](hqt::DealInfo& self, uint32_t value) { self.SetMagic(value); })
+        .def_prop_rw("type",
+            [](const hqt::DealInfo& self) { return static_cast<int>(self.DealType()); },
+            [](hqt::DealInfo& self, int value) { self.SetType(static_cast<hqt::ENUM_DEAL_TYPE>(value)); })
+        .def_prop_rw("entry",
+            [](const hqt::DealInfo& self) { return static_cast<int>(self.Entry()); },
+            [](hqt::DealInfo& self, int value) { self.SetEntry(static_cast<hqt::ENUM_DEAL_ENTRY>(value)); })
+        .def_prop_rw("volume", &hqt::DealInfo::Volume, &hqt::DealInfo::SetVolume)
+        .def_prop_rw("price", &hqt::DealInfo::Price, &hqt::DealInfo::SetPrice)
+        .def_prop_rw("profit", &hqt::DealInfo::Profit, &hqt::DealInfo::SetProfit)
+        .def_prop_rw("commission", &hqt::DealInfo::Commission, &hqt::DealInfo::SetCommission)
+        .def_prop_rw("swap", &hqt::DealInfo::Swap, &hqt::DealInfo::SetSwap)
+        .def_prop_rw("comment", &hqt::DealInfo::Comment, &hqt::DealInfo::SetComment)
+        .def("set_time", &hqt::DealInfo::SetTime, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_digits", &hqt::DealInfo::SetDigits)
+        .def("set_entry_price", &hqt::DealInfo::SetEntryPrice)
+        .def("set_exit_price", &hqt::DealInfo::SetExitPrice)
+        .def("set_entry_time", &hqt::DealInfo::SetEntryTime)
+        .def("set_exit_time", &hqt::DealInfo::SetExitTime);
+
+    nb::class_<hqt::HistoryOrderInfo>(m, "HistoryOrderInfo")
+        .def(nb::init<>())
+        .def("Ticket", &hqt::HistoryOrderInfo::Ticket)
+        .def("TimeSetup", &hqt::HistoryOrderInfo::TimeSetup)
+        .def("TimeSetupMsc", &hqt::HistoryOrderInfo::TimeSetupMsc)
+        .def("OrderType", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.OrderType()); })
+        .def("OrderTypeDescription", &hqt::HistoryOrderInfo::OrderTypeDescription)
+        .def("State", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.State()); })
+        .def("StateDescription", &hqt::HistoryOrderInfo::StateDescription)
+        .def("TimeExpiration", &hqt::HistoryOrderInfo::TimeExpiration)
+        .def("TimeDone", &hqt::HistoryOrderInfo::TimeDone)
+        .def("TimeDoneMsc", &hqt::HistoryOrderInfo::TimeDoneMsc)
+        .def("TypeFilling", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.TypeFilling()); })
+        .def("TypeFillingDescription", &hqt::HistoryOrderInfo::TypeFillingDescription)
+        .def("TypeTime", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.TypeTime()); })
+        .def("TypeTimeDescription", &hqt::HistoryOrderInfo::TypeTimeDescription)
+        .def("Magic", &hqt::HistoryOrderInfo::Magic)
+        .def("PositionId", &hqt::HistoryOrderInfo::PositionId)
+        .def("PositionByID", &hqt::HistoryOrderInfo::PositionId)
+        .def("VolumeInitial", &hqt::HistoryOrderInfo::VolumeInitial)
+        .def("VolumeCurrent", &hqt::HistoryOrderInfo::VolumeCurrent)
+        .def("PriceOpen", &hqt::HistoryOrderInfo::PriceOpen)
+        .def("StopLoss", &hqt::HistoryOrderInfo::StopLoss)
+        .def("TakeProfit", &hqt::HistoryOrderInfo::TakeProfit)
+        .def("PriceCurrent", &hqt::HistoryOrderInfo::PriceCurrent)
+        .def("PriceStopLimit", &hqt::HistoryOrderInfo::PriceStopLimit)
+        .def("Symbol", &hqt::HistoryOrderInfo::Symbol)
+        .def("Comment", &hqt::HistoryOrderInfo::Comment)
+        .def("ExternalID", [](const hqt::HistoryOrderInfo&) { return std::string{}; })
+        .def("Select", &hqt::HistoryOrderInfo::Select)
+        .def("SelectByIndex", &hqt::HistoryOrderInfo::SelectByIndex)
+        .def("Lifetime", &hqt::HistoryOrderInfo::Lifetime)
+        .def("WasFilled", &hqt::HistoryOrderInfo::WasFilled)
+        .def("WasCanceled", &hqt::HistoryOrderInfo::WasCanceled)
+        .def("WasRejected", &hqt::HistoryOrderInfo::WasRejected)
+        .def("WasExpired", &hqt::HistoryOrderInfo::WasExpired)
+        .def("WasPartiallyFilled", &hqt::HistoryOrderInfo::WasPartiallyFilled)
+        .def("VolumeFilled", &hqt::HistoryOrderInfo::VolumeFilled)
+        .def("FillRatio", &hqt::HistoryOrderInfo::FillRatio)
+        .def("IsBuy", &hqt::HistoryOrderInfo::IsBuy)
+        .def("IsSell", &hqt::HistoryOrderInfo::IsSell)
+        .def("IsMarket", &hqt::HistoryOrderInfo::IsMarket)
+        .def("IsLimit", &hqt::HistoryOrderInfo::IsLimit)
+        .def("IsStop", &hqt::HistoryOrderInfo::IsStop)
+        .def_prop_rw("ticket", &hqt::HistoryOrderInfo::Ticket, &hqt::HistoryOrderInfo::SetTicket)
+        .def_prop_rw("symbol", &hqt::HistoryOrderInfo::Symbol, &hqt::HistoryOrderInfo::SetSymbol)
+        .def_prop_rw("magic",
+            [](const hqt::HistoryOrderInfo& self) { return self.Magic(); },
+            [](hqt::HistoryOrderInfo& self, uint32_t value) { self.SetMagic(value); })
+        .def_prop_rw("position_id", &hqt::HistoryOrderInfo::PositionId, &hqt::HistoryOrderInfo::SetPositionId)
+        .def_prop_rw("type",
+            [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.OrderType()); },
+            [](hqt::HistoryOrderInfo& self, int value) { self.SetOrderType(static_cast<hqt::ENUM_ORDER_TYPE>(value)); })
+        .def_prop_rw("state",
+            [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.State()); },
+            [](hqt::HistoryOrderInfo& self, int value) { self.SetState(static_cast<hqt::ENUM_ORDER_STATE>(value)); })
+        .def_prop_rw("volume_initial", &hqt::HistoryOrderInfo::VolumeInitial, &hqt::HistoryOrderInfo::SetVolumeInitial)
+        .def_prop_rw("volume_current", &hqt::HistoryOrderInfo::VolumeCurrent, &hqt::HistoryOrderInfo::SetVolumeCurrent)
+        .def_prop_rw("price_open", &hqt::HistoryOrderInfo::PriceOpen, &hqt::HistoryOrderInfo::SetPriceOpen)
+        .def_prop_rw("price_current", &hqt::HistoryOrderInfo::PriceCurrent, &hqt::HistoryOrderInfo::SetPriceCurrent)
+        .def_prop_rw("price_stoplimit", &hqt::HistoryOrderInfo::PriceStopLimit, &hqt::HistoryOrderInfo::SetPriceStopLimit)
+        .def_prop_rw("sl", &hqt::HistoryOrderInfo::StopLoss, &hqt::HistoryOrderInfo::SetStopLoss)
+        .def_prop_rw("tp", &hqt::HistoryOrderInfo::TakeProfit, &hqt::HistoryOrderInfo::SetTakeProfit)
+        .def_prop_rw("comment", &hqt::HistoryOrderInfo::Comment, &hqt::HistoryOrderInfo::SetComment)
+        .def("set_time_setup", &hqt::HistoryOrderInfo::SetTimeSetup, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_time_expiration", &hqt::HistoryOrderInfo::SetTimeExpiration)
+        .def("set_time_done", &hqt::HistoryOrderInfo::SetTimeDone, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_type_filling",
+            [](hqt::HistoryOrderInfo& self, int value) {
+                self.SetTypeFilling(static_cast<hqt::ENUM_ORDER_TYPE_FILLING>(value));
+            })
+        .def("set_type_time",
+            [](hqt::HistoryOrderInfo& self, int value) {
+                self.SetTypeTime(static_cast<hqt::ENUM_ORDER_TYPE_TIME>(value));
+            })
+        .def("set_digits", &hqt::HistoryOrderInfo::SetDigits);
+
+    nb::class_<hqt::OrderInfo>(m, "OrderInfo")
+        .def(nb::init<>())
+        .def("Ticket", &hqt::OrderInfo::Ticket)
+        .def("TimeSetup", &hqt::OrderInfo::TimeSetup)
+        .def("TimeSetupMsc", &hqt::OrderInfo::TimeSetupMsc)
+        .def("Type", [](const hqt::OrderInfo& self) { return static_cast<int>(self.OrderType()); })
+        .def("TypeDescription", &hqt::OrderInfo::OrderTypeDescription)
+        .def("OrderType", [](const hqt::OrderInfo& self) { return static_cast<int>(self.OrderType()); })
+        .def("OrderTypeDescription", &hqt::OrderInfo::OrderTypeDescription)
+        .def("State", [](const hqt::OrderInfo& self) { return static_cast<int>(self.State()); })
+        .def("StateDescription", &hqt::OrderInfo::StateDescription)
+        .def("TimeExpiration", &hqt::OrderInfo::TimeExpiration)
+        .def("TimeDone", &hqt::OrderInfo::TimeDone)
+        .def("TimeDoneMsc", &hqt::OrderInfo::TimeDoneMsc)
+        .def("TypeFilling", [](const hqt::OrderInfo& self) { return static_cast<int>(self.TypeFilling()); })
+        .def("TypeFillingDescription", &hqt::OrderInfo::TypeFillingDescription)
+        .def("TypeTime", [](const hqt::OrderInfo& self) { return static_cast<int>(self.TypeTime()); })
+        .def("TypeTimeDescription", &hqt::OrderInfo::TypeTimeDescription)
+        .def("Magic", &hqt::OrderInfo::Magic)
+        .def("PositionId", &hqt::OrderInfo::PositionId)
+        .def("PositionById", &hqt::OrderInfo::PositionId)
+        .def("PositionByID", &hqt::OrderInfo::PositionId)
+        .def("VolumeInitial", &hqt::OrderInfo::VolumeInitial)
+        .def("VolumeCurrent", &hqt::OrderInfo::VolumeCurrent)
+        .def("PriceOpen", &hqt::OrderInfo::PriceOpen)
+        .def("StopLoss", &hqt::OrderInfo::StopLoss)
+        .def("TakeProfit", &hqt::OrderInfo::TakeProfit)
+        .def("PriceCurrent", &hqt::OrderInfo::PriceCurrent)
+        .def("PriceStopLimit", &hqt::OrderInfo::PriceStopLimit)
+        .def("Symbol", &hqt::OrderInfo::Symbol)
+        .def("Comment", &hqt::OrderInfo::Comment)
+        .def("ExternalId", [](const hqt::OrderInfo&) { return std::string{}; })
+        .def("ExternalID", [](const hqt::OrderInfo&) { return std::string{}; })
+        .def("StoreState", &hqt::OrderInfo::StoreState)
+        .def("CheckState", &hqt::OrderInfo::CheckState)
+        .def("Select", &hqt::OrderInfo::Select)
+        .def("SelectByIndex", &hqt::OrderInfo::SelectByIndex)
+        .def("IsBuy", &hqt::OrderInfo::IsBuy)
+        .def("IsSell", &hqt::OrderInfo::IsSell)
+        .def_prop_rw("ticket", &hqt::OrderInfo::Ticket, &hqt::OrderInfo::SetTicket)
+        .def_prop_rw("symbol", &hqt::OrderInfo::Symbol, &hqt::OrderInfo::SetSymbol)
+        .def_prop_rw("magic",
+            [](const hqt::OrderInfo& self) { return self.Magic(); },
+            [](hqt::OrderInfo& self, uint32_t value) { self.SetMagic(value); })
+        .def_prop_rw("position_id", &hqt::OrderInfo::PositionId, &hqt::OrderInfo::SetPositionId)
+        .def_prop_rw("type",
+            [](const hqt::OrderInfo& self) { return static_cast<int>(self.OrderType()); },
+            [](hqt::OrderInfo& self, int value) { self.SetOrderType(static_cast<hqt::ENUM_ORDER_TYPE>(value)); })
+        .def_prop_rw("state",
+            [](const hqt::OrderInfo& self) { return static_cast<int>(self.State()); },
+            [](hqt::OrderInfo& self, int value) { self.SetState(static_cast<hqt::ENUM_ORDER_STATE>(value)); })
+        .def_prop_rw("volume_initial", &hqt::OrderInfo::VolumeInitial, &hqt::OrderInfo::SetVolumeInitial)
+        .def_prop_rw("volume_current", &hqt::OrderInfo::VolumeCurrent, &hqt::OrderInfo::SetVolumeCurrent)
+        .def_prop_rw("price_open", &hqt::OrderInfo::PriceOpen, &hqt::OrderInfo::SetPriceOpen)
+        .def_prop_rw("price_current", &hqt::OrderInfo::PriceCurrent, &hqt::OrderInfo::SetPriceCurrent)
+        .def_prop_rw("price_stoplimit", &hqt::OrderInfo::PriceStopLimit, &hqt::OrderInfo::SetPriceStopLimit)
+        .def_prop_rw("sl", &hqt::OrderInfo::StopLoss, &hqt::OrderInfo::SetStopLoss)
+        .def_prop_rw("tp", &hqt::OrderInfo::TakeProfit, &hqt::OrderInfo::SetTakeProfit)
+        .def_prop_rw("comment", &hqt::OrderInfo::Comment, &hqt::OrderInfo::SetComment)
+        .def("set_time_setup", &hqt::OrderInfo::SetTimeSetup, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_time_expiration", &hqt::OrderInfo::SetTimeExpiration)
+        .def("set_time_done", &hqt::OrderInfo::SetTimeDone, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_type_filling",
+            [](hqt::OrderInfo& self, int value) {
+                self.SetTypeFilling(static_cast<hqt::ENUM_ORDER_TYPE_FILLING>(value));
+            })
+        .def("set_type_time",
+            [](hqt::OrderInfo& self, int value) {
+                self.SetTypeTime(static_cast<hqt::ENUM_ORDER_TYPE_TIME>(value));
+            })
+        .def("set_digits", &hqt::OrderInfo::SetDigits);
+
+    nb::class_<hqt::PositionInfo>(m, "PositionInfo")
+        .def(nb::init<>())
+        .def("Time", &hqt::PositionInfo::Time)
+        .def("TimeMsc", &hqt::PositionInfo::TimeMsc)
+        .def("TimeUpdate", &hqt::PositionInfo::TimeUpdate)
+        .def("TimeUpdateMsc", &hqt::PositionInfo::TimeUpdateMsc)
+        .def("Type", [](const hqt::PositionInfo& self) { return static_cast<int>(self.PositionType()); })
+        .def("PositionType", [](const hqt::PositionInfo& self) { return static_cast<int>(self.PositionType()); })
+        .def("TypeDescription", &hqt::PositionInfo::TypeDescription)
+        .def("Magic", &hqt::PositionInfo::Magic)
+        .def("Identifier", &hqt::PositionInfo::Identifier)
+        .def("Ticket", &hqt::PositionInfo::Ticket)
+        .def("Volume", &hqt::PositionInfo::Volume)
+        .def("PriceOpen", &hqt::PositionInfo::PriceOpen)
+        .def("StopLoss", &hqt::PositionInfo::StopLoss)
+        .def("TakeProfit", &hqt::PositionInfo::TakeProfit)
+        .def("PriceCurrent", &hqt::PositionInfo::PriceCurrent)
+        .def("Commission", &hqt::PositionInfo::Commission)
+        .def("Swap", &hqt::PositionInfo::Swap)
+        .def("Profit", &hqt::PositionInfo::Profit)
+        .def("Symbol", &hqt::PositionInfo::Symbol)
+        .def("Comment", &hqt::PositionInfo::Comment)
+        .def("ExternalId", [](const hqt::PositionInfo&) { return std::string{}; })
+        .def("ExternalID", [](const hqt::PositionInfo&) { return std::string{}; })
+        .def("StoreState", &hqt::PositionInfo::StoreState)
+        .def("CheckState", &hqt::PositionInfo::CheckState)
+        .def("Select", nb::overload_cast<uint64_t>(&hqt::PositionInfo::Select))
+        .def("Select", nb::overload_cast<const std::string&>(&hqt::PositionInfo::Select))
+        .def("SelectByIndex", &hqt::PositionInfo::SelectByIndex)
+        .def("SelectByMagic", &hqt::PositionInfo::SelectByMagic)
+        .def("SelectByTicket", &hqt::PositionInfo::SelectByTicket)
+        .def("NetProfit", &hqt::PositionInfo::NetProfit)
+        .def("DistanceInPoints", &hqt::PositionInfo::DistanceInPoints)
+        .def("IsBuy", &hqt::PositionInfo::IsBuy)
+        .def("IsSell", &hqt::PositionInfo::IsSell)
+        .def_prop_rw("ticket", &hqt::PositionInfo::Ticket, &hqt::PositionInfo::SetTicket)
+        .def_prop_rw("identifier", &hqt::PositionInfo::Identifier, &hqt::PositionInfo::SetIdentifier)
+        .def_prop_rw("symbol", &hqt::PositionInfo::Symbol, &hqt::PositionInfo::SetSymbol)
+        .def_prop_rw("magic",
+            [](const hqt::PositionInfo& self) { return self.Magic(); },
+            [](hqt::PositionInfo& self, uint32_t value) { self.SetMagic(value); })
+        .def_prop_rw("type",
+            [](const hqt::PositionInfo& self) { return static_cast<int>(self.PositionType()); },
+            [](hqt::PositionInfo& self, int value) { self.SetType(static_cast<hqt::ENUM_POSITION_TYPE>(value)); })
+        .def_prop_rw("volume", &hqt::PositionInfo::Volume, &hqt::PositionInfo::SetVolume)
+        .def_prop_rw("price_open", &hqt::PositionInfo::PriceOpen, &hqt::PositionInfo::SetPriceOpen)
+        .def_prop_rw("price_current", &hqt::PositionInfo::PriceCurrent, &hqt::PositionInfo::SetPriceCurrent)
+        .def_prop_rw("sl", &hqt::PositionInfo::StopLoss, &hqt::PositionInfo::SetStopLoss)
+        .def_prop_rw("tp", &hqt::PositionInfo::TakeProfit, &hqt::PositionInfo::SetTakeProfit)
+        .def_prop_rw("commission", &hqt::PositionInfo::Commission, &hqt::PositionInfo::SetCommission)
+        .def_prop_rw("swap", &hqt::PositionInfo::Swap, &hqt::PositionInfo::SetSwap)
+        .def_prop_rw("profit",
+            &hqt::PositionInfo::Profit,
+            [](hqt::PositionInfo& self, double value) {
+                self.SetProfitFP(static_cast<int64_t>(std::llround(value * 1'000'000.0)));
+            })
+        .def_prop_rw("comment", &hqt::PositionInfo::Comment, &hqt::PositionInfo::SetComment)
+        .def("set_time", &hqt::PositionInfo::SetTime, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_time_update", &hqt::PositionInfo::SetTimeUpdate, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_digits", &hqt::PositionInfo::SetDigits)
+        .def("set_point", &hqt::PositionInfo::SetPoint)
+        .def("set_contract_size", &hqt::PositionInfo::SetContractSize)
+        .def("update_price", &hqt::PositionInfo::UpdatePrice);
 
     nb::class_<TradeRequest>(m, "TradeRequest")
         .def(nb::init<>())
@@ -448,23 +899,23 @@ void register_sim_bindings(nb::module_& m) {
             if (p) return *p;
             return std::nullopt;
         })
-        .def("positions_get", [](const TradeSimulator& self,
-                                  std::optional<uint64_t> ticket,
-                                  std::optional<std::string> symbol) {
+        .def("positions_info_get", [](const TradeSimulator& self,
+                                      std::optional<uint64_t> ticket,
+                                      std::optional<std::string> symbol) {
             std::optional<std::string_view> sv;
             if (symbol) sv = *symbol;
-            return self.positions_get(ticket, sv);
+            return self.positions_info_get(ticket, sv);
         }, nb::arg("ticket") = nb::none(), nb::arg("symbol") = nb::none())
-        .def("orders_get", [](const TradeSimulator& self,
-                               std::optional<uint64_t> ticket,
-                               std::optional<std::string> symbol) {
+        .def("orders_info_get", [](const TradeSimulator& self,
+                                   std::optional<uint64_t> ticket,
+                                   std::optional<std::string> symbol) {
             std::optional<std::string_view> sv;
             if (symbol) sv = *symbol;
-            return self.orders_get(ticket, sv);
+            return self.orders_info_get(ticket, sv);
         }, nb::arg("ticket") = nb::none(), nb::arg("symbol") = nb::none())
-        .def("history_orders_get", &TradeSimulator::history_orders_get,
+        .def("history_order_infos_get", &TradeSimulator::history_order_infos_get,
              nb::arg("ticket") = nb::none())
-        .def("history_deals_get", &TradeSimulator::history_deals_get,
+        .def("history_deal_infos_get", &TradeSimulator::history_deal_infos_get,
              nb::arg("ticket") = nb::none())
         .def("last_error", &TradeSimulator::last_error)
         .def("trade_retcode_description", &TradeSimulator::trade_retcode_description)
@@ -484,10 +935,10 @@ void register_sim_bindings(nb::module_& m) {
             self.set_symbol_info(data);
         })
         .def("set_symbol_tick", &TradeSimulator::set_symbol_tick)
-        .def("upsert_position", &TradeSimulator::upsert_position)
-        .def("upsert_order", &TradeSimulator::upsert_order)
-        .def("upsert_history_order", &TradeSimulator::upsert_history_order)
-        .def("upsert_deal", &TradeSimulator::upsert_deal)
+        .def("upsert_position_info", &TradeSimulator::upsert_position_info)
+        .def("upsert_order_info", &TradeSimulator::upsert_order_info)
+        .def("upsert_history_order_info", &TradeSimulator::upsert_history_order_info)
+        .def("upsert_deal_info", &TradeSimulator::upsert_deal_info)
         .def("set_last_error", &TradeSimulator::set_last_error);
 
     nb::class_<MockBroker>(m, "MockBroker")

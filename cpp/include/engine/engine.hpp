@@ -41,30 +41,6 @@ struct SymbolTickData {
     [[nodiscard]] Dict to_dict() const;
 };
 
-struct TradeRecordData {
-    uint64_t ticket{0};
-    uint64_t order{0};
-    int64_t time{0};
-    int64_t time_msc{0};
-    int64_t expiration{0};
-    uint64_t type{0};
-    uint64_t type_time{0};
-    uint64_t magic{0};
-    uint64_t identifier{0};
-    uint64_t reason{0};
-    double volume{0.0};
-    double price_open{0.0};
-    double sl{0.0};
-    double tp{0.0};
-    double price_current{0.0};
-    double swap{0.0};
-    double profit{0.0};
-    std::string symbol{};
-    std::string comment{};
-
-    [[nodiscard]] Dict to_dict() const;
-};
-
 struct SimulatorState {
     bool running{false};
     bool paused{false};
@@ -156,18 +132,18 @@ public:
     [[nodiscard]] const hqt::SymbolInfo* symbol_info(const std::string& symbol) const noexcept;
     [[nodiscard]] const SymbolTickData* symbol_info_tick(const std::string& symbol) const noexcept;
 
-    [[nodiscard]] std::vector<TradeRecordData> positions_get(
+    [[nodiscard]] std::vector<hqt::PositionInfo> positions_info_get(
         std::optional<uint64_t> ticket = std::nullopt,
         std::optional<std::string_view> symbol = std::nullopt) const;
 
-    [[nodiscard]] std::vector<TradeRecordData> orders_get(
+    [[nodiscard]] std::vector<hqt::OrderInfo> orders_info_get(
         std::optional<uint64_t> ticket = std::nullopt,
         std::optional<std::string_view> symbol = std::nullopt) const;
 
-    [[nodiscard]] std::vector<TradeRecordData> history_orders_get(
+    [[nodiscard]] std::vector<hqt::HistoryOrderInfo> history_order_infos_get(
         std::optional<uint64_t> ticket = std::nullopt) const;
 
-    [[nodiscard]] std::vector<TradeRecordData> history_deals_get(
+    [[nodiscard]] std::vector<hqt::DealInfo> history_deal_infos_get(
         std::optional<uint64_t> ticket = std::nullopt) const;
 
     [[nodiscard]] std::pair<int, std::string> last_error() const;
@@ -194,10 +170,10 @@ public:
     void set_account_info(const hqt::AccountInfo& data);
     void set_symbol_info(const hqt::SymbolInfo& data);
     void set_symbol_tick(const std::string& symbol, const SymbolTickData& tick);
-    void upsert_position(const TradeRecordData& data);
-    void upsert_order(const TradeRecordData& data);
-    void upsert_history_order(const TradeRecordData& data);
-    void upsert_deal(const TradeRecordData& data);
+    void upsert_position_info(const hqt::PositionInfo& data);
+    void upsert_order_info(const hqt::OrderInfo& data);
+    void upsert_history_order_info(const hqt::HistoryOrderInfo& data);
+    void upsert_deal_info(const hqt::DealInfo& data);
     void set_last_error(int code, const std::string& message);
 
 private:
@@ -213,21 +189,15 @@ private:
     void rebuild_order_states_from_snapshots();
     void sync_state_from_trade();
 
-    template <typename Container>
-    [[nodiscard]] static std::vector<TradeRecordData> collect_records(
-        const Container& records,
-        std::optional<uint64_t> ticket,
-        std::optional<std::string_view> symbol);
-
     hqt::AccountInfo account_info_{};
     TradeGateway trade_gateway_{account_info_};
     std::unordered_map<std::string, hqt::SymbolInfo> symbols_data_{};
     std::unordered_map<std::string, SymbolTickData> ticks_data_{};
 
-    std::unordered_map<uint64_t, TradeRecordData> positions_data_{};
-    std::unordered_map<uint64_t, TradeRecordData> orders_data_{};
-    std::unordered_map<uint64_t, TradeRecordData> history_orders_data_{};
-    std::unordered_map<uint64_t, TradeRecordData> deals_data_{};
+    std::unordered_map<uint64_t, hqt::PositionInfo> positions_info_data_{};
+    std::unordered_map<uint64_t, hqt::OrderInfo> orders_info_data_{};
+    std::unordered_map<uint64_t, hqt::HistoryOrderInfo> history_orders_info_data_{};
+    std::unordered_map<uint64_t, hqt::DealInfo> deals_info_data_{};
     std::unordered_map<uint64_t, OmsOrderState> order_states_{};
     std::unordered_map<std::string, IdempotencyEntry> idempotency_by_client_order_id_{};
 
@@ -671,7 +641,7 @@ using TickProcessedCallback = std::function<void(const ModelTick&, const Simulat
 
 struct BacktestTradeEvent {
     std::string event_type{};  // open / close
-    TradeRecordData trade{};
+    TradeRecord trade{};
 };
 
 using TradeEventCallback = std::function<void(const BacktestTradeEvent&, const SimulatorState&)>;
@@ -700,12 +670,12 @@ public:
     [[nodiscard]] const std::vector<TradeRecord>& completed_trades() const noexcept;
 
 private:
-    void ensure_trade_record_for_position(const TradeRecordData& pos, int64_t now_msc);
-    void close_position_and_track(const TradeRecordData& pos, int64_t now_msc, double close_price);
-    double lookup_deal_profit_or_fallback(uint64_t deal_ticket, const TradeRecordData& pos, double close_price) const;
+    void ensure_trade_record_for_position(const hqt::PositionInfo& pos, int64_t now_msc);
+    void close_position_and_track(const hqt::PositionInfo& pos, int64_t now_msc, double close_price);
+    double lookup_deal_profit_or_fallback(uint64_t deal_ticket, const hqt::PositionInfo& pos, double close_price) const;
     void monitor_pending_orders(const std::string& symbol, double bid, double ask, int64_t current_time_msc);
     void monitor_positions_and_account(const std::string& symbol, double bid, double ask);
-    static bool should_trigger_order(const TradeRecordData& order, double bid, double ask);
+    static bool should_trigger_order(const hqt::OrderInfo& order, double bid, double ask);
     void apply_exit_signal(const std::string& symbol, int exit_signal);
     void apply_entry_signal(
         const std::string& symbol,

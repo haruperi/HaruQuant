@@ -23,7 +23,6 @@ from apps.utils.logger import logger
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.sqlite.users import UserManager
 from data.strategies.trend_following import TrendFollowingStrategy
-from apps.trade import PositionInfo
 
 mt5 = get_mt5_api()
 

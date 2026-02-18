@@ -26,7 +26,6 @@ from apps.simulation.utils import (
     PositionArrayState,
     numba_position_update,
 )
-from apps.trade import PositionInfo
 from apps.utils.validate import TradeValidator
 
 mt5 = get_mt5_api()
@@ -311,11 +310,23 @@ class SimulationEngine(TradeRecordMixin):
         entry_signal = signal.get("entry_signal", 0)
 
         # Exit only when explicitly asked by exit_signal (hedging-safe)
-        positions = self._simulator.positions_get(symbol=symbol) or []
+        positions = self._simulator.positions_info_get(symbol=symbol) or []
         for position in positions:
-            pos_data = (
-                position._asdict() if hasattr(position, "_asdict") else dict(position)
-            )
+            pos_data = {
+                "ticket": int(getattr(position, "ticket", 0) or 0),
+                "identifier": int(getattr(position, "identifier", 0) or 0),
+                "symbol": getattr(position, "symbol", ""),
+                "type": int(getattr(position, "type", 0) or 0),
+                "volume": float(getattr(position, "volume", 0.0) or 0.0),
+                "price_open": float(getattr(position, "price_open", 0.0) or 0.0),
+                "price_current": float(getattr(position, "price_current", 0.0) or 0.0),
+                "sl": float(getattr(position, "sl", 0.0) or 0.0),
+                "tp": float(getattr(position, "tp", 0.0) or 0.0),
+                "profit": float(getattr(position, "profit", 0.0) or 0.0),
+                "swap": float(getattr(position, "swap", 0.0) or 0.0),
+                "commission": float(getattr(position, "commission", 0.0) or 0.0),
+                "comment": getattr(position, "comment", ""),
+            }
             pos_type = pos_data.get("type")
             is_buy = pos_type == mt5.POSITION_TYPE_BUY or str(pos_type).lower() == "buy"
             if (exit_signal == 1 and is_buy) or (exit_signal == -1 and not is_buy):
@@ -352,18 +363,20 @@ class SimulationEngine(TradeRecordMixin):
         )
 
         if self._positions_data:
-            position_info = PositionInfo(api=self._simulator)
-            for pos_idx in range(len(self._positions_data)):
-                if position_info.SelectByIndex(pos_idx):
-                    print(
-                        f"Symbol={position_info.Symbol()} | Ticket={position_info.Identifier()} | "
-                        f"Time={position_info.Time()} | Type={position_info.TypeDescription()} | "
-                        f"Volume={position_info.Volume():.2f} | OpenPrice={position_info.PriceOpen():.5f} | "
-                        f"SL={position_info.StopLoss():.5f} | TP={position_info.TakeProfit():.5f} | "
-                        f"Price={position_info.PriceCurrent():.5f} | Swap={position_info.Swap():.2f} | "
-                        f"Profit={position_info.Profit():.2f} | MarginReq={position_info.MarginRequired():.2f} | "
-                        f"Comment={position_info.Comment()}"
-                    )
+            for pos_data in self._positions_data.values():
+                pos_type = "BUY" if int(getattr(pos_data, "type", 0)) == int(mt5.POSITION_TYPE_BUY) else "SELL"
+                print(
+                    f"Symbol={getattr(pos_data, 'symbol', '')} | Ticket={getattr(pos_data, 'identifier', 0)} | "
+                    f"Time={getattr(pos_data, 'time', 0)} | Type={pos_type} | "
+                    f"Volume={float(getattr(pos_data, 'volume', 0.0)):.2f} | "
+                    f"OpenPrice={float(getattr(pos_data, 'price_open', 0.0)):.5f} | "
+                    f"SL={float(getattr(pos_data, 'sl', 0.0)):.5f} | TP={float(getattr(pos_data, 'tp', 0.0)):.5f} | "
+                    f"Price={float(getattr(pos_data, 'price_current', 0.0)):.5f} | "
+                    f"Swap={float(getattr(pos_data, 'swap', 0.0)):.2f} | "
+                    f"Profit={float(getattr(pos_data, 'profit', 0.0)):.2f} | "
+                    f"MarginReq={float(getattr(pos_data, 'margin_required', 0.0)):.2f} | "
+                    f"Comment={getattr(pos_data, 'comment', '')}"
+                )
         else:
             print("No open positions")
 

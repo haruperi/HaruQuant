@@ -8,7 +8,7 @@ This example demonstrates:
 
 This example demonstrates two ways to use AccountInfo:
 1. AccountInfo() - Live trading with MT5 connection (default)
-2. AccountInfo(simulator) - Simulator trading with MT5 settings + custom settings
+2. C++ TradeSimulator backend seeded from MT5 data
 """
 
 
@@ -17,16 +17,23 @@ import os
 import sys
 
 # Add repo root to path for local imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, PROJECT_ROOT)
+
+# Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
+BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
+if BRIDGE_BUILD_DIR not in sys.path:
+    sys.path.insert(0, BRIDGE_BUILD_DIR)
+if hasattr(os, "add_dll_directory"):
+    os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Client, get_mt5_api
 mt5 = get_mt5_api()
 
-from apps.trade import AccountInfo
-from apps.simulation.data import TradeSimulator, AccountInfoSimulator
+from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.utils.logger import logger
 from apps.sqlite.users import UserManager
-
+import hqt_engine.sim as csim
 
 def get_mt5_credentials():
     """Get MT5 credentials from the database."""
@@ -63,18 +70,22 @@ def main():
         print(f"Connection state: {client.connection_state.value}")
         print()
 
-        # CHOOSE PROVIDER (uncomment one option)
-        
-        # Option 1: Live Trading with MT5 AccountInfo instance
-        account = AccountInfo()
+        cpp_symbol = SymbolInfoSimulator.from_mt5_symbol_cpp("EURUSD")
 
-        # Option 2: Simulator with Custom Settings
-        # simulator_account_data = AccountInfoSimulator(
-        #     #balance=50000,
-        # )
-        # simulator = TradeSimulator(simulator_account_data)
-        # account = AccountInfo(api=simulator)
-  
+        # CHOOSE PROVIDER (uncomment one option)
+        # Option 1: Live Trading with MT5-backed C++ AccountInfo instance
+        #account = AccountInfoSimulator.from_mt5_account_cpp()
+
+        # Option 2: Simulator with Custom Settings (C++ TradeSimulator backend)
+        simulator_account_data = AccountInfoSimulator.defaults()
+        simulator_account_data.balance = 50000
+        cpp_account = simulator_account_data.to_cpp()
+
+        simulator = csim.TradeSimulator(cpp_account)
+        simulator.set_symbol_info(cpp_symbol)
+        account = simulator.account_info()
+        calc_api =  csim.TradeSimulator(account)
+        calc_api.set_symbol_info(cpp_symbol)
 
 
 
@@ -124,7 +135,7 @@ def main():
         else:
             print(f"Margin Level:   N/A (no open positions)")
         print(f"Margin Call:    {account.MarginCall():.2f}")
-        print(f"Margin Stopout: {account.StopoutMode():.2f}")
+        print(f"Margin Stopout: {account.MarginStopOut():.2f}")
         print()
 
         # Calculate some metrics
@@ -148,7 +159,7 @@ def main():
 
         # 1. Margin Check
         try:
-            req_margin = account.MarginCheck(symbol, mt5.ORDER_TYPE_BUY, volume, 1.1000)  # type: ignore
+            req_margin = calc_api.order_calc_margin(mt5.ORDER_TYPE_BUY, symbol, volume, 1.1000)  # type: ignore
             if req_margin is not None:
                 print(
                     f"Margin for {volume} lots {symbol} BUY at 1.1000: {req_margin:.2f} {account.Currency()}"
@@ -160,9 +171,9 @@ def main():
 
         # 2. Profit Check
         try:
-            est_profit = account.OrderProfitCheck(
-                symbol, mt5.ORDER_TYPE_BUY, volume, 1.1000, 1.1050   # type: ignore
-            )  
+            est_profit = calc_api.order_calc_profit(
+                mt5.ORDER_TYPE_BUY, symbol, volume, 1.1000, 1.1050   # type: ignore
+            )
             if est_profit is not None:
                 print(
                     f"Est. Profit for {volume} lots {symbol} BUY (1.1000 -> 1.1050): {est_profit:.2f} {account.Currency()}"
@@ -174,9 +185,8 @@ def main():
 
         # 3. Free Margin Check
         try:
-            has_margin = account.FreeMarginCheck(
-                symbol, mt5.ORDER_TYPE_BUY, volume, 1.1000   # type: ignore
-            )
+            req_margin = calc_api.order_calc_margin(mt5.ORDER_TYPE_BUY, symbol, volume, 1.1000)  # type: ignore
+            has_margin = account.FreeMargin() >= req_margin
             print(
                 f"Sufficient free margin for {volume} lots {symbol} BUY: {'Yes' if has_margin else 'No'}"
             )
@@ -185,7 +195,8 @@ def main():
 
         # 4. Max Lot Check
         try:
-            max_lot = account.MaxLotCheck(symbol, mt5.ORDER_TYPE_BUY, 1.1000, 100)  # type: ignore
+            margin_per_lot = calc_api.order_calc_margin(mt5.ORDER_TYPE_BUY, symbol, 1.0, 1.1000)  # type: ignore
+            max_lot = (account.FreeMargin() / margin_per_lot) if margin_per_lot > 0 else 0.0
             print(f"Max lots for {symbol} BUY at 1.1000 (100% equity): {max_lot}")
         except Exception as e:
             print(f"Max lot check error: {e}")
@@ -233,5 +244,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

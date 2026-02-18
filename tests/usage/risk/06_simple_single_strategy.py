@@ -22,7 +22,7 @@ import pandas as pd
 from apps.risk import PositionSizer, RiskGovernor, RiskLimits, RiskRegimeDetector
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.sqlite.users import UserManager
-from apps.trade import AccountInfo
+from apps.mt5 import AccountInfo
 
 # Add repo root to path for local imports
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -340,3 +340,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
