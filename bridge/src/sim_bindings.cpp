@@ -11,6 +11,7 @@
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/unordered_map.h>
+#include <nanobind/stl/unordered_set.h>
 #include <nanobind/stl/function.h>
 
 #include "engine/engine.hpp"
@@ -779,6 +780,51 @@ void register_sim_bindings(nb::module_& m) {
         .def_static("from_wfo", &EdgeDetector::from_wfo, nb::arg("results"), nb::arg("alpha") = 0.05);
 
     // ── ResultMetrics ────────────────────────────────────────────────
+
+    nb::class_<ExperimentRecord>(m, "ExperimentRecord")
+        .def(nb::init<>())
+        .def_rw("experiment_id", &ExperimentRecord::experiment_id)
+        .def_rw("strategy", &ExperimentRecord::strategy)
+        .def_rw("symbol", &ExperimentRecord::symbol)
+        .def_rw("timeframe", &ExperimentRecord::timeframe)
+        .def_rw("period_start_msc", &ExperimentRecord::period_start_msc)
+        .def_rw("period_end_msc", &ExperimentRecord::period_end_msc)
+        .def_rw("metadata", &ExperimentRecord::metadata);
+
+    nb::class_<ExperimentRegistry>(m, "ExperimentRegistry")
+        .def(nb::init<>())
+        .def("upsert", &ExperimentRegistry::upsert, nb::arg("record"))
+        .def("all", &ExperimentRegistry::all)
+        .def("query", &ExperimentRegistry::query,
+             nb::arg("strategy") = std::nullopt,
+             nb::arg("symbol") = std::nullopt,
+             nb::arg("period_start_msc") = std::nullopt,
+             nb::arg("period_end_msc") = std::nullopt);
+
+    nb::class_<SymbolClassification>(m, "SymbolClassification")
+        .def(nb::init<>())
+        .def_rw("asset_class", &SymbolClassification::asset_class)
+        .def_rw("volatility_regime", &SymbolClassification::volatility_regime);
+
+    nb::class_<SymbolClassifier>(m, "SymbolClassifier")
+        .def_static("classify", &SymbolClassifier::classify, nb::arg("symbol"), nb::arg("annualized_volatility"));
+
+    nb::class_<SeasonalBucket>(m, "SeasonalBucket")
+        .def(nb::init<>())
+        .def_rw("key", &SeasonalBucket::key)
+        .def_rw("count", &SeasonalBucket::count)
+        .def_rw("mean_return", &SeasonalBucket::mean_return);
+
+    nb::class_<SeasonalAnalysis>(m, "SeasonalAnalysis")
+        .def(nb::init<>())
+        .def_rw("day_of_week", &SeasonalAnalysis::day_of_week)
+        .def_rw("holiday_vs_non_holiday", &SeasonalAnalysis::holiday_vs_non_holiday);
+
+    nb::class_<SeasonalPatternAnalyzer>(m, "SeasonalPatternAnalyzer")
+        .def_static("analyze", &SeasonalPatternAnalyzer::analyze,
+                    nb::arg("timestamps_msc"),
+                    nb::arg("returns"),
+                    nb::arg("holiday_days_epoch") = std::unordered_set<int64_t>{});
 
     nb::class_<ResultMetrics>(m, "ResultMetrics")
         .def_static("from_trades", &ResultMetrics::from_trades);

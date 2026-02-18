@@ -225,6 +225,24 @@
   - `cpp/tests/test_wfo_wfm.cpp`
   - `docs/haruquant/usage/research/wfo_wfm.md`
 
+## Experiment Manager and Registry (IP-41)
+
+- Core C++ APIs:
+  - `cpp/include/engine/engine.hpp::ExperimentRegistry`
+  - `cpp/include/engine/engine.hpp::SymbolClassifier`
+  - `cpp/include/engine/engine.hpp::SeasonalPatternAnalyzer`
+- Scope:
+  - searchable experiment registry by strategy/symbol/period
+  - symbol classification by asset class and volatility regime
+  - seasonal pattern analysis by day-of-week and holiday/non-holiday buckets
+- Bridge exposure (`hqt_engine.sim`):
+  - `ExperimentRecord`, `ExperimentRegistry`
+  - `SymbolClassification`, `SymbolClassifier`
+  - `SeasonalBucket`, `SeasonalAnalysis`, `SeasonalPatternAnalyzer`
+- Validation:
+  - `cpp/tests/test_experiment_registry.cpp`
+  - `docs/haruquant/usage/research/experiment_registry.md`
+
 ## Data Adapters and Normalization Pipeline (IP-09)
 
 - Python adapters:

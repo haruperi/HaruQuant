@@ -1,5 +1,4 @@
-﻿
-([Past chat][1])([Past chat][1])([Past chat][2])([Past chat][3])
+﻿([Past chat][1])([Past chat][1])([Past chat][2])([Past chat][3])
 
 # ImplementationPlan.md
 
@@ -871,20 +870,20 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-41 Experiment manager and registry
+#### [X] IP-41 Experiment manager and registry
 
 * **Sub-tasks**
-  * [ ] Implement searchable experiment registry by strategy, symbol, period. (FR-RSCH-006)
-  * [ ] Support symbol classification (Asset class, Volatility regime). (FR-RSCH-007)
-  * [ ] Implement seasonal pattern analysis (Day of week, Holiday impacts). (FR-RSCH-009)
+  * [X] Implement searchable experiment registry by strategy, symbol, period. (FR-RSCH-006)
+  * [X] Support symbol classification (Asset class, Volatility regime). (FR-RSCH-007)
+  * [X] Implement seasonal pattern analysis (Day of week, Holiday impacts). (FR-RSCH-009)
 * **Deliverables**
   * experiment metadata and searchable registry
 * **SRS refs:** FR-RSCH-006, FR-RSCH-007, FR-RSCH-009, FR-STOR-003
 * **SDD refs:** Â§5.3.3, Â§8
 * **Dependencies:** IP-17
 * **Completion evidence**
-  * Tests: `py/tests/unit/test_experiment_manager.py`
-  * Usage: `usage/research/experiment_registry.md`
+  * Tests: `cpp/tests/test_experiment_registry.cpp`
+  * Usage: `docs/haruquant/usage/research/experiment_registry.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

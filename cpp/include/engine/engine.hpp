@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -1005,6 +1006,61 @@ public:
     [[nodiscard]] static EdgeDetectorReport from_wfo(
         const std::vector<WfoWindowResult>& results,
         double alpha = 0.05);
+};
+
+struct ExperimentRecord {
+    std::string experiment_id{};
+    std::string strategy{};
+    std::string symbol{};
+    std::string timeframe{};
+    int64_t period_start_msc{0};
+    int64_t period_end_msc{0};
+    Dict metadata{};
+};
+
+class ExperimentRegistry {
+public:
+    void upsert(const ExperimentRecord& record);
+    [[nodiscard]] std::vector<ExperimentRecord> all() const;
+    [[nodiscard]] std::vector<ExperimentRecord> query(
+        std::optional<std::string_view> strategy = std::nullopt,
+        std::optional<std::string_view> symbol = std::nullopt,
+        std::optional<int64_t> period_start_msc = std::nullopt,
+        std::optional<int64_t> period_end_msc = std::nullopt) const;
+
+private:
+    std::unordered_map<std::string, ExperimentRecord> records_{};
+};
+
+struct SymbolClassification {
+    std::string asset_class{"unknown"};
+    std::string volatility_regime{"normal"};
+};
+
+class SymbolClassifier {
+public:
+    [[nodiscard]] static SymbolClassification classify(
+        std::string_view symbol,
+        double annualized_volatility);
+};
+
+struct SeasonalBucket {
+    int key{0};
+    std::size_t count{0};
+    double mean_return{0.0};
+};
+
+struct SeasonalAnalysis {
+    std::vector<SeasonalBucket> day_of_week{};
+    std::vector<SeasonalBucket> holiday_vs_non_holiday{};
+};
+
+class SeasonalPatternAnalyzer {
+public:
+    [[nodiscard]] static SeasonalAnalysis analyze(
+        const std::vector<int64_t>& timestamps_msc,
+        const std::vector<double>& returns,
+        const std::unordered_set<int64_t>& holiday_days_epoch = {});
 };
 
 }  // namespace hqt::sim

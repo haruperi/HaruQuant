@@ -6,6 +6,7 @@
 #include "engine/engine.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -1314,6 +1315,140 @@ EdgeDetectorReport EdgeDetector::from_wfo(const std::vector<WfoWindowResult>& re
     } else {
         out.verdict = "NO_EDGE";
     }
+    return out;
+}
+
+void ExperimentRegistry::upsert(const ExperimentRecord& record) {
+    if (record.experiment_id.empty()) {
+        return;
+    }
+    records_[record.experiment_id] = record;
+}
+
+std::vector<ExperimentRecord> ExperimentRegistry::all() const {
+    std::vector<ExperimentRecord> out;
+    out.reserve(records_.size());
+    for (const auto& [_, record] : records_) {
+        out.push_back(record);
+    }
+    std::sort(out.begin(), out.end(), [](const ExperimentRecord& lhs, const ExperimentRecord& rhs) {
+        return lhs.experiment_id < rhs.experiment_id;
+    });
+    return out;
+}
+
+std::vector<ExperimentRecord> ExperimentRegistry::query(
+    std::optional<std::string_view> strategy,
+    std::optional<std::string_view> symbol,
+    std::optional<int64_t> period_start_msc,
+    std::optional<int64_t> period_end_msc) const {
+    std::vector<ExperimentRecord> out;
+    for (const auto& [_, record] : records_) {
+        if (strategy.has_value() && record.strategy != *strategy) {
+            continue;
+        }
+        if (symbol.has_value() && record.symbol != *symbol) {
+            continue;
+        }
+        if (period_start_msc.has_value() && record.period_end_msc < *period_start_msc) {
+            continue;
+        }
+        if (period_end_msc.has_value() && record.period_start_msc > *period_end_msc) {
+            continue;
+        }
+        out.push_back(record);
+    }
+    std::sort(out.begin(), out.end(), [](const ExperimentRecord& lhs, const ExperimentRecord& rhs) {
+        return lhs.period_start_msc < rhs.period_start_msc;
+    });
+    return out;
+}
+
+SymbolClassification SymbolClassifier::classify(std::string_view symbol, double annualized_volatility) {
+    SymbolClassification out;
+
+    const std::string s(symbol);
+    if (s.find("BTC") != std::string::npos || s.find("ETH") != std::string::npos) {
+        out.asset_class = "crypto";
+    } else if (s.find("XAU") != std::string::npos || s.find("XAG") != std::string::npos) {
+        out.asset_class = "metal";
+    } else if (s.find("SPX") != std::string::npos || s.find("NAS") != std::string::npos || s.find("DAX") != std::string::npos) {
+        out.asset_class = "index";
+    } else if (s.find("USD") != std::string::npos ||
+        s.find("EUR") != std::string::npos ||
+        s.find("JPY") != std::string::npos ||
+        s.find("GBP") != std::string::npos ||
+        s.find("AUD") != std::string::npos ||
+        s.find("CAD") != std::string::npos ||
+        s.find("CHF") != std::string::npos ||
+        s.find("NZD") != std::string::npos) {
+        out.asset_class = "fx";
+    }
+
+    if (annualized_volatility < 0.10) {
+        out.volatility_regime = "low";
+    } else if (annualized_volatility < 0.25) {
+        out.volatility_regime = "normal";
+    } else if (annualized_volatility < 0.40) {
+        out.volatility_regime = "high";
+    } else {
+        out.volatility_regime = "extreme";
+    }
+
+    return out;
+}
+
+SeasonalAnalysis SeasonalPatternAnalyzer::analyze(
+    const std::vector<int64_t>& timestamps_msc,
+    const std::vector<double>& returns,
+    const std::unordered_set<int64_t>& holiday_days_epoch) {
+    SeasonalAnalysis out;
+    if (timestamps_msc.size() != returns.size() || timestamps_msc.empty()) {
+        return out;
+    }
+
+    struct Agg {
+        std::size_t count{0};
+        double sum{0.0};
+    };
+
+    std::array<Agg, 7> dow{};
+    std::array<Agg, 2> holiday{};
+
+    for (std::size_t i = 0; i < timestamps_msc.size(); ++i) {
+        const int64_t ts_sec = timestamps_msc[i] / 1000;
+        const int day_index = static_cast<int>(((ts_sec / 86400) + 4) % 7);  // epoch Thursday offset
+        const int safe_day = (day_index < 0) ? (day_index + 7) : day_index;
+        dow[static_cast<std::size_t>(safe_day)].count += 1U;
+        dow[static_cast<std::size_t>(safe_day)].sum += returns[i];
+
+        const int64_t epoch_day = ts_sec / 86400;
+        const bool is_holiday = (holiday_days_epoch.find(epoch_day) != holiday_days_epoch.end());
+        const std::size_t idx = is_holiday ? 1U : 0U;
+        holiday[idx].count += 1U;
+        holiday[idx].sum += returns[i];
+    }
+
+    out.day_of_week.reserve(7);
+    for (std::size_t i = 0; i < dow.size(); ++i) {
+        SeasonalBucket b;
+        b.key = static_cast<int>(i);
+        b.count = dow[i].count;
+        b.mean_return = (dow[i].count > 0U) ? (dow[i].sum / static_cast<double>(dow[i].count)) : 0.0;
+        out.day_of_week.push_back(b);
+    }
+
+    out.holiday_vs_non_holiday.reserve(2);
+    for (std::size_t i = 0; i < holiday.size(); ++i) {
+        SeasonalBucket b;
+        b.key = static_cast<int>(i);  // 0=non-holiday, 1=holiday
+        b.count = holiday[i].count;
+        b.mean_return = (holiday[i].count > 0U)
+            ? (holiday[i].sum / static_cast<double>(holiday[i].count))
+            : 0.0;
+        out.holiday_vs_non_holiday.push_back(b);
+    }
+
     return out;
 }
 

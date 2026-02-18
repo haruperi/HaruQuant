@@ -32,6 +32,7 @@ add_executable(hqt_tests
     test_backtest_vectorized.cpp
     test_replay_certification.cpp
     test_wfo_wfm.cpp
+    test_experiment_registry.cpp
     test_portfolio_state.cpp
     test_allocation_models.cpp
     test_rebalance_policies.cpp
