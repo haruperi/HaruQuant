@@ -645,3 +645,32 @@
   - `docs/haruquant/usage/trade/oms_state_machine_idempotency.md`
   - `tests/usage/trade/oms_state_machine_idempotency_cpp.py`
 
+## Position Book and Reconciliation Hooks (IP-32)
+
+- Core C++ types:
+  - `cpp/include/engine/engine.hpp::PositionBook`
+  - `cpp/include/engine/engine.hpp::PositionMode`
+  - `cpp/include/engine/engine.hpp::FillEvent`
+  - `cpp/include/engine/engine.hpp::ReconciliationReport`
+- Implementation:
+  - `cpp/src/engine/analytics.cpp`
+- Capabilities:
+  - position updates from fills (`apply_fill`)
+  - account snapshot updates (`apply_account_snapshot`)
+  - netting mode (single net position per symbol)
+  - hedging mode (multi-leg tracking per symbol)
+  - reconciliation hooks:
+    - `periodic_reconcile(...)`
+    - `reconnect_reconcile(...)`
+    - `reconcile_with_broker(...)`
+- Bridge exposure (`hqt_engine.sim`):
+  - `PositionBook`
+  - `PositionMode`
+  - `FillEvent`
+  - `PositionLeg`
+  - `ReconciliationReport`
+- Evidence:
+  - `cpp/tests/test_position_book.cpp`
+  - `tests/integration/test_reconcile_hooks.py`
+  - `docs/haruquant/usage/live/position_book_and_reconcile.md`
+

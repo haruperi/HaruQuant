@@ -351,6 +351,77 @@ private:
     mutable std::mutex mutex_{};
 };
 
+enum class PositionMode {
+    Netting = 0,
+    Hedging = 1,
+};
+
+struct PositionLeg {
+    uint64_t leg_id{0};
+    bool is_buy{true};
+    double volume{0.0};
+    double price{0.0};
+    int64_t time_msc{0};
+};
+
+struct FillEvent {
+    std::string symbol{};
+    bool is_buy{true};
+    double volume{0.0};
+    double price{0.0};
+    double commission{0.0};
+    double swap{0.0};
+    int64_t time_msc{0};
+};
+
+struct ReconciliationReport {
+    bool ok{true};
+    std::string trigger{"manual"};
+    std::size_t position_mismatch_count{0};
+    std::size_t account_mismatch_count{0};
+    std::vector<std::string> issues{};
+};
+
+class PositionBook {
+public:
+    explicit PositionBook(PositionMode mode = PositionMode::Netting);
+
+    void set_mode(PositionMode mode);
+    [[nodiscard]] PositionMode mode() const noexcept;
+    void reset();
+
+    void apply_fill(const FillEvent& fill);
+    void apply_account_snapshot(const AccountInfoData& account);
+
+    [[nodiscard]] std::unordered_map<std::string, PositionAggregate> snapshot_positions() const;
+    [[nodiscard]] AccountInfoData snapshot_account() const;
+    [[nodiscard]] std::vector<PositionLeg> legs_for_symbol(const std::string& symbol) const;
+
+    [[nodiscard]] ReconciliationReport reconcile_with_broker(
+        const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+        const AccountInfoData& broker_account,
+        const std::string& trigger = "manual") const;
+    [[nodiscard]] ReconciliationReport periodic_reconcile(
+        const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+        const AccountInfoData& broker_account) const;
+    [[nodiscard]] ReconciliationReport reconnect_reconcile(
+        const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+        const AccountInfoData& broker_account) const;
+
+private:
+    [[nodiscard]] static bool almost_equal(double lhs, double rhs, double eps = 1e-9) noexcept;
+    void apply_fill_netting_unlocked(const FillEvent& fill);
+    void apply_fill_hedging_unlocked(const FillEvent& fill);
+    [[nodiscard]] std::unordered_map<std::string, PositionAggregate> snapshot_positions_unlocked() const;
+
+    PositionMode mode_{PositionMode::Netting};
+    AccountInfoData account_{};
+    uint64_t next_leg_id_{1};
+    std::unordered_map<std::string, PositionAggregate> net_positions_{};
+    std::unordered_map<std::string, std::vector<PositionLeg>> hedged_legs_{};
+    mutable std::mutex mutex_{};
+};
+
 class AccountMonitor {
 public:
     [[nodiscard]] PositionTotals monitor_positions(

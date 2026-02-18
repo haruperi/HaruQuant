@@ -710,20 +710,20 @@
   * Bench/log: `TBD`
   * Commit: `TBD`
 
-#### [ ] IP-32 Position book and broker reconciliation hooks
+#### [X] IP-32 Position book and broker reconciliation hooks
 
 * **Sub-tasks**
-  * [ ] Implement `PositionBook` updating from fills and account events. (FR-OMS-004)
-  * [ ] Support Netting and Hedging modes per symbol/account. (FR-OMS-007)
-  * [ ] Implement periodic and on-reconnect reconciliation hooks. (FR-OMS-005)
+  * [X] Implement `PositionBook` updating from fills and account events. (FR-OMS-004)
+  * [X] Support Netting and Hedging modes per symbol/account. (FR-OMS-007)
+  * [X] Implement periodic and on-reconnect reconciliation hooks. (FR-OMS-005)
 * **Deliverables**
   * position updates from fills + reconcile entry points
 * **SRS refs:** FR-OMS-004..005, FR-OMS-007
 * **SDD refs:** Â§5.1.5, Â§10.2, Â§10.3
 * **Dependencies:** IP-31, IP-34
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_position_book.cpp`, `py/tests/integration/test_reconcile_hooks.py`
-  * Usage: `usage/live/position_book_and_reconcile.md`
+  * Tests: `cpp/tests/test_position_book.cpp`, `tests/integration/test_reconcile_hooks.py`
+  * Usage: `docs/haruquant/usage/live/position_book_and_reconcile.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

@@ -23,6 +23,7 @@ add_executable(hqt_tests
     test_sim_tick_models.cpp
     test_sim_trade_record.cpp
     test_sim_portfolio_engine.cpp
+    test_position_book.cpp
     test_portfolio_state.cpp
     test_allocation_models.cpp
     test_rebalance_policies.cpp

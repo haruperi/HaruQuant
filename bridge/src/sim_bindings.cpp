@@ -186,6 +186,32 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("realized_pnl", &PositionAggregate::realized_pnl)
         .def_rw("unrealized_pnl", &PositionAggregate::unrealized_pnl);
 
+    nb::class_<PositionLeg>(m, "PositionLeg")
+        .def(nb::init<>())
+        .def_rw("leg_id", &PositionLeg::leg_id)
+        .def_rw("is_buy", &PositionLeg::is_buy)
+        .def_rw("volume", &PositionLeg::volume)
+        .def_rw("price", &PositionLeg::price)
+        .def_rw("time_msc", &PositionLeg::time_msc);
+
+    nb::class_<FillEvent>(m, "FillEvent")
+        .def(nb::init<>())
+        .def_rw("symbol", &FillEvent::symbol)
+        .def_rw("is_buy", &FillEvent::is_buy)
+        .def_rw("volume", &FillEvent::volume)
+        .def_rw("price", &FillEvent::price)
+        .def_rw("commission", &FillEvent::commission)
+        .def_rw("swap", &FillEvent::swap)
+        .def_rw("time_msc", &FillEvent::time_msc);
+
+    nb::class_<ReconciliationReport>(m, "ReconciliationReport")
+        .def(nb::init<>())
+        .def_rw("ok", &ReconciliationReport::ok)
+        .def_rw("trigger", &ReconciliationReport::trigger)
+        .def_rw("position_mismatch_count", &ReconciliationReport::position_mismatch_count)
+        .def_rw("account_mismatch_count", &ReconciliationReport::account_mismatch_count)
+        .def_rw("issues", &ReconciliationReport::issues);
+
     nb::class_<TickModelBar>(m, "TickModelBar")
         .def(nb::init<>())
         .def_rw("time_msc", &TickModelBar::time_msc)
@@ -265,6 +291,10 @@ void register_sim_bindings(nb::module_& m) {
     nb::enum_<AutoCloseReason>(m, "AutoCloseReason")
         .value("StopLoss", AutoCloseReason::StopLoss)
         .value("TakeProfit", AutoCloseReason::TakeProfit);
+
+    nb::enum_<PositionMode>(m, "PositionMode")
+        .value("Netting", PositionMode::Netting)
+        .value("Hedging", PositionMode::Hedging);
 
     nb::enum_<OmsOrderState>(m, "OmsOrderState")
         .value("Unknown", OmsOrderState::Unknown)
@@ -399,6 +429,30 @@ void register_sim_bindings(nb::module_& m) {
         .def("total_unrealized_pnl", &PortfolioState::total_unrealized_pnl)
         .def("positions_by_symbol", &PortfolioState::positions_by_symbol)
         .def("positions_by_strategy", &PortfolioState::positions_by_strategy, nb::arg("strategy_id"));
+
+    nb::class_<PositionBook>(m, "PositionBook")
+        .def(nb::init<PositionMode>(), nb::arg("mode") = PositionMode::Netting)
+        .def("set_mode", &PositionBook::set_mode, nb::arg("mode"))
+        .def("mode", &PositionBook::mode)
+        .def("reset", &PositionBook::reset)
+        .def("apply_fill", &PositionBook::apply_fill, nb::arg("fill"))
+        .def("apply_account_snapshot", &PositionBook::apply_account_snapshot, nb::arg("account"))
+        .def("snapshot_positions", &PositionBook::snapshot_positions)
+        .def("snapshot_account", &PositionBook::snapshot_account)
+        .def("legs_for_symbol", &PositionBook::legs_for_symbol, nb::arg("symbol"))
+        .def("reconcile_with_broker",
+             &PositionBook::reconcile_with_broker,
+             nb::arg("broker_positions"),
+             nb::arg("broker_account"),
+             nb::arg("trigger") = "manual")
+        .def("periodic_reconcile",
+             &PositionBook::periodic_reconcile,
+             nb::arg("broker_positions"),
+             nb::arg("broker_account"))
+        .def("reconnect_reconcile",
+             &PositionBook::reconnect_reconcile,
+             nb::arg("broker_positions"),
+             nb::arg("broker_account"));
 
     // ── TickModel ────────────────────────────────────────────────────
 

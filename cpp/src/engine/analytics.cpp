@@ -9,6 +9,7 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <unordered_set>
 
 namespace hqt::sim {
 
@@ -155,6 +156,188 @@ void PortfolioState::recompute_unlocked() {
     account_.equity = account_.balance + account_.credit + total_unrealized;
     account_.margin_free = account_.equity - total_margin;
     account_.margin_level = (total_margin > 0.0) ? ((account_.equity / total_margin) * 100.0) : 0.0;
+}
+
+PositionBook::PositionBook(PositionMode mode)
+    : mode_(mode) {}
+
+void PositionBook::set_mode(PositionMode mode) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    mode_ = mode;
+}
+
+PositionMode PositionBook::mode() const noexcept {
+    return mode_;
+}
+
+void PositionBook::reset() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    net_positions_.clear();
+    hedged_legs_.clear();
+    next_leg_id_ = 1;
+    account_ = AccountInfoData{};
+}
+
+void PositionBook::apply_fill(const FillEvent& fill) {
+    if (fill.symbol.empty() || fill.volume <= 0.0 || fill.price <= 0.0) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (mode_ == PositionMode::Netting) {
+        apply_fill_netting_unlocked(fill);
+    } else {
+        apply_fill_hedging_unlocked(fill);
+    }
+    account_.balance -= fill.commission;
+    account_.balance += fill.swap;
+}
+
+void PositionBook::apply_account_snapshot(const AccountInfoData& account) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    account_ = account;
+}
+
+std::unordered_map<std::string, PositionAggregate> PositionBook::snapshot_positions() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return snapshot_positions_unlocked();
+}
+
+AccountInfoData PositionBook::snapshot_account() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return account_;
+}
+
+std::vector<PositionLeg> PositionBook::legs_for_symbol(const std::string& symbol) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = hedged_legs_.find(symbol);
+    if (it == hedged_legs_.end()) {
+        return {};
+    }
+    return it->second;
+}
+
+ReconciliationReport PositionBook::reconcile_with_broker(
+    const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+    const AccountInfoData& broker_account,
+    const std::string& trigger) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    ReconciliationReport report;
+    report.trigger = trigger;
+
+    const auto local_positions = snapshot_positions_unlocked();
+    std::unordered_set<std::string> symbols;
+    symbols.reserve(local_positions.size() + broker_positions.size());
+    for (const auto& [symbol, _] : local_positions) {
+        symbols.insert(symbol);
+    }
+    for (const auto& [symbol, _] : broker_positions) {
+        symbols.insert(symbol);
+    }
+
+    for (const auto& symbol : symbols) {
+        const auto local_it = local_positions.find(symbol);
+        const auto broker_it = broker_positions.find(symbol);
+        const PositionAggregate local = (local_it != local_positions.end()) ? local_it->second : PositionAggregate{};
+        const PositionAggregate broker = (broker_it != broker_positions.end()) ? broker_it->second : PositionAggregate{};
+
+        if (!almost_equal(local.net_volume, broker.net_volume)) {
+            ++report.position_mismatch_count;
+            report.issues.push_back("position.net_volume mismatch symbol=" + symbol);
+        }
+        if (!almost_equal(local.long_volume, broker.long_volume)) {
+            ++report.position_mismatch_count;
+            report.issues.push_back("position.long_volume mismatch symbol=" + symbol);
+        }
+        if (!almost_equal(local.short_volume, broker.short_volume)) {
+            ++report.position_mismatch_count;
+            report.issues.push_back("position.short_volume mismatch symbol=" + symbol);
+        }
+    }
+
+    if (!almost_equal(account_.balance, broker_account.balance)) {
+        ++report.account_mismatch_count;
+        report.issues.push_back("account.balance mismatch");
+    }
+    if (!almost_equal(account_.equity, broker_account.equity)) {
+        ++report.account_mismatch_count;
+        report.issues.push_back("account.equity mismatch");
+    }
+    if (!almost_equal(account_.margin, broker_account.margin)) {
+        ++report.account_mismatch_count;
+        report.issues.push_back("account.margin mismatch");
+    }
+
+    report.ok = (report.position_mismatch_count == 0 && report.account_mismatch_count == 0);
+    return report;
+}
+
+ReconciliationReport PositionBook::periodic_reconcile(
+    const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+    const AccountInfoData& broker_account) const {
+    return reconcile_with_broker(broker_positions, broker_account, "periodic");
+}
+
+ReconciliationReport PositionBook::reconnect_reconcile(
+    const std::unordered_map<std::string, PositionAggregate>& broker_positions,
+    const AccountInfoData& broker_account) const {
+    return reconcile_with_broker(broker_positions, broker_account, "reconnect");
+}
+
+bool PositionBook::almost_equal(double lhs, double rhs, double eps) noexcept {
+    return std::abs(lhs - rhs) <= eps;
+}
+
+void PositionBook::apply_fill_netting_unlocked(const FillEvent& fill) {
+    auto& agg = net_positions_[fill.symbol];
+    const double delta = fill.is_buy ? fill.volume : -fill.volume;
+    const double current = agg.net_volume;
+
+    if (almost_equal(current, 0.0)) {
+        agg.net_volume = delta;
+    } else if ((current > 0.0 && delta > 0.0) || (current < 0.0 && delta < 0.0)) {
+        agg.net_volume = current + delta;
+    } else if (std::abs(delta) < std::abs(current)) {
+        agg.net_volume = current + delta;
+    } else if (almost_equal(std::abs(delta), std::abs(current))) {
+        agg.net_volume = 0.0;
+    } else {
+        agg.net_volume = current + delta;
+    }
+    agg.long_volume = std::max(agg.net_volume, 0.0);
+    agg.short_volume = std::max(-agg.net_volume, 0.0);
+}
+
+void PositionBook::apply_fill_hedging_unlocked(const FillEvent& fill) {
+    auto& legs = hedged_legs_[fill.symbol];
+    PositionLeg leg;
+    leg.leg_id = next_leg_id_++;
+    leg.is_buy = fill.is_buy;
+    leg.volume = fill.volume;
+    leg.price = fill.price;
+    leg.time_msc = fill.time_msc;
+    legs.push_back(leg);
+}
+
+std::unordered_map<std::string, PositionAggregate> PositionBook::snapshot_positions_unlocked() const {
+    if (mode_ == PositionMode::Netting) {
+        return net_positions_;
+    }
+
+    std::unordered_map<std::string, PositionAggregate> out;
+    out.reserve(hedged_legs_.size());
+    for (const auto& [symbol, legs] : hedged_legs_) {
+        auto& agg = out[symbol];
+        for (const auto& leg : legs) {
+            if (leg.is_buy) {
+                agg.long_volume += leg.volume;
+                agg.net_volume += leg.volume;
+            } else {
+                agg.short_volume += leg.volume;
+                agg.net_volume -= leg.volume;
+            }
+        }
+    }
+    return out;
 }
 
 std::vector<ModelTick> TickModel::generate_m1_ohlc(
