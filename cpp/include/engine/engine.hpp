@@ -1141,6 +1141,53 @@ public:
         OptimizationWorkerPolicy policy = {});
 };
 
+struct MonteCarloSummary {
+    std::size_t simulations{0};
+    double mean{0.0};
+    double stddev{0.0};
+    double p05{0.0};
+    double p50{0.0};
+    double p95{0.0};
+    double probability_positive{0.0};
+};
+
+enum class MonteCarloMode {
+    Shuffle = 0,
+    Bootstrap = 1,
+    Perturb = 2,
+};
+
+struct SensitivityPoint {
+    std::string param{};
+    double value{0.0};
+    double score{0.0};
+};
+
+struct SensitivityReport {
+    std::size_t evaluations{0};
+    double stability_score{0.0};
+    std::unordered_map<std::string, double> normalized_sensitivity{};
+    std::vector<SensitivityPoint> points{};
+};
+
+class MonteCarloAnalyzer {
+public:
+    [[nodiscard]] static MonteCarloSummary simulate(
+        const std::vector<double>& pnl_series,
+        std::size_t simulations,
+        std::uint64_t seed = 7,
+        MonteCarloMode mode = MonteCarloMode::Bootstrap,
+        double perturb_scale = 0.10);
+};
+
+class SensitivityAnalyzer {
+public:
+    [[nodiscard]] static SensitivityReport analyze(
+        const OptimizationParamSpace& space,
+        const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+        std::size_t max_points = 0);
+};
+
 }  // namespace hqt::sim
 
 namespace hqt::engine {

@@ -575,6 +575,25 @@ double population_stddev(const std::vector<double>& values, double mean) {
     return std::sqrt(accum / static_cast<double>(values.size()));
 }
 
+double sample_percentile(std::vector<double> values, double q) {
+    if (values.empty()) {
+        return 0.0;
+    }
+    const double qq = std::clamp(q, 0.0, 1.0);
+    const double pos = qq * static_cast<double>(values.size() - 1U);
+    const std::size_t lo = static_cast<std::size_t>(std::floor(pos));
+    const std::size_t hi = static_cast<std::size_t>(std::ceil(pos));
+    std::nth_element(values.begin(), values.begin() + lo, values.end());
+    const double vlo = values[lo];
+    if (hi == lo) {
+        return vlo;
+    }
+    std::nth_element(values.begin(), values.begin() + hi, values.end());
+    const double vhi = values[hi];
+    const double w = pos - static_cast<double>(lo);
+    return vlo + ((vhi - vlo) * w);
+}
+
 }  // namespace
 
 ResultMetricsSummary ResultMetrics::from_trades(
@@ -1843,6 +1862,124 @@ DistributedOptimizationResult DistributedOptimizationRunner::run(
     out.health.failed = failed_count.load();
     out.health.restarted = restarted_count.load();
     out.health.timeout_restarts = timeout_restarts.load();
+    return out;
+}
+
+MonteCarloSummary MonteCarloAnalyzer::simulate(
+    const std::vector<double>& pnl_series,
+    std::size_t simulations,
+    std::uint64_t seed,
+    MonteCarloMode mode,
+    double perturb_scale) {
+    MonteCarloSummary out;
+    if (pnl_series.empty() || simulations == 0U) {
+        return out;
+    }
+
+    std::mt19937_64 rng(seed);
+    std::uniform_int_distribution<std::size_t> pick(0U, pnl_series.size() - 1U);
+    std::normal_distribution<double> noise(0.0, std::max(0.0, perturb_scale));
+    std::vector<double> totals;
+    totals.reserve(simulations);
+
+    std::vector<double> base = pnl_series;
+    for (std::size_t s = 0; s < simulations; ++s) {
+        std::vector<double> sample;
+        sample.reserve(base.size());
+        if (mode == MonteCarloMode::Shuffle) {
+            sample = base;
+            std::shuffle(sample.begin(), sample.end(), rng);
+        } else if (mode == MonteCarloMode::Bootstrap) {
+            for (std::size_t i = 0; i < base.size(); ++i) {
+                sample.push_back(base[pick(rng)]);
+            }
+        } else {
+            sample = base;
+            for (double& v : sample) {
+                v *= (1.0 + noise(rng));
+            }
+        }
+        totals.push_back(std::accumulate(sample.begin(), sample.end(), 0.0));
+    }
+
+    const double mean = safe_mean(totals);
+    const double stddev = safe_stddev(totals, mean);
+    std::size_t positive = 0U;
+    for (const double t : totals) {
+        if (t > 0.0) {
+            ++positive;
+        }
+    }
+
+    out.simulations = simulations;
+    out.mean = mean;
+    out.stddev = stddev;
+    out.p05 = sample_percentile(totals, 0.05);
+    out.p50 = sample_percentile(totals, 0.50);
+    out.p95 = sample_percentile(totals, 0.95);
+    out.probability_positive = static_cast<double>(positive) / static_cast<double>(simulations);
+    return out;
+}
+
+SensitivityReport SensitivityAnalyzer::analyze(
+    const OptimizationParamSpace& space,
+    const std::function<double(const std::unordered_map<std::string, double>&)>& evaluator,
+    std::size_t max_points) {
+    SensitivityReport out;
+    if (!evaluator || space.empty()) {
+        return out;
+    }
+
+    const auto dims = canonical_dimensions(space);
+    if (dims.empty()) {
+        return out;
+    }
+
+    std::unordered_map<std::string, double> baseline_params;
+    baseline_params.reserve(dims.size());
+    for (const auto& [name, values] : dims) {
+        baseline_params[name] = values[values.size() / 2U];
+    }
+    const double baseline = evaluator(baseline_params);
+
+    std::unordered_map<std::string, std::vector<double>> deltas;
+    for (const auto& [name, values] : dims) {
+        const std::size_t limit = (max_points > 0U) ? std::min<std::size_t>(values.size(), max_points) : values.size();
+        for (std::size_t i = 0; i < limit; ++i) {
+            auto p = baseline_params;
+            p[name] = values[i];
+            const double score = evaluator(p);
+            out.points.push_back(SensitivityPoint{name, values[i], score});
+            deltas[name].push_back(std::abs(score - baseline));
+            ++out.evaluations;
+        }
+    }
+
+    double total_mean_delta = 0.0;
+    std::unordered_map<std::string, double> mean_delta_by_param;
+    for (const auto& [name, vals] : deltas) {
+        const double m = safe_mean(vals);
+        mean_delta_by_param[name] = m;
+        total_mean_delta += m;
+    }
+
+    if (total_mean_delta > 0.0) {
+        for (const auto& [name, m] : mean_delta_by_param) {
+            out.normalized_sensitivity[name] = m / total_mean_delta;
+        }
+    } else {
+        for (const auto& [name, _] : mean_delta_by_param) {
+            out.normalized_sensitivity[name] = 0.0;
+        }
+    }
+
+    std::vector<double> normalized;
+    normalized.reserve(out.normalized_sensitivity.size());
+    for (const auto& [_, v] : out.normalized_sensitivity) {
+        normalized.push_back(v);
+    }
+    const double concentration = normalized.empty() ? 0.0 : *std::max_element(normalized.begin(), normalized.end());
+    out.stability_score = 1.0 - std::clamp(concentration, 0.0, 1.0);
     return out;
 }
 

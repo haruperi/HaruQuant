@@ -853,6 +853,34 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("trials", &DistributedOptimizationResult::trials)
         .def_rw("health", &DistributedOptimizationResult::health);
 
+    nb::enum_<MonteCarloMode>(m, "MonteCarloMode")
+        .value("Shuffle", MonteCarloMode::Shuffle)
+        .value("Bootstrap", MonteCarloMode::Bootstrap)
+        .value("Perturb", MonteCarloMode::Perturb);
+
+    nb::class_<MonteCarloSummary>(m, "MonteCarloSummary")
+        .def(nb::init<>())
+        .def_rw("simulations", &MonteCarloSummary::simulations)
+        .def_rw("mean", &MonteCarloSummary::mean)
+        .def_rw("stddev", &MonteCarloSummary::stddev)
+        .def_rw("p05", &MonteCarloSummary::p05)
+        .def_rw("p50", &MonteCarloSummary::p50)
+        .def_rw("p95", &MonteCarloSummary::p95)
+        .def_rw("probability_positive", &MonteCarloSummary::probability_positive);
+
+    nb::class_<SensitivityPoint>(m, "SensitivityPoint")
+        .def(nb::init<>())
+        .def_rw("param", &SensitivityPoint::param)
+        .def_rw("value", &SensitivityPoint::value)
+        .def_rw("score", &SensitivityPoint::score);
+
+    nb::class_<SensitivityReport>(m, "SensitivityReport")
+        .def(nb::init<>())
+        .def_rw("evaluations", &SensitivityReport::evaluations)
+        .def_rw("stability_score", &SensitivityReport::stability_score)
+        .def_rw("normalized_sensitivity", &SensitivityReport::normalized_sensitivity)
+        .def_rw("points", &SensitivityReport::points);
+
     nb::class_<GridSearchRunner>(m, "GridSearchRunner")
         .def_static(
             "run",
@@ -961,6 +989,33 @@ void register_sim_bindings(nb::module_& m) {
             nb::arg("params_list"),
             nb::arg("evaluator"),
             nb::arg("policy") = OptimizationWorkerPolicy{});
+
+    nb::class_<MonteCarloAnalyzer>(m, "MonteCarloAnalyzer")
+        .def_static(
+            "simulate",
+            &MonteCarloAnalyzer::simulate,
+            nb::arg("pnl_series"),
+            nb::arg("simulations"),
+            nb::arg("seed") = 7U,
+            nb::arg("mode") = MonteCarloMode::Bootstrap,
+            nb::arg("perturb_scale") = 0.10);
+
+    nb::class_<SensitivityAnalyzer>(m, "SensitivityAnalyzer")
+        .def_static(
+            "analyze",
+            [](const OptimizationParamSpace& space,
+               nb::callable evaluator,
+               std::size_t max_points) {
+                std::function<double(const std::unordered_map<std::string, double>&)> eval =
+                    [evaluator](const std::unordered_map<std::string, double>& p) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(p));
+                    };
+                return SensitivityAnalyzer::analyze(space, eval, max_points);
+            },
+            nb::arg("space"),
+            nb::arg("evaluator"),
+            nb::arg("max_points") = 0U);
 
     nb::class_<ResultMetrics>(m, "ResultMetrics")
         .def_static("from_trades", &ResultMetrics::from_trades);

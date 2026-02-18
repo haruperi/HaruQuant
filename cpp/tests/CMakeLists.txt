@@ -35,6 +35,7 @@ add_executable(hqt_tests
     test_experiment_registry.cpp
     test_optimization_runners.cpp
     test_distributed_optimization_runner.cpp
+    test_monte_carlo_sensitivity.cpp
     test_portfolio_state.cpp
     test_allocation_models.cpp
     test_rebalance_policies.cpp

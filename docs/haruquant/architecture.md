@@ -279,6 +279,25 @@
   - `tests/usage/research/usage_optimization_runners.py`
   - `tests/usage/research/usage_distributed_optimization_runner.py`
 
+## Monte Carlo and Sensitivity (IP-43)
+
+- Core C++ APIs:
+  - `cpp/include/engine/engine.hpp::MonteCarloAnalyzer`
+  - `cpp/include/engine/engine.hpp::SensitivityAnalyzer`
+  - `cpp/include/engine/engine.hpp::MonteCarloSummary`
+  - `cpp/include/engine/engine.hpp::SensitivityReport`
+- Scope:
+  - Monte Carlo perturbation workflows over PnL series
+  - sensitivity report over parameter-space perturbations
+  - stability score and normalized sensitivity map for reproducibility metadata
+- Bridge exposure (`hqt_engine.sim`):
+  - `MonteCarloMode`, `MonteCarloAnalyzer`, `MonteCarloSummary`
+  - `SensitivityAnalyzer`, `SensitivityPoint`, `SensitivityReport`
+- Validation:
+  - `cpp/tests/test_monte_carlo_sensitivity.cpp`
+  - `docs/haruquant/usage/research/monte_carlo_sensitivity.md`
+  - `tests/usage/research/usage_monte_carlo_sensitivity.py`
+
 ## Data Adapters and Normalization Pipeline (IP-09)
 
 - Python adapters:

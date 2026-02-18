@@ -908,7 +908,7 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-43 Monte Carlo + sensitivity analysis
+#### [X] IP-43 Monte Carlo + sensitivity analysis
 
 * **Deliverables**
 
@@ -918,9 +918,9 @@
 * **Dependencies:** IP-41
 * **Completion evidence**
 
-  * Tests: `py/tests/unit/test_monte_carlo.py`, `py/tests/unit/test_sensitivity.py`
-  * Usage: `usage/research/monte_carlo_sensitivity.md`
-  * Bench/log: `artifacts/benchmarks/research/mc_sensitivity_report.json`
+  * Tests: `cpp/tests/test_monte_carlo_sensitivity.cpp`
+  * Usage: `docs/haruquant/usage/research/monte_carlo_sensitivity.md`, `tests/usage/research/usage_monte_carlo_sensitivity.py`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-44 Metrics engine and benchmark comparison
