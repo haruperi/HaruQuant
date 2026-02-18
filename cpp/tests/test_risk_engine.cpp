@@ -16,6 +16,7 @@ using hqt::risk::ExposureConstraints;
 using hqt::risk::CircuitBreaker;
 using hqt::risk::IntradayRiskConfig;
 using hqt::risk::IntradayRiskMonitor;
+using hqt::risk::KillSwitchController;
 using hqt::risk::RiskAccountState;
 using hqt::risk::RiskBudgetAllocator;
 using hqt::risk::RiskGovernor;
@@ -23,6 +24,7 @@ using hqt::risk::RiskGovernorConfig;
 using hqt::risk::RiskMode;
 using hqt::risk::RiskState;
 using hqt::risk::RiskRegimeDetector;
+using hqt::risk::SafeModeState;
 using hqt::risk::validate_position_size;
 
 TEST(RiskEngineTest, RegimeDetectorStressWhenVolAndCorrSpike) {
@@ -243,6 +245,50 @@ TEST(RiskEngineTest, CircuitBreakerGlobalAndStrategyTrips) {
     breaker.reset_strategy("alpha");
     auto cleared = breaker.can_trade("alpha");
     EXPECT_TRUE(cleared.allowed);
+}
+
+TEST(RiskEngineTest, KillSwitchControllerStateMachineAndEmergencyTriggers) {
+    KillSwitchController controller;
+
+    auto initial = controller.can_trade("alpha");
+    EXPECT_TRUE(initial.allowed);
+    EXPECT_EQ(initial.state, SafeModeState::Normal);
+
+    controller.set_reduce_only("risk_reduction");
+    auto reduce_only = controller.can_trade("alpha");
+    EXPECT_FALSE(reduce_only.allowed);
+    EXPECT_EQ(reduce_only.policy_code, "REDUCE_ONLY");
+    EXPECT_EQ(reduce_only.state, SafeModeState::ReduceOnly);
+
+    controller.trigger_strategy_kill_switch("alpha", "strategy_limit");
+    auto strategy_block = controller.can_trade("alpha");
+    EXPECT_FALSE(strategy_block.allowed);
+    EXPECT_EQ(strategy_block.state, SafeModeState::ReduceOnly);
+
+    controller.trigger_global_kill_switch("global_limit");
+    auto global_block = controller.can_trade("beta");
+    EXPECT_FALSE(global_block.allowed);
+    EXPECT_EQ(global_block.state, SafeModeState::Halt);
+
+    controller.request_emergency_shutdown("API", "manual_emergency");
+    auto emergency = controller.can_trade("beta");
+    EXPECT_FALSE(emergency.allowed);
+    EXPECT_EQ(emergency.state, SafeModeState::EmergencyShutdown);
+    EXPECT_EQ(emergency.policy_code, "EMERGENCY_SHUTDOWN");
+    EXPECT_EQ(emergency.source, "API");
+
+    const auto snapshot = controller.state_snapshot();
+    EXPECT_TRUE(snapshot.emergency_shutdown);
+    EXPECT_EQ(snapshot.last_source, "API");
+    EXPECT_EQ(snapshot.last_reason, "manual_emergency");
+
+    controller.clear_emergency_shutdown();
+    controller.clear_global_kill_switch();
+    controller.clear_strategy_kill_switch("alpha");
+    controller.clear_reduce_only();
+    auto recovered = controller.can_trade("alpha");
+    EXPECT_TRUE(recovered.allowed);
+    EXPECT_EQ(recovered.state, SafeModeState::Normal);
 }
 
 }  // namespace

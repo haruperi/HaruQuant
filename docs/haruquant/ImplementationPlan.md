@@ -658,22 +658,22 @@
   * Bench/log: `TBD`
   * Commit: `TBD`
 
-#### [ ] IP-29 Kill-switch controller and safe-mode transitions
+#### [X] IP-29 Kill-switch controller and safe-mode transitions
 
 * **Sub-tasks**
-  * [ ] Implement global kill-switch functionality. (FR-RISK-003, FR-LIVE-009)
-  * [ ] Define safe-mode state machine transitions (halt trading, reduce exposure). (FR-SAFE-002..005)
-  * [ ] Implement emergency shutdown triggerable via UI and API. (FR-LIVE-009)
+  * [X] Implement global kill-switch functionality. (FR-RISK-003, FR-LIVE-009)
+  * [X] Define safe-mode state machine transitions (halt trading, reduce exposure). (FR-SAFE-002..005)
+  * [X] Implement emergency shutdown triggerable via UI and API. (FR-LIVE-009)
 * **Deliverables**
-  * global/strategy kill-switch
-  * safe-mode state transitions
+  * [X] global/strategy kill-switch
+  * [X] safe-mode state transitions
 * **SRS refs:** FR-RISK-003, FR-LIVE-009, FR-SAFE-002..005
 * **SDD refs:** Â§9.2, Â§10.3, Â§14
 * **Dependencies:** IP-28, IP-45
 * **Completion evidence**
-  * Tests: `py/tests/e2e/test_killswitch_state_machine.py`
-  * Usage: `usage/live/killswitch_runbook.md`
-  * Bench/log: `artifacts/logs/live/killswitch_trace.log`
+  * Tests: `cpp/tests/test_risk_engine.cpp`, `tests/contracts/test_risk_bindings.py`
+  * Usage: `docs/haruquant/usage/live/killswitch_runbook.md`, `tests/usage/risk/11_killswitch_state_machine.py`
+  * Bench/log: `TBD`
   * Commit: `TBD`
 
 #### [ ] IP-30 Risk audit/override workflow

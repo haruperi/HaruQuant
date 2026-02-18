@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <unordered_map>
 #include <string>
 #include <vector>
@@ -131,6 +132,7 @@ public:
     void reset_strategy(const std::string& strategy_id);
     [[nodiscard]] bool is_global_halt() const noexcept;
     [[nodiscard]] bool is_strategy_halted(const std::string& strategy_id) const;
+    [[nodiscard]] std::size_t strategy_halt_count() const noexcept;
     [[nodiscard]] CircuitBreakerDecision can_trade(
         const std::string& strategy_id) const;
 
@@ -138,6 +140,56 @@ private:
     bool global_halt_{false};
     std::string global_reason_{};
     std::unordered_map<std::string, std::string> strategy_halts_{};
+};
+
+enum class SafeModeState {
+    Normal = 0,
+    ReduceOnly = 1,
+    Halt = 2,
+    EmergencyShutdown = 3,
+};
+
+struct KillSwitchDecision {
+    bool allowed{true};
+    SafeModeState state{SafeModeState::Normal};
+    bool global_halt{false};
+    bool strategy_halt{false};
+    std::string policy_code{"OK"};
+    std::string reason{"ok"};
+    std::string source{"system"};
+};
+
+struct KillSwitchSnapshot {
+    SafeModeState state{SafeModeState::Normal};
+    bool global_halt{false};
+    std::size_t strategy_halt_count{0};
+    bool emergency_shutdown{false};
+    std::string last_reason{""};
+    std::string last_source{"system"};
+};
+
+class KillSwitchController {
+public:
+    void set_reduce_only(const std::string& reason);
+    void clear_reduce_only();
+    void trigger_global_kill_switch(const std::string& reason);
+    void clear_global_kill_switch();
+    void trigger_strategy_kill_switch(const std::string& strategy_id, const std::string& reason);
+    void clear_strategy_kill_switch(const std::string& strategy_id);
+    void request_emergency_shutdown(const std::string& source, const std::string& reason);
+    void clear_emergency_shutdown();
+    [[nodiscard]] SafeModeState state() const noexcept;
+    [[nodiscard]] KillSwitchDecision can_trade(const std::string& strategy_id) const;
+    [[nodiscard]] KillSwitchSnapshot state_snapshot() const;
+
+private:
+    void transition_to_normal_if_possible();
+
+    CircuitBreaker breaker_{};
+    SafeModeState state_{SafeModeState::Normal};
+    bool emergency_shutdown_{false};
+    std::string last_reason_{};
+    std::string last_source_{"system"};
 };
 
 class RiskRegimeDetector {

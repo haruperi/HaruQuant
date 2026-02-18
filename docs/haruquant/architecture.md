@@ -384,6 +384,26 @@
   - `tests/usage/risk/10_intraday_circuit_breaker.py`
   - `docs/haruquant/usage/risk/intrade_controls.md`
 
+## Kill-Switch and Safe-Mode State Machine (IP-29)
+
+- Core module:
+  - `cpp/include/risk/risk_engine.hpp`
+  - `cpp/src/engine/risk_engine.cpp`
+- Added C++ components:
+  - `KillSwitchController` with safe-mode states:
+    - `NORMAL`
+    - `REDUCE_ONLY`
+    - `HALT`
+    - `EMERGENCY_SHUTDOWN`
+  - strategy/global kill-switch triggers and emergency shutdown source tagging (`UI`/`API`)
+- Bridge bindings:
+  - `bridge/src/risk_bindings.cpp` (`hqt_engine._risk`)
+- Evidence:
+  - `cpp/tests/test_risk_engine.cpp`
+  - `tests/contracts/test_risk_bindings.py`
+  - `tests/usage/risk/11_killswitch_state_machine.py`
+  - `docs/haruquant/usage/live/killswitch_runbook.md`
+
 ## Bridge Ownership and Lifetime Safety (IP-19)
 
 - Ownership contract API:

@@ -113,6 +113,54 @@ void register_risk_bindings(nb::module_& m) {
         .def("is_strategy_halted", &CircuitBreaker::is_strategy_halted, nb::arg("strategy_id"))
         .def("can_trade", &CircuitBreaker::can_trade, nb::arg("strategy_id"));
 
+    nb::enum_<SafeModeState>(m, "SafeModeState")
+        .value("NORMAL", SafeModeState::Normal)
+        .value("REDUCE_ONLY", SafeModeState::ReduceOnly)
+        .value("HALT", SafeModeState::Halt)
+        .value("EMERGENCY_SHUTDOWN", SafeModeState::EmergencyShutdown)
+        .export_values();
+
+    nb::class_<KillSwitchDecision>(m, "KillSwitchDecision")
+        .def(nb::init<>())
+        .def_rw("allowed", &KillSwitchDecision::allowed)
+        .def_rw("state", &KillSwitchDecision::state)
+        .def_rw("global_halt", &KillSwitchDecision::global_halt)
+        .def_rw("strategy_halt", &KillSwitchDecision::strategy_halt)
+        .def_rw("policy_code", &KillSwitchDecision::policy_code)
+        .def_rw("reason", &KillSwitchDecision::reason)
+        .def_rw("source", &KillSwitchDecision::source);
+
+    nb::class_<KillSwitchSnapshot>(m, "KillSwitchSnapshot")
+        .def(nb::init<>())
+        .def_rw("state", &KillSwitchSnapshot::state)
+        .def_rw("global_halt", &KillSwitchSnapshot::global_halt)
+        .def_rw("strategy_halt_count", &KillSwitchSnapshot::strategy_halt_count)
+        .def_rw("emergency_shutdown", &KillSwitchSnapshot::emergency_shutdown)
+        .def_rw("last_reason", &KillSwitchSnapshot::last_reason)
+        .def_rw("last_source", &KillSwitchSnapshot::last_source);
+
+    nb::class_<KillSwitchController>(m, "KillSwitchController")
+        .def(nb::init<>())
+        .def("set_reduce_only", &KillSwitchController::set_reduce_only, nb::arg("reason"))
+        .def("clear_reduce_only", &KillSwitchController::clear_reduce_only)
+        .def("trigger_global_kill_switch", &KillSwitchController::trigger_global_kill_switch, nb::arg("reason"))
+        .def("clear_global_kill_switch", &KillSwitchController::clear_global_kill_switch)
+        .def(
+            "trigger_strategy_kill_switch",
+            &KillSwitchController::trigger_strategy_kill_switch,
+            nb::arg("strategy_id"),
+            nb::arg("reason"))
+        .def("clear_strategy_kill_switch", &KillSwitchController::clear_strategy_kill_switch, nb::arg("strategy_id"))
+        .def(
+            "request_emergency_shutdown",
+            &KillSwitchController::request_emergency_shutdown,
+            nb::arg("source"),
+            nb::arg("reason"))
+        .def("clear_emergency_shutdown", &KillSwitchController::clear_emergency_shutdown)
+        .def("state", &KillSwitchController::state)
+        .def("can_trade", &KillSwitchController::can_trade, nb::arg("strategy_id"))
+        .def("state_snapshot", &KillSwitchController::state_snapshot);
+
     nb::class_<RiskGovernorConfig>(m, "RiskGovernorConfig")
         .def(nb::init<>())
         .def_rw("max_drawdown_frac", &RiskGovernorConfig::max_drawdown_frac)

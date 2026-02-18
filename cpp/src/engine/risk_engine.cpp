@@ -187,6 +187,10 @@ bool CircuitBreaker::is_strategy_halted(const std::string& strategy_id) const {
     return strategy_halts_.find(strategy_id) != strategy_halts_.end();
 }
 
+std::size_t CircuitBreaker::strategy_halt_count() const noexcept {
+    return strategy_halts_.size();
+}
+
 CircuitBreakerDecision CircuitBreaker::can_trade(const std::string& strategy_id) const {
     if (global_halt_) {
         return CircuitBreakerDecision{
@@ -206,6 +210,149 @@ CircuitBreakerDecision CircuitBreaker::can_trade(const std::string& strategy_id)
             it != strategy_halts_.end() ? it->second : "strategy_halt"};
     }
     return CircuitBreakerDecision{true, false, false, "OK", "ok"};
+}
+
+void KillSwitchController::set_reduce_only(const std::string& reason) {
+    state_ = SafeModeState::ReduceOnly;
+    last_reason_ = reason;
+    last_source_ = "system";
+}
+
+void KillSwitchController::clear_reduce_only() {
+    if (state_ == SafeModeState::ReduceOnly) {
+        transition_to_normal_if_possible();
+    }
+}
+
+void KillSwitchController::trigger_global_kill_switch(const std::string& reason) {
+    breaker_.trip_global(reason);
+    state_ = SafeModeState::Halt;
+    last_reason_ = reason;
+    last_source_ = "system";
+}
+
+void KillSwitchController::clear_global_kill_switch() {
+    breaker_.reset_global();
+    transition_to_normal_if_possible();
+}
+
+void KillSwitchController::trigger_strategy_kill_switch(
+    const std::string& strategy_id,
+    const std::string& reason) {
+    breaker_.trip_strategy(strategy_id, reason);
+    if (state_ == SafeModeState::Normal) {
+        state_ = SafeModeState::ReduceOnly;
+    }
+    last_reason_ = reason;
+    last_source_ = "system";
+}
+
+void KillSwitchController::clear_strategy_kill_switch(const std::string& strategy_id) {
+    breaker_.reset_strategy(strategy_id);
+    transition_to_normal_if_possible();
+}
+
+void KillSwitchController::request_emergency_shutdown(
+    const std::string& source,
+    const std::string& reason) {
+    emergency_shutdown_ = true;
+    state_ = SafeModeState::EmergencyShutdown;
+    last_source_ = source.empty() ? "unknown" : source;
+    last_reason_ = reason;
+    breaker_.trip_global(reason.empty() ? "emergency_shutdown" : reason);
+}
+
+void KillSwitchController::clear_emergency_shutdown() {
+    emergency_shutdown_ = false;
+    breaker_.reset_global();
+    transition_to_normal_if_possible();
+}
+
+SafeModeState KillSwitchController::state() const noexcept {
+    return state_;
+}
+
+KillSwitchDecision KillSwitchController::can_trade(const std::string& strategy_id) const {
+    if (emergency_shutdown_ || state_ == SafeModeState::EmergencyShutdown) {
+        return KillSwitchDecision{
+            false,
+            SafeModeState::EmergencyShutdown,
+            true,
+            true,
+            "EMERGENCY_SHUTDOWN",
+            last_reason_.empty() ? "emergency_shutdown" : last_reason_,
+            last_source_};
+    }
+
+    if (state_ == SafeModeState::ReduceOnly) {
+        const bool strategy_halt = breaker_.is_strategy_halted(strategy_id);
+        return KillSwitchDecision{
+            false,
+            SafeModeState::ReduceOnly,
+            breaker_.is_global_halt(),
+            strategy_halt,
+            "REDUCE_ONLY",
+            "reduce_only_mode_no_new_trades",
+            last_source_};
+    }
+
+    if (state_ == SafeModeState::Halt) {
+        return KillSwitchDecision{
+            false,
+            SafeModeState::Halt,
+            breaker_.is_global_halt(),
+            breaker_.is_strategy_halted(strategy_id),
+            "SAFE_MODE_HALT",
+            last_reason_.empty() ? "halt" : last_reason_,
+            last_source_};
+    }
+
+    const auto cb = breaker_.can_trade(strategy_id);
+    if (!cb.allowed) {
+        return KillSwitchDecision{
+            false,
+            SafeModeState::Halt,
+            cb.global_halt,
+            cb.strategy_halt,
+            cb.policy_code,
+            cb.reason,
+            last_source_};
+    }
+
+    return KillSwitchDecision{
+        true,
+        SafeModeState::Normal,
+        false,
+        false,
+        "OK",
+        "ok",
+        last_source_};
+}
+
+KillSwitchSnapshot KillSwitchController::state_snapshot() const {
+    return KillSwitchSnapshot{
+        state_,
+        breaker_.is_global_halt(),
+        breaker_.strategy_halt_count(),
+        emergency_shutdown_,
+        last_reason_,
+        last_source_};
+}
+
+void KillSwitchController::transition_to_normal_if_possible() {
+    if (emergency_shutdown_) {
+        state_ = SafeModeState::EmergencyShutdown;
+        return;
+    }
+    if (breaker_.is_global_halt()) {
+        state_ = SafeModeState::Halt;
+        return;
+    }
+    if (breaker_.strategy_halt_count() > 0) {
+        state_ = SafeModeState::ReduceOnly;
+        return;
+    }
+    state_ = SafeModeState::Normal;
 }
 
 RiskGovernor::RiskGovernor(RiskGovernorConfig config)

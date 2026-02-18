@@ -35,6 +35,8 @@ def test_risk_submodule_has_health_and_types() -> None:
     assert hasattr(risk, "RiskState")
     assert hasattr(risk, "IntradayRiskMonitor")
     assert hasattr(risk, "CircuitBreaker")
+    assert hasattr(risk, "SafeModeState")
+    assert hasattr(risk, "KillSwitchController")
 
 
 def test_regime_detector_returns_normal_or_stress() -> None:
@@ -155,3 +157,34 @@ def test_intraday_monitor_and_circuit_breaker_bindings() -> None:
     global_blocked = breaker.can_trade("beta")
     assert global_blocked.allowed is False
     assert global_blocked.policy_code == "GLOBAL_CIRCUIT_BREAKER"
+
+
+def test_killswitch_state_machine_bindings() -> None:
+    risk = hqt_engine._risk
+
+    ks = risk.KillSwitchController()
+    initial = ks.can_trade("alpha")
+    assert initial.allowed is True
+    assert initial.state == risk.SafeModeState.NORMAL
+
+    ks.set_reduce_only("risk_reduction")
+    reduce_only = ks.can_trade("alpha")
+    assert reduce_only.allowed is False
+    assert reduce_only.policy_code == "REDUCE_ONLY"
+    assert reduce_only.state == risk.SafeModeState.REDUCE_ONLY
+
+    ks.trigger_global_kill_switch("global_limit")
+    halted = ks.can_trade("alpha")
+    assert halted.allowed is False
+    assert halted.state == risk.SafeModeState.HALT
+
+    ks.request_emergency_shutdown("UI", "manual_stop")
+    emergency = ks.can_trade("alpha")
+    assert emergency.allowed is False
+    assert emergency.policy_code == "EMERGENCY_SHUTDOWN"
+    assert emergency.state == risk.SafeModeState.EMERGENCY_SHUTDOWN
+    assert emergency.source == "UI"
+
+    snapshot = ks.state_snapshot()
+    assert snapshot.emergency_shutdown is True
+    assert snapshot.last_source == "UI"
