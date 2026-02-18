@@ -668,6 +668,21 @@ void register_sim_bindings(nb::module_& m) {
         .def("mark_rebalanced", &RebalanceController::mark_rebalanced, nb::arg("now_msc"))
         .def("last_rebalance_msc", &RebalanceController::last_rebalance_msc);
 
+    nb::class_<VectorizedBacktestEngine>(m, "VectorizedBacktestEngine")
+        .def(nb::init<SimulatorClient&>(), nb::keep_alive<1, 2>())
+        .def(
+            "run",
+            [](VectorizedBacktestEngine& self, const std::string& symbol, double volume,
+               const std::vector<BacktestBarStep>& bars) {
+                call_without_gil([&]() { self.run(symbol, volume, bars); });
+            },
+            nb::arg("symbol"),
+            nb::arg("volume"),
+            nb::arg("bars"))
+        .def("account_snapshot", &VectorizedBacktestEngine::account_snapshot, nb::rv_policy::reference_internal)
+        .def("processed_bars", &VectorizedBacktestEngine::processed_bars)
+        .def("total_trades", &VectorizedBacktestEngine::total_trades);
+
     // ── ResultMetrics ────────────────────────────────────────────────
 
     nb::class_<ResultMetrics>(m, "ResultMetrics")

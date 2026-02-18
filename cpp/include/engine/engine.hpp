@@ -866,6 +866,28 @@ private:
     std::unordered_map<std::string, double> effective_allocations_{};
 };
 
+class VectorizedBacktestEngine {
+public:
+    explicit VectorizedBacktestEngine(SimulatorClient& client);
+
+    void run(
+        const std::string& symbol,
+        double volume,
+        const std::vector<BacktestBarStep>& bars);
+
+    [[nodiscard]] const AccountInfoData& account_snapshot() const noexcept;
+    [[nodiscard]] std::size_t processed_bars() const noexcept;
+    [[nodiscard]] std::size_t total_trades() const noexcept;
+
+private:
+    static double normalize_volume(double requested, const SymbolInfoData& symbol_info);
+
+    SimulatorClient& client_;
+    AccountInfoData account_snapshot_{};
+    std::size_t processed_bars_{0};
+    std::size_t total_trades_{0};
+};
+
 struct ResultMetricsSummary {
     double initial_balance{0.0};
     double final_balance{0.0};

@@ -818,21 +818,21 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-38 Vectorized backtest engine
+#### [X] IP-38 Vectorized backtest engine
 
 * **Sub-tasks**
-  * [ ] Implement vectorized simulation path for high-throughput research. (FR-BT-001)
-  * [ ] Optimize throughput to 1M orders in 70-100ms. (NFR-PERF-006)
-  * [ ] Implement parity checks between event-driven and vectorized engines. (FR-TEST-004)
+  * [X] Implement vectorized simulation path for high-throughput research. (FR-BT-001)
+  * [X] Optimize throughput to 1M orders in 70-100ms. (NFR-PERF-006)
+  * [X] Implement parity checks between event-driven and vectorized engines. (FR-TEST-004)
 * **Deliverables**
   * vectorized simulation path and parity checks
 * **SRS refs:** FR-BT-001, NFR-PERF-006, FR-TEST-004
 * **SDD refs:** Â§5.1.7, Â§13
 * **Dependencies:** IP-37
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_backtest_vectorized.cpp`, `py/tests/parity/test_event_vs_vectorized_parity.py`
-  * Usage: `usage/backtest/vectorized_runner.md`
-  * Bench/log: `benchmarks/backtest/vectorized_perf.md`
+  * Tests: `cpp/tests/test_backtest_vectorized.cpp`, `tests/parity/test_event_vs_vectorized_parity.py`
+  * Usage: `docs/haruquant/usage/backtest/vectorized_runner.md`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-39 Fill simulator + transaction cost model

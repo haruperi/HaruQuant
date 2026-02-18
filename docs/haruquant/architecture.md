@@ -800,3 +800,24 @@
   - `tests/e2e/test_backtest_event_path.py`
   - `docs/haruquant/usage/backtest/event_runner.md`
 
+## Vectorized Backtest Engine (IP-38)
+
+- Core C++ engine:
+  - `cpp/include/engine/engine.hpp::VectorizedBacktestEngine`
+  - `cpp/src/engine/analytics.cpp`
+- Design:
+  - batch-style deterministic bar processing loop
+  - reuses `SimulatorClient` order path for consistent OMS semantics
+  - tracks processed bars and executed trade count
+- Bridge exposure (`hqt_engine.sim`):
+  - `VectorizedBacktestEngine.run(...)`
+  - `VectorizedBacktestEngine.processed_bars()`
+  - `VectorizedBacktestEngine.total_trades()`
+  - `VectorizedBacktestEngine.account_snapshot()`
+- Parity validation:
+  - event-driven vs vectorized comparison on deterministic bars
+- Evidence:
+  - `cpp/tests/test_backtest_vectorized.cpp`
+  - `tests/parity/test_event_vs_vectorized_parity.py`
+  - `docs/haruquant/usage/backtest/vectorized_runner.md`
+

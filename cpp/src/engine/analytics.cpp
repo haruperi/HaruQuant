@@ -958,4 +958,104 @@ void PortfolioEngine::process_bar(const std::string& symbol, const BacktestBarSt
     (void)client_.order_send(request);
 }
 
+VectorizedBacktestEngine::VectorizedBacktestEngine(SimulatorClient& client)
+    : client_(client) {}
+
+void VectorizedBacktestEngine::run(
+    const std::string& symbol,
+    double volume,
+    const std::vector<BacktestBarStep>& bars) {
+    processed_bars_ = 0U;
+    total_trades_ = 0U;
+    account_snapshot_ = client_.account_info();
+
+    if (bars.empty() || volume <= 0.0) {
+        return;
+    }
+    const auto* symbol_info = client_.symbol_info(symbol);
+    if (symbol_info == nullptr) {
+        return;
+    }
+
+    const double normalized_volume = normalize_volume(volume, *symbol_info);
+    if (normalized_volume <= 0.0) {
+        return;
+    }
+
+    AccountMonitor account_monitor;
+    for (const auto& bar : bars) {
+        ++processed_bars_;
+
+        const double spread_points =
+            (bar.spread_points >= 0.0) ? bar.spread_points : static_cast<double>(symbol_info->spread);
+        const double bid = bar.close;
+        const double ask = bar.close + (spread_points * symbol_info->point);
+
+        SymbolTickData tick;
+        tick.time = bar.time_msc / 1000;
+        tick.time_msc = bar.time_msc;
+        tick.bid = bid;
+        tick.ask = ask;
+        tick.last = bar.close;
+        client_.set_symbol_tick(symbol, tick);
+
+        const PositionTotals totals = account_monitor.monitor_positions(client_, symbol, bid, ask);
+        account_snapshot_ = account_monitor.monitor_account(client_.account_info(), totals);
+
+        if (bar.exit_signal != 0) {
+            const auto positions = client_.positions_get(std::nullopt, symbol);
+            for (const auto& pos : positions) {
+                const bool is_buy = (pos.type == 0U);
+                if ((bar.exit_signal == 1 && is_buy) || (bar.exit_signal == -1 && !is_buy)) {
+                    const auto result = client_.close_position(pos.ticket);
+                    if (result.retcode == 10009 || result.retcode == 10010) {
+                        ++total_trades_;
+                    }
+                }
+            }
+        }
+
+        if (bar.entry_signal == 1 || bar.entry_signal == -1) {
+            TradeRequest request;
+            request.action = 1;
+            request.type = (bar.entry_signal == 1) ? 0 : 1;
+            request.symbol = symbol;
+            request.volume = normalized_volume;
+            request.price = (bar.entry_signal == 1) ? ask : bid;
+            request.sl = bar.sl;
+            request.tp = bar.tp;
+
+            (void)client_.order_send(request);
+        }
+    }
+}
+
+const AccountInfoData& VectorizedBacktestEngine::account_snapshot() const noexcept {
+    return account_snapshot_;
+}
+
+std::size_t VectorizedBacktestEngine::processed_bars() const noexcept {
+    return processed_bars_;
+}
+
+std::size_t VectorizedBacktestEngine::total_trades() const noexcept {
+    return total_trades_;
+}
+
+double VectorizedBacktestEngine::normalize_volume(double requested, const SymbolInfoData& symbol_info) {
+    if (requested <= 0.0) {
+        return 0.0;
+    }
+    const double vol_min = symbol_info.volume_min > 0.0 ? symbol_info.volume_min : 0.01;
+    const double vol_step = symbol_info.volume_step > 0.0 ? symbol_info.volume_step : 0.01;
+    const double vol_max = symbol_info.volume_max > 0.0 ? symbol_info.volume_max : requested;
+
+    double vol = requested;
+    const double steps = std::round((vol - vol_min) / vol_step);
+    vol = vol_min + (steps * vol_step);
+    vol = std::max(vol, vol_min);
+    vol = std::min(vol, vol_max);
+    return vol;
+}
+
 }  // namespace hqt::sim

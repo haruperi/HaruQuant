@@ -29,6 +29,7 @@ add_executable(hqt_tests
     test_execution_retry.cpp
     test_twap_vwap.cpp
     test_backtest_event_runner.cpp
+    test_backtest_vectorized.cpp
     test_portfolio_state.cpp
     test_allocation_models.cpp
     test_rebalance_policies.cpp
