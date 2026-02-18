@@ -606,20 +606,20 @@
   * Bench/log: `benchmarks/portfolio/state_update_perf.md`
   * Commit: `TBD`
 
-#### [ ] IP-26 Allocation/rebalance/exposure models
+#### [X] IP-26 Allocation/rebalance/exposure models
 
 * **Sub-tasks**
-  * [ ] Implement allocation models: static weights, risk parity, custom. (FR-PORT-002)
-  * [ ] Implement portfolio-level exposure constraints (asset, symbol, strategy). (FR-PORT-003)
-  * [ ] Implement scheduled and event-triggered rebalancing policies. (FR-PORT-004)
+  * [X] Implement allocation models: static weights, risk parity, custom. (FR-PORT-002)
+  * [X] Implement portfolio-level exposure constraints (asset, symbol, strategy). (FR-PORT-003)
+  * [X] Implement scheduled and event-triggered rebalancing policies. (FR-PORT-004)
 * **Deliverables**
   * static/custom allocators + rebalance triggers + exposure caps
 * **SRS refs:** FR-PORT-002..004, FR-RISK-004
 * **SDD refs:** Â§5.1.3, Â§5.1.4
 * **Dependencies:** IP-25
 * **Completion evidence**
-  * Tests: `py/tests/unit/test_allocation_models.py`, `py/tests/integration/test_rebalance_policies.py`
-  * Usage: `usage/portfolio/allocation_and_rebalance.md`
+  * Tests: `cpp/tests/test_allocation_models.cpp`, `cpp/tests/test_rebalance_policies.cpp`, `tests/unit/test_allocation_models.py`, `tests/integration/test_rebalance_policies.py`
+  * Usage: `docs/haruquant/usage/portfolio/allocation_and_rebalance.md`
   * Bench/log: `benchmarks/portfolio/rebalance_cost.md`
   * Commit: `TBD`
 

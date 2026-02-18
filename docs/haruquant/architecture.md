@@ -509,3 +509,38 @@
   - `docs/haruquant/usage/portfolio/portfolio_state.md`
   - `benchmarks/portfolio/state_update_perf.md`
 
+## Allocation/Rebalance/Exposure Models (IP-26)
+
+- C++ primitives:
+  - `cpp/include/engine/engine.hpp::PortfolioAllocator`
+  - `cpp/include/engine/engine.hpp::RebalanceController`
+  - `cpp/include/engine/engine.hpp::ExposureConstraints`
+  - implementation in `cpp/src/engine/analytics.cpp`
+- Allocation models:
+  - static equal-weight
+  - risk parity (inverse volatility weighting)
+  - custom weights (optional normalization)
+- Exposure constraints:
+  - total portfolio exposure cap
+  - per-symbol exposure cap
+  - per-strategy exposure caps
+  - per-asset exposure caps
+- Rebalance policies:
+  - scheduled interval-based trigger
+  - event trigger based on allocation drift threshold
+- Bridge exposure:
+  - `hqt_engine.sim.PortfolioAllocator`
+  - `hqt_engine.sim.RebalancePolicy`
+  - `hqt_engine.sim.RebalanceController`
+  - `hqt_engine.sim.ExposureConstraints`
+- Design direction:
+  - C++ remains the execution path for simulation/backtest loops.
+  - Python usage is orchestration-only and invokes C++ APIs at control boundaries.
+- Evidence:
+  - `cpp/tests/test_allocation_models.cpp`
+  - `cpp/tests/test_rebalance_policies.cpp`
+  - `tests/unit/test_allocation_models.py`
+  - `tests/integration/test_rebalance_policies.py`
+  - `docs/haruquant/usage/portfolio/allocation_and_rebalance.md`
+  - `benchmarks/portfolio/rebalance_cost.md`
+

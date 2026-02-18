@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 namespace hqt::sim {
 
@@ -353,6 +354,172 @@ ResultMetricsSummary ResultMetrics::from_trades(
     }
 
     return out;
+}
+
+std::unordered_map<std::string, double> PortfolioAllocator::equal_weight(
+    const std::vector<std::string>& symbols,
+    double max_total_exposure) {
+    if (symbols.empty() || max_total_exposure <= 0.0) {
+        return {};
+    }
+    const double w = max_total_exposure / static_cast<double>(symbols.size());
+    std::unordered_map<std::string, double> out;
+    out.reserve(symbols.size());
+    for (const auto& symbol : symbols) {
+        out[symbol] = w;
+    }
+    return out;
+}
+
+std::unordered_map<std::string, double> PortfolioAllocator::risk_parity(
+    const std::unordered_map<std::string, double>& symbol_volatility,
+    double max_total_exposure) {
+    if (symbol_volatility.empty() || max_total_exposure <= 0.0) {
+        return {};
+    }
+
+    std::unordered_map<std::string, double> inverse_vol;
+    inverse_vol.reserve(symbol_volatility.size());
+    double total_inverse = 0.0;
+    for (const auto& [symbol, vol] : symbol_volatility) {
+        const double inv = vol > 0.0 ? (1.0 / vol) : 0.0;
+        inverse_vol[symbol] = inv;
+        total_inverse += inv;
+    }
+
+    if (total_inverse <= 0.0) {
+        std::vector<std::string> symbols;
+        symbols.reserve(symbol_volatility.size());
+        for (const auto& [symbol, _] : symbol_volatility) {
+            symbols.push_back(symbol);
+        }
+        return equal_weight(symbols, max_total_exposure);
+    }
+
+    std::unordered_map<std::string, double> out;
+    out.reserve(inverse_vol.size());
+    for (const auto& [symbol, inv] : inverse_vol) {
+        out[symbol] = (inv / total_inverse) * max_total_exposure;
+    }
+    return out;
+}
+
+std::unordered_map<std::string, double> PortfolioAllocator::custom(
+    const std::unordered_map<std::string, double>& raw_weights,
+    double max_total_exposure,
+    bool normalize) {
+    if (raw_weights.empty() || max_total_exposure <= 0.0) {
+        return {};
+    }
+
+    std::unordered_map<std::string, double> out;
+    out.reserve(raw_weights.size());
+    for (const auto& [symbol, weight] : raw_weights) {
+        out[symbol] = std::max(0.0, weight);
+    }
+
+    if (!normalize) {
+        return out;
+    }
+
+    double sum = 0.0;
+    for (const auto& [_, weight] : out) {
+        sum += weight;
+    }
+    if (sum <= 0.0) {
+        return out;
+    }
+    for (auto& [_, weight] : out) {
+        weight = (weight / sum) * max_total_exposure;
+    }
+    return out;
+}
+
+std::unordered_map<std::string, double> PortfolioAllocator::apply_exposure_constraints(
+    const std::unordered_map<std::string, double>& target_allocations,
+    const std::unordered_map<std::string, std::string>& symbol_to_strategy,
+    const std::unordered_map<std::string, std::string>& symbol_to_asset,
+    const ExposureConstraints& constraints) {
+    std::unordered_map<std::string, double> out;
+    out.reserve(target_allocations.size());
+
+    std::unordered_map<std::string, double> strategy_exposure;
+    std::unordered_map<std::string, double> asset_exposure;
+    double total = 0.0;
+
+    for (const auto& [symbol, raw] : target_allocations) {
+        double allocation = std::max(0.0, raw);
+        allocation = std::min(allocation, std::max(0.0, constraints.max_symbol_exposure));
+
+        const auto strategy_it = symbol_to_strategy.find(symbol);
+        if (strategy_it != symbol_to_strategy.end()) {
+            const auto limit_it = constraints.max_strategy_exposure.find(strategy_it->second);
+            if (limit_it != constraints.max_strategy_exposure.end()) {
+                const double used = strategy_exposure[strategy_it->second];
+                allocation = std::min(allocation, std::max(0.0, limit_it->second - used));
+            }
+        }
+
+        const auto asset_it = symbol_to_asset.find(symbol);
+        if (asset_it != symbol_to_asset.end()) {
+            const auto limit_it = constraints.max_asset_exposure.find(asset_it->second);
+            if (limit_it != constraints.max_asset_exposure.end()) {
+                const double used = asset_exposure[asset_it->second];
+                allocation = std::min(allocation, std::max(0.0, limit_it->second - used));
+            }
+        }
+
+        out[symbol] = allocation;
+        total += allocation;
+        if (strategy_it != symbol_to_strategy.end()) {
+            strategy_exposure[strategy_it->second] += allocation;
+        }
+        if (asset_it != symbol_to_asset.end()) {
+            asset_exposure[asset_it->second] += allocation;
+        }
+    }
+
+    if (total > constraints.max_total_exposure && total > 0.0) {
+        const double scale = constraints.max_total_exposure / total;
+        for (auto& [_, allocation] : out) {
+            allocation *= scale;
+        }
+    }
+
+    return out;
+}
+
+RebalanceController::RebalanceController(RebalancePolicy policy)
+    : policy_(policy) {}
+
+bool RebalanceController::should_rebalance(
+    int64_t now_msc,
+    const std::unordered_map<std::string, double>& current_allocations,
+    const std::unordered_map<std::string, double>& target_allocations) const {
+    if (policy_.schedule_interval_msc > 0 &&
+        (last_rebalance_msc_ == 0 || (now_msc - last_rebalance_msc_) >= policy_.schedule_interval_msc)) {
+        return true;
+    }
+
+    if (policy_.drift_threshold > 0.0) {
+        for (const auto& [symbol, target] : target_allocations) {
+            const auto it = current_allocations.find(symbol);
+            const double current = (it == current_allocations.end()) ? 0.0 : it->second;
+            if (std::abs(current - target) >= policy_.drift_threshold) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void RebalanceController::mark_rebalanced(int64_t now_msc) {
+    last_rebalance_msc_ = now_msc;
+}
+
+int64_t RebalanceController::last_rebalance_msc() const noexcept {
+    return last_rebalance_msc_;
 }
 
 PortfolioEngine::PortfolioEngine(SimulatorClient& client)

@@ -229,6 +229,18 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("symbol", &PortfolioSymbolInput::symbol)
         .def_rw("bars", &PortfolioSymbolInput::bars);
 
+    nb::class_<ExposureConstraints>(m, "ExposureConstraints")
+        .def(nb::init<>())
+        .def_rw("max_total_exposure", &ExposureConstraints::max_total_exposure)
+        .def_rw("max_symbol_exposure", &ExposureConstraints::max_symbol_exposure)
+        .def_rw("max_strategy_exposure", &ExposureConstraints::max_strategy_exposure)
+        .def_rw("max_asset_exposure", &ExposureConstraints::max_asset_exposure);
+
+    nb::class_<RebalancePolicy>(m, "RebalancePolicy")
+        .def(nb::init<>())
+        .def_rw("schedule_interval_msc", &RebalancePolicy::schedule_interval_msc)
+        .def_rw("drift_threshold", &RebalancePolicy::drift_threshold);
+
     nb::class_<ResultMetricsSummary>(m, "ResultMetricsSummary")
         .def(nb::init<>())
         .def_rw("initial_balance", &ResultMetricsSummary::initial_balance)
@@ -417,6 +429,26 @@ void register_sim_bindings(nb::module_& m) {
              })
         .def("effective_allocations", &PortfolioEngine::effective_allocations,
              nb::rv_policy::reference_internal);
+
+    nb::class_<PortfolioAllocator>(m, "PortfolioAllocator")
+        .def_static("equal_weight", &PortfolioAllocator::equal_weight,
+                    nb::arg("symbols"), nb::arg("max_total_exposure") = 1.0)
+        .def_static("risk_parity", &PortfolioAllocator::risk_parity,
+                    nb::arg("symbol_volatility"), nb::arg("max_total_exposure") = 1.0)
+        .def_static("custom", &PortfolioAllocator::custom,
+                    nb::arg("raw_weights"), nb::arg("max_total_exposure") = 1.0, nb::arg("normalize") = true)
+        .def_static("apply_exposure_constraints", &PortfolioAllocator::apply_exposure_constraints,
+                    nb::arg("target_allocations"),
+                    nb::arg("symbol_to_strategy"),
+                    nb::arg("symbol_to_asset"),
+                    nb::arg("constraints"));
+
+    nb::class_<RebalanceController>(m, "RebalanceController")
+        .def(nb::init<RebalancePolicy>(), nb::arg("policy"))
+        .def("should_rebalance", &RebalanceController::should_rebalance,
+             nb::arg("now_msc"), nb::arg("current_allocations"), nb::arg("target_allocations"))
+        .def("mark_rebalanced", &RebalanceController::mark_rebalanced, nb::arg("now_msc"))
+        .def("last_rebalance_msc", &RebalanceController::last_rebalance_msc);
 
     // ── ResultMetrics ────────────────────────────────────────────────
 

@@ -509,6 +509,53 @@ struct PortfolioSymbolInput {
     std::vector<BacktestBarStep> bars{};
 };
 
+struct ExposureConstraints {
+    double max_total_exposure{1.0};
+    double max_symbol_exposure{1.0};
+    std::unordered_map<std::string, double> max_strategy_exposure{};
+    std::unordered_map<std::string, double> max_asset_exposure{};
+};
+
+struct RebalancePolicy {
+    int64_t schedule_interval_msc{0};
+    double drift_threshold{0.0};
+};
+
+class PortfolioAllocator {
+public:
+    [[nodiscard]] static std::unordered_map<std::string, double> equal_weight(
+        const std::vector<std::string>& symbols,
+        double max_total_exposure = 1.0);
+    [[nodiscard]] static std::unordered_map<std::string, double> risk_parity(
+        const std::unordered_map<std::string, double>& symbol_volatility,
+        double max_total_exposure = 1.0);
+    [[nodiscard]] static std::unordered_map<std::string, double> custom(
+        const std::unordered_map<std::string, double>& raw_weights,
+        double max_total_exposure = 1.0,
+        bool normalize = true);
+    [[nodiscard]] static std::unordered_map<std::string, double> apply_exposure_constraints(
+        const std::unordered_map<std::string, double>& target_allocations,
+        const std::unordered_map<std::string, std::string>& symbol_to_strategy,
+        const std::unordered_map<std::string, std::string>& symbol_to_asset,
+        const ExposureConstraints& constraints);
+};
+
+class RebalanceController {
+public:
+    explicit RebalanceController(RebalancePolicy policy);
+
+    [[nodiscard]] bool should_rebalance(
+        int64_t now_msc,
+        const std::unordered_map<std::string, double>& current_allocations,
+        const std::unordered_map<std::string, double>& target_allocations) const;
+    void mark_rebalanced(int64_t now_msc);
+    [[nodiscard]] int64_t last_rebalance_msc() const noexcept;
+
+private:
+    RebalancePolicy policy_{};
+    int64_t last_rebalance_msc_{0};
+};
+
 class PortfolioEngine {
 public:
     explicit PortfolioEngine(SimulatorClient& client);
