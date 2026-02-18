@@ -205,6 +205,26 @@
   - `cpp/tests/test_replay_clock.cpp`
   - `tests/replay/test_replay_clock_consistency.py`
 
+## Replay Certification + WFO/WFM (IP-40)
+
+- Core C++ APIs:
+  - `cpp/include/engine/engine.hpp::ReplayCertifier`
+  - `cpp/include/engine/engine.hpp::WfoWfmOrchestrator`
+  - `cpp/include/engine/engine.hpp::EdgeDetector`
+- Scope:
+  - deterministic replay run fingerprint comparison for certification
+  - walk-forward window generation and orchestration
+  - walk-forward matrix orchestration across train/test specs
+  - edge summary report (mean test score + p-value + verdict)
+- Bridge exposure (`hqt_engine.sim`):
+  - `ReplayTradeEvent`, `ReplayCertifier`
+  - `WfoSpec`, `WfoWindow`, `WfoWindowResult`, `WfoSummary`, `WfmCellResult`
+  - `WfoWfmOrchestrator`, `EdgeDetector`
+- Validation:
+  - `cpp/tests/test_replay_certification.cpp`
+  - `cpp/tests/test_wfo_wfm.cpp`
+  - `docs/haruquant/usage/research/wfo_wfm.md`
+
 ## Data Adapters and Normalization Pipeline (IP-09)
 
 - Python adapters:

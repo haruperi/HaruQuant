@@ -917,6 +917,96 @@ public:
         double final_balance);
 };
 
+struct ReplayTradeEvent {
+    int64_t time_msc{0};
+    std::string symbol{};
+    std::string side{};
+    double price{0.0};
+    double volume{0.0};
+    uint64_t ticket{0};
+};
+
+struct ReplayCertificationResult {
+    bool consistent{false};
+    std::string baseline_fingerprint{};
+    std::string candidate_fingerprint{};
+    std::string message{};
+};
+
+class ReplayCertifier {
+public:
+    [[nodiscard]] static std::string fingerprint(const std::vector<ReplayTradeEvent>& events);
+    [[nodiscard]] static ReplayCertificationResult compare(
+        const std::vector<ReplayTradeEvent>& baseline,
+        const std::vector<ReplayTradeEvent>& candidate);
+};
+
+struct WfoSpec {
+    std::size_t train_bars{0};
+    std::size_t test_bars{0};
+    std::size_t step_bars{0};
+};
+
+struct WfoWindow {
+    std::size_t train_start{0};
+    std::size_t train_end{0};
+    std::size_t test_start{0};
+    std::size_t test_end{0};
+};
+
+struct WfoWindowResult {
+    WfoWindow window{};
+    double train_score{0.0};
+    double test_score{0.0};
+};
+
+struct WfoSummary {
+    std::size_t num_windows{0};
+    double avg_train_score{0.0};
+    double avg_test_score{0.0};
+    double std_train_score{0.0};
+    double std_test_score{0.0};
+    double train_test_correlation{0.0};
+    double overfitting_ratio{0.0};
+};
+
+struct WfmCellResult {
+    WfoSpec spec{};
+    WfoSummary summary{};
+};
+
+class WfoWfmOrchestrator {
+public:
+    [[nodiscard]] static std::vector<WfoWindow> build_windows(std::size_t total_bars, const WfoSpec& spec);
+
+    [[nodiscard]] static std::vector<WfoWindowResult> run_wfo(
+        std::size_t total_bars,
+        const WfoSpec& spec,
+        const std::function<double(const WfoWindow&, bool)>& evaluator);
+
+    [[nodiscard]] static WfoSummary summarize(const std::vector<WfoWindowResult>& results);
+
+    [[nodiscard]] static std::vector<WfmCellResult> run_wfm(
+        std::size_t total_bars,
+        const std::vector<WfoSpec>& matrix_specs,
+        const std::function<double(const WfoWindow&, bool)>& evaluator);
+};
+
+struct EdgeDetectorReport {
+    std::size_t windows{0};
+    double mean_test_score{0.0};
+    double p_value{1.0};
+    bool skill_confirmed{false};
+    std::string verdict{"NO_EDGE"};
+};
+
+class EdgeDetector {
+public:
+    [[nodiscard]] static EdgeDetectorReport from_wfo(
+        const std::vector<WfoWindowResult>& results,
+        double alpha = 0.05);
+};
+
 }  // namespace hqt::sim
 
 namespace hqt::engine {

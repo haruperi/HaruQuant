@@ -853,12 +853,12 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-40 Replay certification + WFO/WFM orchestration
+#### [X] IP-40 Replay certification + WFO/WFM orchestration
 
 * **Sub-tasks**
-  * [ ] Implement replay verifier comparing trade sequences across runs. (FR-BT-007, FR-BT-011)
-  * [ ] Implement WFO and Matrix evaluation orchestrator. (FR-BT-005)
-  * [ ] Generate **Edge Detector** reports (skill vs luck, p-values). (FR-BT-017)
+  * [X] Implement replay verifier comparing trade sequences across runs. (FR-BT-007, FR-BT-011)
+  * [X] Implement WFO and Matrix evaluation orchestrator. (FR-BT-005)
+  * [X] Generate **Edge Detector** reports (skill vs luck, p-values). (FR-BT-017)
 * **Deliverables**
   * replay verifier
   * WFO/WFM runner integration
@@ -866,9 +866,9 @@
 * **SDD refs:** Â§5.1.7, Â§10.4, Â§16
 * **Dependencies:** IP-37, IP-42
 * **Completion evidence**
-  * Tests: `py/tests/replay/test_replay_certification.py`, `py/tests/integration/test_wfo_wfm.py`
-  * Usage: `usage/research/wfo_wfm.md`
-  * Bench/log: `artifacts/benchmarks/replay_wfo_wfm_report.json`
+  * Tests: `cpp/tests/test_replay_certification.cpp`, `cpp/tests/test_wfo_wfm.cpp`
+  * Usage: `docs/haruquant/usage/research/wfo_wfm.md`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-41 Experiment manager and registry

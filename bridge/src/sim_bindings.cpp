@@ -683,6 +683,101 @@ void register_sim_bindings(nb::module_& m) {
         .def("processed_bars", &VectorizedBacktestEngine::processed_bars)
         .def("total_trades", &VectorizedBacktestEngine::total_trades);
 
+    nb::class_<ReplayTradeEvent>(m, "ReplayTradeEvent")
+        .def(nb::init<>())
+        .def_rw("time_msc", &ReplayTradeEvent::time_msc)
+        .def_rw("symbol", &ReplayTradeEvent::symbol)
+        .def_rw("side", &ReplayTradeEvent::side)
+        .def_rw("price", &ReplayTradeEvent::price)
+        .def_rw("volume", &ReplayTradeEvent::volume)
+        .def_rw("ticket", &ReplayTradeEvent::ticket);
+
+    nb::class_<ReplayCertificationResult>(m, "ReplayCertificationResult")
+        .def(nb::init<>())
+        .def_rw("consistent", &ReplayCertificationResult::consistent)
+        .def_rw("baseline_fingerprint", &ReplayCertificationResult::baseline_fingerprint)
+        .def_rw("candidate_fingerprint", &ReplayCertificationResult::candidate_fingerprint)
+        .def_rw("message", &ReplayCertificationResult::message);
+
+    nb::class_<ReplayCertifier>(m, "ReplayCertifier")
+        .def_static("fingerprint", &ReplayCertifier::fingerprint, nb::arg("events"))
+        .def_static("compare", &ReplayCertifier::compare, nb::arg("baseline"), nb::arg("candidate"));
+
+    nb::class_<WfoSpec>(m, "WfoSpec")
+        .def(nb::init<>())
+        .def_rw("train_bars", &WfoSpec::train_bars)
+        .def_rw("test_bars", &WfoSpec::test_bars)
+        .def_rw("step_bars", &WfoSpec::step_bars);
+
+    nb::class_<WfoWindow>(m, "WfoWindow")
+        .def(nb::init<>())
+        .def_rw("train_start", &WfoWindow::train_start)
+        .def_rw("train_end", &WfoWindow::train_end)
+        .def_rw("test_start", &WfoWindow::test_start)
+        .def_rw("test_end", &WfoWindow::test_end);
+
+    nb::class_<WfoWindowResult>(m, "WfoWindowResult")
+        .def(nb::init<>())
+        .def_rw("window", &WfoWindowResult::window)
+        .def_rw("train_score", &WfoWindowResult::train_score)
+        .def_rw("test_score", &WfoWindowResult::test_score);
+
+    nb::class_<WfoSummary>(m, "WfoSummary")
+        .def(nb::init<>())
+        .def_rw("num_windows", &WfoSummary::num_windows)
+        .def_rw("avg_train_score", &WfoSummary::avg_train_score)
+        .def_rw("avg_test_score", &WfoSummary::avg_test_score)
+        .def_rw("std_train_score", &WfoSummary::std_train_score)
+        .def_rw("std_test_score", &WfoSummary::std_test_score)
+        .def_rw("train_test_correlation", &WfoSummary::train_test_correlation)
+        .def_rw("overfitting_ratio", &WfoSummary::overfitting_ratio);
+
+    nb::class_<WfmCellResult>(m, "WfmCellResult")
+        .def(nb::init<>())
+        .def_rw("spec", &WfmCellResult::spec)
+        .def_rw("summary", &WfmCellResult::summary);
+
+    nb::class_<EdgeDetectorReport>(m, "EdgeDetectorReport")
+        .def(nb::init<>())
+        .def_rw("windows", &EdgeDetectorReport::windows)
+        .def_rw("mean_test_score", &EdgeDetectorReport::mean_test_score)
+        .def_rw("p_value", &EdgeDetectorReport::p_value)
+        .def_rw("skill_confirmed", &EdgeDetectorReport::skill_confirmed)
+        .def_rw("verdict", &EdgeDetectorReport::verdict);
+
+    nb::class_<WfoWfmOrchestrator>(m, "WfoWfmOrchestrator")
+        .def_static("build_windows", &WfoWfmOrchestrator::build_windows, nb::arg("total_bars"), nb::arg("spec"))
+        .def_static(
+            "run_wfo",
+            [](std::size_t total_bars, const WfoSpec& spec, nb::callable evaluator) {
+                std::function<double(const WfoWindow&, bool)> eval =
+                    [evaluator](const WfoWindow& w, bool is_train) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(w, is_train));
+                    };
+                return WfoWfmOrchestrator::run_wfo(total_bars, spec, eval);
+            },
+            nb::arg("total_bars"),
+            nb::arg("spec"),
+            nb::arg("evaluator"))
+        .def_static("summarize", &WfoWfmOrchestrator::summarize, nb::arg("results"))
+        .def_static(
+            "run_wfm",
+            [](std::size_t total_bars, const std::vector<WfoSpec>& matrix_specs, nb::callable evaluator) {
+                std::function<double(const WfoWindow&, bool)> eval =
+                    [evaluator](const WfoWindow& w, bool is_train) {
+                        nb::gil_scoped_acquire gil;
+                        return nb::cast<double>(evaluator(w, is_train));
+                    };
+                return WfoWfmOrchestrator::run_wfm(total_bars, matrix_specs, eval);
+            },
+            nb::arg("total_bars"),
+            nb::arg("matrix_specs"),
+            nb::arg("evaluator"));
+
+    nb::class_<EdgeDetector>(m, "EdgeDetector")
+        .def_static("from_wfo", &EdgeDetector::from_wfo, nb::arg("results"), nb::arg("alpha") = 0.05);
+
     // ── ResultMetrics ────────────────────────────────────────────────
 
     nb::class_<ResultMetrics>(m, "ResultMetrics")

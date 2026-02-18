@@ -9,6 +9,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <numeric>
 #include <sstream>
@@ -1056,6 +1057,264 @@ double VectorizedBacktestEngine::normalize_volume(double requested, const Symbol
     vol = std::max(vol, vol_min);
     vol = std::min(vol, vol_max);
     return vol;
+}
+
+namespace {
+
+std::string fnv1a64_hex(std::string_view payload) {
+    std::uint64_t hash = 1469598103934665603ULL;
+    for (const unsigned char c : payload) {
+        hash ^= static_cast<std::uint64_t>(c);
+        hash *= 1099511628211ULL;
+    }
+    std::ostringstream os;
+    os << std::hex << std::setw(16) << std::setfill('0') << hash;
+    return os.str();
+}
+
+double safe_mean(const std::vector<double>& values) {
+    if (values.empty()) {
+        return 0.0;
+    }
+    const double sum = std::accumulate(values.begin(), values.end(), 0.0);
+    return sum / static_cast<double>(values.size());
+}
+
+double safe_stddev(const std::vector<double>& values, double mean) {
+    if (values.empty()) {
+        return 0.0;
+    }
+    double acc = 0.0;
+    for (const double v : values) {
+        const double d = v - mean;
+        acc += d * d;
+    }
+    return std::sqrt(acc / static_cast<double>(values.size()));
+}
+
+double safe_corr(const std::vector<double>& a, const std::vector<double>& b) {
+    if (a.size() != b.size() || a.size() < 2U) {
+        return 0.0;
+    }
+
+    const double mean_a = safe_mean(a);
+    const double mean_b = safe_mean(b);
+    const double std_a = safe_stddev(a, mean_a);
+    const double std_b = safe_stddev(b, mean_b);
+    if (std_a <= 0.0 || std_b <= 0.0) {
+        return 0.0;
+    }
+
+    double cov = 0.0;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        cov += (a[i] - mean_a) * (b[i] - mean_b);
+    }
+    cov /= static_cast<double>(a.size());
+    return cov / (std_a * std_b);
+}
+
+long double binomial_prob(std::size_t n, std::size_t k) {
+    if (k > n) {
+        return 0.0L;
+    }
+    const std::size_t kk = std::min(k, n - k);
+    long double comb = 1.0L;
+    for (std::size_t i = 1; i <= kk; ++i) {
+        comb *= static_cast<long double>(n - kk + i);
+        comb /= static_cast<long double>(i);
+    }
+    long double p = comb;
+    for (std::size_t i = 0; i < n; ++i) {
+        p *= 0.5L;
+    }
+    return p;
+}
+
+}  // namespace
+
+std::string ReplayCertifier::fingerprint(const std::vector<ReplayTradeEvent>& events) {
+    struct CanonicalRow {
+        std::size_t idx{0};
+        ReplayTradeEvent event{};
+    };
+
+    std::vector<CanonicalRow> rows;
+    rows.reserve(events.size());
+    for (std::size_t i = 0; i < events.size(); ++i) {
+        rows.push_back(CanonicalRow{i, events[i]});
+    }
+
+    std::sort(rows.begin(), rows.end(), [](const CanonicalRow& lhs, const CanonicalRow& rhs) {
+        if (lhs.event.time_msc != rhs.event.time_msc) {
+            return lhs.event.time_msc < rhs.event.time_msc;
+        }
+        if (lhs.event.symbol != rhs.event.symbol) {
+            return lhs.event.symbol < rhs.event.symbol;
+        }
+        if (lhs.event.side != rhs.event.side) {
+            return lhs.event.side < rhs.event.side;
+        }
+        if (lhs.event.ticket != rhs.event.ticket) {
+            return lhs.event.ticket < rhs.event.ticket;
+        }
+        return lhs.idx < rhs.idx;
+    });
+
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(10);
+    for (const auto& row : rows) {
+        payload << row.event.time_msc << '|'
+                << row.event.symbol << '|'
+                << row.event.side << '|'
+                << row.event.price << '|'
+                << row.event.volume << '|'
+                << row.event.ticket << ';';
+    }
+    return fnv1a64_hex(payload.str());
+}
+
+ReplayCertificationResult ReplayCertifier::compare(
+    const std::vector<ReplayTradeEvent>& baseline,
+    const std::vector<ReplayTradeEvent>& candidate) {
+    ReplayCertificationResult out;
+    out.baseline_fingerprint = fingerprint(baseline);
+    out.candidate_fingerprint = fingerprint(candidate);
+    out.consistent = (out.baseline_fingerprint == out.candidate_fingerprint);
+    if (out.consistent) {
+        out.message = "Replay consistent: " + out.baseline_fingerprint;
+    } else {
+        out.message = "Replay mismatch: baseline=" + out.baseline_fingerprint +
+            " candidate=" + out.candidate_fingerprint;
+    }
+    return out;
+}
+
+std::vector<WfoWindow> WfoWfmOrchestrator::build_windows(std::size_t total_bars, const WfoSpec& spec) {
+    std::vector<WfoWindow> windows;
+    if (spec.train_bars == 0 || spec.test_bars == 0 || total_bars < (spec.train_bars + spec.test_bars)) {
+        return windows;
+    }
+
+    const std::size_t step = (spec.step_bars > 0) ? spec.step_bars : spec.test_bars;
+    if (step == 0) {
+        return windows;
+    }
+
+    std::size_t start = 0;
+    while ((start + spec.train_bars + spec.test_bars) <= total_bars) {
+        WfoWindow w;
+        w.train_start = start;
+        w.train_end = start + spec.train_bars;
+        w.test_start = w.train_end;
+        w.test_end = w.test_start + spec.test_bars;
+        windows.push_back(w);
+        start += step;
+    }
+    return windows;
+}
+
+std::vector<WfoWindowResult> WfoWfmOrchestrator::run_wfo(
+    std::size_t total_bars,
+    const WfoSpec& spec,
+    const std::function<double(const WfoWindow&, bool)>& evaluator) {
+    std::vector<WfoWindowResult> out;
+    if (!evaluator) {
+        return out;
+    }
+    const auto windows = build_windows(total_bars, spec);
+    out.reserve(windows.size());
+    for (const auto& w : windows) {
+        WfoWindowResult result;
+        result.window = w;
+        result.train_score = evaluator(w, true);
+        result.test_score = evaluator(w, false);
+        out.push_back(result);
+    }
+    return out;
+}
+
+WfoSummary WfoWfmOrchestrator::summarize(const std::vector<WfoWindowResult>& results) {
+    WfoSummary out;
+    out.num_windows = results.size();
+    if (results.empty()) {
+        return out;
+    }
+
+    std::vector<double> train;
+    std::vector<double> test;
+    train.reserve(results.size());
+    test.reserve(results.size());
+    for (const auto& r : results) {
+        train.push_back(r.train_score);
+        test.push_back(r.test_score);
+    }
+
+    out.avg_train_score = safe_mean(train);
+    out.avg_test_score = safe_mean(test);
+    out.std_train_score = safe_stddev(train, out.avg_train_score);
+    out.std_test_score = safe_stddev(test, out.avg_test_score);
+    out.train_test_correlation = safe_corr(train, test);
+    out.overfitting_ratio = (std::abs(out.avg_train_score) > 1e-12)
+        ? (out.avg_test_score / out.avg_train_score)
+        : 0.0;
+    return out;
+}
+
+std::vector<WfmCellResult> WfoWfmOrchestrator::run_wfm(
+    std::size_t total_bars,
+    const std::vector<WfoSpec>& matrix_specs,
+    const std::function<double(const WfoWindow&, bool)>& evaluator) {
+    std::vector<WfmCellResult> out;
+    out.reserve(matrix_specs.size());
+    for (const auto& spec : matrix_specs) {
+        WfmCellResult cell;
+        cell.spec = spec;
+        const auto results = run_wfo(total_bars, spec, evaluator);
+        cell.summary = summarize(results);
+        out.push_back(cell);
+    }
+    return out;
+}
+
+EdgeDetectorReport EdgeDetector::from_wfo(const std::vector<WfoWindowResult>& results, double alpha) {
+    EdgeDetectorReport out;
+    out.windows = results.size();
+    if (results.empty()) {
+        out.verdict = "INSUFFICIENT_DATA";
+        return out;
+    }
+
+    std::vector<double> test_scores;
+    test_scores.reserve(results.size());
+    for (const auto& r : results) {
+        test_scores.push_back(r.test_score);
+    }
+    out.mean_test_score = safe_mean(test_scores);
+
+    std::size_t positives = 0;
+    for (const auto s : test_scores) {
+        if (s > 0.0) {
+            ++positives;
+        }
+    }
+
+    long double p = 0.0L;
+    for (std::size_t k = positives; k <= test_scores.size(); ++k) {
+        p += binomial_prob(test_scores.size(), k);
+    }
+    out.p_value = static_cast<double>(std::min<long double>(1.0L, p));
+    out.skill_confirmed = (out.mean_test_score > 0.0) && (out.p_value < alpha);
+
+    if (results.size() < 3U) {
+        out.verdict = "INSUFFICIENT_DATA";
+    } else if (out.skill_confirmed) {
+        out.verdict = "EDGE_CONFIRMED";
+    } else if (out.mean_test_score > 0.0) {
+        out.verdict = "POTENTIAL_EDGE";
+    } else {
+        out.verdict = "NO_EDGE";
+    }
+    return out;
 }
 
 }  // namespace hqt::sim
