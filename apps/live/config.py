@@ -528,6 +528,14 @@ class Config:
         "trading.deviation",
     )
     _PRIVILEGED_MUTABLE_KEYS = frozenset(_NON_CRITICAL_RUNTIME_KEYS)
+    _RISK_OVERRIDE_KEYS = frozenset(
+        (
+            "safety.max_positions",
+            "safety.max_daily_trades",
+            "safety.min_balance",
+            "safety.min_margin_level",
+        )
+    )
 
     def __init__(
         self,
@@ -614,6 +622,61 @@ class Config:
             event={
                 "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
                 "event": "live_config_mutation",
+                "profile": self.active_profile or "",
+                "key": key_text,
+                "reason": reason_text,
+                "user_id": user_id,
+                "actor": username or "",
+                "before": before_value,
+                "after": after_value,
+            },
+        )
+
+    def apply_risk_override(
+        self,
+        key: str,
+        value: Any,
+        *,
+        authorization_token: str,
+        reason: str,
+        actor: Optional[str] = None,
+        audit_log_path: str | Path = DEFAULT_AUDIT_LOG_PATH,
+    ) -> None:
+        """
+        Apply a role-bound risk override and emit immutable audit metadata.
+
+        This is stricter than generic privileged mutation and only allows
+        safety/risk keys used for live risk controls.
+        """
+        key_text = str(key).strip()
+        if key_text not in self._RISK_OVERRIDE_KEYS:
+            raise ConfigError(
+                f"Key not allowed for risk override: {key_text}. "
+                f"Allowed: {', '.join(sorted(self._RISK_OVERRIDE_KEYS))}"
+            )
+
+        reason_text = str(reason).strip()
+        if not reason_text:
+            raise ConfigError("Risk override requires non-empty reason")
+
+        token = str(authorization_token).strip()
+        if not token:
+            raise ConfigError("authorization_token is required for risk override")
+
+        user_id = None
+        username = actor
+        if self.active_profile == "live":
+            user_id, username = _authorize_privileged_actor(token, actor)
+
+        before_value = self.get(key_text)
+        self.set_runtime_override(key_text, value)
+        after_value = self.get(key_text)
+
+        _append_privileged_audit_event(
+            audit_log_path=Path(audit_log_path),
+            event={
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "event": "risk_override",
                 "profile": self.active_profile or "",
                 "key": key_text,
                 "reason": reason_text,

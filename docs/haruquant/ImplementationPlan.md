@@ -676,20 +676,20 @@
   * Bench/log: `TBD`
   * Commit: `TBD`
 
-#### [ ] IP-30 Risk audit/override workflow
+#### [X] IP-30 Risk audit/override workflow
 
 * **Sub-tasks**
-  * [ ] Implement role-bound risk override flow with reason logging. (FR-RISK-006, FR-SAFE-004)
-  * [ ] Implement secure authorization for live risk limit updates. (FR-CONF-006)
+  * [X] Implement role-bound risk override flow with reason logging. (FR-RISK-006, FR-SAFE-004)
+  * [X] Implement secure authorization for live risk limit updates. (FR-CONF-006)
 * **Deliverables**
-  * role-bound override flow with immutable reason logging
+  * [X] role-bound override flow with immutable reason logging
 * **SRS refs:** FR-RISK-006, FR-CONF-006, NFR-AUD-001..003, FR-SAFE-004
 * **SDD refs:** Â§11, Â§12
 * **Dependencies:** IP-16, IP-51
 * **Completion evidence**
-  * Tests: `py/tests/security/test_risk_override_audit.py`
-  * Usage: `usage/risk/risk_override_policy.md`
-  * Bench/log: `artifacts/logs/audit/risk_override_sample.json`
+  * Tests: `tests/security/test_risk_override_audit.py`
+  * Usage: `docs/haruquant/usage/risk/risk_override_policy.md`
+  * Bench/log: `TBD`
   * Commit: `TBD`
 
 #### [ ] IP-31 OMS order state machine + idempotency

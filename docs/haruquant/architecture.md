@@ -404,6 +404,20 @@
   - `tests/usage/risk/11_killswitch_state_machine.py`
   - `docs/haruquant/usage/live/killswitch_runbook.md`
 
+## Risk Override Audit Workflow (IP-30)
+
+- Core module:
+  - `apps/live/config.py`
+- Added flow:
+  - `Config.apply_risk_override(...)` for role-bound risk overrides
+  - restricted risk-key allowlist
+  - mandatory reason
+  - live-profile authorization (superuser token)
+  - immutable JSONL audit event (`event = risk_override`)
+- Evidence:
+  - `tests/security/test_risk_override_audit.py`
+  - `docs/haruquant/usage/risk/risk_override_policy.md`
+
 ## Bridge Ownership and Lifetime Safety (IP-19)
 
 - Ownership contract API:
