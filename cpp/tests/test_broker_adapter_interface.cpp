@@ -78,7 +78,7 @@ TEST(BrokerAdapterTest, MockBrokerDeterministicPartialFill) {
     req.volume = 1.0;
 
     const auto result = broker.submit(req);
-    ASSERT_EQ(result.retcode, 10009);
+    ASSERT_EQ(result.retcode, 10010);
 
     const auto snapshot = broker.fetch_state();
     ASSERT_TRUE(snapshot.positions.count("EURUSD") > 0);
@@ -106,4 +106,3 @@ TEST(BrokerAdapterTest, PaperTradingEngineRoutesThroughAdapter) {
 }
 
 }  // namespace
-

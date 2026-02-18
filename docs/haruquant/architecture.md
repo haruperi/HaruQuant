@@ -755,3 +755,26 @@
   - `tests/integration/test_execution_escalation.py`
   - `docs/haruquant/usage/live/execution_retry_policy.md`
 
+## Execution Algos + Quality Metrics (IP-36)
+
+- Core C++ types:
+  - `cpp/include/engine/engine.hpp::ExecutionAlgoTWAP`
+  - `cpp/include/engine/engine.hpp::ExecutionAlgoVWAP`
+  - `cpp/include/engine/engine.hpp::ExecutionQualitySummary`
+- Runtime integration:
+  - `ExecutionRouter` tracks quality metrics per submission:
+    - partial fills
+    - spread/slippage aggregates
+    - latency aggregates including p99
+- Partial-fill modeling:
+  - `MockBroker` returns partial fill retcode (`10010`) when configured fill ratio is below 1.0.
+- Bridge exposure (`hqt_engine.sim`):
+  - `ExecutionAlgoTWAP`
+  - `ExecutionAlgoVWAP`
+  - `ExecutionQualitySummary`
+  - `ExecutionRouter.quality_summary()`
+- Evidence:
+  - `cpp/tests/test_twap_vwap.cpp`
+  - `tests/integration/test_partial_fills.py`
+  - `docs/haruquant/usage/live/execution_quality.md`
+

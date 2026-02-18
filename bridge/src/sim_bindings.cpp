@@ -422,6 +422,40 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("reason", &ExecutionRouteResult::reason)
         .def_rw("escalation_reason", &ExecutionRouteResult::escalation_reason);
 
+    nb::class_<ExecutionSlice>(m, "ExecutionSlice")
+        .def(nb::init<>())
+        .def_rw("scheduled_time_ms", &ExecutionSlice::scheduled_time_ms)
+        .def_rw("volume", &ExecutionSlice::volume)
+        .def_rw("weight", &ExecutionSlice::weight);
+
+    nb::class_<ExecutionQualitySummary>(m, "ExecutionQualitySummary")
+        .def(nb::init<>())
+        .def_rw("samples", &ExecutionQualitySummary::samples)
+        .def_rw("partial_fill_count", &ExecutionQualitySummary::partial_fill_count)
+        .def_rw("partial_fill_rate", &ExecutionQualitySummary::partial_fill_rate)
+        .def_rw("avg_slippage", &ExecutionQualitySummary::avg_slippage)
+        .def_rw("avg_spread", &ExecutionQualitySummary::avg_spread)
+        .def_rw("avg_latency_ms", &ExecutionQualitySummary::avg_latency_ms)
+        .def_rw("p99_latency_ms", &ExecutionQualitySummary::p99_latency_ms);
+
+    nb::class_<ExecutionAlgoTWAP>(m, "ExecutionAlgoTWAP")
+        .def_static(
+            "build_schedule",
+            &ExecutionAlgoTWAP::build_schedule,
+            nb::arg("total_volume"),
+            nb::arg("start_time_ms"),
+            nb::arg("end_time_ms"),
+            nb::arg("slices"));
+
+    nb::class_<ExecutionAlgoVWAP>(m, "ExecutionAlgoVWAP")
+        .def_static(
+            "build_schedule",
+            &ExecutionAlgoVWAP::build_schedule,
+            nb::arg("total_volume"),
+            nb::arg("start_time_ms"),
+            nb::arg("end_time_ms"),
+            nb::arg("market_volume_profile"));
+
     nb::class_<ExecutionRouter>(m, "ExecutionRouter")
         .def("__init__", [](ExecutionRouter* self, MockBroker broker, ExecutionPolicy policy) {
             new (self) ExecutionRouter(std::make_shared<MockBroker>(std::move(broker)), policy);
@@ -446,7 +480,9 @@ void register_sim_bindings(nb::module_& m) {
             nb::arg("margin_required") = 0.0,
             nb::arg("free_margin") = -1.0,
             nb::arg("live_mode") = true)
-        .def("cancel", &ExecutionRouter::cancel, nb::arg("order_id"));
+        .def("cancel", &ExecutionRouter::cancel, nb::arg("order_id"))
+        .def("reset_quality_metrics", &ExecutionRouter::reset_quality_metrics)
+        .def("quality_summary", &ExecutionRouter::quality_summary);
 
     // ── BacktestEngine ───────────────────────────────────────────────
 

@@ -778,12 +778,12 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-36 TWAP/VWAP + partial fills + latency/slippage metrics
+#### [X] IP-36 TWAP/VWAP + partial fills + latency/slippage metrics
 
 * **Sub-tasks**
-  * [ ] Implement basic execution algorithms (TWAP, VWAP). (FR-EXEC-002)
-  * [ ] Model and track slippage, spread, and partial fills. (FR-EXEC-003)
-  * [ ] Track p99 latency from intent to dispatch and ack. (FR-EXEC-005, NFR-PERF-004)
+  * [X] Implement basic execution algorithms (TWAP, VWAP). (FR-EXEC-002)
+  * [X] Model and track slippage, spread, and partial fills. (FR-EXEC-003)
+  * [X] Track p99 latency from intent to dispatch and ack. (FR-EXEC-005, NFR-PERF-004)
 * **Deliverables**
   * TWAP/VWAP algorithms
   * partial fill handling
@@ -792,9 +792,9 @@
 * **SDD refs:** Â§5.1.6, Â§10.2, Â§13
 * **Dependencies:** IP-35, IP-44
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_twap_vwap.cpp`, `py/tests/integration/test_partial_fills.py`
-  * Usage: `usage/live/execution_quality.md`
-  * Bench/log: `artifacts/benchmarks/execution/quality_report.json`
+  * Tests: `cpp/tests/test_twap_vwap.cpp`, `tests/integration/test_partial_fills.py`
+  * Usage: `docs/haruquant/usage/live/execution_quality.md`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 ---

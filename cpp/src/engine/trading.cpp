@@ -864,7 +864,16 @@ TradeResult MockBroker::submit(const TradeRequest& request) {
     if (deterministic_price_.has_value()) {
         effective.price = *deterministic_price_;
     }
-    return client_.order_send(effective);
+    TradeResult out = client_.order_send(effective);
+    if (request.volume > 0.0 && effective.volume > 0.0 && effective.volume < request.volume &&
+        hqt::util::is_success_retcode(out.retcode)) {
+        out.retcode = 10010;
+        out.volume = effective.volume;
+        if (out.comment.empty()) {
+            out.comment = "Partial fill (mock ratio)";
+        }
+    }
+    return out;
 }
 
 TradeResult MockBroker::cancel(uint64_t order_id) {
@@ -946,6 +955,72 @@ BrokerSnapshot PaperTradingEngine::snapshot_state() const {
         return {};
     }
     return adapter_->fetch_state();
+}
+
+std::vector<ExecutionSlice> ExecutionAlgoTWAP::build_schedule(
+    const double total_volume,
+    const int64_t start_time_ms,
+    const int64_t end_time_ms,
+    const std::size_t slices) {
+    std::vector<ExecutionSlice> out;
+    if (total_volume <= 0.0 || slices == 0U || end_time_ms < start_time_ms) {
+        return out;
+    }
+    out.reserve(slices);
+
+    const double slice_volume = total_volume / static_cast<double>(slices);
+    const int64_t span = end_time_ms - start_time_ms;
+    const int64_t step = (slices > 1U) ? (span / static_cast<int64_t>(slices - 1U)) : 0;
+    double assigned = 0.0;
+
+    for (std::size_t i = 0; i < slices; ++i) {
+        ExecutionSlice s{};
+        s.scheduled_time_ms = start_time_ms + (step * static_cast<int64_t>(i));
+        s.weight = 1.0 / static_cast<double>(slices);
+        s.volume = (i + 1U == slices) ? (total_volume - assigned) : slice_volume;
+        assigned += s.volume;
+        out.push_back(s);
+    }
+    return out;
+}
+
+std::vector<ExecutionSlice> ExecutionAlgoVWAP::build_schedule(
+    const double total_volume,
+    const int64_t start_time_ms,
+    const int64_t end_time_ms,
+    const std::vector<double>& market_volume_profile) {
+    std::vector<ExecutionSlice> out;
+    const std::size_t slices = market_volume_profile.size();
+    if (total_volume <= 0.0 || slices == 0U || end_time_ms < start_time_ms) {
+        return out;
+    }
+    out.reserve(slices);
+
+    double weight_sum = 0.0;
+    for (const double v : market_volume_profile) {
+        if (v > 0.0) {
+            weight_sum += v;
+        }
+    }
+    if (weight_sum <= 0.0) {
+        return ExecutionAlgoTWAP::build_schedule(total_volume, start_time_ms, end_time_ms, slices);
+    }
+
+    const int64_t span = end_time_ms - start_time_ms;
+    const int64_t step = (slices > 1U) ? (span / static_cast<int64_t>(slices - 1U)) : 0;
+    double assigned = 0.0;
+
+    for (std::size_t i = 0; i < slices; ++i) {
+        const double raw = std::max(0.0, market_volume_profile[i]);
+        const double weight = raw / weight_sum;
+        ExecutionSlice s{};
+        s.scheduled_time_ms = start_time_ms + (step * static_cast<int64_t>(i));
+        s.weight = weight;
+        s.volume = (i + 1U == slices) ? (total_volume - assigned) : (total_volume * weight);
+        assigned += s.volume;
+        out.push_back(s);
+    }
+    return out;
 }
 
 ExecutionRouter::ExecutionRouter(
@@ -1044,6 +1119,7 @@ ExecutionRouteResult ExecutionRouter::submit(
         recent_submissions_ms_.push_back(now_ms);
     }
 
+    const auto start_ts = std::chrono::steady_clock::now();
     const int max_attempts = std::max(1, policy().max_retries + 1);
     for (int attempt = 1; attempt <= max_attempts; ++attempt) {
         out.attempts = attempt;
@@ -1052,7 +1128,7 @@ ExecutionRouteResult ExecutionRouter::submit(
             std::scoped_lock lock(mutex_);
             consecutive_failures_ = 0;
             out.retried = (attempt > 1);
-            return out;
+            break;
         }
 
         const auto error_info = hqt::util::error_from_retcode(out.result.retcode);
@@ -1062,17 +1138,52 @@ ExecutionRouteResult ExecutionRouter::submit(
         }
     }
 
-    out.retried = out.attempts > 1;
+    if (!hqt::util::is_success_retcode(out.result.retcode)) {
+        out.retried = out.attempts > 1;
+        {
+            std::scoped_lock lock(mutex_);
+            ++consecutive_failures_;
+            if (consecutive_failures_ >= policy_.escalation_after_failures) {
+                out.escalated = true;
+                out.escalation_reason = "bounded_failure_threshold_reached";
+            }
+        }
+        out.policy_code = "EXECUTION_FAILED";
+        out.reason = "execution_retry_exhausted";
+    }
+
+    const auto end_ts = std::chrono::steady_clock::now();
+    const double latency_ms = std::chrono::duration_cast<std::chrono::microseconds>(
+                                  end_ts - start_ts)
+                                  .count() /
+        1000.0;
     {
         std::scoped_lock lock(mutex_);
-        ++consecutive_failures_;
-        if (consecutive_failures_ >= policy_.escalation_after_failures) {
-            out.escalated = true;
-            out.escalation_reason = "bounded_failure_threshold_reached";
+        latencies_ms_.push_back(latency_ms);
+        latency_sum_ms_ += latency_ms;
+        ++quality_samples_;
+
+        const bool partial_fill = (out.result.retcode == 10010) ||
+            (request.volume > 0.0 && out.result.volume > 0.0 && out.result.volume < request.volume);
+        if (partial_fill) {
+            ++partial_fill_count_;
+        }
+
+        const bool is_buy = (request.type == 0 || request.type == 2 || request.type == 4 || request.type == 6);
+        const double spread = std::max(0.0, out.result.ask - out.result.bid);
+        spread_sum_ += spread;
+
+        double expected_price = request.price;
+        if (request.action == 1 && expected_price <= 0.0) {
+            expected_price = is_buy ? out.result.ask : out.result.bid;
+        }
+        if (expected_price > 0.0 && out.result.price > 0.0) {
+            const double slippage = is_buy
+                ? std::max(0.0, out.result.price - expected_price)
+                : std::max(0.0, expected_price - out.result.price);
+            slippage_sum_ += slippage;
         }
     }
-    out.policy_code = "EXECUTION_FAILED";
-    out.reason = "execution_retry_exhausted";
     return out;
 }
 
@@ -1093,6 +1204,38 @@ bool ExecutionRouter::check_rate_limit_unlocked(const int64_t now_ms) {
         recent_submissions_ms_.pop_front();
     }
     return recent_submissions_ms_.size() < policy_.max_orders_per_window;
+}
+
+void ExecutionRouter::reset_quality_metrics() {
+    std::scoped_lock lock(mutex_);
+    latencies_ms_.clear();
+    latency_sum_ms_ = 0.0;
+    slippage_sum_ = 0.0;
+    spread_sum_ = 0.0;
+    quality_samples_ = 0U;
+    partial_fill_count_ = 0U;
+}
+
+ExecutionQualitySummary ExecutionRouter::quality_summary() const {
+    std::scoped_lock lock(mutex_);
+    ExecutionQualitySummary out{};
+    out.samples = quality_samples_;
+    out.partial_fill_count = partial_fill_count_;
+    if (quality_samples_ == 0U) {
+        return out;
+    }
+
+    out.partial_fill_rate = static_cast<double>(partial_fill_count_) / static_cast<double>(quality_samples_);
+    out.avg_latency_ms = latency_sum_ms_ / static_cast<double>(quality_samples_);
+    out.avg_slippage = slippage_sum_ / static_cast<double>(quality_samples_);
+    out.avg_spread = spread_sum_ / static_cast<double>(quality_samples_);
+
+    std::vector<double> sorted = latencies_ms_;
+    std::sort(sorted.begin(), sorted.end());
+    const std::size_t idx = static_cast<std::size_t>(
+        std::ceil(0.99 * static_cast<double>(sorted.size()))) - 1U;
+    out.p99_latency_ms = sorted[std::min(idx, sorted.size() - 1U)];
+    return out;
 }
 
 }  // namespace hqt::sim

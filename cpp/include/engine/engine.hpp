@@ -531,6 +531,40 @@ struct ExecutionRouteResult {
     std::string escalation_reason{};
 };
 
+struct ExecutionSlice {
+    int64_t scheduled_time_ms{0};
+    double volume{0.0};
+    double weight{0.0};
+};
+
+class ExecutionAlgoTWAP {
+public:
+    [[nodiscard]] static std::vector<ExecutionSlice> build_schedule(
+        double total_volume,
+        int64_t start_time_ms,
+        int64_t end_time_ms,
+        std::size_t slices);
+};
+
+class ExecutionAlgoVWAP {
+public:
+    [[nodiscard]] static std::vector<ExecutionSlice> build_schedule(
+        double total_volume,
+        int64_t start_time_ms,
+        int64_t end_time_ms,
+        const std::vector<double>& market_volume_profile);
+};
+
+struct ExecutionQualitySummary {
+    std::size_t samples{0};
+    std::size_t partial_fill_count{0};
+    double partial_fill_rate{0.0};
+    double avg_slippage{0.0};
+    double avg_spread{0.0};
+    double avg_latency_ms{0.0};
+    double p99_latency_ms{0.0};
+};
+
 class ExecutionRouter {
 public:
     explicit ExecutionRouter(
@@ -556,6 +590,8 @@ public:
         bool live_mode = true);
 
     [[nodiscard]] TradeResult cancel(uint64_t order_id);
+    void reset_quality_metrics();
+    [[nodiscard]] ExecutionQualitySummary quality_summary() const;
 
 private:
     [[nodiscard]] bool check_rate_limit_unlocked(int64_t now_ms);
@@ -566,6 +602,12 @@ private:
     ExecutionPolicy policy_{};
     std::deque<int64_t> recent_submissions_ms_{};
     std::size_t consecutive_failures_{0};
+    std::vector<double> latencies_ms_{};
+    double latency_sum_ms_{0.0};
+    double slippage_sum_{0.0};
+    double spread_sum_{0.0};
+    std::size_t quality_samples_{0};
+    std::size_t partial_fill_count_{0};
     bool connected_{false};
     mutable std::mutex mutex_{};
 };
