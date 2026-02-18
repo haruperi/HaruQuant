@@ -19,6 +19,7 @@
 namespace nb = nanobind;
 
 void register_sim_bindings(nb::module_& m);
+void register_risk_bindings(nb::module_& m);
 
 namespace {
 
@@ -664,6 +665,7 @@ NB_MODULE(hqt_engine, m) {
     annotate_skeleton_submodule(data, "_data");
     nb::module_ risk = m.def_submodule("_risk", "Risk module skeleton.");
     annotate_skeleton_submodule(risk, "_risk");
+    register_risk_bindings(risk);
     nb::module_ oms = m.def_submodule("_oms", "OMS module skeleton.");
     annotate_skeleton_submodule(oms, "_oms");
     nb::module_ execution = m.def_submodule("_execution", "Execution module skeleton.");

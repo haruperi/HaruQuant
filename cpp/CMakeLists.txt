@@ -12,6 +12,7 @@ add_library(hqt_core STATIC
     src/engine/schema_validator.cpp
     src/engine/logger.cpp
     src/engine/usage.cpp
+    src/engine/risk_engine.cpp
     src/hello.cpp
     src/trading/trade.cpp
 )

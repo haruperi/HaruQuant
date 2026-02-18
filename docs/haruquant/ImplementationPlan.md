@@ -1,4 +1,5 @@
-﻿([Past chat][1])([Past chat][1])([Past chat][2])([Past chat][3])
+﻿
+([Past chat][1])([Past chat][1])([Past chat][2])([Past chat][3])
 
 # ImplementationPlan.md
 
@@ -518,10 +519,10 @@
 #### [x] IP-21 Zero-copy path + serialization fallback
 
 * **Sub-tasks**
-  * [x] Implement zero-copy buffer views for contiguous numeric layouts. (FR-BRIDGE-002)
-  * [x] Optimize bridge call latency to < 1Î¼s. (NFR-PERF-010)
-  * [x] Implement zero-copy ownership handover via Nanobind. (FR-CPP-004)
-  * [x] Implement Arrow/Protobuf fallback path for incompatible data layouts. (FR-BRIDGE-005)
+  * [X] Implement zero-copy buffer views for contiguous numeric layouts. (FR-BRIDGE-002)
+  * [X] Optimize bridge call latency to < 1Î¼s. (NFR-PERF-010)
+  * [X] Implement zero-copy ownership handover via Nanobind. (FR-CPP-004)
+  * [X] Implement Arrow/Protobuf fallback path for incompatible data layouts. (FR-BRIDGE-005)
 * **Deliverables**
   * zero-copy buffers for compatible layouts
   * Arrow/Protobuf fallback for incompatible/cross-process flows
@@ -541,9 +542,9 @@
 #### [x] IP-22 Strategy SDK lifecycle and canonical event contract
 
 * **Sub-tasks**
-  * [x] Implement `BaseStrategy` hooks with `on_init`, `on_bar`, `on_tick`, `on_trade`, `on_order_update`, `on_timer`, `on_shutdown`. (FR-STRAT-002)
-  * [x] Define `StrategyEvent` contract for all operating modes. (FR-STRAT-001)
-  * [x] Implement strategy isolation and per-strategy state containers. (FR-STRAT-003)
+  * [X] Implement `BaseStrategy` hooks with `on_init`, `on_bar`, `on_tick`, `on_trade`, `on_order_update`, `on_timer`, `on_shutdown`. (FR-STRAT-002)
+  * [X] Define `StrategyEvent` contract for all operating modes. (FR-STRAT-001)
+  * [X] Implement strategy isolation and per-strategy state containers. (FR-STRAT-003)
 * **Deliverables**
   * `BaseStrategy` hooks
   * `StrategyEvent` contract used in backtest + live
@@ -559,9 +560,9 @@
 #### [x] IP-23 Strategy adapter and signal router
 
 * **Sub-tasks**
-  * [x] Implement `StrategyAdapter` to bridge Python logic with C++ engine. (FR-STRAT-004)
-  * [x] Define canonical `SignalIntent` (Action, Qty, OrderType, Price, TIF). (FR-OMS-001, SDD Â§7.2)
-  * [x] Implement signal explainability metadata emission for audit trail. (FR-STRAT-006)
+  * [X] Implement `StrategyAdapter` to bridge Python logic with C++ engine. (FR-STRAT-004)
+  * [X] Define canonical `SignalIntent` (Action, Qty, OrderType, Price, TIF). (FR-OMS-001, SDD Â§7.2)
+  * [X] Implement signal explainability metadata emission for audit trail. (FR-STRAT-006)
 * **Deliverables**
   * adapter between Python strategies and C++ engines
   * canonical `SignalIntent`
@@ -577,8 +578,8 @@
 #### [x] IP-24 Strategy artifact versioning + reproducibility metadata
 
 * **Sub-tasks**
-  * [x] Bind strategy version and model artifacts to run manifests. (FR-STRAT-005, FR-CONF-005)
-  * [x] Implement stability scoring and sensitivity analysis metadata. (FR-RSCH-004)
+  * [X] Bind strategy version and model artifacts to run manifests. (FR-STRAT-005, FR-CONF-005)
+  * [X] Implement stability scoring and sensitivity analysis metadata. (FR-RSCH-004)
 * **Deliverables**
   * strategy/model versions embedded in run outputs
 * **SRS refs:** FR-STRAT-005, FR-CONF-005, FR-RSCH-004, NFR-REP-001..004
@@ -623,21 +624,21 @@
   * Bench/log: `benchmarks/portfolio/rebalance_cost.md`
   * Commit: `TBD`
 
-#### [ ] IP-27 Risk pre-trade checks (policy engine)
+#### [X] IP-27 Risk pre-trade checks (policy engine)
 
 * **Sub-tasks**
-  * [ ] Implement pre-trade checks: size, margin, max exposure, policy. (FR-RISK-001, FR-SAFE-001)
-  * [ ] Implement position sizing methods: fixed, volatility-based, Kelly. (FR-RISK-004)
-  * [ ] Support mode-specific risk rules (backtest vs live). (FR-RISK-005)
+  * [X] Implement pre-trade checks: size, margin, max exposure, policy. (FR-RISK-001, FR-SAFE-001)
+  * [X] Implement position sizing methods: fixed, volatility-based, Kelly. (FR-RISK-004)
+  * [X] Support mode-specific risk rules (backtest vs live). (FR-RISK-005)
 * **Deliverables**
-  * margin/size/exposure checks with policy codes
+  * [X] margin/size/exposure checks with policy codes
 * **SRS refs:** FR-RISK-001, FR-RISK-004..005, FR-SAFE-001
 * **SDD refs:** Â§5.1.4, Â§12
 * **Dependencies:** IP-25, IP-26
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_risk_pretrade.cpp`, `py/tests/contracts/test_risk_policy_contract.py`
-  * Usage: `usage/risk/pretrade_risk.md`
-  * Bench/log: `benchmarks/risk/pretrade_latency.md`
+  * Tests: `cpp/tests/test_risk_engine.cpp`, `tests/contracts/test_risk_bindings.py`
+  * Usage: `docs/haruquant/usage/risk/pretrade_risk.md`, `tests/usage/risk/09_cpp_risk_policy.py`
+  * Bench/log: `TBD`
   * Commit: `TBD`
 
 #### [ ] IP-28 In-trade monitoring + circuit breakers

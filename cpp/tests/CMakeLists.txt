@@ -25,6 +25,7 @@ add_executable(hqt_tests
     test_portfolio_state.cpp
     test_allocation_models.cpp
     test_rebalance_policies.cpp
+    test_risk_engine.cpp
     test_sim_result_metrics.cpp
     test_data_structures.cpp
     test_utilities.cpp

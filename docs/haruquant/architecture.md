@@ -350,6 +350,23 @@
   - `tests/contracts/test_nanobind_module_load.py`
   - `docs/haruquant/usage/dev/nanobind_module_layout.md`
 
+## C++ Risk Engine Parity Slice (IP-27 in progress)
+
+- Core module:
+  - `cpp/include/risk/risk_engine.hpp`
+  - `cpp/src/engine/risk_engine.cpp`
+- Bridge bindings:
+  - `bridge/src/risk_bindings.cpp` (`hqt_engine._risk`)
+- Added C++ risk components:
+  - `RiskGovernor` with `can_trade(...)` and `can_trade_with_mode(...)` gates for size, margin, drawdown, gross exposure, and net exposure
+  - `RiskBudgetAllocator` with budget normalization, optional correlation penalty, lot deltas, and exposure-constraint application
+  - mode-specific rules via `RiskMode` (`LIVE`, `BACKTEST`) with policy-code outputs (`OK`, `SIZE_INVALID`, `INSUFFICIENT_MARGIN`, `MAX_*`)
+- Evidence:
+  - `cpp/tests/test_risk_engine.cpp`
+  - `tests/contracts/test_risk_bindings.py`
+  - `tests/usage/risk/09_cpp_risk_policy.py`
+  - `docs/haruquant/usage/risk/pretrade_risk.md`
+
 ## Bridge Ownership and Lifetime Safety (IP-19)
 
 - Ownership contract API:
