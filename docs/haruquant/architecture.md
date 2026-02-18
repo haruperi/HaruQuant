@@ -778,3 +778,25 @@
   - `tests/integration/test_partial_fills.py`
   - `docs/haruquant/usage/live/execution_quality.md`
 
+## Event-Driven Backtest Engine (IP-37)
+
+- Core C++ engine:
+  - `cpp/include/engine/engine.hpp::BacktestEngine`
+  - `cpp/src/engine/engine.cpp`
+- Execution path:
+  - deterministic bar/tick loop
+  - order lifecycle routed through `SimulatorClient` (OMS path)
+  - account/position monitoring with close-reason tracking
+- Lifecycle callbacks:
+  - `set_on_bar_processed(...)`
+  - `set_on_tick_processed(...)`
+  - `set_on_trade_event(...)`
+  - trade callback payload: `BacktestTradeEvent` with `event_type` (`open` / `close`) and `trade` snapshot
+- Bridge exposure (`hqt_engine.sim`):
+  - `BacktestEngine` callback registration for bar/tick/trade lifecycle hooks
+  - `BacktestTradeEvent`
+- Evidence:
+  - `cpp/tests/test_backtest_event_runner.cpp`
+  - `tests/e2e/test_backtest_event_path.py`
+  - `docs/haruquant/usage/backtest/event_runner.md`
+

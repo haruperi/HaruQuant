@@ -731,12 +731,22 @@ enum class AutoCloseReason {
 };
 
 using BarProcessedCallback = std::function<void(std::size_t, const BacktestBarStep&, const SimulatorState&)>;
+using TickProcessedCallback = std::function<void(const ModelTick&, const SimulatorState&)>;
+
+struct BacktestTradeEvent {
+    std::string event_type{};  // open / close
+    TradeRecordData trade{};
+};
+
+using TradeEventCallback = std::function<void(const BacktestTradeEvent&, const SimulatorState&)>;
 
 class BacktestEngine {
 public:
     explicit BacktestEngine(SimulatorClient& client);
 
     void set_on_bar_processed(BarProcessedCallback callback);
+    void set_on_tick_processed(TickProcessedCallback callback);
+    void set_on_trade_event(TradeEventCallback callback);
 
     void run_trading_timeframe(
         const std::string& symbol,
@@ -777,6 +787,8 @@ private:
     AccountInfoData account_snapshot_{};
     std::unordered_map<uint64_t, AutoCloseReason> close_reasons_{};
     BarProcessedCallback on_bar_processed_{};
+    TickProcessedCallback on_tick_processed_{};
+    TradeEventCallback on_trade_event_{};
 };
 
 struct PortfolioSymbolInput {

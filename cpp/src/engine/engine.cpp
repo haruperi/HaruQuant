@@ -15,6 +15,14 @@ void BacktestEngine::set_on_bar_processed(BarProcessedCallback callback) {
     on_bar_processed_ = std::move(callback);
 }
 
+void BacktestEngine::set_on_tick_processed(TickProcessedCallback callback) {
+    on_tick_processed_ = std::move(callback);
+}
+
+void BacktestEngine::set_on_trade_event(TradeEventCallback callback) {
+    on_trade_event_ = std::move(callback);
+}
+
 void BacktestEngine::run_trading_timeframe(
     const std::string& symbol,
     double volume,
@@ -52,6 +60,10 @@ void BacktestEngine::run_trading_timeframe(
         tick.ask = ask;
         tick.last = bar.close;
         client_.set_symbol_tick(symbol, tick);
+
+        if (on_tick_processed_) {
+            on_tick_processed_(ModelTick{bar.time_msc, bid, ask, bar.close}, state_);
+        }
 
         monitor_pending_orders(symbol, bid, ask, bar.time_msc);
         monitor_positions_and_account(symbol, bid, ask);
@@ -105,6 +117,10 @@ void BacktestEngine::run_trading_timeframe_with_ticks(
         tick.ask = tick_model.ask;
         tick.last = tick_model.last;
         client_.set_symbol_tick(symbol, tick);
+
+        if (on_tick_processed_) {
+            on_tick_processed_(tick_model, state_);
+        }
 
         monitor_pending_orders(symbol, tick.bid, tick.ask, tick.time_msc);
         monitor_positions_and_account(symbol, tick.bid, tick.ask);
@@ -189,6 +205,16 @@ void BacktestEngine::close_position_and_track(const TradeRecordData& pos, int64_
 
     const double pnl = lookup_deal_profit_or_fallback(result.deal, pos, close_price);
     (void)trade_record_tracker_.on_close(pos.ticket, now_msc, close_price, pnl);
+
+    if (on_trade_event_) {
+        BacktestTradeEvent evt;
+        evt.event_type = "close";
+        evt.trade = pos;
+        evt.trade.time_msc = now_msc;
+        evt.trade.price_current = close_price;
+        evt.trade.profit = pnl;
+        on_trade_event_(evt, state_);
+    }
 }
 
 double BacktestEngine::lookup_deal_profit_or_fallback(
@@ -373,6 +399,13 @@ void BacktestEngine::apply_entry_signal(
     }
     util::debug("BacktestEngine::apply_entry_signal opened order=" + std::to_string(result.order));
     ensure_trade_record_for_position(opened.front(), state_.current_time_us / 1000);
+    if (on_trade_event_) {
+        BacktestTradeEvent evt;
+        evt.event_type = "open";
+        evt.trade = opened.front();
+        evt.trade.time_msc = state_.current_time_us / 1000;
+        on_trade_event_(evt, state_);
+    }
 }
 
 }  // namespace hqt::sim

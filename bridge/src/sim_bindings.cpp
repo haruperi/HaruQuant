@@ -496,6 +496,20 @@ void register_sim_bindings(nb::module_& m) {
                     callback(index, bar, state);
                 });
         })
+        .def("set_on_tick_processed", [](BacktestEngine& self, nb::object callback) {
+            self.set_on_tick_processed(
+                [callback](const ModelTick& tick, const SimulatorState& state) {
+                    nb::gil_scoped_acquire gil;
+                    callback(tick, state);
+                });
+        })
+        .def("set_on_trade_event", [](BacktestEngine& self, nb::object callback) {
+            self.set_on_trade_event(
+                [callback](const BacktestTradeEvent& event, const SimulatorState& state) {
+                    nb::gil_scoped_acquire gil;
+                    callback(event, state);
+                });
+        })
         .def("run_trading_timeframe",
              [](BacktestEngine& self, const std::string& symbol, double volume,
                 const std::vector<BacktestBarStep>& bars) {
@@ -518,6 +532,11 @@ void register_sim_bindings(nb::module_& m) {
         .def("close_reason", &BacktestEngine::close_reason)
         .def("completed_trades", &BacktestEngine::completed_trades,
              nb::rv_policy::reference_internal);
+
+    nb::class_<BacktestTradeEvent>(m, "BacktestTradeEvent")
+        .def(nb::init<>())
+        .def_rw("event_type", &BacktestTradeEvent::event_type)
+        .def_rw("trade", &BacktestTradeEvent::trade);
 
     // ── AccountMonitor ───────────────────────────────────────────────
 

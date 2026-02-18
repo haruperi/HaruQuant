@@ -801,21 +801,21 @@
 
 ### Phase F â€” Backtesting, Research, Metrics
 
-#### [ ] IP-37 Event-driven backtest engine
+#### [X] IP-37 Event-driven backtest engine
 
 * **Sub-tasks**
-  * [ ] Implement deterministic event runner with strategy/risk/OMS path. (FR-BT-001)
-  * [ ] Support tick-level and bar-level simulations. (FR-BT-002)
-  * [ ] Implement `on_bar`, `on_tick`, `on_trade` lifecycle events. (FR-STRAT-002)
+  * [X] Implement deterministic event runner with strategy/risk/OMS path. (FR-BT-001)
+  * [X] Support tick-level and bar-level simulations. (FR-BT-002)
+  * [X] Implement `on_bar`, `on_tick`, `on_trade` lifecycle events. (FR-STRAT-002)
 * **Deliverables**
   * deterministic event runner with strategy/risk/OMS path
 * **SRS refs:** FR-BT-001..002, FR-BT-006, FR-STRAT-002
 * **SDD refs:** Â§5.1.7, Â§10.1
 * **Dependencies:** IP-22, IP-27, IP-31
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_backtest_event_runner.cpp`, `py/tests/e2e/test_backtest_event_path.py`
-  * Usage: `usage/backtest/event_runner.md`
-  * Bench/log: `benchmarks/backtest/event_tps.md`
+  * Tests: `cpp/tests/test_backtest_event_runner.cpp`, `tests/e2e/test_backtest_event_path.py`
+  * Usage: `docs/haruquant/usage/backtest/event_runner.md`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-38 Vectorized backtest engine
