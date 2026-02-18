@@ -11,6 +11,151 @@
 
 namespace hqt::sim {
 
+PortfolioState::PortfolioState(double initial_balance, std::string currency) {
+    reset(initial_balance, currency);
+}
+
+void PortfolioState::reset(double initial_balance, const std::string& currency) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    account_ = AccountInfoData{};
+    account_.currency = currency;
+    account_.balance = initial_balance;
+    account_.credit = 0.0;
+    account_.profit = 0.0;
+    account_.equity = initial_balance;
+    account_.margin = 0.0;
+    account_.margin_free = initial_balance;
+    account_.margin_level = 0.0;
+    account_.commission_blocked = 0.0;
+    total_realized_pnl_ = 0.0;
+    strategy_symbol_positions_.clear();
+    symbol_positions_.clear();
+}
+
+void PortfolioState::set_capital(double balance, double credit) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    account_.balance = balance;
+    account_.credit = credit;
+    recompute_unlocked();
+}
+
+void PortfolioState::upsert_position(
+    const std::string& strategy_id,
+    const std::string& symbol,
+    double net_volume,
+    double margin,
+    double unrealized_pnl) {
+    if (strategy_id.empty() || symbol.empty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    PositionAggregate aggregate;
+    aggregate.net_volume = net_volume;
+    aggregate.long_volume = std::max(net_volume, 0.0);
+    aggregate.short_volume = std::max(-net_volume, 0.0);
+    aggregate.margin = std::max(margin, 0.0);
+    aggregate.unrealized_pnl = unrealized_pnl;
+    aggregate.realized_pnl = strategy_symbol_positions_[strategy_id][symbol].realized_pnl;
+    strategy_symbol_positions_[strategy_id][symbol] = aggregate;
+    recompute_unlocked();
+}
+
+void PortfolioState::clear_position(const std::string& strategy_id, const std::string& symbol) {
+    if (strategy_id.empty() || symbol.empty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto strategy_it = strategy_symbol_positions_.find(strategy_id);
+    if (strategy_it == strategy_symbol_positions_.end()) {
+        return;
+    }
+    strategy_it->second.erase(symbol);
+    if (strategy_it->second.empty()) {
+        strategy_symbol_positions_.erase(strategy_it);
+    }
+    recompute_unlocked();
+}
+
+void PortfolioState::apply_realized_pnl(
+    const std::string& strategy_id,
+    const std::string& symbol,
+    double realized_pnl,
+    double commission,
+    double swap) {
+    if (strategy_id.empty() || symbol.empty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    const double net_realized = realized_pnl - commission + swap;
+    total_realized_pnl_ += net_realized;
+    account_.balance += net_realized;
+    strategy_symbol_positions_[strategy_id][symbol].realized_pnl += net_realized;
+    recompute_unlocked();
+}
+
+AccountInfoData PortfolioState::account_snapshot() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return account_;
+}
+
+double PortfolioState::total_realized_pnl() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return total_realized_pnl_;
+}
+
+double PortfolioState::total_unrealized_pnl() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return account_.profit;
+}
+
+std::unordered_map<std::string, PositionAggregate> PortfolioState::positions_by_symbol() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return symbol_positions_;
+}
+
+std::unordered_map<std::string, PositionAggregate> PortfolioState::positions_by_strategy(
+    const std::string& strategy_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = strategy_symbol_positions_.find(strategy_id);
+    if (it == strategy_symbol_positions_.end()) {
+        return {};
+    }
+    return it->second;
+}
+
+void PortfolioState::recompute_unlocked() {
+    symbol_positions_.clear();
+
+    double total_margin = 0.0;
+    double total_unrealized = 0.0;
+
+    for (const auto& [_, symbol_map] : strategy_symbol_positions_) {
+        for (const auto& [symbol, aggregate] : symbol_map) {
+            auto& target = symbol_positions_[symbol];
+            target.net_volume += aggregate.net_volume;
+            target.long_volume += aggregate.long_volume;
+            target.short_volume += aggregate.short_volume;
+            target.margin += aggregate.margin;
+            target.realized_pnl += aggregate.realized_pnl;
+            target.unrealized_pnl += aggregate.unrealized_pnl;
+        }
+    }
+
+    for (const auto& [_, aggregate] : symbol_positions_) {
+        total_margin += aggregate.margin;
+        total_unrealized += aggregate.unrealized_pnl;
+    }
+
+    account_.profit = total_unrealized;
+    account_.margin = total_margin;
+    account_.equity = account_.balance + account_.credit + total_unrealized;
+    account_.margin_free = account_.equity - total_margin;
+    account_.margin_level = (total_margin > 0.0) ? ((account_.equity / total_margin) * 100.0) : 0.0;
+}
+
 std::vector<ModelTick> TickModel::generate_m1_ohlc(
     const std::vector<TickModelBar>& bars,
     double point,

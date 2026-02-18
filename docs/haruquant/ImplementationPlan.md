@@ -590,19 +590,19 @@
   * Bench/log: `artifacts/logs/repro/sample_manifest.json`
   * Commit: `TBD`
 
-#### [ ] IP-25 Portfolio state engine
+#### [X] IP-25 Portfolio state engine
 
 * **Sub-tasks**
-  * [ ] Implement `PortfolioState` tracking capital, margin, realized/unrealized PnL. (FR-PORT-005)
-  * [ ] Support concurrent multi-strategy, multi-symbol portfolio state. (FR-PORT-001)
+  * [X] Implement `PortfolioState` tracking capital, margin, realized/unrealized PnL. (FR-PORT-005)
+  * [X] Support concurrent multi-strategy, multi-symbol portfolio state. (FR-PORT-001)
 * **Deliverables**
   * canonical portfolio/account/position state updates
 * **SRS refs:** FR-PORT-001, FR-PORT-005
 * **SDD refs:** Â§5.1.3, Â§6
 * **Dependencies:** IP-23, IP-31
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_portfolio_state.cpp`, `py/tests/integration/test_portfolio_updates.py`
-  * Usage: `usage/portfolio/portfolio_state.md`
+  * Tests: `cpp/tests/test_portfolio_state.cpp`, `tests/integration/test_portfolio_updates.py`
+  * Usage: `docs/haruquant/usage/portfolio/portfolio_state.md`
   * Bench/log: `benchmarks/portfolio/state_update_perf.md`
   * Commit: `TBD`
 

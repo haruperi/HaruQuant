@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -274,6 +275,53 @@ struct PositionTotals {
     double commission{0.0};
     double fee{0.0};
     double swap{0.0};
+};
+
+struct PositionAggregate {
+    double net_volume{0.0};
+    double long_volume{0.0};
+    double short_volume{0.0};
+    double margin{0.0};
+    double realized_pnl{0.0};
+    double unrealized_pnl{0.0};
+};
+
+class PortfolioState {
+public:
+    explicit PortfolioState(double initial_balance = 10000.0, std::string currency = "USD");
+
+    void reset(double initial_balance = 10000.0, const std::string& currency = "USD");
+    void set_capital(double balance, double credit = 0.0);
+    void upsert_position(
+        const std::string& strategy_id,
+        const std::string& symbol,
+        double net_volume,
+        double margin,
+        double unrealized_pnl);
+    void clear_position(const std::string& strategy_id, const std::string& symbol);
+    void apply_realized_pnl(
+        const std::string& strategy_id,
+        const std::string& symbol,
+        double realized_pnl,
+        double commission = 0.0,
+        double swap = 0.0);
+
+    [[nodiscard]] AccountInfoData account_snapshot() const;
+    [[nodiscard]] double total_realized_pnl() const;
+    [[nodiscard]] double total_unrealized_pnl() const;
+    [[nodiscard]] std::unordered_map<std::string, PositionAggregate> positions_by_symbol() const;
+    [[nodiscard]] std::unordered_map<std::string, PositionAggregate> positions_by_strategy(
+        const std::string& strategy_id) const;
+
+private:
+    void recompute_unlocked();
+
+    AccountInfoData account_{};
+    double total_realized_pnl_{0.0};
+    std::unordered_map<std::string, std::unordered_map<std::string, PositionAggregate>>
+        strategy_symbol_positions_{};
+    std::unordered_map<std::string, PositionAggregate> symbol_positions_{};
+    mutable std::mutex mutex_{};
 };
 
 class AccountMonitor {

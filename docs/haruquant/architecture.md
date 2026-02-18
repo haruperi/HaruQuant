@@ -483,3 +483,29 @@
 - C++ pooling primitive:
   - `cpp/include/util/connection_pool.hpp` and `cpp/src/engine/connection_pool.cpp` provide configurable pool/overflow/timeout controls for DB-adjacent concurrency paths.
 
+## Portfolio State Engine (IP-25)
+
+- Core state type:
+  - `cpp/include/engine/engine.hpp::PortfolioState`
+  - implementation in `cpp/src/engine/analytics.cpp`
+- Scope:
+  - simulation/backtest side (`hqt_engine.sim`) canonical portfolio/account/position tracking
+  - thread-safe updates for concurrent multi-strategy, multi-symbol state writes
+- State model:
+  - account snapshot: balance, equity, margin, margin_free, margin_level, profit
+  - PnL split: `total_realized_pnl()` and `total_unrealized_pnl()`
+  - aggregated position views:
+    - `positions_by_symbol()`
+    - `positions_by_strategy(strategy_id)`
+- Update API:
+  - `upsert_position(strategy_id, symbol, net_volume, margin, unrealized_pnl)`
+  - `apply_realized_pnl(strategy_id, symbol, realized_pnl, commission, swap)`
+  - `clear_position(strategy_id, symbol)`
+- Bridge exposure:
+  - `bridge/src/sim_bindings.cpp` (`sim.PortfolioState`, `sim.PositionAggregate`)
+- Evidence:
+  - `cpp/tests/test_portfolio_state.cpp`
+  - `tests/integration/test_portfolio_updates.py`
+  - `docs/haruquant/usage/portfolio/portfolio_state.md`
+  - `benchmarks/portfolio/state_update_perf.md`
+

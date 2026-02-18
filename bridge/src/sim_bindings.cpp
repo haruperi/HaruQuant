@@ -176,6 +176,15 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("fee", &PositionTotals::fee)
         .def_rw("swap", &PositionTotals::swap);
 
+    nb::class_<PositionAggregate>(m, "PositionAggregate")
+        .def(nb::init<>())
+        .def_rw("net_volume", &PositionAggregate::net_volume)
+        .def_rw("long_volume", &PositionAggregate::long_volume)
+        .def_rw("short_volume", &PositionAggregate::short_volume)
+        .def_rw("margin", &PositionAggregate::margin)
+        .def_rw("realized_pnl", &PositionAggregate::realized_pnl)
+        .def_rw("unrealized_pnl", &PositionAggregate::unrealized_pnl);
+
     nb::class_<TickModelBar>(m, "TickModelBar")
         .def(nb::init<>())
         .def_rw("time_msc", &TickModelBar::time_msc)
@@ -339,6 +348,31 @@ void register_sim_bindings(nb::module_& m) {
         .def(nb::init<>())
         .def("monitor_positions", &AccountMonitor::monitor_positions)
         .def("monitor_account", &AccountMonitor::monitor_account);
+
+    nb::class_<PortfolioState>(m, "PortfolioState")
+        .def(nb::init<double, std::string>(), nb::arg("initial_balance") = 10000.0, nb::arg("currency") = "USD")
+        .def("reset", &PortfolioState::reset, nb::arg("initial_balance") = 10000.0, nb::arg("currency") = "USD")
+        .def("set_capital", &PortfolioState::set_capital, nb::arg("balance"), nb::arg("credit") = 0.0)
+        .def("upsert_position",
+             &PortfolioState::upsert_position,
+             nb::arg("strategy_id"),
+             nb::arg("symbol"),
+             nb::arg("net_volume"),
+             nb::arg("margin"),
+             nb::arg("unrealized_pnl"))
+        .def("clear_position", &PortfolioState::clear_position, nb::arg("strategy_id"), nb::arg("symbol"))
+        .def("apply_realized_pnl",
+             &PortfolioState::apply_realized_pnl,
+             nb::arg("strategy_id"),
+             nb::arg("symbol"),
+             nb::arg("realized_pnl"),
+             nb::arg("commission") = 0.0,
+             nb::arg("swap") = 0.0)
+        .def("account_snapshot", &PortfolioState::account_snapshot)
+        .def("total_realized_pnl", &PortfolioState::total_realized_pnl)
+        .def("total_unrealized_pnl", &PortfolioState::total_unrealized_pnl)
+        .def("positions_by_symbol", &PortfolioState::positions_by_symbol)
+        .def("positions_by_strategy", &PortfolioState::positions_by_strategy, nb::arg("strategy_id"));
 
     // ── TickModel ────────────────────────────────────────────────────
 
