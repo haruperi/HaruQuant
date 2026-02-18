@@ -403,6 +403,51 @@ void register_sim_bindings(nb::module_& m) {
         .def("cancel_order", &PaperTradingEngine::cancel_order, nb::arg("order_id"))
         .def("snapshot_state", &PaperTradingEngine::snapshot_state);
 
+    nb::class_<ExecutionPolicy>(m, "ExecutionPolicy")
+        .def(nb::init<>())
+        .def_rw("max_retries", &ExecutionPolicy::max_retries)
+        .def_rw("max_orders_per_window", &ExecutionPolicy::max_orders_per_window)
+        .def_rw("rate_limit_window_ms", &ExecutionPolicy::rate_limit_window_ms)
+        .def_rw("escalation_after_failures", &ExecutionPolicy::escalation_after_failures);
+
+    nb::class_<ExecutionRouteResult>(m, "ExecutionRouteResult")
+        .def(nb::init<>())
+        .def_rw("result", &ExecutionRouteResult::result)
+        .def_rw("attempts", &ExecutionRouteResult::attempts)
+        .def_rw("risk_blocked", &ExecutionRouteResult::risk_blocked)
+        .def_rw("rate_limited", &ExecutionRouteResult::rate_limited)
+        .def_rw("retried", &ExecutionRouteResult::retried)
+        .def_rw("escalated", &ExecutionRouteResult::escalated)
+        .def_rw("policy_code", &ExecutionRouteResult::policy_code)
+        .def_rw("reason", &ExecutionRouteResult::reason)
+        .def_rw("escalation_reason", &ExecutionRouteResult::escalation_reason);
+
+    nb::class_<ExecutionRouter>(m, "ExecutionRouter")
+        .def("__init__", [](ExecutionRouter* self, MockBroker broker, ExecutionPolicy policy) {
+            new (self) ExecutionRouter(std::make_shared<MockBroker>(std::move(broker)), policy);
+        }, nb::arg("broker"), nb::arg("policy") = ExecutionPolicy{})
+        .def("connect", &ExecutionRouter::connect)
+        .def("set_policy", &ExecutionRouter::set_policy, nb::arg("policy"))
+        .def("policy", &ExecutionRouter::policy)
+        .def(
+            "set_risk_account_state",
+            &ExecutionRouter::set_risk_account_state,
+            nb::arg("equity"),
+            nb::arg("peak_equity"),
+            nb::arg("gross_exposure"),
+            nb::arg("net_exposure"))
+        .def("consecutive_failures", &ExecutionRouter::consecutive_failures)
+        .def(
+            "submit",
+            &ExecutionRouter::submit,
+            nb::arg("request"),
+            nb::arg("candidate_gross_add") = 0.0,
+            nb::arg("candidate_net_delta") = 0.0,
+            nb::arg("margin_required") = 0.0,
+            nb::arg("free_margin") = -1.0,
+            nb::arg("live_mode") = true)
+        .def("cancel", &ExecutionRouter::cancel, nb::arg("order_id"));
+
     // ── BacktestEngine ───────────────────────────────────────────────
 
     nb::class_<BacktestEngine>(m, "BacktestEngine")

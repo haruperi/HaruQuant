@@ -26,6 +26,7 @@ add_executable(hqt_tests
     test_position_book.cpp
     test_reconcile_escalation.cpp
     test_broker_adapter_interface.cpp
+    test_execution_retry.cpp
     test_portfolio_state.cpp
     test_allocation_models.cpp
     test_rebalance_policies.cpp

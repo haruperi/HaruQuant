@@ -8,6 +8,7 @@
 #include "util/logger.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <optional>
 #include <sstream>
@@ -945,6 +946,153 @@ BrokerSnapshot PaperTradingEngine::snapshot_state() const {
         return {};
     }
     return adapter_->fetch_state();
+}
+
+ExecutionRouter::ExecutionRouter(
+    std::shared_ptr<BrokerAdapter> adapter,
+    ExecutionPolicy policy)
+    : adapter_(std::move(adapter)),
+      policy_(policy) {}
+
+bool ExecutionRouter::connect() {
+    if (!adapter_) {
+        return false;
+    }
+    connected_ = adapter_->connect();
+    return connected_;
+}
+
+void ExecutionRouter::set_policy(const ExecutionPolicy& policy) {
+    std::scoped_lock lock(mutex_);
+    policy_ = policy;
+}
+
+ExecutionPolicy ExecutionRouter::policy() const {
+    std::scoped_lock lock(mutex_);
+    return policy_;
+}
+
+void ExecutionRouter::set_risk_account_state(
+    const double equity,
+    const double peak_equity,
+    const double gross_exposure,
+    const double net_exposure) {
+    std::scoped_lock lock(mutex_);
+    risk_state_.equity = equity;
+    risk_state_.peak_equity = peak_equity;
+    risk_state_.gross_exposure = gross_exposure;
+    risk_state_.net_exposure = net_exposure;
+}
+
+std::size_t ExecutionRouter::consecutive_failures() const {
+    std::scoped_lock lock(mutex_);
+    return consecutive_failures_;
+}
+
+ExecutionRouteResult ExecutionRouter::submit(
+    const TradeRequest& request,
+    const double candidate_gross_add,
+    const double candidate_net_delta,
+    const double margin_required,
+    const double free_margin,
+    const bool live_mode) {
+    ExecutionRouteResult out;
+    if (!adapter_ || !connected_) {
+        out.result.retcode = 10031;
+        out.result.comment = "ExecutionRouter adapter unavailable";
+        out.policy_code = "CONNECTION";
+        out.reason = "adapter_unavailable";
+        return out;
+    }
+
+    hqt::risk::RiskAccountState risk_state{};
+    {
+        std::scoped_lock lock(mutex_);
+        risk_state = risk_state_;
+    }
+    const auto mode = live_mode ? hqt::risk::RiskMode::Live : hqt::risk::RiskMode::Backtest;
+    const auto risk_decision = governor_.can_trade_with_mode(
+        risk_state,
+        request.volume,
+        candidate_gross_add,
+        candidate_net_delta,
+        margin_required,
+        free_margin,
+        mode);
+    if (!risk_decision.allowed) {
+        out.risk_blocked = true;
+        out.policy_code = risk_decision.policy_code;
+        out.reason = risk_decision.reason;
+        out.result.retcode = 10006;
+        out.result.comment = "Risk gate rejected order";
+        return out;
+    }
+
+    const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now().time_since_epoch())
+                            .count();
+    {
+        std::scoped_lock lock(mutex_);
+        if (!check_rate_limit_unlocked(now_ms)) {
+            out.rate_limited = true;
+            out.policy_code = "RATE_LIMIT";
+            out.reason = "too_many_requests";
+            out.result.retcode = 10024;
+            out.result.comment = "Order spam prevention triggered";
+            return out;
+        }
+        recent_submissions_ms_.push_back(now_ms);
+    }
+
+    const int max_attempts = std::max(1, policy().max_retries + 1);
+    for (int attempt = 1; attempt <= max_attempts; ++attempt) {
+        out.attempts = attempt;
+        out.result = adapter_->submit(request);
+        if (hqt::util::is_success_retcode(out.result.retcode)) {
+            std::scoped_lock lock(mutex_);
+            consecutive_failures_ = 0;
+            out.retried = (attempt > 1);
+            return out;
+        }
+
+        const auto error_info = hqt::util::error_from_retcode(out.result.retcode);
+        const bool can_retry = error_info.retryable && attempt < max_attempts;
+        if (!can_retry) {
+            break;
+        }
+    }
+
+    out.retried = out.attempts > 1;
+    {
+        std::scoped_lock lock(mutex_);
+        ++consecutive_failures_;
+        if (consecutive_failures_ >= policy_.escalation_after_failures) {
+            out.escalated = true;
+            out.escalation_reason = "bounded_failure_threshold_reached";
+        }
+    }
+    out.policy_code = "EXECUTION_FAILED";
+    out.reason = "execution_retry_exhausted";
+    return out;
+}
+
+TradeResult ExecutionRouter::cancel(const uint64_t order_id) {
+    if (!adapter_ || !connected_) {
+        TradeResult out;
+        out.retcode = 10031;
+        out.comment = "ExecutionRouter adapter unavailable";
+        return out;
+    }
+    return adapter_->cancel(order_id);
+}
+
+bool ExecutionRouter::check_rate_limit_unlocked(const int64_t now_ms) {
+    const int64_t window_ms = std::max<int64_t>(1, policy_.rate_limit_window_ms);
+    while (!recent_submissions_ms_.empty() &&
+           (now_ms - recent_submissions_ms_.front()) > window_ms) {
+        recent_submissions_ms_.pop_front();
+    }
+    return recent_submissions_ms_.size() < policy_.max_orders_per_window;
 }
 
 }  // namespace hqt::sim

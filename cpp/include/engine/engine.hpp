@@ -6,9 +6,11 @@
 #pragma once
 
 #include "trading/trade.hpp"
+#include "risk/risk_engine.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -508,6 +510,64 @@ public:
 
 private:
     std::shared_ptr<BrokerAdapter> adapter_;
+};
+
+struct ExecutionPolicy {
+    int max_retries{2};
+    std::size_t max_orders_per_window{20};
+    int64_t rate_limit_window_ms{1000};
+    std::size_t escalation_after_failures{3};
+};
+
+struct ExecutionRouteResult {
+    TradeResult result{};
+    int attempts{0};
+    bool risk_blocked{false};
+    bool rate_limited{false};
+    bool retried{false};
+    bool escalated{false};
+    std::string policy_code{"OK"};
+    std::string reason{"ok"};
+    std::string escalation_reason{};
+};
+
+class ExecutionRouter {
+public:
+    explicit ExecutionRouter(
+        std::shared_ptr<BrokerAdapter> adapter,
+        ExecutionPolicy policy = {});
+
+    bool connect();
+    void set_policy(const ExecutionPolicy& policy);
+    [[nodiscard]] ExecutionPolicy policy() const;
+    void set_risk_account_state(
+        double equity,
+        double peak_equity,
+        double gross_exposure,
+        double net_exposure);
+    [[nodiscard]] std::size_t consecutive_failures() const;
+
+    [[nodiscard]] ExecutionRouteResult submit(
+        const TradeRequest& request,
+        double candidate_gross_add = 0.0,
+        double candidate_net_delta = 0.0,
+        double margin_required = 0.0,
+        double free_margin = -1.0,
+        bool live_mode = true);
+
+    [[nodiscard]] TradeResult cancel(uint64_t order_id);
+
+private:
+    [[nodiscard]] bool check_rate_limit_unlocked(int64_t now_ms);
+
+    std::shared_ptr<BrokerAdapter> adapter_{};
+    hqt::risk::RiskGovernor governor_{};
+    hqt::risk::RiskAccountState risk_state_{10000.0, 10000.0, 0.0, 0.0};
+    ExecutionPolicy policy_{};
+    std::deque<int64_t> recent_submissions_ms_{};
+    std::size_t consecutive_failures_{0};
+    bool connected_{false};
+    mutable std::mutex mutex_{};
 };
 
 struct TradeRecord {

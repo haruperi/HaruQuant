@@ -732,3 +732,26 @@
   - `tests/integration/test_mock_broker.py`
   - `docs/haruquant/usage/live/broker_adapter.md`
 
+## Execution Router + Retry + Bounded Failure Policies (IP-35)
+
+- Core C++ types:
+  - `cpp/include/engine/engine.hpp::ExecutionPolicy`
+  - `cpp/include/engine/engine.hpp::ExecutionRouteResult`
+  - `cpp/include/engine/engine.hpp::ExecutionRouter`
+- Implementation:
+  - `cpp/src/engine/trading.cpp`
+- Responsibilities:
+  - routes order submission through broker adapter
+  - applies final pre-send risk checks via existing C++ `RiskGovernor`
+  - retries only retryable retcodes with bounded attempts
+  - enforces order spam prevention by windowed rate limiting
+  - marks escalation when consecutive execution failures breach configured threshold
+- Bridge exposure (`hqt_engine.sim`):
+  - `ExecutionPolicy`
+  - `ExecutionRouteResult`
+  - `ExecutionRouter`
+- Evidence:
+  - `cpp/tests/test_execution_retry.cpp`
+  - `tests/integration/test_execution_escalation.py`
+  - `docs/haruquant/usage/live/execution_retry_policy.md`
+

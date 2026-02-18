@@ -761,21 +761,21 @@
   * Bench/log: N/A
   * Commit: `TBD`
 
-#### [ ] IP-35 Execution router + retry + bounded failure policies
+#### [X] IP-35 Execution router + retry + bounded failure policies
 
 * **Sub-tasks**
-  * [ ] Implement execution routing to adapters with final pre-send risk checks. (FR-EXEC-001, FR-EXEC-006)
-  * [ ] Implement retry policies with bounded attempts and escalation. (FR-EXEC-004)
-  * [ ] Implement `Order Spam Prevention` rate limiting. (FR-LIVE-008)
+  * [X] Implement execution routing to adapters with final pre-send risk checks. (FR-EXEC-001, FR-EXEC-006)
+  * [X] Implement retry policies with bounded attempts and escalation. (FR-EXEC-004)
+  * [X] Implement `Order Spam Prevention` rate limiting. (FR-LIVE-008)
 * **Deliverables**
   * routing and retry with escalation policies
 * **SRS refs:** FR-EXEC-001, FR-EXEC-004, FR-EXEC-006, FR-LIVE-008, FR-SAFE-004
 * **SDD refs:** Â§5.1.6, Â§12
 * **Dependencies:** IP-34, IP-31
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_execution_retry.cpp`, `py/tests/integration/test_execution_escalation.py`
-  * Usage: `usage/live/execution_retry_policy.md`
-  * Bench/log: `benchmarks/execution/router_latency.md`
+  * Tests: `cpp/tests/test_execution_retry.cpp`, `tests/integration/test_execution_escalation.py`
+  * Usage: `docs/haruquant/usage/live/execution_retry_policy.md`
+  * Bench/log: N/A
   * Commit: `TBD`
 
 #### [ ] IP-36 TWAP/VWAP + partial fills + latency/slippage metrics
