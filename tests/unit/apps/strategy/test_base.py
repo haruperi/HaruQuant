@@ -1,8 +1,7 @@
 
 import pytest
 import pandas as pd
-import numpy as np
-from apps.strategy.base import BaseStrategy
+from apps.strategy.base import BaseStrategy, StrategyEvent
 
 class ConcreteStrategy(BaseStrategy):
     def on_init(self) -> None:
@@ -18,6 +17,8 @@ def strategy():
 def test_init(strategy):
     assert strategy.symbol == "TEST"
     assert strategy.params["symbol"] == "TEST"
+    assert strategy.strategy_id
+    assert isinstance(strategy.state, dict)
 
 def test_get_signal_none(strategy):
     data = pd.DataFrame([{"entry_signal": 0, "exit_signal": 0}])
@@ -55,3 +56,30 @@ def test_crossunder(strategy):
     s1 = pd.Series([10, 9])
     s2 = pd.Series([10, 11])
     assert strategy.crossunder(s1, s2) is True
+
+
+def test_lifecycle_optional_hooks_default_noop(strategy):
+    event: StrategyEvent = {
+        "event_id": "evt-1",
+        "event_type": "trade",
+        "symbol": "TEST",
+        "strategy_id": strategy.strategy_id,
+        "event_ts": pd.Timestamp("2026-01-01T00:00:00Z"),
+        "recv_ts": pd.Timestamp("2026-01-01T00:00:00Z"),
+        "payload": {"ticket": 1},
+        "run_id": "run-1",
+        "trace_id": "trace-1",
+        "correlation_id": "corr-1",
+    }
+    assert strategy.on_trade(event) is None
+    assert strategy.on_order_update(event) is None
+    assert strategy.on_timer(event) is None
+    assert strategy.on_shutdown(event) is None
+
+
+def test_strategy_state_isolation_between_instances():
+    a = ConcreteStrategy({"symbol": "AAA"})
+    b = ConcreteStrategy({"symbol": "BBB"})
+
+    a.state["counter"] = 1
+    assert "counter" not in b.state

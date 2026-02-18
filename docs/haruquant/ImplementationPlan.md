@@ -538,12 +538,12 @@
 
 ### Phase E â€” Strategy Runtime, Portfolio, Risk, OMS, Execution
 
-#### [ ] IP-22 Strategy SDK lifecycle and canonical event contract
+#### [x] IP-22 Strategy SDK lifecycle and canonical event contract
 
 * **Sub-tasks**
-  * [ ] Implement `BaseStrategy` with `initialize`, `on_bar`, `on_tick`, `on_trade`, `on_order_update`, `on_timer`, `on_shutdown`. (FR-STRAT-002)
-  * [ ] Define `StrategyEvent` contract for all operating modes. (FR-STRAT-001)
-  * [ ] Implement strategy isolation and per-strategy state containers. (FR-STRAT-003)
+  * [x] Implement `BaseStrategy` hooks with `on_init`, `on_bar`, `on_tick`, `on_trade`, `on_order_update`, `on_timer`, `on_shutdown`. (FR-STRAT-002)
+  * [x] Define `StrategyEvent` contract for all operating modes. (FR-STRAT-001)
+  * [x] Implement strategy isolation and per-strategy state containers. (FR-STRAT-003)
 * **Deliverables**
   * `BaseStrategy` hooks
   * `StrategyEvent` contract used in backtest + live
@@ -551,8 +551,8 @@
 * **SDD refs:** Â§5.3.2, Â§6, Â§7
 * **Dependencies:** IP-12, IP-18
 * **Completion evidence**
-  * Tests: `py/tests/unit/test_strategy_sdk.py`, `py/tests/contracts/test_strategy_event_contract.py`
-  * Usage: `usage/strategy/create_strategy.md`
+  * Tests: `tests/unit/apps/strategy/test_base.py`, `tests/contracts/test_strategy_event_contract.py`
+  * Usage: `docs/haruquant/usage/strategy/create_strategy.md`
   * Bench/log: N/A
   * Commit: `TBD`
 

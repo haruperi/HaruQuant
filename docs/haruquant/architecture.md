@@ -415,6 +415,23 @@
   - `tests/integration/test_fallback_serialization.py`
   - `docs/haruquant/usage/dev/zero_copy_and_fallback.md`
 
+## Strategy SDK Lifecycle + Event Contract (IP-22)
+
+- Strategy base type:
+  - `apps/strategy/base.py::BaseStrategy`
+- Canonical lifecycle hooks:
+  - required: `on_init()`, `on_bar(data)`
+  - optional: `on_tick(data)`, `on_trade(event)`, `on_order_update(event)`, `on_timer(event)`, `on_shutdown(event=None)`
+- Canonical strategy event shape:
+  - `apps/strategy/base.py::StrategyEvent`
+  - event keys: `event_id`, `event_type`, `symbol`, `strategy_id`, `event_ts`, `recv_ts`, `payload`, `run_id`, `trace_id`, `correlation_id`
+- Strategy isolation:
+  - each strategy instance has its own `strategy_id` and mutable `state` container (`dict`) for per-strategy runtime state.
+- Evidence:
+  - `tests/unit/apps/strategy/test_base.py`
+  - `tests/contracts/test_strategy_event_contract.py`
+  - `docs/haruquant/usage/strategy/create_strategy.md`
+
 ## Secrets and Privileged Config Controls (IP-05)
 
 - Secret provider integration:
