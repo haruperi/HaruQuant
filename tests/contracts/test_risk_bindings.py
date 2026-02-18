@@ -32,6 +32,9 @@ def test_risk_submodule_has_health_and_types() -> None:
     assert hasattr(risk, "RiskGovernor")
     assert hasattr(risk, "RiskBudgetAllocator")
     assert hasattr(risk, "RiskMode")
+    assert hasattr(risk, "RiskState")
+    assert hasattr(risk, "IntradayRiskMonitor")
+    assert hasattr(risk, "CircuitBreaker")
 
 
 def test_regime_detector_returns_normal_or_stress() -> None:
@@ -122,3 +125,33 @@ def test_mode_specific_policy_codes() -> None:
     )
     assert backtest_decision.allowed is True
     assert backtest_decision.policy_code == "OK"
+
+
+def test_intraday_monitor_and_circuit_breaker_bindings() -> None:
+    risk = hqt_engine._risk
+
+    cfg = risk.IntradayRiskConfig()
+    cfg.protective_drawdown_frac = 0.05
+    cfg.halt_drawdown_frac = 0.10
+    cfg.use_hmm_proxy = True
+    cfg.hmm_stress_probability_threshold = 0.7
+    monitor = risk.IntradayRiskMonitor(cfg)
+
+    snapshot = monitor.evaluate_with_hmm(
+        [10000.0, 10050.0, 10020.0],
+        [0.001, 0.0012, 0.0011, 0.0010, 0.0009],
+        0.85,
+    )
+    assert snapshot.state == risk.RiskState.HALT
+    assert snapshot.used_hmm_proxy is True
+
+    breaker = risk.CircuitBreaker()
+    assert breaker.can_trade("alpha").allowed is True
+    breaker.trip_strategy("alpha", "strategy_limit")
+    blocked = breaker.can_trade("alpha")
+    assert blocked.allowed is False
+    assert blocked.policy_code == "STRATEGY_CIRCUIT_BREAKER"
+    breaker.trip_global("global_halt")
+    global_blocked = breaker.can_trade("beta")
+    assert global_blocked.allowed is False
+    assert global_blocked.policy_code == "GLOBAL_CIRCUIT_BREAKER"

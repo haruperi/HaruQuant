@@ -13,11 +13,15 @@ using hqt::risk::PositionSizingConfig;
 using hqt::risk::PositionSizer;
 using hqt::risk::CorrelationPreference;
 using hqt::risk::ExposureConstraints;
+using hqt::risk::CircuitBreaker;
+using hqt::risk::IntradayRiskConfig;
+using hqt::risk::IntradayRiskMonitor;
 using hqt::risk::RiskAccountState;
 using hqt::risk::RiskBudgetAllocator;
 using hqt::risk::RiskGovernor;
 using hqt::risk::RiskGovernorConfig;
 using hqt::risk::RiskMode;
+using hqt::risk::RiskState;
 using hqt::risk::RiskRegimeDetector;
 using hqt::risk::validate_position_size;
 
@@ -175,6 +179,70 @@ TEST(RiskEngineTest, RiskGovernorModeSpecificSizeAndMarginChecks) {
         state, 0.1, 0.15, 0.10, 100.0, 1000.0, RiskMode::Backtest);
     EXPECT_TRUE(backtest_accept.allowed);
     EXPECT_EQ(backtest_accept.policy_code, "OK");
+}
+
+TEST(RiskEngineTest, IntradayRiskMonitorProtectiveAndHaltStates) {
+    IntradayRiskConfig cfg;
+    cfg.protective_drawdown_frac = 0.05;
+    cfg.halt_drawdown_frac = 0.10;
+    cfg.volatility_spike_mult = 2.0;
+    cfg.halt_volatility_spike_mult = 3.0;
+    cfg.volatility_window = 5;
+    IntradayRiskMonitor monitor(cfg);
+
+    const std::vector<double> equity_protective{
+        10000.0, 10100.0, 10090.0, 10000.0, 9500.0};
+    const std::vector<double> returns_normal{
+        0.001, 0.0012, 0.0011, 0.0010, 0.0013, 0.0011, 0.0012, 0.0010};
+    const auto protective = monitor.evaluate(equity_protective, returns_normal);
+    EXPECT_EQ(protective.state, RiskState::Protective);
+    EXPECT_TRUE(protective.drawdown_breached);
+
+    const std::vector<double> equity_halt{
+        10000.0, 10050.0, 10020.0, 9800.0, 8900.0};
+    const auto halt = monitor.evaluate(equity_halt, returns_normal);
+    EXPECT_EQ(halt.state, RiskState::Halt);
+    EXPECT_EQ(halt.reason, "DRAWDOWN_HALT");
+}
+
+TEST(RiskEngineTest, IntradayRiskMonitorSupportsHmmProxyHook) {
+    IntradayRiskConfig cfg;
+    cfg.use_hmm_proxy = true;
+    cfg.hmm_stress_probability_threshold = 0.7;
+    IntradayRiskMonitor monitor(cfg);
+
+    const std::vector<double> equity{10000.0, 10010.0, 10020.0};
+    const std::vector<double> returns{0.001, 0.0009, 0.0011, 0.0010, 0.0008};
+    const auto snapshot = monitor.evaluate_with_hmm(equity, returns, 0.85);
+    EXPECT_EQ(snapshot.state, RiskState::Halt);
+    EXPECT_TRUE(snapshot.used_hmm_proxy);
+    EXPECT_EQ(snapshot.reason, "HMM_STRESS_HALT");
+}
+
+TEST(RiskEngineTest, CircuitBreakerGlobalAndStrategyTrips) {
+    CircuitBreaker breaker;
+
+    auto initial = breaker.can_trade("alpha");
+    EXPECT_TRUE(initial.allowed);
+    EXPECT_EQ(initial.policy_code, "OK");
+
+    breaker.trip_strategy("alpha", "strategy_dd_limit");
+    auto strategy_block = breaker.can_trade("alpha");
+    EXPECT_FALSE(strategy_block.allowed);
+    EXPECT_FALSE(strategy_block.global_halt);
+    EXPECT_TRUE(strategy_block.strategy_halt);
+    EXPECT_EQ(strategy_block.policy_code, "STRATEGY_CIRCUIT_BREAKER");
+
+    breaker.trip_global("market_volatility_extreme");
+    auto global_block = breaker.can_trade("beta");
+    EXPECT_FALSE(global_block.allowed);
+    EXPECT_TRUE(global_block.global_halt);
+    EXPECT_EQ(global_block.policy_code, "GLOBAL_CIRCUIT_BREAKER");
+
+    breaker.reset_global();
+    breaker.reset_strategy("alpha");
+    auto cleared = breaker.can_trade("alpha");
+    EXPECT_TRUE(cleared.allowed);
 }
 
 }  // namespace

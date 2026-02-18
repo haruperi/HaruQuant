@@ -47,6 +47,12 @@ struct RiskDecision {
     double projected_net_exposure{0.0};
 };
 
+enum class RiskState {
+    Normal = 0,
+    Protective = 1,
+    Halt = 2,
+};
+
 enum class RiskMode {
     Live = 0,
     Backtest = 1,
@@ -68,6 +74,70 @@ struct RiskAccountState {
     double peak_equity{0.0};
     double gross_exposure{0.0};
     double net_exposure{0.0};
+};
+
+struct IntradayRiskConfig {
+    double protective_drawdown_frac{0.05};
+    double halt_drawdown_frac{0.10};
+    double volatility_spike_mult{2.0};
+    double halt_volatility_spike_mult{3.0};
+    int volatility_window{20};
+    bool use_hmm_proxy{false};
+    double hmm_stress_probability_threshold{0.70};
+};
+
+struct IntradayRiskSnapshot {
+    RiskState state{RiskState::Normal};
+    bool drawdown_breached{false};
+    bool volatility_spike{false};
+    bool used_hmm_proxy{false};
+    double drawdown_frac{0.0};
+    double volatility_now{0.0};
+    double volatility_baseline{0.0};
+    double hmm_stress_probability{-1.0};
+    std::string reason{"ok"};
+};
+
+class IntradayRiskMonitor {
+public:
+    explicit IntradayRiskMonitor(IntradayRiskConfig config = {});
+
+    [[nodiscard]] const IntradayRiskConfig& config() const noexcept;
+    [[nodiscard]] IntradayRiskSnapshot evaluate(
+        const std::vector<double>& equity_curve,
+        const std::vector<double>& returns_window) const;
+    [[nodiscard]] IntradayRiskSnapshot evaluate_with_hmm(
+        const std::vector<double>& equity_curve,
+        const std::vector<double>& returns_window,
+        double hmm_stress_probability) const;
+
+private:
+    IntradayRiskConfig config_{};
+};
+
+struct CircuitBreakerDecision {
+    bool allowed{true};
+    bool global_halt{false};
+    bool strategy_halt{false};
+    std::string policy_code{"OK"};
+    std::string reason{"ok"};
+};
+
+class CircuitBreaker {
+public:
+    void trip_global(const std::string& reason);
+    void reset_global();
+    void trip_strategy(const std::string& strategy_id, const std::string& reason);
+    void reset_strategy(const std::string& strategy_id);
+    [[nodiscard]] bool is_global_halt() const noexcept;
+    [[nodiscard]] bool is_strategy_halted(const std::string& strategy_id) const;
+    [[nodiscard]] CircuitBreakerDecision can_trade(
+        const std::string& strategy_id) const;
+
+private:
+    bool global_halt_{false};
+    std::string global_reason_{};
+    std::unordered_map<std::string, std::string> strategy_halts_{};
 };
 
 class RiskRegimeDetector {

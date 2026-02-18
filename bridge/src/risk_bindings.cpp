@@ -56,6 +56,63 @@ void register_risk_bindings(nb::module_& m) {
         .value("BACKTEST", RiskMode::Backtest)
         .export_values();
 
+    nb::enum_<RiskState>(m, "RiskState")
+        .value("NORMAL", RiskState::Normal)
+        .value("PROTECTIVE", RiskState::Protective)
+        .value("HALT", RiskState::Halt)
+        .export_values();
+
+    nb::class_<IntradayRiskConfig>(m, "IntradayRiskConfig")
+        .def(nb::init<>())
+        .def_rw("protective_drawdown_frac", &IntradayRiskConfig::protective_drawdown_frac)
+        .def_rw("halt_drawdown_frac", &IntradayRiskConfig::halt_drawdown_frac)
+        .def_rw("volatility_spike_mult", &IntradayRiskConfig::volatility_spike_mult)
+        .def_rw("halt_volatility_spike_mult", &IntradayRiskConfig::halt_volatility_spike_mult)
+        .def_rw("volatility_window", &IntradayRiskConfig::volatility_window)
+        .def_rw("use_hmm_proxy", &IntradayRiskConfig::use_hmm_proxy)
+        .def_rw("hmm_stress_probability_threshold", &IntradayRiskConfig::hmm_stress_probability_threshold);
+
+    nb::class_<IntradayRiskSnapshot>(m, "IntradayRiskSnapshot")
+        .def(nb::init<>())
+        .def_rw("state", &IntradayRiskSnapshot::state)
+        .def_rw("drawdown_breached", &IntradayRiskSnapshot::drawdown_breached)
+        .def_rw("volatility_spike", &IntradayRiskSnapshot::volatility_spike)
+        .def_rw("used_hmm_proxy", &IntradayRiskSnapshot::used_hmm_proxy)
+        .def_rw("drawdown_frac", &IntradayRiskSnapshot::drawdown_frac)
+        .def_rw("volatility_now", &IntradayRiskSnapshot::volatility_now)
+        .def_rw("volatility_baseline", &IntradayRiskSnapshot::volatility_baseline)
+        .def_rw("hmm_stress_probability", &IntradayRiskSnapshot::hmm_stress_probability)
+        .def_rw("reason", &IntradayRiskSnapshot::reason);
+
+    nb::class_<IntradayRiskMonitor>(m, "IntradayRiskMonitor")
+        .def(nb::init<IntradayRiskConfig>(), nb::arg("config") = IntradayRiskConfig{})
+        .def("config", &IntradayRiskMonitor::config, nb::rv_policy::reference_internal)
+        .def("evaluate", &IntradayRiskMonitor::evaluate, nb::arg("equity_curve"), nb::arg("returns_window"))
+        .def(
+            "evaluate_with_hmm",
+            &IntradayRiskMonitor::evaluate_with_hmm,
+            nb::arg("equity_curve"),
+            nb::arg("returns_window"),
+            nb::arg("hmm_stress_probability"));
+
+    nb::class_<CircuitBreakerDecision>(m, "CircuitBreakerDecision")
+        .def(nb::init<>())
+        .def_rw("allowed", &CircuitBreakerDecision::allowed)
+        .def_rw("global_halt", &CircuitBreakerDecision::global_halt)
+        .def_rw("strategy_halt", &CircuitBreakerDecision::strategy_halt)
+        .def_rw("policy_code", &CircuitBreakerDecision::policy_code)
+        .def_rw("reason", &CircuitBreakerDecision::reason);
+
+    nb::class_<CircuitBreaker>(m, "CircuitBreaker")
+        .def(nb::init<>())
+        .def("trip_global", &CircuitBreaker::trip_global, nb::arg("reason"))
+        .def("reset_global", &CircuitBreaker::reset_global)
+        .def("trip_strategy", &CircuitBreaker::trip_strategy, nb::arg("strategy_id"), nb::arg("reason"))
+        .def("reset_strategy", &CircuitBreaker::reset_strategy, nb::arg("strategy_id"))
+        .def("is_global_halt", &CircuitBreaker::is_global_halt)
+        .def("is_strategy_halted", &CircuitBreaker::is_strategy_halted, nb::arg("strategy_id"))
+        .def("can_trade", &CircuitBreaker::can_trade, nb::arg("strategy_id"));
+
     nb::class_<RiskGovernorConfig>(m, "RiskGovernorConfig")
         .def(nb::init<>())
         .def_rw("max_drawdown_frac", &RiskGovernorConfig::max_drawdown_frac)

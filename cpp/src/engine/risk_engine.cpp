@@ -69,6 +69,145 @@ double mode_multiplier(const RiskGovernorConfig& config, RiskMode mode) {
 
 }  // namespace
 
+IntradayRiskMonitor::IntradayRiskMonitor(IntradayRiskConfig config)
+    : config_(config) {}
+
+const IntradayRiskConfig& IntradayRiskMonitor::config() const noexcept {
+    return config_;
+}
+
+IntradayRiskSnapshot IntradayRiskMonitor::evaluate(
+    const std::vector<double>& equity_curve,
+    const std::vector<double>& returns_window) const {
+    return evaluate_with_hmm(equity_curve, returns_window, -1.0);
+}
+
+IntradayRiskSnapshot IntradayRiskMonitor::evaluate_with_hmm(
+    const std::vector<double>& equity_curve,
+    const std::vector<double>& returns_window,
+    double hmm_stress_probability) const {
+    IntradayRiskSnapshot out{};
+
+    if (!equity_curve.empty()) {
+        double peak = -std::numeric_limits<double>::infinity();
+        for (const double v : equity_curve) {
+            peak = std::max(peak, v);
+        }
+        if (peak > 0.0) {
+            out.drawdown_frac = std::max(0.0, (peak - equity_curve.back()) / peak);
+        }
+    }
+
+    if (!returns_window.empty()) {
+        const int w = std::max(2, config_.volatility_window);
+        if (static_cast<int>(returns_window.size()) >= w) {
+            const std::size_t start = returns_window.size() - static_cast<std::size_t>(w);
+            std::vector<double> tail(
+                returns_window.begin() + static_cast<std::ptrdiff_t>(start),
+                returns_window.end());
+            out.volatility_now = safe_stddev(tail);
+        } else {
+            out.volatility_now = safe_stddev(returns_window);
+        }
+
+        if (static_cast<int>(returns_window.size()) > w) {
+            std::vector<double> baseline(
+                returns_window.begin(),
+                returns_window.end() - static_cast<std::ptrdiff_t>(w));
+            out.volatility_baseline = safe_stddev(baseline);
+        } else {
+            out.volatility_baseline = safe_stddev(returns_window);
+        }
+
+        if (out.volatility_baseline > 0.0) {
+            out.volatility_spike = (
+                out.volatility_now > (config_.volatility_spike_mult * out.volatility_baseline));
+        }
+    }
+
+    const bool hmm_signal = (
+        config_.use_hmm_proxy &&
+        hmm_stress_probability >= 0.0 &&
+        hmm_stress_probability >= config_.hmm_stress_probability_threshold);
+    out.used_hmm_proxy = hmm_signal;
+    out.hmm_stress_probability = hmm_stress_probability;
+    out.drawdown_breached = out.drawdown_frac >= config_.protective_drawdown_frac;
+
+    const bool halt_drawdown = out.drawdown_frac >= config_.halt_drawdown_frac;
+    const bool halt_vol = (
+        out.volatility_baseline > 0.0 &&
+        out.volatility_now > (config_.halt_volatility_spike_mult * out.volatility_baseline));
+
+    if (halt_drawdown || halt_vol || hmm_signal) {
+        out.state = RiskState::Halt;
+        if (hmm_signal) {
+            out.reason = "HMM_STRESS_HALT";
+        } else if (halt_drawdown) {
+            out.reason = "DRAWDOWN_HALT";
+        } else {
+            out.reason = "VOLATILITY_HALT";
+        }
+        return out;
+    }
+
+    if (out.drawdown_breached || out.volatility_spike) {
+        out.state = RiskState::Protective;
+        out.reason = out.drawdown_breached ? "DRAWDOWN_PROTECTIVE" : "VOLATILITY_PROTECTIVE";
+        return out;
+    }
+
+    out.state = RiskState::Normal;
+    out.reason = "ok";
+    return out;
+}
+
+void CircuitBreaker::trip_global(const std::string& reason) {
+    global_halt_ = true;
+    global_reason_ = reason;
+}
+
+void CircuitBreaker::reset_global() {
+    global_halt_ = false;
+    global_reason_.clear();
+}
+
+void CircuitBreaker::trip_strategy(const std::string& strategy_id, const std::string& reason) {
+    strategy_halts_[strategy_id] = reason;
+}
+
+void CircuitBreaker::reset_strategy(const std::string& strategy_id) {
+    strategy_halts_.erase(strategy_id);
+}
+
+bool CircuitBreaker::is_global_halt() const noexcept {
+    return global_halt_;
+}
+
+bool CircuitBreaker::is_strategy_halted(const std::string& strategy_id) const {
+    return strategy_halts_.find(strategy_id) != strategy_halts_.end();
+}
+
+CircuitBreakerDecision CircuitBreaker::can_trade(const std::string& strategy_id) const {
+    if (global_halt_) {
+        return CircuitBreakerDecision{
+            false,
+            true,
+            is_strategy_halted(strategy_id),
+            "GLOBAL_CIRCUIT_BREAKER",
+            global_reason_.empty() ? "global_halt" : global_reason_};
+    }
+    if (is_strategy_halted(strategy_id)) {
+        const auto it = strategy_halts_.find(strategy_id);
+        return CircuitBreakerDecision{
+            false,
+            false,
+            true,
+            "STRATEGY_CIRCUIT_BREAKER",
+            it != strategy_halts_.end() ? it->second : "strategy_halt"};
+    }
+    return CircuitBreakerDecision{true, false, false, "OK", "ok"};
+}
+
 RiskGovernor::RiskGovernor(RiskGovernorConfig config)
     : config_(config) {}
 

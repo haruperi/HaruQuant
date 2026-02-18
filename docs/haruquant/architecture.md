@@ -367,6 +367,23 @@
   - `tests/usage/risk/09_cpp_risk_policy.py`
   - `docs/haruquant/usage/risk/pretrade_risk.md`
 
+## In-trade Monitoring and Circuit Breakers (IP-28)
+
+- Core module:
+  - `cpp/include/risk/risk_engine.hpp`
+  - `cpp/src/engine/risk_engine.cpp`
+- Added C++ components:
+  - `IntradayRiskMonitor` for drawdown and volatility-spike monitoring
+  - optional HMM-proxy hook via `evaluate_with_hmm(..., hmm_stress_probability)`
+  - `CircuitBreaker` supporting strategy-level and global halt gates
+- Bridge bindings:
+  - `bridge/src/risk_bindings.cpp` (`hqt_engine._risk`)
+- Evidence:
+  - `cpp/tests/test_risk_engine.cpp`
+  - `tests/contracts/test_risk_bindings.py`
+  - `tests/usage/risk/10_intraday_circuit_breaker.py`
+  - `docs/haruquant/usage/risk/intrade_controls.md`
+
 ## Bridge Ownership and Lifetime Safety (IP-19)
 
 - Ownership contract API:

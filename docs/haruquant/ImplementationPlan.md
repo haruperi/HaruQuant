@@ -641,21 +641,21 @@
   * Bench/log: `TBD`
   * Commit: `TBD`
 
-#### [ ] IP-28 In-trade monitoring + circuit breakers
+#### [X] IP-28 In-trade monitoring + circuit breakers
 
 * **Sub-tasks**
-  * [ ] Implement in-trade monitoring for drawdown and volatility spikes. (FR-RISK-002)
-  * [ ] Implement strategy-level and global circuit breakers. (FR-RISK-003, FR-RISK-009)
-  * [ ] Integrate HMM-based regime detection for dynamic risk inputs. (FR-RISK-010)
+  * [X] Implement in-trade monitoring for drawdown and volatility spikes. (FR-RISK-002)
+  * [X] Implement strategy-level and global circuit breakers. (FR-RISK-003, FR-RISK-009)
+  * [X] Integrate HMM-based regime detection for dynamic risk inputs. (FR-RISK-010)
 * **Deliverables**
-  * drawdown/volatility monitors and auto-protect logic
+  * [X] drawdown/volatility monitors and auto-protect logic
 * **SRS refs:** FR-RISK-002..003, FR-RISK-009..010, FR-SAFE-002..003
 * **SDD refs:** Â§5.1.4, Â§12, Â§14
 * **Dependencies:** IP-27
 * **Completion evidence**
-  * Tests: `cpp/tests/unit/test_intraday_risk.cpp`, `py/tests/e2e/test_circuit_breaker.py`
-  * Usage: `usage/risk/intrade_controls.md`
-  * Bench/log: `artifacts/logs/risk/circuit_breaker_drill.json`
+  * Tests: `cpp/tests/test_risk_engine.cpp`, `tests/contracts/test_risk_bindings.py`
+  * Usage: `docs/haruquant/usage/risk/intrade_controls.md`, `tests/usage/risk/10_intraday_circuit_breaker.py`
+  * Bench/log: `TBD`
   * Commit: `TBD`
 
 #### [ ] IP-29 Kill-switch controller and safe-mode transitions
