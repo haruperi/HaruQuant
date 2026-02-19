@@ -16,6 +16,7 @@ import pandas as pd
 
 from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
+from apps.sqlite.users import UserManager
 
 mt5 = get_mt5_api()
 
@@ -32,6 +33,7 @@ class MT5Utils:
     Static utility class providing helper methods for MT5 trading system.
 
     This class contains static methods for:
+    - Get MT5 credentials from the database
     - Time operations (conversions, formatting)
     - Price operations (conversions, formatting, rounding)
     - Volume operations (conversions, rounding)
@@ -40,6 +42,30 @@ class MT5Utils:
     - File operations (save/load various formats)
     - Mathematical calculations
     """
+
+    def get_mt5_credentials():
+        """Get MT5 credentials from the database."""
+        creds = UserManager().get_mt5_credentials()
+        if not creds:
+            logger.error("No default broker credentials found")
+        return creds
+        
+    
+    def get_connected_client():
+        """Create a connected MT5 client."""
+        from .client import MT5Client
+        creds = MT5Utils.get_mt5_credentials()
+        client = MT5Client()
+
+        if not client.connect(
+            login=creds["login"],
+            password=creds["password"],
+            server=creds["server"],
+            path=creds["path"]
+        ):
+            print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
+            return None
+        return client
 
     # ==================== Time Operations ====================
 

@@ -26,13 +26,8 @@ from .__version__ import (
 
 # Core imports
 from .client import MT5Api, MT5Client, get_mt5_api
-from .account_info import AccountInfo
-from .symbol_info import SymbolInfo
 from .trade import Trade
-
-# from .mt5_util import MT5Utils
-# from .data import MT5Data
-# from .mt5_validator import MT5Validator
+from .util import MT5Utils
 
 __all__ = [
     # Version info
@@ -49,10 +44,6 @@ __all__ = [
     "MT5Client",
     "MT5Api",
     "get_mt5_api",
-    "AccountInfo",
-    "SymbolInfo",
     "Trade",
-    # "MT5Data",
-    # "MT5Validator",
-    # "MT5Utils",
+    "MT5Utils",
 ]

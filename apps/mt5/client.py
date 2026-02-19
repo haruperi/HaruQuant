@@ -698,6 +698,8 @@ class MT5Client:
                                 callback(current_data)
                                 last_data = current_data
 
+                # Always sleep to prevent CPU spinning if unknown data_type or on loop
+                if data_type != "ticks":
                     time.sleep(interval)
 
             except Exception as e:
