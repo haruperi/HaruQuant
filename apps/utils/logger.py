@@ -7,9 +7,11 @@ import threading
 import logging
 import inspect
 import os
+import time
+from fnmatch import fnmatch
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -93,6 +95,84 @@ class _Core:
 
 _STRUCTLOG_CONFIGURED = False
 _CONFIG_LOCK = threading.Lock()
+_DEFAULT_FILE_SINKS_CONFIGURED = False
+
+
+class _SizeAndTimeRotatingFileSink:
+    """Simple file sink that rotates on max size or UTC day boundary."""
+
+    def __init__(
+        self,
+        path: Path,
+        *,
+        max_bytes: int,
+        backup_count: int,
+    ) -> None:
+        self._path = Path(path)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._max_bytes = max(1, int(max_bytes))
+        self._backup_count = max(1, int(backup_count))
+        self._lock = threading.Lock()
+        self._stream = self._path.open("a", encoding="utf-8")
+        self._next_day_rollover = self._next_utc_midnight_ts()
+
+    def write(self, text: str) -> None:
+        payload = str(text)
+        payload_size = len(payload.encode("utf-8"))
+        with self._lock:
+            if self._should_rotate(payload_size):
+                self._rotate()
+            self._stream.write(payload)
+            self._stream.flush()
+
+    def flush(self) -> None:
+        with self._lock:
+            self._stream.flush()
+
+    def close(self) -> None:
+        with self._lock:
+            self._stream.close()
+
+    def _should_rotate(self, payload_size: int) -> bool:
+        by_time = time.time() >= self._next_day_rollover
+        by_size = (self._path.stat().st_size + payload_size) > self._max_bytes
+        return by_time or by_size
+
+    def _rotate(self) -> None:
+        self._stream.close()
+        stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        rotated = self._path.with_name(f"{self._path.name}.{stamp}")
+        suffix = 1
+        while rotated.exists():
+            rotated = self._path.with_name(f"{self._path.name}.{stamp}.{suffix}")
+            suffix += 1
+        if self._path.exists():
+            self._path.rename(rotated)
+        self._stream = self._path.open("a", encoding="utf-8")
+        self._next_day_rollover = self._next_utc_midnight_ts()
+        self._prune_old_backups()
+
+    def _prune_old_backups(self) -> None:
+        pattern = f"{self._path.name}.*"
+        backups = [
+            p
+            for p in self._path.parent.iterdir()
+            if p.is_file() and fnmatch(p.name, pattern)
+        ]
+        backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        for old_file in backups[self._backup_count :]:
+            try:
+                old_file.unlink()
+            except Exception:
+                pass
+
+    @staticmethod
+    def _next_utc_midnight_ts() -> float:
+        now = datetime.now(timezone.utc)
+        next_midnight = (
+            now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        )
+        return next_midnight.timestamp()
 
 
 def _configure_structlog() -> None:
@@ -272,70 +352,75 @@ class StructlogAdapter:
         self._emit(level_name, message, *args, **kwargs)
 
     def _emit(self, level_name: str, message: str, *args: Any, **kwargs: Any) -> None:
-        extra = kwargs.pop("extra", None) or {}
-        exc_info = kwargs.pop("exc_info", None)
-        format_kwargs = kwargs
-        caller = self._caller_meta(depth=3)
-
-        message_text = self._format_message(message, args, format_kwargs)
-        safe_extra = redact_mapping({**self._bound_extra, **format_kwargs, **extra})
-        safe_extra = self._ensure_context_ids(safe_extra)
-        safe_message = redact_text(message_text)
-        level_name = self._normalize_level_name(level_name)
-        component = str(safe_extra.get("component") or self._name)
-        if not self._should_log(component, _LEVELS[level_name]):
-            return
-
-        if _HAS_STRUCTLOG:
-            event = {
-                "event": safe_message,
-                "logger": self._name,
-                "level": level_name.lower(),
-                "extra": safe_extra,
-                "file": caller["file"],
-                "function": caller["function"],
-                "line": caller["line"],
-                "correlation_id": safe_extra["correlation_id"],
-                "run_id": safe_extra["run_id"],
-                "trace_id": safe_extra["trace_id"],
-            }
-            if exc_info:
-                event["exc_info"] = True
-
-            if level_name in {"ERROR", "CRITICAL"}:
-                self._logger.error(**event)
-            elif level_name == "WARNING":
-                self._logger.warning(**event)
-            elif level_name == "DEBUG":
-                self._logger.debug(**event)
-            elif level_name == "TRACE":
-                self._logger.debug(**event)
+        try:
+            extra = kwargs.pop("extra", None) or {}
+            exc_info = kwargs.pop("exc_info", None)
+            format_kwargs = kwargs
+            caller = self._caller_meta(depth=3)
+    
+            message_text = self._format_message(message, args, format_kwargs)
+            safe_extra = redact_mapping({**self._bound_extra, **format_kwargs, **extra})
+            safe_extra = self._ensure_context_ids(safe_extra)
+            safe_message = redact_text(message_text)
+            level_name = self._normalize_level_name(level_name)
+            component = str(safe_extra.get("component") or self._name)
+            if not self._should_log(component, _LEVELS[level_name]):
+                return
+    
+            if _HAS_STRUCTLOG:
+                event = {
+                    "event": safe_message,
+                    "logger": self._name,
+                    "level": level_name.lower(),
+                    "extra": safe_extra,
+                    "file": caller["file"],
+                    "function": caller["function"],
+                    "line": caller["line"],
+                    "correlation_id": safe_extra["correlation_id"],
+                    "run_id": safe_extra["run_id"],
+                    "trace_id": safe_extra["trace_id"],
+                }
+                if exc_info:
+                    event["exc_info"] = True
+    
+                if level_name in {"ERROR", "CRITICAL"}:
+                    self._logger.error(**event)
+                elif level_name == "WARNING":
+                    self._logger.warning(**event)
+                elif level_name == "DEBUG":
+                    self._logger.debug(**event)
+                elif level_name == "TRACE":
+                    self._logger.debug(**event)
+                else:
+                    self._logger.info(**event)
             else:
-                self._logger.info(**event)
-        else:
-            if level_name in {"ERROR", "CRITICAL"}:
-                self._logger.error(safe_message, exc_info=bool(exc_info))
-            elif level_name == "WARNING":
-                self._logger.warning(safe_message)
-            elif level_name in {"DEBUG", "TRACE"}:
-                self._logger.debug(safe_message)
-            else:
-                self._logger.info(safe_message)
+                if level_name in {"ERROR", "CRITICAL"}:
+                    self._logger.error(safe_message, exc_info=bool(exc_info))
+                elif level_name == "WARNING":
+                    self._logger.warning(safe_message)
+                elif level_name in {"DEBUG", "TRACE"}:
+                    self._logger.debug(safe_message)
+                else:
+                    self._logger.info(safe_message)
+    
+            record = CompatRecord(
+                time=datetime.now(),
+                level=_CompatLevel(name=level_name, no=_LEVELS[level_name]),
+                message=safe_message,
+                name=self._name,
+                file=caller["file"],
+                function=caller["function"],
+                line=caller["line"],
+                correlation_id=safe_extra["correlation_id"],
+                run_id=safe_extra["run_id"],
+                trace_id=safe_extra["trace_id"],
+                extra=safe_extra,
+            )
+            self._dispatch_to_sinks(record)
+        except Exception:
+            # Logging failures must not break execution flow.
+            pass
 
-        record = CompatRecord(
-            time=datetime.now(),
-            level=_CompatLevel(name=level_name, no=_LEVELS[level_name]),
-            message=safe_message,
-            name=self._name,
-            file=caller["file"],
-            function=caller["function"],
-            line=caller["line"],
-            correlation_id=safe_extra["correlation_id"],
-            run_id=safe_extra["run_id"],
-            trace_id=safe_extra["trace_id"],
-            extra=safe_extra,
-        )
-        self._dispatch_to_sinks(record)
 
     def _dispatch_to_sinks(self, record: CompatRecord) -> None:
         with self._core.lock:
@@ -438,9 +523,22 @@ class StructlogAdapter:
 
     @staticmethod
     def _normalize_level_name(level: Any) -> str:
+        if isinstance(level, int):
+            # Check if it's one of our defined level numbers
+            for name, val in _LEVELS.items():
+                if val == level:
+                    return name
+            # Fallback for standard logging levels not in our dict
+            if level <= 10: return "DEBUG"
+            if level <= 20: return "INFO"
+            if level <= 30: return "WARNING"
+            if level <= 40: return "ERROR"
+            return "CRITICAL"
+
         name = str(level).upper()
         name = _LEVEL_ALIASES.get(name, name)
         return name if name in _LEVELS else "INFO"
+
 
     def _should_log(self, component: str, level_no: int) -> bool:
         with self._core.lock:
@@ -457,6 +555,47 @@ class StructlogAdapter:
 
 
 logger = StructlogAdapter()
+
+
+def _is_access_record(record: CompatRecord) -> bool:
+    component = str(record.extra.get("component", "")).lower()
+    has_http_fields = any(
+        key in record.extra for key in ("method", "path", "status_code", "remote_addr")
+    )
+    return "access" in component or has_http_fields
+
+
+def _configure_default_file_sinks() -> None:
+    global _DEFAULT_FILE_SINKS_CONFIGURED
+    if _DEFAULT_FILE_SINKS_CONFIGURED:
+        return
+
+    log_dir = Path("logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Default policy: rotate daily (UTC) or at 50MB, keep 30 backups.
+    app_sink = _SizeAndTimeRotatingFileSink(
+        log_dir / "app.log", max_bytes=50 * 1024 * 1024, backup_count=30
+    )
+    debug_sink = _SizeAndTimeRotatingFileSink(
+        log_dir / "debug.log", max_bytes=50 * 1024 * 1024, backup_count=30
+    )
+    error_sink = _SizeAndTimeRotatingFileSink(
+        log_dir / "errors.log", max_bytes=50 * 1024 * 1024, backup_count=30
+    )
+    access_sink = _SizeAndTimeRotatingFileSink(
+        log_dir / "access.log", max_bytes=50 * 1024 * 1024, backup_count=30
+    )
+
+    logger.add(app_sink, level="INFO")
+    logger.add(debug_sink, level="DEBUG")
+    logger.add(error_sink, level="ERROR")
+    logger.add(access_sink, level="INFO", filter=_is_access_record)
+
+    _DEFAULT_FILE_SINKS_CONFIGURED = True
+
+
+_configure_default_file_sinks()
 Logger = StructlogAdapter
 
 __all__ = [

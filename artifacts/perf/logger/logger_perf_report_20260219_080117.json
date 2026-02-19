@@ -1,0 +1,81 @@
+{
+  "timestamp_utc": "2026-02-19T08:01:17.552572+00:00",
+  "config": {
+    "duration_seconds": 6,
+    "load_minutes": 0.2,
+    "rate_per_minute": 10000,
+    "py_threads": 4,
+    "cpp_threads": 4,
+    "rotation_size_bytes": 262144,
+    "rotation_backups": 5,
+    "quick": true
+  },
+  "results": [
+    {
+      "name": "thread_safe_logging_stress",
+      "success": true,
+      "details": {
+        "elapsed_seconds": 6.047,
+        "log_file": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\stress\\thread_safety_stress.log",
+        "python_entries": 18351,
+        "cpp_emit_entries": 16890,
+        "cpp_callback_entries": 16890,
+        "callback_errors": 0,
+        "expected_min_lines": 35241,
+        "integrity": {
+          "total_lines": 35241,
+          "malformed_lines": 0,
+          "first_malformed": ""
+        }
+      }
+    },
+    {
+      "name": "logging_to_sink_under_load",
+      "success": false,
+      "details": {
+        "elapsed_seconds": 12.052,
+        "log_file": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\sink_load\\sink_under_load.log",
+        "target_rate_per_sec": 166,
+        "observed_rate_per_sec": 159.89,
+        "python_logged": 964,
+        "cpp_logged_via_callback": 963,
+        "critical_expected": 24,
+        "critical_found_in_file": 12,
+        "integrity": {
+          "total_lines": 1927,
+          "malformed_lines": 0,
+          "first_malformed": ""
+        }
+      }
+    },
+    {
+      "name": "rotation_under_load",
+      "success": true,
+      "details": {
+        "base_file": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log",
+        "files_found": [
+          "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log",
+          "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log.20260219_080115",
+          "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log.20260219_080115.2",
+          "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log.20260219_080115.3",
+          "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log.20260219_080115.4",
+          "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\rotation\\rotation_under_load.log.20260219_080115.5"
+        ],
+        "file_count": 6,
+        "total_lines": 3269,
+        "unreadable_files": 0
+      }
+    },
+    {
+      "name": "component_filtering_concurrency",
+      "success": true,
+      "details": {
+        "attempted_risk_info": 64,
+        "attempted_trade_info": 285462,
+        "file_risk_entries": 64,
+        "file_trade_entries": 0,
+        "log_file": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\artifacts\\perf\\logger\\component_filter\\component_filter.log"
+      }
+    }
+  ]
+}

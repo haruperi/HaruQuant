@@ -1,0 +1,54 @@
+{
+  "timestamp_utc": "2026-02-19T08:04:25.320319+00:00",
+  "config": {
+    "duration_seconds": 8,
+    "threads": 4,
+    "latency_samples": 5000,
+    "quick": true
+  },
+  "results": [
+    {
+      "name": "cpp_emit_throughput",
+      "success": true,
+      "details": {
+        "elapsed_seconds": 8.326,
+        "threads": 4,
+        "emitted": 650507,
+        "received_callback": 650507,
+        "emit_rate_per_sec": 78125.08,
+        "callback_delivery_ratio": 1.0
+      }
+    },
+    {
+      "name": "cpp_callback_latency_percentiles",
+      "success": true,
+      "details": {
+        "elapsed_seconds": 0.085,
+        "samples_sent": 5000,
+        "samples_received": 5000,
+        "pending_after_wait": 0,
+        "callback_misses": 0,
+        "latency_us": {
+          "p50": 11.8,
+          "p90": 19.1,
+          "p99": 70.6,
+          "max": 335.6
+        },
+        "thresholds": {
+          "delivery_ratio_min": 0.995,
+          "p99_max_us": 50000
+        }
+      }
+    },
+    {
+      "name": "cpp_component_filter_under_load",
+      "success": true,
+      "details": {
+        "iterations": 1000,
+        "info_received": 1000,
+        "error_received": 1000,
+        "expected_error_min": 990
+      }
+    }
+  ]
+}

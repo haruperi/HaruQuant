@@ -57,6 +57,14 @@
 
 - Default Python logger export is `apps.utils.logger.logger` (Structlog adapter).
 - Existing import pattern `from apps.utils.logger import logger` remains unchanged.
+- Default file sinks are configured at import time under `logs/`:
+  - `logs/app.log` (INFO and above)
+  - `logs/debug.log` (DEBUG and above)
+  - `logs/errors.log` (ERROR and above)
+  - `logs/access.log` (records tagged as access/http style events)
+- Rotation policy for default Python file sinks:
+  - rotate at UTC midnight or at 50 MB, whichever comes first
+  - retain 30 rotated files per log stream
 - Compatibility support is preserved for commonly used APIs:
   - level methods (`debug/info/success/warning/error/critical/exception`)
   - `bind(...)`

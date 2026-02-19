@@ -4,7 +4,7 @@ A comprehensive collection of utility functions and classes for data management,
 
 ## Overview
 
-The `utils` module provides essential utilities for all aspects of the trading platform, from data loading and validation to security management and concurrent processing. It consists of ten independent components that handle different infrastructure concerns.
+The `utils` module provides essential utilities for all aspects of the trading platform, from data loading and validation to security management and concurrent processing. It consists of independent components that handle different infrastructure concerns.
 
 ### Key Features
 
@@ -18,6 +18,7 @@ The `utils` module provides essential utilities for all aspects of the trading p
 - **Error Handling**: MT5 error code descriptions and lookups
 - **Trade Validation**: Comprehensive trading parameter validation
 - **Task Scheduling**: Background job scheduling with cron triggers for automated maintenance
+- **Logging**: Structured logging with terminal output and default rotating file sinks
 
 ## Architecture
 
@@ -35,6 +36,7 @@ apps/utils/
 ├── data_comparator.py      # DataFrame comparison
 ├── error_description.py    # MT5 error code descriptions
 ├── validate.py             # Trading parameter validation
+├── logger.py               # Structured logging adapter and sink management
 └── scheduler.py            # Background job scheduling
 ```
 
@@ -89,15 +91,16 @@ tf_manager = TimeframeManager()
 
 **Key Functions**:
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `hash_password()` | `(password: str) -> str` | Hash password with bcrypt |
-| `verify_password()` | `(plain: str, hashed: str) -> bool` | Verify password against hash |
-| `get_encryption_key()` | `() -> bytes` | Generate Fernet encryption key |
-| `encrypt_data()` | `(data: str, key: bytes) -> str` | Encrypt string data |
-| `decrypt_data()` | `(token: str, key: bytes) -> str` | Decrypt encrypted data |
+| Function                 | Signature                             | Description                    |
+| ------------------------ | ------------------------------------- | ------------------------------ |
+| `hash_password()`      | `(password: str) -> str`            | Hash password with bcrypt      |
+| `verify_password()`    | `(plain: str, hashed: str) -> bool` | Verify password against hash   |
+| `get_encryption_key()` | `() -> bytes`                       | Generate Fernet encryption key |
+| `encrypt_data()`       | `(data: str, key: bytes) -> str`    | Encrypt string data            |
+| `decrypt_data()`       | `(token: str, key: bytes) -> str`   | Decrypt encrypted data         |
 
 **Usage**:
+
 ```python
 from apps.utils.security import hash_password, verify_password, get_encryption_key, encrypt_data, decrypt_data
 
@@ -123,15 +126,16 @@ For detailed examples, see [`tests/usage/utils/usage_security.py`](../../../test
 
 **Key Functions**:
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `load_mt5()` | `(symbol: str, timeframe: str, start_date, end_date, count) -> pd.DataFrame` | Load from MT5 terminal |
-| `load_dukascopy()` | `(symbol: str, timeframe: str, start_date, end_date) -> pd.DataFrame` | Load from Dukascopy API |
-| `load_parquet()` | `(file_path: Union[str, Path]) -> pd.DataFrame` | Load from Parquet file |
-| `get_data_dir()` | `() -> Path` | Get path to data directory |
-| `clear_data_cache()` | `() -> None` | Clear cached data |
+| Function               | Signature                                                                      | Description                |
+| ---------------------- | ------------------------------------------------------------------------------ | -------------------------- |
+| `load_mt5()`         | `(symbol: str, timeframe: str, start_date, end_date, count) -> pd.DataFrame` | Load from MT5 terminal     |
+| `load_dukascopy()`   | `(symbol: str, timeframe: str, start_date, end_date) -> pd.DataFrame`        | Load from Dukascopy API    |
+| `load_parquet()`     | `(file_path: Union[str, Path]) -> pd.DataFrame`                              | Load from Parquet file     |
+| `get_data_dir()`     | `() -> Path`                                                                 | Get path to data directory |
+| `clear_data_cache()` | `() -> None`                                                                 | Clear cached data          |
 
 **Usage**:
+
 ```python
 from apps.utils.data_getters import load_mt5, load_dukascopy, load_parquet
 
@@ -159,25 +163,28 @@ For detailed examples, see [`tests/usage/utils/usage_data_getters.py`](../../../
 **Class: DataValidator**
 
 **Constructor**:
+
 ```python
 DataValidator(z_score_threshold: float = 3.0, iqr_multiplier: float = 1.5)
 ```
 
 **Key Methods**:
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `prepare_data()` | `(df: pd.DataFrame) -> pd.DataFrame` | Standardize column names and format |
-| `validate_price_sanity()` | `(data: pd.DataFrame, mark_invalid: bool) -> Tuple[bool, pd.DataFrame, List[str]]` | Validate OHLC relationships |
-| `detect_gaps()` | `(data: pd.DataFrame, expected_frequency, tolerance) -> Tuple[pd.DataFrame, List[Dict]]` | Detect missing timestamps |
-| `detect_spikes()` | `(data: pd.DataFrame, columns, method, mark_anomalies) -> Tuple[pd.DataFrame, List[Dict]]` | Detect price anomalies |
+| Method                      | Signature                                                                                    | Description                         |
+| --------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `prepare_data()`          | `(df: pd.DataFrame) -> pd.DataFrame`                                                       | Standardize column names and format |
+| `validate_price_sanity()` | `(data: pd.DataFrame, mark_invalid: bool) -> Tuple[bool, pd.DataFrame, List[str]]`         | Validate OHLC relationships         |
+| `detect_gaps()`           | `(data: pd.DataFrame, expected_frequency, tolerance) -> Tuple[pd.DataFrame, List[Dict]]`   | Detect missing timestamps           |
+| `detect_spikes()`         | `(data: pd.DataFrame, columns, method, mark_anomalies) -> Tuple[pd.DataFrame, List[Dict]]` | Detect price anomalies              |
 
 **Validation Checks**:
+
 - **Price Sanity**: High >= Low, Close/Open within [Low, High], no negatives/zeros
 - **Gaps**: Missing timestamps based on expected frequency
 - **Spikes**: Statistical anomalies using Z-score or IQR methods
 
 **Usage**:
+
 ```python
 from apps.utils.data_validator import DataValidator
 
@@ -212,28 +219,30 @@ For detailed examples, see [`tests/usage/utils/usage_data_validator.py`](../../.
 
 **Key Methods**:
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
+| Method         | Signature                                                                         | Description                     |
+| -------------- | --------------------------------------------------------------------------------- | ------------------------------- |
 | `resample()` | `(data: pd.DataFrame, target_timeframe: str, source_timeframe) -> pd.DataFrame` | Resample to different timeframe |
 
 **Class: BarAggregator**
 
 **Constructor**:
+
 ```python
 BarAggregator(target_timeframe: str)
 ```
 
 **Key Methods**:
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `add_tick()` | `(timestamp: datetime, bid: float, ask: float, volume: float) -> Optional[Dict]` | Add tick and get completed bar |
-| `get_current_bar()` | `() -> Optional[Dict]` | Get current incomplete bar |
-| `reset()` | `() -> None` | Reset aggregator state |
+| Method                | Signature                                                                          | Description                    |
+| --------------------- | ---------------------------------------------------------------------------------- | ------------------------------ |
+| `add_tick()`        | `(timestamp: datetime, bid: float, ask: float, volume: float) -> Optional[Dict]` | Add tick and get completed bar |
+| `get_current_bar()` | `() -> Optional[Dict]`                                                           | Get current incomplete bar     |
+| `reset()`           | `() -> None`                                                                     | Reset aggregator state         |
 
 **Supported Timeframes**: M1, M5, M15, M30, H1, H4, D1, W1, MN1
 
 **Usage**:
+
 ```python
 from apps.utils.data_manipulator import TimeframeManager, BarAggregator
 
@@ -262,17 +271,18 @@ For detailed examples, see [`tests/usage/utils/usage_data_manipulator.py`](../..
 
 **Key Functions**:
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `@task` | Decorator | Convert function to async task |
-| `createPool()` | `(name: str, threads: int, engine: str) -> None` | Create execution pool |
-| `set_max_threads()` | `(threads: int) -> None` | Set max concurrent threads |
-| `wait_for_tasks()` | `() -> None` | Wait for all tasks to complete |
-| `get_active_tasks()` | `() -> List` | Get currently running tasks |
+| Function               | Signature                                          | Description                    |
+| ---------------------- | -------------------------------------------------- | ------------------------------ |
+| `@task`              | Decorator                                          | Convert function to async task |
+| `createPool()`       | `(name: str, threads: int, engine: str) -> None` | Create execution pool          |
+| `set_max_threads()`  | `(threads: int) -> None`                         | Set max concurrent threads     |
+| `wait_for_tasks()`   | `() -> None`                                     | Wait for all tasks to complete |
+| `get_active_tasks()` | `() -> List`                                     | Get currently running tasks    |
 
 **Engines**: `"thread"` (I/O-bound), `"process"` (CPU-bound)
 
 **Usage**:
+
 ```python
 from apps.utils.multitasking import task, createPool, wait_for_tasks
 
@@ -305,18 +315,19 @@ For detailed examples, see [`tests/usage/utils/usage_multitasking.py`](../../../
 
 **Key Functions**:
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `rename_file()` | `(old_path, new_path, overwrite, dry_run) -> bool` | Rename single file |
-| `rename_with_pattern()` | `(directory, pattern, replacement, regex, recursive, extensions, dry_run) -> Dict` | Pattern-based renaming |
-| `add_prefix()` | `(directory, prefix, recursive, extensions, dry_run) -> Dict` | Add prefix to filenames |
-| `add_suffix()` | `(directory, suffix, recursive, extensions, dry_run) -> Dict` | Add suffix before extension |
-| `rename_with_numbering()` | `(directory, base_name, start_number, padding, recursive, extensions, dry_run) -> Dict` | Sequential numbering |
-| `normalize_filenames()` | `(directory, lowercase, replace_spaces, remove_special_chars, recursive, extensions, dry_run) -> Dict` | Normalize filenames |
-| `change_extension()` | `(directory, old_extension, new_extension, recursive, dry_run) -> Dict` | Change file extensions |
-| `rename_with_custom_function()` | `(directory, rename_function, recursive, extensions, dry_run) -> Dict` | Custom renaming logic |
+| Function                          | Signature                                                                                                | Description                 |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `rename_file()`                 | `(old_path, new_path, overwrite, dry_run) -> bool`                                                     | Rename single file          |
+| `rename_with_pattern()`         | `(directory, pattern, replacement, regex, recursive, extensions, dry_run) -> Dict`                     | Pattern-based renaming      |
+| `add_prefix()`                  | `(directory, prefix, recursive, extensions, dry_run) -> Dict`                                          | Add prefix to filenames     |
+| `add_suffix()`                  | `(directory, suffix, recursive, extensions, dry_run) -> Dict`                                          | Add suffix before extension |
+| `rename_with_numbering()`       | `(directory, base_name, start_number, padding, recursive, extensions, dry_run) -> Dict`                | Sequential numbering        |
+| `normalize_filenames()`         | `(directory, lowercase, replace_spaces, remove_special_chars, recursive, extensions, dry_run) -> Dict` | Normalize filenames         |
+| `change_extension()`            | `(directory, old_extension, new_extension, recursive, dry_run) -> Dict`                                | Change file extensions      |
+| `rename_with_custom_function()` | `(directory, rename_function, recursive, extensions, dry_run) -> Dict`                                 | Custom renaming logic       |
 
 **Usage**:
+
 ```python
 from apps.utils.file_renamer import rename_with_pattern, add_prefix, normalize_filenames
 
@@ -346,20 +357,22 @@ For detailed examples, see [`tests/usage/utils/usage_file_renamer.py`](../../../
 
 **Key Functions**:
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `compare_dataframes()` | `(df1, df2, columns, tolerance, check_index, align_by_datetime, verbose) -> bool` | Compare DataFrames with tolerance |
-| `align_dataframes_by_datetime()` | `(df1, df2, verbose) -> Tuple[pd.DataFrame, pd.DataFrame]` | Align DataFrames by datetime index |
-| `compare_ohlcv()` | `(df1, df2, **kwargs) -> bool` | Compare OHLCV columns |
-| `compare_ohlc()` | `(df1, df2, **kwargs) -> bool` | Compare OHLC columns |
+| Function                           | Signature                                                                           | Description                        |
+| ---------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
+| `compare_dataframes()`           | `(df1, df2, columns, tolerance, check_index, align_by_datetime, verbose) -> bool` | Compare DataFrames with tolerance  |
+| `align_dataframes_by_datetime()` | `(df1, df2, verbose) -> Tuple[pd.DataFrame, pd.DataFrame]`                        | Align DataFrames by datetime index |
+| `compare_ohlcv()`                | `(df1, df2, **kwargs) -> bool`                                                    | Compare OHLCV columns              |
+| `compare_ohlc()`                 | `(df1, df2, **kwargs) -> bool`                                                    | Compare OHLC columns               |
 
 **Features**:
+
 - Tolerance-based floating point comparison
 - Datetime index alignment
 - Partial column comparison
 - Detailed difference reporting
 
 **Usage**:
+
 ```python
 from apps.utils.data_comparator import compare_dataframes, compare_ohlcv, align_dataframes_by_datetime
 
@@ -390,11 +403,12 @@ For detailed examples, see [`tests/usage/utils/usage_data_comparator.py`](../../
 
 **Key Methods**:
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
+| Method                  | Signature                  | Description                    |
+| ----------------------- | -------------------------- | ------------------------------ |
 | `error_description()` | `(err_code: int) -> str` | Get error description for code |
 
 **Error Categories**:
+
 - **Runtime Errors** (0-14): Internal errors, memory issues
 - **Chart Errors** (4001-4015): Chart operations
 - **Symbol Errors** (4301-4305): Symbol not found, MarketWatch issues
@@ -403,6 +417,7 @@ For detailed examples, see [`tests/usage/utils/usage_data_comparator.py`](../../
 - **Technical Errors** (4401-5613): History, indicators, OpenCL
 
 **Usage**:
+
 ```python
 from apps.utils.error_description import TradeErrorDescriptions
 
@@ -425,20 +440,22 @@ For detailed examples, see [`tests/usage/utils/usage_error_description.py`](../.
 **Class: TradeValidator**
 
 **Constructor**:
+
 ```python
 TradeValidator(client=None, logger_instance=None, mt5_instance=None)
 ```
 
 **Key Methods**:
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `validate()` | `(validation_type: str, value: Any, **kwargs) -> Tuple[bool, str]` | Master validation method |
-| `validate_multiple()` | `(validations: List[Dict]) -> Tuple[bool, List[str]]` | Batch validation |
-| `get_validation_rules()` | `() -> Dict` | Get validation rules |
-| `update_validation_rule()` | `(rule_type, rule_name, value) -> None` | Update validation rule |
+| Method                       | Signature                                                            | Description              |
+| ---------------------------- | -------------------------------------------------------------------- | ------------------------ |
+| `validate()`               | `(validation_type: str, value: Any, **kwargs) -> Tuple[bool, str]` | Master validation method |
+| `validate_multiple()`      | `(validations: List[Dict]) -> Tuple[bool, List[str]]`              | Batch validation         |
+| `get_validation_rules()`   | `() -> Dict`                                                       | Get validation rules     |
+| `update_validation_rule()` | `(rule_type, rule_name, value) -> None`                            | Update validation rule   |
 
 **Validation Types**:
+
 - `symbol` - Trading symbol
 - `volume` - Trade volume with symbol limits
 - `price` - Price value and tick alignment
@@ -459,6 +476,7 @@ TradeValidator(client=None, logger_instance=None, mt5_instance=None)
 - `symbol_volume` - Per-symbol volume limit
 
 **Usage**:
+
 ```python
 from apps.utils.validate import TradeValidator
 
@@ -504,20 +522,21 @@ For detailed examples, see [`tests/usage/utils/usage_validate.py`](../../../test
 
 **Key Functions**:
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `start_scheduler()` | `() -> None` | Start the background scheduler with configured jobs |
-| `shutdown_scheduler()` | `() -> None` | Gracefully stop the background scheduler |
+| Function                 | Signature      | Description                                         |
+| ------------------------ | -------------- | --------------------------------------------------- |
+| `start_scheduler()`    | `() -> None` | Start the background scheduler with configured jobs |
+| `shutdown_scheduler()` | `() -> None` | Gracefully stop the background scheduler            |
 
 **Scheduler Configuration**:
 
 The scheduler is configured with the following background jobs:
 
-| Job ID | Function | Schedule | Description |
-|--------|----------|----------|-------------|
+| Job ID                          | Function                               | Schedule         | Description                                   |
+| ------------------------------- | -------------------------------------- | ---------------- | --------------------------------------------- |
 | `cleanup_simulation_sessions` | `_cleanup_old_simulation_sessions()` | Daily at 3:00 AM | Deletes simulation sessions older than 7 days |
 
 **Features**:
+
 - **AsyncIO Integration**: Works seamlessly with FastAPI's async framework
 - **Cron Triggers**: Flexible scheduling using cron expressions
 - **Idempotent Operations**: Safe to call `start_scheduler()` multiple times
@@ -534,6 +553,7 @@ from apps.utils.scheduler import start_scheduler, shutdown_scheduler
 ```
 
 **Usage**:
+
 ```python
 from apps.utils.scheduler import start_scheduler, shutdown_scheduler
 
@@ -546,6 +566,7 @@ shutdown_scheduler()
 ```
 
 **FastAPI Integration**:
+
 ```python
 from fastapi import FastAPI
 from apps.utils.scheduler import start_scheduler, shutdown_scheduler
@@ -564,6 +585,7 @@ async def shutdown_event():
 ```
 
 **Adding Custom Jobs** (modify scheduler.py):
+
 ```python
 from apscheduler.triggers.cron import CronTrigger
 
@@ -588,6 +610,7 @@ def start_scheduler():
 ```
 
 **Common Cron Patterns**:
+
 ```python
 # Every hour
 CronTrigger(minute=0)
@@ -606,6 +629,7 @@ CronTrigger(hour='6,12,18', minute=0)
 ```
 
 **Scheduled Cleanup Details**:
+
 - **Target**: Simulation sessions table in SQLite database
 - **Retention**: 7 days (configurable)
 - **Execution Time**: 3:00 AM server time (off-peak hours)
@@ -613,13 +637,53 @@ CronTrigger(hour='6,12,18', minute=0)
 - **Error Handling**: Failed jobs don't crash the scheduler
 
 **Production Considerations**:
+
 1. **Timezone**: Ensure server timezone is correctly configured
 2. **Single Instance**: Only run one scheduler instance in multi-server deployments
 3. **Monitoring**: Log all job executions and monitor for failures
 4. **Performance**: Schedule resource-intensive jobs during off-peak hours
 5. **Database Locks**: Cleanup jobs should handle database locks gracefully
 
-For detailed examples, see [`tests/usage/utils/usage_scheduler.py`](../../../tests/usage/utils/usage_scheduler.py).
+
+### 11. Logger (`logger.py`)
+
+**Purpose**: Unified logger adapter for Python modules with structured records, redaction, runtime sink management, and default file persistence.
+
+**Default Outputs**:
+
+- Terminal output via `stderr`
+- File outputs under `logs/`:
+  - `app.log` (`INFO` and above)
+  - `debug.log` (`DEBUG` and above)
+  - `errors.log` (`ERROR` and above)
+  - `access.log` (`INFO` and above; access/http-style records)
+
+**Rotation Policy**:
+
+- Rotates at UTC midnight or 50 MB, whichever comes first
+- Keeps 30 rotated backups per file
+
+**Core APIs**:
+
+- `logger.debug/info/success/warning/error/critical/exception(...)`
+- `logger.bind(**fields)` and `logger.contextualize(**fields)`
+- `logger.add(sink, ...)` and `logger.remove(handler_id=None)`
+- `logger.set_min_level(level)` and `logger.set_component_level(component, level)`
+- `logger.flush()`
+
+**Usage**:
+
+```python
+from apps.utils.logger import logger
+
+logger.info("service started", component="app")
+logger.error("trade rejected", component="risk", order_id=12345)
+
+access_logger = logger.bind(component="access", method="GET", path="/health")
+access_logger.info("request served", status_code=200)
+```
+
+For operational details, see [`docs/haruquant/usage/ops/logging.md`](../../../docs/haruquant/usage/ops/logging.md).
 
 ---
 
@@ -737,6 +801,7 @@ else:
 ## Usage Examples
 
 Comprehensive usage examples are available in `tests/usage/utils/`:
+
 - `usage_security.py`: Security utilities (hashing, encryption)
 - `usage_data_getters.py`: Data loading from multiple sources
 - `usage_data_validator.py`: Data quality validation
@@ -745,11 +810,12 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 - `usage_file_renamer.py`: Batch file renaming operations
 - `usage_data_comparator.py`: DataFrame comparison utilities
 - `usage_error_description.py`: MT5 error code lookups
-- `usage_validate.py`: Trading parameter validation
+- `../logger/*`: Logger behavior and sink usage examples
 
 ## Best Practices
 
 ### Data Management
+
 1. **Validate Early**: Always validate data before processing
 2. **Use Caching**: Load data once and cache it
 3. **Handle Gaps**: Check for and address missing timestamps
@@ -757,6 +823,7 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 5. **Monitor Quality**: Regularly check for spikes and anomalies
 
 ### Security
+
 1. **Never Store Plain Passwords**: Always use `hash_password()`
 2. **Secure Keys**: Store encryption keys in environment variables or secrets manager
 3. **Consistent Keys**: Use same encryption key for encrypt/decrypt
@@ -764,6 +831,7 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 5. **Validate Inputs**: Always validate before hashing/encrypting
 
 ### Multitasking
+
 1. **Right Pool Size**: Don't exceed CPU count for CPU-bound tasks
 2. **Thread vs Process**: Use threads for I/O, processes for CPU-intensive work
 3. **Wait for Completion**: Always call `wait_for_tasks()` before exiting
@@ -771,6 +839,7 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 5. **Monitor Resources**: Use `get_active_tasks()` to monitor execution
 
 ### Validation
+
 1. **Validate Before Trade**: Always validate parameters before MT5 operations
 2. **Batch Validation**: Use `validate_multiple()` for efficiency
 3. **Check Margins**: Always validate margin before opening positions
@@ -782,16 +851,17 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 ### Unit Testing
 
 Run individual usage examples:
+
 ```bash
-python tests/usage/utils/usage_security.py
-python tests/usage/utils/usage_data_getters.py
-python tests/usage/utils/usage_data_validator.py
+python examples/usage_security.py
+python examples/utils/usage_data_getters.py
+python examples/utils/usage_data_validator.py
 # ... etc
 ```
 
 ### Integration Testing
 
-See `tests/usage/utils/` for comprehensive integration examples.
+See `examples/utils/` for comprehensive integration examples.
 
 ## License
 
@@ -804,3 +874,4 @@ Copyright 2025, HaruQuant
 - `apps/sqlite/` - Database management
 - `apps/indicator/` - Technical indicators
 - `apps/backtest/` - Backtesting engine
+
