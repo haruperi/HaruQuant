@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timedelta
 
 # Add repo root to path for local imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
 # Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
@@ -17,21 +17,11 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Client, get_mt5_api
-from apps.sqlite.users import UserManager
+from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
 import hqt_engine.sim as csim
 
 mt5 = get_mt5_api()
-
-
-def get_mt5_credentials():
-    """Get MT5 credentials from the database."""
-    creds = UserManager().get_mt5_credentials()
-    if not creds:
-        logger.error("No default broker credentials found")
-        sys.exit(1)
-    return creds
 
 
 def _load_live_history_orders(simulator: "csim.TradeSimulator", start: datetime, end: datetime) -> None:
@@ -68,57 +58,43 @@ def main():
     print("=" * 70)
     print()
 
-    creds = get_mt5_credentials()
-
-    client = MT5Client()
-    connected = client.connect(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"],
-    )
-    if not connected:
-        print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
-        return
-
-    print("Connected successfully!")
-    print()
+    client = MT5Utils.get_connected_client()
 
     now = datetime.now()
     start = now - timedelta(days=30)
 
     # CHOOSE YOUR OPTION
     # Option 1: Live history orders into C++ simulator (default)
-    # simulator = csim.TradeSimulator()
-    # _load_live_history_orders(simulator, start, now)
-    # print("Using: MT5 Live History Orders -> C++ TradeSimulator")
+    simulator = csim.TradeSimulator()
+    _load_live_history_orders(simulator, start, now)
+    print("Using: MT5 Live History Orders -> C++ TradeSimulator")
 
     # Option 2: Simulator with custom HistoryOrderInfo
-    simulator = csim.TradeSimulator()
-    o1 = csim.HistoryOrderInfo()
-    o1.ticket = 1001
-    o1.symbol = "EURUSD"
-    o1.type = 0
-    o1.state = 4
-    o1.volume_initial = 1.0
-    o1.volume_current = 0.0
-    o1.price_open = 1.1000
-    o1.set_time_setup(int(now.timestamp()))
-    o1.set_time_done(int(now.timestamp()))
-    simulator.upsert_history_order_info(o1)
+    # simulator = csim.TradeSimulator()
+    # o1 = csim.HistoryOrderInfo()
+    # o1.ticket = 1001
+    # o1.symbol = "EURUSD"
+    # o1.type = 0
+    # o1.state = 4
+    # o1.volume_initial = 1.0
+    # o1.volume_current = 0.0
+    # o1.price_open = 1.1000
+    # o1.set_time_setup(int(now.timestamp()))
+    # o1.set_time_done(int(now.timestamp()))
+    # simulator.upsert_history_order_info(o1)
 
-    o2 = csim.HistoryOrderInfo()
-    o2.ticket = 1002
-    o2.symbol = "GBPUSD"
-    o2.type = 1
-    o2.state = 2
-    o2.volume_initial = 0.5
-    o2.volume_current = 0.5
-    o2.price_open = 1.2500
-    o2.set_time_setup(int(now.timestamp()))
-    o2.set_time_done(int(now.timestamp()))
-    simulator.upsert_history_order_info(o2)
-    print("Using: Simulator (Simulated History Orders)")
+    # o2 = csim.HistoryOrderInfo()
+    # o2.ticket = 1002
+    # o2.symbol = "GBPUSD"
+    # o2.type = 1
+    # o2.state = 2
+    # o2.volume_initial = 0.5
+    # o2.volume_current = 0.5
+    # o2.price_open = 1.2500
+    # o2.set_time_setup(int(now.timestamp()))
+    # o2.set_time_done(int(now.timestamp()))
+    # simulator.upsert_history_order_info(o2)
+    # print("Using: Simulator (Simulated History Orders)")
 
     print()
 

@@ -10,8 +10,8 @@ import json
 import pickle
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
-
+from typing import Any, Callable, Dict, Tuple, List, Optional, Union
+from dataclasses import asdict, dataclass, field
 import pandas as pd
 
 from apps.utils.logger import logger
@@ -874,6 +874,414 @@ class TicksGen:
         return ticks
 
 
+# ==================== Simulation Data ====================
+
+
+
+def _get_mt5_val(attr: str, default: Any) -> Any:
+    """Safely get value from MT5 account info or return default."""
+    try:
+        # Check if mt5 is initialized? mt5.account_info() returns None if not.
+        info = mt5.account_info()
+        if info is None:
+            return default
+        # Handle both dict-like and object-like access if necessary,
+        # but getattr is safest for the named tuple structure usually returned.
+        return getattr(info, attr, default)
+    except Exception:
+        return default
+
+
+def _get_mt5_symbol_val(symbol: str, attr: str, default: Any) -> Any:
+    """Safely get value from MT5 symbol info or return default."""
+    try:
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            return default
+        return getattr(info, attr, default)
+    except Exception:
+        return default
+
+
+def _assign_known_attributes(target: Any, values: Dict[str, Any]) -> Any:
+    """Assign only attributes that exist on target."""
+    for key, value in values.items():
+        if not hasattr(target, key):
+            continue
+        try:
+            setattr(target, key, value)
+        except (AttributeError, TypeError, ValueError):
+            # Skip read-only or incompatible fields exposed by bindings.
+            continue
+    return target
+
+
+def _safe_setattr(target: Any, key: str, value: Any) -> None:
+    """Set attribute if writable on target; ignore unsupported fields."""
+    try:
+        setattr(target, key, value)
+    except (AttributeError, TypeError, ValueError):
+        return
+
+
+@dataclass
+class AccountInfoSimulator:
+    """
+    Data structure mirroring MT5 AccountInfo.
+
+    This class contains all fields returned by mt5.account_info() as default values.
+    Values can be overridden by passing a custom AccountInfoSimulator object to the TradeSimulator.
+    """
+
+    # Integer properties
+    login: int = 12345678
+    trade_mode: int = field(
+        default_factory=lambda: _get_mt5_val("trade_mode", 0)
+    )  # 0: Demo, 1: Contest, 2: Real
+    leverage: int = field(default_factory=lambda: _get_mt5_val("leverage", 100))
+    limit_orders: int = field(default_factory=lambda: _get_mt5_val("limit_orders", 0))
+    margin_so_mode: int = field(
+        default_factory=lambda: _get_mt5_val("margin_so_mode", 0)
+    )  # 0: Percent, 1: Money
+    trade_allowed: bool = field(
+        default_factory=lambda: _get_mt5_val("trade_allowed", True)
+    )
+    trade_expert: bool = field(
+        default_factory=lambda: _get_mt5_val("trade_expert", True)
+    )
+    margin_mode: int = field(
+        default_factory=lambda: _get_mt5_val("margin_mode", 0)
+    )  # 0: Retail Hedging
+    currency_digits: int = field(
+        default_factory=lambda: _get_mt5_val("currency_digits", 2)
+    )
+    fifo_close: bool = field(default_factory=lambda: _get_mt5_val("fifo_close", False))
+
+    # Double properties
+    balance: float = 10000
+    credit: float = 0
+    profit: float = 0
+    equity: float = 0
+    margin: float = 0
+    margin_free: float = balance
+    margin_level: float = 0
+    margin_so_call: float = field(
+        default_factory=lambda: _get_mt5_val("margin_so_call", 50.0)
+    )
+    margin_so_so: float = field(
+        default_factory=lambda: _get_mt5_val("margin_so_so", 30.0)
+    )
+    margin_initial: float = 0
+    margin_maintenance: float = 0
+    assets: float = 0
+    liabilities: float = 0
+    commission_blocked: float = field(
+        default_factory=lambda: _get_mt5_val("commission_blocked", 0.0)
+    )
+
+    # String properties
+    name: str = "Simulated Trader"
+    server: str = "Sim-Server"
+    currency: str = field(default_factory=lambda: _get_mt5_val("currency", "USD"))
+    company: str = "Simulated Company"
+
+    def _asdict(self) -> Dict[str, Any]:
+        """Return the object as a dictionary."""
+        return asdict(self)
+
+    @classmethod
+    def from_mt5_account(cls) -> "AccountInfoSimulator":
+        """
+        Create AccountInfoSimulator populated with current MT5 account info.
+
+        Returns:
+            AccountInfoSimulator object populated with live data, or default if not connected.
+        """
+        info = mt5.account_info()
+        if info is None:
+            return cls()
+
+        data = info._asdict()
+        return cls(**data)
+
+    @classmethod
+    def defaults(cls) -> "AccountInfoSimulator":
+        """Create simulator defaults without seeding from live MT5 values."""
+        return cls(
+            trade_mode=0,
+            leverage=100,
+            limit_orders=0,
+            margin_so_mode=0,
+            trade_allowed=True,
+            trade_expert=True,
+            margin_mode=0,
+            currency_digits=2,
+            fifo_close=False,
+            margin_so_call=50.0,
+            margin_so_so=30.0,
+            commission_blocked=0.0,
+            currency="USD",
+        )
+
+    def to_cpp(self) -> Any:
+        """Build a C++ ``hqt_engine.sim.AccountInfo`` from this simulator data."""
+        import hqt_engine.sim as csim
+
+        cpp = csim.AccountInfo(
+            float(self.balance),
+            str(self.currency),
+            int(self.leverage),
+        )
+        cpp.apply_snapshot(
+            float(self.balance),
+            float(self.credit),
+            float(self.profit),
+            float(self.margin),
+            float(self.margin_so_call),
+            float(self.margin_so_so),
+        )
+        # Explicitly attempt to hydrate all AccountInfoSimulator fields.
+        _safe_setattr(cpp, "login", int(self.login))
+        _safe_setattr(cpp, "trade_mode", int(self.trade_mode))
+        _safe_setattr(cpp, "leverage", int(self.leverage))
+        _safe_setattr(cpp, "limit_orders", int(self.limit_orders))
+        _safe_setattr(cpp, "margin_so_mode", int(self.margin_so_mode))
+        _safe_setattr(cpp, "trade_allowed", bool(self.trade_allowed))
+        _safe_setattr(cpp, "trade_expert", bool(self.trade_expert))
+        _safe_setattr(cpp, "margin_mode", int(self.margin_mode))
+        _safe_setattr(cpp, "currency_digits", int(self.currency_digits))
+        _safe_setattr(cpp, "fifo_close", bool(self.fifo_close))
+        _safe_setattr(cpp, "balance", float(self.balance))
+        _safe_setattr(cpp, "credit", float(self.credit))
+        _safe_setattr(cpp, "profit", float(self.profit))
+        _safe_setattr(cpp, "equity", float(self.equity))
+        _safe_setattr(cpp, "margin", float(self.margin))
+        _safe_setattr(cpp, "margin_free", float(self.margin_free))
+        _safe_setattr(cpp, "margin_level", float(self.margin_level))
+        _safe_setattr(cpp, "margin_so_call", float(self.margin_so_call))
+        _safe_setattr(cpp, "margin_so_so", float(self.margin_so_so))
+        _safe_setattr(cpp, "margin_initial", float(self.margin_initial))
+        _safe_setattr(cpp, "margin_maintenance", float(self.margin_maintenance))
+        _safe_setattr(cpp, "assets", float(self.assets))
+        _safe_setattr(cpp, "liabilities", float(self.liabilities))
+        _safe_setattr(cpp, "commission_blocked", float(self.commission_blocked))
+        _safe_setattr(cpp, "name", str(self.name))
+        _safe_setattr(cpp, "server", str(self.server))
+        _safe_setattr(cpp, "currency", str(self.currency))
+        _safe_setattr(cpp, "company", str(self.company))
+        return cpp
+
+    @classmethod
+    def from_mt5_account_cpp(cls, seed_from_mt5: bool = True) -> Any:
+        """Build C++ ``hqt_engine.sim.AccountInfo`` from MT5 or simulator defaults."""
+        if seed_from_mt5:
+            return cls.from_mt5_account().to_cpp()
+        return cls.defaults().to_cpp()
+
+
+@dataclass
+class SymbolInfoSimulator:
+    """Data structure mirroring MT5 symbol_info."""
+
+    # Common properties
+    symbol: str = "EURUSD"
+    digits: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "digits", 5)
+    )
+    spread: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "spread", 10)
+    )
+    spread_float: bool = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "spread_float", True)
+    )
+    point: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "point", 0.00001)
+    )
+
+    # Trade properties
+    trade_calc_mode: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "trade_calc_mode", 0)
+    )
+    trade_mode: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "trade_mode", 4)
+    )  # Full access
+    start_time: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "start_time", 0)
+    )
+    expiration_time: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "expiration_time", 0)
+    )
+    trade_stops_level: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "trade_stops_level", 0)
+    )
+    trade_freeze_level: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "trade_freeze_level", 0)
+    )
+    trade_exemode: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "trade_exemode", 1)
+    )  # Instant
+
+    # Volume properties
+    volume_min: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "volume_min", 0.01)
+    )
+    volume_max: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "volume_max", 100.0)
+    )
+    volume_step: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "volume_step", 0.01)
+    )
+    volume_limit: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "volume_limit", 0.0)
+    )
+
+    # Value properties
+    trade_tick_value: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "trade_tick_value", 1.0)
+    )
+    trade_tick_value_profit: float = field(
+        default_factory=lambda: _get_mt5_symbol_val(
+            "EURUSD", "trade_tick_value_profit", 1.0
+        )
+    )
+    trade_tick_value_loss: float = field(
+        default_factory=lambda: _get_mt5_symbol_val(
+            "EURUSD", "trade_tick_value_loss", 1.0
+        )
+    )
+    trade_tick_size: float = field(
+        default_factory=lambda: _get_mt5_symbol_val(
+            "EURUSD", "trade_tick_size", 0.00001
+        )
+    )
+    trade_contract_size: float = field(
+        default_factory=lambda: _get_mt5_symbol_val(
+            "EURUSD", "trade_contract_size", 100000.0
+        )
+    )
+
+    # Swap properties
+    swap_mode: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "swap_mode", 1)
+    )
+    swap_long: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "swap_long", -1.0)
+    )
+    swap_short: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "swap_short", -1.0)
+    )
+    swap_rollover3days: int = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "swap_rollover3days", 3)
+    )
+
+    # Margin properties
+    margin_initial: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "margin_initial", 0.0)
+    )
+    margin_maintenance: float = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "margin_maintenance", 0.0)
+    )
+
+    # Strings
+    currency_base: str = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "currency_base", "EUR")
+    )
+    currency_profit: str = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "currency_profit", "USD")
+    )
+    currency_margin: str = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "currency_margin", "EUR")
+    )
+    description: str = field(
+        default_factory=lambda: _get_mt5_symbol_val(
+            "EURUSD", "description", "Euro vs US Dollar"
+        )
+    )
+    path: str = field(
+        default_factory=lambda: _get_mt5_symbol_val("EURUSD", "path", "Forex\\EURUSD")
+    )
+
+    # Dynamic fields for prices (often duplicates of tick)
+    bid: float = 0.0
+    ask: float = 0.0
+    last: float = 0.0
+
+    select: bool = True
+    visible: bool = True
+
+    def _asdict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_mt5_symbol(cls, symbol_name: str) -> "SymbolInfoSimulator":
+        """Create from MT5 symbol info."""
+        info = mt5.symbol_info(symbol_name)
+        if info is None:
+            # Fallback to default with provided name
+            sim = cls()
+            sim.symbol = symbol_name
+            return sim
+
+        data = info._asdict()
+        from dataclasses import fields
+
+        valid = {f.name for f in fields(cls)}
+        filtered = {k: v for k, v in data.items() if k in valid}
+        return cls(**filtered)
+
+    def to_cpp(self) -> Any:
+        """Build a C++ ``hqt_engine.sim.SymbolInfo`` from this simulator data."""
+        import hqt_engine.sim as csim
+
+        cpp = csim.SymbolInfo()
+        # Explicitly attempt to hydrate all SymbolInfoSimulator fields.
+        _safe_setattr(cpp, "symbol", str(self.symbol))
+        _safe_setattr(cpp, "digits", int(self.digits))
+        _safe_setattr(cpp, "spread", int(self.spread))
+        _safe_setattr(cpp, "spread_float", bool(self.spread_float))
+        _safe_setattr(cpp, "point", float(self.point))
+        _safe_setattr(cpp, "trade_calc_mode", int(self.trade_calc_mode))
+        _safe_setattr(cpp, "trade_mode", int(self.trade_mode))
+        _safe_setattr(cpp, "start_time", int(self.start_time))
+        _safe_setattr(cpp, "expiration_time", int(self.expiration_time))
+        _safe_setattr(cpp, "trade_stops_level", int(self.trade_stops_level))
+        _safe_setattr(cpp, "trade_freeze_level", int(self.trade_freeze_level))
+        _safe_setattr(cpp, "trade_exemode", int(self.trade_exemode))
+        _safe_setattr(cpp, "volume_min", float(self.volume_min))
+        _safe_setattr(cpp, "volume_max", float(self.volume_max))
+        _safe_setattr(cpp, "volume_step", float(self.volume_step))
+        _safe_setattr(cpp, "volume_limit", float(self.volume_limit))
+        _safe_setattr(cpp, "trade_tick_value", float(self.trade_tick_value))
+        _safe_setattr(cpp, "trade_tick_value_profit", float(self.trade_tick_value_profit))
+        _safe_setattr(cpp, "trade_tick_value_loss", float(self.trade_tick_value_loss))
+        _safe_setattr(cpp, "trade_tick_size", float(self.trade_tick_size))
+        _safe_setattr(cpp, "trade_contract_size", float(self.trade_contract_size))
+        _safe_setattr(cpp, "swap_mode", int(self.swap_mode))
+        _safe_setattr(cpp, "swap_long", float(self.swap_long))
+        _safe_setattr(cpp, "swap_short", float(self.swap_short))
+        _safe_setattr(cpp, "swap_rollover3days", int(self.swap_rollover3days))
+        _safe_setattr(cpp, "margin_initial", float(self.margin_initial))
+        _safe_setattr(cpp, "margin_maintenance", float(self.margin_maintenance))
+        _safe_setattr(cpp, "currency_base", str(self.currency_base))
+        _safe_setattr(cpp, "currency_profit", str(self.currency_profit))
+        _safe_setattr(cpp, "currency_margin", str(self.currency_margin))
+        _safe_setattr(cpp, "description", str(self.description))
+        _safe_setattr(cpp, "path", str(self.path))
+        _safe_setattr(cpp, "bid", float(self.bid))
+        _safe_setattr(cpp, "ask", float(self.ask))
+        _safe_setattr(cpp, "last", float(self.last))
+        _safe_setattr(cpp, "select", bool(self.select))
+        _safe_setattr(cpp, "visible", bool(self.visible))
+        return cpp
+
+    @classmethod
+    def from_mt5_symbol_cpp(cls, symbol_name: str) -> Any:
+        """Build a C++ ``hqt_engine.sim.SymbolInfo`` seeded from MT5 symbol data."""
+        return cls.from_mt5_symbol(symbol_name).to_cpp()
+
+
+
+
 # Export the class
-__all__ = ["MT5Utils", "TicksGen", "timeframe_seconds"]
+__all__ = ["MT5Utils", "TicksGen", "timeframe_seconds", "AccountInfoSimulator", "SymbolInfoSimulator"]
 

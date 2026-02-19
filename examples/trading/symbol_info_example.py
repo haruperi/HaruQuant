@@ -10,7 +10,7 @@ import os
 import sys
 
 # Add repo root to path for local imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
 # Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
@@ -20,31 +20,12 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Client
-from apps.sqlite.users import UserManager
+from apps.mt5 import MT5Utils, SymbolInfoSimulator
 from apps.utils.logger import logger
-from apps.simulation.data import SymbolInfoSimulator
 import hqt_engine.sim as csim
 
 
-def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
 
-    username = "haruperi"  # Change this to your username
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        sys.exit(1)
-
-    creds = user_manager.get_mt5_credentials(user["id"])
-    if not creds:
-        logger.error(f"No default broker credentials found for {username}")
-        sys.exit(1)
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-    return creds
 
 
 def main():
@@ -53,24 +34,7 @@ def main():
     print("=" * 60)
     print()
 
-    # Get credentials from database
-    creds = get_mt5_credentials()
-
-    # Initialize MT5 client (needed for Option 1 and to fetch real data for Option 2 defaults)
-    client = MT5Client()
-    
-    if not client.connect(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"]
-    ):
-        print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
-        return
-
-    print(f"Connected successfully!")
-    print(f"Connection state: {client.connection_state.value}")
-    print()
+    client = MT5Utils.get_connected_client()
 
     # ============================================================
     # CHOOSE YOUR OPTION
@@ -84,19 +48,19 @@ def main():
         print("=" * 60)
 
         # Option 1: Live MT5 data loaded into C++ TradeSimulator (default)
-        simulator = csim.TradeSimulator()
-        simulator.set_symbol_info(SymbolInfoSimulator.from_mt5_symbol_cpp(symbol_name))
-        symbol = simulator.symbol_info(symbol_name)
-        print("Using: MT5 Live Connection -> C++ TradeSimulator")
+        # simulator = csim.TradeSimulator()
+        # simulator.set_symbol_info(SymbolInfoSimulator.from_mt5_symbol_cpp(symbol_name))
+        # symbol = simulator.symbol_info(symbol_name)
+        # print("Using: MT5 Live Connection -> C++ TradeSimulator")
 
         # Option 2: Simulator with custom settings loaded into C++ TradeSimulator
-        # sim_info = SymbolInfoSimulator.from_mt5_symbol(symbol_name)
-        # sim_info.symbol = symbol_name
-        # sim_info.spread = 5
-        # simulator = csim.TradeSimulator()
-        # simulator.set_symbol_info(sim_info.to_cpp())
-        # symbol = simulator.symbol_info(symbol_name)
-        # print("Using: Simulator (Custom Data) -> C++ TradeSimulator")
+        sim_info = SymbolInfoSimulator.from_mt5_symbol(symbol_name)
+        sim_info.symbol = symbol_name
+        sim_info.spread = 5
+        simulator = csim.TradeSimulator()
+        simulator.set_symbol_info(sim_info.to_cpp())
+        symbol = simulator.symbol_info(symbol_name)
+        print("Using: Simulator (Custom Data) -> C++ TradeSimulator")
 
         if symbol is None:
             print(f"Failed to get symbol {symbol_name}")

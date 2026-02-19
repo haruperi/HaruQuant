@@ -9,24 +9,17 @@ import os
 import sys
 
 # Add repo root to path for local imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.mt5 import MT5Client, get_mt5_api
-from apps.sqlite.users import UserManager
+from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
 from apps.mt5 import Trade
 
 mt5 = get_mt5_api()
 
 
-def get_mt5_credentials():
-    """Get MT5 credentials from the database."""
-    creds = UserManager().get_mt5_credentials()
-    if not creds:
-        logger.error("No default broker credentials found")
-        sys.exit(1)
-    return creds
+
 
 
 def main():
@@ -35,20 +28,7 @@ def main():
     print("=" * 70)
     print()
 
-    creds = get_mt5_credentials()
-    client = MT5Client()
-    connected = client.connect(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"],
-    )
-    if not connected:
-        print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
-        return
-
-    print("Connected successfully!")
-    print()
+    client = MT5Utils.get_connected_client()
 
     trade = Trade()
     trade.SetExpertMagicNumber(12345)

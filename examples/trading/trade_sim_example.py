@@ -8,7 +8,7 @@ import os
 import sys
 
 # Add repo root to path for local imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
 # Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
@@ -18,7 +18,7 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import get_mt5_api
+from apps.mt5 import MT5Utils, get_mt5_api
 from apps.simulation.data import SymbolInfoSimulator
 import hqt_engine.sim as csim
 
@@ -72,6 +72,8 @@ def main():
     print("=" * 70)
     print("Note: This example uses C++ simulator execution only.")
     print()
+
+    client = MT5Utils.get_connected_client()
 
     trade = csim.CTrade(10000.0, "USD", 100)
 

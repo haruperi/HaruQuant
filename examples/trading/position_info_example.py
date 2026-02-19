@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 
 # Add repo root to path for local imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
 # Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
@@ -17,32 +17,11 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Client, get_mt5_api
-from apps.sqlite.users import UserManager
+from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
 import hqt_engine.sim as csim
 
 mt5 = get_mt5_api()
-
-
-def get_mt5_credentials():
-    """Get MT5 credentials from database."""
-    user_manager = UserManager()
-    user_manager.db_path = "data/database/haruquant.db"
-
-    username = "haruperi"
-    user = user_manager.get_user(username=username)
-    if not user:
-        logger.error(f"User {username} not found")
-        sys.exit(1)
-
-    creds = user_manager.get_mt5_credentials(user["id"])
-    if not creds:
-        logger.error(f"No default broker credentials found for {username}")
-        sys.exit(1)
-
-    logger.info(f"Using credentials for account: {creds['login']} on {creds['server']}")
-    return creds
 
 
 def _load_live_positions(simulator: "csim.TradeSimulator") -> None:
@@ -76,21 +55,9 @@ def main():
     print("=" * 70)
     print()
 
-    creds = get_mt5_credentials()
+    client = MT5Utils.get_connected_client()
 
-    client = MT5Client()
-    connected = client.connect(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"],
-    )
-    if not connected:
-        print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
-        return
-
-    print("Connected successfully!")
-    print()
+    
 
     # CHOOSE YOUR OPTION
     # Option 1: Live Trading with MT5 (Default)
@@ -180,10 +147,6 @@ def main():
     print("\n" + "=" * 60)
     print("Example completed successfully!")
     print("=" * 60)
-
-    print("\nShutting down MT5 connection...")
-    client.shutdown()
-    print("Disconnected.")
 
 
 if __name__ == "__main__":

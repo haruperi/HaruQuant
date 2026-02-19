@@ -28,12 +28,10 @@ if os.path.exists(BRIDGE_BUILD_DIR):
     if hasattr(os, "add_dll_directory"):
         os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Utils, get_mt5_api
+from apps.mt5 import MT5Utils, get_mt5_api, AccountInfoSimulator, SymbolInfoSimulator
 mt5 = get_mt5_api()
 
-from apps.simulation.data import AccountInfoSimulator, SymbolInfoSimulator
 from apps.utils.logger import logger
-from apps.sqlite.users import UserManager
 import hqt_engine.sim as csim
 
 def get_mt5_credentials():

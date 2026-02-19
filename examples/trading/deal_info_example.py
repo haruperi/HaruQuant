@@ -11,7 +11,7 @@ import sys
 from datetime import datetime, timedelta
 
 # Add repo root to path for local imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
 # Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
@@ -21,21 +21,11 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Client, get_mt5_api
-from apps.sqlite.users import UserManager
+from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
 import hqt_engine.sim as csim
 
 mt5 = get_mt5_api()
-
-
-def get_mt5_credentials():
-    """Get MT5 credentials from the database."""
-    creds = UserManager().get_mt5_credentials()
-    if not creds:
-        logger.error("No default broker credentials found")
-        sys.exit(1)
-    return creds
 
 
 def _load_live_deals(simulator: "csim.TradeSimulator", start: datetime, end: datetime) -> None:
@@ -67,61 +57,47 @@ def main():
     print("=" * 70)
     print()
 
-    creds = get_mt5_credentials()
-
-    client = MT5Client()
-    connected = client.connect(
-        login=creds["login"],
-        password=creds["password"],
-        server=creds["server"],
-        path=creds["path"],
-    )
-    if not connected:
-        print("Failed to connect to MT5. Please ensure MT5 terminal is running.")
-        return
-
-    print("Connected successfully!")
-    print()
+    client = MT5Utils.get_connected_client()
 
     now = datetime.now()
     start = now - timedelta(days=30)
 
     # CHOOSE YOUR OPTION
     # Option 1: Live MT5 deals loaded into C++ simulator (default)
-    # simulator = csim.TradeSimulator()
-    # _load_live_deals(simulator, start, now)
-    # print("Using: MT5 Live History -> C++ TradeSimulator")
+    simulator = csim.TradeSimulator()
+    _load_live_deals(simulator, start, now)
+    print("Using: MT5 Live History -> C++ TradeSimulator")
 
     # Option 2: Simulator with custom DealInfo objects
-    simulator = csim.TradeSimulator()
-    d1 = csim.DealInfo()
-    d1.ticket = 2001
-    d1.order = 1001
-    d1.position_id = 1001
-    d1.symbol = "EURUSD"
-    d1.type = 0
-    d1.entry = 0
-    d1.set_time(int(now.timestamp()))
-    d1.volume = 0.1
-    d1.price = 1.1000
-    d1.profit = 0.0
-    d1.comment = "Entry deal"
-    simulator.upsert_deal_info(d1)
+    # simulator = csim.TradeSimulator()
+    # d1 = csim.DealInfo()
+    # d1.ticket = 2001
+    # d1.order = 1001
+    # d1.position_id = 1001
+    # d1.symbol = "EURUSD"
+    # d1.type = 0
+    # d1.entry = 0
+    # d1.set_time(int(now.timestamp()))
+    # d1.volume = 0.1
+    # d1.price = 1.1000
+    # d1.profit = 0.0
+    # d1.comment = "Entry deal"
+    # simulator.upsert_deal_info(d1)
 
-    d2 = csim.DealInfo()
-    d2.ticket = 2002
-    d2.order = 1002
-    d2.position_id = 1001
-    d2.symbol = "EURUSD"
-    d2.type = 1
-    d2.entry = 1
-    d2.set_time(int(now.timestamp()))
-    d2.volume = 0.1
-    d2.price = 1.1050
-    d2.profit = 50.0
-    d2.comment = "Exit deal"
-    simulator.upsert_deal_info(d2)
-    print("Using: Simulator (Simulated DealInfo)")
+    # d2 = csim.DealInfo()
+    # d2.ticket = 2002
+    # d2.order = 1002
+    # d2.position_id = 1001
+    # d2.symbol = "EURUSD"
+    # d2.type = 1
+    # d2.entry = 1
+    # d2.set_time(int(now.timestamp()))
+    # d2.volume = 0.1
+    # d2.price = 1.1050
+    # d2.profit = 50.0
+    # d2.comment = "Exit deal"
+    # simulator.upsert_deal_info(d2)
+    # print("Using: Simulator (Simulated DealInfo)")
 
     print()
 
@@ -188,7 +164,6 @@ def main():
     print("\nShutting down MT5 connection...")
     client.shutdown()
     print("Disconnected.")
-
 
 if __name__ == "__main__":
     main()
