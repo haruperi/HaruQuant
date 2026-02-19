@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import shutil
 import logging
 import threading
 import pytest
@@ -23,10 +24,16 @@ from apps.utils.logger import (
 )
 
 @pytest.fixture
-def temp_log_dir(tmp_path):
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-    return log_dir
+def temp_log_dir():
+    base_root = Path("artifacts/perf/test_tmp_logger")
+    base_root.mkdir(parents=True, exist_ok=True)
+    base = base_root / f"run_{time.time_ns()}"
+    log_dir = base / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        yield log_dir
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
 
 class TestSizeAndTimeRotatingFileSink:
     def test_init_creates_dir(self, temp_log_dir):
@@ -66,12 +73,16 @@ class TestSizeAndTimeRotatingFileSink:
         sink = _SizeAndTimeRotatingFileSink(path, max_bytes=2, backup_count=0)
         sink.write("123")
         sink.write("456")
-        mock_file = MagicMock(spec=Path)
-        mock_file.is_file.return_value = True
-        mock_file.name = "test_prune.log.2024"
-        mock_file.stat.return_value.st_mtime = time.time()
-        mock_file.unlink.side_effect = Exception("fail")
-        with patch.object(Path, "iterdir", return_value=[mock_file]):
+        newer = MagicMock(spec=Path)
+        newer.is_file.return_value = True
+        newer.name = "test_prune.log.new"
+        newer.stat.return_value.st_mtime = time.time()
+        older = MagicMock(spec=Path)
+        older.is_file.return_value = True
+        older.name = "test_prune.log.old"
+        older.stat.return_value.st_mtime = time.time() - 100
+        older.unlink.side_effect = Exception("fail")
+        with patch.object(Path, "iterdir", return_value=[newer, older]):
             sink._prune_old_backups()
         sink.close()
 
@@ -88,8 +99,9 @@ class TestSizeAndTimeRotatingFileSink:
         # Hit line 149 branch False
         path = temp_log_dir / "none.log"
         sink = _SizeAndTimeRotatingFileSink(path, max_bytes=5, backup_count=5)
-        # Manually delete before rotate
-        if path.exists(): path.unlink()
+        sink._stream.close()
+        if path.exists():
+            path.unlink()
         sink._rotate()
         sink.close()
 
@@ -148,7 +160,9 @@ class TestStructlogAdapter:
         m1.flush.side_effect = Exception("fail")
         adapter.add(m1)
         # Hit line 309->307: sink WITHOUT flush
-        m2 = NonCallableMagicMock() # No flush
+        class _NoFlush:
+            pass
+        m2 = _NoFlush()
         adapter.add(m2)
         adapter.flush()
 
@@ -201,8 +215,9 @@ class TestStructlogAdapter:
     def test_emit_should_log_false(self, adapter):
         # Hit line 368
         m = MagicMock()
-        adapter.add(m, level="ERROR", raw=True)
-        adapter.debug("wont_be_emitted")
+        adapter.add(m, level="TRACE", raw=True)
+        adapter.set_min_level("ERROR")
+        adapter.debug("wont_be_emitted_by_threshold")
         m.assert_not_called()
 
     def test_emit_exception_block(self, adapter):
@@ -224,6 +239,41 @@ class TestStructlogAdapter:
             adapter.add(m5, raw=False)
             adapter.info("msg")
 
+    def test_dispatch_filter_false_and_callable_non_raw(self, adapter):
+        # Hit line 434->439 and 435
+        sink = MagicMock()
+        adapter.add(sink, filter=lambda r: False, raw=True)
+        adapter.info("filtered")
+        sink.assert_not_called()
+
+        # Hit line 444: callable sink with raw=False receives formatted string.
+        received = []
+        adapter.add(lambda payload: received.append(payload), raw=False, level="INFO")
+        adapter.info("callable_non_raw")
+        assert any("callable_non_raw" in p for p in received)
+
+    def test_dispatch_filter_true_falls_through(self, adapter):
+        # Hit line 434->439 branch (filter returns True).
+        sink = MagicMock()
+        adapter.add(sink, filter=lambda r: True, raw=True)
+        adapter.info("filter_true")
+        sink.assert_called_once()
+
+    def test_dispatch_writer_flush_called(self, adapter):
+        # Hit line 450
+        class _Writer:
+            def __init__(self):
+                self.flushed = False
+                self.written = []
+            def write(self, value):
+                self.written.append(value)
+            def flush(self):
+                self.flushed = True
+        writer = _Writer()
+        adapter.add(writer, raw=False)
+        adapter.info("writer_flush")
+        assert writer.flushed is True and writer.written
+
     def test_dispatch_filter_exception(self, adapter):
         # Hit line 436-437
         m = MagicMock()
@@ -241,9 +291,18 @@ class TestStructlogAdapter:
         r = CompatRecord(datetime.now(), _CompatLevel("INFO", 20), "m", "n", "f", "fu", 1, "", "", "")
         assert "m" in adapter._format_record(r, "{nonexistent}") # Line 487 fallback
 
+    def test_format_message_fallback(self, adapter):
+        # Hit lines 459-464
+        out = adapter._format_message("bad {x}", ("a",), {"k": "v"})
+        assert "bad {x}" in out and "a" in out and "k=v" in out
+
     def test_colorize_unk(self, adapter):
         # Hit line 503
         assert adapter._colorize_level("UNK_LVL") == "UNK_LVL"
+
+    def test_colorize_known(self, adapter):
+        # Hit line 504
+        assert "\033" in adapter._colorize_level("INFO")
 
     def test_caller_meta_depth_break(self):
         # Hit line 512 (frame is None -> break)
@@ -281,7 +340,7 @@ def test_is_acc_rec():
 @pytest.mark.parametrize("l,e", [
     ("warn", "WARNING"), (123, "CRITICAL"), (5, "TRACE"), (8, "DEBUG"), (25, "SUCCESS"), 
     (logging.INFO, "INFO"), (logging.WARNING, "WARNING"), (logging.ERROR, "ERROR"), (logging.DEBUG, "DEBUG"),
-    (28, "WARNING"), (45, "CRITICAL") # Hit line 533->exit, 535->exit variants
+    (11, "INFO"), (28, "WARNING"), (35, "ERROR"), (45, "CRITICAL") # Hit line 533->exit, 535->exit variants
 ])
 def test_norm_lvl(l, e):
     assert StructlogAdapter._normalize_level_name(l) == e

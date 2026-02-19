@@ -21,6 +21,7 @@ CMakeUserPresets.json
 # Distribution / packaging
 .Python
 build/
+build_cov/
 develop-eggs/
 dist/
 downloads/

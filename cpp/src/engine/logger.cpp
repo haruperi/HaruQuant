@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <memory>
@@ -165,14 +166,6 @@ std::string module_from_path(const std::string& path) {
     return std::filesystem::path(path).stem().string();
 }
 
-std::string get_extra_value_or_empty(const LogExtra& extra, const char* key) {
-    const auto it = extra.find(key);
-    if (it == extra.end()) {
-        return "";
-    }
-    return it->second;
-}
-
 void ensure_context_ids(LogExtra& extra) {
     if (!extra.contains("correlation_id")) {
         extra["correlation_id"] = "";
@@ -199,9 +192,9 @@ LogRecord build_record(const LogLevel level, const std::string& message,
     record.level_name = level_name(level);
     record.level_no = level_number(level);
     record.message = message;
-    record.correlation_id = get_extra_value_or_empty(extra, "correlation_id");
-    record.run_id = get_extra_value_or_empty(extra, "run_id");
-    record.trace_id = get_extra_value_or_empty(extra, "trace_id");
+    record.correlation_id = extra["correlation_id"];
+    record.run_id = extra["run_id"];
+    record.trace_id = extra["trace_id"];
     record.timestamp = now_timestamp_seconds();
     record.time_repr = now_iso8601_utc();
     record.process_id = process_id();
@@ -250,18 +243,24 @@ int effective_threshold_for_component(const std::string& component) {
     return g_log_level.load(std::memory_order_relaxed);
 }
 
+bool force_throw_enabled(const char* key) {
+    const char* value = std::getenv(key);
+    return value != nullptr && std::string(value) == "1";
+}
+
 }  // namespace
 
 void set_log_level(const LogLevel level) noexcept {
     g_log_level.store(static_cast<int>(level), std::memory_order_relaxed);
     try {
+        if (force_throw_enabled("HQT_LOGGER_TEST_THROW_SET_LEVEL")) {
+            throw std::runtime_error("forced set_log_level failure");
+        }
         ensure_async_logger_initialized();
         if (g_async_logger) {
             g_async_logger->set_level(to_spdlog_level(level));
         }
-    } catch (...) {
-        // Logging must not throw into callers.
-    }
+    } catch (...) {}
 }
 
 LogLevel get_log_level() noexcept {
@@ -307,13 +306,14 @@ void set_log_sink(LogSink sink) {
 
 void flush_logs() noexcept {
     try {
+        if (force_throw_enabled("HQT_LOGGER_TEST_THROW_FLUSH")) {
+            throw std::runtime_error("forced flush failure");
+        }
         ensure_async_logger_initialized();
         if (g_async_logger) {
             g_async_logger->flush();
         }
-    } catch (...) {
-        // Flush must never throw into callers.
-    }
+    } catch (...) {}
 }
 
 void log(const LogLevel level, const std::string& message,
@@ -339,6 +339,9 @@ void log(const LogLevel level, const std::string& message,
 
     if (g_stderr_enabled.load(std::memory_order_relaxed)) {
         try {
+            if (force_throw_enabled("HQT_LOGGER_TEST_THROW_STDERR_LOG")) {
+                throw std::runtime_error("forced stderr log failure");
+            }
             ensure_async_logger_initialized();
             if (g_async_logger) {
                 g_async_logger->log(
@@ -349,9 +352,7 @@ void log(const LogLevel level, const std::string& message,
                     to_spdlog_level(level),
                     safe_message);
             }
-        } catch (...) {
-            // Logging must not throw into callers.
-        }
+        } catch (...) {}
     }
 }
 
