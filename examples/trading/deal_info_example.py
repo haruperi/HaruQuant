@@ -1,9 +1,9 @@
 """
-Example usage of C++ DealInfo with different providers.
+Example usage of Deal history with MT5/Tester backend parity.
 
-This example demonstrates two ways to source deals:
-1. Live MT5 history loaded into C++ TradeSimulator as DealInfo
-2. Pure simulated DealInfo objects loaded directly into C++ TradeSimulator
+Backend modes:
+1. backend = "mt5": read deals directly from MT5 with history_deals_get()
+2. backend = "tester": seed C++ tester deals, then read with history_deals_get()
 """
 
 import os
@@ -50,59 +50,80 @@ def _load_live_deals(simulator: "csim.TradeSimulator", start: datetime, end: dat
         row.comment = str(getattr(d, "comment", ""))
         simulator.upsert_deal_info(row)
 
+def _seed_tester_deals(simulator: "csim.TradeSimulator", now: datetime) -> None:
+    d1 = csim.DealInfo()
+    d1.ticket = 2001
+    d1.order = 1001
+    d1.position_id = 1001
+    d1.symbol = "GBPUSD"
+    d1.type = 0
+    d1.entry = 0
+    d1.set_time(int(now.timestamp()) - 60)
+    d1.volume = 0.1
+    d1.price = 1.1000
+    d1.commission = -1.20
+    d1.swap = 0.0
+    d1.profit = 0.0
+    d1.comment = "Entry deal"
+    simulator.upsert_deal_info(d1)
+
+    d2 = csim.DealInfo()
+    d2.ticket = 2002
+    d2.order = 1002
+    d2.position_id = 1001
+    d2.symbol = "EURUSD"
+    d2.type = 1
+    d2.entry = 1
+    d2.set_time(int(now.timestamp()) - 30)
+    d2.volume = 0.1
+    d2.price = 1.1050
+    d2.commission = -1.20
+    d2.swap = -0.10
+    d2.profit = 50.0
+    d2.comment = "Exit deal"
+    simulator.upsert_deal_info(d2)
+
+
+def _deal_value(deal, attr_name: str, method_name: str | None = None, default=None):
+    if hasattr(deal, attr_name):
+        return getattr(deal, attr_name)
+    if method_name and hasattr(deal, method_name):
+        return getattr(deal, method_name)()
+    return default
+
 
 def main():
+    backend = "tester"  # set to: "mt5" or "tester"
+
     print("=" * 70)
-    print("DealInfo Example (C++ TradeSimulator)")
+    print("DealInfo Example (MT5/Tester Parity)")
     print("=" * 70)
     print()
 
-    client = MT5Utils.get_connected_client()
+    client = None
+    if backend == "mt5":
+        client = MT5Utils.get_connected_client()
+        if client is None:
+            print("Failed to connect to MT5.")
+            return
 
     now = datetime.now()
     start = now - timedelta(days=30)
-
-    # CHOOSE YOUR OPTION
-    # Option 1: Live MT5 deals loaded into C++ simulator (default)
-    simulator = csim.TradeSimulator()
-    _load_live_deals(simulator, start, now)
-    print("Using: MT5 Live History -> C++ TradeSimulator")
-
-    # Option 2: Simulator with custom DealInfo objects
-    # simulator = csim.TradeSimulator()
-    # d1 = csim.DealInfo()
-    # d1.ticket = 2001
-    # d1.order = 1001
-    # d1.position_id = 1001
-    # d1.symbol = "EURUSD"
-    # d1.type = 0
-    # d1.entry = 0
-    # d1.set_time(int(now.timestamp()))
-    # d1.volume = 0.1
-    # d1.price = 1.1000
-    # d1.profit = 0.0
-    # d1.comment = "Entry deal"
-    # simulator.upsert_deal_info(d1)
-
-    # d2 = csim.DealInfo()
-    # d2.ticket = 2002
-    # d2.order = 1002
-    # d2.position_id = 1001
-    # d2.symbol = "EURUSD"
-    # d2.type = 1
-    # d2.entry = 1
-    # d2.set_time(int(now.timestamp()))
-    # d2.volume = 0.1
-    # d2.price = 1.1050
-    # d2.profit = 50.0
-    # d2.comment = "Exit deal"
-    # simulator.upsert_deal_info(d2)
-    # print("Using: Simulator (Simulated DealInfo)")
-
+    if backend == "mt5":
+        simulator = mt5
+        print("Using: MT5 backend")
+    else:
+        simulator = csim.TradeSimulator()
+        _seed_tester_deals(simulator, now)
+        print("Using: Tester backend")
     print()
 
-    deals = simulator.history_deal_infos_get()
-    deals = sorted(deals, key=lambda x: int(x.TimeMsc()))
+    deals = simulator.history_deals_get(start, now) or []
+
+    deals = sorted(
+        deals,
+        key=lambda x: int(_deal_value(x, "time_msc", "TimeMsc", 0) or 0),
+    )
 
     print("\n" + "=" * 70)
     print("Example 1: All Historical Deals")
@@ -112,19 +133,20 @@ def main():
     print(f"Total deals: {total_deals}\n")
 
     for i, deal in enumerate(deals):
-        t = datetime.fromtimestamp(int(deal.Time())) if int(deal.Time()) > 0 else "N/A"
-        print(f"{i + 1}. Ticket {deal.Ticket()}")
-        print(f"   Type: {deal.DealTypeDescription()}")
-        print(f"   Entry: {deal.EntryDescription()}")
+        deal_time = int(_deal_value(deal, "time", "Time", 0) or 0)
+        t = datetime.fromtimestamp(deal_time) if deal_time > 0 else "N/A"
+        print(f"{i + 1}. Ticket {_deal_value(deal, 'ticket', 'Ticket', 0)}")
+        print(f"   Type: {_deal_value(deal, 'type', 'DealType', 0)}")
+        print(f"   Entry: {_deal_value(deal, 'entry', 'Entry', 0)}")
         print(f"   Time: {t}")
-        print(f"   Price: {deal.Price()}")
-        print(f"   Commission: ${deal.Commission():.2f}")
-        print(f"   Profit: ${deal.Profit():.2f}")
-        print(f"   Magic: {deal.Magic()}")
-        print(f"   Order: {deal.Order()}")
-        print(f"   Position ID: {deal.PositionId()}")
-        print(f"   Time MSC: {deal.TimeMsc()}")
-        print(f"   Comment: {deal.Comment()}")
+        print(f"   Price: {_deal_value(deal, 'price', 'Price', 0.0)}")
+        print(f"   Commission: ${float(_deal_value(deal, 'commission', 'Commission', 0.0)):.2f}")
+        print(f"   Profit: ${float(_deal_value(deal, 'profit', 'Profit', 0.0)):.2f}")
+        print(f"   Magic: {_deal_value(deal, 'magic', 'Magic', 0)}")
+        print(f"   Order: {_deal_value(deal, 'order', 'Order', 0)}")
+        print(f"   Position ID: {_deal_value(deal, 'position_id', 'PositionId', 0)}")
+        print(f"   Time MSC: {_deal_value(deal, 'time_msc', 'TimeMsc', 0)}")
+        print(f"   Comment: {_deal_value(deal, 'comment', 'Comment', '')}")
         print("   External ID: N/A")
         print("-" * 30)
 
@@ -132,9 +154,9 @@ def main():
     print("Example 2: Trading Statistics")
     print("=" * 70)
 
-    total_profit = sum(float(d.Profit()) for d in deals)
-    total_commission = sum(float(d.Commission()) for d in deals)
-    total_swap = sum(float(d.Swap()) for d in deals)
+    total_profit = sum(float(_deal_value(d, "profit", "Profit", 0.0)) for d in deals)
+    total_commission = sum(float(_deal_value(d, "commission", "Commission", 0.0)) for d in deals)
+    total_swap = sum(float(_deal_value(d, "swap", "Swap", 0.0)) for d in deals)
 
     print(f"Total Profit: ${total_profit:.2f}")
     print(f"Total Commission: ${total_commission:.2f}")
@@ -149,9 +171,13 @@ def main():
     print(f"Deals for {target_symbol}:")
     count = 0
     for deal in deals:
-        if deal.Symbol() == target_symbol:
+        symbol = _deal_value(deal, "symbol", "Symbol", "")
+        if symbol == target_symbol:
             print(
-                f"  #{deal.Ticket()} {deal.DealTypeDescription()} {deal.Volume()} lots P/L: {deal.Profit()}"
+                f"  #{_deal_value(deal, 'ticket', 'Ticket', 0)} "
+                f"{_deal_value(deal, 'type', 'DealType', 0)} "
+                f"{_deal_value(deal, 'volume', 'Volume', 0.0)} lots "
+                f"P/L: {_deal_value(deal, 'profit', 'Profit', 0.0)}"
             )
             count += 1
     if count == 0:
@@ -161,9 +187,10 @@ def main():
     print("Example Complete")
     print("=" * 70)
 
-    print("\nShutting down MT5 connection...")
-    client.shutdown()
-    print("Disconnected.")
+    if client is not None:
+        print("\nShutting down MT5 connection...")
+        client.shutdown()
+        print("Disconnected.")
 
 if __name__ == "__main__":
     main()

@@ -54,6 +54,11 @@ enum class ENUM_DEAL_ENTRY {
  *
  * Provides access to completed deal properties.
  * All price and monetary values stored internally as fixed-point for precision.
+ *
+ * Python parity note:
+ * - C++ keeps MQL-style methods (Ticket(), Time(), DealType(), ...).
+ * - Python bindings expose MT5-Python-style properties too
+ *   (ticket, time, type, entry, price, profit, commission, ...).
  */
 class DealInfo {
 private:

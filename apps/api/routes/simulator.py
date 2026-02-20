@@ -122,8 +122,8 @@ def _order_info_to_dict(order: Any) -> dict:
 
 
 def _collect_positions_orders(active: SimulatorSession) -> tuple[list[dict], list[dict]]:
-    positions_raw = active.simulator._simulator.positions_info_get() or []
-    orders_raw = active.simulator._simulator.orders_info_get() or []
+    positions_raw = active.simulator._simulator.positions_get() or []
+    orders_raw = active.simulator._simulator.orders_get() or []
     positions = [_normalize_position(_position_info_to_dict(pos)) for pos in positions_raw]
     orders = [_normalize_order(_order_info_to_dict(order)) for order in orders_raw]
     return positions, orders

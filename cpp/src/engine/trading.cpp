@@ -84,7 +84,7 @@ PositionTotals AccountMonitor::monitor_positions(
         return totals;
     }
 
-    const auto positions = client.positions_info_get(std::nullopt, symbol);
+    const auto positions = client.positions_get(symbol, std::nullopt, std::nullopt);
     for (const auto& pos : positions) {
         const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
         const int action = is_buy ? 0 : 1;
@@ -212,6 +212,23 @@ TradeResult invalid_result(const std::string& comment, int retcode = 10013) {
     return result;
 }
 
+MqlTradeRequest to_mql_request(const TradeRequest& request) {
+    MqlTradeRequest out;
+    out.action = static_cast<ENUM_TRADE_REQUEST_ACTIONS>(request.action);
+    out.order = request.order;
+    out.symbol = request.symbol;
+    out.volume = request.volume;
+    out.price = request.price;
+    out.stoplimit = request.stoplimit;
+    out.sl = request.sl;
+    out.tp = request.tp;
+    out.type = static_cast<ENUM_ORDER_TYPE>(request.type);
+    out.type_time = static_cast<ENUM_ORDER_TYPE_TIME>(request.type_time);
+    out.expiration = request.expiration;
+    out.comment = request.comment;
+    return out;
+}
+
 }  // namespace
 
 TradeGateway::TradeGateway(const hqt::AccountInfo& account)
@@ -292,6 +309,14 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
                 request.expiration,
                 request.comment);
         }
+    } else if (request.action == 6) {
+        if (request.order != 0) {
+            ok = trade_.PositionModify(request.order, request.sl, request.tp);
+        } else if (!request.symbol.empty()) {
+            ok = trade_.PositionModify(request.symbol, request.sl, request.tp);
+        } else {
+            return invalid_result("Invalid request: missing position or symbol", 10013);
+        }
     } else if (request.action == 7) {
         if (request.order == 0) {
             return invalid_result("Invalid request: missing order", 10013);
@@ -350,87 +375,80 @@ const SymbolTickData* TradeSimulator::symbol_info_tick(const std::string& symbol
     return it == ticks_data_.end() ? nullptr : &it->second;
 }
 
-std::vector<hqt::PositionInfo> TradeSimulator::positions_info_get(
-    std::optional<uint64_t> ticket,
-    std::optional<std::string_view> symbol) const {
-    std::vector<hqt::PositionInfo> out;
-    if (ticket.has_value()) {
-        const auto it = positions_info_data_.find(*ticket);
-        if (it != positions_info_data_.end()) {
-            if (!symbol.has_value() || it->second.Symbol() == *symbol) {
-                out.push_back(it->second);
-            }
-        }
-        return out;
-    }
-
-    out.reserve(positions_info_data_.size());
-    for (const auto& [_, pos] : positions_info_data_) {
-        if (symbol.has_value() && pos.Symbol() != *symbol) {
-            continue;
-        }
-        out.push_back(pos);
-    }
-    return out;
-}
-
-std::vector<hqt::OrderInfo> TradeSimulator::orders_info_get(
-    std::optional<uint64_t> ticket,
-    std::optional<std::string_view> symbol) const {
-    std::vector<hqt::OrderInfo> out;
-    if (ticket.has_value()) {
-        const auto it = orders_info_data_.find(*ticket);
-        if (it != orders_info_data_.end()) {
-            if (!symbol.has_value() || it->second.Symbol() == *symbol) {
-                out.push_back(it->second);
-            }
-        }
-        return out;
-    }
-
-    out.reserve(orders_info_data_.size());
-    for (const auto& [_, order] : orders_info_data_) {
-        if (symbol.has_value() && order.Symbol() != *symbol) {
-            continue;
-        }
-        out.push_back(order);
-    }
-    return out;
-}
-
-std::vector<hqt::HistoryOrderInfo> TradeSimulator::history_order_infos_get(
+std::vector<hqt::PositionInfo> TradeSimulator::positions_get(
+    std::optional<std::string> symbol,
+    std::optional<std::string> group,
     std::optional<uint64_t> ticket) const {
-    std::vector<hqt::HistoryOrderInfo> out;
-    if (ticket.has_value()) {
-        const auto it = history_orders_info_data_.find(*ticket);
-        if (it != history_orders_info_data_.end()) {
-            out.push_back(it->second);
-        }
-        return out;
-    }
-    out.reserve(history_orders_info_data_.size());
-    for (const auto& [_, order] : history_orders_info_data_) {
-        out.push_back(order);
-    }
-    return out;
+    return trade_gateway_.trade().positions_get(symbol, group, ticket);
 }
 
-std::vector<hqt::DealInfo> TradeSimulator::history_deal_infos_get(
-    std::optional<uint64_t> ticket) const {
-    std::vector<hqt::DealInfo> out;
-    if (ticket.has_value()) {
-        const auto it = deals_info_data_.find(*ticket);
-        if (it != deals_info_data_.end()) {
-            out.push_back(it->second);
-        }
-        return out;
-    }
+std::size_t TradeSimulator::positions_total() const noexcept {
+    return trade_gateway_.trade().positions_total();
+}
 
-    out.reserve(deals_info_data_.size());
-    for (const auto& [_, deal] : deals_info_data_) {
-        out.push_back(deal);
+std::vector<hqt::OrderInfo> TradeSimulator::orders_get(
+    std::optional<std::string> symbol,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const {
+    return trade_gateway_.trade().orders_get(symbol, group, ticket);
+}
+
+std::size_t TradeSimulator::orders_total() const noexcept {
+    return trade_gateway_.trade().orders_total();
+}
+
+std::vector<hqt::HistoryOrderInfo> TradeSimulator::history_orders_get(
+    std::optional<uint64_t> ticket) const {
+    return trade_gateway_.trade().history_orders_get(ticket);
+}
+
+std::vector<hqt::HistoryOrderInfo> TradeSimulator::history_orders_get(
+    int64_t date_from_sec,
+    int64_t date_to_sec,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const {
+    return trade_gateway_.trade().history_orders_get(date_from_sec, date_to_sec, group, ticket);
+}
+
+std::size_t TradeSimulator::history_orders_total() const noexcept {
+    return trade_gateway_.trade().history_orders_total();
+}
+
+std::vector<hqt::DealInfo> TradeSimulator::history_deals_get(
+    std::optional<uint64_t> ticket) const {
+    return trade_gateway_.trade().history_deals_get(ticket);
+}
+
+std::vector<hqt::DealInfo> TradeSimulator::history_deals_get(
+    int64_t date_from_sec,
+    int64_t date_to_sec,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const {
+    return trade_gateway_.trade().history_deals_get(date_from_sec, date_to_sec, group, ticket);
+}
+
+std::size_t TradeSimulator::history_deals_total() const noexcept {
+    return trade_gateway_.trade().history_deals_total();
+}
+
+bool TradeSimulator::symbol_select(const std::string& symbol, bool enable) {
+    const bool ok = trade_gateway_.trade().symbol_select(symbol, enable);
+    if (ok) {
+        last_error_code_ = 1;
+        last_error_message_ = "Success";
+    } else {
+        last_error_code_ = 10013;
+        last_error_message_ = "Unknown symbol";
     }
-    return out;
+    return ok;
+}
+
+std::vector<hqt::SymbolInfo> TradeSimulator::symbols_get(std::optional<std::string> group) const {
+    return trade_gateway_.trade().symbols_get(group);
+}
+
+std::size_t TradeSimulator::symbols_total() const noexcept {
+    return trade_gateway_.trade().symbols_total();
 }
 
 std::pair<int, std::string> TradeSimulator::last_error() const {
@@ -439,6 +457,21 @@ std::pair<int, std::string> TradeSimulator::last_error() const {
 
 std::string TradeSimulator::trade_retcode_description(int retcode) const {
     return util::error_from_retcode(retcode).message;
+}
+
+TradeCheckResult TradeSimulator::order_check(const TradeRequest& request) const {
+    const MqlTradeRequest mql = to_mql_request(request);
+    const MqlTradeCheckResult check = trade_gateway_.trade().OrderCheck(mql);
+    TradeCheckResult out;
+    out.retcode = static_cast<int>(check.retcode);
+    out.balance = check.balance;
+    out.equity = check.equity;
+    out.profit = check.profit;
+    out.margin = check.margin;
+    out.margin_free = check.margin_free;
+    out.margin_level = check.margin_level;
+    out.comment = check.comment;
+    return out;
 }
 
 double TradeSimulator::order_calc_margin(
@@ -535,6 +568,10 @@ TradeResult TradeSimulator::order_send(const TradeRequest& request) {
         set_order_state(request.order, OmsOrderState::Canceled);
     }
 
+    last_error_code_ = result.retcode;
+    last_error_message_ = result.comment.empty()
+        ? trade_retcode_description(result.retcode)
+        : result.comment;
     return result;
 }
 
@@ -548,9 +585,9 @@ TradeResult TradeSimulator::close_position(uint64_t ticket) {
     }
 
     std::string symbol;
-    const auto pos_it = positions_info_data_.find(ticket);
-    if (pos_it != positions_info_data_.end()) {
-        symbol = pos_it->second.Symbol();
+    const auto pos = trade_gateway_.trade().positions_get(std::nullopt, std::nullopt, ticket);
+    if (!pos.empty()) {
+        symbol = pos.front().Symbol();
     }
 
     if (!symbol.empty()) {
@@ -581,33 +618,30 @@ TradeResult TradeSimulator::close_position(uint64_t ticket) {
         util::warning("TradeSimulator::close_position failed ticket=" + std::to_string(ticket));
     }
 
+    last_error_code_ = result.retcode;
+    last_error_message_ = result.comment.empty()
+        ? trade_retcode_description(result.retcode)
+        : result.comment;
     return result;
 }
 
 bool TradeSimulator::set_history_order_state(uint64_t ticket, uint64_t state) {
-    const auto hist_it = history_orders_info_data_.find(ticket);
-    if (hist_it != history_orders_info_data_.end()) {
-        hist_it->second.SetState(static_cast<hqt::ENUM_ORDER_STATE>(state));
-        set_order_state(ticket, map_order_state(state));
-        return true;
+    const bool updated = trade_gateway_.trade().history_order_set_state(
+        ticket, static_cast<hqt::ENUM_ORDER_STATE>(state));
+    if (!updated) {
+        return false;
     }
-
-    const auto active_it = orders_info_data_.find(ticket);
-    if (active_it != orders_info_data_.end()) {
-        active_it->second.SetState(static_cast<hqt::ENUM_ORDER_STATE>(state));
-        set_order_state(ticket, map_order_state(state));
-        return true;
-    }
-
-    return false;
+    sync_state_from_trade();
+    set_order_state(ticket, map_order_state(state));
+    return true;
 }
 
 bool TradeSimulator::set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) {
-    const auto it = history_orders_info_data_.find(ticket);
-    if (it == history_orders_info_data_.end()) {
+    const bool updated = trade_gateway_.trade().history_order_set_done_time(ticket, time_sec, time_msc);
+    if (!updated) {
         return false;
     }
-    it->second.SetTimeDone(time_sec, time_msc);
+    sync_state_from_trade();
     return true;
 }
 
@@ -631,18 +665,22 @@ void TradeSimulator::set_symbol_tick(const std::string& symbol, const SymbolTick
 
 void TradeSimulator::upsert_position_info(const hqt::PositionInfo& data) {
     positions_info_data_[data.Ticket()] = data;
+    trade_gateway_.trade().upsert_position(data);
 }
 
 void TradeSimulator::upsert_order_info(const hqt::OrderInfo& data) {
     orders_info_data_[data.Ticket()] = data;
+    trade_gateway_.trade().upsert_active_order(data);
 }
 
 void TradeSimulator::upsert_history_order_info(const hqt::HistoryOrderInfo& data) {
     history_orders_info_data_[data.Ticket()] = data;
+    trade_gateway_.trade().upsert_history_order(data);
 }
 
 void TradeSimulator::upsert_deal_info(const hqt::DealInfo& data) {
     deals_info_data_[data.Ticket()] = data;
+    trade_gateway_.trade().upsert_history_deal(data);
 }
 
 void TradeSimulator::set_last_error(int code, const std::string& message) {
@@ -736,19 +774,19 @@ void TradeSimulator::sync_state_from_trade() {
 
     account_info_ = account;
 
-    for (const auto& pos : trade.GetPositions()) {
+    for (const auto& pos : trade.positions_get()) {
         positions_info_data_[pos.Ticket()] = pos;
     }
 
-    for (const auto& ord : trade.GetOrders()) {
+    for (const auto& ord : trade.orders_get()) {
         orders_info_data_[ord.Ticket()] = ord;
     }
 
-    for (const auto& deal : trade.GetDeals()) {
+    for (const auto& deal : trade.history_deals_get()) {
         deals_info_data_[deal.Ticket()] = deal;
     }
 
-    for (const auto& hist : trade.GetHistoryOrders()) {
+    for (const auto& hist : trade.history_orders_get()) {
         history_orders_info_data_[hist.Ticket()] = hist;
     }
 
@@ -836,7 +874,7 @@ TradeRequest MockBroker::scaled_request(const TradeRequest& request, double rati
 
 std::unordered_map<std::string, PositionAggregate> MockBroker::aggregate_positions() const {
     std::unordered_map<std::string, PositionAggregate> out;
-    for (const auto& pos : client_.positions_info_get()) {
+    for (const auto& pos : client_.positions_get()) {
         auto& agg = out[pos.Symbol()];
         const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
         if (is_buy) {

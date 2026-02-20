@@ -947,7 +947,7 @@ void PortfolioEngine::process_bar(const std::string& symbol, const BacktestBarSt
     client_.set_symbol_tick(symbol, tick);
 
     if (bar.exit_signal != 0) {
-        const auto positions = client_.positions_info_get(std::nullopt, symbol);
+        const auto positions = client_.positions_get(symbol, std::nullopt, std::nullopt);
         for (const auto& pos : positions) {
             const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
             if ((bar.exit_signal == 1 && is_buy) || (bar.exit_signal == -1 && !is_buy)) {
@@ -1023,7 +1023,7 @@ void VectorizedBacktestEngine::run(
         account_snapshot_ = account_monitor.monitor_account(client_.account_info(), totals);
 
         if (bar.exit_signal != 0) {
-            const auto positions = client_.positions_info_get(std::nullopt, symbol);
+            const auto positions = client_.positions_get(symbol, std::nullopt, std::nullopt);
             for (const auto& pos : positions) {
                 const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
                 if ((bar.exit_signal == 1 && is_buy) || (bar.exit_signal == -1 && !is_buy)) {

@@ -97,6 +97,17 @@ struct TradeResult {
     std::string comment{};
 };
 
+struct TradeCheckResult {
+    int retcode{10011};
+    double balance{0.0};
+    double equity{0.0};
+    double profit{0.0};
+    double margin{0.0};
+    double margin_free{0.0};
+    double margin_level{0.0};
+    std::string comment{};
+};
+
 enum class OmsOrderState {
     Unknown = 0,
     New = 1,
@@ -112,42 +123,85 @@ class TradeGateway {
 public:
     explicit TradeGateway(const hqt::AccountInfo& account);
 
+    // Register per-symbol metadata used by CTrade for validation and pricing.
     void register_symbol(const hqt::SymbolInfo& symbol);
+    // Submit one trade request through the underlying CTrade execution path.
     [[nodiscard]] TradeResult order_send(const TradeRequest& request, const SymbolTickData* tick);
 
+    // Direct access to the underlying CTrade engine.
     [[nodiscard]] const hqt::CTrade& trade() const noexcept { return trade_; }
     [[nodiscard]] hqt::CTrade& trade() noexcept { return trade_; }
 
 private:
+    // Core execution engine (opens/closes positions, places orders, produces deals).
     hqt::CTrade trade_;
+    // Local symbol registry by symbol name (for request-time lookup).
     std::unordered_map<std::string, hqt::SymbolInfo> symbols_;
 };
 
+/**
+ * High-level simulator facade used by backtest/runtime components.
+ *
+ * Responsibilities:
+ * - Hold account, symbol, tick, and order lifecycle state snapshots.
+ * - Route order/close requests into CTrade via TradeGateway.
+ * - Expose MT5-like query APIs (positions/orders/deals/history).
+ *
+ * Note:
+ * - The authoritative execution logic is in CTrade.
+ * - TradeSimulator mirrors CTrade state into map-based containers
+ *   for fast lookup by ticket and easy filtering.
+ */
 class TradeSimulator {
 public:
     TradeSimulator() = default;
     explicit TradeSimulator(hqt::AccountInfo account);
 
+    // ----- Read-only snapshots -----
     [[nodiscard]] const hqt::AccountInfo& account_info() const noexcept;
     [[nodiscard]] const hqt::SymbolInfo* symbol_info(const std::string& symbol) const noexcept;
     [[nodiscard]] const SymbolTickData* symbol_info_tick(const std::string& symbol) const noexcept;
 
-    [[nodiscard]] std::vector<hqt::PositionInfo> positions_info_get(
-        std::optional<uint64_t> ticket = std::nullopt,
-        std::optional<std::string_view> symbol = std::nullopt) const;
-
-    [[nodiscard]] std::vector<hqt::OrderInfo> orders_info_get(
-        std::optional<uint64_t> ticket = std::nullopt,
-        std::optional<std::string_view> symbol = std::nullopt) const;
-
-    [[nodiscard]] std::vector<hqt::HistoryOrderInfo> history_order_infos_get(
+    // MT5-style query methods (name/signature parity with MetaTrader5 Python API).
+    [[nodiscard]] std::vector<hqt::PositionInfo> positions_get(
+        std::optional<std::string> symbol = std::nullopt,
+        std::optional<std::string> group = std::nullopt,
         std::optional<uint64_t> ticket = std::nullopt) const;
+    [[nodiscard]] std::size_t positions_total() const noexcept;
 
-    [[nodiscard]] std::vector<hqt::DealInfo> history_deal_infos_get(
+    [[nodiscard]] std::vector<hqt::OrderInfo> orders_get(
+        std::optional<std::string> symbol = std::nullopt,
+        std::optional<std::string> group = std::nullopt,
         std::optional<uint64_t> ticket = std::nullopt) const;
+    [[nodiscard]] std::size_t orders_total() const noexcept;
 
+    [[nodiscard]] std::vector<hqt::HistoryOrderInfo> history_orders_get(
+        std::optional<uint64_t> ticket = std::nullopt) const;
+    [[nodiscard]] std::vector<hqt::HistoryOrderInfo> history_orders_get(
+        int64_t date_from_sec,
+        int64_t date_to_sec,
+        std::optional<std::string> group = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt) const;
+    [[nodiscard]] std::size_t history_orders_total() const noexcept;
+
+    [[nodiscard]] std::vector<hqt::DealInfo> history_deals_get(
+        std::optional<uint64_t> ticket = std::nullopt) const;
+    [[nodiscard]] std::vector<hqt::DealInfo> history_deals_get(
+        int64_t date_from_sec,
+        int64_t date_to_sec,
+        std::optional<std::string> group = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt) const;
+    [[nodiscard]] std::size_t history_deals_total() const noexcept;
+
+    bool symbol_select(const std::string& symbol, bool enable = true);
+    [[nodiscard]] std::vector<hqt::SymbolInfo> symbols_get(
+        std::optional<std::string> group = std::nullopt) const;
+    [[nodiscard]] std::size_t symbols_total() const noexcept;
+
+    // ----- Validation/helpers and execution -----
     [[nodiscard]] std::pair<int, std::string> last_error() const;
     [[nodiscard]] std::string trade_retcode_description(int retcode) const;
+    [[nodiscard]] TradeCheckResult order_check(const TradeRequest& request) const;
     [[nodiscard]] double order_calc_margin(
         int action,
         const std::string& symbol,
@@ -167,6 +221,7 @@ public:
     bool set_history_order_state(uint64_t ticket, uint64_t state);
     bool set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc);
 
+    // ----- Direct state upsert/  (used by bridge/tests/tools) -----
     void set_account_info(const hqt::AccountInfo& data);
     void set_symbol_info(const hqt::SymbolInfo& data);
     void set_symbol_tick(const std::string& symbol, const SymbolTickData& tick);
@@ -178,29 +233,43 @@ public:
 
 private:
     struct IdempotencyEntry {
+        // Deterministic fingerprint generated from request fields.
         std::string fingerprint{};
+        // Cached result returned when fingerprint matches a prior submission.
         TradeResult result{};
     };
 
+    // Build a stable key used to deduplicate repeated submissions.
     [[nodiscard]] static std::string submission_fingerprint(const TradeRequest& request);
+    // Map low-level order state code to OMS state enum.
     [[nodiscard]] static OmsOrderState map_order_state(uint64_t raw_state) noexcept;
+    // Human-readable name for OMS state.
     [[nodiscard]] static std::string order_state_label(OmsOrderState state);
     void set_order_state(uint64_t ticket, OmsOrderState state);
+    // Recompute derived state maps after manual state injection.
     void rebuild_order_states_from_snapshots();
+    // Pull latest positions/orders/deals/history from CTrade into local containers.
     void sync_state_from_trade();
 
+    // Account snapshot used by simulation and exposed to callers.
     hqt::AccountInfo account_info_{};
+    // Execution gateway wrapping CTrade.
     TradeGateway trade_gateway_{account_info_};
+    // Symbol metadata and latest tick cache by symbol.
     std::unordered_map<std::string, hqt::SymbolInfo> symbols_data_{};
     std::unordered_map<std::string, SymbolTickData> ticks_data_{};
 
+    // Core TradeSimulator lifecycle containers (Database-like) (ticket -> record).
     std::unordered_map<uint64_t, hqt::PositionInfo> positions_info_data_{};
     std::unordered_map<uint64_t, hqt::OrderInfo> orders_info_data_{};
     std::unordered_map<uint64_t, hqt::HistoryOrderInfo> history_orders_info_data_{};
     std::unordered_map<uint64_t, hqt::DealInfo> deals_info_data_{};
+    // Derived OMS status per order ticket.
     std::unordered_map<uint64_t, OmsOrderState> order_states_{};
+    // Idempotency cache keyed by client order id.
     std::unordered_map<std::string, IdempotencyEntry> idempotency_by_client_order_id_{};
 
+    // Last public error exposed by last_error().
     int last_error_code_{1};
     std::string last_error_message_{"Success"};
 };
@@ -1119,4 +1188,3 @@ private:
 };
 
 }  // namespace hqt::engine
-

@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <optional>
 
 namespace hqt {
 
@@ -706,6 +707,16 @@ public:
         return last_check_.comment;
     }
 
+    bool OrderCheck(const MqlTradeRequest& request, MqlTradeCheckResult& check) const noexcept {
+        return CheckRequest(request, check);
+    }
+
+    MqlTradeCheckResult OrderCheck(const MqlTradeRequest& request) const noexcept {
+        MqlTradeCheckResult check;
+        CheckRequest(request, check);
+        return check;
+    }
+
     // ===================================================================
     // MT5 CTrade API - Utility Methods
     // ===================================================================
@@ -851,6 +862,74 @@ public:
     }
 
     // ===================================================================
+    // MT5 Python-style Query API
+    // ===================================================================
+
+    std::vector<PositionInfo> positions_get(
+        std::optional<std::string> symbol = std::nullopt,
+        std::optional<std::string> group = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt) const noexcept;
+
+    void upsert_position(const PositionInfo& position) noexcept;
+
+    size_t positions_total() const noexcept {
+        return positions_.size();
+    }
+
+    std::vector<OrderInfo> orders_get(
+        std::optional<std::string> symbol = std::nullopt,
+        std::optional<std::string> group = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt) const noexcept;
+
+    void upsert_active_order(const OrderInfo& order) noexcept;
+
+    size_t orders_total() const noexcept {
+        return orders_.size();
+    }
+
+    std::vector<HistoryOrderInfo> history_orders_get(
+        std::optional<uint64_t> ticket = std::nullopt) const noexcept;
+
+    std::vector<HistoryOrderInfo> history_orders_get(
+        int64_t date_from_sec,
+        int64_t date_to_sec,
+        std::optional<std::string> group = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt) const noexcept;
+
+    void upsert_history_order(const HistoryOrderInfo& order) noexcept;
+
+    size_t history_orders_total() const noexcept {
+        return history_orders_.size();
+    }
+
+    std::vector<DealInfo> history_deals_get(
+        std::optional<uint64_t> ticket = std::nullopt) const noexcept;
+
+    std::vector<DealInfo> history_deals_get(
+        int64_t date_from_sec,
+        int64_t date_to_sec,
+        std::optional<std::string> group = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt) const noexcept;
+
+    void upsert_history_deal(const DealInfo& deal) noexcept;
+
+    size_t history_deals_total() const noexcept {
+        return deals_.size();
+    }
+
+    bool symbol_select(const std::string& symbol, bool select = true) noexcept;
+
+    std::vector<SymbolInfo> symbols_get(
+        std::optional<std::string> group = std::nullopt) const noexcept;
+
+    size_t symbols_total() const noexcept {
+        return symbols_.size();
+    }
+
+    bool history_order_set_state(uint64_t ticket, ENUM_ORDER_STATE state) noexcept;
+    bool history_order_set_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) noexcept;
+
+    // ===================================================================
     // Backtesting Extensions - Trailing Stops
     // ===================================================================
 
@@ -984,6 +1063,9 @@ private:
                                ENUM_ORDER_TYPE_TIME type_time,
                                int64_t expiration,
                                const std::string& comment) noexcept;
+
+    static bool MatchPattern(const std::string& value, const std::string& pattern) noexcept;
+    static bool MatchGroupFilter(const std::string& value, const std::string& group) noexcept;
 };
 
 } // namespace hqt

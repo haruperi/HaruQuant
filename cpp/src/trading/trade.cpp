@@ -8,8 +8,42 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <algorithm>
+#include <cctype>
+#include <vector>
 
 namespace hqt {
+
+namespace {
+
+std::string trim_copy(const std::string& value) {
+    std::size_t start = 0;
+    std::size_t end = value.size();
+    while (start < end && std::isspace(static_cast<unsigned char>(value[start])) != 0) {
+        ++start;
+    }
+    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1])) != 0) {
+        --end;
+    }
+    return value.substr(start, end - start);
+}
+
+std::vector<std::string> split_csv(const std::string& value) {
+    std::vector<std::string> out;
+    std::size_t start = 0;
+    while (start <= value.size()) {
+        const std::size_t comma = value.find(',', start);
+        if (comma == std::string::npos) {
+            out.push_back(trim_copy(value.substr(start)));
+            break;
+        }
+        out.push_back(trim_copy(value.substr(start, comma - start)));
+        start = comma + 1;
+    }
+    return out;
+}
+
+}  // namespace
 
 // ===================================================================
 // Position Management Implementation
@@ -437,6 +471,326 @@ std::string CTrade::FormatRequestResult(const MqlTradeRequest& request,
     if (result.order > 0) oss << "Order=" << result.order << ", ";
     oss << "Comment=" << result.comment;
     return oss.str();
+}
+
+// ===================================================================
+// MT5 Python-style Query API
+// ===================================================================
+
+bool CTrade::MatchPattern(const std::string& value, const std::string& pattern) noexcept {
+    std::size_t v = 0;
+    std::size_t p = 0;
+    std::size_t star = std::string::npos;
+    std::size_t match = 0;
+
+    while (v < value.size()) {
+        if (p < pattern.size() && (pattern[p] == value[v])) {
+            ++v;
+            ++p;
+            continue;
+        }
+        if (p < pattern.size() && pattern[p] == '*') {
+            star = p++;
+            match = v;
+            continue;
+        }
+        if (star != std::string::npos) {
+            p = star + 1;
+            v = ++match;
+            continue;
+        }
+        return false;
+    }
+
+    while (p < pattern.size() && pattern[p] == '*') {
+        ++p;
+    }
+    return p == pattern.size();
+}
+
+bool CTrade::MatchGroupFilter(const std::string& value, const std::string& group) noexcept {
+    if (group.empty()) {
+        return true;
+    }
+
+    const std::vector<std::string> raw_parts = split_csv(group);
+    struct Cond {
+        bool exclude{false};
+        std::string pattern{};
+    };
+    std::vector<Cond> conds;
+    conds.reserve(raw_parts.size());
+
+    bool has_include = false;
+    for (const std::string& raw : raw_parts) {
+        if (raw.empty()) {
+            continue;
+        }
+        Cond c;
+        c.pattern = raw;
+        if (!c.pattern.empty() && c.pattern.front() == '!') {
+            c.exclude = true;
+            c.pattern = trim_copy(c.pattern.substr(1));
+        } else {
+            has_include = true;
+        }
+        if (!c.pattern.empty()) {
+            conds.push_back(std::move(c));
+        }
+    }
+
+    bool selected = !has_include;
+    for (const Cond& cond : conds) {
+        if (!MatchPattern(value, cond.pattern)) {
+            continue;
+        }
+        if (cond.exclude) {
+            selected = false;
+        } else {
+            selected = true;
+        }
+    }
+    return selected;
+}
+
+std::vector<PositionInfo> CTrade::positions_get(
+    std::optional<std::string> symbol,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const noexcept {
+    std::vector<PositionInfo> out;
+
+    // MT5 behavior: if symbol is provided, ticket is ignored.
+    if (symbol.has_value() && !symbol->empty()) {
+        for (const auto& [_, pos] : positions_) {
+            if (pos.Symbol() == *symbol) {
+                out.push_back(pos);
+            }
+        }
+        return out;
+    }
+
+    if (ticket.has_value()) {
+        const auto it = positions_.find(*ticket);
+        if (it != positions_.end()) {
+            out.push_back(it->second);
+        }
+        return out;
+    }
+
+    out.reserve(positions_.size());
+    for (const auto& [_, pos] : positions_) {
+        if (group.has_value() && !group->empty() && !MatchGroupFilter(pos.Symbol(), *group)) {
+            continue;
+        }
+        out.push_back(pos);
+    }
+    return out;
+}
+
+void CTrade::upsert_position(const PositionInfo& position) noexcept {
+    positions_[position.Ticket()] = position;
+}
+
+std::vector<OrderInfo> CTrade::orders_get(
+    std::optional<std::string> symbol,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const noexcept {
+    std::vector<OrderInfo> out;
+
+    // MT5 behavior: if symbol is provided, ticket is ignored.
+    if (symbol.has_value() && !symbol->empty()) {
+        for (const auto& [_, ord] : orders_) {
+            if (ord.Symbol() == *symbol) {
+                out.push_back(ord);
+            }
+        }
+        return out;
+    }
+
+    if (ticket.has_value()) {
+        const auto it = orders_.find(*ticket);
+        if (it != orders_.end()) {
+            out.push_back(it->second);
+        }
+        return out;
+    }
+
+    out.reserve(orders_.size());
+    for (const auto& [_, ord] : orders_) {
+        if (group.has_value() && !group->empty() && !MatchGroupFilter(ord.Symbol(), *group)) {
+            continue;
+        }
+        out.push_back(ord);
+    }
+    return out;
+}
+
+void CTrade::upsert_active_order(const OrderInfo& order) noexcept {
+    orders_[order.Ticket()] = order;
+}
+
+std::vector<HistoryOrderInfo> CTrade::history_orders_get(
+    std::optional<uint64_t> ticket) const noexcept {
+    std::vector<HistoryOrderInfo> out;
+    if (ticket.has_value()) {
+        for (const auto& ord : history_orders_) {
+            if (ord.Ticket() == *ticket) {
+                out.push_back(ord);
+                break;
+            }
+        }
+        return out;
+    }
+    out = history_orders_;
+    return out;
+}
+
+std::vector<HistoryOrderInfo> CTrade::history_orders_get(
+    int64_t date_from_sec,
+    int64_t date_to_sec,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const noexcept {
+    std::vector<HistoryOrderInfo> out;
+    if (date_to_sec > 0 && date_from_sec > date_to_sec) {
+        return out;
+    }
+
+    for (const auto& ord : history_orders_) {
+        if (ticket.has_value() && ord.Ticket() != *ticket) {
+            continue;
+        }
+        if (date_from_sec > 0 && ord.TimeSetup() < date_from_sec) {
+            continue;
+        }
+        if (date_to_sec > 0 && ord.TimeSetup() > date_to_sec) {
+            continue;
+        }
+        if (group.has_value() && !group->empty() && !MatchGroupFilter(ord.Symbol(), *group)) {
+            continue;
+        }
+        out.push_back(ord);
+    }
+    return out;
+}
+
+void CTrade::upsert_history_order(const HistoryOrderInfo& order) noexcept {
+    for (auto& existing : history_orders_) {
+        if (existing.Ticket() == order.Ticket()) {
+            existing = order;
+            return;
+        }
+    }
+    history_orders_.push_back(order);
+}
+
+std::vector<DealInfo> CTrade::history_deals_get(
+    std::optional<uint64_t> ticket) const noexcept {
+    std::vector<DealInfo> out;
+    if (ticket.has_value()) {
+        for (const auto& deal : deals_) {
+            if (deal.Ticket() == *ticket) {
+                out.push_back(deal);
+                break;
+            }
+        }
+        return out;
+    }
+    out = deals_;
+    return out;
+}
+
+std::vector<DealInfo> CTrade::history_deals_get(
+    int64_t date_from_sec,
+    int64_t date_to_sec,
+    std::optional<std::string> group,
+    std::optional<uint64_t> ticket) const noexcept {
+    std::vector<DealInfo> out;
+    if (date_to_sec > 0 && date_from_sec > date_to_sec) {
+        return out;
+    }
+
+    for (const auto& deal : deals_) {
+        if (ticket.has_value() && deal.Ticket() != *ticket) {
+            continue;
+        }
+        if (date_from_sec > 0 && deal.Time() < date_from_sec) {
+            continue;
+        }
+        if (date_to_sec > 0 && deal.Time() > date_to_sec) {
+            continue;
+        }
+        if (group.has_value() && !group->empty() && !MatchGroupFilter(deal.Symbol(), *group)) {
+            continue;
+        }
+        out.push_back(deal);
+    }
+    return out;
+}
+
+void CTrade::upsert_history_deal(const DealInfo& deal) noexcept {
+    for (auto& existing : deals_) {
+        if (existing.Ticket() == deal.Ticket()) {
+            existing = deal;
+            return;
+        }
+    }
+    deals_.push_back(deal);
+}
+
+bool CTrade::symbol_select(const std::string& symbol, bool select) noexcept {
+    const SymbolInfo* info = GetSymbolInfo(symbol);
+    if (!info) {
+        return false;
+    }
+
+    const auto name_it = symbol_name_to_id_.find(symbol);
+    if (name_it == symbol_name_to_id_.end()) {
+        return false;
+    }
+    auto sym_it = symbols_.find(name_it->second);
+    if (sym_it == symbols_.end()) {
+        return false;
+    }
+    sym_it->second.Select(select);
+    return true;
+}
+
+std::vector<SymbolInfo> CTrade::symbols_get(std::optional<std::string> group) const noexcept {
+    std::vector<SymbolInfo> out;
+    out.reserve(symbols_.size());
+    for (const auto& [_, sym] : symbols_) {
+        if (group.has_value() && !group->empty() && !MatchGroupFilter(sym.Name(), *group)) {
+            continue;
+        }
+        out.push_back(sym);
+    }
+    return out;
+}
+
+bool CTrade::history_order_set_state(uint64_t ticket, ENUM_ORDER_STATE state) noexcept {
+    for (auto& ord : history_orders_) {
+        if (ord.Ticket() == ticket) {
+            ord.SetState(state);
+            return true;
+        }
+    }
+
+    auto it = orders_.find(ticket);
+    if (it != orders_.end()) {
+        it->second.SetState(state);
+        return true;
+    }
+    return false;
+}
+
+bool CTrade::history_order_set_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc) noexcept {
+    for (auto& ord : history_orders_) {
+        if (ord.Ticket() == ticket) {
+            ord.SetTimeDone(time_sec, time_msc);
+            return true;
+        }
+    }
+    return false;
 }
 
 // ===================================================================

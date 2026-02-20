@@ -44,6 +44,10 @@ enum class ENUM_ACCOUNT_MARGIN_MODE {
  * @brief Account information class (mirrors MT5 CAccountInfo)
  *
  * Provides access to account properties and calculations.
+ * Python binding parity note:
+ * - In Python, prefer property-style access matching MetaTrader5 module usage
+ *   (e.g. account.login, account.balance) over C++/MQL-style method calls.
+ * - C++ methods remain for engine-side usage and internal calculations.
  * All monetary values stored in fixed-point (1/1,000,000 units) internally,
  * but exposed as doubles for MT5 compatibility.
  */
@@ -72,6 +76,8 @@ private:
     std::string company_;       ///< Broker company name
     int leverage_;              ///< Account leverage
     int limit_orders_;          ///< Max pending orders
+    int currency_digits_;       ///< Account currency digits
+    bool fifo_close_;           ///< FIFO close mode flag
 
     // Flags
     ENUM_ACCOUNT_TRADE_MODE trade_mode_;
@@ -85,6 +91,11 @@ private:
     int64_t total_loss_;        ///< Cumulative realized loss
     int64_t total_commission_;  ///< Total commission paid
     int64_t total_swap_;        ///< Total swap charged/credited
+    int64_t margin_initial_;    ///< Initial margin requirement
+    int64_t margin_maintenance_;///< Maintenance margin requirement
+    int64_t assets_;            ///< Total assets
+    int64_t liabilities_;       ///< Total liabilities
+    int64_t commission_blocked_;///< Blocked commission amount
     uint32_t total_trades_;     ///< Total closed trades
     uint32_t winning_trades_;   ///< Number of winners
     uint32_t losing_trades_;    ///< Number of losers
@@ -100,9 +111,9 @@ public:
      * @param currency Account currency (e.g., "USD")
      * @param leverage Account leverage (e.g., 100 for 1:100)
      */
-    explicit AccountInfo(double initial_balance = 10000.0,
-                        const std::string& currency = "USD",
-                        int leverage = 100) noexcept
+    explicit AccountInfo(double initial_balance = 0.0,
+                        const std::string& currency = "",
+                        int leverage = 0) noexcept
         : balance_(static_cast<int64_t>(initial_balance * 1'000'000)),
           equity_(static_cast<int64_t>(initial_balance * 1'000'000)),
           margin_(0),
@@ -110,24 +121,31 @@ public:
           profit_(0),
           credit_(0),
           margin_level_(0.0),
-          margin_so_call_(100.0),
-          margin_so_so_(50.0),
+          margin_so_call_(0.0),
+          margin_so_so_(0.0),
           login_(0),
           name_(""),
           server_(""),
           currency_(currency),
-          company_("HQT Backtester"),
+          company_(""),
           leverage_(leverage),
-          limit_orders_(200),
+          limit_orders_(0),
+          currency_digits_(2),
+          fifo_close_(false),
           trade_mode_(ENUM_ACCOUNT_TRADE_MODE::ACCOUNT_TRADE_MODE_DEMO),
           stopout_mode_(ENUM_ACCOUNT_STOPOUT_MODE::ACCOUNT_STOPOUT_MODE_PERCENT),
           margin_mode_(ENUM_ACCOUNT_MARGIN_MODE::ACCOUNT_MARGIN_MODE_RETAIL_NETTING),
-          trade_allowed_(true),
-          trade_expert_(true),
+          trade_allowed_(false),
+          trade_expert_(false),
           total_profit_(0),
           total_loss_(0),
           total_commission_(0),
           total_swap_(0),
+          margin_initial_(0),
+          margin_maintenance_(0),
+          assets_(0),
+          liabilities_(0),
+          commission_blocked_(0),
           total_trades_(0),
           winning_trades_(0),
           losing_trades_(0),
@@ -162,6 +180,11 @@ public:
             default: return "Unknown";
         }
     }
+    std::string TradeModeDescription(int mode) const noexcept {
+        AccountInfo copy = *this;
+        copy.trade_mode_ = static_cast<ENUM_ACCOUNT_TRADE_MODE>(mode);
+        return copy.TradeModeDescription();
+    }
 
     /**
      * @brief Get account leverage
@@ -186,6 +209,11 @@ public:
             default: return "Unknown";
         }
     }
+    std::string StopoutModeDescription(int mode) const noexcept {
+        AccountInfo copy = *this;
+        copy.stopout_mode_ = static_cast<ENUM_ACCOUNT_STOPOUT_MODE>(mode);
+        return copy.StopoutModeDescription();
+    }
 
     /**
      * @brief Get margin calculation mode
@@ -205,6 +233,11 @@ public:
             default: return "Unknown";
         }
     }
+    std::string MarginModeDescription(int mode) const noexcept {
+        AccountInfo copy = *this;
+        copy.margin_mode_ = static_cast<ENUM_ACCOUNT_MARGIN_MODE>(mode);
+        return copy.MarginModeDescription();
+    }
 
     /**
      * @brief Check if trading is allowed
@@ -223,6 +256,8 @@ public:
      * @return Max number of pending orders
      */
     int LimitOrders() const noexcept { return limit_orders_; }
+    int CurrencyDigits() const noexcept { return currency_digits_; }
+    bool FifoClose() const noexcept { return fifo_close_; }
 
     // --- Double Property Accessors (MT5 API) ---
 
@@ -296,6 +331,21 @@ public:
      */
     double MarginStopOut() const noexcept {
         return margin_so_so_;
+    }
+    double MarginInitial() const noexcept {
+        return static_cast<double>(margin_initial_) / 1'000'000.0;
+    }
+    double MarginMaintenance() const noexcept {
+        return static_cast<double>(margin_maintenance_) / 1'000'000.0;
+    }
+    double Assets() const noexcept {
+        return static_cast<double>(assets_) / 1'000'000.0;
+    }
+    double Liabilities() const noexcept {
+        return static_cast<double>(liabilities_) / 1'000'000.0;
+    }
+    double CommissionBlocked() const noexcept {
+        return static_cast<double>(commission_blocked_) / 1'000'000.0;
     }
 
     // --- String Property Accessors (MT5 API) ---
@@ -453,6 +503,7 @@ public:
     void SetLogin(int login) noexcept { login_ = login; }
     void SetName(const std::string& name) noexcept { name_ = name; }
     void SetServer(const std::string& server) noexcept { server_ = server; }
+    void SetCurrency(const std::string& currency) noexcept { currency_ = currency; }
     void SetCompany(const std::string& company) noexcept { company_ = company; }
     void SetLeverage(int leverage) noexcept { leverage_ = leverage; }
     void SetTradeMode(ENUM_ACCOUNT_TRADE_MODE mode) noexcept { trade_mode_ = mode; }
@@ -463,6 +514,20 @@ public:
     void SetTradeAllowed(bool allowed) noexcept { trade_allowed_ = allowed; }
     void SetTradeExpert(bool allowed) noexcept { trade_expert_ = allowed; }
     void SetLimitOrders(int limit) noexcept { limit_orders_ = limit; }
+    void SetCurrencyDigits(int digits) noexcept { currency_digits_ = digits; }
+    void SetFifoClose(bool enabled) noexcept { fifo_close_ = enabled; }
+    void SetMarginInitial(double value) noexcept { margin_initial_ = ToFixed(value); }
+    void SetMarginMaintenance(double value) noexcept { margin_maintenance_ = ToFixed(value); }
+    void SetAssets(double value) noexcept { assets_ = ToFixed(value); }
+    void SetLiabilities(double value) noexcept { liabilities_ = ToFixed(value); }
+    void SetCommissionBlocked(double value) noexcept { commission_blocked_ = ToFixed(value); }
+    void SetBalance(double value) noexcept { balance_ = ToFixed(value); }
+    void SetCredit(double value) noexcept { credit_ = ToFixed(value); }
+    void SetProfit(double value) noexcept { profit_ = ToFixed(value); }
+    void SetEquity(double value) noexcept { equity_ = ToFixed(value); }
+    void SetMargin(double value) noexcept { margin_ = ToFixed(value); }
+    void SetFreeMargin(double value) noexcept { margin_free_ = ToFixed(value); }
+    void SetMarginLevel(double value) noexcept { margin_level_ = value; }
 
     /**
      * @brief Apply an account snapshot from external source (e.g. live MT5).

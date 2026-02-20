@@ -38,6 +38,85 @@ hqt::SymbolInfo to_mt5_symbol(const hqt::SymbolInfo& src) {
     return src;
 }
 
+template <typename T>
+nb::tuple to_tuple(const std::vector<T>& values) {
+    nb::object tuple_type = nb::module_::import_("builtins").attr("tuple");
+    nb::object out = tuple_type(nb::cast(values));
+    return nb::cast<nb::tuple>(out);
+}
+
+int64_t to_unix_seconds(const nb::object& value) {
+    if (value.is_none()) {
+        return 0;
+    }
+    if (nb::hasattr(value, "timestamp")) {
+        nb::object ts = value.attr("timestamp")();
+        return static_cast<int64_t>(nb::cast<double>(ts));
+    }
+    if (nb::isinstance<nb::int_>(value)) {
+        return nb::cast<int64_t>(value);
+    }
+    if (nb::isinstance<nb::float_>(value)) {
+        return static_cast<int64_t>(nb::cast<double>(value));
+    }
+    throw nb::type_error("Expected datetime or epoch seconds for date argument");
+}
+
+template <typename T>
+void assign_if_present(const nb::object& source, const char* name, const std::function<void(T)>& setter) {
+    if (!nb::hasattr(source, name)) {
+        return;
+    }
+    nb::object value = source.attr(name);
+    if (value.is_none()) {
+        return;
+    }
+    setter(nb::cast<T>(value));
+}
+
+hqt::AccountInfo account_from_object(const nb::object& source) {
+    hqt::AccountInfo acc;
+
+    assign_if_present<int>(source, "login", [&](int v) { acc.SetLogin(v); });
+    assign_if_present<std::string>(source, "name", [&](const std::string& v) { acc.SetName(v); });
+    assign_if_present<std::string>(source, "server", [&](const std::string& v) { acc.SetServer(v); });
+    assign_if_present<std::string>(source, "currency", [&](const std::string& v) { acc.SetCurrency(v); });
+    assign_if_present<std::string>(source, "company", [&](const std::string& v) { acc.SetCompany(v); });
+
+    assign_if_present<int>(source, "trade_mode", [&](int v) {
+        acc.SetTradeMode(static_cast<hqt::ENUM_ACCOUNT_TRADE_MODE>(v));
+    });
+    assign_if_present<int>(source, "leverage", [&](int v) { acc.SetLeverage(v); });
+    assign_if_present<int>(source, "limit_orders", [&](int v) { acc.SetLimitOrders(v); });
+    assign_if_present<int>(source, "margin_so_mode", [&](int v) {
+        acc.SetStopoutMode(static_cast<hqt::ENUM_ACCOUNT_STOPOUT_MODE>(v));
+    });
+    assign_if_present<bool>(source, "trade_allowed", [&](bool v) { acc.SetTradeAllowed(v); });
+    assign_if_present<bool>(source, "trade_expert", [&](bool v) { acc.SetTradeExpert(v); });
+    assign_if_present<int>(source, "margin_mode", [&](int v) {
+        acc.SetMarginMode(static_cast<hqt::ENUM_ACCOUNT_MARGIN_MODE>(v));
+    });
+    assign_if_present<int>(source, "currency_digits", [&](int v) { acc.SetCurrencyDigits(v); });
+    assign_if_present<bool>(source, "fifo_close", [&](bool v) { acc.SetFifoClose(v); });
+
+    assign_if_present<double>(source, "balance", [&](double v) { acc.SetBalance(v); });
+    assign_if_present<double>(source, "credit", [&](double v) { acc.SetCredit(v); });
+    assign_if_present<double>(source, "profit", [&](double v) { acc.SetProfit(v); });
+    assign_if_present<double>(source, "equity", [&](double v) { acc.SetEquity(v); });
+    assign_if_present<double>(source, "margin", [&](double v) { acc.SetMargin(v); });
+    assign_if_present<double>(source, "margin_free", [&](double v) { acc.SetFreeMargin(v); });
+    assign_if_present<double>(source, "margin_level", [&](double v) { acc.SetMarginLevel(v); });
+    assign_if_present<double>(source, "margin_so_call", [&](double v) { acc.SetMarginCall(v); });
+    assign_if_present<double>(source, "margin_so_so", [&](double v) { acc.SetMarginStopOut(v); });
+    assign_if_present<double>(source, "margin_initial", [&](double v) { acc.SetMarginInitial(v); });
+    assign_if_present<double>(source, "margin_maintenance", [&](double v) { acc.SetMarginMaintenance(v); });
+    assign_if_present<double>(source, "assets", [&](double v) { acc.SetAssets(v); });
+    assign_if_present<double>(source, "liabilities", [&](double v) { acc.SetLiabilities(v); });
+    assign_if_present<double>(source, "commission_blocked", [&](double v) { acc.SetCommissionBlocked(v); });
+
+    return acc;
+}
+
 }  // namespace
 
 void register_sim_bindings(nb::module_& m) {
@@ -53,21 +132,30 @@ void register_sim_bindings(nb::module_& m) {
         .def("reset", &SimulatorState::reset);
 
     nb::class_<hqt::AccountInfo>(m, "AccountInfo")
+        .def(nb::init<>())
+        .def("__init__", [](hqt::AccountInfo* self, nb::object source) {
+            new (self) hqt::AccountInfo(account_from_object(source));
+        }, nb::arg("source"))
         .def(nb::init<double, const std::string&, int>(),
-             nb::arg("initial_balance") = 10000.0,
-             nb::arg("currency") = "USD",
-             nb::arg("leverage") = 100)
+             nb::arg("initial_balance"),
+             nb::arg("currency"),
+             nb::arg("leverage"))
         .def("Login", &hqt::AccountInfo::Login)
         .def("Name", &hqt::AccountInfo::Name)
         .def("Server", &hqt::AccountInfo::Server)
         .def("Currency", &hqt::AccountInfo::Currency)
         .def("Company", &hqt::AccountInfo::Company)
         .def("TradeMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.TradeMode()); })
-        .def("TradeModeDescription", &hqt::AccountInfo::TradeModeDescription)
+        .def("TradeModeDescription", [](const hqt::AccountInfo& self) { return self.TradeModeDescription(); })
+        .def("TradeModeDescription", [](const hqt::AccountInfo& self, int trade_mode) {
+            return self.TradeModeDescription(trade_mode);
+        }, nb::arg("trade_mode"))
         .def("Leverage", &hqt::AccountInfo::Leverage)
         .def("TradeAllowed", &hqt::AccountInfo::TradeAllowed)
         .def("TradeExpert", &hqt::AccountInfo::TradeExpert)
         .def("LimitOrders", &hqt::AccountInfo::LimitOrders)
+        .def("CurrencyDigits", &hqt::AccountInfo::CurrencyDigits)
+        .def("FifoClose", &hqt::AccountInfo::FifoClose)
         .def("Balance", &hqt::AccountInfo::Balance)
         .def("Credit", &hqt::AccountInfo::Credit)
         .def("Profit", &hqt::AccountInfo::Profit)
@@ -77,10 +165,21 @@ void register_sim_bindings(nb::module_& m) {
         .def("MarginLevel", &hqt::AccountInfo::MarginLevel)
         .def("MarginCall", &hqt::AccountInfo::MarginCall)
         .def("MarginStopOut", &hqt::AccountInfo::MarginStopOut)
+        .def("MarginInitial", &hqt::AccountInfo::MarginInitial)
+        .def("MarginMaintenance", &hqt::AccountInfo::MarginMaintenance)
+        .def("Assets", &hqt::AccountInfo::Assets)
+        .def("Liabilities", &hqt::AccountInfo::Liabilities)
+        .def("CommissionBlocked", &hqt::AccountInfo::CommissionBlocked)
         .def("MarginMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.MarginMode()); })
-        .def("MarginModeDescription", &hqt::AccountInfo::MarginModeDescription)
+        .def("MarginModeDescription", [](const hqt::AccountInfo& self) { return self.MarginModeDescription(); })
+        .def("MarginModeDescription", [](const hqt::AccountInfo& self, int margin_mode) {
+            return self.MarginModeDescription(margin_mode);
+        }, nb::arg("margin_mode"))
         .def("StopoutMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); })
-        .def("StopoutModeDescription", &hqt::AccountInfo::StopoutModeDescription)
+        .def("StopoutModeDescription", [](const hqt::AccountInfo& self) { return self.StopoutModeDescription(); })
+        .def("StopoutModeDescription", [](const hqt::AccountInfo& self, int margin_so_mode) {
+            return self.StopoutModeDescription(margin_so_mode);
+        }, nb::arg("margin_so_mode"))
         .def("apply_snapshot", &hqt::AccountInfo::ApplySnapshot,
              nb::arg("balance"),
              nb::arg("credit"),
@@ -103,14 +202,70 @@ void register_sim_bindings(nb::module_& m) {
         .def_prop_rw("leverage",
             [](const hqt::AccountInfo& self) { return self.Leverage(); },
             [](hqt::AccountInfo& self, int value) { self.SetLeverage(value); })
-        .def_prop_ro("currency", &hqt::AccountInfo::Currency)
-        .def_prop_ro("balance", &hqt::AccountInfo::Balance)
-        .def_prop_ro("credit", &hqt::AccountInfo::Credit)
-        .def_prop_ro("profit", &hqt::AccountInfo::Profit)
-        .def_prop_ro("equity", &hqt::AccountInfo::Equity)
-        .def_prop_ro("margin", &hqt::AccountInfo::Margin)
-        .def_prop_ro("margin_free", &hqt::AccountInfo::FreeMargin)
-        .def_prop_ro("margin_level", &hqt::AccountInfo::MarginLevel)
+        .def_prop_rw("trade_mode",
+            [](const hqt::AccountInfo& self) { return static_cast<int>(self.TradeMode()); },
+            [](hqt::AccountInfo& self, int value) {
+                self.SetTradeMode(static_cast<hqt::ENUM_ACCOUNT_TRADE_MODE>(value));
+            })
+        .def_prop_rw("limit_orders",
+            [](const hqt::AccountInfo& self) { return self.LimitOrders(); },
+            [](hqt::AccountInfo& self, int value) { self.SetLimitOrders(value); })
+        .def_prop_rw("margin_so_mode",
+            [](const hqt::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); },
+            [](hqt::AccountInfo& self, int value) {
+                self.SetStopoutMode(static_cast<hqt::ENUM_ACCOUNT_STOPOUT_MODE>(value));
+            })
+        .def_prop_rw("currency_digits",
+            [](const hqt::AccountInfo& self) { return self.CurrencyDigits(); },
+            [](hqt::AccountInfo& self, int value) { self.SetCurrencyDigits(value); })
+        .def_prop_rw("fifo_close",
+            [](const hqt::AccountInfo& self) { return self.FifoClose(); },
+            [](hqt::AccountInfo& self, bool value) { self.SetFifoClose(value); })
+        .def_prop_rw("currency",
+            [](const hqt::AccountInfo& self) { return self.Currency(); },
+            [](hqt::AccountInfo& self, const std::string& value) { self.SetCurrency(value); })
+        .def_prop_rw("balance",
+            [](const hqt::AccountInfo& self) { return self.Balance(); },
+            [](hqt::AccountInfo& self, double value) { self.SetBalance(value); })
+        .def_prop_rw("credit",
+            [](const hqt::AccountInfo& self) { return self.Credit(); },
+            [](hqt::AccountInfo& self, double value) { self.SetCredit(value); })
+        .def_prop_rw("profit",
+            [](const hqt::AccountInfo& self) { return self.Profit(); },
+            [](hqt::AccountInfo& self, double value) { self.SetProfit(value); })
+        .def_prop_rw("equity",
+            [](const hqt::AccountInfo& self) { return self.Equity(); },
+            [](hqt::AccountInfo& self, double value) { self.SetEquity(value); })
+        .def_prop_rw("margin",
+            [](const hqt::AccountInfo& self) { return self.Margin(); },
+            [](hqt::AccountInfo& self, double value) { self.SetMargin(value); })
+        .def_prop_rw("margin_free",
+            [](const hqt::AccountInfo& self) { return self.FreeMargin(); },
+            [](hqt::AccountInfo& self, double value) { self.SetFreeMargin(value); })
+        .def_prop_rw("margin_level",
+            [](const hqt::AccountInfo& self) { return self.MarginLevel(); },
+            [](hqt::AccountInfo& self, double value) { self.SetMarginLevel(value); })
+        .def_prop_rw("margin_so_call",
+            [](const hqt::AccountInfo& self) { return self.MarginCall(); },
+            [](hqt::AccountInfo& self, double value) { self.SetMarginCall(value); })
+        .def_prop_rw("margin_so_so",
+            [](const hqt::AccountInfo& self) { return self.MarginStopOut(); },
+            [](hqt::AccountInfo& self, double value) { self.SetMarginStopOut(value); })
+        .def_prop_rw("margin_initial",
+            [](const hqt::AccountInfo& self) { return self.MarginInitial(); },
+            [](hqt::AccountInfo& self, double value) { self.SetMarginInitial(value); })
+        .def_prop_rw("margin_maintenance",
+            [](const hqt::AccountInfo& self) { return self.MarginMaintenance(); },
+            [](hqt::AccountInfo& self, double value) { self.SetMarginMaintenance(value); })
+        .def_prop_rw("assets",
+            [](const hqt::AccountInfo& self) { return self.Assets(); },
+            [](hqt::AccountInfo& self, double value) { self.SetAssets(value); })
+        .def_prop_rw("liabilities",
+            [](const hqt::AccountInfo& self) { return self.Liabilities(); },
+            [](hqt::AccountInfo& self, double value) { self.SetLiabilities(value); })
+        .def_prop_rw("commission_blocked",
+            [](const hqt::AccountInfo& self) { return self.CommissionBlocked(); },
+            [](hqt::AccountInfo& self, double value) { self.SetCommissionBlocked(value); })
         .def_prop_rw("margin_mode",
             [](const hqt::AccountInfo& self) { return static_cast<int>(self.MarginMode()); },
             [](hqt::AccountInfo& self, int value) {
@@ -398,6 +553,74 @@ void register_sim_bindings(nb::module_& m) {
         .def("RegisterSymbol", &hqt::CTrade::RegisterSymbol)
         .def("UpdatePrices", &hqt::CTrade::UpdatePrices,
              nb::arg("symbol"), nb::arg("bid"), nb::arg("ask"), nb::arg("timestamp") = 0)
+        .def("positions_get",
+            [](const hqt::CTrade& self,
+               std::optional<std::string> symbol,
+               std::optional<std::string> group,
+               std::optional<uint64_t> ticket) {
+                return to_tuple(self.positions_get(symbol, group, ticket));
+            },
+             nb::arg("symbol") = nb::none(),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("positions_total", &hqt::CTrade::positions_total)
+        .def("orders_get",
+            [](const hqt::CTrade& self,
+               std::optional<std::string> symbol,
+               std::optional<std::string> group,
+               std::optional<uint64_t> ticket) {
+                return to_tuple(self.orders_get(symbol, group, ticket));
+            },
+             nb::arg("symbol") = nb::none(),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("orders_total", &hqt::CTrade::orders_total)
+        .def("history_orders_get",
+            [](const hqt::CTrade& self, std::optional<uint64_t> ticket) {
+                return to_tuple(self.history_orders_get(ticket));
+            },
+             nb::arg("ticket") = nb::none())
+        .def("history_orders_get",
+            [](const hqt::CTrade& self,
+               nb::object date_from,
+               nb::object date_to,
+               std::optional<std::string> group,
+               std::optional<uint64_t> ticket) {
+                return to_tuple(
+                    self.history_orders_get(to_unix_seconds(date_from), to_unix_seconds(date_to), group, ticket));
+            },
+             nb::arg("date_from"),
+             nb::arg("date_to"),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("history_orders_total", &hqt::CTrade::history_orders_total)
+        .def("history_deals_get",
+            [](const hqt::CTrade& self, std::optional<uint64_t> ticket) {
+                return to_tuple(self.history_deals_get(ticket));
+            },
+             nb::arg("ticket") = nb::none())
+        .def("history_deals_get",
+            [](const hqt::CTrade& self,
+               nb::object date_from,
+               nb::object date_to,
+               std::optional<std::string> group,
+               std::optional<uint64_t> ticket) {
+                return to_tuple(
+                    self.history_deals_get(to_unix_seconds(date_from), to_unix_seconds(date_to), group, ticket));
+            },
+             nb::arg("date_from"),
+             nb::arg("date_to"),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("history_deals_total", &hqt::CTrade::history_deals_total)
+        .def("symbol_select", &hqt::CTrade::symbol_select,
+             nb::arg("symbol"), nb::arg("select") = true)
+        .def("symbols_get",
+            [](const hqt::CTrade& self, std::optional<std::string> group) {
+                return to_tuple(self.symbols_get(group));
+            },
+            nb::arg("group") = nb::none())
+        .def("symbols_total", &hqt::CTrade::symbols_total)
         .def("Account", [](const hqt::CTrade& self) { return self.Account(); });
 
     nb::class_<hqt::DealInfo>(m, "DealInfo")
@@ -705,6 +928,17 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("ask", &TradeResult::ask)
         .def_rw("comment", &TradeResult::comment);
 
+    nb::class_<TradeCheckResult>(m, "TradeCheckResult")
+        .def(nb::init<>())
+        .def_rw("retcode", &TradeCheckResult::retcode)
+        .def_rw("balance", &TradeCheckResult::balance)
+        .def_rw("equity", &TradeCheckResult::equity)
+        .def_rw("profit", &TradeCheckResult::profit)
+        .def_rw("margin", &TradeCheckResult::margin)
+        .def_rw("margin_free", &TradeCheckResult::margin_free)
+        .def_rw("margin_level", &TradeCheckResult::margin_level)
+        .def_rw("comment", &TradeCheckResult::comment);
+
     nb::class_<BacktestBarStep>(m, "BacktestBarStep")
         .def(nb::init<>())
         .def_rw("time_msc", &BacktestBarStep::time_msc)
@@ -899,26 +1133,78 @@ void register_sim_bindings(nb::module_& m) {
             if (p) return *p;
             return std::nullopt;
         })
-        .def("positions_info_get", [](const TradeSimulator& self,
-                                      std::optional<uint64_t> ticket,
-                                      std::optional<std::string> symbol) {
-            std::optional<std::string_view> sv;
-            if (symbol) sv = *symbol;
-            return self.positions_info_get(ticket, sv);
-        }, nb::arg("ticket") = nb::none(), nb::arg("symbol") = nb::none())
-        .def("orders_info_get", [](const TradeSimulator& self,
-                                   std::optional<uint64_t> ticket,
-                                   std::optional<std::string> symbol) {
-            std::optional<std::string_view> sv;
-            if (symbol) sv = *symbol;
-            return self.orders_info_get(ticket, sv);
-        }, nb::arg("ticket") = nb::none(), nb::arg("symbol") = nb::none())
-        .def("history_order_infos_get", &TradeSimulator::history_order_infos_get,
+        .def("positions_get",
+            [](const TradeSimulator& self,
+               std::optional<std::string> symbol,
+               std::optional<std::string> group,
+               std::optional<uint64_t> ticket) {
+                return to_tuple(self.positions_get(symbol, group, ticket));
+            },
+             nb::arg("symbol") = nb::none(),
+             nb::arg("group") = nb::none(),
              nb::arg("ticket") = nb::none())
-        .def("history_deal_infos_get", &TradeSimulator::history_deal_infos_get,
+        .def("positions_total", &TradeSimulator::positions_total)
+        .def("orders_get",
+            [](const TradeSimulator& self,
+               std::optional<std::string> symbol,
+               std::optional<std::string> group,
+               std::optional<uint64_t> ticket) {
+                return to_tuple(self.orders_get(symbol, group, ticket));
+            },
+             nb::arg("symbol") = nb::none(),
+             nb::arg("group") = nb::none(),
              nb::arg("ticket") = nb::none())
+        .def("orders_total", &TradeSimulator::orders_total)
+        .def("history_orders_get",
+             [](const TradeSimulator& self, std::optional<uint64_t> ticket) {
+                return to_tuple(self.history_orders_get(ticket));
+             },
+             nb::arg("ticket") = nb::none())
+        .def("history_orders_get",
+             [](const TradeSimulator& self,
+                nb::object date_from,
+                nb::object date_to,
+                std::optional<std::string> group,
+                std::optional<uint64_t> ticket) {
+                return to_tuple(
+                    self.history_orders_get(to_unix_seconds(date_from), to_unix_seconds(date_to), group, ticket));
+             },
+             nb::arg("date_from"),
+             nb::arg("date_to"),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("history_orders_total", &TradeSimulator::history_orders_total)
+        .def("history_deals_get",
+             [](const TradeSimulator& self, std::optional<uint64_t> ticket) {
+                return to_tuple(self.history_deals_get(ticket));
+             },
+             nb::arg("ticket") = nb::none())
+        .def("history_deals_get",
+             [](const TradeSimulator& self,
+                nb::object date_from,
+                nb::object date_to,
+                std::optional<std::string> group,
+                std::optional<uint64_t> ticket) {
+                return to_tuple(
+                    self.history_deals_get(to_unix_seconds(date_from), to_unix_seconds(date_to), group, ticket));
+             },
+             nb::arg("date_from"),
+             nb::arg("date_to"),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("history_deals_total", &TradeSimulator::history_deals_total)
+        .def("symbol_select", &TradeSimulator::symbol_select,
+             nb::arg("symbol"),
+             nb::arg("enable") = true)
+        .def("symbols_get",
+            [](const TradeSimulator& self, std::optional<std::string> group) {
+                return to_tuple(self.symbols_get(group));
+            },
+             nb::arg("group") = nb::none())
+        .def("symbols_total", &TradeSimulator::symbols_total)
         .def("last_error", &TradeSimulator::last_error)
         .def("trade_retcode_description", &TradeSimulator::trade_retcode_description)
+        .def("order_check", &TradeSimulator::order_check)
         .def("order_calc_margin", &TradeSimulator::order_calc_margin)
         .def("order_calc_profit", &TradeSimulator::order_calc_profit)
         .def("order_send", &TradeSimulator::order_send)

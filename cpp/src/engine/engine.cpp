@@ -221,7 +221,7 @@ double BacktestEngine::lookup_deal_profit_or_fallback(
     const hqt::PositionInfo& pos,
     double close_price) const {
     if (deal_ticket > 0) {
-        const auto deals = client_.history_deal_infos_get(deal_ticket);
+        const auto deals = client_.history_deals_get(deal_ticket);
         if (!deals.empty()) {
             return deals.front().Profit();
         }
@@ -237,7 +237,7 @@ void BacktestEngine::monitor_pending_orders(
     double bid,
     double ask,
     int64_t current_time_msc) {
-    const auto orders = client_.orders_info_get(std::nullopt, symbol);
+    const auto orders = client_.orders_get(symbol, std::nullopt, std::nullopt);
     for (const auto& order : orders) {
         const uint64_t type_time = static_cast<uint64_t>(order.TypeTime());
         const int64_t expiration = order.TimeExpiration();
@@ -286,7 +286,7 @@ void BacktestEngine::monitor_pending_orders(
         }
 
         if (fill.order > 0) {
-            const auto opened = client_.positions_info_get(fill.order);
+            const auto opened = client_.positions_get(std::nullopt, std::nullopt, fill.order);
             if (!opened.empty()) {
                 ensure_trade_record_for_position(opened.front(), current_time_msc);
             }
@@ -304,7 +304,7 @@ void BacktestEngine::monitor_pending_orders(
 }
 
 void BacktestEngine::monitor_positions_and_account(const std::string& symbol, double bid, double ask) {
-    const auto positions = client_.positions_info_get(std::nullopt, symbol);
+    const auto positions = client_.positions_get(symbol, std::nullopt, std::nullopt);
     for (const auto& pos : positions) {
         const bool is_buy = (static_cast<int>(pos.PositionType()) == 0);
         const double current_price = is_buy ? bid : ask;
@@ -351,7 +351,7 @@ void BacktestEngine::apply_exit_signal(const std::string& symbol, int exit_signa
         return;
     }
 
-    const auto positions = client_.positions_info_get(std::nullopt, symbol);
+    const auto positions = client_.positions_get(symbol, std::nullopt, std::nullopt);
     const auto* tick = client_.symbol_info_tick(symbol);
     if (tick == nullptr) {
         return;
@@ -395,7 +395,7 @@ void BacktestEngine::apply_entry_signal(
         return;
     }
 
-    const auto opened = client_.positions_info_get(result.order);
+    const auto opened = client_.positions_get(std::nullopt, std::nullopt, result.order);
     if (opened.empty()) {
         util::warning("BacktestEngine::apply_entry_signal no opened position for order=" +
                       std::to_string(result.order));

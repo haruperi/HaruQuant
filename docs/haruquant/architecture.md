@@ -18,10 +18,19 @@
   - `hqt_engine.sim.OrderInfo`
   - `hqt_engine.sim.HistoryOrderInfo`
   - `hqt_engine.sim.DealInfo`
-- Flattened bridge APIs were removed from `hqt_engine.sim.TradeSimulator`:
-  - removed: `positions_get`, `orders_get`, `history_orders_get`, `history_deals_get`
-  - removed: `upsert_position`, `upsert_order`, `upsert_history_order`, `upsert_deal`
-  - use instead: `positions_info_get`, `orders_info_get`, `history_order_infos_get`, `history_deal_infos_get`, and `upsert_*_info`
+ - MT5-style query naming is now the compatibility contract for simulator/live interchange:
+  - `positions_get(symbol=None, group=None, ticket=None)`
+  - `positions_total()`
+  - `orders_get(symbol=None, group=None, ticket=None)`
+  - `orders_total()`
+  - `history_orders_get(ticket=None)`
+  - `history_orders_total()`
+  - `history_deals_get(ticket=None)`
+  - `history_deals_total()`
+  - `symbol_select(symbol, enable=True)`
+  - `symbols_get(group=None)`
+  - `symbols_total()`
+ - Query behavior is implemented in trading layer (`hqt::CTrade` in `cpp/include/trading/trade.hpp` and `cpp/src/trading/trade.cpp`) and consumed by engine layer (`TradeSimulator`) to keep engine focused on orchestration.
 - `TradeRecordData` has been removed from C++ engine internals.
 - New usage examples and bindings should prefer direct MT5-style classes to avoid adapter/mapping layers.
 
