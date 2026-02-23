@@ -198,8 +198,8 @@ double calculate_margin(
     const haruquant::SymbolInfo& symbol_info,
     double volume,
     double price) {
-    const double leverage = std::max(1, account.Leverage());
-    const double notional = volume * symbol_info.ContractSize() * price;
+    const double leverage = static_cast<double>(std::max(1L, account.Leverage()));
+    const double notional = volume * symbol_info.TradeContractSize() * price;
     return notional / static_cast<double>(leverage);
 }
 
@@ -247,8 +247,8 @@ RuleValidationResult validate_stop_freeze_distance(
         return fail("Invalid symbol point value");
     }
 
-    const int32_t stops_level = symbol_info.StopsLevel();
-    const int32_t freeze_level = symbol_info.FreezeLevel();
+    const int32_t stops_level = static_cast<int32_t>(symbol_info.TradeStopsLevel());
+    const int32_t freeze_level = static_cast<int32_t>(symbol_info.TradeFreezeLevel());
     const int32_t required_level = std::max(stops_level, freeze_level);
     if (required_level <= 0) {
         return ok();
@@ -352,7 +352,7 @@ TradeValidationResult validate_trade_request(
     const haruquant::SymbolInfo* symbol_info) {
     TradeValidationResult out{};
     out.margin = account.Margin();
-    out.margin_free = account.FreeMargin();
+    out.margin_free = account.MarginFree();
     out.margin_level = account.MarginLevel();
 
     if (symbol_info == nullptr) {
@@ -363,12 +363,12 @@ TradeValidationResult validate_trade_request(
         return fail_trade(10014, "Invalid volume");
     }
 
-    if (request.volume < symbol_info->LotsMin() || request.volume > symbol_info->LotsMax()) {
+    if (request.volume < symbol_info->VolumeMin() || request.volume > symbol_info->VolumeMax()) {
         return fail_trade(10014, "Volume out of range");
     }
 
-    if (request.action == haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_DEAL ||
-        request.action == haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING) {
+    if (request.action == static_cast<int>(haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_DEAL) ||
+        request.action == static_cast<int>(haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING)) {
         double price = request.price;
         if (price <= 0.0) {
             const int type = static_cast<int>(request.type);
@@ -417,25 +417,25 @@ RuleValidationResult validate_volume_basic(double volume) {
 }
 
 RuleValidationResult validate_volume_symbol_limits(double volume, const haruquant::SymbolInfo& symbol_info) {
-    if (volume < symbol_info.LotsMin()) {
+    if (volume < symbol_info.VolumeMin()) {
         std::ostringstream oss;
-        oss << "Volume " << volume << " below minimum " << symbol_info.LotsMin();
+        oss << "Volume " << volume << " below minimum " << symbol_info.VolumeMin();
         return fail(oss.str());
     }
-    if (volume > symbol_info.LotsMax()) {
+    if (volume > symbol_info.VolumeMax()) {
         std::ostringstream oss;
-        oss << "Volume " << volume << " above maximum " << symbol_info.LotsMax();
+        oss << "Volume " << volume << " above maximum " << symbol_info.VolumeMax();
         return fail(oss.str());
     }
     return ok();
 }
 
 RuleValidationResult validate_volume_step(double volume, const haruquant::SymbolInfo& symbol_info) {
-    const double step = symbol_info.LotsStep();
+    const double step = symbol_info.VolumeStep();
     if (step <= 0.0) {
         return ok();
     }
-    const double vol_min = symbol_info.LotsMin();
+    const double vol_min = symbol_info.VolumeMin();
     const double steps = std::round((volume - vol_min) / step);
     const double aligned = vol_min + (steps * step);
     if (std::abs(volume - aligned) > 1e-8) {
@@ -460,8 +460,8 @@ RuleValidationResult validate_volume_format(
         ? 0
         : static_cast<int>(text.size() - dot - 1);
     // Prefer symbol-specific lot step when available; fallback to configured global rule.
-    const double step = (ctx.symbol_info != nullptr && ctx.symbol_info->LotsStep() > 0.0)
-        ? ctx.symbol_info->LotsStep()
+    const double step = (ctx.symbol_info != nullptr && ctx.symbol_info->VolumeStep() > 0.0)
+        ? ctx.symbol_info->VolumeStep()
         : rules.volume_step;
     const int allowed_decimals = step_decimals(step);
     if (decimals > allowed_decimals) {
@@ -492,7 +492,7 @@ RuleValidationResult validate_price_format(
             allowed_decimals = ctx.symbol_info->Digits();
         } else {
             // If digits are unavailable, infer precision from tick size/point.
-            const double tick_size = ctx.symbol_info->TickSize();
+            const double tick_size = ctx.symbol_info->TradeTickSize();
             const double point = ctx.symbol_info->Point();
             const double reference = (tick_size > 0.0) ? tick_size : point;
             if (reference > 0.0) {
@@ -562,7 +562,7 @@ RuleValidationResult validate_price(double price, const ValidationContext& ctx, 
         return fail(oss.str());
     }
     if (ctx.symbol_info != nullptr) {
-        const double tick_size = ctx.symbol_info->TickSize();
+        const double tick_size = ctx.symbol_info->TradeTickSize();
         if (tick_size > 0.0) {
             const double ratio = price / tick_size;
             const double nearest = std::round(ratio);
@@ -843,7 +843,7 @@ RuleValidationResult validate_margin(double margin_required, const ValidationCon
     if (ctx.account == nullptr) {
         return fail("Cannot get account information");
     }
-    const double free_margin = ctx.account->FreeMargin();
+    const double free_margin = ctx.account->MarginFree();
     if (margin_required > free_margin) {
         std::ostringstream oss;
         oss << "Insufficient margin (required: " << margin_required
@@ -889,7 +889,7 @@ RuleValidationResult validate_symbol_volume(
         if (ctx.symbol_info == nullptr) {
             return fail("volume_limit or symbol is required");
         }
-        limit = ctx.symbol_info->LotsLimit();
+        limit = ctx.symbol_info->VolumeLimit();
     }
     if (limit > 0.0 && symbol_volume >= limit) {
         std::ostringstream oss;

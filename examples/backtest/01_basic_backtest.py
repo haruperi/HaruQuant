@@ -48,14 +48,14 @@ def main():
     # # Trading 
     # stoploss = 10
 
-    simulator.PositionOpen(
-        symbol=eurusd, 
-        order_type="BUY", 
-        volume=0.1, 
-        price=eurusd_info.ask, 
-        sl=eurusd_info.bid - stoploss*eurusd_info.point*10, 
-        tp=0, 
-        comment="Example open position")
+    # simulator.PositionOpen(
+    #     symbol=eurusd,
+    #     order_type="BUY",
+    #     volume=0.1,
+    #     price=eurusd_info.ask,
+    #     sl=eurusd_info.bid - stoploss*eurusd_info.point*10,
+    #     tp=0,
+    #     comment="Example open position")
 
 
     # n = 0

@@ -30,14 +30,54 @@ DESIGN NOTES:
 #include "trading/account_info.hpp"
 #include "trading/symbol_info.hpp"
 #include "trading/trade.hpp"
-#include "engine/engine.hpp"
 
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
 
+namespace haruquant {
+
+using AccountInfo = trading::AccountInfo;
+using SymbolInfo = trading::SymbolInfo;
+
+enum class ENUM_ORDER_TYPE : int {
+    ORDER_TYPE_BUY = 0,
+    ORDER_TYPE_SELL = 1,
+    ORDER_TYPE_BUY_LIMIT = 2,
+    ORDER_TYPE_SELL_LIMIT = 3,
+    ORDER_TYPE_BUY_STOP = 4,
+    ORDER_TYPE_SELL_STOP = 5,
+    ORDER_TYPE_BUY_STOP_LIMIT = 6,
+    ORDER_TYPE_SELL_STOP_LIMIT = 7
+};
+
+enum class ENUM_TRADE_REQUEST_ACTIONS : int {
+    TRADE_ACTION_DEAL = 1,
+    TRADE_ACTION_PENDING = 5,
+    TRADE_ACTION_SLTP = 6,
+    TRADE_ACTION_MODIFY = 7,
+    TRADE_ACTION_REMOVE = 8
+};
+
+struct MqlTradeRequest {
+    int action{0};
+    std::string symbol{};
+    double volume{0.0};
+    int type{0};
+    double price{0.0};
+    double sl{0.0};
+    double tp{0.0};
+};
+
+}  // namespace haruquant
+
 namespace haruquant::util {
+
+struct SymbolTickData {
+    double bid{0.0};
+    double ask{0.0};
+};
 
 struct RuleValidationResult {
     bool ok{true};
@@ -86,9 +126,9 @@ struct ValidationRules {
 };
 
 struct ValidationContext {
-    const haruquant::AccountInfo* account{nullptr};
-    const haruquant::SymbolInfo* symbol_info{nullptr};
-    std::optional<haruquant::sim::SymbolTickData> symbol_tick{};
+    const haruquant::trading::AccountInfo* account{nullptr};
+    const haruquant::trading::SymbolInfo* symbol_info{nullptr};
+    std::optional<SymbolTickData> symbol_tick{};
     bool symbol_exists{false};
     bool symbol_visible{true};
     bool symbol_select_ok{true};
@@ -105,7 +145,7 @@ TradeValidationResult validate_action_type(int action, int type);
 TradeValidationResult validate_submission_inputs(
     const std::string& symbol,
     double volume,
-    const haruquant::SymbolInfo* symbol_info,
+    const haruquant::trading::SymbolInfo* symbol_info,
     double bid,
     double ask);
 
@@ -114,13 +154,13 @@ TradeValidationResult validate_submission_inputs(
  */
 TradeValidationResult validate_trade_request(
     const haruquant::MqlTradeRequest& request,
-    const haruquant::AccountInfo& account,
-    const haruquant::SymbolInfo* symbol_info);
+    const haruquant::trading::AccountInfo& account,
+    const haruquant::trading::SymbolInfo* symbol_info);
 
 RuleValidationResult validate_symbol(const std::string& symbol, const ValidationContext& ctx);
 RuleValidationResult validate_volume_basic(double volume);
-RuleValidationResult validate_volume_symbol_limits(double volume, const haruquant::SymbolInfo& symbol_info);
-RuleValidationResult validate_volume_step(double volume, const haruquant::SymbolInfo& symbol_info);
+RuleValidationResult validate_volume_symbol_limits(double volume, const haruquant::trading::SymbolInfo& symbol_info);
+RuleValidationResult validate_volume_step(double volume, const haruquant::trading::SymbolInfo& symbol_info);
 RuleValidationResult validate_volume_format(
     const std::string& volume_text,
     const ValidationContext& ctx,

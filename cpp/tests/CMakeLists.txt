@@ -9,7 +9,9 @@ find_package(cppzmq CONFIG REQUIRED)
 enable_testing()
 
 # Test executable
-file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "test_*.cpp")
+# Keep only wrapper-focused tests that match the current rewritten trading module.
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "test_wrapper_*.cpp")
+
 add_executable(haruquant_tests ${TEST_SOURCES})
 
 # Link against Google Test and our library

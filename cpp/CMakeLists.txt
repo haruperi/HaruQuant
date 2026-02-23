@@ -56,14 +56,18 @@ find_package(spdlog CONFIG REQUIRED)
 
 add_library(haruquant_core STATIC
     src/core/backtest_simulator.cpp
-    src/engine/engine.cpp
-    src/engine/trading.cpp
-    src/engine/analytics.cpp
     src/util/error_description.cpp
     src/util/logger.cpp
     src/usage/usage.cpp
     src/risk/risk_engine.cpp
     src/util/validators.cpp
+    src/trading/account_info.cpp
+    src/trading/deal_info.cpp
+    src/trading/history_order_info.cpp
+    src/trading/order_info.cpp
+    src/trading/position_info.cpp
+    src/trading/symbol_info.cpp
+    src/trading/terminal_info.cpp
     src/trading/trade.cpp
 )
 

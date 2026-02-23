@@ -22,8 +22,6 @@ nanobind_add_module(haruquant
     STABLE_ABI
     src/module.cpp
     src/core_bindings.cpp
-    src/sim_bindings.cpp
-    src/risk_bindings.cpp
 )
 
 target_link_libraries(haruquant PRIVATE haruquant_core)

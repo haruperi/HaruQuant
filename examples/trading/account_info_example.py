@@ -1,15 +1,4 @@
-"""
-Example usage of AccountInfo with different providers.
-
-This example demonstrates:
-- Connecting to MT5 using stored credentials
-- Reading account properties with AccountInfo
-- Running margin/profit helper calculations
-
-This example demonstrates two ways to use AccountInfo:
-1. AccountInfo() - Live trading with MT5 connection (default)
-2. C++ TradeSimulator backend seeded from MT5 data
-"""
+"""Example usage of MT5 account info with optional core bridge init."""
 
 import os
 import sys
@@ -28,13 +17,11 @@ if os.path.exists(BRIDGE_BUILD_DIR):
 
 from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
-import haruquant.sim as csim
+import haruquant.core as ccore
 
 mt5 = get_mt5_api()
 
 def main():
-    backend = "tester"  # set to: "mt5" or "tester"
-
     print("=" * 60)
     print("AccountInfo Example")
     print("=" * 60)
@@ -48,25 +35,10 @@ def main():
         print("Connected successfully!")
         print(f"Connection state: {client.connection_state.value}")
         print()
-        simulator = mt5
-        account = simulator.account_info()
+        account = mt5.account_info()
 
-        if backend != "mt5":
-            cpp_account = csim.AccountInfo(account)
-            cpp_account.balance = 50000.0
-            cpp_account.credit = 0.0
-            cpp_account.profit = 0.0
-            cpp_account.equity = 50000.0
-            cpp_account.margin = 0.0
-            cpp_account.margin_free = 50000.0
-            cpp_account.margin_level = 100.0
-            cpp_account.server = "Simulator Account"
-            cpp_account.company = "HaruQuant"
-            
-            simulator = csim.TradeSimulator(cpp_account)
-            account = simulator.account_info()
-            print("Using tester backend.")
-            print()
+        # Optional: initialize the new C++ core bridge to confirm it loads.
+        _ = ccore.BacktestSimulator()
 
         # Display account information
         print("ACCOUNT INFORMATION")
