@@ -52,7 +52,7 @@ DESIGN NOTES:
 #include <unistd.h>
 #endif
 
-namespace hqt::util {
+namespace haruquant::util {
 namespace {
 
 std::atomic<int> g_log_level{static_cast<int>(LogLevel::Info)};
@@ -403,17 +403,17 @@ void critical(const std::string& message, const std::source_location& location,
     log(LogLevel::Critical, message, location, std::move(extra));
 }
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 
-namespace hqt::engine {
+namespace haruquant::engine {
 
 void log_info(const std::string& message) {
-    hqt::util::info(message);
+    haruquant::util::info(message);
 }
 
 void log_warning(const std::string& message) {
-    hqt::util::warning(message);
+    haruquant::util::warning(message);
 }
 
-}  // namespace hqt::engine
+}  // namespace haruquant::engine
 

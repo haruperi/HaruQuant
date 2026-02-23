@@ -42,7 +42,7 @@ DESIGN NOTES:
 #include <sstream>
 #include <unordered_set>
 
-namespace hqt::sim {
+namespace haruquant::sim {
 
 namespace {
 
@@ -58,7 +58,7 @@ PortfolioState::PortfolioState(double initial_balance, std::string currency) {
 
 void PortfolioState::reset(double initial_balance, const std::string& currency) {
     std::lock_guard<std::mutex> lock(mutex_);
-    account_ = hqt::AccountInfo(initial_balance, currency, 100);
+    account_ = haruquant::AccountInfo(initial_balance, currency, 100);
     total_realized_pnl_ = 0.0;
     strategy_symbol_positions_.clear();
     symbol_positions_.clear();
@@ -67,7 +67,7 @@ void PortfolioState::reset(double initial_balance, const std::string& currency) 
 void PortfolioState::set_capital(double balance, double credit) {
     std::lock_guard<std::mutex> lock(mutex_);
     (void)credit;
-    account_ = hqt::AccountInfo(balance, account_.Currency(), account_.Leverage());
+    account_ = haruquant::AccountInfo(balance, account_.Currency(), account_.Leverage());
     recompute_unlocked();
 }
 
@@ -128,7 +128,7 @@ void PortfolioState::apply_realized_pnl(
     recompute_unlocked();
 }
 
-hqt::AccountInfo PortfolioState::account_snapshot() const {
+haruquant::AccountInfo PortfolioState::account_snapshot() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return account_;
 }
@@ -202,7 +202,7 @@ void PositionBook::reset() {
     net_positions_.clear();
     hedged_legs_.clear();
     next_leg_id_ = 1;
-    account_ = hqt::AccountInfo();
+    account_ = haruquant::AccountInfo();
 }
 
 void PositionBook::apply_fill(const FillEvent& fill) {
@@ -219,7 +219,7 @@ void PositionBook::apply_fill(const FillEvent& fill) {
     account_.AddBalance(to_fixed(fill.swap));
 }
 
-void PositionBook::apply_account_snapshot(const hqt::AccountInfo& account) {
+void PositionBook::apply_account_snapshot(const haruquant::AccountInfo& account) {
     std::lock_guard<std::mutex> lock(mutex_);
     account_ = account;
 }
@@ -229,7 +229,7 @@ std::unordered_map<std::string, PositionAggregate> PositionBook::snapshot_positi
     return snapshot_positions_unlocked();
 }
 
-hqt::AccountInfo PositionBook::snapshot_account() const {
+haruquant::AccountInfo PositionBook::snapshot_account() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return account_;
 }
@@ -245,7 +245,7 @@ std::vector<PositionLeg> PositionBook::legs_for_symbol(const std::string& symbol
 
 ReconciliationReport PositionBook::reconcile_with_broker(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-    const hqt::AccountInfo& broker_account,
+    const haruquant::AccountInfo& broker_account,
     const std::string& trigger) const {
     std::lock_guard<std::mutex> lock(mutex_);
     ReconciliationReport report;
@@ -314,13 +314,13 @@ ReconciliationReport PositionBook::reconcile_with_broker(
 
 ReconciliationReport PositionBook::periodic_reconcile(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-    const hqt::AccountInfo& broker_account) const {
+    const haruquant::AccountInfo& broker_account) const {
     return reconcile_with_broker(broker_positions, broker_account, "periodic");
 }
 
 ReconciliationReport PositionBook::reconnect_reconcile(
     const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-    const hqt::AccountInfo& broker_account) const {
+    const haruquant::AccountInfo& broker_account) const {
     return reconcile_with_broker(broker_positions, broker_account, "reconnect");
 }
 
@@ -934,7 +934,7 @@ const std::unordered_map<std::string, double>& PortfolioEngine::effective_alloca
     return effective_allocations_;
 }
 
-double PortfolioEngine::normalize_volume(double requested, const hqt::SymbolInfo& symbol_info) {
+double PortfolioEngine::normalize_volume(double requested, const haruquant::SymbolInfo& symbol_info) {
     if (requested <= 0.0) {
         return 0.0;
     }
@@ -1073,7 +1073,7 @@ void VectorizedBacktestEngine::run(
     }
 }
 
-const hqt::AccountInfo& VectorizedBacktestEngine::account_snapshot() const noexcept {
+const haruquant::AccountInfo& VectorizedBacktestEngine::account_snapshot() const noexcept {
     return account_snapshot_;
 }
 
@@ -1085,7 +1085,7 @@ std::size_t VectorizedBacktestEngine::total_trades() const noexcept {
     return total_trades_;
 }
 
-double VectorizedBacktestEngine::normalize_volume(double requested, const hqt::SymbolInfo& symbol_info) {
+double VectorizedBacktestEngine::normalize_volume(double requested, const haruquant::SymbolInfo& symbol_info) {
     if (requested <= 0.0) {
         return 0.0;
     }
@@ -2002,6 +2002,6 @@ SensitivityReport SensitivityAnalyzer::analyze(
     return out;
 }
 
-}  // namespace hqt::sim
+}  // namespace haruquant::sim
 
 

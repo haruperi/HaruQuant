@@ -30,8 +30,8 @@ DESIGN NOTES:
 
 #include <chrono>
 
-using hqt::util::ConnectionPool;
-using hqt::util::ConnectionPoolConfig;
+using haruquant::util::ConnectionPool;
+using haruquant::util::ConnectionPoolConfig;
 
 TEST(ConnectionPoolTest, AcquireUpToCapacityThenTimesOut) {
     ConnectionPool pool(ConnectionPoolConfig{

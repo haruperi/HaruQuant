@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include <memory>
 #include <stdexcept>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Exception for ZMQ broadcaster errors
@@ -412,5 +412,5 @@ private:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

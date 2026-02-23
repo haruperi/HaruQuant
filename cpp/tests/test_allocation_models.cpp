@@ -30,8 +30,8 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::sim::ExposureConstraints;
-using hqt::sim::PortfolioAllocator;
+using haruquant::sim::ExposureConstraints;
+using haruquant::sim::PortfolioAllocator;
 
 TEST(AllocationModelsTest, EqualWeightAllocation) {
     const auto alloc = PortfolioAllocator::equal_weight({"EURUSD", "GBPUSD", "USDJPY"}, 0.9);

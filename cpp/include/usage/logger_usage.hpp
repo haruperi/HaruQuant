@@ -27,10 +27,10 @@ DESIGN NOTES:
 */
 #pragma once
 
-namespace hqt::usage {
+namespace haruquant::usage {
 
 void run_logger_usage_example();
 
-}  // namespace hqt::usage
+}  // namespace haruquant::usage
 
 

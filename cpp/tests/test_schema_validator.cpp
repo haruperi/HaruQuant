@@ -29,7 +29,7 @@ DESIGN NOTES:
 
 #include "util/schema_validator.hpp"
 
-using namespace hqt::util;
+using namespace haruquant::util;
 
 TEST(SchemaValidatorTest, MarketSchemaValidPayload) {
     SchemaPayload payload{

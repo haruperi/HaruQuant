@@ -29,7 +29,7 @@ DESIGN NOTES:
 
 #include <string>
 
-namespace hqt::util {
+namespace haruquant::util {
 
 struct ErrorInfo {
     int code{0};
@@ -43,6 +43,6 @@ struct ErrorInfo {
 [[nodiscard]] std::string error_name(int code);
 [[nodiscard]] bool is_success_retcode(int code) noexcept;
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 
 

@@ -30,7 +30,7 @@ DESIGN NOTES:
 #include "data/bar.hpp"
 #include "trading/symbol_info.hpp"
 
-using namespace hqt;
+using namespace haruquant;
 
 // ============================================================================
 // Tick Tests

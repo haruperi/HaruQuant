@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <stdexcept>
 #include <unordered_set>
 
-namespace hqt::risk {
+namespace haruquant::risk {
 
 namespace {
 
@@ -923,5 +923,5 @@ double validate_position_size(
     return size;
 }
 
-}  // namespace hqt::risk
+}  // namespace haruquant::risk
 

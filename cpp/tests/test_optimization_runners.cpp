@@ -31,11 +31,11 @@ DESIGN NOTES:
 #include <cmath>
 #include <unordered_map>
 
-using hqt::sim::BayesianSearchRunner;
-using hqt::sim::GeneticSearchRunner;
-using hqt::sim::GridSearchRunner;
-using hqt::sim::OptimizationParamSpace;
-using hqt::sim::RandomSearchRunner;
+using haruquant::sim::BayesianSearchRunner;
+using haruquant::sim::GeneticSearchRunner;
+using haruquant::sim::GridSearchRunner;
+using haruquant::sim::OptimizationParamSpace;
+using haruquant::sim::RandomSearchRunner;
 
 namespace {
 

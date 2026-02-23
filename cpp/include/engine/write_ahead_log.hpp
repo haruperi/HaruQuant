@@ -42,7 +42,7 @@ DESIGN NOTES:
 #include <unistd.h>
 #endif
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Exception for WAL errors
@@ -488,5 +488,5 @@ private:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

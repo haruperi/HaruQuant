@@ -32,7 +32,7 @@ DESIGN NOTES:
 #include <string>
 #include <vector>
 
-namespace hqt::risk {
+namespace haruquant::risk {
 
 struct RiskLimits {
     double var_cap_frac{0.10};
@@ -361,5 +361,5 @@ private:
     double max_size = 0.0,
     bool allow_fractional = false);
 
-}  // namespace hqt::risk
+}  // namespace haruquant::risk
 

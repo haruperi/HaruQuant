@@ -30,8 +30,8 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::sim::RebalanceController;
-using hqt::sim::RebalancePolicy;
+using haruquant::sim::RebalanceController;
+using haruquant::sim::RebalancePolicy;
 
 TEST(RebalancePoliciesTest, ScheduledRebalanceTriggersAtInterval) {
     RebalancePolicy policy;

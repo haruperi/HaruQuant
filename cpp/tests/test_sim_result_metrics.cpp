@@ -34,8 +34,8 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::sim::ResultMetrics;
-using hqt::sim::TradeRecord;
+using haruquant::sim::ResultMetrics;
+using haruquant::sim::TradeRecord;
 
 TEST(SimResultMetricsTest, CalculatesCoreSummaryMetrics) {
     std::vector<TradeRecord> trades{

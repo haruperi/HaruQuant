@@ -29,7 +29,7 @@ DESIGN NOTES:
 
 #include <unordered_map>
 
-namespace hqt::util {
+namespace haruquant::util {
 namespace {
 
 ErrorInfo make_error(
@@ -348,5 +348,5 @@ bool is_success_retcode(const int code) noexcept {
     return code == 0 || code == 10008 || code == 10009 || code == 10010;
 }
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 

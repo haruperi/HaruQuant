@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <unordered_map>
 #include <vector>
 
-namespace hqt {
+namespace haruquant {
 
 struct SequencedEvent {
     Event event{};
@@ -137,6 +137,6 @@ private:
     uint64_t next_sequence_{0};
 };
 
-}  // namespace hqt
+}  // namespace haruquant
 
 

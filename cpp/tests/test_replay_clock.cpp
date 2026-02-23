@@ -30,7 +30,7 @@ DESIGN NOTES:
 
 #include <vector>
 
-using namespace hqt;
+using namespace haruquant;
 
 TEST(ReplayClockTest, DeterministicAdvanceSequence) {
     const std::vector<int64_t> timeline = {1000, 2000, 3000, 4000};

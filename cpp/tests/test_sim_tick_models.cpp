@@ -32,9 +32,9 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::sim::ModelTick;
-using hqt::sim::TickModel;
-using hqt::sim::TickModelBar;
+using haruquant::sim::ModelTick;
+using haruquant::sim::TickModel;
+using haruquant::sim::TickModelBar;
 
 TEST(SimTickModelsTest, M1OhlcSequenceOrderAndLength) {
     const std::vector<TickModelBar> bars{

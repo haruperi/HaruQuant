@@ -31,9 +31,9 @@ DESIGN NOTES:
 #include <unordered_map>
 #include <vector>
 
-using hqt::sim::MonteCarloAnalyzer;
-using hqt::sim::MonteCarloMode;
-using hqt::sim::SensitivityAnalyzer;
+using haruquant::sim::MonteCarloAnalyzer;
+using haruquant::sim::MonteCarloMode;
+using haruquant::sim::SensitivityAnalyzer;
 
 TEST(MonteCarloSensitivityTest, MonteCarloBootstrapProducesSummary) {
     const std::vector<double> pnl{1.0, -0.5, 0.3, 0.2, -0.1, 0.7};
@@ -55,7 +55,7 @@ TEST(MonteCarloSensitivityTest, MonteCarloModesAreDeterministicWithSeed) {
 }
 
 TEST(MonteCarloSensitivityTest, SensitivityReportBuildsNormalizedMapAndStability) {
-    hqt::sim::OptimizationParamSpace space{
+    haruquant::sim::OptimizationParamSpace space{
         {"x", {0.0, 1.0, 2.0, 3.0}},
         {"y", {-2.0, -1.0, 0.0}},
     };

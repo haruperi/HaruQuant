@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include <mutex>
 #include <optional>
 
-namespace hqt::util {
+namespace haruquant::util {
 
 struct ConnectionPoolConfig {
     std::size_t pool_size{4};
@@ -84,6 +84,6 @@ private:
     std::size_t overflow_in_use_{0};
 };
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 
 

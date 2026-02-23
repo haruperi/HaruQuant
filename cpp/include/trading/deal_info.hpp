@@ -31,7 +31,7 @@ DESIGN NOTES:
 #include <string>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Deal type (MT5-compatible)
@@ -523,5 +523,5 @@ public:
     int64_t GetExitPriceFP() const noexcept { return exit_price_; }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

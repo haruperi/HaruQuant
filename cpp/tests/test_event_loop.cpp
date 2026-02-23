@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <thread>
 #include <chrono>
 
-using namespace hqt;
+using namespace haruquant;
 
 // ============================================================================
 // EventLoop Tests

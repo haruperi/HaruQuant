@@ -31,7 +31,7 @@ DESIGN NOTES:
 #include <string>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Simple swap type (for backward compatibility with existing code)
@@ -763,5 +763,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

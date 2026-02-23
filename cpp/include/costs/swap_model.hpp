@@ -35,7 +35,7 @@ DESIGN NOTES:
 #include <cstdint>
 #include <memory>
 
-namespace hqt {
+namespace haruquant {
 
 // SwapType is defined in symbol_info.hpp (POINTS, PERCENTAGE)
 // We extend it conceptually to include MONEY mode in StandardSwap implementation
@@ -179,7 +179,7 @@ public:
 
     int get_multiplier(int64_t timestamp_us) const override {
         // Triple swap on specified day (covers weekend)
-        int day_of_week = hqt::Timestamp::day_of_week(timestamp_us);
+        int day_of_week = haruquant::Timestamp::day_of_week(timestamp_us);
         return (day_of_week == triple_swap_day_) ? 3 : 1;
     }
 };
@@ -225,6 +225,6 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 
 

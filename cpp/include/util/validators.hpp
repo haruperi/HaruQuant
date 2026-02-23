@@ -37,7 +37,7 @@ DESIGN NOTES:
 #include <string>
 #include <vector>
 
-namespace hqt::util {
+namespace haruquant::util {
 
 struct RuleValidationResult {
     bool ok{true};
@@ -86,9 +86,9 @@ struct ValidationRules {
 };
 
 struct ValidationContext {
-    const hqt::AccountInfo* account{nullptr};
-    const hqt::SymbolInfo* symbol_info{nullptr};
-    std::optional<hqt::sim::SymbolTickData> symbol_tick{};
+    const haruquant::AccountInfo* account{nullptr};
+    const haruquant::SymbolInfo* symbol_info{nullptr};
+    std::optional<haruquant::sim::SymbolTickData> symbol_tick{};
     bool symbol_exists{false};
     bool symbol_visible{true};
     bool symbol_select_ok{true};
@@ -105,7 +105,7 @@ TradeValidationResult validate_action_type(int action, int type);
 TradeValidationResult validate_submission_inputs(
     const std::string& symbol,
     double volume,
-    const hqt::SymbolInfo* symbol_info,
+    const haruquant::SymbolInfo* symbol_info,
     double bid,
     double ask);
 
@@ -113,14 +113,14 @@ TradeValidationResult validate_submission_inputs(
  * Validate trading constraints shared across execution flows.
  */
 TradeValidationResult validate_trade_request(
-    const hqt::MqlTradeRequest& request,
-    const hqt::AccountInfo& account,
-    const hqt::SymbolInfo* symbol_info);
+    const haruquant::MqlTradeRequest& request,
+    const haruquant::AccountInfo& account,
+    const haruquant::SymbolInfo* symbol_info);
 
 RuleValidationResult validate_symbol(const std::string& symbol, const ValidationContext& ctx);
 RuleValidationResult validate_volume_basic(double volume);
-RuleValidationResult validate_volume_symbol_limits(double volume, const hqt::SymbolInfo& symbol_info);
-RuleValidationResult validate_volume_step(double volume, const hqt::SymbolInfo& symbol_info);
+RuleValidationResult validate_volume_symbol_limits(double volume, const haruquant::SymbolInfo& symbol_info);
+RuleValidationResult validate_volume_step(double volume, const haruquant::SymbolInfo& symbol_info);
 RuleValidationResult validate_volume_format(
     const std::string& volume_text,
     const ValidationContext& ctx,
@@ -175,5 +175,5 @@ RuleValidationResult validate_symbol_volume(
     std::optional<double> volume_limit,
     const ValidationContext& ctx);
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 

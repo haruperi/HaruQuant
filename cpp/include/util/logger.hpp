@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <string>
 #include <optional>
 
-namespace hqt::util {
+namespace haruquant::util {
 
 enum class LogLevel {
     Debug = 10,
@@ -107,5 +107,5 @@ void critical(const std::string& message,
               const std::source_location& location = std::source_location::current(),
               LogExtra extra = {});
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 

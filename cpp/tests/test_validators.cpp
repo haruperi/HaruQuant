@@ -29,8 +29,8 @@ DESIGN NOTES:
 
 #include "util/validators.hpp"
 
-using namespace hqt;
-using namespace hqt::util;
+using namespace haruquant;
+using namespace haruquant::util;
 
 namespace {
 
@@ -53,7 +53,7 @@ SymbolInfo make_symbol() {
 
 ValidationContext make_context(
     const SymbolInfo* symbol = nullptr,
-    std::optional<hqt::sim::SymbolTickData> tick = std::nullopt) {
+    std::optional<haruquant::sim::SymbolTickData> tick = std::nullopt) {
     ValidationContext ctx;
     ctx.symbol_info = symbol;
     ctx.symbol_exists = true;
@@ -101,7 +101,7 @@ TEST(ValidatorsTest, PriceFormatRejectsPrecisionBeyondDigits) {
 
 TEST(ValidatorsTest, SlippageValidationUsesAskForBuy) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);
@@ -114,7 +114,7 @@ TEST(ValidatorsTest, SlippageValidationUsesAskForBuy) {
 
 TEST(ValidatorsTest, SlippageValidationUsesBidForSell) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);
@@ -127,7 +127,7 @@ TEST(ValidatorsTest, SlippageValidationUsesBidForSell) {
 
 TEST(ValidatorsTest, SlippageValidationRejectsWhenOutsideAllowedRange) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);
@@ -150,7 +150,7 @@ TEST(ValidatorsTest, SlippageValidationRejectsWhenTickMissing) {
 
 TEST(ValidatorsTest, TradeRequestPayloadValidatesWithSlippageField) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);
@@ -173,7 +173,7 @@ TEST(ValidatorsTest, TradeRequestPayloadValidatesWithSlippageField) {
 
 TEST(ValidatorsTest, TradeRequestPayloadSupportsLegacyDeviationField) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);
@@ -196,7 +196,7 @@ TEST(ValidatorsTest, TradeRequestPayloadSupportsLegacyDeviationField) {
 
 TEST(ValidatorsTest, TradeRequestPayloadRejectsWhenSlippageOutOfRange) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);
@@ -323,7 +323,7 @@ TEST(ValidatorsTest, OrderTypeStringAndMagicValidation) {
 
 TEST(ValidatorsTest, SlippageValidationRejectsInvalidInputs) {
     const SymbolInfo symbol = make_symbol();
-    hqt::sim::SymbolTickData tick;
+    haruquant::sim::SymbolTickData tick;
     tick.bid = 1.10000;
     tick.ask = 1.10020;
     const ValidationContext ctx = make_context(&symbol, tick);

@@ -31,23 +31,23 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::risk::PositionSizingConfig;
-using hqt::risk::PositionSizer;
-using hqt::risk::CorrelationPreference;
-using hqt::risk::ExposureConstraints;
-using hqt::risk::CircuitBreaker;
-using hqt::risk::IntradayRiskConfig;
-using hqt::risk::IntradayRiskMonitor;
-using hqt::risk::KillSwitchController;
-using hqt::risk::RiskAccountState;
-using hqt::risk::RiskBudgetAllocator;
-using hqt::risk::RiskGovernor;
-using hqt::risk::RiskGovernorConfig;
-using hqt::risk::RiskMode;
-using hqt::risk::RiskState;
-using hqt::risk::RiskRegimeDetector;
-using hqt::risk::SafeModeState;
-using hqt::risk::validate_position_size;
+using haruquant::risk::PositionSizingConfig;
+using haruquant::risk::PositionSizer;
+using haruquant::risk::CorrelationPreference;
+using haruquant::risk::ExposureConstraints;
+using haruquant::risk::CircuitBreaker;
+using haruquant::risk::IntradayRiskConfig;
+using haruquant::risk::IntradayRiskMonitor;
+using haruquant::risk::KillSwitchController;
+using haruquant::risk::RiskAccountState;
+using haruquant::risk::RiskBudgetAllocator;
+using haruquant::risk::RiskGovernor;
+using haruquant::risk::RiskGovernorConfig;
+using haruquant::risk::RiskMode;
+using haruquant::risk::RiskState;
+using haruquant::risk::RiskRegimeDetector;
+using haruquant::risk::SafeModeState;
+using haruquant::risk::validate_position_size;
 
 TEST(RiskEngineTest, RegimeDetectorStressWhenVolAndCorrSpike) {
     RiskRegimeDetector detector(1.5, 0.5, 0.1, 10, 5);

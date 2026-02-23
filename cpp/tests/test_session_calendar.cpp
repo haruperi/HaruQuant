@@ -30,7 +30,7 @@ DESIGN NOTES:
 
 #include <optional>
 
-using namespace hqt;
+using namespace haruquant;
 
 namespace {
 

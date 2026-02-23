@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include <algorithm>
 #include <limits>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Global clock for multi-asset timestamp synchronization
@@ -367,5 +367,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

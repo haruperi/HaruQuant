@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <stdexcept>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Exception thrown when no conversion path exists
@@ -368,5 +368,5 @@ private:
     std::unordered_map<std::string, std::unordered_set<std::string>> graph_;
 };
 
-} // namespace hqt
+} // namespace haruquant
 

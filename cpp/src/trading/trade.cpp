@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <cctype>
 #include <vector>
 
-namespace hqt {
+namespace haruquant {
 
 namespace {
 
@@ -1277,5 +1277,5 @@ uint64_t CTrade::InternalOrderPlace(const std::string& symbol,
     return ticket;
 }
 
-} // namespace hqt
+} // namespace haruquant
 

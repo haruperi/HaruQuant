@@ -30,12 +30,12 @@ DESIGN NOTES:
 
 #include <vector>
 
-using hqt::sim::EdgeDetector;
-using hqt::sim::WfmCellResult;
-using hqt::sim::WfoSpec;
-using hqt::sim::WfoWfmOrchestrator;
-using hqt::sim::WfoWindow;
-using hqt::sim::WfoWindowResult;
+using haruquant::sim::EdgeDetector;
+using haruquant::sim::WfmCellResult;
+using haruquant::sim::WfoSpec;
+using haruquant::sim::WfoWfmOrchestrator;
+using haruquant::sim::WfoWindow;
+using haruquant::sim::WfoWindowResult;
 
 TEST(WfoWfmTest, BuildWindowsUsesTrainTestAndStep) {
     const WfoSpec spec{50, 20, 20};

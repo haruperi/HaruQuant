@@ -32,7 +32,7 @@ DESIGN NOTES:
 #include <string>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Historical order information class (mirrors MT5 CHistoryOrderInfo)
@@ -538,5 +538,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

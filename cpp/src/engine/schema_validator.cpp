@@ -35,7 +35,7 @@ DESIGN NOTES:
 #include <unordered_set>
 #include <vector>
 
-namespace hqt::util {
+namespace haruquant::util {
 namespace {
 
 std::string to_upper(std::string text) {
@@ -291,6 +291,6 @@ ValidationResult validate_config_schema(const SchemaPayload& payload) {
     return ok_result("Config schema is valid");
 }
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 
 

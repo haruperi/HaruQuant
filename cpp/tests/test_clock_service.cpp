@@ -28,7 +28,7 @@ DESIGN NOTES:
 #include <gtest/gtest.h>
 #include "engine/clock_service.hpp"
 
-using namespace hqt;
+using namespace haruquant;
 
 TEST(ClockServiceTest, EventTimeModeUsesObservedEventTime) {
     ClockService clock(ClockMode::EVENT_TIME);

@@ -34,8 +34,8 @@ DESIGN NOTES:
 #include <unordered_map>
 #include <vector>
 
-using hqt::sim::DistributedOptimizationRunner;
-using hqt::sim::OptimizationWorkerPolicy;
+using haruquant::sim::DistributedOptimizationRunner;
+using haruquant::sim::OptimizationWorkerPolicy;
 
 namespace {
 

@@ -35,7 +35,7 @@ DESIGN NOTES:
 #include <algorithm>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Margin calculation modes
@@ -345,5 +345,5 @@ private:
     bool hedging_mode_ = true;  ///< Hedging mode (true) vs netting mode (false)
 };
 
-} // namespace hqt
+} // namespace haruquant
 

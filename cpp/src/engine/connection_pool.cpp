@@ -27,7 +27,7 @@ DESIGN NOTES:
 */
 #include "util/connection_pool.hpp"
 
-namespace hqt::util {
+namespace haruquant::util {
 
 ConnectionPool::Lease::Lease(ConnectionPool* owner, const bool overflow) noexcept
     : owner_(owner), overflow_(overflow) {}
@@ -136,6 +136,6 @@ void ConnectionPool::release(const bool overflow) {
     cv_.notify_one();
 }
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 
 

@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include <cstdint>
 #include <memory>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Commission model interface
@@ -236,5 +236,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

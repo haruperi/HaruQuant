@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <string>
 #include <vector>
 
-namespace hqt {
+namespace haruquant {
 
 struct ReplayClockState {
     std::size_t cursor{0};
@@ -144,6 +144,6 @@ private:
     uint64_t timeline_signature_{signature_of(timeline_us_)};
 };
 
-}  // namespace hqt
+}  // namespace haruquant
 
 

@@ -29,7 +29,7 @@ DESIGN NOTES:
 #include "trading/trade.hpp"
 #include "trading/symbol_info.hpp"
 
-using namespace hqt;
+using namespace haruquant;
 
 class CTradeTest : public ::testing::Test {
 protected:

@@ -31,7 +31,7 @@ DESIGN NOTES:
 #include <random>
 #include <limits>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Seeded random number generator for deterministic behavior
@@ -198,5 +198,5 @@ inline SeededRNG& global_rng() {
     return rng;
 }
 
-} // namespace hqt
+} // namespace haruquant
 

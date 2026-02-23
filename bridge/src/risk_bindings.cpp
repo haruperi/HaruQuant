@@ -11,7 +11,7 @@
 #include "risk/risk_engine.hpp"
 
 namespace nb = nanobind;
-using namespace hqt::risk;
+using namespace haruquant::risk;
 
 void register_risk_bindings(nb::module_& m) {
     nb::class_<RiskLimits>(m, "RiskLimits")

@@ -35,7 +35,7 @@ DESIGN NOTES:
 #include <memory>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Slippage model interface
@@ -191,5 +191,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

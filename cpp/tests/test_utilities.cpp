@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include "data/bar.hpp"
 #include <cmath>
 
-using namespace hqt;
+using namespace haruquant;
 
 // ============================================================================
 // FixedPoint Tests

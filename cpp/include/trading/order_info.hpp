@@ -31,7 +31,7 @@ DESIGN NOTES:
 #include <string>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Order type (MT5-compatible)
@@ -537,5 +537,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

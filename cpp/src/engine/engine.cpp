@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include <string>
 #include <utility>
 
-namespace hqt::sim {
+namespace haruquant::sim {
 
 BacktestEngine::BacktestEngine(TradeSimulator& client)
     : client_(client) {}
@@ -60,7 +60,7 @@ void BacktestEngine::run_trading_timeframe(
     trade_record_tracker_.reset();
     account_snapshot_ = client_.account_info();
 
-    const hqt::SymbolInfo* info = client_.symbol_info(symbol);
+    const haruquant::SymbolInfo* info = client_.symbol_info(symbol);
     if (info == nullptr || volume <= 0.0) {
         util::warning("BacktestEngine::run_trading_timeframe invalid start state "
                       "symbol=" + symbol + " volume=" + std::to_string(volume));
@@ -177,7 +177,7 @@ const SimulatorState& BacktestEngine::state() const noexcept {
     return state_;
 }
 
-const hqt::AccountInfo& BacktestEngine::account_snapshot() const noexcept {
+const haruquant::AccountInfo& BacktestEngine::account_snapshot() const noexcept {
     return account_snapshot_;
 }
 
@@ -193,7 +193,7 @@ const std::vector<TradeRecord>& BacktestEngine::completed_trades() const noexcep
     return trade_record_tracker_.completed_trades();
 }
 
-void BacktestEngine::ensure_trade_record_for_position(const hqt::PositionInfo& pos, int64_t now_msc) {
+void BacktestEngine::ensure_trade_record_for_position(const haruquant::PositionInfo& pos, int64_t now_msc) {
     if (trade_record_tracker_.has_open(pos.Ticket())) {
         return;
     }
@@ -222,7 +222,7 @@ void BacktestEngine::ensure_trade_record_for_position(const hqt::PositionInfo& p
         initial_risk_usd);
 }
 
-void BacktestEngine::close_position_and_track(const hqt::PositionInfo& pos, int64_t now_msc, double close_price) {
+void BacktestEngine::close_position_and_track(const haruquant::PositionInfo& pos, int64_t now_msc, double close_price) {
     const TradeResult result = client_.close_position(pos.Ticket());
     if (!(result.retcode == 10009 || result.retcode == 10010)) {
         util::warning("BacktestEngine::close_position_and_track failed ticket=" +
@@ -245,7 +245,7 @@ void BacktestEngine::close_position_and_track(const hqt::PositionInfo& pos, int6
 
 double BacktestEngine::lookup_deal_profit_or_fallback(
     uint64_t deal_ticket,
-    const hqt::PositionInfo& pos,
+    const haruquant::PositionInfo& pos,
     double close_price) const {
     if (deal_ticket > 0) {
         const auto deals = client_.history_deals_get(deal_ticket);
@@ -359,7 +359,7 @@ void BacktestEngine::monitor_positions_and_account(const std::string& symbol, do
     account_snapshot_ = account_monitor_.monitor_account(client_.account_info(), totals);
 }
 
-bool BacktestEngine::should_trigger_order(const hqt::OrderInfo& order, double bid, double ask) {
+bool BacktestEngine::should_trigger_order(const haruquant::OrderInfo& order, double bid, double ask) {
     const auto order_type = static_cast<uint64_t>(order.OrderType());
     const double price_open = order.PriceOpen();
     switch (order_type) {
@@ -445,40 +445,40 @@ void BacktestEngine::apply_entry_signal(
     }
 }
 
-}  // namespace hqt::sim
+}  // namespace haruquant::sim
 
-namespace hqt::engine {
+namespace haruquant::engine {
 
-Engine::Engine(hqt::sim::TradeSimulator& client)
+Engine::Engine(haruquant::sim::TradeSimulator& client)
     : impl_(client) {}
 
 void Engine::run_trading_timeframe(
     const std::string& symbol,
     double volume,
-    const std::vector<hqt::sim::BacktestBarStep>& bars) {
+    const std::vector<haruquant::sim::BacktestBarStep>& bars) {
     impl_.run_trading_timeframe(symbol, volume, bars);
 }
 
 void Engine::run_trading_timeframe_with_ticks(
     const std::string& symbol,
     double volume,
-    const std::vector<hqt::sim::BacktestBarStep>& bars,
-    const std::vector<hqt::sim::ModelTick>& ticks) {
+    const std::vector<haruquant::sim::BacktestBarStep>& bars,
+    const std::vector<haruquant::sim::ModelTick>& ticks) {
     impl_.run_trading_timeframe_with_ticks(symbol, volume, bars, ticks);
 }
 
-const hqt::sim::SimulatorState& Engine::state() const noexcept {
+const haruquant::sim::SimulatorState& Engine::state() const noexcept {
     return impl_.state();
 }
 
-const hqt::AccountInfo& Engine::account_snapshot() const noexcept {
+const haruquant::AccountInfo& Engine::account_snapshot() const noexcept {
     return impl_.account_snapshot();
 }
 
-const std::vector<hqt::sim::TradeRecord>& Engine::completed_trades() const noexcept {
+const std::vector<haruquant::sim::TradeRecord>& Engine::completed_trades() const noexcept {
     return impl_.completed_trades();
 }
 
-}  // namespace hqt::engine
+}  // namespace haruquant::engine
 
 

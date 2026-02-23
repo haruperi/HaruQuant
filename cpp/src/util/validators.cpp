@@ -35,7 +35,7 @@ DESIGN NOTES:
 #include <limits>
 #include <sstream>
 
-namespace hqt::util {
+namespace haruquant::util {
 
 namespace {
 
@@ -65,31 +65,31 @@ std::string to_upper(std::string value) {
 
 // Order-side helpers are reused by SL/TP and slippage checks.
 bool is_market_order_type(int type) {
-    return type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
-           type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
+    return type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
+           type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
 }
 
 bool is_pending_order_type(int type) {
-    return type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
-           type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) ||
-           type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
-           type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP) ||
-           type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT) ||
-           type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
+    return type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
+           type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) ||
+           type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
+           type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP) ||
+           type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT) ||
+           type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
 }
 
 bool is_buy_action(int order_type) {
-    return order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
-           order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
-           order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
-           order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
+    return order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
+           order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
+           order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
+           order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
 }
 
 bool is_sell_action(int order_type) {
-    return order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL) ||
-           order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) ||
-           order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP) ||
-           order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
+    return order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL) ||
+           order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) ||
+           order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP) ||
+           order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
 }
 
 std::string trim_copy(const std::string& input) {
@@ -148,8 +148,8 @@ bool is_plain_decimal_number(const std::string& s) {
 }
 
 double calculate_margin(
-    const hqt::AccountInfo& account,
-    const hqt::SymbolInfo& symbol_info,
+    const haruquant::AccountInfo& account,
+    const haruquant::SymbolInfo& symbol_info,
     double volume,
     double price) {
     const double leverage = std::max(1, account.Leverage());
@@ -194,7 +194,7 @@ RuleValidationResult validate_stop_freeze_distance(
     double entry_price,
     int order_type,
     bool is_stop_loss,
-    const hqt::SymbolInfo& symbol_info,
+    const haruquant::SymbolInfo& symbol_info,
     const std::string& level_name) {
     const double point = symbol_info.Point();
     if (!(point > 0.0) || !std::isfinite(point)) {
@@ -247,14 +247,14 @@ RuleValidationResult validate_stop_freeze_distance(
 
 std::optional<int> parse_order_type_token(const std::string& order_type) {
     const std::string token = to_upper(order_type);
-    if (token == "BUY") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
-    if (token == "SELL") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
-    if (token == "BUY_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT);
-    if (token == "SELL_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT);
-    if (token == "BUY_STOP") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP);
-    if (token == "SELL_STOP") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP);
-    if (token == "BUY_STOP_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
-    if (token == "SELL_STOP_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
+    if (token == "BUY") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
+    if (token == "SELL") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
+    if (token == "BUY_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT);
+    if (token == "SELL_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT);
+    if (token == "BUY_STOP") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP);
+    if (token == "SELL_STOP") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP);
+    if (token == "BUY_STOP_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
+    if (token == "SELL_STOP_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
     return std::nullopt;
 }
 
@@ -282,7 +282,7 @@ TradeValidationResult validate_action_type(int action, int type) {
 TradeValidationResult validate_submission_inputs(
     const std::string& symbol,
     double volume,
-    const hqt::SymbolInfo* symbol_info,
+    const haruquant::SymbolInfo* symbol_info,
     double bid,
     double ask) {
     if (symbol.empty()) {
@@ -301,9 +301,9 @@ TradeValidationResult validate_submission_inputs(
 }
 
 TradeValidationResult validate_trade_request(
-    const hqt::MqlTradeRequest& request,
-    const hqt::AccountInfo& account,
-    const hqt::SymbolInfo* symbol_info) {
+    const haruquant::MqlTradeRequest& request,
+    const haruquant::AccountInfo& account,
+    const haruquant::SymbolInfo* symbol_info) {
     TradeValidationResult out{};
     out.margin = account.Margin();
     out.margin_free = account.FreeMargin();
@@ -321,12 +321,12 @@ TradeValidationResult validate_trade_request(
         return fail_trade(10014, "Volume out of range");
     }
 
-    if (request.action == hqt::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_DEAL ||
-        request.action == hqt::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING) {
+    if (request.action == haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_DEAL ||
+        request.action == haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING) {
         double price = request.price;
         if (price <= 0.0) {
             const int type = static_cast<int>(request.type);
-            price = (type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY))
+            price = (type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY))
                 ? symbol_info->Ask()
                 : symbol_info->Bid();
         }
@@ -370,7 +370,7 @@ RuleValidationResult validate_volume_basic(double volume) {
     return ok();
 }
 
-RuleValidationResult validate_volume_symbol_limits(double volume, const hqt::SymbolInfo& symbol_info) {
+RuleValidationResult validate_volume_symbol_limits(double volume, const haruquant::SymbolInfo& symbol_info) {
     if (volume < symbol_info.LotsMin()) {
         std::ostringstream oss;
         oss << "Volume " << volume << " below minimum " << symbol_info.LotsMin();
@@ -384,7 +384,7 @@ RuleValidationResult validate_volume_symbol_limits(double volume, const hqt::Sym
     return ok();
 }
 
-RuleValidationResult validate_volume_step(double volume, const hqt::SymbolInfo& symbol_info) {
+RuleValidationResult validate_volume_step(double volume, const haruquant::SymbolInfo& symbol_info) {
     const double step = symbol_info.LotsStep();
     if (step <= 0.0) {
         return ok();
@@ -853,5 +853,5 @@ RuleValidationResult validate_symbol_volume(
     return ok("Symbol volume within limit");
 }
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 

@@ -30,7 +30,7 @@ DESIGN NOTES:
 #include "trading/market_state.hpp"
 #include <gtest/gtest.h>
 
-using namespace hqt;
+using namespace haruquant;
 
 // =============================================================================
 // CurrencyConverter Tests

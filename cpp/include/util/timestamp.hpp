@@ -32,7 +32,7 @@ DESIGN NOTES:
 #include <chrono>
 #include <string>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Timestamp utilities for microsecond-precision time handling
@@ -245,5 +245,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

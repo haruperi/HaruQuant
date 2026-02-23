@@ -30,7 +30,7 @@ DESIGN NOTES:
 #include "engine/global_clock.hpp"
 #include <random>
 
-using namespace hqt;
+using namespace haruquant;
 
 // ============================================================================
 // EventLoop Throughput Benchmarks

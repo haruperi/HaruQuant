@@ -30,9 +30,9 @@ DESIGN NOTES:
 
 #include <vector>
 
-using hqt::sim::ReplayCertificationResult;
-using hqt::sim::ReplayCertifier;
-using hqt::sim::ReplayTradeEvent;
+using haruquant::sim::ReplayCertificationResult;
+using haruquant::sim::ReplayCertifier;
+using haruquant::sim::ReplayTradeEvent;
 
 TEST(ReplayCertificationTest, FingerprintStableForEquivalentSequences) {
     std::vector<ReplayTradeEvent> a{

@@ -30,7 +30,7 @@ DESIGN NOTES:
 #include <cstdint>
 #include <compare>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Event type enumeration
@@ -179,5 +179,5 @@ struct EventComparator {
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

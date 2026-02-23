@@ -28,7 +28,7 @@ DESIGN NOTES:
 #include <gtest/gtest.h>
 #include "engine/event_sequencer.hpp"
 
-using namespace hqt;
+using namespace haruquant;
 
 TEST(EventSequencerTest, MergedOrderingIsDeterministic) {
     EventSequencer sequencer;

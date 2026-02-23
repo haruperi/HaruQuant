@@ -33,7 +33,7 @@ DESIGN NOTES:
 #include <unordered_map>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Current market prices for a symbol
@@ -292,5 +292,5 @@ private:
     std::unordered_map<std::string, MarketPrice> prices_;
 };
 
-} // namespace hqt
+} // namespace haruquant
 

@@ -39,7 +39,7 @@ DESIGN NOTES:
 #include <cstdint>
 #include <optional>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Trade request action enumeration
@@ -1086,5 +1086,5 @@ private:
     static bool MatchGroupFilter(const std::string& value, const std::string& group) noexcept;
 };
 
-} // namespace hqt
+} // namespace haruquant
 

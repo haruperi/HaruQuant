@@ -34,7 +34,7 @@ DESIGN NOTES:
 #include <memory>
 #include <random>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Spread model interface
@@ -269,6 +269,6 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 
 

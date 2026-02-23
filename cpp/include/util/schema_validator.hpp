@@ -32,7 +32,7 @@ DESIGN NOTES:
 #include <unordered_map>
 #include <variant>
 
-namespace hqt::util {
+namespace haruquant::util {
 
 using SchemaValue = std::variant<std::string, std::int64_t, double, bool>;
 using SchemaPayload = std::unordered_map<std::string, SchemaValue>;
@@ -46,6 +46,6 @@ ValidationResult validate_market_schema(const SchemaPayload& payload);
 ValidationResult validate_trade_schema(const SchemaPayload& payload);
 ValidationResult validate_config_schema(const SchemaPayload& payload);
 
-}  // namespace hqt::util
+}  // namespace haruquant::util
 
 

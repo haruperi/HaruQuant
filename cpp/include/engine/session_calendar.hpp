@@ -42,7 +42,7 @@ DESIGN NOTES:
 #include <utility>
 #include <vector>
 
-namespace hqt {
+namespace haruquant {
 
 enum class SessionBlockReason : uint8_t {
     NONE = 0,
@@ -307,6 +307,6 @@ private:
     std::unordered_map<uint32_t, std::string> symbol_sessions_{};
 };
 
-}  // namespace hqt
+}  // namespace haruquant
 
 

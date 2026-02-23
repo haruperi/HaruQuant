@@ -30,7 +30,7 @@ DESIGN NOTES:
 #include <cstdint>
 #include <string>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Account trade mode
@@ -583,5 +583,5 @@ public:
     double DailyProfit() const noexcept { return static_cast<double>(daily_profit_) / 1'000'000.0; }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

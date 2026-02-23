@@ -44,7 +44,7 @@ DESIGN NOTES:
 #include <utility>
 #include <vector>
 
-namespace hqt::sim {
+namespace haruquant::sim {
 
 using Dict = std::unordered_map<std::string, std::string>;
 
@@ -142,22 +142,22 @@ enum class OmsOrderState {
 
 class TradeGateway {
 public:
-    explicit TradeGateway(const hqt::AccountInfo& account);
+    explicit TradeGateway(const haruquant::AccountInfo& account);
 
     // Register per-symbol metadata used by CTrade for validation and pricing.
-    void register_symbol(const hqt::SymbolInfo& symbol);
+    void register_symbol(const haruquant::SymbolInfo& symbol);
     // Submit one trade request through the underlying CTrade execution path.
     [[nodiscard]] TradeResult order_send(const TradeRequest& request, const SymbolTickData* tick);
 
     // Direct access to the underlying CTrade engine.
-    [[nodiscard]] const hqt::CTrade& trade() const noexcept { return trade_; }
-    [[nodiscard]] hqt::CTrade& trade() noexcept { return trade_; }
+    [[nodiscard]] const haruquant::CTrade& trade() const noexcept { return trade_; }
+    [[nodiscard]] haruquant::CTrade& trade() noexcept { return trade_; }
 
 private:
     // Core execution engine (opens/closes positions, places orders, produces deals).
-    hqt::CTrade trade_;
+    haruquant::CTrade trade_;
     // Local symbol registry by symbol name (for request-time lookup).
-    std::unordered_map<std::string, hqt::SymbolInfo> symbols_;
+    std::unordered_map<std::string, haruquant::SymbolInfo> symbols_;
 };
 
 /**
@@ -176,38 +176,38 @@ private:
 class TradeSimulator {
 public:
     TradeSimulator();
-    explicit TradeSimulator(hqt::AccountInfo account);
+    explicit TradeSimulator(haruquant::AccountInfo account);
 
     // ----- Read-only snapshots -----
-    [[nodiscard]] const hqt::AccountInfo& account_info() const noexcept;
-    [[nodiscard]] const hqt::SymbolInfo* symbol_info(const std::string& symbol) const noexcept;
+    [[nodiscard]] const haruquant::AccountInfo& account_info() const noexcept;
+    [[nodiscard]] const haruquant::SymbolInfo* symbol_info(const std::string& symbol) const noexcept;
     [[nodiscard]] const SymbolTickData* symbol_info_tick(const std::string& symbol) const noexcept;
 
     // MT5-style query methods (name/signature parity with MetaTrader5 Python API).
-    [[nodiscard]] std::vector<hqt::PositionInfo> positions_get(
+    [[nodiscard]] std::vector<haruquant::PositionInfo> positions_get(
         std::optional<std::string> symbol = std::nullopt,
         std::optional<std::string> group = std::nullopt,
         std::optional<uint64_t> ticket = std::nullopt) const;
     [[nodiscard]] std::size_t positions_total() const noexcept;
 
-    [[nodiscard]] std::vector<hqt::OrderInfo> orders_get(
+    [[nodiscard]] std::vector<haruquant::OrderInfo> orders_get(
         std::optional<std::string> symbol = std::nullopt,
         std::optional<std::string> group = std::nullopt,
         std::optional<uint64_t> ticket = std::nullopt) const;
     [[nodiscard]] std::size_t orders_total() const noexcept;
 
-    [[nodiscard]] std::vector<hqt::HistoryOrderInfo> history_orders_get(
+    [[nodiscard]] std::vector<haruquant::HistoryOrderInfo> history_orders_get(
         std::optional<uint64_t> ticket = std::nullopt) const;
-    [[nodiscard]] std::vector<hqt::HistoryOrderInfo> history_orders_get(
+    [[nodiscard]] std::vector<haruquant::HistoryOrderInfo> history_orders_get(
         int64_t date_from_sec,
         int64_t date_to_sec,
         std::optional<std::string> group = std::nullopt,
         std::optional<uint64_t> ticket = std::nullopt) const;
     [[nodiscard]] std::size_t history_orders_total() const noexcept;
 
-    [[nodiscard]] std::vector<hqt::DealInfo> history_deals_get(
+    [[nodiscard]] std::vector<haruquant::DealInfo> history_deals_get(
         std::optional<uint64_t> ticket = std::nullopt) const;
-    [[nodiscard]] std::vector<hqt::DealInfo> history_deals_get(
+    [[nodiscard]] std::vector<haruquant::DealInfo> history_deals_get(
         int64_t date_from_sec,
         int64_t date_to_sec,
         std::optional<std::string> group = std::nullopt,
@@ -215,7 +215,7 @@ public:
     [[nodiscard]] std::size_t history_deals_total() const noexcept;
 
     bool symbol_select(const std::string& symbol, bool enable = true);
-    [[nodiscard]] std::vector<hqt::SymbolInfo> symbols_get(
+    [[nodiscard]] std::vector<haruquant::SymbolInfo> symbols_get(
         std::optional<std::string> group = std::nullopt) const;
     [[nodiscard]] std::size_t symbols_total() const noexcept;
 
@@ -282,13 +282,13 @@ public:
     bool set_history_order_done_time(uint64_t ticket, int64_t time_sec, int64_t time_msc);
 
     // ----- Direct state upsert/  (used by bridge/tests/tools) -----
-    void set_account_info(const hqt::AccountInfo& data);
-    void set_symbol_info(const hqt::SymbolInfo& data);
+    void set_account_info(const haruquant::AccountInfo& data);
+    void set_symbol_info(const haruquant::SymbolInfo& data);
     void set_symbol_tick(const std::string& symbol, const SymbolTickData& tick);
-    void upsert_position_info(const hqt::PositionInfo& data);
-    void upsert_order_info(const hqt::OrderInfo& data);
-    void upsert_history_order_info(const hqt::HistoryOrderInfo& data);
-    void upsert_deal_info(const hqt::DealInfo& data);
+    void upsert_position_info(const haruquant::PositionInfo& data);
+    void upsert_order_info(const haruquant::OrderInfo& data);
+    void upsert_history_order_info(const haruquant::HistoryOrderInfo& data);
+    void upsert_deal_info(const haruquant::DealInfo& data);
     void set_last_error(int code, const std::string& message);
 
 private:
@@ -312,18 +312,18 @@ private:
     void sync_state_from_trade();
 
     // Account snapshot used by simulation and exposed to callers.
-    hqt::AccountInfo account_info_{};
+    haruquant::AccountInfo account_info_{};
     // Execution gateway wrapping CTrade.
     TradeGateway trade_gateway_{account_info_};
     // Symbol metadata and latest tick cache by symbol.
-    std::unordered_map<std::string, hqt::SymbolInfo> symbols_data_{};
+    std::unordered_map<std::string, haruquant::SymbolInfo> symbols_data_{};
     std::unordered_map<std::string, SymbolTickData> ticks_data_{};
 
     // Core TradeSimulator lifecycle containers (Database-like) (ticket -> record).
-    std::unordered_map<uint64_t, hqt::PositionInfo> positions_info_data_{};
-    std::unordered_map<uint64_t, hqt::OrderInfo> orders_info_data_{};
-    std::unordered_map<uint64_t, hqt::HistoryOrderInfo> history_orders_info_data_{};
-    std::unordered_map<uint64_t, hqt::DealInfo> deals_info_data_{};
+    std::unordered_map<uint64_t, haruquant::PositionInfo> positions_info_data_{};
+    std::unordered_map<uint64_t, haruquant::OrderInfo> orders_info_data_{};
+    std::unordered_map<uint64_t, haruquant::HistoryOrderInfo> history_orders_info_data_{};
+    std::unordered_map<uint64_t, haruquant::DealInfo> deals_info_data_{};
     // Derived OMS status per order ticket.
     std::unordered_map<uint64_t, OmsOrderState> order_states_{};
     // Idempotency cache keyed by client order id.
@@ -371,7 +371,7 @@ public:
         double commission = 0.0,
         double swap = 0.0);
 
-    [[nodiscard]] hqt::AccountInfo account_snapshot() const;
+    [[nodiscard]] haruquant::AccountInfo account_snapshot() const;
     [[nodiscard]] double total_realized_pnl() const;
     [[nodiscard]] double total_unrealized_pnl() const;
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> positions_by_symbol() const;
@@ -381,7 +381,7 @@ public:
 private:
     void recompute_unlocked();
 
-    hqt::AccountInfo account_{};
+    haruquant::AccountInfo account_{};
     double total_realized_pnl_{0.0};
     std::unordered_map<std::string, std::unordered_map<std::string, PositionAggregate>>
         strategy_symbol_positions_{};
@@ -445,22 +445,22 @@ public:
     void reset();
 
     void apply_fill(const FillEvent& fill);
-    void apply_account_snapshot(const hqt::AccountInfo& account);
+    void apply_account_snapshot(const haruquant::AccountInfo& account);
 
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> snapshot_positions() const;
-    [[nodiscard]] hqt::AccountInfo snapshot_account() const;
+    [[nodiscard]] haruquant::AccountInfo snapshot_account() const;
     [[nodiscard]] std::vector<PositionLeg> legs_for_symbol(const std::string& symbol) const;
 
     [[nodiscard]] ReconciliationReport reconcile_with_broker(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-        const hqt::AccountInfo& broker_account,
+        const haruquant::AccountInfo& broker_account,
         const std::string& trigger = "manual") const;
     [[nodiscard]] ReconciliationReport periodic_reconcile(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-        const hqt::AccountInfo& broker_account) const;
+        const haruquant::AccountInfo& broker_account) const;
     [[nodiscard]] ReconciliationReport reconnect_reconcile(
         const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-        const hqt::AccountInfo& broker_account) const;
+        const haruquant::AccountInfo& broker_account) const;
     [[nodiscard]] EscalationDecision evaluate_reconciliation(
         const ReconciliationReport& report,
         ReconcilePolicy policy = ReconcilePolicy::Auto,
@@ -477,7 +477,7 @@ private:
     [[nodiscard]] std::unordered_map<std::string, PositionAggregate> snapshot_positions_unlocked() const;
 
     PositionMode mode_{PositionMode::Netting};
-    hqt::AccountInfo account_{};
+    haruquant::AccountInfo account_{};
     uint64_t next_leg_id_{1};
     std::unordered_map<std::string, PositionAggregate> net_positions_{};
     std::unordered_map<std::string, std::vector<PositionLeg>> hedged_legs_{};
@@ -492,13 +492,13 @@ public:
         double bid,
         double ask) const;
 
-    [[nodiscard]] hqt::AccountInfo monitor_account(
-        const hqt::AccountInfo& base,
+    [[nodiscard]] haruquant::AccountInfo monitor_account(
+        const haruquant::AccountInfo& base,
         const PositionTotals& totals) const;
 };
 
 struct BrokerSnapshot {
-    hqt::AccountInfo account{};
+    haruquant::AccountInfo account{};
     std::unordered_map<std::string, PositionAggregate> positions{};
 };
 
@@ -632,8 +632,8 @@ private:
     [[nodiscard]] bool check_rate_limit_unlocked(int64_t now_ms);
 
     std::shared_ptr<BrokerAdapter> adapter_{};
-    hqt::risk::RiskGovernor governor_{};
-    hqt::risk::RiskAccountState risk_state_{10000.0, 10000.0, 0.0, 0.0};
+    haruquant::risk::RiskGovernor governor_{};
+    haruquant::risk::RiskAccountState risk_state_{10000.0, 10000.0, 0.0, 0.0};
     ExecutionPolicy policy_{};
     std::deque<int64_t> recent_submissions_ms_{};
     std::size_t consecutive_failures_{0};
@@ -794,17 +794,17 @@ public:
         const std::vector<ModelTick>& ticks);
 
     [[nodiscard]] const SimulatorState& state() const noexcept;
-    [[nodiscard]] const hqt::AccountInfo& account_snapshot() const noexcept;
+    [[nodiscard]] const haruquant::AccountInfo& account_snapshot() const noexcept;
     [[nodiscard]] std::optional<AutoCloseReason> close_reason(uint64_t ticket) const;
     [[nodiscard]] const std::vector<TradeRecord>& completed_trades() const noexcept;
 
 private:
-    void ensure_trade_record_for_position(const hqt::PositionInfo& pos, int64_t now_msc);
-    void close_position_and_track(const hqt::PositionInfo& pos, int64_t now_msc, double close_price);
-    double lookup_deal_profit_or_fallback(uint64_t deal_ticket, const hqt::PositionInfo& pos, double close_price) const;
+    void ensure_trade_record_for_position(const haruquant::PositionInfo& pos, int64_t now_msc);
+    void close_position_and_track(const haruquant::PositionInfo& pos, int64_t now_msc, double close_price);
+    double lookup_deal_profit_or_fallback(uint64_t deal_ticket, const haruquant::PositionInfo& pos, double close_price) const;
     void monitor_pending_orders(const std::string& symbol, double bid, double ask, int64_t current_time_msc);
     void monitor_positions_and_account(const std::string& symbol, double bid, double ask);
-    static bool should_trigger_order(const hqt::OrderInfo& order, double bid, double ask);
+    static bool should_trigger_order(const haruquant::OrderInfo& order, double bid, double ask);
     void apply_exit_signal(const std::string& symbol, int exit_signal);
     void apply_entry_signal(
         const std::string& symbol,
@@ -819,7 +819,7 @@ private:
     SimulatorState state_{};
     AccountMonitor account_monitor_{};
     TradeRecordTracker trade_record_tracker_{};
-    hqt::AccountInfo account_snapshot_{};
+    haruquant::AccountInfo account_snapshot_{};
     std::unordered_map<uint64_t, AutoCloseReason> close_reasons_{};
     BarProcessedCallback on_bar_processed_{};
     TickProcessedCallback on_tick_processed_{};
@@ -894,7 +894,7 @@ public:
     [[nodiscard]] const std::unordered_map<std::string, double>& effective_allocations() const noexcept;
 
 private:
-    static double normalize_volume(double requested, const hqt::SymbolInfo& symbol_info);
+    static double normalize_volume(double requested, const haruquant::SymbolInfo& symbol_info);
     void process_bar(const std::string& symbol, const BacktestBarStep& bar, double base_volume);
 
     TradeSimulator& client_;
@@ -910,15 +910,15 @@ public:
         double volume,
         const std::vector<BacktestBarStep>& bars);
 
-    [[nodiscard]] const hqt::AccountInfo& account_snapshot() const noexcept;
+    [[nodiscard]] const haruquant::AccountInfo& account_snapshot() const noexcept;
     [[nodiscard]] std::size_t processed_bars() const noexcept;
     [[nodiscard]] std::size_t total_trades() const noexcept;
 
 private:
-    static double normalize_volume(double requested, const hqt::SymbolInfo& symbol_info);
+    static double normalize_volume(double requested, const haruquant::SymbolInfo& symbol_info);
 
     TradeSimulator& client_;
-    hqt::AccountInfo account_snapshot_{};
+    haruquant::AccountInfo account_snapshot_{};
     std::size_t processed_bars_{0};
     std::size_t total_trades_{0};
 };
@@ -1220,32 +1220,32 @@ public:
         std::size_t max_points = 0);
 };
 
-}  // namespace hqt::sim
+}  // namespace haruquant::sim
 
-namespace hqt::engine {
+namespace haruquant::engine {
 
 class Engine {
 public:
-    explicit Engine(hqt::sim::TradeSimulator& client);
+    explicit Engine(haruquant::sim::TradeSimulator& client);
 
     void run_trading_timeframe(
         const std::string& symbol,
         double volume,
-        const std::vector<hqt::sim::BacktestBarStep>& bars);
+        const std::vector<haruquant::sim::BacktestBarStep>& bars);
 
     void run_trading_timeframe_with_ticks(
         const std::string& symbol,
         double volume,
-        const std::vector<hqt::sim::BacktestBarStep>& bars,
-        const std::vector<hqt::sim::ModelTick>& ticks);
+        const std::vector<haruquant::sim::BacktestBarStep>& bars,
+        const std::vector<haruquant::sim::ModelTick>& ticks);
 
-    [[nodiscard]] const hqt::sim::SimulatorState& state() const noexcept;
-    [[nodiscard]] const hqt::AccountInfo& account_snapshot() const noexcept;
-    [[nodiscard]] const std::vector<hqt::sim::TradeRecord>& completed_trades() const noexcept;
+    [[nodiscard]] const haruquant::sim::SimulatorState& state() const noexcept;
+    [[nodiscard]] const haruquant::AccountInfo& account_snapshot() const noexcept;
+    [[nodiscard]] const std::vector<haruquant::sim::TradeRecord>& completed_trades() const noexcept;
 
 private:
-    hqt::sim::BacktestEngine impl_;
+    haruquant::sim::BacktestEngine impl_;
 };
 
-}  // namespace hqt::engine
+}  // namespace haruquant::engine
 

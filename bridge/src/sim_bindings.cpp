@@ -1,6 +1,6 @@
 /**
  * @file sim_bindings.cpp
- * @brief Nanobind bindings for the hqt::sim simulation API.
+ * @brief Nanobind bindings for the haruquant::sim simulation API.
  *
  * PR-014: Exposes the full C++ sim API to Python under hqt_engine.sim.
  */
@@ -21,7 +21,7 @@
 #include <utility>
 
 namespace nb = nanobind;
-using namespace hqt::sim;
+using namespace haruquant::sim;
 
 namespace {
 
@@ -31,11 +31,11 @@ decltype(auto) call_without_gil(Func&& func, Args&&... args) {
     return std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
 }
 
-hqt::AccountInfo to_mt5_account(const hqt::AccountInfo& src) {
+haruquant::AccountInfo to_mt5_account(const haruquant::AccountInfo& src) {
     return src;
 }
 
-hqt::SymbolInfo to_mt5_symbol(const hqt::SymbolInfo& src) {
+haruquant::SymbolInfo to_mt5_symbol(const haruquant::SymbolInfo& src) {
     return src;
 }
 
@@ -75,8 +75,8 @@ void assign_if_present(const nb::object& source, const char* name, const std::fu
     setter(nb::cast<T>(value));
 }
 
-hqt::AccountInfo account_from_object(const nb::object& source) {
-    hqt::AccountInfo acc;
+haruquant::AccountInfo account_from_object(const nb::object& source) {
+    haruquant::AccountInfo acc;
 
     assign_if_present<int>(source, "login", [&](int v) { acc.SetLogin(v); });
     assign_if_present<std::string>(source, "name", [&](const std::string& v) { acc.SetName(v); });
@@ -85,17 +85,17 @@ hqt::AccountInfo account_from_object(const nb::object& source) {
     assign_if_present<std::string>(source, "company", [&](const std::string& v) { acc.SetCompany(v); });
 
     assign_if_present<int>(source, "trade_mode", [&](int v) {
-        acc.SetTradeMode(static_cast<hqt::ENUM_ACCOUNT_TRADE_MODE>(v));
+        acc.SetTradeMode(static_cast<haruquant::ENUM_ACCOUNT_TRADE_MODE>(v));
     });
     assign_if_present<int>(source, "leverage", [&](int v) { acc.SetLeverage(v); });
     assign_if_present<int>(source, "limit_orders", [&](int v) { acc.SetLimitOrders(v); });
     assign_if_present<int>(source, "margin_so_mode", [&](int v) {
-        acc.SetStopoutMode(static_cast<hqt::ENUM_ACCOUNT_STOPOUT_MODE>(v));
+        acc.SetStopoutMode(static_cast<haruquant::ENUM_ACCOUNT_STOPOUT_MODE>(v));
     });
     assign_if_present<bool>(source, "trade_allowed", [&](bool v) { acc.SetTradeAllowed(v); });
     assign_if_present<bool>(source, "trade_expert", [&](bool v) { acc.SetTradeExpert(v); });
     assign_if_present<int>(source, "margin_mode", [&](int v) {
-        acc.SetMarginMode(static_cast<hqt::ENUM_ACCOUNT_MARGIN_MODE>(v));
+        acc.SetMarginMode(static_cast<haruquant::ENUM_ACCOUNT_MARGIN_MODE>(v));
     });
     assign_if_present<int>(source, "currency_digits", [&](int v) { acc.SetCurrencyDigits(v); });
     assign_if_present<bool>(source, "fifo_close", [&](bool v) { acc.SetFifoClose(v); });
@@ -118,8 +118,8 @@ hqt::AccountInfo account_from_object(const nb::object& source) {
     return acc;
 }
 
-hqt::SymbolInfo symbol_from_object(const nb::object& source) {
-    hqt::SymbolInfo sym;
+haruquant::SymbolInfo symbol_from_object(const nb::object& source) {
+    haruquant::SymbolInfo sym;
 
     auto read_str = [&](const char* name, const std::function<void(const std::string&)>& setter) {
         if (!nb::hasattr(source, name)) return;
@@ -161,13 +161,13 @@ hqt::SymbolInfo symbol_from_object(const nb::object& source) {
     read_bool("spread_float", [&](bool v) { sym.SetSpreadFloat(v); });
 
     read_int("trade_mode", [&](int v) {
-        sym.SetTradeMode(static_cast<hqt::ENUM_SYMBOL_TRADE_MODE>(v));
+        sym.SetTradeMode(static_cast<haruquant::ENUM_SYMBOL_TRADE_MODE>(v));
     });
     read_int("trade_exemode", [&](int v) {
-        sym.SetTradeExecution(static_cast<hqt::ENUM_SYMBOL_TRADE_EXECUTION>(v));
+        sym.SetTradeExecution(static_cast<haruquant::ENUM_SYMBOL_TRADE_EXECUTION>(v));
     });
     read_int("trade_calc_mode", [&](int v) {
-        sym.SetTradeCalcMode(static_cast<hqt::ENUM_SYMBOL_CALC_MODE>(v));
+        sym.SetTradeCalcMode(static_cast<haruquant::ENUM_SYMBOL_CALC_MODE>(v));
     });
 
     read_double("volume_min", [&](double v) { sym.SetVolumeMin(v); });
@@ -222,14 +222,14 @@ int resolve_order_type(const nb::object& order_type) {
     }
 
     const std::string token = normalize_order_type_token(nb::cast<std::string>(order_type));
-    if (token == "BUY") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
-    if (token == "SELL") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
-    if (token == "BUY_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT);
-    if (token == "SELL_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT);
-    if (token == "BUY_STOP") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP);
-    if (token == "SELL_STOP") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP);
-    if (token == "BUY_STOP_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
-    if (token == "SELL_STOP_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
+    if (token == "BUY") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
+    if (token == "SELL") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
+    if (token == "BUY_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT);
+    if (token == "SELL_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT);
+    if (token == "BUY_STOP") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP);
+    if (token == "SELL_STOP") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP);
+    if (token == "BUY_STOP_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
+    if (token == "SELL_STOP_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
 
     throw nb::value_error("Unsupported order_type string");
 }
@@ -259,34 +259,34 @@ int resolve_order_time(const nb::object& type_time) {
     }
 
     if (token == "GTC") {
-        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_GTC);
+        return static_cast<int>(haruquant::ENUM_ORDER_TYPE_TIME::ORDER_TIME_GTC);
     }
     if (token == "DAY") {
-        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_DAY);
+        return static_cast<int>(haruquant::ENUM_ORDER_TYPE_TIME::ORDER_TIME_DAY);
     }
     if (token == "SPECIFIED") {
-        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_SPECIFIED);
+        return static_cast<int>(haruquant::ENUM_ORDER_TYPE_TIME::ORDER_TIME_SPECIFIED);
     }
     if (token == "SPECIFIED_DAY") {
-        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_SPECIFIED_DAY);
+        return static_cast<int>(haruquant::ENUM_ORDER_TYPE_TIME::ORDER_TIME_SPECIFIED_DAY);
     }
     throw nb::value_error("Unsupported type_time string");
 }
 
-std::string position_type_name(hqt::ENUM_POSITION_TYPE value) {
+std::string position_type_name(haruquant::ENUM_POSITION_TYPE value) {
     switch (value) {
-        case hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY:
+        case haruquant::ENUM_POSITION_TYPE::POSITION_TYPE_BUY:
             return "BUY";
-        case hqt::ENUM_POSITION_TYPE::POSITION_TYPE_SELL:
+        case haruquant::ENUM_POSITION_TYPE::POSITION_TYPE_SELL:
             return "SELL";
         default:
             return "UNKNOWN";
     }
 }
 
-hqt::ENUM_POSITION_TYPE resolve_position_type(const nb::object& value) {
+haruquant::ENUM_POSITION_TYPE resolve_position_type(const nb::object& value) {
     if (nb::isinstance<nb::int_>(value)) {
-        return static_cast<hqt::ENUM_POSITION_TYPE>(nb::cast<int>(value));
+        return static_cast<haruquant::ENUM_POSITION_TYPE>(nb::cast<int>(value));
     }
     if (!nb::isinstance<nb::str>(value)) {
         throw nb::type_error("position type must be int or string");
@@ -306,10 +306,10 @@ hqt::ENUM_POSITION_TYPE resolve_position_type(const nb::object& value) {
     }
 
     if (token == "BUY") {
-        return hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY;
+        return haruquant::ENUM_POSITION_TYPE::POSITION_TYPE_BUY;
     }
     if (token == "SELL") {
-        return hqt::ENUM_POSITION_TYPE::POSITION_TYPE_SELL;
+        return haruquant::ENUM_POSITION_TYPE::POSITION_TYPE_SELL;
     }
     throw nb::value_error("Unsupported position type string");
 }
@@ -328,56 +328,56 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("processed_events", &SimulatorState::processed_events)
         .def("reset", &SimulatorState::reset);
 
-    nb::class_<hqt::AccountInfo>(m, "AccountInfo")
+    nb::class_<haruquant::AccountInfo>(m, "AccountInfo")
         .def(nb::init<>())
-        .def("__init__", [](hqt::AccountInfo* self, nb::object source) {
-            new (self) hqt::AccountInfo(account_from_object(source));
+        .def("__init__", [](haruquant::AccountInfo* self, nb::object source) {
+            new (self) haruquant::AccountInfo(account_from_object(source));
         }, nb::arg("source"))
         .def(nb::init<double, const std::string&, int>(),
              nb::arg("initial_balance"),
              nb::arg("currency"),
              nb::arg("leverage"))
-        .def("Login", &hqt::AccountInfo::Login)
-        .def("Name", &hqt::AccountInfo::Name)
-        .def("Server", &hqt::AccountInfo::Server)
-        .def("Currency", &hqt::AccountInfo::Currency)
-        .def("Company", &hqt::AccountInfo::Company)
-        .def("TradeMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.TradeMode()); })
-        .def("TradeModeDescription", [](const hqt::AccountInfo& self) { return self.TradeModeDescription(); })
-        .def("TradeModeDescription", [](const hqt::AccountInfo& self, int trade_mode) {
+        .def("Login", &haruquant::AccountInfo::Login)
+        .def("Name", &haruquant::AccountInfo::Name)
+        .def("Server", &haruquant::AccountInfo::Server)
+        .def("Currency", &haruquant::AccountInfo::Currency)
+        .def("Company", &haruquant::AccountInfo::Company)
+        .def("TradeMode", [](const haruquant::AccountInfo& self) { return static_cast<int>(self.TradeMode()); })
+        .def("TradeModeDescription", [](const haruquant::AccountInfo& self) { return self.TradeModeDescription(); })
+        .def("TradeModeDescription", [](const haruquant::AccountInfo& self, int trade_mode) {
             return self.TradeModeDescription(trade_mode);
         }, nb::arg("trade_mode"))
-        .def("Leverage", &hqt::AccountInfo::Leverage)
-        .def("TradeAllowed", &hqt::AccountInfo::TradeAllowed)
-        .def("TradeExpert", &hqt::AccountInfo::TradeExpert)
-        .def("LimitOrders", &hqt::AccountInfo::LimitOrders)
-        .def("CurrencyDigits", &hqt::AccountInfo::CurrencyDigits)
-        .def("FifoClose", &hqt::AccountInfo::FifoClose)
-        .def("Balance", &hqt::AccountInfo::Balance)
-        .def("Credit", &hqt::AccountInfo::Credit)
-        .def("Profit", &hqt::AccountInfo::Profit)
-        .def("Equity", &hqt::AccountInfo::Equity)
-        .def("Margin", &hqt::AccountInfo::Margin)
-        .def("FreeMargin", &hqt::AccountInfo::FreeMargin)
-        .def("MarginLevel", &hqt::AccountInfo::MarginLevel)
-        .def("MarginCall", &hqt::AccountInfo::MarginCall)
-        .def("MarginStopOut", &hqt::AccountInfo::MarginStopOut)
-        .def("MarginInitial", &hqt::AccountInfo::MarginInitial)
-        .def("MarginMaintenance", &hqt::AccountInfo::MarginMaintenance)
-        .def("Assets", &hqt::AccountInfo::Assets)
-        .def("Liabilities", &hqt::AccountInfo::Liabilities)
-        .def("CommissionBlocked", &hqt::AccountInfo::CommissionBlocked)
-        .def("MarginMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.MarginMode()); })
-        .def("MarginModeDescription", [](const hqt::AccountInfo& self) { return self.MarginModeDescription(); })
-        .def("MarginModeDescription", [](const hqt::AccountInfo& self, int margin_mode) {
+        .def("Leverage", &haruquant::AccountInfo::Leverage)
+        .def("TradeAllowed", &haruquant::AccountInfo::TradeAllowed)
+        .def("TradeExpert", &haruquant::AccountInfo::TradeExpert)
+        .def("LimitOrders", &haruquant::AccountInfo::LimitOrders)
+        .def("CurrencyDigits", &haruquant::AccountInfo::CurrencyDigits)
+        .def("FifoClose", &haruquant::AccountInfo::FifoClose)
+        .def("Balance", &haruquant::AccountInfo::Balance)
+        .def("Credit", &haruquant::AccountInfo::Credit)
+        .def("Profit", &haruquant::AccountInfo::Profit)
+        .def("Equity", &haruquant::AccountInfo::Equity)
+        .def("Margin", &haruquant::AccountInfo::Margin)
+        .def("FreeMargin", &haruquant::AccountInfo::FreeMargin)
+        .def("MarginLevel", &haruquant::AccountInfo::MarginLevel)
+        .def("MarginCall", &haruquant::AccountInfo::MarginCall)
+        .def("MarginStopOut", &haruquant::AccountInfo::MarginStopOut)
+        .def("MarginInitial", &haruquant::AccountInfo::MarginInitial)
+        .def("MarginMaintenance", &haruquant::AccountInfo::MarginMaintenance)
+        .def("Assets", &haruquant::AccountInfo::Assets)
+        .def("Liabilities", &haruquant::AccountInfo::Liabilities)
+        .def("CommissionBlocked", &haruquant::AccountInfo::CommissionBlocked)
+        .def("MarginMode", [](const haruquant::AccountInfo& self) { return static_cast<int>(self.MarginMode()); })
+        .def("MarginModeDescription", [](const haruquant::AccountInfo& self) { return self.MarginModeDescription(); })
+        .def("MarginModeDescription", [](const haruquant::AccountInfo& self, int margin_mode) {
             return self.MarginModeDescription(margin_mode);
         }, nb::arg("margin_mode"))
-        .def("StopoutMode", [](const hqt::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); })
-        .def("StopoutModeDescription", [](const hqt::AccountInfo& self) { return self.StopoutModeDescription(); })
-        .def("StopoutModeDescription", [](const hqt::AccountInfo& self, int margin_so_mode) {
+        .def("StopoutMode", [](const haruquant::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); })
+        .def("StopoutModeDescription", [](const haruquant::AccountInfo& self) { return self.StopoutModeDescription(); })
+        .def("StopoutModeDescription", [](const haruquant::AccountInfo& self, int margin_so_mode) {
             return self.StopoutModeDescription(margin_so_mode);
         }, nb::arg("margin_so_mode"))
-        .def("apply_snapshot", &hqt::AccountInfo::ApplySnapshot,
+        .def("apply_snapshot", &haruquant::AccountInfo::ApplySnapshot,
              nb::arg("balance"),
              nb::arg("credit"),
              nb::arg("profit"),
@@ -385,95 +385,95 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("margin_call"),
              nb::arg("margin_stopout"))
         .def_prop_rw("login",
-            [](const hqt::AccountInfo& self) { return self.Login(); },
-            [](hqt::AccountInfo& self, int value) { self.SetLogin(value); })
+            [](const haruquant::AccountInfo& self) { return self.Login(); },
+            [](haruquant::AccountInfo& self, int value) { self.SetLogin(value); })
         .def_prop_rw("name",
-            [](const hqt::AccountInfo& self) { return self.Name(); },
-            [](hqt::AccountInfo& self, const std::string& value) { self.SetName(value); })
+            [](const haruquant::AccountInfo& self) { return self.Name(); },
+            [](haruquant::AccountInfo& self, const std::string& value) { self.SetName(value); })
         .def_prop_rw("server",
-            [](const hqt::AccountInfo& self) { return self.Server(); },
-            [](hqt::AccountInfo& self, const std::string& value) { self.SetServer(value); })
+            [](const haruquant::AccountInfo& self) { return self.Server(); },
+            [](haruquant::AccountInfo& self, const std::string& value) { self.SetServer(value); })
         .def_prop_rw("company",
-            [](const hqt::AccountInfo& self) { return self.Company(); },
-            [](hqt::AccountInfo& self, const std::string& value) { self.SetCompany(value); })
+            [](const haruquant::AccountInfo& self) { return self.Company(); },
+            [](haruquant::AccountInfo& self, const std::string& value) { self.SetCompany(value); })
         .def_prop_rw("leverage",
-            [](const hqt::AccountInfo& self) { return self.Leverage(); },
-            [](hqt::AccountInfo& self, int value) { self.SetLeverage(value); })
+            [](const haruquant::AccountInfo& self) { return self.Leverage(); },
+            [](haruquant::AccountInfo& self, int value) { self.SetLeverage(value); })
         .def_prop_rw("trade_mode",
-            [](const hqt::AccountInfo& self) { return static_cast<int>(self.TradeMode()); },
-            [](hqt::AccountInfo& self, int value) {
-                self.SetTradeMode(static_cast<hqt::ENUM_ACCOUNT_TRADE_MODE>(value));
+            [](const haruquant::AccountInfo& self) { return static_cast<int>(self.TradeMode()); },
+            [](haruquant::AccountInfo& self, int value) {
+                self.SetTradeMode(static_cast<haruquant::ENUM_ACCOUNT_TRADE_MODE>(value));
             })
         .def_prop_rw("limit_orders",
-            [](const hqt::AccountInfo& self) { return self.LimitOrders(); },
-            [](hqt::AccountInfo& self, int value) { self.SetLimitOrders(value); })
+            [](const haruquant::AccountInfo& self) { return self.LimitOrders(); },
+            [](haruquant::AccountInfo& self, int value) { self.SetLimitOrders(value); })
         .def_prop_rw("margin_so_mode",
-            [](const hqt::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); },
-            [](hqt::AccountInfo& self, int value) {
-                self.SetStopoutMode(static_cast<hqt::ENUM_ACCOUNT_STOPOUT_MODE>(value));
+            [](const haruquant::AccountInfo& self) { return static_cast<int>(self.StopoutMode()); },
+            [](haruquant::AccountInfo& self, int value) {
+                self.SetStopoutMode(static_cast<haruquant::ENUM_ACCOUNT_STOPOUT_MODE>(value));
             })
         .def_prop_rw("currency_digits",
-            [](const hqt::AccountInfo& self) { return self.CurrencyDigits(); },
-            [](hqt::AccountInfo& self, int value) { self.SetCurrencyDigits(value); })
+            [](const haruquant::AccountInfo& self) { return self.CurrencyDigits(); },
+            [](haruquant::AccountInfo& self, int value) { self.SetCurrencyDigits(value); })
         .def_prop_rw("fifo_close",
-            [](const hqt::AccountInfo& self) { return self.FifoClose(); },
-            [](hqt::AccountInfo& self, bool value) { self.SetFifoClose(value); })
+            [](const haruquant::AccountInfo& self) { return self.FifoClose(); },
+            [](haruquant::AccountInfo& self, bool value) { self.SetFifoClose(value); })
         .def_prop_rw("currency",
-            [](const hqt::AccountInfo& self) { return self.Currency(); },
-            [](hqt::AccountInfo& self, const std::string& value) { self.SetCurrency(value); })
+            [](const haruquant::AccountInfo& self) { return self.Currency(); },
+            [](haruquant::AccountInfo& self, const std::string& value) { self.SetCurrency(value); })
         .def_prop_rw("balance",
-            [](const hqt::AccountInfo& self) { return self.Balance(); },
-            [](hqt::AccountInfo& self, double value) { self.SetBalance(value); })
+            [](const haruquant::AccountInfo& self) { return self.Balance(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetBalance(value); })
         .def_prop_rw("credit",
-            [](const hqt::AccountInfo& self) { return self.Credit(); },
-            [](hqt::AccountInfo& self, double value) { self.SetCredit(value); })
+            [](const haruquant::AccountInfo& self) { return self.Credit(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetCredit(value); })
         .def_prop_rw("profit",
-            [](const hqt::AccountInfo& self) { return self.Profit(); },
-            [](hqt::AccountInfo& self, double value) { self.SetProfit(value); })
+            [](const haruquant::AccountInfo& self) { return self.Profit(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetProfit(value); })
         .def_prop_rw("equity",
-            [](const hqt::AccountInfo& self) { return self.Equity(); },
-            [](hqt::AccountInfo& self, double value) { self.SetEquity(value); })
+            [](const haruquant::AccountInfo& self) { return self.Equity(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetEquity(value); })
         .def_prop_rw("margin",
-            [](const hqt::AccountInfo& self) { return self.Margin(); },
-            [](hqt::AccountInfo& self, double value) { self.SetMargin(value); })
+            [](const haruquant::AccountInfo& self) { return self.Margin(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetMargin(value); })
         .def_prop_rw("margin_free",
-            [](const hqt::AccountInfo& self) { return self.FreeMargin(); },
-            [](hqt::AccountInfo& self, double value) { self.SetFreeMargin(value); })
+            [](const haruquant::AccountInfo& self) { return self.FreeMargin(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetFreeMargin(value); })
         .def_prop_rw("margin_level",
-            [](const hqt::AccountInfo& self) { return self.MarginLevel(); },
-            [](hqt::AccountInfo& self, double value) { self.SetMarginLevel(value); })
+            [](const haruquant::AccountInfo& self) { return self.MarginLevel(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetMarginLevel(value); })
         .def_prop_rw("margin_so_call",
-            [](const hqt::AccountInfo& self) { return self.MarginCall(); },
-            [](hqt::AccountInfo& self, double value) { self.SetMarginCall(value); })
+            [](const haruquant::AccountInfo& self) { return self.MarginCall(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetMarginCall(value); })
         .def_prop_rw("margin_so_so",
-            [](const hqt::AccountInfo& self) { return self.MarginStopOut(); },
-            [](hqt::AccountInfo& self, double value) { self.SetMarginStopOut(value); })
+            [](const haruquant::AccountInfo& self) { return self.MarginStopOut(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetMarginStopOut(value); })
         .def_prop_rw("margin_initial",
-            [](const hqt::AccountInfo& self) { return self.MarginInitial(); },
-            [](hqt::AccountInfo& self, double value) { self.SetMarginInitial(value); })
+            [](const haruquant::AccountInfo& self) { return self.MarginInitial(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetMarginInitial(value); })
         .def_prop_rw("margin_maintenance",
-            [](const hqt::AccountInfo& self) { return self.MarginMaintenance(); },
-            [](hqt::AccountInfo& self, double value) { self.SetMarginMaintenance(value); })
+            [](const haruquant::AccountInfo& self) { return self.MarginMaintenance(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetMarginMaintenance(value); })
         .def_prop_rw("assets",
-            [](const hqt::AccountInfo& self) { return self.Assets(); },
-            [](hqt::AccountInfo& self, double value) { self.SetAssets(value); })
+            [](const haruquant::AccountInfo& self) { return self.Assets(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetAssets(value); })
         .def_prop_rw("liabilities",
-            [](const hqt::AccountInfo& self) { return self.Liabilities(); },
-            [](hqt::AccountInfo& self, double value) { self.SetLiabilities(value); })
+            [](const haruquant::AccountInfo& self) { return self.Liabilities(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetLiabilities(value); })
         .def_prop_rw("commission_blocked",
-            [](const hqt::AccountInfo& self) { return self.CommissionBlocked(); },
-            [](hqt::AccountInfo& self, double value) { self.SetCommissionBlocked(value); })
+            [](const haruquant::AccountInfo& self) { return self.CommissionBlocked(); },
+            [](haruquant::AccountInfo& self, double value) { self.SetCommissionBlocked(value); })
         .def_prop_rw("margin_mode",
-            [](const hqt::AccountInfo& self) { return static_cast<int>(self.MarginMode()); },
-            [](hqt::AccountInfo& self, int value) {
-                self.SetMarginMode(static_cast<hqt::ENUM_ACCOUNT_MARGIN_MODE>(value));
+            [](const haruquant::AccountInfo& self) { return static_cast<int>(self.MarginMode()); },
+            [](haruquant::AccountInfo& self, int value) {
+                self.SetMarginMode(static_cast<haruquant::ENUM_ACCOUNT_MARGIN_MODE>(value));
             })
         .def_prop_rw("trade_allowed",
-            [](const hqt::AccountInfo& self) { return self.TradeAllowed(); },
-            [](hqt::AccountInfo& self, bool value) { self.SetTradeAllowed(value); })
+            [](const haruquant::AccountInfo& self) { return self.TradeAllowed(); },
+            [](haruquant::AccountInfo& self, bool value) { self.SetTradeAllowed(value); })
         .def_prop_rw("trade_expert",
-            [](const hqt::AccountInfo& self) { return self.TradeExpert(); },
-            [](hqt::AccountInfo& self, bool value) { self.SetTradeExpert(value); });
+            [](const haruquant::AccountInfo& self) { return self.TradeExpert(); },
+            [](haruquant::AccountInfo& self, bool value) { self.SetTradeExpert(value); });
 
     nb::class_<SymbolTickData>(m, "SymbolTickData")
         .def(nb::init<>())
@@ -487,188 +487,188 @@ void register_sim_bindings(nb::module_& m) {
         .def_rw("volume_real", &SymbolTickData::volume_real)
         .def("to_dict", &SymbolTickData::to_dict);
 
-    nb::class_<hqt::SymbolInfo>(m, "SymbolInfo")
+    nb::class_<haruquant::SymbolInfo>(m, "SymbolInfo")
         .def(nb::init<>())
-        .def("__init__", [](hqt::SymbolInfo* self, nb::object source) {
-            new (self) hqt::SymbolInfo(symbol_from_object(source));
+        .def("__init__", [](haruquant::SymbolInfo* self, nb::object source) {
+            new (self) haruquant::SymbolInfo(symbol_from_object(source));
         }, nb::arg("source"))
-        .def("Name", [](const hqt::SymbolInfo& self) { return self.Name(); })
-        .def("Description", &hqt::SymbolInfo::Description)
-        .def("Path", &hqt::SymbolInfo::Path)
-        .def("Select", [](hqt::SymbolInfo& self) { return self.Select(); })
-        .def("Select", [](hqt::SymbolInfo& self, bool selected) {
+        .def("Name", [](const haruquant::SymbolInfo& self) { return self.Name(); })
+        .def("Description", &haruquant::SymbolInfo::Description)
+        .def("Path", &haruquant::SymbolInfo::Path)
+        .def("Select", [](haruquant::SymbolInfo& self) { return self.Select(); })
+        .def("Select", [](haruquant::SymbolInfo& self, bool selected) {
             self.Select(selected);
             return self.Select();
         }, nb::arg("selected"))
-        .def("Bid", &hqt::SymbolInfo::Bid)
-        .def("BidHigh", &hqt::SymbolInfo::BidHigh)
-        .def("BidLow", &hqt::SymbolInfo::BidLow)
-        .def("Ask", &hqt::SymbolInfo::Ask)
-        .def("AskHigh", &hqt::SymbolInfo::AskHigh)
-        .def("AskLow", &hqt::SymbolInfo::AskLow)
-        .def("Last", &hqt::SymbolInfo::Last)
-        .def("Spread", &hqt::SymbolInfo::Spread)
-        .def("SpreadFloat", &hqt::SymbolInfo::SpreadFloat)
-        .def("Time", &hqt::SymbolInfo::Time)
-        .def("Volume", &hqt::SymbolInfo::Volume)
-        .def("VolumeHigh", &hqt::SymbolInfo::VolumeHigh)
-        .def("VolumeLow", &hqt::SymbolInfo::VolumeLow)
-        .def("Digits", &hqt::SymbolInfo::Digits)
-        .def("Point", &hqt::SymbolInfo::Point)
-        .def("TickValue", &hqt::SymbolInfo::TickValue)
-        .def("TickSize", &hqt::SymbolInfo::TickSize)
-        .def("TickValueProfit", &hqt::SymbolInfo::TickValueProfit)
-        .def("TickValueLoss", &hqt::SymbolInfo::TickValueLoss)
-        .def("ContractSize", &hqt::SymbolInfo::ContractSize)
-        .def("LotsMin", &hqt::SymbolInfo::LotsMin)
-        .def("LotsMax", &hqt::SymbolInfo::LotsMax)
-        .def("LotsStep", &hqt::SymbolInfo::LotsStep)
-        .def("LotsLimit", &hqt::SymbolInfo::LotsLimit)
-        .def("MarginInitial", &hqt::SymbolInfo::MarginInitial)
-        .def("MarginMaintenance", &hqt::SymbolInfo::MarginMaintenance)
-        .def("MarginLong", &hqt::SymbolInfo::MarginLong)
-        .def("MarginShort", &hqt::SymbolInfo::MarginShort)
-        .def("MarginLimit", &hqt::SymbolInfo::MarginLimit)
-        .def("MarginStop", &hqt::SymbolInfo::MarginStop)
-        .def("MarginStopLimit", &hqt::SymbolInfo::MarginStopLimit)
-        .def("SwapLong", &hqt::SymbolInfo::SwapLong)
-        .def("SwapShort", &hqt::SymbolInfo::SwapShort)
-        .def("SwapMode", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapMode()); })
-        .def("SwapModeDescription", &hqt::SymbolInfo::SwapModeDescription)
-        .def("SwapRollover3days", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapRollover3days()); })
-        .def("SwapRollover3daysDescription", &hqt::SymbolInfo::SwapRollover3daysDescription)
-        .def("SwapRollover3DaysDescription", &hqt::SymbolInfo::SwapRollover3daysDescription)
-        .def("TradeMode", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeMode()); })
-        .def("TradeModeDescription", &hqt::SymbolInfo::TradeModeDescription)
-        .def("TradeExecution", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeExecution()); })
-        .def("TradeExecutionDescription", &hqt::SymbolInfo::TradeExecutionDescription)
-        .def("TradeCalcMode", [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeCalcMode()); })
-        .def("TradeCalcModeDescription", &hqt::SymbolInfo::TradeCalcModeDescription)
-        .def("StopsLevel", &hqt::SymbolInfo::StopsLevel)
-        .def("FreezeLevel", &hqt::SymbolInfo::FreezeLevel)
-        .def("CurrencyBase", &hqt::SymbolInfo::CurrencyBase)
-        .def("CurrencyProfit", &hqt::SymbolInfo::CurrencyProfit)
-        .def("CurrencyMargin", &hqt::SymbolInfo::CurrencyMargin)
-        .def("NormalizePrice", &hqt::SymbolInfo::NormalizePrice)
-        .def("Refresh", &hqt::SymbolInfo::Refresh)
-        .def("RefreshRates", &hqt::SymbolInfo::RefreshRates)
+        .def("Bid", &haruquant::SymbolInfo::Bid)
+        .def("BidHigh", &haruquant::SymbolInfo::BidHigh)
+        .def("BidLow", &haruquant::SymbolInfo::BidLow)
+        .def("Ask", &haruquant::SymbolInfo::Ask)
+        .def("AskHigh", &haruquant::SymbolInfo::AskHigh)
+        .def("AskLow", &haruquant::SymbolInfo::AskLow)
+        .def("Last", &haruquant::SymbolInfo::Last)
+        .def("Spread", &haruquant::SymbolInfo::Spread)
+        .def("SpreadFloat", &haruquant::SymbolInfo::SpreadFloat)
+        .def("Time", &haruquant::SymbolInfo::Time)
+        .def("Volume", &haruquant::SymbolInfo::Volume)
+        .def("VolumeHigh", &haruquant::SymbolInfo::VolumeHigh)
+        .def("VolumeLow", &haruquant::SymbolInfo::VolumeLow)
+        .def("Digits", &haruquant::SymbolInfo::Digits)
+        .def("Point", &haruquant::SymbolInfo::Point)
+        .def("TickValue", &haruquant::SymbolInfo::TickValue)
+        .def("TickSize", &haruquant::SymbolInfo::TickSize)
+        .def("TickValueProfit", &haruquant::SymbolInfo::TickValueProfit)
+        .def("TickValueLoss", &haruquant::SymbolInfo::TickValueLoss)
+        .def("ContractSize", &haruquant::SymbolInfo::ContractSize)
+        .def("LotsMin", &haruquant::SymbolInfo::LotsMin)
+        .def("LotsMax", &haruquant::SymbolInfo::LotsMax)
+        .def("LotsStep", &haruquant::SymbolInfo::LotsStep)
+        .def("LotsLimit", &haruquant::SymbolInfo::LotsLimit)
+        .def("MarginInitial", &haruquant::SymbolInfo::MarginInitial)
+        .def("MarginMaintenance", &haruquant::SymbolInfo::MarginMaintenance)
+        .def("MarginLong", &haruquant::SymbolInfo::MarginLong)
+        .def("MarginShort", &haruquant::SymbolInfo::MarginShort)
+        .def("MarginLimit", &haruquant::SymbolInfo::MarginLimit)
+        .def("MarginStop", &haruquant::SymbolInfo::MarginStop)
+        .def("MarginStopLimit", &haruquant::SymbolInfo::MarginStopLimit)
+        .def("SwapLong", &haruquant::SymbolInfo::SwapLong)
+        .def("SwapShort", &haruquant::SymbolInfo::SwapShort)
+        .def("SwapMode", [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.SwapMode()); })
+        .def("SwapModeDescription", &haruquant::SymbolInfo::SwapModeDescription)
+        .def("SwapRollover3days", [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.SwapRollover3days()); })
+        .def("SwapRollover3daysDescription", &haruquant::SymbolInfo::SwapRollover3daysDescription)
+        .def("SwapRollover3DaysDescription", &haruquant::SymbolInfo::SwapRollover3daysDescription)
+        .def("TradeMode", [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.TradeMode()); })
+        .def("TradeModeDescription", &haruquant::SymbolInfo::TradeModeDescription)
+        .def("TradeExecution", [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.TradeExecution()); })
+        .def("TradeExecutionDescription", &haruquant::SymbolInfo::TradeExecutionDescription)
+        .def("TradeCalcMode", [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.TradeCalcMode()); })
+        .def("TradeCalcModeDescription", &haruquant::SymbolInfo::TradeCalcModeDescription)
+        .def("StopsLevel", &haruquant::SymbolInfo::StopsLevel)
+        .def("FreezeLevel", &haruquant::SymbolInfo::FreezeLevel)
+        .def("CurrencyBase", &haruquant::SymbolInfo::CurrencyBase)
+        .def("CurrencyProfit", &haruquant::SymbolInfo::CurrencyProfit)
+        .def("CurrencyMargin", &haruquant::SymbolInfo::CurrencyMargin)
+        .def("NormalizePrice", &haruquant::SymbolInfo::NormalizePrice)
+        .def("Refresh", &haruquant::SymbolInfo::Refresh)
+        .def("RefreshRates", &haruquant::SymbolInfo::RefreshRates)
         .def_prop_rw("symbol",
-            [](const hqt::SymbolInfo& self) { return self.Name(); },
-            [](hqt::SymbolInfo& self, const std::string& value) { self.Name(value); })
+            [](const haruquant::SymbolInfo& self) { return self.Name(); },
+            [](haruquant::SymbolInfo& self, const std::string& value) { self.Name(value); })
         .def_prop_rw("symbol_id",
-            [](const hqt::SymbolInfo& self) { return self.SymbolId(); },
-            [](hqt::SymbolInfo& self, uint32_t value) { self.SetSymbolId(value); })
+            [](const haruquant::SymbolInfo& self) { return self.SymbolId(); },
+            [](haruquant::SymbolInfo& self, uint32_t value) { self.SetSymbolId(value); })
         .def_prop_rw("digits",
-            [](const hqt::SymbolInfo& self) { return self.Digits(); },
-            [](hqt::SymbolInfo& self, int value) { self.SetDigits(value); })
+            [](const haruquant::SymbolInfo& self) { return self.Digits(); },
+            [](haruquant::SymbolInfo& self, int value) { self.SetDigits(value); })
         .def_prop_rw("spread",
-            [](const hqt::SymbolInfo& self) { return self.Spread(); },
-            [](hqt::SymbolInfo& self, int value) { self.SetSpread(value); })
+            [](const haruquant::SymbolInfo& self) { return self.Spread(); },
+            [](haruquant::SymbolInfo& self, int value) { self.SetSpread(value); })
         .def_prop_rw("spread_float",
-            [](const hqt::SymbolInfo& self) { return self.SpreadFloat(); },
-            [](hqt::SymbolInfo& self, bool value) { self.SetSpreadFloat(value); })
+            [](const haruquant::SymbolInfo& self) { return self.SpreadFloat(); },
+            [](haruquant::SymbolInfo& self, bool value) { self.SetSpreadFloat(value); })
         .def_prop_rw("point",
-            [](const hqt::SymbolInfo& self) { return self.Point(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetPoint(value); })
+            [](const haruquant::SymbolInfo& self) { return self.Point(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetPoint(value); })
         .def_prop_rw("trade_calc_mode",
-            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeCalcMode()); },
-            [](hqt::SymbolInfo& self, int value) {
-                self.SetTradeCalcMode(static_cast<hqt::ENUM_SYMBOL_CALC_MODE>(value));
+            [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.TradeCalcMode()); },
+            [](haruquant::SymbolInfo& self, int value) {
+                self.SetTradeCalcMode(static_cast<haruquant::ENUM_SYMBOL_CALC_MODE>(value));
             })
         .def_prop_rw("trade_mode",
-            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeMode()); },
-            [](hqt::SymbolInfo& self, int value) {
-                self.SetTradeMode(static_cast<hqt::ENUM_SYMBOL_TRADE_MODE>(value));
+            [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.TradeMode()); },
+            [](haruquant::SymbolInfo& self, int value) {
+                self.SetTradeMode(static_cast<haruquant::ENUM_SYMBOL_TRADE_MODE>(value));
             })
         .def_prop_rw("trade_stops_level",
-            [](const hqt::SymbolInfo& self) { return self.StopsLevel(); },
-            [](hqt::SymbolInfo& self, int value) { self.SetStopsLevel(value); })
+            [](const haruquant::SymbolInfo& self) { return self.StopsLevel(); },
+            [](haruquant::SymbolInfo& self, int value) { self.SetStopsLevel(value); })
         .def_prop_rw("trade_freeze_level",
-            [](const hqt::SymbolInfo& self) { return self.FreezeLevel(); },
-            [](hqt::SymbolInfo& self, int value) { self.SetFreezeLevel(value); })
+            [](const haruquant::SymbolInfo& self) { return self.FreezeLevel(); },
+            [](haruquant::SymbolInfo& self, int value) { self.SetFreezeLevel(value); })
         .def_prop_rw("trade_exemode",
-            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.TradeExecution()); },
-            [](hqt::SymbolInfo& self, int value) {
-                self.SetTradeExecution(static_cast<hqt::ENUM_SYMBOL_TRADE_EXECUTION>(value));
+            [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.TradeExecution()); },
+            [](haruquant::SymbolInfo& self, int value) {
+                self.SetTradeExecution(static_cast<haruquant::ENUM_SYMBOL_TRADE_EXECUTION>(value));
             })
         .def_prop_rw("volume_min",
-            [](const hqt::SymbolInfo& self) { return self.LotsMin(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetVolumeMin(value); })
+            [](const haruquant::SymbolInfo& self) { return self.LotsMin(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetVolumeMin(value); })
         .def_prop_rw("volume_max",
-            [](const hqt::SymbolInfo& self) { return self.LotsMax(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetVolumeMax(value); })
+            [](const haruquant::SymbolInfo& self) { return self.LotsMax(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetVolumeMax(value); })
         .def_prop_rw("volume_step",
-            [](const hqt::SymbolInfo& self) { return self.LotsStep(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetVolumeStep(value); })
+            [](const haruquant::SymbolInfo& self) { return self.LotsStep(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetVolumeStep(value); })
         .def_prop_rw("volume_limit",
-            [](const hqt::SymbolInfo& self) { return self.LotsLimit(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetVolumeLimit(value); })
+            [](const haruquant::SymbolInfo& self) { return self.LotsLimit(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetVolumeLimit(value); })
         .def_prop_rw("trade_tick_value",
-            [](const hqt::SymbolInfo& self) { return self.TickValue(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetTickValue(value); })
+            [](const haruquant::SymbolInfo& self) { return self.TickValue(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetTickValue(value); })
         .def_prop_rw("trade_tick_value_profit",
-            [](const hqt::SymbolInfo& self) { return self.TickValueProfit(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetTickValueProfit(value); })
+            [](const haruquant::SymbolInfo& self) { return self.TickValueProfit(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetTickValueProfit(value); })
         .def_prop_rw("trade_tick_value_loss",
-            [](const hqt::SymbolInfo& self) { return self.TickValueLoss(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetTickValueLoss(value); })
+            [](const haruquant::SymbolInfo& self) { return self.TickValueLoss(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetTickValueLoss(value); })
         .def_prop_rw("trade_tick_size",
-            [](const hqt::SymbolInfo& self) { return self.TickSize(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetTickSize(value); })
+            [](const haruquant::SymbolInfo& self) { return self.TickSize(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetTickSize(value); })
         .def_prop_rw("trade_contract_size",
-            [](const hqt::SymbolInfo& self) { return self.ContractSize(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetContractSize(value); })
+            [](const haruquant::SymbolInfo& self) { return self.ContractSize(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetContractSize(value); })
         .def_prop_rw("margin_initial",
-            [](const hqt::SymbolInfo& self) { return self.MarginInitial(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetMarginInitial(value); })
+            [](const haruquant::SymbolInfo& self) { return self.MarginInitial(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetMarginInitial(value); })
         .def_prop_rw("swap_mode",
-            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapMode()); },
-            [](hqt::SymbolInfo& self, int value) {
-                self.SetSwapMode(static_cast<hqt::ENUM_SYMBOL_SWAP_MODE>(value));
+            [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.SwapMode()); },
+            [](haruquant::SymbolInfo& self, int value) {
+                self.SetSwapMode(static_cast<haruquant::ENUM_SYMBOL_SWAP_MODE>(value));
             })
         .def_prop_rw("swap_long",
-            [](const hqt::SymbolInfo& self) { return self.SwapLong(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetSwapLong(value); })
+            [](const haruquant::SymbolInfo& self) { return self.SwapLong(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetSwapLong(value); })
         .def_prop_rw("swap_short",
-            [](const hqt::SymbolInfo& self) { return self.SwapShort(); },
-            [](hqt::SymbolInfo& self, double value) { self.SetSwapShort(value); })
+            [](const haruquant::SymbolInfo& self) { return self.SwapShort(); },
+            [](haruquant::SymbolInfo& self, double value) { self.SetSwapShort(value); })
         .def_prop_rw("swap_rollover3days",
-            [](const hqt::SymbolInfo& self) { return static_cast<int>(self.SwapRollover3days()); },
-            [](hqt::SymbolInfo& self, int value) {
-                self.SetSwapRollover3days(static_cast<hqt::ENUM_DAY_OF_WEEK>(value));
+            [](const haruquant::SymbolInfo& self) { return static_cast<int>(self.SwapRollover3days()); },
+            [](haruquant::SymbolInfo& self, int value) {
+                self.SetSwapRollover3days(static_cast<haruquant::ENUM_DAY_OF_WEEK>(value));
             })
         .def_prop_rw("select",
-            [](const hqt::SymbolInfo& self) { return self.Select(); },
-            [](hqt::SymbolInfo& self, bool value) { self.Select(value); })
+            [](const haruquant::SymbolInfo& self) { return self.Select(); },
+            [](haruquant::SymbolInfo& self, bool value) { self.Select(value); })
         .def_prop_rw("visible",
-            [](const hqt::SymbolInfo& self) { return self.Select(); },
-            [](hqt::SymbolInfo& self, bool value) { self.Select(value); })
+            [](const haruquant::SymbolInfo& self) { return self.Select(); },
+            [](haruquant::SymbolInfo& self, bool value) { self.Select(value); })
         .def_prop_rw("bid",
-            [](const hqt::SymbolInfo& self) { return self.Bid(); },
-            [](hqt::SymbolInfo& self, double value) { self.UpdatePrice(value, self.Ask(), self.Time()); })
+            [](const haruquant::SymbolInfo& self) { return self.Bid(); },
+            [](haruquant::SymbolInfo& self, double value) { self.UpdatePrice(value, self.Ask(), self.Time()); })
         .def_prop_rw("ask",
-            [](const hqt::SymbolInfo& self) { return self.Ask(); },
-            [](hqt::SymbolInfo& self, double value) { self.UpdatePrice(self.Bid(), value, self.Time()); })
-        .def_prop_ro("last", &hqt::SymbolInfo::Last)
-        .def("update_price", &hqt::SymbolInfo::UpdatePrice,
+            [](const haruquant::SymbolInfo& self) { return self.Ask(); },
+            [](haruquant::SymbolInfo& self, double value) { self.UpdatePrice(self.Bid(), value, self.Time()); })
+        .def_prop_ro("last", &haruquant::SymbolInfo::Last)
+        .def("update_price", &haruquant::SymbolInfo::UpdatePrice,
              nb::arg("bid"), nb::arg("ask"), nb::arg("timestamp") = 0);
 
-    nb::class_<hqt::CTrade>(m, "CTrade")
+    nb::class_<haruquant::CTrade>(m, "CTrade")
         .def(nb::init<double, const std::string&, uint32_t>(),
              nb::arg("initial_balance") = 10000.0,
              nb::arg("currency") = "USD",
              nb::arg("leverage") = 100)
-        .def("LogLevel", [](const hqt::CTrade& self) { return self.LogLevel(); })
-        .def("SetLogLevel", [](hqt::CTrade& self, int level) { self.LogLevel(level); })
-        .def("SetExpertMagicNumber", &hqt::CTrade::SetExpertMagicNumber)
-        .def("ExpertMagicNumber", &hqt::CTrade::ExpertMagicNumber)
-        .def("SetDeviationInPoints", &hqt::CTrade::SetDeviationInPoints)
-        .def("DeviationInPoints", &hqt::CTrade::DeviationInPoints)
-        .def("SetTypeFillingBySymbol", &hqt::CTrade::SetTypeFillingBySymbol)
-        .def("SetAsyncMode", &hqt::CTrade::SetAsyncMode)
-        .def("AsyncMode", &hqt::CTrade::AsyncMode)
+        .def("LogLevel", [](const haruquant::CTrade& self) { return self.LogLevel(); })
+        .def("SetLogLevel", [](haruquant::CTrade& self, int level) { self.LogLevel(level); })
+        .def("SetExpertMagicNumber", &haruquant::CTrade::SetExpertMagicNumber)
+        .def("ExpertMagicNumber", &haruquant::CTrade::ExpertMagicNumber)
+        .def("SetDeviationInPoints", &haruquant::CTrade::SetDeviationInPoints)
+        .def("DeviationInPoints", &haruquant::CTrade::DeviationInPoints)
+        .def("SetTypeFillingBySymbol", &haruquant::CTrade::SetTypeFillingBySymbol)
+        .def("SetAsyncMode", &haruquant::CTrade::SetAsyncMode)
+        .def("AsyncMode", &haruquant::CTrade::AsyncMode)
         .def("PositionOpen",
-            [](hqt::CTrade& self,
+            [](haruquant::CTrade& self,
                const std::string& symbol,
                int order_type,
                double volume,
@@ -678,7 +678,7 @@ void register_sim_bindings(nb::module_& m) {
                const std::string& comment) {
                 return self.PositionOpen(
                     symbol,
-                    static_cast<hqt::ENUM_ORDER_TYPE>(order_type),
+                    static_cast<haruquant::ENUM_ORDER_TYPE>(order_type),
                     volume,
                     price,
                     sl,
@@ -694,17 +694,17 @@ void register_sim_bindings(nb::module_& m) {
             nb::arg("tp") = 0.0,
             nb::arg("comment") = "")
         .def("PositionModify",
-            [](hqt::CTrade& self, const std::string& symbol, double sl, double tp) {
+            [](haruquant::CTrade& self, const std::string& symbol, double sl, double tp) {
                 return self.PositionModify(symbol, sl, tp);
             },
             nb::arg("symbol"), nb::arg("sl"), nb::arg("tp"))
         .def("PositionClose",
-            [](hqt::CTrade& self, const std::string& symbol, uint64_t deviation) {
+            [](haruquant::CTrade& self, const std::string& symbol, uint64_t deviation) {
                 return self.PositionClose(symbol, deviation);
             },
             nb::arg("symbol"), nb::arg("deviation") = 0)
         .def("OrderOpen",
-            [](hqt::CTrade& self,
+            [](haruquant::CTrade& self,
                const std::string& symbol,
                int order_type,
                double volume,
@@ -717,13 +717,13 @@ void register_sim_bindings(nb::module_& m) {
                const std::string& comment) {
                 return self.OrderOpen(
                     symbol,
-                    static_cast<hqt::ENUM_ORDER_TYPE>(order_type),
+                    static_cast<haruquant::ENUM_ORDER_TYPE>(order_type),
                     volume,
                     limit_price,
                     stop_price,
                     sl,
                     tp,
-                    static_cast<hqt::ENUM_ORDER_TYPE_TIME>(type_time),
+                    static_cast<haruquant::ENUM_ORDER_TYPE_TIME>(type_time),
                     expiration,
                     comment
                 );
@@ -738,23 +738,23 @@ void register_sim_bindings(nb::module_& m) {
             nb::arg("type_time") = 0,
             nb::arg("expiration") = 0,
             nb::arg("comment") = "")
-        .def("RequestOrder", &hqt::CTrade::RequestOrder)
-        .def("RequestSymbol", &hqt::CTrade::RequestSymbol)
-        .def("RequestVolume", &hqt::CTrade::RequestVolume)
-        .def("RequestPrice", &hqt::CTrade::RequestPrice)
+        .def("RequestOrder", &haruquant::CTrade::RequestOrder)
+        .def("RequestSymbol", &haruquant::CTrade::RequestSymbol)
+        .def("RequestVolume", &haruquant::CTrade::RequestVolume)
+        .def("RequestPrice", &haruquant::CTrade::RequestPrice)
         .def("ResultRetcode",
-            [](const hqt::CTrade& self) { return static_cast<int>(self.ResultRetcode()); })
-        .def("ResultOrder", &hqt::CTrade::ResultOrder)
-        .def("ResultDeal", &hqt::CTrade::ResultDeal)
-        .def("ResultVolume", &hqt::CTrade::ResultVolume)
-        .def("ResultPrice", &hqt::CTrade::ResultPrice)
-        .def("ResultComment", &hqt::CTrade::ResultComment)
-        .def("CheckResultComment", &hqt::CTrade::CheckResultComment)
-        .def("RegisterSymbol", &hqt::CTrade::RegisterSymbol)
-        .def("UpdatePrices", &hqt::CTrade::UpdatePrices,
+            [](const haruquant::CTrade& self) { return static_cast<int>(self.ResultRetcode()); })
+        .def("ResultOrder", &haruquant::CTrade::ResultOrder)
+        .def("ResultDeal", &haruquant::CTrade::ResultDeal)
+        .def("ResultVolume", &haruquant::CTrade::ResultVolume)
+        .def("ResultPrice", &haruquant::CTrade::ResultPrice)
+        .def("ResultComment", &haruquant::CTrade::ResultComment)
+        .def("CheckResultComment", &haruquant::CTrade::CheckResultComment)
+        .def("RegisterSymbol", &haruquant::CTrade::RegisterSymbol)
+        .def("UpdatePrices", &haruquant::CTrade::UpdatePrices,
              nb::arg("symbol"), nb::arg("bid"), nb::arg("ask"), nb::arg("timestamp") = 0)
         .def("positions_get",
-            [](const hqt::CTrade& self,
+            [](const haruquant::CTrade& self,
                std::optional<std::string> symbol,
                std::optional<std::string> group,
                std::optional<uint64_t> ticket) {
@@ -763,9 +763,9 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("symbol") = nb::none(),
              nb::arg("group") = nb::none(),
              nb::arg("ticket") = nb::none())
-        .def("positions_total", &hqt::CTrade::positions_total)
+        .def("positions_total", &haruquant::CTrade::positions_total)
         .def("orders_get",
-            [](const hqt::CTrade& self,
+            [](const haruquant::CTrade& self,
                std::optional<std::string> symbol,
                std::optional<std::string> group,
                std::optional<uint64_t> ticket) {
@@ -774,14 +774,14 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("symbol") = nb::none(),
              nb::arg("group") = nb::none(),
              nb::arg("ticket") = nb::none())
-        .def("orders_total", &hqt::CTrade::orders_total)
+        .def("orders_total", &haruquant::CTrade::orders_total)
         .def("history_orders_get",
-            [](const hqt::CTrade& self, std::optional<uint64_t> ticket) {
+            [](const haruquant::CTrade& self, std::optional<uint64_t> ticket) {
                 return to_tuple(self.history_orders_get(ticket));
             },
              nb::arg("ticket") = nb::none())
         .def("history_orders_get",
-            [](const hqt::CTrade& self,
+            [](const haruquant::CTrade& self,
                nb::object date_from,
                nb::object date_to,
                std::optional<std::string> group,
@@ -793,14 +793,14 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("date_to"),
              nb::arg("group") = nb::none(),
              nb::arg("ticket") = nb::none())
-        .def("history_orders_total", &hqt::CTrade::history_orders_total)
+        .def("history_orders_total", &haruquant::CTrade::history_orders_total)
         .def("history_deals_get",
-            [](const hqt::CTrade& self, std::optional<uint64_t> ticket) {
+            [](const haruquant::CTrade& self, std::optional<uint64_t> ticket) {
                 return to_tuple(self.history_deals_get(ticket));
             },
              nb::arg("ticket") = nb::none())
         .def("history_deals_get",
-            [](const hqt::CTrade& self,
+            [](const haruquant::CTrade& self,
                nb::object date_from,
                nb::object date_to,
                std::optional<std::string> group,
@@ -812,294 +812,294 @@ void register_sim_bindings(nb::module_& m) {
              nb::arg("date_to"),
              nb::arg("group") = nb::none(),
              nb::arg("ticket") = nb::none())
-        .def("history_deals_total", &hqt::CTrade::history_deals_total)
-        .def("symbol_select", &hqt::CTrade::symbol_select,
+        .def("history_deals_total", &haruquant::CTrade::history_deals_total)
+        .def("symbol_select", &haruquant::CTrade::symbol_select,
              nb::arg("symbol"), nb::arg("select") = true)
         .def("symbols_get",
-            [](const hqt::CTrade& self, std::optional<std::string> group) {
+            [](const haruquant::CTrade& self, std::optional<std::string> group) {
                 return to_tuple(self.symbols_get(group));
             },
             nb::arg("group") = nb::none())
-        .def("symbols_total", &hqt::CTrade::symbols_total)
-        .def("Account", [](const hqt::CTrade& self) { return self.Account(); });
+        .def("symbols_total", &haruquant::CTrade::symbols_total)
+        .def("Account", [](const haruquant::CTrade& self) { return self.Account(); });
 
-    nb::class_<hqt::DealInfo>(m, "DealInfo")
+    nb::class_<haruquant::DealInfo>(m, "DealInfo")
         .def(nb::init<>())
-        .def("Ticket", &hqt::DealInfo::Ticket)
-        .def("Order", &hqt::DealInfo::Order)
-        .def("Time", &hqt::DealInfo::Time)
-        .def("TimeMsc", &hqt::DealInfo::TimeMsc)
-        .def("DealType", [](const hqt::DealInfo& self) { return static_cast<int>(self.DealType()); })
-        .def("DealTypeDescription", &hqt::DealInfo::TypeDescription)
-        .def("Entry", [](const hqt::DealInfo& self) { return static_cast<int>(self.Entry()); })
-        .def("EntryDescription", &hqt::DealInfo::EntryDescription)
-        .def("Magic", &hqt::DealInfo::Magic)
-        .def("PositionId", &hqt::DealInfo::PositionId)
-        .def("Volume", &hqt::DealInfo::Volume)
-        .def("Price", &hqt::DealInfo::Price)
-        .def("Commission", &hqt::DealInfo::Commission)
-        .def("Commision", &hqt::DealInfo::Commision)
-        .def("Swap", &hqt::DealInfo::Swap)
-        .def("Profit", &hqt::DealInfo::Profit)
-        .def("Symbol", &hqt::DealInfo::Symbol)
-        .def("Comment", &hqt::DealInfo::Comment)
-        .def("ExternalId", [](const hqt::DealInfo&) { return std::string{}; })
-        .def("Select", &hqt::DealInfo::Select)
-        .def("SelectByIndex", &hqt::DealInfo::SelectByIndex)
-        .def("NetProfit", &hqt::DealInfo::NetProfit)
-        .def("HoldingTime", &hqt::DealInfo::HoldingTime)
-        .def("HoldingTimeDays", &hqt::DealInfo::HoldingTimeDays)
-        .def("IsWinner", &hqt::DealInfo::IsWinner)
-        .def("IsLoser", &hqt::DealInfo::IsLoser)
-        .def("IsTrade", &hqt::DealInfo::IsTrade)
-        .def("IsBuy", &hqt::DealInfo::IsBuy)
-        .def("IsSell", &hqt::DealInfo::IsSell)
-        .def("IsEntry", &hqt::DealInfo::IsEntry)
-        .def("IsExit", &hqt::DealInfo::IsExit)
-        .def("PriceMovementPoints", &hqt::DealInfo::PriceMovementPoints)
-        .def("ROIPercent", &hqt::DealInfo::ROIPercent)
-        .def("EntryPrice", &hqt::DealInfo::EntryPrice)
-        .def("ExitPrice", &hqt::DealInfo::ExitPrice)
-        .def("EntryTime", &hqt::DealInfo::EntryTime)
-        .def("ExitTime", &hqt::DealInfo::ExitTime)
-        .def_prop_rw("ticket", &hqt::DealInfo::Ticket, &hqt::DealInfo::SetTicket)
-        .def_prop_rw("order", &hqt::DealInfo::Order, &hqt::DealInfo::SetOrder)
-        .def_prop_rw("position_id", &hqt::DealInfo::PositionId, &hqt::DealInfo::SetPositionId)
-        .def_prop_rw("symbol", &hqt::DealInfo::Symbol, &hqt::DealInfo::SetSymbol)
+        .def("Ticket", &haruquant::DealInfo::Ticket)
+        .def("Order", &haruquant::DealInfo::Order)
+        .def("Time", &haruquant::DealInfo::Time)
+        .def("TimeMsc", &haruquant::DealInfo::TimeMsc)
+        .def("DealType", [](const haruquant::DealInfo& self) { return static_cast<int>(self.DealType()); })
+        .def("DealTypeDescription", &haruquant::DealInfo::TypeDescription)
+        .def("Entry", [](const haruquant::DealInfo& self) { return static_cast<int>(self.Entry()); })
+        .def("EntryDescription", &haruquant::DealInfo::EntryDescription)
+        .def("Magic", &haruquant::DealInfo::Magic)
+        .def("PositionId", &haruquant::DealInfo::PositionId)
+        .def("Volume", &haruquant::DealInfo::Volume)
+        .def("Price", &haruquant::DealInfo::Price)
+        .def("Commission", &haruquant::DealInfo::Commission)
+        .def("Commision", &haruquant::DealInfo::Commision)
+        .def("Swap", &haruquant::DealInfo::Swap)
+        .def("Profit", &haruquant::DealInfo::Profit)
+        .def("Symbol", &haruquant::DealInfo::Symbol)
+        .def("Comment", &haruquant::DealInfo::Comment)
+        .def("ExternalId", [](const haruquant::DealInfo&) { return std::string{}; })
+        .def("Select", &haruquant::DealInfo::Select)
+        .def("SelectByIndex", &haruquant::DealInfo::SelectByIndex)
+        .def("NetProfit", &haruquant::DealInfo::NetProfit)
+        .def("HoldingTime", &haruquant::DealInfo::HoldingTime)
+        .def("HoldingTimeDays", &haruquant::DealInfo::HoldingTimeDays)
+        .def("IsWinner", &haruquant::DealInfo::IsWinner)
+        .def("IsLoser", &haruquant::DealInfo::IsLoser)
+        .def("IsTrade", &haruquant::DealInfo::IsTrade)
+        .def("IsBuy", &haruquant::DealInfo::IsBuy)
+        .def("IsSell", &haruquant::DealInfo::IsSell)
+        .def("IsEntry", &haruquant::DealInfo::IsEntry)
+        .def("IsExit", &haruquant::DealInfo::IsExit)
+        .def("PriceMovementPoints", &haruquant::DealInfo::PriceMovementPoints)
+        .def("ROIPercent", &haruquant::DealInfo::ROIPercent)
+        .def("EntryPrice", &haruquant::DealInfo::EntryPrice)
+        .def("ExitPrice", &haruquant::DealInfo::ExitPrice)
+        .def("EntryTime", &haruquant::DealInfo::EntryTime)
+        .def("ExitTime", &haruquant::DealInfo::ExitTime)
+        .def_prop_rw("ticket", &haruquant::DealInfo::Ticket, &haruquant::DealInfo::SetTicket)
+        .def_prop_rw("order", &haruquant::DealInfo::Order, &haruquant::DealInfo::SetOrder)
+        .def_prop_rw("position_id", &haruquant::DealInfo::PositionId, &haruquant::DealInfo::SetPositionId)
+        .def_prop_rw("symbol", &haruquant::DealInfo::Symbol, &haruquant::DealInfo::SetSymbol)
         .def_prop_rw("magic",
-            [](const hqt::DealInfo& self) { return self.Magic(); },
-            [](hqt::DealInfo& self, uint32_t value) { self.SetMagic(value); })
+            [](const haruquant::DealInfo& self) { return self.Magic(); },
+            [](haruquant::DealInfo& self, uint32_t value) { self.SetMagic(value); })
         .def_prop_rw("type",
-            [](const hqt::DealInfo& self) { return static_cast<int>(self.DealType()); },
-            [](hqt::DealInfo& self, int value) { self.SetType(static_cast<hqt::ENUM_DEAL_TYPE>(value)); })
+            [](const haruquant::DealInfo& self) { return static_cast<int>(self.DealType()); },
+            [](haruquant::DealInfo& self, int value) { self.SetType(static_cast<haruquant::ENUM_DEAL_TYPE>(value)); })
         .def_prop_rw("entry",
-            [](const hqt::DealInfo& self) { return static_cast<int>(self.Entry()); },
-            [](hqt::DealInfo& self, int value) { self.SetEntry(static_cast<hqt::ENUM_DEAL_ENTRY>(value)); })
-        .def_prop_rw("volume", &hqt::DealInfo::Volume, &hqt::DealInfo::SetVolume)
-        .def_prop_rw("price", &hqt::DealInfo::Price, &hqt::DealInfo::SetPrice)
-        .def_prop_rw("profit", &hqt::DealInfo::Profit, &hqt::DealInfo::SetProfit)
-        .def_prop_rw("commission", &hqt::DealInfo::Commission, &hqt::DealInfo::SetCommission)
-        .def_prop_rw("swap", &hqt::DealInfo::Swap, &hqt::DealInfo::SetSwap)
-        .def_prop_rw("comment", &hqt::DealInfo::Comment, &hqt::DealInfo::SetComment)
-        .def("set_time", &hqt::DealInfo::SetTime, nb::arg("time_sec"), nb::arg("time_msc") = 0)
-        .def("set_digits", &hqt::DealInfo::SetDigits)
-        .def("set_entry_price", &hqt::DealInfo::SetEntryPrice)
-        .def("set_exit_price", &hqt::DealInfo::SetExitPrice)
-        .def("set_entry_time", &hqt::DealInfo::SetEntryTime)
-        .def("set_exit_time", &hqt::DealInfo::SetExitTime);
+            [](const haruquant::DealInfo& self) { return static_cast<int>(self.Entry()); },
+            [](haruquant::DealInfo& self, int value) { self.SetEntry(static_cast<haruquant::ENUM_DEAL_ENTRY>(value)); })
+        .def_prop_rw("volume", &haruquant::DealInfo::Volume, &haruquant::DealInfo::SetVolume)
+        .def_prop_rw("price", &haruquant::DealInfo::Price, &haruquant::DealInfo::SetPrice)
+        .def_prop_rw("profit", &haruquant::DealInfo::Profit, &haruquant::DealInfo::SetProfit)
+        .def_prop_rw("commission", &haruquant::DealInfo::Commission, &haruquant::DealInfo::SetCommission)
+        .def_prop_rw("swap", &haruquant::DealInfo::Swap, &haruquant::DealInfo::SetSwap)
+        .def_prop_rw("comment", &haruquant::DealInfo::Comment, &haruquant::DealInfo::SetComment)
+        .def("set_time", &haruquant::DealInfo::SetTime, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_digits", &haruquant::DealInfo::SetDigits)
+        .def("set_entry_price", &haruquant::DealInfo::SetEntryPrice)
+        .def("set_exit_price", &haruquant::DealInfo::SetExitPrice)
+        .def("set_entry_time", &haruquant::DealInfo::SetEntryTime)
+        .def("set_exit_time", &haruquant::DealInfo::SetExitTime);
 
-    nb::class_<hqt::HistoryOrderInfo>(m, "HistoryOrderInfo")
+    nb::class_<haruquant::HistoryOrderInfo>(m, "HistoryOrderInfo")
         .def(nb::init<>())
-        .def("Ticket", &hqt::HistoryOrderInfo::Ticket)
-        .def("TimeSetup", &hqt::HistoryOrderInfo::TimeSetup)
-        .def("TimeSetupMsc", &hqt::HistoryOrderInfo::TimeSetupMsc)
-        .def("OrderType", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.OrderType()); })
-        .def("OrderTypeDescription", &hqt::HistoryOrderInfo::OrderTypeDescription)
-        .def("State", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.State()); })
-        .def("StateDescription", &hqt::HistoryOrderInfo::StateDescription)
-        .def("TimeExpiration", &hqt::HistoryOrderInfo::TimeExpiration)
-        .def("TimeDone", &hqt::HistoryOrderInfo::TimeDone)
-        .def("TimeDoneMsc", &hqt::HistoryOrderInfo::TimeDoneMsc)
-        .def("TypeFilling", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.TypeFilling()); })
-        .def("TypeFillingDescription", &hqt::HistoryOrderInfo::TypeFillingDescription)
-        .def("TypeTime", [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.TypeTime()); })
-        .def("TypeTimeDescription", &hqt::HistoryOrderInfo::TypeTimeDescription)
-        .def("Magic", &hqt::HistoryOrderInfo::Magic)
-        .def("PositionId", &hqt::HistoryOrderInfo::PositionId)
-        .def("PositionByID", &hqt::HistoryOrderInfo::PositionId)
-        .def("VolumeInitial", &hqt::HistoryOrderInfo::VolumeInitial)
-        .def("VolumeCurrent", &hqt::HistoryOrderInfo::VolumeCurrent)
-        .def("PriceOpen", &hqt::HistoryOrderInfo::PriceOpen)
-        .def("StopLoss", &hqt::HistoryOrderInfo::StopLoss)
-        .def("TakeProfit", &hqt::HistoryOrderInfo::TakeProfit)
-        .def("PriceCurrent", &hqt::HistoryOrderInfo::PriceCurrent)
-        .def("PriceStopLimit", &hqt::HistoryOrderInfo::PriceStopLimit)
-        .def("Symbol", &hqt::HistoryOrderInfo::Symbol)
-        .def("Comment", &hqt::HistoryOrderInfo::Comment)
-        .def("ExternalID", [](const hqt::HistoryOrderInfo&) { return std::string{}; })
-        .def("Select", &hqt::HistoryOrderInfo::Select)
-        .def("SelectByIndex", &hqt::HistoryOrderInfo::SelectByIndex)
-        .def("Lifetime", &hqt::HistoryOrderInfo::Lifetime)
-        .def("WasFilled", &hqt::HistoryOrderInfo::WasFilled)
-        .def("WasCanceled", &hqt::HistoryOrderInfo::WasCanceled)
-        .def("WasRejected", &hqt::HistoryOrderInfo::WasRejected)
-        .def("WasExpired", &hqt::HistoryOrderInfo::WasExpired)
-        .def("WasPartiallyFilled", &hqt::HistoryOrderInfo::WasPartiallyFilled)
-        .def("VolumeFilled", &hqt::HistoryOrderInfo::VolumeFilled)
-        .def("FillRatio", &hqt::HistoryOrderInfo::FillRatio)
-        .def("IsBuy", &hqt::HistoryOrderInfo::IsBuy)
-        .def("IsSell", &hqt::HistoryOrderInfo::IsSell)
-        .def("IsMarket", &hqt::HistoryOrderInfo::IsMarket)
-        .def("IsLimit", &hqt::HistoryOrderInfo::IsLimit)
-        .def("IsStop", &hqt::HistoryOrderInfo::IsStop)
-        .def_prop_rw("ticket", &hqt::HistoryOrderInfo::Ticket, &hqt::HistoryOrderInfo::SetTicket)
-        .def_prop_rw("symbol", &hqt::HistoryOrderInfo::Symbol, &hqt::HistoryOrderInfo::SetSymbol)
+        .def("Ticket", &haruquant::HistoryOrderInfo::Ticket)
+        .def("TimeSetup", &haruquant::HistoryOrderInfo::TimeSetup)
+        .def("TimeSetupMsc", &haruquant::HistoryOrderInfo::TimeSetupMsc)
+        .def("OrderType", [](const haruquant::HistoryOrderInfo& self) { return static_cast<int>(self.OrderType()); })
+        .def("OrderTypeDescription", &haruquant::HistoryOrderInfo::OrderTypeDescription)
+        .def("State", [](const haruquant::HistoryOrderInfo& self) { return static_cast<int>(self.State()); })
+        .def("StateDescription", &haruquant::HistoryOrderInfo::StateDescription)
+        .def("TimeExpiration", &haruquant::HistoryOrderInfo::TimeExpiration)
+        .def("TimeDone", &haruquant::HistoryOrderInfo::TimeDone)
+        .def("TimeDoneMsc", &haruquant::HistoryOrderInfo::TimeDoneMsc)
+        .def("TypeFilling", [](const haruquant::HistoryOrderInfo& self) { return static_cast<int>(self.TypeFilling()); })
+        .def("TypeFillingDescription", &haruquant::HistoryOrderInfo::TypeFillingDescription)
+        .def("TypeTime", [](const haruquant::HistoryOrderInfo& self) { return static_cast<int>(self.TypeTime()); })
+        .def("TypeTimeDescription", &haruquant::HistoryOrderInfo::TypeTimeDescription)
+        .def("Magic", &haruquant::HistoryOrderInfo::Magic)
+        .def("PositionId", &haruquant::HistoryOrderInfo::PositionId)
+        .def("PositionByID", &haruquant::HistoryOrderInfo::PositionId)
+        .def("VolumeInitial", &haruquant::HistoryOrderInfo::VolumeInitial)
+        .def("VolumeCurrent", &haruquant::HistoryOrderInfo::VolumeCurrent)
+        .def("PriceOpen", &haruquant::HistoryOrderInfo::PriceOpen)
+        .def("StopLoss", &haruquant::HistoryOrderInfo::StopLoss)
+        .def("TakeProfit", &haruquant::HistoryOrderInfo::TakeProfit)
+        .def("PriceCurrent", &haruquant::HistoryOrderInfo::PriceCurrent)
+        .def("PriceStopLimit", &haruquant::HistoryOrderInfo::PriceStopLimit)
+        .def("Symbol", &haruquant::HistoryOrderInfo::Symbol)
+        .def("Comment", &haruquant::HistoryOrderInfo::Comment)
+        .def("ExternalID", [](const haruquant::HistoryOrderInfo&) { return std::string{}; })
+        .def("Select", &haruquant::HistoryOrderInfo::Select)
+        .def("SelectByIndex", &haruquant::HistoryOrderInfo::SelectByIndex)
+        .def("Lifetime", &haruquant::HistoryOrderInfo::Lifetime)
+        .def("WasFilled", &haruquant::HistoryOrderInfo::WasFilled)
+        .def("WasCanceled", &haruquant::HistoryOrderInfo::WasCanceled)
+        .def("WasRejected", &haruquant::HistoryOrderInfo::WasRejected)
+        .def("WasExpired", &haruquant::HistoryOrderInfo::WasExpired)
+        .def("WasPartiallyFilled", &haruquant::HistoryOrderInfo::WasPartiallyFilled)
+        .def("VolumeFilled", &haruquant::HistoryOrderInfo::VolumeFilled)
+        .def("FillRatio", &haruquant::HistoryOrderInfo::FillRatio)
+        .def("IsBuy", &haruquant::HistoryOrderInfo::IsBuy)
+        .def("IsSell", &haruquant::HistoryOrderInfo::IsSell)
+        .def("IsMarket", &haruquant::HistoryOrderInfo::IsMarket)
+        .def("IsLimit", &haruquant::HistoryOrderInfo::IsLimit)
+        .def("IsStop", &haruquant::HistoryOrderInfo::IsStop)
+        .def_prop_rw("ticket", &haruquant::HistoryOrderInfo::Ticket, &haruquant::HistoryOrderInfo::SetTicket)
+        .def_prop_rw("symbol", &haruquant::HistoryOrderInfo::Symbol, &haruquant::HistoryOrderInfo::SetSymbol)
         .def_prop_rw("magic",
-            [](const hqt::HistoryOrderInfo& self) { return self.Magic(); },
-            [](hqt::HistoryOrderInfo& self, uint32_t value) { self.SetMagic(value); })
-        .def_prop_rw("position_id", &hqt::HistoryOrderInfo::PositionId, &hqt::HistoryOrderInfo::SetPositionId)
+            [](const haruquant::HistoryOrderInfo& self) { return self.Magic(); },
+            [](haruquant::HistoryOrderInfo& self, uint32_t value) { self.SetMagic(value); })
+        .def_prop_rw("position_id", &haruquant::HistoryOrderInfo::PositionId, &haruquant::HistoryOrderInfo::SetPositionId)
         .def_prop_rw("type",
-            [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.OrderType()); },
-            [](hqt::HistoryOrderInfo& self, int value) { self.SetOrderType(static_cast<hqt::ENUM_ORDER_TYPE>(value)); })
+            [](const haruquant::HistoryOrderInfo& self) { return static_cast<int>(self.OrderType()); },
+            [](haruquant::HistoryOrderInfo& self, int value) { self.SetOrderType(static_cast<haruquant::ENUM_ORDER_TYPE>(value)); })
         .def_prop_rw("state",
-            [](const hqt::HistoryOrderInfo& self) { return static_cast<int>(self.State()); },
-            [](hqt::HistoryOrderInfo& self, int value) { self.SetState(static_cast<hqt::ENUM_ORDER_STATE>(value)); })
-        .def_prop_rw("volume_initial", &hqt::HistoryOrderInfo::VolumeInitial, &hqt::HistoryOrderInfo::SetVolumeInitial)
-        .def_prop_rw("volume_current", &hqt::HistoryOrderInfo::VolumeCurrent, &hqt::HistoryOrderInfo::SetVolumeCurrent)
-        .def_prop_rw("price_open", &hqt::HistoryOrderInfo::PriceOpen, &hqt::HistoryOrderInfo::SetPriceOpen)
-        .def_prop_rw("price_current", &hqt::HistoryOrderInfo::PriceCurrent, &hqt::HistoryOrderInfo::SetPriceCurrent)
-        .def_prop_rw("price_stoplimit", &hqt::HistoryOrderInfo::PriceStopLimit, &hqt::HistoryOrderInfo::SetPriceStopLimit)
-        .def_prop_rw("sl", &hqt::HistoryOrderInfo::StopLoss, &hqt::HistoryOrderInfo::SetStopLoss)
-        .def_prop_rw("tp", &hqt::HistoryOrderInfo::TakeProfit, &hqt::HistoryOrderInfo::SetTakeProfit)
-        .def_prop_rw("comment", &hqt::HistoryOrderInfo::Comment, &hqt::HistoryOrderInfo::SetComment)
-        .def("set_time_setup", &hqt::HistoryOrderInfo::SetTimeSetup, nb::arg("time_sec"), nb::arg("time_msc") = 0)
-        .def("set_time_expiration", &hqt::HistoryOrderInfo::SetTimeExpiration)
-        .def("set_time_done", &hqt::HistoryOrderInfo::SetTimeDone, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+            [](const haruquant::HistoryOrderInfo& self) { return static_cast<int>(self.State()); },
+            [](haruquant::HistoryOrderInfo& self, int value) { self.SetState(static_cast<haruquant::ENUM_ORDER_STATE>(value)); })
+        .def_prop_rw("volume_initial", &haruquant::HistoryOrderInfo::VolumeInitial, &haruquant::HistoryOrderInfo::SetVolumeInitial)
+        .def_prop_rw("volume_current", &haruquant::HistoryOrderInfo::VolumeCurrent, &haruquant::HistoryOrderInfo::SetVolumeCurrent)
+        .def_prop_rw("price_open", &haruquant::HistoryOrderInfo::PriceOpen, &haruquant::HistoryOrderInfo::SetPriceOpen)
+        .def_prop_rw("price_current", &haruquant::HistoryOrderInfo::PriceCurrent, &haruquant::HistoryOrderInfo::SetPriceCurrent)
+        .def_prop_rw("price_stoplimit", &haruquant::HistoryOrderInfo::PriceStopLimit, &haruquant::HistoryOrderInfo::SetPriceStopLimit)
+        .def_prop_rw("sl", &haruquant::HistoryOrderInfo::StopLoss, &haruquant::HistoryOrderInfo::SetStopLoss)
+        .def_prop_rw("tp", &haruquant::HistoryOrderInfo::TakeProfit, &haruquant::HistoryOrderInfo::SetTakeProfit)
+        .def_prop_rw("comment", &haruquant::HistoryOrderInfo::Comment, &haruquant::HistoryOrderInfo::SetComment)
+        .def("set_time_setup", &haruquant::HistoryOrderInfo::SetTimeSetup, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_time_expiration", &haruquant::HistoryOrderInfo::SetTimeExpiration)
+        .def("set_time_done", &haruquant::HistoryOrderInfo::SetTimeDone, nb::arg("time_sec"), nb::arg("time_msc") = 0)
         .def("set_type_filling",
-            [](hqt::HistoryOrderInfo& self, int value) {
-                self.SetTypeFilling(static_cast<hqt::ENUM_ORDER_TYPE_FILLING>(value));
+            [](haruquant::HistoryOrderInfo& self, int value) {
+                self.SetTypeFilling(static_cast<haruquant::ENUM_ORDER_TYPE_FILLING>(value));
             })
         .def("set_type_time",
-            [](hqt::HistoryOrderInfo& self, int value) {
-                self.SetTypeTime(static_cast<hqt::ENUM_ORDER_TYPE_TIME>(value));
+            [](haruquant::HistoryOrderInfo& self, int value) {
+                self.SetTypeTime(static_cast<haruquant::ENUM_ORDER_TYPE_TIME>(value));
             })
-        .def("set_digits", &hqt::HistoryOrderInfo::SetDigits);
+        .def("set_digits", &haruquant::HistoryOrderInfo::SetDigits);
 
-    nb::class_<hqt::OrderInfo>(m, "OrderInfo")
+    nb::class_<haruquant::OrderInfo>(m, "OrderInfo")
         .def(nb::init<>())
-        .def("Ticket", &hqt::OrderInfo::Ticket)
-        .def("TimeSetup", &hqt::OrderInfo::TimeSetup)
-        .def("TimeSetupMsc", &hqt::OrderInfo::TimeSetupMsc)
-        .def("Type", [](const hqt::OrderInfo& self) { return static_cast<int>(self.OrderType()); })
-        .def("TypeDescription", &hqt::OrderInfo::OrderTypeDescription)
-        .def("OrderType", [](const hqt::OrderInfo& self) { return static_cast<int>(self.OrderType()); })
-        .def("OrderTypeDescription", &hqt::OrderInfo::OrderTypeDescription)
-        .def("State", [](const hqt::OrderInfo& self) { return static_cast<int>(self.State()); })
-        .def("StateDescription", &hqt::OrderInfo::StateDescription)
-        .def("TimeExpiration", &hqt::OrderInfo::TimeExpiration)
-        .def("TimeDone", &hqt::OrderInfo::TimeDone)
-        .def("TimeDoneMsc", &hqt::OrderInfo::TimeDoneMsc)
-        .def("TypeFilling", [](const hqt::OrderInfo& self) { return static_cast<int>(self.TypeFilling()); })
-        .def("TypeFillingDescription", &hqt::OrderInfo::TypeFillingDescription)
-        .def("TypeTime", [](const hqt::OrderInfo& self) { return static_cast<int>(self.TypeTime()); })
-        .def("TypeTimeDescription", &hqt::OrderInfo::TypeTimeDescription)
-        .def("Magic", &hqt::OrderInfo::Magic)
-        .def("PositionId", &hqt::OrderInfo::PositionId)
-        .def("PositionById", &hqt::OrderInfo::PositionId)
-        .def("PositionByID", &hqt::OrderInfo::PositionId)
-        .def("VolumeInitial", &hqt::OrderInfo::VolumeInitial)
-        .def("VolumeCurrent", &hqt::OrderInfo::VolumeCurrent)
-        .def("PriceOpen", &hqt::OrderInfo::PriceOpen)
-        .def("StopLoss", &hqt::OrderInfo::StopLoss)
-        .def("TakeProfit", &hqt::OrderInfo::TakeProfit)
-        .def("PriceCurrent", &hqt::OrderInfo::PriceCurrent)
-        .def("PriceStopLimit", &hqt::OrderInfo::PriceStopLimit)
-        .def("Symbol", &hqt::OrderInfo::Symbol)
-        .def("Comment", &hqt::OrderInfo::Comment)
-        .def("ExternalId", [](const hqt::OrderInfo&) { return std::string{}; })
-        .def("ExternalID", [](const hqt::OrderInfo&) { return std::string{}; })
-        .def("StoreState", &hqt::OrderInfo::StoreState)
-        .def("CheckState", &hqt::OrderInfo::CheckState)
-        .def("Select", &hqt::OrderInfo::Select)
-        .def("SelectByIndex", &hqt::OrderInfo::SelectByIndex)
-        .def("IsBuy", &hqt::OrderInfo::IsBuy)
-        .def("IsSell", &hqt::OrderInfo::IsSell)
-        .def_prop_rw("ticket", &hqt::OrderInfo::Ticket, &hqt::OrderInfo::SetTicket)
-        .def_prop_rw("symbol", &hqt::OrderInfo::Symbol, &hqt::OrderInfo::SetSymbol)
+        .def("Ticket", &haruquant::OrderInfo::Ticket)
+        .def("TimeSetup", &haruquant::OrderInfo::TimeSetup)
+        .def("TimeSetupMsc", &haruquant::OrderInfo::TimeSetupMsc)
+        .def("Type", [](const haruquant::OrderInfo& self) { return static_cast<int>(self.OrderType()); })
+        .def("TypeDescription", &haruquant::OrderInfo::OrderTypeDescription)
+        .def("OrderType", [](const haruquant::OrderInfo& self) { return static_cast<int>(self.OrderType()); })
+        .def("OrderTypeDescription", &haruquant::OrderInfo::OrderTypeDescription)
+        .def("State", [](const haruquant::OrderInfo& self) { return static_cast<int>(self.State()); })
+        .def("StateDescription", &haruquant::OrderInfo::StateDescription)
+        .def("TimeExpiration", &haruquant::OrderInfo::TimeExpiration)
+        .def("TimeDone", &haruquant::OrderInfo::TimeDone)
+        .def("TimeDoneMsc", &haruquant::OrderInfo::TimeDoneMsc)
+        .def("TypeFilling", [](const haruquant::OrderInfo& self) { return static_cast<int>(self.TypeFilling()); })
+        .def("TypeFillingDescription", &haruquant::OrderInfo::TypeFillingDescription)
+        .def("TypeTime", [](const haruquant::OrderInfo& self) { return static_cast<int>(self.TypeTime()); })
+        .def("TypeTimeDescription", &haruquant::OrderInfo::TypeTimeDescription)
+        .def("Magic", &haruquant::OrderInfo::Magic)
+        .def("PositionId", &haruquant::OrderInfo::PositionId)
+        .def("PositionById", &haruquant::OrderInfo::PositionId)
+        .def("PositionByID", &haruquant::OrderInfo::PositionId)
+        .def("VolumeInitial", &haruquant::OrderInfo::VolumeInitial)
+        .def("VolumeCurrent", &haruquant::OrderInfo::VolumeCurrent)
+        .def("PriceOpen", &haruquant::OrderInfo::PriceOpen)
+        .def("StopLoss", &haruquant::OrderInfo::StopLoss)
+        .def("TakeProfit", &haruquant::OrderInfo::TakeProfit)
+        .def("PriceCurrent", &haruquant::OrderInfo::PriceCurrent)
+        .def("PriceStopLimit", &haruquant::OrderInfo::PriceStopLimit)
+        .def("Symbol", &haruquant::OrderInfo::Symbol)
+        .def("Comment", &haruquant::OrderInfo::Comment)
+        .def("ExternalId", [](const haruquant::OrderInfo&) { return std::string{}; })
+        .def("ExternalID", [](const haruquant::OrderInfo&) { return std::string{}; })
+        .def("StoreState", &haruquant::OrderInfo::StoreState)
+        .def("CheckState", &haruquant::OrderInfo::CheckState)
+        .def("Select", &haruquant::OrderInfo::Select)
+        .def("SelectByIndex", &haruquant::OrderInfo::SelectByIndex)
+        .def("IsBuy", &haruquant::OrderInfo::IsBuy)
+        .def("IsSell", &haruquant::OrderInfo::IsSell)
+        .def_prop_rw("ticket", &haruquant::OrderInfo::Ticket, &haruquant::OrderInfo::SetTicket)
+        .def_prop_rw("symbol", &haruquant::OrderInfo::Symbol, &haruquant::OrderInfo::SetSymbol)
         .def_prop_rw("magic",
-            [](const hqt::OrderInfo& self) { return self.Magic(); },
-            [](hqt::OrderInfo& self, uint32_t value) { self.SetMagic(value); })
-        .def_prop_rw("position_id", &hqt::OrderInfo::PositionId, &hqt::OrderInfo::SetPositionId)
+            [](const haruquant::OrderInfo& self) { return self.Magic(); },
+            [](haruquant::OrderInfo& self, uint32_t value) { self.SetMagic(value); })
+        .def_prop_rw("position_id", &haruquant::OrderInfo::PositionId, &haruquant::OrderInfo::SetPositionId)
         .def_prop_rw("type",
-            [](const hqt::OrderInfo& self) { return static_cast<int>(self.OrderType()); },
-            [](hqt::OrderInfo& self, int value) { self.SetOrderType(static_cast<hqt::ENUM_ORDER_TYPE>(value)); })
+            [](const haruquant::OrderInfo& self) { return static_cast<int>(self.OrderType()); },
+            [](haruquant::OrderInfo& self, int value) { self.SetOrderType(static_cast<haruquant::ENUM_ORDER_TYPE>(value)); })
         .def_prop_rw("state",
-            [](const hqt::OrderInfo& self) { return static_cast<int>(self.State()); },
-            [](hqt::OrderInfo& self, int value) { self.SetState(static_cast<hqt::ENUM_ORDER_STATE>(value)); })
-        .def_prop_rw("volume_initial", &hqt::OrderInfo::VolumeInitial, &hqt::OrderInfo::SetVolumeInitial)
-        .def_prop_rw("volume_current", &hqt::OrderInfo::VolumeCurrent, &hqt::OrderInfo::SetVolumeCurrent)
-        .def_prop_rw("price_open", &hqt::OrderInfo::PriceOpen, &hqt::OrderInfo::SetPriceOpen)
-        .def_prop_rw("price_current", &hqt::OrderInfo::PriceCurrent, &hqt::OrderInfo::SetPriceCurrent)
-        .def_prop_rw("price_stoplimit", &hqt::OrderInfo::PriceStopLimit, &hqt::OrderInfo::SetPriceStopLimit)
-        .def_prop_rw("sl", &hqt::OrderInfo::StopLoss, &hqt::OrderInfo::SetStopLoss)
-        .def_prop_rw("tp", &hqt::OrderInfo::TakeProfit, &hqt::OrderInfo::SetTakeProfit)
-        .def_prop_rw("comment", &hqt::OrderInfo::Comment, &hqt::OrderInfo::SetComment)
-        .def("set_time_setup", &hqt::OrderInfo::SetTimeSetup, nb::arg("time_sec"), nb::arg("time_msc") = 0)
-        .def("set_time_expiration", &hqt::OrderInfo::SetTimeExpiration)
-        .def("set_time_done", &hqt::OrderInfo::SetTimeDone, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+            [](const haruquant::OrderInfo& self) { return static_cast<int>(self.State()); },
+            [](haruquant::OrderInfo& self, int value) { self.SetState(static_cast<haruquant::ENUM_ORDER_STATE>(value)); })
+        .def_prop_rw("volume_initial", &haruquant::OrderInfo::VolumeInitial, &haruquant::OrderInfo::SetVolumeInitial)
+        .def_prop_rw("volume_current", &haruquant::OrderInfo::VolumeCurrent, &haruquant::OrderInfo::SetVolumeCurrent)
+        .def_prop_rw("price_open", &haruquant::OrderInfo::PriceOpen, &haruquant::OrderInfo::SetPriceOpen)
+        .def_prop_rw("price_current", &haruquant::OrderInfo::PriceCurrent, &haruquant::OrderInfo::SetPriceCurrent)
+        .def_prop_rw("price_stoplimit", &haruquant::OrderInfo::PriceStopLimit, &haruquant::OrderInfo::SetPriceStopLimit)
+        .def_prop_rw("sl", &haruquant::OrderInfo::StopLoss, &haruquant::OrderInfo::SetStopLoss)
+        .def_prop_rw("tp", &haruquant::OrderInfo::TakeProfit, &haruquant::OrderInfo::SetTakeProfit)
+        .def_prop_rw("comment", &haruquant::OrderInfo::Comment, &haruquant::OrderInfo::SetComment)
+        .def("set_time_setup", &haruquant::OrderInfo::SetTimeSetup, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_time_expiration", &haruquant::OrderInfo::SetTimeExpiration)
+        .def("set_time_done", &haruquant::OrderInfo::SetTimeDone, nb::arg("time_sec"), nb::arg("time_msc") = 0)
         .def("set_type_filling",
-            [](hqt::OrderInfo& self, int value) {
-                self.SetTypeFilling(static_cast<hqt::ENUM_ORDER_TYPE_FILLING>(value));
+            [](haruquant::OrderInfo& self, int value) {
+                self.SetTypeFilling(static_cast<haruquant::ENUM_ORDER_TYPE_FILLING>(value));
             })
         .def("set_type_time",
-            [](hqt::OrderInfo& self, int value) {
-                self.SetTypeTime(static_cast<hqt::ENUM_ORDER_TYPE_TIME>(value));
+            [](haruquant::OrderInfo& self, int value) {
+                self.SetTypeTime(static_cast<haruquant::ENUM_ORDER_TYPE_TIME>(value));
             })
-        .def("set_digits", &hqt::OrderInfo::SetDigits);
+        .def("set_digits", &haruquant::OrderInfo::SetDigits);
 
-    nb::class_<hqt::PositionInfo>(m, "PositionInfo")
+    nb::class_<haruquant::PositionInfo>(m, "PositionInfo")
         .def(nb::init<>())
-        .def("Time", &hqt::PositionInfo::Time)
-        .def("TimeMsc", &hqt::PositionInfo::TimeMsc)
-        .def("TimeUpdate", &hqt::PositionInfo::TimeUpdate)
-        .def("TimeUpdateMsc", &hqt::PositionInfo::TimeUpdateMsc)
-        .def("Type", [](const hqt::PositionInfo& self) { return static_cast<int>(self.PositionType()); })
-        .def("PositionType", [](const hqt::PositionInfo& self) { return static_cast<int>(self.PositionType()); })
-        .def("TypeDescription", &hqt::PositionInfo::TypeDescription)
-        .def("Magic", &hqt::PositionInfo::Magic)
-        .def("Identifier", &hqt::PositionInfo::Identifier)
-        .def("Ticket", &hqt::PositionInfo::Ticket)
-        .def("Volume", &hqt::PositionInfo::Volume)
-        .def("PriceOpen", &hqt::PositionInfo::PriceOpen)
-        .def("StopLoss", &hqt::PositionInfo::StopLoss)
-        .def("TakeProfit", &hqt::PositionInfo::TakeProfit)
-        .def("PriceCurrent", &hqt::PositionInfo::PriceCurrent)
-        .def("Commission", &hqt::PositionInfo::Commission)
-        .def("Swap", &hqt::PositionInfo::Swap)
-        .def("Profit", &hqt::PositionInfo::Profit)
-        .def("Symbol", &hqt::PositionInfo::Symbol)
-        .def("Comment", &hqt::PositionInfo::Comment)
-        .def("ExternalId", [](const hqt::PositionInfo&) { return std::string{}; })
-        .def("ExternalID", [](const hqt::PositionInfo&) { return std::string{}; })
-        .def("StoreState", &hqt::PositionInfo::StoreState)
-        .def("CheckState", &hqt::PositionInfo::CheckState)
-        .def("Select", nb::overload_cast<uint64_t>(&hqt::PositionInfo::Select))
-        .def("Select", nb::overload_cast<const std::string&>(&hqt::PositionInfo::Select))
-        .def("SelectByIndex", &hqt::PositionInfo::SelectByIndex)
-        .def("SelectByMagic", &hqt::PositionInfo::SelectByMagic)
-        .def("SelectByTicket", &hqt::PositionInfo::SelectByTicket)
-        .def("NetProfit", &hqt::PositionInfo::NetProfit)
-        .def("DistanceInPoints", &hqt::PositionInfo::DistanceInPoints)
-        .def("IsBuy", &hqt::PositionInfo::IsBuy)
-        .def("IsSell", &hqt::PositionInfo::IsSell)
-        .def_prop_rw("ticket", &hqt::PositionInfo::Ticket, &hqt::PositionInfo::SetTicket)
-        .def_prop_rw("identifier", &hqt::PositionInfo::Identifier, &hqt::PositionInfo::SetIdentifier)
-        .def_prop_rw("symbol", &hqt::PositionInfo::Symbol, &hqt::PositionInfo::SetSymbol)
+        .def("Time", &haruquant::PositionInfo::Time)
+        .def("TimeMsc", &haruquant::PositionInfo::TimeMsc)
+        .def("TimeUpdate", &haruquant::PositionInfo::TimeUpdate)
+        .def("TimeUpdateMsc", &haruquant::PositionInfo::TimeUpdateMsc)
+        .def("Type", [](const haruquant::PositionInfo& self) { return static_cast<int>(self.PositionType()); })
+        .def("PositionType", [](const haruquant::PositionInfo& self) { return static_cast<int>(self.PositionType()); })
+        .def("TypeDescription", &haruquant::PositionInfo::TypeDescription)
+        .def("Magic", &haruquant::PositionInfo::Magic)
+        .def("Identifier", &haruquant::PositionInfo::Identifier)
+        .def("Ticket", &haruquant::PositionInfo::Ticket)
+        .def("Volume", &haruquant::PositionInfo::Volume)
+        .def("PriceOpen", &haruquant::PositionInfo::PriceOpen)
+        .def("StopLoss", &haruquant::PositionInfo::StopLoss)
+        .def("TakeProfit", &haruquant::PositionInfo::TakeProfit)
+        .def("PriceCurrent", &haruquant::PositionInfo::PriceCurrent)
+        .def("Commission", &haruquant::PositionInfo::Commission)
+        .def("Swap", &haruquant::PositionInfo::Swap)
+        .def("Profit", &haruquant::PositionInfo::Profit)
+        .def("Symbol", &haruquant::PositionInfo::Symbol)
+        .def("Comment", &haruquant::PositionInfo::Comment)
+        .def("ExternalId", [](const haruquant::PositionInfo&) { return std::string{}; })
+        .def("ExternalID", [](const haruquant::PositionInfo&) { return std::string{}; })
+        .def("StoreState", &haruquant::PositionInfo::StoreState)
+        .def("CheckState", &haruquant::PositionInfo::CheckState)
+        .def("Select", nb::overload_cast<uint64_t>(&haruquant::PositionInfo::Select))
+        .def("Select", nb::overload_cast<const std::string&>(&haruquant::PositionInfo::Select))
+        .def("SelectByIndex", &haruquant::PositionInfo::SelectByIndex)
+        .def("SelectByMagic", &haruquant::PositionInfo::SelectByMagic)
+        .def("SelectByTicket", &haruquant::PositionInfo::SelectByTicket)
+        .def("NetProfit", &haruquant::PositionInfo::NetProfit)
+        .def("DistanceInPoints", &haruquant::PositionInfo::DistanceInPoints)
+        .def("IsBuy", &haruquant::PositionInfo::IsBuy)
+        .def("IsSell", &haruquant::PositionInfo::IsSell)
+        .def_prop_rw("ticket", &haruquant::PositionInfo::Ticket, &haruquant::PositionInfo::SetTicket)
+        .def_prop_rw("identifier", &haruquant::PositionInfo::Identifier, &haruquant::PositionInfo::SetIdentifier)
+        .def_prop_rw("symbol", &haruquant::PositionInfo::Symbol, &haruquant::PositionInfo::SetSymbol)
         .def_prop_rw("magic",
-            [](const hqt::PositionInfo& self) { return self.Magic(); },
-            [](hqt::PositionInfo& self, uint32_t value) { self.SetMagic(value); })
+            [](const haruquant::PositionInfo& self) { return self.Magic(); },
+            [](haruquant::PositionInfo& self, uint32_t value) { self.SetMagic(value); })
         .def_prop_rw("type",
-            [](const hqt::PositionInfo& self) { return position_type_name(self.PositionType()); },
-            [](hqt::PositionInfo& self, const nb::object& value) { self.SetType(resolve_position_type(value)); })
-        .def_prop_rw("volume", &hqt::PositionInfo::Volume, &hqt::PositionInfo::SetVolume)
-        .def_prop_rw("price_open", &hqt::PositionInfo::PriceOpen, &hqt::PositionInfo::SetPriceOpen)
-        .def_prop_rw("price_current", &hqt::PositionInfo::PriceCurrent, &hqt::PositionInfo::SetPriceCurrent)
-        .def_prop_rw("sl", &hqt::PositionInfo::StopLoss, &hqt::PositionInfo::SetStopLoss)
-        .def_prop_rw("tp", &hqt::PositionInfo::TakeProfit, &hqt::PositionInfo::SetTakeProfit)
-        .def_prop_rw("commission", &hqt::PositionInfo::Commission, &hqt::PositionInfo::SetCommission)
-        .def_prop_rw("swap", &hqt::PositionInfo::Swap, &hqt::PositionInfo::SetSwap)
+            [](const haruquant::PositionInfo& self) { return position_type_name(self.PositionType()); },
+            [](haruquant::PositionInfo& self, const nb::object& value) { self.SetType(resolve_position_type(value)); })
+        .def_prop_rw("volume", &haruquant::PositionInfo::Volume, &haruquant::PositionInfo::SetVolume)
+        .def_prop_rw("price_open", &haruquant::PositionInfo::PriceOpen, &haruquant::PositionInfo::SetPriceOpen)
+        .def_prop_rw("price_current", &haruquant::PositionInfo::PriceCurrent, &haruquant::PositionInfo::SetPriceCurrent)
+        .def_prop_rw("sl", &haruquant::PositionInfo::StopLoss, &haruquant::PositionInfo::SetStopLoss)
+        .def_prop_rw("tp", &haruquant::PositionInfo::TakeProfit, &haruquant::PositionInfo::SetTakeProfit)
+        .def_prop_rw("commission", &haruquant::PositionInfo::Commission, &haruquant::PositionInfo::SetCommission)
+        .def_prop_rw("swap", &haruquant::PositionInfo::Swap, &haruquant::PositionInfo::SetSwap)
         .def_prop_rw("profit",
-            &hqt::PositionInfo::Profit,
-            [](hqt::PositionInfo& self, double value) {
+            &haruquant::PositionInfo::Profit,
+            [](haruquant::PositionInfo& self, double value) {
                 self.SetProfitFP(static_cast<int64_t>(std::llround(value * 1'000'000.0)));
             })
-        .def_prop_rw("comment", &hqt::PositionInfo::Comment, &hqt::PositionInfo::SetComment)
-        .def("set_time", &hqt::PositionInfo::SetTime, nb::arg("time_sec"), nb::arg("time_msc") = 0)
-        .def("set_time_update", &hqt::PositionInfo::SetTimeUpdate, nb::arg("time_sec"), nb::arg("time_msc") = 0)
-        .def("set_digits", &hqt::PositionInfo::SetDigits)
-        .def("set_point", &hqt::PositionInfo::SetPoint)
-        .def("set_contract_size", &hqt::PositionInfo::SetContractSize)
-        .def("update_price", &hqt::PositionInfo::UpdatePrice);
+        .def_prop_rw("comment", &haruquant::PositionInfo::Comment, &haruquant::PositionInfo::SetComment)
+        .def("set_time", &haruquant::PositionInfo::SetTime, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_time_update", &haruquant::PositionInfo::SetTimeUpdate, nb::arg("time_sec"), nb::arg("time_msc") = 0)
+        .def("set_digits", &haruquant::PositionInfo::SetDigits)
+        .def("set_point", &haruquant::PositionInfo::SetPoint)
+        .def("set_contract_size", &haruquant::PositionInfo::SetContractSize)
+        .def("update_price", &haruquant::PositionInfo::UpdatePrice);
 
     nb::class_<TradeRequest>(m, "TradeRequest")
         .def(nb::init<>())
@@ -1202,7 +1202,7 @@ void register_sim_bindings(nb::module_& m) {
             [](const BrokerSnapshot& self) {
                 return to_mt5_account(self.account);
             },
-            [](BrokerSnapshot& self, const hqt::AccountInfo& account) {
+            [](BrokerSnapshot& self, const haruquant::AccountInfo& account) {
                 self.account = account;
             })
         .def_rw("positions", &BrokerSnapshot::positions);
@@ -1317,12 +1317,12 @@ void register_sim_bindings(nb::module_& m) {
 
     nb::class_<TradeSimulator>(m, "TradeSimulator")
         .def(nb::init<>())
-        .def(nb::init<hqt::AccountInfo>())
+        .def(nb::init<haruquant::AccountInfo>())
         .def("account_info", [](const TradeSimulator& self) {
             return to_mt5_account(self.account_info());
         })
         .def("symbol_info", [](const TradeSimulator& self, const std::string& symbol)
-                -> std::optional<hqt::SymbolInfo> {
+                -> std::optional<haruquant::SymbolInfo> {
             const auto* p = self.symbol_info(symbol);
             if (p) return to_mt5_symbol(*p);
             return std::nullopt;
@@ -1487,10 +1487,10 @@ void register_sim_bindings(nb::module_& m) {
         .def("idempotency_cache_size", &TradeSimulator::idempotency_cache_size)
         .def("set_history_order_state", &TradeSimulator::set_history_order_state)
         .def("set_history_order_done_time", &TradeSimulator::set_history_order_done_time)
-        .def("set_account_info", [](TradeSimulator& self, const hqt::AccountInfo& data) {
+        .def("set_account_info", [](TradeSimulator& self, const haruquant::AccountInfo& data) {
             self.set_account_info(data);
         })
-        .def("set_symbol_info", [](TradeSimulator& self, const hqt::SymbolInfo& data) {
+        .def("set_symbol_info", [](TradeSimulator& self, const haruquant::SymbolInfo& data) {
             self.set_symbol_info(data);
         })
         .def("set_symbol_info", [](TradeSimulator& self, nb::object source) {
@@ -1665,7 +1665,7 @@ void register_sim_bindings(nb::module_& m) {
         .def(nb::init<>())
         .def("monitor_positions", &AccountMonitor::monitor_positions)
         .def("monitor_account", [](const AccountMonitor& self,
-                                   const hqt::AccountInfo& base,
+                                   const haruquant::AccountInfo& base,
                                    const PositionTotals& totals) {
             return to_mt5_account(self.monitor_account(base, totals));
         });
@@ -1704,7 +1704,7 @@ void register_sim_bindings(nb::module_& m) {
         .def("reset", &PositionBook::reset)
         .def("apply_fill", &PositionBook::apply_fill, nb::arg("fill"))
         .def("apply_account_snapshot",
-             [](PositionBook& self, const hqt::AccountInfo& account) {
+             [](PositionBook& self, const haruquant::AccountInfo& account) {
                  self.apply_account_snapshot(account);
              },
              nb::arg("account"))
@@ -1716,7 +1716,7 @@ void register_sim_bindings(nb::module_& m) {
         .def("reconcile_with_broker",
              [](const PositionBook& self,
                 const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-                const hqt::AccountInfo& broker_account,
+                const haruquant::AccountInfo& broker_account,
                 const std::string& trigger) {
                  return self.reconcile_with_broker(
                      broker_positions,
@@ -1729,7 +1729,7 @@ void register_sim_bindings(nb::module_& m) {
         .def("periodic_reconcile",
              [](const PositionBook& self,
                 const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-                const hqt::AccountInfo& broker_account) {
+                const haruquant::AccountInfo& broker_account) {
                  return self.periodic_reconcile(
                      broker_positions,
                      broker_account);
@@ -1739,7 +1739,7 @@ void register_sim_bindings(nb::module_& m) {
         .def("reconnect_reconcile",
              [](const PositionBook& self,
                 const std::unordered_map<std::string, PositionAggregate>& broker_positions,
-                const hqt::AccountInfo& broker_account) {
+                const haruquant::AccountInfo& broker_account) {
                  return self.reconnect_reconcile(
                      broker_positions,
                      broker_account);

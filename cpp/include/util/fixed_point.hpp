@@ -31,7 +31,7 @@ DESIGN NOTES:
 #include <cmath>
 #include <stdexcept>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Fixed-point arithmetic utilities
@@ -256,5 +256,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

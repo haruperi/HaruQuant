@@ -39,7 +39,7 @@ DESIGN NOTES:
 #include "data/tick.hpp"
 #include "trading/symbol_info.hpp"
 
-using namespace hqt;
+using namespace haruquant;
 
 // ============================================================================
 // Test Fixtures

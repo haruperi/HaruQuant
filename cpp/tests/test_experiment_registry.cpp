@@ -31,10 +31,10 @@ DESIGN NOTES:
 #include <unordered_set>
 #include <vector>
 
-using hqt::sim::ExperimentRecord;
-using hqt::sim::ExperimentRegistry;
-using hqt::sim::SeasonalPatternAnalyzer;
-using hqt::sim::SymbolClassifier;
+using haruquant::sim::ExperimentRecord;
+using haruquant::sim::ExperimentRegistry;
+using haruquant::sim::SeasonalPatternAnalyzer;
+using haruquant::sim::SymbolClassifier;
 
 TEST(ExperimentRegistryTest, UpsertAndAllAreSearchable) {
     ExperimentRegistry registry;

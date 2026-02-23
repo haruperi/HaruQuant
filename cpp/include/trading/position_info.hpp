@@ -31,7 +31,7 @@ DESIGN NOTES:
 #include <string>
 #include <cmath>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Position type (MT5-compatible)
@@ -550,5 +550,5 @@ public:
     void AddSwapFP(int64_t swap) noexcept { swap_ += swap; }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

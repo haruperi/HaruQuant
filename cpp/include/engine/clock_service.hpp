@@ -32,7 +32,7 @@ DESIGN NOTES:
 #include <cstdint>
 #include <stdexcept>
 
-namespace hqt {
+namespace haruquant {
 
 enum class ClockMode : uint8_t {
     EVENT_TIME = 0,
@@ -144,6 +144,6 @@ private:
     int64_t processing_time_us_{0};
 };
 
-}  // namespace hqt
+}  // namespace haruquant
 
 

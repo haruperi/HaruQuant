@@ -3,7 +3,6 @@
 #include <nanobind/stl/vector.h>
 #include <usage/logger_usage.hpp>
 #include <engine/replay_clock.hpp>
-#include <hqt/hello.hpp>
 #include <util/error.hpp>
 #include <util/logger.hpp>
 #include <util/validators.hpp>
@@ -65,7 +64,7 @@ public:
 
     nb::tuple validate(const std::string& validation_type, nb::object value, nb::kwargs kwargs) const {
         try {
-            const hqt::util::ValidationContext ctx = build_context(kwargs);
+            const haruquant::util::ValidationContext ctx = build_context(kwargs);
             const auto dispatcher = _get_validation_dispatcher();
             const auto it = dispatcher.find(validation_type);
             if (it == dispatcher.end()) {
@@ -166,34 +165,34 @@ private:
     using DispatchFn = std::function<nb::tuple(
         const nb::object&,
         const nb::kwargs&,
-        const hqt::util::ValidationContext&)>;
+        const haruquant::util::ValidationContext&)>;
 
-    hqt::util::ValidationRules rules_{};
+    haruquant::util::ValidationRules rules_{};
 
     std::unordered_map<std::string, DispatchFn> _get_validation_dispatcher() const {
         return {
-            {"symbol", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
-                return to_tuple(hqt::util::validate_symbol(as_string(value), ctx));
+            {"symbol", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext& ctx) {
+                return to_tuple(haruquant::util::validate_symbol(as_string(value), ctx));
             }},
-            {"volume", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+            {"volume", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext& ctx) {
                 if (!nb::isinstance<nb::str>(value)) {
                     return nb::make_tuple(false, "Volume must be a string for strict format validation");
                 }
                 const std::string raw = as_string(value);
-                const hqt::util::RuleValidationResult fmt =
-                    hqt::util::validate_volume_format(raw, ctx, rules_);
+                const haruquant::util::RuleValidationResult fmt =
+                    haruquant::util::validate_volume_format(raw, ctx, rules_);
                 if (!fmt.ok) {
                     return to_tuple(fmt);
                 }
-                return to_tuple(hqt::util::validate_volume(std::stod(raw), ctx, rules_));
+                return to_tuple(haruquant::util::validate_volume(std::stod(raw), ctx, rules_));
             }},
-            {"price", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+            {"price", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext& ctx) {
                 if (!nb::isinstance<nb::str>(value)) {
                     return nb::make_tuple(false, "Price must be a string for strict format validation");
                 }
                 const std::string raw = as_string(value);
-                const hqt::util::RuleValidationResult fmt =
-                    hqt::util::validate_price_format(raw, ctx);
+                const haruquant::util::RuleValidationResult fmt =
+                    haruquant::util::validate_price_format(raw, ctx);
                 if (!fmt.ok) {
                     return to_tuple(fmt);
                 }
@@ -203,90 +202,90 @@ private:
                 } catch (...) {
                     return nb::make_tuple(false, "Price must be a valid numeric string");
                 }
-                return to_tuple(hqt::util::validate_price(parsed, ctx, rules_));
+                return to_tuple(haruquant::util::validate_price(parsed, ctx, rules_));
             }},
-            {"stop_loss", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+            {"stop_loss", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext& ctx) {
                 const double stop_loss = as_strict_price(value, ctx, "stop_loss");
-                return to_tuple(hqt::util::validate_stop_loss(
+                return to_tuple(haruquant::util::validate_stop_loss(
                     stop_loss,
                     opt_strict_price(kwargs, "entry_price", ctx),
                     opt_int(kwargs, "order_type"),
                     ctx,
                     rules_));
             }},
-            {"take_profit", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+            {"take_profit", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext& ctx) {
                 const double take_profit = as_strict_price(value, ctx, "take_profit");
-                return to_tuple(hqt::util::validate_take_profit(
+                return to_tuple(haruquant::util::validate_take_profit(
                     take_profit,
                     opt_strict_price(kwargs, "entry_price", ctx),
                     opt_int(kwargs, "order_type"),
                     ctx,
                     rules_));
             }},
-            {"order_type", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+            {"order_type", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
                 if (nb::isinstance<nb::str>(value)) {
-                    return to_tuple(hqt::util::validate_order_type(as_string(value)));
+                    return to_tuple(haruquant::util::validate_order_type(as_string(value)));
                 }
-                return to_tuple(hqt::util::validate_order_type(as_int(value)));
+                return to_tuple(haruquant::util::validate_order_type(as_int(value)));
             }},
-            {"magic", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
-                return to_tuple(hqt::util::validate_magic(as_int(value), rules_));
+            {"magic", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
+                return to_tuple(haruquant::util::validate_magic(as_int(value), rules_));
             }},
-            {"slippage", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+            {"slippage", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext& ctx) {
                 if (!kwargs.contains("requested_price")) {
                     return nb::make_tuple(false, "requested_price is required for slippage validation");
                 }
                 const double requested_price = as_strict_price(kwargs["requested_price"], ctx, "requested_price");
                 const int order_type = opt_int(kwargs, "order_type").value_or(0);
-                return to_tuple(hqt::util::validate_slippage(
+                return to_tuple(haruquant::util::validate_slippage(
                     as_int(value), requested_price, order_type, ctx, rules_));
             }},
-            {"deviation", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+            {"deviation", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext& ctx) {
                 if (!kwargs.contains("requested_price")) {
                     return nb::make_tuple(false, "requested_price is required for slippage validation");
                 }
                 const double requested_price = as_strict_price(kwargs["requested_price"], ctx, "requested_price");
                 const int order_type = opt_int(kwargs, "order_type").value_or(0);
-                return to_tuple(hqt::util::validate_slippage(
+                return to_tuple(haruquant::util::validate_slippage(
                     as_int(value), requested_price, order_type, ctx, rules_));
             }},
-            {"expiration_mode", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
-                return to_tuple(hqt::util::validate_expiration_mode(as_string(value)));
+            {"expiration_mode", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
+                return to_tuple(haruquant::util::validate_expiration_mode(as_string(value)));
             }},
-            {"expiration", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+            {"expiration", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
                 const int64_t exp = to_unix_seconds(value);
-                return to_tuple(hqt::util::validate_expiration_unix(exp, current_unix_seconds()));
+                return to_tuple(haruquant::util::validate_expiration_unix(exp, current_unix_seconds()));
             }},
-            {"timeframe", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+            {"timeframe", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
                 if (nb::isinstance<nb::str>(value)) {
-                    return to_tuple(hqt::util::validate_timeframe(as_string(value)));
+                    return to_tuple(haruquant::util::validate_timeframe(as_string(value)));
                 }
-                return to_tuple(hqt::util::validate_timeframe(as_int(value)));
+                return to_tuple(haruquant::util::validate_timeframe(as_int(value)));
             }},
-            {"date_range", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext&) {
+            {"date_range", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext&) {
                 const int64_t start = to_unix_seconds(value);
                 const std::optional<int64_t> end = opt_unix_seconds(kwargs, "end_date");
-                return to_tuple(hqt::util::validate_date_range_unix(start, end, current_unix_seconds()));
+                return to_tuple(haruquant::util::validate_date_range_unix(start, end, current_unix_seconds()));
             }},
-            {"trade_request", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
-                return to_tuple(hqt::util::validate_trade_request_payload(
+            {"trade_request", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext& ctx) {
+                return to_tuple(haruquant::util::validate_trade_request_payload(
                     parse_trade_request(value), ctx, rules_));
             }},
-            {"credentials", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
-                return to_tuple(hqt::util::validate_credentials(parse_credentials(value)));
+            {"credentials", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
+                return to_tuple(haruquant::util::validate_credentials(parse_credentials(value)));
             }},
-            {"margin", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
-                return to_tuple(hqt::util::validate_margin(as_double(value), ctx));
+            {"margin", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext& ctx) {
+                return to_tuple(haruquant::util::validate_margin(as_double(value), ctx));
             }},
-            {"ticket", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
-                return to_tuple(hqt::util::validate_ticket(as_int64(value)));
+            {"ticket", [this](const nb::object& value, const nb::kwargs&, const haruquant::util::ValidationContext&) {
+                return to_tuple(haruquant::util::validate_ticket(as_int64(value)));
             }},
-            {"max_orders", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
-                return to_tuple(hqt::util::validate_max_orders(
+            {"max_orders", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext& ctx) {
+                return to_tuple(haruquant::util::validate_max_orders(
                     as_int(value), opt_int(kwargs, "account_limit"), ctx));
             }},
-            {"symbol_volume", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
-                return to_tuple(hqt::util::validate_symbol_volume(
+            {"symbol_volume", [this](const nb::object& value, const nb::kwargs& kwargs, const haruquant::util::ValidationContext& ctx) {
+                return to_tuple(haruquant::util::validate_symbol_volume(
                     as_double(value), opt_double(kwargs, "volume_limit"), ctx));
             }},
         };
@@ -296,7 +295,7 @@ private:
         return static_cast<int64_t>(std::time(nullptr));
     }
 
-    static nb::tuple to_tuple(const hqt::util::RuleValidationResult& result) {
+    static nb::tuple to_tuple(const haruquant::util::RuleValidationResult& result) {
         return nb::make_tuple(result.ok, result.message);
     }
 
@@ -337,13 +336,13 @@ private:
 
     static double as_strict_price(
         const nb::object& value,
-        const hqt::util::ValidationContext& ctx,
+        const haruquant::util::ValidationContext& ctx,
         const char* field_name) {
         if (!nb::isinstance<nb::str>(value)) {
             throw std::runtime_error(std::string(field_name) + " must be a string for strict format validation");
         }
         const std::string raw = as_string(value);
-        const hqt::util::RuleValidationResult fmt = hqt::util::validate_price_format(raw, ctx);
+        const haruquant::util::RuleValidationResult fmt = haruquant::util::validate_price_format(raw, ctx);
         if (!fmt.ok) {
             throw std::runtime_error(std::string(field_name) + ": " + fmt.message);
         }
@@ -357,7 +356,7 @@ private:
     static std::optional<double> opt_strict_price(
         const nb::kwargs& kwargs,
         const char* key,
-        const hqt::util::ValidationContext& ctx) {
+        const haruquant::util::ValidationContext& ctx) {
         if (!kwargs.contains(key)) return std::nullopt;
         nb::object obj = kwargs[key];
         if (obj.is_none()) return std::nullopt;
@@ -378,18 +377,18 @@ private:
         return to_unix_seconds(obj);
     }
 
-    static hqt::util::CredentialsPayload parse_credentials(const nb::object& value) {
+    static haruquant::util::CredentialsPayload parse_credentials(const nb::object& value) {
         nb::dict d = nb::cast<nb::dict>(value);
-        hqt::util::CredentialsPayload out;
+        haruquant::util::CredentialsPayload out;
         if (d.contains("login")) out.login = nb::cast<int>(d["login"]);
         if (d.contains("password")) out.password = nb::cast<std::string>(d["password"]);
         if (d.contains("server")) out.server = nb::cast<std::string>(d["server"]);
         return out;
     }
 
-    static hqt::util::TradeRequestPayload parse_trade_request(const nb::object& value) {
+    static haruquant::util::TradeRequestPayload parse_trade_request(const nb::object& value) {
         nb::dict d = nb::cast<nb::dict>(value);
-        hqt::util::TradeRequestPayload out;
+        haruquant::util::TradeRequestPayload out;
         if (d.contains("action")) out.action = nb::cast<int>(d["action"]);
         if (d.contains("symbol")) out.symbol = nb::cast<std::string>(d["symbol"]);
         if (d.contains("volume")) out.volume = nb::cast<double>(d["volume"]);
@@ -403,8 +402,8 @@ private:
         return out;
     }
 
-    static hqt::SymbolInfo parse_symbol_info(const nb::object& source) {
-        hqt::SymbolInfo sym;
+    static haruquant::SymbolInfo parse_symbol_info(const nb::object& source) {
+        haruquant::SymbolInfo sym;
         if (nb::hasattr(source, "name")) sym.Name(nb::cast<std::string>(source.attr("name")));
         if (nb::hasattr(source, "symbol")) sym.Name(nb::cast<std::string>(source.attr("symbol")));
         if (nb::hasattr(source, "digits")) sym.SetDigits(nb::cast<int>(source.attr("digits")));
@@ -424,8 +423,8 @@ private:
         return sym;
     }
 
-    static hqt::AccountInfo parse_account_info(const nb::object& source) {
-        hqt::AccountInfo acc;
+    static haruquant::AccountInfo parse_account_info(const nb::object& source) {
+        haruquant::AccountInfo acc;
         if (nb::hasattr(source, "margin_free")) acc.SetFreeMargin(nb::cast<double>(source.attr("margin_free")));
         if (nb::hasattr(source, "equity")) acc.SetEquity(nb::cast<double>(source.attr("equity")));
         if (nb::hasattr(source, "margin")) acc.SetMargin(nb::cast<double>(source.attr("margin")));
@@ -433,18 +432,18 @@ private:
         return acc;
     }
 
-    static std::optional<hqt::sim::SymbolTickData> parse_symbol_tick(const nb::object& source) {
+    static std::optional<haruquant::sim::SymbolTickData> parse_symbol_tick(const nb::object& source) {
         if (source.is_none()) return std::nullopt;
-        hqt::sim::SymbolTickData tick;
+        haruquant::sim::SymbolTickData tick;
         if (nb::hasattr(source, "bid")) tick.bid = nb::cast<double>(source.attr("bid"));
         if (nb::hasattr(source, "ask")) tick.ask = nb::cast<double>(source.attr("ask"));
         return tick;
     }
 
-    static hqt::util::ValidationContext build_context(const nb::kwargs& kwargs) {
-        hqt::util::ValidationContext ctx;
+    static haruquant::util::ValidationContext build_context(const nb::kwargs& kwargs) {
+        haruquant::util::ValidationContext ctx;
         if (kwargs.contains("symbol_info") && !kwargs["symbol_info"].is_none()) {
-            static thread_local std::optional<hqt::SymbolInfo> symbol_holder;
+            static thread_local std::optional<haruquant::SymbolInfo> symbol_holder;
             symbol_holder = parse_symbol_info(kwargs["symbol_info"]);
             ctx.symbol_info = &(*symbol_holder);
             ctx.symbol_exists = true;
@@ -453,7 +452,7 @@ private:
             ctx.symbol_tick = parse_symbol_tick(kwargs["tick"]);
         }
         if (kwargs.contains("account_info") && !kwargs["account_info"].is_none()) {
-            static thread_local std::optional<hqt::AccountInfo> account_holder;
+            static thread_local std::optional<haruquant::AccountInfo> account_holder;
             account_holder = parse_account_info(kwargs["account_info"]);
             ctx.account = &(*account_holder);
         }
@@ -470,32 +469,32 @@ private:
     }
 };
 
-hqt::util::LogLevel parse_level(const std::string& raw_level) {
+haruquant::util::LogLevel parse_level(const std::string& raw_level) {
     std::string level = raw_level;
     std::transform(level.begin(), level.end(), level.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
     });
 
     if (level == "debug") {
-        return hqt::util::LogLevel::Debug;
+        return haruquant::util::LogLevel::Debug;
     }
     if (level == "info") {
-        return hqt::util::LogLevel::Info;
+        return haruquant::util::LogLevel::Info;
     }
     if (level == "warning" || level == "warn") {
-        return hqt::util::LogLevel::Warning;
+        return haruquant::util::LogLevel::Warning;
     }
     if (level == "error") {
-        return hqt::util::LogLevel::Error;
+        return haruquant::util::LogLevel::Error;
     }
     if (level == "critical" || level == "fatal") {
-        return hqt::util::LogLevel::Critical;
+        return haruquant::util::LogLevel::Critical;
     }
 
     throw nb::value_error("Invalid C++ log level. Use debug|info|warning|error|critical.");
 }
 
-void dispatch_log_to_python(const hqt::util::LogRecord& record) {
+void dispatch_log_to_python(const haruquant::util::LogRecord& record) {
     nb::gil_scoped_acquire gil;
 
     nb::object callback;
@@ -663,7 +662,7 @@ nb::dict sum_auto_impl(const nb::object& values) {
 }
 
 bool flatten_py_dict(PyObject* dict_obj, const std::string& prefix,
-                     hqt::util::SchemaPayload& out, std::string& error) {
+                     haruquant::util::SchemaPayload& out, std::string& error) {
     PyObject* key = nullptr;
     PyObject* value = nullptr;
     Py_ssize_t pos = 0;
@@ -714,16 +713,16 @@ bool flatten_py_dict(PyObject* dict_obj, const std::string& prefix,
     return true;
 }
 
-std::pair<hqt::util::SchemaPayload, std::string> parse_schema_payload(const nb::dict& payload) {
-    hqt::util::SchemaPayload out;
+std::pair<haruquant::util::SchemaPayload, std::string> parse_schema_payload(const nb::dict& payload) {
+    haruquant::util::SchemaPayload out;
     std::string error;
     if (!flatten_py_dict(payload.ptr(), "", out, error)) {
-        return {hqt::util::SchemaPayload{}, error};
+        return {haruquant::util::SchemaPayload{}, error};
     }
     return {std::move(out), ""};
 }
 
-nb::dict validation_result_payload(const hqt::util::ValidationResult& result) {
+nb::dict validation_result_payload(const haruquant::util::ValidationResult& result) {
     nb::dict payload;
     payload["ok"] = result.ok;
     payload["message"] = nb::str(result.message.c_str());
@@ -774,7 +773,7 @@ PyObject* exception_type_for_category(const std::string& category) {
 }
 
 PyObject* exception_type_for_retcode(int code) {
-    const hqt::util::ErrorInfo info = hqt::util::error_from_retcode(code);
+    const haruquant::util::ErrorInfo info = haruquant::util::error_from_retcode(code);
     if (info.retryable) {
         return g_exc_transient_connectivity_error;
     }
@@ -823,7 +822,7 @@ NB_MODULE(hqt_engine, m) {
                 std::lock_guard<std::mutex> lock(g_log_callback_mutex);
                 g_log_callback = nb::object();
             }
-            hqt::util::set_log_sink(hqt::util::LogSink{});
+            haruquant::util::set_log_sink(haruquant::util::LogSink{});
             std::lock_guard<std::mutex> lock(g_bridge_lifecycle_mutex);
             g_bridge_initialized = false;
             return true;
@@ -856,8 +855,6 @@ NB_MODULE(hqt_engine, m) {
         },
         "Return bridge lifecycle and health payload.");
 
-    m.def("hello", &hqt::hello, "Returns the engine version string.");
-
     g_exc_bridge_error = PyErr_NewException("hqt_engine.BridgeError", PyExc_RuntimeError, nullptr);
     g_exc_configuration_error =
         PyErr_NewException("hqt_engine.ConfigurationError", g_exc_bridge_error, nullptr);
@@ -889,63 +886,52 @@ NB_MODULE(hqt_engine, m) {
         nb::borrow<nb::object>(g_exc_transient_connectivity_error);
     m.attr("FatalEngineError") = nb::borrow<nb::object>(g_exc_fatal_engine_error);
 
-    nb::class_<hqt::Version>(m, "Version")
-        .def_ro("major", &hqt::Version::major)
-        .def_ro("minor", &hqt::Version::minor)
-        .def_ro("patch", &hqt::Version::patch)
-        .def("__repr__", [](const hqt::Version& v) {
-            return "Version(" + std::to_string(v.major) + ", "
-                   + std::to_string(v.minor) + ", "
-                   + std::to_string(v.patch) + ")";
-        });
+    nb::class_<haruquant::ReplayClockState>(m, "ReplayClockState")
+        .def_ro("cursor", &haruquant::ReplayClockState::cursor)
+        .def_ro("current_time_us", &haruquant::ReplayClockState::current_time_us)
+        .def_ro("paused", &haruquant::ReplayClockState::paused)
+        .def_ro("speed_multiplier", &haruquant::ReplayClockState::speed_multiplier)
+        .def_ro("timeline_signature", &haruquant::ReplayClockState::timeline_signature);
 
-    nb::class_<hqt::ReplayClockState>(m, "ReplayClockState")
-        .def_ro("cursor", &hqt::ReplayClockState::cursor)
-        .def_ro("current_time_us", &hqt::ReplayClockState::current_time_us)
-        .def_ro("paused", &hqt::ReplayClockState::paused)
-        .def_ro("speed_multiplier", &hqt::ReplayClockState::speed_multiplier)
-        .def_ro("timeline_signature", &hqt::ReplayClockState::timeline_signature);
-
-    nb::class_<hqt::ReplayClock>(m, "ReplayClock")
+    nb::class_<haruquant::ReplayClock>(m, "ReplayClock")
         .def(nb::init<>())
         .def(nb::init<std::vector<int64_t>>(), nb::arg("timeline_us"))
-        .def("load_timeline", &hqt::ReplayClock::load_timeline, nb::arg("timeline_us"))
-        .def("empty", &hqt::ReplayClock::empty)
-        .def("size", &hqt::ReplayClock::size)
-        .def("cursor", &hqt::ReplayClock::cursor)
-        .def("paused", &hqt::ReplayClock::paused)
-        .def("finished", &hqt::ReplayClock::finished)
-        .def("set_speed_multiplier", &hqt::ReplayClock::set_speed_multiplier, nb::arg("speed"))
-        .def("speed_multiplier", &hqt::ReplayClock::speed_multiplier)
-        .def("pause", &hqt::ReplayClock::pause)
-        .def("resume", &hqt::ReplayClock::resume)
-        .def("reset", &hqt::ReplayClock::reset)
-        .def("peek_next", [](const hqt::ReplayClock& clock) -> nb::object {
+        .def("load_timeline", &haruquant::ReplayClock::load_timeline, nb::arg("timeline_us"))
+        .def("empty", &haruquant::ReplayClock::empty)
+        .def("size", &haruquant::ReplayClock::size)
+        .def("cursor", &haruquant::ReplayClock::cursor)
+        .def("paused", &haruquant::ReplayClock::paused)
+        .def("finished", &haruquant::ReplayClock::finished)
+        .def("set_speed_multiplier", &haruquant::ReplayClock::set_speed_multiplier, nb::arg("speed"))
+        .def("speed_multiplier", &haruquant::ReplayClock::speed_multiplier)
+        .def("pause", &haruquant::ReplayClock::pause)
+        .def("resume", &haruquant::ReplayClock::resume)
+        .def("reset", &haruquant::ReplayClock::reset)
+        .def("peek_next", [](const haruquant::ReplayClock& clock) -> nb::object {
             const auto value = clock.peek_next();
             if (!value.has_value()) {
                 return nb::none();
             }
             return nb::int_(*value);
         })
-        .def("advance", [](hqt::ReplayClock& clock) -> nb::object {
+        .def("advance", [](haruquant::ReplayClock& clock) -> nb::object {
             const auto value = clock.advance();
             if (!value.has_value()) {
                 return nb::none();
             }
             return nb::int_(*value);
         })
-        .def("step_by_bar", [](hqt::ReplayClock& clock, std::size_t bars) -> nb::object {
+        .def("step_by_bar", [](haruquant::ReplayClock& clock, std::size_t bars) -> nb::object {
             const auto value = clock.step_by_bar(bars);
             if (!value.has_value()) {
                 return nb::none();
             }
             return nb::int_(*value);
         }, nb::arg("bars") = 1)
-        .def("current_time", &hqt::ReplayClock::current_time)
-        .def("timeline_signature", &hqt::ReplayClock::timeline_signature)
-        .def("state", &hqt::ReplayClock::state);
+        .def("current_time", &haruquant::ReplayClock::current_time)
+        .def("timeline_signature", &haruquant::ReplayClock::timeline_signature)
+        .def("state", &haruquant::ReplayClock::state);
 
-    m.def("version", &hqt::version, "Returns the engine version struct.");
     m.def("sum", &sum_1d_numeric_sequence,
           "Smoke function: sum a 1D numeric sequence with explicit dtype/shape validation.");
     m.def("sum_buffer_zero_copy", &sum_buffer_zero_copy_impl,
@@ -998,20 +984,20 @@ NB_MODULE(hqt_engine, m) {
         return payload;
     }, "Return explicit bridge ownership and lifetime policy contract.");
     m.def("set_log_level", [](const std::string& level) {
-        hqt::util::set_log_level(parse_level(level));
+        haruquant::util::set_log_level(parse_level(level));
     }, "Set C++ logger level: debug|info|warning|error|critical.");
     m.def("set_component_log_level", [](const std::string& component, const std::string& level) {
-        hqt::util::set_component_log_level(component, parse_level(level));
+        haruquant::util::set_component_log_level(component, parse_level(level));
     }, nb::arg("component"), nb::arg("level"),
        "Set C++ logger level for a component at runtime.");
-    m.def("clear_component_log_level", &hqt::util::clear_component_log_level,
+    m.def("clear_component_log_level", &haruquant::util::clear_component_log_level,
           nb::arg("component"),
           "Clear component-specific C++ logger level override.");
-    m.def("clear_all_component_log_levels", &hqt::util::clear_all_component_log_levels,
+    m.def("clear_all_component_log_levels", &haruquant::util::clear_all_component_log_levels,
           "Clear all component-specific C++ logger level overrides.");
-    m.def("set_stderr_logging", &hqt::util::set_stderr_logging,
+    m.def("set_stderr_logging", &haruquant::util::set_stderr_logging,
           "Enable/disable direct C++ stderr logging.");
-    m.def("flush_logs", &hqt::util::flush_logs,
+    m.def("flush_logs", &haruquant::util::flush_logs,
           "Force flush C++ async logger sinks.");
     m.def("set_log_callback", [](nb::object callback) {
         if (callback.is_none()) {
@@ -1019,7 +1005,7 @@ NB_MODULE(hqt_engine, m) {
                 std::lock_guard<std::mutex> lock(g_log_callback_mutex);
                 g_log_callback = nb::object();
             }
-            hqt::util::set_log_sink(hqt::util::LogSink{});
+            haruquant::util::set_log_sink(haruquant::util::LogSink{});
             return;
         }
 
@@ -1032,16 +1018,16 @@ NB_MODULE(hqt_engine, m) {
             g_log_callback = std::move(callback);
         }
 
-        hqt::util::set_log_sink(dispatch_log_to_python);
+        haruquant::util::set_log_sink(dispatch_log_to_python);
     }, nb::arg("callback").none(),
        "Set Python callback(level: str, message: str) for C++ logs. Pass None to clear.");
     m.def("emit_log", [](const std::string& level, const std::string& message) {
-        hqt::util::log(parse_level(level), message);
+        haruquant::util::log(parse_level(level), message);
     }, "Emit a C++ log message (primarily for integration testing).");
-    m.def("run_cpp_logger_usage_example", &hqt::usage::run_logger_usage_example,
+    m.def("run_cpp_logger_usage_example", &haruquant::usage::run_logger_usage_example,
           "Run minimal C++ logger usage example.");
     m.def("error_from_retcode", [](int code) {
-        const hqt::util::ErrorInfo info = hqt::util::error_from_retcode(code);
+        const haruquant::util::ErrorInfo info = haruquant::util::error_from_retcode(code);
         nb::dict payload;
         payload["code"] = info.code;
         payload["name"] = nb::str(info.name.c_str());
@@ -1050,10 +1036,10 @@ NB_MODULE(hqt_engine, m) {
         payload["retryable"] = info.retryable;
         return payload;
     }, "Return structured error taxonomy payload for a C++ trade retcode.");
-    m.def("error_name", &hqt::util::error_name,
+    m.def("error_name", &haruquant::util::error_name,
           "Return taxonomy error name for a C++ trade retcode.");
     m.def("raise_exception_for_retcode", [](int code, const std::string& detail) {
-        const hqt::util::ErrorInfo info = hqt::util::error_from_retcode(code);
+        const haruquant::util::ErrorInfo info = haruquant::util::error_from_retcode(code);
         const std::string msg =
             detail.empty() ? (info.name + ": " + info.message) : (info.name + ": " + detail);
         raise_bridge_exception(exception_type_for_retcode(code), msg);
@@ -1067,28 +1053,28 @@ NB_MODULE(hqt_engine, m) {
     m.def("validate_market_schema", [](const nb::dict& payload) {
         const auto [parsed, error] = parse_schema_payload(payload);
         if (!error.empty()) {
-            hqt::util::ValidationResult result{false, error};
+            haruquant::util::ValidationResult result{false, error};
             return validation_result_payload(result);
         }
-        return validation_result_payload(hqt::util::validate_market_schema(parsed));
+        return validation_result_payload(haruquant::util::validate_market_schema(parsed));
     }, nb::arg("payload"),
        "Validate market payload against C++ schema primitives.");
     m.def("validate_trade_schema", [](const nb::dict& payload) {
         const auto [parsed, error] = parse_schema_payload(payload);
         if (!error.empty()) {
-            hqt::util::ValidationResult result{false, error};
+            haruquant::util::ValidationResult result{false, error};
             return validation_result_payload(result);
         }
-        return validation_result_payload(hqt::util::validate_trade_schema(parsed));
+        return validation_result_payload(haruquant::util::validate_trade_schema(parsed));
     }, nb::arg("payload"),
        "Validate trade payload against C++ schema primitives.");
     m.def("validate_config_schema", [](const nb::dict& payload) {
         const auto [parsed, error] = parse_schema_payload(payload);
         if (!error.empty()) {
-            hqt::util::ValidationResult result{false, error};
+            haruquant::util::ValidationResult result{false, error};
             return validation_result_payload(result);
         }
-        return validation_result_payload(hqt::util::validate_config_schema(parsed));
+        return validation_result_payload(haruquant::util::validate_config_schema(parsed));
     }, nb::arg("payload"),
        "Validate runtime config payload against C++ schema primitives.");
 

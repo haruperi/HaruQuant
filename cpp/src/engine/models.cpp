@@ -29,7 +29,7 @@ DESIGN NOTES:
 
 #include <sstream>
 
-namespace hqt::sim {
+namespace haruquant::sim {
 
 namespace {
 
@@ -63,5 +63,5 @@ void SimulatorState::reset() noexcept {
     processed_events = 0;
 }
 
-}  // namespace hqt::sim
+}  // namespace haruquant::sim
 

@@ -37,7 +37,7 @@ DESIGN NOTES:
 #include <sstream>
 #include <string>
 
-namespace hqt::sim {
+namespace haruquant::sim {
 
 namespace {
 std::string order_type_to_text(int order_type) {
@@ -193,10 +193,10 @@ PositionTotals AccountMonitor::monitor_positions(
     return totals;
 }
 
-hqt::AccountInfo AccountMonitor::monitor_account(
-    const hqt::AccountInfo& base,
+haruquant::AccountInfo AccountMonitor::monitor_account(
+    const haruquant::AccountInfo& base,
     const PositionTotals& totals) const {
-    hqt::AccountInfo updated = base;
+    haruquant::AccountInfo updated = base;
     const auto margin_fp = static_cast<int64_t>(std::llround(totals.margin * 1'000'000.0));
     const auto profit_fp = static_cast<int64_t>(std::llround(totals.profit * 1'000'000.0));
     updated.SetMargin(margin_fp);
@@ -315,10 +315,10 @@ MqlTradeRequest to_mql_request(const TradeRequest& request) {
 
 }  // namespace
 
-TradeGateway::TradeGateway(const hqt::AccountInfo& account)
+TradeGateway::TradeGateway(const haruquant::AccountInfo& account)
     : trade_(account.Balance(), account.Currency(), static_cast<uint32_t>(account.Leverage())) {}
 
-void TradeGateway::register_symbol(const hqt::SymbolInfo& symbol) {
+void TradeGateway::register_symbol(const haruquant::SymbolInfo& symbol) {
     symbols_[symbol.Name()] = symbol;
     trade_.RegisterSymbol(symbol);
 }
@@ -326,7 +326,7 @@ void TradeGateway::register_symbol(const hqt::SymbolInfo& symbol) {
 TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTickData* tick) {
     bool ok = false;
     const util::ValidationRules validation_rules{};
-    const auto build_validation_ctx = [&](const hqt::SymbolInfo* symbol_info, double bid, double ask) {
+    const auto build_validation_ctx = [&](const haruquant::SymbolInfo* symbol_info, double bid, double ask) {
         util::ValidationContext ctx{};
         ctx.account = &trade_.Account();
         ctx.symbol_info = symbol_info;
@@ -344,17 +344,17 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         return ctx;
     };
     const auto is_buy_side = [](int order_type) {
-        return order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
-            order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
-            order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
-            order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
+        return order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
+            order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
+            order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
+            order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
     };
     const auto validate_freeze_for_levels = [&](int order_type,
                                                 double bid,
                                                 double ask,
                                                 std::optional<double> sl,
                                                 std::optional<double> tp,
-                                                const hqt::SymbolInfo* symbol_info) -> util::RuleValidationResult {
+                                                const haruquant::SymbolInfo* symbol_info) -> util::RuleValidationResult {
         if (symbol_info == nullptr) {
             return util::RuleValidationResult{false, "Unknown symbol"};
         }
@@ -393,7 +393,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         }
         const auto& pos = positions.front();
         const auto sym_it = symbols_.find(pos.Symbol());
-        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        const haruquant::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
         if (symbol_info == nullptr) {
             return invalid_result("Unknown symbol", 10013);
         }
@@ -404,10 +404,10 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         }
 
         const bool is_buy_position =
-            (pos.PositionType() == hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY);
+            (pos.PositionType() == haruquant::ENUM_POSITION_TYPE::POSITION_TYPE_BUY);
         const int expected_close_type = is_buy_position
-            ? static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)
-            : static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
+            ? static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)
+            : static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
         if (request.type != expected_close_type) {
             return invalid_result("Invalid close order type for position side", 10013);
         }
@@ -428,7 +428,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
             return invalid_result(action_check.comment, action_check.retcode);
         }
         const auto sym_it = symbols_.find(request.symbol);
-        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        const haruquant::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
 
         const double bid = tick ? tick->bid : (symbol_info ? symbol_info->Bid() : 0.0);
         const double ask = tick ? tick->ask : (symbol_info ? symbol_info->Ask() : 0.0);
@@ -459,9 +459,9 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         if (request.price > 0.0) {
             entry_price = request.price;
         } else if (request.action == 1) {
-            if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)) {
+            if (request.type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)) {
                 entry_price = ask;
-            } else if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)) {
+            } else if (request.type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)) {
                 entry_price = bid;
             }
         }
@@ -549,7 +549,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         trade_.UpdatePrices(request.symbol, bid, ask, tick ? (tick->time_msc * 1000) : 0);
 
         if (request.action == 1) {
-            if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)) {
+            if (request.type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)) {
                 ok = trade_.Buy(
                     request.volume,
                     request.symbol,
@@ -557,7 +557,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
                     request.sl,
                     request.tp,
                     request.comment);
-            } else if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)) {
+            } else if (request.type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)) {
                 ok = trade_.Sell(
                     request.volume,
                     request.symbol,
@@ -570,7 +570,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
             }
         } else {
             // Pending place flow
-            using OT = hqt::ENUM_ORDER_TYPE;
+            using OT = haruquant::ENUM_ORDER_TYPE;
             OT order_type;
             switch (request.type) {
                 case 2: order_type = OT::ORDER_TYPE_BUY_LIMIT; break;
@@ -591,7 +591,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
                 request.stoplimit,
                 request.sl,
                 request.tp,
-                static_cast<hqt::ENUM_ORDER_TYPE_TIME>(request.type_time),
+                static_cast<haruquant::ENUM_ORDER_TYPE_TIME>(request.type_time),
                 request.expiration,
                 request.comment);
         }
@@ -613,7 +613,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         }
         const auto& pos = positions.front();
         const auto sym_it = symbols_.find(pos.Symbol());
-        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        const haruquant::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
         if (symbol_info == nullptr) {
             return invalid_result("Unknown symbol", 10013);
         }
@@ -623,9 +623,9 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
             return invalid_result("No quotes to process the request", 10021);
         }
         const util::ValidationContext validation_ctx = build_validation_ctx(symbol_info, bid, ask);
-        const int order_type = (pos.PositionType() == hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY)
-            ? static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)
-            : static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
+        const int order_type = (pos.PositionType() == haruquant::ENUM_POSITION_TYPE::POSITION_TYPE_BUY)
+            ? static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)
+            : static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
         const double entry = pos.PriceOpen();
 
         if (request.sl > 0.0) {
@@ -665,7 +665,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
         }
         const auto& ord = orders.front();
         const auto sym_it = symbols_.find(ord.Symbol());
-        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        const haruquant::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
         if (symbol_info == nullptr) {
             return invalid_result("Unknown symbol", 10013);
         }
@@ -709,15 +709,15 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
             const double order_entry = entry;
             bool entry_frozen = false;
             switch (order_type) {
-                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT):
+                case static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT):
                     entry_frozen = (ask - order_entry) < freeze_distance; break;
-                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT):
+                case static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT):
                     entry_frozen = (order_entry - bid) < freeze_distance; break;
-                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP):
-                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT):
+                case static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP):
+                case static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT):
                     entry_frozen = (order_entry - ask) < freeze_distance; break;
-                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP):
-                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT):
+                case static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP):
+                case static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT):
                     entry_frozen = (bid - order_entry) < freeze_distance; break;
                 default:
                     return invalid_result("Invalid pending order type", 10013);
@@ -781,17 +781,17 @@ TradeSimulator::TradeSimulator()
     util::info("TradeSimulator initialized");
 }
 
-TradeSimulator::TradeSimulator(hqt::AccountInfo account)
+TradeSimulator::TradeSimulator(haruquant::AccountInfo account)
     : account_info_(std::move(account)),
       trade_gateway_(account_info_) {
     util::info("TradeSimulator initialized");
 }
 
-const hqt::AccountInfo& TradeSimulator::account_info() const noexcept {
+const haruquant::AccountInfo& TradeSimulator::account_info() const noexcept {
     return account_info_;
 }
 
-const hqt::SymbolInfo* TradeSimulator::symbol_info(const std::string& symbol) const noexcept {
+const haruquant::SymbolInfo* TradeSimulator::symbol_info(const std::string& symbol) const noexcept {
     const auto it = symbols_data_.find(symbol);
     return it == symbols_data_.end() ? nullptr : &it->second;
 }
@@ -801,7 +801,7 @@ const SymbolTickData* TradeSimulator::symbol_info_tick(const std::string& symbol
     return it == ticks_data_.end() ? nullptr : &it->second;
 }
 
-std::vector<hqt::PositionInfo> TradeSimulator::positions_get(
+std::vector<haruquant::PositionInfo> TradeSimulator::positions_get(
     std::optional<std::string> symbol,
     std::optional<std::string> group,
     std::optional<uint64_t> ticket) const {
@@ -812,7 +812,7 @@ std::size_t TradeSimulator::positions_total() const noexcept {
     return trade_gateway_.trade().positions_total();
 }
 
-std::vector<hqt::OrderInfo> TradeSimulator::orders_get(
+std::vector<haruquant::OrderInfo> TradeSimulator::orders_get(
     std::optional<std::string> symbol,
     std::optional<std::string> group,
     std::optional<uint64_t> ticket) const {
@@ -823,12 +823,12 @@ std::size_t TradeSimulator::orders_total() const noexcept {
     return trade_gateway_.trade().orders_total();
 }
 
-std::vector<hqt::HistoryOrderInfo> TradeSimulator::history_orders_get(
+std::vector<haruquant::HistoryOrderInfo> TradeSimulator::history_orders_get(
     std::optional<uint64_t> ticket) const {
     return trade_gateway_.trade().history_orders_get(ticket);
 }
 
-std::vector<hqt::HistoryOrderInfo> TradeSimulator::history_orders_get(
+std::vector<haruquant::HistoryOrderInfo> TradeSimulator::history_orders_get(
     int64_t date_from_sec,
     int64_t date_to_sec,
     std::optional<std::string> group,
@@ -840,12 +840,12 @@ std::size_t TradeSimulator::history_orders_total() const noexcept {
     return trade_gateway_.trade().history_orders_total();
 }
 
-std::vector<hqt::DealInfo> TradeSimulator::history_deals_get(
+std::vector<haruquant::DealInfo> TradeSimulator::history_deals_get(
     std::optional<uint64_t> ticket) const {
     return trade_gateway_.trade().history_deals_get(ticket);
 }
 
-std::vector<hqt::DealInfo> TradeSimulator::history_deals_get(
+std::vector<haruquant::DealInfo> TradeSimulator::history_deals_get(
     int64_t date_from_sec,
     int64_t date_to_sec,
     std::optional<std::string> group,
@@ -869,7 +869,7 @@ bool TradeSimulator::symbol_select(const std::string& symbol, bool enable) {
     return ok;
 }
 
-std::vector<hqt::SymbolInfo> TradeSimulator::symbols_get(std::optional<std::string> group) const {
+std::vector<haruquant::SymbolInfo> TradeSimulator::symbols_get(std::optional<std::string> group) const {
     return trade_gateway_.trade().symbols_get(group);
 }
 
@@ -1259,7 +1259,7 @@ TradeResult TradeSimulator::close_position(uint64_t ticket) {
 
 bool TradeSimulator::set_history_order_state(uint64_t ticket, uint64_t state) {
     const bool updated = trade_gateway_.trade().history_order_set_state(
-        ticket, static_cast<hqt::ENUM_ORDER_STATE>(state));
+        ticket, static_cast<haruquant::ENUM_ORDER_STATE>(state));
     if (!updated) {
         return false;
     }
@@ -1277,7 +1277,7 @@ bool TradeSimulator::set_history_order_done_time(uint64_t ticket, int64_t time_s
     return true;
 }
 
-void TradeSimulator::set_account_info(const hqt::AccountInfo& data) {
+void TradeSimulator::set_account_info(const haruquant::AccountInfo& data) {
     account_info_ = data;
     trade_gateway_ = TradeGateway(account_info_);
     for (const auto& [_, symbol] : symbols_data_) {
@@ -1285,7 +1285,7 @@ void TradeSimulator::set_account_info(const hqt::AccountInfo& data) {
     }
 }
 
-void TradeSimulator::set_symbol_info(const hqt::SymbolInfo& data) {
+void TradeSimulator::set_symbol_info(const haruquant::SymbolInfo& data) {
     symbols_data_[data.Name()] = data;
     trade_gateway_.register_symbol(data);
     if (data.Bid() > 0.0 && data.Ask() > 0.0) {
@@ -1312,22 +1312,22 @@ void TradeSimulator::set_symbol_tick(const std::string& symbol, const SymbolTick
     ticks_data_[symbol] = tick;
 }
 
-void TradeSimulator::upsert_position_info(const hqt::PositionInfo& data) {
+void TradeSimulator::upsert_position_info(const haruquant::PositionInfo& data) {
     positions_info_data_[data.Ticket()] = data;
     trade_gateway_.trade().upsert_position(data);
 }
 
-void TradeSimulator::upsert_order_info(const hqt::OrderInfo& data) {
+void TradeSimulator::upsert_order_info(const haruquant::OrderInfo& data) {
     orders_info_data_[data.Ticket()] = data;
     trade_gateway_.trade().upsert_active_order(data);
 }
 
-void TradeSimulator::upsert_history_order_info(const hqt::HistoryOrderInfo& data) {
+void TradeSimulator::upsert_history_order_info(const haruquant::HistoryOrderInfo& data) {
     history_orders_info_data_[data.Ticket()] = data;
     trade_gateway_.trade().upsert_history_order(data);
 }
 
-void TradeSimulator::upsert_deal_info(const hqt::DealInfo& data) {
+void TradeSimulator::upsert_deal_info(const haruquant::DealInfo& data) {
     deals_info_data_[data.Ticket()] = data;
     trade_gateway_.trade().upsert_history_deal(data);
 }
@@ -1483,7 +1483,7 @@ TradeResult MockBroker::submit(const TradeRequest& request) {
     }
     TradeResult out = client_.order_send(effective);
     if (request.volume > 0.0 && effective.volume > 0.0 && effective.volume < request.volume &&
-        hqt::util::is_success_retcode(out.retcode)) {
+        haruquant::util::is_success_retcode(out.retcode)) {
         out.retcode = 10010;
         out.volume = effective.volume;
         if (out.comment.empty()) {
@@ -1697,12 +1697,12 @@ ExecutionRouteResult ExecutionRouter::submit(
         return out;
     }
 
-    hqt::risk::RiskAccountState risk_state{};
+    haruquant::risk::RiskAccountState risk_state{};
     {
         std::scoped_lock lock(mutex_);
         risk_state = risk_state_;
     }
-    const auto mode = live_mode ? hqt::risk::RiskMode::Live : hqt::risk::RiskMode::Backtest;
+    const auto mode = live_mode ? haruquant::risk::RiskMode::Live : haruquant::risk::RiskMode::Backtest;
     const auto risk_decision = governor_.can_trade_with_mode(
         risk_state,
         request.volume,
@@ -1741,21 +1741,21 @@ ExecutionRouteResult ExecutionRouter::submit(
     for (int attempt = 1; attempt <= max_attempts; ++attempt) {
         out.attempts = attempt;
         out.result = adapter_->submit(request);
-        if (hqt::util::is_success_retcode(out.result.retcode)) {
+        if (haruquant::util::is_success_retcode(out.result.retcode)) {
             std::scoped_lock lock(mutex_);
             consecutive_failures_ = 0;
             out.retried = (attempt > 1);
             break;
         }
 
-        const auto error_info = hqt::util::error_from_retcode(out.result.retcode);
+        const auto error_info = haruquant::util::error_from_retcode(out.result.retcode);
         const bool can_retry = error_info.retryable && attempt < max_attempts;
         if (!can_retry) {
             break;
         }
     }
 
-    if (!hqt::util::is_success_retcode(out.result.retcode)) {
+    if (!haruquant::util::is_success_retcode(out.result.retcode)) {
         out.retried = out.attempts > 1;
         {
             std::scoped_lock lock(mutex_);
@@ -1855,7 +1855,7 @@ ExecutionQualitySummary ExecutionRouter::quality_summary() const {
     return out;
 }
 
-}  // namespace hqt::sim
+}  // namespace haruquant::sim
 
 
 

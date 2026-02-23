@@ -32,8 +32,8 @@ DESIGN NOTES:
 #include <cstdlib>
 #include <string>
 
-using namespace hqt::util;
-namespace hqt::engine {
+using namespace haruquant::util;
+namespace haruquant::engine {
 void log_info(const std::string& message);
 void log_warning(const std::string& message);
 }
@@ -302,8 +302,8 @@ TEST(LoggerTest, WarningAndInvalidLevelPaths) {
     EXPECT_FALSE(last_level.empty());
     EXPECT_FALSE(last_message.empty());
 
-    hqt::engine::log_info("engine-wrapper-info");
-    hqt::engine::log_warning("engine-wrapper-warning");
+    haruquant::engine::log_info("engine-wrapper-info");
+    haruquant::engine::log_warning("engine-wrapper-warning");
 
     set_log_sink(LogSink{});
     set_log_level(LogLevel::Info);

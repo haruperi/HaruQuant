@@ -37,22 +37,22 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::AccountInfo;
-using hqt::ENUM_SYMBOL_CALC_MODE;
-using hqt::ENUM_ORDER_TYPE;
-using hqt::SymbolInfo;
-using hqt::util::error_from_retcode;
-using hqt::util::is_success_retcode;
-using hqt::sim::ExecutionAlgoTWAP;
-using hqt::sim::ExecutionAlgoVWAP;
-using hqt::sim::ExecutionPolicy;
-using hqt::sim::ExecutionRouter;
-using hqt::sim::MockBroker;
-using hqt::sim::PaperTradingEngine;
-using hqt::sim::SymbolTickData;
-using hqt::sim::TradeRecordTracker;
-using hqt::sim::TradeRequest;
-using hqt::sim::TradeSimulator;
+using haruquant::AccountInfo;
+using haruquant::ENUM_SYMBOL_CALC_MODE;
+using haruquant::ENUM_ORDER_TYPE;
+using haruquant::SymbolInfo;
+using haruquant::util::error_from_retcode;
+using haruquant::util::is_success_retcode;
+using haruquant::sim::ExecutionAlgoTWAP;
+using haruquant::sim::ExecutionAlgoVWAP;
+using haruquant::sim::ExecutionPolicy;
+using haruquant::sim::ExecutionRouter;
+using haruquant::sim::MockBroker;
+using haruquant::sim::PaperTradingEngine;
+using haruquant::sim::SymbolTickData;
+using haruquant::sim::TradeRecordTracker;
+using haruquant::sim::TradeRequest;
+using haruquant::sim::TradeSimulator;
 
 SymbolInfo make_symbol() {
     SymbolInfo symbol;
@@ -102,16 +102,16 @@ TEST(EngineTradingTest, CalcMarginAndProfitCoverModesAndFallback) {
     const double tick_value = 1.0;
     const double margin_initial = 1000.0;
 
-    EXPECT_GT(hqt::sim::calc_margin(0, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
-    EXPECT_GT(hqt::sim::calc_margin(4, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
-    EXPECT_GT(hqt::sim::calc_margin(7, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
-    EXPECT_GT(hqt::sim::calc_margin(99, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
+    EXPECT_GT(haruquant::sim::calc_margin(0, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
+    EXPECT_GT(haruquant::sim::calc_margin(4, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
+    EXPECT_GT(haruquant::sim::calc_margin(7, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
+    EXPECT_GT(haruquant::sim::calc_margin(99, volume, price, contract_size, leverage, tick_size, tick_value, margin_initial), 0.0);
 
-    const double buy_profit = hqt::sim::calc_profit(0, 0, 1.0, 1.10000, 1.10100, tick_size, tick_value, contract_size);
-    const double sell_profit = hqt::sim::calc_profit(0, 1, 1.0, 1.10100, 1.10000, tick_size, tick_value, contract_size);
+    const double buy_profit = haruquant::sim::calc_profit(0, 0, 1.0, 1.10000, 1.10100, tick_size, tick_value, contract_size);
+    const double sell_profit = haruquant::sim::calc_profit(0, 1, 1.0, 1.10100, 1.10000, tick_size, tick_value, contract_size);
     EXPECT_GT(buy_profit, 0.0);
     EXPECT_GT(sell_profit, 0.0);
-    EXPECT_DOUBLE_EQ(hqt::sim::calc_profit(0, 0, 1.0, 1.10000, 1.10100, 0.0, 0.0, 0.0), 0.0);
+    EXPECT_DOUBLE_EQ(haruquant::sim::calc_profit(0, 0, 1.0, 1.10000, 1.10100, 0.0, 0.0, 0.0), 0.0);
 }
 
 TEST(EngineTradingTest, TradeRecordTrackerLifecycle) {
@@ -293,16 +293,16 @@ TEST(EngineTradingTest, ExecutionAlgoSchedules) {
 
 TEST(EngineTradingTest, EngineFacadeDelegatesToBacktestEngine) {
     TradeSimulator sim = make_simulator();
-    hqt::engine::Engine engine(sim);
+    haruquant::engine::Engine engine(sim);
 
-    std::vector<hqt::sim::BacktestBarStep> bars{
+    std::vector<haruquant::sim::BacktestBarStep> bars{
         {1000, 1.10010, 20.0, 0, 0, 0.0, 0.0},
     };
     engine.run_trading_timeframe("EURUSD", 0.10, bars);
     EXPECT_EQ(engine.state().processed_events, 1U);
     EXPECT_TRUE(engine.completed_trades().empty());
 
-    std::vector<hqt::sim::ModelTick> ticks{
+    std::vector<haruquant::sim::ModelTick> ticks{
         {1000, 1.10000, 1.10020, 1.10010},
     };
     engine.run_trading_timeframe_with_ticks("EURUSD", 0.10, bars, ticks);

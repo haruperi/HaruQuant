@@ -36,7 +36,7 @@ DESIGN NOTES:
 #include <condition_variable>
 #include <stdexcept>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Event loop with priority queue and lifecycle controls
@@ -363,5 +363,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

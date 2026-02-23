@@ -30,7 +30,7 @@ DESIGN NOTES:
 
 namespace {
 
-using hqt::sim::SimulatorState;
+using haruquant::sim::SimulatorState;
 
 TEST(SimulatorStateTest, DefaultConstruction) {
     SimulatorState state;

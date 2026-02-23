@@ -40,7 +40,7 @@ DESIGN NOTES:
 #include <random>
 #include <stdexcept>
 
-namespace hqt {
+namespace haruquant {
 
 /**
  * @brief Order execution result
@@ -386,5 +386,5 @@ public:
     }
 };
 
-} // namespace hqt
+} // namespace haruquant
 

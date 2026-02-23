@@ -29,9 +29,9 @@ DESIGN NOTES:
 #include "engine/event_loop.hpp"
 #include "engine/global_clock.hpp"
 
-namespace hqt::engine {
+namespace haruquant::engine {
 
 [[maybe_unused]] static constexpr int kInfrastructureModuleScaffold = 1;
 
-}  // namespace hqt::engine
+}  // namespace haruquant::engine
 
