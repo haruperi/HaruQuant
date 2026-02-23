@@ -7,6 +7,7 @@
 #   ./scripts/build_cpp.sh --configure  # Configure only
 #   ./scripts/build_cpp.sh --build      # Build only (skip configure)
 #   ./scripts/build_cpp.sh --test       # Build + run tests
+#   ./scripts/build_cpp.sh --coverage   # Build + run tests + enforce coverage gate
 #   ./scripts/build_cpp.sh --clean      # Remove build directory
 #   ./scripts/build_cpp.sh --install    # Build + copy module to project root
 
@@ -16,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/build"
 BUILD_TYPE="Release"
+ENABLE_COVERAGE=0
 
 # Detect vcpkg - check VCPKG_ROOT env var, then common locations
 if [ -n "${VCPKG_ROOT:-}" ]; then
@@ -37,11 +39,22 @@ run() {
 
 do_configure() {
     mkdir -p "$BUILD_DIR"
+    local coverage_flag="OFF"
+    local bridge_flag="ON"
+    local bench_flag="ON"
+    if [ "$ENABLE_COVERAGE" -eq 1 ]; then
+        coverage_flag="ON"
+        bridge_flag="OFF"
+        bench_flag="OFF"
+    fi
     run cmake \
         -B "$BUILD_DIR" \
         -S "$PROJECT_ROOT" \
         -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN" \
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+        -DHQT_ENABLE_COVERAGE="$coverage_flag" \
+        -DHQT_BUILD_BRIDGE="$bridge_flag" \
+        -DHQT_BUILD_BENCHMARKS="$bench_flag" \
         -G "Unix Makefiles"
 }
 
@@ -51,6 +64,15 @@ do_build() {
 
 do_test() {
     run ctest --test-dir "$BUILD_DIR" -C "$BUILD_TYPE" --output-on-failure
+}
+
+do_coverage_check() {
+    run python3 -m pip install --upgrade gcovr
+    run python3 "$PROJECT_ROOT/scripts/check_cpp_coverage.py" \
+        --root "$PROJECT_ROOT" \
+        --build-dir "build" \
+        --threshold-file "cpp/coverage_thresholds.json" \
+        --gcovr-html "build/coverage/index.html"
 }
 
 do_install() {
@@ -86,15 +108,16 @@ for arg in "$@"; do
         --configure) ACTION="configure" ;;
         --build)     ACTION="build" ;;
         --test)      ACTION="test" ;;
+        --coverage)  ACTION="coverage"; ENABLE_COVERAGE=1; BUILD_TYPE="Debug" ;;
         --clean)     ACTION="clean" ;;
         --install)   ACTION="install" ;;
         --help|-h)
-            echo "Usage: $0 [--debug] [--configure|--build|--test|--clean|--install]"
+            echo "Usage: $0 [--debug] [--configure|--build|--test|--coverage|--clean|--install]"
             exit 0
             ;;
         *)
             echo "Unknown argument: $arg"
-            echo "Usage: $0 [--debug] [--configure|--build|--test|--clean|--install]"
+            echo "Usage: $0 [--debug] [--configure|--build|--test|--coverage|--clean|--install]"
             exit 1
             ;;
     esac
@@ -105,6 +128,7 @@ case "$ACTION" in
     configure) do_configure ;;
     build)     do_build ;;
     test)      do_configure && do_build && do_test ;;
+    coverage)  do_configure && do_build && do_test && do_coverage_check ;;
     install)   do_configure && do_build && do_install ;;
     default)   do_configure && do_build ;;
 esac

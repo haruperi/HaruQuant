@@ -6,13 +6,18 @@
 #include <hqt/hello.hpp>
 #include <util/error.hpp>
 #include <util/logger.hpp>
+#include <util/validators.hpp>
 #include <util/schema_validator.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <ctime>
+#include <functional>
+#include <optional>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -36,6 +41,434 @@ PyObject* g_exc_order_state_error = nullptr;
 PyObject* g_exc_execution_error = nullptr;
 PyObject* g_exc_transient_connectivity_error = nullptr;
 PyObject* g_exc_fatal_engine_error = nullptr;
+
+int64_t to_unix_seconds(const nb::object& value) {
+    if (value.is_none()) {
+        return 0;
+    }
+    if (nb::hasattr(value, "timestamp")) {
+        nb::object ts = value.attr("timestamp")();
+        return static_cast<int64_t>(nb::cast<double>(ts));
+    }
+    if (nb::isinstance<nb::int_>(value)) {
+        return nb::cast<int64_t>(value);
+    }
+    if (nb::isinstance<nb::float_>(value)) {
+        return static_cast<int64_t>(nb::cast<double>(value));
+    }
+    throw nb::type_error("Expected datetime or epoch seconds");
+}
+
+class BridgeTradeValidator {
+public:
+    BridgeTradeValidator() = default;
+
+    nb::tuple validate(const std::string& validation_type, nb::object value, nb::kwargs kwargs) const {
+        try {
+            const hqt::util::ValidationContext ctx = build_context(kwargs);
+            const auto dispatcher = _get_validation_dispatcher();
+            const auto it = dispatcher.find(validation_type);
+            if (it == dispatcher.end()) {
+                return nb::make_tuple(false, "Unknown validation type: " + validation_type);
+            }
+            return it->second(value, kwargs, ctx);
+        } catch (const std::exception& e) {
+            return nb::make_tuple(false, std::string(e.what()));
+        }
+    }
+
+    nb::tuple validate_multiple(const nb::list& validations) const {
+        nb::list errors;
+        bool all_valid = true;
+        std::size_t idx = 0;
+        for (nb::handle item : validations) {
+            nb::dict entry = nb::cast<nb::dict>(item);
+            nb::object type_obj = entry.contains("type") ? entry["type"] : nb::none();
+            nb::object value_obj = entry.contains("value") ? entry["value"] : nb::none();
+            if (type_obj.is_none()) {
+                all_valid = false;
+                const std::string err = "Validation " + std::to_string(idx) + ": Missing type";
+                errors.append(nb::str(err.c_str()));
+                ++idx;
+                continue;
+            }
+            if (value_obj.is_none()) {
+                all_valid = false;
+                const std::string err = "Validation " + std::to_string(idx) + ": Missing value";
+                errors.append(nb::str(err.c_str()));
+                ++idx;
+                continue;
+            }
+            nb::kwargs kwargs;
+            for (auto kv : entry) {
+                std::string k = nb::cast<std::string>(kv.first);
+                if (k == "type" || k == "value") {
+                    continue;
+                }
+                kwargs[nb::str(k.c_str())] = nb::borrow<nb::object>(kv.second);
+            }
+            nb::tuple res = validate(nb::cast<std::string>(type_obj), value_obj, kwargs);
+            if (!nb::cast<bool>(res[0])) {
+                all_valid = false;
+                const std::string msg = nb::cast<std::string>(res[1]);
+                const std::string err = "Validation " + std::to_string(idx) + " (" +
+                    nb::cast<std::string>(type_obj) + "): " + msg;
+                errors.append(nb::str(err.c_str()));
+            }
+            ++idx;
+        }
+        return nb::make_tuple(all_valid, errors);
+    }
+
+    nb::dict get_validation_rules() const {
+        nb::dict root;
+        nb::dict volume;
+        volume["min"] = rules_.volume_min;
+        volume["max"] = rules_.volume_max;
+        volume["step"] = rules_.volume_step;
+        root["volume"] = volume;
+
+        nb::dict price;
+        price["min"] = rules_.price_min;
+        price["max"] = rules_.price_max;
+        root["price"] = price;
+
+        nb::dict slippage;
+        slippage["min"] = rules_.deviation_min;
+        slippage["max"] = rules_.deviation_max;
+        root["slippage"] = slippage;
+
+        nb::dict magic;
+        magic["min"] = rules_.magic_min;
+        magic["max"] = rules_.magic_max;
+        root["magic"] = magic;
+        return root;
+    }
+
+    void update_validation_rule(const std::string& rule_type, const std::string& rule_name, nb::object value) {
+        if (rule_type == "volume") {
+            if (rule_name == "min") rules_.volume_min = as_double(value);
+            if (rule_name == "max") rules_.volume_max = as_double(value);
+            if (rule_name == "step") rules_.volume_step = as_double(value);
+        } else if (rule_type == "price") {
+            if (rule_name == "min") rules_.price_min = as_double(value);
+            if (rule_name == "max") rules_.price_max = as_double(value);
+        } else if (rule_type == "slippage" || rule_type == "deviation") {
+            if (rule_name == "min") rules_.deviation_min = as_int(value);
+            if (rule_name == "max") rules_.deviation_max = as_int(value);
+        } else if (rule_type == "magic") {
+            if (rule_name == "min") rules_.magic_min = as_int(value);
+            if (rule_name == "max") rules_.magic_max = as_int(value);
+        }
+    }
+
+private:
+    using DispatchFn = std::function<nb::tuple(
+        const nb::object&,
+        const nb::kwargs&,
+        const hqt::util::ValidationContext&)>;
+
+    hqt::util::ValidationRules rules_{};
+
+    std::unordered_map<std::string, DispatchFn> _get_validation_dispatcher() const {
+        return {
+            {"symbol", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+                return to_tuple(hqt::util::validate_symbol(as_string(value), ctx));
+            }},
+            {"volume", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+                if (!nb::isinstance<nb::str>(value)) {
+                    return nb::make_tuple(false, "Volume must be a string for strict format validation");
+                }
+                const std::string raw = as_string(value);
+                const hqt::util::RuleValidationResult fmt =
+                    hqt::util::validate_volume_format(raw, ctx, rules_);
+                if (!fmt.ok) {
+                    return to_tuple(fmt);
+                }
+                return to_tuple(hqt::util::validate_volume(std::stod(raw), ctx, rules_));
+            }},
+            {"price", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+                if (!nb::isinstance<nb::str>(value)) {
+                    return nb::make_tuple(false, "Price must be a string for strict format validation");
+                }
+                const std::string raw = as_string(value);
+                const hqt::util::RuleValidationResult fmt =
+                    hqt::util::validate_price_format(raw, ctx);
+                if (!fmt.ok) {
+                    return to_tuple(fmt);
+                }
+                double parsed = 0.0;
+                try {
+                    parsed = std::stod(raw);
+                } catch (...) {
+                    return nb::make_tuple(false, "Price must be a valid numeric string");
+                }
+                return to_tuple(hqt::util::validate_price(parsed, ctx, rules_));
+            }},
+            {"stop_loss", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+                const double stop_loss = as_strict_price(value, ctx, "stop_loss");
+                return to_tuple(hqt::util::validate_stop_loss(
+                    stop_loss,
+                    opt_strict_price(kwargs, "entry_price", ctx),
+                    opt_int(kwargs, "order_type"),
+                    ctx,
+                    rules_));
+            }},
+            {"take_profit", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+                const double take_profit = as_strict_price(value, ctx, "take_profit");
+                return to_tuple(hqt::util::validate_take_profit(
+                    take_profit,
+                    opt_strict_price(kwargs, "entry_price", ctx),
+                    opt_int(kwargs, "order_type"),
+                    ctx,
+                    rules_));
+            }},
+            {"order_type", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                if (nb::isinstance<nb::str>(value)) {
+                    return to_tuple(hqt::util::validate_order_type(as_string(value)));
+                }
+                return to_tuple(hqt::util::validate_order_type(as_int(value)));
+            }},
+            {"magic", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                return to_tuple(hqt::util::validate_magic(as_int(value), rules_));
+            }},
+            {"slippage", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+                if (!kwargs.contains("requested_price")) {
+                    return nb::make_tuple(false, "requested_price is required for slippage validation");
+                }
+                const double requested_price = as_strict_price(kwargs["requested_price"], ctx, "requested_price");
+                const int order_type = opt_int(kwargs, "order_type").value_or(0);
+                return to_tuple(hqt::util::validate_slippage(
+                    as_int(value), requested_price, order_type, ctx, rules_));
+            }},
+            {"deviation", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+                if (!kwargs.contains("requested_price")) {
+                    return nb::make_tuple(false, "requested_price is required for slippage validation");
+                }
+                const double requested_price = as_strict_price(kwargs["requested_price"], ctx, "requested_price");
+                const int order_type = opt_int(kwargs, "order_type").value_or(0);
+                return to_tuple(hqt::util::validate_slippage(
+                    as_int(value), requested_price, order_type, ctx, rules_));
+            }},
+            {"expiration_mode", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                return to_tuple(hqt::util::validate_expiration_mode(as_string(value)));
+            }},
+            {"expiration", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                const int64_t exp = to_unix_seconds(value);
+                return to_tuple(hqt::util::validate_expiration_unix(exp, current_unix_seconds()));
+            }},
+            {"timeframe", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                if (nb::isinstance<nb::str>(value)) {
+                    return to_tuple(hqt::util::validate_timeframe(as_string(value)));
+                }
+                return to_tuple(hqt::util::validate_timeframe(as_int(value)));
+            }},
+            {"date_range", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext&) {
+                const int64_t start = to_unix_seconds(value);
+                const std::optional<int64_t> end = opt_unix_seconds(kwargs, "end_date");
+                return to_tuple(hqt::util::validate_date_range_unix(start, end, current_unix_seconds()));
+            }},
+            {"trade_request", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+                return to_tuple(hqt::util::validate_trade_request_payload(
+                    parse_trade_request(value), ctx, rules_));
+            }},
+            {"credentials", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                return to_tuple(hqt::util::validate_credentials(parse_credentials(value)));
+            }},
+            {"margin", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext& ctx) {
+                return to_tuple(hqt::util::validate_margin(as_double(value), ctx));
+            }},
+            {"ticket", [this](const nb::object& value, const nb::kwargs&, const hqt::util::ValidationContext&) {
+                return to_tuple(hqt::util::validate_ticket(as_int64(value)));
+            }},
+            {"max_orders", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+                return to_tuple(hqt::util::validate_max_orders(
+                    as_int(value), opt_int(kwargs, "account_limit"), ctx));
+            }},
+            {"symbol_volume", [this](const nb::object& value, const nb::kwargs& kwargs, const hqt::util::ValidationContext& ctx) {
+                return to_tuple(hqt::util::validate_symbol_volume(
+                    as_double(value), opt_double(kwargs, "volume_limit"), ctx));
+            }},
+        };
+    }
+
+    static int64_t current_unix_seconds() {
+        return static_cast<int64_t>(std::time(nullptr));
+    }
+
+    static nb::tuple to_tuple(const hqt::util::RuleValidationResult& result) {
+        return nb::make_tuple(result.ok, result.message);
+    }
+
+    static std::string as_string(const nb::object& value) {
+        if (!nb::isinstance<nb::str>(value)) {
+            throw std::runtime_error("Expected string value");
+        }
+        return nb::cast<std::string>(value);
+    }
+
+    static double as_double(const nb::object& value) {
+        if (!nb::isinstance<nb::float_>(value) && !nb::isinstance<nb::int_>(value)) {
+            throw std::runtime_error("Expected numeric value");
+        }
+        return nb::cast<double>(value);
+    }
+
+    static int as_int(const nb::object& value) {
+        if (!nb::isinstance<nb::int_>(value)) {
+            throw std::runtime_error("Expected integer value");
+        }
+        return nb::cast<int>(value);
+    }
+
+    static int64_t as_int64(const nb::object& value) {
+        if (!nb::isinstance<nb::int_>(value)) {
+            throw std::runtime_error("Expected integer value");
+        }
+        return nb::cast<int64_t>(value);
+    }
+
+    static std::optional<double> opt_double(const nb::kwargs& kwargs, const char* key) {
+        if (!kwargs.contains(key)) return std::nullopt;
+        nb::object obj = kwargs[key];
+        if (obj.is_none()) return std::nullopt;
+        return as_double(obj);
+    }
+
+    static double as_strict_price(
+        const nb::object& value,
+        const hqt::util::ValidationContext& ctx,
+        const char* field_name) {
+        if (!nb::isinstance<nb::str>(value)) {
+            throw std::runtime_error(std::string(field_name) + " must be a string for strict format validation");
+        }
+        const std::string raw = as_string(value);
+        const hqt::util::RuleValidationResult fmt = hqt::util::validate_price_format(raw, ctx);
+        if (!fmt.ok) {
+            throw std::runtime_error(std::string(field_name) + ": " + fmt.message);
+        }
+        try {
+            return std::stod(raw);
+        } catch (...) {
+            throw std::runtime_error(std::string(field_name) + " must be a valid numeric string");
+        }
+    }
+
+    static std::optional<double> opt_strict_price(
+        const nb::kwargs& kwargs,
+        const char* key,
+        const hqt::util::ValidationContext& ctx) {
+        if (!kwargs.contains(key)) return std::nullopt;
+        nb::object obj = kwargs[key];
+        if (obj.is_none()) return std::nullopt;
+        return as_strict_price(obj, ctx, key);
+    }
+
+    static std::optional<int> opt_int(const nb::kwargs& kwargs, const char* key) {
+        if (!kwargs.contains(key)) return std::nullopt;
+        nb::object obj = kwargs[key];
+        if (obj.is_none()) return std::nullopt;
+        return as_int(obj);
+    }
+
+    static std::optional<int64_t> opt_unix_seconds(const nb::kwargs& kwargs, const char* key) {
+        if (!kwargs.contains(key)) return std::nullopt;
+        nb::object obj = kwargs[key];
+        if (obj.is_none()) return std::nullopt;
+        return to_unix_seconds(obj);
+    }
+
+    static hqt::util::CredentialsPayload parse_credentials(const nb::object& value) {
+        nb::dict d = nb::cast<nb::dict>(value);
+        hqt::util::CredentialsPayload out;
+        if (d.contains("login")) out.login = nb::cast<int>(d["login"]);
+        if (d.contains("password")) out.password = nb::cast<std::string>(d["password"]);
+        if (d.contains("server")) out.server = nb::cast<std::string>(d["server"]);
+        return out;
+    }
+
+    static hqt::util::TradeRequestPayload parse_trade_request(const nb::object& value) {
+        nb::dict d = nb::cast<nb::dict>(value);
+        hqt::util::TradeRequestPayload out;
+        if (d.contains("action")) out.action = nb::cast<int>(d["action"]);
+        if (d.contains("symbol")) out.symbol = nb::cast<std::string>(d["symbol"]);
+        if (d.contains("volume")) out.volume = nb::cast<double>(d["volume"]);
+        if (d.contains("type")) out.type = nb::cast<int>(d["type"]);
+        if (d.contains("price")) out.price = nb::cast<double>(d["price"]);
+        if (d.contains("sl")) out.sl = nb::cast<double>(d["sl"]);
+        if (d.contains("tp")) out.tp = nb::cast<double>(d["tp"]);
+        if (d.contains("magic")) out.magic = nb::cast<int>(d["magic"]);
+        if (d.contains("deviation")) out.deviation = nb::cast<int>(d["deviation"]);
+        if (d.contains("slippage")) out.slippage = nb::cast<int>(d["slippage"]);
+        return out;
+    }
+
+    static hqt::SymbolInfo parse_symbol_info(const nb::object& source) {
+        hqt::SymbolInfo sym;
+        if (nb::hasattr(source, "name")) sym.Name(nb::cast<std::string>(source.attr("name")));
+        if (nb::hasattr(source, "symbol")) sym.Name(nb::cast<std::string>(source.attr("symbol")));
+        if (nb::hasattr(source, "digits")) sym.SetDigits(nb::cast<int>(source.attr("digits")));
+        if (nb::hasattr(source, "point")) sym.SetPoint(nb::cast<double>(source.attr("point")));
+        if (nb::hasattr(source, "trade_tick_size")) sym.SetTickSize(nb::cast<double>(source.attr("trade_tick_size")));
+        if (nb::hasattr(source, "trade_stops_level")) sym.SetStopsLevel(nb::cast<int>(source.attr("trade_stops_level")));
+        if (nb::hasattr(source, "trade_freeze_level")) sym.SetFreezeLevel(nb::cast<int>(source.attr("trade_freeze_level")));
+        if (nb::hasattr(source, "volume_min")) sym.SetVolumeMin(nb::cast<double>(source.attr("volume_min")));
+        if (nb::hasattr(source, "volume_max")) sym.SetVolumeMax(nb::cast<double>(source.attr("volume_max")));
+        if (nb::hasattr(source, "volume_step")) sym.SetVolumeStep(nb::cast<double>(source.attr("volume_step")));
+        if (nb::hasattr(source, "volume_limit")) sym.SetVolumeLimit(nb::cast<double>(source.attr("volume_limit")));
+        double bid = 0.0;
+        double ask = 0.0;
+        if (nb::hasattr(source, "bid")) bid = nb::cast<double>(source.attr("bid"));
+        if (nb::hasattr(source, "ask")) ask = nb::cast<double>(source.attr("ask"));
+        if (bid > 0.0 && ask > 0.0) sym.UpdatePrice(bid, ask, 0);
+        return sym;
+    }
+
+    static hqt::AccountInfo parse_account_info(const nb::object& source) {
+        hqt::AccountInfo acc;
+        if (nb::hasattr(source, "margin_free")) acc.SetFreeMargin(nb::cast<double>(source.attr("margin_free")));
+        if (nb::hasattr(source, "equity")) acc.SetEquity(nb::cast<double>(source.attr("equity")));
+        if (nb::hasattr(source, "margin")) acc.SetMargin(nb::cast<double>(source.attr("margin")));
+        if (nb::hasattr(source, "limit_orders")) acc.SetLimitOrders(nb::cast<int>(source.attr("limit_orders")));
+        return acc;
+    }
+
+    static std::optional<hqt::sim::SymbolTickData> parse_symbol_tick(const nb::object& source) {
+        if (source.is_none()) return std::nullopt;
+        hqt::sim::SymbolTickData tick;
+        if (nb::hasattr(source, "bid")) tick.bid = nb::cast<double>(source.attr("bid"));
+        if (nb::hasattr(source, "ask")) tick.ask = nb::cast<double>(source.attr("ask"));
+        return tick;
+    }
+
+    static hqt::util::ValidationContext build_context(const nb::kwargs& kwargs) {
+        hqt::util::ValidationContext ctx;
+        if (kwargs.contains("symbol_info") && !kwargs["symbol_info"].is_none()) {
+            static thread_local std::optional<hqt::SymbolInfo> symbol_holder;
+            symbol_holder = parse_symbol_info(kwargs["symbol_info"]);
+            ctx.symbol_info = &(*symbol_holder);
+            ctx.symbol_exists = true;
+        }
+        if (kwargs.contains("tick") && !kwargs["tick"].is_none()) {
+            ctx.symbol_tick = parse_symbol_tick(kwargs["tick"]);
+        }
+        if (kwargs.contains("account_info") && !kwargs["account_info"].is_none()) {
+            static thread_local std::optional<hqt::AccountInfo> account_holder;
+            account_holder = parse_account_info(kwargs["account_info"]);
+            ctx.account = &(*account_holder);
+        }
+        if (kwargs.contains("symbol_exists") && !kwargs["symbol_exists"].is_none()) {
+            ctx.symbol_exists = nb::cast<bool>(kwargs["symbol_exists"]);
+        }
+        if (kwargs.contains("symbol_visible") && !kwargs["symbol_visible"].is_none()) {
+            ctx.symbol_visible = nb::cast<bool>(kwargs["symbol_visible"]);
+        }
+        if (kwargs.contains("symbol_select_ok") && !kwargs["symbol_select_ok"].is_none()) {
+            ctx.symbol_select_ok = nb::cast<bool>(kwargs["symbol_select_ok"]);
+        }
+        return ctx;
+    }
+};
 
 hqt::util::LogLevel parse_level(const std::string& raw_level) {
     std::string level = raw_level;
@@ -658,6 +1091,14 @@ NB_MODULE(hqt_engine, m) {
         return validation_result_payload(hqt::util::validate_config_schema(parsed));
     }, nb::arg("payload"),
        "Validate runtime config payload against C++ schema primitives.");
+
+    nb::class_<BridgeTradeValidator>(m, "TradeValidator")
+        .def(nb::init<>())
+        .def("validate", &BridgeTradeValidator::validate)
+        .def("validate_multiple", &BridgeTradeValidator::validate_multiple, nb::arg("validations"))
+        .def("get_validation_rules", &BridgeTradeValidator::get_validation_rules)
+        .def("update_validation_rule", &BridgeTradeValidator::update_validation_rule,
+             nb::arg("rule_type"), nb::arg("rule_name"), nb::arg("value"));
 
     nb::module_ event = m.def_submodule("_event", "Event module skeleton.");
     annotate_skeleton_submodule(event, "_event");

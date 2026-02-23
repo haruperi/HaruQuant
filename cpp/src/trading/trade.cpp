@@ -1,8 +1,30 @@
 /**
- * @file trade.cpp
- * @brief Implementation of CTrade class
- */
+FILE: src\trading\trade.cpp
 
+PURPOSE:
+Defines trade.cpp functionality used by the C++ runtime and bridge layers.
+
+RESPONSIBILITIES:
+- Own file-level logic for this compilation or declaration unit.
+- Keep module boundaries clear for related engine/trading/risk/util flows.
+- Provide stable behavior expected by callers and tests.
+
+MAIN COMPONENTS:
+- Primary types/functions declared or defined in trade.cpp.
+- File-local helpers supporting the main public or internal entry points.
+
+DATA FLOW:
+Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
+
+DEPENDENCIES:
+- Internal modules: Neighboring headers under cpp/include and shared utility components.
+- External systems: Standard C++ library and optional third-party libs linked by CMake.
+
+DESIGN NOTES:
+- Keep behavior deterministic for backtest and unit-test reliability.
+- Prefer explicit validation and retcode-based failure signaling.
+- Preserve low coupling between domains through typed interfaces.
+*/
 #include "trading/trade.hpp"
 #include "util/logger.hpp"
 #include <sstream>
@@ -69,13 +91,15 @@ bool CTrade::PositionOpen(const std::string& symbol,
     last_request_.type_filling = type_filling_;
     last_request_.magic = magic_number_;
     last_request_.comment = comment;
-
-    // Check request
-    if (!CheckRequest(last_request_, last_check_)) {
-        last_result_.retcode = last_check_.retcode;
-        last_result_.comment = last_check_.comment;
-        return false;
-    }
+    // Validation authority is centralized in TradeGateway::order_send.
+    last_check_ = MqlTradeCheckResult();
+    last_check_.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_DONE;
+    last_check_.balance = account_.Balance();
+    last_check_.equity = account_.Equity();
+    last_check_.margin = account_.Margin();
+    last_check_.margin_free = account_.FreeMargin();
+    last_check_.margin_level = account_.MarginLevel();
+    last_check_.comment = "Validated by gateway";
 
     // Execute request
     bool success = ExecuteRequest(last_request_, last_result_);
@@ -341,13 +365,15 @@ bool CTrade::OrderOpen(const std::string& symbol,
     last_request_.expiration = expiration;
     last_request_.magic = magic_number_;
     last_request_.comment = comment;
-
-    // Check request
-    if (!CheckRequest(last_request_, last_check_)) {
-        last_result_.retcode = last_check_.retcode;
-        last_result_.comment = last_check_.comment;
-        return false;
-    }
+    // Validation authority is centralized in TradeGateway::order_send.
+    last_check_ = MqlTradeCheckResult();
+    last_check_.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_DONE;
+    last_check_.balance = account_.Balance();
+    last_check_.equity = account_.Equity();
+    last_check_.margin = account_.Margin();
+    last_check_.margin_free = account_.FreeMargin();
+    last_check_.margin_level = account_.MarginLevel();
+    last_check_.comment = "Validated by gateway";
 
     // Execute request
     bool success = ExecuteRequest(last_request_, last_result_);
@@ -991,55 +1017,14 @@ double CTrade::CalculateMargin(double volume,
 
 bool CTrade::CheckRequest(const MqlTradeRequest& request,
                          MqlTradeCheckResult& check) const noexcept {
+    (void)request;
     check.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_DONE;
     check.balance = account_.Balance();
     check.equity = account_.Equity();
     check.margin = account_.Margin();
     check.margin_free = account_.FreeMargin();
     check.margin_level = account_.MarginLevel();
-
-    // Validate symbol
-    const SymbolInfo* info = GetSymbolInfo(request.symbol);
-    if (!info) {
-        check.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_INVALID;
-        check.comment = "Unknown symbol";
-        return false;
-    }
-
-    // Validate volume
-    if (request.volume <= 0.0) {
-        check.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_INVALID_VOLUME;
-        check.comment = "Invalid volume";
-        return false;
-    }
-
-    if (request.volume < info->LotsMin() || request.volume > info->LotsMax()) {
-        check.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_INVALID_VOLUME;
-        check.comment = "Volume out of range";
-        return false;
-    }
-
-    // Check margin requirements for new positions
-    if (request.action == ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_DEAL ||
-        request.action == ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING) {
-
-        double price = (request.price > 0.0) ? request.price :
-            ((request.type == ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ? info->Ask() : info->Bid());
-
-        double required_margin = CalculateMargin(request.volume, price, *info);
-        check.margin += required_margin;
-        check.margin_free = check.equity - check.margin;
-
-        if (check.margin_free < 0.0) {
-            check.retcode = ENUM_TRADE_RETCODE::TRADE_RETCODE_NO_MONEY;
-            check.comment = "Insufficient margin";
-            return false;
-        }
-
-        check.margin_level = (check.margin > 0.0) ? (check.equity / check.margin * 100.0) : 0.0;
-    }
-
-    check.comment = "Request valid";
+    check.comment = "Validated by gateway";
     return true;
 }
 
@@ -1293,3 +1278,4 @@ uint64_t CTrade::InternalOrderPlace(const std::string& symbol,
 }
 
 } // namespace hqt
+

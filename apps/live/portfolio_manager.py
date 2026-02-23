@@ -9,8 +9,9 @@ from typing import Dict, List, Tuple
 
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
-from apps.mt5 import AccountInfo
-from apps.utils.validate import OrderType
+from apps.mt5 import AccountInfo, get_mt5_api
+
+mt5 = get_mt5_api()
 
 
 class PortfolioManager:
@@ -242,11 +243,11 @@ class PortfolioManager:
         for pos in existing_positions:
             pos_type = getattr(pos, "type", None)
 
-            if signal_type == "buy" and pos_type == OrderType.SELL.value:
+            if signal_type == "buy" and pos_type == mt5.ORDER_TYPE_SELL:
                 reason = f"Warning: Opening BUY with existing SELL position on {symbol}"
                 return True, reason  # Allow but warn
 
-            elif signal_type == "sell" and pos_type == OrderType.BUY.value:
+            elif signal_type == "sell" and pos_type == mt5.ORDER_TYPE_BUY:
                 reason = f"Warning: Opening SELL with existing BUY position on {symbol}"
                 return True, reason  # Allow but warn
 
@@ -270,12 +271,12 @@ class PortfolioManager:
             buy_positions = sum(
                 1
                 for pos in self._all_positions
-                if getattr(pos, "type", None) == OrderType.BUY.value
+                if getattr(pos, "type", None) == mt5.ORDER_TYPE_BUY
             )
             sell_positions = sum(
                 1
                 for pos in self._all_positions
-                if getattr(pos, "type", None) == OrderType.SELL.value
+                if getattr(pos, "type", None) == mt5.ORDER_TYPE_SELL
             )
 
             # Top symbols by position count
@@ -320,12 +321,12 @@ class PortfolioManager:
         buy_volume = sum(
             getattr(pos, "volume", 0)
             for pos in positions
-            if getattr(pos, "type", None) == OrderType.BUY.value
+            if getattr(pos, "type", None) == mt5.ORDER_TYPE_BUY
         )
         sell_volume = sum(
             getattr(pos, "volume", 0)
             for pos in positions
-            if getattr(pos, "type", None) == OrderType.SELL.value
+            if getattr(pos, "type", None) == mt5.ORDER_TYPE_SELL
         )
         net_volume = buy_volume - sell_volume
 

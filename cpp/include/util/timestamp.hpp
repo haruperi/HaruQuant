@@ -1,15 +1,30 @@
 /**
- * @file timestamp.hpp
- * @brief Microsecond-precision timestamp utilities
- *
- * All timestamps are stored as int64_t microseconds since Unix epoch (UTC).
- * This provides:
- * - Microsecond precision for tick-level data
- * - Simple arithmetic (difference, comparison)
- * - No timezone ambiguity (always UTC internally)
- * - Y2262 overflow (int64_t microseconds)
- */
+FILE: include\util\timestamp.hpp
 
+PURPOSE:
+Defines timestamp.hpp functionality used by the C++ runtime and bridge layers.
+
+RESPONSIBILITIES:
+- Own file-level logic for this compilation or declaration unit.
+- Keep module boundaries clear for related engine/trading/risk/util flows.
+- Provide stable behavior expected by callers and tests.
+
+MAIN COMPONENTS:
+- Primary types/functions declared or defined in timestamp.hpp.
+- File-local helpers supporting the main public or internal entry points.
+
+DATA FLOW:
+Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
+
+DEPENDENCIES:
+- Internal modules: Neighboring headers under cpp/include and shared utility components.
+- External systems: Standard C++ library and optional third-party libs linked by CMake.
+
+DESIGN NOTES:
+- Keep behavior deterministic for backtest and unit-test reliability.
+- Prefer explicit validation and retcode-based failure signaling.
+- Preserve low coupling between domains through typed interfaces.
+*/
 #pragma once
 
 #include <cstdint>
@@ -231,3 +246,4 @@ public:
 };
 
 } // namespace hqt
+

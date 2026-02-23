@@ -1,14 +1,30 @@
 /**
- * @file event_loop.hpp
- * @brief Event-driven simulation loop with priority queue
- *
- * Central event loop for backtesting. Events are processed in strict chronological
- * order using a min-heap priority queue. Supports pause/resume/step for interactive
- * debugging and integrates with GlobalClock for multi-asset synchronization.
- *
- * Performance target: =1M ticks/second throughput
- */
+FILE: include\engine\event_loop.hpp
 
+PURPOSE:
+Defines event_loop.hpp functionality used by the C++ runtime and bridge layers.
+
+RESPONSIBILITIES:
+- Own file-level logic for this compilation or declaration unit.
+- Keep module boundaries clear for related engine/trading/risk/util flows.
+- Provide stable behavior expected by callers and tests.
+
+MAIN COMPONENTS:
+- Primary types/functions declared or defined in event_loop.hpp.
+- File-local helpers supporting the main public or internal entry points.
+
+DATA FLOW:
+Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
+
+DEPENDENCIES:
+- Internal modules: Neighboring headers under cpp/include and shared utility components.
+- External systems: Standard C++ library and optional third-party libs linked by CMake.
+
+DESIGN NOTES:
+- Keep behavior deterministic for backtest and unit-test reliability.
+- Prefer explicit validation and retcode-based failure signaling.
+- Preserve low coupling between domains through typed interfaces.
+*/
 #pragma once
 
 #include "event.hpp"
@@ -348,3 +364,4 @@ public:
 };
 
 } // namespace hqt
+

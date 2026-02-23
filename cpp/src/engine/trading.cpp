@@ -1,11 +1,34 @@
 /**
- * @file trading.cpp
- * @brief Unified engine trading compilation unit.
- */
+FILE: src\engine\trading.cpp
 
+PURPOSE:
+Defines trading.cpp functionality used by the C++ runtime and bridge layers.
+
+RESPONSIBILITIES:
+- Own file-level logic for this compilation or declaration unit.
+- Keep module boundaries clear for related engine/trading/risk/util flows.
+- Provide stable behavior expected by callers and tests.
+
+MAIN COMPONENTS:
+- Primary types/functions declared or defined in trading.cpp.
+- File-local helpers supporting the main public or internal entry points.
+
+DATA FLOW:
+Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
+
+DEPENDENCIES:
+- Internal modules: Neighboring headers under cpp/include and shared utility components.
+- External systems: Standard C++ library and optional third-party libs linked by CMake.
+
+DESIGN NOTES:
+- Keep behavior deterministic for backtest and unit-test reliability.
+- Prefer explicit validation and retcode-based failure signaling.
+- Preserve low coupling between domains through typed interfaces.
+*/
 #include "engine/engine.hpp"
 #include "util/error.hpp"
 #include "util/logger.hpp"
+#include "util/validators.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -15,6 +38,23 @@
 #include <string>
 
 namespace hqt::sim {
+
+namespace {
+std::string order_type_to_text(int order_type) {
+    switch (order_type) {
+        case 0: return "BUY";
+        case 1: return "SELL";
+        case 2: return "BUY_LIMIT";
+        case 3: return "SELL_LIMIT";
+        case 4: return "BUY_STOP";
+        case 5: return "SELL_STOP";
+        case 6: return "BUY_STOP_LIMIT";
+        case 7: return "SELL_STOP_LIMIT";
+        case 8: return "CLOSE_BY";
+        default: return std::to_string(order_type);
+    }
+}
+}  // namespace
 
 double calc_margin(
     int trade_calc_mode,
@@ -55,6 +95,7 @@ double calc_margin(
 }
 
 double calc_profit(
+    int trade_calc_mode,
     int action,
     double volume,
     double price_open,
@@ -65,13 +106,56 @@ double calc_profit(
     const double direction = (action == 0) ? 1.0 : -1.0;
     const double price_delta = (price_close - price_open) * direction;
 
-    if (tick_size > 0.0 && tick_value > 0.0) {
-        return (price_delta / tick_size) * tick_value * volume;
+    const bool has_tick_formula = (tick_size > 0.0 && tick_value > 0.0);
+    const bool has_contract_formula = (contract_size > 0.0);
+
+    const auto calc_tick = [&]() -> double {
+        return has_tick_formula ? ((price_delta * volume * tick_value) / tick_size) : 0.0;
+    };
+    const auto calc_contract = [&]() -> double {
+        return has_contract_formula ? (price_delta * contract_size * volume) : 0.0;
+    };
+
+    switch (trade_calc_mode) {
+        case 0:  // SYMBOL_CALC_MODE_FOREX
+        case 2:  // SYMBOL_CALC_MODE_CFD
+        case 3:  // SYMBOL_CALC_MODE_CFDINDEX
+        case 4:  // SYMBOL_CALC_MODE_CFDLEVERAGE
+        case 5:  // SYMBOL_CALC_MODE_EXCH_STOCKS
+        case 8:  // SYMBOL_CALC_MODE_EXCH_BONDS / CFDCRYPTO (fallback without extra bond fields)
+            if (has_contract_formula) {
+                return calc_contract();
+            }
+            if (has_tick_formula) {
+                return calc_tick();
+            }
+            return 0.0;
+        case 1:  // SYMBOL_CALC_MODE_FUTURES
+        case 6:  // SYMBOL_CALC_MODE_EXCH_FUTURES
+            if (has_tick_formula) {
+                return calc_tick();
+            }
+            if (has_contract_formula) {
+                return calc_contract();
+            }
+            return 0.0;
+        case 7:  // SYMBOL_CALC_MODE_EXCH_OPTIONS
+            if (has_tick_formula) {
+                return calc_tick();
+            }
+            if (has_contract_formula) {
+                return calc_contract();
+            }
+            return 0.0;
+        default:
+            if (has_tick_formula) {
+                return calc_tick();
+            }
+            if (has_contract_formula) {
+                return calc_contract();
+            }
+            return 0.0;
     }
-    if (contract_size > 0.0) {
-        return price_delta * contract_size * volume;
-    }
-    return 0.0;
 }
 
 PositionTotals AccountMonitor::monitor_positions(
@@ -241,29 +325,231 @@ void TradeGateway::register_symbol(const hqt::SymbolInfo& symbol) {
 
 TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTickData* tick) {
     bool ok = false;
-
-    if (request.action == 1 || request.action == 5) {
-        if (request.symbol.empty()) {
-            return invalid_result("Invalid request: missing symbol", 10013);
+    const util::ValidationRules validation_rules{};
+    const auto build_validation_ctx = [&](const hqt::SymbolInfo* symbol_info, double bid, double ask) {
+        util::ValidationContext ctx{};
+        ctx.account = &trade_.Account();
+        ctx.symbol_info = symbol_info;
+        ctx.symbol_exists = (symbol_info != nullptr);
+        ctx.symbol_visible = true;
+        ctx.symbol_select_ok = true;
+        if (tick != nullptr) {
+            ctx.symbol_tick = *tick;
+        } else {
+            SymbolTickData synthetic_tick{};
+            synthetic_tick.bid = bid;
+            synthetic_tick.ask = ask;
+            ctx.symbol_tick = synthetic_tick;
         }
-        if (request.volume <= 0.0) {
-            return invalid_result("Invalid volume", 10014);
+        return ctx;
+    };
+    const auto is_buy_side = [](int order_type) {
+        return order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY) ||
+            order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
+            order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
+            order_type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
+    };
+    const auto validate_freeze_for_levels = [&](int order_type,
+                                                double bid,
+                                                double ask,
+                                                std::optional<double> sl,
+                                                std::optional<double> tp,
+                                                const hqt::SymbolInfo* symbol_info) -> util::RuleValidationResult {
+        if (symbol_info == nullptr) {
+            return util::RuleValidationResult{false, "Unknown symbol"};
         }
-
-        const auto sym_it = symbols_.find(request.symbol);
-        if (sym_it == symbols_.end()) {
-            return invalid_result("No quotes to process the request", 10021);
+        const int freeze_level = symbol_info->FreezeLevel();
+        if (freeze_level <= 0) {
+            return util::RuleValidationResult{true, "OK"};
         }
+        const double point = symbol_info->Point();
+        if (!(point > 0.0)) {
+            return util::RuleValidationResult{false, "Invalid symbol point value"};
+        }
+        const double freeze_distance = static_cast<double>(freeze_level) * point;
+        if (is_buy_side(order_type)) {
+            if (sl.has_value() && *sl > 0.0 && (bid - *sl) < freeze_distance) {
+                return util::RuleValidationResult{false, "SL inside freeze level from market"};
+            }
+            if (tp.has_value() && *tp > 0.0 && (*tp - bid) < freeze_distance) {
+                return util::RuleValidationResult{false, "TP inside freeze level from market"};
+            }
+            return util::RuleValidationResult{true, "OK"};
+        }
+        if (sl.has_value() && *sl > 0.0 && (*sl - ask) < freeze_distance) {
+            return util::RuleValidationResult{false, "SL inside freeze level from market"};
+        }
+        if (tp.has_value() && *tp > 0.0 && (ask - *tp) < freeze_distance) {
+            return util::RuleValidationResult{false, "TP inside freeze level from market"};
+        }
+        return util::RuleValidationResult{true, "OK"};
+    };
 
-        const double bid = tick ? tick->bid : sym_it->second.Bid();
-        const double ask = tick ? tick->ask : sym_it->second.Ask();
+    // Closing branch (market deal with existing position ticket).
+    if (request.action == 1 && request.order != 0) {
+        const auto positions = trade_.positions_get(std::nullopt, std::nullopt, request.order);
+        if (positions.empty()) {
+            return invalid_result("Invalid request: position not found", 10013);
+        }
+        const auto& pos = positions.front();
+        const auto sym_it = symbols_.find(pos.Symbol());
+        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        if (symbol_info == nullptr) {
+            return invalid_result("Unknown symbol", 10013);
+        }
+        const double bid = tick ? tick->bid : symbol_info->Bid();
+        const double ask = tick ? tick->ask : symbol_info->Ask();
         if (bid <= 0.0 || ask <= 0.0) {
             return invalid_result("No quotes to process the request", 10021);
         }
+
+        const bool is_buy_position =
+            (pos.PositionType() == hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY);
+        const int expected_close_type = is_buy_position
+            ? static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)
+            : static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
+        if (request.type != expected_close_type) {
+            return invalid_result("Invalid close order type for position side", 10013);
+        }
+
+        const double expected_close_price = is_buy_position ? bid : ask;
+        if (request.price > 0.0) {
+            const double tolerance = symbol_info->Point() > 0.0 ? (symbol_info->Point() * 0.5) : 1e-9;
+            if (std::abs(request.price - expected_close_price) > tolerance) {
+                return invalid_result("Invalid close price for position side", 10015);
+            }
+        }
+
+        trade_.UpdatePrices(pos.Symbol(), bid, ask, tick ? (tick->time_msc * 1000) : 0);
+        ok = trade_.PositionClose(request.order);
+    } else if (request.action == 1 || request.action == 5) {
+        const auto action_check = util::validate_action_type(request.action, request.type);
+        if (!action_check.ok) {
+            return invalid_result(action_check.comment, action_check.retcode);
+        }
+        const auto sym_it = symbols_.find(request.symbol);
+        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+
+        const double bid = tick ? tick->bid : (symbol_info ? symbol_info->Bid() : 0.0);
+        const double ask = tick ? tick->ask : (symbol_info ? symbol_info->Ask() : 0.0);
+        const auto input_check =
+            util::validate_submission_inputs(request.symbol, request.volume, symbol_info, bid, ask);
+        if (!input_check.ok) {
+            return invalid_result(input_check.comment, input_check.retcode);
+        }
+        const util::ValidationContext validation_ctx = build_validation_ctx(symbol_info, bid, ask);
+
+        // Price validation for pending orders is mandatory; for market orders validate when provided.
+        if (request.action == 5) {
+            if (!(request.price > 0.0)) {
+                return invalid_result("Invalid price", 10015);
+            }
+            const auto price_ok = util::validate_price(request.price, validation_ctx, validation_rules);
+            if (!price_ok.ok) {
+                return invalid_result("Invalid price: " + price_ok.message, 10015);
+            }
+        } else if (request.price > 0.0) {
+            const auto price_ok = util::validate_price(request.price, validation_ctx, validation_rules);
+            if (!price_ok.ok) {
+                return invalid_result("Invalid price: " + price_ok.message, 10015);
+            }
+        }
+
+        std::optional<double> entry_price = std::nullopt;
+        if (request.price > 0.0) {
+            entry_price = request.price;
+        } else if (request.action == 1) {
+            if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)) {
+                entry_price = ask;
+            } else if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)) {
+                entry_price = bid;
+            }
+        }
+
+        if (request.sl > 0.0) {
+            const auto sl_ok = util::validate_stop_loss(
+                request.sl,
+                entry_price,
+                request.type,
+                validation_ctx,
+                validation_rules);
+            if (!sl_ok.ok) {
+                return invalid_result("Invalid stop loss: " + sl_ok.message, 10016);
+            }
+        }
+        if (request.tp > 0.0) {
+            const auto tp_ok = util::validate_take_profit(
+                request.tp,
+                entry_price,
+                request.type,
+                validation_ctx,
+                validation_rules);
+            if (!tp_ok.ok) {
+                return invalid_result("Invalid take profit: " + tp_ok.message, 10016);
+            }
+        }
+
+        // Slippage applies to market execution when a requested price is provided.
+        if (request.action == 1 && request.price > 0.0) {
+            const auto slippage_ok = util::validate_slippage(
+                static_cast<int>(trade_.DeviationInPoints()),
+                request.price,
+                request.type,
+                validation_ctx,
+                validation_rules);
+            if (!slippage_ok.ok) {
+                return invalid_result("Invalid slippage: " + slippage_ok.message, 10020);
+            }
+        }
+
+        const MqlTradeRequest mql_request = to_mql_request(request);
+        const auto request_check =
+            util::validate_trade_request(mql_request, trade_.Account(), symbol_info);
+        if (!request_check.ok) {
+            return invalid_result(request_check.comment, request_check.retcode);
+        }
+
+        // Explicit market freeze validation for stop levels during open/place flows.
+        const auto freeze_ok = validate_freeze_for_levels(
+            request.type,
+            bid,
+            ask,
+            request.sl > 0.0 ? std::optional<double>(request.sl) : std::nullopt,
+            request.tp > 0.0 ? std::optional<double>(request.tp) : std::nullopt,
+            symbol_info);
+        if (!freeze_ok.ok) {
+            return invalid_result("Invalid stops: " + freeze_ok.message, 10029);
+        }
+
+        // Enforce per-instrument cumulative volume cap (positions + pending + incoming request).
+        double symbol_volume = 0.0;
+        for (const auto& pos : trade_.positions_get(request.symbol, std::nullopt, std::nullopt)) {
+            symbol_volume += pos.Volume();
+        }
+        for (const auto& ord : trade_.orders_get(request.symbol, std::nullopt, std::nullopt)) {
+            symbol_volume += ord.VolumeCurrent();
+        }
+        symbol_volume += request.volume;
+        const auto symbol_volume_ok =
+            util::validate_symbol_volume(symbol_volume, std::nullopt, validation_ctx);
+        if (!symbol_volume_ok.ok) {
+            return invalid_result(symbol_volume_ok.message, 10034);
+        }
+
+        // Pending order count gate.
+        if (request.action == 5) {
+            const int pending_orders = static_cast<int>(trade_.orders_total());
+            const auto max_orders_ok =
+                util::validate_max_orders(pending_orders, std::nullopt, validation_ctx);
+            if (!max_orders_ok.ok) {
+                return invalid_result(max_orders_ok.message, 10033);
+            }
+        }
+
         trade_.UpdatePrices(request.symbol, bid, ask, tick ? (tick->time_msc * 1000) : 0);
 
         if (request.action == 1) {
-            if (request.type == 0) {  // BUY
+            if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)) {
                 ok = trade_.Buy(
                     request.volume,
                     request.symbol,
@@ -271,7 +557,7 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
                     request.sl,
                     request.tp,
                     request.comment);
-            } else if (request.type == 1) {  // SELL
+            } else if (request.type == static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL)) {
                 ok = trade_.Sell(
                     request.volume,
                     request.symbol,
@@ -310,17 +596,149 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
                 request.comment);
         }
     } else if (request.action == 6) {
-        if (request.order != 0) {
-            ok = trade_.PositionModify(request.order, request.sl, request.tp);
-        } else if (!request.symbol.empty()) {
-            ok = trade_.PositionModify(request.symbol, request.sl, request.tp);
-        } else {
-            return invalid_result("Invalid request: missing position or symbol", 10013);
+        uint64_t target_ticket = request.order;
+        if (target_ticket == 0) {
+            if (request.symbol.empty()) {
+                return invalid_result("Invalid request: missing position or symbol", 10013);
+            }
+            const auto positions = trade_.positions_get(request.symbol, std::nullopt, std::nullopt);
+            if (positions.empty()) {
+                return invalid_result("Invalid request: position not found", 10013);
+            }
+            target_ticket = positions.front().Ticket();
         }
+        const auto positions = trade_.positions_get(std::nullopt, std::nullopt, target_ticket);
+        if (positions.empty()) {
+            return invalid_result("Invalid request: position not found", 10013);
+        }
+        const auto& pos = positions.front();
+        const auto sym_it = symbols_.find(pos.Symbol());
+        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        if (symbol_info == nullptr) {
+            return invalid_result("Unknown symbol", 10013);
+        }
+        const double bid = tick ? tick->bid : symbol_info->Bid();
+        const double ask = tick ? tick->ask : symbol_info->Ask();
+        if (bid <= 0.0 || ask <= 0.0) {
+            return invalid_result("No quotes to process the request", 10021);
+        }
+        const util::ValidationContext validation_ctx = build_validation_ctx(symbol_info, bid, ask);
+        const int order_type = (pos.PositionType() == hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY)
+            ? static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY)
+            : static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
+        const double entry = pos.PriceOpen();
+
+        if (request.sl > 0.0) {
+            const auto sl_ok = util::validate_stop_loss(
+                request.sl, entry, order_type, validation_ctx, validation_rules);
+            if (!sl_ok.ok) {
+                return invalid_result("Invalid stop loss: " + sl_ok.message, 10016);
+            }
+        }
+        if (request.tp > 0.0) {
+            const auto tp_ok = util::validate_take_profit(
+                request.tp, entry, order_type, validation_ctx, validation_rules);
+            if (!tp_ok.ok) {
+                return invalid_result("Invalid take profit: " + tp_ok.message, 10016);
+            }
+        }
+        const auto freeze_ok = validate_freeze_for_levels(
+            order_type,
+            bid,
+            ask,
+            request.sl > 0.0 ? std::optional<double>(request.sl) : std::nullopt,
+            request.tp > 0.0 ? std::optional<double>(request.tp) : std::nullopt,
+            symbol_info);
+        if (!freeze_ok.ok) {
+            return invalid_result("Invalid stops: " + freeze_ok.message, 10029);
+        }
+
+        trade_.UpdatePrices(pos.Symbol(), bid, ask, tick ? (tick->time_msc * 1000) : 0);
+        ok = trade_.PositionModify(target_ticket, request.sl, request.tp);
     } else if (request.action == 7) {
         if (request.order == 0) {
             return invalid_result("Invalid request: missing order", 10013);
         }
+        const auto orders = trade_.orders_get(std::nullopt, std::nullopt, request.order);
+        if (orders.empty()) {
+            return invalid_result("Invalid request: order not found", 10035);
+        }
+        const auto& ord = orders.front();
+        const auto sym_it = symbols_.find(ord.Symbol());
+        const hqt::SymbolInfo* symbol_info = (sym_it == symbols_.end()) ? nullptr : &sym_it->second;
+        if (symbol_info == nullptr) {
+            return invalid_result("Unknown symbol", 10013);
+        }
+        const double bid = tick ? tick->bid : symbol_info->Bid();
+        const double ask = tick ? tick->ask : symbol_info->Ask();
+        if (bid <= 0.0 || ask <= 0.0) {
+            return invalid_result("No quotes to process the request", 10021);
+        }
+        const util::ValidationContext validation_ctx = build_validation_ctx(symbol_info, bid, ask);
+        const int order_type = static_cast<int>(ord.OrderType());
+        const double entry = (request.price > 0.0) ? request.price : ord.PriceOpen();
+
+        if (request.price > 0.0) {
+            const auto price_ok = util::validate_price(request.price, validation_ctx, validation_rules);
+            if (!price_ok.ok) {
+                return invalid_result("Invalid price: " + price_ok.message, 10015);
+            }
+        }
+        if (request.sl > 0.0) {
+            const auto sl_ok = util::validate_stop_loss(
+                request.sl, entry, order_type, validation_ctx, validation_rules);
+            if (!sl_ok.ok) {
+                return invalid_result("Invalid stop loss: " + sl_ok.message, 10016);
+            }
+        }
+        if (request.tp > 0.0) {
+            const auto tp_ok = util::validate_take_profit(
+                request.tp, entry, order_type, validation_ctx, validation_rules);
+            if (!tp_ok.ok) {
+                return invalid_result("Invalid take profit: " + tp_ok.message, 10016);
+            }
+        }
+
+        const int freeze_level = symbol_info->FreezeLevel();
+        if (freeze_level > 0) {
+            const double point = symbol_info->Point();
+            if (!(point > 0.0)) {
+                return invalid_result("Invalid symbol point value", 10013);
+            }
+            const double freeze_distance = static_cast<double>(freeze_level) * point;
+            const double order_entry = entry;
+            bool entry_frozen = false;
+            switch (order_type) {
+                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT):
+                    entry_frozen = (ask - order_entry) < freeze_distance; break;
+                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT):
+                    entry_frozen = (order_entry - bid) < freeze_distance; break;
+                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP):
+                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT):
+                    entry_frozen = (order_entry - ask) < freeze_distance; break;
+                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP):
+                case static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT):
+                    entry_frozen = (bid - order_entry) < freeze_distance; break;
+                default:
+                    return invalid_result("Invalid pending order type", 10013);
+            }
+            if (entry_frozen) {
+                return invalid_result("Order entry inside freeze level from market", 10029);
+            }
+        }
+
+        const auto freeze_ok = validate_freeze_for_levels(
+            order_type,
+            bid,
+            ask,
+            request.sl > 0.0 ? std::optional<double>(request.sl) : std::nullopt,
+            request.tp > 0.0 ? std::optional<double>(request.tp) : std::nullopt,
+            symbol_info);
+        if (!freeze_ok.ok) {
+            return invalid_result("Invalid stops: " + freeze_ok.message, 10029);
+        }
+
+        trade_.UpdatePrices(ord.Symbol(), bid, ask, tick ? (tick->time_msc * 1000) : 0);
         ok = trade_.OrderModify(
             request.order,
             request.price,
@@ -357,9 +775,17 @@ TradeResult TradeGateway::order_send(const TradeRequest& request, const SymbolTi
     return result;
 }
 
+TradeSimulator::TradeSimulator()
+    : account_info_(),
+      trade_gateway_(account_info_) {
+    util::info("TradeSimulator initialized");
+}
+
 TradeSimulator::TradeSimulator(hqt::AccountInfo account)
     : account_info_(std::move(account)),
-      trade_gateway_(account_info_) {}
+      trade_gateway_(account_info_) {
+    util::info("TradeSimulator initialized");
+}
 
 const hqt::AccountInfo& TradeSimulator::account_info() const noexcept {
     return account_info_;
@@ -508,6 +934,7 @@ double TradeSimulator::order_calc_profit(
         return 0.0;
     }
     return calc_profit(
+        static_cast<int>(info->TradeCalcMode()),
         action,
         volume,
         price_open,
@@ -515,6 +942,211 @@ double TradeSimulator::order_calc_profit(
         info->TickSize() > 0.0 ? info->TickSize() : info->Point(),
         info->TickValue(),
         info->ContractSize());
+}
+
+TradeResult TradeSimulator::PositionOpen(
+    const std::string& symbol,
+    int order_type,
+    double volume,
+    double price,
+    double sl,
+    double tp,
+    const std::string& comment) {
+    TradeRequest request;
+    request.action = 1;  // TRADE_ACTION_DEAL
+    request.type = order_type;
+    request.symbol = symbol;
+    request.volume = volume;
+    request.price = price;
+    request.sl = sl;
+    request.tp = tp;
+    request.type_time = 0;  // ORDER_TIME_GTC
+    request.comment = comment;
+    TradeResult result = order_send(request);
+    const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+    if (ok) {
+        util::info(
+            "PositionOpen success symbol=" + symbol +
+            " type=" + order_type_to_text(order_type) +
+            " volume=" + std::to_string(volume) +
+            " price=" + std::to_string(result.price) +
+            " order=" + std::to_string(result.order) +
+            " deal=" + std::to_string(result.deal));
+    } else {
+        util::warning(
+            "PositionOpen failed symbol=" + symbol +
+            " type=" + order_type_to_text(order_type) +
+            " volume=" + std::to_string(volume) +
+            " retcode=" + std::to_string(result.retcode) +
+            " comment=" + result.comment);
+    }
+    return result;
+}
+
+TradeResult TradeSimulator::PositionModify(
+    std::optional<std::string> symbol,
+    std::optional<uint64_t> ticket,
+    double sl,
+    double tp) {
+    TradeRequest request;
+    request.action = 6;  // TRADE_ACTION_SLTP
+    if (symbol.has_value()) {
+        request.symbol = *symbol;
+    }
+    if (ticket.has_value()) {
+        request.order = *ticket;
+    }
+    request.sl = sl;
+    request.tp = tp;
+    TradeResult result = order_send(request);
+    const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+    const std::string target = ticket.has_value()
+        ? ("ticket=" + std::to_string(*ticket))
+        : ("symbol=" + (symbol.has_value() ? *symbol : ""));
+    if (ok) {
+        util::info("PositionModify success " + target +
+                   " sl=" + std::to_string(sl) +
+                   " tp=" + std::to_string(tp));
+    } else {
+        util::warning("PositionModify failed " + target +
+                      " retcode=" + std::to_string(result.retcode) +
+                      " comment=" + result.comment);
+    }
+    return result;
+}
+
+TradeResult TradeSimulator::PositionClose(
+    std::optional<std::string> symbol,
+    std::optional<uint64_t> ticket,
+    uint64_t deviation) {
+    (void)deviation;
+    if (ticket.has_value()) {
+        TradeResult result = close_position(*ticket);
+        const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+        if (ok) {
+            util::info("PositionClose success ticket=" + std::to_string(*ticket) +
+                       " deal=" + std::to_string(result.deal));
+        } else {
+            util::warning("PositionClose failed ticket=" + std::to_string(*ticket) +
+                          " retcode=" + std::to_string(result.retcode) +
+                          " comment=" + result.comment);
+        }
+        return result;
+    }
+    if (!symbol.has_value()) {
+        return invalid_result("Invalid request: missing symbol or ticket", 10013);
+    }
+
+    const auto positions = positions_get(*symbol, std::nullopt, std::nullopt);
+    if (positions.empty()) {
+        return invalid_result("Invalid request: position not found", 10013);
+    }
+    const uint64_t close_ticket = positions.front().Ticket();
+    TradeResult result = close_position(close_ticket);
+    const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+    if (ok) {
+        util::info("PositionClose success symbol=" + *symbol +
+                   " ticket=" + std::to_string(close_ticket) +
+                   " deal=" + std::to_string(result.deal));
+    } else {
+        util::warning("PositionClose failed symbol=" + *symbol +
+                      " ticket=" + std::to_string(close_ticket) +
+                      " retcode=" + std::to_string(result.retcode) +
+                      " comment=" + result.comment);
+    }
+    return result;
+}
+
+TradeResult TradeSimulator::OrderOpen(
+    const std::string& symbol,
+    int order_type,
+    double volume,
+    double price,
+    double stoplimit,
+    double sl,
+    double tp,
+    int type_time,
+    int64_t expiration,
+    const std::string& comment) {
+    TradeRequest request;
+    request.action = 5;  // TRADE_ACTION_PENDING
+    request.type = order_type;
+    request.symbol = symbol;
+    request.volume = volume;
+    request.price = price;
+    request.stoplimit = stoplimit;
+    request.sl = sl;
+    request.tp = tp;
+    request.type_time = type_time;
+    request.expiration = expiration;
+    request.comment = comment;
+    TradeResult result = order_send(request);
+    const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+    if (ok) {
+        util::info(
+            "OrderOpen success symbol=" + symbol +
+            " type=" + std::to_string(order_type) +
+            " volume=" + std::to_string(volume) +
+            " price=" + std::to_string(price) +
+            " order=" + std::to_string(result.order));
+    } else {
+        util::warning(
+            "OrderOpen failed symbol=" + symbol +
+            " type=" + std::to_string(order_type) +
+            " volume=" + std::to_string(volume) +
+            " retcode=" + std::to_string(result.retcode) +
+            " comment=" + result.comment);
+    }
+    return result;
+}
+
+TradeResult TradeSimulator::OrderModify(
+    uint64_t ticket,
+    double price,
+    double sl,
+    double tp,
+    double stoplimit,
+    int64_t expiration,
+    const std::string& comment) {
+    TradeRequest request;
+    request.action = 7;  // TRADE_ACTION_MODIFY
+    request.order = ticket;
+    request.price = price;
+    request.stoplimit = stoplimit;
+    request.sl = sl;
+    request.tp = tp;
+    request.expiration = expiration;
+    request.comment = comment;
+    TradeResult result = order_send(request);
+    const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+    if (ok) {
+        util::info("OrderModify success ticket=" + std::to_string(ticket) +
+                   " price=" + std::to_string(price) +
+                   " sl=" + std::to_string(sl) +
+                   " tp=" + std::to_string(tp));
+    } else {
+        util::warning("OrderModify failed ticket=" + std::to_string(ticket) +
+                      " retcode=" + std::to_string(result.retcode) +
+                      " comment=" + result.comment);
+    }
+    return result;
+}
+
+TradeResult TradeSimulator::OrderDelete(uint64_t ticket, const std::string& comment) {
+    TradeRequest request;
+    request.action = 8;  // TRADE_ACTION_REMOVE
+    request.order = ticket;
+    request.comment = comment;
+    TradeResult result = order_send(request);
+    const bool ok = (result.retcode == 10008 || result.retcode == 10009 || result.retcode == 10010);
+    if (ok) {
+        util::info("OrderDelete success ticket=" + std::to_string(ticket));
+    } else {
+        util::warning("OrderDelete failed ticket=" + std::to_string(ticket) +
+                      " retcode=" + std::to_string(result.retcode) +
+                      " comment=" + result.comment);
+    }
+    return result;
 }
 
 TradeResult TradeSimulator::order_send(const TradeRequest& request) {
@@ -656,6 +1288,23 @@ void TradeSimulator::set_account_info(const hqt::AccountInfo& data) {
 void TradeSimulator::set_symbol_info(const hqt::SymbolInfo& data) {
     symbols_data_[data.Name()] = data;
     trade_gateway_.register_symbol(data);
+    if (data.Bid() > 0.0 && data.Ask() > 0.0) {
+        SymbolTickData tick;
+        tick.time = data.Time();
+        if (tick.time <= 0) {
+            const auto now = std::chrono::system_clock::now();
+            tick.time = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::seconds>(
+                now.time_since_epoch()).count());
+        }
+        tick.time_msc = tick.time * 1000;
+        tick.bid = data.Bid();
+        tick.ask = data.Ask();
+        tick.last = data.Last() > 0.0 ? data.Last() : (tick.bid + tick.ask) / 2.0;
+        tick.volume = 0;
+        tick.flags = 0;
+        tick.volume_real = 0.0;
+        ticks_data_[data.Name()] = tick;
+    }
     util::debug("TradeSimulator::set_symbol_info symbol=" + data.Name());
 }
 
@@ -1207,5 +1856,6 @@ ExecutionQualitySummary ExecutionRouter::quality_summary() const {
 }
 
 }  // namespace hqt::sim
+
 
 

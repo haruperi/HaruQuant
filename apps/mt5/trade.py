@@ -14,11 +14,28 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Optional
+import dataclasses
 
 from apps.mt5 import get_mt5_api
 
 mt5 = get_mt5_api()
 
+
+@dataclasses.dataclass
+class TradeResult:
+    retcode: int = 0
+    deal: int = 0
+    order: int = 0
+    volume: float = 0.0
+    price: float = 0.0
+    bid: float = 0.0
+    ask: float = 0.0
+    comment: str = ""
+
+    def __bool__(self) -> bool:
+        if mt5 is None: return False
+        placed = getattr(mt5, "TRADE_RETCODE_PLACED", 10008)
+        return self.retcode in (mt5.TRADE_RETCODE_DONE, placed)
 
 class Trade:
     """
@@ -34,6 +51,7 @@ class Trade:
         self._magic: int = 0
         self._deviation: int = 0
         self._type_filling: Optional[int] = None
+        self._type_filling_by_symbol: dict[str, int] = {}
         self._type_time: Optional[int] = None
         self._async: bool = False
         self._margin_mode: Optional[int] = None
@@ -48,12 +66,86 @@ class Trade:
     def _tick(self, symbol: str) -> Optional[Any]:
         return self._api.symbol_info_tick(symbol)
 
-    def _send_request(self, request: dict[str, Any]) -> bool:
+    def _resolve_order_type(self, order_type: Any) -> int:
+        if isinstance(order_type, int):
+            return int(order_type)
+        if not isinstance(order_type, str):
+            raise TypeError("order_type must be int or string")
+
+        token = order_type.strip().upper().replace("-", "_").replace(" ", "_")
+        if token.startswith("ORDER_TYPE_"):
+            token = token[len("ORDER_TYPE_") :]
+
+        mapping = {
+            "BUY": mt5.ORDER_TYPE_BUY,
+            "SELL": mt5.ORDER_TYPE_SELL,
+            "BUY_LIMIT": mt5.ORDER_TYPE_BUY_LIMIT,
+            "SELL_LIMIT": mt5.ORDER_TYPE_SELL_LIMIT,
+            "BUY_STOP": mt5.ORDER_TYPE_BUY_STOP,
+            "SELL_STOP": mt5.ORDER_TYPE_SELL_STOP,
+            "BUY_STOP_LIMIT": mt5.ORDER_TYPE_BUY_STOP_LIMIT,
+            "SELL_STOP_LIMIT": mt5.ORDER_TYPE_SELL_STOP_LIMIT,
+            "CLOSE_BY": mt5.ORDER_TYPE_CLOSE_BY,
+        }
+        if token not in mapping:
+            raise ValueError(f"Unsupported order_type: {order_type}")
+        return int(mapping[token])
+
+    def _resolve_order_time(self, type_time: Any) -> int:
+        if isinstance(type_time, int):
+            return int(type_time)
+        if not isinstance(type_time, str):
+            raise TypeError("type_time must be int or string")
+
+        token = type_time.strip().upper().replace("-", "_").replace(" ", "_")
+        if token.startswith("ORDER_TIME_"):
+            token = token[len("ORDER_TIME_") :]
+
+        mapping = {
+            "GTC": mt5.ORDER_TIME_GTC,
+            "DAY": mt5.ORDER_TIME_DAY,
+            "SPECIFIED": mt5.ORDER_TIME_SPECIFIED,
+            "SPECIFIED_DAY": mt5.ORDER_TIME_SPECIFIED_DAY,
+        }
+        if token not in mapping:
+            raise ValueError(f"Unsupported type_time: {type_time}")
+        return int(mapping[token])
+
+    def _resolve_order_filling(self, filling: Any) -> int:
+        if isinstance(filling, int):
+            return int(filling)
+        if not isinstance(filling, str):
+            raise TypeError("filling must be int or string")
+
+        token = filling.strip().upper().replace("-", "_").replace(" ", "_")
+        if token.startswith("ORDER_FILLING_"):
+            token = token[len("ORDER_FILLING_") :]
+
+        mapping = {
+            "FOK": mt5.ORDER_FILLING_FOK,
+            "IOC": mt5.ORDER_FILLING_IOC,
+            "RETURN": mt5.ORDER_FILLING_RETURN,
+        }
+        if token not in mapping:
+            raise ValueError(f"Unsupported filling: {filling}")
+        return int(mapping[token])
+
+    def _send_request(self, request: dict[str, Any]) -> TradeResult:
         if self._attempt_request(request):
-            return True
-        if not self._should_retry_filling():
-            return False
-        return self._retry_with_fillings(request)
+            pass
+        elif self._should_retry_filling():
+            self._retry_with_fillings(request)
+            
+        return TradeResult(
+            retcode=self.ResultRetcode(),
+            deal=self.ResultDeal(),
+            order=self.ResultOrder(),
+            volume=self.ResultVolume(),
+            price=self.ResultPrice(),
+            bid=self.ResultBid(),
+            ask=self.ResultAsk(),
+            comment=self.ResultComment(),
+        )
 
     def _attempt_request(self, request: dict[str, Any]) -> bool:
         self._last_request = dict(request)
@@ -70,19 +162,34 @@ class Trade:
         return "Unsupported filling mode" in comment
 
     def _retry_with_fillings(self, request: dict[str, Any]) -> bool:
+        # First retry without forcing type_filling and let terminal/server resolve it.
+        request_fallback = dict(request)
+        request_fallback.pop("type_filling", None)
+        if self._attempt_request(request_fallback):
+            return True
+
+        candidates: list[int] = []
+        symbol = request.get("symbol")
+        if isinstance(symbol, str):
+            resolved = self._resolve_filling_mode(symbol)
+            if resolved is not None:
+                candidates.append(int(resolved))
+
         for mode in (
-            mt5.ORDER_FILLING_RETURN,
             mt5.ORDER_FILLING_IOC,
             mt5.ORDER_FILLING_FOK,
+            mt5.ORDER_FILLING_RETURN,
         ):
+            if int(mode) not in candidates:
+                candidates.append(int(mode))
+
+        for mode in candidates:
             request_fallback = dict(request)
             request_fallback["type_filling"] = int(mode)
             if self._attempt_request(request_fallback):
                 return True
 
-        request_fallback = dict(request)
-        request_fallback.pop("type_filling", None)
-        return self._attempt_request(request_fallback)
+        return False
 
     def _perform_check(self, request: dict[str, Any]) -> dict[str, Any]:
         if not hasattr(self._api, "order_check"):
@@ -115,15 +222,19 @@ class Trade:
     def _request_base(self, symbol: str) -> dict[str, Any]:
         if hasattr(self._api, "symbol_select"):
             self._api.symbol_select(symbol, True)
-        if self._type_filling is None:
-            self._type_filling = self._resolve_filling_mode(symbol)
+        symbol_key = str(symbol).upper()
+        filling = self._type_filling_by_symbol.get(symbol_key)
+        if filling is None and self._type_filling is not None:
+            filling = int(self._type_filling)
+        if filling is None:
+            filling = self._resolve_filling_mode(symbol)
         request: dict[str, Any] = {
             "symbol": symbol,
             "magic": self._magic,
             "deviation": self._deviation,
         }
-        if self._type_filling is not None:
-            request["type_filling"] = self._type_filling
+        if filling is not None:
+            request["type_filling"] = int(filling)
         if self._type_time is not None:
             request["type_time"] = self._type_time
         return request
@@ -143,13 +254,59 @@ class Trade:
             return trade_fill
 
         fill_mask = data.get("filling_mode")
+        trade_exec = data.get("trade_exemode")
         if isinstance(fill_mask, int):
-            if fill_mask & mt5.ORDER_FILLING_FOK:
-                return int(mt5.ORDER_FILLING_FOK)
-            if fill_mask & mt5.ORDER_FILLING_IOC:
-                return int(mt5.ORDER_FILLING_IOC)
-            if fill_mask & mt5.ORDER_FILLING_RETURN:
-                return int(mt5.ORDER_FILLING_RETURN)
+            allowed_modes: list[int] = []
+
+            # Preferred path: SYMBOL_FILLING_* bitmask flags.
+            flag_to_order = [
+                ("SYMBOL_FILLING_FOK", mt5.ORDER_FILLING_FOK),
+                ("SYMBOL_FILLING_IOC", mt5.ORDER_FILLING_IOC),
+                ("SYMBOL_FILLING_RETURN", mt5.ORDER_FILLING_RETURN),
+            ]
+            for flag_name, order_mode in flag_to_order:
+                flag = getattr(mt5, flag_name, None)
+                if isinstance(flag, int) and (fill_mask & flag):
+                    allowed_modes.append(int(order_mode))
+
+            # Fallback path for terminals that expose filling_mode as legacy bitmask.
+            # Common convention: 1=FOK, 2=IOC, 4=RETURN.
+            if not allowed_modes:
+                if fill_mask & 1:
+                    allowed_modes.append(int(mt5.ORDER_FILLING_FOK))
+                if fill_mask & 2:
+                    allowed_modes.append(int(mt5.ORDER_FILLING_IOC))
+                if fill_mask & 4:
+                    allowed_modes.append(int(mt5.ORDER_FILLING_RETURN))
+
+            # Final fallback: some terminals expose direct enum value in filling_mode.
+            if not allowed_modes and fill_mask in (
+                mt5.ORDER_FILLING_FOK,
+                mt5.ORDER_FILLING_IOC,
+                mt5.ORDER_FILLING_RETURN,
+            ):
+                allowed_modes.append(int(fill_mask))
+
+            if allowed_modes:
+                is_market_exec = (
+                    isinstance(trade_exec, int)
+                    and trade_exec == getattr(mt5, "SYMBOL_TRADE_EXECUTION_MARKET", -1)
+                )
+                if is_market_exec:
+                    preference = (
+                        int(mt5.ORDER_FILLING_IOC),
+                        int(mt5.ORDER_FILLING_FOK),
+                        int(mt5.ORDER_FILLING_RETURN),
+                    )
+                else:
+                    preference = (
+                        int(mt5.ORDER_FILLING_RETURN),
+                        int(mt5.ORDER_FILLING_IOC),
+                        int(mt5.ORDER_FILLING_FOK),
+                    )
+                for candidate in preference:
+                    if candidate in allowed_modes:
+                        return candidate
 
         return None
 
@@ -182,16 +339,20 @@ class Trade:
         """Set the allowed deviation."""
         self._deviation = int(deviation)
 
-    def SetTypeFilling(self, filling: int) -> None:
+    def SetTypeFilling(self, filling: Any) -> None:
         """Set filling type of the order."""
-        self._type_filling = int(filling)
+        self._type_filling = self._resolve_order_filling(filling)
+
+    def SetTypeTime(self, type_time: Any) -> None:
+        """Set order time type (e.g. GTC, DAY, SPECIFIED, SPECIFIED_DAY)."""
+        self._type_time = self._resolve_order_time(type_time)
 
     def SetTypeFillingBySymbol(self, symbol: str) -> bool:
         """Set filling type of the order according to symbol settings."""
         filling = self._resolve_filling_mode(symbol)
         if filling is None:
             return False
-        self._type_filling = int(filling)
+        self._type_filling_by_symbol[str(symbol).upper()] = int(filling)
         return True
 
     def SetAsyncMode(self, mode: bool) -> None:
@@ -213,22 +374,23 @@ class Trade:
     def OrderOpen(
         self,
         symbol: str,
-        order_type: int,
+        order_type: Any,
         volume: float,
         price: float,
         sl: float = 0.0,
         tp: float = 0.0,
         stoplimit: float = 0.0,
-        type_time: Optional[int] = None,
+        type_time: Optional[Any] = None,
         expiration: Optional[datetime] = None,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Places a pending order with specified parameters."""
+        resolved_order_type = self._resolve_order_type(order_type)
         request = self._request_base(symbol)
         request.update(
             {
                 "action": mt5.TRADE_ACTION_PENDING,
-                "type": order_type,
+                "type": resolved_order_type,
                 "volume": float(volume),
                 "price": float(price),
                 "sl": float(sl),
@@ -239,7 +401,7 @@ class Trade:
         if stoplimit:
             request["stoplimit"] = float(stoplimit)
         if type_time is not None:
-            request["type_time"] = int(type_time)
+            request["type_time"] = self._resolve_order_time(type_time)
         if expiration is not None:
             request["expiration"] = int(expiration.timestamp())
         return self._send_request(request)
@@ -251,9 +413,9 @@ class Trade:
         sl: float = 0.0,
         tp: float = 0.0,
         stoplimit: float = 0.0,
-        type_time: Optional[int] = None,
+        type_time: Optional[Any] = None,
         expiration: Optional[datetime] = None,
-    ) -> bool:
+    ) -> TradeResult:
         """Modify the pending order parameters."""
         request = {
             "action": mt5.TRADE_ACTION_MODIFY,
@@ -265,12 +427,12 @@ class Trade:
         if stoplimit:
             request["stoplimit"] = float(stoplimit)
         if type_time is not None:
-            request["type_time"] = int(type_time)
+            request["type_time"] = self._resolve_order_time(type_time)
         if expiration is not None:
             request["expiration"] = int(expiration.timestamp())
         return self._send_request(request)
 
-    def OrderDelete(self, ticket: int) -> bool:
+    def OrderDelete(self, ticket: int) -> TradeResult:
         """Delete a pending order."""
         request = {"action": mt5.TRADE_ACTION_REMOVE, "order": int(ticket)}
         return self._send_request(request)
@@ -281,14 +443,15 @@ class Trade:
     def PositionOpen(
         self,
         symbol: str,
-        order_type: int,
+        order_type: Any,
         volume: float,
         price: float = 0.0,
         sl: float = 0.0,
         tp: float = 0.0,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Open a position with specified parameters."""
+        resolved_order_type = self._resolve_order_type(order_type)
         tick = self._tick(symbol)
         if tick is None:
             return False
@@ -301,14 +464,14 @@ class Trade:
         if price == 0.0:
             price = (
                 tick_data.get("ask")
-                if order_type == mt5.ORDER_TYPE_BUY
+                if resolved_order_type == mt5.ORDER_TYPE_BUY
                 else tick_data.get("bid")
             )
         request = self._request_base(symbol)
         request.update(
             {
                 "action": mt5.TRADE_ACTION_DEAL,
-                "type": order_type,
+                "type": resolved_order_type,
                 "volume": float(volume),
                 "price": float(price),
                 "sl": float(sl),
@@ -324,7 +487,7 @@ class Trade:
         ticket: Optional[int] = None,
         sl: float = 0.0,
         tp: float = 0.0,
-    ) -> bool:
+    ) -> TradeResult:
         """Modify position parameters by the specified symbol or position ticket."""
         position = self._get_position(symbol=symbol, ticket=ticket)
         if position is None:
@@ -348,7 +511,7 @@ class Trade:
 
     def PositionClose(
         self, symbol: Optional[str] = None, ticket: Optional[int] = None
-    ) -> bool:
+    ) -> TradeResult:
         """Close a position for the specified symbol."""
         position = self._get_position(symbol=symbol, ticket=ticket)
         if position is None:
@@ -398,7 +561,7 @@ class Trade:
         symbol: Optional[str] = None,
         ticket: Optional[int] = None,
         volume: float = 0.0,
-    ) -> bool:
+    ) -> TradeResult:
         """Close the position partially for a specified symbol or ticket."""
         position = self._get_position(symbol=symbol, ticket=ticket)
         if position is None:
@@ -442,7 +605,7 @@ class Trade:
         )
         return self._send_request(request)
 
-    def PositionCloseBy(self, ticket: int, ticket_by: int) -> bool:
+    def PositionCloseBy(self, ticket: int, ticket_by: int) -> TradeResult:
         """Close a position with the specified ticket by an opposite position."""
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
@@ -463,10 +626,10 @@ class Trade:
         sl: float = 0.0,
         tp: float = 0.0,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Open a long position with specified parameters."""
         return self.PositionOpen(
-            symbol, mt5.ORDER_TYPE_BUY, volume, price, sl, tp, comment
+            symbol, "BUY", volume, price, sl, tp, comment
         )
 
     def Sell(
@@ -477,10 +640,10 @@ class Trade:
         sl: float = 0.0,
         tp: float = 0.0,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Open a short position with specified parameters."""
         return self.PositionOpen(
-            symbol, mt5.ORDER_TYPE_SELL, volume, price, sl, tp, comment
+            symbol, "SELL", volume, price, sl, tp, comment
         )
 
     def BuyLimit(
@@ -494,11 +657,11 @@ class Trade:
         type_time: Optional[int] = None,
         expiration: Optional[datetime] = None,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Places a pending order of the Buy Limit type with specified parameters."""
         return self.OrderOpen(
             symbol,
-            mt5.ORDER_TYPE_BUY_LIMIT,
+            "BUY_LIMIT",
             volume,
             price,
             sl,
@@ -520,11 +683,11 @@ class Trade:
         type_time: Optional[int] = None,
         expiration: Optional[datetime] = None,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Places a pending order of the Buy Stop type with specified parameters."""
         return self.OrderOpen(
             symbol,
-            mt5.ORDER_TYPE_BUY_STOP,
+            "BUY_STOP",
             volume,
             price,
             sl,
@@ -546,11 +709,11 @@ class Trade:
         type_time: Optional[int] = None,
         expiration: Optional[datetime] = None,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Places a pending order of the Sell Limit type with specified parameters."""
         return self.OrderOpen(
             symbol,
-            mt5.ORDER_TYPE_SELL_LIMIT,
+            "SELL_LIMIT",
             volume,
             price,
             sl,
@@ -572,11 +735,11 @@ class Trade:
         type_time: Optional[int] = None,
         expiration: Optional[datetime] = None,
         comment: str = "",
-    ) -> bool:
+    ) -> TradeResult:
         """Places a pending order of the Sell Stop type with specified parameters."""
         return self.OrderOpen(
             symbol,
-            mt5.ORDER_TYPE_SELL_STOP,
+            "SELL_STOP",
             volume,
             price,
             sl,

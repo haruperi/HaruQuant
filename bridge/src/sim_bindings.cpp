@@ -17,6 +17,7 @@
 #include "engine/engine.hpp"
 
 #include <functional>
+#include <cctype>
 #include <utility>
 
 namespace nb = nanobind;
@@ -115,6 +116,202 @@ hqt::AccountInfo account_from_object(const nb::object& source) {
     assign_if_present<double>(source, "commission_blocked", [&](double v) { acc.SetCommissionBlocked(v); });
 
     return acc;
+}
+
+hqt::SymbolInfo symbol_from_object(const nb::object& source) {
+    hqt::SymbolInfo sym;
+
+    auto read_str = [&](const char* name, const std::function<void(const std::string&)>& setter) {
+        if (!nb::hasattr(source, name)) return;
+        nb::object value = source.attr(name);
+        if (value.is_none()) return;
+        setter(nb::cast<std::string>(value));
+    };
+    auto read_int = [&](const char* name, const std::function<void(int)>& setter) {
+        if (!nb::hasattr(source, name)) return;
+        nb::object value = source.attr(name);
+        if (value.is_none()) return;
+        setter(nb::cast<int>(value));
+    };
+    auto read_u32 = [&](const char* name, const std::function<void(uint32_t)>& setter) {
+        if (!nb::hasattr(source, name)) return;
+        nb::object value = source.attr(name);
+        if (value.is_none()) return;
+        setter(nb::cast<uint32_t>(value));
+    };
+    auto read_double = [&](const char* name, const std::function<void(double)>& setter) {
+        if (!nb::hasattr(source, name)) return;
+        nb::object value = source.attr(name);
+        if (value.is_none()) return;
+        setter(nb::cast<double>(value));
+    };
+    auto read_bool = [&](const char* name, const std::function<void(bool)>& setter) {
+        if (!nb::hasattr(source, name)) return;
+        nb::object value = source.attr(name);
+        if (value.is_none()) return;
+        setter(nb::cast<bool>(value));
+    };
+
+    read_str("symbol", [&](const std::string& v) { sym.Name(v); });
+    read_str("name", [&](const std::string& v) { sym.Name(v); });
+    read_u32("symbol_id", [&](uint32_t v) { sym.SetSymbolId(v); });
+    read_int("digits", [&](int v) { sym.SetDigits(v); });
+    read_double("point", [&](double v) { sym.SetPoint(v); });
+    read_int("spread", [&](int v) { sym.SetSpread(v); });
+    read_bool("spread_float", [&](bool v) { sym.SetSpreadFloat(v); });
+
+    read_int("trade_mode", [&](int v) {
+        sym.SetTradeMode(static_cast<hqt::ENUM_SYMBOL_TRADE_MODE>(v));
+    });
+    read_int("trade_exemode", [&](int v) {
+        sym.SetTradeExecution(static_cast<hqt::ENUM_SYMBOL_TRADE_EXECUTION>(v));
+    });
+    read_int("trade_calc_mode", [&](int v) {
+        sym.SetTradeCalcMode(static_cast<hqt::ENUM_SYMBOL_CALC_MODE>(v));
+    });
+
+    read_double("volume_min", [&](double v) { sym.SetVolumeMin(v); });
+    read_double("volume_max", [&](double v) { sym.SetVolumeMax(v); });
+    read_double("volume_step", [&](double v) { sym.SetVolumeStep(v); });
+    read_double("trade_contract_size", [&](double v) { sym.SetContractSize(v); });
+    read_double("trade_tick_size", [&](double v) { sym.SetTickSize(v); });
+    read_double("trade_tick_value", [&](double v) { sym.SetTickValue(v); });
+    read_double("trade_tick_value_profit", [&](double v) { sym.SetTickValueProfit(v); });
+    read_double("trade_tick_value_loss", [&](double v) { sym.SetTickValueLoss(v); });
+
+    double bid = 0.0;
+    double ask = 0.0;
+    double last = 0.0;
+    int64_t ts = 0;
+    read_double("bid", [&](double v) { bid = v; });
+    read_double("ask", [&](double v) { ask = v; });
+    read_double("last", [&](double v) { last = v; });
+    read_int("time", [&](int v) { ts = static_cast<int64_t>(v); });
+    if (bid > 0.0 && ask > 0.0) {
+        sym.UpdatePrice(bid, ask, ts);
+    } else if (last > 0.0) {
+        sym.UpdatePrice(last, last, ts);
+    }
+
+    return sym;
+}
+
+std::string normalize_order_type_token(std::string token) {
+    std::string out;
+    out.reserve(token.size());
+    for (char ch : token) {
+        if (ch == ' ' || ch == '-') {
+            out.push_back('_');
+        } else {
+            out.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+        }
+    }
+    constexpr const char* kPrefix = "ORDER_TYPE_";
+    if (out.rfind(kPrefix, 0) == 0) {
+        out.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+    return out;
+}
+
+int resolve_order_type(const nb::object& order_type) {
+    if (nb::isinstance<nb::int_>(order_type)) {
+        return nb::cast<int>(order_type);
+    }
+    if (!nb::isinstance<nb::str>(order_type)) {
+        throw nb::type_error("order_type must be int or string");
+    }
+
+    const std::string token = normalize_order_type_token(nb::cast<std::string>(order_type));
+    if (token == "BUY") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY);
+    if (token == "SELL") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL);
+    if (token == "BUY_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT);
+    if (token == "SELL_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT);
+    if (token == "BUY_STOP") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP);
+    if (token == "SELL_STOP") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP);
+    if (token == "BUY_STOP_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
+    if (token == "SELL_STOP_LIMIT") return static_cast<int>(hqt::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
+
+    throw nb::value_error("Unsupported order_type string");
+}
+
+int resolve_order_time(const nb::object& type_time) {
+    if (type_time.is_none()) {
+        return 0;
+    }
+    if (nb::isinstance<nb::int_>(type_time)) {
+        return nb::cast<int>(type_time);
+    }
+    if (!nb::isinstance<nb::str>(type_time)) {
+        throw nb::type_error("type_time must be int or string");
+    }
+
+    std::string token = nb::cast<std::string>(type_time);
+    for (char& ch : token) {
+        if (ch == ' ' || ch == '-') {
+            ch = '_';
+        } else {
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        }
+    }
+    constexpr const char* kPrefix = "ORDER_TIME_";
+    if (token.rfind(kPrefix, 0) == 0) {
+        token.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+
+    if (token == "GTC") {
+        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_GTC);
+    }
+    if (token == "DAY") {
+        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_DAY);
+    }
+    if (token == "SPECIFIED") {
+        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_SPECIFIED);
+    }
+    if (token == "SPECIFIED_DAY") {
+        return static_cast<int>(hqt::ENUM_ORDER_TYPE_TIME::ORDER_TIME_SPECIFIED_DAY);
+    }
+    throw nb::value_error("Unsupported type_time string");
+}
+
+std::string position_type_name(hqt::ENUM_POSITION_TYPE value) {
+    switch (value) {
+        case hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY:
+            return "BUY";
+        case hqt::ENUM_POSITION_TYPE::POSITION_TYPE_SELL:
+            return "SELL";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+hqt::ENUM_POSITION_TYPE resolve_position_type(const nb::object& value) {
+    if (nb::isinstance<nb::int_>(value)) {
+        return static_cast<hqt::ENUM_POSITION_TYPE>(nb::cast<int>(value));
+    }
+    if (!nb::isinstance<nb::str>(value)) {
+        throw nb::type_error("position type must be int or string");
+    }
+
+    std::string token = nb::cast<std::string>(value);
+    for (char& ch : token) {
+        if (ch == ' ' || ch == '-') {
+            ch = '_';
+        } else {
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        }
+    }
+    constexpr const char* kPrefix = "POSITION_TYPE_";
+    if (token.rfind(kPrefix, 0) == 0) {
+        token.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+
+    if (token == "BUY") {
+        return hqt::ENUM_POSITION_TYPE::POSITION_TYPE_BUY;
+    }
+    if (token == "SELL") {
+        return hqt::ENUM_POSITION_TYPE::POSITION_TYPE_SELL;
+    }
+    throw nb::value_error("Unsupported position type string");
 }
 
 }  // namespace
@@ -292,6 +489,9 @@ void register_sim_bindings(nb::module_& m) {
 
     nb::class_<hqt::SymbolInfo>(m, "SymbolInfo")
         .def(nb::init<>())
+        .def("__init__", [](hqt::SymbolInfo* self, nb::object source) {
+            new (self) hqt::SymbolInfo(symbol_from_object(source));
+        }, nb::arg("source"))
         .def("Name", [](const hqt::SymbolInfo& self) { return self.Name(); })
         .def("Description", &hqt::SymbolInfo::Description)
         .def("Path", &hqt::SymbolInfo::Path)
@@ -879,8 +1079,8 @@ void register_sim_bindings(nb::module_& m) {
             [](const hqt::PositionInfo& self) { return self.Magic(); },
             [](hqt::PositionInfo& self, uint32_t value) { self.SetMagic(value); })
         .def_prop_rw("type",
-            [](const hqt::PositionInfo& self) { return static_cast<int>(self.PositionType()); },
-            [](hqt::PositionInfo& self, int value) { self.SetType(static_cast<hqt::ENUM_POSITION_TYPE>(value)); })
+            [](const hqt::PositionInfo& self) { return position_type_name(self.PositionType()); },
+            [](hqt::PositionInfo& self, const nb::object& value) { self.SetType(resolve_position_type(value)); })
         .def_prop_rw("volume", &hqt::PositionInfo::Volume, &hqt::PositionInfo::SetVolume)
         .def_prop_rw("price_open", &hqt::PositionInfo::PriceOpen, &hqt::PositionInfo::SetPriceOpen)
         .def_prop_rw("price_current", &hqt::PositionInfo::PriceCurrent, &hqt::PositionInfo::SetPriceCurrent)
@@ -1207,6 +1407,79 @@ void register_sim_bindings(nb::module_& m) {
         .def("order_check", &TradeSimulator::order_check)
         .def("order_calc_margin", &TradeSimulator::order_calc_margin)
         .def("order_calc_profit", &TradeSimulator::order_calc_profit)
+        .def("PositionOpen",
+             [](TradeSimulator& self,
+                const std::string& symbol,
+                const nb::object& order_type,
+                double volume,
+                double price,
+                double sl,
+                double tp,
+                const std::string& comment) {
+                 return self.PositionOpen(
+                     symbol, resolve_order_type(order_type), volume, price, sl, tp, comment);
+             },
+             nb::arg("symbol"),
+             nb::arg("order_type"),
+             nb::arg("volume"),
+             nb::arg("price") = 0.0,
+             nb::arg("sl") = 0.0,
+             nb::arg("tp") = 0.0,
+             nb::arg("comment") = "")
+        .def("PositionModify", &TradeSimulator::PositionModify,
+             nb::arg("symbol") = nb::none(),
+             nb::arg("ticket") = nb::none(),
+             nb::arg("sl") = 0.0,
+             nb::arg("tp") = 0.0)
+        .def("PositionClose", &TradeSimulator::PositionClose,
+             nb::arg("symbol") = nb::none(),
+             nb::arg("ticket") = nb::none(),
+             nb::arg("deviation") = 0)
+        .def("OrderOpen",
+             [](TradeSimulator& self,
+                const std::string& symbol,
+                const nb::object& order_type,
+                double volume,
+                double price,
+                double stoplimit,
+                double sl,
+                double tp,
+                nb::object type_time,
+                int64_t expiration,
+                const std::string& comment) {
+                 return self.OrderOpen(
+                     symbol,
+                     resolve_order_type(order_type),
+                     volume,
+                     price,
+                     stoplimit,
+                     sl,
+                     tp,
+                     resolve_order_time(type_time),
+                     expiration,
+                     comment);
+             },
+             nb::arg("symbol"),
+             nb::arg("order_type"),
+             nb::arg("volume"),
+             nb::arg("price"),
+             nb::arg("stoplimit") = 0.0,
+             nb::arg("sl") = 0.0,
+             nb::arg("tp") = 0.0,
+             nb::arg("type_time") = nb::none(),
+             nb::arg("expiration") = 0,
+             nb::arg("comment") = "")
+        .def("OrderModify", &TradeSimulator::OrderModify,
+             nb::arg("ticket"),
+             nb::arg("price"),
+             nb::arg("sl") = 0.0,
+             nb::arg("tp") = 0.0,
+             nb::arg("stoplimit") = 0.0,
+             nb::arg("expiration") = 0,
+             nb::arg("comment") = "")
+        .def("OrderDelete", &TradeSimulator::OrderDelete,
+             nb::arg("ticket"),
+             nb::arg("comment") = "")
         .def("order_send", &TradeSimulator::order_send)
         .def("close_position", &TradeSimulator::close_position)
         .def("order_state", &TradeSimulator::order_state)
@@ -1220,6 +1493,9 @@ void register_sim_bindings(nb::module_& m) {
         .def("set_symbol_info", [](TradeSimulator& self, const hqt::SymbolInfo& data) {
             self.set_symbol_info(data);
         })
+        .def("set_symbol_info", [](TradeSimulator& self, nb::object source) {
+            self.set_symbol_info(symbol_from_object(source));
+        }, nb::arg("source"))
         .def("set_symbol_tick", &TradeSimulator::set_symbol_tick)
         .def("upsert_position_info", &TradeSimulator::upsert_position_info)
         .def("upsert_order_info", &TradeSimulator::upsert_order_info)

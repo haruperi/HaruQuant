@@ -1,8 +1,30 @@
 /**
- * @file engine.hpp
- * @brief Unified engine public API and simulation model declarations.
- */
+FILE: include\engine\engine.hpp
 
+PURPOSE:
+Defines engine.hpp functionality used by the C++ runtime and bridge layers.
+
+RESPONSIBILITIES:
+- Own file-level logic for this compilation or declaration unit.
+- Keep module boundaries clear for related engine/trading/risk/util flows.
+- Provide stable behavior expected by callers and tests.
+
+MAIN COMPONENTS:
+- Primary types/functions declared or defined in engine.hpp.
+- File-local helpers supporting the main public or internal entry points.
+
+DATA FLOW:
+Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
+
+DEPENDENCIES:
+- Internal modules: Neighboring headers under cpp/include and shared utility components.
+- External systems: Standard C++ library and optional third-party libs linked by CMake.
+
+DESIGN NOTES:
+- Keep behavior deterministic for backtest and unit-test reliability.
+- Prefer explicit validation and retcode-based failure signaling.
+- Preserve low coupling between domains through typed interfaces.
+*/
 #pragma once
 
 #include "trading/trade.hpp"
@@ -15,10 +37,8 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <queue>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -62,6 +82,7 @@ double calc_margin(
     double margin_initial);
 
 double calc_profit(
+    int trade_calc_mode,
     int action,
     double volume,
     double price_open,
@@ -154,7 +175,7 @@ private:
  */
 class TradeSimulator {
 public:
-    TradeSimulator() = default;
+    TradeSimulator();
     explicit TradeSimulator(hqt::AccountInfo account);
 
     // ----- Read-only snapshots -----
@@ -213,6 +234,45 @@ public:
         double volume,
         double price_open,
         double price_close) const;
+    [[nodiscard]] TradeResult PositionOpen(
+        const std::string& symbol,
+        int order_type,
+        double volume,
+        double price = 0.0,
+        double sl = 0.0,
+        double tp = 0.0,
+        const std::string& comment = "");
+    [[nodiscard]] TradeResult PositionModify(
+        std::optional<std::string> symbol = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt,
+        double sl = 0.0,
+        double tp = 0.0);
+    [[nodiscard]] TradeResult PositionClose(
+        std::optional<std::string> symbol = std::nullopt,
+        std::optional<uint64_t> ticket = std::nullopt,
+        uint64_t deviation = 0);
+    [[nodiscard]] TradeResult OrderOpen(
+        const std::string& symbol,
+        int order_type,
+        double volume,
+        double price,
+        double stoplimit = 0.0,
+        double sl = 0.0,
+        double tp = 0.0,
+        int type_time = 0,
+        int64_t expiration = 0,
+        const std::string& comment = "");
+    [[nodiscard]] TradeResult OrderModify(
+        uint64_t ticket,
+        double price,
+        double sl = 0.0,
+        double tp = 0.0,
+        double stoplimit = 0.0,
+        int64_t expiration = 0,
+        const std::string& comment = "");
+    [[nodiscard]] TradeResult OrderDelete(
+        uint64_t ticket,
+        const std::string& comment = "");
     [[nodiscard]] TradeResult order_send(const TradeRequest& request);
     [[nodiscard]] TradeResult close_position(uint64_t ticket);
     [[nodiscard]] OmsOrderState order_state(uint64_t ticket) const;
@@ -1188,3 +1248,4 @@ private:
 };
 
 }  // namespace hqt::engine
+

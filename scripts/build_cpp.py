@@ -6,6 +6,7 @@ Usage:
     python scripts/build_cpp.py --configure  # Configure only
     python scripts/build_cpp.py --build      # Build only (skip configure)
     python scripts/build_cpp.py --test       # Build + run tests
+    python scripts/build_cpp.py --coverage   # Build + run tests + enforce coverage gate
     python scripts/build_cpp.py --clean      # Remove build directory
     python scripts/build_cpp.py --install    # Build + copy module to project root
 """
@@ -14,6 +15,7 @@ import argparse
 import shutil
 import subprocess
 import sys
+import shutil as py_shutil
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -75,10 +77,16 @@ def _repair_incompatible_cache(build_dir: Path, expected_generator: str) -> None
     )
 
 
-def configure(build_type: str = "Release"):
+def configure(
+    build_type: str = "Release",
+    *,
+    generator: str = CMAKE_GENERATOR,
+    arch: str | None = CMAKE_ARCH,
+    extra_cmake_args: list[str] | None = None,
+):
     """Run CMake configure step."""
     BUILD_DIR.mkdir(exist_ok=True)
-    _repair_incompatible_cache(BUILD_DIR, CMAKE_GENERATOR)
+    _repair_incompatible_cache(BUILD_DIR, generator)
 
     cmd = [
         "cmake",
@@ -88,11 +96,13 @@ def configure(build_type: str = "Release"):
         str(PROJECT_ROOT),
         f"-DCMAKE_TOOLCHAIN_FILE={VCPKG_TOOLCHAIN}",
         "-G",
-        CMAKE_GENERATOR,
-        "-A",
-        CMAKE_ARCH,
+        generator,
         f"-DCMAKE_BUILD_TYPE={build_type}",
     ]
+    if arch:
+        cmd.extend(["-A", arch])
+    if extra_cmake_args:
+        cmd.extend(extra_cmake_args)
     run(cmd)
 
 
@@ -120,6 +130,67 @@ def test(build_type: str = "Release"):
         "--output-on-failure",
     ]
     run(cmd)
+
+
+def _ensure_gcovr() -> None:
+    if py_shutil.which("gcovr") is not None:
+        return
+    run([sys.executable, "-m", "pip", "install", "--upgrade", "gcovr"])
+
+
+def coverage() -> None:
+    """Build with coverage instrumentation and enforce thresholds."""
+    _ensure_gcovr()
+
+    if sys.platform.startswith("win"):
+        # MSVC cannot emit gcov artifacts. Coverage mode uses Clang/Ninja on Windows.
+        if py_shutil.which("clang++") is None:
+            print("FAILED: clang++ is required for gcov coverage mode on Windows.")
+            print("Install LLVM (clang++) or run coverage in Linux/WSL using scripts/build_cpp.sh --coverage.")
+            sys.exit(1)
+        if py_shutil.which("ninja") is None:
+            print("FAILED: ninja is required for coverage mode on Windows.")
+            sys.exit(1)
+        configure(
+            "Debug",
+            generator="Ninja",
+            arch=None,
+            extra_cmake_args=[
+                "-DHQT_ENABLE_COVERAGE=ON",
+                "-DHQT_BUILD_BRIDGE=OFF",
+                "-DHQT_BUILD_BENCHMARKS=OFF",
+                "-DCMAKE_C_COMPILER=clang",
+                "-DCMAKE_CXX_COMPILER=clang++",
+            ],
+        )
+    else:
+        configure(
+            "Debug",
+            generator="Unix Makefiles",
+            arch=None,
+            extra_cmake_args=[
+                "-DHQT_ENABLE_COVERAGE=ON",
+                "-DHQT_BUILD_BRIDGE=OFF",
+                "-DHQT_BUILD_BENCHMARKS=OFF",
+            ],
+        )
+
+    build("Debug")
+    test("Debug")
+    run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "scripts" / "check_cpp_coverage.py"),
+            "--root",
+            str(PROJECT_ROOT),
+            "--build-dir",
+            "build",
+            "--threshold-file",
+            "cpp/coverage_thresholds.json",
+            "--gcovr-html",
+            "build/coverage/index.html",
+        ]
+    )
 
 
 def install_module(build_type: str = "Release"):
@@ -153,6 +224,9 @@ def main():
         "--build", action="store_true", help="Build only (skip configure)"
     )
     parser.add_argument("--test", action="store_true", help="Build and run tests")
+    parser.add_argument(
+        "--coverage", action="store_true", help="Build and run coverage with threshold gate"
+    )
     parser.add_argument("--clean", action="store_true", help="Remove build directory")
     parser.add_argument(
         "--install", action="store_true", help="Build and install module"
@@ -163,6 +237,10 @@ def main():
 
     if args.clean:
         clean()
+        return
+
+    if args.coverage:
+        coverage()
         return
 
     if args.build:

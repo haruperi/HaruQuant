@@ -1,0 +1,66 @@
+name: C++ Coverage Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config curl zip unzip tar autoconf automake libtool gcc g++
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}"
+          "${VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Install C++ dependencies with vcpkg
+        run: |
+          "${VCPKG_ROOT}/vcpkg" install spdlog gtest cppzmq benchmark tomlplusplus
+
+      - name: Install coverage tooling
+        run: python -m pip install --upgrade pip gcovr
+
+      - name: Configure (coverage ON)
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
+            -DHQT_ENABLE_COVERAGE=ON \
+            -DHQT_BUILD_BENCHMARKS=OFF \
+            -DHQT_BUILD_BRIDGE=OFF
+
+      - name: Build tests
+        run: cmake --build build --parallel --target hqt_tests
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Enforce coverage thresholds
+        run: |
+          python scripts/check_cpp_coverage.py \
+            --root . \
+            --build-dir build \
+            --threshold-file cpp/coverage_thresholds.json \
+            --gcovr-html build/coverage/index.html
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-coverage
+          path: build/coverage

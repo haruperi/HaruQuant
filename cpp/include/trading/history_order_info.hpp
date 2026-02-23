@@ -1,12 +1,30 @@
 /**
- * @file history_order_info.hpp
- * @brief Historical order information class (mirrors MT5 CHistoryOrderInfo)
- *
- * Provides access to historical order properties (completed, canceled, expired orders).
- * Mirrors MQL5's CHistoryOrderInfo from Trade.mqh standard library.
- * See: https://www.mql5.com/en/docs/standardlibrary/tradeclasses/chistoryorderinfo
- */
+FILE: include\trading\history_order_info.hpp
 
+PURPOSE:
+Defines history_order_info.hpp functionality used by the C++ runtime and bridge layers.
+
+RESPONSIBILITIES:
+- Own file-level logic for this compilation or declaration unit.
+- Keep module boundaries clear for related engine/trading/risk/util flows.
+- Provide stable behavior expected by callers and tests.
+
+MAIN COMPONENTS:
+- Primary types/functions declared or defined in history_order_info.hpp.
+- File-local helpers supporting the main public or internal entry points.
+
+DATA FLOW:
+Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
+
+DEPENDENCIES:
+- Internal modules: Neighboring headers under cpp/include and shared utility components.
+- External systems: Standard C++ library and optional third-party libs linked by CMake.
+
+DESIGN NOTES:
+- Keep behavior deterministic for backtest and unit-test reliability.
+- Prefer explicit validation and retcode-based failure signaling.
+- Preserve low coupling between domains through typed interfaces.
+*/
 #pragma once
 
 #include "order_info.hpp"
@@ -521,3 +539,4 @@ public:
 };
 
 } // namespace hqt
+

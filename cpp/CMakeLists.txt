@@ -1,3 +1,56 @@
+cmake_minimum_required(VERSION 3.21)
+
+# Standalone mode (when opening `cpp/` directly in IDEs).
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    # Auto-wire vcpkg toolchain for direct `cpp/` configure runs.
+    if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+        if(DEFINED ENV{VCPKG_ROOT} AND EXISTS "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+            set(CMAKE_TOOLCHAIN_FILE
+                "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                CACHE FILEPATH "vcpkg toolchain file" FORCE)
+        elseif(EXISTS "C:/vcpkg/scripts/buildsystems/vcpkg.cmake")
+            set(CMAKE_TOOLCHAIN_FILE
+                "C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+                CACHE FILEPATH "vcpkg toolchain file" FORCE)
+        endif()
+    endif()
+
+    # Point manifest mode to repo root where vcpkg.json lives.
+    if(NOT DEFINED VCPKG_MANIFEST_DIR)
+        set(VCPKG_MANIFEST_DIR
+            "${CMAKE_CURRENT_LIST_DIR}/.."
+            CACHE PATH "vcpkg manifest directory" FORCE)
+    endif()
+
+    project(HQT_CPP VERSION 0.1.0 LANGUAGES CXX)
+
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+
+    option(HQT_BUILD_TESTS "Build C++ tests" ON)
+    option(HQT_BUILD_BENCHMARKS "Build C++ benchmarks" OFF)
+
+    if(NOT DEFINED VCPKG_TARGET_TRIPLET)
+        set(VCPKG_TARGET_TRIPLET "x64-windows")
+    endif()
+
+    # Help CMake find vcpkg-installed packages even if toolchain is not injected.
+    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
+    if(DEFINED ENV{VCPKG_ROOT})
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}")
+    endif()
+    if(EXISTS "C:/vcpkg/installed/${VCPKG_TARGET_TRIPLET}")
+        list(APPEND CMAKE_PREFIX_PATH "C:/vcpkg/installed/${VCPKG_TARGET_TRIPLET}")
+    endif()
+endif()
+
+# Fallback package path for manifest-mode installs under the current build tree.
+if(NOT DEFINED VCPKG_TARGET_TRIPLET)
+    set(VCPKG_TARGET_TRIPLET "x64-windows")
+endif()
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
+
 # HQT Core C++ Library
 find_package(spdlog CONFIG REQUIRED)
 
@@ -13,6 +66,7 @@ add_library(hqt_core STATIC
     src/engine/logger.cpp
     src/engine/usage.cpp
     src/engine/risk_engine.cpp
+    src/util/validators.cpp
     src/hello.cpp
     src/trading/trade.cpp
 )

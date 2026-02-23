@@ -143,25 +143,46 @@
 
 ## Schema Validators (FR-UTIL-003)
 
-- Pydantic-based schema validators are implemented in `apps/utils/validate.py`.
-- Models:
-  - `MarketTickSchema`
-  - `TradeSchema`
-  - `RuntimeConfigSchema` (with nested `LoggingConfigSchema` and `RiskConfigSchema`)
-- Helper entry points:
-  - `validate_market_schema(payload)`
-  - `validate_trade_schema(payload)`
-  - `validate_config_schema(payload)`
-- These helpers perform schema contract validation and return `(is_valid, message)` for compatibility with existing utility call patterns.
-- Existing `TradeValidator` remains unchanged and continues to provide deeper business/MT5-aware validation.
+- Schema contract validation is C++-owned and exposed through the bridge.
 - C++ schema primitives are implemented in:
   - `cpp/include/util/schema_validator.hpp`
   - `cpp/src/engine/schema_validator.cpp`
-- C++/bridge validation entry points exposed via `hqt_engine`:
+- C++/bridge schema entry points exposed via `hqt_engine`:
   - `validate_market_schema(payload)`
   - `validate_trade_schema(payload)`
   - `validate_config_schema(payload)`
 - Bridge payload handling supports nested config dictionaries by flattening keys into schema paths (e.g., `logging.level`, `risk.max_positions`).
+
+## Trade Validation Consolidation
+
+- Trade execution pre-checks for simulator/backtest now have a single shared C++ implementation:
+  - `cpp/include/util/validators.hpp`
+  - `cpp/src/util/validators.cpp`
+- Python validator module `apps/utils/validate.py` has been removed.
+- The simulator execution path validates in `TradeGateway::order_send(...)` before forwarding into `CTrade` execution.
+- Validation scope consolidated in C++:
+  - action/type compatibility
+  - symbol/quote availability
+  - volume constraints
+  - margin sufficiency checks
+- Bridge-facing validator calls are centralized through dispatcher routing in `hqt_engine.TradeValidator`:
+  - `validate(type, value, **kwargs)` resolves handlers via `_get_validation_dispatcher()` and invokes the corresponding C++ validator.
+- `CTrade::CheckRequest(...)` now delegates to the same shared validator implementation to keep validation rules consistent for direct `CTrade` callers.
+
+## C++ Coverage Gates
+
+- C++ coverage instrumentation can be enabled with `-DHQT_ENABLE_COVERAGE=ON` (GCC/Clang).
+- File-level coverage thresholds are configured in `cpp/coverage_thresholds.json`.
+- Current enforced gate:
+  - `cpp/src/util/validators.cpp` must remain at or above `80%` line coverage.
+- Local coverage gate entry point:
+  - `scripts/check_cpp_coverage.py`
+  - Linux/macOS convenience path: `scripts/build_cpp.sh --coverage`
+  - Windows convenience path: `python scripts/build_cpp.py --coverage`
+- Note:
+  - MSVC toolchain does not emit gcov artifacts. Coverage mode on Windows uses Clang/Ninja.
+- CI coverage gate workflow:
+  - `.github/workflows/cpp_coverage.yml`
 
 ## Date/Time Normalization (FR-UTIL-004)
 
