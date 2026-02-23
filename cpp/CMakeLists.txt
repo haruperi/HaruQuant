@@ -55,6 +55,7 @@ list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGE
 find_package(spdlog CONFIG REQUIRED)
 
 add_library(haruquant_core STATIC
+    src/core/backtest_simulator.cpp
     src/engine/engine.cpp
     src/engine/trading.cpp
     src/engine/analytics.cpp
