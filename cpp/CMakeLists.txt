@@ -61,7 +61,7 @@ add_library(haruquant_core STATIC
     src/util/error_description.cpp
     src/util/logger.cpp
     src/usage/usage.cpp
-    src/engine/risk_engine.cpp
+    src/risk/risk_engine.cpp
     src/util/validators.cpp
     src/trading/trade.cpp
 )

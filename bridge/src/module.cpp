@@ -23,6 +23,7 @@ namespace nb = nanobind;
 
 void register_sim_bindings(nb::module_& m);
 void register_risk_bindings(nb::module_& m);
+void register_core_bindings(nb::module_& m);
 
 namespace {
 
@@ -1005,6 +1006,15 @@ NB_MODULE(haruquant, m) {
     nb::module_ metrics = m.def_submodule("_metrics", "Metrics module skeleton.");
     annotate_skeleton_submodule(metrics, "_metrics");
 
+    // =========================================================================
+    // LEGACY MODULE SURFACE (planned for removal after core migration)
+    // =========================================================================
     nb::module_ sim = m.def_submodule("sim", "Simulation engine bindings");
     register_sim_bindings(sim);
+
+    // =========================================================================
+    // NEW CORE MODULE SURFACE (authoritative path going forward)
+    // =========================================================================
+    nb::module_ core = m.def_submodule("core", "Core engine bindings");
+    register_core_bindings(core);
 }
