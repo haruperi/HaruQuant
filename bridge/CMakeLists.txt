@@ -25,7 +25,7 @@ nanobind_add_module(haruquant
     src/risk_bindings.cpp
 )
 
-target_link_libraries(haruquant PRIVATE hqt_core)
+target_link_libraries(haruquant PRIVATE haruquant_core)
 
 # Install the module next to the bridge source for easy import
 install(TARGETS haruquant LIBRARY DESTINATION .)

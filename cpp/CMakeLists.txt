@@ -54,35 +54,31 @@ list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGE
 # HQT Core C++ Library
 find_package(spdlog CONFIG REQUIRED)
 
-add_library(hqt_core STATIC
+add_library(haruquant_core STATIC
     src/engine/engine.cpp
-    src/engine/models.cpp
     src/engine/trading.cpp
     src/engine/analytics.cpp
-    src/engine/infrastructure.cpp
-    src/engine/error.cpp
-    src/engine/connection_pool.cpp
-    src/engine/schema_validator.cpp
+    src/util/error_description.cpp
     src/util/logger.cpp
-    src/engine/usage.cpp
+    src/usage/usage.cpp
     src/engine/risk_engine.cpp
     src/util/validators.cpp
     src/trading/trade.cpp
 )
 
-target_include_directories(hqt_core PUBLIC
+target_include_directories(haruquant_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_compile_features(hqt_core PUBLIC cxx_std_20)
-target_link_libraries(hqt_core PRIVATE spdlog::spdlog)
+target_compile_features(haruquant_core PUBLIC cxx_std_20)
+target_link_libraries(haruquant_core PRIVATE spdlog::spdlog)
 
 # MSVC-specific flags
 if(MSVC)
-    target_compile_options(hqt_core PRIVATE /W4 /utf-8)
+    target_compile_options(haruquant_core PRIVATE /W4 /utf-8)
 else()
-    target_compile_options(hqt_core PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(haruquant_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Tests

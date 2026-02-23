@@ -6,7 +6,6 @@
 #include <util/error.hpp>
 #include <util/logger.hpp>
 #include <util/validators.hpp>
-#include <util/schema_validator.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -661,74 +660,6 @@ nb::dict sum_auto_impl(const nb::object& values) {
     return payload;
 }
 
-bool flatten_py_dict(PyObject* dict_obj, const std::string& prefix,
-                     haruquant::util::SchemaPayload& out, std::string& error) {
-    PyObject* key = nullptr;
-    PyObject* value = nullptr;
-    Py_ssize_t pos = 0;
-
-    while (PyDict_Next(dict_obj, &pos, &key, &value)) {
-        if (!PyUnicode_Check(key)) {
-            error = "payload keys must be strings";
-            return false;
-        }
-
-        const std::string key_str = nb::cast<std::string>(nb::borrow<nb::object>(key));
-        const std::string full_key = prefix.empty() ? key_str : (prefix + "." + key_str);
-
-        if (PyDict_Check(value)) {
-            if (!flatten_py_dict(value, full_key, out, error)) {
-                return false;
-            }
-            continue;
-        }
-
-        if (PyBool_Check(value)) {
-            out[full_key] = PyObject_IsTrue(value) == 1;
-            continue;
-        }
-        if (PyLong_Check(value)) {
-            const long long raw = PyLong_AsLongLong(value);
-            if (PyErr_Occurred()) {
-                PyErr_Clear();
-                error = "invalid integer value at key: " + full_key;
-                return false;
-            }
-            out[full_key] = static_cast<std::int64_t>(raw);
-            continue;
-        }
-        if (PyFloat_Check(value)) {
-            out[full_key] = PyFloat_AsDouble(value);
-            continue;
-        }
-        if (PyUnicode_Check(value)) {
-            out[full_key] = nb::cast<std::string>(nb::borrow<nb::object>(value));
-            continue;
-        }
-
-        error = "unsupported value type at key: " + full_key;
-        return false;
-    }
-
-    return true;
-}
-
-std::pair<haruquant::util::SchemaPayload, std::string> parse_schema_payload(const nb::dict& payload) {
-    haruquant::util::SchemaPayload out;
-    std::string error;
-    if (!flatten_py_dict(payload.ptr(), "", out, error)) {
-        return {haruquant::util::SchemaPayload{}, error};
-    }
-    return {std::move(out), ""};
-}
-
-nb::dict validation_result_payload(const haruquant::util::ValidationResult& result) {
-    nb::dict payload;
-    payload["ok"] = result.ok;
-    payload["message"] = nb::str(result.message.c_str());
-    return payload;
-}
-
 nb::list make_str_list(std::initializer_list<const char*> values) {
     nb::list out;
     for (const char* v : values) {
@@ -1050,34 +981,6 @@ NB_MODULE(haruquant, m) {
         raise_bridge_exception(exception_type_for_category(category), msg);
     }, nb::arg("category"), nb::arg("detail") = "",
        "Raise a typed Python exception by category for bridge contract testing.");
-    m.def("validate_market_schema", [](const nb::dict& payload) {
-        const auto [parsed, error] = parse_schema_payload(payload);
-        if (!error.empty()) {
-            haruquant::util::ValidationResult result{false, error};
-            return validation_result_payload(result);
-        }
-        return validation_result_payload(haruquant::util::validate_market_schema(parsed));
-    }, nb::arg("payload"),
-       "Validate market payload against C++ schema primitives.");
-    m.def("validate_trade_schema", [](const nb::dict& payload) {
-        const auto [parsed, error] = parse_schema_payload(payload);
-        if (!error.empty()) {
-            haruquant::util::ValidationResult result{false, error};
-            return validation_result_payload(result);
-        }
-        return validation_result_payload(haruquant::util::validate_trade_schema(parsed));
-    }, nb::arg("payload"),
-       "Validate trade payload against C++ schema primitives.");
-    m.def("validate_config_schema", [](const nb::dict& payload) {
-        const auto [parsed, error] = parse_schema_payload(payload);
-        if (!error.empty()) {
-            haruquant::util::ValidationResult result{false, error};
-            return validation_result_payload(result);
-        }
-        return validation_result_payload(haruquant::util::validate_config_schema(parsed));
-    }, nb::arg("payload"),
-       "Validate runtime config payload against C++ schema primitives.");
-
     nb::class_<BridgeTradeValidator>(m, "TradeValidator")
         .def(nb::init<>())
         .def("validate", &BridgeTradeValidator::validate)

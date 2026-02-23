@@ -1,8 +1,8 @@
 /**
-FILE: src\engine\error.cpp
+FILE: src\util\error_description.cpp
 
 PURPOSE:
-Defines error.cpp functionality used by the C++ runtime and bridge layers.
+Defines error_description.cpp functionality used by the C++ runtime and bridge layers.
 
 RESPONSIBILITIES:
 - Own file-level logic for this compilation or declaration unit.
@@ -10,7 +10,7 @@ RESPONSIBILITIES:
 - Provide stable behavior expected by callers and tests.
 
 MAIN COMPONENTS:
-- Primary types/functions declared or defined in error.cpp.
+- Primary types/functions declared or defined in error_description.cpp.
 - File-local helpers supporting the main public or internal entry points.
 
 DATA FLOW:
