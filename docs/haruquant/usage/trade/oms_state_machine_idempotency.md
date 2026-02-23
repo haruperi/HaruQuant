@@ -7,7 +7,7 @@ This usage note covers:
 - canonical order state transitions (`NEW -> ACCEPTED -> terminal`)
 - idempotent submissions through `client_order_id`
 
-Implementation is in C++ (`hqt_engine.sim`), used for both backtest and live-path integration.
+Implementation is in C++ (`haruquant.sim`), used for both backtest and live-path integration.
 
 ## State Machine
 

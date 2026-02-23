@@ -5,7 +5,7 @@
 Defines explicit C++/Python ownership contracts for nanobind bridge objects.
 
 Primary API:
-- `hqt_engine.ownership_contracts()`
+- `haruquant.ownership_contracts()`
 
 ## Ownership Modes
 
@@ -22,11 +22,11 @@ Primary API:
 ## Quick Usage
 
 ```python
-import hqt_engine
+import haruquant
 import numpy as np
 
-print(hqt_engine.ownership_contracts())
+print(haruquant.ownership_contracts())
 
 arr = np.array([1.0, 2.0, 3.0], dtype=np.float64)
-print(hqt_engine.sum_buffer_zero_copy(arr))  # zero-copy buffer view path
+print(haruquant.sum_buffer_zero_copy(arr))  # zero-copy buffer view path
 ```

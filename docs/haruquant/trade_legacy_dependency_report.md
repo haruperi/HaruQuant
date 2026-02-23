@@ -96,7 +96,7 @@ Phase C (keep until C++ live transport exists):
 
 Do a focused migration of simulation runtime imports first:
 
-- Replace `apps.trade.PositionInfo` with C++ bound `hqt_engine.sim.PositionInfo` in:
+- Replace `apps.trade.PositionInfo` with C++ bound `haruquant.sim.PositionInfo` in:
   - `apps/simulation/engine.py`
   - `apps/simulation/utils.py`
 

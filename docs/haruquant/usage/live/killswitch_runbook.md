@@ -1,6 +1,6 @@
 # Kill-Switch Runbook (IP-29)
 
-This runbook documents emergency trading controls exposed by `hqt_engine._risk.KillSwitchController`.
+This runbook documents emergency trading controls exposed by `haruquant._risk.KillSwitchController`.
 
 ## States
 
@@ -28,9 +28,9 @@ This runbook documents emergency trading controls exposed by `hqt_engine._risk.K
 ## Example
 
 ```python
-import hqt_engine
+import haruquant
 
-risk = hqt_engine._risk
+risk = haruquant._risk
 ks = risk.KillSwitchController()
 
 ks.set_reduce_only("risk_reduction_mode")

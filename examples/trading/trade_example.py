@@ -18,8 +18,8 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Utils, Trade, get_mt5_api
-import hqt_engine.sim as csim
-import hqt_engine
+import haruquant.sim as csim
+import haruquant
 from apps.utils.logger import logger
 from apps.mt5 import MT5Utils, get_mt5_api
 
@@ -59,7 +59,7 @@ def print_example_header(title: str):
 
 def retcode_text(code: int) -> str:
     try:
-        info = hqt_engine.error_from_retcode(int(code))
+        info = haruquant.error_from_retcode(int(code))
         return f"{int(code)} ({info['message']})"
     except Exception:
         return str(code)

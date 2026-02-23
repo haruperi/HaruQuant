@@ -9,15 +9,15 @@
   - `cpp/include/engine/engine.hpp`
   - `cpp/src/engine/*`
   - `bridge/src/sim_bindings.cpp`
-- Python bridge surfaces account/symbol objects directly as `hqt_engine.sim.AccountInfo` and `hqt_engine.sim.SymbolInfo`.
+- Python bridge surfaces account/symbol objects directly as `haruquant.sim.AccountInfo` and `haruquant.sim.SymbolInfo`.
 
 ## Trade Container Boundary
 
 - Public Python/C++ bridge usage should use MT5-style trade containers directly:
-  - `hqt_engine.sim.PositionInfo`
-  - `hqt_engine.sim.OrderInfo`
-  - `hqt_engine.sim.HistoryOrderInfo`
-  - `hqt_engine.sim.DealInfo`
+  - `haruquant.sim.PositionInfo`
+  - `haruquant.sim.OrderInfo`
+  - `haruquant.sim.HistoryOrderInfo`
+  - `haruquant.sim.DealInfo`
  - MT5-style query naming is now the compatibility contract for simulator/live interchange:
   - `positions_get(symbol=None, group=None, ticket=None)`
   - `positions_total()`
@@ -37,7 +37,7 @@
 ## Trade Execution Boundary
 
 - C++ simulator execution path:
-  - `hqt_engine.sim.CTrade` (for simulation/backtest)
+  - `haruquant.sim.CTrade` (for simulation/backtest)
 - Live MT5 execution path:
   - `apps.mt5.Trade` (Python MT5 transport)
 - Usage split:
@@ -106,7 +106,7 @@
   - `warn` -> `WARNING`
   - `fatal` -> `CRITICAL`
 
-- C++ bridge input (`hqt_engine.set_log_level`, `hqt_engine.emit_log`) accepts:
+- C++ bridge input (`haruquant.set_log_level`, `haruquant.emit_log`) accepts:
   - `debug`, `info`, `warning|warn`, `error`, `critical|fatal`
 
 - Python adapter (`apps.utils.logger`) accepts:
@@ -120,7 +120,7 @@
 - Component resolution order:
   - `extra["component"]` if present
   - logger/module name fallback
-- Bridge controls exposed via `hqt_engine`:
+- Bridge controls exposed via `haruquant`:
   - `set_log_level(level)`
   - `set_component_log_level(component, level)`
   - `clear_component_log_level(component)`
@@ -147,7 +147,7 @@
 - C++ schema primitives are implemented in:
   - `cpp/include/util/schema_validator.hpp`
   - `cpp/src/engine/schema_validator.cpp`
-- C++/bridge schema entry points exposed via `hqt_engine`:
+- C++/bridge schema entry points exposed via `haruquant`:
   - `validate_market_schema(payload)`
   - `validate_trade_schema(payload)`
   - `validate_config_schema(payload)`
@@ -165,7 +165,7 @@
   - symbol/quote availability
   - volume constraints
   - margin sufficiency checks
-- Bridge-facing validator calls are centralized through dispatcher routing in `hqt_engine.TradeValidator`:
+- Bridge-facing validator calls are centralized through dispatcher routing in `haruquant.TradeValidator`:
   - `validate(type, value, **kwargs)` resolves handlers via `_get_validation_dispatcher()` and invokes the corresponding C++ validator.
 - `CTrade::CheckRequest(...)` now delegates to the same shared validator implementation to keep validation rules consistent for direct `CTrade` callers.
 
@@ -292,7 +292,7 @@
   - walk-forward window generation and orchestration
   - walk-forward matrix orchestration across train/test specs
   - edge summary report (mean test score + p-value + verdict)
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `ReplayTradeEvent`, `ReplayCertifier`
   - `WfoSpec`, `WfoWindow`, `WfoWindowResult`, `WfoSummary`, `WfmCellResult`
   - `WfoWfmOrchestrator`, `EdgeDetector`
@@ -311,7 +311,7 @@
   - searchable experiment registry by strategy/symbol/period
   - symbol classification by asset class and volatility regime
   - seasonal pattern analysis by day-of-week and holiday/non-holiday buckets
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `ExperimentRecord`, `ExperimentRegistry`
   - `SymbolClassification`, `SymbolClassifier`
   - `SeasonalBucket`, `SeasonalAnalysis`, `SeasonalPatternAnalyzer`
@@ -334,7 +334,7 @@
     - `OptimizationWorkerPolicy`
     - `OptimizationWorkerHealth`
     - `DistributedOptimizationResult`
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `GridSearchRunner`
   - `RandomSearchRunner`
   - `GeneticSearchRunner`
@@ -366,7 +366,7 @@
   - Monte Carlo perturbation workflows over PnL series
   - sensitivity report over parameter-space perturbations
   - stability score and normalized sensitivity map for reproducibility metadata
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `MonteCarloMode`, `MonteCarloAnalyzer`, `MonteCarloSummary`
   - `SensitivityAnalyzer`, `SensitivityPoint`, `SensitivityReport`
 - Validation:
@@ -525,7 +525,7 @@
   - `cpp/include/risk/risk_engine.hpp`
   - `cpp/src/engine/risk_engine.cpp`
 - Bridge bindings:
-  - `bridge/src/risk_bindings.cpp` (`hqt_engine._risk`)
+  - `bridge/src/risk_bindings.cpp` (`haruquant._risk`)
 - Added C++ risk components:
   - `RiskGovernor` with `can_trade(...)` and `can_trade_with_mode(...)` gates for size, margin, drawdown, gross exposure, and net exposure
   - `RiskBudgetAllocator` with budget normalization, optional correlation penalty, lot deltas, and exposure-constraint application
@@ -546,7 +546,7 @@
   - optional HMM-proxy hook via `evaluate_with_hmm(..., hmm_stress_probability)`
   - `CircuitBreaker` supporting strategy-level and global halt gates
 - Bridge bindings:
-  - `bridge/src/risk_bindings.cpp` (`hqt_engine._risk`)
+  - `bridge/src/risk_bindings.cpp` (`haruquant._risk`)
 - Evidence:
   - `cpp/tests/test_risk_engine.cpp`
   - `tests/contracts/test_risk_bindings.py`
@@ -566,7 +566,7 @@
     - `EMERGENCY_SHUTDOWN`
   - strategy/global kill-switch triggers and emergency shutdown source tagging (`UI`/`API`)
 - Bridge bindings:
-  - `bridge/src/risk_bindings.cpp` (`hqt_engine._risk`)
+  - `bridge/src/risk_bindings.cpp` (`haruquant._risk`)
 - Evidence:
   - `cpp/tests/test_risk_engine.cpp`
   - `tests/contracts/test_risk_bindings.py`
@@ -590,7 +590,7 @@
 ## Bridge Ownership and Lifetime Safety (IP-19)
 
 - Ownership contract API:
-  - `hqt_engine.ownership_contracts()`
+  - `haruquant.ownership_contracts()`
   - explicit policies for:
     - C++ owned / Python view
     - shared ownership
@@ -600,7 +600,7 @@
   - long-lived parent/child relationships are guarded with nanobind `keep_alive`
   - view-returning accessors use `reference_internal` for parent-bound lifetimes
 - Zero-copy contract path:
-  - `hqt_engine.sum_buffer_zero_copy(buffer)` consumes contiguous `float64` buffers via Python buffer protocol without copy
+  - `haruquant.sum_buffer_zero_copy(buffer)` consumes contiguous `float64` buffers via Python buffer protocol without copy
 - Evidence:
   - `tests/contracts/test_bridge_lifetime.py`
   - `docs/haruquant/usage/dev/bridge_ownership_rules.md`
@@ -608,7 +608,7 @@
 
 ## Exception Mapping C++ + Python (IP-20)
 
-- Bridge-level typed exception classes exported by `hqt_engine`:
+- Bridge-level typed exception classes exported by `haruquant`:
   - `BridgeError`
   - `ConfigurationError`
   - `ValidationError`
@@ -618,10 +618,10 @@
   - `TransientConnectivityError`
   - `FatalEngineError`
 - Mapping helpers:
-  - `hqt_engine.raise_exception_for_retcode(code, detail="")`
-  - `hqt_engine.raise_exception_for_category(category, detail="")`
+  - `haruquant.raise_exception_for_retcode(code, detail="")`
+  - `haruquant.raise_exception_for_category(category, detail="")`
 - Python adapter behavior:
-  - `apps/simulation/backend.py::_translate_cpp_exception(...)` preserves typed `hqt_engine.*Error` exceptions and uses retcode taxonomy fallback when needed.
+  - `apps/simulation/backend.py::_translate_cpp_exception(...)` preserves typed `haruquant.*Error` exceptions and uses retcode taxonomy fallback when needed.
 - Crash handling:
   - `apps/utils/crash_handler.py` installs process-level handlers (`faulthandler`, uncaught exception hook, signal hooks).
   - Crash path flushes Python and C++ loggers, then appends snapshot payload to `artifacts/logs/crash/crash_state.json`.
@@ -635,10 +635,10 @@
 ## Zero-Copy + Serialization Fallback (IP-21)
 
 - Zero-copy paths:
-  - `hqt_engine.sum_buffer_zero_copy(buffer)` for contiguous `float64` buffers.
-  - `hqt_engine.sum_auto(values)` uses zero-copy when buffer-compatible, otherwise copy fallback.
+  - `haruquant.sum_buffer_zero_copy(buffer)` for contiguous `float64` buffers.
+  - `haruquant.sum_auto(values)` uses zero-copy when buffer-compatible, otherwise copy fallback.
 - Capability API:
-  - `hqt_engine.bridge_transfer_capabilities()`
+  - `haruquant.bridge_transfer_capabilities()`
 - Python fallback helper:
   - `apps/utils/bridge_transfer.py::sum_with_fallback(values, serialization=...)`
   - supported modes:
@@ -726,7 +726,7 @@
   - `cpp/include/engine/engine.hpp::PortfolioState`
   - implementation in `cpp/src/engine/analytics.cpp`
 - Scope:
-  - simulation/backtest side (`hqt_engine.sim`) canonical portfolio/account/position tracking
+  - simulation/backtest side (`haruquant.sim`) canonical portfolio/account/position tracking
   - thread-safe updates for concurrent multi-strategy, multi-symbol state writes
 - State model:
   - account snapshot: balance, equity, margin, margin_free, margin_level, profit
@@ -766,10 +766,10 @@
   - scheduled interval-based trigger
   - event trigger based on allocation drift threshold
 - Bridge exposure:
-  - `hqt_engine.sim.PortfolioAllocator`
-  - `hqt_engine.sim.RebalancePolicy`
-  - `hqt_engine.sim.RebalanceController`
-  - `hqt_engine.sim.ExposureConstraints`
+  - `haruquant.sim.PortfolioAllocator`
+  - `haruquant.sim.RebalancePolicy`
+  - `haruquant.sim.RebalanceController`
+  - `haruquant.sim.ExposureConstraints`
 - Design direction:
   - C++ remains the execution path for simulation/backtest loops.
   - Python usage is orchestration-only and invokes C++ APIs at control boundaries.
@@ -832,7 +832,7 @@
     - `periodic_reconcile(...)`
     - `reconnect_reconcile(...)`
     - `reconcile_with_broker(...)`
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `PositionBook`
   - `PositionMode`
   - `FillEvent`
@@ -861,7 +861,7 @@
   - `PositionBook::write_incident_report(...)` writes JSON discrepancy reports
   - default operational evidence path:
     - `artifacts/logs/live/reconcile_discrepancy_report.json`
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `ReconcilePolicy`
   - `EscalationDecision`
   - `PositionBook.evaluate_reconciliation(...)`
@@ -892,7 +892,7 @@
   - `MockBroker.set_partial_fill_ratio(...)`
   - `MockBroker.set_deterministic_price(...)`
   - `MockBroker.clear_deterministic_price()`
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `MockBroker`
   - `BrokerSnapshot`
   - `PaperTradingEngine`
@@ -915,7 +915,7 @@
   - retries only retryable retcodes with bounded attempts
   - enforces order spam prevention by windowed rate limiting
   - marks escalation when consecutive execution failures breach configured threshold
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `ExecutionPolicy`
   - `ExecutionRouteResult`
   - `ExecutionRouter`
@@ -937,7 +937,7 @@
     - latency aggregates including p99
 - Partial-fill modeling:
   - `MockBroker` returns partial fill retcode (`10010`) when configured fill ratio is below 1.0.
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `ExecutionAlgoTWAP`
   - `ExecutionAlgoVWAP`
   - `ExecutionQualitySummary`
@@ -961,7 +961,7 @@
   - `set_on_tick_processed(...)`
   - `set_on_trade_event(...)`
   - trade callback payload: `BacktestTradeEvent` with `event_type` (`open` / `close`) and `trade` snapshot
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `BacktestEngine` callback registration for bar/tick/trade lifecycle hooks
   - `BacktestTradeEvent`
 - Evidence:
@@ -978,7 +978,7 @@
   - batch-style deterministic bar processing loop
   - reuses `TradeSimulator` order path for consistent OMS semantics
   - tracks processed bars and executed trade count
-- Bridge exposure (`hqt_engine.sim`):
+- Bridge exposure (`haruquant.sim`):
   - `VectorizedBacktestEngine.run(...)`
   - `VectorizedBacktestEngine.processed_bars()`
   - `VectorizedBacktestEngine.total_trades()`

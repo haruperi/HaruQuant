@@ -1,6 +1,6 @@
 # Optimization Runners (IP-42)
 
-IP-42 optimization runners are implemented in C++ and exposed through `hqt_engine.sim`.
+IP-42 optimization runners are implemented in C++ and exposed through `haruquant.sim`.
 
 ## Runners
 

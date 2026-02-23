@@ -63,7 +63,7 @@ add_library(hqt_core STATIC
     src/engine/error.cpp
     src/engine/connection_pool.cpp
     src/engine/schema_validator.cpp
-    src/engine/logger.cpp
+    src/util/logger.cpp
     src/engine/usage.cpp
     src/engine/risk_engine.cpp
     src/util/validators.cpp

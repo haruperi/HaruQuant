@@ -2,7 +2,7 @@
  * @file sim_bindings.cpp
  * @brief Nanobind bindings for the haruquant::sim simulation API.
  *
- * PR-014: Exposes the full C++ sim API to Python under hqt_engine.sim.
+ * PR-014: Exposes the full C++ sim API to Python under haruquant.sim.
  */
 
 #include <nanobind/nanobind.h>

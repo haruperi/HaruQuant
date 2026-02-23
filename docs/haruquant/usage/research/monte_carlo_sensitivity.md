@@ -1,6 +1,6 @@
 # Monte Carlo and Sensitivity (IP-43)
 
-IP-43 is implemented in C++ and exposed via `hqt_engine.sim`.
+IP-43 is implemented in C++ and exposed via `haruquant.sim`.
 
 ## C++ APIs
 

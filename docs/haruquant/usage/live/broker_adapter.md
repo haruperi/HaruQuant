@@ -8,7 +8,7 @@ IP-34 introduces a standardized broker abstraction in C++ and a deterministic mo
 - `MockBroker` deterministic adapter for test/backtest execution flows
 - `PaperTradingEngine` wrapper that routes orders through a broker adapter
 
-## Core API (`hqt_engine.sim`)
+## Core API (`haruquant.sim`)
 
 - `MockBroker(client: TradeSimulator)`
 - `MockBroker.connect()`
@@ -33,7 +33,7 @@ IP-34 introduces a standardized broker abstraction in C++ and a deterministic mo
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 client = sim.TradeSimulator()
 broker = sim.MockBroker(client)

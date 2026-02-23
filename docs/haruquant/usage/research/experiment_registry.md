@@ -1,6 +1,6 @@
 # Experiment Registry (IP-41)
 
-IP-41 is implemented in C++ and exposed through `hqt_engine.sim`.
+IP-41 is implemented in C++ and exposed through `haruquant.sim`.
 
 ## Available C++ APIs
 
@@ -12,7 +12,7 @@ IP-41 is implemented in C++ and exposed through `hqt_engine.sim`.
 ## Python Bridge Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 registry = sim.ExperimentRegistry()
 
@@ -36,7 +36,7 @@ print(cls.asset_class, cls.volatility_regime)  # crypto extreme
 ## Seasonal Analysis Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 timestamps = [
     1700000000000,

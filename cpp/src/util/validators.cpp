@@ -10,8 +10,54 @@ RESPONSIBILITIES:
 - Provide stable behavior expected by callers and tests.
 
 MAIN COMPONENTS:
-- Primary types/functions declared or defined in validators.cpp.
-- File-local helpers supporting the main public or internal entry points.
+- Classes/Types used in this file:
+  RuleValidationResult, TradeValidationResult, ValidationContext, ValidationRules, CredentialsPayload.
+- File-local helper methods (anonymous namespace):
+  ok(const std::string& message = "OK") -> RuleValidationResult
+  fail(const std::string& message) -> RuleValidationResult
+  fail_trade(int retcode, const std::string& comment) -> TradeValidationResult
+  to_upper(std::string value) -> std::string
+  is_market_order_type(int type) -> bool
+  is_pending_order_type(int type) -> bool
+  is_buy_action(int order_type) -> bool
+  is_sell_action(int order_type) -> bool
+  trim_copy(const std::string& input) -> std::string
+  step_decimals(double step) -> int
+  is_plain_decimal_number(const std::string& s) -> bool
+  calculate_margin(const haruquant::AccountInfo& account, const haruquant::SymbolInfo& symbol_info, double volume, double price) -> double
+  now_unix_sec() -> int64_t
+  validate_price_relationship(double level_price, double entry_price, int order_type, bool is_stop_loss) -> RuleValidationResult
+  validate_stop_freeze_distance(double level_price, double entry_price, int order_type, bool is_stop_loss, const haruquant::SymbolInfo& symbol_info, const std::string& level_name) -> RuleValidationResult
+  parse_order_type_token(const std::string& order_type) -> std::optional<int>
+- Public validation/trade-check methods implemented:
+  validate_action_type(int action, int type) -> TradeValidationResult
+  validate_submission_inputs(const std::string& symbol, double volume, double bid, double ask, const haruquant::SymbolInfo* symbol_info, const ValidationRules& rules) -> TradeValidationResult
+  validate_trade_request(const haruquant::MqlTradeRequest& request, const haruquant::AccountInfo& account, const haruquant::SymbolInfo* symbol_info) -> TradeValidationResult
+  validate_symbol(const std::string& symbol, const ValidationContext& ctx) -> RuleValidationResult
+  validate_volume_basic(double volume) -> RuleValidationResult
+  validate_volume_symbol_limits(double volume, const haruquant::SymbolInfo& symbol_info) -> RuleValidationResult
+  validate_volume_step(double volume, const haruquant::SymbolInfo& symbol_info) -> RuleValidationResult
+  validate_volume_format(const std::string& volume_text, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
+  validate_price_format(const std::string& price_text, const ValidationContext& ctx) -> RuleValidationResult
+  validate_volume(double volume, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
+  validate_price(double price, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
+  validate_order_type(int order_type) -> RuleValidationResult
+  validate_order_type(const std::string& order_type) -> RuleValidationResult
+  validate_magic(int magic, const ValidationRules& rules) -> RuleValidationResult
+  validate_slippage(double slippage_points, int order_type, double requested_price, const ValidationContext& ctx) -> RuleValidationResult
+  validate_expiration_unix(int64_t expiration_unix_sec, int64_t now_unix_sec) -> RuleValidationResult
+  validate_expiration_mode(const std::string& expiration_mode) -> RuleValidationResult
+  validate_timeframe(const std::string& timeframe) -> RuleValidationResult
+  validate_timeframe(int timeframe) -> RuleValidationResult
+  validate_date_range_unix(int64_t start_unix_sec, int64_t end_unix_sec) -> RuleValidationResult
+  validate_stop_loss(double stop_loss, double open_price, int order_type, const ValidationContext& ctx) -> RuleValidationResult
+  validate_take_profit(double take_profit, double open_price, int order_type, const ValidationContext& ctx) -> RuleValidationResult
+  validate_trade_request_payload(const TradeRequestPayload& payload, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
+  validate_credentials(const CredentialsPayload& credentials) -> RuleValidationResult
+  validate_margin(double margin_required, const ValidationContext& ctx) -> RuleValidationResult
+  validate_ticket(int64_t ticket) -> RuleValidationResult
+  validate_max_orders(int open_orders, std::optional<int> account_limit, const ValidationContext& ctx) -> RuleValidationResult
+  validate_symbol_volume(double symbol_volume, std::optional<double> volume_limit, const ValidationContext& ctx) -> RuleValidationResult
 
 DATA FLOW:
 Callers provide requests or data -> this file applies core logic -> outputs state changes or results.

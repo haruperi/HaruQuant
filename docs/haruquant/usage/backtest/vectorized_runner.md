@@ -4,7 +4,7 @@
 
 IP-38 adds a C++ `VectorizedBacktestEngine` for batch-style bar processing with deterministic outputs.
 
-## Core API (`hqt_engine.sim`)
+## Core API (`haruquant.sim`)
 
 - `VectorizedBacktestEngine(client)`
 - `run(symbol, volume, bars)`
@@ -15,7 +15,7 @@ IP-38 adds a C++ `VectorizedBacktestEngine` for batch-style bar processing with 
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 client = sim.TradeSimulator()
 info = sim.SymbolInfo()

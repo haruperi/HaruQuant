@@ -27,7 +27,7 @@ This guide covers mismatch escalation policy after reconciliation:
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 book = sim.PositionBook(sim.PositionMode.Netting)
 report = book.reconnect_reconcile(broker_positions, broker_account)

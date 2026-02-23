@@ -1,4 +1,4 @@
-"""Usage examples for C++-backed TradeValidator (hqt_engine.TradeValidator).
+"""Usage examples for C++-backed TradeValidator (haruquant.TradeValidator).
 
 Run:
     python examples/utils/usage_validator.py
@@ -18,8 +18,8 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-import hqt_engine.sim as csim
-import hqt_engine
+import haruquant.sim as csim
+import haruquant
 from apps.mt5 import MT5Utils, Trade, get_mt5_api
 from apps.utils.logger import logger
 from apps.mt5 import MT5Utils, get_mt5_api
@@ -34,7 +34,7 @@ client = MT5Utils.get_connected_client()
 mt5_account = client.account_info()
 eurusd_info = client.symbol_info(eurusd)
 account = csim.AccountInfo(mt5_account)     # Get default account info details from MT5
-validator = hqt_engine.TradeValidator()
+validator = haruquant.TradeValidator()
 
 # Initialize backend
 if backend == "mt5":

@@ -2,7 +2,7 @@
 
 This script avoids common local issues by:
 1) Using the standard Visual Studio build directory (default: build)
-2) Building only the bridge target (hqt_engine)
+2) Building only the bridge target (haruquant)
 3) Ensuring the built module is available at build/bridge/Release
 
 Usage:
@@ -104,9 +104,9 @@ def build(build_dir: Path, config: str, target: str) -> None:
 
 def copy_module(build_dir: Path, config: str) -> Path:
     src_dir = build_dir / "bridge" / config
-    candidates = list(src_dir.glob("hqt_engine*.pyd"))
+    candidates = list(src_dir.glob("haruquant*.pyd"))
     if not candidates:
-        raise FileNotFoundError(f"No hqt_engine module found in {src_dir}")
+        raise FileNotFoundError(f"No haruquant module found in {src_dir}")
 
     src = candidates[0]
     dst_dir = PROJECT_ROOT / "build" / "bridge" / "Release"
@@ -129,13 +129,13 @@ def run_usage_example() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build hqt_engine bridge from Python")
+    parser = argparse.ArgumentParser(description="Build haruquant bridge from Python")
     parser.add_argument("--build-dir", type=Path, default=DEFAULT_BUILD_DIR)
     parser.add_argument("--config", default=DEFAULT_CONFIG, choices=["Debug", "Release"])
     parser.add_argument("--generator", default=DEFAULT_GENERATOR)
     parser.add_argument("--arch", default=DEFAULT_ARCH)
     parser.add_argument("--toolchain", type=Path, default=DEFAULT_TOOLCHAIN)
-    parser.add_argument("--target", default="hqt_engine")
+    parser.add_argument("--target", default="haruquant")
     parser.add_argument("--run-usage", action="store_true")
     return parser.parse_args()
 

@@ -1,6 +1,6 @@
 # WFO/WFM and Replay Certification (IP-40)
 
-IP-40 is implemented on the C++ side and exposed through `hqt_engine.sim`.
+IP-40 is implemented on the C++ side and exposed through `haruquant.sim`.
 
 ## C++ Components
 
@@ -15,7 +15,7 @@ IP-40 is implemented on the C++ side and exposed through `hqt_engine.sim`.
 ## Python Bridge Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 # Replay certification
 baseline = []

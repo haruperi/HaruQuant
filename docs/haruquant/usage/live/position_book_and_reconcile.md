@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document covers C++ `PositionBook` behavior exposed via `hqt_engine.sim`:
+This document covers C++ `PositionBook` behavior exposed via `haruquant.sim`:
 
 - position updates from fills and account snapshots
 - Netting and Hedging modes
@@ -30,7 +30,7 @@ This document covers C++ `PositionBook` behavior exposed via `hqt_engine.sim`:
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 book = sim.PositionBook(sim.PositionMode.Netting)
 fill = sim.FillEvent()

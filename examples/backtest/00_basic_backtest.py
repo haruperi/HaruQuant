@@ -17,7 +17,7 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-import hqt_engine.sim as csim
+import haruquant.sim as csim
 from apps.utils.logger import logger
 from apps.mt5 import MT5Utils, get_mt5_api
 

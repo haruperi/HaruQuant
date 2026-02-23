@@ -19,5 +19,5 @@ install_crash_handler(state_provider=state_provider)
 - Enables `faulthandler` output to `artifacts/logs/crash/faulthandler.log`.
 - Handles `SIGTERM`, `SIGINT`, `SIGABRT` (best-effort).
 - Flushes Python logger sinks via `apps.utils.logger.logger.flush()`.
-- Flushes C++ async logger via `hqt_engine.flush_logs()` when bridge is present.
+- Flushes C++ async logger via `haruquant.flush_logs()` when bridge is present.
 - Appends crash payload to `artifacts/logs/crash/crash_state.json`.

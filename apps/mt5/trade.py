@@ -7,7 +7,7 @@ Reference: https://www.mql5.com/en/docs/standardlibrary/tradeclasses/ctrade
 
 Execution boundary:
 - This module is the live MT5 Python transport path.
-- For simulation/backtest execution, prefer `hqt_engine.sim.CTrade`.
+- For simulation/backtest execution, prefer `haruquant.sim.CTrade`.
 """
 
 from __future__ import annotations

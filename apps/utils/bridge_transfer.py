@@ -33,9 +33,9 @@ def _sum_via_arrow(arr: np.ndarray) -> tuple[float, str]:
         table = reader.read_all()
     decoded = np.asarray(table.column("v").to_numpy(), dtype=np.float64)
 
-    import hqt_engine
+    import haruquant
 
-    return float(hqt_engine.sum_buffer_zero_copy(decoded)), "arrow_fallback"
+    return float(haruquant.sum_buffer_zero_copy(decoded)), "arrow_fallback"
 
 
 def _sum_via_protobuf(arr: np.ndarray) -> tuple[float, str]:
@@ -51,9 +51,9 @@ def _sum_via_protobuf(arr: np.ndarray) -> tuple[float, str]:
     decoded_msg.ParseFromString(blob)
     decoded = np.asarray(list(decoded_msg), dtype=np.float64)
 
-    import hqt_engine
+    import haruquant
 
-    return float(hqt_engine.sum_buffer_zero_copy(decoded)), "protobuf_fallback"
+    return float(haruquant.sum_buffer_zero_copy(decoded)), "protobuf_fallback"
 
 
 def sum_with_fallback(values: Any, serialization: SerializationMode = "auto") -> dict[str, Any]:
@@ -63,11 +63,11 @@ def sum_with_fallback(values: Any, serialization: SerializationMode = "auto") ->
     - ``arrow``: explicit Arrow IPC roundtrip fallback path.
     - ``protobuf``: explicit Protobuf roundtrip fallback path.
     """
-    import hqt_engine
+    import haruquant
 
     mode = str(serialization).lower()
     if mode == "auto":
-        payload = hqt_engine.sum_auto(values)
+        payload = haruquant.sum_auto(values)
         return {"total": float(payload["total"]), "path": str(payload["path"])}
 
     arr = _as_1d_float64(values)

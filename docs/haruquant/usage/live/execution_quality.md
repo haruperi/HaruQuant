@@ -8,7 +8,7 @@ IP-36 adds:
 - partial-fill modeling and tracking
 - latency/slippage/spread quality metrics (including p99 latency)
 
-## Core API (`hqt_engine.sim`)
+## Core API (`haruquant.sim`)
 
 - `ExecutionAlgoTWAP.build_schedule(total_volume, start_time_ms, end_time_ms, slices)`
 - `ExecutionAlgoVWAP.build_schedule(total_volume, start_time_ms, end_time_ms, market_volume_profile)`
@@ -22,7 +22,7 @@ IP-36 adds:
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 twap = sim.ExecutionAlgoTWAP.build_schedule(1.0, 0, 3000, 4)
 vwap = sim.ExecutionAlgoVWAP.build_schedule(1.0, 0, 3000, [1, 2, 3, 4])

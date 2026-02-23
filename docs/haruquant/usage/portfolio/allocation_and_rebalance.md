@@ -1,7 +1,7 @@
 # Allocation and Rebalance Usage (IP-26)
 
 ## Scope
-C++-first portfolio allocation/rebalance/exposure primitives exposed through `hqt_engine.sim`.
+C++-first portfolio allocation/rebalance/exposure primitives exposed through `haruquant.sim`.
 
 ## APIs
 - `sim.PortfolioAllocator.equal_weight(symbols, max_total_exposure)`
@@ -12,7 +12,7 @@ C++-first portfolio allocation/rebalance/exposure primitives exposed through `hq
 
 ## Example
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 alloc = sim.PortfolioAllocator.risk_parity(
     {"EURUSD": 0.01, "GBPUSD": 0.015, "XAUUSD": 0.03},

@@ -6,7 +6,7 @@ Track canonical portfolio/account/position state in the C++ simulation layer wit
 ## Python Bridge Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 state = sim.PortfolioState(10000.0, "USD")
 
@@ -24,7 +24,7 @@ print(by_symbol["EURUSD"].net_volume)
 ```
 
 ## Notes
-- `PortfolioState` is currently scoped to simulation/backtest (`hqt_engine.sim`).
+- `PortfolioState` is currently scoped to simulation/backtest (`haruquant.sim`).
 - Supports concurrent updates across multiple strategy IDs and symbols.
 - Account snapshot fields are normalized as:
   - `profit` = total unrealized PnL

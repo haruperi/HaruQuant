@@ -10,7 +10,7 @@ Lifecycle hooks now available:
 - `on_tick`
 - `on_trade`
 
-## Core API (`hqt_engine.sim`)
+## Core API (`haruquant.sim`)
 
 - `BacktestEngine.run_trading_timeframe(symbol, volume, bars)`
 - `BacktestEngine.run_trading_timeframe_with_ticks(symbol, volume, bars, ticks)`
@@ -21,7 +21,7 @@ Lifecycle hooks now available:
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 client = sim.TradeSimulator()
 info = sim.SymbolInfo()

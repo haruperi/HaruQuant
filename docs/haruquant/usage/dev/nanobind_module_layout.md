@@ -3,35 +3,35 @@
 ## Scope
 
 Bridge module:
-- `hqt_engine` (nanobind extension)
+- `haruquant` (nanobind extension)
 
 Skeleton submodules:
-- `hqt_engine._event`
-- `hqt_engine._data`
-- `hqt_engine._risk`
-- `hqt_engine._oms`
-- `hqt_engine._execution`
-- `hqt_engine._backtest`
-- `hqt_engine._metrics`
+- `haruquant._event`
+- `haruquant._data`
+- `haruquant._risk`
+- `haruquant._oms`
+- `haruquant._execution`
+- `haruquant._backtest`
+- `haruquant._metrics`
 
 Lifecycle hooks:
-- `hqt_engine.initialize()`
-- `hqt_engine.teardown()`
-- `hqt_engine.health_check()`
+- `haruquant.initialize()`
+- `haruquant.teardown()`
+- `haruquant.health_check()`
 
 ## Quick Check
 
 ```python
-import hqt_engine
+import haruquant
 
-assert hqt_engine.initialize() is True
-print(hqt_engine.health_check())
+assert haruquant.initialize() is True
+print(haruquant.health_check())
 
 for name in ["_event", "_data", "_risk", "_oms", "_execution", "_backtest", "_metrics"]:
-    sub = getattr(hqt_engine, name)
+    sub = getattr(haruquant, name)
     print(name, sub.health_check())
 
-assert hqt_engine.teardown() is True
+assert haruquant.teardown() is True
 ```
 
 Expected:

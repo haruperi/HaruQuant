@@ -1,6 +1,6 @@
 /**
  * @file risk_bindings.cpp
- * @brief Nanobind bindings for C++ risk primitives under hqt_engine._risk.
+ * @brief Nanobind bindings for C++ risk primitives under haruquant._risk.
  */
 
 #include <nanobind/nanobind.h>

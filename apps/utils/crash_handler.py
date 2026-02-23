@@ -119,10 +119,10 @@ def _flush_logs_best_effort() -> None:
         pass
 
     try:
-        import hqt_engine
+        import haruquant
 
-        if hasattr(hqt_engine, "flush_logs"):
-            hqt_engine.flush_logs()
+        if hasattr(haruquant, "flush_logs"):
+            haruquant.flush_logs()
     except Exception:
         pass
 

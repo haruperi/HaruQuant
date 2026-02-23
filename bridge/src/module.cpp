@@ -801,7 +801,7 @@ void annotate_skeleton_submodule(nb::module_& m, const std::string& component_na
 
 }  // namespace
 
-NB_MODULE(hqt_engine, m) {
+NB_MODULE(haruquant, m) {
     m.doc() = "HQT Engine - C++ core for HaruQuant";
 
     m.def(
@@ -849,27 +849,27 @@ NB_MODULE(hqt_engine, m) {
             payload["initialized"] = initialized;
             payload["init_count"] = init_count;
             payload["callback_attached"] = callback_attached;
-            payload["module"] = nb::str("hqt_engine");
+            payload["module"] = nb::str("haruquant");
             payload["status"] = nb::str("ready");
             return payload;
         },
         "Return bridge lifecycle and health payload.");
 
-    g_exc_bridge_error = PyErr_NewException("hqt_engine.BridgeError", PyExc_RuntimeError, nullptr);
+    g_exc_bridge_error = PyErr_NewException("haruquant.BridgeError", PyExc_RuntimeError, nullptr);
     g_exc_configuration_error =
-        PyErr_NewException("hqt_engine.ConfigurationError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.ConfigurationError", g_exc_bridge_error, nullptr);
     g_exc_validation_error =
-        PyErr_NewException("hqt_engine.ValidationError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.ValidationError", g_exc_bridge_error, nullptr);
     g_exc_risk_violation_error =
-        PyErr_NewException("hqt_engine.RiskViolationError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.RiskViolationError", g_exc_bridge_error, nullptr);
     g_exc_order_state_error =
-        PyErr_NewException("hqt_engine.OrderStateError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.OrderStateError", g_exc_bridge_error, nullptr);
     g_exc_execution_error =
-        PyErr_NewException("hqt_engine.ExecutionError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.ExecutionError", g_exc_bridge_error, nullptr);
     g_exc_transient_connectivity_error =
-        PyErr_NewException("hqt_engine.TransientConnectivityError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.TransientConnectivityError", g_exc_bridge_error, nullptr);
     g_exc_fatal_engine_error =
-        PyErr_NewException("hqt_engine.FatalEngineError", g_exc_bridge_error, nullptr);
+        PyErr_NewException("haruquant.FatalEngineError", g_exc_bridge_error, nullptr);
     if (g_exc_bridge_error == nullptr || g_exc_configuration_error == nullptr ||
         g_exc_validation_error == nullptr || g_exc_risk_violation_error == nullptr ||
         g_exc_order_state_error == nullptr || g_exc_execution_error == nullptr ||

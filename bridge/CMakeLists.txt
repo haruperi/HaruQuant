@@ -18,14 +18,14 @@ endif()
 find_package(nanobind CONFIG REQUIRED)
 
 # Build the Python extension module
-nanobind_add_module(hqt_engine
+nanobind_add_module(haruquant
     STABLE_ABI
     src/module.cpp
     src/sim_bindings.cpp
     src/risk_bindings.cpp
 )
 
-target_link_libraries(hqt_engine PRIVATE hqt_core)
+target_link_libraries(haruquant PRIVATE hqt_core)
 
 # Install the module next to the bridge source for easy import
-install(TARGETS hqt_engine LIBRARY DESTINATION .)
+install(TARGETS haruquant LIBRARY DESTINATION .)

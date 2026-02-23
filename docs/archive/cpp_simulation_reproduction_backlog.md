@@ -239,7 +239,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 **Acceptance tests**
 - `python scripts/build_cpp.py --test`
 - `python scripts/build_cpp.py --install`
-- New Python smoke test imports `hqt_engine` and opens/runs a basic sim.
+- New Python smoke test imports `haruquant` and opens/runs a basic sim.
 
 ---
 

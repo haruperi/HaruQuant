@@ -8,7 +8,7 @@ IP-35 adds a C++ execution router with:
 - bounded retry policy for retryable failures
 - order spam prevention rate limiting
 
-## Core API (`hqt_engine.sim`)
+## Core API (`haruquant.sim`)
 
 - `ExecutionPolicy`
   - `max_retries`
@@ -30,7 +30,7 @@ IP-35 adds a C++ execution router with:
 ## Example
 
 ```python
-from hqt_engine import sim
+from haruquant import sim
 
 client = sim.TradeSimulator()
 broker = sim.MockBroker(client)

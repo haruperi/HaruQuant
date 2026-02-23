@@ -1,4 +1,4 @@
-"""C++ logger performance harness via hqt_engine bridge.
+"""C++ logger performance harness via haruquant bridge.
 
 Run examples:
     python tests/perfomance/utils/logger_cpp.py
@@ -52,7 +52,7 @@ def _build_parser() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_hqt_engine() -> Any:
+def _load_haruquant() -> Any:
     bridge_release = ROOT_DIR / "build" / "bridge" / "Release"
     vcpkg_bin = ROOT_DIR / "build" / "vcpkg_installed" / "x64-windows" / "bin"
 
@@ -65,9 +65,9 @@ def _load_hqt_engine() -> Any:
     if vcpkg_bin.exists() and hasattr(os, "add_dll_directory"):
         os.add_dll_directory(str(vcpkg_bin))
 
-    import hqt_engine  # type: ignore
+    import haruquant  # type: ignore
 
-    return hqt_engine
+    return haruquant
 
 
 def _percentile_sorted(values: list[float], p: float) -> float:
@@ -100,7 +100,7 @@ def _write_report(results: list[TestResult], args: argparse.Namespace) -> Path:
     return out_file
 
 
-def f01_cpp_emit_throughput(args: argparse.Namespace, hqt_engine: Any) -> TestResult:
+def f01_cpp_emit_throughput(args: argparse.Namespace, haruquant: Any) -> TestResult:
     _header("f01_cpp_emit_throughput")
     stop_event = threading.Event()
     lock = threading.Lock()
@@ -112,15 +112,15 @@ def f01_cpp_emit_throughput(args: argparse.Namespace, hqt_engine: Any) -> TestRe
         with lock:
             received += 1
 
-    hqt_engine.set_stderr_logging(False)
-    hqt_engine.set_log_level("debug")
-    hqt_engine.set_log_callback(cb)
+    haruquant.set_stderr_logging(False)
+    haruquant.set_log_level("debug")
+    haruquant.set_log_callback(cb)
 
     def worker(tid: int) -> None:
         nonlocal emitted
         n = 0
         while not stop_event.is_set():
-            hqt_engine.emit_log("info", f"perf|thr={tid}|n={n}")
+            haruquant.emit_log("info", f"perf|thr={tid}|n={n}")
             n += 1
             with lock:
                 emitted += 1
@@ -135,9 +135,9 @@ def f01_cpp_emit_throughput(args: argparse.Namespace, hqt_engine: Any) -> TestRe
     for t in threads:
         t.join(timeout=5)
 
-    hqt_engine.flush_logs()
-    hqt_engine.set_log_callback(None)
-    hqt_engine.set_stderr_logging(True)
+    haruquant.flush_logs()
+    haruquant.set_log_callback(None)
+    haruquant.set_stderr_logging(True)
     elapsed = max(1e-9, time.perf_counter() - start)
 
     emit_rate = emitted / elapsed
@@ -156,7 +156,7 @@ def f01_cpp_emit_throughput(args: argparse.Namespace, hqt_engine: Any) -> TestRe
     return TestResult(name="cpp_emit_throughput", success=success, details=details)
 
 
-def f02_cpp_callback_latency_percentiles(args: argparse.Namespace, hqt_engine: Any) -> TestResult:
+def f02_cpp_callback_latency_percentiles(args: argparse.Namespace, haruquant: Any) -> TestResult:
     _header("f02_cpp_callback_latency_percentiles")
     pattern = re.compile(r"^lat\|id=(\d+)\|t0=(\d+)$")
     lock = threading.Lock()
@@ -179,18 +179,18 @@ def f02_cpp_callback_latency_percentiles(args: argparse.Namespace, hqt_engine: A
             else:
                 callback_misses += 1
 
-    hqt_engine.set_stderr_logging(False)
-    hqt_engine.set_log_level("debug")
-    hqt_engine.set_log_callback(cb)
+    haruquant.set_stderr_logging(False)
+    haruquant.set_log_level("debug")
+    haruquant.set_log_callback(cb)
 
     start = time.perf_counter()
     for i in range(args.latency_samples):
         t0 = time.perf_counter_ns()
         with lock:
             send_times[i] = t0
-        hqt_engine.emit_log("info", f"lat|id={i}|t0={t0}")
+        haruquant.emit_log("info", f"lat|id={i}|t0={t0}")
 
-    hqt_engine.flush_logs()
+    haruquant.flush_logs()
 
     deadline = time.perf_counter() + 5.0
     while time.perf_counter() < deadline:
@@ -200,8 +200,8 @@ def f02_cpp_callback_latency_percentiles(args: argparse.Namespace, hqt_engine: A
             break
         time.sleep(0.01)
 
-    hqt_engine.set_log_callback(None)
-    hqt_engine.set_stderr_logging(True)
+    haruquant.set_log_callback(None)
+    haruquant.set_stderr_logging(True)
 
     with lock:
         remaining = len(send_times)
@@ -235,7 +235,7 @@ def f02_cpp_callback_latency_percentiles(args: argparse.Namespace, hqt_engine: A
     return TestResult(name="cpp_callback_latency_percentiles", success=success, details=details)
 
 
-def f03_cpp_component_filter_under_load(args: argparse.Namespace, hqt_engine: Any) -> TestResult:
+def f03_cpp_component_filter_under_load(args: argparse.Namespace, haruquant: Any) -> TestResult:
     _header("f03_cpp_component_filter_under_load")
     lock = threading.Lock()
     info_count = 0
@@ -249,22 +249,22 @@ def f03_cpp_component_filter_under_load(args: argparse.Namespace, hqt_engine: An
             elif level.lower() == "error":
                 error_count += 1
 
-    hqt_engine.set_stderr_logging(False)
-    hqt_engine.set_log_callback(cb)
-    hqt_engine.set_log_level("debug")
-    hqt_engine.set_component_log_level("hqt_engine", "error")
+    haruquant.set_stderr_logging(False)
+    haruquant.set_log_callback(cb)
+    haruquant.set_log_level("debug")
+    haruquant.set_component_log_level("haruquant", "error")
 
     # emit a burst of infos/errors; info should be mostly filtered for default module component.
     n = max(1000, args.latency_samples // 5)
     for i in range(n):
-        hqt_engine.emit_log("info", f"cmp|n={i}|info")
-        hqt_engine.emit_log("error", f"cmp|n={i}|error")
+        haruquant.emit_log("info", f"cmp|n={i}|info")
+        haruquant.emit_log("error", f"cmp|n={i}|error")
 
-    hqt_engine.flush_logs()
-    hqt_engine.clear_component_log_level("hqt_engine")
-    hqt_engine.clear_all_component_log_levels()
-    hqt_engine.set_log_callback(None)
-    hqt_engine.set_stderr_logging(True)
+    haruquant.flush_logs()
+    haruquant.clear_component_log_level("haruquant")
+    haruquant.clear_all_component_log_levels()
+    haruquant.set_log_callback(None)
+    haruquant.set_stderr_logging(True)
 
     # Depending on component mapping in bridge, some info may still pass; error must be present.
     success = error_count >= int(n * 0.99)
@@ -286,15 +286,15 @@ def main() -> None:
         args.latency_samples = min(args.latency_samples, 5000)
 
     try:
-        hqt_engine = _load_hqt_engine()
+        haruquant = _load_haruquant()
     except Exception as exc:
-        print(f"[LOGGER CPP PERF] Failed to import hqt_engine: {exc}")
+        print(f"[LOGGER CPP PERF] Failed to import haruquant: {exc}")
         raise SystemExit(1)
 
     results = [
-        f01_cpp_emit_throughput(args, hqt_engine),
-        f02_cpp_callback_latency_percentiles(args, hqt_engine),
-        f03_cpp_component_filter_under_load(args, hqt_engine),
+        f01_cpp_emit_throughput(args, haruquant),
+        f02_cpp_callback_latency_percentiles(args, haruquant),
+        f03_cpp_component_filter_under_load(args, haruquant),
     ]
 
     passed = sum(1 for r in results if r.success)

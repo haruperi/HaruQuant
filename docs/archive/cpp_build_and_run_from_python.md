@@ -1,6 +1,6 @@
 # Build And Run C++ From Python
 
-This guide defines one stable workflow for building and running the C++ bridge (`hqt_engine`) from Python.
+This guide defines one stable workflow for building and running the C++ bridge (`haruquant`) from Python.
 
 ## Why this exists
 
@@ -23,7 +23,7 @@ python scripts/build_cpp_bridge.py
 What it does:
 - Configures CMake in: `build/`
 - Uses Visual Studio generator by default
-- Builds only target `hqt_engine`
+- Builds only target `haruquant`
 - Ensures built module is available in `build/bridge/Release/` so Python usage scripts can import it
 
 ## Build + run C++ logging usage example
@@ -58,10 +58,10 @@ python scripts/build_cpp_bridge.py --build-dir build
 
 Use Visual Studio generator (default in this script) and avoid ad-hoc Ninja configure in an uninitialized shell.
 
-### Python cannot import `hqt_engine`
+### Python cannot import `haruquant`
 
 Confirm the module exists after build:
-- `build/bridge/Release/hqt_engine*.pyd`
+- `build/bridge/Release/haruquant*.pyd`
 
 Then run the usage script from project root:
 

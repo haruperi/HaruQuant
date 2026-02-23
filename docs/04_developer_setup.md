@@ -79,7 +79,7 @@ The C++ build uses CMake with vcpkg for dependency management and Nanobind for P
 ```
 CMakeLists.txt          # Top-level orchestrator
 ├── cpp/CMakeLists.txt  # hqt_core static library + tests + benchmarks
-└── bridge/CMakeLists.txt  # hqt_engine Python module (Nanobind)
+└── bridge/CMakeLists.txt  # haruquant Python module (Nanobind)
 ```
 
 ### vcpkg Dependencies
@@ -95,7 +95,7 @@ Defined in `vcpkg.json` at the project root. Installed automatically during CMak
 
 ### Nanobind
 
-Installed via pip (not vcpkg). Nanobind generates a Python-importable extension module (`hqt_engine.pyd` on Windows, `hqt_engine.so` on Linux) using the Stable ABI for cross-version compatibility.
+Installed via pip (not vcpkg). Nanobind generates a Python-importable extension module (`haruquant.pyd` on Windows, `haruquant.so` on Linux) using the Stable ABI for cross-version compatibility.
 
 ```bash
 pip install nanobind
@@ -140,7 +140,7 @@ python scripts/build_cpp.py --build
 # Build + run all C++ tests
 python scripts/build_cpp.py --test
 
-# Build + copy hqt_engine module to project root
+# Build + copy haruquant module to project root
 python scripts/build_cpp.py --install
 
 # Remove build directory
@@ -189,7 +189,7 @@ After a successful build:
 | Output | Location | Description |
 |--------|----------|-------------|
 | `hqt_core.lib` / `libhqt_core.a` | `build/cpp/Release/` | C++ static library |
-| `hqt_engine.pyd` / `hqt_engine.so` | `build/bridge/Release/` | Python extension module |
+| `haruquant.pyd` / `haruquant.so` | `build/bridge/Release/` | Python extension module |
 | `hqt_tests` | `build/cpp/tests/Release/` | Google Test executable |
 | `hqt_benchmarks` | `build/cpp/benchmarks/Release/` | Google Benchmark executable |
 
@@ -246,7 +246,7 @@ python -m pytest tests/unit/test_hqt_engine.py -v --no-cov
 python scripts/build_cpp.py --test
 
 # Verify Python can import the C++ module
-python -c "import sys; sys.path.insert(0, 'build/bridge/Release'); import hqt_engine; print(hqt_engine.hello())"
+python -c "import sys; sys.path.insert(0, 'build/bridge/Release'); import haruquant; print(haruquant.hello())"
 # Expected output: HQT Engine v0.1.0
 ```
 
@@ -275,7 +275,7 @@ HaruQuant/
 ├── bridge/                     # Nanobind Python Bridge
 │   ├── CMakeLists.txt          # Nanobind module build
 │   └── src/
-│       └── module.cpp          # hqt_engine module definition
+│       └── module.cpp          # haruquant module definition
 │
 ├── apps/                       # Python application modules
 ├── tests/                      # Python test suites

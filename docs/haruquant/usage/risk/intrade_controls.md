@@ -1,6 +1,6 @@
 # In-trade Controls (IP-28)
 
-This page documents in-trade monitoring and circuit-breaker controls exposed from C++ via `hqt_engine._risk`.
+This page documents in-trade monitoring and circuit-breaker controls exposed from C++ via `haruquant._risk`.
 
 ## Components
 
@@ -53,9 +53,9 @@ This page documents in-trade monitoring and circuit-breaker controls exposed fro
 ## Example
 
 ```python
-import hqt_engine
+import haruquant
 
-risk = hqt_engine._risk
+risk = haruquant._risk
 
 monitor = risk.IntradayRiskMonitor(risk.IntradayRiskConfig())
 snapshot = monitor.evaluate_with_hmm(

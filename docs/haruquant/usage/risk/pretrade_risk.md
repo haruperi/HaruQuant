@@ -1,6 +1,6 @@
 # Pre-trade Risk Policy (IP-27)
 
-This page documents the C++ pre-trade policy engine exposed at `hqt_engine._risk`.
+This page documents the C++ pre-trade policy engine exposed at `haruquant._risk`.
 
 ## Scope
 
@@ -32,9 +32,9 @@ Implemented checks:
 ## Example
 
 ```python
-import hqt_engine
+import haruquant
 
-risk = hqt_engine._risk
+risk = haruquant._risk
 
 cfg = risk.RiskGovernorConfig()
 cfg.max_drawdown_frac = 0.10

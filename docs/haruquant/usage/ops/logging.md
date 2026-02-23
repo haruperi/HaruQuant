@@ -1,4 +1,4 @@
-﻿# Logging Operations Guide
+# Logging Operations Guide
 
 This document describes how to operate and validate HaruQuant logging features in production and development.
 
@@ -6,7 +6,7 @@ This document describes how to operate and validate HaruQuant logging features i
 
 - Python logging adapter: `apps/utils/logger.py` (`structlog`-backed)
 - C++ logging backend: `cpp/src/engine/logger.cpp` (`spdlog` async)
-- Bridge module: `hqt_engine` (Python <-> C++ logging controls)
+- Bridge module: `haruquant` (Python <-> C++ logging controls)
 
 ## Severity Normalization (C++ + Python)
 
@@ -35,10 +35,10 @@ logger.log("fatal", "critical example")
 C++ bridge usage:
 
 ```python
-import hqt_engine
+import haruquant
 
-hqt_engine.set_log_level("warn")
-hqt_engine.emit_log("fatal", "critical event")
+haruquant.set_log_level("warn")
+haruquant.emit_log("fatal", "critical event")
 ```
 
 ## Correlation IDs in Schema
@@ -85,16 +85,16 @@ logger.set_min_level("TRACE")
 ### C++ bridge controls
 
 ```python
-import hqt_engine
+import haruquant
 
-hqt_engine.set_log_level("debug")
-hqt_engine.set_component_log_level("module", "error")
+haruquant.set_log_level("debug")
+haruquant.set_component_log_level("module", "error")
 
-hqt_engine.emit_log("info", "filtered for module")
-hqt_engine.emit_log("error", "emitted for module")
+haruquant.emit_log("info", "filtered for module")
+haruquant.emit_log("error", "emitted for module")
 
-hqt_engine.clear_component_log_level("module")
-hqt_engine.clear_all_component_log_levels()
+haruquant.clear_component_log_level("module")
+haruquant.clear_all_component_log_levels()
 ```
 
 ## Sensitive Data Redaction (FR-UTIL-008)
@@ -148,10 +148,10 @@ python tests/usage/logger/07_raw_record_capture.py
 
 ## Notes
 
-- In mixed environments, bridge capabilities can differ if an older `hqt_engine` binary is loaded.
+- In mixed environments, bridge capabilities can differ if an older `haruquant` binary is loaded.
 - The usage scripts are written to degrade gracefully when optional bridge APIs are unavailable.
 - Keep stderr logging disabled during callback-based tests to reduce noisy output:
 
 ```python
-hqt_engine.set_stderr_logging(False)
+haruquant.set_stderr_logging(False)
 ```

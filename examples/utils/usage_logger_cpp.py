@@ -5,7 +5,7 @@ Run:
 
 This script demonstrates:
 - Structlog adapter usage (`apps.utils.logger`)
-- C++ spdlog bridge usage (`hqt_engine`)
+- C++ spdlog bridge usage (`haruquant`)
 - Unified logging feature patterns across both stacks
 
 Tip:
@@ -42,7 +42,7 @@ def _header(title: str) -> None:
     print()
 
 
-def _load_hqt_engine() -> CppBridgeState:
+def _load_haruquant() -> CppBridgeState:
     bridge_release_dir = ROOT_DIR / "build" / "bridge" / "Release"
     vcpkg_bin_dir = ROOT_DIR / "build" / "vcpkg_installed" / "x64-windows" / "bin"
 
@@ -56,11 +56,11 @@ def _load_hqt_engine() -> CppBridgeState:
         os.add_dll_directory(str(vcpkg_bin_dir))
 
     try:
-        import hqt_engine  # type: ignore
+        import haruquant  # type: ignore
 
-        return CppBridgeState(available=True, module=hqt_engine)
+        return CppBridgeState(available=True, module=haruquant)
     except Exception as exc:
-        print(f"[LOGGER CPP EXAMPLE] hqt_engine unavailable: {exc}")
+        print(f"[LOGGER CPP EXAMPLE] haruquant unavailable: {exc}")
         return CppBridgeState(available=False, module=None)
 
 
@@ -126,75 +126,75 @@ def f04_structlog_runtime_filtering() -> None:
 def f05_cpp_bridge_basic_usage(bridge: CppBridgeState) -> None:
     _header("f05_cpp_bridge_basic_usage")
     if not bridge.available:
-        print("Skipped: hqt_engine not available.")
+        print("Skipped: haruquant not available.")
         return
 
-    hqt_engine = bridge.module
-    hqt_engine.set_log_level("debug")
-    hqt_engine.emit_log("info", "cpp info message")
-    hqt_engine.emit_log("warn", "cpp warn alias message")
-    hqt_engine.emit_log("fatal", "cpp fatal alias message")
-    hqt_engine.flush_logs()
+    haruquant = bridge.module
+    haruquant.set_log_level("debug")
+    haruquant.emit_log("info", "cpp info message")
+    haruquant.emit_log("warn", "cpp warn alias message")
+    haruquant.emit_log("fatal", "cpp fatal alias message")
+    haruquant.flush_logs()
     print("C++ bridge emitted info/warn/fatal levels and flushed logs.")
 
 
 def f06_cpp_bridge_component_filtering(bridge: CppBridgeState) -> None:
     _header("f06_cpp_bridge_component_filtering")
     if not bridge.available:
-        print("Skipped: hqt_engine not available.")
+        print("Skipped: haruquant not available.")
         return
 
-    hqt_engine = bridge.module
-    hqt_engine.set_log_level("debug")
-    hqt_engine.set_component_log_level("hqt_engine", "error")
+    haruquant = bridge.module
+    haruquant.set_log_level("debug")
+    haruquant.set_component_log_level("haruquant", "error")
 
-    hqt_engine.emit_log("info", "cpp info likely filtered for hqt_engine component")
-    hqt_engine.emit_log("error", "cpp error should pass component override")
+    haruquant.emit_log("info", "cpp info likely filtered for haruquant component")
+    haruquant.emit_log("error", "cpp error should pass component override")
 
-    hqt_engine.clear_component_log_level("hqt_engine")
-    hqt_engine.clear_all_component_log_levels()
-    hqt_engine.flush_logs()
+    haruquant.clear_component_log_level("haruquant")
+    haruquant.clear_all_component_log_levels()
+    haruquant.flush_logs()
     print("C++ component-level filtering controls exercised.")
 
 
 def f07_cpp_bridge_callback_capture(bridge: CppBridgeState) -> None:
     _header("f07_cpp_bridge_callback_capture")
     if not bridge.available:
-        print("Skipped: hqt_engine not available.")
+        print("Skipped: haruquant not available.")
         return
 
-    hqt_engine = bridge.module
+    haruquant = bridge.module
     captured: list[tuple[str, str]] = []
 
     def cb(level: str, message: str) -> None:
         captured.append((level, message))
 
-    hqt_engine.set_stderr_logging(False)
-    hqt_engine.set_log_callback(cb)
+    haruquant.set_stderr_logging(False)
+    haruquant.set_log_callback(cb)
     try:
-        hqt_engine.set_log_level("debug")
-        hqt_engine.emit_log("info", "cpp callback info")
-        hqt_engine.emit_log("error", "cpp callback error")
-        hqt_engine.flush_logs()
+        haruquant.set_log_level("debug")
+        haruquant.emit_log("info", "cpp callback info")
+        haruquant.emit_log("error", "cpp callback error")
+        haruquant.flush_logs()
         print(f"Captured {len(captured)} C++ callback records.")
     finally:
-        hqt_engine.set_log_callback(None)
-        hqt_engine.set_stderr_logging(True)
+        haruquant.set_log_callback(None)
+        haruquant.set_stderr_logging(True)
 
 
 def f08_cpp_bridge_usage_example_api(bridge: CppBridgeState) -> None:
     _header("f08_cpp_bridge_usage_example_api")
     if not bridge.available:
-        print("Skipped: hqt_engine not available.")
+        print("Skipped: haruquant not available.")
         return
 
-    hqt_engine = bridge.module
-    if not hasattr(hqt_engine, "run_cpp_logger_usage_example"):
+    haruquant = bridge.module
+    if not hasattr(haruquant, "run_cpp_logger_usage_example"):
         print("Skipped: run_cpp_logger_usage_example() not available in loaded bridge.")
         return
 
-    hqt_engine.run_cpp_logger_usage_example()
-    hqt_engine.flush_logs()
+    haruquant.run_cpp_logger_usage_example()
+    haruquant.flush_logs()
     print("Executed bridge-provided C++ logger usage example.")
 
 
@@ -204,10 +204,10 @@ def f09_unified_alias_levels(bridge: CppBridgeState) -> None:
     logger.log("fatal", "python fatal alias")
 
     if bridge.available:
-        hqt_engine = bridge.module
-        hqt_engine.emit_log("warn", "cpp warn alias")
-        hqt_engine.emit_log("fatal", "cpp fatal alias")
-        hqt_engine.flush_logs()
+        haruquant = bridge.module
+        haruquant.emit_log("warn", "cpp warn alias")
+        haruquant.emit_log("fatal", "cpp fatal alias")
+        haruquant.flush_logs()
 
     print("Alias normalization exercised for Python and C++ logger paths.")
 
@@ -222,19 +222,19 @@ def f10_unified_correlation_pattern(bridge: CppBridgeState) -> None:
     py_log.info("python side correlated event")
 
     if bridge.available:
-        hqt_engine = bridge.module
+        haruquant = bridge.module
         captured: list[tuple[str, str]] = []
 
         def cb(level: str, message: str) -> None:
             captured.append((level, message))
 
-        hqt_engine.set_log_callback(cb)
+        haruquant.set_log_callback(cb)
         try:
-            hqt_engine.emit_log("info", f"cpp side correlated event correlation_id={corr} run_id={run_id} trace_id={trace_id}")
-            hqt_engine.flush_logs()
+            haruquant.emit_log("info", f"cpp side correlated event correlation_id={corr} run_id={run_id} trace_id={trace_id}")
+            haruquant.flush_logs()
             print(f"Captured {len(captured)} C++ correlated callback records.")
         finally:
-            hqt_engine.set_log_callback(None)
+            haruquant.set_log_callback(None)
     else:
         print("C++ correlation callback section skipped (bridge unavailable).")
 
@@ -248,15 +248,15 @@ def f11_unified_flush_and_cleanup(bridge: CppBridgeState) -> None:
     logger.set_min_level("TRACE")
 
     if bridge.available:
-        hqt_engine = bridge.module
-        if hasattr(hqt_engine, "clear_all_component_log_levels"):
-            hqt_engine.clear_all_component_log_levels()
-        if hasattr(hqt_engine, "set_stderr_logging"):
-            hqt_engine.set_stderr_logging(True)
-        if hasattr(hqt_engine, "set_log_callback"):
-            hqt_engine.set_log_callback(None)
-        if hasattr(hqt_engine, "flush_logs"):
-            hqt_engine.flush_logs()
+        haruquant = bridge.module
+        if hasattr(haruquant, "clear_all_component_log_levels"):
+            haruquant.clear_all_component_log_levels()
+        if hasattr(haruquant, "set_stderr_logging"):
+            haruquant.set_stderr_logging(True)
+        if hasattr(haruquant, "set_log_callback"):
+            haruquant.set_log_callback(None)
+        if hasattr(haruquant, "flush_logs"):
+            haruquant.flush_logs()
 
     print("Reset Python and C++ logging controls to safe defaults.")
 
@@ -276,7 +276,7 @@ def f12_optional_stringio_formatted_sink() -> None:
 
 
 def main() -> None:
-    bridge = _load_hqt_engine()
+    bridge = _load_haruquant()
 
     # Toggle sections by commenting/uncommenting calls below.
     f01_structlog_basic_usage()

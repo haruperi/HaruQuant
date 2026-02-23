@@ -2,7 +2,7 @@
 
 This note shows how C++ bridge errors map into typed Python exceptions.
 
-## Typed exceptions exported by `hqt_engine`
+## Typed exceptions exported by `haruquant`
 
 - `BridgeError`
 - `ConfigurationError`
@@ -16,25 +16,25 @@ This note shows how C++ bridge errors map into typed Python exceptions.
 ## Example: map by retcode
 
 ```python
-import hqt_engine
+import haruquant
 
 try:
-    hqt_engine.raise_exception_for_retcode(10013, "invalid request")
-except hqt_engine.OrderStateError as exc:
+    haruquant.raise_exception_for_retcode(10013, "invalid request")
+except haruquant.OrderStateError as exc:
     print(type(exc).__name__, exc)
 ```
 
 ## Example: map by category
 
 ```python
-import hqt_engine
+import haruquant
 
 try:
-    hqt_engine.raise_exception_for_category("risk", "max exposure breached")
-except hqt_engine.RiskViolationError as exc:
+    haruquant.raise_exception_for_category("risk", "max exposure breached")
+except haruquant.RiskViolationError as exc:
     print(type(exc).__name__, exc)
 ```
 
 ## Python adapter behavior
 
-`apps/simulation/backend.py` preserves typed `hqt_engine.*Error` exceptions and only falls back to retcode-based translation when needed.
+`apps/simulation/backend.py` preserves typed `haruquant.*Error` exceptions and only falls back to retcode-based translation when needed.

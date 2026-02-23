@@ -144,7 +144,7 @@ class TradeGateway {
 public:
     explicit TradeGateway(const haruquant::AccountInfo& account);
 
-    // Register per-symbol metadata used by CTrade for validation and pricing.
+    // Register per-symbol metadata used by gateway validation and CTrade pricing/execution.
     void register_symbol(const haruquant::SymbolInfo& symbol);
     // Submit one trade request through the underlying CTrade execution path.
     [[nodiscard]] TradeResult order_send(const TradeRequest& request, const SymbolTickData* tick);

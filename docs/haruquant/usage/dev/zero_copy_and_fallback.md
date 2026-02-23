@@ -6,27 +6,27 @@ This page shows bridge transfer modes for contiguous numeric payloads.
 
 ```python
 import numpy as np
-import hqt_engine
+import haruquant
 
 arr = np.asarray([1.0, 2.0, 3.0], dtype=np.float64)
-total = hqt_engine.sum_buffer_zero_copy(arr)
+total = haruquant.sum_buffer_zero_copy(arr)
 print(total)  # 6.0
 ```
 
 ## Auto path selection
 
 ```python
-import hqt_engine
+import haruquant
 
-print(hqt_engine.sum_auto([1.0, 2.0, 3.0]))
+print(haruquant.sum_auto([1.0, 2.0, 3.0]))
 # {"total": 6.0, "path": "copy_fallback"}
 ```
 
 ```python
 import numpy as np
-import hqt_engine
+import haruquant
 
-print(hqt_engine.sum_auto(np.asarray([1.0, 2.0, 3.0], dtype=np.float64)))
+print(haruquant.sum_auto(np.asarray([1.0, 2.0, 3.0], dtype=np.float64)))
 # {"total": 6.0, "path": "zero_copy"}
 ```
 
@@ -43,6 +43,6 @@ print(sum_with_fallback([1.0, 2.0, 3.0], serialization="protobuf"))  # requires 
 ## Capability query
 
 ```python
-import hqt_engine
-print(hqt_engine.bridge_transfer_capabilities())
+import haruquant
+print(haruquant.bridge_transfer_capabilities())
 ```

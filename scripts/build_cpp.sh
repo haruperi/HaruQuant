@@ -79,7 +79,7 @@ do_install() {
     # Find and copy the built module (.so on Linux, .dylib on macOS)
     local found=0
     for ext in so dylib; do
-        for f in $(find "$BUILD_DIR" -name "hqt_engine*.$ext" 2>/dev/null); do
+        for f in $(find "$BUILD_DIR" -name "haruquant*.$ext" 2>/dev/null); do
             cp "$f" "$PROJECT_ROOT/"
             echo "Installed: $(basename "$f") -> $PROJECT_ROOT/"
             found=1
@@ -87,7 +87,7 @@ do_install() {
         done
     done
     if [ $found -eq 0 ]; then
-        echo "WARNING: Could not find built hqt_engine module"
+        echo "WARNING: Could not find built haruquant module"
     fi
 }
 

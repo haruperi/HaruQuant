@@ -18,7 +18,7 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Allow loading local C++ bridge build (hqt_engine.pyd + dependent DLLs).
+# Allow loading local C++ bridge build (haruquant shim on top of haruquant.pyd + dependent DLLs).
 BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
 if os.path.exists(BRIDGE_BUILD_DIR):
     if BRIDGE_BUILD_DIR not in sys.path:
@@ -28,7 +28,7 @@ if os.path.exists(BRIDGE_BUILD_DIR):
 
 from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
-import hqt_engine.sim as csim
+import haruquant.sim as csim
 
 mt5 = get_mt5_api()
 

@@ -194,16 +194,16 @@ def coverage() -> None:
 
 
 def install_module(build_type: str = "Release"):
-    """Copy the built hqt_engine module to the project root for easy import."""
+    """Copy the built haruquant module to the project root for easy import."""
     # Find the built module (.pyd on Windows)
-    for pattern in ["hqt_engine*.pyd", "hqt_engine*.so", "hqt_engine*.dll"]:
+    for pattern in ["haruquant*.pyd", "haruquant*.so", "haruquant*.dll"]:
         for path in BUILD_DIR.rglob(pattern):
             dest = PROJECT_ROOT / path.name
             shutil.copy2(path, dest)
             print(f"Installed: {path.name} -> {dest}")
             return
 
-    print("WARNING: Could not find built hqt_engine module")
+    print("WARNING: Could not find built haruquant module")
 
 
 def clean():

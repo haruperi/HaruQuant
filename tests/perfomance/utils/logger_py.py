@@ -55,7 +55,7 @@ def _build_parser() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _safe_import_hqt_engine() -> Any | None:
+def _safe_import_haruquant() -> Any | None:
     bridge_release = ROOT_DIR / "build" / "bridge" / "Release"
     vcpkg_bin = ROOT_DIR / "build" / "vcpkg_installed" / "x64-windows" / "bin"
 
@@ -69,11 +69,11 @@ def _safe_import_hqt_engine() -> Any | None:
         os.add_dll_directory(str(vcpkg_bin))
 
     try:
-        import hqt_engine  # type: ignore
+        import haruquant  # type: ignore
 
-        return hqt_engine
+        return haruquant
     except Exception as exc:
-        print(f"[LOGGER PERF] hqt_engine unavailable: {exc}")
+        print(f"[LOGGER PERF] haruquant unavailable: {exc}")
         return None
 
 
@@ -127,7 +127,7 @@ def _write_report(results: list[TestResult], args: argparse.Namespace) -> Path:
     return out_file
 
 
-def f01_thread_safe_logging_stress_test(args: argparse.Namespace, hqt_engine: Any | None) -> TestResult:
+def f01_thread_safe_logging_stress_test(args: argparse.Namespace, haruquant: Any | None) -> TestResult:
     _header("f01_thread_safe_logging_stress_test")
     logs_dir = ROOT_DIR / "artifacts" / "perf" / "logger" / "stress"
     logs_dir.mkdir(parents=True, exist_ok=True)
@@ -166,23 +166,23 @@ def f01_thread_safe_logging_stress_test(args: argparse.Namespace, hqt_engine: An
                 cb_errors += 1
 
     cpp_threads: list[threading.Thread] = []
-    if hqt_engine is not None:
-        hqt_engine.set_stderr_logging(False)
-        hqt_engine.set_log_level("debug")
-        hqt_engine.set_log_callback(cpp_callback)
+    if haruquant is not None:
+        haruquant.set_stderr_logging(False)
+        haruquant.set_log_level("debug")
+        haruquant.set_log_callback(cpp_callback)
 
         def cpp_worker(tid: int) -> None:
             nonlocal cpp_emit_count
             seq = 0
             while not stop_event.is_set():
-                hqt_engine.emit_log("info", f"t={tid}|n={seq}|msg=thread_stress")
+                haruquant.emit_log("info", f"t={tid}|n={seq}|msg=thread_stress")
                 seq += 1
                 with lock:
                     cpp_emit_count += 1
 
         cpp_threads = [threading.Thread(target=cpp_worker, args=(i,), daemon=True) for i in range(args.cpp_threads)]
     else:
-        print("[f01] hqt_engine unavailable: C++ thread portion skipped.")
+        print("[f01] haruquant unavailable: C++ thread portion skipped.")
 
     py_threads = [threading.Thread(target=py_worker, args=(i,), daemon=True) for i in range(args.py_threads)]
 
@@ -198,10 +198,10 @@ def f01_thread_safe_logging_stress_test(args: argparse.Namespace, hqt_engine: An
     for t in py_threads + cpp_threads:
         t.join(timeout=5)
 
-    if hqt_engine is not None:
-        hqt_engine.flush_logs()
-        hqt_engine.set_log_callback(None)
-        hqt_engine.set_stderr_logging(True)
+    if haruquant is not None:
+        haruquant.flush_logs()
+        haruquant.set_log_callback(None)
+        haruquant.set_stderr_logging(True)
 
     adapter.flush()
     adapter.remove(sink_id)
@@ -226,7 +226,7 @@ def f01_thread_safe_logging_stress_test(args: argparse.Namespace, hqt_engine: An
     return TestResult(name="thread_safe_logging_stress", success=success, details=details)
 
 
-def f02_logging_to_sink_under_load(args: argparse.Namespace, hqt_engine: Any | None) -> TestResult:
+def f02_logging_to_sink_under_load(args: argparse.Namespace, haruquant: Any | None) -> TestResult:
     _header("f02_logging_to_sink_under_load")
     logs_dir = ROOT_DIR / "artifacts" / "perf" / "logger" / "sink_load"
     logs_dir.mkdir(parents=True, exist_ok=True)
@@ -273,9 +273,9 @@ def f02_logging_to_sink_under_load(args: argparse.Namespace, hqt_engine: Any | N
             paced_sleep(start_ts, sent)
 
     cpp_threads: list[threading.Thread] = []
-    if hqt_engine is not None:
-        hqt_engine.set_stderr_logging(False)
-        hqt_engine.set_log_level("debug")
+    if haruquant is not None:
+        haruquant.set_stderr_logging(False)
+        haruquant.set_log_level("debug")
 
         def cpp_callback(level: str, message: str) -> None:
             nonlocal cpp_logged, critical_logged
@@ -289,20 +289,20 @@ def f02_logging_to_sink_under_load(args: argparse.Namespace, hqt_engine: Any | N
             with lock:
                 cpp_logged += 1
 
-        hqt_engine.set_log_callback(cpp_callback)
+        haruquant.set_log_callback(cpp_callback)
 
         def cpp_worker(tid: int) -> None:
             start_ts = time.perf_counter()
             sent = 0
             while not stop_event.is_set():
                 lvl = "fatal" if (sent % 100 == 0) else "info"
-                hqt_engine.emit_log(lvl, f"t={tid}|n={sent}|tick=true")
+                haruquant.emit_log(lvl, f"t={tid}|n={sent}|tick=true")
                 sent += 1
                 paced_sleep(start_ts, sent)
 
         cpp_threads = [threading.Thread(target=cpp_worker, args=(i,), daemon=True) for i in range(args.cpp_threads)]
     else:
-        print("[f02] hqt_engine unavailable: C++ load path skipped.")
+        print("[f02] haruquant unavailable: C++ load path skipped.")
 
     py_threads = [threading.Thread(target=py_worker, args=(i,), daemon=True) for i in range(args.py_threads)]
 
@@ -316,10 +316,10 @@ def f02_logging_to_sink_under_load(args: argparse.Namespace, hqt_engine: Any | N
     for t in py_threads + cpp_threads:
         t.join(timeout=5)
 
-    if hqt_engine is not None:
-        hqt_engine.flush_logs()
-        hqt_engine.set_log_callback(None)
-        hqt_engine.set_stderr_logging(True)
+    if haruquant is not None:
+        haruquant.flush_logs()
+        haruquant.set_log_callback(None)
+        haruquant.set_stderr_logging(True)
 
     adapter.flush()
     adapter.remove(sink_id)
@@ -489,12 +489,12 @@ def main() -> None:
         args.cpp_threads = min(args.cpp_threads, 4)
         args.rate_per_minute = min(args.rate_per_minute, 10_000)
 
-    hqt_engine = _safe_import_hqt_engine()
+    haruquant = _safe_import_haruquant()
 
     # Toggle sections by commenting/uncommenting calls below.
     results = [
-        f01_thread_safe_logging_stress_test(args, hqt_engine),
-        f02_logging_to_sink_under_load(args, hqt_engine),
+        f01_thread_safe_logging_stress_test(args, haruquant),
+        f02_logging_to_sink_under_load(args, haruquant),
         f03_rotation_under_load(args),
         f04_component_filtering_concurrency(args),
     ]

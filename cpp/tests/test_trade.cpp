@@ -610,10 +610,11 @@ TEST_F(CTradeTest, InvalidSymbolRejected) {
     EXPECT_EQ(trade.ResultRetcode(), ENUM_TRADE_RETCODE::TRADE_RETCODE_INVALID);
 }
 
-TEST_F(CTradeTest, InvalidVolumeRejected) {
-    bool success = trade.Buy(0.001, "EURUSD"); // Below min volume
-    EXPECT_FALSE(success);
-    EXPECT_EQ(trade.ResultRetcode(), ENUM_TRADE_RETCODE::TRADE_RETCODE_INVALID_VOLUME);
+TEST_F(CTradeTest, InvalidVolumeNotRejectedInsideCTrade) {
+    // Validation is owned by TradeGateway::order_send; CTrade applies requests.
+    bool success = trade.Buy(0.001, "EURUSD"); // Below symbol min volume
+    EXPECT_TRUE(success);
+    EXPECT_EQ(trade.ResultRetcode(), ENUM_TRADE_RETCODE::TRADE_RETCODE_DONE);
 }
 
 TEST_F(CTradeTest, ModifyNonexistentPositionFails) {

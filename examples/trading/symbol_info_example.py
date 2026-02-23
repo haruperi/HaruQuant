@@ -15,7 +15,7 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Utils, get_mt5_api
-import hqt_engine.sim as csim
+import haruquant.sim as csim
 
 mt5 = get_mt5_api()
 
