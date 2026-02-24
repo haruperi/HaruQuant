@@ -1,16 +1,34 @@
 #include "trading/position_info.hpp"
-#include <stdexcept>
+#include <sstream>
 #include <string>
 
 namespace haruquant::trading {
 
-PositionInfo::PositionInfo() : m_state(nullptr), m_symbol("") {}
+PositionInfo::PositionInfo() : m_state(std::make_shared<core::BacktestState>()), m_symbol("") {}
 
-PositionInfo::PositionInfo(const core::BacktestState *state)
-    : m_state(state), m_symbol("") {}
+PositionInfo::PositionInfo(std::shared_ptr<core::BacktestState> state)
+    : m_state(std::move(state)), m_symbol("") {
+  EnsureState();
+}
 
-void PositionInfo::SetState(const core::BacktestState *state) {
-  m_state = state;
+void PositionInfo::SetState(std::shared_ptr<core::BacktestState> state) {
+  m_state = std::move(state);
+  EnsureState();
+}
+
+core::BacktestState &PositionInfo::EnsureState() {
+  if (!m_state) {
+    m_state = std::make_shared<core::BacktestState>();
+  }
+  return *m_state;
+}
+
+core::BacktestState::Dictionary &PositionInfo::EnsureRow() {
+  auto &state = EnsureState();
+  if (m_symbol.empty()) {
+    m_symbol = "UNKNOWN";
+  }
+  return state.trading_positions[m_symbol];
 }
 
 bool PositionInfo::Select(const std::string &symbol) {
@@ -133,6 +151,85 @@ std::string PositionInfo::Symbol() const { return GetString("symbol"); }
 std::string PositionInfo::Comment() const { return GetString("comment"); }
 std::string PositionInfo::ExternalId() const {
   return GetString("external_id");
+}
+
+namespace {
+template <typename T>
+std::string to_string_value(T value) {
+  std::ostringstream oss;
+  oss << value;
+  return oss.str();
+}
+} // namespace
+
+void PositionInfo::SetTicket(long value) {
+  EnsureRow()["ticket"] = to_string_value(value);
+}
+void PositionInfo::SetTime(long value) {
+  EnsureRow()["time"] = to_string_value(value);
+}
+void PositionInfo::SetTimeMsc(long value) {
+  EnsureRow()["time_msc"] = to_string_value(value);
+}
+void PositionInfo::SetTimeUpdate(long value) {
+  EnsureRow()["time_update"] = to_string_value(value);
+}
+void PositionInfo::SetTimeUpdateMsc(long value) {
+  EnsureRow()["time_update_msc"] = to_string_value(value);
+}
+void PositionInfo::SetType(long value) {
+  EnsureRow()["type"] = to_string_value(value);
+}
+void PositionInfo::SetMagic(long value) {
+  EnsureRow()["magic"] = to_string_value(value);
+}
+void PositionInfo::SetIdentifier(long value) {
+  EnsureRow()["identifier"] = to_string_value(value);
+}
+void PositionInfo::SetReason(long value) {
+  EnsureRow()["reason"] = to_string_value(value);
+}
+
+void PositionInfo::SetVolume(double value) {
+  EnsureRow()["volume"] = to_string_value(value);
+}
+void PositionInfo::SetPriceOpen(double value) {
+  EnsureRow()["price_open"] = to_string_value(value);
+}
+void PositionInfo::SetSl(double value) {
+  EnsureRow()["sl"] = to_string_value(value);
+}
+void PositionInfo::SetTp(double value) {
+  EnsureRow()["tp"] = to_string_value(value);
+}
+void PositionInfo::SetPriceCurrent(double value) {
+  EnsureRow()["price_current"] = to_string_value(value);
+}
+void PositionInfo::SetSwap(double value) {
+  EnsureRow()["swap"] = to_string_value(value);
+}
+void PositionInfo::SetProfit(double value) {
+  EnsureRow()["profit"] = to_string_value(value);
+}
+
+void PositionInfo::SetSymbol(const std::string &value) {
+  std::string old_key = m_symbol;
+  m_symbol = value;
+  auto &state = EnsureState();
+  if (!old_key.empty() && old_key != m_symbol) {
+    auto it = state.trading_positions.find(old_key);
+    if (it != state.trading_positions.end()) {
+      state.trading_positions[m_symbol] = it->second;
+      state.trading_positions.erase(it);
+    }
+  }
+  EnsureRow()["symbol"] = value;
+}
+void PositionInfo::SetComment(const std::string &value) {
+  EnsureRow()["comment"] = value;
+}
+void PositionInfo::SetExternalId(const std::string &value) {
+  EnsureRow()["external_id"] = value;
 }
 
 } // namespace haruquant::trading

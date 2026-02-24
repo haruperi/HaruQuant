@@ -4,6 +4,7 @@ Example usage of PositionInfo with MT5/Tester backend parity.
 
 import os
 import sys
+import argparse
 from datetime import datetime
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -16,7 +17,7 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Utils, get_mt5_api
-import haruquant.sim as csim
+import haruquant.core as core
 
 mt5 = get_mt5_api()
 
@@ -29,32 +30,81 @@ def _pos_value(pos, attr_name: str, method_name: str | None = None, default=None
     return default
 
 
-def _seed_tester_positions(simulator: "csim.TradeSimulator", now: datetime) -> None:
-    p1 = csim.PositionInfo()
-    p1.ticket = 3001
-    p1.identifier = 3001
-    p1.symbol = "EURUSD"
-    p1.type = 0
-    p1.volume = 1.0
-    p1.price_open = 1.1000
-    p1.price_current = 1.1010
-    p1.set_time(int(now.timestamp()))
-    simulator.upsert_position_info(p1)
+def _safe_long(value: int | float | None) -> int:
+    if value is None:
+        return 0
+    v = int(value)
+    lo = -(2**31)
+    hi = (2**31) - 1
+    if v < lo:
+        return lo
+    if v > hi:
+        return hi
+    return v
 
-    p2 = csim.PositionInfo()
-    p2.ticket = 3002
-    p2.identifier = 3002
-    p2.symbol = "USDJPY"
-    p2.type = 1
-    p2.volume = 0.5
-    p2.price_open = 145.00
-    p2.price_current = 144.80
-    p2.set_time(int(now.timestamp()))
-    simulator.upsert_position_info(p2)
+
+def _seed_tester_positions(now: datetime) -> list[core.PositionInfo]:
+    p1 = core.PositionInfo()
+    p1.SetSymbol("EURUSD")
+    p1.SetTicket(3001)
+    p1.SetIdentifier(3001)
+    p1.SetType(0)
+    p1.SetVolume(1.0)
+    p1.SetPriceOpen(1.1000)
+    p1.SetPriceCurrent(1.1010)
+    p1.SetTime(int(now.timestamp()))
+    p1.SetTimeMsc(int(now.timestamp()))
+    p1.SetProfit(10.0)
+
+    p2 = core.PositionInfo()
+    p2.SetSymbol("USDJPY")
+    p2.SetTicket(3002)
+    p2.SetIdentifier(3002)
+    p2.SetType(1)
+    p2.SetVolume(0.5)
+    p2.SetPriceOpen(145.00)
+    p2.SetPriceCurrent(144.80)
+    p2.SetTime(int(now.timestamp()))
+    p2.SetTimeMsc(int(now.timestamp()))
+    p2.SetProfit(20.0)
+    return [p1, p2]
+
+
+def _mt5_positions_to_core() -> list[core.PositionInfo]:
+    rows = mt5.positions_get()
+    if rows is None:
+        return []
+
+    out: list[core.PositionInfo] = []
+    for r in rows:
+        p = core.PositionInfo()
+        p.SetSymbol(str(getattr(r, "symbol", "")))
+        p.SetTicket(_safe_long(getattr(r, "ticket", 0)))
+        p.SetIdentifier(_safe_long(getattr(r, "identifier", 0)))
+        p.SetTime(_safe_long(getattr(r, "time", 0)))
+        p.SetTimeMsc(_safe_long(getattr(r, "time_msc", getattr(r, "time", 0))))
+        p.SetTimeUpdate(_safe_long(getattr(r, "time_update", 0)))
+        p.SetTimeUpdateMsc(_safe_long(getattr(r, "time_update_msc", getattr(r, "time_update", 0))))
+        p.SetType(_safe_long(getattr(r, "type", 0)))
+        p.SetMagic(_safe_long(getattr(r, "magic", 0)))
+        p.SetReason(_safe_long(getattr(r, "reason", 0)))
+        p.SetVolume(float(getattr(r, "volume", 0.0)))
+        p.SetPriceOpen(float(getattr(r, "price_open", 0.0)))
+        p.SetSl(float(getattr(r, "sl", 0.0)))
+        p.SetTp(float(getattr(r, "tp", 0.0)))
+        p.SetPriceCurrent(float(getattr(r, "price_current", 0.0)))
+        p.SetSwap(float(getattr(r, "swap", 0.0)))
+        p.SetProfit(float(getattr(r, "profit", 0.0)))
+        p.SetComment(str(getattr(r, "comment", "")))
+        out.append(p)
+    return out
 
 
 def main():
-    backend = "tester"  # set to: "mt5" or "tester"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    args = parser.parse_args()
+    backend = args.backend
 
     print("=" * 70)
     print("PositionInfo Example (MT5/Tester Parity)")
@@ -69,15 +119,19 @@ def main():
             return
 
     if backend == "mt5":
-        simulator = mt5
+        positions = _mt5_positions_to_core()
         print("Using: MT5 backend")
     else:
-        simulator = csim.TradeSimulator()
-        _seed_tester_positions(simulator, datetime.now())
+        client = MT5Utils.get_connected_client()
+        if client is None:
+            print("Failed to connect to MT5 (required for base account in tester mode).")
+            return
+        mt5_account = client.account_info()
+        account = core.AccountInfo(mt5_account)
+        _backtest_simulator = core.BacktestSimulator(account)
+        positions = _seed_tester_positions(datetime.now())
         print("Using: Tester backend")
     print()
-
-    positions = simulator.positions_get() or []
 
     print("\n" + "=" * 70)
     print("Example 1: All Open Positions")
@@ -87,15 +141,15 @@ def main():
     for i, position in enumerate(positions):
         print(f"{i + 1}. Ticket {_pos_value(position, 'identifier', 'Identifier', 0)}")
         print(f"   Symbol: {_pos_value(position, 'symbol', 'Symbol', '')}")
-        print(f"   Type: {_pos_value(position, 'type', 'PositionType', 0)}")
+        print(f"   Type: {_pos_value(position, 'type', 'Type', 0)}")
         print(f"   Volume: {_pos_value(position, 'volume', 'Volume', 0.0)}")
         print(f"   Open Price: {_pos_value(position, 'price_open', 'PriceOpen', 0.0)}")
         print(f"   Current Price: {_pos_value(position, 'price_current', 'PriceCurrent', 0.0)}")
         print(f"   Profit: ${float(_pos_value(position, 'profit', 'Profit', 0.0)):.2f}")
         print(f"   Swap: ${float(_pos_value(position, 'swap', 'Swap', 0.0)):.2f}")
         print(
-            f"   SL: {_pos_value(position, 'sl', 'StopLoss', 0.0)} "
-            f"TP: {_pos_value(position, 'tp', 'TakeProfit', 0.0)}"
+            f"   SL: {_pos_value(position, 'sl', 'Sl', 0.0)} "
+            f"TP: {_pos_value(position, 'tp', 'Tp', 0.0)}"
         )
         print(f"   Comment: {_pos_value(position, 'comment', 'Comment', '')}")
         print("-" * 30)
@@ -103,7 +157,7 @@ def main():
     print("\n" + "=" * 60)
     print("Selecting by Symbol 'EURUSD'")
     print("=" * 60)
-    eur = simulator.positions_get(symbol="EURUSD") or []
+    eur = [p for p in positions if _pos_value(p, "symbol", "Symbol", "") == "EURUSD"]
     if eur:
         position = eur[0]
         print("Found EURUSD position:")

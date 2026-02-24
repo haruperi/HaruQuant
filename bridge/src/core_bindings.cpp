@@ -6,6 +6,7 @@
 #include "trading/deal_info.hpp"
 #include "trading/history_order_info.hpp"
 #include "trading/order_info.hpp"
+#include "trading/position_info.hpp"
 
 namespace nb = nanobind;
 
@@ -153,6 +154,33 @@ haruquant::trading::OrderInfo order_from_object(const nb::object& source) {
     assign_if_present<std::string>(source, "external_id", [&](const std::string& v) { order.SetExternalId(v); });
 
     return order;
+}
+
+haruquant::trading::PositionInfo position_from_object(const nb::object& source) {
+    haruquant::trading::PositionInfo position;
+
+    assign_if_present<std::string>(source, "symbol", [&](const std::string& v) { position.SetSymbol(v); });
+    assign_if_present<long>(source, "ticket", [&](long v) { position.SetTicket(v); });
+    assign_if_present<long>(source, "time", [&](long v) { position.SetTime(v); });
+    assign_if_present<long>(source, "time_msc", [&](long v) { position.SetTimeMsc(v); });
+    assign_if_present<long>(source, "time_update", [&](long v) { position.SetTimeUpdate(v); });
+    assign_if_present<long>(source, "time_update_msc", [&](long v) { position.SetTimeUpdateMsc(v); });
+    assign_if_present<long>(source, "type", [&](long v) { position.SetType(v); });
+    assign_if_present<long>(source, "magic", [&](long v) { position.SetMagic(v); });
+    assign_if_present<long>(source, "identifier", [&](long v) { position.SetIdentifier(v); });
+    assign_if_present<long>(source, "reason", [&](long v) { position.SetReason(v); });
+
+    assign_if_present<double>(source, "volume", [&](double v) { position.SetVolume(v); });
+    assign_if_present<double>(source, "price_open", [&](double v) { position.SetPriceOpen(v); });
+    assign_if_present<double>(source, "sl", [&](double v) { position.SetSl(v); });
+    assign_if_present<double>(source, "tp", [&](double v) { position.SetTp(v); });
+    assign_if_present<double>(source, "price_current", [&](double v) { position.SetPriceCurrent(v); });
+    assign_if_present<double>(source, "swap", [&](double v) { position.SetSwap(v); });
+    assign_if_present<double>(source, "profit", [&](double v) { position.SetProfit(v); });
+
+    assign_if_present<std::string>(source, "comment", [&](const std::string& v) { position.SetComment(v); });
+    assign_if_present<std::string>(source, "external_id", [&](const std::string& v) { position.SetExternalId(v); });
+    return position;
 }
 
 }  // namespace
@@ -357,6 +385,53 @@ void register_core_bindings(nb::module_& m) {
         .def("SetSymbol", &haruquant::trading::OrderInfo::SetSymbol, nb::arg("value"))
         .def("SetComment", &haruquant::trading::OrderInfo::SetComment, nb::arg("value"))
         .def("SetExternalId", &haruquant::trading::OrderInfo::SetExternalId, nb::arg("value"));
+
+    nb::class_<haruquant::trading::PositionInfo>(m, "PositionInfo")
+        .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::PositionInfo* self, nb::object source) {
+            new (self) haruquant::trading::PositionInfo(position_from_object(source));
+        }, nb::arg("source"))
+        .def("Select", &haruquant::trading::PositionInfo::Select, nb::arg("symbol"))
+        .def("SelectByTicket", &haruquant::trading::PositionInfo::SelectByTicket, nb::arg("ticket"))
+        .def("SelectByIndex", &haruquant::trading::PositionInfo::SelectByIndex, nb::arg("index"))
+        .def("Ticket", &haruquant::trading::PositionInfo::Ticket)
+        .def("Time", &haruquant::trading::PositionInfo::Time)
+        .def("TimeMsc", &haruquant::trading::PositionInfo::TimeMsc)
+        .def("TimeUpdate", &haruquant::trading::PositionInfo::TimeUpdate)
+        .def("TimeUpdateMsc", &haruquant::trading::PositionInfo::TimeUpdateMsc)
+        .def("Type", &haruquant::trading::PositionInfo::Type)
+        .def("Magic", &haruquant::trading::PositionInfo::Magic)
+        .def("Identifier", &haruquant::trading::PositionInfo::Identifier)
+        .def("Reason", &haruquant::trading::PositionInfo::Reason)
+        .def("Volume", &haruquant::trading::PositionInfo::Volume)
+        .def("PriceOpen", &haruquant::trading::PositionInfo::PriceOpen)
+        .def("Sl", &haruquant::trading::PositionInfo::Sl)
+        .def("Tp", &haruquant::trading::PositionInfo::Tp)
+        .def("PriceCurrent", &haruquant::trading::PositionInfo::PriceCurrent)
+        .def("Swap", &haruquant::trading::PositionInfo::Swap)
+        .def("Profit", &haruquant::trading::PositionInfo::Profit)
+        .def("Symbol", &haruquant::trading::PositionInfo::Symbol)
+        .def("Comment", &haruquant::trading::PositionInfo::Comment)
+        .def("ExternalId", &haruquant::trading::PositionInfo::ExternalId)
+        .def("SetTicket", &haruquant::trading::PositionInfo::SetTicket, nb::arg("value"))
+        .def("SetTime", &haruquant::trading::PositionInfo::SetTime, nb::arg("value"))
+        .def("SetTimeMsc", &haruquant::trading::PositionInfo::SetTimeMsc, nb::arg("value"))
+        .def("SetTimeUpdate", &haruquant::trading::PositionInfo::SetTimeUpdate, nb::arg("value"))
+        .def("SetTimeUpdateMsc", &haruquant::trading::PositionInfo::SetTimeUpdateMsc, nb::arg("value"))
+        .def("SetType", &haruquant::trading::PositionInfo::SetType, nb::arg("value"))
+        .def("SetMagic", &haruquant::trading::PositionInfo::SetMagic, nb::arg("value"))
+        .def("SetIdentifier", &haruquant::trading::PositionInfo::SetIdentifier, nb::arg("value"))
+        .def("SetReason", &haruquant::trading::PositionInfo::SetReason, nb::arg("value"))
+        .def("SetVolume", &haruquant::trading::PositionInfo::SetVolume, nb::arg("value"))
+        .def("SetPriceOpen", &haruquant::trading::PositionInfo::SetPriceOpen, nb::arg("value"))
+        .def("SetSl", &haruquant::trading::PositionInfo::SetSl, nb::arg("value"))
+        .def("SetTp", &haruquant::trading::PositionInfo::SetTp, nb::arg("value"))
+        .def("SetPriceCurrent", &haruquant::trading::PositionInfo::SetPriceCurrent, nb::arg("value"))
+        .def("SetSwap", &haruquant::trading::PositionInfo::SetSwap, nb::arg("value"))
+        .def("SetProfit", &haruquant::trading::PositionInfo::SetProfit, nb::arg("value"))
+        .def("SetSymbol", &haruquant::trading::PositionInfo::SetSymbol, nb::arg("value"))
+        .def("SetComment", &haruquant::trading::PositionInfo::SetComment, nb::arg("value"))
+        .def("SetExternalId", &haruquant::trading::PositionInfo::SetExternalId, nb::arg("value"));
 
     nb::class_<haruquant::core::BacktestSimulator>(m, "BacktestSimulator")
         .def(nb::init<>())

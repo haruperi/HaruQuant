@@ -1,6 +1,7 @@
 #include "core/state.hpp"
 #include "trading/position_info.hpp"
 #include <gtest/gtest.h>
+#include <memory>
 
 
 using namespace haruquant::core;
@@ -8,18 +9,19 @@ using namespace haruquant::trading;
 
 class PositionInfoTest : public ::testing::Test {
 protected:
-  BacktestState state;
+  std::shared_ptr<BacktestState> state;
   PositionInfo *position;
 
   void SetUp() override {
-    state.trading_positions["ETHUSD"]["ticket"] = "8001";
-    state.trading_positions["ETHUSD"]["symbol"] = "ETHUSD";
-    state.trading_positions["ETHUSD"]["type"] = "1"; // Sell
-    state.trading_positions["ETHUSD"]["volume"] = "5.5";
-    state.trading_positions["ETHUSD"]["price_open"] = "2000.50";
-    state.trading_positions["ETHUSD"]["profit"] = "150.25";
+    state = std::make_shared<BacktestState>();
+    state->trading_positions["ETHUSD"]["ticket"] = "8001";
+    state->trading_positions["ETHUSD"]["symbol"] = "ETHUSD";
+    state->trading_positions["ETHUSD"]["type"] = "1"; // Sell
+    state->trading_positions["ETHUSD"]["volume"] = "5.5";
+    state->trading_positions["ETHUSD"]["price_open"] = "2000.50";
+    state->trading_positions["ETHUSD"]["profit"] = "150.25";
 
-    position = new PositionInfo(&state);
+    position = new PositionInfo(state);
   }
 
   void TearDown() override { delete position; }
