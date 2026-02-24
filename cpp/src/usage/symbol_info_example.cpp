@@ -1,21 +1,22 @@
 #include "core/state.hpp"
 #include "trading/symbol_info.hpp"
 #include <iostream>
+#include <memory>
 
 void demonstrate_symbol_info() {
   // 1. You hold your state
-  haruquant::core::BacktestState state;
+  auto state = std::make_shared<haruquant::core::BacktestState>();
 
   // 2. You populate properties (e.g., from Python/MT5) for a symbol like
   // "EURUSD"
-  state.trading_symbols["EURUSD"]["ask"] = "1.08500";
-  state.trading_symbols["EURUSD"]["bid"] = "1.08490";
-  state.trading_symbols["EURUSD"]["digits"] = "5";
-  state.trading_symbols["EURUSD"]["trade_calc_mode"] =
+  state->trading_symbols["EURUSD"]["ask"] = "1.08500";
+  state->trading_symbols["EURUSD"]["bid"] = "1.08490";
+  state->trading_symbols["EURUSD"]["digits"] = "5";
+  state->trading_symbols["EURUSD"]["trade_calc_mode"] =
       "0"; // e.g. SYMBOL_CALC_MODE_FOREX
 
   // 3. You instantiate the SymbolInfo helper
-  haruquant::trading::SymbolInfo symbol(&state);
+  haruquant::trading::SymbolInfo symbol(state);
 
   // 4. You must set the name of the symbol you want to query
   symbol.Name("EURUSD");

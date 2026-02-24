@@ -59,6 +59,16 @@
   - object/dict constructor: `row = haruquant.core.PositionInfo(mt5_position_or_dict)`
 - MT5-style getters and `Set...` mutators are exposed in `haruquant.core`.
 - For consistent reporting across live/tester paths, live MT5 rows can be populated into `haruquant.core.PositionInfo` first, then processed with the same reporting flow.
+
+## Core Bridge Symbol Initialization
+
+- `haruquant.core.SymbolInfo` is backed by `cpp/include/trading/symbol_info.hpp`.
+- `SymbolInfo` uses one shared `BacktestState` source (`std::shared_ptr<haruquant::core::BacktestState>`).
+- Python initialization supports:
+  - default constructor: `row = haruquant.core.SymbolInfo()`
+  - object/dict constructor: `row = haruquant.core.SymbolInfo(mt5_symbol_or_dict)`
+- MT5-style getters and `Set...` mutators are exposed in `haruquant.core`.
+- For consistent reporting across live/tester paths, live MT5 rows can be populated into `haruquant.core.SymbolInfo` first, then processed with the same reporting flow.
 - Access pattern remains account-centric for MT5 compatibility:
   - Use `account.Login()` (not `simulator.Login()`).
   - Simulator keeps the seeded account via `simulator.account_info()`.

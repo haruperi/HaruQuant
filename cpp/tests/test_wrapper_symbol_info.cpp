@@ -1,6 +1,7 @@
 #include "core/state.hpp"
 #include "trading/symbol_info.hpp"
 #include <gtest/gtest.h>
+#include <memory>
 
 
 using namespace haruquant::core;
@@ -8,17 +9,18 @@ using namespace haruquant::trading;
 
 class SymbolInfoTest : public ::testing::Test {
 protected:
-  BacktestState state;
+  std::shared_ptr<BacktestState> state;
   SymbolInfo *symbol;
 
   void SetUp() override {
-    state.trading_symbols["EURUSD"]["ask"] = "1.08500";
-    state.trading_symbols["EURUSD"]["bid"] = "1.08490";
-    state.trading_symbols["EURUSD"]["digits"] = "5";
-    state.trading_symbols["EURUSD"]["spread"] = "10";
-    state.trading_symbols["EURUSD"]["description"] = "Euro vs US Dollar";
+    state = std::make_shared<BacktestState>();
+    state->trading_symbols["EURUSD"]["ask"] = "1.08500";
+    state->trading_symbols["EURUSD"]["bid"] = "1.08490";
+    state->trading_symbols["EURUSD"]["digits"] = "5";
+    state->trading_symbols["EURUSD"]["spread"] = "10";
+    state->trading_symbols["EURUSD"]["description"] = "Euro vs US Dollar";
 
-    symbol = new SymbolInfo(&state);
+    symbol = new SymbolInfo(state);
   }
 
   void TearDown() override { delete symbol; }

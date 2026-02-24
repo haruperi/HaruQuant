@@ -1,16 +1,53 @@
 #include "trading/symbol_info.hpp"
 #include <cmath>
-#include <stdexcept>
+#include <sstream>
 #include <string>
 
 namespace haruquant::trading {
 
-SymbolInfo::SymbolInfo() : m_state(nullptr), m_name("") {}
+SymbolInfo::SymbolInfo() : m_state(std::make_shared<core::BacktestState>()), m_name("") {}
 
-SymbolInfo::SymbolInfo(const core::BacktestState *state)
-    : m_state(state), m_name("") {}
+SymbolInfo::SymbolInfo(std::shared_ptr<core::BacktestState> state)
+    : m_state(std::move(state)), m_name("") {
+  EnsureState();
+}
 
-void SymbolInfo::SetState(const core::BacktestState *state) { m_state = state; }
+void SymbolInfo::SetState(std::shared_ptr<core::BacktestState> state) {
+  m_state = std::move(state);
+  EnsureState();
+}
+
+core::BacktestState &SymbolInfo::EnsureState() {
+  if (!m_state) {
+    m_state = std::make_shared<core::BacktestState>();
+  }
+  return *m_state;
+}
+
+core::BacktestState::Dictionary &SymbolInfo::EnsureRow() {
+  auto &state = EnsureState();
+  if (m_name.empty()) {
+    m_name = "UNKNOWN";
+  }
+  return state.trading_symbols[m_name];
+}
+
+void SymbolInfo::SetIntegerProperty(const std::string &prop, long value) {
+  std::ostringstream oss;
+  oss << value;
+  EnsureRow()[prop] = oss.str();
+}
+
+void SymbolInfo::SetDoubleProperty(const std::string &prop, double value) {
+  std::ostringstream oss;
+  oss << value;
+  EnsureRow()[prop] = oss.str();
+}
+
+void SymbolInfo::SetStringProperty(const std::string &prop,
+                                   const std::string &value) {
+  EnsureRow()[prop] = value;
+}
 
 bool SymbolInfo::Name(const std::string &name) {
   m_name = name;
@@ -77,8 +114,8 @@ std::string SymbolInfo::GetString(const std::string &prop) const {
 //--- Integer properties
 long SymbolInfo::Select() const { return GetInteger("select"); }
 long SymbolInfo::Select(const bool select) {
-  (void)select;
-  return 0; /* In MT5 selects MarketWatch */
+  const_cast<SymbolInfo *>(this)->SetSelect(select);
+  return Select();
 }
 long SymbolInfo::Visible() const { return GetInteger("visible"); }
 long SymbolInfo::SessionDeals() const { return GetInteger("session_deals"); }
@@ -219,6 +256,114 @@ double SymbolInfo::NormalizePrice(const double price) const {
     return price;
   double pt = std::pow(10.0, digits);
   return std::round(price * pt) / pt;
+}
+
+//--- Setters
+void SymbolInfo::SetSelect(bool value) {
+  SetIntegerProperty("select", value ? 1 : 0);
+}
+void SymbolInfo::SetVisible(bool value) {
+  SetIntegerProperty("visible", value ? 1 : 0);
+}
+void SymbolInfo::SetVolume(long value) { SetIntegerProperty("volume", value); }
+void SymbolInfo::SetVolumeHigh(long value) {
+  SetIntegerProperty("volume_high", value);
+}
+void SymbolInfo::SetVolumeLow(long value) {
+  SetIntegerProperty("volume_low", value);
+}
+void SymbolInfo::SetTime(long value) { SetIntegerProperty("time", value); }
+void SymbolInfo::SetDigits(long value) { SetIntegerProperty("digits", value); }
+void SymbolInfo::SetSpread(long value) { SetIntegerProperty("spread", value); }
+void SymbolInfo::SetSpreadFloat(bool value) {
+  SetIntegerProperty("spread_float", value ? 1 : 0);
+}
+void SymbolInfo::SetTradeCalcMode(long value) {
+  SetIntegerProperty("trade_calc_mode", value);
+}
+void SymbolInfo::SetTradeMode(long value) {
+  SetIntegerProperty("trade_mode", value);
+}
+void SymbolInfo::SetTradeExemode(long value) {
+  SetIntegerProperty("trade_exemode", value);
+}
+void SymbolInfo::SetTradeStopsLevel(long value) {
+  SetIntegerProperty("trade_stops_level", value);
+}
+void SymbolInfo::SetTradeFreezeLevel(long value) {
+  SetIntegerProperty("trade_freeze_level", value);
+}
+void SymbolInfo::SetSwapMode(long value) {
+  SetIntegerProperty("swap_mode", value);
+}
+void SymbolInfo::SetSwapRollover3days(long value) {
+  SetIntegerProperty("swap_rollover3days", value);
+}
+
+void SymbolInfo::SetBid(double value) { SetDoubleProperty("bid", value); }
+void SymbolInfo::SetBidHigh(double value) { SetDoubleProperty("bid_high", value); }
+void SymbolInfo::SetBidLow(double value) { SetDoubleProperty("bid_low", value); }
+void SymbolInfo::SetAsk(double value) { SetDoubleProperty("ask", value); }
+void SymbolInfo::SetAskHigh(double value) { SetDoubleProperty("ask_high", value); }
+void SymbolInfo::SetAskLow(double value) { SetDoubleProperty("ask_low", value); }
+void SymbolInfo::SetLast(double value) { SetDoubleProperty("last", value); }
+void SymbolInfo::SetLastHigh(double value) { SetDoubleProperty("last_high", value); }
+void SymbolInfo::SetLastLow(double value) { SetDoubleProperty("last_low", value); }
+void SymbolInfo::SetPoint(double value) { SetDoubleProperty("point", value); }
+void SymbolInfo::SetTradeTickValue(double value) {
+  SetDoubleProperty("trade_tick_value", value);
+}
+void SymbolInfo::SetTradeTickValueProfit(double value) {
+  SetDoubleProperty("trade_tick_value_profit", value);
+}
+void SymbolInfo::SetTradeTickValueLoss(double value) {
+  SetDoubleProperty("trade_tick_value_loss", value);
+}
+void SymbolInfo::SetTradeTickSize(double value) {
+  SetDoubleProperty("trade_tick_size", value);
+}
+void SymbolInfo::SetTradeContractSize(double value) {
+  SetDoubleProperty("trade_contract_size", value);
+}
+void SymbolInfo::SetVolumeMin(double value) {
+  SetDoubleProperty("volume_min", value);
+}
+void SymbolInfo::SetVolumeMax(double value) {
+  SetDoubleProperty("volume_max", value);
+}
+void SymbolInfo::SetVolumeStep(double value) {
+  SetDoubleProperty("volume_step", value);
+}
+void SymbolInfo::SetVolumeLimit(double value) {
+  SetDoubleProperty("volume_limit", value);
+}
+void SymbolInfo::SetSwapLong(double value) {
+  SetDoubleProperty("swap_long", value);
+}
+void SymbolInfo::SetSwapShort(double value) {
+  SetDoubleProperty("swap_short", value);
+}
+void SymbolInfo::SetMarginInitial(double value) {
+  SetDoubleProperty("margin_initial", value);
+}
+void SymbolInfo::SetMarginMaintenance(double value) {
+  SetDoubleProperty("margin_maintenance", value);
+}
+
+void SymbolInfo::SetPath(const std::string &value) {
+  SetStringProperty("path", value);
+}
+void SymbolInfo::SetDescription(const std::string &value) {
+  SetStringProperty("description", value);
+}
+void SymbolInfo::SetCurrencyBase(const std::string &value) {
+  SetStringProperty("currency_base", value);
+}
+void SymbolInfo::SetCurrencyProfit(const std::string &value) {
+  SetStringProperty("currency_profit", value);
+}
+void SymbolInfo::SetCurrencyMargin(const std::string &value) {
+  SetStringProperty("currency_margin", value);
 }
 
 } // namespace haruquant::trading

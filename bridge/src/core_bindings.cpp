@@ -7,6 +7,7 @@
 #include "trading/history_order_info.hpp"
 #include "trading/order_info.hpp"
 #include "trading/position_info.hpp"
+#include "trading/symbol_info.hpp"
 
 namespace nb = nanobind;
 
@@ -181,6 +182,51 @@ haruquant::trading::PositionInfo position_from_object(const nb::object& source) 
     assign_if_present<std::string>(source, "comment", [&](const std::string& v) { position.SetComment(v); });
     assign_if_present<std::string>(source, "external_id", [&](const std::string& v) { position.SetExternalId(v); });
     return position;
+}
+
+haruquant::trading::SymbolInfo symbol_from_object(const nb::object& source) {
+    haruquant::trading::SymbolInfo symbol;
+
+    assign_if_present<std::string>(source, "symbol", [&](const std::string& v) { symbol.Name(v); });
+    assign_if_present<std::string>(source, "name", [&](const std::string& v) { symbol.Name(v); });
+    assign_if_present<std::string>(source, "description", [&](const std::string& v) { symbol.SetDescription(v); });
+    assign_if_present<std::string>(source, "path", [&](const std::string& v) { symbol.SetPath(v); });
+    assign_if_present<std::string>(source, "currency_base", [&](const std::string& v) { symbol.SetCurrencyBase(v); });
+    assign_if_present<std::string>(source, "currency_profit", [&](const std::string& v) { symbol.SetCurrencyProfit(v); });
+    assign_if_present<std::string>(source, "currency_margin", [&](const std::string& v) { symbol.SetCurrencyMargin(v); });
+
+    assign_if_present<int>(source, "select", [&](int v) { symbol.SetSelect(v != 0); });
+    assign_if_present<bool>(source, "spread_float", [&](bool v) { symbol.SetSpreadFloat(v); });
+    assign_if_present<long>(source, "time", [&](long v) { symbol.SetTime(v); });
+    assign_if_present<long>(source, "digits", [&](long v) { symbol.SetDigits(v); });
+    assign_if_present<long>(source, "spread", [&](long v) { symbol.SetSpread(v); });
+    assign_if_present<long>(source, "trade_mode", [&](long v) { symbol.SetTradeMode(v); });
+    assign_if_present<long>(source, "trade_exemode", [&](long v) { symbol.SetTradeExemode(v); });
+    assign_if_present<long>(source, "trade_calc_mode", [&](long v) { symbol.SetTradeCalcMode(v); });
+    assign_if_present<long>(source, "trade_stops_level", [&](long v) { symbol.SetTradeStopsLevel(v); });
+    assign_if_present<long>(source, "trade_freeze_level", [&](long v) { symbol.SetTradeFreezeLevel(v); });
+    assign_if_present<long>(source, "swap_mode", [&](long v) { symbol.SetSwapMode(v); });
+    assign_if_present<long>(source, "swap_rollover3days", [&](long v) { symbol.SetSwapRollover3days(v); });
+
+    assign_if_present<double>(source, "bid", [&](double v) { symbol.SetBid(v); });
+    assign_if_present<double>(source, "ask", [&](double v) { symbol.SetAsk(v); });
+    assign_if_present<double>(source, "last", [&](double v) { symbol.SetLast(v); });
+    assign_if_present<double>(source, "point", [&](double v) { symbol.SetPoint(v); });
+    assign_if_present<double>(source, "trade_tick_size", [&](double v) { symbol.SetTradeTickSize(v); });
+    assign_if_present<double>(source, "trade_tick_value", [&](double v) { symbol.SetTradeTickValue(v); });
+    assign_if_present<double>(source, "trade_tick_value_profit", [&](double v) { symbol.SetTradeTickValueProfit(v); });
+    assign_if_present<double>(source, "trade_tick_value_loss", [&](double v) { symbol.SetTradeTickValueLoss(v); });
+    assign_if_present<double>(source, "trade_contract_size", [&](double v) { symbol.SetTradeContractSize(v); });
+    assign_if_present<double>(source, "volume_min", [&](double v) { symbol.SetVolumeMin(v); });
+    assign_if_present<double>(source, "volume_max", [&](double v) { symbol.SetVolumeMax(v); });
+    assign_if_present<double>(source, "volume_step", [&](double v) { symbol.SetVolumeStep(v); });
+    assign_if_present<double>(source, "volume_limit", [&](double v) { symbol.SetVolumeLimit(v); });
+    assign_if_present<double>(source, "margin_initial", [&](double v) { symbol.SetMarginInitial(v); });
+    assign_if_present<double>(source, "margin_maintenance", [&](double v) { symbol.SetMarginMaintenance(v); });
+    assign_if_present<double>(source, "swap_long", [&](double v) { symbol.SetSwapLong(v); });
+    assign_if_present<double>(source, "swap_short", [&](double v) { symbol.SetSwapShort(v); });
+
+    return symbol;
 }
 
 }  // namespace
@@ -432,6 +478,84 @@ void register_core_bindings(nb::module_& m) {
         .def("SetSymbol", &haruquant::trading::PositionInfo::SetSymbol, nb::arg("value"))
         .def("SetComment", &haruquant::trading::PositionInfo::SetComment, nb::arg("value"))
         .def("SetExternalId", &haruquant::trading::PositionInfo::SetExternalId, nb::arg("value"));
+
+    nb::class_<haruquant::trading::SymbolInfo>(m, "SymbolInfo")
+        .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::SymbolInfo* self, nb::object source) {
+            new (self) haruquant::trading::SymbolInfo(symbol_from_object(source));
+        }, nb::arg("source"))
+        .def("Name", static_cast<std::string (haruquant::trading::SymbolInfo::*)() const>(&haruquant::trading::SymbolInfo::Name))
+        .def("Description", &haruquant::trading::SymbolInfo::Description)
+        .def("Path", &haruquant::trading::SymbolInfo::Path)
+        .def("Bid", &haruquant::trading::SymbolInfo::Bid)
+        .def("Ask", &haruquant::trading::SymbolInfo::Ask)
+        .def("Last", &haruquant::trading::SymbolInfo::Last)
+        .def("Spread", &haruquant::trading::SymbolInfo::Spread)
+        .def("SpreadFloat", &haruquant::trading::SymbolInfo::SpreadFloat)
+        .def("Time", &haruquant::trading::SymbolInfo::Time)
+        .def("Digits", &haruquant::trading::SymbolInfo::Digits)
+        .def("Point", &haruquant::trading::SymbolInfo::Point)
+        .def("TradeMode", &haruquant::trading::SymbolInfo::TradeMode)
+        .def("TradeExemode", &haruquant::trading::SymbolInfo::TradeExemode)
+        .def("TradeCalcMode", &haruquant::trading::SymbolInfo::TradeCalcMode)
+        .def("TradeStopsLevel", &haruquant::trading::SymbolInfo::TradeStopsLevel)
+        .def("TradeFreezeLevel", &haruquant::trading::SymbolInfo::TradeFreezeLevel)
+        .def("TradeTickSize", &haruquant::trading::SymbolInfo::TradeTickSize)
+        .def("TradeTickValue", &haruquant::trading::SymbolInfo::TradeTickValue)
+        .def("TradeTickValueProfit", &haruquant::trading::SymbolInfo::TradeTickValueProfit)
+        .def("TradeTickValueLoss", &haruquant::trading::SymbolInfo::TradeTickValueLoss)
+        .def("TradeContractSize", &haruquant::trading::SymbolInfo::TradeContractSize)
+        .def("VolumeMin", &haruquant::trading::SymbolInfo::VolumeMin)
+        .def("VolumeMax", &haruquant::trading::SymbolInfo::VolumeMax)
+        .def("VolumeStep", &haruquant::trading::SymbolInfo::VolumeStep)
+        .def("VolumeLimit", &haruquant::trading::SymbolInfo::VolumeLimit)
+        .def("MarginInitial", &haruquant::trading::SymbolInfo::MarginInitial)
+        .def("MarginMaintenance", &haruquant::trading::SymbolInfo::MarginMaintenance)
+        .def("SwapMode", &haruquant::trading::SymbolInfo::SwapMode)
+        .def("SwapLong", &haruquant::trading::SymbolInfo::SwapLong)
+        .def("SwapShort", &haruquant::trading::SymbolInfo::SwapShort)
+        .def("SwapRollover3days", &haruquant::trading::SymbolInfo::SwapRollover3days)
+        .def("CurrencyBase", &haruquant::trading::SymbolInfo::CurrencyBase)
+        .def("CurrencyProfit", &haruquant::trading::SymbolInfo::CurrencyProfit)
+        .def("CurrencyMargin", &haruquant::trading::SymbolInfo::CurrencyMargin)
+        .def("NormalizePrice", &haruquant::trading::SymbolInfo::NormalizePrice, nb::arg("price"))
+        .def("SetName", [](haruquant::trading::SymbolInfo& self, const std::string& value) {
+            self.Name(value);
+        }, nb::arg("value"))
+        .def("SetDescription", &haruquant::trading::SymbolInfo::SetDescription, nb::arg("value"))
+        .def("SetPath", &haruquant::trading::SymbolInfo::SetPath, nb::arg("value"))
+        .def("SetSelect", &haruquant::trading::SymbolInfo::SetSelect, nb::arg("value"))
+        .def("SetTime", &haruquant::trading::SymbolInfo::SetTime, nb::arg("value"))
+        .def("SetDigits", &haruquant::trading::SymbolInfo::SetDigits, nb::arg("value"))
+        .def("SetSpread", &haruquant::trading::SymbolInfo::SetSpread, nb::arg("value"))
+        .def("SetSpreadFloat", &haruquant::trading::SymbolInfo::SetSpreadFloat, nb::arg("value"))
+        .def("SetTradeMode", &haruquant::trading::SymbolInfo::SetTradeMode, nb::arg("value"))
+        .def("SetTradeExemode", &haruquant::trading::SymbolInfo::SetTradeExemode, nb::arg("value"))
+        .def("SetTradeCalcMode", &haruquant::trading::SymbolInfo::SetTradeCalcMode, nb::arg("value"))
+        .def("SetTradeStopsLevel", &haruquant::trading::SymbolInfo::SetTradeStopsLevel, nb::arg("value"))
+        .def("SetTradeFreezeLevel", &haruquant::trading::SymbolInfo::SetTradeFreezeLevel, nb::arg("value"))
+        .def("SetBid", &haruquant::trading::SymbolInfo::SetBid, nb::arg("value"))
+        .def("SetAsk", &haruquant::trading::SymbolInfo::SetAsk, nb::arg("value"))
+        .def("SetLast", &haruquant::trading::SymbolInfo::SetLast, nb::arg("value"))
+        .def("SetPoint", &haruquant::trading::SymbolInfo::SetPoint, nb::arg("value"))
+        .def("SetTradeTickSize", &haruquant::trading::SymbolInfo::SetTradeTickSize, nb::arg("value"))
+        .def("SetTradeTickValue", &haruquant::trading::SymbolInfo::SetTradeTickValue, nb::arg("value"))
+        .def("SetTradeTickValueProfit", &haruquant::trading::SymbolInfo::SetTradeTickValueProfit, nb::arg("value"))
+        .def("SetTradeTickValueLoss", &haruquant::trading::SymbolInfo::SetTradeTickValueLoss, nb::arg("value"))
+        .def("SetTradeContractSize", &haruquant::trading::SymbolInfo::SetTradeContractSize, nb::arg("value"))
+        .def("SetVolumeMin", &haruquant::trading::SymbolInfo::SetVolumeMin, nb::arg("value"))
+        .def("SetVolumeMax", &haruquant::trading::SymbolInfo::SetVolumeMax, nb::arg("value"))
+        .def("SetVolumeStep", &haruquant::trading::SymbolInfo::SetVolumeStep, nb::arg("value"))
+        .def("SetVolumeLimit", &haruquant::trading::SymbolInfo::SetVolumeLimit, nb::arg("value"))
+        .def("SetMarginInitial", &haruquant::trading::SymbolInfo::SetMarginInitial, nb::arg("value"))
+        .def("SetMarginMaintenance", &haruquant::trading::SymbolInfo::SetMarginMaintenance, nb::arg("value"))
+        .def("SetSwapMode", &haruquant::trading::SymbolInfo::SetSwapMode, nb::arg("value"))
+        .def("SetSwapLong", &haruquant::trading::SymbolInfo::SetSwapLong, nb::arg("value"))
+        .def("SetSwapShort", &haruquant::trading::SymbolInfo::SetSwapShort, nb::arg("value"))
+        .def("SetSwapRollover3days", &haruquant::trading::SymbolInfo::SetSwapRollover3days, nb::arg("value"))
+        .def("SetCurrencyBase", &haruquant::trading::SymbolInfo::SetCurrencyBase, nb::arg("value"))
+        .def("SetCurrencyProfit", &haruquant::trading::SymbolInfo::SetCurrencyProfit, nb::arg("value"))
+        .def("SetCurrencyMargin", &haruquant::trading::SymbolInfo::SetCurrencyMargin, nb::arg("value"));
 
     nb::class_<haruquant::core::BacktestSimulator>(m, "BacktestSimulator")
         .def(nb::init<>())

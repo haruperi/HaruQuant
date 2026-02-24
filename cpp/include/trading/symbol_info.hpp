@@ -1,14 +1,20 @@
 #pragma once
 
 #include "core/state.hpp"
+#include <memory>
 #include <string>
 
 namespace haruquant::trading {
 
 class SymbolInfo {
 private:
-  const core::BacktestState *m_state;
+  std::shared_ptr<core::BacktestState> m_state;
   std::string m_name;
+  core::BacktestState &EnsureState();
+  core::BacktestState::Dictionary &EnsureRow();
+  void SetIntegerProperty(const std::string &prop, long value);
+  void SetDoubleProperty(const std::string &prop, double value);
+  void SetStringProperty(const std::string &prop, const std::string &value);
 
 protected:
   long GetInteger(const std::string &prop) const;
@@ -17,11 +23,14 @@ protected:
 
 public:
   SymbolInfo();
-  explicit SymbolInfo(const core::BacktestState *state);
+  explicit SymbolInfo(std::shared_ptr<core::BacktestState> state);
   virtual ~SymbolInfo() = default;
 
-  void SetState(const core::BacktestState *state);
-  const core::BacktestState *GetState() const { return m_state; }
+  void SetState(std::shared_ptr<core::BacktestState> state);
+  const core::BacktestState *GetState() const { return m_state.get(); }
+  const std::shared_ptr<core::BacktestState> &GetSharedState() const {
+    return m_state;
+  }
 
   bool Name(const std::string &name);
   std::string Name() const { return m_name; }
@@ -111,6 +120,54 @@ public:
 
   //--- Normalized property methods
   double NormalizePrice(const double price) const;
+
+  //--- Setters
+  void SetSelect(bool value);
+  void SetVisible(bool value);
+  void SetVolume(long value);
+  void SetVolumeHigh(long value);
+  void SetVolumeLow(long value);
+  void SetTime(long value);
+  void SetDigits(long value);
+  void SetSpread(long value);
+  void SetSpreadFloat(bool value);
+  void SetTradeCalcMode(long value);
+  void SetTradeMode(long value);
+  void SetTradeExemode(long value);
+  void SetTradeStopsLevel(long value);
+  void SetTradeFreezeLevel(long value);
+  void SetSwapMode(long value);
+  void SetSwapRollover3days(long value);
+
+  void SetBid(double value);
+  void SetBidHigh(double value);
+  void SetBidLow(double value);
+  void SetAsk(double value);
+  void SetAskHigh(double value);
+  void SetAskLow(double value);
+  void SetLast(double value);
+  void SetLastHigh(double value);
+  void SetLastLow(double value);
+  void SetPoint(double value);
+  void SetTradeTickValue(double value);
+  void SetTradeTickValueProfit(double value);
+  void SetTradeTickValueLoss(double value);
+  void SetTradeTickSize(double value);
+  void SetTradeContractSize(double value);
+  void SetVolumeMin(double value);
+  void SetVolumeMax(double value);
+  void SetVolumeStep(double value);
+  void SetVolumeLimit(double value);
+  void SetSwapLong(double value);
+  void SetSwapShort(double value);
+  void SetMarginInitial(double value);
+  void SetMarginMaintenance(double value);
+
+  void SetPath(const std::string &value);
+  void SetDescription(const std::string &value);
+  void SetCurrencyBase(const std::string &value);
+  void SetCurrencyProfit(const std::string &value);
+  void SetCurrencyMargin(const std::string &value);
 };
 
 } // namespace haruquant::trading
