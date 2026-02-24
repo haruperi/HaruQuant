@@ -1,5 +1,26 @@
 # HaruQuant Architecture Notes
 
+## Core Bridge Account Initialization
+
+- `haruquant.core.AccountInfo` is backed by the existing C++ trading MT5-style type (`cpp/include/trading/account_info.hpp`).
+- `AccountInfo` now has a single source of truth for state:
+  - one shared `BacktestState` (`std::shared_ptr<haruquant::core::BacktestState>`)
+  - no dual-mode internal/external state storage
+- Python initialization supports object or dict input:
+  - `account = haruquant.core.AccountInfo(mt5_account)`
+  - `account = haruquant.core.AccountInfo(mt5_account_dict)`
+- Parsed fields include common MT5 account keys:
+  - identity/meta: `login`, `name`, `server`, `currency`, `company`
+  - account settings: `trade_mode`, `leverage`, `limit_orders`, `margin_mode`, `trade_allowed`, `trade_expert`
+  - financial snapshot: `balance`, `credit`, `profit`, `equity`, `margin`, `margin_free`, `margin_level`, `margin_so_call`, `margin_so_so`
+- `haruquant.core.BacktestSimulator` now supports:
+  - default construction: `BacktestSimulator()`
+  - account-seeded construction: `BacktestSimulator(account)`
+- `BacktestSimulator(account)` keeps the same logical account state by copying the `AccountInfo` wrapper that shares the same `BacktestState`.
+- Access pattern remains account-centric for MT5 compatibility:
+  - Use `account.Login()` (not `simulator.Login()`).
+  - Simulator keeps the seeded account via `simulator.account_info()`.
+
 ## Engine Data Model Consistency
 
 - The C++ simulation engine now uses MT5-style classes as the single source of truth:

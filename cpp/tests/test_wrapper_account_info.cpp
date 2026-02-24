@@ -1,6 +1,7 @@
 #include "core/state.hpp"
 #include "trading/account_info.hpp"
 #include <gtest/gtest.h>
+#include <memory>
 
 
 using namespace haruquant::core;
@@ -8,19 +9,20 @@ using namespace haruquant::trading;
 
 class AccountInfoTest : public ::testing::Test {
 protected:
-  BacktestState state;
+  std::shared_ptr<BacktestState> state;
   AccountInfo *account;
 
   void SetUp() override {
+    state = std::make_shared<BacktestState>();
     // Setup state
-    state.trading_account["login"] = "123456";
-    state.trading_account["trade_mode"] = "0"; // ACCOUNT_TRADE_MODE_DEMO
-    state.trading_account["leverage"] = "100";
-    state.trading_account["balance"] = "10000.50";
-    state.trading_account["currency"] = "USD";
-    state.trading_account["name"] = "Test User";
+    state->trading_account["login"] = "123456";
+    state->trading_account["trade_mode"] = "0"; // ACCOUNT_TRADE_MODE_DEMO
+    state->trading_account["leverage"] = "100";
+    state->trading_account["balance"] = "10000.50";
+    state->trading_account["currency"] = "USD";
+    state->trading_account["name"] = "Test User";
 
-    account = new AccountInfo(&state);
+    account = new AccountInfo(state);
   }
 
   void TearDown() override { delete account; }
@@ -47,9 +49,9 @@ TEST_F(AccountInfoTest, MissingPropertiesDefaultToZeroOrEmpty) {
   EXPECT_EQ(account->Company(), "");
 }
 
-TEST_F(AccountInfoTest, NullStateHandledGracefully) {
-  AccountInfo null_account(nullptr);
-  EXPECT_EQ(null_account.Login(), 0);
-  EXPECT_DOUBLE_EQ(null_account.Balance(), 0.0);
-  EXPECT_EQ(null_account.Currency(), "");
+TEST_F(AccountInfoTest, DefaultStateHandledGracefully) {
+  AccountInfo empty_account;
+  EXPECT_EQ(empty_account.Login(), 0);
+  EXPECT_DOUBLE_EQ(empty_account.Balance(), 0.0);
+  EXPECT_EQ(empty_account.Currency(), "");
 }

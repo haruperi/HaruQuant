@@ -1,13 +1,15 @@
 #pragma once
 
 #include "core/state.hpp"
+#include <memory>
 #include <string>
 
 namespace haruquant::trading {
 
 class AccountInfo {
 private:
-  const core::BacktestState *m_state;
+  std::shared_ptr<core::BacktestState> m_state;
+  core::BacktestState &EnsureState();
 
 protected:
   long GetInteger(const std::string &prop) const;
@@ -16,11 +18,14 @@ protected:
 
 public:
   AccountInfo();
-  explicit AccountInfo(const core::BacktestState *state);
+  explicit AccountInfo(std::shared_ptr<core::BacktestState> state);
   virtual ~AccountInfo() = default;
 
-  void SetState(const core::BacktestState *state);
-  const core::BacktestState *GetState() const { return m_state; }
+  void SetState(std::shared_ptr<core::BacktestState> state);
+  const core::BacktestState *GetState() const { return m_state.get(); }
+  const std::shared_ptr<core::BacktestState> &GetSharedState() const {
+    return m_state;
+  }
 
   //--- Integer properties
   long Login() const;
@@ -61,6 +66,30 @@ public:
   std::string Server() const;
   std::string Currency() const;
   std::string Company() const;
+
+  //--- Setters for snapshot-style initialization from Python/bridge.
+  void SetLogin(long value);
+  void SetTradeMode(long value);
+  void SetLeverage(int value);
+  void SetLimitOrders(int value);
+  void SetMarginMode(long value);
+  void SetTradeAllowed(bool value);
+  void SetTradeExpert(bool value);
+
+  void SetBalance(double value);
+  void SetCredit(double value);
+  void SetProfit(double value);
+  void SetEquity(double value);
+  void SetMargin(double value);
+  void SetMarginFree(double value);
+  void SetMarginLevel(double value);
+  void SetMarginCall(double value);
+  void SetMarginStopOut(double value);
+
+  void SetName(const std::string &value);
+  void SetServer(const std::string &value);
+  void SetCurrency(const std::string &value);
+  void SetCompany(const std::string &value);
 };
 
 } // namespace haruquant::trading
