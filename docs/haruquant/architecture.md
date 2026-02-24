@@ -73,6 +73,29 @@
   - Use `account.Login()` (not `simulator.Login()`).
   - Simulator keeps the seeded account via `simulator.account_info()`.
 
+## Core Bridge Trade Initialization
+
+- `haruquant.core.Trade` is backed by `cpp/include/trading/trade.hpp`.
+- `Trade` now uses one shared `BacktestState` source (`std::shared_ptr<haruquant::core::BacktestState>`), aligned with `AccountInfo`.
+- Python initialization supports:
+  - default constructor: `trade = haruquant.core.Trade()`
+  - account-seeded constructor: `trade = haruquant.core.Trade(account)`
+- `Trade(account)` shares the same state as `AccountInfo`, so account/trade data stays consistent in one source of truth.
+- Exposed core methods cover request configuration, execution calls, and result accessors:
+  - `RequestMagic`, `RequestDeviation`, `RequestTypeFilling`, `RequestSymbol`
+  - `PositionOpen`, `Buy`, `Sell`, `PositionModify`
+  - `ResultDeal`, `ResultOrder`, `ResultRetcode`, `ResultRetcodeDescription`, `ResultComment`
+
+## Core Bridge Terminal Initialization
+
+- `haruquant.core.TerminalInfo` is backed by `cpp/include/trading/terminal_info.hpp`.
+- `TerminalInfo` uses one shared `BacktestState` source (`std::shared_ptr<haruquant::core::BacktestState>`).
+- Python initialization supports:
+  - default constructor: `row = haruquant.core.TerminalInfo()`
+  - object/dict constructor: `row = haruquant.core.TerminalInfo(mt5_terminal_or_dict)`
+- MT5-style getters and `Set...` mutators are exposed in `haruquant.core`.
+- For consistent reporting across live/tester paths, MT5 terminal rows can be populated into `haruquant.core.TerminalInfo` and then optionally overridden in tester mode via setters.
+
 ## Engine Data Model Consistency
 
 - The C++ simulation engine now uses MT5-style classes as the single source of truth:

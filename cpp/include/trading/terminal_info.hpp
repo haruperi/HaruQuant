@@ -1,13 +1,15 @@
 #pragma once
 
 #include "core/state.hpp"
+#include <memory>
 #include <string>
 
 namespace haruquant::trading {
 
 class TerminalInfo {
 private:
-  const core::BacktestState *m_state;
+  std::shared_ptr<core::BacktestState> m_state;
+  core::BacktestState &EnsureState();
 
 protected:
   long GetInteger(const std::string &prop) const;
@@ -16,11 +18,14 @@ protected:
 
 public:
   TerminalInfo();
-  explicit TerminalInfo(const core::BacktestState *state);
+  explicit TerminalInfo(std::shared_ptr<core::BacktestState> state);
   virtual ~TerminalInfo() = default;
 
-  void SetState(const core::BacktestState *state);
-  const core::BacktestState *GetState() const { return m_state; }
+  void SetState(std::shared_ptr<core::BacktestState> state);
+  const core::BacktestState *GetState() const { return m_state.get(); }
+  const std::shared_ptr<core::BacktestState> &GetSharedState() const {
+    return m_state;
+  }
 
   //--- Integer properties
   long Build() const;
@@ -52,6 +57,36 @@ public:
   std::string Path() const;
   std::string DataPath() const;
   std::string CommondataPath() const;
+
+  //--- Setters for snapshot-style initialization from Python/bridge.
+  void SetBuild(long value);
+  void SetCommunityAccount(long value);
+  void SetCommunityConnection(long value);
+  void SetConnected(long value);
+  void SetDLLsAllowed(long value);
+  void SetTradeAllowed(long value);
+  void SetEmailEnabled(long value);
+  void SetFtpEnabled(long value);
+  void SetNotificationsEnabled(long value);
+  void SetMaxBars(long value);
+  void SetMQID(long value);
+  void SetCodePage(long value);
+  void SetCPUCores(long value);
+  void SetDiskSpace(long value);
+  void SetMemoryPhysical(long value);
+  void SetMemoryTotal(long value);
+  void SetMemoryAvailable(long value);
+  void SetMemoryUsed(long value);
+  void SetX64(long value);
+  void SetOpenCLSupport(long value);
+  void SetPingLast(long value);
+
+  void SetLanguage(const std::string &value);
+  void SetCompany(const std::string &value);
+  void SetName(const std::string &value);
+  void SetPath(const std::string &value);
+  void SetDataPath(const std::string &value);
+  void SetCommondataPath(const std::string &value);
 };
 
 } // namespace haruquant::trading

@@ -8,6 +8,8 @@
 #include "trading/order_info.hpp"
 #include "trading/position_info.hpp"
 #include "trading/symbol_info.hpp"
+#include "trading/terminal_info.hpp"
+#include "trading/trade.hpp"
 
 namespace nb = nanobind;
 
@@ -227,6 +229,41 @@ haruquant::trading::SymbolInfo symbol_from_object(const nb::object& source) {
     assign_if_present<double>(source, "swap_short", [&](double v) { symbol.SetSwapShort(v); });
 
     return symbol;
+}
+
+haruquant::trading::TerminalInfo terminal_from_object(const nb::object& source) {
+    haruquant::trading::TerminalInfo terminal;
+
+    assign_if_present<long>(source, "build", [&](long v) { terminal.SetBuild(v); });
+    assign_if_present<long>(source, "community_account", [&](long v) { terminal.SetCommunityAccount(v); });
+    assign_if_present<long>(source, "community_connection", [&](long v) { terminal.SetCommunityConnection(v); });
+    assign_if_present<long>(source, "connected", [&](long v) { terminal.SetConnected(v); });
+    assign_if_present<long>(source, "dlls_allowed", [&](long v) { terminal.SetDLLsAllowed(v); });
+    assign_if_present<long>(source, "trade_allowed", [&](long v) { terminal.SetTradeAllowed(v); });
+    assign_if_present<long>(source, "email_enabled", [&](long v) { terminal.SetEmailEnabled(v); });
+    assign_if_present<long>(source, "ftp_enabled", [&](long v) { terminal.SetFtpEnabled(v); });
+    assign_if_present<long>(source, "notifications_enabled", [&](long v) { terminal.SetNotificationsEnabled(v); });
+    assign_if_present<long>(source, "maxbars", [&](long v) { terminal.SetMaxBars(v); });
+    assign_if_present<long>(source, "mqid", [&](long v) { terminal.SetMQID(v); });
+    assign_if_present<long>(source, "codepage", [&](long v) { terminal.SetCodePage(v); });
+    assign_if_present<long>(source, "cpu_cores", [&](long v) { terminal.SetCPUCores(v); });
+    assign_if_present<long>(source, "disk_space", [&](long v) { terminal.SetDiskSpace(v); });
+    assign_if_present<long>(source, "memory_physical", [&](long v) { terminal.SetMemoryPhysical(v); });
+    assign_if_present<long>(source, "memory_total", [&](long v) { terminal.SetMemoryTotal(v); });
+    assign_if_present<long>(source, "memory_available", [&](long v) { terminal.SetMemoryAvailable(v); });
+    assign_if_present<long>(source, "memory_used", [&](long v) { terminal.SetMemoryUsed(v); });
+    assign_if_present<long>(source, "x64", [&](long v) { terminal.SetX64(v); });
+    assign_if_present<long>(source, "opencl_support", [&](long v) { terminal.SetOpenCLSupport(v); });
+    assign_if_present<long>(source, "ping_last", [&](long v) { terminal.SetPingLast(v); });
+
+    assign_if_present<std::string>(source, "language", [&](const std::string& v) { terminal.SetLanguage(v); });
+    assign_if_present<std::string>(source, "company", [&](const std::string& v) { terminal.SetCompany(v); });
+    assign_if_present<std::string>(source, "name", [&](const std::string& v) { terminal.SetName(v); });
+    assign_if_present<std::string>(source, "path", [&](const std::string& v) { terminal.SetPath(v); });
+    assign_if_present<std::string>(source, "data_path", [&](const std::string& v) { terminal.SetDataPath(v); });
+    assign_if_present<std::string>(source, "commondata_path", [&](const std::string& v) { terminal.SetCommondataPath(v); });
+
+    return terminal;
 }
 
 }  // namespace
@@ -556,6 +593,87 @@ void register_core_bindings(nb::module_& m) {
         .def("SetCurrencyBase", &haruquant::trading::SymbolInfo::SetCurrencyBase, nb::arg("value"))
         .def("SetCurrencyProfit", &haruquant::trading::SymbolInfo::SetCurrencyProfit, nb::arg("value"))
         .def("SetCurrencyMargin", &haruquant::trading::SymbolInfo::SetCurrencyMargin, nb::arg("value"));
+
+    nb::class_<haruquant::trading::Trade>(m, "Trade")
+        .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::Trade* self, const haruquant::trading::AccountInfo& account) {
+            new (self) haruquant::trading::Trade(account.GetSharedState());
+        }, nb::arg("account"))
+        .def("LogLevel", &haruquant::trading::Trade::LogLevel, nb::arg("log_level"))
+        .def("RequestMagic", static_cast<void (haruquant::trading::Trade::*)(long)>(&haruquant::trading::Trade::RequestMagic), nb::arg("magic"))
+        .def("RequestDeviation", static_cast<void (haruquant::trading::Trade::*)(double)>(&haruquant::trading::Trade::RequestDeviation), nb::arg("deviation"))
+        .def("RequestTypeFilling", static_cast<void (haruquant::trading::Trade::*)(long)>(&haruquant::trading::Trade::RequestTypeFilling), nb::arg("type"))
+        .def("RequestSymbol", static_cast<void (haruquant::trading::Trade::*)(const std::string&)>(&haruquant::trading::Trade::RequestSymbol), nb::arg("symbol"))
+        .def("PositionOpen", &haruquant::trading::Trade::PositionOpen, nb::arg("symbol"), nb::arg("order_type"), nb::arg("volume"), nb::arg("price"), nb::arg("sl"), nb::arg("tp"), nb::arg("comment") = "")
+        .def("Buy", &haruquant::trading::Trade::Buy, nb::arg("volume"), nb::arg("symbol") = "", nb::arg("price") = 0.0, nb::arg("sl") = 0.0, nb::arg("tp") = 0.0, nb::arg("comment") = "")
+        .def("Sell", &haruquant::trading::Trade::Sell, nb::arg("volume"), nb::arg("symbol") = "", nb::arg("price") = 0.0, nb::arg("sl") = 0.0, nb::arg("tp") = 0.0, nb::arg("comment") = "")
+        .def("PositionModify", static_cast<bool (haruquant::trading::Trade::*)(const std::string&, double, double)>(&haruquant::trading::Trade::PositionModify), nb::arg("symbol"), nb::arg("sl"), nb::arg("tp"))
+        .def("PositionModifyByTicket", static_cast<bool (haruquant::trading::Trade::*)(long, double, double)>(&haruquant::trading::Trade::PositionModify), nb::arg("ticket"), nb::arg("sl"), nb::arg("tp"))
+        .def("ResultDeal", &haruquant::trading::Trade::ResultDeal)
+        .def("ResultOrder", &haruquant::trading::Trade::ResultOrder)
+        .def("ResultRetcode", &haruquant::trading::Trade::ResultRetcode)
+        .def("ResultRetcodeDescription", &haruquant::trading::Trade::ResultRetcodeDescription)
+        .def("ResultComment", &haruquant::trading::Trade::ResultComment);
+
+    nb::class_<haruquant::trading::TerminalInfo>(m, "TerminalInfo")
+        .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::TerminalInfo* self, nb::object source) {
+            new (self) haruquant::trading::TerminalInfo(terminal_from_object(source));
+        }, nb::arg("source"))
+        .def("Build", &haruquant::trading::TerminalInfo::Build)
+        .def("CommunityAccount", &haruquant::trading::TerminalInfo::CommunityAccount)
+        .def("CommunityConnection", &haruquant::trading::TerminalInfo::CommunityConnection)
+        .def("Connected", &haruquant::trading::TerminalInfo::Connected)
+        .def("DLLsAllowed", &haruquant::trading::TerminalInfo::DLLsAllowed)
+        .def("TradeAllowed", &haruquant::trading::TerminalInfo::TradeAllowed)
+        .def("EmailEnabled", &haruquant::trading::TerminalInfo::EmailEnabled)
+        .def("FtpEnabled", &haruquant::trading::TerminalInfo::FtpEnabled)
+        .def("NotificationsEnabled", &haruquant::trading::TerminalInfo::NotificationsEnabled)
+        .def("MaxBars", &haruquant::trading::TerminalInfo::MaxBars)
+        .def("MQID", &haruquant::trading::TerminalInfo::MQID)
+        .def("CodePage", &haruquant::trading::TerminalInfo::CodePage)
+        .def("CPUCores", &haruquant::trading::TerminalInfo::CPUCores)
+        .def("DiskSpace", &haruquant::trading::TerminalInfo::DiskSpace)
+        .def("MemoryPhysical", &haruquant::trading::TerminalInfo::MemoryPhysical)
+        .def("MemoryTotal", &haruquant::trading::TerminalInfo::MemoryTotal)
+        .def("MemoryAvailable", &haruquant::trading::TerminalInfo::MemoryAvailable)
+        .def("MemoryUsed", &haruquant::trading::TerminalInfo::MemoryUsed)
+        .def("X64", &haruquant::trading::TerminalInfo::X64)
+        .def("OpenCLSupport", &haruquant::trading::TerminalInfo::OpenCLSupport)
+        .def("PingLast", &haruquant::trading::TerminalInfo::PingLast)
+        .def("Language", &haruquant::trading::TerminalInfo::Language)
+        .def("Company", &haruquant::trading::TerminalInfo::Company)
+        .def("Name", &haruquant::trading::TerminalInfo::Name)
+        .def("Path", &haruquant::trading::TerminalInfo::Path)
+        .def("DataPath", &haruquant::trading::TerminalInfo::DataPath)
+        .def("CommondataPath", &haruquant::trading::TerminalInfo::CommondataPath)
+        .def("SetBuild", &haruquant::trading::TerminalInfo::SetBuild, nb::arg("value"))
+        .def("SetCommunityAccount", &haruquant::trading::TerminalInfo::SetCommunityAccount, nb::arg("value"))
+        .def("SetCommunityConnection", &haruquant::trading::TerminalInfo::SetCommunityConnection, nb::arg("value"))
+        .def("SetConnected", &haruquant::trading::TerminalInfo::SetConnected, nb::arg("value"))
+        .def("SetDLLsAllowed", &haruquant::trading::TerminalInfo::SetDLLsAllowed, nb::arg("value"))
+        .def("SetTradeAllowed", &haruquant::trading::TerminalInfo::SetTradeAllowed, nb::arg("value"))
+        .def("SetEmailEnabled", &haruquant::trading::TerminalInfo::SetEmailEnabled, nb::arg("value"))
+        .def("SetFtpEnabled", &haruquant::trading::TerminalInfo::SetFtpEnabled, nb::arg("value"))
+        .def("SetNotificationsEnabled", &haruquant::trading::TerminalInfo::SetNotificationsEnabled, nb::arg("value"))
+        .def("SetMaxBars", &haruquant::trading::TerminalInfo::SetMaxBars, nb::arg("value"))
+        .def("SetMQID", &haruquant::trading::TerminalInfo::SetMQID, nb::arg("value"))
+        .def("SetCodePage", &haruquant::trading::TerminalInfo::SetCodePage, nb::arg("value"))
+        .def("SetCPUCores", &haruquant::trading::TerminalInfo::SetCPUCores, nb::arg("value"))
+        .def("SetDiskSpace", &haruquant::trading::TerminalInfo::SetDiskSpace, nb::arg("value"))
+        .def("SetMemoryPhysical", &haruquant::trading::TerminalInfo::SetMemoryPhysical, nb::arg("value"))
+        .def("SetMemoryTotal", &haruquant::trading::TerminalInfo::SetMemoryTotal, nb::arg("value"))
+        .def("SetMemoryAvailable", &haruquant::trading::TerminalInfo::SetMemoryAvailable, nb::arg("value"))
+        .def("SetMemoryUsed", &haruquant::trading::TerminalInfo::SetMemoryUsed, nb::arg("value"))
+        .def("SetX64", &haruquant::trading::TerminalInfo::SetX64, nb::arg("value"))
+        .def("SetOpenCLSupport", &haruquant::trading::TerminalInfo::SetOpenCLSupport, nb::arg("value"))
+        .def("SetPingLast", &haruquant::trading::TerminalInfo::SetPingLast, nb::arg("value"))
+        .def("SetLanguage", &haruquant::trading::TerminalInfo::SetLanguage, nb::arg("value"))
+        .def("SetCompany", &haruquant::trading::TerminalInfo::SetCompany, nb::arg("value"))
+        .def("SetName", &haruquant::trading::TerminalInfo::SetName, nb::arg("value"))
+        .def("SetPath", &haruquant::trading::TerminalInfo::SetPath, nb::arg("value"))
+        .def("SetDataPath", &haruquant::trading::TerminalInfo::SetDataPath, nb::arg("value"))
+        .def("SetCommondataPath", &haruquant::trading::TerminalInfo::SetCommondataPath, nb::arg("value"));
 
     nb::class_<haruquant::core::BacktestSimulator>(m, "BacktestSimulator")
         .def(nb::init<>())

@@ -1,15 +1,26 @@
 #include "trading/terminal_info.hpp"
-#include <stdexcept>
+#include <sstream>
 #include <string>
 
 namespace haruquant::trading {
 
-TerminalInfo::TerminalInfo() : m_state(nullptr) {}
+TerminalInfo::TerminalInfo() : m_state(std::make_shared<core::BacktestState>()) {}
 
-TerminalInfo::TerminalInfo(const core::BacktestState *state) : m_state(state) {}
+TerminalInfo::TerminalInfo(std::shared_ptr<core::BacktestState> state)
+    : m_state(std::move(state)) {
+  EnsureState();
+}
 
-void TerminalInfo::SetState(const core::BacktestState *state) {
-  m_state = state;
+void TerminalInfo::SetState(std::shared_ptr<core::BacktestState> state) {
+  m_state = std::move(state);
+  EnsureState();
+}
+
+core::BacktestState &TerminalInfo::EnsureState() {
+  if (!m_state) {
+    m_state = std::make_shared<core::BacktestState>();
+  }
+  return *m_state;
 }
 
 long TerminalInfo::GetInteger(const std::string &prop) const {
@@ -93,6 +104,98 @@ std::string TerminalInfo::Path() const { return GetString("path"); }
 std::string TerminalInfo::DataPath() const { return GetString("data_path"); }
 std::string TerminalInfo::CommondataPath() const {
   return GetString("commondata_path");
+}
+
+namespace {
+template <typename T>
+std::string to_string_value(T value) {
+  std::ostringstream oss;
+  oss << value;
+  return oss.str();
+}
+} // namespace
+
+void TerminalInfo::SetBuild(long value) {
+  EnsureState().terminal_info["build"] = to_string_value(value);
+}
+void TerminalInfo::SetCommunityAccount(long value) {
+  EnsureState().terminal_info["community_account"] = to_string_value(value);
+}
+void TerminalInfo::SetCommunityConnection(long value) {
+  EnsureState().terminal_info["community_connection"] = to_string_value(value);
+}
+void TerminalInfo::SetConnected(long value) {
+  EnsureState().terminal_info["connected"] = to_string_value(value);
+}
+void TerminalInfo::SetDLLsAllowed(long value) {
+  EnsureState().terminal_info["dlls_allowed"] = to_string_value(value);
+}
+void TerminalInfo::SetTradeAllowed(long value) {
+  EnsureState().terminal_info["trade_allowed"] = to_string_value(value);
+}
+void TerminalInfo::SetEmailEnabled(long value) {
+  EnsureState().terminal_info["email_enabled"] = to_string_value(value);
+}
+void TerminalInfo::SetFtpEnabled(long value) {
+  EnsureState().terminal_info["ftp_enabled"] = to_string_value(value);
+}
+void TerminalInfo::SetNotificationsEnabled(long value) {
+  EnsureState().terminal_info["notifications_enabled"] = to_string_value(value);
+}
+void TerminalInfo::SetMaxBars(long value) {
+  EnsureState().terminal_info["maxbars"] = to_string_value(value);
+}
+void TerminalInfo::SetMQID(long value) {
+  EnsureState().terminal_info["mqid"] = to_string_value(value);
+}
+void TerminalInfo::SetCodePage(long value) {
+  EnsureState().terminal_info["codepage"] = to_string_value(value);
+}
+void TerminalInfo::SetCPUCores(long value) {
+  EnsureState().terminal_info["cpu_cores"] = to_string_value(value);
+}
+void TerminalInfo::SetDiskSpace(long value) {
+  EnsureState().terminal_info["disk_space"] = to_string_value(value);
+}
+void TerminalInfo::SetMemoryPhysical(long value) {
+  EnsureState().terminal_info["memory_physical"] = to_string_value(value);
+}
+void TerminalInfo::SetMemoryTotal(long value) {
+  EnsureState().terminal_info["memory_total"] = to_string_value(value);
+}
+void TerminalInfo::SetMemoryAvailable(long value) {
+  EnsureState().terminal_info["memory_available"] = to_string_value(value);
+}
+void TerminalInfo::SetMemoryUsed(long value) {
+  EnsureState().terminal_info["memory_used"] = to_string_value(value);
+}
+void TerminalInfo::SetX64(long value) {
+  EnsureState().terminal_info["x64"] = to_string_value(value);
+}
+void TerminalInfo::SetOpenCLSupport(long value) {
+  EnsureState().terminal_info["opencl_support"] = to_string_value(value);
+}
+void TerminalInfo::SetPingLast(long value) {
+  EnsureState().terminal_info["ping_last"] = to_string_value(value);
+}
+
+void TerminalInfo::SetLanguage(const std::string &value) {
+  EnsureState().terminal_info["language"] = value;
+}
+void TerminalInfo::SetCompany(const std::string &value) {
+  EnsureState().terminal_info["company"] = value;
+}
+void TerminalInfo::SetName(const std::string &value) {
+  EnsureState().terminal_info["name"] = value;
+}
+void TerminalInfo::SetPath(const std::string &value) {
+  EnsureState().terminal_info["path"] = value;
+}
+void TerminalInfo::SetDataPath(const std::string &value) {
+  EnsureState().terminal_info["data_path"] = value;
+}
+void TerminalInfo::SetCommondataPath(const std::string &value) {
+  EnsureState().terminal_info["commondata_path"] = value;
 }
 
 } // namespace haruquant::trading
