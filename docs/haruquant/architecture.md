@@ -29,6 +29,16 @@
 - In tester flows, initialize account-backed core simulator first:
   - `account = haruquant.core.AccountInfo(mt5_account)`
   - `simulator = haruquant.core.BacktestSimulator(account)`
+
+## Core Bridge HistoryOrder Initialization
+
+- `haruquant.core.HistoryOrderInfo` is backed by `cpp/include/trading/history_order_info.hpp`.
+- `HistoryOrderInfo` now uses one shared `BacktestState` source (`std::shared_ptr<haruquant::core::BacktestState>`).
+- Python initialization supports:
+  - default constructor: `row = haruquant.core.HistoryOrderInfo()`
+  - object/dict constructor: `row = haruquant.core.HistoryOrderInfo(mt5_order_or_dict)`
+- MT5-style getters and `Set...` mutators are exposed in `haruquant.core`.
+- For consistent reporting across live/tester paths, live MT5 rows can be populated into `haruquant.core.HistoryOrderInfo` first, then processed with the same downstream logic.
 - Access pattern remains account-centric for MT5 compatibility:
   - Use `account.Login()` (not `simulator.Login()`).
   - Simulator keeps the seeded account via `simulator.account_info()`.

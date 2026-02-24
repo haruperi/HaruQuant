@@ -1,14 +1,17 @@
 #pragma once
 
 #include "core/state.hpp"
+#include <memory>
 #include <string>
 
 namespace haruquant::trading {
 
 class HistoryOrderInfo {
 private:
-  const core::BacktestState *m_state;
+  std::shared_ptr<core::BacktestState> m_state;
   std::string m_ticket;
+  core::BacktestState &EnsureState();
+  core::BacktestState::Dictionary &EnsureRow();
 
 protected:
   long GetInteger(const std::string &prop) const;
@@ -17,11 +20,14 @@ protected:
 
 public:
   HistoryOrderInfo();
-  explicit HistoryOrderInfo(const core::BacktestState *state);
+  explicit HistoryOrderInfo(std::shared_ptr<core::BacktestState> state);
   virtual ~HistoryOrderInfo() = default;
 
-  void SetState(const core::BacktestState *state);
-  const core::BacktestState *GetState() const { return m_state; }
+  void SetState(std::shared_ptr<core::BacktestState> state);
+  const core::BacktestState *GetState() const { return m_state.get(); }
+  const std::shared_ptr<core::BacktestState> &GetSharedState() const {
+    return m_state;
+  }
 
   bool Ticket(const long ticket);
 
@@ -53,6 +59,33 @@ public:
   std::string Symbol() const;
   std::string Comment() const;
   std::string ExternalId() const;
+
+  //--- Setters
+  void SetTicket(long value);
+  void SetTimeSetup(long value);
+  void SetTimeSetupMsc(long value);
+  void SetTimeDone(long value);
+  void SetTimeDoneMsc(long value);
+  void SetTimeExpiration(long value);
+  void SetType(long value);
+  void SetTypeTime(long value);
+  void SetTypeFilling(long value);
+  void SetStateValue(long value);
+  void SetMagic(long value);
+  void SetReason(long value);
+  void SetPositionId(long value);
+
+  void SetVolumeInitial(double value);
+  void SetVolumeCurrent(double value);
+  void SetPriceOpen(double value);
+  void SetSl(double value);
+  void SetTp(double value);
+  void SetPriceCurrent(double value);
+  void SetPriceStopLimit(double value);
+
+  void SetSymbol(const std::string &value);
+  void SetComment(const std::string &value);
+  void SetExternalId(const std::string &value);
 };
 
 } // namespace haruquant::trading

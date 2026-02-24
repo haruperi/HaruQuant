@@ -1,6 +1,7 @@
 #include "core/state.hpp"
 #include "trading/history_order_info.hpp"
 #include <gtest/gtest.h>
+#include <memory>
 
 
 using namespace haruquant::core;
@@ -8,17 +9,18 @@ using namespace haruquant::trading;
 
 class HistoryOrderInfoTest : public ::testing::Test {
 protected:
-  BacktestState state;
+  std::shared_ptr<BacktestState> state;
   HistoryOrderInfo *order;
 
   void SetUp() override {
-    state.trading_history_orders["5001"]["ticket"] = "5001";
-    state.trading_history_orders["5001"]["symbol"] = "USDJPY";
-    state.trading_history_orders["5001"]["state"] = "4"; // Filled
-    state.trading_history_orders["5001"]["volume_initial"] = "2.0";
-    state.trading_history_orders["5001"]["time_done"] = "1620000000";
+    state = std::make_shared<BacktestState>();
+    state->trading_history_orders["5001"]["ticket"] = "5001";
+    state->trading_history_orders["5001"]["symbol"] = "USDJPY";
+    state->trading_history_orders["5001"]["state"] = "4"; // Filled
+    state->trading_history_orders["5001"]["volume_initial"] = "2.0";
+    state->trading_history_orders["5001"]["time_done"] = "1620000000";
 
-    order = new HistoryOrderInfo(&state);
+    order = new HistoryOrderInfo(state);
   }
 
   void TearDown() override { delete order; }

@@ -1,9 +1,8 @@
-"""
-Example usage of HistoryOrderInfo with MT5/Tester backend parity.
-"""
+"""Example usage of HistoryOrderInfo with MT5/Tester backend parity."""
 
 import os
 import sys
+import argparse
 from datetime import datetime, timedelta
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -16,7 +15,7 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Utils, get_mt5_api
-import haruquant.sim as csim
+import haruquant.core as core
 
 mt5 = get_mt5_api()
 
@@ -29,34 +28,87 @@ def _hist_value(order, attr_name: str, method_name: str | None = None, default=N
     return default
 
 
-def _seed_tester_history_orders(simulator: "csim.TradeSimulator", now: datetime) -> None:
-    o1 = csim.HistoryOrderInfo()
-    o1.ticket = 1001
-    o1.symbol = "EURUSD"
-    o1.type = 0
-    o1.state = 4
-    o1.volume_initial = 1.0
-    o1.volume_current = 0.0
-    o1.price_open = 1.1000
-    o1.set_time_setup(int(now.timestamp()) - 120)
-    o1.set_time_done(int(now.timestamp()) - 60)
-    simulator.upsert_history_order_info(o1)
+def _safe_long(value: int | float | None) -> int:
+    if value is None:
+        return 0
+    v = int(value)
+    lo = -(2**31)
+    hi = (2**31) - 1
+    if v < lo:
+        return lo
+    if v > hi:
+        return hi
+    return v
 
-    o2 = csim.HistoryOrderInfo()
-    o2.ticket = 1002
-    o2.symbol = "GBPUSD"
-    o2.type = 1
-    o2.state = 2
-    o2.volume_initial = 0.5
-    o2.volume_current = 0.5
-    o2.price_open = 1.2500
-    o2.set_time_setup(int(now.timestamp()) - 90)
-    o2.set_time_done(int(now.timestamp()) - 30)
-    simulator.upsert_history_order_info(o2)
+
+def _seed_tester_history_orders(now: datetime) -> list[core.HistoryOrderInfo]:
+    o1 = core.HistoryOrderInfo()
+    o1.SetTicket(1001)
+    o1.SetSymbol("EURUSD")
+    o1.SetType(0)
+    o1.SetState(4)
+    o1.SetVolumeInitial(1.0)
+    o1.SetVolumeCurrent(0.0)
+    o1.SetPriceOpen(1.1000)
+    o1.SetTimeSetup(int(now.timestamp()) - 120)
+    o1.SetTimeDone(int(now.timestamp()) - 60)
+    o1.SetTimeSetupMsc(int(now.timestamp()) - 120)
+    o1.SetTimeDoneMsc(int(now.timestamp()) - 60)
+
+    o2 = core.HistoryOrderInfo()
+    o2.SetTicket(1002)
+    o2.SetSymbol("GBPUSD")
+    o2.SetType(1)
+    o2.SetState(2)
+    o2.SetVolumeInitial(0.5)
+    o2.SetVolumeCurrent(0.5)
+    o2.SetPriceOpen(1.2500)
+    o2.SetTimeSetup(int(now.timestamp()) - 90)
+    o2.SetTimeDone(int(now.timestamp()) - 30)
+    o2.SetTimeSetupMsc(int(now.timestamp()) - 90)
+    o2.SetTimeDoneMsc(int(now.timestamp()) - 30)
+    return [o1, o2]
+
+
+def _mt5_history_orders_to_core(start: datetime, end: datetime) -> list[core.HistoryOrderInfo]:
+    rows = mt5.history_orders_get(start, end)
+    if rows is None:
+        return []
+
+    out: list[core.HistoryOrderInfo] = []
+    for r in rows:
+        o = core.HistoryOrderInfo()
+        o.SetTicket(_safe_long(getattr(r, "ticket", 0)))
+        o.SetTimeSetup(_safe_long(getattr(r, "time_setup", 0)))
+        o.SetTimeSetupMsc(_safe_long(getattr(r, "time_setup_msc", getattr(r, "time_setup", 0))))
+        o.SetTimeDone(_safe_long(getattr(r, "time_done", 0)))
+        o.SetTimeDoneMsc(_safe_long(getattr(r, "time_done_msc", getattr(r, "time_done", 0))))
+        o.SetTimeExpiration(_safe_long(getattr(r, "time_expiration", 0)))
+        o.SetType(_safe_long(getattr(r, "type", 0)))
+        o.SetTypeTime(_safe_long(getattr(r, "type_time", 0)))
+        o.SetTypeFilling(_safe_long(getattr(r, "type_filling", 0)))
+        o.SetState(_safe_long(getattr(r, "state", 0)))
+        o.SetMagic(_safe_long(getattr(r, "magic", 0)))
+        o.SetReason(_safe_long(getattr(r, "reason", 0)))
+        o.SetPositionId(_safe_long(getattr(r, "position_id", 0)))
+        o.SetVolumeInitial(float(getattr(r, "volume_initial", 0.0)))
+        o.SetVolumeCurrent(float(getattr(r, "volume_current", 0.0)))
+        o.SetPriceOpen(float(getattr(r, "price_open", 0.0)))
+        o.SetSl(float(getattr(r, "sl", 0.0)))
+        o.SetTp(float(getattr(r, "tp", 0.0)))
+        o.SetPriceCurrent(float(getattr(r, "price_current", 0.0)))
+        o.SetPriceStopLimit(float(getattr(r, "price_stoplimit", 0.0)))
+        o.SetSymbol(str(getattr(r, "symbol", "")))
+        o.SetComment(str(getattr(r, "comment", "")))
+        out.append(o)
+    return out
 
 
 def main():
-    backend = "tester"  # set to: "mt5" or "tester"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    args = parser.parse_args()
+    backend = args.backend
 
     print("=" * 70)
     print("HistoryOrderInfo Example (MT5/Tester Parity)")
@@ -76,13 +128,18 @@ def main():
     if backend == "mt5":
         simulator = mt5
         print("Using: MT5 backend")
+        orders = _mt5_history_orders_to_core(start, now)
     else:
-        simulator = csim.TradeSimulator()
-        _seed_tester_history_orders(simulator, now)
+        client = MT5Utils.get_connected_client()
+        if client is None:
+            print("Failed to connect to MT5 (required for base account in tester mode).")
+            return
+        mt5_account = client.account_info()
+        account = core.AccountInfo(mt5_account)
+        _backtest_simulator = core.BacktestSimulator(account)
+        orders = _seed_tester_history_orders(now)
         print("Using: Tester backend")
     print()
-
-    orders = simulator.history_orders_get(start, now) or []
     orders = sorted(
         orders,
         key=lambda x: int(_hist_value(x, "time_setup_msc", "TimeSetupMsc", 0) or 0),
@@ -101,7 +158,7 @@ def main():
         print(f"   State: {_hist_value(order, 'state', 'State', 0)}")
         print(f"   Setup: {_hist_value(order, 'time_setup', 'TimeSetup', 0)}")
         print(f"   Done: {_hist_value(order, 'time_done', 'TimeDone', 0)}")
-        print(f"   Type: {_hist_value(order, 'type', 'OrderType', 0)}")
+        print(f"   Type: {_hist_value(order, 'type', 'Type', 0)}")
         print(f"   Symbol: {_hist_value(order, 'symbol', 'Symbol', '')}")
         print(
             f"   Volume: {_hist_value(order, 'volume_current', 'VolumeCurrent', 0.0)}/"
@@ -110,10 +167,10 @@ def main():
         print(f"   Price: {_hist_value(order, 'price_open', 'PriceOpen', 0.0)}")
         print(
             f"   SL: {_hist_value(order, 'sl', 'StopLoss', 0.0)}, "
-            f"TP: {_hist_value(order, 'tp', 'TakeProfit', 0.0)}"
+            f"TP: {_hist_value(order, 'tp', 'Tp', 0.0)}"
         )
         print(f"   Magic: {_hist_value(order, 'magic', 'Magic', 0)}")
-        print(f"   Position By ID: {_hist_value(order, 'position_by_id', 'PositionByID', 0)}")
+        print(f"   Position By ID: {_hist_value(order, 'position_id', 'PositionId', 0)}")
         print("-" * 30)
 
     print("\n" + "=" * 70)

@@ -1,16 +1,35 @@
 #include "trading/history_order_info.hpp"
-#include <stdexcept>
+#include <sstream>
 #include <string>
 
 namespace haruquant::trading {
 
-HistoryOrderInfo::HistoryOrderInfo() : m_state(nullptr), m_ticket("") {}
+HistoryOrderInfo::HistoryOrderInfo()
+    : m_state(std::make_shared<core::BacktestState>()), m_ticket("") {}
 
-HistoryOrderInfo::HistoryOrderInfo(const core::BacktestState *state)
-    : m_state(state), m_ticket("") {}
+HistoryOrderInfo::HistoryOrderInfo(std::shared_ptr<core::BacktestState> state)
+    : m_state(std::move(state)), m_ticket("") {
+  EnsureState();
+}
 
-void HistoryOrderInfo::SetState(const core::BacktestState *state) {
-  m_state = state;
+void HistoryOrderInfo::SetState(std::shared_ptr<core::BacktestState> state) {
+  m_state = std::move(state);
+  EnsureState();
+}
+
+core::BacktestState &HistoryOrderInfo::EnsureState() {
+  if (!m_state) {
+    m_state = std::make_shared<core::BacktestState>();
+  }
+  return *m_state;
+}
+
+core::BacktestState::Dictionary &HistoryOrderInfo::EnsureRow() {
+  auto &state = EnsureState();
+  if (m_ticket.empty()) {
+    m_ticket = "0";
+  }
+  return state.trading_history_orders[m_ticket];
 }
 
 bool HistoryOrderInfo::Ticket(const long ticket) {
@@ -120,6 +139,88 @@ std::string HistoryOrderInfo::Symbol() const { return GetString("symbol"); }
 std::string HistoryOrderInfo::Comment() const { return GetString("comment"); }
 std::string HistoryOrderInfo::ExternalId() const {
   return GetString("external_id");
+}
+
+namespace {
+template <typename T>
+std::string to_string_value(T value) {
+  std::ostringstream oss;
+  oss << value;
+  return oss.str();
+}
+} // namespace
+
+void HistoryOrderInfo::SetTicket(long value) {
+  m_ticket = std::to_string(value);
+  EnsureRow()["ticket"] = m_ticket;
+}
+void HistoryOrderInfo::SetTimeSetup(long value) {
+  EnsureRow()["time_setup"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTimeSetupMsc(long value) {
+  EnsureRow()["time_setup_msc"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTimeDone(long value) {
+  EnsureRow()["time_done"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTimeDoneMsc(long value) {
+  EnsureRow()["time_done_msc"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTimeExpiration(long value) {
+  EnsureRow()["time_expiration"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetType(long value) {
+  EnsureRow()["type"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTypeTime(long value) {
+  EnsureRow()["type_time"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTypeFilling(long value) {
+  EnsureRow()["type_filling"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetStateValue(long value) {
+  EnsureRow()["state"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetMagic(long value) {
+  EnsureRow()["magic"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetReason(long value) {
+  EnsureRow()["reason"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetPositionId(long value) {
+  EnsureRow()["position_id"] = to_string_value(value);
+}
+
+void HistoryOrderInfo::SetVolumeInitial(double value) {
+  EnsureRow()["volume_initial"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetVolumeCurrent(double value) {
+  EnsureRow()["volume_current"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetPriceOpen(double value) {
+  EnsureRow()["price_open"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetSl(double value) {
+  EnsureRow()["sl"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetTp(double value) {
+  EnsureRow()["tp"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetPriceCurrent(double value) {
+  EnsureRow()["price_current"] = to_string_value(value);
+}
+void HistoryOrderInfo::SetPriceStopLimit(double value) {
+  EnsureRow()["price_stoplimit"] = to_string_value(value);
+}
+
+void HistoryOrderInfo::SetSymbol(const std::string &value) {
+  EnsureRow()["symbol"] = value;
+}
+void HistoryOrderInfo::SetComment(const std::string &value) {
+  EnsureRow()["comment"] = value;
+}
+void HistoryOrderInfo::SetExternalId(const std::string &value) {
+  EnsureRow()["external_id"] = value;
 }
 
 } // namespace haruquant::trading
