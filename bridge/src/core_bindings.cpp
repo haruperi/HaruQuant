@@ -5,6 +5,7 @@
 #include "trading/account_info.hpp"
 #include "trading/deal_info.hpp"
 #include "trading/history_order_info.hpp"
+#include "trading/order_info.hpp"
 
 namespace nb = nanobind;
 
@@ -105,6 +106,39 @@ haruquant::trading::HistoryOrderInfo history_order_from_object(const nb::object&
     assign_if_present<long>(source, "magic", [&](long v) { order.SetMagic(v); });
     assign_if_present<long>(source, "reason", [&](long v) { order.SetReason(v); });
     assign_if_present<long>(source, "position_id", [&](long v) { order.SetPositionId(v); });
+
+    assign_if_present<double>(source, "volume_initial", [&](double v) { order.SetVolumeInitial(v); });
+    assign_if_present<double>(source, "volume_current", [&](double v) { order.SetVolumeCurrent(v); });
+    assign_if_present<double>(source, "price_open", [&](double v) { order.SetPriceOpen(v); });
+    assign_if_present<double>(source, "sl", [&](double v) { order.SetSl(v); });
+    assign_if_present<double>(source, "tp", [&](double v) { order.SetTp(v); });
+    assign_if_present<double>(source, "price_current", [&](double v) { order.SetPriceCurrent(v); });
+    assign_if_present<double>(source, "price_stoplimit", [&](double v) { order.SetPriceStopLimit(v); });
+
+    assign_if_present<std::string>(source, "symbol", [&](const std::string& v) { order.SetSymbol(v); });
+    assign_if_present<std::string>(source, "comment", [&](const std::string& v) { order.SetComment(v); });
+    assign_if_present<std::string>(source, "external_id", [&](const std::string& v) { order.SetExternalId(v); });
+
+    return order;
+}
+
+haruquant::trading::OrderInfo order_from_object(const nb::object& source) {
+    haruquant::trading::OrderInfo order;
+
+    assign_if_present<long>(source, "ticket", [&](long v) { order.SetTicket(v); });
+    assign_if_present<long>(source, "time_setup", [&](long v) { order.SetTimeSetup(v); });
+    assign_if_present<long>(source, "time_setup_msc", [&](long v) { order.SetTimeSetupMsc(v); });
+    assign_if_present<long>(source, "time_done", [&](long v) { order.SetTimeDone(v); });
+    assign_if_present<long>(source, "time_done_msc", [&](long v) { order.SetTimeDoneMsc(v); });
+    assign_if_present<long>(source, "time_expiration", [&](long v) { order.SetTimeExpiration(v); });
+    assign_if_present<long>(source, "type", [&](long v) { order.SetType(v); });
+    assign_if_present<long>(source, "type_time", [&](long v) { order.SetTypeTime(v); });
+    assign_if_present<long>(source, "type_filling", [&](long v) { order.SetTypeFilling(v); });
+    assign_if_present<long>(source, "state", [&](long v) { order.SetStateValue(v); });
+    assign_if_present<long>(source, "magic", [&](long v) { order.SetMagic(v); });
+    assign_if_present<long>(source, "reason", [&](long v) { order.SetReason(v); });
+    assign_if_present<long>(source, "position_id", [&](long v) { order.SetPositionId(v); });
+    assign_if_present<long>(source, "position_by_id", [&](long v) { order.SetPositionById(v); });
 
     assign_if_present<double>(source, "volume_initial", [&](double v) { order.SetVolumeInitial(v); });
     assign_if_present<double>(source, "volume_current", [&](double v) { order.SetVolumeCurrent(v); });
@@ -267,6 +301,62 @@ void register_core_bindings(nb::module_& m) {
         .def("SetSymbol", &haruquant::trading::HistoryOrderInfo::SetSymbol, nb::arg("value"))
         .def("SetComment", &haruquant::trading::HistoryOrderInfo::SetComment, nb::arg("value"))
         .def("SetExternalId", &haruquant::trading::HistoryOrderInfo::SetExternalId, nb::arg("value"));
+
+    nb::class_<haruquant::trading::OrderInfo>(m, "OrderInfo")
+        .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::OrderInfo* self, nb::object source) {
+            new (self) haruquant::trading::OrderInfo(order_from_object(source));
+        }, nb::arg("source"))
+        .def("SelectTicket", &haruquant::trading::OrderInfo::Select, nb::arg("ticket"))
+        .def("SelectByIndex", &haruquant::trading::OrderInfo::SelectByIndex, nb::arg("index"))
+        .def("Ticket", &haruquant::trading::OrderInfo::Ticket)
+        .def("TimeSetup", &haruquant::trading::OrderInfo::TimeSetup)
+        .def("TimeSetupMsc", &haruquant::trading::OrderInfo::TimeSetupMsc)
+        .def("TimeDone", &haruquant::trading::OrderInfo::TimeDone)
+        .def("TimeDoneMsc", &haruquant::trading::OrderInfo::TimeDoneMsc)
+        .def("TimeExpiration", &haruquant::trading::OrderInfo::TimeExpiration)
+        .def("Type", &haruquant::trading::OrderInfo::Type)
+        .def("TypeTime", &haruquant::trading::OrderInfo::TypeTime)
+        .def("TypeFilling", &haruquant::trading::OrderInfo::TypeFilling)
+        .def("State", &haruquant::trading::OrderInfo::State)
+        .def("Magic", &haruquant::trading::OrderInfo::Magic)
+        .def("Reason", &haruquant::trading::OrderInfo::Reason)
+        .def("PositionId", &haruquant::trading::OrderInfo::PositionId)
+        .def("PositionById", &haruquant::trading::OrderInfo::PositionById)
+        .def("VolumeInitial", &haruquant::trading::OrderInfo::VolumeInitial)
+        .def("VolumeCurrent", &haruquant::trading::OrderInfo::VolumeCurrent)
+        .def("PriceOpen", &haruquant::trading::OrderInfo::PriceOpen)
+        .def("Sl", &haruquant::trading::OrderInfo::Sl)
+        .def("Tp", &haruquant::trading::OrderInfo::Tp)
+        .def("PriceCurrent", &haruquant::trading::OrderInfo::PriceCurrent)
+        .def("PriceStopLimit", &haruquant::trading::OrderInfo::PriceStopLimit)
+        .def("Symbol", &haruquant::trading::OrderInfo::Symbol)
+        .def("Comment", &haruquant::trading::OrderInfo::Comment)
+        .def("ExternalId", &haruquant::trading::OrderInfo::ExternalId)
+        .def("SetTicket", &haruquant::trading::OrderInfo::SetTicket, nb::arg("value"))
+        .def("SetTimeSetup", &haruquant::trading::OrderInfo::SetTimeSetup, nb::arg("value"))
+        .def("SetTimeSetupMsc", &haruquant::trading::OrderInfo::SetTimeSetupMsc, nb::arg("value"))
+        .def("SetTimeDone", &haruquant::trading::OrderInfo::SetTimeDone, nb::arg("value"))
+        .def("SetTimeDoneMsc", &haruquant::trading::OrderInfo::SetTimeDoneMsc, nb::arg("value"))
+        .def("SetTimeExpiration", &haruquant::trading::OrderInfo::SetTimeExpiration, nb::arg("value"))
+        .def("SetType", &haruquant::trading::OrderInfo::SetType, nb::arg("value"))
+        .def("SetTypeTime", &haruquant::trading::OrderInfo::SetTypeTime, nb::arg("value"))
+        .def("SetTypeFilling", &haruquant::trading::OrderInfo::SetTypeFilling, nb::arg("value"))
+        .def("SetState", &haruquant::trading::OrderInfo::SetStateValue, nb::arg("value"))
+        .def("SetMagic", &haruquant::trading::OrderInfo::SetMagic, nb::arg("value"))
+        .def("SetReason", &haruquant::trading::OrderInfo::SetReason, nb::arg("value"))
+        .def("SetPositionId", &haruquant::trading::OrderInfo::SetPositionId, nb::arg("value"))
+        .def("SetPositionById", &haruquant::trading::OrderInfo::SetPositionById, nb::arg("value"))
+        .def("SetVolumeInitial", &haruquant::trading::OrderInfo::SetVolumeInitial, nb::arg("value"))
+        .def("SetVolumeCurrent", &haruquant::trading::OrderInfo::SetVolumeCurrent, nb::arg("value"))
+        .def("SetPriceOpen", &haruquant::trading::OrderInfo::SetPriceOpen, nb::arg("value"))
+        .def("SetSl", &haruquant::trading::OrderInfo::SetSl, nb::arg("value"))
+        .def("SetTp", &haruquant::trading::OrderInfo::SetTp, nb::arg("value"))
+        .def("SetPriceCurrent", &haruquant::trading::OrderInfo::SetPriceCurrent, nb::arg("value"))
+        .def("SetPriceStopLimit", &haruquant::trading::OrderInfo::SetPriceStopLimit, nb::arg("value"))
+        .def("SetSymbol", &haruquant::trading::OrderInfo::SetSymbol, nb::arg("value"))
+        .def("SetComment", &haruquant::trading::OrderInfo::SetComment, nb::arg("value"))
+        .def("SetExternalId", &haruquant::trading::OrderInfo::SetExternalId, nb::arg("value"));
 
     nb::class_<haruquant::core::BacktestSimulator>(m, "BacktestSimulator")
         .def(nb::init<>())

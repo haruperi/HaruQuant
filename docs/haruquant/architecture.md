@@ -39,6 +39,16 @@
   - object/dict constructor: `row = haruquant.core.HistoryOrderInfo(mt5_order_or_dict)`
 - MT5-style getters and `Set...` mutators are exposed in `haruquant.core`.
 - For consistent reporting across live/tester paths, live MT5 rows can be populated into `haruquant.core.HistoryOrderInfo` first, then processed with the same downstream logic.
+
+## Core Bridge Order Initialization
+
+- `haruquant.core.OrderInfo` is backed by `cpp/include/trading/order_info.hpp`.
+- `OrderInfo` uses one shared `BacktestState` source (`std::shared_ptr<haruquant::core::BacktestState>`).
+- Python initialization supports:
+  - default constructor: `row = haruquant.core.OrderInfo()`
+  - object/dict constructor: `row = haruquant.core.OrderInfo(mt5_order_or_dict)`
+- MT5-style getters and `Set...` mutators are exposed in `haruquant.core`.
+- For consistent reporting across live/tester paths, live MT5 rows can be populated into `haruquant.core.OrderInfo` first, then processed with the same reporting flow.
 - Access pattern remains account-centric for MT5 compatibility:
   - Use `account.Login()` (not `simulator.Login()`).
   - Simulator keeps the seeded account via `simulator.account_info()`.

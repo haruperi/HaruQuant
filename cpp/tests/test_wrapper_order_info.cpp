@@ -1,6 +1,7 @@
 #include "core/state.hpp"
 #include "trading/order_info.hpp"
 #include <gtest/gtest.h>
+#include <memory>
 
 
 using namespace haruquant::core;
@@ -8,20 +9,21 @@ using namespace haruquant::trading;
 
 class OrderInfoTest : public ::testing::Test {
 protected:
-  BacktestState state;
+  std::shared_ptr<BacktestState> state;
   OrderInfo *order;
 
   void SetUp() override {
-    state.trading_orders["1001"]["ticket"] = "1001";
-    state.trading_orders["1001"]["symbol"] = "EURUSD";
-    state.trading_orders["1001"]["type"] = "0"; // Buy
-    state.trading_orders["1001"]["volume_initial"] = "1.5";
-    state.trading_orders["1001"]["price_open"] = "1.08500";
+    state = std::make_shared<BacktestState>();
+    state->trading_orders["1001"]["ticket"] = "1001";
+    state->trading_orders["1001"]["symbol"] = "EURUSD";
+    state->trading_orders["1001"]["type"] = "0"; // Buy
+    state->trading_orders["1001"]["volume_initial"] = "1.5";
+    state->trading_orders["1001"]["price_open"] = "1.08500";
 
-    state.trading_orders["1002"]["ticket"] = "1002";
-    state.trading_orders["1002"]["symbol"] = "GBPUSD";
+    state->trading_orders["1002"]["ticket"] = "1002";
+    state->trading_orders["1002"]["symbol"] = "GBPUSD";
 
-    order = new OrderInfo(&state);
+    order = new OrderInfo(state);
   }
 
   void TearDown() override { delete order; }

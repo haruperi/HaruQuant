@@ -1,15 +1,35 @@
 #include "trading/order_info.hpp"
-#include <stdexcept>
+#include <sstream>
 #include <string>
 
 namespace haruquant::trading {
 
-OrderInfo::OrderInfo() : m_state(nullptr), m_ticket("") {}
+OrderInfo::OrderInfo() : m_state(std::make_shared<core::BacktestState>()), m_ticket("") {}
 
-OrderInfo::OrderInfo(const core::BacktestState *state)
-    : m_state(state), m_ticket("") {}
+OrderInfo::OrderInfo(std::shared_ptr<core::BacktestState> state)
+    : m_state(std::move(state)), m_ticket("") {
+  EnsureState();
+}
 
-void OrderInfo::SetState(const core::BacktestState *state) { m_state = state; }
+void OrderInfo::SetState(std::shared_ptr<core::BacktestState> state) {
+  m_state = std::move(state);
+  EnsureState();
+}
+
+core::BacktestState &OrderInfo::EnsureState() {
+  if (!m_state) {
+    m_state = std::make_shared<core::BacktestState>();
+  }
+  return *m_state;
+}
+
+core::BacktestState::Dictionary &OrderInfo::EnsureRow() {
+  auto &state = EnsureState();
+  if (m_ticket.empty()) {
+    m_ticket = "0";
+  }
+  return state.trading_orders[m_ticket];
+}
 
 bool OrderInfo::Select(const long ticket) {
   if (!m_state)
@@ -124,5 +144,90 @@ double OrderInfo::PriceStopLimit() const {
 std::string OrderInfo::Symbol() const { return GetString("symbol"); }
 std::string OrderInfo::Comment() const { return GetString("comment"); }
 std::string OrderInfo::ExternalId() const { return GetString("external_id"); }
+
+namespace {
+template <typename T>
+std::string to_string_value(T value) {
+  std::ostringstream oss;
+  oss << value;
+  return oss.str();
+}
+} // namespace
+
+void OrderInfo::SetTicket(long value) {
+  m_ticket = std::to_string(value);
+  EnsureRow()["ticket"] = m_ticket;
+}
+void OrderInfo::SetTimeSetup(long value) {
+  EnsureRow()["time_setup"] = to_string_value(value);
+}
+void OrderInfo::SetTimeSetupMsc(long value) {
+  EnsureRow()["time_setup_msc"] = to_string_value(value);
+}
+void OrderInfo::SetTimeDone(long value) {
+  EnsureRow()["time_done"] = to_string_value(value);
+}
+void OrderInfo::SetTimeDoneMsc(long value) {
+  EnsureRow()["time_done_msc"] = to_string_value(value);
+}
+void OrderInfo::SetTimeExpiration(long value) {
+  EnsureRow()["time_expiration"] = to_string_value(value);
+}
+void OrderInfo::SetType(long value) {
+  EnsureRow()["type"] = to_string_value(value);
+}
+void OrderInfo::SetTypeTime(long value) {
+  EnsureRow()["type_time"] = to_string_value(value);
+}
+void OrderInfo::SetTypeFilling(long value) {
+  EnsureRow()["type_filling"] = to_string_value(value);
+}
+void OrderInfo::SetStateValue(long value) {
+  EnsureRow()["state"] = to_string_value(value);
+}
+void OrderInfo::SetMagic(long value) {
+  EnsureRow()["magic"] = to_string_value(value);
+}
+void OrderInfo::SetReason(long value) {
+  EnsureRow()["reason"] = to_string_value(value);
+}
+void OrderInfo::SetPositionId(long value) {
+  EnsureRow()["position_id"] = to_string_value(value);
+}
+void OrderInfo::SetPositionById(long value) {
+  EnsureRow()["position_by_id"] = to_string_value(value);
+}
+
+void OrderInfo::SetVolumeInitial(double value) {
+  EnsureRow()["volume_initial"] = to_string_value(value);
+}
+void OrderInfo::SetVolumeCurrent(double value) {
+  EnsureRow()["volume_current"] = to_string_value(value);
+}
+void OrderInfo::SetPriceOpen(double value) {
+  EnsureRow()["price_open"] = to_string_value(value);
+}
+void OrderInfo::SetSl(double value) {
+  EnsureRow()["sl"] = to_string_value(value);
+}
+void OrderInfo::SetTp(double value) {
+  EnsureRow()["tp"] = to_string_value(value);
+}
+void OrderInfo::SetPriceCurrent(double value) {
+  EnsureRow()["price_current"] = to_string_value(value);
+}
+void OrderInfo::SetPriceStopLimit(double value) {
+  EnsureRow()["price_stoplimit"] = to_string_value(value);
+}
+
+void OrderInfo::SetSymbol(const std::string &value) {
+  EnsureRow()["symbol"] = value;
+}
+void OrderInfo::SetComment(const std::string &value) {
+  EnsureRow()["comment"] = value;
+}
+void OrderInfo::SetExternalId(const std::string &value) {
+  EnsureRow()["external_id"] = value;
+}
 
 } // namespace haruquant::trading

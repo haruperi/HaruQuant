@@ -4,6 +4,7 @@ Example usage of active orders with MT5/Tester backend parity.
 
 import os
 import sys
+import argparse
 from datetime import datetime
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -16,7 +17,7 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Utils, get_mt5_api
-import haruquant.sim as csim
+import haruquant.core as core
 
 mt5 = get_mt5_api()
 
@@ -29,30 +30,84 @@ def _order_value(order, attr_name: str, method_name: str | None = None, default=
     return default
 
 
-def _seed_tester_orders(simulator: "csim.TradeSimulator", now: datetime) -> None:
-    o1 = csim.OrderInfo()
-    o1.ticket = 5001
-    o1.symbol = "EURUSD"
-    o1.type = 2
-    o1.volume_initial = 0.1
-    o1.volume_current = 0.1
-    o1.price_open = 1.0500
-    o1.set_time_setup(int(now.timestamp()))
-    simulator.upsert_order_info(o1)
+def _safe_long(value: int | float | None) -> int:
+    if value is None:
+        return 0
+    v = int(value)
+    lo = -(2**31)
+    hi = (2**31) - 1
+    if v < lo:
+        return lo
+    if v > hi:
+        return hi
+    return v
 
-    o2 = csim.OrderInfo()
-    o2.ticket = 5002
-    o2.symbol = "GBPUSD"
-    o2.type = 3
-    o2.volume_initial = 0.2
-    o2.volume_current = 0.2
-    o2.price_open = 1.3000
-    o2.set_time_setup(int(now.timestamp()))
-    simulator.upsert_order_info(o2)
+
+def _seed_tester_orders(now: datetime) -> list[core.OrderInfo]:
+    o1 = core.OrderInfo()
+    o1.SetTicket(5001)
+    o1.SetSymbol("EURUSD")
+    o1.SetType(2)
+    o1.SetState(1)
+    o1.SetVolumeInitial(0.1)
+    o1.SetVolumeCurrent(0.1)
+    o1.SetPriceOpen(1.0500)
+    o1.SetTimeSetup(int(now.timestamp()))
+    o1.SetTimeSetupMsc(int(now.timestamp()))
+
+    o2 = core.OrderInfo()
+    o2.SetTicket(5002)
+    o2.SetSymbol("GBPUSD")
+    o2.SetType(3)
+    o2.SetState(1)
+    o2.SetVolumeInitial(0.2)
+    o2.SetVolumeCurrent(0.2)
+    o2.SetPriceOpen(1.3000)
+    o2.SetTimeSetup(int(now.timestamp()))
+    o2.SetTimeSetupMsc(int(now.timestamp()))
+    return [o1, o2]
+
+
+def _mt5_orders_to_core() -> list[core.OrderInfo]:
+    rows = mt5.orders_get()
+    if rows is None:
+        return []
+
+    out: list[core.OrderInfo] = []
+    for r in rows:
+        o = core.OrderInfo()
+        o.SetTicket(_safe_long(getattr(r, "ticket", 0)))
+        o.SetTimeSetup(_safe_long(getattr(r, "time_setup", 0)))
+        o.SetTimeSetupMsc(_safe_long(getattr(r, "time_setup_msc", getattr(r, "time_setup", 0))))
+        o.SetTimeDone(_safe_long(getattr(r, "time_done", 0)))
+        o.SetTimeDoneMsc(_safe_long(getattr(r, "time_done_msc", getattr(r, "time_done", 0))))
+        o.SetTimeExpiration(_safe_long(getattr(r, "time_expiration", 0)))
+        o.SetType(_safe_long(getattr(r, "type", 0)))
+        o.SetTypeTime(_safe_long(getattr(r, "type_time", 0)))
+        o.SetTypeFilling(_safe_long(getattr(r, "type_filling", 0)))
+        o.SetState(_safe_long(getattr(r, "state", 0)))
+        o.SetMagic(_safe_long(getattr(r, "magic", 0)))
+        o.SetReason(_safe_long(getattr(r, "reason", 0)))
+        o.SetPositionId(_safe_long(getattr(r, "position_id", 0)))
+        o.SetPositionById(_safe_long(getattr(r, "position_by_id", 0)))
+        o.SetVolumeInitial(float(getattr(r, "volume_initial", 0.0)))
+        o.SetVolumeCurrent(float(getattr(r, "volume_current", 0.0)))
+        o.SetPriceOpen(float(getattr(r, "price_open", 0.0)))
+        o.SetSl(float(getattr(r, "sl", 0.0)))
+        o.SetTp(float(getattr(r, "tp", 0.0)))
+        o.SetPriceCurrent(float(getattr(r, "price_current", 0.0)))
+        o.SetPriceStopLimit(float(getattr(r, "price_stoplimit", 0.0)))
+        o.SetSymbol(str(getattr(r, "symbol", "")))
+        o.SetComment(str(getattr(r, "comment", "")))
+        out.append(o)
+    return out
 
 
 def main():
-    backend = "tester"  # set to: "mt5" or "tester"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    args = parser.parse_args()
+    backend = args.backend
 
     print("=" * 70)
     print("OrderInfo Example (MT5/Tester Parity)")
@@ -67,15 +122,19 @@ def main():
             return
 
     if backend == "mt5":
-        simulator = mt5
+        orders = _mt5_orders_to_core()
         print("Using: MT5 backend")
     else:
-        simulator = csim.TradeSimulator()
-        _seed_tester_orders(simulator, datetime.now())
+        client = MT5Utils.get_connected_client()
+        if client is None:
+            print("Failed to connect to MT5 (required for base account in tester mode).")
+            return
+        mt5_account = client.account_info()
+        account = core.AccountInfo(mt5_account)
+        _backtest_simulator = core.BacktestSimulator(account)
+        orders = _seed_tester_orders(datetime.now())
         print("Using: Tester backend")
     print()
-
-    orders = simulator.orders_get() or []
     total = len(orders)
 
     print("\n" + "=" * 60)
@@ -102,7 +161,7 @@ def main():
 
     if total > 0:
         ticket_to_select = _order_value(orders[0], "ticket", "Ticket", 0)
-        selected = simulator.orders_get(ticket=ticket_to_select) or []
+        selected = [o for o in orders if int(_order_value(o, "ticket", "Ticket", 0)) == int(ticket_to_select)]
         if selected:
             order = selected[0]
             print(f"Selected order #{ticket_to_select}:")
