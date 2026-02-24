@@ -1,13 +1,8 @@
-"""
-Example usage of Deal history with MT5/Tester backend parity.
-
-Backend modes:
-1. backend = "mt5": read deals directly from MT5 with history_deals_get()
-2. backend = "tester": seed C++ tester deals, then read with history_deals_get()
-"""
+"""Example usage of Deal history with MT5/Tester backend parity."""
 
 import os
 import sys
+import argparse
 from datetime import datetime, timedelta
 
 # Add repo root to path for local imports
@@ -22,66 +17,86 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 from apps.mt5 import MT5Utils, get_mt5_api
-from apps.utils.logger import logger
-import haruquant.sim as csim
+import haruquant.core as core
 
 mt5 = get_mt5_api()
 
 
-def _load_live_deals(simulator: "csim.TradeSimulator", start: datetime, end: datetime) -> None:
-    deals = mt5.history_deals_get(start, end)
-    if deals is None:
-        return
-    for d in deals:
-        row = csim.DealInfo()
-        row.ticket = int(getattr(d, "ticket", 0))
-        row.order = int(getattr(d, "order", 0))
-        row.position_id = int(getattr(d, "position_id", 0))
-        row.symbol = str(getattr(d, "symbol", ""))
-        row.magic = int(getattr(d, "magic", 0))
-        row.type = int(getattr(d, "type", 0))
-        row.entry = int(getattr(d, "entry", 0))
-        row.set_time(int(getattr(d, "time", 0)), int(getattr(d, "time_msc", 0)))
-        row.volume = float(getattr(d, "volume", 0.0))
-        row.price = float(getattr(d, "price", 0.0))
-        row.commission = float(getattr(d, "commission", 0.0))
-        row.swap = float(getattr(d, "swap", 0.0))
-        row.profit = float(getattr(d, "profit", 0.0))
-        row.comment = str(getattr(d, "comment", ""))
-        simulator.upsert_deal_info(row)
+def _seed_tester_deals(now: datetime) -> list[core.DealInfo]:
+    d1 = core.DealInfo()
+    d1.SetTicket(2001)
+    d1.SetOrder(1001)
+    d1.SetPositionId(1001)
+    d1.SetSymbol("GBPUSD")
+    d1.SetType(0)
+    d1.SetEntry(0)
+    d1.SetTime(int(now.timestamp()) - 60)
+    d1.SetTimeMsc(int(now.timestamp()) - 60)
+    d1.SetVolume(0.1)
+    d1.SetPrice(1.1000)
+    d1.SetCommission(-1.20)
+    d1.SetSwap(0.0)
+    d1.SetProfit(0.0)
+    d1.SetComment("Entry deal")
 
-def _seed_tester_deals(simulator: "csim.TradeSimulator", now: datetime) -> None:
-    d1 = csim.DealInfo()
-    d1.ticket = 2001
-    d1.order = 1001
-    d1.position_id = 1001
-    d1.symbol = "GBPUSD"
-    d1.type = 0
-    d1.entry = 0
-    d1.set_time(int(now.timestamp()) - 60)
-    d1.volume = 0.1
-    d1.price = 1.1000
-    d1.commission = -1.20
-    d1.swap = 0.0
-    d1.profit = 0.0
-    d1.comment = "Entry deal"
-    simulator.upsert_deal_info(d1)
+    d2 = core.DealInfo()
+    d2.SetTicket(2002)
+    d2.SetOrder(1002)
+    d2.SetPositionId(1001)
+    d2.SetSymbol("EURUSD")
+    d2.SetType(1)
+    d2.SetEntry(1)
+    d2.SetTime(int(now.timestamp()) - 30)
+    d2.SetTimeMsc(int(now.timestamp()) - 30)
+    d2.SetVolume(0.1)
+    d2.SetPrice(1.1050)
+    d2.SetCommission(-1.20)
+    d2.SetSwap(-0.10)
+    d2.SetProfit(50.0)
+    d2.SetComment("Exit deal")
+    return [d1, d2]
 
-    d2 = csim.DealInfo()
-    d2.ticket = 2002
-    d2.order = 1002
-    d2.position_id = 1001
-    d2.symbol = "EURUSD"
-    d2.type = 1
-    d2.entry = 1
-    d2.set_time(int(now.timestamp()) - 30)
-    d2.volume = 0.1
-    d2.price = 1.1050
-    d2.commission = -1.20
-    d2.swap = -0.10
-    d2.profit = 50.0
-    d2.comment = "Exit deal"
-    simulator.upsert_deal_info(d2)
+
+def _safe_long(value: int | float | None) -> int:
+    if value is None:
+        return 0
+    v = int(value)
+    lo = -(2**31)
+    hi = (2**31) - 1
+    if v < lo:
+        return lo
+    if v > hi:
+        return hi
+    return v
+
+
+def _mt5_deals_to_core(start: datetime, end: datetime) -> list[core.DealInfo]:
+    rows = mt5.history_deals_get(start, end)
+    if rows is None:
+        return []
+
+    out: list[core.DealInfo] = []
+    for d in rows:
+        deal = core.DealInfo()
+        deal.SetTicket(_safe_long(getattr(d, "ticket", 0)))
+        deal.SetOrder(_safe_long(getattr(d, "order", 0)))
+        deal.SetPositionId(_safe_long(getattr(d, "position_id", 0)))
+        deal.SetType(_safe_long(getattr(d, "type", 0)))
+        deal.SetEntry(_safe_long(getattr(d, "entry", 0)))
+        deal.SetMagic(_safe_long(getattr(d, "magic", 0)))
+        deal.SetTime(_safe_long(getattr(d, "time", 0)))
+        # MT5 time_msc can exceed 32-bit long on Windows; keep safe same-scale fallback.
+        deal.SetTimeMsc(_safe_long(getattr(d, "time_msc", getattr(d, "time", 0))))
+        deal.SetVolume(float(getattr(d, "volume", 0.0)))
+        deal.SetPrice(float(getattr(d, "price", 0.0)))
+        deal.SetCommission(float(getattr(d, "commission", 0.0)))
+        deal.SetSwap(float(getattr(d, "swap", 0.0)))
+        deal.SetProfit(float(getattr(d, "profit", 0.0)))
+        deal.SetFee(float(getattr(d, "fee", 0.0)))
+        deal.SetSymbol(str(getattr(d, "symbol", "")))
+        deal.SetComment(str(getattr(d, "comment", "")))
+        out.append(deal)
+    return out
 
 
 def _deal_value(deal, attr_name: str, method_name: str | None = None, default=None):
@@ -93,7 +108,10 @@ def _deal_value(deal, attr_name: str, method_name: str | None = None, default=No
 
 
 def main():
-    backend = "tester"  # set to: "mt5" or "tester"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    args = parser.parse_args()
+    backend = args.backend
 
     print("=" * 70)
     print("DealInfo Example (MT5/Tester Parity)")
@@ -110,15 +128,35 @@ def main():
     now = datetime.now()
     start = now - timedelta(days=30)
     if backend == "mt5":
-        simulator = mt5
+        deals = _mt5_deals_to_core(start, now)
         print("Using: MT5 backend")
     else:
-        simulator = csim.TradeSimulator()
-        _seed_tester_deals(simulator, now)
-        print("Using: Tester backend")
-    print()
+        client = MT5Utils.get_connected_client()
+        if client is None:
+            print("Failed to connect to MT5 (required for base account in tester mode).")
+            return
+        mt5_account = client.account_info()
+        account = core.AccountInfo(mt5_account)  # MT5 base account
+        _backtest_simulator = core.BacktestSimulator(account)  # tester init path
 
-    deals = simulator.history_deals_get(start, now) or []
+        # DealInfo supports default ctor, __init__(source), and direct setters.
+        core_deal = core.DealInfo(
+            {
+                "ticket": 9001,
+                "order": 5001,
+                "symbol": "EURUSD",
+                "type": 0,
+                "entry": 0,
+                "volume": 0.10,
+                "price": 1.1000,
+            }
+        )
+        core_deal.SetComment("Seeded from tester mode")
+        core_deal.SetProfit(12.5)
+        deals = [core_deal] + _seed_tester_deals(now)
+        print("Using: Tester backend")
+        print(f"Core tester deal ticket: {core_deal.Ticket()}")
+    print()
 
     deals = sorted(
         deals,
@@ -136,7 +174,7 @@ def main():
         deal_time = int(_deal_value(deal, "time", "Time", 0) or 0)
         t = datetime.fromtimestamp(deal_time) if deal_time > 0 else "N/A"
         print(f"{i + 1}. Ticket {_deal_value(deal, 'ticket', 'Ticket', 0)}")
-        print(f"   Type: {_deal_value(deal, 'type', 'DealType', 0)}")
+        print(f"   Type: {_deal_value(deal, 'type', 'Type', 0)}")
         print(f"   Entry: {_deal_value(deal, 'entry', 'Entry', 0)}")
         print(f"   Time: {t}")
         print(f"   Price: {_deal_value(deal, 'price', 'Price', 0.0)}")
@@ -175,7 +213,7 @@ def main():
         if symbol == target_symbol:
             print(
                 f"  #{_deal_value(deal, 'ticket', 'Ticket', 0)} "
-                f"{_deal_value(deal, 'type', 'DealType', 0)} "
+                f"{_deal_value(deal, 'type', 'Type', 0)} "
                 f"{_deal_value(deal, 'volume', 'Volume', 0.0)} lots "
                 f"P/L: {_deal_value(deal, 'profit', 'Profit', 0.0)}"
             )

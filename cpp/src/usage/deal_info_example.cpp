@@ -1,22 +1,23 @@
 #include "core/state.hpp"
 #include "trading/deal_info.hpp"
 #include <iostream>
+#include <memory>
 
 void demonstrate_deal_info() {
-  haruquant::core::BacktestState state;
+  auto state = std::make_shared<haruquant::core::BacktestState>();
 
   // Simulate a deal present in the state
   std::string test_ticket = "20001";
-  state.trading_deals[test_ticket]["ticket"] = test_ticket;
-  state.trading_deals[test_ticket]["order"] = "10001";
-  state.trading_deals[test_ticket]["symbol"] = "USDJPY";
-  state.trading_deals[test_ticket]["type"] = "0"; // e.g., DEAL_TYPE_BUY
-  state.trading_deals[test_ticket]["volume"] = "0.5";
-  state.trading_deals[test_ticket]["price"] = "150.250";
-  state.trading_deals[test_ticket]["commission"] = "-2.50";
+  state->trading_deals[test_ticket]["ticket"] = test_ticket;
+  state->trading_deals[test_ticket]["order"] = "10001";
+  state->trading_deals[test_ticket]["symbol"] = "USDJPY";
+  state->trading_deals[test_ticket]["type"] = "0"; // e.g., DEAL_TYPE_BUY
+  state->trading_deals[test_ticket]["volume"] = "0.5";
+  state->trading_deals[test_ticket]["price"] = "150.250";
+  state->trading_deals[test_ticket]["commission"] = "-2.50";
 
   // Instantiate DealInfo helper
-  haruquant::trading::DealInfo deal(&state);
+  haruquant::trading::DealInfo deal(state);
 
   // Select the deal by its ticket number
   if (deal.Ticket(20001)) {

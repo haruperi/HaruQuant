@@ -17,6 +17,18 @@
   - default construction: `BacktestSimulator()`
   - account-seeded construction: `BacktestSimulator(account)`
 - `BacktestSimulator(account)` keeps the same logical account state by copying the `AccountInfo` wrapper that shares the same `BacktestState`.
+
+## Core Bridge Deal Initialization
+
+- `haruquant.core.DealInfo` is backed by `cpp/include/trading/deal_info.hpp`.
+- `DealInfo` now uses one shared `BacktestState` source (`std::shared_ptr<haruquant::core::BacktestState>`).
+- Python initialization supports:
+  - default constructor: `deal = haruquant.core.DealInfo()`
+  - object/dict constructor: `deal = haruquant.core.DealInfo(mt5_deal_or_dict)`
+- MT5-style getters and `Set...` mutators are exposed in `haruquant.core` for direct tester-side overrides.
+- In tester flows, initialize account-backed core simulator first:
+  - `account = haruquant.core.AccountInfo(mt5_account)`
+  - `simulator = haruquant.core.BacktestSimulator(account)`
 - Access pattern remains account-centric for MT5 compatibility:
   - Use `account.Login()` (not `simulator.Login()`).
   - Simulator keeps the seeded account via `simulator.account_info()`.

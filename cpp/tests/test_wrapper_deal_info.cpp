@@ -1,6 +1,7 @@
 #include "core/state.hpp"
 #include "trading/deal_info.hpp"
 #include <gtest/gtest.h>
+#include <memory>
 
 
 using namespace haruquant::core;
@@ -8,19 +9,20 @@ using namespace haruquant::trading;
 
 class DealInfoTest : public ::testing::Test {
 protected:
-  BacktestState state;
+  std::shared_ptr<BacktestState> state;
   DealInfo *deal;
 
   void SetUp() override {
-    state.trading_deals["2001"]["ticket"] = "2001";
-    state.trading_deals["2001"]["order"] = "1001";
-    state.trading_deals["2001"]["symbol"] = "USDJPY";
-    state.trading_deals["2001"]["type"] = "0"; // Buy
-    state.trading_deals["2001"]["volume"] = "0.5";
-    state.trading_deals["2001"]["price"] = "150.250";
-    state.trading_deals["2001"]["commission"] = "-2.50";
+    state = std::make_shared<BacktestState>();
+    state->trading_deals["2001"]["ticket"] = "2001";
+    state->trading_deals["2001"]["order"] = "1001";
+    state->trading_deals["2001"]["symbol"] = "USDJPY";
+    state->trading_deals["2001"]["type"] = "0"; // Buy
+    state->trading_deals["2001"]["volume"] = "0.5";
+    state->trading_deals["2001"]["price"] = "150.250";
+    state->trading_deals["2001"]["commission"] = "-2.50";
 
-    deal = new DealInfo(&state);
+    deal = new DealInfo(state);
   }
 
   void TearDown() override { delete deal; }

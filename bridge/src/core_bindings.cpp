@@ -3,6 +3,7 @@
 
 #include "core/backtest_simulator.hpp"
 #include "trading/account_info.hpp"
+#include "trading/deal_info.hpp"
 
 namespace nb = nanobind;
 
@@ -60,6 +61,33 @@ haruquant::trading::AccountInfo account_from_object(const nb::object& source) {
     return account;
 }
 
+haruquant::trading::DealInfo deal_from_object(const nb::object& source) {
+    haruquant::trading::DealInfo deal;
+
+    assign_if_present<long>(source, "ticket", [&](long v) { deal.SetTicket(v); });
+    assign_if_present<long>(source, "order", [&](long v) { deal.SetOrder(v); });
+    assign_if_present<long>(source, "time", [&](long v) { deal.SetTime(v); });
+    assign_if_present<long>(source, "time_msc", [&](long v) { deal.SetTimeMsc(v); });
+    assign_if_present<long>(source, "type", [&](long v) { deal.SetType(v); });
+    assign_if_present<long>(source, "entry", [&](long v) { deal.SetEntry(v); });
+    assign_if_present<long>(source, "magic", [&](long v) { deal.SetMagic(v); });
+    assign_if_present<long>(source, "reason", [&](long v) { deal.SetReason(v); });
+    assign_if_present<long>(source, "position_id", [&](long v) { deal.SetPositionId(v); });
+
+    assign_if_present<double>(source, "volume", [&](double v) { deal.SetVolume(v); });
+    assign_if_present<double>(source, "price", [&](double v) { deal.SetPrice(v); });
+    assign_if_present<double>(source, "commission", [&](double v) { deal.SetCommission(v); });
+    assign_if_present<double>(source, "swap", [&](double v) { deal.SetSwap(v); });
+    assign_if_present<double>(source, "profit", [&](double v) { deal.SetProfit(v); });
+    assign_if_present<double>(source, "fee", [&](double v) { deal.SetFee(v); });
+
+    assign_if_present<std::string>(source, "symbol", [&](const std::string& v) { deal.SetSymbol(v); });
+    assign_if_present<std::string>(source, "comment", [&](const std::string& v) { deal.SetComment(v); });
+    assign_if_present<std::string>(source, "external_id", [&](const std::string& v) { deal.SetExternalId(v); });
+
+    return deal;
+}
+
 }  // namespace
 
 void register_core_bindings(nb::module_& m) {
@@ -110,6 +138,49 @@ void register_core_bindings(nb::module_& m) {
         .def("SetMarginLevel", &haruquant::trading::AccountInfo::SetMarginLevel, nb::arg("value"))
         .def("SetMarginCall", &haruquant::trading::AccountInfo::SetMarginCall, nb::arg("value"))
         .def("SetMarginStopOut", &haruquant::trading::AccountInfo::SetMarginStopOut, nb::arg("value"));
+
+    nb::class_<haruquant::trading::DealInfo>(m, "DealInfo")
+        .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::DealInfo* self, nb::object source) {
+            new (self) haruquant::trading::DealInfo(deal_from_object(source));
+        }, nb::arg("source"))
+        .def("SelectTicket", static_cast<bool (haruquant::trading::DealInfo::*)(long)>(&haruquant::trading::DealInfo::Ticket), nb::arg("ticket"))
+        .def("Ticket", static_cast<long (haruquant::trading::DealInfo::*)() const>(&haruquant::trading::DealInfo::Ticket))
+        .def("Order", &haruquant::trading::DealInfo::Order)
+        .def("Time", &haruquant::trading::DealInfo::Time)
+        .def("TimeMsc", &haruquant::trading::DealInfo::TimeMsc)
+        .def("Type", &haruquant::trading::DealInfo::Type)
+        .def("Entry", &haruquant::trading::DealInfo::Entry)
+        .def("Magic", &haruquant::trading::DealInfo::Magic)
+        .def("Reason", &haruquant::trading::DealInfo::Reason)
+        .def("PositionId", &haruquant::trading::DealInfo::PositionId)
+        .def("Volume", &haruquant::trading::DealInfo::Volume)
+        .def("Price", &haruquant::trading::DealInfo::Price)
+        .def("Commission", &haruquant::trading::DealInfo::Commission)
+        .def("Swap", &haruquant::trading::DealInfo::Swap)
+        .def("Profit", &haruquant::trading::DealInfo::Profit)
+        .def("Fee", &haruquant::trading::DealInfo::Fee)
+        .def("Symbol", &haruquant::trading::DealInfo::Symbol)
+        .def("Comment", &haruquant::trading::DealInfo::Comment)
+        .def("ExternalId", &haruquant::trading::DealInfo::ExternalId)
+        .def("SetTicket", &haruquant::trading::DealInfo::SetTicket, nb::arg("value"))
+        .def("SetOrder", &haruquant::trading::DealInfo::SetOrder, nb::arg("value"))
+        .def("SetTime", &haruquant::trading::DealInfo::SetTime, nb::arg("value"))
+        .def("SetTimeMsc", &haruquant::trading::DealInfo::SetTimeMsc, nb::arg("value"))
+        .def("SetType", &haruquant::trading::DealInfo::SetType, nb::arg("value"))
+        .def("SetEntry", &haruquant::trading::DealInfo::SetEntry, nb::arg("value"))
+        .def("SetMagic", &haruquant::trading::DealInfo::SetMagic, nb::arg("value"))
+        .def("SetReason", &haruquant::trading::DealInfo::SetReason, nb::arg("value"))
+        .def("SetPositionId", &haruquant::trading::DealInfo::SetPositionId, nb::arg("value"))
+        .def("SetVolume", &haruquant::trading::DealInfo::SetVolume, nb::arg("value"))
+        .def("SetPrice", &haruquant::trading::DealInfo::SetPrice, nb::arg("value"))
+        .def("SetCommission", &haruquant::trading::DealInfo::SetCommission, nb::arg("value"))
+        .def("SetSwap", &haruquant::trading::DealInfo::SetSwap, nb::arg("value"))
+        .def("SetProfit", &haruquant::trading::DealInfo::SetProfit, nb::arg("value"))
+        .def("SetFee", &haruquant::trading::DealInfo::SetFee, nb::arg("value"))
+        .def("SetSymbol", &haruquant::trading::DealInfo::SetSymbol, nb::arg("value"))
+        .def("SetComment", &haruquant::trading::DealInfo::SetComment, nb::arg("value"))
+        .def("SetExternalId", &haruquant::trading::DealInfo::SetExternalId, nb::arg("value"));
 
     nb::class_<haruquant::core::BacktestSimulator>(m, "BacktestSimulator")
         .def(nb::init<>())
