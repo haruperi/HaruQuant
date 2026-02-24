@@ -2,6 +2,8 @@
 
 #include "core/state.hpp"
 #include <climits>
+#include <unordered_map>
+#include <memory>
 #include <string>
 
 
@@ -9,12 +11,16 @@ namespace haruquant::trading {
 
 class Trade {
 private:
-  core::BacktestState *m_state;
+  std::shared_ptr<core::BacktestState> m_state;
   long m_magic;
   double m_deviation;
   long m_type_filling;
+  long m_type_time;
+  bool m_async_mode;
+  long m_margin_mode;
   long m_log_level;
   std::string m_symbol;
+  std::unordered_map<std::string, long> m_type_filling_by_symbol;
 
   // Last result values
   long m_result_deal;
@@ -24,45 +30,36 @@ private:
 
 public:
   Trade();
-  explicit Trade(core::BacktestState *state);
+  explicit Trade(std::shared_ptr<core::BacktestState> state);
   virtual ~Trade() = default;
 
-  void SetState(core::BacktestState *state);
-  core::BacktestState *GetState() const { return m_state; }
+  void SetState(std::shared_ptr<core::BacktestState> state);
+  const core::BacktestState *GetState() const { return m_state.get(); }
+  const std::shared_ptr<core::BacktestState> &GetSharedState() const {
+    return m_state;
+  }
 
   // Configuration
   void LogLevel(const long log_level) { m_log_level = log_level; }
-  void RequestMagic(const long magic) { m_magic = magic; }
-  void RequestDeviation(const double deviation) { m_deviation = deviation; }
-  void RequestTypeFilling(const long type) { m_type_filling = type; }
-  void RequestSymbol(const std::string &symbol) { m_symbol = symbol; }
-
-  long RequestMagic() const { return m_magic; }
-  double RequestDeviation() const { return m_deviation; }
-  long RequestTypeFilling() const { return m_type_filling; }
-  std::string RequestSymbol() const { return m_symbol; }
+  void SetAsyncMode(bool async_mode) { m_async_mode = async_mode; }
+  void SetExpertMagicNumber(const long magic) { m_magic = magic; }
+  void SetDeviationInPoints(const double deviation) { m_deviation = deviation; }
+  void SetTypeFilling(const long type) { m_type_filling = type; }
+  void SetTypeTime(const long type_time) { m_type_time = type_time; }
+  bool SetTypeFillingBySymbol(const std::string &symbol);
+  void SetMarginMode(const long margin_mode) { m_margin_mode = margin_mode; }
 
   // Trading methods analogous to MQL5 standard CTrade
   bool PositionOpen(const std::string &symbol, const long order_type,
                     const double volume, const double price, const double sl,
                     const double tp, const std::string &comment = "");
-  bool PositionModify(const std::string &symbol, const double sl,
-                      const double tp);
-  bool PositionModify(const long ticket, const double sl, const double tp);
-  bool PositionClose(const std::string &symbol,
+  bool PositionModify(const std::string &symbol = "", const long ticket = 0,
+                      const double sl = 0.0, const double tp = 0.0);
+  bool PositionClose(const std::string &symbol = "", const long ticket = 0,
                      const double deviation = ULONG_MAX);
-  bool PositionClose(const long ticket, const double deviation = ULONG_MAX);
-  bool PositionClosePartial(const std::string &symbol, const double volume,
+  bool PositionClosePartial(const std::string &symbol = "",
+                            const long ticket = 0, const double volume = 0.0,
                             const double deviation = ULONG_MAX);
-  bool PositionClosePartial(const long ticket, const double volume,
-                            const double deviation = ULONG_MAX);
-
-  bool Buy(const double volume, const std::string &symbol = "",
-           const double price = 0.0, const double sl = 0.0,
-           const double tp = 0.0, const std::string &comment = "");
-  bool Sell(const double volume, const std::string &symbol = "",
-            const double price = 0.0, const double sl = 0.0,
-            const double tp = 0.0, const std::string &comment = "");
 
   bool OrderOpen(const std::string &symbol, const long order_type,
                  const double volume, const double limit_price,

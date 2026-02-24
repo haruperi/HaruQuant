@@ -1,5 +1,6 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <cctype>
 
 #include "core/backtest_simulator.hpp"
 #include "trading/account_info.hpp"
@@ -14,6 +15,15 @@
 namespace nb = nanobind;
 
 namespace {
+
+struct CoreTradeResult {
+    bool success{false};
+    long retcode{0};
+    long deal{0};
+    long order{0};
+    std::string comment{};
+    std::string retcode_description{};
+};
 
 template <typename T, typename Setter>
 void assign_if_present(const nb::object& source, const char* name, Setter&& setter) {
@@ -36,6 +46,101 @@ void assign_if_present(const nb::object& source, const char* name, Setter&& sett
         return;
     }
     setter(nb::cast<T>(value));
+}
+
+std::string normalize_token(std::string token) {
+    for (char& ch : token) {
+        if (ch == ' ' || ch == '-') {
+            ch = '_';
+        } else {
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        }
+    }
+    return token;
+}
+
+int resolve_order_type(const nb::object& order_type) {
+    if (nb::isinstance<nb::int_>(order_type)) {
+        return nb::cast<int>(order_type);
+    }
+    if (!nb::isinstance<nb::str>(order_type)) {
+        throw nb::type_error("order_type must be int or string");
+    }
+
+    std::string token = normalize_token(nb::cast<std::string>(order_type));
+    constexpr const char* kPrefix = "ORDER_TYPE_";
+    if (token.rfind(kPrefix, 0) == 0) {
+        token.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+
+    if (token == "BUY") return 0;
+    if (token == "SELL") return 1;
+    if (token == "BUY_LIMIT") return 2;
+    if (token == "SELL_LIMIT") return 3;
+    if (token == "BUY_STOP") return 4;
+    if (token == "SELL_STOP") return 5;
+    if (token == "BUY_STOP_LIMIT") return 6;
+    if (token == "SELL_STOP_LIMIT") return 7;
+    if (token == "CLOSE_BY") return 8;
+
+    throw nb::value_error("Unsupported order_type string");
+}
+
+int resolve_order_time(const nb::object& type_time) {
+    if (type_time.is_none()) {
+        return 0;
+    }
+    if (nb::isinstance<nb::int_>(type_time)) {
+        return nb::cast<int>(type_time);
+    }
+    if (!nb::isinstance<nb::str>(type_time)) {
+        throw nb::type_error("type_time must be int or string");
+    }
+
+    std::string token = normalize_token(nb::cast<std::string>(type_time));
+    constexpr const char* kPrefix = "ORDER_TIME_";
+    if (token.rfind(kPrefix, 0) == 0) {
+        token.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+
+    if (token == "GTC") return 0;
+    if (token == "DAY") return 1;
+    if (token == "SPECIFIED") return 2;
+    if (token == "SPECIFIED_DAY") return 3;
+
+    throw nb::value_error("Unsupported type_time string");
+}
+
+int resolve_order_filling(const nb::object& filling) {
+    if (nb::isinstance<nb::int_>(filling)) {
+        return nb::cast<int>(filling);
+    }
+    if (!nb::isinstance<nb::str>(filling)) {
+        throw nb::type_error("filling must be int or string");
+    }
+
+    std::string token = normalize_token(nb::cast<std::string>(filling));
+    constexpr const char* kPrefix = "ORDER_FILLING_";
+    if (token.rfind(kPrefix, 0) == 0) {
+        token.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+
+    if (token == "FOK") return 0;
+    if (token == "IOC") return 1;
+    if (token == "RETURN") return 2;
+
+    throw nb::value_error("Unsupported filling string");
+}
+
+CoreTradeResult make_trade_result(const haruquant::trading::Trade& trade, bool success) {
+    CoreTradeResult out;
+    out.success = success;
+    out.retcode = trade.ResultRetcode();
+    out.deal = trade.ResultDeal();
+    out.order = trade.ResultOrder();
+    out.comment = trade.ResultComment();
+    out.retcode_description = trade.ResultRetcodeDescription();
+    return out;
 }
 
 haruquant::trading::AccountInfo account_from_object(const nb::object& source) {
@@ -270,6 +375,15 @@ haruquant::trading::TerminalInfo terminal_from_object(const nb::object& source) 
 
 void register_core_bindings(nb::module_& m) {
     m.doc() = "Core engine bindings";
+
+    nb::class_<CoreTradeResult>(m, "TradeResult")
+        .def(nb::init<>())
+        .def_rw("success", &CoreTradeResult::success)
+        .def_rw("retcode", &CoreTradeResult::retcode)
+        .def_rw("deal", &CoreTradeResult::deal)
+        .def_rw("order", &CoreTradeResult::order)
+        .def_rw("comment", &CoreTradeResult::comment)
+        .def_rw("retcode_description", &CoreTradeResult::retcode_description);
 
     nb::class_<haruquant::trading::AccountInfo>(m, "AccountInfo")
         .def(nb::init<>())
@@ -600,15 +714,54 @@ void register_core_bindings(nb::module_& m) {
             new (self) haruquant::trading::Trade(account.GetSharedState());
         }, nb::arg("account"))
         .def("LogLevel", &haruquant::trading::Trade::LogLevel, nb::arg("log_level"))
-        .def("RequestMagic", static_cast<void (haruquant::trading::Trade::*)(long)>(&haruquant::trading::Trade::RequestMagic), nb::arg("magic"))
-        .def("RequestDeviation", static_cast<void (haruquant::trading::Trade::*)(double)>(&haruquant::trading::Trade::RequestDeviation), nb::arg("deviation"))
-        .def("RequestTypeFilling", static_cast<void (haruquant::trading::Trade::*)(long)>(&haruquant::trading::Trade::RequestTypeFilling), nb::arg("type"))
-        .def("RequestSymbol", static_cast<void (haruquant::trading::Trade::*)(const std::string&)>(&haruquant::trading::Trade::RequestSymbol), nb::arg("symbol"))
-        .def("PositionOpen", &haruquant::trading::Trade::PositionOpen, nb::arg("symbol"), nb::arg("order_type"), nb::arg("volume"), nb::arg("price"), nb::arg("sl"), nb::arg("tp"), nb::arg("comment") = "")
-        .def("Buy", &haruquant::trading::Trade::Buy, nb::arg("volume"), nb::arg("symbol") = "", nb::arg("price") = 0.0, nb::arg("sl") = 0.0, nb::arg("tp") = 0.0, nb::arg("comment") = "")
-        .def("Sell", &haruquant::trading::Trade::Sell, nb::arg("volume"), nb::arg("symbol") = "", nb::arg("price") = 0.0, nb::arg("sl") = 0.0, nb::arg("tp") = 0.0, nb::arg("comment") = "")
-        .def("PositionModify", static_cast<bool (haruquant::trading::Trade::*)(const std::string&, double, double)>(&haruquant::trading::Trade::PositionModify), nb::arg("symbol"), nb::arg("sl"), nb::arg("tp"))
-        .def("PositionModifyByTicket", static_cast<bool (haruquant::trading::Trade::*)(long, double, double)>(&haruquant::trading::Trade::PositionModify), nb::arg("ticket"), nb::arg("sl"), nb::arg("tp"))
+        .def("SetAsyncMode", &haruquant::trading::Trade::SetAsyncMode, nb::arg("async_mode"))
+        .def("SetExpertMagicNumber", &haruquant::trading::Trade::SetExpertMagicNumber, nb::arg("magic"))
+        .def("SetDeviationInPoints", &haruquant::trading::Trade::SetDeviationInPoints, nb::arg("deviation"))
+        .def("SetTypeFilling", [](haruquant::trading::Trade& self, nb::object filling) {
+            self.SetTypeFilling(resolve_order_filling(filling));
+        }, nb::arg("filling"))
+        .def("SetTypeTime", [](haruquant::trading::Trade& self, nb::object type_time) {
+            self.SetTypeTime(resolve_order_time(type_time));
+        }, nb::arg("type_time"))
+        .def("SetTypeFillingBySymbol", &haruquant::trading::Trade::SetTypeFillingBySymbol, nb::arg("symbol"))
+        .def("SetMarginMode", &haruquant::trading::Trade::SetMarginMode, nb::arg("margin_mode"))
+        .def("PositionOpen", [](haruquant::trading::Trade& self,
+                                 const std::string& symbol,
+                                 nb::object order_type,
+                                 double volume,
+                                 double price,
+                                 double sl,
+                                 double tp,
+                                 const std::string& comment) {
+            const bool ok = self.PositionOpen(symbol, resolve_order_type(order_type), volume, price, sl, tp, comment);
+            return make_trade_result(self, ok);
+        }, nb::arg("symbol"), nb::arg("order_type"), nb::arg("volume"), nb::arg("price") = 0.0,
+           nb::arg("sl") = 0.0, nb::arg("tp") = 0.0, nb::arg("comment") = "")
+        .def("OrderOpen", [](haruquant::trading::Trade& self,
+                              const std::string& symbol,
+                              nb::object order_type,
+                              double volume,
+                              double limit_price,
+                              double price,
+                              double sl,
+                              double tp,
+                              nb::object type_time,
+                              long expiration,
+                              const std::string& comment) {
+            return self.OrderOpen(symbol, resolve_order_type(order_type), volume, limit_price, price, sl, tp, resolve_order_time(type_time), expiration, comment);
+        }, nb::arg("symbol"), nb::arg("order_type"), nb::arg("volume"), nb::arg("limit_price"),
+           nb::arg("price") = 0.0, nb::arg("sl") = 0.0, nb::arg("tp") = 0.0,
+           nb::arg("type_time") = nb::none(), nb::arg("expiration") = 0,
+           nb::arg("comment") = "")
+        .def("PositionModify", &haruquant::trading::Trade::PositionModify,
+             nb::arg("symbol") = "", nb::arg("ticket") = 0, nb::arg("sl") = 0.0,
+             nb::arg("tp") = 0.0)
+        .def("PositionClose", &haruquant::trading::Trade::PositionClose,
+             nb::arg("symbol") = "", nb::arg("ticket") = 0,
+             nb::arg("deviation") = ULONG_MAX)
+        .def("PositionClosePartial", &haruquant::trading::Trade::PositionClosePartial,
+             nb::arg("symbol") = "", nb::arg("ticket") = 0,
+             nb::arg("volume") = 0.0, nb::arg("deviation") = ULONG_MAX)
         .def("ResultDeal", &haruquant::trading::Trade::ResultDeal)
         .def("ResultOrder", &haruquant::trading::Trade::ResultOrder)
         .def("ResultRetcode", &haruquant::trading::Trade::ResultRetcode)

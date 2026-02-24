@@ -1,12 +1,8 @@
-"""
-Basic backtest scaffold.
+"""Example usage of Trade with MT5/Tester backend parity."""
 
-Step 00: initialize TradeSimulator only.
-"""
 
 import os
 import sys
-import time
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
@@ -17,39 +13,42 @@ if BRIDGE_BUILD_DIR not in sys.path:
 if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Utils, Trade, get_mt5_api
-import haruquant.sim as csim
 import haruquant
-from apps.utils.logger import logger
-from apps.mt5 import MT5Utils, get_mt5_api
+import haruquant.core as core
+from apps.mt5 import MT5Utils, Trade as LiveTrade, get_mt5_api
 
 # Global Variables
 eurusd = "EURUSD"
 gbpsud = "GBPUSD"
 usdjpy = "USDJPY"
-eurusd_ticket = 0
-gbpsud_ticket = 0
-usdjpy_ticket = 0
 stoploss = 10
-backend = "tester"  # "mt5" or "tester"
+backend = "mt5"  # "mt5" or "tester"
 
 # Derived globals
 mt5 = get_mt5_api()
 client = MT5Utils.get_connected_client()
 mt5_account = client.account_info()
 eurusd_info = client.symbol_info(eurusd)
-account = csim.AccountInfo(mt5_account)     # Get default account info details from MT5
 
 if backend == "mt5":
-    simulator = mt5
-    trade = Trade(mt5)
-    trader = trade
-    print("Using: MT5 backend")
+        trade = LiveTrade(mt5)
+        print("Using: MT5 backend")
 else:
-    simulator = csim.TradeSimulator(account)    # Initialize TradeSimulator
-    simulator.set_symbol_info(eurusd_info)      # Pass MT5 symbol object metadata and seeds quotes.
-    trader = simulator
-    print("Using: TradeSimulator backend")
+        account = core.AccountInfo(mt5_account)
+        account.SetBalance(50000.0)
+        account.SetEquity(50000.0)
+        account.SetMargin(0.0)
+        account.SetMarginFree(50000.0)
+        account.SetServer("Simulator Account")
+        account.SetCompany("HaruQuant")
+
+        _simulator = core.BacktestSimulator(account)
+        trade = core.Trade(account)
+        print("Using: Tester backend")
+
+trade.SetExpertMagicNumber(12345)
+trade.SetDeviationInPoints(20)
+trade.SetTypeFillingBySymbol(eurusd)
 
 def print_example_header(title: str):
     print()
@@ -57,99 +56,37 @@ def print_example_header(title: str):
     print(title)
     print("=" * 70)
 
-def retcode_text(code: int) -> str:
-    try:
-        info = haruquant.error_from_retcode(int(code))
-        return f"{int(code)} ({info['message']})"
-    except Exception:
-        return str(code)
 
 
 def example_01_open_position():
     print_example_header("Example 01: Open Position")
-
-    order_type = "SELL"
+    order_type = "BUY"
     point = float(eurusd_info.point)
-    if order_type == "BUY":
-        open_price = float(eurusd_info.ask)
-        sl = open_price - (stoploss * point * 10)
+    open_price = float(eurusd_info.bid) if order_type == "SELL" else float(eurusd_info.ask)
+    sl = open_price + (stoploss * point * 10) if order_type == "SELL" else open_price - (stoploss * point * 10)
+
+    result = trade.PositionOpen(
+            symbol=eurusd,
+            order_type=order_type,
+            volume=0.01,
+            price=open_price,
+            sl=sl,
+            tp=0.0,
+            comment="Example open position",
+        )
+    if int(result.retcode) == 10009:
+        print(f"{eurusd} Position opened successfully with ticket {int(result.order)}")
     else:
-        open_price = float(eurusd_info.bid)
-        sl = open_price + (stoploss * point * 10)
+        desc = str(trade.ResultRetcodeDescription())
+        suffix = f"; {desc}" if desc and desc != str(int(result.retcode)) else ""
+        print(
+            f"{eurusd} Position opening failed with retcode "
+            f"retcode {int(result.retcode)}, {suffix}"
+        )
 
-    result = trader.PositionOpen(
-            symbol=eurusd, 
-            order_type=order_type, 
-            volume=0.1, 
-            price=open_price, 
-            sl=sl, 
-            tp=0, 
-            comment="Example open position")
-
-    if result.retcode == 10009:
-        eurusd_ticket = result.order
-        print(f"{eurusd} Position opened successfully with ticket number {eurusd_ticket}")
-    else:
-        print(f"{eurusd} Position opening failed with retcode: {retcode_text(result.retcode)}")
-
-def example_02_modify_position():
-    print_example_header("Example 02: Modify Position")
-    n = 0
-    while n < 10:
-        for pos in simulator.positions_get():
-            if pos.type == 0:  
-                simulator.PositionModify(ticket=pos.ticket, sl=pos.sl - 0.005)
-
-        time.sleep(1)
-        n += 1
-
-
-
-
-
-
-def main():
-
-    if backend == "tester":
-        # Set custom account info details for TradeSimulator
-        account.balance = 50000.0
-        account.credit = 0.0
-        account.profit = 0.0
-        account.equity = 50000.0
-        account.margin = 0.0
-        account.margin_free = 50000.0
-        account.margin_level = 100.0
-        account.server = "Simulator Account"
-        account.company = "HaruQuant"
-
-    if backend == "mt5":
-        trade.SetExpertMagicNumber(12345)
-        trade.SetDeviationInPoints(20)
-        trade.SetTypeFillingBySymbol(eurusd)
-        trade.SetTypeFillingBySymbol(gbpsud)
-
-
-
-    
-
-    example_01_open_position()
-    example_02_modify_position()
-
-
-    
-
-   
-
-
-    
-
-
-    # Display account information
-    logger.info(f"positions_total={simulator.positions_total()}")
-    logger.info(f"orders_total={simulator.orders_total()}")
-    logger.info(f"history_orders_total={simulator.history_orders_total()}")
-    logger.info(f"history_deals_total={simulator.history_deals_total()}")
+    client.shutdown()
 
 
 if __name__ == "__main__":
-    main()
+    example_01_open_position()
+
