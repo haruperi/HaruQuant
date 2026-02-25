@@ -6,8 +6,7 @@ Simplified API with signal-based approach.
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, TypedDict
-from uuid import uuid4
+from typing import TYPE_CHECKING, Any, Dict, Optional, TypedDict
 
 import pandas as pd
 
@@ -41,45 +40,6 @@ class SignalDict(TypedDict, total=False):
     take_profit: Optional[float]
     reason: Optional[str]
     time: Any
-
-
-class StrategyEvent(TypedDict):
-    """Canonical strategy event contract shared across runtime modes."""
-
-    event_id: str
-    event_type: Literal[
-        "tick",
-        "bar",
-        "trade",
-        "order_update",
-        "timer",
-        "shutdown",
-    ]
-    symbol: str
-    strategy_id: str
-    event_ts: Any
-    recv_ts: Any
-    payload: Dict[str, Any]
-    run_id: str
-    trace_id: str
-    correlation_id: str
-
-
-class SignalIntent(TypedDict, total=False):
-    """Canonical signal intent contract for strategy -> execution routing."""
-
-    action: Literal["BUY", "SELL", "EXIT", "REDUCE", "HOLD"]
-    qty: float
-    order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"]
-    price: Optional[float]
-    time_in_force: Literal["GTC", "IOC", "FOK", "DAY"]
-    strategy_id: str
-    symbol: str
-    reason: str
-    confidence: float
-    features: Dict[str, Any]
-    tags: Dict[str, str]
-    metadata: Dict[str, Any]
 
 
 class BaseStrategy(ABC):
@@ -117,9 +77,6 @@ class BaseStrategy(ABC):
 
         # Extract symbol from params (required for backtest engines)
         self.symbol = self.params["symbol"]
-        self.strategy_id = str(self.params.get("strategy_id") or f"strategy-{uuid4().hex[:12]}")
-        # Explicit per-strategy isolated state container.
-        self.state: Dict[str, Any] = {}
 
         # Optional trading objects (injected by engines for live/backtest)
         self.trade: Optional["Trade"] = None
@@ -163,22 +120,6 @@ class BaseStrategy(ABC):
             Not all engines support tick processing.
         """
         return data
-
-    def on_trade(self, event: StrategyEvent) -> None:
-        """Handle trade events (optional)."""
-        _ = event
-
-    def on_order_update(self, event: StrategyEvent) -> None:
-        """Handle order update events (optional)."""
-        _ = event
-
-    def on_timer(self, event: StrategyEvent) -> None:
-        """Handle timer events (optional)."""
-        _ = event
-
-    def on_shutdown(self, event: Optional[StrategyEvent] = None) -> None:
-        """Handle strategy shutdown (optional)."""
-        _ = event
 
     @abstractmethod
     def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:

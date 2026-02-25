@@ -1,9 +1,11 @@
 #include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <cctype>
 
 #include "core/backtest_simulator.hpp"
+#include "core/engine.hpp"
 #include "trading/account_info.hpp"
 #include "trading/deal_info.hpp"
 #include "trading/history_order_info.hpp"
@@ -162,6 +164,48 @@ std::string object_to_optional_string(const nb::object& obj) {
         return {};
     }
     return nb::cast<std::string>(obj);
+}
+
+std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::object& data) {
+    if (!nb::hasattr(data, "__getitem__") || !nb::hasattr(data, "index")) {
+        throw nb::type_error("run(data) expects a pandas DataFrame-like object");
+    }
+
+    nb::module_ np = nb::module_::import_("numpy");
+    nb::object close_obj = np.attr("asarray")(data.attr("__getitem__")("close"), nb::str("float64"));
+    nb::object signal_obj = np.attr("asarray")(data.attr("__getitem__")("entry_signal"), nb::str("int64"));
+
+    nb::object index_obj;
+    try {
+        index_obj = np.attr("asarray")(data.attr("index").attr("astype")(nb::str("int64")), nb::str("int64"));
+    } catch (...) {
+        const long long n = nb::cast<long long>(data.attr("shape").attr("__getitem__")(0));
+        index_obj = np.attr("asarray")(np.attr("arange")(n), nb::str("int64"));
+    }
+
+    auto close_arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(close_obj);
+    auto signal_arr = nb::cast<nb::ndarray<nb::numpy, const long long, nb::shape<-1>>>(signal_obj);
+    auto index_arr = nb::cast<nb::ndarray<nb::numpy, const long long, nb::shape<-1>>>(index_obj);
+
+    const size_t n = static_cast<size_t>(close_arr.shape(0));
+    if (static_cast<size_t>(signal_arr.shape(0)) != n || static_cast<size_t>(index_arr.shape(0)) != n) {
+        throw nb::value_error("close, entry_signal, and index must have the same length");
+    }
+
+    const double* close_ptr = close_arr.data();
+    const long long* signal_ptr = signal_arr.data();
+    const long long* index_ptr = index_arr.data();
+
+    std::vector<haruquant::core::EngineRunRow> rows;
+    rows.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        haruquant::core::EngineRunRow row;
+        row.index_ns = index_ptr[i];
+        row.close = close_ptr[i];
+        row.entry_signal = signal_ptr[i];
+        rows.push_back(row);
+    }
+    return rows;
 }
 
 long object_to_optional_ticket(const nb::object& obj) {
@@ -998,6 +1042,19 @@ void register_core_bindings(nb::module_& m) {
         .def("account_info", [](const haruquant::core::BacktestSimulator& self) {
             return self.account_info();
         })
+        .def("run",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object data,
+                nb::object start_date,
+                nb::object end_date) {
+                haruquant::core::Engine engine(self.account_info());
+                const long start_unix_sec = to_unix_seconds(start_date);
+                const long end_unix_sec = to_unix_seconds(end_date);
+                engine.run(dataframe_to_engine_rows(data), start_unix_sec, end_unix_sec);
+             },
+             nb::arg("data"),
+             nb::arg("start_date") = nb::none(),
+             nb::arg("end_date") = nb::none())
         .def("order_send",
              [](haruquant::core::BacktestSimulator& self, nb::object request) {
                 return self.order_send(order_send_request_from_object(request));

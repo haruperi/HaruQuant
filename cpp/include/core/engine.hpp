@@ -2,11 +2,23 @@
 
 #include "trading/account_info.hpp"
 
+#include <string>
+#include <vector>
+
 namespace haruquant::core {
+
+struct EngineRunRow {
+    long long index_ns{0};
+    double close{0.0};
+    long long entry_signal{0};
+};
 
 class Engine {
 public:
     explicit Engine(const haruquant::trading::AccountInfo& account);
+
+    // Iterates a simple bar stream and logs BUY signals.
+    void run(const std::vector<EngineRunRow>& data, long start_unix_sec = 0, long end_unix_sec = 0);
 
     // Updates floating PnL for all open positions and closes positions
     // when SL/TP is hit. Logs position status when verbose=true.

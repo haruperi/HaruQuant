@@ -582,4 +582,3 @@ class StrategyStorage:
 
 # Global instance
 storage = StrategyStorage()
-

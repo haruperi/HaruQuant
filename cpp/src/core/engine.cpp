@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <ctime>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -116,9 +117,68 @@ int day_key_utc(long unix_ts) {
     return (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
 }
 
+std::string format_index_utc(long long index_ns) {
+    if (index_ns <= 0) {
+        return std::to_string(index_ns);
+    }
+    long long seconds = index_ns;
+    // Accept common epoch units from Python: ns/us/ms/s.
+    if (index_ns > 100000000000000LL) {           // ns
+        seconds = index_ns / 1000000000LL;
+    } else if (index_ns > 100000000000LL) {       // us
+        seconds = index_ns / 1000000LL;
+    } else if (index_ns > 10000000000LL) {        // ms
+        seconds = index_ns / 1000LL;
+    }
+    const std::time_t tt = static_cast<std::time_t>(seconds);
+    std::tm tm{};
+#if defined(_WIN32)
+    gmtime_s(&tm, &tt);
+#else
+    gmtime_r(&tt, &tm);
+#endif
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
+}
+
+long long index_to_unix_seconds(long long index_value) {
+    if (index_value <= 0) {
+        return index_value;
+    }
+    if (index_value > 100000000000000LL) {           // ns
+        return index_value / 1000000000LL;
+    }
+    if (index_value > 100000000000LL) {              // us
+        return index_value / 1000000LL;
+    }
+    if (index_value > 10000000000LL) {               // ms
+        return index_value / 1000LL;
+    }
+    return index_value;                               // s
+}
+
 }  // namespace
 
 Engine::Engine(const haruquant::trading::AccountInfo& account) : account_(account) {}
+
+void Engine::run(const std::vector<EngineRunRow>& data, long start_unix_sec, long end_unix_sec) {
+    for (const auto& row : data) {
+        if (row.entry_signal != 1) {
+            continue;
+        }
+        const long long row_sec = index_to_unix_seconds(row.index_ns);
+        if (start_unix_sec > 0 && row_sec < start_unix_sec) {
+            continue;
+        }
+        if (end_unix_sec > 0 && row_sec > end_unix_sec) {
+            continue;
+        }
+        std::ostringstream oss;
+        oss << "BUY signal on " << format_index_utc(row.index_ns) << " at " << row.close;
+        haruquant::util::info(oss.str());
+    }
+}
 
 void Engine::monitor_positions(bool verbose) {
     auto* state = account_.GetSharedState().get();
