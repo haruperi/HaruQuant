@@ -57,6 +57,26 @@ core::BacktestState::DictionaryMap::iterator find_position_iter(
   return state->trading_positions.end();
 }
 
+core::BacktestState::DictionaryMap::iterator find_order_iter(
+    const std::shared_ptr<core::BacktestState>& state,
+    long ticket) {
+  if (!state || ticket <= 0) {
+    return state ? state->trading_orders.end() : core::BacktestState::DictionaryMap::iterator{};
+  }
+  const std::string ticket_str = std::to_string(ticket);
+  auto direct = state->trading_orders.find(ticket_str);
+  if (direct != state->trading_orders.end()) {
+    return direct;
+  }
+  for (auto it = state->trading_orders.begin(); it != state->trading_orders.end(); ++it) {
+    auto order_ticket_it = it->second.find("ticket");
+    if (order_ticket_it != it->second.end() && order_ticket_it->second == ticket_str) {
+      return it;
+    }
+  }
+  return state->trading_orders.end();
+}
+
 double read_row_double(const core::BacktestState::Dictionary& row,
                        const std::string& key,
                        double fallback = 0.0) {
@@ -439,7 +459,35 @@ bool Trade::OrderModify(const long ticket, const double price, const double sl,
     m_result_comment = validation.comment;
     return false;
   }
+
+  auto row_it = find_order_iter(m_state, ticket);
+  if (row_it == m_state->trading_orders.end()) {
+    m_result_retcode = 10035;
+    m_result_comment = "Order not found";
+    return false;
+  }
+
+  auto& row = row_it->second;
+  if (price > 0.0) {
+    const std::string p = std::to_string(price);
+    row["price"] = p;
+    row["price_open"] = p;
+    row["price_current"] = p;
+  }
+  if (stoplimit_price > 0.0) {
+    row["price_stoplimit"] = std::to_string(stoplimit_price);
+  }
+  row["sl"] = std::to_string(sl);
+  row["tp"] = std::to_string(tp);
+  if (type_time >= 0) {
+    row["type_time"] = std::to_string(type_time);
+  }
+  if (expiration >= 0) {
+    row["time_expiration"] = std::to_string(expiration);
+  }
+
   m_result_retcode = 10009;
+  m_result_comment = "Order modified";
   return true;
 }
 

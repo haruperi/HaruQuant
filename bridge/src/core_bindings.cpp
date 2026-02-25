@@ -911,6 +911,12 @@ void register_core_bindings(nb::module_& m) {
            nb::arg("price") = 0.0, nb::arg("sl") = 0.0, nb::arg("tp") = 0.0,
            nb::arg("type_time") = nb::none(), nb::arg("expiration") = 0,
            nb::arg("comment") = "")
+        .def("OrderModify", &haruquant::trading::Trade::OrderModify,
+             nb::arg("ticket"), nb::arg("price"), nb::arg("sl") = 0.0,
+             nb::arg("tp") = 0.0, nb::arg("type_time") = 0,
+             nb::arg("expiration") = 0, nb::arg("stoplimit_price") = 0.0)
+        .def("OrderDelete", &haruquant::trading::Trade::OrderDelete,
+             nb::arg("ticket"))
         .def("PositionModify", &haruquant::trading::Trade::PositionModify,
              nb::arg("symbol") = "", nb::arg("ticket") = 0, nb::arg("sl") = 0.0,
              nb::arg("tp") = 0.0)

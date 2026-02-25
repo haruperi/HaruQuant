@@ -34,6 +34,7 @@ mt5_account = client.account_info()
 test_symbol_info = client.symbol_info(test_symbol)
 _simulator = None
 _account = None
+pending_orders_created = []
 
 if backend == "mt5":
         trade = LiveTrade(mt5)
@@ -261,6 +262,7 @@ def example_06_close_position():
 
 def example_07_pending_orders():
     print_example_header("Example 07: Pending Orders (4 Types)")
+    pending_orders_created.clear()
     info = client.symbol_info(test_symbol)
     if info is None:
         print(f"{test_symbol}: symbol info unavailable, skipped")
@@ -297,7 +299,9 @@ def example_07_pending_orders():
                 comment=f"Example {order_type}",
             )
             if result and int(result.retcode) in (10008, 10009):
-                print(f"{order_type}: placed successfully (order={int(result.order)})")
+                ticket = int(result.order)
+                pending_orders_created.append((ticket, order_type))
+                print(f"{order_type}: placed successfully (order={ticket})")
             else:
                 print(f"{order_type}: failed retcode={int(result.retcode)}")
         else:
@@ -314,11 +318,70 @@ def example_07_pending_orders():
             )
             retcode = int(trade.ResultRetcode())
             if ok and retcode in (10008, 10009):
-                print(f"{order_type}: placed successfully (order={int(trade.ResultOrder())})")
+                ticket = int(trade.ResultOrder())
+                pending_orders_created.append((ticket, order_type))
+                print(f"{order_type}: placed successfully (order={ticket})")
             else:
                 desc = str(trade.ResultRetcodeDescription())
                 suffix = f"; {desc}" if desc and desc != str(retcode) else ""
                 print(f"{order_type}: failed retcode={retcode}{suffix}")
+
+def example_08_modify_pending_orders():
+    print_example_header("Example 08: Modify Pending Orders")
+    if not pending_orders_created:
+        print("No pending orders available to modify")
+        return
+
+    info = client.symbol_info(test_symbol)
+    if info is None:
+        print(f"{test_symbol}: symbol info unavailable, skipped")
+        return
+
+    bid = float(info.bid)
+    ask = float(info.ask)
+    point = float(info.point)
+    step = 30 * point * 10
+    expiration = int(time.time()) + 7200
+
+    for ticket, order_type in pending_orders_created:
+        if order_type == "BUY_LIMIT":
+            new_price = ask - step
+        elif order_type == "BUY_STOP":
+            new_price = ask + step
+        elif order_type == "SELL_LIMIT":
+            new_price = bid + step
+        else:
+            new_price = bid - step
+
+        if backend == "mt5":
+            result = trade.OrderModify(
+                ticket=ticket,
+                price=new_price,
+                sl=0.0,
+                tp=0.0,
+                expiration=datetime.fromtimestamp(expiration),
+            )
+            if result and int(result.retcode) in (10008, 10009):
+                print(f"{order_type} ticket {ticket}: modified")
+            else:
+                print(f"{order_type} ticket {ticket}: modify failed retcode={int(result.retcode)}")
+        else:
+            ok = trade.OrderModify(
+                ticket=ticket,
+                price=new_price,
+                sl=0.0,
+                tp=0.0,
+                type_time=0,
+                expiration=expiration,
+                stoplimit_price=0.0,
+            )
+            retcode = int(trade.ResultRetcode())
+            if ok and retcode in (10008, 10009):
+                print(f"{order_type} ticket {ticket}: modified")
+            else:
+                desc = str(trade.ResultRetcodeDescription())
+                suffix = f"; {desc}" if desc and desc != str(retcode) else ""
+                print(f"{order_type} ticket {ticket}: modify failed retcode={retcode}{suffix}")
 
 
 if __name__ == "__main__":
@@ -327,9 +390,10 @@ if __name__ == "__main__":
     example_03_calculate_margin()
     example_04_modify_position()
     example_05_close_partial_position()
-    time.sleep(2)
     example_06_close_position()
     example_07_pending_orders()
+    time.sleep(2)
+    example_08_modify_pending_orders()
     
 
     client.shutdown()
