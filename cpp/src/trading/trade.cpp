@@ -32,6 +32,44 @@ std::string resolve_symbol_key(const std::shared_ptr<core::BacktestState>& state
   }
   return symbol;
 }
+
+core::BacktestState::DictionaryMap::iterator find_position_iter(
+    const std::shared_ptr<core::BacktestState>& state,
+    const std::string& symbol,
+    long ticket) {
+  if (ticket > 0) {
+    const std::string ticket_str = std::to_string(ticket);
+    for (auto it = state->trading_positions.begin(); it != state->trading_positions.end(); ++it) {
+      auto pos_ticket_it = it->second.find("ticket");
+      if (pos_ticket_it != it->second.end() && pos_ticket_it->second == ticket_str) {
+        return it;
+      }
+    }
+  }
+
+  if (!symbol.empty()) {
+    auto it = state->trading_positions.find(symbol);
+    if (it != state->trading_positions.end()) {
+      return it;
+    }
+  }
+
+  return state->trading_positions.end();
+}
+
+double read_row_double(const core::BacktestState::Dictionary& row,
+                       const std::string& key,
+                       double fallback = 0.0) {
+  const auto it = row.find(key);
+  if (it == row.end()) {
+    return fallback;
+  }
+  try {
+    return std::stod(it->second);
+  } catch (...) {
+    return fallback;
+  }
+}
 }  // namespace
 
 Trade::Trade()
@@ -212,13 +250,26 @@ bool Trade::PositionClose(const std::string &symbol, const long ticket,
     return false;
   }
 
+  auto pos_it = find_position_iter(m_state, sym, ticket);
+  if (pos_it == m_state->trading_positions.end()) {
+    m_result_retcode = 10036;
+    m_result_comment = "Position not found";
+    return false;
+  }
+
+  const std::string closed_symbol = pos_it->first;
+  const std::string closed_ticket = pos_it->second.count("ticket") ? pos_it->second.at("ticket")
+                                                                    : std::to_string(ticket);
+  m_state->trading_positions.erase(pos_it);
+
   m_state->trading_orders["close_position_" + std::to_string(time(nullptr))] = {
       {"action", "position_close"},
-      {"symbol", sym},
-      {"ticket", std::to_string(ticket)},
+      {"symbol", closed_symbol},
+      {"ticket", closed_ticket},
       {"deviation", std::to_string(deviation)}};
 
   m_result_retcode = 10009;
+  m_result_comment = "Position closed";
   return true;
 }
 
@@ -239,14 +290,43 @@ bool Trade::PositionClosePartial(const std::string &symbol, const long ticket,
     return false;
   }
 
+  auto pos_it = find_position_iter(m_state, sym, ticket);
+  if (pos_it == m_state->trading_positions.end()) {
+    m_result_retcode = 10036;
+    m_result_comment = "Position not found";
+    return false;
+  }
+
+  auto& pos_row = pos_it->second;
+  const std::string selected_symbol = pos_it->first;
+  const std::string selected_ticket = pos_row.count("ticket") ? pos_row.at("ticket")
+                                                               : std::to_string(ticket);
+  const double current_volume = read_row_double(pos_row, "volume", 0.0);
+  if (current_volume <= 0.0) {
+    m_result_retcode = 10014;
+    m_result_comment = "Position volume is invalid";
+    return false;
+  }
+
+  const double remaining_volume = current_volume - volume;
+  const long now = static_cast<long>(time(nullptr));
+  if (remaining_volume <= 1e-12) {
+    m_state->trading_positions.erase(pos_it);
+  } else {
+    pos_row["volume"] = std::to_string(remaining_volume);
+    pos_row["time_update"] = std::to_string(now);
+    pos_row["time_update_msc"] = std::to_string(now * 1000);
+  }
+
   m_state->trading_orders["partial_close_position_" + std::to_string(time(nullptr))] = {
       {"action", "position_close_partial"},
-      {"symbol", sym},
-      {"ticket", std::to_string(ticket)},
+      {"symbol", selected_symbol},
+      {"ticket", selected_ticket},
       {"volume", std::to_string(volume)},
       {"deviation", std::to_string(deviation)}};
 
   m_result_retcode = 10009;
+  m_result_comment = "Position partially closed";
   return true;
 }
 

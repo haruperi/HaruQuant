@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
@@ -23,7 +24,7 @@ audusd = "AUDUSD"
 eurgbp = "EURGBP"
 usdjpy = "USDJPY"
 stoploss = 10
-backend = "tester"  # "mt5" or "tester"
+backend = "mt5"  # "mt5" or "tester"
 
 # Derived globals
 mt5 = get_mt5_api()
@@ -182,11 +183,90 @@ def example_04_modify_position():
                 f"{retcode}{suffix}"
             )
 
+def example_05_close_partial_position():
+    print_example_header("Example 06: Close Partial Position")
+    info = client.symbol_info(test_symbol)
+    if info is None:
+        print(f"{test_symbol}: symbol info unavailable, skipped")
+        return
+
+    if backend == "tester":
+        symbol_store = core.SymbolInfo(_account)
+        symbol_store.AddSymbol(info)
+
+    open_price = float(info.ask)
+    open_result = trade.PositionOpen(
+        symbol=test_symbol,
+        order_type="BUY",
+        volume=0.02,
+        price=open_price,
+        sl=0.0,
+        tp=0.0,
+        comment="Example partial close seed",
+    )
+
+    if backend == "mt5":
+        if not open_result or int(open_result.retcode) not in (10008, 10009):
+            print(f"{test_symbol}: seed position failed, partial close skipped")
+            return
+        result = trade.PositionClosePartial(symbol=test_symbol, volume=0.01)
+        if result and int(result.retcode) in (10008, 10009):
+            print(f"{test_symbol} Position partially closed successfully")
+        else:
+            print(
+                f"{test_symbol} Partial close failed with retcode "
+                f"{int(result.retcode)}"
+            )
+    else:
+        if not open_result or int(trade.ResultRetcode()) != 10009:
+            print(f"{test_symbol}: seed position failed, partial close skipped")
+            return
+        ok = trade.PositionClosePartial(symbol=test_symbol, volume=0.01)
+        retcode = int(trade.ResultRetcode())
+        if ok and retcode == 10009:
+            print(f"{test_symbol} Position partially closed successfully")
+        else:
+            desc = str(trade.ResultRetcodeDescription())
+            suffix = f"; {desc}" if desc and desc != str(retcode) else ""
+            print(
+                f"{test_symbol} Partial close failed with retcode "
+                f"{retcode}{suffix}"
+            )
+
+
+def example_06_close_position():
+    print_example_header("Example 05: Close Position")
+    if backend == "mt5":
+        result = trade.PositionClose(symbol=test_symbol)
+        if result and int(result.retcode) in (10008, 10009):
+            print(f"{test_symbol} Position closed successfully")
+        else:
+            print(
+                f"{test_symbol} Position close failed with retcode "
+                f"{int(result.retcode)}"
+            )
+    else:
+        ok = trade.PositionClose(symbol=test_symbol)
+        retcode = int(trade.ResultRetcode())
+        if ok and retcode == 10009:
+            print(f"{test_symbol} Position closed successfully")
+        else:
+            desc = str(trade.ResultRetcodeDescription())
+            suffix = f"; {desc}" if desc and desc != str(retcode) else ""
+            print(
+                f"{test_symbol} Position close failed with retcode "
+                f"{retcode}{suffix}"
+            )
+
 
 if __name__ == "__main__":
     example_01_open_position()
     example_02_calculate_profit()
     example_03_calculate_margin()
     example_04_modify_position()
+    example_05_close_partial_position()
+    time.sleep(2)
+    example_06_close_position()
+    
 
     client.shutdown()
