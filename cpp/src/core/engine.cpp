@@ -8,6 +8,7 @@
 #include <cmath>
 #include <ctime>
 #include <iomanip>
+#include <random>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -162,7 +163,37 @@ long long index_to_unix_seconds(long long index_value) {
 
 Engine::Engine(const haruquant::trading::AccountInfo& account) : account_(account) {}
 
-void Engine::run(const std::vector<EngineRunRow>& data, long start_unix_sec, long end_unix_sec) {
+void Engine::run(const std::vector<EngineRunRow>& data,
+                 const std::string& symbol,
+                 long start_unix_sec,
+                 long end_unix_sec,
+                 const std::string& spread_mode,
+                 double spread_points,
+                 double spread_min,
+                 double spread_max,
+                 bool verbose) {
+    const std::string mode = to_upper_copy(spread_mode);
+    double point = 0.0;
+    if (!symbol.empty()) {
+        const auto* state = account_.GetState();
+        if (state != nullptr) {
+            const std::string symbol_key = find_symbol_key(state->trading_symbols, symbol);
+            if (!symbol_key.empty()) {
+                const auto it = state->trading_symbols.find(symbol_key);
+                if (it != state->trading_symbols.end()) {
+                    point = read_double(it->second, "point", 0.0);
+                }
+            }
+        }
+    }
+    if (!(point > 0.0)) {
+        point = 0.00001;
+    }
+    std::mt19937 rng{std::random_device{}()};
+    const double lo = std::min(spread_min, spread_max);
+    const double hi = std::max(spread_min, spread_max);
+    std::uniform_real_distribution<double> dist(lo, hi);
+
     for (const auto& row : data) {
         if (row.entry_signal != 1) {
             continue;
@@ -174,8 +205,24 @@ void Engine::run(const std::vector<EngineRunRow>& data, long start_unix_sec, lon
         if (end_unix_sec > 0 && row_sec > end_unix_sec) {
             continue;
         }
+
+        const double close = row.close;
+        const double eff_spread_points =
+            (mode == "FIXED") ? spread_points :
+            (mode == "VARIABLE") ? dist(rng) :
+            row.spread_points;
+        const double bid = close;
+        const double ask = close + (eff_spread_points * point);
+
+        if (!verbose) {
+            continue;
+        }
         std::ostringstream oss;
-        oss << "BUY signal on " << format_index_utc(row.index_ns) << " at " << row.close;
+        oss << "BUY signal on " << format_index_utc(row.index_ns)
+            << " at { close " << close
+            << ", bid " << bid
+            << ", ask " << ask
+            << " }";
         haruquant::util::info(oss.str());
     }
 }

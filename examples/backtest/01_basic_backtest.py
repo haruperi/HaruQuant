@@ -33,7 +33,7 @@ def main():
 
     
     # 1. Configuration
-    test_symbol = "EURUSD"
+    test_symbol = "XAUUSD"
     audusd = "AUDUSD"
     eurgbp = "EURGBP"
     usdjpy = "USDJPY"
@@ -92,11 +92,18 @@ def main():
     strategy.on_init()  # Initialize strategy
     data = strategy.on_bar(data)  # Calculate signals
 
-    simulator.run(
-        data=data,
-        start_date=start_date,  # Trading starts here (after warmup)
-        end_date=end_date,      # Trading ends here
-        )
+    run_config = {
+        "data": data,
+        "symbol": test_symbol,     # Used to fetch point from BacktestState symbol store
+        "start_date": start_date,  # Trading starts here (after warmup)
+        "end_date": end_date,      # Trading ends here
+        "spread_mode": "data",     # "data" (default) OR "fixed" OR "variable"
+        "spread_points": 10,       # Spread in points (only used when spread_mode="fixed")
+        "spread_min": 5,           # Minimum spread in points (only used when spread_mode="variable")
+        "spread_max": 20,          # Maximum spread in points (only used when spread_mode="variable")
+        "verbose": True,           # Print verbose output
+    }
+    simulator.run(run_config)
 
 
 

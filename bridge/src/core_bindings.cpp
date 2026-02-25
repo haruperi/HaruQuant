@@ -166,6 +166,21 @@ std::string object_to_optional_string(const nb::object& obj) {
     return nb::cast<std::string>(obj);
 }
 
+nb::object get_config_value(const nb::object& config, const char* key) {
+    if (nb::isinstance<nb::dict>(config)) {
+        nb::dict d = nb::cast<nb::dict>(config);
+        nb::str k(key);
+        if (d.contains(k)) {
+            return d[k];
+        }
+        return nb::none();
+    }
+    if (nb::hasattr(config, key)) {
+        return config.attr(key);
+    }
+    return nb::none();
+}
+
 std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::object& data) {
     if (!nb::hasattr(data, "__getitem__") || !nb::hasattr(data, "index")) {
         throw nb::type_error("run(data) expects a pandas DataFrame-like object");
@@ -174,6 +189,7 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
     nb::module_ np = nb::module_::import_("numpy");
     nb::object close_obj = np.attr("asarray")(data.attr("__getitem__")("close"), nb::str("float64"));
     nb::object signal_obj = np.attr("asarray")(data.attr("__getitem__")("entry_signal"), nb::str("int64"));
+    nb::object spread_obj;
 
     nb::object index_obj;
     try {
@@ -196,6 +212,17 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
     const long long* signal_ptr = signal_arr.data();
     const long long* index_ptr = index_arr.data();
 
+    const double* spread_ptr = nullptr;
+    try {
+        spread_obj = np.attr("asarray")(data.attr("__getitem__")("spread"), nb::str("float64"));
+        auto spread_arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(spread_obj);
+        if (static_cast<size_t>(spread_arr.shape(0)) == n) {
+            spread_ptr = spread_arr.data();
+        }
+    } catch (...) {
+        spread_ptr = nullptr;
+    }
+
     std::vector<haruquant::core::EngineRunRow> rows;
     rows.reserve(n);
     for (size_t i = 0; i < n; ++i) {
@@ -203,6 +230,7 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
         row.index_ns = index_ptr[i];
         row.close = close_ptr[i];
         row.entry_signal = signal_ptr[i];
+        row.spread_points = (spread_ptr != nullptr) ? spread_ptr[i] : 0.0;
         rows.push_back(row);
     }
     return rows;
@@ -1044,17 +1072,54 @@ void register_core_bindings(nb::module_& m) {
         })
         .def("run",
              [](const haruquant::core::BacktestSimulator& self,
-                nb::object data,
-                nb::object start_date,
-                nb::object end_date) {
+                nb::object config) {
+                nb::object data = get_config_value(config, "data");
+                if (data.is_none()) {
+                    throw nb::value_error("run(config) requires 'data'");
+                }
+
+                const std::string symbol = object_to_optional_string(get_config_value(config, "symbol"));
+                const long start_unix_sec = to_unix_seconds(get_config_value(config, "start_date"));
+                const long end_unix_sec = to_unix_seconds(get_config_value(config, "end_date"));
+
+                const nb::object spread_mode_obj = get_config_value(config, "spread_mode");
+                const std::string spread_mode = spread_mode_obj.is_none()
+                    ? "data"
+                    : nb::cast<std::string>(spread_mode_obj);
+
+                const nb::object spread_points_obj = get_config_value(config, "spread_points");
+                const double spread_points = spread_points_obj.is_none()
+                    ? 10.0
+                    : nb::cast<double>(spread_points_obj);
+
+                const nb::object spread_min_obj = get_config_value(config, "spread_min");
+                const double spread_min = spread_min_obj.is_none()
+                    ? 5.0
+                    : nb::cast<double>(spread_min_obj);
+
+                const nb::object spread_max_obj = get_config_value(config, "spread_max");
+                const double spread_max = spread_max_obj.is_none()
+                    ? 20.0
+                    : nb::cast<double>(spread_max_obj);
+
+                const nb::object verbose_obj = get_config_value(config, "verbose");
+                const bool verbose = verbose_obj.is_none()
+                    ? false
+                    : nb::cast<bool>(verbose_obj);
+
                 haruquant::core::Engine engine(self.account_info());
-                const long start_unix_sec = to_unix_seconds(start_date);
-                const long end_unix_sec = to_unix_seconds(end_date);
-                engine.run(dataframe_to_engine_rows(data), start_unix_sec, end_unix_sec);
+                engine.run(
+                    dataframe_to_engine_rows(data),
+                    symbol,
+                    start_unix_sec,
+                    end_unix_sec,
+                    spread_mode,
+                    spread_points,
+                    spread_min,
+                    spread_max,
+                    verbose);
              },
-             nb::arg("data"),
-             nb::arg("start_date") = nb::none(),
-             nb::arg("end_date") = nb::none())
+             nb::arg("config"))
         .def("order_send",
              [](haruquant::core::BacktestSimulator& self, nb::object request) {
                 return self.order_send(order_send_request_from_object(request));
