@@ -95,6 +95,7 @@ def main():
     run_config = {
         "data": data,
         "symbol": test_symbol,     # Used to fetch point from BacktestState symbol store
+        "volume_lots": 0.1,        # Volume in lots
         "start_date": start_date,  # Trading starts here (after warmup)
         "end_date": end_date,      # Trading ends here
         "spread_mode": "data",     # "data" (default) OR "fixed" OR "variable"

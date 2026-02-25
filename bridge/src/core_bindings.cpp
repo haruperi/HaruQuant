@@ -189,6 +189,7 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
     nb::module_ np = nb::module_::import_("numpy");
     nb::object close_obj = np.attr("asarray")(data.attr("__getitem__")("close"), nb::str("float64"));
     nb::object signal_obj = np.attr("asarray")(data.attr("__getitem__")("entry_signal"), nb::str("int64"));
+    nb::object exit_signal_obj;
     nb::object spread_obj;
 
     nb::object index_obj;
@@ -211,6 +212,17 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
     const double* close_ptr = close_arr.data();
     const long long* signal_ptr = signal_arr.data();
     const long long* index_ptr = index_arr.data();
+    const long long* exit_signal_ptr = nullptr;
+
+    try {
+        exit_signal_obj = np.attr("asarray")(data.attr("__getitem__")("exit_signal"), nb::str("int64"));
+        auto exit_signal_arr = nb::cast<nb::ndarray<nb::numpy, const long long, nb::shape<-1>>>(exit_signal_obj);
+        if (static_cast<size_t>(exit_signal_arr.shape(0)) == n) {
+            exit_signal_ptr = exit_signal_arr.data();
+        }
+    } catch (...) {
+        exit_signal_ptr = nullptr;
+    }
 
     const double* spread_ptr = nullptr;
     try {
@@ -230,6 +242,7 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
         row.index_ns = index_ptr[i];
         row.close = close_ptr[i];
         row.entry_signal = signal_ptr[i];
+        row.exit_signal = (exit_signal_ptr != nullptr) ? exit_signal_ptr[i] : 0;
         row.spread_points = (spread_ptr != nullptr) ? spread_ptr[i] : 0.0;
         rows.push_back(row);
     }
@@ -1102,6 +1115,12 @@ void register_core_bindings(nb::module_& m) {
                     ? 20.0
                     : nb::cast<double>(spread_max_obj);
 
+                const nb::object volume_lots_obj = get_config_value(config, "volume_lots");
+                const nb::object volume_obj = get_config_value(config, "volume");
+                const double trade_volume = !volume_lots_obj.is_none()
+                    ? nb::cast<double>(volume_lots_obj)
+                    : (volume_obj.is_none() ? 0.0 : nb::cast<double>(volume_obj));
+
                 const nb::object verbose_obj = get_config_value(config, "verbose");
                 const bool verbose = verbose_obj.is_none()
                     ? false
@@ -1117,6 +1136,7 @@ void register_core_bindings(nb::module_& m) {
                     spread_points,
                     spread_min,
                     spread_max,
+                    trade_volume,
                     verbose);
              },
              nb::arg("config"))

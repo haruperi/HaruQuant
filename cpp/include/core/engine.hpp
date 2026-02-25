@@ -11,6 +11,7 @@ struct EngineRunRow {
     long long index_ns{0};
     double close{0.0};
     long long entry_signal{0};
+    long long exit_signal{0};
     double spread_points{0.0};
 };
 
@@ -27,6 +28,7 @@ public:
              double spread_points = 10.0,
              double spread_min = 5.0,
              double spread_max = 20.0,
+             double trade_volume = 0.0,
              bool verbose = false);
 
     // Updates floating PnL for all open positions and closes positions
@@ -38,7 +40,7 @@ public:
     void monitor_pending_orders(bool verbose = false);
 
     // Recalculates account metrics from current open positions.
-    void monitor_account();
+    void monitor_account(bool verbose = false);
 
 private:
     haruquant::trading::AccountInfo account_{};

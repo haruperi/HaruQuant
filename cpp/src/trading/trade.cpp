@@ -98,6 +98,47 @@ double read_row_double(const core::BacktestState::Dictionary& row,
   }
 }
 
+double compute_realized_profit(const std::shared_ptr<core::BacktestState>& state,
+                               const core::BacktestState::Dictionary& pos_row) {
+  if (!state) {
+    return 0.0;
+  }
+
+  const std::string symbol_raw = pos_row.count("symbol") ? pos_row.at("symbol") : "";
+  const std::string symbol = resolve_symbol_key(state, symbol_raw);
+  const long order_type = static_cast<long>(read_row_double(pos_row, "type", -1.0));
+  const bool is_buy = (order_type == 0);
+  const bool is_sell = (order_type == 1);
+  if (!is_buy && !is_sell) {
+    return read_row_double(pos_row, "profit", 0.0);
+  }
+
+  const double volume = read_row_double(pos_row, "volume", 0.0);
+  const double entry_price = read_row_double(pos_row, "price_open", read_row_double(pos_row, "price", 0.0));
+  if (!(volume > 0.0) || !(entry_price > 0.0) || symbol.empty()) {
+    return read_row_double(pos_row, "profit", 0.0);
+  }
+
+  const auto sym_it = state->trading_symbols.find(symbol);
+  if (sym_it == state->trading_symbols.end()) {
+    return read_row_double(pos_row, "profit", 0.0);
+  }
+  const double bid = read_row_double(sym_it->second, "bid", 0.0);
+  const double ask = read_row_double(sym_it->second, "ask", 0.0);
+  const double exit_price = is_buy ? bid : ask;
+  if (!(exit_price > 0.0)) {
+    return read_row_double(pos_row, "profit", 0.0);
+  }
+
+  try {
+    const AccountInfo account_snapshot(state);
+    const core::BacktestSimulator simulator(account_snapshot);
+    return simulator.order_calc_profit(is_buy ? "BUY" : "SELL", symbol, volume, entry_price, exit_price);
+  } catch (...) {
+    return read_row_double(pos_row, "profit", 0.0);
+  }
+}
+
 }  // namespace
 
 Trade::Trade()
@@ -273,6 +314,13 @@ bool Trade::PositionClose(const std::string &symbol, const long ticket,
   const std::string closed_ticket = pos_it->second.count("ticket") ? pos_it->second.at("ticket")
                                                                     : std::to_string(ticket);
   auto closed_row = pos_it->second;
+
+  // Realize P/L into account balance on full close.
+  const double realized_profit = compute_realized_profit(m_state, closed_row);
+  const double current_balance = read_row_double(m_state->trading_account, "balance", 0.0);
+  m_state->trading_account["balance"] = std::to_string(current_balance + realized_profit);
+  closed_row["profit"] = std::to_string(realized_profit);
+
   closed_row["entry"] = "1";
   closed_row["time_update"] = std::to_string(static_cast<long>(time(nullptr)));
   m_state->trading_history_deals[closed_ticket] = closed_row;
@@ -326,14 +374,21 @@ bool Trade::PositionClosePartial(const std::string &symbol, const long ticket,
 
   const double remaining_volume = current_volume - volume;
   const long now = static_cast<long>(time(nullptr));
+  const double current_profit = compute_realized_profit(m_state, pos_row);
+  const double realized_profit = (current_volume > 0.0) ? (current_profit * (volume / current_volume)) : 0.0;
+  const double current_balance = read_row_double(m_state->trading_account, "balance", 0.0);
+  m_state->trading_account["balance"] = std::to_string(current_balance + realized_profit);
+
   if (remaining_volume <= 1e-12) {
     auto closed_row = pos_row;
+    closed_row["profit"] = std::to_string(current_profit);
     closed_row["entry"] = "1";
     closed_row["time_update"] = std::to_string(now);
     m_state->trading_history_deals[selected_ticket] = closed_row;
     m_state->trading_deals.erase(pos_it);
   } else {
     pos_row["volume"] = std::to_string(remaining_volume);
+    pos_row["profit"] = std::to_string(current_profit - realized_profit);
     pos_row["time_update"] = std::to_string(now);
     pos_row["time_update_msc"] = std::to_string(now * 1000);
   }

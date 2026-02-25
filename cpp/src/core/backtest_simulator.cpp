@@ -3,6 +3,7 @@
 #include "util/logger.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cmath>
 #include <ctime>
@@ -208,11 +209,15 @@ haruquant::CurrencyConverter build_currency_converter(const BacktestState& state
 }  // namespace
 
 BacktestSimulator::BacktestSimulator() {
-    haruquant::util::info("Backtest Simulator successfully initialised");
+    static std::atomic<bool> logged{false};
+    bool expected = false;
+    logged.compare_exchange_strong(expected, true);
 }
 
 BacktestSimulator::BacktestSimulator(const haruquant::trading::AccountInfo& account) : account_(account) {
-    haruquant::util::info("Backtest Simulator successfully initialised with account");
+    static std::atomic<bool> logged_with_account{false};
+    bool expected = false;
+    logged_with_account.compare_exchange_strong(expected, true);
 }
 
 void BacktestSimulator::set_last_error(int code, std::string message) {
@@ -425,6 +430,8 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
     deal_row["order"] = to_string_num(order_ticket);
     deal_row["time"] = to_string_num(now);
     deal_row["time_msc"] = to_string_num(now_msc);
+    deal_row["time_update"] = to_string_num(now);
+    deal_row["time_update_msc"] = to_string_num(now_msc);
     deal_row["type"] = to_string_num(order_type);
     deal_row["entry"] = "0";
     deal_row["magic"] = to_string_num(request.magic);
@@ -432,6 +439,11 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
     deal_row["position_id"] = to_string_num(position_ticket);
     deal_row["volume"] = to_string_num(request.volume);
     deal_row["price"] = to_string_num(exec_price);
+    deal_row["price_open"] = to_string_num(exec_price);
+    deal_row["price_current"] = to_string_num(exec_price);
+    deal_row["sl"] = to_string_num(request.sl);
+    deal_row["tp"] = to_string_num(request.tp);
+    deal_row["margin_required"] = to_string_num(margin_required);
     deal_row["commission"] = "0";
     deal_row["swap"] = "0";
     deal_row["profit"] = "0";

@@ -1,6 +1,7 @@
 #include "core/engine.hpp"
 
 #include "core/backtest_simulator.hpp"
+#include "trading/trade.hpp"
 #include "util/logger.hpp"
 
 #include <algorithm>
@@ -171,17 +172,22 @@ void Engine::run(const std::vector<EngineRunRow>& data,
                  double spread_points,
                  double spread_min,
                  double spread_max,
+                 double trade_volume,
                  bool verbose) {
     const std::string mode = to_upper_copy(spread_mode);
     double point = 0.0;
+    double volume_min = 0.0;
+    std::string symbol_key{};
+    auto shared_state = account_.GetSharedState();
+    auto* state = shared_state.get();
     if (!symbol.empty()) {
-        const auto* state = account_.GetState();
         if (state != nullptr) {
-            const std::string symbol_key = find_symbol_key(state->trading_symbols, symbol);
+            symbol_key = find_symbol_key(state->trading_symbols, symbol);
             if (!symbol_key.empty()) {
                 const auto it = state->trading_symbols.find(symbol_key);
                 if (it != state->trading_symbols.end()) {
                     point = read_double(it->second, "point", 0.0);
+                    volume_min = read_double(it->second, "volume_min", 0.0);
                 }
             }
         }
@@ -189,15 +195,19 @@ void Engine::run(const std::vector<EngineRunRow>& data,
     if (!(point > 0.0)) {
         point = 0.00001;
     }
+    if (!(volume_min > 0.0)) {
+        volume_min = 0.01;
+    }
+    const double exec_volume = (trade_volume > 0.0) ? trade_volume : volume_min;
+    const bool can_trade = (state != nullptr && !symbol_key.empty());
+    haruquant::trading::Trade trade(shared_state);
+
     std::mt19937 rng{std::random_device{}()};
     const double lo = std::min(spread_min, spread_max);
     const double hi = std::max(spread_min, spread_max);
     std::uniform_real_distribution<double> dist(lo, hi);
 
     for (const auto& row : data) {
-        if (row.entry_signal != 1) {
-            continue;
-        }
         const long long row_sec = index_to_unix_seconds(row.index_ns);
         if (start_unix_sec > 0 && row_sec < start_unix_sec) {
             continue;
@@ -213,17 +223,82 @@ void Engine::run(const std::vector<EngineRunRow>& data,
             row.spread_points;
         const double bid = close;
         const double ask = close + (eff_spread_points * point);
-
-        if (!verbose) {
-            continue;
+        if (can_trade) {
+            auto sym_it = state->trading_symbols.find(symbol_key);
+            if (sym_it != state->trading_symbols.end()) {
+                sym_it->second["bid"] = to_string_num(bid);
+                sym_it->second["ask"] = to_string_num(ask);
+                sym_it->second["last"] = to_string_num(close);
+            }
         }
-        std::ostringstream oss;
-        oss << "BUY signal on " << format_index_utc(row.index_ns)
-            << " at { close " << close
-            << ", bid " << bid
-            << ", ask " << ask
-            << " }";
-        haruquant::util::info(oss.str());
+
+        if (can_trade) {
+            if (row.entry_signal == 1) {
+                const bool opened = trade.PositionOpen(symbol_key, 0, exec_volume, 0.0, 0.0, 0.0, "engine_buy_signal");
+                if (verbose && opened) {
+                    const long ticket = (trade.ResultDeal() > 0) ? trade.ResultDeal() : trade.ResultOrder();
+                    std::ostringstream oss;
+                    oss << format_index_utc(row.index_ns)
+                        << " Market BUY " << exec_volume << " " << symbol_key
+                        << " " << ticket << " Opened";
+                    haruquant::util::info(oss.str());
+                }
+            } else if (row.entry_signal == -1) {
+                const bool opened = trade.PositionOpen(symbol_key, 1, exec_volume, 0.0, 0.0, 0.0, "engine_sell_signal");
+                if (verbose && opened) {
+                    const long ticket = (trade.ResultDeal() > 0) ? trade.ResultDeal() : trade.ResultOrder();
+                    std::ostringstream oss;
+                    oss << format_index_utc(row.index_ns)
+                        << " Market SELL " << exec_volume << " " << symbol_key
+                        << " " << ticket << " Opened";
+                    haruquant::util::info(oss.str());
+                }
+            }
+
+            if (row.exit_signal == 1 || row.exit_signal == -1) {
+                const long target_type = (row.exit_signal == 1) ? 0 : 1;
+                struct CloseCandidate {
+                    long ticket{0};
+                    double volume{0.0};
+                };
+                std::vector<CloseCandidate> tickets_to_close{};
+                for (const auto& [_, pos_row] : state->trading_deals) {
+                    if (read_string(pos_row, "entry", "0") != "0") {
+                        continue;
+                    }
+                    const std::string pos_symbol = read_string(pos_row, "symbol", "");
+                    if (to_upper_copy(pos_symbol) != to_upper_copy(symbol_key)) {
+                        continue;
+                    }
+                    if (read_long(pos_row, "type", -1) != target_type) {
+                        continue;
+                    }
+                    const long ticket = read_long(pos_row, "ticket", 0);
+                    if (ticket > 0) {
+                        tickets_to_close.push_back(CloseCandidate{
+                            ticket,
+                            read_double(pos_row, "volume", 0.0),
+                        });
+                    }
+                }
+                for (const auto& close_candidate : tickets_to_close) {
+                    const bool closed = trade.PositionClose("", close_candidate.ticket);
+                    if (verbose && closed) {
+                        std::ostringstream oss;
+                        oss << format_index_utc(row.index_ns)
+                            << " Market " << ((target_type == 0) ? "BUY" : "SELL")
+                            << " " << close_candidate.volume << " " << symbol_key
+                            << " " << close_candidate.ticket << " Closed";
+                        haruquant::util::info(oss.str());
+                    }
+                }
+            }
+        }
+
+        // Keep simulator state synchronized on every bar.
+        monitor_pending_orders(verbose);
+        monitor_positions(verbose);
+        monitor_account(verbose);
     }
 }
 
@@ -321,20 +396,6 @@ void Engine::monitor_positions(bool verbose) {
             }
         }
 
-        if (verbose) {
-            std::ostringstream oss;
-            oss << "sim -> ticket | " << read_long(pos_row, "ticket", 0)
-                << " | symbol " << symbol_key
-                << " | time " << read_long(pos_row, "time", 0)
-                << " | type " << order_type
-                << " | volume " << volume
-                << " | sl " << sl
-                << " | tp " << tp
-                << " | margin_required " << margin_required
-                << " | profit " << profit;
-            haruquant::util::info(oss.str());
-        }
-
         if (should_close) {
             to_close.push_back(CloseEvent{
                 position_key,
@@ -356,7 +417,10 @@ void Engine::monitor_positions(bool verbose) {
         if (pos_it == state->trading_deals.end()) {
             continue;
         }
+        const double current_balance = read_double(state->trading_account, "balance", 0.0);
+        state->trading_account["balance"] = to_string_num(current_balance + event.profit);
         auto closed_row = pos_it->second;
+        closed_row["profit"] = to_string_num(event.profit);
         closed_row["entry"] = "1";
         closed_row["time_update"] = to_string_num(now);
         closed_row["time_update_msc"] = to_string_num(now_msc);
@@ -365,15 +429,6 @@ void Engine::monitor_positions(bool verbose) {
         state->trading_history_deals[history_key] = closed_row;
         state->trading_deals.erase(pos_it);
 
-        if (verbose) {
-            std::ostringstream oss;
-            oss << "sim -> closed ticket | " << event.position_ticket
-                << " | symbol " << event.symbol
-                << " | reason " << event.reason
-                << " | price " << event.close_price
-                << " | profit " << event.profit;
-            haruquant::util::info(oss.str());
-        }
     }
 }
 
@@ -421,12 +476,6 @@ void Engine::monitor_pending_orders(bool verbose) {
 
         if (expired) {
             to_expire.push_back(key);
-            if (verbose) {
-                std::ostringstream oss;
-                oss << "sim -> pending expired | ticket " << read_long(row, "ticket", 0)
-                    << " | symbol " << read_string(row, "symbol", "");
-                haruquant::util::info(oss.str());
-            }
             continue;
         }
 
@@ -529,18 +578,10 @@ void Engine::monitor_pending_orders(bool verbose) {
         state->trading_history_orders[ticket_key] = hist_row;
         state->trading_orders.erase(it);
 
-        if (verbose) {
-            std::ostringstream oss;
-            oss << "sim -> pending trigger | ticket " << read_long(row, "ticket", 0)
-                << " | symbol " << req.symbol
-                << " | retcode " << result.retcode
-                << " | new_order " << result.order;
-            haruquant::util::info(oss.str());
-        }
     }
 }
 
-void Engine::monitor_account() {
+void Engine::monitor_account(bool verbose) {
     auto* state = account_.GetSharedState().get();
     if (state == nullptr) {
         return;
@@ -568,14 +609,16 @@ void Engine::monitor_account() {
     state->trading_account["margin_free"] = to_string_num(free_margin);
     state->trading_account["margin_level"] = to_string_num(margin_level);
 
-    std::ostringstream oss;
-    oss << "sim -> account | balance " << balance
-        << " | profit " << total_unrealized_profit
-        << " | equity " << equity
-        << " | margin " << used_margin
-        << " | margin_free " << free_margin
-        << " | margin_level " << margin_level;
-    haruquant::util::info(oss.str());
+    if (verbose) {
+        std::ostringstream oss;
+        oss << "sim -> account | balance " << balance
+            << " | profit " << total_unrealized_profit
+            << " | equity " << equity
+            << " | margin " << used_margin
+            << " | margin_free " << free_margin
+            << " | margin_level " << margin_level;
+        haruquant::util::info(oss.str());
+    }
 }
 
 }  // namespace haruquant::core
