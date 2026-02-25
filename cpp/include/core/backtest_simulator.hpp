@@ -19,6 +19,10 @@ public:
                              double lotsize,
                              double entry_price,
                              double exit_price) const;
+    double order_calc_margin(const std::string& action,
+                             const std::string& symbol,
+                             double lotsize,
+                             double entry_price) const;
 
 private:
     haruquant::trading::AccountInfo account_{};

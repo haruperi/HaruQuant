@@ -132,6 +132,29 @@ int resolve_order_filling(const nb::object& filling) {
     throw nb::value_error("Unsupported filling string");
 }
 
+std::string resolve_calc_action(const nb::object& action) {
+    if (nb::isinstance<nb::int_>(action)) {
+        const int value = nb::cast<int>(action);
+        if (value == 0) return "BUY";
+        if (value == 1) return "SELL";
+        throw nb::value_error("action int must be ORDER_TYPE_BUY(0) or ORDER_TYPE_SELL(1)");
+    }
+    if (!nb::isinstance<nb::str>(action)) {
+        throw nb::type_error("action must be int or string");
+    }
+
+    std::string token = normalize_token(nb::cast<std::string>(action));
+    constexpr const char* kPrefix = "ORDER_TYPE_";
+    if (token.rfind(kPrefix, 0) == 0) {
+        token.erase(0, std::char_traits<char>::length(kPrefix));
+    }
+
+    if (token == "BUY") return "BUY";
+    if (token == "SELL") return "SELL";
+
+    throw nb::value_error("action string must be BUY or SELL");
+}
+
 CoreTradeResult make_trade_result(const haruquant::trading::Trade& trade, bool success) {
     CoreTradeResult out;
     out.success = success;
@@ -842,10 +865,29 @@ void register_core_bindings(nb::module_& m) {
             return self.account_info();
         })
         .def("order_calc_profit",
-             &haruquant::core::BacktestSimulator::order_calc_profit,
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object action,
+                const std::string& symbol,
+                double lotsize,
+                double entry_price,
+                double exit_price) {
+                return self.order_calc_profit(resolve_calc_action(action), symbol, lotsize, entry_price, exit_price);
+             },
              nb::arg("action"),
              nb::arg("symbol"),
              nb::arg("lotsize"),
              nb::arg("entry_price"),
-             nb::arg("exit_price"));
+             nb::arg("exit_price"))
+        .def("order_calc_margin",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object action,
+                const std::string& symbol,
+                double lotsize,
+                double entry_price) {
+                return self.order_calc_margin(resolve_calc_action(action), symbol, lotsize, entry_price);
+             },
+             nb::arg("action"),
+             nb::arg("symbol"),
+             nb::arg("lotsize"),
+             nb::arg("entry_price"));
 }

@@ -59,6 +59,12 @@ def print_example_header(title: str):
     print(title)
     print("=" * 70)
 
+def _calc_profit(calc_api, symbol: str, volume: float, entry_price: float, exit_price: float):
+    return calc_api.order_calc_profit(0, symbol, volume, entry_price, exit_price)
+
+def _calc_margin(calc_api, symbol: str, volume: float, entry_price: float):
+    return calc_api.order_calc_margin(0, symbol, volume, entry_price)
+
 
 def example_01_open_position():
     print_example_header("Example 01: Open Position")
@@ -109,27 +115,40 @@ def example_02_calculate_profit():
         entry_price = float(info.ask)
         exit_price = entry_price + (265 * float(info.point))
 
-        mt5_profit = mt5.order_calc_profit(
-            mt5.ORDER_TYPE_BUY,
-            sym,
-            volume,
-            entry_price,
-            exit_price,
-        )
+        symbol_store.AddSymbol(info)
+        mt5_profit = _calc_profit(mt5, sym, volume, entry_price, exit_price)
+        tester_profit = _calc_profit(_simulator, sym, volume, entry_price, exit_price)
+        print(f"{sym}: MT5=${mt5_profit} | Tester=${tester_profit}")
+
+def example_03_calculate_margin():
+    print_example_header("Example 03: Calculate Margin")
+    volume = 0.10
+    symbols_to_test = [audusd, usdjpy, eurgbp, test_symbol]
+    ordered_symbols = []
+    seen = set()
+    for sym in symbols_to_test:
+        if sym not in seen:
+            seen.add(sym)
+            ordered_symbols.append(sym)
+
+    symbol_store = core.SymbolInfo(_account)
+    for sym in ordered_symbols:
+        info = client.symbol_info(sym)
+        if info is None:
+            print(f"{sym}: symbol info unavailable, skipped")
+            continue
+
+        entry_price = float(info.ask)
 
         symbol_store.AddSymbol(info)
-        tester_profit = _simulator.order_calc_profit(
-            action="BUY",
-            symbol=sym,
-            lotsize=volume,
-            entry_price=entry_price,
-            exit_price=exit_price,
-        )
-        print(f"{sym}: MT5=${mt5_profit} | Tester=${tester_profit}")
+        mt5_margin = _calc_margin(mt5, sym, volume, entry_price)
+        tester_margin = _calc_margin(_simulator, sym, volume, entry_price)
+        print(f"{sym}: MT5=${mt5_margin} | Tester=${tester_margin}")
 
 
 if __name__ == "__main__":
     example_01_open_position()
     example_02_calculate_profit()
+    example_03_calculate_margin()
 
     client.shutdown()
