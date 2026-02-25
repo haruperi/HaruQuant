@@ -258,6 +258,23 @@ double SymbolInfo::NormalizePrice(const double price) const {
   return std::round(price * pt) / pt;
 }
 
+bool SymbolInfo::AddSymbol(const SymbolInfo &source) {
+  const std::string source_name = source.Name();
+  const auto *source_state = source.GetState();
+  if (!source_state || source_name.empty()) {
+    return false;
+  }
+
+  const auto it = source_state->trading_symbols.find(source_name);
+  if (it == source_state->trading_symbols.end()) {
+    return false;
+  }
+
+  m_name = source_name;
+  EnsureState().trading_symbols[source_name] = it->second;
+  return true;
+}
+
 //--- Setters
 void SymbolInfo::SetSelect(bool value) {
   SetIntegerProperty("select", value ? 1 : 0);

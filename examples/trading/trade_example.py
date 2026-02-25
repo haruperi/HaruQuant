@@ -18,37 +18,40 @@ import haruquant.core as core
 from apps.mt5 import MT5Utils, Trade as LiveTrade, get_mt5_api
 
 # Global Variables
-eurusd = "EURUSD"
-gbpsud = "GBPUSD"
+test_symbol = "NZDCAD"
+audusd = "AUDUSD"
+eurgbp = "EURGBP"
 usdjpy = "USDJPY"
 stoploss = 10
-backend = "mt5"  # "mt5" or "tester"
+backend = "tester"  # "mt5" or "tester"
 
 # Derived globals
 mt5 = get_mt5_api()
 client = MT5Utils.get_connected_client()
 mt5_account = client.account_info()
-eurusd_info = client.symbol_info(eurusd)
+test_symbol_info = client.symbol_info(test_symbol)
+_simulator = None
+_account = None
 
 if backend == "mt5":
         trade = LiveTrade(mt5)
         print("Using: MT5 backend")
 else:
-        account = core.AccountInfo(mt5_account)
-        account.SetBalance(50000.0)
-        account.SetEquity(50000.0)
-        account.SetMargin(0.0)
-        account.SetMarginFree(50000.0)
-        account.SetServer("Simulator Account")
-        account.SetCompany("HaruQuant")
+        _account = core.AccountInfo(mt5_account)
+        _account.SetBalance(50000.0)
+        _account.SetEquity(50000.0)
+        _account.SetMargin(0.0)
+        _account.SetMarginFree(50000.0)
+        _account.SetServer("Simulator Account")
+        _account.SetCompany("HaruQuant")
 
-        _simulator = core.BacktestSimulator(account)
-        trade = core.Trade(account)
+        _simulator = core.BacktestSimulator(_account)
+        trade = core.Trade(_account)
         print("Using: Tester backend")
 
 trade.SetExpertMagicNumber(12345)
 trade.SetDeviationInPoints(20)
-trade.SetTypeFillingBySymbol(eurusd)
+trade.SetTypeFillingBySymbol(test_symbol)
 
 def print_example_header(title: str):
     print()
@@ -57,16 +60,15 @@ def print_example_header(title: str):
     print("=" * 70)
 
 
-
 def example_01_open_position():
     print_example_header("Example 01: Open Position")
     order_type = "BUY"
-    point = float(eurusd_info.point)
-    open_price = float(eurusd_info.bid) if order_type == "SELL" else float(eurusd_info.ask)
+    point = float(test_symbol_info.point)
+    open_price = float(test_symbol_info.bid) if order_type == "SELL" else float(test_symbol_info.ask)
     sl = open_price + (stoploss * point * 10) if order_type == "SELL" else open_price - (stoploss * point * 10)
 
     result = trade.PositionOpen(
-            symbol=eurusd,
+            symbol=test_symbol,
             order_type=order_type,
             volume=0.01,
             price=open_price,
@@ -75,18 +77,59 @@ def example_01_open_position():
             comment="Example open position",
         )
     if int(result.retcode) == 10009:
-        print(f"{eurusd} Position opened successfully with ticket {int(result.order)}")
+        print(f"{test_symbol} Position opened successfully with ticket {int(result.order)}")
     else:
         desc = str(trade.ResultRetcodeDescription())
         suffix = f"; {desc}" if desc and desc != str(int(result.retcode)) else ""
         print(
-            f"{eurusd} Position opening failed with retcode "
+            f"{test_symbol} Position opening failed with retcode "
             f"retcode {int(result.retcode)}, {suffix}"
         )
 
-    client.shutdown()
+    
+
+def example_02_calculate_profit():
+    print_example_header("Example 02: Calculate Profit")
+    volume = 0.10
+    symbols_to_test = [audusd, usdjpy, eurgbp, test_symbol]
+    ordered_symbols = []
+    seen = set()
+    for sym in symbols_to_test:
+        if sym not in seen:
+            seen.add(sym)
+            ordered_symbols.append(sym)
+
+    symbol_store = core.SymbolInfo(_account)
+    for sym in ordered_symbols:
+        info = client.symbol_info(sym)
+        if info is None:
+            print(f"{sym}: symbol info unavailable, skipped")
+            continue
+
+        entry_price = float(info.ask)
+        exit_price = entry_price + (265 * float(info.point))
+
+        mt5_profit = mt5.order_calc_profit(
+            mt5.ORDER_TYPE_BUY,
+            sym,
+            volume,
+            entry_price,
+            exit_price,
+        )
+
+        symbol_store.AddSymbol(info)
+        tester_profit = _simulator.order_calc_profit(
+            action="BUY",
+            symbol=sym,
+            lotsize=volume,
+            entry_price=entry_price,
+            exit_price=exit_price,
+        )
+        print(f"{sym}: MT5=${mt5_profit} | Tester=${tester_profit}")
 
 
 if __name__ == "__main__":
     example_01_open_position()
+    example_02_calculate_profit()
 
+    client.shutdown()

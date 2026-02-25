@@ -632,6 +632,9 @@ void register_core_bindings(nb::module_& m) {
 
     nb::class_<haruquant::trading::SymbolInfo>(m, "SymbolInfo")
         .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::SymbolInfo* self, const haruquant::trading::AccountInfo& account) {
+            new (self) haruquant::trading::SymbolInfo(account.GetSharedState());
+        }, nb::arg("account"))
         .def("__init__", [](haruquant::trading::SymbolInfo* self, nb::object source) {
             new (self) haruquant::trading::SymbolInfo(symbol_from_object(source));
         }, nb::arg("source"))
@@ -706,7 +709,11 @@ void register_core_bindings(nb::module_& m) {
         .def("SetSwapRollover3days", &haruquant::trading::SymbolInfo::SetSwapRollover3days, nb::arg("value"))
         .def("SetCurrencyBase", &haruquant::trading::SymbolInfo::SetCurrencyBase, nb::arg("value"))
         .def("SetCurrencyProfit", &haruquant::trading::SymbolInfo::SetCurrencyProfit, nb::arg("value"))
-        .def("SetCurrencyMargin", &haruquant::trading::SymbolInfo::SetCurrencyMargin, nb::arg("value"));
+        .def("SetCurrencyMargin", &haruquant::trading::SymbolInfo::SetCurrencyMargin, nb::arg("value"))
+        .def("AddSymbol", [](haruquant::trading::SymbolInfo& self, nb::object source) {
+            const auto parsed = symbol_from_object(source);
+            return self.AddSymbol(parsed);
+        }, nb::arg("source"));
 
     nb::class_<haruquant::trading::Trade>(m, "Trade")
         .def(nb::init<>())
@@ -833,5 +840,12 @@ void register_core_bindings(nb::module_& m) {
         .def(nb::init<const haruquant::trading::AccountInfo&>(), nb::arg("account"))
         .def("account_info", [](const haruquant::core::BacktestSimulator& self) {
             return self.account_info();
-        });
+        })
+        .def("order_calc_profit",
+             &haruquant::core::BacktestSimulator::order_calc_profit,
+             nb::arg("action"),
+             nb::arg("symbol"),
+             nb::arg("lotsize"),
+             nb::arg("entry_price"),
+             nb::arg("exit_price"));
 }

@@ -120,6 +120,7 @@ public:
 
   //--- Normalized property methods
   double NormalizePrice(const double price) const;
+  bool AddSymbol(const SymbolInfo &source);
 
   //--- Setters
   void SetSelect(bool value);
