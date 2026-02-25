@@ -12,6 +12,7 @@
 #include "trading/symbol_info.hpp"
 #include "trading/terminal_info.hpp"
 #include "trading/trade.hpp"
+#include "util/validators.hpp"
 
 namespace nb = nanobind;
 
@@ -426,6 +427,22 @@ haruquant::trading::TerminalInfo terminal_from_object(const nb::object& source) 
     return terminal;
 }
 
+haruquant::MqlTradeRequest mql_trade_request_from_object(const nb::object& source) {
+    haruquant::MqlTradeRequest request;
+
+    assign_if_present<int>(source, "action", [&](int v) { request.action = v; });
+    assign_if_present<std::string>(source, "symbol", [&](const std::string& v) { request.symbol = v; });
+    assign_if_present<double>(source, "volume", [&](double v) { request.volume = v; });
+    assign_if_present<int>(source, "type", [&](int v) { request.type = v; });
+    assign_if_present<double>(source, "price", [&](double v) { request.price = v; });
+    assign_if_present<double>(source, "sl", [&](double v) { request.sl = v; });
+    assign_if_present<double>(source, "tp", [&](double v) { request.tp = v; });
+    assign_if_present<long>(source, "expiration", [&](long v) { request.expiration = v; });
+    assign_if_present<int>(source, "deviation", [&](int v) { request.deviation = v; });
+
+    return request;
+}
+
 haruquant::core::TradeRequest order_send_request_from_object(const nb::object& source) {
     haruquant::core::TradeRequest request;
 
@@ -463,6 +480,16 @@ void register_core_bindings(nb::module_& m) {
         .def_rw("order", &CoreTradeResult::order)
         .def_rw("comment", &CoreTradeResult::comment)
         .def_rw("retcode_description", &CoreTradeResult::retcode_description);
+
+    nb::class_<haruquant::util::TradeValidationResult>(m, "TradeValidationResult")
+        .def(nb::init<>())
+        .def_rw("ok", &haruquant::util::TradeValidationResult::ok)
+        .def_rw("retcode", &haruquant::util::TradeValidationResult::retcode)
+        .def_rw("comment", &haruquant::util::TradeValidationResult::comment)
+        .def_rw("required_margin", &haruquant::util::TradeValidationResult::required_margin)
+        .def_rw("margin", &haruquant::util::TradeValidationResult::margin)
+        .def_rw("margin_free", &haruquant::util::TradeValidationResult::margin_free)
+        .def_rw("margin_level", &haruquant::util::TradeValidationResult::margin_level);
 
     nb::class_<haruquant::core::TradeRequest>(m, "OrderSendRequest")
         .def(nb::init<>())
@@ -1085,4 +1112,44 @@ void register_core_bindings(nb::module_& m) {
              },
              nb::arg("date_from"),
              nb::arg("date_to"));
+
+    m.def("validate_open_position",
+          [](nb::object request,
+             nb::object account_source,
+             nb::object symbol_source) {
+            const auto req = mql_trade_request_from_object(request);
+            const auto account = account_from_object(account_source);
+            auto symbol = symbol_from_object(symbol_source);
+            if (symbol.Name().empty()) {
+                if (nb::hasattr(symbol_source, "symbol")) {
+                    symbol.Name(nb::cast<std::string>(symbol_source.attr("symbol")));
+                } else if (nb::hasattr(symbol_source, "name")) {
+                    symbol.Name(nb::cast<std::string>(symbol_source.attr("name")));
+                }
+            }
+            return haruquant::util::open_position_validations(req, account, &symbol);
+          },
+          nb::arg("request"),
+          nb::arg("account"),
+          nb::arg("symbol_info"));
+
+    m.def("validate_open_pending_order",
+          [](nb::object request,
+             nb::object account_source,
+             nb::object symbol_source) {
+            const auto req = mql_trade_request_from_object(request);
+            const auto account = account_from_object(account_source);
+            auto symbol = symbol_from_object(symbol_source);
+            if (symbol.Name().empty()) {
+                if (nb::hasattr(symbol_source, "symbol")) {
+                    symbol.Name(nb::cast<std::string>(symbol_source.attr("symbol")));
+                } else if (nb::hasattr(symbol_source, "name")) {
+                    symbol.Name(nb::cast<std::string>(symbol_source.attr("name")));
+                }
+            }
+            return haruquant::util::open_pending_order_validations(req, account, &symbol);
+          },
+          nb::arg("request"),
+          nb::arg("account"),
+          nb::arg("symbol_info"));
 }

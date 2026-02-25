@@ -19,6 +19,10 @@ import dataclasses
 from apps.mt5 import get_mt5_api
 
 mt5 = get_mt5_api()
+try:
+    import haruquant.core as core
+except Exception:
+    core = None
 
 
 @dataclasses.dataclass
@@ -239,6 +243,55 @@ class Trade:
             request["type_time"] = self._type_time
         return request
 
+    def _validate_with_core(self, request: dict[str, Any]) -> Optional[TradeResult]:
+        if core is None:
+            return None
+        if not hasattr(core, "validate_open_position") or not hasattr(core, "validate_open_pending_order"):
+            return None
+
+        action = int(request.get("action", 0) or 0)
+        symbol = str(request.get("symbol", "") or "")
+        if not symbol:
+            return None
+
+        account = self._api.account_info()
+        symbol_info = self._api.symbol_info(symbol)
+        if account is None or symbol_info is None:
+            return None
+
+        if action == getattr(mt5, "TRADE_ACTION_DEAL", 1):
+            validation = core.validate_open_position(request, account, symbol_info)
+        elif action == getattr(mt5, "TRADE_ACTION_PENDING", 5):
+            validation = core.validate_open_pending_order(request, account, symbol_info)
+        else:
+            return None
+
+        if bool(getattr(validation, "ok", True)):
+            return None
+
+        retcode = int(getattr(validation, "retcode", 10013))
+        comment = str(getattr(validation, "comment", "Validation failed"))
+        self._last_result = {
+            "retcode": retcode,
+            "deal": 0,
+            "order": 0,
+            "volume": float(request.get("volume", 0.0) or 0.0),
+            "price": float(request.get("price", 0.0) or 0.0),
+            "bid": 0.0,
+            "ask": 0.0,
+            "comment": comment,
+        }
+        return TradeResult(
+            retcode=retcode,
+            deal=0,
+            order=0,
+            volume=float(request.get("volume", 0.0) or 0.0),
+            price=float(request.get("price", 0.0) or 0.0),
+            bid=0.0,
+            ask=0.0,
+            comment=comment,
+        )
+
     def _resolve_filling_mode(self, symbol: str) -> Optional[int]:
         info = self._api.symbol_info(symbol)
         if info is None:
@@ -404,6 +457,9 @@ class Trade:
             request["type_time"] = self._resolve_order_time(type_time)
         if expiration is not None:
             request["expiration"] = int(expiration.timestamp())
+        blocked = self._validate_with_core(request)
+        if blocked is not None:
+            return blocked
         return self._send_request(request)
 
     def OrderModify(
@@ -479,6 +535,9 @@ class Trade:
                 "comment": comment,
             }
         )
+        blocked = self._validate_with_core(request)
+        if blocked is not None:
+            return blocked
         return self._send_request(request)
 
     def PositionModify(

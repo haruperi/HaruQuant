@@ -155,6 +155,36 @@ bool Trade::PositionModify(const std::string &symbol, const long ticket,
     return false;
   }
 
+  core::BacktestState::Dictionary* target_position = nullptr;
+  if (ticket > 0) {
+    const std::string ticket_str = std::to_string(ticket);
+    for (auto& kv : m_state->trading_positions) {
+      auto it = kv.second.find("ticket");
+      if (it != kv.second.end() && it->second == ticket_str) {
+        target_position = &kv.second;
+        break;
+      }
+    }
+  }
+  if (target_position == nullptr && !sym.empty()) {
+    auto it = m_state->trading_positions.find(sym);
+    if (it != m_state->trading_positions.end()) {
+      target_position = &it->second;
+    }
+  }
+
+  if (target_position == nullptr) {
+    m_result_retcode = 10036;
+    m_result_comment = "Position not found";
+    return false;
+  }
+
+  (*target_position)["sl"] = std::to_string(sl);
+  (*target_position)["tp"] = std::to_string(tp);
+  const long now = static_cast<long>(time(nullptr));
+  (*target_position)["time_update"] = std::to_string(now);
+  (*target_position)["time_update_msc"] = std::to_string(now * 1000);
+
   m_state->trading_orders["modify_position_" + std::to_string(time(nullptr))] = {
       {"action", "position_modify"},
       {"symbol", sym},
@@ -163,6 +193,7 @@ bool Trade::PositionModify(const std::string &symbol, const long ticket,
       {"tp", std::to_string(tp)}};
 
   m_result_retcode = 10009;
+  m_result_comment = "Position modified";
   return true;
 }
 

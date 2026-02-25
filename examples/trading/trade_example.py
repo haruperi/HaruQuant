@@ -103,7 +103,6 @@ def example_02_calculate_profit():
             seen.add(sym)
             ordered_symbols.append(sym)
 
-    symbol_store = core.SymbolInfo(_account)
     for sym in ordered_symbols:
         info = client.symbol_info(sym)
         if info is None:
@@ -112,11 +111,14 @@ def example_02_calculate_profit():
 
         entry_price = float(info.ask)
         exit_price = entry_price + (265 * float(info.point))
-
-        symbol_store.AddSymbol(info)
         mt5_profit = mt5.order_calc_profit(0, sym, volume, entry_price, exit_price)
-        tester_profit = _simulator.order_calc_profit(0, sym, volume, entry_price, exit_price)
-        print(f"{sym}: MT5=${mt5_profit} | Tester=${tester_profit}")
+        if backend == "tester":
+            symbol_store = core.SymbolInfo(_account)
+            symbol_store.AddSymbol(info)
+            tester_profit = _simulator.order_calc_profit(0, sym, volume, entry_price, exit_price)
+            print(f"{sym}: MT5=${mt5_profit} | Tester=${tester_profit}")
+        else:
+            print(f"{sym}: MT5=${mt5_profit}")
 
 def example_03_calculate_margin():
     print_example_header("Example 03: Calculate Margin")
@@ -129,7 +131,6 @@ def example_03_calculate_margin():
             seen.add(sym)
             ordered_symbols.append(sym)
 
-    symbol_store = core.SymbolInfo(_account)
     for sym in ordered_symbols:
         info = client.symbol_info(sym)
         if info is None:
@@ -137,16 +138,55 @@ def example_03_calculate_margin():
             continue
 
         entry_price = float(info.ask)
-
-        symbol_store.AddSymbol(info)
         mt5_margin = mt5.order_calc_margin(0, sym, volume, entry_price)
-        tester_margin = _simulator.order_calc_margin(0, sym, volume, entry_price)
-        print(f"{sym}: MT5=${mt5_margin} | Tester=${tester_margin}")
+        if backend == "tester":
+            symbol_store = core.SymbolInfo(_account)
+            symbol_store.AddSymbol(info)
+            tester_margin = _simulator.order_calc_margin(0, sym, volume, entry_price)
+            print(f"{sym}: MT5=${mt5_margin} | Tester=${tester_margin}")
+        else:
+            print(f"{sym}: MT5=${mt5_margin}")
+
+def example_04_modify_position():
+    print_example_header("Example 04: Modify Position (SL/TP)")
+    info = client.symbol_info(test_symbol)
+    if info is None:
+        print(f"{test_symbol}: symbol info unavailable, skipped")
+        return
+
+    point = float(info.point)
+    bid = float(info.bid)
+    ask = float(info.ask)
+    new_sl = bid - (30 * point * 10)
+    new_tp = ask + (30 * point * 10)
+
+    if backend == "mt5":
+        result = trade.PositionModify(symbol=test_symbol, sl=new_sl, tp=new_tp)
+        if result and int(result.retcode) in (10008, 10009):
+            print(f"{test_symbol} Position modified successfully")
+        else:
+            print(
+                f"{test_symbol} Position modify failed with retcode "
+                f"{int(result.retcode)}"
+            )
+    else:
+        ok = trade.PositionModify(symbol=test_symbol, sl=new_sl, tp=new_tp)
+        retcode = int(trade.ResultRetcode())
+        if ok and retcode == 10009:
+            print(f"{test_symbol} Position modified successfully")
+        else:
+            desc = str(trade.ResultRetcodeDescription())
+            suffix = f"; {desc}" if desc and desc != str(retcode) else ""
+            print(
+                f"{test_symbol} Position modify failed with retcode "
+                f"{retcode}{suffix}"
+            )
 
 
 if __name__ == "__main__":
     example_01_open_position()
     example_02_calculate_profit()
     example_03_calculate_margin()
+    example_04_modify_position()
 
     client.shutdown()
