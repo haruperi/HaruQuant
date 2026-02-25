@@ -67,6 +67,10 @@ def example_01_open_position():
     open_price = float(test_symbol_info.bid) if order_type == "SELL" else float(test_symbol_info.ask)
     sl = open_price + (stoploss * point * 10) if order_type == "SELL" else open_price - (stoploss * point * 10)
 
+    if backend == "tester":
+        symbol_store = core.SymbolInfo(_account)
+        symbol_store.AddSymbol(test_symbol_info)
+
     result = trade.PositionOpen(
             symbol=test_symbol,
             order_type=order_type,

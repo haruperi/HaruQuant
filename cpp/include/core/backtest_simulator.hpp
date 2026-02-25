@@ -9,16 +9,52 @@
 
 
 #include <string>
+#include <utility>
 #include <vector>
 
 
 namespace haruquant::core {
+
+struct TradeRequest {
+    long action{0};
+    long magic{0};
+    long order{0};
+    std::string symbol{};
+    double volume{0.0};
+    long type{0};
+    double price{0.0};
+    double stoplimit{0.0};
+    double sl{0.0};
+    double tp{0.0};
+    long deviation{0};
+    long type_filling{0};
+    long type_time{0};
+    long expiration{0};
+    std::string comment{};
+    long position{0};
+    long position_by{0};
+};
+
+struct TradeResult {
+    long retcode{10013};
+    long deal{0};
+    long order{0};
+    double volume{0.0};
+    double price{0.0};
+    double bid{0.0};
+    double ask{0.0};
+    std::string comment{};
+    long retcode_external{0};
+    TradeRequest request{};
+};
 
 class BacktestSimulator {
 public:
     explicit BacktestSimulator();
     explicit BacktestSimulator(const haruquant::trading::AccountInfo& account);
     const haruquant::trading::AccountInfo& account_info() const { return account_; }
+    TradeResult order_send(const TradeRequest& request);
+    std::pair<int, std::string> last_error() const;
     double order_calc_profit(const std::string& action,
                              const std::string& symbol,
                              double lotsize,
@@ -50,7 +86,10 @@ public:
     long history_deals_total(long date_from, long date_to) const;
 
 private:
+    void set_last_error(int code, std::string message);
     haruquant::trading::AccountInfo account_{};
+    int last_error_code_{0};
+    std::string last_error_message_{"No error"};
 };
 
 }  // namespace haruquant::core

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <ctime>
 #include <limits>
 #include <regex>
 #include <sstream>
@@ -131,6 +132,38 @@ bool group_match(const std::string& symbol, const std::string& group) {
     return has_include_rule ? included : true;
 }
 
+std::string to_string_num(long value) {
+    return std::to_string(value);
+}
+
+std::string to_string_num(double value) {
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+}
+
+long next_ticket(const BacktestState::DictionaryMap& rows) {
+    long max_ticket = 0;
+    for (const auto& [key, row] : rows) {
+        const long ticket = parse_long_default(read_string(row, "ticket"), parse_long_default(key, 0));
+        max_ticket = std::max(max_ticket, ticket);
+    }
+    return max_ticket + 1;
+}
+
+std::string find_symbol_key(const BacktestState::DictionaryMap& symbols, const std::string& symbol) {
+    if (symbols.find(symbol) != symbols.end()) {
+        return symbol;
+    }
+    const std::string target = to_upper_copy(symbol);
+    for (const auto& [key, _] : symbols) {
+        if (to_upper_copy(key) == target) {
+            return key;
+        }
+    }
+    return {};
+}
+
 haruquant::CurrencyConverter build_currency_converter(const BacktestState& state) {
     haruquant::CurrencyConverter converter;
     for (const auto& [_, row] : state.trading_symbols) {
@@ -180,6 +213,186 @@ BacktestSimulator::BacktestSimulator() {
 
 BacktestSimulator::BacktestSimulator(const haruquant::trading::AccountInfo& account) : account_(account) {
     haruquant::util::info("Backtest Simulator successfully initialised with account");
+}
+
+void BacktestSimulator::set_last_error(int code, std::string message) {
+    last_error_code_ = code;
+    last_error_message_ = std::move(message);
+}
+
+std::pair<int, std::string> BacktestSimulator::last_error() const {
+    return {last_error_code_, last_error_message_};
+}
+
+TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
+    TradeResult result;
+    result.request = request;
+    result.volume = request.volume;
+
+    const auto* state_ro = account_.GetState();
+    if (!state_ro) {
+        result.retcode = 10013;
+        result.comment = "BacktestSimulator has no shared BacktestState";
+        set_last_error(-1, result.comment);
+        return result;
+    }
+    auto* state = account_.GetSharedState().get();
+    if (!state) {
+        result.retcode = 10013;
+        result.comment = "BacktestSimulator has no mutable BacktestState";
+        set_last_error(-1, result.comment);
+        return result;
+    }
+
+    const long action = (request.action == 0) ? 1 : request.action;  // TRADE_ACTION_DEAL
+    const bool is_market_deal = (action == 1);
+    if (!is_market_deal) {
+        result.retcode = 10013;
+        result.comment = "Only TRADE_ACTION_DEAL is supported in tester order_send()";
+        set_last_error(-2, result.comment);
+        return result;
+    }
+
+    const std::string symbol_key = find_symbol_key(state->trading_symbols, request.symbol);
+    if (symbol_key.empty()) {
+        result.retcode = 10013;
+        result.comment = "Unknown symbol";
+        set_last_error(-2, result.comment);
+        return result;
+    }
+
+    const long order_type = request.type;
+    const bool is_buy = (order_type == 0);
+    const bool is_sell = (order_type == 1);
+    if (!is_buy && !is_sell) {
+        result.retcode = 10013;
+        result.comment = "Only BUY/SELL are supported in tester order_send()";
+        set_last_error(-2, result.comment);
+        return result;
+    }
+
+    if (request.volume <= 0.0) {
+        result.retcode = 10014;
+        result.comment = "Volume must be > 0";
+        set_last_error(-2, result.comment);
+        return result;
+    }
+
+    const auto& sym_row = state->trading_symbols[symbol_key];
+    const double bid = read_double(sym_row, "bid", 0.0);
+    const double ask = read_double(sym_row, "ask", 0.0);
+    const double last = read_double(sym_row, "last", 0.0);
+    result.bid = bid;
+    result.ask = ask;
+
+    double exec_price = request.price;
+    if (exec_price <= 0.0) {
+        exec_price = is_buy ? ask : bid;
+    }
+    if (exec_price <= 0.0) {
+        exec_price = last;
+    }
+    if (exec_price <= 0.0) {
+        result.retcode = 10015;
+        result.comment = "Price is invalid and no market quote is available";
+        set_last_error(-2, result.comment);
+        return result;
+    }
+
+    const long now = static_cast<long>(std::time(nullptr));
+    const long now_msc = now * 1000;
+
+    const long order_ticket = next_ticket(state->trading_orders);
+    const long deal_ticket = next_ticket(state->trading_deals);
+    const long position_ticket = next_ticket(state->trading_positions);
+
+    double margin_required = 0.0;
+    try {
+        margin_required = order_calc_margin(is_buy ? "BUY" : "SELL", symbol_key, request.volume, exec_price);
+    } catch (...) {
+        margin_required = 0.0;
+    }
+
+    auto& order_row = state->trading_orders[to_string_num(order_ticket)];
+    order_row["ticket"] = to_string_num(order_ticket);
+    order_row["time_setup"] = to_string_num(now);
+    order_row["time_setup_msc"] = to_string_num(now_msc);
+    order_row["time_done"] = to_string_num(now);
+    order_row["time_done_msc"] = to_string_num(now_msc);
+    order_row["time_expiration"] = to_string_num(request.expiration);
+    order_row["type"] = to_string_num(order_type);
+    order_row["type_time"] = to_string_num(request.type_time);
+    order_row["type_filling"] = to_string_num(request.type_filling);
+    order_row["state"] = "4";
+    order_row["magic"] = to_string_num(request.magic);
+    order_row["reason"] = "0";
+    order_row["position_id"] = to_string_num(position_ticket);
+    order_row["position_by_id"] = to_string_num(request.position_by);
+    order_row["volume_initial"] = to_string_num(request.volume);
+    order_row["volume_current"] = "0";
+    order_row["price_open"] = to_string_num(exec_price);
+    order_row["sl"] = to_string_num(request.sl);
+    order_row["tp"] = to_string_num(request.tp);
+    order_row["price_current"] = to_string_num(exec_price);
+    order_row["price_stoplimit"] = to_string_num(request.stoplimit);
+    order_row["symbol"] = symbol_key;
+    order_row["comment"] = request.comment;
+    order_row["external_id"] = "";
+    order_row["margin_required"] = to_string_num(margin_required);
+
+    state->trading_history_orders[to_string_num(order_ticket)] = order_row;
+
+    auto& deal_row = state->trading_deals[to_string_num(deal_ticket)];
+    deal_row["ticket"] = to_string_num(deal_ticket);
+    deal_row["order"] = to_string_num(order_ticket);
+    deal_row["time"] = to_string_num(now);
+    deal_row["time_msc"] = to_string_num(now_msc);
+    deal_row["type"] = to_string_num(order_type);
+    deal_row["entry"] = "0";
+    deal_row["magic"] = to_string_num(request.magic);
+    deal_row["reason"] = "0";
+    deal_row["position_id"] = to_string_num(position_ticket);
+    deal_row["volume"] = to_string_num(request.volume);
+    deal_row["price"] = to_string_num(exec_price);
+    deal_row["commission"] = "0";
+    deal_row["swap"] = "0";
+    deal_row["profit"] = "0";
+    deal_row["fee"] = "0";
+    deal_row["symbol"] = symbol_key;
+    deal_row["comment"] = request.comment;
+    deal_row["external_id"] = "";
+
+    auto& pos_row = state->trading_positions[symbol_key];
+    pos_row["ticket"] = to_string_num(position_ticket);
+    pos_row["time"] = to_string_num(now);
+    pos_row["time_msc"] = to_string_num(now_msc);
+    pos_row["time_update"] = to_string_num(now);
+    pos_row["time_update_msc"] = to_string_num(now_msc);
+    pos_row["type"] = to_string_num(order_type);
+    pos_row["magic"] = to_string_num(request.magic);
+    pos_row["identifier"] = to_string_num(position_ticket);
+    pos_row["reason"] = "0";
+    pos_row["volume"] = to_string_num(request.volume);
+    pos_row["price_open"] = to_string_num(exec_price);
+    pos_row["sl"] = to_string_num(request.sl);
+    pos_row["tp"] = to_string_num(request.tp);
+    pos_row["price_current"] = to_string_num(exec_price);
+    pos_row["swap"] = "0";
+    pos_row["profit"] = "0";
+    pos_row["commission"] = "0";
+    pos_row["fee"] = "0";
+    pos_row["margin_required"] = to_string_num(margin_required);
+    pos_row["symbol"] = symbol_key;
+    pos_row["comment"] = request.comment;
+    pos_row["external_id"] = "";
+
+    result.retcode = 10009;
+    result.deal = deal_ticket;
+    result.order = order_ticket;
+    result.price = exec_price;
+    result.comment = "Request executed";
+    set_last_error(0, "No error");
+    return result;
 }
 
 double BacktestSimulator::order_calc_profit(const std::string& action,

@@ -426,6 +426,30 @@ haruquant::trading::TerminalInfo terminal_from_object(const nb::object& source) 
     return terminal;
 }
 
+haruquant::core::TradeRequest order_send_request_from_object(const nb::object& source) {
+    haruquant::core::TradeRequest request;
+
+    assign_if_present<long>(source, "action", [&](long v) { request.action = v; });
+    assign_if_present<long>(source, "magic", [&](long v) { request.magic = v; });
+    assign_if_present<long>(source, "order", [&](long v) { request.order = v; });
+    assign_if_present<std::string>(source, "symbol", [&](const std::string& v) { request.symbol = v; });
+    assign_if_present<double>(source, "volume", [&](double v) { request.volume = v; });
+    assign_if_present<long>(source, "type", [&](long v) { request.type = v; });
+    assign_if_present<double>(source, "price", [&](double v) { request.price = v; });
+    assign_if_present<double>(source, "stoplimit", [&](double v) { request.stoplimit = v; });
+    assign_if_present<double>(source, "sl", [&](double v) { request.sl = v; });
+    assign_if_present<double>(source, "tp", [&](double v) { request.tp = v; });
+    assign_if_present<long>(source, "deviation", [&](long v) { request.deviation = v; });
+    assign_if_present<long>(source, "type_filling", [&](long v) { request.type_filling = v; });
+    assign_if_present<long>(source, "type_time", [&](long v) { request.type_time = v; });
+    assign_if_present<long>(source, "expiration", [&](long v) { request.expiration = v; });
+    assign_if_present<std::string>(source, "comment", [&](const std::string& v) { request.comment = v; });
+    assign_if_present<long>(source, "position", [&](long v) { request.position = v; });
+    assign_if_present<long>(source, "position_by", [&](long v) { request.position_by = v; });
+
+    return request;
+}
+
 }  // namespace
 
 void register_core_bindings(nb::module_& m) {
@@ -439,6 +463,39 @@ void register_core_bindings(nb::module_& m) {
         .def_rw("order", &CoreTradeResult::order)
         .def_rw("comment", &CoreTradeResult::comment)
         .def_rw("retcode_description", &CoreTradeResult::retcode_description);
+
+    nb::class_<haruquant::core::TradeRequest>(m, "OrderSendRequest")
+        .def(nb::init<>())
+        .def_rw("action", &haruquant::core::TradeRequest::action)
+        .def_rw("magic", &haruquant::core::TradeRequest::magic)
+        .def_rw("order", &haruquant::core::TradeRequest::order)
+        .def_rw("symbol", &haruquant::core::TradeRequest::symbol)
+        .def_rw("volume", &haruquant::core::TradeRequest::volume)
+        .def_rw("type", &haruquant::core::TradeRequest::type)
+        .def_rw("price", &haruquant::core::TradeRequest::price)
+        .def_rw("stoplimit", &haruquant::core::TradeRequest::stoplimit)
+        .def_rw("sl", &haruquant::core::TradeRequest::sl)
+        .def_rw("tp", &haruquant::core::TradeRequest::tp)
+        .def_rw("deviation", &haruquant::core::TradeRequest::deviation)
+        .def_rw("type_filling", &haruquant::core::TradeRequest::type_filling)
+        .def_rw("type_time", &haruquant::core::TradeRequest::type_time)
+        .def_rw("expiration", &haruquant::core::TradeRequest::expiration)
+        .def_rw("comment", &haruquant::core::TradeRequest::comment)
+        .def_rw("position", &haruquant::core::TradeRequest::position)
+        .def_rw("position_by", &haruquant::core::TradeRequest::position_by);
+
+    nb::class_<haruquant::core::TradeResult>(m, "OrderSendResult")
+        .def(nb::init<>())
+        .def_rw("retcode", &haruquant::core::TradeResult::retcode)
+        .def_rw("deal", &haruquant::core::TradeResult::deal)
+        .def_rw("order", &haruquant::core::TradeResult::order)
+        .def_rw("volume", &haruquant::core::TradeResult::volume)
+        .def_rw("price", &haruquant::core::TradeResult::price)
+        .def_rw("bid", &haruquant::core::TradeResult::bid)
+        .def_rw("ask", &haruquant::core::TradeResult::ask)
+        .def_rw("comment", &haruquant::core::TradeResult::comment)
+        .def_rw("retcode_external", &haruquant::core::TradeResult::retcode_external)
+        .def_rw("request", &haruquant::core::TradeResult::request);
 
     nb::class_<haruquant::trading::AccountInfo>(m, "AccountInfo")
         .def(nb::init<>())
@@ -908,6 +965,16 @@ void register_core_bindings(nb::module_& m) {
         .def("account_info", [](const haruquant::core::BacktestSimulator& self) {
             return self.account_info();
         })
+        .def("order_send",
+             [](haruquant::core::BacktestSimulator& self, nb::object request) {
+                return self.order_send(order_send_request_from_object(request));
+             },
+             nb::arg("request"))
+        .def("last_error",
+             [](const haruquant::core::BacktestSimulator& self) {
+                const auto err = self.last_error();
+                return nb::make_tuple(err.first, err.second);
+             })
         .def("order_calc_profit",
              [](const haruquant::core::BacktestSimulator& self,
                 nb::object action,

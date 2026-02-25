@@ -10,54 +10,8 @@ RESPONSIBILITIES:
 - Provide stable behavior expected by callers and tests.
 
 MAIN COMPONENTS:
-- Classes/Types used in this file:
-  RuleValidationResult, TradeValidationResult, ValidationContext, ValidationRules, CredentialsPayload.
-- File-local helper methods (anonymous namespace):
-  ok(const std::string& message = "OK") -> RuleValidationResult
-  fail(const std::string& message) -> RuleValidationResult
-  fail_trade(int retcode, const std::string& comment) -> TradeValidationResult
-  to_upper(std::string value) -> std::string
-  is_market_order_type(int type) -> bool
-  is_pending_order_type(int type) -> bool
-  is_buy_action(int order_type) -> bool
-  is_sell_action(int order_type) -> bool
-  trim_copy(const std::string& input) -> std::string
-  step_decimals(double step) -> int
-  is_plain_decimal_number(const std::string& s) -> bool
-  calculate_margin(const haruquant::AccountInfo& account, const haruquant::SymbolInfo& symbol_info, double volume, double price) -> double
-  now_unix_sec() -> int64_t
-  validate_price_relationship(double level_price, double entry_price, int order_type, bool is_stop_loss) -> RuleValidationResult
-  validate_stop_freeze_distance(double level_price, double entry_price, int order_type, bool is_stop_loss, const haruquant::SymbolInfo& symbol_info, const std::string& level_name) -> RuleValidationResult
-  parse_order_type_token(const std::string& order_type) -> std::optional<int>
-- Public validation/trade-check methods implemented:
-  validate_action_type(int action, int type) -> TradeValidationResult
-  validate_submission_inputs(const std::string& symbol, double volume, double bid, double ask, const haruquant::SymbolInfo* symbol_info, const ValidationRules& rules) -> TradeValidationResult
-  validate_trade_request(const haruquant::MqlTradeRequest& request, const haruquant::AccountInfo& account, const haruquant::SymbolInfo* symbol_info) -> TradeValidationResult
-  validate_symbol(const std::string& symbol, const ValidationContext& ctx) -> RuleValidationResult
-  validate_volume_basic(double volume) -> RuleValidationResult
-  validate_volume_symbol_limits(double volume, const haruquant::SymbolInfo& symbol_info) -> RuleValidationResult
-  validate_volume_step(double volume, const haruquant::SymbolInfo& symbol_info) -> RuleValidationResult
-  validate_volume_format(const std::string& volume_text, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
-  validate_price_format(const std::string& price_text, const ValidationContext& ctx) -> RuleValidationResult
-  validate_volume(double volume, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
-  validate_price(double price, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
-  validate_order_type(int order_type) -> RuleValidationResult
-  validate_order_type(const std::string& order_type) -> RuleValidationResult
-  validate_magic(int magic, const ValidationRules& rules) -> RuleValidationResult
-  validate_slippage(double slippage_points, int order_type, double requested_price, const ValidationContext& ctx) -> RuleValidationResult
-  validate_expiration_unix(int64_t expiration_unix_sec, int64_t now_unix_sec) -> RuleValidationResult
-  validate_expiration_mode(const std::string& expiration_mode) -> RuleValidationResult
-  validate_timeframe(const std::string& timeframe) -> RuleValidationResult
-  validate_timeframe(int timeframe) -> RuleValidationResult
-  validate_date_range_unix(int64_t start_unix_sec, int64_t end_unix_sec) -> RuleValidationResult
-  validate_stop_loss(double stop_loss, double open_price, int order_type, const ValidationContext& ctx) -> RuleValidationResult
-  validate_take_profit(double take_profit, double open_price, int order_type, const ValidationContext& ctx) -> RuleValidationResult
-  validate_trade_request_payload(const TradeRequestPayload& payload, const ValidationContext& ctx, const ValidationRules& rules) -> RuleValidationResult
-  validate_credentials(const CredentialsPayload& credentials) -> RuleValidationResult
-  validate_margin(double margin_required, const ValidationContext& ctx) -> RuleValidationResult
-  validate_ticket(int64_t ticket) -> RuleValidationResult
-  validate_max_orders(int open_orders, std::optional<int> account_limit, const ValidationContext& ctx) -> RuleValidationResult
-  validate_symbol_volume(double symbol_volume, std::optional<double> volume_limit, const ValidationContext& ctx) -> RuleValidationResult
+- Rule-level validators for symbol/volume/price/slippage/SLTP/expiration/account checks.
+- Trade-level consolidated validators for open/modify/close position and pending-order flows.
 
 DATA FLOW:
 Callers provide requests or data -> this file applies core logic -> outputs state changes or results.
@@ -302,6 +256,104 @@ std::optional<int> parse_order_type_token(const std::string& order_type) {
     if (token == "BUY_STOP_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT);
     if (token == "SELL_STOP_LIMIT") return static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT);
     return std::nullopt;
+}
+
+double parse_double_or(const std::string& value, double fallback = 0.0) {
+    if (value.empty()) {
+        return fallback;
+    }
+    try {
+        return std::stod(value);
+    } catch (...) {
+        return fallback;
+    }
+}
+
+int parse_int_or(const std::string& value, int fallback = 0) {
+    if (value.empty()) {
+        return fallback;
+    }
+    try {
+        return std::stoi(value);
+    } catch (...) {
+        return fallback;
+    }
+}
+
+const core::BacktestState::Dictionary* find_symbol_row(
+    const core::BacktestState* state,
+    const std::string& symbol) {
+    if (state == nullptr || symbol.empty()) {
+        return nullptr;
+    }
+    const auto exact = state->trading_symbols.find(symbol);
+    if (exact != state->trading_symbols.end()) {
+        return &exact->second;
+    }
+    const std::string target = to_upper(symbol);
+    for (const auto& kv : state->trading_symbols) {
+        if (to_upper(kv.first) == target) {
+            return &kv.second;
+        }
+    }
+    return nullptr;
+}
+
+int count_open_pending_orders(const core::BacktestState* state) {
+    if (state == nullptr) {
+        return 0;
+    }
+    int count = 0;
+    for (const auto& kv : state->trading_orders) {
+        auto it = kv.second.find("action");
+        if (it != kv.second.end() && it->second == "order_open") {
+            ++count;
+        }
+    }
+    return count;
+}
+
+double symbol_open_volume(const core::BacktestState* state, const std::string& symbol) {
+    if (state == nullptr || symbol.empty()) {
+        return 0.0;
+    }
+    const std::string target = to_upper(symbol);
+    double total = 0.0;
+    for (const auto& kv : state->trading_positions) {
+        std::string row_symbol = kv.first;
+        auto sym_it = kv.second.find("symbol");
+        if (sym_it != kv.second.end() && !sym_it->second.empty()) {
+            row_symbol = sym_it->second;
+        }
+        if (to_upper(row_symbol) != target) {
+            continue;
+        }
+        auto vol_it = kv.second.find("volume");
+        if (vol_it != kv.second.end()) {
+            total += std::abs(parse_double_or(vol_it->second, 0.0));
+        }
+    }
+    return total;
+}
+
+const core::BacktestState::Dictionary* find_order_row(
+    const core::BacktestState* state,
+    long ticket) {
+    if (state == nullptr || ticket <= 0) {
+        return nullptr;
+    }
+    const std::string ticket_str = std::to_string(ticket);
+    const auto direct = state->trading_orders.find(ticket_str);
+    if (direct != state->trading_orders.end()) {
+        return &direct->second;
+    }
+    for (const auto& kv : state->trading_orders) {
+        auto it = kv.second.find("ticket");
+        if (it != kv.second.end() && it->second == ticket_str) {
+            return &kv.second;
+        }
+    }
+    return nullptr;
 }
 
 }  // namespace
@@ -810,7 +862,10 @@ RuleValidationResult validate_trade_request_payload(
     const std::optional<int> slippage =
         request.slippage.has_value() ? request.slippage : request.deviation;
     if (slippage.has_value()) {
-        const double requested_price = request.price.value_or(0.0);
+        double requested_price = request.price.value_or(0.0);
+        if (!(requested_price > 0.0) && ctx.symbol_tick.has_value()) {
+            requested_price = is_buy_action(request.type) ? ctx.symbol_tick->ask : ctx.symbol_tick->bid;
+        }
         RuleValidationResult slip = validate_slippage(
             *slippage, requested_price, request.type, ctx, rules);
         if (!slip.ok) {
@@ -897,6 +952,526 @@ RuleValidationResult validate_symbol_volume(
         return fail(oss.str());
     }
     return ok("Symbol volume within limit");
+}
+
+TradeValidationResult open_position_validations(
+    const haruquant::MqlTradeRequest& request,
+    const haruquant::trading::AccountInfo& account,
+    const haruquant::trading::SymbolInfo* symbol_info) {
+    ValidationContext ctx{};
+    ctx.account = &account;
+    ctx.symbol_info = symbol_info;
+    ctx.symbol_exists = (symbol_info != nullptr);
+    ctx.symbol_visible = true;
+    ctx.symbol_select_ok = true;
+    if (symbol_info != nullptr) {
+        ctx.symbol_tick = SymbolTickData{symbol_info->Bid(), symbol_info->Ask()};
+    }
+    ValidationRules rules{};
+    const auto* state = account.GetState();
+
+    RuleValidationResult symbol_ok = validate_symbol(request.symbol, ctx);
+    if (!symbol_ok.ok) {
+        return fail_trade(10013, symbol_ok.message);
+    }
+
+    RuleValidationResult type_ok = validate_order_type(request.type);
+    if (!type_ok.ok) {
+        return fail_trade(10013, type_ok.message);
+    }
+
+    RuleValidationResult vol_ok = validate_volume(request.volume, ctx, rules);
+    if (!vol_ok.ok) {
+        return fail_trade(10014, vol_ok.message);
+    }
+
+    TradeValidationResult out = validate_action_type(request.action, request.type);
+    if (!out.ok) {
+        return out;
+    }
+
+    const double bid = (symbol_info != nullptr) ? symbol_info->Bid() : 0.0;
+    const double ask = (symbol_info != nullptr) ? symbol_info->Ask() : 0.0;
+    out = validate_submission_inputs(request.symbol, request.volume, symbol_info, bid, ask);
+    if (!out.ok) {
+        return out;
+    }
+
+    if (request.price > 0.0) {
+        RuleValidationResult price_ok = validate_price(request.price, ctx, rules);
+        if (!price_ok.ok) {
+            return fail_trade(10015, price_ok.message);
+        }
+    }
+
+    if (request.deviation > 0) {
+        double requested_price = request.price;
+        if (!(requested_price > 0.0) && symbol_info != nullptr) {
+            requested_price = is_buy_action(request.type) ? symbol_info->Ask() : symbol_info->Bid();
+        }
+        RuleValidationResult slip_ok = validate_slippage(
+            request.deviation, requested_price, request.type, ctx, rules);
+        if (!slip_ok.ok) {
+            return fail_trade(10015, slip_ok.message);
+        }
+    }
+
+    if (request.sl > 0.0) {
+        RuleValidationResult sl_ok = validate_stop_loss(
+            request.sl,
+            (request.price > 0.0) ? std::optional<double>(request.price) : std::nullopt,
+            request.type,
+            ctx,
+            rules);
+        if (!sl_ok.ok) {
+            return fail_trade(10016, sl_ok.message);
+        }
+    }
+    if (request.tp > 0.0) {
+        RuleValidationResult tp_ok = validate_take_profit(
+            request.tp,
+            (request.price > 0.0) ? std::optional<double>(request.price) : std::nullopt,
+            request.type,
+            ctx,
+            rules);
+        if (!tp_ok.ok) {
+            return fail_trade(10016, tp_ok.message);
+        }
+    }
+
+    const int open_orders = count_open_pending_orders(state);
+    RuleValidationResult max_orders_ok = validate_max_orders(open_orders, account.LimitOrders(), ctx);
+    if (!max_orders_ok.ok) {
+        return fail_trade(10033, max_orders_ok.message);
+    }
+    const double symbol_volume = symbol_open_volume(state, request.symbol);
+    RuleValidationResult symbol_volume_ok = validate_symbol_volume(symbol_volume, std::nullopt, ctx);
+    if (!symbol_volume_ok.ok) {
+        return fail_trade(10034, symbol_volume_ok.message);
+    }
+
+    out = validate_trade_request(request, account, symbol_info);
+    if (!out.ok) {
+        return out;
+    }
+
+    RuleValidationResult margin_ok = validate_margin(out.required_margin, ctx);
+    if (!margin_ok.ok) {
+        return fail_trade(10019, margin_ok.message);
+    }
+    return out;
+}
+
+TradeValidationResult modify_position_validations(
+    const std::string& symbol,
+    long ticket,
+    const haruquant::core::BacktestState* state) {
+    const bool has_ticket = ticket > 0;
+    const bool has_symbol = !symbol.empty();
+    if (!has_ticket && !has_symbol) {
+        return fail_trade(10013, "Provide symbol or ticket to modify position");
+    }
+
+    if (has_ticket) {
+        RuleValidationResult ticket_ok = validate_ticket(ticket);
+        if (!ticket_ok.ok) {
+            return fail_trade(10013, ticket_ok.message);
+        }
+    }
+
+    if (state == nullptr) {
+        return fail_trade(10013, "Missing backtest state");
+    }
+
+    bool found = false;
+    std::string found_symbol{};
+    if (has_symbol) {
+        found = state->trading_positions.find(symbol) != state->trading_positions.end();
+        if (found) {
+            found_symbol = symbol;
+        }
+    } else {
+        const std::string ticket_str = std::to_string(ticket);
+        for (const auto& kv : state->trading_positions) {
+            auto it = kv.second.find("ticket");
+            if (it != kv.second.end() && it->second == ticket_str) {
+                found = true;
+                found_symbol = kv.first;
+                break;
+            }
+        }
+    }
+    if (!found) {
+        return fail_trade(10036, "Position not found");
+    }
+    if (has_ticket && has_symbol && !found_symbol.empty() && found_symbol != symbol) {
+        return fail_trade(10013, "Ticket does not belong to the provided symbol");
+    }
+    return TradeValidationResult{};
+}
+
+TradeValidationResult open_pending_order_validations(
+    const haruquant::MqlTradeRequest& request,
+    const haruquant::trading::AccountInfo& account,
+    const haruquant::trading::SymbolInfo* symbol_info) {
+    ValidationContext ctx{};
+    ctx.account = &account;
+    ctx.symbol_info = symbol_info;
+    ctx.symbol_exists = (symbol_info != nullptr);
+    ctx.symbol_visible = true;
+    ctx.symbol_select_ok = true;
+    if (symbol_info != nullptr) {
+        ctx.symbol_tick = SymbolTickData{symbol_info->Bid(), symbol_info->Ask()};
+    }
+    ValidationRules rules{};
+    const auto* state = account.GetState();
+
+    RuleValidationResult symbol_ok = validate_symbol(request.symbol, ctx);
+    if (!symbol_ok.ok) {
+        return fail_trade(10013, symbol_ok.message);
+    }
+
+    RuleValidationResult type_ok = validate_order_type(request.type);
+    if (!type_ok.ok) {
+        return fail_trade(10013, type_ok.message);
+    }
+
+    RuleValidationResult volume_ok = validate_volume(request.volume, ctx, rules);
+    if (!volume_ok.ok) {
+        return fail_trade(10014, volume_ok.message);
+    }
+
+    TradeValidationResult out = validate_action_type(
+        static_cast<int>(haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING),
+        request.type);
+    if (!out.ok) {
+        return out;
+    }
+
+    const double bid = (symbol_info != nullptr) ? symbol_info->Bid() : 0.0;
+    const double ask = (symbol_info != nullptr) ? symbol_info->Ask() : 0.0;
+    out = validate_submission_inputs(request.symbol, request.volume, symbol_info, bid, ask);
+    if (!out.ok) {
+        return out;
+    }
+
+    RuleValidationResult price_ok = validate_price(request.price, ctx, rules);
+    if (!price_ok.ok) {
+        return fail_trade(10015, price_ok.message);
+    }
+
+    if (symbol_info != nullptr) {
+        const double bid_px = symbol_info->Bid();
+        const double ask_px = symbol_info->Ask();
+        const int t = request.type;
+        if (t == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) &&
+            request.price >= ask_px) {
+            return fail_trade(10015, "BUY_LIMIT price must be below ask");
+        }
+        if (t == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) &&
+            request.price <= bid_px) {
+            return fail_trade(10015, "SELL_LIMIT price must be above bid");
+        }
+        if (t == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) &&
+            request.price <= ask_px) {
+            return fail_trade(10015, "BUY_STOP price must be above ask");
+        }
+        if (t == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP) &&
+            request.price >= bid_px) {
+            return fail_trade(10015, "SELL_STOP price must be below bid");
+        }
+        if (t == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT) &&
+            request.price <= ask_px) {
+            return fail_trade(10015, "BUY_STOP_LIMIT trigger must be above ask");
+        }
+        if (t == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT) &&
+            request.price >= bid_px) {
+            return fail_trade(10015, "SELL_STOP_LIMIT trigger must be below bid");
+        }
+    }
+
+    if (request.sl > 0.0) {
+        RuleValidationResult sl_ok = validate_stop_loss(
+            request.sl, request.price, request.type, ctx, rules);
+        if (!sl_ok.ok) {
+            return fail_trade(10016, sl_ok.message);
+        }
+    }
+    if (request.tp > 0.0) {
+        RuleValidationResult tp_ok = validate_take_profit(
+            request.tp, request.price, request.type, ctx, rules);
+        if (!tp_ok.ok) {
+            return fail_trade(10016, tp_ok.message);
+        }
+    }
+    if (request.expiration > 0) {
+        RuleValidationResult exp_ok = validate_expiration_unix(
+            static_cast<int64_t>(request.expiration),
+            now_unix_sec());
+        if (!exp_ok.ok) {
+            return fail_trade(10022, exp_ok.message);
+        }
+    }
+
+    const int open_orders = count_open_pending_orders(state);
+    RuleValidationResult max_orders_ok = validate_max_orders(open_orders, account.LimitOrders(), ctx);
+    if (!max_orders_ok.ok) {
+        return fail_trade(10033, max_orders_ok.message);
+    }
+    const double symbol_volume = symbol_open_volume(state, request.symbol);
+    RuleValidationResult symbol_volume_ok = validate_symbol_volume(symbol_volume, std::nullopt, ctx);
+    if (!symbol_volume_ok.ok) {
+        return fail_trade(10034, symbol_volume_ok.message);
+    }
+
+    out = validate_trade_request(request, account, symbol_info);
+    if (!out.ok) {
+        return out;
+    }
+    RuleValidationResult margin_ok = validate_margin(out.required_margin, ctx);
+    if (!margin_ok.ok) {
+        return fail_trade(10019, margin_ok.message);
+    }
+    return out;
+}
+
+TradeValidationResult modify_pending_order_validations(
+    long ticket,
+    double price,
+    double sl,
+    double tp,
+    long expiration,
+    const haruquant::core::BacktestState* state,
+    const haruquant::trading::SymbolInfo* symbol_info) {
+    RuleValidationResult ticket_ok = validate_ticket(ticket);
+    if (!ticket_ok.ok) {
+        return fail_trade(10013, ticket_ok.message);
+    }
+    if (state == nullptr) {
+        return fail_trade(10013, "Missing backtest state");
+    }
+    const auto* order_row = find_order_row(state, ticket);
+    if (order_row == nullptr) {
+        return fail_trade(10035, "Order not found");
+    }
+
+    int order_type = parse_int_or(
+        (order_row->count("type") > 0) ? order_row->at("type") : "",
+        static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT));
+    RuleValidationResult type_ok = validate_order_type(order_type);
+    if (!type_ok.ok) {
+        return fail_trade(10013, type_ok.message);
+    }
+    double entry_price = parse_double_or(
+        (order_row->count("price") > 0) ? order_row->at("price") : "", 0.0);
+    if (!(entry_price > 0.0)) {
+        entry_price = parse_double_or(
+            (order_row->count("limit_price") > 0) ? order_row->at("limit_price") : "", 0.0);
+    }
+    if (price > 0.0) {
+        entry_price = price;
+    }
+
+    if (symbol_info != nullptr) {
+        ValidationContext ctx{};
+        ctx.symbol_info = symbol_info;
+        ctx.symbol_exists = true;
+        ctx.symbol_visible = true;
+        ctx.symbol_select_ok = true;
+        ctx.symbol_tick = SymbolTickData{symbol_info->Bid(), symbol_info->Ask()};
+        ValidationRules rules{};
+        if (price > 0.0) {
+            RuleValidationResult px = validate_price(price, ctx, rules);
+            if (!px.ok) {
+                return fail_trade(10015, px.message);
+            }
+
+            const double bid_px = symbol_info->Bid();
+            const double ask_px = symbol_info->Ask();
+            if (order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) &&
+                price >= ask_px) {
+                return fail_trade(10015, "BUY_LIMIT price must be below ask");
+            }
+            if (order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) &&
+                price <= bid_px) {
+                return fail_trade(10015, "SELL_LIMIT price must be above bid");
+            }
+            if (order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) &&
+                price <= ask_px) {
+                return fail_trade(10015, "BUY_STOP price must be above ask");
+            }
+            if (order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP) &&
+                price >= bid_px) {
+                return fail_trade(10015, "SELL_STOP price must be below bid");
+            }
+            if (order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP_LIMIT) &&
+                price <= ask_px) {
+                return fail_trade(10015, "BUY_STOP_LIMIT trigger must be above ask");
+            }
+            if (order_type == static_cast<int>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP_LIMIT) &&
+                price >= bid_px) {
+                return fail_trade(10015, "SELL_STOP_LIMIT trigger must be below bid");
+            }
+        }
+
+        const std::optional<double> entry_opt = (entry_price > 0.0)
+            ? std::optional<double>(entry_price)
+            : std::nullopt;
+        const std::optional<int> type_opt = std::optional<int>(order_type);
+
+        if (sl > 0.0) {
+            RuleValidationResult sl_ok = validate_stop_loss(
+                sl,
+                entry_opt,
+                type_opt,
+                ctx,
+                rules);
+            if (!sl_ok.ok) {
+                return fail_trade(10016, sl_ok.message);
+            }
+        }
+        if (tp > 0.0) {
+            RuleValidationResult tp_ok = validate_take_profit(
+                tp,
+                entry_opt,
+                type_opt,
+                ctx,
+                rules);
+            if (!tp_ok.ok) {
+                return fail_trade(10016, tp_ok.message);
+            }
+        }
+    }
+    if (expiration > 0) {
+        RuleValidationResult exp_ok = validate_expiration_unix(
+            static_cast<int64_t>(expiration),
+            now_unix_sec());
+        if (!exp_ok.ok) {
+            return fail_trade(10022, exp_ok.message);
+        }
+    }
+    return TradeValidationResult{};
+}
+
+TradeValidationResult delete_pending_order_validations(
+    long ticket,
+    const haruquant::core::BacktestState* state) {
+    RuleValidationResult ticket_ok = validate_ticket(ticket);
+    if (!ticket_ok.ok) {
+        return fail_trade(10013, ticket_ok.message);
+    }
+    if (state == nullptr) {
+        return fail_trade(10013, "Missing backtest state");
+    }
+    const auto* row = find_order_row(state, ticket);
+    if (row == nullptr) {
+        return fail_trade(10035, "Order not found");
+    }
+    return TradeValidationResult{};
+}
+
+TradeValidationResult close_position_validations(
+    const std::string& symbol,
+    long ticket,
+    const haruquant::core::BacktestState* state) {
+    return modify_position_validations(symbol, ticket, state);
+}
+
+TradeValidationResult close_partial_position_validations(
+    const std::string& symbol,
+    long ticket,
+    double volume,
+    const haruquant::core::BacktestState* state) {
+    TradeValidationResult base = close_position_validations(symbol, ticket, state);
+    if (!base.ok) {
+        return base;
+    }
+    if (!(volume > 0.0)) {
+        return fail_trade(10014, "Volume must be > 0 for partial close");
+    }
+    if (state == nullptr) {
+        return fail_trade(10013, "Missing backtest state");
+    }
+
+    double position_volume = 0.0;
+    bool has_volume = false;
+    const std::string ticket_str = std::to_string(ticket);
+    if (!symbol.empty()) {
+        auto it = state->trading_positions.find(symbol);
+        if (it != state->trading_positions.end()) {
+            auto vit = it->second.find("volume");
+            if (vit != it->second.end()) {
+                try {
+                    position_volume = std::stod(vit->second);
+                    has_volume = true;
+                } catch (...) {
+                }
+            }
+        }
+    }
+    if (!has_volume && ticket > 0) {
+        for (const auto& kv : state->trading_positions) {
+            auto tit = kv.second.find("ticket");
+            if (tit == kv.second.end() || tit->second != ticket_str) {
+                continue;
+            }
+            auto vit = kv.second.find("volume");
+            if (vit != kv.second.end()) {
+                try {
+                    position_volume = std::stod(vit->second);
+                    has_volume = true;
+                } catch (...) {
+                }
+            }
+            break;
+        }
+    }
+    if (has_volume && volume - position_volume > 1e-12) {
+        return fail_trade(10014, "Partial close volume exceeds position volume");
+    }
+
+    std::string resolved_symbol = symbol;
+    if (resolved_symbol.empty() && ticket > 0) {
+        for (const auto& kv : state->trading_positions) {
+            auto tit = kv.second.find("ticket");
+            if (tit != kv.second.end() && tit->second == ticket_str) {
+                resolved_symbol = kv.first;
+                auto sit = kv.second.find("symbol");
+                if (sit != kv.second.end() && !sit->second.empty()) {
+                    resolved_symbol = sit->second;
+                }
+                break;
+            }
+        }
+    }
+
+    const auto* sym_row = find_symbol_row(state, resolved_symbol);
+    if (sym_row != nullptr) {
+        const double min_vol = parse_double_or(
+            (sym_row->count("volume_min") > 0) ? sym_row->at("volume_min") : "", 0.0);
+        const double max_vol = parse_double_or(
+            (sym_row->count("volume_max") > 0) ? sym_row->at("volume_max") : "", 0.0);
+        const double step = parse_double_or(
+            (sym_row->count("volume_step") > 0) ? sym_row->at("volume_step") : "", 0.0);
+
+        if (min_vol > 0.0 && volume < min_vol) {
+            return fail_trade(10014, "Partial close volume below minimum");
+        }
+        if (max_vol > 0.0 && volume > max_vol) {
+            return fail_trade(10014, "Partial close volume above maximum");
+        }
+        if (step > 0.0) {
+            if (min_vol > 0.0) {
+                const double align_base = min_vol;
+                const double steps = std::round((volume - align_base) / step);
+                const double aligned = align_base + (steps * step);
+                if (std::abs(volume - aligned) > 1e-8) {
+                    return fail_trade(10014, "Partial close volume not aligned with symbol step");
+                }
+            }
+        }
+    }
+    return TradeValidationResult{};
 }
 
 }  // namespace haruquant::util

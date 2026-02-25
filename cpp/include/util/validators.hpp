@@ -68,6 +68,8 @@ struct MqlTradeRequest {
     double price{0.0};
     double sl{0.0};
     double tp{0.0};
+    long expiration{0};
+    int deviation{-1};
 };
 
 }  // namespace haruquant
@@ -214,6 +216,45 @@ RuleValidationResult validate_symbol_volume(
     double symbol_volume,
     std::optional<double> volume_limit,
     const ValidationContext& ctx);
+
+TradeValidationResult open_position_validations(
+    const haruquant::MqlTradeRequest& request,
+    const haruquant::trading::AccountInfo& account,
+    const haruquant::trading::SymbolInfo* symbol_info);
+
+TradeValidationResult modify_position_validations(
+    const std::string& symbol,
+    long ticket,
+    const haruquant::core::BacktestState* state);
+
+TradeValidationResult open_pending_order_validations(
+    const haruquant::MqlTradeRequest& request,
+    const haruquant::trading::AccountInfo& account,
+    const haruquant::trading::SymbolInfo* symbol_info);
+
+TradeValidationResult modify_pending_order_validations(
+    long ticket,
+    double price,
+    double sl,
+    double tp,
+    long expiration,
+    const haruquant::core::BacktestState* state,
+    const haruquant::trading::SymbolInfo* symbol_info);
+
+TradeValidationResult delete_pending_order_validations(
+    long ticket,
+    const haruquant::core::BacktestState* state);
+
+TradeValidationResult close_position_validations(
+    const std::string& symbol,
+    long ticket,
+    const haruquant::core::BacktestState* state);
+
+TradeValidationResult close_partial_position_validations(
+    const std::string& symbol,
+    long ticket,
+    double volume,
+    const haruquant::core::BacktestState* state);
 
 }  // namespace haruquant::util
 
