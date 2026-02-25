@@ -383,6 +383,35 @@ def example_08_modify_pending_orders():
                 suffix = f"; {desc}" if desc and desc != str(retcode) else ""
                 print(f"{order_type} ticket {ticket}: modify failed retcode={retcode}{suffix}")
 
+def example_09_delete_pending_orders():
+    print_example_header("Example 09: Delete Pending Orders")
+    if not pending_orders_created:
+        print("No pending orders available to delete")
+        return
+
+    remaining = []
+    for ticket, order_type in pending_orders_created:
+        if backend == "mt5":
+            result = trade.OrderDelete(ticket=ticket)
+            if result and int(result.retcode) in (10008, 10009):
+                print(f"{order_type} ticket {ticket}: deleted")
+            else:
+                print(f"{order_type} ticket {ticket}: delete failed retcode={int(result.retcode)}")
+                remaining.append((ticket, order_type))
+        else:
+            ok = trade.OrderDelete(ticket=ticket)
+            retcode = int(trade.ResultRetcode())
+            if ok and retcode in (10008, 10009):
+                print(f"{order_type} ticket {ticket}: deleted")
+            else:
+                desc = str(trade.ResultRetcodeDescription())
+                suffix = f"; {desc}" if desc and desc != str(retcode) else ""
+                print(f"{order_type} ticket {ticket}: delete failed retcode={retcode}{suffix}")
+                remaining.append((ticket, order_type))
+
+    pending_orders_created.clear()
+    pending_orders_created.extend(remaining)
+
 
 if __name__ == "__main__":
     example_01_open_position()
@@ -392,8 +421,8 @@ if __name__ == "__main__":
     example_05_close_partial_position()
     example_06_close_position()
     example_07_pending_orders()
-    time.sleep(2)
     example_08_modify_pending_orders()
+    example_09_delete_pending_orders()
     
 
     client.shutdown()

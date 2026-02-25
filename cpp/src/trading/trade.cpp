@@ -503,7 +503,17 @@ bool Trade::OrderDelete(const long ticket) {
     m_result_comment = validation.comment;
     return false;
   }
+
+  auto row_it = find_order_iter(m_state, ticket);
+  if (row_it == m_state->trading_orders.end()) {
+    m_result_retcode = 10035;
+    m_result_comment = "Order not found";
+    return false;
+  }
+
+  m_state->trading_orders.erase(row_it);
   m_result_retcode = 10009;
+  m_result_comment = "Order deleted";
   return true;
 }
 
