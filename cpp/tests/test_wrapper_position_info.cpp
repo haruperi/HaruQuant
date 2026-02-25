@@ -14,12 +14,13 @@ protected:
 
   void SetUp() override {
     state = std::make_shared<BacktestState>();
-    state->trading_positions["ETHUSD"]["ticket"] = "8001";
-    state->trading_positions["ETHUSD"]["symbol"] = "ETHUSD";
-    state->trading_positions["ETHUSD"]["type"] = "1"; // Sell
-    state->trading_positions["ETHUSD"]["volume"] = "5.5";
-    state->trading_positions["ETHUSD"]["price_open"] = "2000.50";
-    state->trading_positions["ETHUSD"]["profit"] = "150.25";
+    state->trading_deals["8001"]["ticket"] = "8001";
+    state->trading_deals["8001"]["symbol"] = "ETHUSD";
+    state->trading_deals["8001"]["entry"] = "0";
+    state->trading_deals["8001"]["type"] = "1"; // Sell
+    state->trading_deals["8001"]["volume"] = "5.5";
+    state->trading_deals["8001"]["price_open"] = "2000.50";
+    state->trading_deals["8001"]["profit"] = "150.25";
 
     position = new PositionInfo(state);
   }

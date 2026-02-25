@@ -382,7 +382,7 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
 
     const long order_ticket = next_ticket(state->trading_orders);
     const long deal_ticket = next_ticket(state->trading_deals);
-    const long position_ticket = next_ticket(state->trading_positions);
+    const long position_ticket = deal_ticket;
 
     double margin_required = 0.0;
     try {
@@ -439,30 +439,6 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
     deal_row["symbol"] = symbol_key;
     deal_row["comment"] = request.comment;
     deal_row["external_id"] = "";
-
-    auto& pos_row = state->trading_positions[symbol_key];
-    pos_row["ticket"] = to_string_num(position_ticket);
-    pos_row["time"] = to_string_num(now);
-    pos_row["time_msc"] = to_string_num(now_msc);
-    pos_row["time_update"] = to_string_num(now);
-    pos_row["time_update_msc"] = to_string_num(now_msc);
-    pos_row["type"] = to_string_num(order_type);
-    pos_row["magic"] = to_string_num(request.magic);
-    pos_row["identifier"] = to_string_num(position_ticket);
-    pos_row["reason"] = "0";
-    pos_row["volume"] = to_string_num(request.volume);
-    pos_row["price_open"] = to_string_num(exec_price);
-    pos_row["sl"] = to_string_num(request.sl);
-    pos_row["tp"] = to_string_num(request.tp);
-    pos_row["price_current"] = to_string_num(exec_price);
-    pos_row["swap"] = "0";
-    pos_row["profit"] = "0";
-    pos_row["commission"] = "0";
-    pos_row["fee"] = "0";
-    pos_row["margin_required"] = to_string_num(margin_required);
-    pos_row["symbol"] = symbol_key;
-    pos_row["comment"] = request.comment;
-    pos_row["external_id"] = "";
 
     result.retcode = 10009;
     result.deal = deal_ticket;
@@ -769,8 +745,12 @@ std::vector<haruquant::trading::PositionInfo> BacktestSimulator::positions_get(c
     }
 
     const std::string symbol_filter = to_upper_copy(trim_copy(symbol));
-    for (const auto& [key, row] : state->trading_positions) {
-        const long row_ticket = parse_long_default(read_string(row, "ticket"), 0);
+    for (const auto& [key, row] : state->trading_deals) {
+        const std::string row_entry = read_string(row, "entry");
+        if (!row_entry.empty() && row_entry != "0") {
+            continue;
+        }
+        const long row_ticket = parse_long_default(read_string(row, "ticket"), parse_long_default(key, 0));
         if (ticket > 0 && row_ticket != ticket) {
             continue;
         }
@@ -784,7 +764,7 @@ std::vector<haruquant::trading::PositionInfo> BacktestSimulator::positions_get(c
         }
 
         haruquant::trading::PositionInfo item(account_.GetSharedState());
-        if (item.Select(row_symbol)) {
+        if (item.SelectByTicket(row_ticket)) {
             out.push_back(item);
         }
     }
@@ -858,7 +838,7 @@ std::vector<haruquant::trading::DealInfo> BacktestSimulator::history_deals_get(
 
     const long from = std::max<long>(0, date_from);
     const long to = (date_to <= 0) ? std::numeric_limits<long>::max() : date_to;
-    for (const auto& [key, row] : state->trading_deals) {
+    for (const auto& [key, row] : state->trading_history_deals) {
         const long row_ticket = parse_long_default(read_string(row, "ticket"), parse_long_default(key, 0));
         if (row_ticket <= 0) {
             continue;

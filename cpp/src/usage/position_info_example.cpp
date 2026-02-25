@@ -8,13 +8,14 @@ void demonstrate_position_info() {
 
   // Simulate an open position present in the state
   std::string test_symbol = "ETHUSD";
-  state->trading_positions[test_symbol]["ticket"] = "80001";
-  state->trading_positions[test_symbol]["symbol"] = "ETHUSD";
-  state->trading_positions[test_symbol]["type"] =
+  state->trading_deals["80001"]["ticket"] = "80001";
+  state->trading_deals["80001"]["symbol"] = "ETHUSD";
+  state->trading_deals["80001"]["entry"] = "0";
+  state->trading_deals["80001"]["type"] =
       "1"; // e.g., POSITION_TYPE_SELL
-  state->trading_positions[test_symbol]["volume"] = "5.0";
-  state->trading_positions[test_symbol]["price_open"] = "2000.50";
-  state->trading_positions[test_symbol]["profit"] = "150.25";
+  state->trading_deals["80001"]["volume"] = "5.0";
+  state->trading_deals["80001"]["price_open"] = "2000.50";
+  state->trading_deals["80001"]["profit"] = "150.25";
 
   // Instantiate PositionInfo helper
   haruquant::trading::PositionInfo position(state);

@@ -11,8 +11,8 @@ struct BacktestState {
 
   Dictionary trading_account{};
   DictionaryMap trading_symbols{};
-  DictionaryMap trading_positions{};
   DictionaryMap trading_deals{};
+  DictionaryMap trading_history_deals{};
   DictionaryMap trading_orders{};
   DictionaryMap trading_history_orders{};
   DictionaryMap trading_symbol_ticks{};

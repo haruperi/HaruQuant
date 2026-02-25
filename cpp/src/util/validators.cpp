@@ -319,7 +319,12 @@ double symbol_open_volume(const core::BacktestState* state, const std::string& s
     }
     const std::string target = to_upper(symbol);
     double total = 0.0;
-    for (const auto& kv : state->trading_positions) {
+    for (const auto& kv : state->trading_deals) {
+        auto entry_it = kv.second.find("entry");
+        const std::string entry = (entry_it != kv.second.end()) ? entry_it->second : "0";
+        if (entry != "0") {
+            continue;
+        }
         std::string row_symbol = kv.first;
         auto sym_it = kv.second.find("symbol");
         if (sym_it != kv.second.end() && !sym_it->second.empty()) {
@@ -1086,17 +1091,27 @@ TradeValidationResult modify_position_validations(
     bool found = false;
     std::string found_symbol{};
     if (has_symbol) {
-        found = state->trading_positions.find(symbol) != state->trading_positions.end();
-        if (found) {
-            found_symbol = symbol;
+        for (const auto& kv : state->trading_deals) {
+            auto sit = kv.second.find("symbol");
+            auto eit = kv.second.find("entry");
+            const std::string row_symbol = (sit != kv.second.end()) ? sit->second : kv.first;
+            const std::string entry = (eit != kv.second.end()) ? eit->second : "0";
+            if (entry == "0" && row_symbol == symbol) {
+                found = true;
+                found_symbol = row_symbol;
+                break;
+            }
         }
     } else {
         const std::string ticket_str = std::to_string(ticket);
-        for (const auto& kv : state->trading_positions) {
+        for (const auto& kv : state->trading_deals) {
             auto it = kv.second.find("ticket");
-            if (it != kv.second.end() && it->second == ticket_str) {
+            auto eit = kv.second.find("entry");
+            const std::string entry = (eit != kv.second.end()) ? eit->second : "0";
+            if (it != kv.second.end() && it->second == ticket_str && entry == "0") {
                 found = true;
-                found_symbol = kv.first;
+                auto sit = kv.second.find("symbol");
+                found_symbol = (sit != kv.second.end()) ? sit->second : kv.first;
                 break;
             }
         }
@@ -1397,22 +1412,31 @@ TradeValidationResult close_partial_position_validations(
     bool has_volume = false;
     const std::string ticket_str = std::to_string(ticket);
     if (!symbol.empty()) {
-        auto it = state->trading_positions.find(symbol);
-        if (it != state->trading_positions.end()) {
-            auto vit = it->second.find("volume");
-            if (vit != it->second.end()) {
+        for (const auto& kv : state->trading_deals) {
+            auto sit = kv.second.find("symbol");
+            auto eit = kv.second.find("entry");
+            const std::string row_symbol = (sit != kv.second.end()) ? sit->second : kv.first;
+            const std::string entry = (eit != kv.second.end()) ? eit->second : "0";
+            if (entry != "0" || row_symbol != symbol) {
+                continue;
+            }
+            auto vit = kv.second.find("volume");
+            if (vit != kv.second.end()) {
                 try {
                     position_volume = std::stod(vit->second);
                     has_volume = true;
                 } catch (...) {
                 }
             }
+            break;
         }
     }
     if (!has_volume && ticket > 0) {
-        for (const auto& kv : state->trading_positions) {
+        for (const auto& kv : state->trading_deals) {
             auto tit = kv.second.find("ticket");
-            if (tit == kv.second.end() || tit->second != ticket_str) {
+            auto eit = kv.second.find("entry");
+            const std::string entry = (eit != kv.second.end()) ? eit->second : "0";
+            if (tit == kv.second.end() || tit->second != ticket_str || entry != "0") {
                 continue;
             }
             auto vit = kv.second.find("volume");
@@ -1432,9 +1456,11 @@ TradeValidationResult close_partial_position_validations(
 
     std::string resolved_symbol = symbol;
     if (resolved_symbol.empty() && ticket > 0) {
-        for (const auto& kv : state->trading_positions) {
+        for (const auto& kv : state->trading_deals) {
             auto tit = kv.second.find("ticket");
-            if (tit != kv.second.end() && tit->second == ticket_str) {
+            auto eit = kv.second.find("entry");
+            const std::string entry = (eit != kv.second.end()) ? eit->second : "0";
+            if (tit != kv.second.end() && tit->second == ticket_str && entry == "0") {
                 resolved_symbol = kv.first;
                 auto sit = kv.second.find("symbol");
                 if (sit != kv.second.end() && !sit->second.empty()) {

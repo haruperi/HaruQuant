@@ -25,7 +25,7 @@ audusd = "AUDUSD"
 eurgbp = "EURGBP"
 usdjpy = "USDJPY"
 stoploss = 10
-backend = "mt5"  # "mt5" or "tester"
+backend = "tester"  # "mt5" or "tester"
 
 # Derived globals
 mt5 = get_mt5_api()

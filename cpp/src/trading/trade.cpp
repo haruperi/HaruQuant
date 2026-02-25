@@ -39,22 +39,29 @@ core::BacktestState::DictionaryMap::iterator find_position_iter(
     long ticket) {
   if (ticket > 0) {
     const std::string ticket_str = std::to_string(ticket);
-    for (auto it = state->trading_positions.begin(); it != state->trading_positions.end(); ++it) {
+    for (auto it = state->trading_deals.begin(); it != state->trading_deals.end(); ++it) {
       auto pos_ticket_it = it->second.find("ticket");
-      if (pos_ticket_it != it->second.end() && pos_ticket_it->second == ticket_str) {
+      auto entry_it = it->second.find("entry");
+      const std::string entry = (entry_it != it->second.end()) ? entry_it->second : "0";
+      if (pos_ticket_it != it->second.end() && pos_ticket_it->second == ticket_str && entry == "0") {
         return it;
       }
     }
   }
 
   if (!symbol.empty()) {
-    auto it = state->trading_positions.find(symbol);
-    if (it != state->trading_positions.end()) {
-      return it;
+    for (auto it = state->trading_deals.begin(); it != state->trading_deals.end(); ++it) {
+      auto sym_it = it->second.find("symbol");
+      auto entry_it = it->second.find("entry");
+      const std::string row_symbol = (sym_it != it->second.end()) ? sym_it->second : "";
+      const std::string entry = (entry_it != it->second.end()) ? entry_it->second : "0";
+      if (entry == "0" && row_symbol == symbol) {
+        return it;
+      }
     }
   }
 
-  return state->trading_positions.end();
+  return state->trading_deals.end();
 }
 
 core::BacktestState::DictionaryMap::iterator find_order_iter(
@@ -214,35 +221,19 @@ bool Trade::PositionModify(const std::string &symbol, const long ticket,
     return false;
   }
 
-  core::BacktestState::Dictionary* target_position = nullptr;
-  if (ticket > 0) {
-    const std::string ticket_str = std::to_string(ticket);
-    for (auto& kv : m_state->trading_positions) {
-      auto it = kv.second.find("ticket");
-      if (it != kv.second.end() && it->second == ticket_str) {
-        target_position = &kv.second;
-        break;
-      }
-    }
-  }
-  if (target_position == nullptr && !sym.empty()) {
-    auto it = m_state->trading_positions.find(sym);
-    if (it != m_state->trading_positions.end()) {
-      target_position = &it->second;
-    }
-  }
-
-  if (target_position == nullptr) {
+  auto pos_it = find_position_iter(m_state, sym, ticket);
+  if (pos_it == m_state->trading_deals.end()) {
     m_result_retcode = 10036;
     m_result_comment = "Position not found";
     return false;
   }
 
-  (*target_position)["sl"] = std::to_string(sl);
-  (*target_position)["tp"] = std::to_string(tp);
+  auto& target_position = pos_it->second;
+  target_position["sl"] = std::to_string(sl);
+  target_position["tp"] = std::to_string(tp);
   const long now = static_cast<long>(time(nullptr));
-  (*target_position)["time_update"] = std::to_string(now);
-  (*target_position)["time_update_msc"] = std::to_string(now * 1000);
+  target_position["time_update"] = std::to_string(now);
+  target_position["time_update_msc"] = std::to_string(now * 1000);
 
   m_state->trading_orders["modify_position_" + std::to_string(time(nullptr))] = {
       {"action", "position_modify"},
@@ -272,16 +263,20 @@ bool Trade::PositionClose(const std::string &symbol, const long ticket,
   }
 
   auto pos_it = find_position_iter(m_state, sym, ticket);
-  if (pos_it == m_state->trading_positions.end()) {
+  if (pos_it == m_state->trading_deals.end()) {
     m_result_retcode = 10036;
     m_result_comment = "Position not found";
     return false;
   }
 
-  const std::string closed_symbol = pos_it->first;
+  const std::string closed_symbol = pos_it->second.count("symbol") ? pos_it->second.at("symbol") : pos_it->first;
   const std::string closed_ticket = pos_it->second.count("ticket") ? pos_it->second.at("ticket")
                                                                     : std::to_string(ticket);
-  m_state->trading_positions.erase(pos_it);
+  auto closed_row = pos_it->second;
+  closed_row["entry"] = "1";
+  closed_row["time_update"] = std::to_string(static_cast<long>(time(nullptr)));
+  m_state->trading_history_deals[closed_ticket] = closed_row;
+  m_state->trading_deals.erase(pos_it);
 
   m_state->trading_orders["close_position_" + std::to_string(time(nullptr))] = {
       {"action", "position_close"},
@@ -312,7 +307,7 @@ bool Trade::PositionClosePartial(const std::string &symbol, const long ticket,
   }
 
   auto pos_it = find_position_iter(m_state, sym, ticket);
-  if (pos_it == m_state->trading_positions.end()) {
+  if (pos_it == m_state->trading_deals.end()) {
     m_result_retcode = 10036;
     m_result_comment = "Position not found";
     return false;
@@ -332,7 +327,11 @@ bool Trade::PositionClosePartial(const std::string &symbol, const long ticket,
   const double remaining_volume = current_volume - volume;
   const long now = static_cast<long>(time(nullptr));
   if (remaining_volume <= 1e-12) {
-    m_state->trading_positions.erase(pos_it);
+    auto closed_row = pos_row;
+    closed_row["entry"] = "1";
+    closed_row["time_update"] = std::to_string(now);
+    m_state->trading_history_deals[selected_ticket] = closed_row;
+    m_state->trading_deals.erase(pos_it);
   } else {
     pos_row["volume"] = std::to_string(remaining_volume);
     pos_row["time_update"] = std::to_string(now);

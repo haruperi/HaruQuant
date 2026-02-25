@@ -4,6 +4,39 @@
 
 namespace haruquant::trading {
 
+namespace {
+const core::BacktestState::Dictionary* find_deal_row_const(
+    const std::shared_ptr<core::BacktestState>& state,
+    const std::string& key_or_ticket) {
+  if (!state || key_or_ticket.empty()) {
+    return nullptr;
+  }
+
+  auto it = state->trading_deals.find(key_or_ticket);
+  if (it != state->trading_deals.end()) {
+    return &it->second;
+  }
+  auto hit = state->trading_history_deals.find(key_or_ticket);
+  if (hit != state->trading_history_deals.end()) {
+    return &hit->second;
+  }
+
+  for (const auto& kv : state->trading_deals) {
+    auto tit = kv.second.find("ticket");
+    if (tit != kv.second.end() && tit->second == key_or_ticket) {
+      return &kv.second;
+    }
+  }
+  for (const auto& kv : state->trading_history_deals) {
+    auto tit = kv.second.find("ticket");
+    if (tit != kv.second.end() && tit->second == key_or_ticket) {
+      return &kv.second;
+    }
+  }
+  return nullptr;
+}
+} // namespace
+
 DealInfo::DealInfo() : m_state(std::make_shared<core::BacktestState>()), m_ticket("") {}
 
 DealInfo::DealInfo(std::shared_ptr<core::BacktestState> state)
@@ -35,8 +68,7 @@ bool DealInfo::Ticket(const long ticket) {
   if (!m_state)
     return false;
   std::string t_str = std::to_string(ticket);
-  auto it = m_state->trading_deals.find(t_str);
-  if (it != m_state->trading_deals.end()) {
+  if (find_deal_row_const(m_state, t_str) != nullptr) {
     m_ticket = t_str;
     return true;
   }
@@ -47,10 +79,10 @@ long DealInfo::GetInteger(const std::string &prop) const {
   if (!m_state || m_ticket.empty())
     return 0;
 
-  auto t_it = m_state->trading_deals.find(m_ticket);
-  if (t_it != m_state->trading_deals.end()) {
-    auto p_it = t_it->second.find(prop);
-    if (p_it != t_it->second.end()) {
+  const auto* row = find_deal_row_const(m_state, m_ticket);
+  if (row != nullptr) {
+    auto p_it = row->find(prop);
+    if (p_it != row->end()) {
       try {
         return static_cast<long>(std::stoll(p_it->second));
       } catch (...) {
@@ -65,10 +97,10 @@ double DealInfo::GetDouble(const std::string &prop) const {
   if (!m_state || m_ticket.empty())
     return 0.0;
 
-  auto t_it = m_state->trading_deals.find(m_ticket);
-  if (t_it != m_state->trading_deals.end()) {
-    auto p_it = t_it->second.find(prop);
-    if (p_it != t_it->second.end()) {
+  const auto* row = find_deal_row_const(m_state, m_ticket);
+  if (row != nullptr) {
+    auto p_it = row->find(prop);
+    if (p_it != row->end()) {
       try {
         return std::stod(p_it->second);
       } catch (...) {
@@ -83,10 +115,10 @@ std::string DealInfo::GetString(const std::string &prop) const {
   if (!m_state || m_ticket.empty())
     return "";
 
-  auto t_it = m_state->trading_deals.find(m_ticket);
-  if (t_it != m_state->trading_deals.end()) {
-    auto p_it = t_it->second.find(prop);
-    if (p_it != t_it->second.end()) {
+  const auto* row = find_deal_row_const(m_state, m_ticket);
+  if (row != nullptr) {
+    auto p_it = row->find(prop);
+    if (p_it != row->end()) {
       return p_it->second;
     }
   }

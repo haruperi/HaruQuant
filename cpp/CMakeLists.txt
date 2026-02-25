@@ -56,6 +56,7 @@ find_package(spdlog CONFIG REQUIRED)
 
 add_library(haruquant_core STATIC
     src/core/backtest_simulator.cpp
+    src/core/engine.cpp
     src/util/error_description.cpp
     src/util/logger.cpp
     src/usage/usage.cpp

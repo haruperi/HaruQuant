@@ -1,5 +1,17 @@
 # HaruQuant Architecture Notes
 
+## BacktestState Deal Model (Refactor)
+
+- `BacktestState` now uses:
+  - `trading_deals` as the open-position source of truth
+  - `trading_history_deals` as the closed-position/deal history store
+- `trading_positions` was removed.
+- Position lifecycle:
+  - open position -> row is created in `trading_deals` with `entry=0`
+  - close position (manual or monitored) -> row is removed from `trading_deals` and moved to `trading_history_deals` with `entry=1`
+- `positions_get/positions_total` resolve from open rows in `trading_deals`.
+- `history_deals_get/history_deals_total` resolve from `trading_history_deals`.
+
 ## Core Bridge Account Initialization
 
 - `haruquant.core.AccountInfo` is backed by the existing C++ trading MT5-style type (`cpp/include/trading/account_info.hpp`).

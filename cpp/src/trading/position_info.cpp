@@ -4,6 +4,15 @@
 
 namespace haruquant::trading {
 
+namespace {
+template <typename T>
+std::string to_string_value(T value) {
+  std::ostringstream oss;
+  oss << value;
+  return oss.str();
+}
+} // namespace
+
 PositionInfo::PositionInfo() : m_state(std::make_shared<core::BacktestState>()), m_symbol("") {}
 
 PositionInfo::PositionInfo(std::shared_ptr<core::BacktestState> state)
@@ -23,21 +32,78 @@ core::BacktestState &PositionInfo::EnsureState() {
   return *m_state;
 }
 
+core::BacktestState::Dictionary *FindSelectedRowMutable(
+    const std::shared_ptr<core::BacktestState> &state,
+    const std::string &symbol_selector) {
+  if (!state || symbol_selector.empty()) {
+    return nullptr;
+  }
+  for (auto &kv : state->trading_deals) {
+    auto entry_it = kv.second.find("entry");
+    const std::string entry = (entry_it != kv.second.end()) ? entry_it->second : "0";
+    if (entry != "0") {
+      continue;
+    }
+    auto sym_it = kv.second.find("symbol");
+    const std::string row_symbol = (sym_it != kv.second.end()) ? sym_it->second : kv.first;
+    if (row_symbol == symbol_selector || kv.first == symbol_selector) {
+      return &kv.second;
+    }
+  }
+  return nullptr;
+}
+
+const core::BacktestState::Dictionary *FindSelectedRowConst(
+    const std::shared_ptr<core::BacktestState> &state,
+    const std::string &symbol_selector) {
+  if (!state || symbol_selector.empty()) {
+    return nullptr;
+  }
+  for (const auto &kv : state->trading_deals) {
+    auto entry_it = kv.second.find("entry");
+    const std::string entry = (entry_it != kv.second.end()) ? entry_it->second : "0";
+    if (entry != "0") {
+      continue;
+    }
+    auto sym_it = kv.second.find("symbol");
+    const std::string row_symbol = (sym_it != kv.second.end()) ? sym_it->second : kv.first;
+    if (row_symbol == symbol_selector || kv.first == symbol_selector) {
+      return &kv.second;
+    }
+  }
+  return nullptr;
+}
+
 core::BacktestState::Dictionary &PositionInfo::EnsureRow() {
   auto &state = EnsureState();
   if (m_symbol.empty()) {
     m_symbol = "UNKNOWN";
   }
-  return state.trading_positions[m_symbol];
+  core::BacktestState::Dictionary *row = FindSelectedRowMutable(m_state, m_symbol);
+  if (row != nullptr) {
+    return *row;
+  }
+  auto &created = state.trading_deals[m_symbol];
+  created["symbol"] = m_symbol;
+  created["entry"] = "0";
+  return created;
 }
 
 bool PositionInfo::Select(const std::string &symbol) {
   if (!m_state)
     return false;
-  auto it = m_state->trading_positions.find(symbol);
-  if (it != m_state->trading_positions.end()) {
-    m_symbol = symbol;
-    return true;
+  for (const auto &kv : m_state->trading_deals) {
+    auto entry_it = kv.second.find("entry");
+    const std::string entry = (entry_it != kv.second.end()) ? entry_it->second : "0";
+    if (entry != "0") {
+      continue;
+    }
+    auto sym_it = kv.second.find("symbol");
+    const std::string row_symbol = (sym_it != kv.second.end()) ? sym_it->second : kv.first;
+    if (row_symbol == symbol || kv.first == symbol) {
+      m_symbol = row_symbol;
+      return true;
+    }
   }
   return false;
 }
@@ -46,13 +112,16 @@ bool PositionInfo::SelectByTicket(const long ticket) {
   if (!m_state)
     return false;
   std::string t_str = std::to_string(ticket);
-  for (const auto &kv : m_state->trading_positions) {
+  for (const auto &kv : m_state->trading_deals) {
+    auto entry_it = kv.second.find("entry");
+    const std::string entry = (entry_it != kv.second.end()) ? entry_it->second : "0";
+    if (entry != "0") {
+      continue;
+    }
     auto it = kv.second.find("ticket");
     if (it != kv.second.end() && it->second == t_str) {
-      m_symbol =
-          kv.first; // Dictionary key is typically symbol, but MT5 supports
-                    // multiple positions per symbol in hedged mode. Assuming
-                    // symbol as key for now based on context.
+      auto sym_it = kv.second.find("symbol");
+      m_symbol = (sym_it != kv.second.end()) ? sym_it->second : kv.first;
       return true;
     }
   }
@@ -64,9 +133,15 @@ bool PositionInfo::SelectByIndex(const int index) {
     return false;
 
   int i = 0;
-  for (const auto &kv : m_state->trading_positions) {
+  for (const auto &kv : m_state->trading_deals) {
+    auto entry_it = kv.second.find("entry");
+    const std::string entry = (entry_it != kv.second.end()) ? entry_it->second : "0";
+    if (entry != "0") {
+      continue;
+    }
     if (i == index) {
-      m_symbol = kv.first;
+      auto sym_it = kv.second.find("symbol");
+      m_symbol = (sym_it != kv.second.end()) ? sym_it->second : kv.first;
       return true;
     }
     i++;
@@ -78,10 +153,10 @@ long PositionInfo::GetInteger(const std::string &prop) const {
   if (!m_state || m_symbol.empty())
     return 0;
 
-  auto t_it = m_state->trading_positions.find(m_symbol);
-  if (t_it != m_state->trading_positions.end()) {
-    auto p_it = t_it->second.find(prop);
-    if (p_it != t_it->second.end()) {
+  const auto *row = FindSelectedRowConst(m_state, m_symbol);
+  if (row != nullptr) {
+    auto p_it = row->find(prop);
+    if (p_it != row->end()) {
       try {
         return static_cast<long>(std::stoll(p_it->second));
       } catch (...) {
@@ -96,10 +171,10 @@ double PositionInfo::GetDouble(const std::string &prop) const {
   if (!m_state || m_symbol.empty())
     return 0.0;
 
-  auto t_it = m_state->trading_positions.find(m_symbol);
-  if (t_it != m_state->trading_positions.end()) {
-    auto p_it = t_it->second.find(prop);
-    if (p_it != t_it->second.end()) {
+  const auto *row = FindSelectedRowConst(m_state, m_symbol);
+  if (row != nullptr) {
+    auto p_it = row->find(prop);
+    if (p_it != row->end()) {
       try {
         return std::stod(p_it->second);
       } catch (...) {
@@ -114,10 +189,10 @@ std::string PositionInfo::GetString(const std::string &prop) const {
   if (!m_state || m_symbol.empty())
     return "";
 
-  auto t_it = m_state->trading_positions.find(m_symbol);
-  if (t_it != m_state->trading_positions.end()) {
-    auto p_it = t_it->second.find(prop);
-    if (p_it != t_it->second.end()) {
+  const auto *row = FindSelectedRowConst(m_state, m_symbol);
+  if (row != nullptr) {
+    auto p_it = row->find(prop);
+    if (p_it != row->end()) {
       return p_it->second;
     }
   }
@@ -152,15 +227,6 @@ std::string PositionInfo::Comment() const { return GetString("comment"); }
 std::string PositionInfo::ExternalId() const {
   return GetString("external_id");
 }
-
-namespace {
-template <typename T>
-std::string to_string_value(T value) {
-  std::ostringstream oss;
-  oss << value;
-  return oss.str();
-}
-} // namespace
 
 void PositionInfo::SetTicket(long value) {
   EnsureRow()["ticket"] = to_string_value(value);
@@ -213,16 +279,7 @@ void PositionInfo::SetProfit(double value) {
 }
 
 void PositionInfo::SetSymbol(const std::string &value) {
-  std::string old_key = m_symbol;
   m_symbol = value;
-  auto &state = EnsureState();
-  if (!old_key.empty() && old_key != m_symbol) {
-    auto it = state.trading_positions.find(old_key);
-    if (it != state.trading_positions.end()) {
-      state.trading_positions[m_symbol] = it->second;
-      state.trading_positions.erase(it);
-    }
-  }
   EnsureRow()["symbol"] = value;
 }
 void PositionInfo::SetComment(const std::string &value) {
