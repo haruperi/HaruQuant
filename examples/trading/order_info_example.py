@@ -43,8 +43,8 @@ def _safe_long(value: int | float | None) -> int:
     return v
 
 
-def _seed_tester_orders(now: datetime) -> list[core.OrderInfo]:
-    o1 = core.OrderInfo()
+def _seed_tester_orders(now: datetime, account: core.AccountInfo) -> None:
+    o1 = core.OrderInfo(account)
     o1.SetTicket(5001)
     o1.SetSymbol("EURUSD")
     o1.SetType(2)
@@ -55,7 +55,7 @@ def _seed_tester_orders(now: datetime) -> list[core.OrderInfo]:
     o1.SetTimeSetup(int(now.timestamp()))
     o1.SetTimeSetupMsc(int(now.timestamp()))
 
-    o2 = core.OrderInfo()
+    o2 = core.OrderInfo(account)
     o2.SetTicket(5002)
     o2.SetSymbol("GBPUSD")
     o2.SetType(3)
@@ -65,42 +65,24 @@ def _seed_tester_orders(now: datetime) -> list[core.OrderInfo]:
     o2.SetPriceOpen(1.3000)
     o2.SetTimeSetup(int(now.timestamp()))
     o2.SetTimeSetupMsc(int(now.timestamp()))
-    return [o1, o2]
 
 
-def _mt5_orders_to_core() -> list[core.OrderInfo]:
-    rows = mt5.orders_get()
+def _orders_get(api, symbol=None, group=None, ticket=None):
+    if ticket is not None:
+        rows = api.orders_get(ticket=ticket)
+    elif symbol is not None:
+        rows = api.orders_get(symbol=symbol)
+    elif group is not None:
+        rows = api.orders_get(group=group)
+    else:
+        rows = api.orders_get()
     if rows is None:
         return []
+    return list(rows)
 
-    out: list[core.OrderInfo] = []
-    for r in rows:
-        o = core.OrderInfo()
-        o.SetTicket(_safe_long(getattr(r, "ticket", 0)))
-        o.SetTimeSetup(_safe_long(getattr(r, "time_setup", 0)))
-        o.SetTimeSetupMsc(_safe_long(getattr(r, "time_setup_msc", getattr(r, "time_setup", 0))))
-        o.SetTimeDone(_safe_long(getattr(r, "time_done", 0)))
-        o.SetTimeDoneMsc(_safe_long(getattr(r, "time_done_msc", getattr(r, "time_done", 0))))
-        o.SetTimeExpiration(_safe_long(getattr(r, "time_expiration", 0)))
-        o.SetType(_safe_long(getattr(r, "type", 0)))
-        o.SetTypeTime(_safe_long(getattr(r, "type_time", 0)))
-        o.SetTypeFilling(_safe_long(getattr(r, "type_filling", 0)))
-        o.SetState(_safe_long(getattr(r, "state", 0)))
-        o.SetMagic(_safe_long(getattr(r, "magic", 0)))
-        o.SetReason(_safe_long(getattr(r, "reason", 0)))
-        o.SetPositionId(_safe_long(getattr(r, "position_id", 0)))
-        o.SetPositionById(_safe_long(getattr(r, "position_by_id", 0)))
-        o.SetVolumeInitial(float(getattr(r, "volume_initial", 0.0)))
-        o.SetVolumeCurrent(float(getattr(r, "volume_current", 0.0)))
-        o.SetPriceOpen(float(getattr(r, "price_open", 0.0)))
-        o.SetSl(float(getattr(r, "sl", 0.0)))
-        o.SetTp(float(getattr(r, "tp", 0.0)))
-        o.SetPriceCurrent(float(getattr(r, "price_current", 0.0)))
-        o.SetPriceStopLimit(float(getattr(r, "price_stoplimit", 0.0)))
-        o.SetSymbol(str(getattr(r, "symbol", "")))
-        o.SetComment(str(getattr(r, "comment", "")))
-        out.append(o)
-    return out
+
+def _orders_total(api) -> int:
+    return int(api.orders_total())
 
 
 def main():
@@ -122,7 +104,7 @@ def main():
             return
 
     if backend == "mt5":
-        orders = _mt5_orders_to_core()
+        api = mt5
         print("Using: MT5 backend")
     else:
         client = MT5Utils.get_connected_client()
@@ -131,11 +113,12 @@ def main():
             return
         mt5_account = client.account_info()
         account = core.AccountInfo(mt5_account)
-        _backtest_simulator = core.BacktestSimulator(account)
-        orders = _seed_tester_orders(datetime.now())
+        api = core.BacktestSimulator(account)
+        _seed_tester_orders(datetime.now(), account)
         print("Using: Tester backend")
     print()
-    total = len(orders)
+    orders = _orders_get(api)
+    total = _orders_total(api)
 
     print("\n" + "=" * 60)
     print(f"Total orders: {total}")
@@ -159,7 +142,7 @@ def main():
     print("Example 2: Select Order by Ticket")
     print("=" * 60)
 
-    if total > 0:
+    if len(orders) > 0:
         ticket_to_select = _order_value(orders[0], "ticket", "Ticket", 0)
         selected = [o for o in orders if int(_order_value(o, "ticket", "Ticket", 0)) == int(ticket_to_select)]
         if selected:
@@ -171,6 +154,18 @@ def main():
             print(f"Order #{ticket_to_select} not found")
     else:
         print("No orders to select.")
+
+    print("\n" + "=" * 60)
+    print("Example 3: Filter by Symbol")
+    print("=" * 60)
+    symbol_orders = _orders_get(api, symbol="EURUSD")
+    print(f"orders_get(symbol='EURUSD') -> {len(symbol_orders)} row(s)")
+
+    print("\n" + "=" * 60)
+    print("Example 4: Filter by Group")
+    print("=" * 60)
+    group_orders = _orders_get(api, group="*USD*")
+    print(f"orders_get(group='*USD*') -> {len(group_orders)} row(s)")
 
     print("\n" + "=" * 60)
     print("Iterating all orders:")

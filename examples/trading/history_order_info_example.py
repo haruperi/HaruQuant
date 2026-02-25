@@ -41,8 +41,8 @@ def _safe_long(value: int | float | None) -> int:
     return v
 
 
-def _seed_tester_history_orders(now: datetime) -> list[core.HistoryOrderInfo]:
-    o1 = core.HistoryOrderInfo()
+def _seed_tester_history_orders(now: datetime, account: core.AccountInfo) -> None:
+    o1 = core.HistoryOrderInfo(account)
     o1.SetTicket(1001)
     o1.SetSymbol("EURUSD")
     o1.SetType(0)
@@ -55,7 +55,7 @@ def _seed_tester_history_orders(now: datetime) -> list[core.HistoryOrderInfo]:
     o1.SetTimeSetupMsc(int(now.timestamp()) - 120)
     o1.SetTimeDoneMsc(int(now.timestamp()) - 60)
 
-    o2 = core.HistoryOrderInfo()
+    o2 = core.HistoryOrderInfo(account)
     o2.SetTicket(1002)
     o2.SetSymbol("GBPUSD")
     o2.SetType(1)
@@ -67,41 +67,26 @@ def _seed_tester_history_orders(now: datetime) -> list[core.HistoryOrderInfo]:
     o2.SetTimeDone(int(now.timestamp()) - 30)
     o2.SetTimeSetupMsc(int(now.timestamp()) - 90)
     o2.SetTimeDoneMsc(int(now.timestamp()) - 30)
-    return [o1, o2]
 
 
-def _mt5_history_orders_to_core(start: datetime, end: datetime) -> list[core.HistoryOrderInfo]:
-    rows = mt5.history_orders_get(start, end)
+def _history_orders_get(api, start=None, end=None, group=None, ticket=None):
+    if start is None and end is None and ticket is not None:
+        rows = api.history_orders_get(ticket=ticket)
+    elif ticket is not None and group is not None:
+        rows = api.history_orders_get(start, end, group=group, ticket=ticket)
+    elif group is not None:
+        rows = api.history_orders_get(start, end, group=group)
+    elif ticket is not None:
+        rows = api.history_orders_get(start, end, ticket=ticket)
+    else:
+        rows = api.history_orders_get(start, end)
     if rows is None:
         return []
+    return list(rows)
 
-    out: list[core.HistoryOrderInfo] = []
-    for r in rows:
-        o = core.HistoryOrderInfo()
-        o.SetTicket(_safe_long(getattr(r, "ticket", 0)))
-        o.SetTimeSetup(_safe_long(getattr(r, "time_setup", 0)))
-        o.SetTimeSetupMsc(_safe_long(getattr(r, "time_setup_msc", getattr(r, "time_setup", 0))))
-        o.SetTimeDone(_safe_long(getattr(r, "time_done", 0)))
-        o.SetTimeDoneMsc(_safe_long(getattr(r, "time_done_msc", getattr(r, "time_done", 0))))
-        o.SetTimeExpiration(_safe_long(getattr(r, "time_expiration", 0)))
-        o.SetType(_safe_long(getattr(r, "type", 0)))
-        o.SetTypeTime(_safe_long(getattr(r, "type_time", 0)))
-        o.SetTypeFilling(_safe_long(getattr(r, "type_filling", 0)))
-        o.SetState(_safe_long(getattr(r, "state", 0)))
-        o.SetMagic(_safe_long(getattr(r, "magic", 0)))
-        o.SetReason(_safe_long(getattr(r, "reason", 0)))
-        o.SetPositionId(_safe_long(getattr(r, "position_id", 0)))
-        o.SetVolumeInitial(float(getattr(r, "volume_initial", 0.0)))
-        o.SetVolumeCurrent(float(getattr(r, "volume_current", 0.0)))
-        o.SetPriceOpen(float(getattr(r, "price_open", 0.0)))
-        o.SetSl(float(getattr(r, "sl", 0.0)))
-        o.SetTp(float(getattr(r, "tp", 0.0)))
-        o.SetPriceCurrent(float(getattr(r, "price_current", 0.0)))
-        o.SetPriceStopLimit(float(getattr(r, "price_stoplimit", 0.0)))
-        o.SetSymbol(str(getattr(r, "symbol", "")))
-        o.SetComment(str(getattr(r, "comment", "")))
-        out.append(o)
-    return out
+
+def _history_orders_total(api, start: datetime, end: datetime) -> int:
+    return int(api.history_orders_total(start, end))
 
 
 def main():
@@ -126,9 +111,8 @@ def main():
     start = now - timedelta(days=30)
 
     if backend == "mt5":
-        simulator = mt5
+        api = mt5
         print("Using: MT5 backend")
-        orders = _mt5_history_orders_to_core(start, now)
     else:
         client = MT5Utils.get_connected_client()
         if client is None:
@@ -136,10 +120,12 @@ def main():
             return
         mt5_account = client.account_info()
         account = core.AccountInfo(mt5_account)
-        _backtest_simulator = core.BacktestSimulator(account)
-        orders = _seed_tester_history_orders(now)
+        api = core.BacktestSimulator(account)
+        _seed_tester_history_orders(now, account)
         print("Using: Tester backend")
     print()
+    orders = _history_orders_get(api, start, now)
+    total = _history_orders_total(api, start, now)
     orders = sorted(
         orders,
         key=lambda x: int(_hist_value(x, "time_setup_msc", "TimeSetupMsc", 0) or 0),
@@ -148,7 +134,7 @@ def main():
     print("\n" + "=" * 70)
     print("Example 1: All Historical Orders")
     print("=" * 70)
-    print(f"Total orders: {len(orders)}\n")
+    print(f"Total orders: {total}\n")
 
     for i, order in enumerate(orders):
         print(
@@ -183,6 +169,12 @@ def main():
     print(f"Filled: {filled_count}")
     print(f"Canceled: {canceled_count}")
     print(f"Total Volume Ordered: {total_vol:.2f}")
+
+    print("\n" + "=" * 70)
+    print("Example 2b: Filter by Group '*USD*'")
+    print("=" * 70)
+    usd_group = _history_orders_get(api, start, now, group="*USD*")
+    print(f"history_orders_get(group='*USD*') -> {len(usd_group)} row(s)")
 
     print("\n" + "=" * 70)
     print("Example 3: String Representation")

@@ -59,12 +59,6 @@ def print_example_header(title: str):
     print(title)
     print("=" * 70)
 
-def _calc_profit(calc_api, symbol: str, volume: float, entry_price: float, exit_price: float):
-    return calc_api.order_calc_profit(0, symbol, volume, entry_price, exit_price)
-
-def _calc_margin(calc_api, symbol: str, volume: float, entry_price: float):
-    return calc_api.order_calc_margin(0, symbol, volume, entry_price)
-
 
 def example_01_open_position():
     print_example_header("Example 01: Open Position")
@@ -116,8 +110,8 @@ def example_02_calculate_profit():
         exit_price = entry_price + (265 * float(info.point))
 
         symbol_store.AddSymbol(info)
-        mt5_profit = _calc_profit(mt5, sym, volume, entry_price, exit_price)
-        tester_profit = _calc_profit(_simulator, sym, volume, entry_price, exit_price)
+        mt5_profit = mt5.order_calc_profit(0, sym, volume, entry_price, exit_price)
+        tester_profit = _simulator.order_calc_profit(0, sym, volume, entry_price, exit_price)
         print(f"{sym}: MT5=${mt5_profit} | Tester=${tester_profit}")
 
 def example_03_calculate_margin():
@@ -141,8 +135,8 @@ def example_03_calculate_margin():
         entry_price = float(info.ask)
 
         symbol_store.AddSymbol(info)
-        mt5_margin = _calc_margin(mt5, sym, volume, entry_price)
-        tester_margin = _calc_margin(_simulator, sym, volume, entry_price)
+        mt5_margin = mt5.order_calc_margin(0, sym, volume, entry_price)
+        tester_margin = _simulator.order_calc_margin(0, sym, volume, entry_price)
         print(f"{sym}: MT5=${mt5_margin} | Tester=${tester_margin}")
 
 

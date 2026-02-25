@@ -1,5 +1,6 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
 #include <cctype>
 
 #include "core/backtest_simulator.hpp"
@@ -153,6 +154,37 @@ std::string resolve_calc_action(const nb::object& action) {
     if (token == "SELL") return "SELL";
 
     throw nb::value_error("action string must be BUY or SELL");
+}
+
+std::string object_to_optional_string(const nb::object& obj) {
+    if (obj.is_none()) {
+        return {};
+    }
+    return nb::cast<std::string>(obj);
+}
+
+long object_to_optional_ticket(const nb::object& obj) {
+    if (obj.is_none()) {
+        return 0;
+    }
+    return nb::cast<long>(obj);
+}
+
+long to_unix_seconds(const nb::object& obj) {
+    if (obj.is_none()) {
+        return 0;
+    }
+    if (nb::isinstance<nb::int_>(obj)) {
+        return nb::cast<long>(obj);
+    }
+    if (nb::isinstance<nb::float_>(obj)) {
+        return static_cast<long>(nb::cast<double>(obj));
+    }
+    if (nb::hasattr(obj, "timestamp")) {
+        const double ts = nb::cast<double>(obj.attr("timestamp")());
+        return static_cast<long>(ts);
+    }
+    throw nb::type_error("Expected datetime/int/float for time value");
 }
 
 CoreTradeResult make_trade_result(const haruquant::trading::Trade& trade, bool success) {
@@ -456,6 +488,9 @@ void register_core_bindings(nb::module_& m) {
 
     nb::class_<haruquant::trading::DealInfo>(m, "DealInfo")
         .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::DealInfo* self, const haruquant::trading::AccountInfo& account) {
+            new (self) haruquant::trading::DealInfo(account.GetSharedState());
+        }, nb::arg("account"))
         .def("__init__", [](haruquant::trading::DealInfo* self, nb::object source) {
             new (self) haruquant::trading::DealInfo(deal_from_object(source));
         }, nb::arg("source"))
@@ -499,6 +534,9 @@ void register_core_bindings(nb::module_& m) {
 
     nb::class_<haruquant::trading::HistoryOrderInfo>(m, "HistoryOrderInfo")
         .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::HistoryOrderInfo* self, const haruquant::trading::AccountInfo& account) {
+            new (self) haruquant::trading::HistoryOrderInfo(account.GetSharedState());
+        }, nb::arg("account"))
         .def("__init__", [](haruquant::trading::HistoryOrderInfo* self, nb::object source) {
             new (self) haruquant::trading::HistoryOrderInfo(history_order_from_object(source));
         }, nb::arg("source"))
@@ -552,6 +590,9 @@ void register_core_bindings(nb::module_& m) {
 
     nb::class_<haruquant::trading::OrderInfo>(m, "OrderInfo")
         .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::OrderInfo* self, const haruquant::trading::AccountInfo& account) {
+            new (self) haruquant::trading::OrderInfo(account.GetSharedState());
+        }, nb::arg("account"))
         .def("__init__", [](haruquant::trading::OrderInfo* self, nb::object source) {
             new (self) haruquant::trading::OrderInfo(order_from_object(source));
         }, nb::arg("source"))
@@ -608,6 +649,9 @@ void register_core_bindings(nb::module_& m) {
 
     nb::class_<haruquant::trading::PositionInfo>(m, "PositionInfo")
         .def(nb::init<>())
+        .def("__init__", [](haruquant::trading::PositionInfo* self, const haruquant::trading::AccountInfo& account) {
+            new (self) haruquant::trading::PositionInfo(account.GetSharedState());
+        }, nb::arg("account"))
         .def("__init__", [](haruquant::trading::PositionInfo* self, nb::object source) {
             new (self) haruquant::trading::PositionInfo(position_from_object(source));
         }, nb::arg("source"))
@@ -889,5 +933,89 @@ void register_core_bindings(nb::module_& m) {
              nb::arg("action"),
              nb::arg("symbol"),
              nb::arg("lotsize"),
-             nb::arg("entry_price"));
+             nb::arg("entry_price"))
+        .def("orders_get",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object symbol,
+                nb::object group,
+                nb::object ticket) {
+                return self.orders_get(
+                    object_to_optional_string(symbol),
+                    object_to_optional_string(group),
+                    object_to_optional_ticket(ticket));
+             },
+             nb::arg("symbol") = nb::none(),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("orders_total", &haruquant::core::BacktestSimulator::orders_total)
+        .def("positions_get",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object symbol,
+                nb::object group,
+                nb::object ticket) {
+                return self.positions_get(
+                    object_to_optional_string(symbol),
+                    object_to_optional_string(group),
+                    object_to_optional_ticket(ticket));
+             },
+             nb::arg("symbol") = nb::none(),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("positions_total", &haruquant::core::BacktestSimulator::positions_total)
+        .def("history_orders_get",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object date_from,
+                nb::object date_to,
+                nb::object group,
+                nb::object ticket) {
+                const long t = object_to_optional_ticket(ticket);
+                if (date_from.is_none() && date_to.is_none()) {
+                    return self.history_orders_get(t);
+                }
+                return self.history_orders_get(
+                    to_unix_seconds(date_from),
+                    to_unix_seconds(date_to),
+                    object_to_optional_string(group),
+                    t);
+             },
+             nb::arg("date_from") = nb::none(),
+             nb::arg("date_to") = nb::none(),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("history_orders_total",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object date_from,
+                nb::object date_to) {
+                return self.history_orders_total(to_unix_seconds(date_from), to_unix_seconds(date_to));
+             },
+             nb::arg("date_from"),
+             nb::arg("date_to"))
+        .def("history_deals_get",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object date_from,
+                nb::object date_to,
+                nb::object group,
+                nb::object ticket) {
+                const long t = object_to_optional_ticket(ticket);
+                if (date_from.is_none() && date_to.is_none()) {
+                    return self.history_deals_get(t);
+                }
+                return self.history_deals_get(
+                    to_unix_seconds(date_from),
+                    to_unix_seconds(date_to),
+                    object_to_optional_string(group),
+                    t);
+             },
+             nb::arg("date_from") = nb::none(),
+             nb::arg("date_to") = nb::none(),
+             nb::arg("group") = nb::none(),
+             nb::arg("ticket") = nb::none())
+        .def("history_deals_total",
+             [](const haruquant::core::BacktestSimulator& self,
+                nb::object date_from,
+                nb::object date_to) {
+                return self.history_deals_total(to_unix_seconds(date_from), to_unix_seconds(date_to));
+             },
+             nb::arg("date_from"),
+             nb::arg("date_to"));
 }

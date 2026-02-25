@@ -43,8 +43,8 @@ def _safe_long(value: int | float | None) -> int:
     return v
 
 
-def _seed_tester_positions(now: datetime) -> list[core.PositionInfo]:
-    p1 = core.PositionInfo()
+def _seed_tester_positions(now: datetime, account: core.AccountInfo) -> None:
+    p1 = core.PositionInfo(account)
     p1.SetSymbol("EURUSD")
     p1.SetTicket(3001)
     p1.SetIdentifier(3001)
@@ -56,7 +56,7 @@ def _seed_tester_positions(now: datetime) -> list[core.PositionInfo]:
     p1.SetTimeMsc(int(now.timestamp()))
     p1.SetProfit(10.0)
 
-    p2 = core.PositionInfo()
+    p2 = core.PositionInfo(account)
     p2.SetSymbol("USDJPY")
     p2.SetTicket(3002)
     p2.SetIdentifier(3002)
@@ -67,37 +67,24 @@ def _seed_tester_positions(now: datetime) -> list[core.PositionInfo]:
     p2.SetTime(int(now.timestamp()))
     p2.SetTimeMsc(int(now.timestamp()))
     p2.SetProfit(20.0)
-    return [p1, p2]
 
 
-def _mt5_positions_to_core() -> list[core.PositionInfo]:
-    rows = mt5.positions_get()
+def _positions_get(api, symbol=None, group=None, ticket=None):
+    if ticket is not None:
+        rows = api.positions_get(ticket=ticket)
+    elif symbol is not None:
+        rows = api.positions_get(symbol=symbol)
+    elif group is not None:
+        rows = api.positions_get(group=group)
+    else:
+        rows = api.positions_get()
     if rows is None:
         return []
+    return list(rows)
 
-    out: list[core.PositionInfo] = []
-    for r in rows:
-        p = core.PositionInfo()
-        p.SetSymbol(str(getattr(r, "symbol", "")))
-        p.SetTicket(_safe_long(getattr(r, "ticket", 0)))
-        p.SetIdentifier(_safe_long(getattr(r, "identifier", 0)))
-        p.SetTime(_safe_long(getattr(r, "time", 0)))
-        p.SetTimeMsc(_safe_long(getattr(r, "time_msc", getattr(r, "time", 0))))
-        p.SetTimeUpdate(_safe_long(getattr(r, "time_update", 0)))
-        p.SetTimeUpdateMsc(_safe_long(getattr(r, "time_update_msc", getattr(r, "time_update", 0))))
-        p.SetType(_safe_long(getattr(r, "type", 0)))
-        p.SetMagic(_safe_long(getattr(r, "magic", 0)))
-        p.SetReason(_safe_long(getattr(r, "reason", 0)))
-        p.SetVolume(float(getattr(r, "volume", 0.0)))
-        p.SetPriceOpen(float(getattr(r, "price_open", 0.0)))
-        p.SetSl(float(getattr(r, "sl", 0.0)))
-        p.SetTp(float(getattr(r, "tp", 0.0)))
-        p.SetPriceCurrent(float(getattr(r, "price_current", 0.0)))
-        p.SetSwap(float(getattr(r, "swap", 0.0)))
-        p.SetProfit(float(getattr(r, "profit", 0.0)))
-        p.SetComment(str(getattr(r, "comment", "")))
-        out.append(p)
-    return out
+
+def _positions_total(api) -> int:
+    return int(api.positions_total())
 
 
 def main():
@@ -119,7 +106,7 @@ def main():
             return
 
     if backend == "mt5":
-        positions = _mt5_positions_to_core()
+        api = mt5
         print("Using: MT5 backend")
     else:
         client = MT5Utils.get_connected_client()
@@ -128,15 +115,17 @@ def main():
             return
         mt5_account = client.account_info()
         account = core.AccountInfo(mt5_account)
-        _backtest_simulator = core.BacktestSimulator(account)
-        positions = _seed_tester_positions(datetime.now())
+        api = core.BacktestSimulator(account)
+        _seed_tester_positions(datetime.now(), account)
         print("Using: Tester backend")
     print()
+    positions = _positions_get(api)
+    total = _positions_total(api)
 
     print("\n" + "=" * 70)
     print("Example 1: All Open Positions")
     print("=" * 70)
-    print(f"Total positions: {len(positions)}\n")
+    print(f"Total positions: {total}\n")
 
     for i, position in enumerate(positions):
         print(f"{i + 1}. Ticket {_pos_value(position, 'identifier', 'Identifier', 0)}")
@@ -157,7 +146,7 @@ def main():
     print("\n" + "=" * 60)
     print("Selecting by Symbol 'EURUSD'")
     print("=" * 60)
-    eur = [p for p in positions if _pos_value(p, "symbol", "Symbol", "") == "EURUSD"]
+    eur = _positions_get(api, symbol="EURUSD")
     if eur:
         position = eur[0]
         print("Found EURUSD position:")
@@ -165,6 +154,12 @@ def main():
         print(f"  Profit: {_pos_value(position, 'profit', 'Profit', 0.0)}")
     else:
         print("No EURUSD position found.")
+
+    print("\n" + "=" * 60)
+    print("Filter by Group '*USD*'")
+    print("=" * 60)
+    usd_group = _positions_get(api, group="*USD*")
+    print(f"positions_get(group='*USD*') -> {len(usd_group)} row(s)")
 
     print("\n" + "=" * 60)
     print("Example completed successfully!")

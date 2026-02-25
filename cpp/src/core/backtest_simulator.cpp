@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <limits>
+#include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -37,6 +40,95 @@ std::string normalize_token(std::string value) {
         return static_cast<char>(std::toupper(c));
     });
     return value;
+}
+
+std::string trim_copy(const std::string& value) {
+    const auto first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return {};
+    }
+    const auto last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
+}
+
+std::string to_upper_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    return value;
+}
+
+long parse_long_default(const std::string& text, long fallback = 0) {
+    if (text.empty()) {
+        return fallback;
+    }
+    try {
+        return static_cast<long>(std::stoll(text));
+    } catch (...) {
+        return fallback;
+    }
+}
+
+bool wildcard_match_case_insensitive(const std::string& value, const std::string& pattern) {
+    std::string rx;
+    rx.reserve(pattern.size() * 2);
+    for (char ch : pattern) {
+        switch (ch) {
+            case '*':
+                rx += ".*";
+                break;
+            case '?':
+                rx += '.';
+                break;
+            case '.': case '^': case '$': case '+': case '(': case ')':
+            case '[': case ']': case '{': case '}': case '|': case '\\':
+                rx.push_back('\\');
+                rx.push_back(ch);
+                break;
+            default:
+                rx.push_back(ch);
+                break;
+        }
+    }
+    const std::regex re("^" + rx + "$", std::regex::icase);
+    return std::regex_match(value, re);
+}
+
+bool group_match(const std::string& symbol, const std::string& group) {
+    const std::string trimmed = trim_copy(group);
+    if (trimmed.empty()) {
+        return true;
+    }
+
+    bool included = false;
+    bool has_include_rule = false;
+    std::stringstream ss(trimmed);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        std::string rule = trim_copy(token);
+        if (rule.empty()) {
+            continue;
+        }
+        const bool exclude = !rule.empty() && rule.front() == '!';
+        if (exclude) {
+            rule.erase(rule.begin());
+            rule = trim_copy(rule);
+            if (rule.empty()) {
+                continue;
+            }
+            if (wildcard_match_case_insensitive(symbol, rule)) {
+                return false;
+            }
+            continue;
+        }
+
+        has_include_rule = true;
+        if (wildcard_match_case_insensitive(symbol, rule)) {
+            included = true;
+        }
+    }
+
+    return has_include_rule ? included : true;
 }
 
 haruquant::CurrencyConverter build_currency_converter(const BacktestState& state) {
@@ -335,6 +427,179 @@ double BacktestSimulator::order_calc_margin(const std::string& action,
     }
 
     return round_2(std::max(0.0, margin));
+}
+
+std::vector<haruquant::trading::OrderInfo> BacktestSimulator::orders_get(const std::string& symbol,
+                                                                          const std::string& group,
+                                                                          long ticket) const {
+    std::vector<haruquant::trading::OrderInfo> out;
+    const auto* state = account_.GetState();
+    if (!state) {
+        return out;
+    }
+
+    const std::string symbol_filter = to_upper_copy(trim_copy(symbol));
+    for (const auto& [key, row] : state->trading_orders) {
+        const long row_ticket = parse_long_default(read_string(row, "ticket"), parse_long_default(key, 0));
+        if (row_ticket <= 0) {
+            continue;
+        }
+        if (ticket > 0 && row_ticket != ticket) {
+            continue;
+        }
+
+        const std::string row_symbol = read_string(row, "symbol");
+        if (!symbol_filter.empty() && to_upper_copy(row_symbol) != symbol_filter) {
+            continue;
+        }
+        if (!group_match(row_symbol, group)) {
+            continue;
+        }
+
+        haruquant::trading::OrderInfo item(account_.GetSharedState());
+        if (item.Select(row_ticket)) {
+            out.push_back(item);
+        }
+    }
+    return out;
+}
+
+long BacktestSimulator::orders_total() const {
+    return static_cast<long>(orders_get().size());
+}
+
+std::vector<haruquant::trading::PositionInfo> BacktestSimulator::positions_get(const std::string& symbol,
+                                                                                const std::string& group,
+                                                                                long ticket) const {
+    std::vector<haruquant::trading::PositionInfo> out;
+    const auto* state = account_.GetState();
+    if (!state) {
+        return out;
+    }
+
+    const std::string symbol_filter = to_upper_copy(trim_copy(symbol));
+    for (const auto& [key, row] : state->trading_positions) {
+        const long row_ticket = parse_long_default(read_string(row, "ticket"), 0);
+        if (ticket > 0 && row_ticket != ticket) {
+            continue;
+        }
+
+        const std::string row_symbol = read_string(row, "symbol").empty() ? key : read_string(row, "symbol");
+        if (!symbol_filter.empty() && to_upper_copy(row_symbol) != symbol_filter) {
+            continue;
+        }
+        if (!group_match(row_symbol, group)) {
+            continue;
+        }
+
+        haruquant::trading::PositionInfo item(account_.GetSharedState());
+        if (item.Select(row_symbol)) {
+            out.push_back(item);
+        }
+    }
+    return out;
+}
+
+long BacktestSimulator::positions_total() const {
+    return static_cast<long>(positions_get().size());
+}
+
+std::vector<haruquant::trading::HistoryOrderInfo> BacktestSimulator::history_orders_get(
+    long date_from,
+    long date_to,
+    const std::string& group,
+    long ticket) const {
+    std::vector<haruquant::trading::HistoryOrderInfo> out;
+    const auto* state = account_.GetState();
+    if (!state) {
+        return out;
+    }
+
+    const long from = std::max<long>(0, date_from);
+    const long to = (date_to <= 0) ? std::numeric_limits<long>::max() : date_to;
+    for (const auto& [key, row] : state->trading_history_orders) {
+        const long row_ticket = parse_long_default(read_string(row, "ticket"), parse_long_default(key, 0));
+        if (row_ticket <= 0) {
+            continue;
+        }
+        if (ticket > 0 && row_ticket != ticket) {
+            continue;
+        }
+
+        const long time_done = parse_long_default(read_string(row, "time_done"), 0);
+        const long time_setup = parse_long_default(read_string(row, "time_setup"), 0);
+        const long row_time = (time_done > 0) ? time_done : time_setup;
+        if (row_time < from || row_time > to) {
+            continue;
+        }
+
+        const std::string row_symbol = read_string(row, "symbol");
+        if (!group_match(row_symbol, group)) {
+            continue;
+        }
+
+        haruquant::trading::HistoryOrderInfo item(account_.GetSharedState());
+        if (item.Ticket(row_ticket)) {
+            out.push_back(item);
+        }
+    }
+    return out;
+}
+
+std::vector<haruquant::trading::HistoryOrderInfo> BacktestSimulator::history_orders_get(long ticket) const {
+    return history_orders_get(0, std::numeric_limits<long>::max(), "", ticket);
+}
+
+long BacktestSimulator::history_orders_total(long date_from, long date_to) const {
+    return static_cast<long>(history_orders_get(date_from, date_to).size());
+}
+
+std::vector<haruquant::trading::DealInfo> BacktestSimulator::history_deals_get(
+    long date_from,
+    long date_to,
+    const std::string& group,
+    long ticket) const {
+    std::vector<haruquant::trading::DealInfo> out;
+    const auto* state = account_.GetState();
+    if (!state) {
+        return out;
+    }
+
+    const long from = std::max<long>(0, date_from);
+    const long to = (date_to <= 0) ? std::numeric_limits<long>::max() : date_to;
+    for (const auto& [key, row] : state->trading_deals) {
+        const long row_ticket = parse_long_default(read_string(row, "ticket"), parse_long_default(key, 0));
+        if (row_ticket <= 0) {
+            continue;
+        }
+        if (ticket > 0 && row_ticket != ticket) {
+            continue;
+        }
+
+        const long row_time = parse_long_default(read_string(row, "time"), 0);
+        if (row_time < from || row_time > to) {
+            continue;
+        }
+
+        const std::string row_symbol = read_string(row, "symbol");
+        if (!group_match(row_symbol, group)) {
+            continue;
+        }
+
+        haruquant::trading::DealInfo item(account_.GetSharedState());
+        if (item.Ticket(row_ticket)) {
+            out.push_back(item);
+        }
+    }
+    return out;
+}
+
+std::vector<haruquant::trading::DealInfo> BacktestSimulator::history_deals_get(long ticket) const {
+    return history_deals_get(0, std::numeric_limits<long>::max(), "", ticket);
+}
+
+long BacktestSimulator::history_deals_total(long date_from, long date_to) const {
+    return static_cast<long>(history_deals_get(date_from, date_to).size());
 }
 
 }  // namespace haruquant::core

@@ -22,8 +22,21 @@ import haruquant.core as core
 mt5 = get_mt5_api()
 
 
-def _seed_tester_deals(now: datetime) -> list[core.DealInfo]:
-    d1 = core.DealInfo()
+def _safe_long(value: int | float | None) -> int:
+    if value is None:
+        return 0
+    v = int(value)
+    lo = -(2**31)
+    hi = (2**31) - 1
+    if v < lo:
+        return lo
+    if v > hi:
+        return hi
+    return v
+
+
+def _seed_tester_deals(now: datetime, account: core.AccountInfo) -> None:
+    d1 = core.DealInfo(account)
     d1.SetTicket(2001)
     d1.SetOrder(1001)
     d1.SetPositionId(1001)
@@ -39,7 +52,7 @@ def _seed_tester_deals(now: datetime) -> list[core.DealInfo]:
     d1.SetProfit(0.0)
     d1.SetComment("Entry deal")
 
-    d2 = core.DealInfo()
+    d2 = core.DealInfo(account)
     d2.SetTicket(2002)
     d2.SetOrder(1002)
     d2.SetPositionId(1001)
@@ -54,30 +67,16 @@ def _seed_tester_deals(now: datetime) -> list[core.DealInfo]:
     d2.SetSwap(-0.10)
     d2.SetProfit(50.0)
     d2.SetComment("Exit deal")
-    return [d1, d2]
 
 
-def _safe_long(value: int | float | None) -> int:
-    if value is None:
-        return 0
-    v = int(value)
-    lo = -(2**31)
-    hi = (2**31) - 1
-    if v < lo:
-        return lo
-    if v > hi:
-        return hi
-    return v
-
-
-def _mt5_deals_to_core(start: datetime, end: datetime) -> list[core.DealInfo]:
+def _mt5_deals_to_tester_state(start: datetime, end: datetime, account: core.AccountInfo) -> int:
     rows = mt5.history_deals_get(start, end)
     if rows is None:
-        return []
+        return 0
 
-    out: list[core.DealInfo] = []
+    count = 0
     for d in rows:
-        deal = core.DealInfo()
+        deal = core.DealInfo(account)
         deal.SetTicket(_safe_long(getattr(d, "ticket", 0)))
         deal.SetOrder(_safe_long(getattr(d, "order", 0)))
         deal.SetPositionId(_safe_long(getattr(d, "position_id", 0)))
@@ -85,7 +84,6 @@ def _mt5_deals_to_core(start: datetime, end: datetime) -> list[core.DealInfo]:
         deal.SetEntry(_safe_long(getattr(d, "entry", 0)))
         deal.SetMagic(_safe_long(getattr(d, "magic", 0)))
         deal.SetTime(_safe_long(getattr(d, "time", 0)))
-        # MT5 time_msc can exceed 32-bit long on Windows; keep safe same-scale fallback.
         deal.SetTimeMsc(_safe_long(getattr(d, "time_msc", getattr(d, "time", 0))))
         deal.SetVolume(float(getattr(d, "volume", 0.0)))
         deal.SetPrice(float(getattr(d, "price", 0.0)))
@@ -95,8 +93,9 @@ def _mt5_deals_to_core(start: datetime, end: datetime) -> list[core.DealInfo]:
         deal.SetFee(float(getattr(d, "fee", 0.0)))
         deal.SetSymbol(str(getattr(d, "symbol", "")))
         deal.SetComment(str(getattr(d, "comment", "")))
-        out.append(deal)
-    return out
+        deal.SetExternalId(str(getattr(d, "external_id", "")))
+        count += 1
+    return count
 
 
 def _deal_value(deal, attr_name: str, method_name: str | None = None, default=None):
@@ -105,6 +104,26 @@ def _deal_value(deal, attr_name: str, method_name: str | None = None, default=No
     if method_name and hasattr(deal, method_name):
         return getattr(deal, method_name)()
     return default
+
+
+def _history_deals_get(api, start=None, end=None, group=None, ticket=None):
+    if start is None and end is None and ticket is not None:
+        rows = api.history_deals_get(ticket=ticket)
+    elif ticket is not None and group is not None:
+        rows = api.history_deals_get(start, end, group=group, ticket=ticket)
+    elif group is not None:
+        rows = api.history_deals_get(start, end, group=group)
+    elif ticket is not None:
+        rows = api.history_deals_get(start, end, ticket=ticket)
+    else:
+        rows = api.history_deals_get(start, end)
+    if rows is None:
+        return []
+    return list(rows)
+
+
+def _history_deals_total(api, start: datetime, end: datetime) -> int:
+    return int(api.history_deals_total(start, end))
 
 
 def main():
@@ -128,7 +147,7 @@ def main():
     now = datetime.now()
     start = now - timedelta(days=30)
     if backend == "mt5":
-        deals = _mt5_deals_to_core(start, now)
+        api = mt5
         print("Using: MT5 backend")
     else:
         client = MT5Utils.get_connected_client()
@@ -136,27 +155,16 @@ def main():
             print("Failed to connect to MT5 (required for base account in tester mode).")
             return
         mt5_account = client.account_info()
-        account = core.AccountInfo(mt5_account)  # MT5 base account
-        _backtest_simulator = core.BacktestSimulator(account)  # tester init path
-
-        # DealInfo supports default ctor, __init__(source), and direct setters.
-        core_deal = core.DealInfo(
-            {
-                "ticket": 9001,
-                "order": 5001,
-                "symbol": "EURUSD",
-                "type": 0,
-                "entry": 0,
-                "volume": 0.10,
-                "price": 1.1000,
-            }
-        )
-        core_deal.SetComment("Seeded from tester mode")
-        core_deal.SetProfit(12.5)
-        deals = [core_deal] + _seed_tester_deals(now)
+        account = core.AccountInfo(mt5_account)
+        api = core.BacktestSimulator(account)
+        copied = _mt5_deals_to_tester_state(start, now, account)
+        if copied == 0:
+            _seed_tester_deals(now, account)
         print("Using: Tester backend")
-        print(f"Core tester deal ticket: {core_deal.Ticket()}")
     print()
+
+    deals = _history_deals_get(api, start, now)
+    total_deals = _history_deals_total(api, start, now)
 
     deals = sorted(
         deals,
@@ -167,7 +175,6 @@ def main():
     print("Example 1: All Historical Deals")
     print("=" * 70)
 
-    total_deals = len(deals)
     print(f"Total deals: {total_deals}\n")
 
     for i, deal in enumerate(deals):
@@ -185,7 +192,7 @@ def main():
         print(f"   Position ID: {_deal_value(deal, 'position_id', 'PositionId', 0)}")
         print(f"   Time MSC: {_deal_value(deal, 'time_msc', 'TimeMsc', 0)}")
         print(f"   Comment: {_deal_value(deal, 'comment', 'Comment', '')}")
-        print("   External ID: N/A")
+        print(f"   External ID: {_deal_value(deal, 'external_id', 'ExternalId', '')}")
         print("-" * 30)
 
     print("\n" + "=" * 70)
@@ -200,6 +207,12 @@ def main():
     print(f"Total Commission: ${total_commission:.2f}")
     print(f"Total Swap: ${total_swap:.2f}")
     print(f"Net Result: ${total_profit + total_commission + total_swap:.2f}")
+
+    print("\n" + "=" * 70)
+    print("Example 2b: Filter by Group '*USD*'")
+    print("=" * 70)
+    usd_group = _history_deals_get(api, start, now, group="*USD*")
+    print(f"history_deals_get(group='*USD*') -> {len(usd_group)} row(s)")
 
     print("\n" + "=" * 70)
     print("Example 3: Deals by Symbol (Manual Filter)")
