@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+from datetime import datetime
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
@@ -258,6 +259,67 @@ def example_06_close_position():
                 f"{retcode}{suffix}"
             )
 
+def example_07_pending_orders():
+    print_example_header("Example 07: Pending Orders (4 Types)")
+    info = client.symbol_info(test_symbol)
+    if info is None:
+        print(f"{test_symbol}: symbol info unavailable, skipped")
+        return
+
+    if backend == "tester":
+        symbol_store = core.SymbolInfo(_account)
+        symbol_store.AddSymbol(info)
+
+    bid = float(info.bid)
+    ask = float(info.ask)
+    point = float(info.point)
+    step = 25 * point * 10
+    expiration = int(time.time()) + 3600
+    volume = 0.01
+
+    pending_specs = [
+        ("BUY_LIMIT", ask - step),
+        ("BUY_STOP", ask + step),
+        ("SELL_LIMIT", bid + step),
+        ("SELL_STOP", bid - step),
+    ]
+
+    for order_type, pending_price in pending_specs:
+        if backend == "mt5":
+            result = trade.OrderOpen(
+                symbol=test_symbol,
+                order_type=order_type,
+                volume=volume,
+                price=pending_price,
+                sl=0.0,
+                tp=0.0,
+                expiration=datetime.fromtimestamp(expiration),
+                comment=f"Example {order_type}",
+            )
+            if result and int(result.retcode) in (10008, 10009):
+                print(f"{order_type}: placed successfully (order={int(result.order)})")
+            else:
+                print(f"{order_type}: failed retcode={int(result.retcode)}")
+        else:
+            ok = trade.OrderOpen(
+                symbol=test_symbol,
+                order_type=order_type,
+                volume=volume,
+                limit_price=pending_price,
+                price=0.0,
+                sl=0.0,
+                tp=0.0,
+                expiration=expiration,
+                comment=f"Example {order_type}",
+            )
+            retcode = int(trade.ResultRetcode())
+            if ok and retcode in (10008, 10009):
+                print(f"{order_type}: placed successfully (order={int(trade.ResultOrder())})")
+            else:
+                desc = str(trade.ResultRetcodeDescription())
+                suffix = f"; {desc}" if desc and desc != str(retcode) else ""
+                print(f"{order_type}: failed retcode={retcode}{suffix}")
+
 
 if __name__ == "__main__":
     example_01_open_position()
@@ -267,6 +329,7 @@ if __name__ == "__main__":
     example_05_close_partial_position()
     time.sleep(2)
     example_06_close_position()
+    example_07_pending_orders()
     
 
     client.shutdown()

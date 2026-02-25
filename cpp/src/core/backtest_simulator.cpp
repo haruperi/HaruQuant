@@ -246,9 +246,10 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
 
     const long action = (request.action == 0) ? 1 : request.action;  // TRADE_ACTION_DEAL
     const bool is_market_deal = (action == 1);
-    if (!is_market_deal) {
+    const bool is_pending = (action == 5);  // TRADE_ACTION_PENDING
+    if (!is_market_deal && !is_pending) {
         result.retcode = 10013;
-        result.comment = "Only TRADE_ACTION_DEAL is supported in tester order_send()";
+        result.comment = "Unsupported trade action in tester order_send()";
         set_last_error(-2, result.comment);
         return result;
     }
@@ -257,16 +258,6 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
     if (symbol_key.empty()) {
         result.retcode = 10013;
         result.comment = "Unknown symbol";
-        set_last_error(-2, result.comment);
-        return result;
-    }
-
-    const long order_type = request.type;
-    const bool is_buy = (order_type == 0);
-    const bool is_sell = (order_type == 1);
-    if (!is_buy && !is_sell) {
-        result.retcode = 10013;
-        result.comment = "Only BUY/SELL are supported in tester order_send()";
         set_last_error(-2, result.comment);
         return result;
     }
@@ -284,6 +275,93 @@ TradeResult BacktestSimulator::order_send(const TradeRequest& request) {
     const double last = read_double(sym_row, "last", 0.0);
     result.bid = bid;
     result.ask = ask;
+
+    const long order_type = request.type;
+    const bool is_buy = (order_type == 0);
+    const bool is_sell = (order_type == 1);
+
+    if (is_pending) {
+        const bool is_buy_limit = (order_type == 2);
+        const bool is_sell_limit = (order_type == 3);
+        const bool is_buy_stop = (order_type == 4);
+        const bool is_sell_stop = (order_type == 5);
+        if (!is_buy_limit && !is_sell_limit && !is_buy_stop && !is_sell_stop) {
+            result.retcode = 10013;
+            result.comment = "Only BUY_LIMIT/SELL_LIMIT/BUY_STOP/SELL_STOP are supported";
+            set_last_error(-2, result.comment);
+            return result;
+        }
+
+        double pending_price = request.price;
+        if (pending_price <= 0.0) {
+            pending_price = request.stoplimit;
+        }
+        if (pending_price <= 0.0) {
+            result.retcode = 10015;
+            result.comment = "Pending price is invalid";
+            set_last_error(-2, result.comment);
+            return result;
+        }
+
+        const long now = static_cast<long>(std::time(nullptr));
+        const long now_msc = now * 1000;
+        const long order_ticket = next_ticket(state->trading_orders);
+
+        const bool pending_buy_side = is_buy_limit || is_buy_stop;
+        double margin_required = 0.0;
+        try {
+            margin_required = order_calc_margin(
+                pending_buy_side ? "BUY" : "SELL",
+                symbol_key,
+                request.volume,
+                pending_price);
+        } catch (...) {
+            margin_required = 0.0;
+        }
+
+        auto& order_row = state->trading_orders[to_string_num(order_ticket)];
+        order_row["action"] = "order_open";
+        order_row["ticket"] = to_string_num(order_ticket);
+        order_row["time_setup"] = to_string_num(now);
+        order_row["time_setup_msc"] = to_string_num(now_msc);
+        order_row["time_done"] = "0";
+        order_row["time_done_msc"] = "0";
+        order_row["time_expiration"] = to_string_num(request.expiration);
+        order_row["type"] = to_string_num(order_type);
+        order_row["type_time"] = to_string_num(request.type_time);
+        order_row["type_filling"] = to_string_num(request.type_filling);
+        order_row["state"] = "1";  // ORDER_STATE_PLACED
+        order_row["magic"] = to_string_num(request.magic);
+        order_row["reason"] = "0";
+        order_row["position_id"] = "0";
+        order_row["position_by_id"] = "0";
+        order_row["volume_initial"] = to_string_num(request.volume);
+        order_row["volume_current"] = to_string_num(request.volume);
+        order_row["price_open"] = to_string_num(pending_price);
+        order_row["sl"] = to_string_num(request.sl);
+        order_row["tp"] = to_string_num(request.tp);
+        order_row["price_current"] = to_string_num(pending_price);
+        order_row["price_stoplimit"] = to_string_num(request.stoplimit);
+        order_row["symbol"] = symbol_key;
+        order_row["comment"] = request.comment;
+        order_row["external_id"] = "";
+        order_row["margin_required"] = to_string_num(margin_required);
+
+        result.retcode = 10008;
+        result.deal = 0;
+        result.order = order_ticket;
+        result.price = pending_price;
+        result.comment = "Order placed";
+        set_last_error(0, "No error");
+        return result;
+    }
+
+    if (!is_buy && !is_sell) {
+        result.retcode = 10013;
+        result.comment = "Only BUY/SELL are supported in tester order_send()";
+        set_last_error(-2, result.comment);
+        return result;
+    }
 
     double exec_price = request.price;
     if (exec_price <= 0.0) {

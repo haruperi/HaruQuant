@@ -70,6 +70,7 @@ double read_row_double(const core::BacktestState::Dictionary& row,
     return fallback;
   }
 }
+
 }  // namespace
 
 Trade::Trade()
@@ -368,6 +369,17 @@ bool Trade::OrderOpen(const std::string &symbol, const long order_type,
     return false;
   }
 
+  const bool supported_pending_type =
+      order_type == static_cast<long>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_LIMIT) ||
+      order_type == static_cast<long>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_BUY_STOP) ||
+      order_type == static_cast<long>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_LIMIT) ||
+      order_type == static_cast<long>(haruquant::ENUM_ORDER_TYPE::ORDER_TYPE_SELL_STOP);
+  if (!supported_pending_type) {
+    m_result_retcode = 10013;
+    m_result_comment = "Only BUY_LIMIT/BUY_STOP/SELL_LIMIT/SELL_STOP are supported";
+    return false;
+  }
+
   std::string sym_upper = resolved_sym;
   std::transform(sym_upper.begin(), sym_upper.end(), sym_upper.begin(),
                  [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
@@ -377,22 +389,29 @@ bool Trade::OrderOpen(const std::string &symbol, const long order_type,
     type_filling = it_fill->second;
   }
   const long resolved_type_time = (type_time == 0 ? m_type_time : type_time);
-  m_state->trading_orders["open_order_" + std::to_string(time(nullptr))] = {
-      {"action", "order_open"},
-      {"symbol", resolved_sym},
-      {"type", std::to_string(order_type)},
-      {"type_filling", std::to_string(type_filling)},
-      {"type_time", std::to_string(resolved_type_time)},
-      {"volume", std::to_string(volume)},
-      {"limit_price", std::to_string(limit_price)},
-      {"price", std::to_string(price)},
-      {"sl", std::to_string(sl)},
-      {"tp", std::to_string(tp)},
-      {"expiration", std::to_string(expiration)},
-      {"comment", comment}};
 
-  m_result_retcode = 10009;
-  return true;
+  core::TradeRequest request;
+  request.action =
+      static_cast<long>(haruquant::ENUM_TRADE_REQUEST_ACTIONS::TRADE_ACTION_PENDING);
+  request.magic = m_magic;
+  request.symbol = resolved_sym;
+  request.volume = volume;
+  request.type = order_type;
+  request.price = (limit_price > 0.0) ? limit_price : price;
+  request.sl = sl;
+  request.tp = tp;
+  request.type_filling = type_filling;
+  request.type_time = resolved_type_time;
+  request.expiration = expiration;
+  request.comment = comment;
+
+  core::BacktestSimulator simulator(account_snapshot);
+  const core::TradeResult result = simulator.order_send(request);
+  m_result_retcode = result.retcode;
+  m_result_order = result.order;
+  m_result_deal = result.deal;
+  m_result_comment = result.comment;
+  return haruquant::util::is_success_retcode(static_cast<int>(m_result_retcode));
 }
 
 bool Trade::OrderModify(const long ticket, const double price, const double sl,
