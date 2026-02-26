@@ -7,9 +7,18 @@
 
 namespace haruquant::core {
 
+class BacktestSimulator;
+
 struct EngineRunRow {
     long long index_ns{0};
+    double open{0.0};
+    double high{0.0};
+    double low{0.0};
     double close{0.0};
+    double bid{0.0};
+    double ask{0.0};
+    double last{0.0};
+    double volume{0.0};
     long long entry_signal{0};
     long long exit_signal{0};
     double spread_points{0.0};
@@ -20,7 +29,9 @@ public:
     explicit Engine(const haruquant::trading::AccountInfo& account);
 
     // Iterates a simple bar stream and logs BUY signals.
-    void run(const std::vector<EngineRunRow>& data,
+    void run(const std::vector<EngineRunRow>& signal_data,
+             const std::vector<EngineRunRow>& execution_data = {},
+             const std::string& loop_model = "ohlc",
              const std::string& symbol = "",
              long start_unix_sec = 0,
              long end_unix_sec = 0,
@@ -43,6 +54,9 @@ public:
     void monitor_account(bool verbose = false);
 
 private:
+    void monitor_positions_impl(BacktestSimulator& simulator, bool verbose = false);
+    void monitor_pending_orders_impl(BacktestSimulator& simulator, bool verbose = false);
+
     haruquant::trading::AccountInfo account_{};
 };
 

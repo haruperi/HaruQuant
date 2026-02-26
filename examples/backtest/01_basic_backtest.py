@@ -80,6 +80,12 @@ def main():
         date_to=end_date
     )
 
+    data_m1 = client.get_bars(
+        symbol=test_symbol,
+        timeframe="M1",
+        date_from=warmup_start_date,
+        date_to=end_date
+    )
 
     strategy = TrendFollowingStrategy(
             params={
@@ -93,7 +99,9 @@ def main():
     data = strategy.on_bar(data)  # Calculate signals
 
     run_config = {
-        "data": data,
+        "signal_data": data,
+        "execution_data": data_m1,
+        "loop_model": "m1_ohlc",      # ohlc | m1_ohlc | synthetic_ticks | real_ticks
         "symbol": test_symbol,     # Used to fetch point from BacktestState symbol store
         "volume_lots": 0.1,        # Volume in lots
         "start_date": start_date,  # Trading starts here (after warmup)
@@ -102,11 +110,18 @@ def main():
         "spread_points": 10,       # Spread in points (only used when spread_mode="fixed")
         "spread_min": 5,           # Minimum spread in points (only used when spread_mode="variable")
         "spread_max": 20,          # Maximum spread in points (only used when spread_mode="variable")
-        "verbose": True,           # Print verbose output
+        "verbose": False,           # Print verbose output
     }
+
+    sim_start = time.time()
     simulator.run(run_config)
+    sim_end = time.time()
+    print(f"Simulation run() time: {sim_end - sim_start:.2f} seconds")
 
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     main()
+    end_time = time.time()
+    print(f"Backtest completed in {end_time - start_time:.2f} seconds")

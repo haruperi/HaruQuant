@@ -181,14 +181,22 @@ nb::object get_config_value(const nb::object& config, const char* key) {
     return nb::none();
 }
 
-std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::object& data) {
+std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::object& data,
+                                                                    bool require_entry_signal = true) {
     if (!nb::hasattr(data, "__getitem__") || !nb::hasattr(data, "index")) {
         throw nb::type_error("run(data) expects a pandas DataFrame-like object");
     }
 
     nb::module_ np = nb::module_::import_("numpy");
     nb::object close_obj = np.attr("asarray")(data.attr("__getitem__")("close"), nb::str("float64"));
-    nb::object signal_obj = np.attr("asarray")(data.attr("__getitem__")("entry_signal"), nb::str("int64"));
+    nb::object open_obj;
+    nb::object high_obj;
+    nb::object low_obj;
+    nb::object bid_obj;
+    nb::object ask_obj;
+    nb::object last_obj;
+    nb::object volume_obj;
+    nb::object signal_obj;
     nb::object exit_signal_obj;
     nb::object spread_obj;
 
@@ -201,16 +209,36 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
     }
 
     auto close_arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(close_obj);
-    auto signal_arr = nb::cast<nb::ndarray<nb::numpy, const long long, nb::shape<-1>>>(signal_obj);
     auto index_arr = nb::cast<nb::ndarray<nb::numpy, const long long, nb::shape<-1>>>(index_obj);
 
     const size_t n = static_cast<size_t>(close_arr.shape(0));
-    if (static_cast<size_t>(signal_arr.shape(0)) != n || static_cast<size_t>(index_arr.shape(0)) != n) {
-        throw nb::value_error("close, entry_signal, and index must have the same length");
+    if (static_cast<size_t>(index_arr.shape(0)) != n) {
+        throw nb::value_error("close and index must have the same length");
+    }
+
+    const long long* signal_ptr = nullptr;
+    try {
+        signal_obj = np.attr("asarray")(data.attr("__getitem__")("entry_signal"), nb::str("int64"));
+        auto signal_arr = nb::cast<nb::ndarray<nb::numpy, const long long, nb::shape<-1>>>(signal_obj);
+        if (static_cast<size_t>(signal_arr.shape(0)) != n) {
+            throw nb::value_error("close and entry_signal must have the same length");
+        }
+        signal_ptr = signal_arr.data();
+    } catch (...) {
+        if (require_entry_signal) {
+            throw;
+        }
+        signal_ptr = nullptr;
     }
 
     const double* close_ptr = close_arr.data();
-    const long long* signal_ptr = signal_arr.data();
+    const double* open_ptr = nullptr;
+    const double* high_ptr = nullptr;
+    const double* low_ptr = nullptr;
+    const double* bid_ptr = nullptr;
+    const double* ask_ptr = nullptr;
+    const double* last_ptr = nullptr;
+    const double* volume_ptr = nullptr;
     const long long* index_ptr = index_arr.data();
     const long long* exit_signal_ptr = nullptr;
 
@@ -235,13 +263,56 @@ std::vector<haruquant::core::EngineRunRow> dataframe_to_engine_rows(const nb::ob
         spread_ptr = nullptr;
     }
 
+    try {
+        open_obj = np.attr("asarray")(data.attr("__getitem__")("open"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(open_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) open_ptr = arr.data();
+    } catch (...) {}
+    try {
+        high_obj = np.attr("asarray")(data.attr("__getitem__")("high"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(high_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) high_ptr = arr.data();
+    } catch (...) {}
+    try {
+        low_obj = np.attr("asarray")(data.attr("__getitem__")("low"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(low_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) low_ptr = arr.data();
+    } catch (...) {}
+    try {
+        bid_obj = np.attr("asarray")(data.attr("__getitem__")("bid"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(bid_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) bid_ptr = arr.data();
+    } catch (...) {}
+    try {
+        ask_obj = np.attr("asarray")(data.attr("__getitem__")("ask"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(ask_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) ask_ptr = arr.data();
+    } catch (...) {}
+    try {
+        last_obj = np.attr("asarray")(data.attr("__getitem__")("last"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(last_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) last_ptr = arr.data();
+    } catch (...) {}
+    try {
+        volume_obj = np.attr("asarray")(data.attr("__getitem__")("volume"), nb::str("float64"));
+        auto arr = nb::cast<nb::ndarray<nb::numpy, const double, nb::shape<-1>>>(volume_obj);
+        if (static_cast<size_t>(arr.shape(0)) == n) volume_ptr = arr.data();
+    } catch (...) {}
+
     std::vector<haruquant::core::EngineRunRow> rows;
     rows.reserve(n);
     for (size_t i = 0; i < n; ++i) {
         haruquant::core::EngineRunRow row;
         row.index_ns = index_ptr[i];
         row.close = close_ptr[i];
-        row.entry_signal = signal_ptr[i];
+        row.open = (open_ptr != nullptr) ? open_ptr[i] : row.close;
+        row.high = (high_ptr != nullptr) ? high_ptr[i] : row.close;
+        row.low = (low_ptr != nullptr) ? low_ptr[i] : row.close;
+        row.bid = (bid_ptr != nullptr) ? bid_ptr[i] : 0.0;
+        row.ask = (ask_ptr != nullptr) ? ask_ptr[i] : 0.0;
+        row.last = (last_ptr != nullptr) ? last_ptr[i] : row.close;
+        row.volume = (volume_ptr != nullptr) ? volume_ptr[i] : 0.0;
+        row.entry_signal = (signal_ptr != nullptr) ? signal_ptr[i] : 0;
         row.exit_signal = (exit_signal_ptr != nullptr) ? exit_signal_ptr[i] : 0;
         row.spread_points = (spread_ptr != nullptr) ? spread_ptr[i] : 0.0;
         rows.push_back(row);
@@ -1086,12 +1157,20 @@ void register_core_bindings(nb::module_& m) {
         .def("run",
              [](const haruquant::core::BacktestSimulator& self,
                 nb::object config) {
-                nb::object data = get_config_value(config, "data");
-                if (data.is_none()) {
-                    throw nb::value_error("run(config) requires 'data'");
+                nb::object signal_data = get_config_value(config, "signal_data");
+                if (signal_data.is_none()) {
+                    signal_data = get_config_value(config, "data");
                 }
+                if (signal_data.is_none()) {
+                    throw nb::value_error("run(config) requires 'signal_data' (or legacy 'data')");
+                }
+                nb::object execution_data = get_config_value(config, "execution_data");
 
                 const std::string symbol = object_to_optional_string(get_config_value(config, "symbol"));
+                const nb::object loop_model_obj = get_config_value(config, "loop_model");
+                const std::string loop_model = loop_model_obj.is_none()
+                    ? "ohlc"
+                    : nb::cast<std::string>(loop_model_obj);
                 const long start_unix_sec = to_unix_seconds(get_config_value(config, "start_date"));
                 const long end_unix_sec = to_unix_seconds(get_config_value(config, "end_date"));
 
@@ -1128,7 +1207,10 @@ void register_core_bindings(nb::module_& m) {
 
                 haruquant::core::Engine engine(self.account_info());
                 engine.run(
-                    dataframe_to_engine_rows(data),
+                    dataframe_to_engine_rows(signal_data, true),
+                    execution_data.is_none() ? std::vector<haruquant::core::EngineRunRow>{}
+                                             : dataframe_to_engine_rows(execution_data, false),
+                    loop_model,
                     symbol,
                     start_unix_sec,
                     end_unix_sec,

@@ -160,11 +160,264 @@ long long index_to_unix_seconds(long long index_value) {
     return index_value;                               // s
 }
 
+struct TickEvent {
+    long long time_ns{0};
+    double close{0.0};
+    double bid{0.0};
+    double ask{0.0};
+    double spread_points{0.0};
+};
+
+struct ScheduledSignal {
+    long long time_ns{0};
+    long long entry_signal{0};
+    long long exit_signal{0};
+};
+
+std::vector<ScheduledSignal> build_signal_schedule(const std::vector<EngineRunRow>& signal_data) {
+    std::vector<ScheduledSignal> out;
+    if (signal_data.empty()) {
+        return out;
+    }
+    out.reserve(signal_data.size());
+    for (const auto& row : signal_data) {
+        if (row.entry_signal == 0 && row.exit_signal == 0) {
+            continue;
+        }
+        out.push_back(ScheduledSignal{
+            row.index_ns,
+            row.entry_signal,
+            row.exit_signal,
+        });
+    }
+    return out;
+}
+
+void append_ohlc_ticks(const EngineRunRow& row, std::vector<TickEvent>& out) {
+    const bool bullish = row.close >= row.open;
+    const double seq[4] = {
+        row.open,
+        bullish ? row.low : row.high,
+        bullish ? row.high : row.low,
+        row.close,
+    };
+    for (int i = 0; i < 4; ++i) {
+        TickEvent t{};
+        t.time_ns = row.index_ns;
+        t.close = seq[i];
+        t.spread_points = row.spread_points;
+        t.bid = 0.0;
+        t.ask = 0.0;
+        out.push_back(t);
+    }
+}
+
+std::vector<TickEvent> build_ticks_ohlc(const std::vector<EngineRunRow>& rows) {
+    std::vector<TickEvent> out;
+    out.reserve(rows.size() * 4);
+    for (const auto& row : rows) {
+        append_ohlc_ticks(row, out);
+    }
+    return out;
+}
+
+std::vector<TickEvent> build_ticks_synthetic(const std::vector<EngineRunRow>& rows) {
+    std::vector<TickEvent> out;
+    auto support_points_for_volume = [](long long ticks) -> long long {
+        // MT5-style coarse support-point bands (odd count, capped to 11).
+        if (ticks < 8) {
+            return 3;
+        }
+        if (ticks < 16) {
+            return 5;
+        }
+        if (ticks < 32) {
+            return 7;
+        }
+        if (ticks < 64) {
+            return 9;
+        }
+        return 11;
+    };
+
+    auto append_linear_segment = [](std::vector<double>& prices, double a, double b, long long count, bool include_start) {
+        if (count <= 0) {
+            return;
+        }
+        const long long denom = include_start ? std::max(1LL, count - 1) : count;
+        for (long long i = 0; i < count; ++i) {
+            if (!include_start && i == 0) {
+                continue;
+            }
+            const long long num = include_start ? i : i + 1;
+            const double t = static_cast<double>(num) / static_cast<double>(denom);
+            prices.push_back(a + (b - a) * t);
+        }
+    };
+
+    for (const auto& row : rows) {
+        const bool bullish = row.close >= row.open;
+        const double open = row.open;
+        const double high = row.high;
+        const double low = row.low;
+        const double close = row.close;
+        long long ticks = static_cast<long long>(std::llround(row.volume));
+        if (ticks <= 0) {
+            ticks = 4;
+        }
+
+        // Keep MT5-style special low-volume behavior deterministic.
+        if (ticks <= 3) {
+            std::vector<double> special_prices{};
+            if (ticks == 1) {
+                special_prices.push_back(close);
+            } else if (ticks == 2) {
+                special_prices.push_back(open);
+                special_prices.push_back(close);
+            } else {
+                special_prices.push_back(open);
+                special_prices.push_back(bullish ? low : high);
+                special_prices.push_back(close);
+            }
+            for (double px : special_prices) {
+                TickEvent t{};
+                t.time_ns = row.index_ns;
+                t.close = px;
+                t.spread_points = row.spread_points;
+                t.bid = 0.0;
+                t.ask = 0.0;
+                out.push_back(t);
+            }
+            continue;
+        }
+
+        const double ext1 = bullish ? low : high;
+        const double ext2 = bullish ? high : low;
+        const long long support_count = support_points_for_volume(ticks);   // 3/5/7/9/11
+
+        std::vector<double> supports{};
+        supports.reserve(static_cast<size_t>(support_count));
+        for (long long i = 0; i < support_count; ++i) {
+            if (i == 0) {
+                supports.push_back(open);
+            } else if (i == support_count - 1) {
+                supports.push_back(close);
+            } else {
+                // Alternate swings around O->ext1->ext2->C structure.
+                const bool odd = (i % 2 == 1);
+                const double a = odd ? ext1 : ext2;
+                const double b = odd ? ext2 : ext1;
+                const double alpha = static_cast<double>(i) / static_cast<double>(support_count - 1);
+                supports.push_back(a + (b - a) * alpha);
+            }
+        }
+
+        const long long segments = std::max(1LL, support_count - 1);
+        long long remaining = ticks;
+        std::vector<long long> per_segment(static_cast<size_t>(segments), 1);
+        remaining -= segments;
+        for (long long i = 0; i < remaining; ++i) {
+            per_segment[static_cast<size_t>(i % segments)] += 1;
+        }
+
+        std::vector<double> prices{};
+        prices.reserve(static_cast<size_t>(ticks));
+        for (long long s = 0; s < segments; ++s) {
+            append_linear_segment(
+                prices,
+                supports[static_cast<size_t>(s)],
+                supports[static_cast<size_t>(s + 1)],
+                per_segment[static_cast<size_t>(s)],
+                s == 0);
+        }
+        if (prices.empty()) {
+            prices.push_back(close);
+        }
+        if (static_cast<long long>(prices.size()) > ticks) {
+            prices.resize(static_cast<size_t>(ticks));
+        }
+        while (static_cast<long long>(prices.size()) < ticks) {
+            prices.push_back(close);
+        }
+
+        for (double px : prices) {
+            TickEvent t{};
+            t.time_ns = row.index_ns;
+            t.close = px;
+            t.spread_points = row.spread_points;
+            t.bid = 0.0;
+            t.ask = 0.0;
+            out.push_back(t);
+        }
+    }
+    return out;
+}
+
+std::vector<TickEvent> build_ticks_real(const std::vector<EngineRunRow>& rows) {
+    std::vector<TickEvent> out;
+    out.reserve(rows.size());
+    std::vector<double> known_spread(rows.size(), 0.0);
+    for (size_t i = 0; i < rows.size(); ++i) {
+        if (rows[i].bid > 0.0 && rows[i].ask > 0.0) {
+            known_spread[i] = rows[i].ask - rows[i].bid;
+        }
+    }
+
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& row = rows[i];
+        TickEvent t{};
+        t.time_ns = row.index_ns;
+        t.close = (row.last > 0.0) ? row.last : ((row.bid > 0.0) ? row.bid : row.close);
+        t.bid = row.bid;
+        t.ask = row.ask;
+        t.spread_points = row.spread_points;
+
+        if (t.bid > 0.0 && !(t.ask > 0.0)) {
+            double prev_spread = 0.0;
+            double next_spread = 0.0;
+            for (long long j = static_cast<long long>(i) - 1; j >= 0; --j) {
+                if (known_spread[static_cast<size_t>(j)] > 0.0) {
+                    prev_spread = known_spread[static_cast<size_t>(j)];
+                    break;
+                }
+            }
+            for (size_t j = i + 1; j < rows.size(); ++j) {
+                if (known_spread[j] > 0.0) {
+                    next_spread = known_spread[j];
+                    break;
+                }
+            }
+            double spread = 0.0;
+            if (prev_spread > 0.0 && next_spread > 0.0) {
+                spread = (prev_spread + next_spread) * 0.5;
+            } else if (prev_spread > 0.0) {
+                spread = prev_spread;
+            } else if (next_spread > 0.0) {
+                spread = next_spread;
+            }
+            t.ask = (spread > 0.0) ? (t.bid + spread) : t.bid;
+        }
+        if (!(t.bid > 0.0) && t.ask > 0.0) {
+            t.bid = t.ask;
+        }
+        if (!(t.bid > 0.0) && !(t.ask > 0.0)) {
+            continue;
+        }
+        if (!(t.close > 0.0)) {
+            t.close = t.bid;
+        }
+        out.push_back(t);
+    }
+    return out;
+}
+
 }  // namespace
 
 Engine::Engine(const haruquant::trading::AccountInfo& account) : account_(account) {}
 
-void Engine::run(const std::vector<EngineRunRow>& data,
+void Engine::run(const std::vector<EngineRunRow>& signal_data,
+                 const std::vector<EngineRunRow>& execution_data,
+                 const std::string& loop_model,
                  const std::string& symbol,
                  long start_unix_sec,
                  long end_unix_sec,
@@ -201,28 +454,50 @@ void Engine::run(const std::vector<EngineRunRow>& data,
     const double exec_volume = (trade_volume > 0.0) ? trade_volume : volume_min;
     const bool can_trade = (state != nullptr && !symbol_key.empty());
     haruquant::trading::Trade trade(shared_state);
+    BacktestSimulator simulator(account_);
+
+    const std::string model = to_upper_copy(loop_model);
+    std::vector<TickEvent> ticks{};
+    const auto& execution_rows = execution_data.empty() ? signal_data : execution_data;
+    if (model == "REAL_TICKS") {
+        ticks = build_ticks_real(execution_rows);
+    } else if (model == "SYNTHETIC_TICKS") {
+        ticks = build_ticks_synthetic(execution_rows);
+    } else if (model == "M1_OHLC") {
+        ticks = build_ticks_ohlc(execution_rows);
+    } else {
+        ticks = build_ticks_ohlc(signal_data);
+    }
+    const auto schedule = build_signal_schedule(signal_data);
+    size_t schedule_idx = 0;
+    size_t processed_ticks = 0;
 
     std::mt19937 rng{std::random_device{}()};
     const double lo = std::min(spread_min, spread_max);
     const double hi = std::max(spread_min, spread_max);
     std::uniform_real_distribution<double> dist(lo, hi);
 
-    for (const auto& row : data) {
-        const long long row_sec = index_to_unix_seconds(row.index_ns);
+    for (const auto& tick : ticks) {
+        const long long row_sec = index_to_unix_seconds(tick.time_ns);
         if (start_unix_sec > 0 && row_sec < start_unix_sec) {
             continue;
         }
         if (end_unix_sec > 0 && row_sec > end_unix_sec) {
             continue;
         }
+        ++processed_ticks;
 
-        const double close = row.close;
+        const double close = tick.close;
         const double eff_spread_points =
             (mode == "FIXED") ? spread_points :
             (mode == "VARIABLE") ? dist(rng) :
-            row.spread_points;
-        const double bid = close;
-        const double ask = close + (eff_spread_points * point);
+            tick.spread_points;
+        double bid = tick.bid;
+        double ask = tick.ask;
+        if (!(bid > 0.0) || !(ask > 0.0)) {
+            bid = close;
+            ask = close + (eff_spread_points * point);
+        }
         if (can_trade) {
             auto sym_it = state->trading_symbols.find(symbol_key);
             if (sym_it != state->trading_symbols.end()) {
@@ -232,31 +507,42 @@ void Engine::run(const std::vector<EngineRunRow>& data,
             }
         }
 
+        bool trade_activity = false;
         if (can_trade) {
-            if (row.entry_signal == 1) {
+            long long entry_signal = 0;
+            long long exit_signal = 0;
+            while (schedule_idx < schedule.size() && tick.time_ns >= schedule[schedule_idx].time_ns) {
+                entry_signal = schedule[schedule_idx].entry_signal;
+                exit_signal = schedule[schedule_idx].exit_signal;
+                ++schedule_idx;
+            }
+
+            if (entry_signal == 1) {
                 const bool opened = trade.PositionOpen(symbol_key, 0, exec_volume, 0.0, 0.0, 0.0, "engine_buy_signal");
+                trade_activity = trade_activity || opened;
                 if (verbose && opened) {
                     const long ticket = (trade.ResultDeal() > 0) ? trade.ResultDeal() : trade.ResultOrder();
                     std::ostringstream oss;
-                    oss << format_index_utc(row.index_ns)
+                    oss << format_index_utc(tick.time_ns)
                         << " Market BUY " << exec_volume << " " << symbol_key
                         << " " << ticket << " Opened";
                     haruquant::util::info(oss.str());
                 }
-            } else if (row.entry_signal == -1) {
+            } else if (entry_signal == -1) {
                 const bool opened = trade.PositionOpen(symbol_key, 1, exec_volume, 0.0, 0.0, 0.0, "engine_sell_signal");
+                trade_activity = trade_activity || opened;
                 if (verbose && opened) {
                     const long ticket = (trade.ResultDeal() > 0) ? trade.ResultDeal() : trade.ResultOrder();
                     std::ostringstream oss;
-                    oss << format_index_utc(row.index_ns)
+                    oss << format_index_utc(tick.time_ns)
                         << " Market SELL " << exec_volume << " " << symbol_key
                         << " " << ticket << " Opened";
                     haruquant::util::info(oss.str());
                 }
             }
 
-            if (row.exit_signal == 1 || row.exit_signal == -1) {
-                const long target_type = (row.exit_signal == 1) ? 0 : 1;
+            if (exit_signal == 1 || exit_signal == -1) {
+                const long target_type = (exit_signal == 1) ? 0 : 1;
                 struct CloseCandidate {
                     long ticket{0};
                     double volume{0.0};
@@ -283,9 +569,10 @@ void Engine::run(const std::vector<EngineRunRow>& data,
                 }
                 for (const auto& close_candidate : tickets_to_close) {
                     const bool closed = trade.PositionClose("", close_candidate.ticket);
+                    trade_activity = trade_activity || closed;
                     if (verbose && closed) {
                         std::ostringstream oss;
-                        oss << format_index_utc(row.index_ns)
+                        oss << format_index_utc(tick.time_ns)
                             << " Market " << ((target_type == 0) ? "BUY" : "SELL")
                             << " " << close_candidate.volume << " " << symbol_key
                             << " " << close_candidate.ticket << " Closed";
@@ -295,20 +582,42 @@ void Engine::run(const std::vector<EngineRunRow>& data,
             }
         }
 
-        // Keep simulator state synchronized on every bar.
-        monitor_pending_orders(verbose);
-        monitor_positions(verbose);
-        monitor_account(verbose);
+        // Keep simulator state synchronized without doing unnecessary work.
+        const bool has_pending_orders = (state != nullptr && !state->trading_orders.empty());
+        if (has_pending_orders) {
+            monitor_pending_orders_impl(simulator, verbose);
+        }
+        const bool has_open_positions = (state != nullptr && !state->trading_deals.empty());
+        if (has_open_positions) {
+            monitor_positions_impl(simulator, verbose);
+        }
+        if (verbose || trade_activity || has_open_positions) {
+            monitor_account(verbose);
+        }
+    }
+
+    if (verbose) {
+        std::ostringstream oss;
+        oss << "sim -> engine | model " << model
+            << " | signal_rows " << signal_data.size()
+            << " | execution_rows " << execution_rows.size()
+            << " | generated_ticks " << ticks.size()
+            << " | looped_ticks " << processed_ticks;
+        haruquant::util::info(oss.str());
     }
 }
 
 void Engine::monitor_positions(bool verbose) {
+    BacktestSimulator simulator(account_);
+    monitor_positions_impl(simulator, verbose);
+}
+
+void Engine::monitor_positions_impl(BacktestSimulator& simulator, bool verbose) {
     auto* state = account_.GetSharedState().get();
     if (state == nullptr) {
         return;
     }
 
-    BacktestSimulator simulator(account_);
     const long now = static_cast<long>(std::time(nullptr));
     const long now_msc = now * 1000;
 
@@ -356,7 +665,6 @@ void Engine::monitor_positions(bool verbose) {
 
         const double entry_price = read_double(pos_row, "price_open", 0.0);
         const double volume = read_double(pos_row, "volume", 0.0);
-        const double margin_required = read_double(pos_row, "margin_required", 0.0);
         if (!(entry_price > 0.0) || !(volume > 0.0)) {
             continue;
         }
@@ -374,10 +682,10 @@ void Engine::monitor_positions(bool verbose) {
         pos_row["time_update"] = to_string_num(now);
         pos_row["time_update_msc"] = to_string_num(now_msc);
 
-        const double sl = read_double(pos_row, "sl", 0.0);
-        const double tp = read_double(pos_row, "tp", 0.0);
         bool should_close = false;
         std::string close_reason{};
+        const double sl = read_double(pos_row, "sl", 0.0);
+        const double tp = read_double(pos_row, "tp", 0.0);
         if (is_buy) {
             if (sl > 0.0 && bid <= sl) {
                 should_close = true;
@@ -433,12 +741,17 @@ void Engine::monitor_positions(bool verbose) {
 }
 
 void Engine::monitor_pending_orders(bool verbose) {
+    BacktestSimulator simulator(account_);
+    monitor_pending_orders_impl(simulator, verbose);
+}
+
+void Engine::monitor_pending_orders_impl(BacktestSimulator& simulator, bool verbose) {
+    (void) verbose;
     auto* state = account_.GetSharedState().get();
     if (state == nullptr) {
         return;
     }
 
-    BacktestSimulator simulator(account_);
     const long now = static_cast<long>(std::time(nullptr));
     const long now_msc = now * 1000;
 
