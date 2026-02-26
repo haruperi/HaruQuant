@@ -26,7 +26,6 @@ from .__version__ import (
 
 # Core imports
 from .client import MT5Api, MT5Client, get_mt5_api
-from .trade import Trade
 from .util import MT5Utils, TicksGen, timeframe_seconds
 
 __all__ = [
@@ -44,7 +43,6 @@ __all__ = [
     "MT5Client",
     "MT5Api",
     "get_mt5_api",
-    "Trade",
     "MT5Utils",
     "TicksGen",
     "timeframe_seconds",

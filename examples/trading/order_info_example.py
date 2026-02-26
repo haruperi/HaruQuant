@@ -10,18 +10,7 @@ from datetime import datetime
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
-if BRIDGE_BUILD_DIR not in sys.path:
-    sys.path.insert(0, BRIDGE_BUILD_DIR)
-if hasattr(os, "add_dll_directory"):
-    os.add_dll_directory(BRIDGE_BUILD_DIR)
-
-from apps.mt5 import MT5Utils, get_mt5_api
-import haruquant.core as core
-
-mt5 = get_mt5_api()
-
-
+from apps.trading import Engine, trade
 def _order_value(order, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(order, attr_name):
         return getattr(order, attr_name)
@@ -30,41 +19,30 @@ def _order_value(order, attr_name: str, method_name: str | None = None, default=
     return default
 
 
-def _safe_long(value: int | float | None) -> int:
-    if value is None:
-        return 0
-    v = int(value)
-    lo = -(2**31)
-    hi = (2**31) - 1
-    if v < lo:
-        return lo
-    if v > hi:
-        return hi
-    return v
+def _seed_tester_orders(now: datetime, engine_instance: Engine) -> None:
+    o1 = trade.OrderInfo()
+    o1.ticket = 5001
+    o1.symbol = "EURUSD"
+    o1.type = 2
+    o1.state = 1
+    o1.volume_initial = 0.1
+    o1.volume_current = 0.1
+    o1.price_open = 1.0500
+    o1.time_setup = int(now.timestamp())
+    o1.time_setup_msc = int(now.timestamp())
+    engine_instance.state.trading_orders.append(o1)
 
-
-def _seed_tester_orders(now: datetime, account: core.AccountInfo) -> None:
-    o1 = core.OrderInfo(account)
-    o1.SetTicket(5001)
-    o1.SetSymbol("EURUSD")
-    o1.SetType(2)
-    o1.SetState(1)
-    o1.SetVolumeInitial(0.1)
-    o1.SetVolumeCurrent(0.1)
-    o1.SetPriceOpen(1.0500)
-    o1.SetTimeSetup(int(now.timestamp()))
-    o1.SetTimeSetupMsc(int(now.timestamp()))
-
-    o2 = core.OrderInfo(account)
-    o2.SetTicket(5002)
-    o2.SetSymbol("GBPUSD")
-    o2.SetType(3)
-    o2.SetState(1)
-    o2.SetVolumeInitial(0.2)
-    o2.SetVolumeCurrent(0.2)
-    o2.SetPriceOpen(1.3000)
-    o2.SetTimeSetup(int(now.timestamp()))
-    o2.SetTimeSetupMsc(int(now.timestamp()))
+    o2 = trade.OrderInfo()
+    o2.ticket = 5002
+    o2.symbol = "GBPUSD"
+    o2.type = 3
+    o2.state = 1
+    o2.volume_initial = 0.2
+    o2.volume_current = 0.2
+    o2.price_open = 1.3000
+    o2.time_setup = int(now.timestamp())
+    o2.time_setup_msc = int(now.timestamp())
+    engine_instance.state.trading_orders.append(o2)
 
 
 def _orders_get(api, symbol=None, group=None, ticket=None):
@@ -87,7 +65,7 @@ def _orders_total(api) -> int:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    parser.add_argument("--backend", choices=["sim", "mt5"], default="sim")
     args = parser.parse_args()
     backend = args.backend
 
@@ -96,27 +74,14 @@ def main():
     print("=" * 70)
     print()
 
-    client = None
-    if backend == "mt5":
-        client = MT5Utils.get_connected_client()
-        if client is None:
-            print("Failed to connect to MT5.")
-            return
+    engine_instance = Engine(backend=backend)
+    api = engine_instance.api
 
-    if backend == "mt5":
-        api = mt5
-        print("Using: MT5 backend")
-    else:
-        client = MT5Utils.get_connected_client()
-        if client is None:
-            print("Failed to connect to MT5 (required for base account in tester mode).")
-            return
-        mt5_account = client.account_info()
-        account = core.AccountInfo(mt5_account)
-        api = core.BacktestSimulator(account)
-        _seed_tester_orders(datetime.now(), account)
+    if backend == "sim":
+        _seed_tester_orders(datetime.now(), engine_instance)
         print("Using: Tester backend")
-    print()
+    else:
+        print("Using: MT5 backend")
     orders = _orders_get(api)
     total = _orders_total(api)
 
@@ -184,10 +149,9 @@ def main():
     print("Example completed successfully!")
     print("=" * 60)
 
-    if client is not None:
-        print("\nShutting down MT5 connection...")
-        client.shutdown()
-        print("Disconnected.")
+    print("\nShutting down MT5 connection...")
+    engine_instance.client.shutdown()
+    print("Disconnected.")
 
 
 if __name__ == "__main__":

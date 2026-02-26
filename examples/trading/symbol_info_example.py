@@ -9,17 +9,7 @@ import argparse
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
-if BRIDGE_BUILD_DIR not in sys.path:
-    sys.path.insert(0, BRIDGE_BUILD_DIR)
-if hasattr(os, "add_dll_directory"):
-    os.add_dll_directory(BRIDGE_BUILD_DIR)
-
-from apps.mt5 import MT5Utils, get_mt5_api
-import haruquant.core as core
-
-mt5 = get_mt5_api()
-
+from apps.trading import Engine, trade
 
 def _sym_value(symbol, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(symbol, attr_name):
@@ -29,105 +19,46 @@ def _sym_value(symbol, attr_name: str, method_name: str | None = None, default=N
     return default
 
 
-def _safe_long(value: int | float | None) -> int:
-    if value is None:
-        return 0
-    v = int(value)
-    lo = -(2**31)
-    hi = (2**31) - 1
-    if v < lo:
-        return lo
-    if v > hi:
-        return hi
-    return v
-
-
-def _seed_tester_symbols(symbols: list[str]) -> list[core.SymbolInfo]:
-    out: list[core.SymbolInfo] = []
+def _seed_tester_symbols(symbols: list[str]) -> list:
+    out = []
     for idx, name in enumerate(symbols, start=1):
-        s = core.SymbolInfo()
-        s.SetName(name)
-        s.SetDescription(f"{name} synthetic tester symbol")
-        s.SetDigits(5 if "JPY" not in name else 3)
+        s = trade.SymbolInfo()
+        s.name = name
+        s.description = f"{name} synthetic tester symbol"
+        s.digits = 5 if "JPY" not in name else 3
         point = 0.00001 if "JPY" not in name else 0.001
-        s.SetPoint(point)
-        s.SetSpread(15)
-        s.SetSpreadFloat(True)
-        s.SetTradeMode(4)
-        s.SetTradeExemode(2)
-        s.SetTradeCalcMode(0)
-        s.SetVolumeMin(0.01)
-        s.SetVolumeMax(100.0)
-        s.SetVolumeStep(0.01)
-        s.SetVolumeLimit(0.0)
-        s.SetTradeTickSize(point)
-        s.SetTradeTickValue(1.0)
-        s.SetTradeTickValueProfit(1.0)
-        s.SetTradeTickValueLoss(1.0)
-        s.SetTradeContractSize(100000.0)
-        s.SetMarginInitial(0.0)
-        s.SetSwapMode(0)
-        s.SetSwapLong(-2.0)
-        s.SetSwapShort(1.0)
-        s.SetSwapRollover3days(3)
+        s.point = point
+        s.spread = 15
+        s.spread_float = True
+        s.trade_mode = 4
+        s.trade_exemode = 2
+        s.trade_calc_mode = 0
+        s.volume_min = 0.01
+        s.volume_max = 100.0
+        s.volume_step = 0.01
+        s.volume_limit = 0.0
+        s.trade_tick_size = point
+        s.trade_tick_value = 1.0
+        s.trade_tick_value_profit = 1.0
+        s.trade_tick_value_loss = 1.0
+        s.trade_contract_size = 100000.0
+        s.margin_initial = 0.0
+        s.swap_mode = 0
+        s.swap_long = -2.0
+        s.swap_short = 1.0
+        s.swap_rollover3days = 3
         bid = 1.10000 if name == "EURUSD" else 1.27000
         ask = bid + (15 * point)
-        s.SetBid(bid)
-        s.SetAsk(ask)
-        s.SetLast((bid + ask) / 2.0)
-        out.append(s)
-    return out
-
-
-def _mt5_symbols_to_core(symbols: list[str]) -> list[core.SymbolInfo]:
-    out: list[core.SymbolInfo] = []
-    for name in symbols:
-        mt5.symbol_select(name, True)
-        info = mt5.symbol_info(name)
-        if info is None:
-            continue
-        s = core.SymbolInfo()
-        s.SetName(str(getattr(info, "name", name)))
-        s.SetDescription(str(getattr(info, "description", "")))
-        s.SetPath(str(getattr(info, "path", "")))
-        s.SetDigits(_safe_long(getattr(info, "digits", 0)))
-        s.SetPoint(float(getattr(info, "point", 0.0)))
-        s.SetSpread(_safe_long(getattr(info, "spread", 0)))
-        s.SetSpreadFloat(bool(getattr(info, "spread_float", False)))
-        s.SetTradeMode(_safe_long(getattr(info, "trade_mode", 0)))
-        s.SetTradeExemode(_safe_long(getattr(info, "trade_exemode", 0)))
-        s.SetTradeCalcMode(_safe_long(getattr(info, "trade_calc_mode", 0)))
-        s.SetTradeStopsLevel(_safe_long(getattr(info, "trade_stops_level", 0)))
-        s.SetTradeFreezeLevel(_safe_long(getattr(info, "trade_freeze_level", 0)))
-        s.SetVolumeMin(float(getattr(info, "volume_min", 0.0)))
-        s.SetVolumeMax(float(getattr(info, "volume_max", 0.0)))
-        s.SetVolumeStep(float(getattr(info, "volume_step", 0.0)))
-        s.SetVolumeLimit(float(getattr(info, "volume_limit", 0.0)))
-        s.SetTradeTickSize(float(getattr(info, "trade_tick_size", 0.0)))
-        s.SetTradeTickValue(float(getattr(info, "trade_tick_value", 0.0)))
-        s.SetTradeTickValueProfit(float(getattr(info, "trade_tick_value_profit", 0.0)))
-        s.SetTradeTickValueLoss(float(getattr(info, "trade_tick_value_loss", 0.0)))
-        s.SetTradeContractSize(float(getattr(info, "trade_contract_size", 0.0)))
-        s.SetMarginInitial(float(getattr(info, "margin_initial", 0.0)))
-        s.SetMarginMaintenance(float(getattr(info, "margin_maintenance", 0.0)))
-        s.SetSwapMode(_safe_long(getattr(info, "swap_mode", 0)))
-        s.SetSwapLong(float(getattr(info, "swap_long", 0.0)))
-        s.SetSwapShort(float(getattr(info, "swap_short", 0.0)))
-        s.SetSwapRollover3days(_safe_long(getattr(info, "swap_rollover3days", 0)))
-        s.SetCurrencyBase(str(getattr(info, "currency_base", "")))
-        s.SetCurrencyProfit(str(getattr(info, "currency_profit", "")))
-        s.SetCurrencyMargin(str(getattr(info, "currency_margin", "")))
-        s.SetBid(float(getattr(info, "bid", 0.0)))
-        s.SetAsk(float(getattr(info, "ask", 0.0)))
-        s.SetLast(float(getattr(info, "last", 0.0)))
-        s.SetTime(_safe_long(getattr(info, "time", 0)))
+        s.bid = bid
+        s.ask = ask
+        s.last = (bid + ask) / 2.0
         out.append(s)
     return out
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    parser.add_argument("--backend", choices=["sim", "mt5"], default="sim")
     args = parser.parse_args()
     backend = args.backend
     symbols = ["EURUSD", "GBPUSD"]
@@ -137,25 +68,21 @@ def main():
     print("=" * 60)
     print()
 
-    client = None
-    if backend == "mt5":
-        client = MT5Utils.get_connected_client()
-        if client is None:
-            print("Failed to connect to MT5.")
-            return
-        symbol_rows = _mt5_symbols_to_core(symbols)
-        print("Using: MT5 backend")
-    else:
-        client = MT5Utils.get_connected_client()
-        if client is None:
-            print("Failed to connect to MT5 (required for base account in tester mode).")
-            return
-        mt5_account = client.account_info()
-        account = core.AccountInfo(mt5_account)
-        _backtest_simulator = core.BacktestSimulator(account)
+    engine_instance = Engine(backend=backend)
+    api = engine_instance.api
+
+    if backend == "sim":
         symbol_rows = _seed_tester_symbols(symbols)
+        engine_instance.state.trading_symbols.extend(symbol_rows)
         print("Using: Tester backend")
-    print()
+    else:
+        symbol_rows = []
+        for name in symbols:
+            api.symbol_select(name, True)
+            info = api.symbol_info(name)
+            if info is not None:
+                symbol_rows.append(info)
+        print("Using: MT5 backend")
 
     for symbol_name in symbols:
         print(f"\nProcessing {symbol_name}...")
@@ -210,19 +137,16 @@ def main():
         print(f"Swap Long:      {float(_sym_value(symbol, 'swap_long', 'SwapLong', 0.0)):.2f}")
         print(f"Swap Short:     {float(_sym_value(symbol, 'swap_short', 'SwapShort', 0.0)):.2f}")
 
-    all_symbols = symbol_rows
-    print("\n" + "=" * 60)
-    print(f"symbols_get() count: {len(all_symbols)}")
+    all_symbols = api.symbols_get()
     print("=" * 60)
 
     print("\n" + "=" * 70)
     print("Example completed successfully!")
     print("=" * 70)
 
-    if client is not None:
-        print("\nShutting down MT5 connection...")
-        client.shutdown()
-        print("Disconnected.")
+    print("\nShutting down MT5 connection...")
+    engine_instance.client.shutdown()
+    print("Disconnected.")
 
 
 if __name__ == "__main__":

@@ -20,8 +20,7 @@ VCPKG_BIN_DIR = os.path.join(PROJECT_ROOT, "build", "vcpkg_installed", "x64-wind
 if hasattr(os, "add_dll_directory") and os.path.isdir(VCPKG_BIN_DIR):
     os.add_dll_directory(VCPKG_BIN_DIR)
 
-import haruquant
-
+from apps.utils import error_descriptions
 
 def _header(name: str) -> None:
     print()
@@ -33,13 +32,13 @@ def _header(name: str) -> None:
 def f01_error_name() -> None:
     _header("f01_error_name")
     code = 10014  # invalid volume
-    print(f"code={code}, name={haruquant.error_name(code)}")
+    print(f"code={code}, name={error_descriptions.error_name(code)}")
 
 
 def f02_error_payload() -> None:
     _header("f02_error_payload")
     code = 10019  # no money
-    payload = haruquant.error_from_retcode(code)
+    payload = error_descriptions.error_from_retcode(code)
     print(payload)
 
 
@@ -47,7 +46,7 @@ def f03_raise_exception_for_retcode() -> None:
     _header("f03_raise_exception_for_retcode")
     code = 10016  # invalid stops
     try:
-        haruquant.raise_exception_for_retcode(code, "Example: stop loss is too close")
+        error_descriptions.raise_exception_for_retcode(code, "Example: stop loss is too close")
     except Exception as exc:
         print(type(exc).__name__)
         print(str(exc))
@@ -56,7 +55,7 @@ def f03_raise_exception_for_retcode() -> None:
 def f04_raise_exception_for_category() -> None:
     _header("f04_raise_exception_for_category")
     try:
-        haruquant.raise_exception_for_category("risk", "Risk rule violated")
+        error_descriptions.raise_exception_for_category("risk", "Risk rule violated")
     except Exception as exc:
         print(type(exc).__name__)
         print(str(exc))

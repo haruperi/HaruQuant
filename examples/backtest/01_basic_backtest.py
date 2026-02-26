@@ -63,11 +63,11 @@ def main():
     account.SetMarginFree(10000.0)
     account.SetMarginLevel(100.0)
     
-    simulator = sim.BacktestSimulator(account) # Initialize BacktestSimulator 
-    symbol_store = sim.SymbolInfo(account)     # Initialize SymbolInfo in the BacktestSimulator
+    simulator = sim.Engine(account) # Initialize Engine 
+    symbol_store = sim.SymbolInfo(account)     # Initialize SymbolInfo in the Engine
     symbol_store.AddSymbol(test_symbol_info)   # Add symbol info to symbol store
 
-    trade = sim.Trade(account)                  # Initialize Trade in the BacktestSimulator
+    trade = sim.Trade(account)                  # Initialize Trade in the Engine
     trade.SetExpertMagicNumber(12345)
     trade.SetDeviationInPoints(20)
     trade.SetTypeFillingBySymbol(test_symbol)

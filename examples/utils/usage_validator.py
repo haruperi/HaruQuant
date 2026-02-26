@@ -12,17 +12,9 @@ from datetime import datetime, timedelta, timezone
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
-if BRIDGE_BUILD_DIR not in sys.path:
-    sys.path.insert(0, BRIDGE_BUILD_DIR)
-if hasattr(os, "add_dll_directory"):
-    os.add_dll_directory(BRIDGE_BUILD_DIR)
-
-import haruquant.sim as csim
-import haruquant
 from apps.mt5 import MT5Utils, Trade, get_mt5_api
 from apps.utils.logger import logger
-from apps.mt5 import MT5Utils, get_mt5_api
+from apps.utils.trade_validators import TradeValidator
 
 # Global Variables
 eurusd = "EURUSD"
@@ -33,17 +25,18 @@ mt5 = get_mt5_api()
 client = MT5Utils.get_connected_client()
 mt5_account = client.account_info()
 eurusd_info = client.symbol_info(eurusd)
-account = csim.AccountInfo(mt5_account)     # Get default account info details from MT5
-validator = haruquant.TradeValidator()
+validator = TradeValidator()
 
 # Initialize backend
 if backend == "mt5":
     simulator = mt5
     print("Using: MT5 backend")
 else:
-    simulator = csim.TradeSimulator(account)    # Initialize TradeSimulator
-    simulator.set_symbol_info(eurusd_info)      # Pass MT5 symbol object metadata and seeds quotes.
-    print("Using: TradeSimulator backend")
+    from apps.trading.main import Engine, AccountInfo
+    account = AccountInfo(mt5_account)
+    simulator = Engine(account)
+    # Simulator initialization might need custom seeding which isn't standard here anymore without C++, skipping
+    print("Using: Python Simulator backend")
 
 
 # Helper functions

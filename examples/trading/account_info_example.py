@@ -7,17 +7,9 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Allow loading local C++ bridge build (haruquant shim on top of haruquant.pyd + dependent DLLs).
-BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
-if os.path.exists(BRIDGE_BUILD_DIR):
-    if BRIDGE_BUILD_DIR not in sys.path:
-        sys.path.insert(0, BRIDGE_BUILD_DIR)
-    if hasattr(os, "add_dll_directory"):
-        os.add_dll_directory(BRIDGE_BUILD_DIR)
 
-from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
-import haruquant.core as sim
+from apps.trading import Engine
 
 
 def main():
@@ -28,75 +20,70 @@ def main():
 
     try:
 
-        backend = "tester"  # set to: "mt5" or "tester"
+        backend = "mt5"  # set to: "mt5" or "sim"
+        engine_instance = Engine(backend=backend)
+        api = engine_instance.api
+        account = api.account_info()
 
-        # Derived globals
-        mt5 = get_mt5_api()
-        client = MT5Utils.get_connected_client()
-        mt5_account = client.account_info()
-        account = sim.AccountInfo(mt5_account)  # Get default account info details from MT5
-
-        if backend == "tester":
+        if backend == "sim":
             # Override selected MT5-derived fields for tester backend.
-            account.SetLogin(123456)
-            account.SetServer("Backtest Simulation Server")
-            account.SetCompany("HaruQuant")
-            account.SetBalance(10000.0)
-            account.SetCredit(0.0)
-            account.SetProfit(0.0)
-            account.SetEquity(10000.0)
-            account.SetMargin(0.0)
-            account.SetMarginFree(10000.0)
-            account.SetMarginLevel(100.0)
-
-        simulator = sim.BacktestSimulator(account)  # Initialize BacktestSimulator (core path)
+            account['login'] = 123456
+            account['server'] = "Backtest Simulation Server"
+            account['company'] = "HaruQuant"
+            account['balance'] = 10000.0
+            account['credit'] = 0.0
+            account['profit'] = 0.0
+            account['equity'] = 10000.0
+            account['margin'] = 0.0
+            account['margin_free'] = 10000.0
+            account['margin_level'] = 100.0
 
         # Display account information
-        print("ACCOUNT INFORMATION")
+        print(f"ACCOUNT INFORMATION - {backend}")
         print("-" * 60)
-        print(f"Login:          {account.Login()}")
-        print(f"Name:           {account.Name()}")
-        print(f"Server:         {account.Server()}")
-        print(f"Company:        {account.Company()}")
-        print(f"Currency:       {account.Currency()}")
-        print(f"Leverage:       1:{account.Leverage()}")
+        print(f"Login:          {account.login}")
+        print(f"Name:           {account.name}")
+        print(f"Server:         {account.server}")
+        print(f"Company:        {account.company}")
+        print(f"Currency:       {account.currency}")
+        print(f"Leverage:       1:{account.leverage}")
         print()
 
         # Display account mode
         print("ACCOUNT MODE")
         print("-" * 60)
-        print(f"Trade Mode:     {account.TradeMode()}")
-        print(f"Margin Mode:    {account.MarginMode()}")
+        print(f"Trade Mode:     {account.trade_mode}")
+        print(f"Margin Mode:    {account.margin_mode}")
         print()
 
         # Display account permissions
         print("PERMISSIONS")
         print("-" * 60)
-        print(f"Trade Allowed:  {'Yes' if account.TradeAllowed() else 'No'}")
-        print(f"Expert Allowed: {'Yes' if account.TradeExpert() else 'No'}")
-        print(f"Limit Orders:   {account.LimitOrders()} (0 = unlimited)")
+        print(f"Trade Allowed:  {'Yes' if account.trade_allowed else 'No'}")
+        print(f"Expert Allowed: {'Yes' if account.trade_expert else 'No'}")
+        print(f"Limit Orders:   {account.limit_orders} (0 = unlimited)")
         print()
 
         # Display account balance and equity
         print("BALANCE & EQUITY")
         print("-" * 60)
-        print(f"Balance:        {account.Balance():.2f} {account.Currency()}")
-        print(f"Credit:         {account.Credit():.2f} {account.Currency()}")
-        print(f"Profit:         {account.Profit():.2f} {account.Currency()}")
-        print(f"Equity:         {account.Equity():.2f} {account.Currency()}")
+        print(f"Balance:        {account.balance:.2f} {account.currency}")
+        print(f"Credit:         {account.credit:.2f} {account.currency}")
+        print(f"Profit:         {account.profit:.2f} {account.currency}")
+        print(f"Equity:         {account.equity:.2f} {account.currency}")
         print()
 
         # Display margin information
         print("MARGIN INFORMATION")
         print("-" * 60)
-        print(f"Margin Used:    {account.Margin():.2f} {account.Currency()}")
-        print(f"Free Margin:    {account.MarginFree():.2f} {account.Currency()}")
-        if account.Margin() > 0:
-            print(f"Margin Level:   {account.MarginLevel():.2f}%")
+        print(f"Margin Used:    {account.margin:.2f} {account.currency}")
+        print(f"Free Margin:    {account.margin_free:.2f} {account.currency}")
+        if getattr(account, 'margin', 0.0) > 0:
+            print(f"Margin Level:   {account.margin_level:.2f}%")
         else:
             print("Margin Level:   N/A (no open positions)")
-        print(f"Margin Call:    {account.MarginCall()}")
-        print(f"Margin Stopout: {account.MarginStopOut()}")
+        print(f"Margin Call:    {account.margin_so_call}")
+        print(f"Margin Stopout: {account.margin_so_so}")
         print()
 
         print()
@@ -110,9 +97,9 @@ def main():
 
         traceback.print_exc()
     finally:
-        if client is not None:
+        if 'engine_instance' in locals():
             print("\nShutting down MT5 connection...")
-            client.shutdown()
+            engine_instance.client.shutdown()
             print("Disconnected.")
 
 

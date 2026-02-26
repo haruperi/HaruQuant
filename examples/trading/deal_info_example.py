@@ -9,93 +9,42 @@ from datetime import datetime, timedelta
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Allow loading local C++ bridge build (haruquant shim on top of haruquant.pyd + dependent DLLs).
-BRIDGE_BUILD_DIR = os.path.join(PROJECT_ROOT, "build", "bridge", "Release")
-if BRIDGE_BUILD_DIR not in sys.path:
-    sys.path.insert(0, BRIDGE_BUILD_DIR)
-if hasattr(os, "add_dll_directory"):
-    os.add_dll_directory(BRIDGE_BUILD_DIR)
+from apps.trading import Engine, trade
 
-from apps.mt5 import MT5Utils, get_mt5_api
-import haruquant.core as core
+def _seed_tester_deals(now: datetime, engine_instance: Engine) -> None:
+    d1 = trade.DealInfo()
+    d1.ticket = 2001
+    d1.order = 1001
+    d1.position_id = 1001
+    d1.symbol = "GBPUSD"
+    d1.type = 0
+    d1.entry = 0
+    d1.time = int(now.timestamp()) - 60
+    d1.time_msc = int(now.timestamp()) - 60
+    d1.volume = 0.1
+    d1.price = 1.1000
+    d1.commission = -1.20
+    d1.swap = 0.0
+    d1.profit = 0.0
+    d1.comment = "Entry deal"
+    engine_instance.state.trading_history_deals.append(d1)
 
-mt5 = get_mt5_api()
-
-
-def _safe_long(value: int | float | None) -> int:
-    if value is None:
-        return 0
-    v = int(value)
-    lo = -(2**31)
-    hi = (2**31) - 1
-    if v < lo:
-        return lo
-    if v > hi:
-        return hi
-    return v
-
-
-def _seed_tester_deals(now: datetime, account: core.AccountInfo) -> None:
-    d1 = core.DealInfo(account)
-    d1.SetTicket(2001)
-    d1.SetOrder(1001)
-    d1.SetPositionId(1001)
-    d1.SetSymbol("GBPUSD")
-    d1.SetType(0)
-    d1.SetEntry(0)
-    d1.SetTime(int(now.timestamp()) - 60)
-    d1.SetTimeMsc(int(now.timestamp()) - 60)
-    d1.SetVolume(0.1)
-    d1.SetPrice(1.1000)
-    d1.SetCommission(-1.20)
-    d1.SetSwap(0.0)
-    d1.SetProfit(0.0)
-    d1.SetComment("Entry deal")
-
-    d2 = core.DealInfo(account)
-    d2.SetTicket(2002)
-    d2.SetOrder(1002)
-    d2.SetPositionId(1001)
-    d2.SetSymbol("EURUSD")
-    d2.SetType(1)
-    d2.SetEntry(1)
-    d2.SetTime(int(now.timestamp()) - 30)
-    d2.SetTimeMsc(int(now.timestamp()) - 30)
-    d2.SetVolume(0.1)
-    d2.SetPrice(1.1050)
-    d2.SetCommission(-1.20)
-    d2.SetSwap(-0.10)
-    d2.SetProfit(50.0)
-    d2.SetComment("Exit deal")
-
-
-def _mt5_deals_to_tester_state(start: datetime, end: datetime, account: core.AccountInfo) -> int:
-    rows = mt5.history_deals_get(start, end)
-    if rows is None:
-        return 0
-
-    count = 0
-    for d in rows:
-        deal = core.DealInfo(account)
-        deal.SetTicket(_safe_long(getattr(d, "ticket", 0)))
-        deal.SetOrder(_safe_long(getattr(d, "order", 0)))
-        deal.SetPositionId(_safe_long(getattr(d, "position_id", 0)))
-        deal.SetType(_safe_long(getattr(d, "type", 0)))
-        deal.SetEntry(_safe_long(getattr(d, "entry", 0)))
-        deal.SetMagic(_safe_long(getattr(d, "magic", 0)))
-        deal.SetTime(_safe_long(getattr(d, "time", 0)))
-        deal.SetTimeMsc(_safe_long(getattr(d, "time_msc", getattr(d, "time", 0))))
-        deal.SetVolume(float(getattr(d, "volume", 0.0)))
-        deal.SetPrice(float(getattr(d, "price", 0.0)))
-        deal.SetCommission(float(getattr(d, "commission", 0.0)))
-        deal.SetSwap(float(getattr(d, "swap", 0.0)))
-        deal.SetProfit(float(getattr(d, "profit", 0.0)))
-        deal.SetFee(float(getattr(d, "fee", 0.0)))
-        deal.SetSymbol(str(getattr(d, "symbol", "")))
-        deal.SetComment(str(getattr(d, "comment", "")))
-        deal.SetExternalId(str(getattr(d, "external_id", "")))
-        count += 1
-    return count
+    d2 = trade.DealInfo()
+    d2.ticket = 2002
+    d2.order = 1002
+    d2.position_id = 1001
+    d2.symbol = "EURUSD"
+    d2.type = 1
+    d2.entry = 1
+    d2.time = int(now.timestamp()) - 30
+    d2.time_msc = int(now.timestamp()) - 30
+    d2.volume = 0.1
+    d2.price = 1.1050
+    d2.commission = -1.20
+    d2.swap = -0.10
+    d2.profit = 50.0
+    d2.comment = "Exit deal"
+    engine_instance.state.trading_history_deals.append(d2)
 
 
 def _deal_value(deal, attr_name: str, method_name: str | None = None, default=None):
@@ -128,7 +77,7 @@ def _history_deals_total(api, start: datetime, end: datetime) -> int:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--backend", choices=["tester", "mt5"], default="tester")
+    parser.add_argument("--backend", choices=["sim", "mt5"], default="sim")
     args = parser.parse_args()
     backend = args.backend
 
@@ -137,31 +86,17 @@ def main():
     print("=" * 70)
     print()
 
-    client = None
-    if backend == "mt5":
-        client = MT5Utils.get_connected_client()
-        if client is None:
-            print("Failed to connect to MT5.")
-            return
+    engine_instance = Engine(backend=backend)
+    api = engine_instance.api
 
     now = datetime.now()
     start = now - timedelta(days=30)
-    if backend == "mt5":
-        api = mt5
-        print("Using: MT5 backend")
-    else:
-        client = MT5Utils.get_connected_client()
-        if client is None:
-            print("Failed to connect to MT5 (required for base account in tester mode).")
-            return
-        mt5_account = client.account_info()
-        account = core.AccountInfo(mt5_account)
-        api = core.BacktestSimulator(account)
-        copied = _mt5_deals_to_tester_state(start, now, account)
-        if copied == 0:
-            _seed_tester_deals(now, account)
+    
+    if backend == "sim":
+        _seed_tester_deals(now, engine_instance)
         print("Using: Tester backend")
-    print()
+    else:
+        print("Using: MT5 backend")
 
     deals = _history_deals_get(api, start, now)
     total_deals = _history_deals_total(api, start, now)
@@ -238,10 +173,9 @@ def main():
     print("Example Complete")
     print("=" * 70)
 
-    if client is not None:
-        print("\nShutting down MT5 connection...")
-        client.shutdown()
-        print("Disconnected.")
+    print("\nShutting down MT5 connection...")
+    engine_instance.client.shutdown()
+    print("Disconnected.")
 
 if __name__ == "__main__":
     main()
