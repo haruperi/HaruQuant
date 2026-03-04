@@ -13,8 +13,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional
 import dataclasses
+from types import SimpleNamespace
 
 from apps.mt5 import get_mt5_api
+from apps.utils import trade_validators as tv
 
 mt5 = get_mt5_api()
 
@@ -63,6 +65,192 @@ class Trade:
     # ---------------------------------------------------------------------
     def _tick(self, symbol: str) -> Optional[Any]:
         return self._api.symbol_info_tick(symbol)
+
+    @staticmethod
+    def _obj_to_dict(obj: Any) -> dict[str, Any]:
+        if obj is None:
+            return {}
+        if hasattr(obj, "_asdict"):
+            return dict(obj._asdict())
+        if isinstance(obj, dict):
+            return dict(obj)
+        try:
+            return dict(vars(obj))
+        except Exception:
+            return {}
+
+    class _SymbolInfoAdapter:
+        def __init__(self, raw: Any) -> None:
+            self.raw = raw
+            self.data = Trade._obj_to_dict(raw)
+
+        def _get(self, method_name: str, attr_name: str, default: float = 0.0) -> float:
+            method = getattr(self.raw, method_name, None)
+            if callable(method):
+                return float(method())
+            return float(self.data.get(attr_name, default) or default)
+
+        def VolumeMin(self) -> float:
+            return self._get("VolumeMin", "volume_min", 0.0)
+
+        def VolumeMax(self) -> float:
+            return self._get("VolumeMax", "volume_max", 1e9)
+
+        def VolumeStep(self) -> float:
+            return self._get("VolumeStep", "volume_step", 0.0)
+
+        def VolumeLimit(self) -> float:
+            return self._get("VolumeLimit", "volume_limit", 0.0)
+
+        def TradeTickSize(self) -> float:
+            return self._get("TradeTickSize", "trade_tick_size", 0.0)
+
+        def Point(self) -> float:
+            return self._get("Point", "point", 0.0)
+
+        def Digits(self) -> int:
+            method = getattr(self.raw, "Digits", None)
+            if callable(method):
+                return int(method())
+            return int(self.data.get("digits", 0) or 0)
+
+        def TradeStopsLevel(self) -> int:
+            return int(self._get("TradeStopsLevel", "trade_stops_level", 0.0))
+
+        def TradeFreezeLevel(self) -> int:
+            return int(self._get("TradeFreezeLevel", "trade_freeze_level", 0.0))
+
+        def Bid(self) -> float:
+            return self._get("Bid", "bid", 0.0)
+
+        def Ask(self) -> float:
+            return self._get("Ask", "ask", 0.0)
+
+        def TradeContractSize(self) -> float:
+            return self._get("TradeContractSize", "trade_contract_size", 100000.0)
+
+    class _AccountInfoAdapter:
+        def __init__(self, raw: Any, state: tv.BacktestState) -> None:
+            self.raw = raw
+            self.data = Trade._obj_to_dict(raw)
+            self._state = state
+
+        def _get(self, method_name: str, attr_name: str, default: float = 0.0) -> float:
+            method = getattr(self.raw, method_name, None)
+            if callable(method):
+                return float(method())
+            return float(self.data.get(attr_name, default) or default)
+
+        def MarginFree(self) -> float:
+            return self._get("MarginFree", "margin_free", 0.0)
+
+        def Margin(self) -> float:
+            return self._get("Margin", "margin", 0.0)
+
+        def MarginLevel(self) -> float:
+            return self._get("MarginLevel", "margin_level", 0.0)
+
+        def Equity(self) -> float:
+            return self._get("Equity", "equity", 0.0)
+
+        def LimitOrders(self) -> int:
+            return int(self._get("LimitOrders", "limit_orders", 0.0))
+
+        def Leverage(self) -> int:
+            return int(self._get("Leverage", "leverage", 1.0))
+
+        def GetState(self) -> tv.BacktestState:
+            return self._state
+
+    def _build_validation_state(
+        self,
+        symbol_hint: Optional[str] = None,
+        ticket_hint: Optional[int] = None,
+    ) -> tv.BacktestState:
+        state = tv.BacktestState()
+
+        symbols: set[str] = set()
+        if symbol_hint:
+            symbols.add(str(symbol_hint))
+
+        orders = self._api.orders_get() if hasattr(self._api, "orders_get") else ()
+        for order in orders or ():
+            row = self._obj_to_dict(order)
+            ticket = int(row.get("ticket", 0) or 0)
+            if ticket <= 0:
+                continue
+            symbol = str(row.get("symbol", "") or "")
+            if symbol:
+                symbols.add(symbol)
+            state.trading_orders[str(ticket)] = {
+                "ticket": str(ticket),
+                "action": "order_open",
+                "type": str(int(row.get("type", 0) or 0)),
+                "price": str(
+                    float(
+                        row.get("price_open", row.get("price_current", row.get("price", 0.0)))
+                        or 0.0
+                    )
+                ),
+                "limit_price": str(float(row.get("price_stoplimit", 0.0) or 0.0)),
+            }
+
+        positions = self._api.positions_get() if hasattr(self._api, "positions_get") else ()
+        for position in positions or ():
+            row = self._obj_to_dict(position)
+            ticket = int(
+                row.get("ticket", row.get("identifier", row.get("position_id", 0))) or 0
+            )
+            if ticket <= 0:
+                continue
+            symbol = str(row.get("symbol", "") or "")
+            if symbol:
+                symbols.add(symbol)
+            state.trading_deals[str(ticket)] = {
+                "ticket": str(ticket),
+                "symbol": symbol,
+                "entry": "0",
+                "volume": str(float(row.get("volume", 0.0) or 0.0)),
+            }
+
+        if ticket_hint:
+            ticket_key = str(int(ticket_hint))
+            order_row = state.trading_orders.get(ticket_key)
+            if order_row and order_row.get("symbol"):
+                symbols.add(order_row["symbol"])
+
+        for symbol in symbols:
+            info = self._api.symbol_info(symbol) if hasattr(self._api, "symbol_info") else None
+            if info is None:
+                continue
+            row = self._obj_to_dict(info)
+            state.trading_symbols[symbol] = {
+                "volume_min": str(float(row.get("volume_min", 0.0) or 0.0)),
+                "volume_max": str(float(row.get("volume_max", 0.0) or 0.0)),
+                "volume_step": str(float(row.get("volume_step", 0.0) or 0.0)),
+            }
+
+        return state
+
+    def _validation_fail(self, res: tv.TradeValidationResult) -> TradeResult:
+        self._last_check = {"retcode": int(res.retcode), "comment": str(res.comment)}
+        self._last_result = {"retcode": int(res.retcode), "comment": str(res.comment)}
+        return TradeResult(retcode=int(res.retcode), comment=str(res.comment))
+
+    def _validation_context(
+        self,
+        symbol: Optional[str],
+        ticket: Optional[int] = None,
+    ) -> tuple[Any, Optional[Any], tv.BacktestState]:
+        state = self._build_validation_state(symbol_hint=symbol, ticket_hint=ticket)
+        raw_account = self._api.account_info() if hasattr(self._api, "account_info") else None
+        account = self._AccountInfoAdapter(raw_account, state)
+        symbol_info = None
+        if symbol:
+            raw_symbol = self._api.symbol_info(symbol) if hasattr(self._api, "symbol_info") else None
+            if raw_symbol is not None:
+                symbol_info = self._SymbolInfoAdapter(raw_symbol)
+        return account, symbol_info, state
 
     def _resolve_order_type(self, order_type: Any) -> int:
         if isinstance(order_type, int):
@@ -403,6 +591,11 @@ class Trade:
             request["type_time"] = self._resolve_order_time(type_time)
         if expiration is not None:
             request["expiration"] = int(expiration.timestamp())
+        account, symbol_info, _ = self._validation_context(symbol=symbol)
+        req_obj = SimpleNamespace(**request)
+        vres = tv.open_pending_order_validations(req_obj, account, symbol_info)
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     def OrderModify(
@@ -427,13 +620,37 @@ class Trade:
             request["stoplimit"] = float(stoplimit)
         if type_time is not None:
             request["type_time"] = self._resolve_order_time(type_time)
+        symbol = None
+        if hasattr(self._api, "orders_get"):
+            existing = self._api.orders_get(ticket=int(ticket))
+            if existing:
+                symbol = self._obj_to_dict(existing[0]).get("symbol")
         if expiration is not None:
             request["expiration"] = int(expiration.timestamp())
+        _, symbol_info, state = self._validation_context(
+            symbol=str(symbol) if symbol else None,
+            ticket=int(ticket),
+        )
+        vres = tv.modify_pending_order_validations(
+            ticket=int(ticket),
+            price=float(price),
+            sl=float(sl),
+            tp=float(tp),
+            expiration=int(request.get("expiration", 0) or 0),
+            state=state,
+            symbol_info=symbol_info,
+        )
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     def OrderDelete(self, ticket: int) -> TradeResult:
         """Delete a pending order."""
         request = {"action": mt5.TRADE_ACTION_REMOVE, "order": int(ticket)}
+        _, _, state = self._validation_context(symbol=None, ticket=int(ticket))
+        vres = tv.delete_pending_order_validations(int(ticket), state)
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     # ---------------------------------------------------------------------
@@ -478,6 +695,11 @@ class Trade:
                 "comment": comment,
             }
         )
+        account, symbol_info, _ = self._validation_context(symbol=symbol)
+        req_obj = SimpleNamespace(**request)
+        vres = tv.open_position_validations(req_obj, account, symbol_info)
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     def PositionModify(
@@ -506,6 +728,17 @@ class Trade:
             "sl": float(sl),
             "tp": float(tp),
         }
+        _, _, state = self._validation_context(
+            symbol=str(data.get("symbol")) if data.get("symbol") else None,
+            ticket=position_id,
+        )
+        vres = tv.modify_position_validations(
+            str(data.get("symbol") or ""),
+            int(position_id),
+            state,
+        )
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     def PositionClose(
@@ -553,6 +786,10 @@ class Trade:
                 "price": float(price),
             }
         )
+        _, _, state = self._validation_context(symbol=symbol_name, ticket=position_id)
+        vres = tv.close_position_validations(str(symbol_name or ""), int(position_id), state)
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     def PositionClosePartial(
@@ -602,6 +839,15 @@ class Trade:
                 "price": float(price),
             }
         )
+        _, _, state = self._validation_context(symbol=symbol_name, ticket=position_id)
+        vres = tv.close_partial_position_validations(
+            str(symbol_name or ""),
+            int(position_id),
+            float(volume),
+            state,
+        )
+        if not vres.ok:
+            return self._validation_fail(vres)
         return self._send_request(request)
 
     def PositionCloseBy(self, ticket: int, ticket_by: int) -> TradeResult:

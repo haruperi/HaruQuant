@@ -8,13 +8,259 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional, Tuple, List
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.mt5 import MT5Utils, Trade, get_mt5_api
+from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
-from apps.utils.trade_validators import TradeValidator
+from apps.utils import trade_validators as tv
+
+
+class _SymbolInfoAdapter:
+    """Adapter to expose C++-style method names expected by trade_validators."""
+
+    def __init__(self, raw: Any):
+        self.raw = raw
+
+    def _value(self, method_name: str, attr_name: str, default: float = 0.0) -> float:
+        method = getattr(self.raw, method_name, None)
+        if callable(method):
+            return float(method())
+        value = getattr(self.raw, attr_name, default)
+        return float(value if value is not None else default)
+
+    def VolumeMin(self) -> float:
+        return self._value("VolumeMin", "volume_min", 0.0)
+
+    def VolumeMax(self) -> float:
+        return self._value("VolumeMax", "volume_max", 1e9)
+
+    def VolumeStep(self) -> float:
+        return self._value("VolumeStep", "volume_step", 0.0)
+
+    def VolumeLimit(self) -> float:
+        return self._value("VolumeLimit", "volume_limit", 0.0)
+
+    def TradeTickSize(self) -> float:
+        return self._value("TradeTickSize", "trade_tick_size", 0.0)
+
+    def Point(self) -> float:
+        return self._value("Point", "point", 0.0)
+
+    def Digits(self) -> int:
+        method = getattr(self.raw, "Digits", None)
+        if callable(method):
+            return int(method())
+        return int(getattr(self.raw, "digits", 0) or 0)
+
+    def TradeStopsLevel(self) -> int:
+        return int(self._value("TradeStopsLevel", "trade_stops_level", 0.0))
+
+    def TradeFreezeLevel(self) -> int:
+        return int(self._value("TradeFreezeLevel", "trade_freeze_level", 0.0))
+
+    def Bid(self) -> float:
+        return self._value("Bid", "bid", 0.0)
+
+    def Ask(self) -> float:
+        return self._value("Ask", "ask", 0.0)
+
+    def TradeContractSize(self) -> float:
+        return self._value("TradeContractSize", "trade_contract_size", 100000.0)
+
+
+class _AccountInfoAdapter:
+    """Adapter to expose C++-style account methods expected by trade_validators."""
+
+    def __init__(self, raw: Any):
+        self.raw = raw
+
+    def _value(self, method_name: str, attr_name: str, default: float = 0.0) -> float:
+        method = getattr(self.raw, method_name, None)
+        if callable(method):
+            return float(method())
+        value = getattr(self.raw, attr_name, default)
+        return float(value if value is not None else default)
+
+    def MarginFree(self) -> float:
+        return self._value("MarginFree", "margin_free", 0.0)
+
+    def Margin(self) -> float:
+        return self._value("Margin", "margin", 0.0)
+
+    def MarginLevel(self) -> float:
+        return self._value("MarginLevel", "margin_level", 0.0)
+
+    def Equity(self) -> float:
+        return self._value("Equity", "equity", 0.0)
+
+    def LimitOrders(self) -> int:
+        return int(self._value("LimitOrders", "limit_orders", 0.0))
+
+    def Leverage(self) -> int:
+        return int(self._value("Leverage", "leverage", 1.0))
+
+    def GetState(self) -> Any:
+        method = getattr(self.raw, "GetState", None)
+        if callable(method):
+            return method()
+        return None
+
+
+class TradeValidator:
+    """Small compatibility wrapper matching legacy example API."""
+
+    def __init__(self) -> None:
+        self.rules = tv.ValidationRules()
+
+    @staticmethod
+    def _to_unix(value: Any) -> int:
+        if isinstance(value, datetime):
+            return int(value.timestamp())
+        return int(value)
+
+    def _ctx(self, kwargs: Dict[str, Any]) -> tv.ValidationContext:
+        raw_symbol = kwargs.get("symbol_info")
+        raw_account = kwargs.get("account_info") or kwargs.get("account")
+        raw_tick = kwargs.get("tick") or raw_symbol
+
+        symbol_info = _SymbolInfoAdapter(raw_symbol) if raw_symbol is not None else None
+        account = _AccountInfoAdapter(raw_account) if raw_account is not None else None
+
+        symbol_tick = None
+        if raw_tick is not None:
+            bid = float(getattr(raw_tick, "bid", 0.0) or 0.0)
+            ask = float(getattr(raw_tick, "ask", 0.0) or 0.0)
+            if bid > 0.0 and ask > 0.0:
+                symbol_tick = tv.SymbolTickData(bid=bid, ask=ask)
+
+        return tv.ValidationContext(
+            symbol_exists=bool(kwargs.get("symbol_exists", True)),
+            symbol_visible=bool(kwargs.get("symbol_visible", True)),
+            symbol_select_ok=bool(kwargs.get("symbol_select_ok", True)),
+            account=account,
+            symbol_info=symbol_info,
+            symbol_tick=symbol_tick,
+        )
+
+    def validate(self, validation_type: str, value: Any, **kwargs: Any) -> Tuple[bool, str]:
+        ctx = self._ctx(kwargs)
+        vt = str(validation_type).lower()
+
+        try:
+            if vt == "symbol":
+                result = tv.validate_symbol(str(value), ctx)
+            elif vt == "volume":
+                if isinstance(value, str):
+                    format_ok = tv.validate_volume_format(value, ctx, self.rules)
+                    if not format_ok.ok:
+                        return False, format_ok.message
+                result = tv.validate_volume(float(value), ctx, self.rules)
+            elif vt == "price":
+                if isinstance(value, str):
+                    format_ok = tv.validate_price_format(value, ctx)
+                    if not format_ok.ok:
+                        return False, format_ok.message
+                result = tv.validate_price(float(value), ctx, self.rules)
+            elif vt == "stop_loss":
+                entry = kwargs.get("entry_price")
+                result = tv.validate_stop_loss(
+                    float(value),
+                    float(entry) if entry is not None else None,
+                    int(kwargs.get("order_type", 0)),
+                    ctx,
+                    self.rules,
+                )
+            elif vt == "take_profit":
+                entry = kwargs.get("entry_price")
+                result = tv.validate_take_profit(
+                    float(value),
+                    float(entry) if entry is not None else None,
+                    int(kwargs.get("order_type", 0)),
+                    ctx,
+                    self.rules,
+                )
+            elif vt == "order_type":
+                result = tv.validate_order_type(value)
+            elif vt == "magic":
+                result = tv.validate_magic(int(value), self.rules)
+            elif vt in ("slippage", "deviation"):
+                result = tv.validate_slippage(
+                    int(value),
+                    float(kwargs.get("requested_price", 0.0)),
+                    int(kwargs.get("order_type", 0)),
+                    ctx,
+                    self.rules,
+                )
+            elif vt == "expiration_mode":
+                result = tv.validate_expiration_mode(str(value))
+            elif vt == "expiration":
+                now_unix = int(datetime.now(timezone.utc).timestamp())
+                result = tv.validate_expiration_unix(self._to_unix(value), now_unix)
+            elif vt == "timeframe":
+                result = tv.validate_timeframe(value)
+            elif vt == "date_range":
+                start_unix = self._to_unix(value)
+                end = kwargs.get("end_date")
+                end_unix = self._to_unix(end) if end is not None else None
+                now_unix = int(datetime.now(timezone.utc).timestamp())
+                result = tv.validate_date_range_unix(start_unix, end_unix, now_unix)
+            elif vt == "trade_request":
+                payload: Dict[str, Any] = dict(value)
+                request = tv.TradeRequestPayload(
+                    symbol=str(payload.get("symbol", "")),
+                    volume=float(payload.get("volume", 0.0)),
+                    type=int(payload.get("type", 0)),
+                    price=float(payload["price"]) if payload.get("price") is not None else None,
+                    sl=float(payload["sl"]) if payload.get("sl") is not None else None,
+                    tp=float(payload["tp"]) if payload.get("tp") is not None else None,
+                    magic=int(payload["magic"]) if payload.get("magic") is not None else None,
+                    slippage=int(payload["slippage"]) if payload.get("slippage") is not None else None,
+                    deviation=int(payload["deviation"]) if payload.get("deviation") is not None else None,
+                )
+                result = tv.validate_trade_request_payload(request, ctx, self.rules)
+            elif vt == "credentials":
+                creds = dict(value)
+                result = tv.validate_credentials(
+                    tv.CredentialsPayload(
+                        login=int(creds.get("login", 0)),
+                        password=str(creds.get("password", "")),
+                        server=str(creds.get("server", "")),
+                    )
+                )
+            elif vt == "margin":
+                result = tv.validate_margin(float(value), ctx)
+            elif vt == "ticket":
+                result = tv.validate_ticket(int(value))
+            elif vt == "max_orders":
+                account_limit = kwargs.get("account_limit")
+                if account_limit is not None:
+                    account_limit = int(account_limit)
+                result = tv.validate_max_orders(int(value), account_limit, ctx)
+            elif vt == "symbol_volume":
+                volume_limit = kwargs.get("volume_limit")
+                if volume_limit is not None:
+                    volume_limit = float(volume_limit)
+                result = tv.validate_symbol_volume(float(value), volume_limit, ctx)
+            else:
+                return False, f"Unsupported validation type: {validation_type}"
+
+            return result.ok, result.message
+        except Exception as exc:
+            return False, f"{validation_type} validation error: {exc}"
+
+    def validate_multiple(self, validations: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+        errors: List[str] = []
+        for row in validations:
+            validation_type = row.get("type")
+            value = row.get("value")
+            kwargs = {k: v for k, v in row.items() if k not in ("type", "value")}
+            ok, message = self.validate(str(validation_type), value, **kwargs)
+            if not ok:
+                errors.append(f"{validation_type}: {message}")
+        return len(errors) == 0, errors
 
 # Global Variables
 eurusd = "EURUSD"
@@ -131,12 +377,10 @@ def f11_timeframe() -> None:
 def f12_date_range() -> None:
     ok, msg = validator.validate(
         "date_range",
-        validator.validate(
-            "date_range",
-            datetime.now(timezone.utc) - timedelta(days=7),
-            end_date=datetime.now(timezone.utc) - timedelta(days=1),
-        ),
+        datetime.now(timezone.utc) - timedelta(days=7),
+        end_date=datetime.now(timezone.utc) - timedelta(days=1),
     )
+    print(f"date_range: ok={ok}, message={msg}")
 
 
 def f13_trade_request() -> None:
