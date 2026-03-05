@@ -5,12 +5,15 @@ import os
 import sys
 import time
 from datetime import datetime
+import pandas as pd
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
 from apps.utils.logger import logger
 from apps.trading import Engine, core, Trade
+from apps.utils.data_manipulator import TicksGenerator
+from data.strategies.trend_following import TrendFollowingStrategy
 
 
 # Global Variables
@@ -18,6 +21,10 @@ test_symbol = "NZDCAD"
 audusd = "AUDUSD"
 eurgbp = "EURGBP"
 usdjpy = "USDJPY"
+timeframe = "H1"
+warmup_start_date = datetime(2024, 10, 1)  # 3 months of warmup data
+start_date = datetime(2025, 1, 1)
+end_date = datetime(2025, 12, 31)
 stoploss = 10
 
 # Derived globals
@@ -377,17 +384,123 @@ def example_09_monitoring_functions():
         f"margin_level={float(acct.get('margin_level', 0.0)):.2f}"
     )
 
+def example_10_simple_backtest():
+    print_example_header("Example 10: Simple Backtest")
+
+    client = engine_instance.client
+
+    # Step 1: Load Data
+    logger.info("\nLoading historical data...")
+    # Load data from warmup_start_date to properly initialize indicators
+    data = client.get_bars(
+        symbol=test_symbol,
+        timeframe=timeframe,
+        date_from=warmup_start_date,
+        date_to=end_date
+    )
+        
+    if data is None or data.empty:
+        logger.error("No data retrieved.")
+        return
+
+    # Step 2: Setup and initialize strategy
+    logger.info("\nSetting up strategy...")
+    strategy = TrendFollowingStrategy(
+                params={
+                'symbol': test_symbol,
+                'fast_period': 20,
+                'slow_period': 50,
+                'filter_period': 200
+            }
+        )
+    strategy.on_init()
+    
+    # Step 3: Pre-calculate signals (Vectorized/Pandas approach used by Strategy class)
+    data = strategy.on_bar(data)
+    print(data)
+
+    # Step 4: Cut data to start from start_date
+    data = data[data.index >= start_date]
+    if data is None or data.empty:
+        logger.error("No data available after start_date filter.")
+        return
+
+    # Keep comparison window small and identical across models.
+    compare_bars = data.tail(24).copy()  # ~1 day for H1 bars
+
+    # Step 5: Convert bars data to ticks dataframe (multiple models)
+    logger.info("\nConverting bars to ticks...")
+    symbol_info = engine_instance.client.symbol_info(test_symbol)
+    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
+    compare_start = compare_bars.index.min().to_pydatetime()
+    compare_end = (
+        compare_bars.index.max() + pd.Timedelta(minutes=59, seconds=59)
+    ).to_pydatetime()
+    m1_data = client.get_bars(
+        symbol=test_symbol,
+        timeframe="M1",
+        date_from=compare_start,
+        date_to=compare_end,
+    )
+    if m1_data is not None and not m1_data.empty:
+        m1_data = m1_data[
+            (m1_data.index >= compare_bars.index.min())
+            & (m1_data.index <= compare_end)
+        ]
+    else:
+        m1_data = None
+
+    # Fetch real ticks over the exact same comparison window.
+    real_ticks_start = compare_start
+    real_ticks_end = compare_end
+    real_ticks = client.get_ticks(
+        symbol=test_symbol,
+        start=real_ticks_start,
+        end=real_ticks_end,
+        as_dataframe=True,
+    )
+    if real_ticks is not None and not real_ticks.empty:
+        if "timestamp" in real_ticks.columns:
+            real_ticks = real_ticks.set_index("timestamp")
+        real_ticks.index = real_ticks.index.tz_localize(None) if getattr(real_ticks.index, "tz", None) is not None else real_ticks.index
+    else:
+        real_ticks = None
+
+    tick_model = "timeframe_ticks" # "real_ticks", "synthetic_ticks", "timeframe_ticks", "m1_ticks"
+    spread_model = "native_spread" # "native_spread", "fixed_spread", "variable_spread"
+
+    ticks_generator = TicksGenerator(
+        model=tick_model,
+        trading_timeframe=timeframe,
+        m1_data=m1_data,
+        real_ticks=real_ticks,
+        point_value=point_value,
+        spread_model=spread_model,
+    )
+    ticks_data = ticks_generator.generate(compare_bars)
+    if ticks_data is None or ticks_data.empty:
+        print(f"{tick_model}: no ticks generated (skipped)")
+
+    # Step 6: Run backtest
+    processed = engine_instance.run(ticks_data)
+    print(f"{tick_model}: processed {processed} ticks")
+
+    print(ticks_data)
+
+
+    
 
 if __name__ == "__main__":
-    example_01_open_position()
-    example_02_calculate_profit_margin()
-    example_03_modify_position()
-    example_04_close_partial_position()
-    example_05_close_position()
-    example_06_pending_orders()
-    example_07_modify_pending_orders()
-    example_08_delete_pending_orders()
-    example_09_monitoring_functions()
+    # example_01_open_position()
+    # example_02_calculate_profit_margin()
+    # example_03_modify_position()
+    # example_04_close_partial_position()
+    # example_05_close_position()
+    # example_06_pending_orders()
+    # example_07_modify_pending_orders()
+    # example_08_delete_pending_orders()
+    # example_09_monitoring_functions()
+    example_10_simple_backtest()
 
     
 

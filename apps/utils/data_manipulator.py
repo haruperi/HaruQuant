@@ -8,6 +8,7 @@ This module provides data manipulation utilities including:
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
+import random
 
 import pandas as pd
 
@@ -599,18 +600,20 @@ def create_signal_mapping(
 
     Args:
         trading_tf_data: DataFrame with signals on trading timeframe (e.g., H1)
-                        Must have columns: EntrySignal, ExitSignal
-                        Optional columns: SL, TP
+                        Must have columns: entry_signal, exit_signal
+                        Optional columns: pending_signal, cancel_pending_signal, sl, tp
         m1_data: DataFrame with M1 bars
 
     Returns:
         Dictionary mapping M1 timestamps to signal dictionaries:
         {
             m1_timestamp: {
-                "EntrySignal": float,
-                "ExitSignal": float,
-                "SL": float,
-                "TP": float
+                "entry_signal": float,
+                "exit_signal": float,
+                "pending_signal": float,
+                "cancel_pending_signal": float,
+                "sl": float,
+                "tp": float
             }
         }
 
@@ -629,14 +632,16 @@ def create_signal_mapping(
         raise ValueError("m1_data must have DatetimeIndex")
 
     # Get required signal columns
-    required_cols = ["EntrySignal", "ExitSignal"]
+    required_cols = ["entry_signal", "exit_signal"]
     for col in required_cols:
         if col not in trading_tf_data.columns:
             raise ValueError(f"trading_tf_data missing required column: {col}")
 
     # Check for optional columns
-    has_sl = "SL" in trading_tf_data.columns
-    has_tp = "TP" in trading_tf_data.columns
+    has_pending_signal = "pending_signal" in trading_tf_data.columns
+    has_cancel_pending_signal = "cancel_pending_signal" in trading_tf_data.columns
+    has_sl = "sl" in trading_tf_data.columns
+    has_tp = "tp" in trading_tf_data.columns
 
     logger.debug(
         f"Creating signal mapping: {len(trading_tf_data)} trading TF bars -> "
@@ -665,19 +670,43 @@ def create_signal_mapping(
         # Look up signals from the trading TF bar
         if trading_tf_timestamp in trading_tf_data.index:
             signal_map[m1_timestamp] = {
-                "EntrySignal": float(
-                    cast(Any, trading_tf_data.loc[trading_tf_timestamp, "EntrySignal"])
+                "entry_signal": float(
+                    cast(Any, trading_tf_data.loc[trading_tf_timestamp, "entry_signal"])
                 ),
-                "ExitSignal": float(
-                    cast(Any, trading_tf_data.loc[trading_tf_timestamp, "ExitSignal"])
+                "exit_signal": float(
+                    cast(Any, trading_tf_data.loc[trading_tf_timestamp, "exit_signal"])
                 ),
-                "SL": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "SL"]))
+                "pending_signal": (
+                    float(
+                        cast(
+                            Any,
+                            trading_tf_data.loc[
+                                trading_tf_timestamp, "pending_signal"
+                            ],
+                        )
+                    )
+                    if has_pending_signal
+                    else 0.0
+                ),
+                "cancel_pending_signal": (
+                    float(
+                        cast(
+                            Any,
+                            trading_tf_data.loc[
+                                trading_tf_timestamp, "cancel_pending_signal"
+                            ],
+                        )
+                    )
+                    if has_cancel_pending_signal
+                    else 0.0
+                ),
+                "sl": (
+                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "sl"]))
                     if has_sl
                     else 0.0
                 ),
-                "TP": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "TP"]))
+                "tp": (
+                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "tp"]))
                     if has_tp
                     else 0.0
                 ),
@@ -685,10 +714,12 @@ def create_signal_mapping(
         else:
             # No trading TF bar for this M1 bar (shouldn't happen if data is aligned)
             signal_map[m1_timestamp] = {
-                "EntrySignal": 0.0,
-                "ExitSignal": 0.0,
-                "SL": 0.0,
-                "TP": 0.0,
+                "entry_signal": 0.0,
+                "exit_signal": 0.0,
+                "pending_signal": 0.0,
+                "cancel_pending_signal": 0.0,
+                "sl": 0.0,
+                "tp": 0.0,
             }
 
     logger.success(
@@ -696,4 +727,456 @@ def create_signal_mapping(
     )
 
     return signal_map
+
+
+class TicksGenerator:
+    """Generate tick DataFrames from different source models.
+    Source used for synthetic_ticks: https://www.mql5.com/en/articles/75.
+    """
+
+    SUPPORTED_MODELS = {"timeframe_ticks", "m1_ticks", "real_ticks", "synthetic_ticks"}
+
+    def __init__(
+        self,
+        model: str,
+        trading_timeframe: str,
+        m1_data: Optional[pd.DataFrame] = None,
+        real_ticks: Optional[pd.DataFrame] = None,
+        point_value: float = 0.00001,
+        spread_model: str = "native_spread",
+        fixed_spread_points: Optional[float] = None,
+        min_spread_points: Optional[float] = None,
+        max_spread_points: Optional[float] = None,
+        random_seed: Optional[int] = None,
+    ):
+        self.model = str(model).lower()
+        self.trading_timeframe = trading_timeframe.upper()
+        self.m1_data = m1_data
+        self.real_ticks = real_ticks
+        self.point_value = float(point_value)
+        self.spread_model = str(spread_model).lower()
+        self.fixed_spread_points = fixed_spread_points
+        self.min_spread_points = min_spread_points
+        self.max_spread_points = max_spread_points
+        self._rng = random.Random(random_seed)
+
+        if self.model not in self.SUPPORTED_MODELS:
+            raise ValueError(
+                f"Unsupported ticks model: {model}. "
+                f"Supported models: {sorted(self.SUPPORTED_MODELS)}"
+            )
+        if self.point_value <= 0.0:
+            raise ValueError("point_value must be > 0")
+        valid_spread_models = {"native_spread", "fixed_spread", "variable_spread"}
+        if self.spread_model not in valid_spread_models:
+            raise ValueError(
+                f"Unsupported spread_model: {spread_model}. "
+                f"Supported: {sorted(valid_spread_models)}"
+            )
+        if self.spread_model == "fixed_spread":
+            if self.fixed_spread_points is None:
+                raise ValueError("fixed_spread_points is required for fixed_spread model.")
+            if float(self.fixed_spread_points) < 0.0:
+                raise ValueError("fixed_spread_points must be >= 0.")
+        if self.spread_model == "variable_spread":
+            if self.min_spread_points is None or self.max_spread_points is None:
+                raise ValueError(
+                    "min_spread_points and max_spread_points are required for variable_spread model."
+                )
+            if float(self.min_spread_points) < 0.0 or float(self.max_spread_points) < 0.0:
+                raise ValueError("min_spread_points and max_spread_points must be >= 0.")
+            if float(self.min_spread_points) > float(self.max_spread_points):
+                raise ValueError("min_spread_points cannot be greater than max_spread_points.")
+
+    def generate(self, trading_tf_data: pd.DataFrame) -> pd.DataFrame:
+        """Generate a standardized tick DataFrame."""
+        if self.model == "timeframe_ticks":
+            return self._generate_timeframe_ticks(trading_tf_data)
+        if self.model == "m1_ticks":
+            return self._generate_m1_ticks(trading_tf_data)
+        if self.model == "real_ticks":
+            return self._generate_real_ticks(trading_tf_data)
+        if self.model == "synthetic_ticks":
+            return self._generate_synthetic_ticks(trading_tf_data)
+        raise ValueError(f"Unsupported model: {self.model}")
+
+    @staticmethod
+    def _find_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
+        lower = {str(c).lower(): str(c) for c in df.columns}
+        for name in candidates:
+            if name.lower() in lower:
+                return lower[name.lower()]
+        return None
+
+    @staticmethod
+    def _infer_bar_seconds(index: pd.DatetimeIndex) -> int:
+        if len(index) > 1:
+            deltas = index.to_series().diff().dropna()
+            if not deltas.empty:
+                secs = int(max(1, deltas.median().total_seconds()))
+                return secs
+        return 60
+
+    def _generate_timeframe_ticks(self, bars: pd.DataFrame) -> pd.DataFrame:
+        if bars is None or bars.empty:
+            return pd.DataFrame(
+                columns=[
+                    "bid",
+                    "ask",
+                    "last",
+                    "spread",
+                    "entry_signal",
+                    "exit_signal",
+                    "pending_signal",
+                    "cancel_pending_signal",
+                    "sl",
+                    "tp",
+                    "source_bar_time",
+                    "tick_index_in_bar",
+                ]
+            )
+
+        if not isinstance(bars.index, pd.DatetimeIndex):
+            manager = TimeframeManager()
+            bars = manager._ensure_datetime_index(bars)
+
+        open_col = self._find_col(bars, ["Open"])
+        high_col = self._find_col(bars, ["High"])
+        low_col = self._find_col(bars, ["Low"])
+        close_col = self._find_col(bars, ["Close"])
+        volume_col = self._find_col(bars, ["Volume"])
+        spread_col = self._find_col(bars, ["Spread"])
+        entry_col = self._find_col(bars, ["entry_signal"])
+        exit_col = self._find_col(bars, ["exit_signal"])
+        pending_col = self._find_col(bars, ["pending_signal"])
+        cancel_pending_col = self._find_col(bars, ["cancel_pending_signal"])
+        sl_col = self._find_col(bars, ["sl"])
+        tp_col = self._find_col(bars, ["tp"])
+
+        required = [open_col, high_col, low_col, close_col]
+        if any(col is None for col in required):
+            raise ValueError(
+                "timeframe_ticks requires OHLC columns: Open, High, Low, Close"
+            )
+
+        bar_seconds = self._infer_bar_seconds(bars.index)
+        offsets_ms = [0, int(bar_seconds * 250), int(bar_seconds * 500), int(bar_seconds * 750)]
+
+        rows = []
+        for ts, bar in bars.iterrows():
+            open_px = float(bar[cast(str, open_col)])
+            high_px = float(bar[cast(str, high_col)])
+            low_px = float(bar[cast(str, low_col)])
+            close_px = float(bar[cast(str, close_col)])
+            if close_px >= open_px:
+                path = [open_px, low_px, high_px, close_px]  # bullish
+            else:
+                path = [open_px, high_px, low_px, close_px]  # bearish
+
+            native_spread_points = (
+                float(bar[spread_col]) if spread_col is not None and pd.notna(bar[spread_col]) else 0.0
+            )
+            volume = float(bar[volume_col]) if volume_col is not None and pd.notna(bar[volume_col]) else 0.0
+
+            entry_signal = float(bar[entry_col]) if entry_col is not None and pd.notna(bar[entry_col]) else 0.0
+            exit_signal = float(bar[exit_col]) if exit_col is not None and pd.notna(bar[exit_col]) else 0.0
+            pending_signal = (
+                float(bar[pending_col])
+                if pending_col is not None and pd.notna(bar[pending_col])
+                else 0.0
+            )
+            cancel_pending_signal = (
+                float(bar[cancel_pending_col])
+                if cancel_pending_col is not None and pd.notna(bar[cancel_pending_col])
+                else 0.0
+            )
+            sl_value = float(bar[sl_col]) if sl_col is not None and pd.notna(bar[sl_col]) else 0.0
+            tp_value = float(bar[tp_col]) if tp_col is not None and pd.notna(bar[tp_col]) else 0.0
+
+            for i, px in enumerate(path):
+                spread_points = self._resolve_spread_points(native_spread_points)
+                spread_price = spread_points * self.point_value
+                tick_ts = ts + pd.to_timedelta(offsets_ms[i], unit="ms")
+                bid = float(px)
+                ask = float(px + spread_price)
+                row = {
+                    "datetime": tick_ts,
+                    "bid": bid,
+                    "ask": ask,
+                    "last": bid,
+                    "spread": self._spread_points_to_int(spread_points),
+                    "entry_signal": entry_signal if i == 0 else 0.0,
+                    "exit_signal": exit_signal if i == 0 else 0.0,
+                    "pending_signal": pending_signal if i == 0 else 0.0,
+                    "cancel_pending_signal": cancel_pending_signal if i == 0 else 0.0,
+                    "sl": sl_value if i == 0 else 0.0,
+                    "tp": tp_value if i == 0 else 0.0,
+                    "source_bar_time": ts,
+                    "tick_index_in_bar": i,
+                }
+                rows.append(row)
+
+        ticks = pd.DataFrame(rows)
+        ticks = ticks.set_index("datetime")
+        ticks.index = pd.DatetimeIndex(ticks.index, name="Datetime")
+        ticks = ticks.sort_index()
+        return ticks
+
+    def _resolve_spread_points(self, native_spread_points: float) -> float:
+        """Resolve spread in points according to configured spread model."""
+        if self.spread_model == "native_spread":
+            return float(max(0.0, native_spread_points))
+        if self.spread_model == "fixed_spread":
+            return float(max(0.0, float(self.fixed_spread_points or 0.0)))
+        # variable_spread
+        low = float(self.min_spread_points or 0.0)
+        high = float(self.max_spread_points or 0.0)
+        return float(max(0.0, self._rng.uniform(low, high)))
+
+    @staticmethod
+    def _spread_points_to_int(spread_points: float) -> int:
+        return int(round(max(0.0, float(spread_points))))
+
+    @staticmethod
+    def _ensure_signal_columns(df: pd.DataFrame) -> pd.DataFrame:
+        out = df.copy()
+        for col in (
+            "entry_signal",
+            "exit_signal",
+            "pending_signal",
+            "cancel_pending_signal",
+            "sl",
+            "tp",
+        ):
+            if col not in out.columns:
+                out[col] = 0.0
+        return out
+
+    def _prepare_m1_with_signals(self, trading_tf_data: pd.DataFrame) -> pd.DataFrame:
+        if self.m1_data is None or self.m1_data.empty:
+            raise ValueError("m1_ticks/synthetic_ticks requires non-empty m1_data.")
+
+        manager = TimeframeManager()
+        trading_tf = trading_tf_data
+        m1 = self.m1_data.copy()
+        if not isinstance(trading_tf.index, pd.DatetimeIndex):
+            trading_tf = manager._ensure_datetime_index(trading_tf)
+        if not isinstance(m1.index, pd.DatetimeIndex):
+            m1 = manager._ensure_datetime_index(m1)
+
+        trading_tf = self._ensure_signal_columns(trading_tf)
+        signal_map = create_signal_mapping(trading_tf, m1)
+
+        m1 = self._ensure_signal_columns(m1)
+        m1["entry_signal"] = 0.0
+        m1["exit_signal"] = 0.0
+        m1["pending_signal"] = 0.0
+        m1["cancel_pending_signal"] = 0.0
+        m1["sl"] = 0.0
+        m1["tp"] = 0.0
+        for ts in m1.index:
+            mapped = signal_map.get(ts)
+            if mapped is None:
+                continue
+            m1.at[ts, "entry_signal"] = float(mapped.get("entry_signal", 0.0) or 0.0)
+            m1.at[ts, "exit_signal"] = float(mapped.get("exit_signal", 0.0) or 0.0)
+            m1.at[ts, "pending_signal"] = float(
+                mapped.get("pending_signal", 0.0) or 0.0
+            )
+            m1.at[ts, "cancel_pending_signal"] = float(
+                mapped.get("cancel_pending_signal", 0.0) or 0.0
+            )
+            m1.at[ts, "sl"] = float(mapped.get("sl", 0.0) or 0.0)
+            m1.at[ts, "tp"] = float(mapped.get("tp", 0.0) or 0.0)
+        return m1
+
+    def _generate_m1_ticks(self, trading_tf_data: pd.DataFrame) -> pd.DataFrame:
+        """Merge trading timeframe signals into M1 bars and generate 4 ticks/bar."""
+        m1_with_signals = self._prepare_m1_with_signals(trading_tf_data)
+        return self._generate_timeframe_ticks(m1_with_signals)
+
+    def _generate_real_ticks(self, trading_tf_data: pd.DataFrame) -> pd.DataFrame:
+        """Merge trading timeframe signals into real ticks."""
+        if self.real_ticks is None or self.real_ticks.empty:
+            raise ValueError("real_ticks model requires non-empty real_ticks DataFrame.")
+
+        manager = TimeframeManager()
+        ticks = self.real_ticks.copy()
+        tf = trading_tf_data.copy()
+        if not isinstance(ticks.index, pd.DatetimeIndex):
+            ticks = manager._ensure_datetime_index(ticks)
+        if not isinstance(tf.index, pd.DatetimeIndex):
+            tf = manager._ensure_datetime_index(tf)
+        tf = self._ensure_signal_columns(tf)
+
+        bid_col = self._find_col(ticks, ["bid"])
+        ask_col = self._find_col(ticks, ["ask"])
+        if bid_col is None or ask_col is None:
+            raise ValueError("real_ticks DataFrame must contain bid and ask columns.")
+        last_col = self._find_col(ticks, ["last"])
+        volume_col = self._find_col(ticks, ["volume", "tick_volume"])
+        spread_col = self._find_col(ticks, ["spread"])
+
+        tf_seconds = self._infer_bar_seconds(tf.index)
+        bucket = ticks.index.floor(f"{max(1, tf_seconds)}s")
+        first_in_bucket = ~bucket.duplicated()
+
+        signal_cols = [
+            "entry_signal",
+            "exit_signal",
+            "pending_signal",
+            "cancel_pending_signal",
+            "sl",
+            "tp",
+        ]
+        tf_signal = tf[signal_cols].copy()
+        tf_signal.index = tf_signal.index.floor(f"{max(1, tf_seconds)}s")
+        merged_signal = tf_signal.reindex(bucket).fillna(0.0).reset_index(drop=True)
+
+        out = pd.DataFrame(index=ticks.index)
+        out["bid"] = ticks[bid_col].astype(float)
+        out["ask"] = ticks[ask_col].astype(float)
+        out["last"] = (
+            ticks[last_col].astype(float) if last_col is not None else out["bid"]
+        )
+        out["spread"] = (
+            ticks[spread_col].astype(float)
+            if spread_col is not None
+            else (out["ask"] - out["bid"]) / self.point_value
+        )
+
+        for col in signal_cols:
+            values = merged_signal[col].to_numpy()
+            out[col] = values
+            out.loc[~first_in_bucket, col] = 0.0
+
+        out["source_bar_time"] = bucket
+        out["tick_index_in_bar"] = pd.Series(bucket, index=out.index).groupby(bucket).cumcount()
+        out.index = pd.DatetimeIndex(out.index, name="Datetime")
+        return out.sort_index()
+
+    @staticmethod
+    def _interpolate_path(path: List[float], n: int) -> List[float]:
+        if n <= 1:
+            return [float(path[0])]
+        if len(path) < 2:
+            return [float(path[0])] * n
+
+        segments = len(path) - 1
+        total_steps = n - 1
+        base = total_steps // segments
+        rem = total_steps % segments
+        ticks = [float(path[0])]
+        for i in range(segments):
+            p0 = float(path[i])
+            p1 = float(path[i + 1])
+            steps = base + (1 if i < rem else 0)
+            if steps <= 0:
+                continue
+            for s in range(1, steps + 1):
+                ratio = float(s) / float(steps)
+                ticks.append(p0 + ((p1 - p0) * ratio))
+        if len(ticks) > n:
+            ticks = ticks[:n]
+        while len(ticks) < n:
+            ticks.append(float(path[-1]))
+        return ticks
+
+    def _generate_synthetic_ticks(self, trading_tf_data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Generate synthetic ticks from merged M1 bars.
+        Tick count per M1 bar equals M1 volume (at least 1).
+        """
+        m1 = self._prepare_m1_with_signals(trading_tf_data)
+        manager = TimeframeManager()
+        if not isinstance(m1.index, pd.DatetimeIndex):
+            m1 = manager._ensure_datetime_index(m1)
+
+        open_col = self._find_col(m1, ["Open"])
+        high_col = self._find_col(m1, ["High"])
+        low_col = self._find_col(m1, ["Low"])
+        close_col = self._find_col(m1, ["Close"])
+        volume_col = self._find_col(m1, ["Volume"])
+        spread_col = self._find_col(m1, ["Spread"])
+        if any(col is None for col in (open_col, high_col, low_col, close_col, volume_col)):
+            raise ValueError(
+                "synthetic_ticks requires M1 OHLCV columns: Open, High, Low, Close, Volume"
+            )
+
+        rows = []
+        for ts, bar in m1.iterrows():
+            open_px = float(bar[cast(str, open_col)])
+            high_px = float(bar[cast(str, high_col)])
+            low_px = float(bar[cast(str, low_col)])
+            close_px = float(bar[cast(str, close_col)])
+            vol = int(max(4, int(float(bar[cast(str, volume_col)]))))
+            native_spread_points = (
+                float(bar[spread_col]) if spread_col is not None and pd.notna(bar[spread_col]) else 0.0
+            )
+
+            if close_px >= open_px:
+                path = [open_px, low_px, high_px, close_px]
+            else:
+                path = [open_px, high_px, low_px, close_px]
+            prices = self._interpolate_path(path, vol)
+
+            entry_signal = float(bar.get("entry_signal", 0.0) or 0.0)
+            exit_signal = float(bar.get("exit_signal", 0.0) or 0.0)
+            pending_signal = float(bar.get("pending_signal", 0.0) or 0.0)
+            cancel_pending_signal = float(
+                bar.get("cancel_pending_signal", 0.0) or 0.0
+            )
+            sl_value = float(bar.get("sl", 0.0) or 0.0)
+            tp_value = float(bar.get("tp", 0.0) or 0.0)
+
+            for i, px in enumerate(prices):
+                spread_points = self._resolve_spread_points(native_spread_points)
+                spread_price = spread_points * self.point_value
+                # Spread ticks uniformly over the minute.
+                offset_ms = int((60000.0 * i) / max(1, vol))
+                tick_ts = ts + pd.to_timedelta(offset_ms, unit="ms")
+                bid = float(px)
+                ask = float(px + spread_price)
+                rows.append(
+                    {
+                        "datetime": tick_ts,
+                        "bid": bid,
+                        "ask": ask,
+                        "last": bid,
+                        "spread": self._spread_points_to_int(spread_points),
+                        "entry_signal": entry_signal if i == 0 else 0.0,
+                        "exit_signal": exit_signal if i == 0 else 0.0,
+                        "pending_signal": pending_signal if i == 0 else 0.0,
+                        "cancel_pending_signal": (
+                            cancel_pending_signal if i == 0 else 0.0
+                        ),
+                        "sl": sl_value if i == 0 else 0.0,
+                        "tp": tp_value if i == 0 else 0.0,
+                        "source_bar_time": ts,
+                        "tick_index_in_bar": i,
+                    }
+                )
+
+        ticks = pd.DataFrame(rows)
+        if ticks.empty:
+            return pd.DataFrame(
+                columns=[
+                    "bid",
+                    "ask",
+                    "last",
+                    "spread",
+                    "entry_signal",
+                    "exit_signal",
+                    "pending_signal",
+                    "cancel_pending_signal",
+                    "sl",
+                    "tp",
+                    "source_bar_time",
+                    "tick_index_in_bar",
+                ]
+            )
+        ticks = ticks.set_index("datetime")
+        ticks.index = pd.DatetimeIndex(ticks.index, name="Datetime")
+        return ticks.sort_index()
+
 

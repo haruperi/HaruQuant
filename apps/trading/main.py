@@ -255,6 +255,29 @@ class Engine:
     def order_send(self, request):
         return core.order_send(self.state, request)
 
+    def run(self, data):
+        """Simple backtest loop placeholder that iterates over tick data."""
+        if data is None:
+            return 0
+
+        if not hasattr(data, "columns") or not hasattr(data, "iterrows"):
+            raise ValueError("Engine.run expects a tick DataFrame input.")
+
+        cols_lower = {str(col).lower() for col in data.columns}
+        required = {"bid", "ask"}
+        missing = required - cols_lower
+        if missing:
+            raise ValueError(
+                f"Engine.run expects tick DataFrame columns {sorted(required)}; "
+                f"missing {sorted(missing)}."
+            )
+
+        processed = 0
+        for _, _row in data.iterrows():
+            processed += 1
+
+        return processed
+
     def monitor_positions(self, verbose: bool = False):
         if self.backend == "mt5":
             self._sync_live_state_to_simulator_state()
