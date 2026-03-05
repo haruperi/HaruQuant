@@ -306,6 +306,77 @@ def example_08_delete_pending_orders():
     pending_orders_created.clear()
     pending_orders_created.extend(remaining)
 
+def example_09_monitoring_functions():
+    print_example_header("Example 09: Monitoring Functions")
+    if backend == "mt5":
+        engine_instance.monitor_pending_orders(verbose=True)
+        engine_instance.monitor_positions(verbose=True)
+        engine_instance.monitor_account(verbose=True)
+        print(
+            f"Live snapshot: open_positions={len(engine_instance.state.trading_deals)} "
+            f"active_orders={len(engine_instance.state.trading_orders)}"
+        )
+        return
+
+    info = api.symbol_info(test_symbol)
+    if info is None:
+        print(f"{test_symbol}: symbol info unavailable, skipped")
+        return
+
+    point = float(info.point)
+    ask = float(info.ask)
+    bid = float(info.bid)
+    step = max(point * 10, 0.0001)
+
+    # 1) Seed one pending order that is valid at creation time.
+    order_result = trade.OrderOpen(
+        symbol=test_symbol,
+        order_type="BUY_LIMIT",
+        volume=0.01,
+        price=ask - step,
+        sl=0.0,
+        tp=0.0,
+        comment="Monitor pending -> trigger",
+    )
+    if not order_result or int(order_result.retcode) not in (10008, 10009):
+        print("Failed to seed pending order for monitoring demo")
+        return
+    pending_ticket = int(order_result.order)
+    print(f"Seeded pending order ticket={pending_ticket}")
+
+    # 2) Move price through trigger level and monitor pending orders.
+    info.ask = ask - (2 * step)
+    info.bid = bid - (2 * step)
+    engine_instance.monitor_pending_orders(verbose=True)
+    print(
+        f"After monitor_pending_orders: active_orders={api.orders_total()} "
+        f"open_positions={api.positions_total()}"
+    )
+
+    # 3) Force a TP hit on any open BUY positions and monitor positions.
+    for pos in list(engine_instance.state.trading_deals):
+        if int(getattr(pos, "type", -1)) == 0:
+            pos.tp = float(getattr(pos, "price_current", info.bid) or info.bid) - step
+            pos.sl = 0.0
+    engine_instance.monitor_positions(verbose=True)
+    print(
+        f"After monitor_positions: open_positions={api.positions_total()} "
+        f"history_deals={len(engine_instance.state.trading_history_deals)}"
+    )
+
+    # 4) Recompute account aggregates.
+    engine_instance.monitor_account(verbose=True)
+    acct = api.account_info()
+    print(
+        "Account snapshot: "
+        f"balance={float(acct.get('balance', 0.0)):.2f}, "
+        f"profit={float(acct.get('profit', 0.0)):.2f}, "
+        f"equity={float(acct.get('equity', 0.0)):.2f}, "
+        f"margin={float(acct.get('margin', 0.0)):.2f}, "
+        f"margin_free={float(acct.get('margin_free', 0.0)):.2f}, "
+        f"margin_level={float(acct.get('margin_level', 0.0)):.2f}"
+    )
+
 
 if __name__ == "__main__":
     example_01_open_position()
@@ -316,6 +387,7 @@ if __name__ == "__main__":
     example_06_pending_orders()
     example_07_modify_pending_orders()
     example_08_delete_pending_orders()
+    example_09_monitoring_functions()
 
     
 

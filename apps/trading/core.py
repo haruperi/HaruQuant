@@ -146,6 +146,314 @@ def symbol_info(state: SimulatorState, name: str):
     return syms[0] if syms else None
 
 
+def monitor_positions(
+    state: SimulatorState,
+    verbose: bool = False,
+    allow_auto_close: bool = True,
+) -> None:
+    """Monitor open positions, update mark-to-market fields, and close on SL/TP."""
+    import time
+
+    now = int(time.time())
+    now_msc = now * 1000
+    to_close = []
+
+    for position in list(state.trading_deals):
+        entry = str(getattr(position, "entry", 0))
+        if entry != "0":
+            continue
+
+        symbol_name = str(getattr(position, "symbol", "") or "")
+        if not symbol_name:
+            continue
+
+        sym_info = symbol_info(state, symbol_name)
+        if sym_info is None:
+            continue
+
+        bid = float(getattr(sym_info, "bid", 0.0) or 0.0)
+        ask = float(getattr(sym_info, "ask", 0.0) or 0.0)
+        if bid <= 0.0 or ask <= 0.0:
+            continue
+
+        order_type = int(getattr(position, "type", -1) or -1)
+        is_buy = order_type == 0
+        is_sell = order_type == 1
+        if not is_buy and not is_sell:
+            continue
+
+        entry_price = float(
+            getattr(position, "price_open", getattr(position, "price", 0.0)) or 0.0
+        )
+        volume = float(getattr(position, "volume", 0.0) or 0.0)
+        if entry_price <= 0.0 or volume <= 0.0:
+            continue
+
+        exit_price = bid if is_buy else ask
+
+        # Approximate profit calculation for simulator consistency.
+        profit = 0.0
+        try:
+            contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+            delta = (exit_price - entry_price) if is_buy else (entry_price - exit_price)
+            profit = delta * volume * contract_size
+        except Exception:
+            profit = 0.0
+
+        position.profit = float(profit)
+        position.price_current = float(exit_price)
+        position.time_update = now
+        position.time_update_msc = now_msc
+
+        sl = float(getattr(position, "sl", 0.0) or 0.0)
+        tp = float(getattr(position, "tp", 0.0) or 0.0)
+        should_close = False
+        close_reason = ""
+
+        if is_buy:
+            if sl > 0.0 and bid <= sl:
+                should_close = True
+                close_reason = "stop_loss"
+            elif tp > 0.0 and bid >= tp:
+                should_close = True
+                close_reason = "take_profit"
+        else:
+            if sl > 0.0 and ask >= sl:
+                should_close = True
+                close_reason = "stop_loss"
+            elif tp > 0.0 and ask <= tp:
+                should_close = True
+                close_reason = "take_profit"
+
+        if should_close and allow_auto_close:
+            to_close.append((position, exit_price, profit, close_reason))
+        elif should_close and verbose:
+            print(
+                f"[monitor_positions] Close condition met (dry-run) "
+                f"ticket={int(getattr(position, 'ticket', 0) or 0)} reason={close_reason}"
+            )
+
+    for position, close_price, profit, close_reason in to_close:
+        if position not in state.trading_deals:
+            continue
+
+        balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
+        state.trading_account.balance = balance + float(profit)
+
+        closed_row = DealInfo(dict(position))
+        closed_row.profit = float(profit)
+        closed_row.price_current = float(close_price)
+        closed_row.entry = 1  # DEAL_ENTRY_OUT
+        closed_row.time_update = now
+        closed_row.time_update_msc = now_msc
+        if not getattr(closed_row, "comment", ""):
+            closed_row.comment = str(close_reason)
+
+        state.trading_history_deals.append(closed_row)
+        state.trading_deals = [p for p in state.trading_deals if p is not position]
+
+        if verbose:
+            print(
+                f"[monitor_positions] Closed {getattr(position, 'symbol', '')} "
+                f"ticket={int(getattr(position, 'ticket', 0) or 0)} "
+                f"reason={close_reason} profit={float(profit):.2f}"
+            )
+
+
+def monitor_pending_orders(
+    state: SimulatorState,
+    verbose: bool = False,
+    allow_auto_trigger: bool = True,
+    allow_auto_expire: bool = True,
+) -> None:
+    """Monitor pending orders, expire them, and trigger matched entries."""
+    import time
+
+    now = int(time.time())
+    now_msc = now * 1000
+
+    to_expire = []
+    to_trigger = []
+
+    def utc_day_key(ts: int) -> int:
+        if ts <= 0:
+            return 0
+        return int(ts // 86400)
+
+    for order in list(state.trading_orders):
+        if str(getattr(order, "action", "")) != "order_open":
+            continue
+
+        pending_type = int(getattr(order, "type", -1) or -1)
+        is_buy_limit = pending_type == 2
+        is_sell_limit = pending_type == 3
+        is_buy_stop = pending_type == 4
+        is_sell_stop = pending_type == 5
+        if not (is_buy_limit or is_sell_limit or is_buy_stop or is_sell_stop):
+            continue
+
+        type_time = int(getattr(order, "type_time", 0) or 0)
+        expiration = int(getattr(order, "time_expiration", 0) or 0)
+        expired = False
+        if type_time == 1:  # DAY
+            setup = int(getattr(order, "time_setup", 0) or 0)
+            expired = utc_day_key(setup) > 0 and utc_day_key(setup) != utc_day_key(now)
+        elif type_time in (2, 3):  # SPECIFIED / SPECIFIED_DAY
+            expired = expiration > 0 and now >= expiration
+
+        if expired:
+            to_expire.append(order)
+            continue
+
+        symbol_name = str(getattr(order, "symbol", "") or "")
+        if not symbol_name:
+            continue
+        sym_info = symbol_info(state, symbol_name)
+        if sym_info is None:
+            continue
+
+        bid = float(getattr(sym_info, "bid", 0.0) or 0.0)
+        ask = float(getattr(sym_info, "ask", 0.0) or 0.0)
+        if bid <= 0.0 or ask <= 0.0:
+            continue
+
+        trigger_price = float(
+            getattr(order, "price_open", getattr(order, "price_current", 0.0)) or 0.0
+        )
+        if trigger_price <= 0.0:
+            continue
+
+        triggered = False
+        if is_buy_limit:
+            triggered = ask <= trigger_price
+        elif is_sell_limit:
+            triggered = bid >= trigger_price
+        elif is_buy_stop:
+            triggered = ask >= trigger_price
+        elif is_sell_stop:
+            triggered = bid <= trigger_price
+
+        if triggered:
+            to_trigger.append(order)
+
+    if not allow_auto_expire and verbose and to_expire:
+        for order in to_expire:
+            print(
+                f"[monitor_pending_orders] Expire condition met (dry-run) "
+                f"ticket={int(getattr(order, 'ticket', 0) or 0)}"
+            )
+
+    for order in to_expire:
+        if not allow_auto_expire:
+            continue
+        if order not in state.trading_orders:
+            continue
+        hist_row = HistoryOrderInfo(dict(order))
+        hist_row.state = 6  # ORDER_STATE_EXPIRED
+        hist_row.time_done = now
+        hist_row.time_done_msc = now_msc
+        state.trading_history_orders.append(hist_row)
+        state.trading_orders = [o for o in state.trading_orders if o is not order]
+        if verbose:
+            print(
+                f"[monitor_pending_orders] Expired order "
+                f"ticket={int(getattr(order, 'ticket', 0) or 0)}"
+            )
+
+    if not allow_auto_trigger and verbose and to_trigger:
+        for order in to_trigger:
+            print(
+                f"[monitor_pending_orders] Trigger condition met (dry-run) "
+                f"ticket={int(getattr(order, 'ticket', 0) or 0)}"
+            )
+
+    processed_tickets = set()
+    for order in to_trigger:
+        if not allow_auto_trigger:
+            continue
+        if order not in state.trading_orders:
+            continue
+
+        ticket = int(getattr(order, "ticket", 0) or 0)
+        if ticket in processed_tickets:
+            continue
+        processed_tickets.add(ticket)
+
+        pending_type = int(getattr(order, "type", -1) or -1)
+        deal_side = 0 if pending_type in (2, 4) else 1
+
+        volume = float(getattr(order, "volume_current", 0.0) or 0.0)
+        if volume <= 0.0:
+            volume = float(getattr(order, "volume_initial", 0.0) or 0.0)
+        symbol_name = str(getattr(order, "symbol", "") or "")
+        if volume <= 0.0 or not symbol_name:
+            continue
+
+        request = DotDict(
+            action=1,  # TRADE_ACTION_DEAL
+            magic=int(getattr(order, "magic", 0) or 0),
+            symbol=symbol_name,
+            volume=volume,
+            type=deal_side,
+            price=0.0,
+            sl=float(getattr(order, "sl", 0.0) or 0.0),
+            tp=float(getattr(order, "tp", 0.0) or 0.0),
+            type_filling=int(getattr(order, "type_filling", 0) or 0),
+            type_time=int(getattr(order, "type_time", 0) or 0),
+            comment=str(getattr(order, "comment", "") or ""),
+        )
+
+        result = order_send(state, request)
+
+        hist_row = HistoryOrderInfo(dict(order))
+        hist_row.time_done = now
+        hist_row.time_done_msc = now_msc
+        hist_row.state = 4 if int(getattr(result, "retcode", 0) or 0) == 10009 else 5
+        state.trading_history_orders.append(hist_row)
+        state.trading_orders = [o for o in state.trading_orders if o is not order]
+
+        if verbose:
+            print(
+                f"[monitor_pending_orders] Triggered order "
+                f"ticket={ticket} retcode={int(getattr(result, 'retcode', 0) or 0)}"
+            )
+
+
+def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
+    """Monitor account aggregates from open positions."""
+    total_unrealized_profit = 0.0
+    used_margin = 0.0
+
+    for position in state.trading_deals:
+        entry = str(getattr(position, "entry", 0))
+        if entry != "0":
+            continue
+        total_unrealized_profit += float(getattr(position, "profit", 0.0) or 0.0)
+        used_margin += float(getattr(position, "margin_required", 0.0) or 0.0)
+
+    balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
+    equity = balance + total_unrealized_profit
+    margin_free = equity - used_margin
+    margin_level = (equity / used_margin) * 100.0 if used_margin > 0.0 else 0.0
+
+    state.trading_account.profit = float(total_unrealized_profit)
+    state.trading_account.equity = float(equity)
+    state.trading_account.margin = float(used_margin)
+    state.trading_account.margin_free = float(margin_free)
+    state.trading_account.margin_level = float(margin_level)
+
+    if verbose:
+        print(
+            "sim -> account | "
+            f"balance {balance} | "
+            f"profit {total_unrealized_profit} | "
+            f"equity {equity} | "
+            f"margin {used_margin} | "
+            f"margin_free {margin_free} | "
+            f"margin_level {margin_level}"
+        )
+
+
 def order_send(state: SimulatorState, request) -> DotDict:
     """
     Python port of C++ BacktestSimulator::order_send().
