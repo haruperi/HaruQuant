@@ -150,6 +150,8 @@ def monitor_positions(
     state: SimulatorState,
     verbose: bool = False,
     allow_auto_close: bool = True,
+    profit_calculator=None,
+    strict_calc_access: bool = False,
 ) -> None:
     """Monitor open positions, update mark-to-market fields, and close on SL/TP."""
     import time
@@ -191,14 +193,28 @@ def monitor_positions(
 
         exit_price = bid if is_buy else ask
 
-        # Approximate profit calculation for simulator consistency.
         profit = 0.0
-        try:
-            contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
-            delta = (exit_price - entry_price) if is_buy else (entry_price - exit_price)
-            profit = delta * volume * contract_size
-        except Exception:
-            profit = 0.0
+        if profit_calculator is not None:
+            calc_value = profit_calculator(order_type, symbol_name, volume, entry_price, exit_price)
+            if calc_value is None:
+                raise RuntimeError(
+                    "order_calc_profit returned None while strict profit calculation is required."
+                )
+            profit = float(calc_value)
+        elif strict_calc_access:
+            raise RuntimeError(
+                "order_calc_profit access is required but no profit_calculator was provided."
+            )
+        else:
+            # Legacy fallback (non-strict mode only).
+            try:
+                contract_size = float(
+                    getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
+                )
+                delta = (exit_price - entry_price) if is_buy else (entry_price - exit_price)
+                profit = delta * volume * contract_size
+            except Exception:
+                profit = 0.0
 
         position.profit = float(profit)
         position.price_current = float(exit_price)
@@ -265,6 +281,9 @@ def monitor_pending_orders(
     verbose: bool = False,
     allow_auto_trigger: bool = True,
     allow_auto_expire: bool = True,
+    profit_calculator=None,
+    margin_calculator=None,
+    strict_calc_access: bool = False,
 ) -> None:
     """Monitor pending orders, expire them, and trigger matched entries."""
     import time
@@ -403,7 +422,13 @@ def monitor_pending_orders(
             comment=str(getattr(order, "comment", "") or ""),
         )
 
-        result = order_send(state, request)
+        result = order_send(
+            state,
+            request,
+            profit_calculator=profit_calculator,
+            margin_calculator=margin_calculator,
+            strict_calc_access=strict_calc_access,
+        )
 
         hist_row = HistoryOrderInfo(dict(order))
         hist_row.time_done = now
@@ -454,7 +479,14 @@ def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
         )
 
 
-def order_send(state: SimulatorState, request) -> DotDict:
+def order_send(
+    state: SimulatorState,
+    request,
+    profit_calculator=None,
+    margin_calculator=None,
+    strict_calc_access: bool = False,
+    verbose: bool = False,
+) -> DotDict:
     """
     Python port of C++ BacktestSimulator::order_send().
     Processes a TradeRequest (represented as an object with attributes or dict keys)
@@ -526,6 +558,11 @@ def order_send(state: SimulatorState, request) -> DotDict:
         result.order = int(getattr(first, 'order', 0))
         result.price = float(getattr(first, 'price_current', getattr(first, 'price', 0.0)))
         result.comment = "Request executed"
+        if verbose:
+            print(
+                f"[order_send] Modified SL/TP symbol={symbol_name} "
+                f"position={position_ticket} sl={sl_value} tp={tp_value}"
+            )
         return result
 
     if is_modify:
@@ -566,6 +603,12 @@ def order_send(state: SimulatorState, request) -> DotDict:
         result.order = order_ticket
         result.price = float(getattr(pending_order, 'price_open', 0.0))
         result.comment = "Request executed"
+        if verbose:
+            print(
+                f"[order_send] Modified pending order={order_ticket} "
+                f"symbol={getattr(pending_order, 'symbol', '')} "
+                f"price={float(getattr(pending_order, 'price_open', 0.0) or 0.0)}"
+            )
         return result
 
     if is_remove:
@@ -585,6 +628,8 @@ def order_send(state: SimulatorState, request) -> DotDict:
         result.retcode = 10009
         result.order = order_ticket
         result.comment = "Request executed"
+        if verbose:
+            print(f"[order_send] Removed pending order={order_ticket}")
         return result
 
     symbol_name = req_get('symbol', '')
@@ -614,6 +659,8 @@ def order_send(state: SimulatorState, request) -> DotDict:
             return 1
         return max((int(getattr(x, 'ticket', 0)) for x in item_list), default=0) + 1
 
+    contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+
     if is_pending:
         if order_type not in (2, 3, 4, 5):  # BUY_LIMIT, SELL_LIMIT, BUY_STOP, SELL_STOP
             result.retcode = 10013
@@ -632,6 +679,7 @@ def order_send(state: SimulatorState, request) -> DotDict:
         order_ticket = next_ticket(state.trading_orders)
 
         # Approximate margin calculation in python (simple fallback)
+        # Pending orders do not reserve margin in this simplified simulator.
         margin_required = 0.0
 
         order_row = OrderInfo(
@@ -669,6 +717,12 @@ def order_send(state: SimulatorState, request) -> DotDict:
         result.order = order_ticket
         result.price = pending_price
         result.comment = "Order placed"
+        if verbose:
+            print(
+                f"[order_send] Placed pending order={order_ticket} "
+                f"symbol={symbol_name} type={order_type} volume={float(result.volume):.4f} "
+                f"price={float(pending_price):.5f}"
+            )
         return result
 
     close_position_ticket = int(req_get('position', 0) or 0)
@@ -735,6 +789,32 @@ def order_send(state: SimulatorState, request) -> DotDict:
         )
         state.trading_history_orders.append(history_order)
 
+        entry_price = float(
+            getattr(position, 'price_open', getattr(position, 'price', exec_price)) or exec_price
+        )
+        position_type = int(getattr(position, 'type', order_type) or order_type)
+        if profit_calculator is not None:
+            calc_value = profit_calculator(
+                position_type,
+                symbol_name,
+                close_volume,
+                entry_price,
+                exec_price,
+            )
+            if calc_value is None:
+                raise RuntimeError(
+                    "order_calc_profit returned None while strict profit calculation is required."
+                )
+            realized_profit = float(calc_value)
+        elif strict_calc_access:
+            raise RuntimeError(
+                "order_calc_profit access is required but no profit_calculator was provided."
+            )
+        else:
+            is_position_buy = position_type == 0
+            delta = (exec_price - entry_price) if is_position_buy else (entry_price - exec_price)
+            realized_profit = float(delta * close_volume * contract_size)
+
         close_deal = DealInfo(
             ticket=deal_ticket,
             order=order_ticket,
@@ -749,14 +829,14 @@ def order_send(state: SimulatorState, request) -> DotDict:
             position_id=int(getattr(position, 'position_id', getattr(position, 'ticket', 0))),
             volume=close_volume,
             price=exec_price,
-            price_open=float(getattr(position, 'price_open', getattr(position, 'price', exec_price))),
+            price_open=entry_price,
             price_current=exec_price,
             sl=float(getattr(position, 'sl', 0.0)),
             tp=float(getattr(position, 'tp', 0.0)),
             margin_required=0.0,
             commission=0.0,
             swap=0.0,
-            profit=0.0,
+            profit=realized_profit,
             fee=0.0,
             symbol=symbol_name,
             comment=req_get('comment', ''),
@@ -764,11 +844,18 @@ def order_send(state: SimulatorState, request) -> DotDict:
         )
         state.trading_history_deals.append(close_deal)
 
+        # Realize profit into account balance at close time.
+        balance = float(getattr(state.trading_account, 'balance', 0.0) or 0.0)
+        state.trading_account.balance = balance + realized_profit
+
         remaining = current_volume - close_volume
         if remaining <= 0.0:
             state.trading_deals = [p for p in state.trading_deals if p is not position]
         else:
             position.volume = remaining
+            current_margin = float(getattr(position, 'margin_required', 0.0) or 0.0)
+            if current_volume > 0.0 and current_margin > 0.0:
+                position.margin_required = current_margin * (remaining / current_volume)
             position.time_update = now
             position.time_update_msc = now * 1000
 
@@ -777,6 +864,12 @@ def order_send(state: SimulatorState, request) -> DotDict:
         result.order = order_ticket
         result.price = exec_price
         result.comment = "Request executed"
+        if verbose:
+            print(
+                f"[order_send] Closed position={close_position_ticket} "
+                f"symbol={symbol_name} volume={close_volume:.4f} "
+                f"price={float(exec_price):.5f} profit={float(realized_profit):.2f}"
+            )
         return result
 
     if not is_buy and not is_sell:
@@ -800,7 +893,23 @@ def order_send(state: SimulatorState, request) -> DotDict:
     deal_ticket = next_ticket(state.trading_deals) + next_ticket(state.trading_history_deals)
     position_ticket = deal_ticket
 
-    margin_required = 0.0
+    if margin_calculator is not None:
+        calc_value = margin_calculator(order_type, symbol_name, float(result.volume), float(exec_price))
+        if calc_value is None:
+            raise RuntimeError(
+                "order_calc_margin returned None while strict margin calculation is required."
+            )
+        margin_required = float(calc_value)
+    elif strict_calc_access:
+        raise RuntimeError(
+            "order_calc_margin access is required but no margin_calculator was provided."
+        )
+    else:
+        account_leverage = float(getattr(state.trading_account, "leverage", 0.0) or 0.0)
+        if account_leverage <= 0.0:
+            account_leverage = 100.0
+        notional = float(result.volume) * contract_size * float(exec_price)
+        margin_required = float(notional / account_leverage) if account_leverage > 0.0 else 0.0
 
     order_row = HistoryOrderInfo(
         ticket=order_ticket,
@@ -867,4 +976,11 @@ def order_send(state: SimulatorState, request) -> DotDict:
     result.order = order_ticket
     result.price = exec_price
     result.comment = "Request executed"
+    if verbose:
+        side_name = "BUY" if is_buy else "SELL"
+        print(
+            f"[order_send] Opened {side_name} position={position_ticket} "
+            f"symbol={symbol_name} volume={float(result.volume):.4f} "
+            f"price={float(exec_price):.5f} margin={float(margin_required):.2f}"
+        )
     return result

@@ -15,6 +15,17 @@
   - when all schedule entries are `None`, `run(...)` stays on the fast Numba counting path
   - simulator-mode guards skip `monitor_positions` when there are no open positions and skip `monitor_pending_orders` when there are no pending orders
   - account/portfolio/risk scheduled callbacks are gated by a lightweight dirty flag and run only after state-changing monitor passes
+- `Engine.run(...)` now executes trading signals directly from tick columns when present:
+  - `entry_signal`: `1` buy / `-1` sell market entry (`ask` for buy, `bid` for sell; aligned with trade example behavior)
+  - `exit_signal` (and alias `exit_trade`): `1` exit buy-side positions / `-1` exit sell-side positions
+  - `pending_signal`: `1` buy stop, `-1` sell stop, `2` buy limit, `-2` sell limit
+  - `cancel_pending_signal`: cancels matching pending order type for the same symbol
+- `Engine.run(data, position_size=...)` can override per-run signal order volume (fallback is engine default `0.01`).
+- `Engine.run(..., monitor_verbose=...)` controls verbosity passed to scheduled monitor callbacks (`monitor_positions`, `monitor_pending_orders`, `monitor_account`, `monitor_portfolio`, `monitor_risk`).
+- Signal execution uses `core.order_send(...)` and keeps scheduler callbacks unchanged.
+- In `Engine` simulation flow, profit/margin calculations are now strict MT5-based:
+  - uses `client.order_calc_profit(...)` and `client.order_calc_margin(...)`
+  - no approximation fallback in Engine-driven execution paths; missing/failed access raises runtime error.
 - Tick generation path (`apps/utils/data_manipulator.py -> TicksGenerator._generate_timeframe_ticks`) now builds output columns from NumPy arrays (4 ticks per bar) instead of Python `iterrows()` + dict appends, preserving the same output schema while reducing generation overhead.
 
 ## BacktestState Deal Model (Refactor)

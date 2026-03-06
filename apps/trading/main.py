@@ -62,8 +62,36 @@ class Engine:
             "risk": None,
         }
         self._schedule_state_dirty = True
+        self.default_signal_volume = 0.01
 
         logger.info(f"successfully initialised trading engine {self.backend}")
+
+    def _strict_order_calc_profit(self, order_type, symbol, volume, price_open, price_close):
+        if self.client is None or not hasattr(self.client, "order_calc_profit"):
+            raise RuntimeError("MT5 order_calc_profit access is unavailable.")
+        value = self.client.order_calc_profit(
+            int(order_type),
+            str(symbol),
+            float(volume),
+            float(price_open),
+            float(price_close),
+        )
+        if value is None:
+            raise RuntimeError("MT5 order_calc_profit returned None.")
+        return float(value)
+
+    def _strict_order_calc_margin(self, order_type, symbol, volume, price_open):
+        if self.client is None or not hasattr(self.client, "order_calc_margin"):
+            raise RuntimeError("MT5 order_calc_margin access is unavailable.")
+        value = self.client.order_calc_margin(
+            int(order_type),
+            str(symbol),
+            float(volume),
+            float(price_open),
+        )
+        if value is None:
+            raise RuntimeError("MT5 order_calc_margin returned None.")
+        return float(value)
 
     @staticmethod
     def _to_dict(value):
@@ -286,8 +314,286 @@ class Engine:
         # In the simulator, the tick information (bid/ask/last) is stored on the symbol object itself
         return core.symbol_info(self.state, name)
 
-    def order_send(self, request):
-        return core.order_send(self.state, request)
+    def order_send(self, request, verbose: bool = False):
+        return core.order_send(
+            self.state,
+            request,
+            profit_calculator=self._strict_order_calc_profit,
+            margin_calculator=self._strict_order_calc_margin,
+            strict_calc_access=True,
+            verbose=verbose,
+        )
+
+    @staticmethod
+    def _signal_to_float_array(data, col_name_map, names):
+        for name in names:
+            col = col_name_map.get(name)
+            if col is not None:
+                return data[col].fillna(0.0).to_numpy(dtype="float64", copy=False)
+        return None
+
+    @staticmethod
+    def _signal_to_object_array(data, col_name_map, names):
+        for name in names:
+            col = col_name_map.get(name)
+            if col is not None:
+                return data[col].to_numpy(copy=False)
+        return None
+
+    @staticmethod
+    def _safe_float(value, default=0.0):
+        try:
+            if value is None:
+                return float(default)
+            return float(value)
+        except Exception:
+            return float(default)
+
+    @staticmethod
+    def _safe_int(value, default=0):
+        try:
+            if value is None:
+                return int(default)
+            return int(value)
+        except Exception:
+            return int(default)
+
+    def _build_symbol_map(self):
+        symbol_map = {}
+        mutable_symbols = []
+        replaced_any = False
+        for sym in self.state.trading_symbols:
+            mutable = sym
+            if not isinstance(sym, core.SymbolInfo):
+                row = self._to_dict(sym)
+                if row:
+                    mutable = core.SymbolInfo(row)
+                    replaced_any = True
+            mutable_symbols.append(mutable)
+            name = str(getattr(mutable, "name", "") or "")
+            if name and name not in symbol_map:
+                symbol_map[name] = mutable
+        if replaced_any:
+            self.state.trading_symbols = mutable_symbols
+        return symbol_map
+
+    def _default_run_symbol(self):
+        if not self.state.trading_symbols:
+            return None
+        first = self.state.trading_symbols[0]
+        name = str(getattr(first, "name", "") or "")
+        return name or None
+
+    def _resolve_tick_symbol(self, idx, symbol_values, default_symbol):
+        if symbol_values is None:
+            return default_symbol
+        value = symbol_values[idx]
+        symbol = str(value or "")
+        return symbol or default_symbol
+
+    def _update_symbol_tick(self, symbol_map, symbol_name, bid, ask):
+        if not symbol_name:
+            return
+        sym = symbol_map.get(symbol_name)
+        if sym is None:
+            return
+        try:
+            sym.bid = float(bid)
+            sym.ask = float(ask)
+            sym.last = float(bid)
+        except Exception:
+            return
+
+    def _order_type_from_pending_signal(self, pending_signal):
+        # Strategy base contract:
+        #  1=BUY_STOP, -1=SELL_STOP, 2=BUY_LIMIT, -2=SELL_LIMIT
+        code = self._safe_int(pending_signal, 0)
+        mapping = {
+            1: 4,   # ORDER_TYPE_BUY_STOP
+            -1: 5,  # ORDER_TYPE_SELL_STOP
+            2: 2,   # ORDER_TYPE_BUY_LIMIT
+            -2: 3,  # ORDER_TYPE_SELL_LIMIT
+        }
+        return mapping.get(code)
+
+    def _iter_positions_for_exit(self, symbol_name, exit_signal):
+        # exit_signal: 1=Exit Buy (close long), -1=Exit Sell (close short)
+        target_type = 0 if self._safe_int(exit_signal, 0) == 1 else 1
+        for pos in list(self.state.trading_deals):
+            if str(getattr(pos, "symbol", "") or "") != symbol_name:
+                continue
+            if self._safe_int(getattr(pos, "type", -1), -1) != target_type:
+                continue
+            yield pos
+
+    def _iter_pending_for_cancel(self, symbol_name, cancel_pending_signal):
+        pending_type = self._order_type_from_pending_signal(cancel_pending_signal)
+        if pending_type is None:
+            return
+        for order in list(self.state.trading_orders):
+            if str(getattr(order, "symbol", "") or "") != symbol_name:
+                continue
+            if self._safe_int(getattr(order, "type", -1), -1) != pending_type:
+                continue
+            yield order
+
+    def _exec_exit_signal(self, symbol_name, exit_signal, bid, ask, verbose: bool = False):
+        side = self._safe_int(exit_signal, 0)
+        if side not in (1, -1):
+            return False
+        changed = False
+        for pos in self._iter_positions_for_exit(symbol_name, side):
+            pos_type = self._safe_int(getattr(pos, "type", -1), -1)
+            close_type = 1 if pos_type == 0 else 0
+            close_price = float(bid) if close_type == 1 else float(ask)
+            request = {
+                "action": 1,  # TRADE_ACTION_DEAL
+                "symbol": symbol_name,
+                "type": close_type,
+                "position": self._safe_int(
+                    getattr(
+                        pos,
+                        "ticket",
+                        getattr(pos, "position_id", getattr(pos, "identifier", 0)),
+                    ),
+                    0,
+                ),
+                "volume": self._safe_float(getattr(pos, "volume", 0.0), 0.0),
+                "price": close_price,
+            }
+            result = self.order_send(request, verbose=verbose)
+            if self._safe_int(getattr(result, "retcode", 0), 0) in (10008, 10009):
+                changed = True
+        return changed
+
+    def _exec_entry_signal(
+        self,
+        symbol_name,
+        entry_signal,
+        bid,
+        ask,
+        sl=0.0,
+        tp=0.0,
+        volume=None,
+        verbose: bool = False,
+    ):
+        side = self._safe_int(entry_signal, 0)
+        if side not in (1, -1):
+            return False
+        order_type = 0 if side == 1 else 1  # BUY / SELL
+        open_price = float(ask) if side == 1 else float(bid)
+        lot_size = float(self.default_signal_volume if volume is None else volume)
+        request = {
+            "action": 1,  # TRADE_ACTION_DEAL
+            "symbol": symbol_name,
+            "type": order_type,
+            "volume": lot_size,
+            "price": open_price,
+            "sl": float(self._safe_float(sl, 0.0)),
+            "tp": float(self._safe_float(tp, 0.0)),
+            "comment": "Signal entry",
+        }
+        result = self.order_send(request, verbose=verbose)
+        return self._safe_int(getattr(result, "retcode", 0), 0) in (10008, 10009)
+
+    def _exec_pending_signal(
+        self,
+        symbol_name,
+        pending_signal,
+        bid,
+        ask,
+        signal_price=None,
+        sl=0.0,
+        tp=0.0,
+        volume=None,
+        verbose: bool = False,
+    ):
+        order_type = self._order_type_from_pending_signal(pending_signal)
+        if order_type is None:
+            return False
+        lot_size = float(self.default_signal_volume if volume is None else volume)
+        price = self._safe_float(signal_price, 0.0)
+        if price <= 0.0:
+            # Fallback if strategy did not provide pending price.
+            if order_type in (2, 4):  # buy limit / buy stop
+                price = float(ask)
+            else:  # sell limit / sell stop
+                price = float(bid)
+        request = {
+            "action": 5,  # TRADE_ACTION_PENDING
+            "symbol": symbol_name,
+            "type": order_type,
+            "volume": lot_size,
+            "price": float(price),
+            "sl": float(self._safe_float(sl, 0.0)),
+            "tp": float(self._safe_float(tp, 0.0)),
+            "comment": "Signal pending",
+        }
+        result = self.order_send(request, verbose=verbose)
+        return self._safe_int(getattr(result, "retcode", 0), 0) in (10008, 10009)
+
+    def _exec_cancel_pending_signal(self, symbol_name, cancel_pending_signal, verbose: bool = False):
+        code = self._safe_int(cancel_pending_signal, 0)
+        if code == 0:
+            return False
+        changed = False
+        for order in self._iter_pending_for_cancel(symbol_name, code):
+            request = {
+                "action": 8,  # TRADE_ACTION_REMOVE
+                "order": self._safe_int(getattr(order, "ticket", 0), 0),
+            }
+            result = self.order_send(request, verbose=verbose)
+            if self._safe_int(getattr(result, "retcode", 0), 0) == 10009:
+                changed = True
+        return changed
+
+    def _apply_tick_signals(
+        self,
+        symbol_name,
+        bid,
+        ask,
+        entry_signal,
+        exit_signal,
+        pending_signal,
+        cancel_pending_signal,
+        signal_price=0.0,
+        sl=0.0,
+        tp=0.0,
+        volume=None,
+        verbose: bool = False,
+    ):
+        if not symbol_name:
+            return False
+        state_changed = False
+        # Exit/cancel first, then entry/new pending.
+        if self._exec_exit_signal(symbol_name, exit_signal, bid, ask, verbose=verbose):
+            state_changed = True
+        if self._exec_cancel_pending_signal(symbol_name, cancel_pending_signal, verbose=verbose):
+            state_changed = True
+        if self._exec_entry_signal(
+            symbol_name,
+            entry_signal,
+            bid,
+            ask,
+            sl=sl,
+            tp=tp,
+            volume=volume,
+            verbose=verbose,
+        ):
+            state_changed = True
+        if self._exec_pending_signal(
+            symbol_name,
+            pending_signal,
+            bid,
+            ask,
+            signal_price=signal_price,
+            sl=sl,
+            tp=tp,
+            volume=volume,
+            verbose=verbose,
+        ):
+            state_changed = True
+        return state_changed
 
     @staticmethod
     def _normalize_schedule_every(value):
@@ -322,6 +628,7 @@ class Engine:
     def _run_scheduled_callbacks(
         self,
         tick_number: int,
+        verbose: bool = False,
     ):
         schedule = self.run_schedule
         state_changed = False
@@ -330,14 +637,14 @@ class Engine:
         positions_due = self._due_by_interval(tick_number, positions_every)
         if positions_due:
             if self._has_open_positions():
-                self.monitor_positions(verbose=False)
+                self.monitor_positions(verbose=verbose)
                 state_changed = True
 
         pending_orders_every = schedule.get("pending_orders")
         pending_due = self._due_by_interval(tick_number, pending_orders_every)
         if pending_due:
             if self._has_pending_orders():
-                self.monitor_pending_orders(verbose=False)
+                self.monitor_pending_orders(verbose=verbose)
                 state_changed = True
 
         if state_changed:
@@ -355,13 +662,13 @@ class Engine:
         )
 
         if run_state_checks and account_due:
-            self.monitor_account(verbose=False)
+            self.monitor_account(verbose=verbose)
 
         if run_state_checks and portfolio_due:
-            self.monitor_portfolio(verbose=False)
+            self.monitor_portfolio(verbose=verbose)
 
         if run_state_checks and risk_due:
-            self.monitor_risk(verbose=False)
+            self.monitor_risk(verbose=verbose)
 
         if run_state_checks:
             self._schedule_state_dirty = False
@@ -378,10 +685,12 @@ class Engine:
             return bool(self.state.trading_orders)
         return True
 
-    def run(self, data):
+    def run(self, data, position_size=None, monitor_verbose: bool = False):
         """Simple backtest loop placeholder that iterates over tick data."""
         if data is None:
             return 0
+        if position_size is not None and float(position_size) <= 0.0:
+            raise ValueError("position_size must be > 0 when provided.")
 
         if not hasattr(data, "columns"):
             raise ValueError("Engine.run expects a tick DataFrame input.")
@@ -406,18 +715,82 @@ class Engine:
         bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
         ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
 
+        entry_values = self._signal_to_float_array(data, col_name_map, ["entry_signal"])
+        exit_values = self._signal_to_float_array(data, col_name_map, ["exit_signal", "exit_trade"])
+        pending_values = self._signal_to_float_array(data, col_name_map, ["pending_signal"])
+        cancel_pending_values = self._signal_to_float_array(
+            data, col_name_map, ["cancel_pending_signal"]
+        )
+        signal_price_values = self._signal_to_float_array(data, col_name_map, ["price"])
+        sl_values = self._signal_to_float_array(data, col_name_map, ["sl", "stop_loss"])
+        tp_values = self._signal_to_float_array(data, col_name_map, ["tp", "take_profit"])
+        symbol_values = self._signal_to_object_array(data, col_name_map, ["symbol"])
+
+        has_signal_cols = any(
+            arr is not None
+            for arr in (
+                entry_values,
+                exit_values,
+                pending_values,
+                cancel_pending_values,
+            )
+        )
+
         schedule_enabled = any(value is not None for value in self.run_schedule.values())
-        if not schedule_enabled:
+        if not schedule_enabled and not has_signal_cols:
             processed = _process_ticks_numba(bid_values, ask_values)
             return processed
 
+        symbol_map = self._build_symbol_map()
+        default_symbol = self._default_run_symbol()
+
         self._schedule_state_dirty = True
+        run_position_size = (
+            float(self.default_signal_volume)
+            if position_size is None
+            else float(position_size)
+        )
         processed = 0
         total_ticks = int(bid_values.shape[0])
         for idx in range(total_ticks):
-            _ = bid_values[idx] + ask_values[idx]
+            bid = float(bid_values[idx])
+            ask = float(ask_values[idx])
+            _ = bid + ask
             tick_number = idx + 1
-            self._run_scheduled_callbacks(tick_number=tick_number)
+
+            symbol_name = self._resolve_tick_symbol(idx, symbol_values, default_symbol)
+            self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
+
+            entry_signal = 0.0 if entry_values is None else float(entry_values[idx])
+            exit_signal = 0.0 if exit_values is None else float(exit_values[idx])
+            pending_signal = 0.0 if pending_values is None else float(pending_values[idx])
+            cancel_pending_signal = (
+                0.0 if cancel_pending_values is None else float(cancel_pending_values[idx])
+            )
+            signal_price = 0.0 if signal_price_values is None else float(signal_price_values[idx])
+            sl_value = 0.0 if sl_values is None else float(sl_values[idx])
+            tp_value = 0.0 if tp_values is None else float(tp_values[idx])
+
+            if self._apply_tick_signals(
+                symbol_name=symbol_name,
+                bid=bid,
+                ask=ask,
+                entry_signal=entry_signal,
+                exit_signal=exit_signal,
+                pending_signal=pending_signal,
+                cancel_pending_signal=cancel_pending_signal,
+                signal_price=signal_price,
+                sl=sl_value,
+                tp=tp_value,
+                volume=run_position_size,
+                verbose=bool(monitor_verbose),
+            ):
+                self._schedule_state_dirty = True
+
+            self._run_scheduled_callbacks(
+                tick_number=tick_number,
+                verbose=bool(monitor_verbose),
+            )
             processed += 1
 
         return processed
@@ -429,8 +802,15 @@ class Engine:
                 self.state,
                 verbose=verbose,
                 allow_auto_close=False,
+                profit_calculator=self._strict_order_calc_profit,
+                strict_calc_access=True,
             )
-        return core.monitor_positions(self.state, verbose=verbose)
+        return core.monitor_positions(
+            self.state,
+            verbose=verbose,
+            profit_calculator=self._strict_order_calc_profit,
+            strict_calc_access=True,
+        )
 
     def monitor_pending_orders(self, verbose: bool = False):
         if self.backend == "mt5":
@@ -440,8 +820,17 @@ class Engine:
                 verbose=verbose,
                 allow_auto_trigger=False,
                 allow_auto_expire=False,
+                profit_calculator=self._strict_order_calc_profit,
+                margin_calculator=self._strict_order_calc_margin,
+                strict_calc_access=True,
             )
-        return core.monitor_pending_orders(self.state, verbose=verbose)
+        return core.monitor_pending_orders(
+            self.state,
+            verbose=verbose,
+            profit_calculator=self._strict_order_calc_profit,
+            margin_calculator=self._strict_order_calc_margin,
+            strict_calc_access=True,
+        )
 
     def monitor_account(self, verbose: bool = False):
         if self.backend == "mt5":

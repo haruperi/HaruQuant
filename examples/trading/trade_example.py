@@ -22,8 +22,8 @@ audusd = "AUDUSD"
 eurgbp = "EURGBP"
 usdjpy = "USDJPY"
 timeframe = "H1"
-warmup_start_date = datetime(2019, 10, 1)  # 3 months of warmup data
-start_date = datetime(2000, 1, 1)
+warmup_start_date = datetime(2024, 10, 1)  # 3 months of warmup data
+start_date = datetime(2025, 1, 1)
 end_date = datetime(2025, 12, 31)
 stoploss = 10
 
@@ -394,7 +394,7 @@ def example_10_simple_backtest():
     # Load data from warmup_start_date to properly initialize indicators
     data = client.get_bars(
         symbol=test_symbol,
-        timeframe="M1", # TODO: change to timeframe after speed tests
+        timeframe=timeframe,
         date_from=warmup_start_date,
         date_to=end_date
     )
@@ -426,7 +426,7 @@ def example_10_simple_backtest():
         return
 
     # Keep comparison window small and identical across models.
-    compare_bars = data.tail(250000).copy()  # 24 = 1 day for H1 bars
+    compare_bars = data.copy()
 
     # Step 5: Convert bars data to ticks dataframe (multiple models)
     logger.info("\nConverting bars to ticks...")
@@ -498,7 +498,11 @@ def example_10_simple_backtest():
   )
 
 
-    processed = engine_instance.run(ticks_data)
+    processed = engine_instance.run(
+        ticks_data,
+        position_size=0.01,
+        monitor_verbose=True,
+    )
     end_time = time.time()
     print(f"{tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
 
@@ -525,3 +529,5 @@ if __name__ == "__main__":
             print("\nShutting down MT5 connection...")
             engine_instance.client.shutdown()
             print("Disconnected.")
+
+
