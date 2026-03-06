@@ -1,5 +1,22 @@
 # HaruQuant Architecture Notes
 
+## Trading Engine Tick Loop (Python Skeleton)
+
+- Runtime entrypoint: `apps/trading/main.py -> Engine.run(data)`.
+- Current skeleton expects tick-like DataFrame input with `bid` and `ask` columns.
+- Hot loop path uses:
+  - DataFrame -> NumPy conversion for `bid`/`ask` (`float64`, `copy=False`)
+  - `_process_ticks_numba(...)` for a compiled per-tick loop when `numba` is available
+  - an internal pure-Python fallback loop when `numba` is unavailable
+- This keeps orchestration in Python while preparing the inner tick loop for future per-tick monitoring/risk logic.
+- `Engine.configure_run_schedule(...)` enables optional callback scheduling in `Engine.run(...)`:
+  - `positions_every`, `pending_orders_every`, `account_every`, `portfolio_every`, `risk_every`
+  - `None` disables callback; positive integer runs callback every N ticks
+  - when all schedule entries are `None`, `run(...)` stays on the fast Numba counting path
+  - simulator-mode guards skip `monitor_positions` when there are no open positions and skip `monitor_pending_orders` when there are no pending orders
+  - account/portfolio/risk scheduled callbacks are gated by a lightweight dirty flag and run only after state-changing monitor passes
+- Tick generation path (`apps/utils/data_manipulator.py -> TicksGenerator._generate_timeframe_ticks`) now builds output columns from NumPy arrays (4 ticks per bar) instead of Python `iterrows()` + dict appends, preserving the same output schema while reducing generation overhead.
+
 ## BacktestState Deal Model (Refactor)
 
 - `BacktestState` now uses:

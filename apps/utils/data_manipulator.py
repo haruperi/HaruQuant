@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 import random
 
+import numpy as np
 import pandas as pd
 
 from apps.utils.logger import logger
@@ -844,7 +845,6 @@ class TicksGenerator:
         high_col = self._find_col(bars, ["High"])
         low_col = self._find_col(bars, ["Low"])
         close_col = self._find_col(bars, ["Close"])
-        volume_col = self._find_col(bars, ["Volume"])
         spread_col = self._find_col(bars, ["Spread"])
         entry_col = self._find_col(bars, ["entry_signal"])
         exit_col = self._find_col(bars, ["exit_signal"])
@@ -859,66 +859,118 @@ class TicksGenerator:
                 "timeframe_ticks requires OHLC columns: Open, High, Low, Close"
             )
 
+        n_bars = len(bars.index)
+        if n_bars == 0:
+            return pd.DataFrame(
+                columns=[
+                    "bid",
+                    "ask",
+                    "last",
+                    "spread",
+                    "entry_signal",
+                    "exit_signal",
+                    "pending_signal",
+                    "cancel_pending_signal",
+                    "sl",
+                    "tp",
+                    "source_bar_time",
+                    "tick_index_in_bar",
+                ]
+            )
+
+        def _bar_col_or_zeros(col_name: Optional[str]) -> np.ndarray:
+            if col_name is None:
+                return np.zeros(n_bars, dtype=np.float64)
+            values = pd.to_numeric(bars[cast(str, col_name)], errors="coerce").to_numpy(
+                dtype=np.float64,
+                copy=False,
+            )
+            # Match prior behavior where NaN in signals/spread became 0.0.
+            return np.nan_to_num(values, nan=0.0)
+
+        open_arr = _bar_col_or_zeros(open_col)
+        high_arr = _bar_col_or_zeros(high_col)
+        low_arr = _bar_col_or_zeros(low_col)
+        close_arr = _bar_col_or_zeros(close_col)
+        native_spread_arr = _bar_col_or_zeros(spread_col)
+        entry_arr = _bar_col_or_zeros(entry_col)
+        exit_arr = _bar_col_or_zeros(exit_col)
+        pending_arr = _bar_col_or_zeros(pending_col)
+        cancel_pending_arr = _bar_col_or_zeros(cancel_pending_col)
+        sl_arr = _bar_col_or_zeros(sl_col)
+        tp_arr = _bar_col_or_zeros(tp_col)
+
         bar_seconds = self._infer_bar_seconds(bars.index)
-        offsets_ms = [0, int(bar_seconds * 250), int(bar_seconds * 500), int(bar_seconds * 750)]
+        offsets_ms = np.array(
+            [0, int(bar_seconds * 250), int(bar_seconds * 500), int(bar_seconds * 750)],
+            dtype=np.int64,
+        )
 
-        rows = []
-        for ts, bar in bars.iterrows():
-            open_px = float(bar[cast(str, open_col)])
-            high_px = float(bar[cast(str, high_col)])
-            low_px = float(bar[cast(str, low_col)])
-            close_px = float(bar[cast(str, close_col)])
-            if close_px >= open_px:
-                path = [open_px, low_px, high_px, close_px]  # bullish
-            else:
-                path = [open_px, high_px, low_px, close_px]  # bearish
+        # 4-tick bar path: bullish O-L-H-C, bearish O-H-L-C
+        bullish = close_arr >= open_arr
+        total_ticks = n_bars * 4
+        bid = np.empty(total_ticks, dtype=np.float64)
+        bid[0::4] = open_arr
+        bid[1::4] = np.where(bullish, low_arr, high_arr)
+        bid[2::4] = np.where(bullish, high_arr, low_arr)
+        bid[3::4] = close_arr
 
-            native_spread_points = (
-                float(bar[spread_col]) if spread_col is not None and pd.notna(bar[spread_col]) else 0.0
+        if self.spread_model == "native_spread":
+            spread_points = np.repeat(np.maximum(native_spread_arr, 0.0), 4)
+        elif self.spread_model == "fixed_spread":
+            fixed = max(0.0, float(self.fixed_spread_points or 0.0))
+            spread_points = np.full(total_ticks, fixed, dtype=np.float64)
+        else:
+            low = float(self.min_spread_points or 0.0)
+            high = float(self.max_spread_points or 0.0)
+            spread_points = np.array(
+                [max(0.0, self._rng.uniform(low, high)) for _ in range(total_ticks)],
+                dtype=np.float64,
             )
-            volume = float(bar[volume_col]) if volume_col is not None and pd.notna(bar[volume_col]) else 0.0
 
-            entry_signal = float(bar[entry_col]) if entry_col is not None and pd.notna(bar[entry_col]) else 0.0
-            exit_signal = float(bar[exit_col]) if exit_col is not None and pd.notna(bar[exit_col]) else 0.0
-            pending_signal = (
-                float(bar[pending_col])
-                if pending_col is not None and pd.notna(bar[pending_col])
-                else 0.0
-            )
-            cancel_pending_signal = (
-                float(bar[cancel_pending_col])
-                if cancel_pending_col is not None and pd.notna(bar[cancel_pending_col])
-                else 0.0
-            )
-            sl_value = float(bar[sl_col]) if sl_col is not None and pd.notna(bar[sl_col]) else 0.0
-            tp_value = float(bar[tp_col]) if tp_col is not None and pd.notna(bar[tp_col]) else 0.0
+        ask = bid + (spread_points * self.point_value)
+        spread_int = np.rint(np.maximum(spread_points, 0.0)).astype(np.int64)
 
-            for i, px in enumerate(path):
-                spread_points = self._resolve_spread_points(native_spread_points)
-                spread_price = spread_points * self.point_value
-                tick_ts = ts + pd.to_timedelta(offsets_ms[i], unit="ms")
-                bid = float(px)
-                ask = float(px + spread_price)
-                row = {
-                    "datetime": tick_ts,
-                    "bid": bid,
-                    "ask": ask,
-                    "last": bid,
-                    "spread": self._spread_points_to_int(spread_points),
-                    "entry_signal": entry_signal if i == 0 else 0.0,
-                    "exit_signal": exit_signal if i == 0 else 0.0,
-                    "pending_signal": pending_signal if i == 0 else 0.0,
-                    "cancel_pending_signal": cancel_pending_signal if i == 0 else 0.0,
-                    "sl": sl_value if i == 0 else 0.0,
-                    "tp": tp_value if i == 0 else 0.0,
-                    "source_bar_time": ts,
-                    "tick_index_in_bar": i,
-                }
-                rows.append(row)
+        entry_signal = np.zeros(total_ticks, dtype=np.float64)
+        exit_signal = np.zeros(total_ticks, dtype=np.float64)
+        pending_signal = np.zeros(total_ticks, dtype=np.float64)
+        cancel_pending_signal = np.zeros(total_ticks, dtype=np.float64)
+        sl = np.zeros(total_ticks, dtype=np.float64)
+        tp = np.zeros(total_ticks, dtype=np.float64)
+        entry_signal[0::4] = entry_arr
+        exit_signal[0::4] = exit_arr
+        pending_signal[0::4] = pending_arr
+        cancel_pending_signal[0::4] = cancel_pending_arr
+        sl[0::4] = sl_arr
+        tp[0::4] = tp_arr
 
-        ticks = pd.DataFrame(rows)
-        ticks = ticks.set_index("datetime")
-        ticks.index = pd.DatetimeIndex(ticks.index, name="Datetime")
+        bar_times = bars.index.to_numpy(dtype="datetime64[ns]")
+        tick_times = (
+            np.repeat(bar_times.astype("int64"), 4)
+            + np.tile(offsets_ms * 1_000_000, n_bars)
+        )
+        datetime_index = pd.DatetimeIndex(
+            pd.to_datetime(tick_times),
+            name="Datetime",
+        )
+
+        ticks = pd.DataFrame(
+            {
+                "bid": bid,
+                "ask": ask,
+                "last": bid,
+                "spread": spread_int,
+                "entry_signal": entry_signal,
+                "exit_signal": exit_signal,
+                "pending_signal": pending_signal,
+                "cancel_pending_signal": cancel_pending_signal,
+                "sl": sl,
+                "tp": tp,
+                "source_bar_time": np.repeat(bar_times, 4),
+                "tick_index_in_bar": np.tile(np.array([0, 1, 2, 3], dtype=np.int64), n_bars),
+            },
+            index=datetime_index,
+        )
         ticks = ticks.sort_index()
         return ticks
 

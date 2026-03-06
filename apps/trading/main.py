@@ -7,6 +7,29 @@ from apps.mt5 import MT5Utils, get_mt5_api
 from apps.utils.logger import logger
 from apps.trading import core
 
+try:
+    from numba import njit
+except Exception:  # pragma: no cover - optional dependency fallback
+    njit = None
+
+
+if njit is not None:
+    @njit(cache=True)
+    def _process_ticks_numba(bid_values, ask_values):
+        processed = 0
+        for idx in range(bid_values.shape[0]):
+            # Keep per-tick value access in the hot loop skeleton.
+            _ = bid_values[idx] + ask_values[idx]
+            processed += 1
+        return processed
+else:
+    def _process_ticks_numba(bid_values, ask_values):
+        processed = 0
+        for idx in range(len(bid_values)):
+            _ = bid_values[idx] + ask_values[idx]
+            processed += 1
+        return processed
+
 
 class Engine:
     def __init__(self, backend="sim"):
@@ -28,6 +51,17 @@ class Engine:
             self.api = self.mt5
         else:
             raise ValueError(f"Unknown backend: {backend}")
+
+        # Optional callback scheduler for future run-loop orchestration.
+        # `None` disables a callback; positive int means "run every N ticks".
+        self.run_schedule = {
+            "positions": None,
+            "pending_orders": None,
+            "account": None,
+            "portfolio": None,
+            "risk": None,
+        }
+        self._schedule_state_dirty = True
 
         logger.info(f"successfully initialised trading engine {self.backend}")
 
@@ -255,15 +289,110 @@ class Engine:
     def order_send(self, request):
         return core.order_send(self.state, request)
 
+    @staticmethod
+    def _normalize_schedule_every(value):
+        if value is None:
+            return None
+        every = int(value)
+        if every <= 0:
+            raise ValueError("Schedule interval must be a positive integer or None.")
+        return every
+
+    def configure_run_schedule(
+        self,
+        positions_every=None,
+        pending_orders_every=None,
+        account_every=None,
+        portfolio_every=None,
+        risk_every=None,
+    ):
+        """Configure optional callback intervals for Engine.run tick scheduling."""
+        self.run_schedule["positions"] = self._normalize_schedule_every(positions_every)
+        self.run_schedule["pending_orders"] = self._normalize_schedule_every(
+            pending_orders_every
+        )
+        self.run_schedule["account"] = self._normalize_schedule_every(account_every)
+        self.run_schedule["portfolio"] = self._normalize_schedule_every(portfolio_every)
+        self.run_schedule["risk"] = self._normalize_schedule_every(risk_every)
+
+    @staticmethod
+    def _due_by_interval(tick_number: int, every):
+        return every is not None and (tick_number == 1 or tick_number % every == 0)
+
+    def _run_scheduled_callbacks(
+        self,
+        tick_number: int,
+    ):
+        schedule = self.run_schedule
+        state_changed = False
+
+        positions_every = schedule.get("positions")
+        positions_due = self._due_by_interval(tick_number, positions_every)
+        if positions_due:
+            if self._has_open_positions():
+                self.monitor_positions(verbose=False)
+                state_changed = True
+
+        pending_orders_every = schedule.get("pending_orders")
+        pending_due = self._due_by_interval(tick_number, pending_orders_every)
+        if pending_due:
+            if self._has_pending_orders():
+                self.monitor_pending_orders(verbose=False)
+                state_changed = True
+
+        if state_changed:
+            self._schedule_state_dirty = True
+
+        account_every = schedule.get("account")
+        account_due = self._due_by_interval(tick_number, account_every)
+        portfolio_every = schedule.get("portfolio")
+        portfolio_due = self._due_by_interval(tick_number, portfolio_every)
+        risk_every = schedule.get("risk")
+        risk_due = self._due_by_interval(tick_number, risk_every)
+
+        run_state_checks = self._schedule_state_dirty and (
+            account_due or portfolio_due or risk_due
+        )
+
+        if run_state_checks and account_due:
+            self.monitor_account(verbose=False)
+
+        if run_state_checks and portfolio_due:
+            self.monitor_portfolio(verbose=False)
+
+        if run_state_checks and risk_due:
+            self.monitor_risk(verbose=False)
+
+        if run_state_checks:
+            self._schedule_state_dirty = False
+
+    def _has_open_positions(self):
+        # Keep guard O(1) in simulator mode to avoid unnecessary monitor calls.
+        if self.backend == "sim":
+            return bool(self.state.trading_deals)
+        return True
+
+    def _has_pending_orders(self):
+        # Keep guard O(1) in simulator mode to avoid unnecessary monitor calls.
+        if self.backend == "sim":
+            return bool(self.state.trading_orders)
+        return True
+
     def run(self, data):
         """Simple backtest loop placeholder that iterates over tick data."""
         if data is None:
             return 0
 
-        if not hasattr(data, "columns") or not hasattr(data, "iterrows"):
+        if not hasattr(data, "columns"):
             raise ValueError("Engine.run expects a tick DataFrame input.")
 
-        cols_lower = {str(col).lower() for col in data.columns}
+        col_name_map = {}
+        for col in data.columns:
+            key = str(col).lower()
+            if key not in col_name_map:
+                col_name_map[key] = col
+
+        cols_lower = set(col_name_map.keys())
         required = {"bid", "ask"}
         missing = required - cols_lower
         if missing:
@@ -272,8 +401,23 @@ class Engine:
                 f"missing {sorted(missing)}."
             )
 
+        bid_col = col_name_map["bid"]
+        ask_col = col_name_map["ask"]
+        bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
+        ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
+
+        schedule_enabled = any(value is not None for value in self.run_schedule.values())
+        if not schedule_enabled:
+            processed = _process_ticks_numba(bid_values, ask_values)
+            return processed
+
+        self._schedule_state_dirty = True
         processed = 0
-        for _, _row in data.iterrows():
+        total_ticks = int(bid_values.shape[0])
+        for idx in range(total_ticks):
+            _ = bid_values[idx] + ask_values[idx]
+            tick_number = idx + 1
+            self._run_scheduled_callbacks(tick_number=tick_number)
             processed += 1
 
         return processed
@@ -303,6 +447,16 @@ class Engine:
         if self.backend == "mt5":
             self._sync_live_state_to_simulator_state()
         return core.monitor_account(self.state, verbose=verbose)
+
+    def monitor_portfolio(self, verbose: bool = False):
+        # Placeholder hook for future portfolio checks in Engine.run scheduler.
+        _ = verbose
+        return None
+
+    def monitor_risk(self, verbose: bool = False):
+        # Placeholder hook for future risk checks in Engine.run scheduler.
+        _ = verbose
+        return None
 
     def order_check(self, request):
         # order_check is not strictly required by simulator logic yet, 

@@ -22,13 +22,13 @@ audusd = "AUDUSD"
 eurgbp = "EURGBP"
 usdjpy = "USDJPY"
 timeframe = "H1"
-warmup_start_date = datetime(2024, 10, 1)  # 3 months of warmup data
-start_date = datetime(2025, 1, 1)
+warmup_start_date = datetime(2019, 10, 1)  # 3 months of warmup data
+start_date = datetime(2000, 1, 1)
 end_date = datetime(2025, 12, 31)
 stoploss = 10
 
 # Derived globals
-backend = "mt5"  # set to: "mt5" or "sim"
+backend = "sim"  # set to: "mt5" or "sim"
 engine_instance = Engine(backend=backend)
 api = engine_instance.api
 account = api.account_info()
@@ -394,7 +394,7 @@ def example_10_simple_backtest():
     # Load data from warmup_start_date to properly initialize indicators
     data = client.get_bars(
         symbol=test_symbol,
-        timeframe=timeframe,
+        timeframe="M1", # TODO: change to timeframe after speed tests
         date_from=warmup_start_date,
         date_to=end_date
     )
@@ -417,7 +417,7 @@ def example_10_simple_backtest():
     
     # Step 3: Pre-calculate signals (Vectorized/Pandas approach used by Strategy class)
     data = strategy.on_bar(data)
-    print(data)
+    #print(data)
 
     # Step 4: Cut data to start from start_date
     data = data[data.index >= start_date]
@@ -426,7 +426,7 @@ def example_10_simple_backtest():
         return
 
     # Keep comparison window small and identical across models.
-    compare_bars = data.tail(24).copy()  # ~1 day for H1 bars
+    compare_bars = data.tail(250000).copy()  # 24 = 1 day for H1 bars
 
     # Step 5: Convert bars data to ticks dataframe (multiple models)
     logger.info("\nConverting bars to ticks...")
@@ -436,35 +436,37 @@ def example_10_simple_backtest():
     compare_end = (
         compare_bars.index.max() + pd.Timedelta(minutes=59, seconds=59)
     ).to_pydatetime()
-    m1_data = client.get_bars(
-        symbol=test_symbol,
-        timeframe="M1",
-        date_from=compare_start,
-        date_to=compare_end,
-    )
-    if m1_data is not None and not m1_data.empty:
-        m1_data = m1_data[
-            (m1_data.index >= compare_bars.index.min())
-            & (m1_data.index <= compare_end)
-        ]
-    else:
-        m1_data = None
+    # m1_data = client.get_bars(
+    #     symbol=test_symbol,
+    #     timeframe="M1",
+    #     date_from=compare_start,
+    #     date_to=compare_end,
+    # )
+    # if m1_data is not None and not m1_data.empty:
+    #     m1_data = m1_data[
+    #         (m1_data.index >= compare_bars.index.min())
+    #         & (m1_data.index <= compare_end)
+    #     ]
+    # else:
+    #     m1_data = None
 
-    # Fetch real ticks over the exact same comparison window.
-    real_ticks_start = compare_start
-    real_ticks_end = compare_end
-    real_ticks = client.get_ticks(
-        symbol=test_symbol,
-        start=real_ticks_start,
-        end=real_ticks_end,
-        as_dataframe=True,
-    )
-    if real_ticks is not None and not real_ticks.empty:
-        if "timestamp" in real_ticks.columns:
-            real_ticks = real_ticks.set_index("timestamp")
-        real_ticks.index = real_ticks.index.tz_localize(None) if getattr(real_ticks.index, "tz", None) is not None else real_ticks.index
-    else:
-        real_ticks = None
+    # # Fetch real ticks over the exact same comparison window.
+    # real_ticks_start = compare_start
+    # real_ticks_end = compare_end
+    # real_ticks = client.get_ticks(
+    #     symbol=test_symbol,
+    #     start=real_ticks_start,
+    #     end=real_ticks_end,
+    #     as_dataframe=True,
+    # )
+    # if real_ticks is not None and not real_ticks.empty:
+    #     if "timestamp" in real_ticks.columns:
+    #         real_ticks = real_ticks.set_index("timestamp")
+    #     real_ticks.index = real_ticks.index.tz_localize(None) if getattr(real_ticks.index, "tz", None) is not None else real_ticks.index
+    # else:
+    #     real_ticks = None
+
+    start_tick = time.time()
 
     tick_model = "timeframe_ticks" # "real_ticks", "synthetic_ticks", "timeframe_ticks", "m1_ticks"
     spread_model = "native_spread" # "native_spread", "fixed_spread", "variable_spread"
@@ -472,8 +474,8 @@ def example_10_simple_backtest():
     ticks_generator = TicksGenerator(
         model=tick_model,
         trading_timeframe=timeframe,
-        m1_data=m1_data,
-        real_ticks=real_ticks,
+        # m1_data=m1_data,
+        # real_ticks=real_ticks,
         point_value=point_value,
         spread_model=spread_model,
     )
@@ -481,11 +483,26 @@ def example_10_simple_backtest():
     if ticks_data is None or ticks_data.empty:
         print(f"{tick_model}: no ticks generated (skipped)")
 
-    # Step 6: Run backtest
-    processed = engine_instance.run(ticks_data)
-    print(f"{tick_model}: processed {processed} ticks")
+    end_tick = time.time()
+    print(f"{tick_model}: generated {len(ticks_data)} ticks in {end_tick - start_tick} seconds")
 
-    print(ticks_data)
+    # Step 6: Run backtest
+    start_time = time.time()
+
+    engine_instance.configure_run_schedule(
+      positions_every=1,          # only if you must enforce SL/TP each tick
+      pending_orders_every=1,     # only if pending trigger must be tick-accurate     # only if you must enforce SL/TP each tick
+      account_every=4,            # every 4 ticks represent bar close (ex real and synthetic ticks)
+      portfolio_every=4,          
+      risk_every=4,               
+  )
+
+
+    processed = engine_instance.run(ticks_data)
+    end_time = time.time()
+    print(f"{tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
+
+    #print(ticks_data)
 
 
     
