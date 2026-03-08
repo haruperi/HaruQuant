@@ -1172,3 +1172,37 @@
 - Example usage:
   - `examples/trading/trade_example.py::example_14_trade_results_report()`
 
+## Python Trading Engine Multi-Symbol Portfolio V1
+
+- `Engine.run(...)` still processes one chronological tick DataFrame, but V1 portfolio backtests can now concatenate multiple symbol tick streams into one merged timeline.
+- Portfolio tick contract:
+  - existing execution columns remain unchanged
+  - `symbol` is required for merged multi-symbol runs
+  - optional metadata such as `signal_timeframe` can be attached for reporting/debugging
+- Preparation flow stays outside the engine:
+  - fetch bars per symbol
+  - run strategy per symbol
+  - convert to ticks per symbol
+  - add `symbol` metadata
+  - concatenate and stable-sort by timestamp before `Engine.run(...)`
+- Shared-account behavior remains unchanged:
+  - one account/equity/margin pool
+  - global schedules for position, pending, account, portfolio, and risk checks
+- Reference example:
+  - `examples/trading/trade_example.py::example_13_simple_portfolion_backtest()`
+
+## Python Trading Engine Multi-Timeframe Phase 2 Direction
+
+- Phase 2 still builds on the V1 merged portfolio stream rather than replacing it.
+- Multi-timeframe processing is intended to happen at the individual symbol strategy-preparation level, not inside `Engine.run(...)`.
+- Planned direction:
+  - fetch bars per symbol and per required timeframe before signal generation
+  - let each strategy incorporate its own higher-timeframe context into the symbol's final signalized bars
+  - convert those already multi-timeframe-aware signal bars into ticks
+  - merge symbol tick streams only after multi-timeframe signal generation is complete
+  - keep one shared `Engine.run(...)` timeline for execution/account simulation
+- Deferred from V1 on purpose:
+  - arbitrary timeframe bundles inside `Engine.run(...)`
+  - strategy callbacks that consume multi-symbol data directly
+  - symbol-specific scheduling or per-symbol monitor cadence
+

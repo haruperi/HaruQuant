@@ -798,6 +798,7 @@ class Engine:
         sl_values = self._signal_to_float_array(data, col_name_map, ["sl", "stop_loss"])
         tp_values = self._signal_to_float_array(data, col_name_map, ["tp", "take_profit"])
         symbol_values = self._signal_to_object_array(data, col_name_map, ["symbol"])
+        portfolio_run = False
 
         has_signal_cols = any(
             arr is not None
@@ -818,6 +819,30 @@ class Engine:
 
         symbol_map = self._build_symbol_map()
         default_symbol = self._default_run_symbol()
+        if symbol_values is not None:
+            symbol_series = (
+                data[col_name_map["symbol"]]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+            unique_symbols = tuple(sym for sym in symbol_series.unique().tolist() if sym)
+            portfolio_run = len(unique_symbols) > 1
+            if portfolio_run:
+                if not unique_symbols:
+                    raise ValueError(
+                        "Portfolio Engine.run expects non-empty symbol values in the tick DataFrame."
+                    )
+                missing_symbols = [sym for sym in unique_symbols if sym not in symbol_map]
+                if missing_symbols:
+                    raise ValueError(
+                        "Portfolio Engine.run received unknown symbols: "
+                        f"{sorted(missing_symbols)}"
+                    )
+                if (symbol_series == "").any():
+                    raise ValueError(
+                        "Portfolio Engine.run requires every tick row to include a non-empty symbol."
+                    )
 
         self._schedule_state_dirty = True
         run_position_size = (
@@ -850,6 +875,10 @@ class Engine:
                     self.state.current_tick_epoch = None
 
                 symbol_name = self._resolve_tick_symbol(idx, symbol_values, default_symbol)
+                if portfolio_run and not symbol_name:
+                    raise ValueError(
+                        f"Portfolio Engine.run could not resolve symbol at tick index {idx}."
+                    )
                 self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
 
                 entry_signal = 0.0 if entry_values is None else float(entry_values[idx])
