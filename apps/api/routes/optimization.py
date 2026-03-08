@@ -15,11 +15,6 @@ from fastapi import (
 
 from apps.api.websocket import optimization_progress_manager
 from apps.utils.logger import logger
-from apps.optimization.core import (
-    run_monte_carlo_task,
-    run_optimization_task,
-    run_walk_forward_task,
-)
 from apps.optimization.models import (
     ConsecutiveLosingRequest,
     ConsecutiveLosingResponse,
@@ -142,6 +137,8 @@ async def start_optimization(
         )
 
         logger.info(f"Created optimization run {optimization_id}")
+
+        from apps.optimization.core import run_optimization_task
 
         # Add background task
         background_tasks.add_task(
@@ -320,6 +317,8 @@ async def start_walk_forward(
             status="pending",
         )
 
+        from apps.optimization.core import run_walk_forward_task
+
         # Add background task
         background_tasks.add_task(
             run_walk_forward_task,
@@ -360,6 +359,8 @@ async def start_monte_carlo(
             block_size=request.block_size,
             random_seed=request.random_seed,
         )
+
+        from apps.optimization.core import run_monte_carlo_task
 
         # Add background task
         background_tasks.add_task(

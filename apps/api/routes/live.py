@@ -43,7 +43,6 @@ from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.mt5.util import MT5Utils
 from apps.sqlite.database_operations import DatabaseManager
-from apps.mt5 import AccountInfo
 
 mt5 = get_mt5_api()
 
@@ -506,12 +505,14 @@ def _get_account_snapshot() -> Dict[str, Any]:
     }
 
     if global_mt5_client.is_connected():
-        account_info = AccountInfo(api=global_mt5_client)
-        account_snapshot["current_equity"] = float(account_info.Equity())
-        account_snapshot["current_balance"] = float(account_info.Balance())
-        account_snapshot["account_name"] = account_info.Name()
-        account_snapshot["account_server"] = account_info.Server()
-        account_snapshot["account_login"] = account_info.Login()
+        account_info = mt5.account_info()
+        if account_info is not None:
+            row = account_info._asdict() if hasattr(account_info, "_asdict") else {}
+            account_snapshot["current_equity"] = float(row.get("equity", 0.0) or 0.0)
+            account_snapshot["current_balance"] = float(row.get("balance", 0.0) or 0.0)
+            account_snapshot["account_name"] = row.get("name")
+            account_snapshot["account_server"] = row.get("server")
+            account_snapshot["account_login"] = row.get("login")
 
     return account_snapshot
 

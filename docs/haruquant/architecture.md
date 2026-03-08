@@ -2,6 +2,17 @@
 
 ## Trading Engine Tick Loop (Python Skeleton)
 
+## API Backtest Runtime
+
+- `apps/api/routes/simulator.py` now owns both `/api/simulator` and `/api/backtest` routes and uses the current trading engine path instead of the removed `apps.simulation` package.
+- API backtests follow the same flow as the trading examples:
+  - load bars
+  - run `strategy.on_bar(...)`
+  - generate ticks with `TicksGenerator`
+  - execute ticks through `apps/trading/main.py -> Engine.run(...)`
+  - save completed trades and equity curve through the SQLite backtest tables
+- Multi-symbol portfolio API backtests merge per-symbol tick streams into one stable chronological DataFrame before calling `Engine.run(...)`.
+
 - Runtime entrypoint: `apps/trading/main.py -> Engine.run(data)`.
 - Current skeleton expects tick-like DataFrame input with `bid` and `ask` columns.
 - Hot loop path uses:
@@ -35,6 +46,17 @@
   - uses `client.order_calc_profit(...)` and `client.order_calc_margin(...)`
   - no approximation fallback in Engine-driven execution paths; missing/failed access raises runtime error.
 - Tick generation path (`apps/utils/data_manipulator.py -> TicksGenerator._generate_timeframe_ticks`) now builds output columns from NumPy arrays (4 ticks per bar) instead of Python `iterrows()` + dict appends, preserving the same output schema while reducing generation overhead.
+
+## API Live Runtime
+
+- `apps/api/routes/dashboard/market_hours.py` now uses stdlib `zoneinfo` instead of `pytz`, so dashboard market-hours no longer depends on an extra package at API startup.
+- `apps/api/routes/optimization.py` now lazy-imports heavy optimization workers so the optimization router can load at startup even though deeper optimization internals still need migration off the removed `apps.simulation` package.
+- `apps/api/routes/live.py` now imports cleanly against the current MT5/trading stack instead of the removed MT5 wrapper classes.
+- Live modules under `apps/live` now use:
+  - raw `client.account_info()` account snapshots
+  - raw `client.symbol_info(symbol)` symbol snapshots
+  - `apps/trading/trade.py -> Trade` for order execution helpers
+- `apps/live/mt5_compat.py` provides the small compatibility accessors used by the live layer so the rest of the live flow can stay structurally unchanged.
 
 ## Simulator Risk Integration
 
@@ -1229,4 +1251,12 @@
   - arbitrary timeframe bundles inside `Engine.run(...)`
   - strategy callbacks that consume multi-symbol data directly
   - symbol-specific scheduling or per-symbol monitor cadence
+
+
+## Optimization Engine Path
+
+- `apps/optimization/execution.py` is the shared bridge from optimization methods into `apps/trading.Engine`.
+- Grid, random, Bayesian, genetic, and walk-forward optimization now run strategy bars through `strategy.on_bar(...)`, convert to `timeframe_ticks` with `TicksGenerator`, then execute with `Engine.run(...)`.
+- Optimization methods no longer depend on `apps.simulation` for these execution paths.
+- Result scoring now reads the engine's completed trade records and equity curve, then derives optimization metrics with the existing `apps.finance` helpers.
 

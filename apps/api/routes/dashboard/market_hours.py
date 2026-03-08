@@ -1,9 +1,8 @@
 """Market Hours API endpoint."""
 
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from typing import List, Optional, TypedDict
-
-import pytz  # type: ignore[import-untyped]
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter
 
 from apps.api.models import MarketHoursResponse, MarketStatus
@@ -146,7 +145,7 @@ def get_market_message(
 @router.get("/market-hours", response_model=MarketHoursResponse)
 async def get_market_hours():
     """Get status of major financial markets."""
-    utc_now = datetime.now(pytz.UTC)
+    utc_now = datetime.now(timezone.utc)
 
     class MarketConfig(TypedDict, total=False):
         name: str
@@ -198,7 +197,7 @@ async def get_market_hours():
     market_statuses = []
 
     for market in markets_config:
-        tz = pytz.timezone(market["timezone"])
+        tz = ZoneInfo(market["timezone"])
         local_now = utc_now.astimezone(tz)
 
         is_open = is_market_open(
@@ -224,8 +223,8 @@ async def get_market_hours():
         today_date = local_now.date()
 
         # Combine date and time, and localize
-        open_dt = tz.localize(datetime.combine(today_date, market["open"]))
-        close_dt = tz.localize(datetime.combine(today_date, market["close"]))
+        open_dt = datetime.combine(today_date, market["open"], tzinfo=tz)
+        close_dt = datetime.combine(today_date, market["close"], tzinfo=tz)
 
         market_statuses.append(
             MarketStatus(

@@ -10,7 +10,6 @@ from apps.api.models import BrokerStatusResponse
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
-from apps.mt5 import AccountInfo
 
 router = APIRouter()
 db_manager = DatabaseManager()
@@ -145,8 +144,8 @@ async def get_broker_status(authorization: Annotated[Optional[str], Header()] = 
                 free_margin=0.0,
             )
 
-        account = AccountInfo()
-        if account.Login() == 0:
+        account = client.account_info()
+        if account is None:
             return BrokerStatusResponse(
                 status="Connected",
                 broker_name=_last_server or "Unknown",
@@ -159,10 +158,10 @@ async def get_broker_status(authorization: Annotated[Optional[str], Header()] = 
         return BrokerStatusResponse(
             status="Connected",
             broker_name=_last_server or "Unknown Broker",
-            equity=float(account.Equity()),
-            balance=float(account.Balance()),
-            margin_level=float(account.MarginLevel()),
-            free_margin=float(account.FreeMargin()),
+            equity=float(getattr(account, "equity", 0.0) or 0.0),
+            balance=float(getattr(account, "balance", 0.0) or 0.0),
+            margin_level=float(getattr(account, "margin_level", 0.0) or 0.0),
+            free_margin=float(getattr(account, "margin_free", 0.0) or 0.0),
         )
 
     except Exception as e:

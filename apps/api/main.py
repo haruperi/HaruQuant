@@ -1,6 +1,7 @@
 """FastAPI application main entry point."""
 
 from contextlib import asynccontextmanager
+import importlib
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,43 +11,28 @@ from apps.api.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
     auth,
-    backtest,
     docs,
-    edge,
-    live,
-    optimization,
     settings,
     simulator,
     sqx,
     strategies,
 )
-from .routes.dashboard import broker as dashboard_broker
-from .routes.dashboard import currency_strength as dashboard_currency_strength
-from .routes.dashboard import market_hours as dashboard_market_hours
-from .routes.dashboard import system as dashboard_system
-from .routes.data import datasets as data_datasets
-from .routes.data import ingestion as data_ingestion
-from .routes.reports import trades  # Moved here
-from .routes.reports import (
-    consecutive_winners_losers,
-    equity_curve,
-    equity_performance,
-    losing_trades,
-    outliers,
-    performance_ratio_chart,
-    performance_ratios,
-    periodical_analysis,
-    risk_distribution,
-    runup_drawdown,
-    series_analysis,
-    series_stats,
-    strategy_performance,
-    time_analysis,
-    total_analysis,
-    total_trades,
-    trade_list,
-    winning_trades,
-)
+
+def _optional_import(module_path: str, label: str):
+    try:
+        return importlib.import_module(module_path, package=__package__)
+    except Exception as exc:
+        logger.warning(f"{label} disabled during API startup: {exc}")
+        return None
+
+
+optimization = _optional_import('.routes.optimization', 'Optimization route')
+live = _optional_import('.routes.live', 'Live route')
+edge = _optional_import('.routes.edge', 'Edge route')
+dashboard_broker = _optional_import('.routes.dashboard.broker', 'Dashboard broker route')
+dashboard_currency_strength = _optional_import('.routes.dashboard.currency_strength', 'Dashboard currency-strength route')
+dashboard_market_hours = _optional_import('.routes.dashboard.market_hours', 'Dashboard market-hours route')
+dashboard_system = _optional_import('.routes.dashboard.system', 'Dashboard system route')
 
 
 @asynccontextmanager
@@ -93,55 +79,30 @@ app.add_middleware(
 )
 app.add_middleware(SecretRedactionMiddleware)
 
+def _include_optional_router(app: FastAPI, module, prefix: str, tags: list[str]) -> None:
+    if module is not None:
+        app.include_router(module.router, prefix=prefix, tags=tags)
+
+
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
-app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
-app.include_router(live.router, prefix="/api/live", tags=["live"])
-app.include_router(
-    optimization.router, prefix="/api/optimization", tags=["optimization"]
-)
+app.include_router(simulator.backtest_router, prefix="/api/backtest", tags=["backtest"])
+app.include_router(simulator.router, prefix="/api/simulator", tags=["simulator"])
+_include_optional_router(app, live, prefix="/api/live", tags=["live"])
+_include_optional_router(app, optimization, prefix="/api/optimization", tags=["optimization"])
 
 # Dashboard Routes
-app.include_router(dashboard_broker.router, prefix="/api/dashboard", tags=["dashboard"])
-app.include_router(dashboard_system.router, prefix="/api/dashboard", tags=["dashboard"])
-app.include_router(
-    dashboard_market_hours.router, prefix="/api/dashboard", tags=["dashboard"]
-)
-app.include_router(
-    dashboard_currency_strength.router, prefix="/api/dashboard", tags=["dashboard"]
-)
+_include_optional_router(app, dashboard_broker, prefix="/api/dashboard", tags=["dashboard"])
+_include_optional_router(app, dashboard_system, prefix="/api/dashboard", tags=["dashboard"])
+_include_optional_router(app, dashboard_market_hours, prefix="/api/dashboard", tags=["dashboard"])
+_include_optional_router(app, dashboard_currency_strength, prefix="/api/dashboard", tags=["dashboard"])
 
-app.include_router(trades.router, prefix="/api/reports/trades", tags=["trades"])
-app.include_router(data_ingestion.router, prefix="/api/data", tags=["data-management"])
-app.include_router(data_datasets.router, prefix="/api/data", tags=["data-management"])
 app.include_router(docs.router, prefix="/api/docs", tags=["docs"])
-app.include_router(edge.router, prefix="/api/edge-lab", tags=["edge-lab"])
-app.include_router(strategy_performance.router, prefix="/api/reports", tags=["reports"])
-app.include_router(performance_ratios.router, prefix="/api/reports", tags=["reports"])
-app.include_router(time_analysis.router, prefix="/api/reports", tags=["reports"])
-app.include_router(equity_curve.router, prefix="/api/reports", tags=["reports"])
-app.include_router(trade_list.router, prefix="/api/reports", tags=["reports"])
-app.include_router(total_trades.router, prefix="/api/reports", tags=["reports"])
-app.include_router(winning_trades.router, prefix="/api/reports", tags=["reports"])
-app.include_router(losing_trades.router, prefix="/api/reports", tags=["reports"])
-app.include_router(total_analysis.router, prefix="/api/reports", tags=["reports"])
-app.include_router(outliers.router, prefix="/api/reports", tags=["reports"])
-app.include_router(runup_drawdown.router, prefix="/api/reports", tags=["reports"])
-app.include_router(series_analysis.router, prefix="/api/reports", tags=["reports"])
-app.include_router(series_stats.router, prefix="/api/reports", tags=["reports"])
-app.include_router(periodical_analysis.router, prefix="/api/reports", tags=["reports"])
-app.include_router(equity_performance.router, prefix="/api/reports", tags=["reports"])
-app.include_router(
-    consecutive_winners_losers.router, prefix="/api/reports", tags=["reports"]
-)
-app.include_router(
-    performance_ratio_chart.router, prefix="/api/reports", tags=["reports"]
-)
-app.include_router(risk_distribution.router, prefix="/api/reports", tags=["reports"])
+_include_optional_router(app, edge, prefix="/api/edge-lab", tags=["edge-lab"])
 
 
 @app.get("/api/health")
@@ -149,6 +110,4 @@ async def health_check():
     """Return health check status."""
     return {"status": "healthy", "service": "haruquant-api"}
 
-
-app.include_router(simulator.router, prefix="/api/simulator", tags=["simulator"])
 

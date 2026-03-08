@@ -8,7 +8,17 @@ from typing import Tuple
 
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
-from apps.mt5 import AccountInfo, SymbolInfo
+from apps.live.mt5_compat import (
+    account_balance,
+    account_margin_level,
+    account_trade_allowed,
+    account_trade_expert,
+    symbol_name,
+    symbol_trade_mode_description,
+    symbol_volume_max,
+    symbol_volume_min,
+    symbol_volume_step,
+)
 
 
 class SafetyChecker:
@@ -17,8 +27,8 @@ class SafetyChecker:
     def __init__(
         self,
         client: MT5Client,
-        account: AccountInfo,
-        symbol_info: SymbolInfo,
+        account: object,
+        symbol_info: object,
         min_balance: float,
         min_margin_level: float,
     ):
@@ -118,26 +128,26 @@ class SafetyChecker:
         """
         try:
             # Check if trading is allowed
-            if not self.account.TradeAllowed():
+            if not account_trade_allowed(self.account):
                 reason = "Trading not allowed on this account"
                 logger.error(reason)
                 return False, reason
 
             # Check if expert trading is allowed
-            if not self.account.TradeExpert():
+            if not account_trade_expert(self.account):
                 reason = "Expert/automated trading not allowed"
                 logger.error(reason)
                 return False, reason
 
             # Check balance
-            balance = self.account.Balance()
+            balance = account_balance(self.account)
             if balance < self.min_balance:
                 reason = f"Balance too low: {balance} < {self.min_balance}"
                 logger.error(reason)
                 return False, reason
 
             # Check margin level
-            margin_level = self.account.MarginLevel()
+            margin_level = account_margin_level(self.account)
             if margin_level > 0 and margin_level < self.min_margin_level:
                 reason = f"Margin level too low: {margin_level:.2f}% < {self.min_margin_level}%"
                 logger.error(reason)
@@ -161,10 +171,10 @@ class SafetyChecker:
         """
         try:
             # Check if symbol trading is enabled
-            trade_mode_value = str(self.symbol_info.TradeModeDescription())
+            trade_mode_value = symbol_trade_mode_description(self.symbol_info)
             if "disabled" in trade_mode_value.lower():
-                symbol_name = str(self.symbol_info.Name())
-                reason = f"Trading disabled for {symbol_name}"
+                symbol_label = symbol_name(self.symbol_info)
+                reason = f"Trading disabled for {symbol_label}"
                 logger.error(reason)
                 return False, reason
 
@@ -190,9 +200,9 @@ class SafetyChecker:
             Tuple of (passed: bool, reason: str)
         """
         try:
-            min_vol = self.symbol_info.LotsMin()
-            max_vol = self.symbol_info.LotsMax()
-            step_vol = self.symbol_info.LotsStep()
+            min_vol = symbol_volume_min(self.symbol_info)
+            max_vol = symbol_volume_max(self.symbol_info)
+            step_vol = symbol_volume_step(self.symbol_info)
 
             # Check minimum
             if volume < min_vol:
