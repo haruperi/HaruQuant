@@ -24,7 +24,10 @@ class SignalDict(TypedDict, total=False):
         exit_signal: 1 (Exit Buy), -1 (Exit Sell), 0 (None)
         pending_signal: 1 (Buy Stop), -1 (Sell Stop), 2 (Buy Limit), -2 (Sell Limit), 0 (None)
         cancel_pending_signal: 1 (Cancel Buy Stop), -1 (Cancel Sell Stop), ...
+        pending_signal_2: optional second pending leg
+        cancel_pending_signal_2: optional cancel for second pending leg
         price: Price for entry/pending
+        price_2: Price for second pending leg
         stop_loss: Preventative stop loss
         take_profit: Profit target
         reason: Text description of the signal
@@ -35,7 +38,10 @@ class SignalDict(TypedDict, total=False):
     exit_signal: Optional[int]
     pending_signal: Optional[int]
     cancel_pending_signal: Optional[int]
+    pending_signal_2: Optional[int]
+    cancel_pending_signal_2: Optional[int]
     price: Optional[float]
+    price_2: Optional[float]
     stop_loss: Optional[float]
     take_profit: Optional[float]
     reason: Optional[str]
@@ -61,7 +67,8 @@ class BaseStrategy(ABC):
     - exit_signal: 1 (Exit Buy), -1 (Exit Sell)
     - pending_signal: 1 (Buy Stop), -1 (Sell Stop), 2 (Buy Limit), -2 (Sell Limit)
     - cancel_pending_signal: matching pending enum
-    - price: Price for entries/pendings
+    - pending_signal_2 / cancel_pending_signal_2: optional second pending leg
+    - price / price_2: Price for entries/pendings
     """
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
@@ -167,8 +174,10 @@ class BaseStrategy(ABC):
         exit_sig = row.get("exit_signal", 0) or 0
         pending = row.get("pending_signal", 0) or 0
         cancel = row.get("cancel_pending_signal", 0) or 0
+        pending_2 = row.get("pending_signal_2", 0) or 0
+        cancel_2 = row.get("cancel_pending_signal_2", 0) or 0
 
-        if entry == 0 and exit_sig == 0 and pending == 0 and cancel == 0:
+        if entry == 0 and exit_sig == 0 and pending == 0 and cancel == 0 and pending_2 == 0 and cancel_2 == 0:
             return None
 
         # Build basic signal dict - strategy implementations can override to add specific reasons/SL/TP
@@ -177,8 +186,13 @@ class BaseStrategy(ABC):
             "exit_signal": int(exit_sig),
             "pending_signal": int(pending),
             "cancel_pending_signal": int(cancel),
+            "pending_signal_2": int(pending_2),
+            "cancel_pending_signal_2": int(cancel_2),
             "price": (
                 float(row.get("price", 0.0)) if pd.notna(row.get("price")) else None
+            ),
+            "price_2": (
+                float(row.get("price_2", 0.0)) if pd.notna(row.get("price_2")) else None
             ),
             "time": data.index[index],
             "reason": "Signal detected",

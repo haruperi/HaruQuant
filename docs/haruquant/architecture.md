@@ -22,6 +22,14 @@
   - `cancel_pending_signal`: cancels matching pending order type for the same symbol
 - `Engine.run(data, position_size=...)` can override per-run signal order volume (fallback is engine default `0.01`).
 - `Engine.run(..., monitor_verbose=...)` controls verbosity passed to scheduled monitor callbacks (`monitor_positions`, `monitor_pending_orders`, `monitor_account`, `monitor_portfolio`, `monitor_risk`).
+- `Engine.run(..., show_progress=True, progress_desc="Tester Progress")` can render a `tqdm` progress bar while the Python orchestration loop processes ticks.
+- Tick signal schema now supports an optional second pending leg for breakout-style strategies:
+  - `pending_signal_2`, `cancel_pending_signal_2`, `price_2`
+  - `Engine.run(...)` applies both legs in the same tick, after cancel signals and before scheduled monitors
+  - `TicksGenerator` propagates these columns from bars to generated ticks
+- `core.monitor_pending_orders(...)` now enforces one-symbol breakout behavior when a pending triggers:
+  - closes any existing open position for that symbol before opening the triggered side
+  - removes sibling pending orders for that symbol after a successful trigger
 - Signal execution uses `core.order_send(...)` and keeps scheduler callbacks unchanged.
 - In `Engine` simulation flow, profit/margin calculations are now strict MT5-based:
   - uses `client.order_calc_profit(...)` and `client.order_calc_margin(...)`

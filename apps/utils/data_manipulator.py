@@ -602,7 +602,7 @@ def create_signal_mapping(
     Args:
         trading_tf_data: DataFrame with signals on trading timeframe (e.g., H1)
                         Must have columns: entry_signal, exit_signal
-                        Optional columns: pending_signal, cancel_pending_signal, sl, tp
+                        Optional columns: pending_signal, cancel_pending_signal, pending_signal_2, cancel_pending_signal_2, price, price_2, sl, tp
         m1_data: DataFrame with M1 bars
 
     Returns:
@@ -613,6 +613,10 @@ def create_signal_mapping(
                 "exit_signal": float,
                 "pending_signal": float,
                 "cancel_pending_signal": float,
+                "pending_signal_2": float,
+                "cancel_pending_signal_2": float,
+                "price": float,
+                "price_2": float,
                 "sl": float,
                 "tp": float
             }
@@ -641,6 +645,10 @@ def create_signal_mapping(
     # Check for optional columns
     has_pending_signal = "pending_signal" in trading_tf_data.columns
     has_cancel_pending_signal = "cancel_pending_signal" in trading_tf_data.columns
+    has_pending_signal_2 = "pending_signal_2" in trading_tf_data.columns
+    has_cancel_pending_signal_2 = "cancel_pending_signal_2" in trading_tf_data.columns
+    has_price = "price" in trading_tf_data.columns
+    has_price_2 = "price_2" in trading_tf_data.columns
     has_sl = "sl" in trading_tf_data.columns
     has_tp = "tp" in trading_tf_data.columns
 
@@ -701,6 +709,26 @@ def create_signal_mapping(
                     if has_cancel_pending_signal
                     else 0.0
                 ),
+                "pending_signal_2": (
+                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "pending_signal_2"]))
+                    if has_pending_signal_2
+                    else 0.0
+                ),
+                "cancel_pending_signal_2": (
+                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "cancel_pending_signal_2"]))
+                    if has_cancel_pending_signal_2
+                    else 0.0
+                ),
+                "price": (
+                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "price"]))
+                    if has_price
+                    else 0.0
+                ),
+                "price_2": (
+                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "price_2"]))
+                    if has_price_2
+                    else 0.0
+                ),
                 "sl": (
                     float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "sl"]))
                     if has_sl
@@ -719,6 +747,10 @@ def create_signal_mapping(
                 "exit_signal": 0.0,
                 "pending_signal": 0.0,
                 "cancel_pending_signal": 0.0,
+                "pending_signal_2": 0.0,
+                "cancel_pending_signal_2": 0.0,
+                "price": 0.0,
+                "price_2": 0.0,
                 "sl": 0.0,
                 "tp": 0.0,
             }
@@ -830,6 +862,10 @@ class TicksGenerator:
                     "exit_signal",
                     "pending_signal",
                     "cancel_pending_signal",
+                    "pending_signal_2",
+                    "cancel_pending_signal_2",
+                    "price",
+                    "price_2",
                     "sl",
                     "tp",
                     "source_bar_time",
@@ -850,6 +886,10 @@ class TicksGenerator:
         exit_col = self._find_col(bars, ["exit_signal"])
         pending_col = self._find_col(bars, ["pending_signal"])
         cancel_pending_col = self._find_col(bars, ["cancel_pending_signal"])
+        pending_col_2 = self._find_col(bars, ["pending_signal_2"])
+        cancel_pending_col_2 = self._find_col(bars, ["cancel_pending_signal_2"])
+        price_col = self._find_col(bars, ["price"])
+        price_col_2 = self._find_col(bars, ["price_2"])
         sl_col = self._find_col(bars, ["sl"])
         tp_col = self._find_col(bars, ["tp"])
 
@@ -897,6 +937,10 @@ class TicksGenerator:
         exit_arr = _bar_col_or_zeros(exit_col)
         pending_arr = _bar_col_or_zeros(pending_col)
         cancel_pending_arr = _bar_col_or_zeros(cancel_pending_col)
+        pending_arr_2 = _bar_col_or_zeros(pending_col_2)
+        cancel_pending_arr_2 = _bar_col_or_zeros(cancel_pending_col_2)
+        price_arr = _bar_col_or_zeros(price_col)
+        price_arr_2 = _bar_col_or_zeros(price_col_2)
         sl_arr = _bar_col_or_zeros(sl_col)
         tp_arr = _bar_col_or_zeros(tp_col)
 
@@ -935,12 +979,20 @@ class TicksGenerator:
         exit_signal = np.zeros(total_ticks, dtype=np.float64)
         pending_signal = np.zeros(total_ticks, dtype=np.float64)
         cancel_pending_signal = np.zeros(total_ticks, dtype=np.float64)
+        pending_signal_2 = np.zeros(total_ticks, dtype=np.float64)
+        cancel_pending_signal_2 = np.zeros(total_ticks, dtype=np.float64)
+        price = np.zeros(total_ticks, dtype=np.float64)
+        price_2 = np.zeros(total_ticks, dtype=np.float64)
         sl = np.zeros(total_ticks, dtype=np.float64)
         tp = np.zeros(total_ticks, dtype=np.float64)
         entry_signal[0::4] = entry_arr
         exit_signal[0::4] = exit_arr
         pending_signal[0::4] = pending_arr
         cancel_pending_signal[0::4] = cancel_pending_arr
+        pending_signal_2[0::4] = pending_arr_2
+        cancel_pending_signal_2[0::4] = cancel_pending_arr_2
+        price[0::4] = price_arr
+        price_2[0::4] = price_arr_2
         sl[0::4] = sl_arr
         tp[0::4] = tp_arr
 
@@ -964,6 +1016,10 @@ class TicksGenerator:
                 "exit_signal": exit_signal,
                 "pending_signal": pending_signal,
                 "cancel_pending_signal": cancel_pending_signal,
+                "pending_signal_2": pending_signal_2,
+                "cancel_pending_signal_2": cancel_pending_signal_2,
+                "price": price,
+                "price_2": price_2,
                 "sl": sl,
                 "tp": tp,
                 "source_bar_time": np.repeat(bar_times, 4),
@@ -997,6 +1053,10 @@ class TicksGenerator:
             "exit_signal",
             "pending_signal",
             "cancel_pending_signal",
+            "pending_signal_2",
+            "cancel_pending_signal_2",
+            "price",
+            "price_2",
             "sl",
             "tp",
         ):
@@ -1024,6 +1084,10 @@ class TicksGenerator:
         m1["exit_signal"] = 0.0
         m1["pending_signal"] = 0.0
         m1["cancel_pending_signal"] = 0.0
+        m1["pending_signal_2"] = 0.0
+        m1["cancel_pending_signal_2"] = 0.0
+        m1["price"] = 0.0
+        m1["price_2"] = 0.0
         m1["sl"] = 0.0
         m1["tp"] = 0.0
         for ts in m1.index:
@@ -1038,6 +1102,10 @@ class TicksGenerator:
             m1.at[ts, "cancel_pending_signal"] = float(
                 mapped.get("cancel_pending_signal", 0.0) or 0.0
             )
+            m1.at[ts, "pending_signal_2"] = float(mapped.get("pending_signal_2", 0.0) or 0.0)
+            m1.at[ts, "cancel_pending_signal_2"] = float(mapped.get("cancel_pending_signal_2", 0.0) or 0.0)
+            m1.at[ts, "price"] = float(mapped.get("price", 0.0) or 0.0)
+            m1.at[ts, "price_2"] = float(mapped.get("price_2", 0.0) or 0.0)
             m1.at[ts, "sl"] = float(mapped.get("sl", 0.0) or 0.0)
             m1.at[ts, "tp"] = float(mapped.get("tp", 0.0) or 0.0)
         return m1

@@ -12,6 +12,11 @@ try:
 except Exception:  # pragma: no cover - optional dependency fallback
     njit = None
 
+try:
+    from tqdm.auto import tqdm
+except Exception:  # pragma: no cover - optional dependency fallback
+    tqdm = None
+
 
 if njit is not None:
     @njit(cache=True)
@@ -556,7 +561,10 @@ class Engine:
         exit_signal,
         pending_signal,
         cancel_pending_signal,
+        pending_signal_2=0.0,
+        cancel_pending_signal_2=0.0,
         signal_price=0.0,
+        signal_price_2=0.0,
         sl=0.0,
         tp=0.0,
         volume=None,
@@ -569,6 +577,8 @@ class Engine:
         if self._exec_exit_signal(symbol_name, exit_signal, bid, ask, verbose=verbose):
             state_changed = True
         if self._exec_cancel_pending_signal(symbol_name, cancel_pending_signal, verbose=verbose):
+            state_changed = True
+        if self._exec_cancel_pending_signal(symbol_name, cancel_pending_signal_2, verbose=verbose):
             state_changed = True
         if self._exec_entry_signal(
             symbol_name,
@@ -587,6 +597,18 @@ class Engine:
             bid,
             ask,
             signal_price=signal_price,
+            sl=sl,
+            tp=tp,
+            volume=volume,
+            verbose=verbose,
+        ):
+            state_changed = True
+        if self._exec_pending_signal(
+            symbol_name,
+            pending_signal_2,
+            bid,
+            ask,
+            signal_price=signal_price_2,
             sl=sl,
             tp=tp,
             volume=volume,
@@ -685,7 +707,14 @@ class Engine:
             return bool(self.state.trading_orders)
         return True
 
-    def run(self, data, position_size=None, monitor_verbose: bool = False):
+    def run(
+        self,
+        data,
+        position_size=None,
+        monitor_verbose: bool = False,
+        show_progress: bool = False,
+        progress_desc: str = "Tester Progress",
+    ):
         """Simple backtest loop placeholder that iterates over tick data."""
         if data is None:
             return 0
@@ -722,6 +751,11 @@ class Engine:
             data, col_name_map, ["cancel_pending_signal"]
         )
         signal_price_values = self._signal_to_float_array(data, col_name_map, ["price"])
+        pending_values_2 = self._signal_to_float_array(data, col_name_map, ["pending_signal_2"])
+        cancel_pending_values_2 = self._signal_to_float_array(
+            data, col_name_map, ["cancel_pending_signal_2"]
+        )
+        signal_price_values_2 = self._signal_to_float_array(data, col_name_map, ["price_2"])
         sl_values = self._signal_to_float_array(data, col_name_map, ["sl", "stop_loss"])
         tp_values = self._signal_to_float_array(data, col_name_map, ["tp", "take_profit"])
         symbol_values = self._signal_to_object_array(data, col_name_map, ["symbol"])
@@ -733,6 +767,8 @@ class Engine:
                 exit_values,
                 pending_values,
                 cancel_pending_values,
+                pending_values_2,
+                cancel_pending_values_2,
             )
         )
 
@@ -752,46 +788,68 @@ class Engine:
         )
         processed = 0
         total_ticks = int(bid_values.shape[0])
-        for idx in range(total_ticks):
-            bid = float(bid_values[idx])
-            ask = float(ask_values[idx])
-            _ = bid + ask
-            tick_number = idx + 1
-
-            symbol_name = self._resolve_tick_symbol(idx, symbol_values, default_symbol)
-            self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
-
-            entry_signal = 0.0 if entry_values is None else float(entry_values[idx])
-            exit_signal = 0.0 if exit_values is None else float(exit_values[idx])
-            pending_signal = 0.0 if pending_values is None else float(pending_values[idx])
-            cancel_pending_signal = (
-                0.0 if cancel_pending_values is None else float(cancel_pending_values[idx])
+        progress_bar = None
+        if show_progress and tqdm is not None:
+            progress_bar = tqdm(
+                total=total_ticks,
+                desc=str(progress_desc),
+                unit="tick",
+                dynamic_ncols=True,
             )
-            signal_price = 0.0 if signal_price_values is None else float(signal_price_values[idx])
-            sl_value = 0.0 if sl_values is None else float(sl_values[idx])
-            tp_value = 0.0 if tp_values is None else float(tp_values[idx])
+        try:
+            for idx in range(total_ticks):
+                bid = float(bid_values[idx])
+                ask = float(ask_values[idx])
+                _ = bid + ask
+                tick_number = idx + 1
 
-            if self._apply_tick_signals(
-                symbol_name=symbol_name,
-                bid=bid,
-                ask=ask,
-                entry_signal=entry_signal,
-                exit_signal=exit_signal,
-                pending_signal=pending_signal,
-                cancel_pending_signal=cancel_pending_signal,
-                signal_price=signal_price,
-                sl=sl_value,
-                tp=tp_value,
-                volume=run_position_size,
-                verbose=bool(monitor_verbose),
-            ):
-                self._schedule_state_dirty = True
+                symbol_name = self._resolve_tick_symbol(idx, symbol_values, default_symbol)
+                self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
 
-            self._run_scheduled_callbacks(
-                tick_number=tick_number,
-                verbose=bool(monitor_verbose),
-            )
-            processed += 1
+                entry_signal = 0.0 if entry_values is None else float(entry_values[idx])
+                exit_signal = 0.0 if exit_values is None else float(exit_values[idx])
+                pending_signal = 0.0 if pending_values is None else float(pending_values[idx])
+                cancel_pending_signal = (
+                    0.0 if cancel_pending_values is None else float(cancel_pending_values[idx])
+                )
+                pending_signal_2 = 0.0 if pending_values_2 is None else float(pending_values_2[idx])
+                cancel_pending_signal_2 = (
+                    0.0 if cancel_pending_values_2 is None else float(cancel_pending_values_2[idx])
+                )
+                signal_price = 0.0 if signal_price_values is None else float(signal_price_values[idx])
+                signal_price_2 = 0.0 if signal_price_values_2 is None else float(signal_price_values_2[idx])
+                sl_value = 0.0 if sl_values is None else float(sl_values[idx])
+                tp_value = 0.0 if tp_values is None else float(tp_values[idx])
+
+                if self._apply_tick_signals(
+                    symbol_name=symbol_name,
+                    bid=bid,
+                    ask=ask,
+                    entry_signal=entry_signal,
+                    exit_signal=exit_signal,
+                    pending_signal=pending_signal,
+                    cancel_pending_signal=cancel_pending_signal,
+                    pending_signal_2=pending_signal_2,
+                    cancel_pending_signal_2=cancel_pending_signal_2,
+                    signal_price=signal_price,
+                    signal_price_2=signal_price_2,
+                    sl=sl_value,
+                    tp=tp_value,
+                    volume=run_position_size,
+                    verbose=bool(monitor_verbose),
+                ):
+                    self._schedule_state_dirty = True
+
+                self._run_scheduled_callbacks(
+                    tick_number=tick_number,
+                    verbose=bool(monitor_verbose),
+                )
+                processed += 1
+                if progress_bar is not None:
+                    progress_bar.update(1)
+        finally:
+            if progress_bar is not None:
+                progress_bar.close()
 
         return processed
 

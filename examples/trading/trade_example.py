@@ -14,6 +14,7 @@ from apps.utils.logger import logger
 from apps.trading import Engine, core, Trade
 from apps.utils.data_manipulator import TicksGenerator
 from data.strategies.trend_following import TrendFollowingStrategy
+from data.strategies.close_breakout import CloseBreakoutStrategy
 
 
 # Global Variables
@@ -502,6 +503,8 @@ def example_10_simple_backtest():
         ticks_data,
         position_size=0.01,
         monitor_verbose=True,
+        show_progress=True,
+        progress_desc="Tester Progress",
     )
     end_time = time.time()
     print(f"{tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
@@ -510,6 +513,91 @@ def example_10_simple_backtest():
 
 
     
+
+
+
+def example_11_simple_backtest_pending():
+    print_example_header("Example 11: Simple Backtest Pending")
+
+    client = engine_instance.client
+
+    logger.info("Loading historical data...")
+    data = client.get_bars(
+        symbol=test_symbol,
+        timeframe=timeframe,
+        date_from=warmup_start_date,
+        date_to=end_date
+    )
+
+    if data is None or data.empty:
+        logger.error("No data retrieved.")
+        return
+
+    logger.info("Setting up strategy...")
+    strategy = CloseBreakoutStrategy(
+        params={
+            'symbol': test_symbol,
+            'timeframe': timeframe,
+        }
+    )
+    strategy.on_init()
+
+    data = strategy.on_bar(data)
+    data = data[data.index >= start_date]
+    if data is None or data.empty:
+        logger.error("No data available after start_date filter.")
+        return
+
+    compare_bars = data.head(40).copy()
+
+    logger.info("Converting bars to ticks...")
+    symbol_info = engine_instance.client.symbol_info(test_symbol)
+    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
+
+    start_tick = time.time()
+    tick_model = "timeframe_ticks"
+    spread_model = "native_spread"
+
+    ticks_generator = TicksGenerator(
+        model=tick_model,
+        trading_timeframe=timeframe,
+        point_value=point_value,
+        spread_model=spread_model,
+    )
+    ticks_data = ticks_generator.generate(compare_bars)
+    if ticks_data is None or ticks_data.empty:
+        print(f"{tick_model}: no ticks generated (skipped)")
+        return
+
+    end_tick = time.time()
+    print(f"{tick_model}: generated {len(ticks_data)} ticks in {end_tick - start_tick} seconds")
+
+    start_time = time.time()
+    engine_instance.configure_run_schedule(
+        positions_every=1,
+        pending_orders_every=1,
+        account_every=250,
+        portfolio_every=250,
+        risk_every=250,
+    )
+
+    processed = engine_instance.run(
+        ticks_data,
+        position_size=0.01,
+        monitor_verbose=True,
+        show_progress=True,
+        progress_desc="Tester Progress",
+    )
+    end_time = time.time()
+    print(f"{tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
+
+    print(
+        "Pending demo summary: "
+        f"active_orders={api.orders_total()} "
+        f"open_positions={api.positions_total()} "
+        f"history_orders={len(engine_instance.state.trading_history_orders)} "
+        f"history_deals={len(engine_instance.state.trading_history_deals)}"
+    )
 
 if __name__ == "__main__":
     # example_01_open_position()
@@ -522,6 +610,7 @@ if __name__ == "__main__":
     # example_08_delete_pending_orders()
     # example_09_monitoring_functions()
     example_10_simple_backtest()
+    # example_11_simple_backtest_pending()
 
     
 
@@ -529,5 +618,9 @@ if __name__ == "__main__":
             print("\nShutting down MT5 connection...")
             engine_instance.client.shutdown()
             print("Disconnected.")
+
+
+
+
 
 

@@ -146,6 +146,27 @@ def symbol_info(state: SimulatorState, name: str):
     return syms[0] if syms else None
 
 
+def _volume_precision(volume_value) -> int:
+    try:
+        numeric_value = float(volume_value or 0.0)
+    except Exception:
+        return 2
+
+    if numeric_value <= 0.0:
+        return 2
+
+    text = f"{numeric_value:.10f}".rstrip("0").rstrip(".")
+    if "." not in text:
+        return 0
+    return len(text.split(".", 1)[1])
+
+
+def _format_volume_for_symbol(sym_info, volume_value) -> str:
+    volume_min = getattr(sym_info, "volume_min", 0.0)
+    precision = _volume_precision(volume_min)
+    return f"{float(volume_value):.{precision}f}"
+
+
 def monitor_positions(
     state: SimulatorState,
     verbose: bool = False,
@@ -220,6 +241,17 @@ def monitor_positions(
         position.price_current = float(exit_price)
         position.time_update = now
         position.time_update_msc = now_msc
+
+        if verbose:
+            side_name = "BUY" if is_buy else "SELL"
+            print(
+                f"[monitor_positions] {side_name} "
+                f"ticket={int(getattr(position, 'ticket', 0) or 0)} "
+                f"symbol={symbol_name} "
+                f"entry={float(entry_price):.5f} "
+                f"current={float(exit_price):.5f} "
+                f"profit={float(profit):.2f}"
+            )
 
         sl = float(getattr(position, "sl", 0.0) or 0.0)
         tp = float(getattr(position, "tp", 0.0) or 0.0)
@@ -386,6 +418,53 @@ def monitor_pending_orders(
                 f"ticket={int(getattr(order, 'ticket', 0) or 0)}"
             )
 
+    def _close_symbol_positions(symbol_name: str) -> None:
+        close_targets = []
+        for position in list(state.trading_deals):
+            if str(getattr(position, "symbol", "") or "") != symbol_name:
+                continue
+            close_targets.append(position)
+
+        for position in close_targets:
+            position_type = int(getattr(position, "type", -1) or -1)
+            close_type = 1 if position_type == 0 else 0
+            close_request = DotDict(
+                action=1,
+                symbol=symbol_name,
+                type=close_type,
+                position=int(getattr(position, "ticket", getattr(position, "position_id", 0)) or 0),
+                volume=float(getattr(position, "volume", 0.0) or 0.0),
+                price=0.0,
+                comment="Pending trigger flip",
+            )
+            order_send(
+                state,
+                close_request,
+                profit_calculator=profit_calculator,
+                margin_calculator=margin_calculator,
+                strict_calc_access=strict_calc_access,
+                verbose=verbose,
+            )
+
+    def _remove_sibling_pending_orders(triggered_order) -> None:
+        symbol_name = str(getattr(triggered_order, "symbol", "") or "")
+        siblings = [
+            order for order in list(state.trading_orders)
+            if order is not triggered_order
+            and str(getattr(order, "symbol", "") or "") == symbol_name
+            and int(getattr(order, "type", -1) or -1) in (2, 3, 4, 5)
+        ]
+        for sibling in siblings:
+            sibling_ticket = int(getattr(sibling, "ticket", 0) or 0)
+            hist_row = HistoryOrderInfo(dict(sibling))
+            hist_row.time_done = now
+            hist_row.time_done_msc = now_msc
+            hist_row.state = 4
+            state.trading_history_orders.append(hist_row)
+            state.trading_orders = [o for o in state.trading_orders if o is not sibling]
+            if verbose:
+                print(f"[monitor_pending_orders] Removed sibling pending order ticket={sibling_ticket}")
+
     processed_tickets = set()
     for order in to_trigger:
         if not allow_auto_trigger:
@@ -408,6 +487,8 @@ def monitor_pending_orders(
         if volume <= 0.0 or not symbol_name:
             continue
 
+        _close_symbol_positions(symbol_name)
+
         request = DotDict(
             action=1,  # TRADE_ACTION_DEAL
             magic=int(getattr(order, "magic", 0) or 0),
@@ -428,6 +509,7 @@ def monitor_pending_orders(
             profit_calculator=profit_calculator,
             margin_calculator=margin_calculator,
             strict_calc_access=strict_calc_access,
+            verbose=verbose,
         )
 
         hist_row = HistoryOrderInfo(dict(order))
@@ -436,6 +518,8 @@ def monitor_pending_orders(
         hist_row.state = 4 if int(getattr(result, "retcode", 0) or 0) == 10009 else 5
         state.trading_history_orders.append(hist_row)
         state.trading_orders = [o for o in state.trading_orders if o is not order]
+        if int(getattr(result, "retcode", 0) or 0) == 10009:
+            _remove_sibling_pending_orders(order)
 
         if verbose:
             print(
@@ -470,12 +554,12 @@ def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
     if verbose:
         print(
             "sim -> account | "
-            f"balance {balance} | "
-            f"profit {total_unrealized_profit} | "
-            f"equity {equity} | "
-            f"margin {used_margin} | "
-            f"margin_free {margin_free} | "
-            f"margin_level {margin_level}"
+            f"balance {balance:.2f} | "
+            f"profit {total_unrealized_profit:.2f} | "
+            f"equity {equity:.2f} | "
+            f"margin {used_margin:.2f} | "
+            f"margin_free {margin_free:.2f} | "
+            f"margin_level {margin_level:.2f}"
         )
 
 
@@ -656,8 +740,11 @@ def order_send(
 
     def next_ticket(item_list) -> int:
         if not item_list:
-            return 1
-        return max((int(getattr(x, 'ticket', 0)) for x in item_list), default=0) + 1
+            return 0
+        return max((int(getattr(x, 'ticket', 0)) for x in item_list), default=0)
+
+    def next_ticket_from_lists(*item_lists) -> int:
+        return max((next_ticket(item_list) for item_list in item_lists), default=0) + 1
 
     contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
 
@@ -676,7 +763,7 @@ def order_send(
             return result
 
         now = int(time.time())
-        order_ticket = next_ticket(state.trading_orders)
+        order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
 
         # Approximate margin calculation in python (simple fallback)
         # Pending orders do not reserve margin in this simplified simulator.
@@ -720,7 +807,7 @@ def order_send(
         if verbose:
             print(
                 f"[order_send] Placed pending order={order_ticket} "
-                f"symbol={symbol_name} type={order_type} volume={float(result.volume):.4f} "
+                f"symbol={symbol_name} type={order_type} volume={_format_volume_for_symbol(sym_info, result.volume)} "
                 f"price={float(pending_price):.5f}"
             )
         return result
@@ -757,8 +844,8 @@ def order_send(
             return result
 
         now = int(time.time())
-        order_ticket = next_ticket(state.trading_orders) + next_ticket(state.trading_history_orders)
-        deal_ticket = next_ticket(state.trading_deals) + next_ticket(state.trading_history_deals)
+        order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
+        deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
 
         history_order = HistoryOrderInfo(
             ticket=order_ticket,
@@ -867,7 +954,7 @@ def order_send(
         if verbose:
             print(
                 f"[order_send] Closed position={close_position_ticket} "
-                f"symbol={symbol_name} volume={close_volume:.4f} "
+                f"symbol={symbol_name} volume={_format_volume_for_symbol(sym_info, close_volume)} "
                 f"price={float(exec_price):.5f} profit={float(realized_profit):.2f}"
             )
         return result
@@ -888,9 +975,9 @@ def order_send(
         return result
 
     now = int(time.time())
-    
-    order_ticket = next_ticket(state.trading_orders) + next_ticket(state.trading_history_orders)
-    deal_ticket = next_ticket(state.trading_deals) + next_ticket(state.trading_history_deals)
+
+    order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
+    deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
     position_ticket = deal_ticket
 
     if margin_calculator is not None:
@@ -980,7 +1067,9 @@ def order_send(
         side_name = "BUY" if is_buy else "SELL"
         print(
             f"[order_send] Opened {side_name} position={position_ticket} "
-            f"symbol={symbol_name} volume={float(result.volume):.4f} "
+            f"symbol={symbol_name} volume={_format_volume_for_symbol(sym_info, result.volume)} "
             f"price={float(exec_price):.5f} margin={float(margin_required):.2f}"
         )
     return result
+
+
