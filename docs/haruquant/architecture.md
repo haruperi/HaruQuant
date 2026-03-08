@@ -1152,4 +1152,23 @@
   - `cpp/tests/test_costs_engine.cpp`
   - `docs/haruquant/usage/backtest/cost_and_fill_models.md`
 
+## Python Trading Engine Result Packaging
+
+- Python simulator runs in `apps/trading/main.py::Engine.run(...)` expose result accessors after processing completes.
+- Result models now live in `apps/trading/core.py`:
+  - `TradeRecord`: completed trade lifecycle row aligned to SQLite backtest trade persistence
+  - `EquityPoint`: account curve snapshot aligned to equity-curve persistence
+  - `RunResult`: packaged container for `trades`, `equity_curve`, `processed_ticks`, `final_balance`, and `final_equity`
+- Engine accessors:
+  - `Engine.get_completed_trades()`
+  - `Engine.get_equity_curve()`
+  - `Engine.get_run_result(processed_ticks=...)`
+  - `Engine.clear_completed_trades()`
+- Serialization helpers:
+  - `TradeRecord.to_dict()`
+  - `EquityPoint.to_dict()`
+  - `RunResult.to_dict()`
+  - datetime fields are converted to ISO 8601 strings so the payload is JSON-safe for API responses
+- Example usage:
+  - `examples/trading/trade_example.py::example_14_trade_results_report()`
 

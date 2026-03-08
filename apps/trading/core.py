@@ -1,6 +1,13 @@
 """
 Core simulator components.
 """
+import time
+import uuid
+from dataclasses import asdict, dataclass, replace
+from datetime import datetime
+from typing import Any, Optional
+
+
 class DotDict(dict):
     """Dictionary that supports dot notation access to attributes."""
     def __getattr__(self, item):
@@ -35,6 +42,143 @@ class SymbolInfo(DotDict):
     """Container for Symbol information."""
     pass
 
+@dataclass
+class TradeRecord:
+    """Completed trade record aligned to the backtest_trades save contract."""
+
+    trade_id: Optional[str] = None
+    ticket: int = 0
+    symbol: str = ""
+    type: str = "buy"
+    magic_number: int = 0
+    strategy_name: Optional[str] = None
+    setup_id: Optional[str] = None
+    sample_type: Optional[str] = None
+    comment: str = ""
+
+    signal_timeframe: Optional[str] = None
+    execution_timeframe: Optional[str] = None
+    session: Optional[str] = None
+    day_of_week: Optional[int] = None
+    hour_of_day: Optional[int] = None
+
+    open_time: Optional[datetime] = None
+    close_time: Optional[datetime] = None
+    time_in_trade: float = 0.0
+    bars_in_trade: int = 0
+
+    open_price: float = 0.0
+    orig_open_price: Optional[float] = None
+    orig_open_time: Optional[datetime] = None
+    requested_entry_price: float = 0.0
+    spread_at_entry: float = 0.0
+    atr_at_entry: Optional[float] = None
+    size: float = 0.0
+
+    close_price: float = 0.0
+    requested_exit_price: float = 0.0
+    close_type: str = "UNKNOWN"
+    exit_reason: str = "UNKNOWN"
+
+    stop_loss_price: float = 0.0
+    profit_target_price: float = 0.0
+    initial_risk_pips: float = 0.0
+    initial_risk_usd: float = 0.0
+
+    balance_at_entry: float = 0.0
+    equity_at_entry: float = 0.0
+    margin_used: float = 0.0
+    free_margin: float = 0.0
+
+    max_position_size: float = 0.0
+    partial_close_count: int = 0
+    trailing_stop_used: bool = False
+    breakeven_triggered: bool = False
+
+    slippage_usd: float = 0.0
+    fill_price_deviation: float = 0.0
+    execution_latency_ms: float = 0.0
+
+    profit_loss: float = 0.0
+    profit_loss_pips: float = 0.0
+    commission: float = 0.0
+    swap: float = 0.0
+    r_multiple: float = 0.0
+    buy_hold: float = 0.0
+    buy_hold_pips: float = 0.0
+
+    mae_usd: float = 0.0
+    mae_pips: float = 0.0
+    mfe_usd: float = 0.0
+    mfe_pips: float = 0.0
+    drawdown: float = 0.0
+
+    market_regime: Optional[str] = None
+    volatility_bucket: Optional[str] = None
+    correlation_cluster: Optional[str] = None
+
+    rule_violation: bool = False
+    manual_intervention: bool = False
+
+    def to_dict(self):
+        return _serialize_payload(asdict(self))
+
+
+@dataclass
+class TradeTracker:
+    """Runtime-only tracker for an open trade."""
+
+    original_volume: float = 0.0
+    bars_in_trade: int = 0
+    mfe_usd: float = 0.0
+    mae_usd: float = 0.0
+    mfe_pips: float = 0.0
+    mae_pips: float = 0.0
+
+
+@dataclass
+class EquityPoint:
+    """Equity curve point aligned to backtest_equity_curve storage."""
+
+    timestamp: Optional[datetime] = None
+    balance: float = 0.0
+    equity: float = 0.0
+    drawdown: float = 0.0
+    exposure: float = 0.0
+
+    def to_dict(self):
+        return _serialize_payload(asdict(self))
+
+
+@dataclass
+class RunResult:
+    """Packaged engine result payload for simulation runs."""
+
+    trades: list[TradeRecord]
+    equity_curve: list[EquityPoint]
+    processed_ticks: int = 0
+    final_balance: float = 0.0
+    final_equity: float = 0.0
+
+    def to_dict(self):
+        return _serialize_payload(asdict(self))
+
+
+def _serialize_datetime(value: Optional[datetime]):
+    if value is None:
+        return None
+    return value.isoformat()
+
+
+def _serialize_payload(payload: Any):
+    if isinstance(payload, datetime):
+        return _serialize_datetime(payload)
+    if isinstance(payload, dict):
+        return {key: _serialize_payload(value) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [_serialize_payload(item) for item in payload]
+    return payload
+
 class SimulatorState:
     """Holds the current state for the backtest simulator."""
     def __init__(self, account_info=None):
@@ -55,6 +199,13 @@ class SimulatorState:
         self.trading_history_deals = []
         self.trading_orders = []
         self.trading_history_orders = []
+        self.open_trade_records_by_ticket = {}
+        self.open_trade_trackers_by_ticket = {}
+        self.completed_trade_records = []
+        self.completed_equity_curve = []
+        self.equity_peak = None
+        self.current_tick_epoch = None
+        self.current_tick_datetime = None
 
 
 def history_deals_get(state: SimulatorState, date_from=None, date_to=None, group=None, ticket=None):
@@ -167,6 +318,274 @@ def _format_volume_for_symbol(sym_info, volume_value) -> str:
     return f"{float(volume_value):.{precision}f}"
 
 
+
+def _state_now_epoch(state: SimulatorState) -> int:
+    tick_epoch = getattr(state, "current_tick_epoch", None)
+    if tick_epoch is not None:
+        return int(tick_epoch)
+    return int(time.time())
+
+
+def _coerce_datetime(value) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if value is None:
+        return datetime.utcnow()
+    if hasattr(value, "to_pydatetime"):
+        return value.to_pydatetime()
+    if hasattr(value, "timestamp"):
+        return datetime.fromtimestamp(float(value.timestamp()))
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(float(value))
+    return datetime.utcnow()
+
+
+def _state_now_datetime(state: SimulatorState) -> datetime:
+    tick_dt = getattr(state, "current_tick_datetime", None)
+    if tick_dt is not None:
+        return _coerce_datetime(tick_dt)
+    return datetime.utcnow()
+
+
+def _position_ticket(position) -> int:
+    return int(
+        getattr(position, "ticket", getattr(position, "position_id", getattr(position, "identifier", 0))) or 0
+    )
+
+
+def _pip_size(state: SimulatorState, symbol_name: str) -> float:
+    sym_info = symbol_info(state, symbol_name)
+    point = float(getattr(sym_info, "point", 0.00001) or 0.00001)
+    return point * 10.0
+
+
+def _spread_at_entry_pips(state: SimulatorState, symbol_name: str) -> float:
+    sym_info = symbol_info(state, symbol_name)
+    if sym_info is None:
+        return 0.0
+    pip_size = _pip_size(state, symbol_name)
+    if pip_size <= 0.0:
+        return 0.0
+    ask = float(getattr(sym_info, "ask", 0.0) or 0.0)
+    bid = float(getattr(sym_info, "bid", 0.0) or 0.0)
+    if ask <= 0.0 or bid <= 0.0:
+        return 0.0
+    return float((ask - bid) / pip_size)
+
+
+def _trade_side_name(order_type: int) -> str:
+    return "buy" if int(order_type) == 0 else "sell"
+
+
+def _request_value(req_get, name: str, default=None):
+    value = req_get(name, default)
+    return default if value is None else value
+
+
+
+def _build_trade_record(
+    state: SimulatorState,
+    request,
+    position_ticket: int,
+    order_type: int,
+    symbol_name: str,
+    volume: float,
+    exec_price: float,
+    requested_entry_price: float,
+    sl: float,
+    tp: float,
+    margin_required: float,
+    profit_calculator=None,
+) -> TradeRecord:
+    req_get = request.get if isinstance(request, dict) else lambda k, d=None: getattr(request, k, d)
+    now_dt = _state_now_datetime(state)
+    balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
+    equity = float(getattr(state.trading_account, "equity", balance) or balance)
+    margin_before = float(getattr(state.trading_account, "margin", 0.0) or 0.0)
+    margin_used = margin_before + float(margin_required)
+    free_margin = equity - margin_used
+    pip_size = _pip_size(state, symbol_name)
+
+    record = TradeRecord(
+        trade_id=str(uuid.uuid4()),
+        ticket=int(position_ticket),
+        symbol=str(symbol_name),
+        type=_trade_side_name(order_type),
+        magic_number=int(req_get("magic", 0) or 0),
+        strategy_name=_request_value(req_get, "strategy_name", None),
+        setup_id=_request_value(req_get, "setup_id", None),
+        sample_type=_request_value(req_get, "sample_type", None),
+        comment=str(req_get("comment", "") or ""),
+        signal_timeframe=_request_value(req_get, "signal_timeframe", None),
+        execution_timeframe=_request_value(req_get, "execution_timeframe", None),
+        session=_request_value(req_get, "session", None),
+        day_of_week=int(req_get("day_of_week", now_dt.weekday()) or now_dt.weekday()),
+        hour_of_day=int(req_get("hour_of_day", now_dt.hour) or now_dt.hour),
+        open_time=now_dt,
+        open_price=float(exec_price),
+        orig_open_price=float(exec_price),
+        orig_open_time=now_dt,
+        requested_entry_price=float(requested_entry_price),
+        spread_at_entry=float(_spread_at_entry_pips(state, symbol_name)),
+        atr_at_entry=_request_value(req_get, "atr_at_entry", None),
+        size=float(volume),
+        stop_loss_price=float(sl),
+        profit_target_price=float(tp),
+        balance_at_entry=balance,
+        equity_at_entry=equity,
+        margin_used=margin_used,
+        free_margin=free_margin,
+        max_position_size=float(volume),
+        market_regime=_request_value(req_get, "market_regime", None),
+        volatility_bucket=_request_value(req_get, "volatility_bucket", None),
+        correlation_cluster=_request_value(req_get, "correlation_cluster", None),
+    )
+
+    if sl > 0.0 and pip_size > 0.0:
+        if int(order_type) == 0:
+            record.initial_risk_pips = float(max((record.open_price - float(sl)) / pip_size, 0.0))
+        else:
+            record.initial_risk_pips = float(max((float(sl) - record.open_price) / pip_size, 0.0))
+        if profit_calculator is not None:
+            calc_value = profit_calculator(int(order_type), symbol_name, float(volume), float(exec_price), float(sl))
+            if calc_value is None:
+                raise RuntimeError("order_calc_profit returned None while strict profit calculation is required.")
+            record.initial_risk_usd = float(abs(calc_value))
+
+    return record
+
+
+def _open_trade_tracking(
+    state: SimulatorState,
+    request,
+    position_ticket: int,
+    order_type: int,
+    symbol_name: str,
+    volume: float,
+    exec_price: float,
+    requested_entry_price: float,
+    sl: float,
+    tp: float,
+    margin_required: float,
+    profit_calculator=None,
+) -> None:
+    state.open_trade_records_by_ticket[int(position_ticket)] = _build_trade_record(
+        state=state,
+        request=request,
+        position_ticket=position_ticket,
+        order_type=order_type,
+        symbol_name=symbol_name,
+        volume=volume,
+        exec_price=exec_price,
+        requested_entry_price=requested_entry_price,
+        sl=sl,
+        tp=tp,
+        margin_required=margin_required,
+        profit_calculator=profit_calculator,
+    )
+    state.open_trade_trackers_by_ticket[int(position_ticket)] = TradeTracker(original_volume=float(volume))
+
+
+def _update_trade_tracking(state: SimulatorState, position, current_price: float, profit_usd: float) -> None:
+    ticket = _position_ticket(position)
+    tracker = state.open_trade_trackers_by_ticket.get(ticket)
+    record = state.open_trade_records_by_ticket.get(ticket)
+    if tracker is None or record is None:
+        return
+
+    tracker.bars_in_trade += 1
+    tracker.mfe_usd = max(float(tracker.mfe_usd), float(profit_usd))
+    tracker.mae_usd = min(float(tracker.mae_usd), float(profit_usd))
+
+    pip_size = _pip_size(state, record.symbol)
+    if pip_size > 0.0:
+        if record.type == "buy":
+            pips = (float(current_price) - float(record.open_price)) / pip_size
+        else:
+            pips = (float(record.open_price) - float(current_price)) / pip_size
+        tracker.mfe_pips = max(float(tracker.mfe_pips), float(pips))
+        tracker.mae_pips = min(float(tracker.mae_pips), float(pips))
+
+
+def _resolve_close_labels(close_reason: str, is_partial: bool) -> tuple[str, str]:
+    reason = str(close_reason or "").strip().lower()
+    if is_partial:
+        return ("PARTIAL", "partial_close")
+    if reason == "stop_loss":
+        return ("SL", "stop_loss")
+    if reason == "take_profit":
+        return ("TP", "take_profit")
+    if "pending trigger flip" in reason:
+        return ("REVERSE", "opposite_pending_trigger")
+    if "signal" in reason:
+        return ("SIGNAL_EXIT", "signal_exit")
+    if reason:
+        return (reason.upper(), reason)
+    return ("MANUAL_EXIT", "manual_exit")
+
+
+def _finalize_trade_tracking(
+    state: SimulatorState,
+    position,
+    close_volume: float,
+    close_price: float,
+    realized_profit: float,
+    requested_exit_price: float,
+    close_reason: str,
+) -> TradeRecord | None:
+    ticket = _position_ticket(position)
+    base_record = state.open_trade_records_by_ticket.get(ticket)
+    tracker = state.open_trade_trackers_by_ticket.get(ticket)
+    if base_record is None or tracker is None:
+        return None
+
+    current_volume = float(getattr(position, "volume", 0.0) or 0.0)
+    if current_volume <= 0.0 or close_volume <= 0.0:
+        return None
+
+    partial = close_volume < current_volume
+    completed = replace(base_record)
+    completed.size = float(close_volume)
+    completed.close_time = _state_now_datetime(state)
+    completed.close_price = float(close_price)
+    completed.requested_exit_price = float(requested_exit_price)
+    completed.time_in_trade = max(0.0, float((completed.close_time - _coerce_datetime(completed.open_time)).total_seconds()))
+    completed.bars_in_trade = int(tracker.bars_in_trade)
+    completed.profit_loss = float(realized_profit)
+    completed.commission = float(getattr(position, "commission", 0.0) or 0.0)
+    completed.swap = float(getattr(position, "swap", 0.0) or 0.0)
+    completed.mae_usd = abs(min(float(tracker.mae_usd), 0.0))
+    completed.mfe_usd = max(float(tracker.mfe_usd), 0.0)
+    completed.mae_pips = abs(min(float(tracker.mae_pips), 0.0))
+    completed.mfe_pips = max(float(tracker.mfe_pips), 0.0)
+    completed.drawdown = float(completed.mae_usd)
+    completed.close_type, completed.exit_reason = _resolve_close_labels(close_reason, partial)
+
+    pip_size = _pip_size(state, completed.symbol)
+    if pip_size > 0.0:
+        if completed.type == "buy":
+            completed.profit_loss_pips = float((completed.close_price - completed.open_price) / pip_size)
+        else:
+            completed.profit_loss_pips = float((completed.open_price - completed.close_price) / pip_size)
+
+    if completed.initial_risk_usd > 0.0:
+        completed.r_multiple = float(completed.profit_loss / completed.initial_risk_usd)
+
+    if partial:
+        remaining_volume = float(current_volume - close_volume)
+        base_record.size = remaining_volume
+        base_record.partial_close_count = int(base_record.partial_close_count) + 1
+        volume_ratio = remaining_volume / current_volume if current_volume > 0.0 else 0.0
+        base_record.initial_risk_usd = float(base_record.initial_risk_usd) * volume_ratio
+        completed.partial_close_count = 1
+    else:
+        state.open_trade_records_by_ticket.pop(ticket, None)
+        state.open_trade_trackers_by_ticket.pop(ticket, None)
+
+    state.completed_trade_records.append(completed)
+    return completed
+
+
 def monitor_positions(
     state: SimulatorState,
     verbose: bool = False,
@@ -175,9 +594,7 @@ def monitor_positions(
     strict_calc_access: bool = False,
 ) -> None:
     """Monitor open positions, update mark-to-market fields, and close on SL/TP."""
-    import time
-
-    now = int(time.time())
+    now = _state_now_epoch(state)
     now_msc = now * 1000
     to_close = []
 
@@ -227,7 +644,6 @@ def monitor_positions(
                 "order_calc_profit access is required but no profit_calculator was provided."
             )
         else:
-            # Legacy fallback (non-strict mode only).
             try:
                 contract_size = float(
                     getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
@@ -241,6 +657,7 @@ def monitor_positions(
         position.price_current = float(exit_price)
         position.time_update = now
         position.time_update_msc = now_msc
+        _update_trade_tracking(state, position, exit_price, profit)
 
         if verbose:
             side_name = "BUY" if is_buy else "SELL"
@@ -285,13 +702,23 @@ def monitor_positions(
         if position not in state.trading_deals:
             continue
 
+        _finalize_trade_tracking(
+            state,
+            position,
+            float(getattr(position, "volume", 0.0) or 0.0),
+            close_price,
+            profit,
+            close_price,
+            close_reason,
+        )
+
         balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
         state.trading_account.balance = balance + float(profit)
 
         closed_row = DealInfo(dict(position))
         closed_row.profit = float(profit)
         closed_row.price_current = float(close_price)
-        closed_row.entry = 1  # DEAL_ENTRY_OUT
+        closed_row.entry = 1
         closed_row.time_update = now
         closed_row.time_update_msc = now_msc
         if not getattr(closed_row, "comment", ""):
@@ -318,9 +745,7 @@ def monitor_pending_orders(
     strict_calc_access: bool = False,
 ) -> None:
     """Monitor pending orders, expire them, and trigger matched entries."""
-    import time
-
-    now = int(time.time())
+    now = _state_now_epoch(state)
     now_msc = now * 1000
 
     to_expire = []
@@ -346,10 +771,10 @@ def monitor_pending_orders(
         type_time = int(getattr(order, "type_time", 0) or 0)
         expiration = int(getattr(order, "time_expiration", 0) or 0)
         expired = False
-        if type_time == 1:  # DAY
+        if type_time == 1:
             setup = int(getattr(order, "time_setup", 0) or 0)
             expired = utc_day_key(setup) > 0 and utc_day_key(setup) != utc_day_key(now)
-        elif type_time in (2, 3):  # SPECIFIED / SPECIFIED_DAY
+        elif type_time in (2, 3):
             expired = expiration > 0 and now >= expiration
 
         if expired:
@@ -400,7 +825,7 @@ def monitor_pending_orders(
         if order not in state.trading_orders:
             continue
         hist_row = HistoryOrderInfo(dict(order))
-        hist_row.state = 6  # ORDER_STATE_EXPIRED
+        hist_row.state = 6
         hist_row.time_done = now
         hist_row.time_done_msc = now_msc
         state.trading_history_orders.append(hist_row)
@@ -490,7 +915,7 @@ def monitor_pending_orders(
         _close_symbol_positions(symbol_name)
 
         request = DotDict(
-            action=1,  # TRADE_ACTION_DEAL
+            action=1,
             magic=int(getattr(order, "magic", 0) or 0),
             symbol=symbol_name,
             volume=volume,
@@ -528,6 +953,24 @@ def monitor_pending_orders(
             )
 
 
+
+def _record_equity_point(state: SimulatorState, balance: float, equity: float) -> None:
+    peak = getattr(state, "equity_peak", None)
+    if peak is None:
+        peak = float(equity)
+    else:
+        peak = max(float(peak), float(equity))
+    state.equity_peak = peak
+    point = EquityPoint(
+        timestamp=_state_now_datetime(state),
+        balance=float(balance),
+        equity=float(equity),
+        drawdown=float(max(peak - float(equity), 0.0)),
+        exposure=float(sum(float(getattr(p, "volume", 0.0) or 0.0) for p in state.trading_deals if str(getattr(p, "entry", 0)) == "0")),
+    )
+    state.completed_equity_curve.append(point)
+
+
 def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
     """Monitor account aggregates from open positions."""
     total_unrealized_profit = 0.0
@@ -550,6 +993,7 @@ def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
     state.trading_account.margin = float(used_margin)
     state.trading_account.margin_free = float(margin_free)
     state.trading_account.margin_level = float(margin_level)
+    _record_equity_point(state, balance, equity)
 
     if verbose:
         print(
@@ -573,74 +1017,76 @@ def order_send(
 ) -> DotDict:
     """
     Python port of C++ BacktestSimulator::order_send().
-    Processes a TradeRequest (represented as an object with attributes or dict keys)
-    and updates the SimulatorState, returning a TradeResult-like dictionary.
+    Processes a TradeRequest and updates the SimulatorState.
     """
-    import time
-    
     req_get = request.get if isinstance(request, dict) else lambda k, d=None: getattr(request, k, d)
-    
+
     result = DotDict(
         request=request,
-        volume=req_get('volume', 0.0),
+        volume=req_get("volume", 0.0),
         retcode=10009,
         deal=0,
         order=0,
         price=0.0,
         comment="Request executed",
         bid=0.0,
-        ask=0.0
+        ask=0.0,
     )
 
-    action = req_get('action', 0)
+    action = req_get("action", 0)
     if action == 0:
-        action = 1  # TRADE_ACTION_DEAL
-        
-    is_market_deal = (action == 1)
-    is_pending = (action == 5)
-    is_sltp = (action == 6)
-    is_modify = (action == 7)
-    is_remove = (action == 8)
-    
+        action = 1
+
+    is_market_deal = action == 1
+    is_pending = action == 5
+    is_sltp = action == 6
+    is_modify = action == 7
+    is_remove = action == 8
+
     if not is_market_deal and not is_pending and not is_sltp and not is_modify and not is_remove:
         result.retcode = 10013
         result.comment = "Unsupported trade action in tester order_send()"
         return result
 
     if is_sltp:
-        position_ticket = int(req_get('position', 0) or 0)
-        symbol_name = req_get('symbol', '')
-        sl_value = float(req_get('sl', 0.0))
-        tp_value = float(req_get('tp', 0.0))
+        position_ticket = int(req_get("position", 0) or 0)
+        symbol_name = req_get("symbol", "")
+        sl_value = float(req_get("sl", 0.0))
+        tp_value = float(req_get("tp", 0.0))
 
         positions = state.trading_deals
         if position_ticket > 0:
             positions = [
                 p for p in positions
-                if getattr(p, 'ticket', None) == position_ticket
-                or getattr(p, 'position_id', None) == position_ticket
-                or getattr(p, 'identifier', None) == position_ticket
+                if getattr(p, "ticket", None) == position_ticket
+                or getattr(p, "position_id", None) == position_ticket
+                or getattr(p, "identifier", None) == position_ticket
             ]
         if symbol_name:
-            positions = [p for p in positions if getattr(p, 'symbol', '') == symbol_name]
+            positions = [p for p in positions if getattr(p, "symbol", "") == symbol_name]
 
         if not positions:
             result.retcode = 10013
             result.comment = "Position not found"
             return result
 
-        now = int(time.time())
+        now = _state_now_epoch(state)
         for position in positions:
             position.sl = sl_value
             position.tp = tp_value
             position.time_update = now
             position.time_update_msc = now * 1000
+            ticket = _position_ticket(position)
+            record = state.open_trade_records_by_ticket.get(ticket)
+            if record is not None:
+                record.stop_loss_price = float(sl_value)
+                record.profit_target_price = float(tp_value)
 
         first = positions[0]
         result.retcode = 10009
-        result.deal = int(getattr(first, 'ticket', 0))
-        result.order = int(getattr(first, 'order', 0))
-        result.price = float(getattr(first, 'price_current', getattr(first, 'price', 0.0)))
+        result.deal = int(getattr(first, "ticket", 0))
+        result.order = int(getattr(first, "order", 0))
+        result.price = float(getattr(first, "price_current", getattr(first, "price", 0.0)))
         result.comment = "Request executed"
         if verbose:
             print(
@@ -650,24 +1096,24 @@ def order_send(
         return result
 
     if is_modify:
-        order_ticket = int(req_get('order', 0) or 0)
+        order_ticket = int(req_get("order", 0) or 0)
         if order_ticket <= 0:
             result.retcode = 10013
             result.comment = "Order ticket is required"
             return result
 
-        pending_order = next((o for o in state.trading_orders if int(getattr(o, 'ticket', 0)) == order_ticket), None)
+        pending_order = next((o for o in state.trading_orders if int(getattr(o, "ticket", 0)) == order_ticket), None)
         if pending_order is None:
             result.retcode = 10013
             result.comment = "Order not found"
             return result
 
-        price = req_get('price', None)
-        sl = req_get('sl', None)
-        tp = req_get('tp', None)
-        stoplimit = req_get('stoplimit', None)
-        expiration = req_get('expiration', None)
-        type_time = req_get('type_time', None)
+        price = req_get("price", None)
+        sl = req_get("sl", None)
+        tp = req_get("tp", None)
+        stoplimit = req_get("stoplimit", None)
+        expiration = req_get("expiration", None)
+        type_time = req_get("type_time", None)
 
         if price is not None:
             pending_order.price_open = float(price)
@@ -685,7 +1131,7 @@ def order_send(
 
         result.retcode = 10009
         result.order = order_ticket
-        result.price = float(getattr(pending_order, 'price_open', 0.0))
+        result.price = float(getattr(pending_order, "price_open", 0.0))
         result.comment = "Request executed"
         if verbose:
             print(
@@ -696,19 +1142,19 @@ def order_send(
         return result
 
     if is_remove:
-        order_ticket = int(req_get('order', 0) or 0)
+        order_ticket = int(req_get("order", 0) or 0)
         if order_ticket <= 0:
             result.retcode = 10013
             result.comment = "Order ticket is required"
             return result
 
-        pending_order = next((o for o in state.trading_orders if int(getattr(o, 'ticket', 0)) == order_ticket), None)
+        pending_order = next((o for o in state.trading_orders if int(getattr(o, "ticket", 0)) == order_ticket), None)
         if pending_order is None:
             result.retcode = 10013
             result.comment = "Order not found"
             return result
 
-        state.trading_orders = [o for o in state.trading_orders if int(getattr(o, 'ticket', 0)) != order_ticket]
+        state.trading_orders = [o for o in state.trading_orders if int(getattr(o, "ticket", 0)) != order_ticket]
         result.retcode = 10009
         result.order = order_ticket
         result.comment = "Request executed"
@@ -716,32 +1162,32 @@ def order_send(
             print(f"[order_send] Removed pending order={order_ticket}")
         return result
 
-    symbol_name = req_get('symbol', '')
+    symbol_name = req_get("symbol", "")
     sym_info = symbol_info(state, symbol_name)
     if not sym_info:
         result.retcode = 10013
         result.comment = "Unknown symbol"
         return result
 
-    if result.volume <= 0.0:
+    if float(result.volume) <= 0.0:
         result.retcode = 10014
         result.comment = "Volume must be > 0"
         return result
 
-    bid = getattr(sym_info, 'bid', 0.0)
-    ask = getattr(sym_info, 'ask', 0.0)
-    last = getattr(sym_info, 'last', 0.0)
+    bid = float(getattr(sym_info, "bid", 0.0) or 0.0)
+    ask = float(getattr(sym_info, "ask", 0.0) or 0.0)
+    last = float(getattr(sym_info, "last", 0.0) or 0.0)
     result.bid = bid
     result.ask = ask
 
-    order_type = req_get('type', 0)
-    is_buy = (order_type == 0)
-    is_sell = (order_type == 1)
+    order_type = int(req_get("type", 0) or 0)
+    is_buy = order_type == 0
+    is_sell = order_type == 1
 
     def next_ticket(item_list) -> int:
         if not item_list:
             return 0
-        return max((int(getattr(x, 'ticket', 0)) for x in item_list), default=0)
+        return max((int(getattr(x, "ticket", 0)) for x in item_list), default=0)
 
     def next_ticket_from_lists(*item_lists) -> int:
         return max((next_ticket(item_list) for item_list in item_lists), default=0) + 1
@@ -749,25 +1195,21 @@ def order_send(
     contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
 
     if is_pending:
-        if order_type not in (2, 3, 4, 5):  # BUY_LIMIT, SELL_LIMIT, BUY_STOP, SELL_STOP
+        if order_type not in (2, 3, 4, 5):
             result.retcode = 10013
             result.comment = "Only BUY_LIMIT/SELL_LIMIT/BUY_STOP/SELL_STOP are supported"
             return result
 
-        pending_price = req_get('price', 0.0)
+        pending_price = float(req_get("price", 0.0) or 0.0)
         if pending_price <= 0.0:
-            pending_price = req_get('stoplimit', 0.0)
+            pending_price = float(req_get("stoplimit", 0.0) or 0.0)
         if pending_price <= 0.0:
             result.retcode = 10015
             result.comment = "Pending price is invalid"
             return result
 
-        now = int(time.time())
+        now = _state_now_epoch(state)
         order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
-
-        # Approximate margin calculation in python (simple fallback)
-        # Pending orders do not reserve margin in this simplified simulator.
-        margin_required = 0.0
 
         order_row = OrderInfo(
             action="order_open",
@@ -776,30 +1218,29 @@ def order_send(
             time_setup_msc=now * 1000,
             time_done=0,
             time_done_msc=0,
-            time_expiration=req_get('expiration', 0),
+            time_expiration=req_get("expiration", 0),
             type=order_type,
-            type_time=req_get('type_time', 0),
-            type_filling=req_get('type_filling', 0),
-            state=1,  # ORDER_STATE_PLACED
-            magic=req_get('magic', 0),
+            type_time=req_get("type_time", 0),
+            type_filling=req_get("type_filling", 0),
+            state=1,
+            magic=req_get("magic", 0),
             reason=0,
             position_id=0,
             position_by_id=0,
-            volume_initial=result.volume,
-            volume_current=result.volume,
+            volume_initial=float(result.volume),
+            volume_current=float(result.volume),
             price_open=pending_price,
-            sl=req_get('sl', 0.0),
-            tp=req_get('tp', 0.0),
+            sl=req_get("sl", 0.0),
+            tp=req_get("tp", 0.0),
             price_current=pending_price,
-            price_stoplimit=req_get('stoplimit', 0.0),
+            price_stoplimit=req_get("stoplimit", 0.0),
             symbol=symbol_name,
-            comment=req_get('comment', ''),
+            comment=req_get("comment", ""),
             external_id="",
-            margin_required=margin_required
+            margin_required=0.0,
         )
-        
         state.trading_orders.append(order_row)
-        
+
         result.retcode = 10008
         result.order = order_ticket
         result.price = pending_price
@@ -812,13 +1253,13 @@ def order_send(
             )
         return result
 
-    close_position_ticket = int(req_get('position', 0) or 0)
+    close_position_ticket = int(req_get("position", 0) or 0)
     if close_position_ticket > 0:
         open_positions = [
             p for p in state.trading_deals
-            if int(getattr(p, 'ticket', 0)) == close_position_ticket
-            or int(getattr(p, 'position_id', 0)) == close_position_ticket
-            or int(getattr(p, 'identifier', 0)) == close_position_ticket
+            if int(getattr(p, "ticket", 0)) == close_position_ticket
+            or int(getattr(p, "position_id", 0)) == close_position_ticket
+            or int(getattr(p, "identifier", 0)) == close_position_ticket
         ]
         if not open_positions:
             result.retcode = 10013
@@ -826,14 +1267,14 @@ def order_send(
             return result
 
         position = open_positions[0]
-        close_volume = float(req_get('volume', 0.0))
-        current_volume = float(getattr(position, 'volume', 0.0))
+        close_volume = float(req_get("volume", 0.0) or 0.0)
+        current_volume = float(getattr(position, "volume", 0.0) or 0.0)
         if close_volume <= 0.0 or close_volume > current_volume:
             result.retcode = 10014
             result.comment = "Volume must be > 0 and <= position volume"
             return result
 
-        exec_price = req_get('price', 0.0)
+        exec_price = float(req_get("price", 0.0) or 0.0)
         if exec_price <= 0.0:
             exec_price = ask if is_buy else bid
         if exec_price <= 0.0:
@@ -843,7 +1284,7 @@ def order_send(
             result.comment = "Price is invalid and no market quote is available"
             return result
 
-        now = int(time.time())
+        now = _state_now_epoch(state)
         order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
         deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
 
@@ -853,50 +1294,38 @@ def order_send(
             time_setup_msc=now * 1000,
             time_done=now,
             time_done_msc=now * 1000,
-            time_expiration=req_get('expiration', 0),
+            time_expiration=req_get("expiration", 0),
             type=order_type,
-            type_time=req_get('type_time', 0),
-            type_filling=req_get('type_filling', 0),
+            type_time=req_get("type_time", 0),
+            type_filling=req_get("type_filling", 0),
             state=4,
-            magic=req_get('magic', 0),
+            magic=req_get("magic", 0),
             reason=0,
-            position_id=int(getattr(position, 'position_id', getattr(position, 'ticket', 0))),
-            position_by_id=req_get('position_by', 0),
+            position_id=int(getattr(position, "position_id", getattr(position, "ticket", 0))),
+            position_by_id=req_get("position_by", 0),
             volume_initial=close_volume,
             volume_current=0.0,
             price_open=exec_price,
-            sl=req_get('sl', getattr(position, 'sl', 0.0)),
-            tp=req_get('tp', getattr(position, 'tp', 0.0)),
+            sl=req_get("sl", getattr(position, "sl", 0.0)),
+            tp=req_get("tp", getattr(position, "tp", 0.0)),
             price_current=exec_price,
-            price_stoplimit=req_get('stoplimit', 0.0),
+            price_stoplimit=req_get("stoplimit", 0.0),
             symbol=symbol_name,
-            comment=req_get('comment', ''),
+            comment=req_get("comment", ""),
             external_id="",
-            margin_required=0.0
+            margin_required=0.0,
         )
         state.trading_history_orders.append(history_order)
 
-        entry_price = float(
-            getattr(position, 'price_open', getattr(position, 'price', exec_price)) or exec_price
-        )
-        position_type = int(getattr(position, 'type', order_type) or order_type)
+        entry_price = float(getattr(position, "price_open", getattr(position, "price", exec_price)) or exec_price)
+        position_type = int(getattr(position, "type", order_type) or order_type)
         if profit_calculator is not None:
-            calc_value = profit_calculator(
-                position_type,
-                symbol_name,
-                close_volume,
-                entry_price,
-                exec_price,
-            )
+            calc_value = profit_calculator(position_type, symbol_name, close_volume, entry_price, exec_price)
             if calc_value is None:
-                raise RuntimeError(
-                    "order_calc_profit returned None while strict profit calculation is required."
-                )
+                raise RuntimeError("order_calc_profit returned None while strict profit calculation is required.")
             realized_profit = float(calc_value)
         elif strict_calc_access:
-            raise RuntimeError(
-                "order_calc_profit access is required but no profit_calculator was provided."
-            )
+            raise RuntimeError("order_calc_profit access is required but no profit_calculator was provided.")
         else:
             is_position_buy = position_type == 0
             delta = (exec_price - entry_price) if is_position_buy else (entry_price - exec_price)
@@ -910,29 +1339,38 @@ def order_send(
             time_update=now,
             time_update_msc=now * 1000,
             type=order_type,
-            entry=1, # DEAL_ENTRY_OUT
-            magic=req_get('magic', 0),
+            entry=1,
+            magic=req_get("magic", 0),
             reason=0,
-            position_id=int(getattr(position, 'position_id', getattr(position, 'ticket', 0))),
+            position_id=int(getattr(position, "position_id", getattr(position, "ticket", 0))),
             volume=close_volume,
             price=exec_price,
             price_open=entry_price,
             price_current=exec_price,
-            sl=float(getattr(position, 'sl', 0.0)),
-            tp=float(getattr(position, 'tp', 0.0)),
+            sl=float(getattr(position, "sl", 0.0)),
+            tp=float(getattr(position, "tp", 0.0)),
             margin_required=0.0,
             commission=0.0,
             swap=0.0,
             profit=realized_profit,
             fee=0.0,
             symbol=symbol_name,
-            comment=req_get('comment', ''),
-            external_id=""
+            comment=req_get("comment", ""),
+            external_id="",
         )
         state.trading_history_deals.append(close_deal)
 
-        # Realize profit into account balance at close time.
-        balance = float(getattr(state.trading_account, 'balance', 0.0) or 0.0)
+        _finalize_trade_tracking(
+            state,
+            position,
+            close_volume,
+            exec_price,
+            realized_profit,
+            exec_price,
+            str(req_get("comment", "") or "manual_exit"),
+        )
+
+        balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
         state.trading_account.balance = balance + realized_profit
 
         remaining = current_volume - close_volume
@@ -940,7 +1378,7 @@ def order_send(
             state.trading_deals = [p for p in state.trading_deals if p is not position]
         else:
             position.volume = remaining
-            current_margin = float(getattr(position, 'margin_required', 0.0) or 0.0)
+            current_margin = float(getattr(position, "margin_required", 0.0) or 0.0)
             if current_volume > 0.0 and current_margin > 0.0:
                 position.margin_required = current_margin * (remaining / current_volume)
             position.time_update = now
@@ -964,7 +1402,7 @@ def order_send(
         result.comment = "Only BUY/SELL are supported in tester order_send()"
         return result
 
-    exec_price = req_get('price', 0.0)
+    exec_price = float(req_get("price", 0.0) or 0.0)
     if exec_price <= 0.0:
         exec_price = ask if is_buy else bid
     if exec_price <= 0.0:
@@ -974,8 +1412,7 @@ def order_send(
         result.comment = "Price is invalid and no market quote is available"
         return result
 
-    now = int(time.time())
-
+    now = _state_now_epoch(state)
     order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
     deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
     position_ticket = deal_ticket
@@ -983,14 +1420,10 @@ def order_send(
     if margin_calculator is not None:
         calc_value = margin_calculator(order_type, symbol_name, float(result.volume), float(exec_price))
         if calc_value is None:
-            raise RuntimeError(
-                "order_calc_margin returned None while strict margin calculation is required."
-            )
+            raise RuntimeError("order_calc_margin returned None while strict margin calculation is required.")
         margin_required = float(calc_value)
     elif strict_calc_access:
-        raise RuntimeError(
-            "order_calc_margin access is required but no margin_calculator was provided."
-        )
+        raise RuntimeError("order_calc_margin access is required but no margin_calculator was provided.")
     else:
         account_leverage = float(getattr(state.trading_account, "leverage", 0.0) or 0.0)
         if account_leverage <= 0.0:
@@ -1004,28 +1437,27 @@ def order_send(
         time_setup_msc=now * 1000,
         time_done=now,
         time_done_msc=now * 1000,
-        time_expiration=req_get('expiration', 0),
+        time_expiration=req_get("expiration", 0),
         type=order_type,
-        type_time=req_get('type_time', 0),
-        type_filling=req_get('type_filling', 0),
-        state=4,  # ORDER_STATE_FILLED
-        magic=req_get('magic', 0),
+        type_time=req_get("type_time", 0),
+        type_filling=req_get("type_filling", 0),
+        state=4,
+        magic=req_get("magic", 0),
         reason=0,
         position_id=position_ticket,
-        position_by_id=req_get('position_by', 0),
+        position_by_id=req_get("position_by", 0),
         volume_initial=result.volume,
         volume_current=0.0,
         price_open=exec_price,
-        sl=req_get('sl', 0.0),
-        tp=req_get('tp', 0.0),
+        sl=req_get("sl", 0.0),
+        tp=req_get("tp", 0.0),
         price_current=exec_price,
-        price_stoplimit=req_get('stoplimit', 0.0),
+        price_stoplimit=req_get("stoplimit", 0.0),
         symbol=symbol_name,
-        comment=req_get('comment', ''),
+        comment=req_get("comment", ""),
         external_id="",
-        margin_required=margin_required
+        margin_required=margin_required,
     )
-    
     state.trading_history_orders.append(order_row)
 
     deal_row = DealInfo(
@@ -1036,27 +1468,44 @@ def order_send(
         time_update=now,
         time_update_msc=now * 1000,
         type=order_type,
-        entry=0, # DEAL_ENTRY_IN
-        magic=req_get('magic', 0),
+        entry=0,
+        magic=req_get("magic", 0),
         reason=0,
         position_id=position_ticket,
         volume=result.volume,
         price=exec_price,
         price_open=exec_price,
         price_current=exec_price,
-        sl=req_get('sl', 0.0),
-        tp=req_get('tp', 0.0),
+        sl=req_get("sl", 0.0),
+        tp=req_get("tp", 0.0),
         margin_required=margin_required,
         commission=0.0,
         swap=0.0,
         profit=0.0,
         fee=0.0,
         symbol=symbol_name,
-        comment=req_get('comment', ''),
-        external_id=""
+        comment=req_get("comment", ""),
+        external_id="",
     )
-    
     state.trading_deals.append(deal_row)
+
+    requested_entry_price = float(req_get("price", exec_price) or exec_price)
+    if requested_entry_price <= 0.0:
+        requested_entry_price = float(exec_price)
+    _open_trade_tracking(
+        state,
+        request,
+        position_ticket,
+        order_type,
+        symbol_name,
+        float(result.volume),
+        float(exec_price),
+        requested_entry_price,
+        float(req_get("sl", 0.0) or 0.0),
+        float(req_get("tp", 0.0) or 0.0),
+        float(margin_required),
+        profit_calculator=profit_calculator,
+    )
 
     result.retcode = 10009
     result.deal = deal_ticket
@@ -1071,5 +1520,3 @@ def order_send(
             f"price={float(exec_price):.5f} margin={float(margin_required):.2f}"
         )
     return result
-
-

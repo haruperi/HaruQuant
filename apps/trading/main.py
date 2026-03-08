@@ -4,6 +4,7 @@ Simulator engine execution and state management.
 import time
 
 from apps.mt5 import MT5Utils, get_mt5_api
+from apps.trading.core import RunResult
 from apps.utils.logger import logger
 from apps.trading import core
 
@@ -281,6 +282,37 @@ class Engine:
     @property
     def trading_history_orders(self):
         return self.state.trading_history_orders
+
+    @property
+    def completed_trades(self):
+        return self.state.completed_trade_records
+
+    @property
+    def equity_curve(self):
+        return self.state.completed_equity_curve
+
+    def get_completed_trades(self):
+        return list(self.state.completed_trade_records)
+
+    def get_equity_curve(self):
+        return list(self.state.completed_equity_curve)
+
+    def get_run_result(self, processed_ticks: int = 0):
+        account = self.account_info()
+        return RunResult(
+            trades=self.get_completed_trades(),
+            equity_curve=self.get_equity_curve(),
+            processed_ticks=int(processed_ticks),
+            final_balance=float(account.get("balance", 0.0) or 0.0),
+            final_equity=float(account.get("equity", account.get("balance", 0.0)) or 0.0),
+        )
+
+    def clear_completed_trades(self):
+        self.state.completed_trade_records = []
+        self.state.completed_equity_curve = []
+        self.state.equity_peak = None
+        self.state.open_trade_records_by_ticket = {}
+        self.state.open_trade_trackers_by_ticket = {}
 
     def history_deals_get(self, date_from=None, date_to=None, group=None, ticket=None):
         return core.history_deals_get(self.state, date_from, date_to, group, ticket)
@@ -744,6 +776,13 @@ class Engine:
         bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
         ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
 
+        tick_time_values = None
+        tick_epoch_values = None
+        if hasattr(data, "index") and getattr(data.index, "dtype", None) is not None:
+            if str(getattr(data.index, "dtype", "")).startswith("datetime64"):
+                tick_time_values = data.index.to_pydatetime()
+                tick_epoch_values = (data.index.view("int64") // 1_000_000_000).astype("int64")
+
         entry_values = self._signal_to_float_array(data, col_name_map, ["entry_signal"])
         exit_values = self._signal_to_float_array(data, col_name_map, ["exit_signal", "exit_trade"])
         pending_values = self._signal_to_float_array(data, col_name_map, ["pending_signal"])
@@ -803,6 +842,13 @@ class Engine:
                 _ = bid + ask
                 tick_number = idx + 1
 
+                if tick_time_values is not None:
+                    self.state.current_tick_datetime = tick_time_values[idx]
+                    self.state.current_tick_epoch = int(tick_epoch_values[idx])
+                else:
+                    self.state.current_tick_datetime = None
+                    self.state.current_tick_epoch = None
+
                 symbol_name = self._resolve_tick_symbol(idx, symbol_values, default_symbol)
                 self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
 
@@ -848,6 +894,8 @@ class Engine:
                 if progress_bar is not None:
                     progress_bar.update(1)
         finally:
+            self.state.current_tick_datetime = None
+            self.state.current_tick_epoch = None
             if progress_bar is not None:
                 progress_bar.close()
 

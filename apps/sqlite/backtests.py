@@ -878,6 +878,39 @@ class BacktestManager:
             if conn:
                 conn.close()
 
+    def save_backtest_equity_curve(self, backtest_id: int, equity_curve: List[Any]) -> bool:
+        """
+        Save equity curve points for an existing backtest run.
+
+        Args:
+            backtest_id (int): Backtest ID
+            equity_curve (list): List of equity point objects
+
+        Returns:
+            bool: True if successful
+        """
+        if not equity_curve:
+            return True
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA foreign_keys = ON")
+            self._save_equity_curve(cursor, backtest_id, equity_curve)
+            conn.commit()
+            logger.info(
+                f"Saved {len(equity_curve)} equity points for backtest {backtest_id}"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error saving backtest equity curve: {e}")
+            if conn:
+                conn.rollback()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
     def update_backtest_metadata(
         self,
         backtest_id: int,

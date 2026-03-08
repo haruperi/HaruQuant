@@ -13,6 +13,7 @@ sys.path.insert(0, PROJECT_ROOT)
 from apps.utils.logger import logger
 from apps.trading import Engine, core, Trade
 from apps.utils.data_manipulator import TicksGenerator
+from apps.sqlite.database_operations import DatabaseManager
 from data.strategies.trend_following import TrendFollowingStrategy
 from data.strategies.close_breakout import CloseBreakoutStrategy
 
@@ -65,6 +66,66 @@ trade.SetExpertMagicNumber(12345)
 trade.SetDeviationInPoints(20)
 trade.SetTypeFillingBySymbol(test_symbol)
 pending_orders_created = []
+
+def reset_sim_runtime_state():
+    if backend != "sim":
+        return
+    account = engine_instance.account_info()
+    account["balance"] = 10000.0
+    account["profit"] = 0.0
+    account["equity"] = 10000.0
+    account["margin"] = 0.0
+    account["margin_free"] = 10000.0
+    account["margin_level"] = 0.0
+    engine_instance.state.trading_deals = []
+    engine_instance.state.trading_history_deals = []
+    engine_instance.state.trading_orders = []
+    engine_instance.state.trading_history_orders = []
+    engine_instance.clear_completed_trades()
+    pending_orders_created.clear()
+
+
+def print_trade_record_summary(records):
+    print(f"completed_trades={len(records)}")
+    for idx, record in enumerate(records, start=1):
+        print(
+            f"trade[{idx}] ticket={record.ticket} symbol={record.symbol} side={record.type} "
+            f"size={record.size:.2f} pnl={record.profit_loss:.2f} mfe={record.mfe_usd:.2f} "
+            f"mae={record.mae_usd:.2f} close_type={record.close_type} exit_reason={record.exit_reason}"
+        )
+
+
+def print_run_result_summary(run_result):
+    print(f"processed_ticks={run_result.processed_ticks}")
+    print(f"final_balance={run_result.final_balance:.2f}")
+    print(f"final_equity={run_result.final_equity:.2f}")
+    print(f"completed_trades={len(run_result.trades)}")
+    print(f"equity_points={len(run_result.equity_curve)}")
+    if run_result.trades:
+        first = run_result.trades[0]
+        last = run_result.trades[-1]
+        print(
+            f"first_trade=ticket:{first.ticket} side:{first.type} pnl:{first.profit_loss:.2f} "
+            f"mfe:{first.mfe_usd:.2f} mae:{first.mae_usd:.2f}"
+        )
+        print(
+            f"last_trade=ticket:{last.ticket} side:{last.type} pnl:{last.profit_loss:.2f} "
+            f"mfe:{last.mfe_usd:.2f} mae:{last.mae_usd:.2f}"
+        )
+
+
+def get_mutable_sim_symbol(symbol_name: str):
+    for idx, symbol_row in enumerate(engine_instance.state.trading_symbols):
+        name = str(getattr(symbol_row, "name", "") or "")
+        if name != symbol_name:
+            continue
+        if isinstance(symbol_row, core.SymbolInfo):
+            return symbol_row
+        mutable = core.SymbolInfo(engine_instance._to_dict(symbol_row))
+        engine_instance.state.trading_symbols[idx] = mutable
+        return mutable
+    return None
+
 
 def print_example_header(title: str):
     print()
@@ -137,7 +198,7 @@ def example_02_calculate_profit_margin():
 
 def example_03_modify_position():
     print_example_header("Example 03: Modify Position (SL/TP)")
-    info = api.symbol_info(test_symbol)
+    info = get_mutable_sim_symbol(test_symbol)
     if info is None:
         print(f"{test_symbol}: symbol info unavailable, skipped")
         return
@@ -511,6 +572,11 @@ def example_10_simple_backtest():
 
     #print(ticks_data)
 
+    run_result = engine_instance.get_run_result(processed_ticks=processed)
+    print_run_result_summary(run_result)
+
+    # run_result_dict = run_result.to_dict()
+    # print(run_result_dict)
 
     
 
@@ -599,6 +665,222 @@ def example_11_simple_backtest_pending():
         f"history_deals={len(engine_instance.state.trading_history_deals)}"
     )
 
+
+def example_12_trade_results_partial_close():
+    print_example_header("Example 12: Trade Results Partial Close")
+    if backend != "sim":
+        print("Example 12 is simulator-only")
+        return
+
+    reset_sim_runtime_state()
+
+    info = get_mutable_sim_symbol(test_symbol)
+    if info is None:
+        print(f"{test_symbol}: symbol info unavailable, skipped")
+        return
+
+    open_price = float(info.ask)
+    open_result = trade.PositionOpen(
+        symbol=test_symbol,
+        order_type="BUY",
+        volume=0.02,
+        price=open_price,
+        sl=0.0,
+        tp=0.0,
+        comment="Example 12 partial close seed",
+    )
+    if not open_result or int(open_result.retcode) not in (10008, 10009):
+        print("Failed to open seed position")
+        return
+
+    point = float(info.point)
+    info.bid = float(info.bid) + (150 * point * 10)
+    info.ask = float(info.ask) + (150 * point * 10)
+    engine_instance.monitor_positions(verbose=True)
+    engine_instance.monitor_account(verbose=True)
+
+    partial_result = trade.PositionClosePartial(symbol=test_symbol, volume=0.01)
+    if not partial_result or int(partial_result.retcode) not in (10008, 10009):
+        print("Partial close failed")
+        return
+
+    info.bid = float(info.bid) + (100 * point * 10)
+    info.ask = float(info.ask) + (100 * point * 10)
+    engine_instance.monitor_positions(verbose=True)
+    engine_instance.monitor_account(verbose=True)
+
+    close_result = trade.PositionClose(symbol=test_symbol)
+    if not close_result or int(close_result.retcode) not in (10008, 10009):
+        print("Final close failed")
+        return
+
+    records = engine_instance.get_completed_trades()
+    print_trade_record_summary(records)
+    print(f"equity_points={len(engine_instance.get_equity_curve())}")
+
+
+def example_13_simple_backtest_save_to_db():
+    print_example_header("Example 13: Simple Backtest Save To DB")
+    if backend != "sim":
+        print("Example 13 is simulator-only")
+        return
+
+    reset_sim_runtime_state()
+    client = engine_instance.client
+
+    logger.info("Loading historical data...")
+    data = client.get_bars(
+        symbol=test_symbol,
+        timeframe=timeframe,
+        date_from=warmup_start_date,
+        date_to=end_date,
+    )
+    if data is None or data.empty:
+        logger.error("No data retrieved.")
+        return
+
+    logger.info("Setting up strategy...")
+    strategy = TrendFollowingStrategy(
+        params={
+            "symbol": test_symbol,
+            "fast_period": 20,
+            "slow_period": 50,
+            "filter_period": 200,
+        }
+    )
+    strategy.on_init()
+    data = strategy.on_bar(data)
+    data = data[data.index >= start_date].head(300)
+    if data is None or data.empty:
+        logger.error("No data available after start_date filter.")
+        return
+
+    symbol_info = engine_instance.client.symbol_info(test_symbol)
+    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
+    ticks_data = TicksGenerator(
+        model="timeframe_ticks",
+        trading_timeframe=timeframe,
+        point_value=point_value,
+        spread_model="native_spread",
+    ).generate(data)
+    if ticks_data is None or ticks_data.empty:
+        print("No ticks generated")
+        return
+
+    engine_instance.configure_run_schedule(
+        positions_every=1,
+        pending_orders_every=1,
+        account_every=4,
+        portfolio_every=4,
+        risk_every=4,
+    )
+    processed = engine_instance.run(
+        ticks_data,
+        position_size=0.01,
+        monitor_verbose=False,
+        show_progress=False,
+    )
+
+    completed_trades = engine_instance.get_completed_trades()
+    equity_curve = engine_instance.get_equity_curve()
+    print(f"processed_ticks={processed}")
+    print(f"completed_trades={len(completed_trades)}")
+    print(f"equity_points={len(equity_curve)}")
+    if not completed_trades:
+        print("No trades to save")
+        return
+
+    db = DatabaseManager()
+    db.initialize_database()
+    backtest_id = db.create_backtest_run(
+        strategy_name="TrendFollowingStrategy",
+        strategy_version="1.0.0",
+        start_date=data.index.min().to_pydatetime(),
+        end_date=data.index.max().to_pydatetime(),
+        engine_type="sim",
+        data_resolution="timeframe_ticks",
+        config_hash=str(hash(("example_13", test_symbol, timeframe, len(data)))),
+        symbols=[test_symbol],
+        timeframes=[timeframe],
+        initial_balance=10000.0,
+        alias="example_13_simple_backtest_save_to_db",
+        description="Engine.run completed trades + equity save example",
+    )
+    db.save_backtest_trades(backtest_id, completed_trades)
+    db.save_backtest_equity_curve(backtest_id, equity_curve)
+    final_balance = float(engine_instance.account_info().get("balance", 0.0) or 0.0)
+    db.update_backtest_status(backtest_id, "completed", final_balance=final_balance)
+
+    print(
+        f"saved_backtest_id={backtest_id} db_path={db.db_path} "
+        f"saved_trades={len(completed_trades)} saved_equity_points={len(equity_curve)}"
+    )
+
+
+
+def example_14_trade_results_report():
+    print_example_header("Example 14: Trade Results Report")
+    if backend != "sim":
+        print("Example 14 is simulator-only")
+        return
+
+    reset_sim_runtime_state()
+    client = engine_instance.client
+
+    data = client.get_bars(
+        symbol=test_symbol,
+        timeframe=timeframe,
+        date_from=warmup_start_date,
+        date_to=end_date,
+    )
+    if data is None or data.empty:
+        logger.error("No data retrieved.")
+        return
+
+    strategy = TrendFollowingStrategy(
+        params={
+            "symbol": test_symbol,
+            "fast_period": 20,
+            "slow_period": 50,
+            "filter_period": 200,
+        }
+    )
+    strategy.on_init()
+    data = strategy.on_bar(data)
+    data = data[data.index >= start_date].head(500)
+    if data is None or data.empty:
+        logger.error("No data available after start_date filter.")
+        return
+
+    symbol_info = engine_instance.client.symbol_info(test_symbol)
+    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
+    ticks_data = TicksGenerator(
+        model="timeframe_ticks",
+        trading_timeframe=timeframe,
+        point_value=point_value,
+        spread_model="native_spread",
+    ).generate(data)
+    if ticks_data is None or ticks_data.empty:
+        print("No ticks generated")
+        return
+
+    engine_instance.configure_run_schedule(
+        positions_every=1,
+        pending_orders_every=1,
+        account_every=4,
+        portfolio_every=4,
+        risk_every=4,
+    )
+    processed = engine_instance.run(
+        ticks_data,
+        position_size=0.01,
+        monitor_verbose=False,
+        show_progress=False,
+    )
+    run_result = engine_instance.get_run_result(processed_ticks=processed)
+    print_run_result_summary(run_result)
+
+
 if __name__ == "__main__":
     # example_01_open_position()
     # example_02_calculate_profit_margin()
@@ -611,6 +893,9 @@ if __name__ == "__main__":
     # example_09_monitoring_functions()
     example_10_simple_backtest()
     # example_11_simple_backtest_pending()
+    #example_12_trade_results_partial_close()
+    #example_13_simple_backtest_save_to_db()
+    #example_14_trade_results_report()
 
     
 
@@ -618,6 +903,11 @@ if __name__ == "__main__":
             print("\nShutting down MT5 connection...")
             engine_instance.client.shutdown()
             print("Disconnected.")
+
+
+
+
+
 
 
 
