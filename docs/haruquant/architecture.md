@@ -36,6 +36,30 @@
   - no approximation fallback in Engine-driven execution paths; missing/failed access raises runtime error.
 - Tick generation path (`apps/utils/data_manipulator.py -> TicksGenerator._generate_timeframe_ticks`) now builds output columns from NumPy arrays (4 ticks per bar) instead of Python `iterrows()` + dict appends, preserving the same output schema while reducing generation overhead.
 
+## Simulator Risk Integration
+
+- `apps/trading/main.py -> Engine.configure_risk_management(...)` enables optional simulator-side reuse of the existing `apps/risk` module.
+- Risk integration is adapter-based:
+  - `_SimulationRiskAdapter` exposes MT5-like methods expected by `RiskGovernor` / `PositionSizer`
+  - account equity comes from simulator state
+  - symbol info comes from simulator symbol state
+  - historical bars come from preloaded backtest data caches passed into `configure_risk_management(...)`
+- When risk management is enabled, `Engine.run(...)` changes only the new-entry path:
+  - exits and pending cancellations still execute immediately per tick
+  - entry and pending-entry signals at the same timestamp are collected into one batch
+  - the batch then flows through:
+    - `PositionSizer`
+    - `RiskRegimeDetector`
+    - `RiskBudgetAllocator` (optional)
+    - `RiskGovernor`
+    - existing order execution helpers
+- This keeps `run(...)` as the single chronological execution loop while allowing portfolio-aware approval of simultaneous signals across symbols.
+- Multi-timeframe strategy logic remains outside the engine:
+  - each symbol strategy prepares its own final signalized bars first
+  - those bars are converted to ticks
+  - merged ticks are then executed by the engine with optional portfolio risk gating
+- `examples/trading/trade_example.py -> example_14_portfolio_backtest_with_risk()` demonstrates this risk-enabled merged portfolio flow.
+
 ## BacktestState Deal Model (Refactor)
 
 - `BacktestState` now uses:

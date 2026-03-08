@@ -12,6 +12,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from apps.utils.logger import logger
 from apps.trading import Engine, core, Trade
+from apps.risk import CorrelationPreference, RiskLimits
 from apps.utils.data_manipulator import TicksGenerator
 from apps.sqlite.database_operations import DatabaseManager
 from data.strategies.trend_following import TrendFollowingStrategy
@@ -669,6 +670,7 @@ def build_symbol_ticks_for_backtest(
     strategy_cls=TrendFollowingStrategy,
     tick_model: str = "timeframe_ticks",
     spread_model: str = "native_spread",
+    return_signal_bars: bool = False,
 ):
     client = engine_instance.client
     data = client.get_bars(
@@ -712,6 +714,8 @@ def build_symbol_ticks_for_backtest(
     ticks_data = ticks_data.copy()
     ticks_data["symbol"] = symbol_name
     ticks_data["signal_timeframe"] = timeframe
+    if return_signal_bars:
+        return ticks_data, data.copy()
     return ticks_data
 
 
@@ -936,6 +940,136 @@ def example_12_trade_results_partial_close():
     print(f"equity_points={len(engine_instance.get_equity_curve())}")
 
 
+def example_14_portfolio_backtest_with_risk():
+    print_example_header("Example 14: Portfolio Backtest With Risk")
+
+    if backend == "sim":
+        reset_sim_runtime_state()
+
+    portfolio_symbols = [test_symbol, audusd, eurgbp]
+    tick_model = "timeframe_ticks"
+    spread_model = "native_spread"
+    governor_timeframe = timeframe
+    merged_ticks = []
+    historical_data = {}
+    per_symbol_counts = {}
+    generation_started = time.time()
+
+    logger.info("Loading and preparing portfolio symbol data for risk-managed run...")
+    for symbol_name in portfolio_symbols:
+        symbol_started = time.time()
+        built = build_symbol_ticks_for_backtest(
+            symbol_name,
+            tick_model=tick_model,
+            spread_model=spread_model,
+            return_signal_bars=True,
+        )
+        if not built:
+            continue
+        ticks_data, signal_bars = built
+        if ticks_data is None or ticks_data.empty:
+            continue
+        merged_ticks.append(ticks_data)
+        historical_data[symbol_name] = {
+            timeframe: signal_bars.copy(),
+            governor_timeframe: signal_bars.copy(),
+        }
+        per_symbol_counts[symbol_name] = len(ticks_data)
+        print(
+            f"risk portfolio {tick_model}: generated {len(ticks_data)} ticks for {symbol_name} "
+            f"in {time.time() - symbol_started} seconds"
+        )
+
+    if not merged_ticks:
+        print(f"risk portfolio {tick_model}: no ticks generated")
+        return
+
+    ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
+    print(
+        f"risk portfolio {tick_model}: merged {len(ticks_data)} ticks across {len(per_symbol_counts)} symbols "
+        f"in {time.time() - generation_started} seconds"
+    )
+
+    engine_instance.configure_run_schedule(
+        positions_every=1,
+        pending_orders_every=1,
+        account_every=4,
+        portfolio_every=4,
+        risk_every=4,
+    )
+    engine_instance.configure_risk_management(
+        enabled=True,
+        historical_data=historical_data,
+        position_sizing_method="fixed_lot",
+        position_sizing_config={
+            "lot_size": 0.01,
+        },
+        risk_limits=RiskLimits(
+            var_cap_frac=0.10,
+            es_cap_frac=0.15,
+            delta_var_cap_frac=0.03,
+            delta_es_cap_frac=0.04,
+            max_margin_used_frac=0.50,
+            max_single_rc_frac=0.60,
+            cluster_var_caps={"FOREX": 0.10},
+            cluster_es_caps={"FOREX": 0.15},
+        ),
+        governor_timeframe=governor_timeframe,
+        governor_start_pos=0,
+        governor_end_pos=500,
+        enable_regime_detection=True,
+        regime_config={
+            "lookback": 40,
+            "vol_med_window": 10,
+            "dd_trigger_frac": 0.05,
+        },
+        enable_allocation=True,
+        correlation_preference=CorrelationPreference(
+            target_corr=0.50,
+            penalty_strength=2.0,
+            min_budget_frac=0.30,
+        ),
+        risk_budgets={symbol_name: 1.0 / len(portfolio_symbols) for symbol_name in portfolio_symbols},
+        symbol_clusters={symbol_name: "FOREX" for symbol_name in portfolio_symbols},
+    )
+
+    start_time = time.time()
+    processed = engine_instance.run(
+        ticks_data,
+        position_size=0.01,
+        monitor_verbose=True,
+        show_progress=True,
+        progress_desc="Risk Portfolio Tester Progress",
+    )
+    end_time = time.time()
+
+    run_result = engine_instance.get_run_result(processed_ticks=processed)
+    print(f"risk portfolio {tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
+    for symbol_name, count in per_symbol_counts.items():
+        print(f"risk_symbol_ticks[{symbol_name}]={count}")
+
+    trade_counts = {}
+    for record in run_result.trades:
+        trade_counts[record.symbol] = trade_counts.get(record.symbol, 0) + 1
+
+    print_run_result_summary(run_result)
+    print_portfolio_symbol_summary(run_result.trades, portfolio_symbols)
+    for symbol_name in portfolio_symbols:
+        print(f"risk_completed_trades[{symbol_name}]={trade_counts.get(symbol_name, 0)}")
+
+    save_engine_backtest_snapshot(
+        alias="example_14_portfolio_backtest_with_risk_save_to_db",
+        description="Merged multi-symbol portfolio backtest using simulator risk management.",
+        strategy_name="TrendFollowingStrategy",
+        symbols=portfolio_symbols,
+        timeframes=[timeframe],
+        start_dt=ticks_data.index.min().to_pydatetime(),
+        end_dt=ticks_data.index.max().to_pydatetime(),
+        config_hash=str(hash(("example_14_portfolio_risk", tuple(portfolio_symbols), timeframe, len(ticks_data)))),
+    )
+    engine_instance.configure_risk_management(enabled=False)
+
+
 if __name__ == "__main__":
     # example_01_open_position()
     # example_02_calculate_profit_margin()
@@ -949,7 +1083,8 @@ if __name__ == "__main__":
     # example_10_simple_backtest()
     # example_11_simple_backtest_pending()
     # example_12_trade_results_partial_close()
-    example_13_simple_portfolion_backtest()
+    # example_13_simple_portfolion_backtest()
+    example_14_portfolio_backtest_with_risk()
  
 
     

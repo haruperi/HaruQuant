@@ -3,7 +3,17 @@ Simulator engine execution and state management.
 """
 import time
 
+import pandas as pd
+
 from apps.mt5 import MT5Utils, get_mt5_api
+from apps.risk import (
+    CorrelationPreference,
+    PositionSizer,
+    RiskBudgetAllocator,
+    RiskGovernor,
+    RiskLimits,
+    RiskRegimeDetector,
+)
 from apps.trading.core import RunResult
 from apps.utils.logger import logger
 from apps.trading import core
@@ -35,6 +45,73 @@ else:
             _ = bid_values[idx] + ask_values[idx]
             processed += 1
         return processed
+
+
+class _SimulationRiskSymbolInfo:
+    def __init__(self, raw_symbol):
+        self.raw_symbol = raw_symbol
+
+    def __getattr__(self, name):
+        return getattr(self.raw_symbol, name)
+
+    def get(self, name, default=None):
+        return getattr(self.raw_symbol, name, default)
+
+    def get_contract_size(self):
+        return float(getattr(self.raw_symbol, "trade_contract_size", 100000.0) or 100000.0)
+
+    def get_lots_min(self):
+        return float(getattr(self.raw_symbol, "volume_min", 0.01) or 0.01)
+
+    def get_lots_max(self):
+        return float(getattr(self.raw_symbol, "volume_max", 100.0) or 100.0)
+
+    def get_lots_step(self):
+        return float(getattr(self.raw_symbol, "volume_step", 0.01) or 0.01)
+
+
+class _SimulationRiskAdapter:
+    def __init__(self, engine, historical_data):
+        self.engine = engine
+        self.historical_data = historical_data or {}
+
+    def get_account_equity(self):
+        account = self.engine.account_info()
+        return float(account.get("equity", account.get("balance", 0.0)) or 0.0)
+
+    def get_symbol_info(self, symbol):
+        sym = self.engine.symbol_info(symbol)
+        if sym is None:
+            return None
+        return _SimulationRiskSymbolInfo(sym)
+
+    def get_margin_required(self, symbol, lots):
+        sym = self.engine.symbol_info(symbol)
+        if sym is None:
+            return None
+        price = float(getattr(sym, "ask", getattr(sym, "bid", 0.0)) or 0.0)
+        if price <= 0.0:
+            return None
+        return self.engine._strict_order_calc_margin(0, symbol, abs(float(lots)), price)
+
+    def get_bars(self, symbol: str, timeframe: str, count: int = 100, start_pos: int = 0):
+        symbol_frames = self.historical_data.get(str(symbol), {})
+        df = symbol_frames.get(str(timeframe))
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        out = df
+        current_dt = getattr(self.engine.state, "current_tick_datetime", None)
+        if current_dt is not None and isinstance(out.index, pd.DatetimeIndex):
+            out = out[out.index <= pd.Timestamp(current_dt)]
+        if out.empty:
+            return pd.DataFrame()
+
+        if start_pos and start_pos > 0:
+            out = out.iloc[start_pos:]
+        if count is not None and count > 0:
+            out = out.tail(int(count))
+        return out.copy()
 
 
 class Engine:
@@ -69,6 +146,21 @@ class Engine:
         }
         self._schedule_state_dirty = True
         self.default_signal_volume = 0.01
+        self.risk_management = {
+            "enabled": False,
+            "position_sizer": None,
+            "regime_detector": None,
+            "governor": None,
+            "allocator": None,
+            "symbol_clusters": {},
+            "risk_budgets": {},
+            "historical_data": {},
+            "governor_timeframe": None,
+            "enable_regime_detection": False,
+            "enable_allocation": False,
+        }
+        self._risk_adapter = None
+        self._risk_equity_history = []
 
         logger.info(f"successfully initialised trading engine {self.backend}")
 
@@ -675,6 +767,288 @@ class Engine:
         self.run_schedule["portfolio"] = self._normalize_schedule_every(portfolio_every)
         self.run_schedule["risk"] = self._normalize_schedule_every(risk_every)
 
+    def configure_risk_management(
+        self,
+        enabled: bool = True,
+        historical_data=None,
+        position_sizing_method: str = "fixed_risk",
+        position_sizing_config=None,
+        risk_limits=None,
+        governor_timeframe: str = "H1",
+        governor_start_pos: int = 0,
+        governor_end_pos: int = 500,
+        enable_regime_detection: bool = True,
+        regime_config=None,
+        enable_allocation: bool = False,
+        correlation_preference=None,
+        risk_budgets=None,
+        symbol_clusters=None,
+    ):
+        self._risk_equity_history = []
+        if not enabled:
+            self.risk_management = {
+                "enabled": False,
+                "position_sizer": None,
+                "regime_detector": None,
+                "governor": None,
+                "allocator": None,
+                "symbol_clusters": {},
+                "risk_budgets": {},
+                "historical_data": {},
+                "governor_timeframe": None,
+                "enable_regime_detection": False,
+                "enable_allocation": False,
+            }
+            self._risk_adapter = None
+            return
+
+        limits_obj = risk_limits if isinstance(risk_limits, RiskLimits) else RiskLimits(**(risk_limits or {}))
+        regime_cfg = regime_config or {}
+        corr_pref = correlation_preference if isinstance(correlation_preference, CorrelationPreference) else CorrelationPreference(**(correlation_preference or {}))
+
+        self._risk_adapter = _SimulationRiskAdapter(self, historical_data or {})
+        governor = RiskGovernor(
+            mt5_client=self._risk_adapter,
+            limits=limits_obj,
+            timeframe=governor_timeframe,
+            start_pos=int(governor_start_pos),
+            end_pos=int(governor_end_pos),
+        )
+        position_sizer = PositionSizer(
+            method=position_sizing_method,
+            config=position_sizing_config or {},
+            mt5_client=self._risk_adapter,
+        )
+        regime_detector = RiskRegimeDetector(**regime_cfg)
+        allocator = RiskBudgetAllocator(governor, corr_pref) if enable_allocation else None
+
+        self.risk_management = {
+            "enabled": True,
+            "position_sizer": position_sizer,
+            "regime_detector": regime_detector,
+            "governor": governor,
+            "allocator": allocator,
+            "symbol_clusters": dict(symbol_clusters or {}),
+            "risk_budgets": dict(risk_budgets or {}),
+            "historical_data": historical_data or {},
+            "governor_timeframe": str(governor_timeframe),
+            "enable_regime_detection": bool(enable_regime_detection),
+            "enable_allocation": bool(enable_allocation),
+        }
+
+    def _risk_enabled(self):
+        return bool(self.risk_management.get("enabled")) and self._risk_adapter is not None
+
+    def _aggregate_net_positions(self):
+        positions = {}
+        for position in self.state.trading_deals:
+            if str(getattr(position, "entry", 0)) != "0":
+                continue
+            symbol_name = str(getattr(position, "symbol", "") or "")
+            if not symbol_name:
+                continue
+            volume = float(getattr(position, "volume", 0.0) or 0.0)
+            if volume <= 0.0:
+                continue
+            order_type = int(getattr(position, "type", -1) or -1)
+            signed_volume = volume if order_type == 0 else -volume
+            positions[symbol_name] = float(positions.get(symbol_name, 0.0) + signed_volume)
+            if abs(positions[symbol_name]) < 1e-12:
+                positions.pop(symbol_name, None)
+        return positions
+
+    def _build_risk_equity_series(self):
+        curve = self.get_equity_curve()
+        if curve:
+            timestamps = [pd.Timestamp(point.timestamp) for point in curve if getattr(point, "timestamp", None) is not None]
+            values = [float(point.equity) for point in curve if getattr(point, "timestamp", None) is not None]
+            if timestamps and values and len(timestamps) == len(values):
+                return pd.Series(values, index=pd.DatetimeIndex(timestamps))
+        if self._risk_equity_history:
+            return pd.Series([item[1] for item in self._risk_equity_history], index=pd.DatetimeIndex([item[0] for item in self._risk_equity_history]))
+        current_dt = getattr(self.state, "current_tick_datetime", None)
+        current_equity = float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0)
+        if current_dt is None:
+            return None
+        return pd.Series([current_equity], index=pd.DatetimeIndex([pd.Timestamp(current_dt)]))
+
+    def _record_risk_equity_point(self):
+        current_dt = getattr(self.state, "current_tick_datetime", None)
+        if current_dt is None:
+            return
+        current_equity = float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0)
+        timestamp = pd.Timestamp(current_dt)
+        if self._risk_equity_history and self._risk_equity_history[-1][0] == timestamp:
+            self._risk_equity_history[-1] = (timestamp, current_equity)
+            return
+        self._risk_equity_history.append((timestamp, current_equity))
+        if len(self._risk_equity_history) > 5000:
+            self._risk_equity_history = self._risk_equity_history[-5000:]
+
+    def _candidate_signal_type(self, candidate):
+        action = candidate.get("action")
+        code = self._safe_int(candidate.get("signal_code"), 0)
+        if action == "entry":
+            return "buy" if code == 1 else "sell"
+        if code in (1, 2):
+            return "buy"
+        return "sell"
+
+    def _candidate_signed_lots(self, candidate, lots: float):
+        signal_type = self._candidate_signal_type(candidate)
+        return float(lots if signal_type == "buy" else -lots)
+
+    def _execute_candidate(self, candidate, volume: float, verbose: bool = False):
+        if candidate.get("action") == "entry":
+            return self._exec_entry_signal(
+                candidate.get("symbol_name"),
+                candidate.get("signal_code"),
+                candidate.get("bid"),
+                candidate.get("ask"),
+                sl=candidate.get("sl", 0.0),
+                tp=candidate.get("tp", 0.0),
+                volume=volume,
+                verbose=verbose,
+            )
+        return self._exec_pending_signal(
+            candidate.get("symbol_name"),
+            candidate.get("signal_code"),
+            candidate.get("bid"),
+            candidate.get("ask"),
+            signal_price=candidate.get("signal_price", 0.0),
+            sl=candidate.get("sl", 0.0),
+            tp=candidate.get("tp", 0.0),
+            volume=volume,
+            verbose=verbose,
+        )
+
+    def _build_risk_candidate(
+        self,
+        action,
+        symbol_name,
+        signal_code,
+        bid,
+        ask,
+        signal_price=0.0,
+        sl=0.0,
+        tp=0.0,
+        requested_volume=0.0,
+    ):
+        return {
+            "action": str(action),
+            "symbol_name": str(symbol_name or ""),
+            "signal_code": int(self._safe_int(signal_code, 0)),
+            "bid": float(self._safe_float(bid, 0.0)),
+            "ask": float(self._safe_float(ask, 0.0)),
+            "signal_price": float(self._safe_float(signal_price, 0.0)),
+            "sl": float(self._safe_float(sl, 0.0)),
+            "tp": float(self._safe_float(tp, 0.0)),
+            "requested_volume": float(self._safe_float(requested_volume, 0.0)),
+        }
+
+
+    def _risk_log_report(self, candidate, base_lots, target_lots, regime, report, verbose: bool = False):
+        if not verbose:
+            return
+        regime_name = "NORMAL" if regime is None else str(regime.name)
+        print(
+            f"[risk] symbol={candidate.get('symbol_name')} action={candidate.get('action')} "
+            f"side={self._candidate_signal_type(candidate).upper()} base_lots={float(base_lots):.4f} "
+            f"target_lots={float(target_lots):.4f} regime={regime_name} decision={report.decision} "
+            f"reason={report.reason} new_var={float(report.new_var):.2f} delta_var={float(report.delta_var):.2f} "
+            f"new_es={float(report.new_es):.2f} delta_es={float(report.delta_es):.2f}"
+        )
+
+    def _execute_risk_batch(self, candidates, fallback_volume: float, verbose: bool = False):
+        if not candidates or not self._risk_enabled():
+            return False
+
+        if self._has_open_positions():
+            self.monitor_positions(verbose=False)
+            self.monitor_account(verbose=False)
+        self._record_risk_equity_point()
+
+        governor = self.risk_management.get("governor")
+        position_sizer = self.risk_management.get("position_sizer")
+        allocator = self.risk_management.get("allocator")
+        regime_detector = self.risk_management.get("regime_detector")
+        current_positions = self._aggregate_net_positions()
+
+        prepared = []
+        for candidate in candidates:
+            symbol_name = candidate.get("symbol_name")
+            raw_symbol_info = self._risk_adapter.get_symbol_info(symbol_name) if self._risk_adapter is not None else None
+            stop_loss = candidate.get("sl", 0.0) or None
+            entry_price = float(candidate.get("signal_price") or 0.0)
+            if entry_price <= 0.0:
+                entry_price = float(candidate.get("ask") if self._candidate_signal_type(candidate) == "buy" else candidate.get("bid"))
+            base_lots = float(candidate.get("requested_volume") or fallback_volume)
+            if position_sizer is not None:
+                sized = position_sizer.calculate_size(
+                    account_balance=float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0),
+                    entry_price=entry_price,
+                    stop_loss=stop_loss,
+                    symbol_info=raw_symbol_info,
+                    symbol=symbol_name,
+                    signal_type=self._candidate_signal_type(candidate),
+                )
+                if sized > 0.0:
+                    base_lots = float(sized)
+            candidate["entry_price"] = float(entry_price)
+            candidate["base_lots"] = float(base_lots)
+            prepared.append(candidate)
+
+        regime = None
+        if self.risk_management.get("enable_regime_detection") and regime_detector is not None and governor is not None:
+            symbols = sorted({str(candidate.get("symbol_name")) for candidate in prepared if candidate.get("symbol_name")})
+            if symbols:
+                returns_df = governor._build_returns_df(governor._get_data(symbols, exclude_current_bar=True), symbols)
+                equity_curve = self._build_risk_equity_series()
+                regime = regime_detector.detect(returns_df, equity_curve) if not returns_df.empty else None
+
+        target_map = {f"{idx}:{candidate['symbol_name']}:{candidate['action']}": candidate["base_lots"] for idx, candidate in enumerate(prepared)}
+        if self.risk_management.get("enable_allocation") and allocator is not None and len(prepared) > 1:
+            alloc_symbols = []
+            alloc_base_lots = {}
+            alloc_budgets = {}
+            for idx, candidate in enumerate(prepared):
+                key = f"{idx}:{candidate['symbol_name']}:{candidate['action']}"
+                alloc_symbols.append(key)
+                alloc_base_lots[key] = float(candidate["base_lots"])
+                alloc_budgets[key] = float(self.risk_management.get("risk_budgets", {}).get(candidate["symbol_name"], 0.0) or 0.0)
+            target_map = allocator.compute_target_lots(
+                symbols=alloc_symbols,
+                base_lots=alloc_base_lots,
+                budgets=alloc_budgets,
+                regime=regime,
+            )
+
+        state_changed = False
+        symbol_clusters = self.risk_management.get("symbol_clusters") or {}
+        for idx, candidate in enumerate(prepared):
+            key = f"{idx}:{candidate['symbol_name']}:{candidate['action']}"
+            target_lots = float(target_map.get(key, candidate["base_lots"]))
+            if target_lots <= 0.0:
+                continue
+            signed_lots = self._candidate_signed_lots(candidate, target_lots)
+            report = governor.evaluate_add_position(
+                current_positions=current_positions,
+                candidate_symbol=candidate["symbol_name"],
+                candidate_lots=signed_lots,
+                symbol_to_cluster=symbol_clusters,
+                regime=regime,
+            )
+            self._risk_log_report(candidate, candidate["base_lots"], target_lots, regime, report, verbose=verbose)
+            if report.decision != "ACCEPT":
+                continue
+            if self._execute_candidate(candidate, target_lots, verbose=verbose):
+                current_positions[candidate["symbol_name"]] = float(current_positions.get(candidate["symbol_name"], 0.0) + signed_lots)
+                if abs(current_positions[candidate["symbol_name"]]) < 1e-12:
+                    current_positions.pop(candidate["symbol_name"], None)
+                state_changed = True
+
+        return state_changed
+
     @staticmethod
     def _due_by_interval(tick_number: int, every):
         return every is not None and (tick_number == 1 or tick_number % every == 0)
@@ -813,7 +1187,8 @@ class Engine:
         )
 
         schedule_enabled = any(value is not None for value in self.run_schedule.values())
-        if not schedule_enabled and not has_signal_cols:
+        risk_enabled = self._risk_enabled()
+        if not schedule_enabled and not has_signal_cols and not risk_enabled:
             processed = _process_ticks_numba(bid_values, ask_values)
             return processed
 
@@ -861,67 +1236,143 @@ class Engine:
                 dynamic_ncols=True,
             )
         try:
-            for idx in range(total_ticks):
-                bid = float(bid_values[idx])
-                ask = float(ask_values[idx])
-                _ = bid + ask
-                tick_number = idx + 1
+            idx = 0
+            while idx < total_ticks:
+                batch_end = idx + 1
+                if risk_enabled and tick_epoch_values is not None:
+                    current_epoch = int(tick_epoch_values[idx])
+                    while batch_end < total_ticks and int(tick_epoch_values[batch_end]) == current_epoch:
+                        batch_end += 1
 
-                if tick_time_values is not None:
-                    self.state.current_tick_datetime = tick_time_values[idx]
-                    self.state.current_tick_epoch = int(tick_epoch_values[idx])
-                else:
-                    self.state.current_tick_datetime = None
-                    self.state.current_tick_epoch = None
+                risk_candidates = []
+                for batch_idx in range(idx, batch_end):
+                    bid = float(bid_values[batch_idx])
+                    ask = float(ask_values[batch_idx])
+                    _ = bid + ask
+                    tick_number = batch_idx + 1
 
-                symbol_name = self._resolve_tick_symbol(idx, symbol_values, default_symbol)
-                if portfolio_run and not symbol_name:
-                    raise ValueError(
-                        f"Portfolio Engine.run could not resolve symbol at tick index {idx}."
+                    if tick_time_values is not None:
+                        self.state.current_tick_datetime = tick_time_values[batch_idx]
+                        self.state.current_tick_epoch = int(tick_epoch_values[batch_idx])
+                    else:
+                        self.state.current_tick_datetime = None
+                        self.state.current_tick_epoch = None
+
+                    symbol_name = self._resolve_tick_symbol(batch_idx, symbol_values, default_symbol)
+                    if portfolio_run and not symbol_name:
+                        raise ValueError(
+                            f"Portfolio Engine.run could not resolve symbol at tick index {batch_idx}."
+                        )
+                    self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
+
+                    entry_signal = 0.0 if entry_values is None else float(entry_values[batch_idx])
+                    exit_signal = 0.0 if exit_values is None else float(exit_values[batch_idx])
+                    pending_signal = 0.0 if pending_values is None else float(pending_values[batch_idx])
+                    cancel_pending_signal = (
+                        0.0 if cancel_pending_values is None else float(cancel_pending_values[batch_idx])
                     )
-                self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
+                    pending_signal_2 = 0.0 if pending_values_2 is None else float(pending_values_2[batch_idx])
+                    cancel_pending_signal_2 = (
+                        0.0 if cancel_pending_values_2 is None else float(cancel_pending_values_2[batch_idx])
+                    )
+                    signal_price = 0.0 if signal_price_values is None else float(signal_price_values[batch_idx])
+                    signal_price_2 = 0.0 if signal_price_values_2 is None else float(signal_price_values_2[batch_idx])
+                    sl_value = 0.0 if sl_values is None else float(sl_values[batch_idx])
+                    tp_value = 0.0 if tp_values is None else float(tp_values[batch_idx])
 
-                entry_signal = 0.0 if entry_values is None else float(entry_values[idx])
-                exit_signal = 0.0 if exit_values is None else float(exit_values[idx])
-                pending_signal = 0.0 if pending_values is None else float(pending_values[idx])
-                cancel_pending_signal = (
-                    0.0 if cancel_pending_values is None else float(cancel_pending_values[idx])
-                )
-                pending_signal_2 = 0.0 if pending_values_2 is None else float(pending_values_2[idx])
-                cancel_pending_signal_2 = (
-                    0.0 if cancel_pending_values_2 is None else float(cancel_pending_values_2[idx])
-                )
-                signal_price = 0.0 if signal_price_values is None else float(signal_price_values[idx])
-                signal_price_2 = 0.0 if signal_price_values_2 is None else float(signal_price_values_2[idx])
-                sl_value = 0.0 if sl_values is None else float(sl_values[idx])
-                tp_value = 0.0 if tp_values is None else float(tp_values[idx])
+                    if risk_enabled:
+                        if self._exec_exit_signal(symbol_name, exit_signal, bid, ask, verbose=bool(monitor_verbose)):
+                            self._schedule_state_dirty = True
+                        if self._exec_cancel_pending_signal(
+                            symbol_name,
+                            cancel_pending_signal,
+                            verbose=bool(monitor_verbose),
+                        ):
+                            self._schedule_state_dirty = True
+                        if self._exec_cancel_pending_signal(
+                            symbol_name,
+                            cancel_pending_signal_2,
+                            verbose=bool(monitor_verbose),
+                        ):
+                            self._schedule_state_dirty = True
 
-                if self._apply_tick_signals(
-                    symbol_name=symbol_name,
-                    bid=bid,
-                    ask=ask,
-                    entry_signal=entry_signal,
-                    exit_signal=exit_signal,
-                    pending_signal=pending_signal,
-                    cancel_pending_signal=cancel_pending_signal,
-                    pending_signal_2=pending_signal_2,
-                    cancel_pending_signal_2=cancel_pending_signal_2,
-                    signal_price=signal_price,
-                    signal_price_2=signal_price_2,
-                    sl=sl_value,
-                    tp=tp_value,
-                    volume=run_position_size,
+                        if self._safe_int(entry_signal, 0) in (1, -1):
+                            risk_candidates.append(
+                                self._build_risk_candidate(
+                                    action="entry",
+                                    symbol_name=symbol_name,
+                                    signal_code=entry_signal,
+                                    bid=bid,
+                                    ask=ask,
+                                    sl=sl_value,
+                                    tp=tp_value,
+                                    requested_volume=run_position_size,
+                                )
+                            )
+                        if self._safe_int(pending_signal, 0) in (1, -1, 2, -2):
+                            risk_candidates.append(
+                                self._build_risk_candidate(
+                                    action="pending",
+                                    symbol_name=symbol_name,
+                                    signal_code=pending_signal,
+                                    bid=bid,
+                                    ask=ask,
+                                    signal_price=signal_price,
+                                    sl=sl_value,
+                                    tp=tp_value,
+                                    requested_volume=run_position_size,
+                                )
+                            )
+                        if self._safe_int(pending_signal_2, 0) in (1, -1, 2, -2):
+                            risk_candidates.append(
+                                self._build_risk_candidate(
+                                    action="pending",
+                                    symbol_name=symbol_name,
+                                    signal_code=pending_signal_2,
+                                    bid=bid,
+                                    ask=ask,
+                                    signal_price=signal_price_2,
+                                    sl=sl_value,
+                                    tp=tp_value,
+                                    requested_volume=run_position_size,
+                                )
+                            )
+                    else:
+                        if self._apply_tick_signals(
+                            symbol_name=symbol_name,
+                            bid=bid,
+                            ask=ask,
+                            entry_signal=entry_signal,
+                            exit_signal=exit_signal,
+                            pending_signal=pending_signal,
+                            cancel_pending_signal=cancel_pending_signal,
+                            pending_signal_2=pending_signal_2,
+                            cancel_pending_signal_2=cancel_pending_signal_2,
+                            signal_price=signal_price,
+                            signal_price_2=signal_price_2,
+                            sl=sl_value,
+                            tp=tp_value,
+                            volume=run_position_size,
+                            verbose=bool(monitor_verbose),
+                        ):
+                            self._schedule_state_dirty = True
+
+                    self._run_scheduled_callbacks(
+                        tick_number=tick_number,
+                        verbose=bool(monitor_verbose),
+                    )
+                    processed += 1
+                    if progress_bar is not None:
+                        progress_bar.update(1)
+
+                if risk_enabled and self._execute_risk_batch(
+                    risk_candidates,
+                    fallback_volume=run_position_size,
                     verbose=bool(monitor_verbose),
                 ):
                     self._schedule_state_dirty = True
 
-                self._run_scheduled_callbacks(
-                    tick_number=tick_number,
-                    verbose=bool(monitor_verbose),
-                )
-                processed += 1
-                if progress_bar is not None:
-                    progress_bar.update(1)
+                idx = batch_end
         finally:
             self.state.current_tick_datetime = None
             self.state.current_tick_epoch = None
