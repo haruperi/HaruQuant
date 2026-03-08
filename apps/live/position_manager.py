@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
-from apps.mt5 import Trade
+from apps.trading.trade import Trade
 
 
 class PositionManager:
@@ -26,7 +26,7 @@ class PositionManager:
         self._positions: List[Dict] = []
 
         # Initialize Trade instance
-        self.trade = Trade()
+        self.trade = Trade(api=self.client)
         self.trade.SetExpertMagicNumber(magic_number)
 
         logger.info(f"PositionManager initialized with magic number {magic_number}")

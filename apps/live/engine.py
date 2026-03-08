@@ -19,11 +19,12 @@ from apps.live.safety_checks import SafetyChecker
 from apps.live.signal_processor import SignalProcessor
 from apps.live.state_manager import StateManager
 from apps.live.trade_executor import TradeExecutor
+from apps.live.mt5_compat import account_balance, account_currency, account_leverage
 from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.strategy import storage
-from apps.mt5 import AccountInfo, SymbolInfo, Trade
+from apps.trading.trade import Trade
 from data.strategies.close_breakout import CloseBreakoutStrategy
 from data.strategies.mean_reversion import MeanReversionStrategy
 from data.strategies.trend_following import TrendFollowingStrategy
@@ -104,7 +105,7 @@ class MultiStrategyEngine:
         # Shared components (single MT5 connection)
         self.client: Optional[MT5Client] = client
         self.trade: Optional[Trade] = None
-        self.account: Optional[AccountInfo] = None
+        self.account: Optional[Any] = None
 
         # Portfolio management
         self.portfolio_manager: Optional[PortfolioManager] = None
@@ -273,14 +274,14 @@ class MultiStrategyEngine:
 
             # 2. Setup shared trading objects
             logger.info("Setting up shared trading objects...")
-            self.trade = Trade()
+            self.trade = Trade(api=self.client)
             # Note: Filling mode will be set per-symbol in strategy initialization
 
-            self.account = AccountInfo()
+            self.account = self.client.account_info()
 
             logger.info(
-                f"Account: {self.account.Balance()} {self.account.Currency()}, "
-                f"Leverage: 1:{self.account.Leverage()}"
+                f"Account: {account_balance(self.account)} {account_currency(self.account)}, "
+                f"Leverage: 1:{account_leverage(self.account)}"
             )
 
             # 3. Initialize portfolio manager
@@ -419,7 +420,9 @@ class MultiStrategyEngine:
                 raise RuntimeError("MT5 Client not initialized")
 
             # Create components
-            symbol_info = SymbolInfo(symbol, api=self.client)
+            symbol_info = self.client.symbol_info(symbol)
+            if symbol_info is None:
+                raise RuntimeError(f"Symbol info unavailable for {symbol}")
             bar_monitor = BarMonitor(self.client, symbol, timeframe)
 
             # Setup signal processor with historical data
@@ -536,7 +539,7 @@ class MultiStrategyEngine:
         return signal_processor
 
     def _create_safety_checker(
-        self, symbol_info: SymbolInfo, config: Dict
+        self, symbol_info: Any, config: Dict
     ) -> SafetyChecker:
         """Create safety checker instance."""
         if not self.client or not self.account:
@@ -552,7 +555,7 @@ class MultiStrategyEngine:
 
     def _create_trade_executor(
         self,
-        symbol_info: SymbolInfo,
+        symbol_info: Any,
         position_manager: PositionManager,
         symbol: str,
         config: Dict,

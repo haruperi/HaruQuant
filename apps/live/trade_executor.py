@@ -7,9 +7,10 @@ import time
 from typing import Dict, Optional, Tuple, Union, cast
 
 from apps.live.position_manager import PositionManager
+from apps.live.mt5_compat import symbol_ask, symbol_bid
 from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
-from apps.mt5 import SymbolInfo, Trade
+from apps.trading.trade import Trade
 
 
 class TradeExecutor:
@@ -18,7 +19,7 @@ class TradeExecutor:
     def __init__(
         self,
         trade: Trade,
-        symbol_info: SymbolInfo,
+        symbol_info: object,
         position_manager: PositionManager,
         symbol: str,
         volume: float,
@@ -100,10 +101,10 @@ class TradeExecutor:
             self.trade.SetTypeFilling(int(self.filling_mode))
 
         if signal_type == "buy":
-            price = self.symbol_info.Ask()
+            price = symbol_ask(self.symbol_info)
             order_type = "BUY"
         elif signal_type == "sell":
-            price = self.symbol_info.Bid()
+            price = symbol_bid(self.symbol_info)
             order_type = "SELL"
         else:
             return None
@@ -147,9 +148,9 @@ class TradeExecutor:
                 time.sleep(0.5)
                 # Refresh price
                 params["price"] = (
-                    self.symbol_info.Ask()
+                    symbol_ask(self.symbol_info)
                     if signal_type == "buy"
-                    else self.symbol_info.Bid()
+                    else symbol_bid(self.symbol_info)
                 )
                 continue
             else:

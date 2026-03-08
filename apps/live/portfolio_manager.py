@@ -9,7 +9,15 @@ from typing import Dict, List, Tuple
 
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
-from apps.mt5 import AccountInfo, get_mt5_api
+from apps.mt5 import get_mt5_api
+from apps.live.mt5_compat import (
+    account_balance,
+    account_equity,
+    account_free_margin,
+    account_margin,
+    account_margin_level,
+    account_profit,
+)
 
 mt5 = get_mt5_api()
 
@@ -20,7 +28,7 @@ class PortfolioManager:
     def __init__(
         self,
         client: MT5Client,
-        account: AccountInfo,
+        account: object,
         max_total_positions: int = 20,
         max_positions_per_symbol: int = 3,
         max_portfolio_risk_percent: float = 10.0,
@@ -167,8 +175,8 @@ class PortfolioManager:
         """
         try:
             # Calculate current portfolio exposure
-            balance = self.account.Balance()
-            total_margin = self.account.Margin()
+            balance = account_balance(self.account)
+            total_margin = account_margin(self.account)
 
             if balance <= 0:
                 return False, "Invalid account balance"
@@ -260,12 +268,12 @@ class PortfolioManager:
             Dictionary with portfolio stats
         """
         try:
-            balance = self.account.Balance()
-            equity = self.account.Equity()
-            margin = self.account.Margin()
-            free_margin = self.account.FreeMargin()
-            margin_level = self.account.MarginLevel()
-            profit = self.account.Profit()
+            balance = account_balance(self.account)
+            equity = account_equity(self.account)
+            margin = account_margin(self.account)
+            free_margin = account_free_margin(self.account)
+            margin_level = account_margin_level(self.account)
+            profit = account_profit(self.account)
 
             # Count positions by direction
             buy_positions = sum(
