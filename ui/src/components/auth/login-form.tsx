@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +13,7 @@ import { toast } from "sonner"
 
 export function LoginForm() {
   const { login } = useAuth()
+  const router = useRouter()
   const [isLoading, setIsLoading] = React.useState(false)
   const [username, setUsername] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -24,6 +26,7 @@ export function LoginForm() {
     try {
       await login(username, password)
       toast.success("Logged in successfully")
+      router.replace("/")
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Invalid credentials. Please try again."
       toast.error("Failed to login", {

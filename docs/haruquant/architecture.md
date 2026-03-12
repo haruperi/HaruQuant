@@ -331,6 +331,44 @@
   - free-form message patterns such as `password=...`, `token=...`, `api_key=...`, and `Bearer ...` are redacted
 - Redaction happens before sink/callback dispatch and before stderr output to prevent accidental secret leakage in downstream handlers.
 
+## Password Hashing
+
+- User password hashing and verification live in `apps/utils/security.py`.
+- The auth flow uses Passlib with bcrypt-backed hashes for:
+  - user creation and password updates
+  - login verification in `apps/api/auth_utils.py`
+- Runtime compatibility note:
+  - this project pins `bcrypt==4.0.1` in `requirements.txt`
+  - newer `bcrypt` 5.x changes long-password handling and can break verification for existing accounts created under older behavior
+
+## Dashboard Equity Curve
+
+- Dashboard equity data is served by `GET /api/dashboard/equity-curve`.
+- The endpoint reuses the authenticated MT5 connection flow from `apps/api/routes/dashboard/broker.py`.
+- Equity points are derived from historical deals ordered by timestamp using:
+  - `profit`
+  - `commission`
+  - `swap`
+- The UI groups returned points by history span:
+  - `< 1 day`: hours
+  - `1-31 days`: days
+  - `32 days-< 6 months`: weeks
+  - `6-12 months`: months
+  - `> 12 months`: years
+
+## Dashboard Summary Cards
+
+- Dashboard summary card data is served by `GET /api/dashboard/summary`.
+- The endpoint combines:
+  - MT5 deal history for:
+    - 7-day daily PnL
+    - win rate across closed deals with non-zero net result
+  - live session configuration data for:
+    - active strategy count
+    - active strategy rows shown on the dashboard
+- Active strategy rows are sourced from configured strategies in live sessions with status `running` or `paused`.
+- The dashboard intentionally does not invent per-strategy PnL because the current live-session API does not expose reliable strategy-level account attribution.
+
 ## Schema Validators (FR-UTIL-003)
 
 - Schema contract validation is C++-owned and exposed through the bridge.
@@ -1259,4 +1297,108 @@
 - Grid, random, Bayesian, genetic, and walk-forward optimization now run strategy bars through `strategy.on_bar(...)`, convert to `timeframe_ticks` with `TicksGenerator`, then execute with `Engine.run(...)`.
 - Optimization methods no longer depend on `apps.simulation` for these execution paths.
 - Result scoring now reads the engine's completed trade records and equity curve, then derives optimization metrics with the existing `apps.finance` helpers.
+
+## Frontend Backtest API Client
+
+- `ui/src/lib/api/backtest.ts` is the thin frontend wrapper for the existing FastAPI backtest routes under `/api/backtest`.
+- The current UI uses it for:
+  - starting single-strategy backtests with `POST /api/backtest/run/{strategy_id}`
+  - starting portfolio backtests with `POST /api/backtest/portfolio/run/{strategy_id}`
+  - loading run status/details with `GET /api/backtest/{backtest_id}`
+  - listing runs with `GET /api/backtest/`
+  - updating alias/description with `PUT /api/backtest/{backtest_id}`
+  - deleting runs with `DELETE /api/backtest/{backtest_id}`
+- The client reads the auth token from the same browser storage key used by `ui/src/lib/auth-context.tsx` and attaches `Authorization: Bearer ...` for authenticated backtest operations.
+
+## Frontend Shared Error Parsing
+
+- `ui/src/lib/api-error.ts` centralizes lightweight frontend error-to-message conversion for API failures.
+- The helper currently normalizes:
+  - plain strings
+  - `Error` instances
+  - FastAPI-style `detail` payloads, including validation-error arrays
+- Current consumers use `getErrorMessage(error)` directly in toast descriptions so UI error handling stays simple and consistent.
+
+## Frontend Simulator API Client
+
+- `ui/src/lib/api/simulator.ts` is the thin frontend wrapper for the simulator routes under `/api/simulator`.
+- The current simulation UI uses it for:
+  - starting and resuming sessions
+  - loading session state and paused sessions
+  - advancing bars and fetching specific bars
+  - updating speed and pause state
+  - executing market trades and placing pending orders
+  - modifying and closing positions
+  - modifying and deleting pending orders
+  - seeking to a bar index and deleting sessions
+- The client uses the same browser token storage key as `ui/src/lib/auth-context.tsx` and attaches bearer auth headers for all simulator requests.
+
+## Frontend Simulator Trade Notifications
+
+- `ui/src/lib/hooks/use-simulator-trade-notifications.ts` is currently a minimal client-side hook that exposes `notifyTrade(...)` for simulator UI components.
+- The current implementation is intentionally a safe no-op so simulation trade execution can build and run without restoring a larger notification subsystem first.
+
+## Frontend Optimization Client And Hooks
+
+- `ui/src/lib/api/optimization.ts` is the thin frontend wrapper for `/api/optimization` routes.
+- It currently covers:
+  - optimization runs and ranked results
+  - walk-forward job start and result fetch
+  - Monte Carlo start/result fetch
+  - parametric, position-sizing, consecutive-losing, profit-target, random-win-rate, robustness, and multi-entry utility endpoints
+- `ui/src/lib/hooks/use-optimization.ts` provides the current optimization UI with:
+  - `useOptimization(...)` for run details, ranked results, websocket progress, and cancellation
+  - `useWalkForward(...)` for polling walk-forward result rows
+- The hook uses websocket progress from `/api/optimization/ws/{optimization_id}` when available and keeps polling run/result endpoints as a simple fallback.
+- `useOptimization(...)` keeps `onComplete` and `onProgressUpdate` in refs so the polling/WebSocket effect does not reconnect on every page render when callers pass inline callbacks.
+
+## Frontend Edge Lab Client
+
+- `ui/src/lib/api/edge.ts` is the thin frontend wrapper for `/api/edge-lab` routes.
+- It currently covers:
+  - edge-lab run execution
+  - saved run summary/detail/trade retrieval and deletion
+  - seasonality execution for the edge-lab seasonality screen
+
+## Frontend Live Trading Client
+
+- `ui/src/lib/api/live.ts` is the thin frontend wrapper for `/api/live` routes.
+- It currently covers:
+  - live session CRUD and start/stop/pause/resume/status
+  - session strategies add/list/remove
+  - market data and log retrieval
+  - positions, orders, and manual execution actions used by the live dashboard
+
+## Frontend Live Trading WebSocket Hook
+
+- `ui/src/lib/hooks/use-live-websocket.ts` connects the live dashboard to `/api/live/sessions/{session_id}/ws`.
+- It currently covers:
+  - channel subscription for `signals`, `positions`, `status`, and `logs`
+  - callback dispatch for the live dashboard components already using those events
+  - simple reconnect tracking via `isConnected` and `reconnectAttempts`
+- The hook keeps callback props in refs so inline handlers from components do not recreate the socket connection on every render.
+
+## Frontend Trading Defaults
+
+- `ui/src/lib/trading-defaults.ts` is the small shared source for default symbol lists used by the live manual order controls.
+- It currently exposes the default forex, commodity, and indices symbol lists so the UI can fall back cleanly before user trading settings are loaded.
+
+## Frontend Settings Hook
+
+- `ui/src/lib/use-settings.ts` is the small shared hook for `/api/settings`.
+- It currently covers:
+  - loading the authenticated user's settings
+  - updating scalar settings fields through `updateSettings(...)`
+  - updating JSON-backed settings fields through `updateJSONField(...)`
+  - reading parsed JSON-backed fields through `getJSONField(...)`
+- The hook keeps its own local state in sync after updates and does not add a wider client-side settings store.
+
+## Frontend Documentation Client
+
+- `ui/src/lib/api/docs.ts` is the thin frontend wrapper for `/api/docs` routes.
+- It currently covers:
+  - documentation file tree loading
+  - markdown content loading
+  - markdown content save
+  - markdown file deletion
 

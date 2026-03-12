@@ -86,6 +86,52 @@ class BrokerStatusResponse(BaseModel):
     free_margin: float
 
 
+class DashboardEquityPoint(BaseModel):
+    """Single dashboard equity point."""
+
+    timestamp: str
+    equity: float
+
+
+class DashboardEquityCurveResponse(BaseModel):
+    """Dashboard equity curve response."""
+
+    points: List[DashboardEquityPoint]
+    history_span_seconds: float = 0.0
+    point_count: int = 0
+
+
+class DashboardDailyPnlPoint(BaseModel):
+    """Single daily PnL point for the dashboard."""
+
+    day: str
+    pnl: float
+
+
+class DashboardActiveStrategyItem(BaseModel):
+    """Active strategy row for the dashboard."""
+
+    name: str
+    market: str
+    status: str
+    timeframe: str
+    session_name: str
+
+
+class DashboardSummaryResponse(BaseModel):
+    """Dashboard summary response."""
+
+    daily_pnl: List[DashboardDailyPnlPoint]
+    weekly_pnl_total: float = 0.0
+    weekly_best_day: float = 0.0
+    weekly_worst_day: float = 0.0
+    win_rate: float = 0.0
+    closed_trade_count: int = 0
+    winning_trade_count: int = 0
+    active_strategy_count: int = 0
+    active_strategies: List[DashboardActiveStrategyItem]
+
+
 class MarketStatus(BaseModel):
     """Market status details."""
 

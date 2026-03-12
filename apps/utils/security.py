@@ -35,7 +35,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if the password matches, False otherwise.
     """
-    return cast(bool, pwd_context.verify(plain_password, hashed_password))
+    try:
+        return cast(bool, pwd_context.verify(plain_password, hashed_password))
+    except Exception as exc:
+        logger.error(f"Password verification failed: {exc}")
+        return False
 
 
 def get_encryption_key() -> bytes:

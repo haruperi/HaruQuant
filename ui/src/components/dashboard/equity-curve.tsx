@@ -1,27 +1,159 @@
 "use client"
 
+import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/lib/auth-context"
+import { formatCurrency } from "@/lib/utils"
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
 
-const data = [
-  { name: "Jan", total: 40000 },
-  { name: "Feb", total: 41500 },
-  { name: "Mar", total: 42200 },
-  { name: "Apr", total: 41800 },
-  { name: "May", total: 43500 },
-  { name: "Jun", total: 45231 },
-]
+interface EquityPointResponse {
+  timestamp: string
+  equity: number
+}
+
+interface EquityCurveResponse {
+  points: EquityPointResponse[]
+  history_span_seconds: number
+  point_count: number
+}
+
+interface ChartPoint {
+  label: string
+  total: number
+  timestamp: number
+}
+
+function getSpanLabel(historySpanSeconds: number) {
+  const days = historySpanSeconds / 86400
+
+  if (days < 1) return "hours"
+  if (days <= 31) return "days"
+  if (days < 183) return "weeks"
+  if (days < 365) return "months"
+  return "years"
+}
+
+function formatBucketLabel(date: Date, bucket: string) {
+  if (bucket === "hours") {
+    return new Intl.DateTimeFormat("en-US", { hour: "numeric" }).format(date)
+  }
+  if (bucket === "days") {
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)
+  }
+  if (bucket === "weeks") {
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)
+  }
+  if (bucket === "months") {
+    return new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" }).format(date)
+  }
+  return new Intl.DateTimeFormat("en-US", { year: "numeric" }).format(date)
+}
+
+function getBucketKey(date: Date, bucket: string) {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const day = date.getDate()
+
+  if (bucket === "hours") {
+    return `${year}-${month}-${day}-${date.getHours()}`
+  }
+
+  if (bucket === "days") {
+    return `${year}-${month}-${day}`
+  }
+
+  if (bucket === "weeks") {
+    const start = new Date(date)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - start.getDay())
+    return `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}`
+  }
+
+  if (bucket === "months") {
+    return `${year}-${month}`
+  }
+
+  return `${year}`
+}
+
+function groupPoints(points: EquityPointResponse[], historySpanSeconds: number): ChartPoint[] {
+  const bucket = getSpanLabel(historySpanSeconds)
+  const grouped = new Map<string, ChartPoint>()
+
+  for (const point of points) {
+    const date = new Date(point.timestamp)
+    const key = getBucketKey(date, bucket)
+    grouped.set(key, {
+      label: formatBucketLabel(date, bucket),
+      total: point.equity,
+      timestamp: date.getTime(),
+    })
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => a.timestamp - b.timestamp)
+}
 
 export function EquityCurve() {
+  const { authenticatedFetch } = useAuth()
+  const [data, setData] = React.useState<ChartPoint[]>([])
+  const [description, setDescription] = React.useState("Your total account value over trade history")
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    let isMounted = true
+
+    async function fetchEquityCurve() {
+      try {
+        setLoading(true)
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+        const response = await authenticatedFetch(`${apiUrl}/api/dashboard/equity-curve`)
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch equity curve")
+        }
+
+        const result = (await response.json()) as EquityCurveResponse
+        if (!isMounted) return
+
+        const grouped = groupPoints(result.points, result.history_span_seconds)
+        setData(grouped)
+        setDescription(
+          result.point_count > 0
+            ? `Your total account value over ${getSpanLabel(result.history_span_seconds)}`
+            : "No trade history available"
+        )
+      } catch (error) {
+        console.error("Failed to load equity curve:", error)
+        if (isMounted) {
+          setData([])
+          setDescription("Unable to load trade history")
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchEquityCurve()
+
+    return () => {
+      isMounted = false
+    }
+  }, [authenticatedFetch])
+
   return (
     <Card className="col-span-4">
       <CardHeader>
         <CardTitle>Equity Curve</CardTitle>
-        <CardDescription>
-          Your total account value over the last 6 months
-        </CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="pl-2">
+        {loading ? (
+          <div className="flex h-[350px] items-center justify-center text-sm text-muted-foreground">
+            Loading equity curve...
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height={350}>
           <AreaChart data={data}>
             <defs>
@@ -31,7 +163,7 @@ export function EquityCurve() {
                 </linearGradient>
             </defs>
             <XAxis
-              dataKey="name"
+              dataKey="label"
               stroke="#888888"
               fontSize={12}
               tickLine={false}
@@ -42,13 +174,13 @@ export function EquityCurve() {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => formatCurrency(value)}
               domain={['auto', 'auto']}
             />
              <Tooltip
                 contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
                 itemStyle={{ color: 'hsl(var(--foreground))' }}
-                formatter={(value: number) => [`$${value.toLocaleString()}`, "Equity"]}
+                formatter={(value: number) => [formatCurrency(value), "Equity"]}
             />
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
             <Area
@@ -61,6 +193,7 @@ export function EquityCurve() {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   )
