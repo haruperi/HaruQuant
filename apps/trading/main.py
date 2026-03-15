@@ -159,6 +159,11 @@ class Engine:
             "enable_regime_detection": False,
             "enable_allocation": False,
         }
+        self.position_sizing = {
+            "enabled": False,
+            "position_sizer": None,
+            "adapter": None,
+        }
         self._risk_adapter = None
         self._risk_equity_history = []
 
@@ -189,7 +194,15 @@ class Engine:
         )
         if value is None:
             raise RuntimeError("MT5 order_calc_margin returned None.")
-        return float(value)
+        margin_value = float(value)
+        if self.backend != "sim":
+            return margin_value
+
+        baseline_leverage = float(getattr(self.mt5_account, "leverage", 0.0) or 0.0)
+        requested_leverage = float(self.account_info().get("leverage", baseline_leverage) or baseline_leverage)
+        if baseline_leverage > 0.0 and requested_leverage > 0.0:
+            margin_value = float(margin_value * (baseline_leverage / requested_leverage))
+        return margin_value
 
     @staticmethod
     def _to_dict(value):
@@ -611,7 +624,13 @@ class Engine:
             return False
         order_type = 0 if side == 1 else 1  # BUY / SELL
         open_price = float(ask) if side == 1 else float(bid)
-        lot_size = float(self.default_signal_volume if volume is None else volume)
+        lot_size = self._resolve_signal_volume(
+            symbol_name,
+            "buy" if side == 1 else "sell",
+            open_price,
+            stop_loss=sl,
+            fallback_volume=volume,
+        )
         request = {
             "action": 1,  # TRADE_ACTION_DEAL
             "symbol": symbol_name,
@@ -640,7 +659,6 @@ class Engine:
         order_type = self._order_type_from_pending_signal(pending_signal)
         if order_type is None:
             return False
-        lot_size = float(self.default_signal_volume if volume is None else volume)
         price = self._safe_float(signal_price, 0.0)
         if price <= 0.0:
             # Fallback if strategy did not provide pending price.
@@ -648,6 +666,13 @@ class Engine:
                 price = float(ask)
             else:  # sell limit / sell stop
                 price = float(bid)
+        lot_size = self._resolve_signal_volume(
+            symbol_name,
+            "buy" if order_type in (2, 4) else "sell",
+            float(price),
+            stop_loss=sl,
+            fallback_volume=volume,
+        )
         request = {
             "action": 5,  # TRADE_ACTION_PENDING
             "symbol": symbol_name,
@@ -766,6 +791,67 @@ class Engine:
         self.run_schedule["account"] = self._normalize_schedule_every(account_every)
         self.run_schedule["portfolio"] = self._normalize_schedule_every(portfolio_every)
         self.run_schedule["risk"] = self._normalize_schedule_every(risk_every)
+
+    def configure_position_sizing(
+        self,
+        enabled: bool = True,
+        position_sizing_method: str = "fixed_lot",
+        position_sizing_config=None,
+        historical_data=None,
+    ):
+        if not enabled:
+            self.position_sizing = {
+                "enabled": False,
+                "position_sizer": None,
+                "adapter": None,
+            }
+            return
+
+        adapter = _SimulationRiskAdapter(self, historical_data or {})
+        position_sizer = PositionSizer(
+            method=position_sizing_method,
+            config=position_sizing_config or {},
+            mt5_client=adapter,
+        )
+        self.position_sizing = {
+            "enabled": True,
+            "position_sizer": position_sizer,
+            "adapter": adapter,
+        }
+
+    def _position_sizing_enabled(self):
+        return bool(self.position_sizing.get("enabled")) and self.position_sizing.get("position_sizer") is not None
+
+    def _resolve_signal_volume(
+        self,
+        symbol_name,
+        signal_type: str,
+        entry_price: float,
+        stop_loss=None,
+        fallback_volume=None,
+    ) -> float:
+        lot_size = float(self.default_signal_volume if fallback_volume is None else fallback_volume)
+        if not self._position_sizing_enabled():
+            return lot_size
+
+        adapter = self.position_sizing.get("adapter")
+        position_sizer = self.position_sizing.get("position_sizer")
+        if position_sizer is None:
+            return lot_size
+
+        symbol_info = adapter.get_symbol_info(symbol_name) if adapter is not None else None
+        sized = position_sizer.calculate_size(
+            account_balance=float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0),
+            entry_price=float(entry_price),
+            stop_loss=None if stop_loss is None or float(stop_loss) <= 0.0 else float(stop_loss),
+            symbol_info=symbol_info,
+            context={},
+            symbol=symbol_name,
+            signal_type=signal_type,
+        )
+        if sized is None or float(sized) <= 0.0:
+            return lot_size
+        return float(sized)
 
     def configure_risk_management(
         self,

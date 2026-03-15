@@ -28,14 +28,13 @@ import { MoreVertical, Loader2, CheckCircle2, Edit, Trash2 } from "lucide-react"
 import { useAllBacktests } from "@/lib/use-strategies"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { EditBacktestDialog } from "./edit-backtest-dialog"
-import { strategyApi } from "@/lib/api/strategies"
 import backtestApi, { Backtest } from "@/lib/api/backtest"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
 export function BacktestRunsTable() {
-  const { backtests, loading, error, refetch } = useAllBacktests(100, false)
+  const { backtests, loading, error, refetch } = useAllBacktests(100, true)
   const { selectedBacktest, selectBacktest, isSelected } = useSelectedBacktest()
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
   const [backtestToEdit, setBacktestToEdit] = React.useState<Backtest | null>(null)

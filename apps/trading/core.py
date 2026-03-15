@@ -206,6 +206,7 @@ class SimulatorState:
         self.equity_peak = None
         self.current_tick_epoch = None
         self.current_tick_datetime = None
+        self.execution_settings = DotDict()
 
 
 def history_deals_get(state: SimulatorState, date_from=None, date_to=None, group=None, ticket=None):
@@ -371,6 +372,64 @@ def _spread_at_entry_pips(state: SimulatorState, symbol_name: str) -> float:
     if ask <= 0.0 or bid <= 0.0:
         return 0.0
     return float((ask - bid) / pip_size)
+
+
+def _execution_settings(state: SimulatorState) -> DotDict:
+    settings = getattr(state, "execution_settings", None)
+    if isinstance(settings, DotDict):
+        return settings
+    if isinstance(settings, dict):
+        return DotDict(settings)
+    return DotDict()
+
+
+def _commission_for_volume(state: SimulatorState, volume: float) -> float:
+    commission_per_lot = float(getattr(state.trading_account, "commission", 0.0) or 0.0)
+    if commission_per_lot == 0.0 or float(volume) <= 0.0:
+        return 0.0
+    return -abs(float(volume) * commission_per_lot)
+
+
+def _resolve_slippage_points(state: SimulatorState, symbol_name: str) -> float:
+    settings = _execution_settings(state)
+    model = str(settings.get("slippage_model", "fixed") or "fixed").strip().lower()
+    if model in {"", "none", "disabled"}:
+        return 0.0
+    if model == "fixed":
+        return max(0.0, float(settings.get("slippage_points", 0.0) or 0.0))
+
+    min_points = max(0.0, float(settings.get("slippage_min", 0.0) or 0.0))
+    max_points = max(min_points, float(settings.get("slippage_max", min_points) or min_points))
+    if max_points <= min_points:
+        return min_points
+
+    seed = int(getattr(state, "current_tick_epoch", 0) or _state_now_epoch(state))
+    symbol_seed = sum(ord(ch) for ch in str(symbol_name or ""))
+    bucket = float((seed + symbol_seed) % 1000) / 999.0
+    return min_points + ((max_points - min_points) * bucket)
+
+
+def _apply_market_slippage(
+    state: SimulatorState,
+    sym_info,
+    symbol_name: str,
+    order_type: int,
+    requested_price: float,
+    market_price: float,
+    volume: float,
+) -> tuple[float, float, float]:
+    point = float(getattr(sym_info, "point", 0.00001) or 0.00001)
+    slippage_points = _resolve_slippage_points(state, symbol_name)
+    if slippage_points <= 0.0 or point <= 0.0:
+        return float(market_price), 0.0, 0.0
+
+    price_delta = float(slippage_points * point)
+    exec_price = float(market_price + price_delta) if int(order_type) == 0 else float(market_price - price_delta)
+    requested = float(requested_price if requested_price > 0.0 else market_price)
+    fill_price_deviation = float(exec_price - requested)
+    contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+    slippage_usd = float(abs(fill_price_deviation) * float(volume) * contract_size)
+    return exec_price, fill_price_deviation, slippage_usd
 
 
 def _trade_side_name(order_type: int) -> str:
@@ -1274,19 +1333,30 @@ def order_send(
             result.comment = "Volume must be > 0 and <= position volume"
             return result
 
-        exec_price = float(req_get("price", 0.0) or 0.0)
-        if exec_price <= 0.0:
-            exec_price = ask if is_buy else bid
-        if exec_price <= 0.0:
-            exec_price = last
-        if exec_price <= 0.0:
+        requested_exit_price = float(req_get("price", 0.0) or 0.0)
+        market_exit_price = requested_exit_price
+        if market_exit_price <= 0.0:
+            market_exit_price = ask if is_buy else bid
+        if market_exit_price <= 0.0:
+            market_exit_price = last
+        if market_exit_price <= 0.0:
             result.retcode = 10015
             result.comment = "Price is invalid and no market quote is available"
             return result
+        exec_price, _, _ = _apply_market_slippage(
+            state,
+            sym_info,
+            symbol_name,
+            order_type,
+            requested_exit_price,
+            market_exit_price,
+            close_volume,
+        )
 
         now = _state_now_epoch(state)
         order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
         deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
+        close_commission = _commission_for_volume(state, close_volume)
 
         history_order = HistoryOrderInfo(
             ticket=order_ticket,
@@ -1350,7 +1420,7 @@ def order_send(
             sl=float(getattr(position, "sl", 0.0)),
             tp=float(getattr(position, "tp", 0.0)),
             margin_required=0.0,
-            commission=0.0,
+            commission=close_commission,
             swap=0.0,
             profit=realized_profit,
             fee=0.0,
@@ -1366,12 +1436,13 @@ def order_send(
             close_volume,
             exec_price,
             realized_profit,
-            exec_price,
+            float(requested_exit_price if requested_exit_price > 0.0 else market_exit_price),
             str(req_get("comment", "") or "manual_exit"),
         )
 
+        position.commission = float(getattr(position, "commission", 0.0) or 0.0) + float(close_commission)
         balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
-        state.trading_account.balance = balance + realized_profit
+        state.trading_account.balance = balance + realized_profit + float(close_commission)
 
         remaining = current_volume - close_volume
         if remaining <= 0.0:
@@ -1402,20 +1473,31 @@ def order_send(
         result.comment = "Only BUY/SELL are supported in tester order_send()"
         return result
 
-    exec_price = float(req_get("price", 0.0) or 0.0)
-    if exec_price <= 0.0:
-        exec_price = ask if is_buy else bid
-    if exec_price <= 0.0:
-        exec_price = last
-    if exec_price <= 0.0:
+    requested_entry_price = float(req_get("price", 0.0) or 0.0)
+    market_entry_price = requested_entry_price
+    if market_entry_price <= 0.0:
+        market_entry_price = ask if is_buy else bid
+    if market_entry_price <= 0.0:
+        market_entry_price = last
+    if market_entry_price <= 0.0:
         result.retcode = 10015
         result.comment = "Price is invalid and no market quote is available"
         return result
+    exec_price, fill_price_deviation, slippage_usd = _apply_market_slippage(
+        state,
+        sym_info,
+        symbol_name,
+        order_type,
+        requested_entry_price,
+        market_entry_price,
+        float(result.volume),
+    )
 
     now = _state_now_epoch(state)
     order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
     deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
     position_ticket = deal_ticket
+    open_commission = _commission_for_volume(state, float(result.volume))
 
     if margin_calculator is not None:
         calc_value = margin_calculator(order_type, symbol_name, float(result.volume), float(exec_price))
@@ -1479,7 +1561,7 @@ def order_send(
         sl=req_get("sl", 0.0),
         tp=req_get("tp", 0.0),
         margin_required=margin_required,
-        commission=0.0,
+        commission=open_commission,
         swap=0.0,
         profit=0.0,
         fee=0.0,
@@ -1489,9 +1571,8 @@ def order_send(
     )
     state.trading_deals.append(deal_row)
 
-    requested_entry_price = float(req_get("price", exec_price) or exec_price)
     if requested_entry_price <= 0.0:
-        requested_entry_price = float(exec_price)
+        requested_entry_price = float(market_entry_price)
     _open_trade_tracking(
         state,
         request,
@@ -1506,6 +1587,13 @@ def order_send(
         float(margin_required),
         profit_calculator=profit_calculator,
     )
+    record = state.open_trade_records_by_ticket.get(int(position_ticket))
+    if record is not None:
+        record.fill_price_deviation = float(fill_price_deviation)
+        record.slippage_usd = float(slippage_usd)
+
+    balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
+    state.trading_account.balance = balance + float(open_commission)
 
     result.retcode = 10009
     result.deal = deal_ticket

@@ -12,6 +12,11 @@
   - execute ticks through `apps/trading/main.py -> Engine.run(...)`
   - save completed trades and equity curve through the SQLite backtest tables
 - Multi-symbol portfolio API backtests merge per-symbol tick streams into one stable chronological DataFrame before calling `Engine.run(...)`.
+- API backtests now also consume the projected Example 15 execution settings directly in the Python simulator path:
+  - account seeding applies `initial_capital`, `leverage`, and per-lot `commission`
+  - execution settings apply backtest slippage in `core.order_send(...)`
+  - position sizing names are normalized at the route boundary (`fixed_percent -> fixed_risk`, `kelly_criterion -> kelly`, `volatility_adjusted_atr -> volatility`)
+  - non-`fixed_lot` position sizing is wired through `Engine.configure_position_sizing(...)` without enabling the broader portfolio risk governor path
 
 - Runtime entrypoint: `apps/trading/main.py -> Engine.run(data)`.
 - Current skeleton expects tick-like DataFrame input with `bid` and `ask` columns.

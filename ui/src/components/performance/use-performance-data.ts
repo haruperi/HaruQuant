@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import strategyApi from "@/lib/api/strategies"
-import apiClient from "@/lib/api-client"
+import type { TradeLike } from "@/lib/api/strategies"
 
 // Define types based on backend response
 export interface PerformanceMetrics {
@@ -15,9 +15,9 @@ export interface PerformanceMetrics {
   "Total Trades": number
   "Max Strategy Drawdown": number
   "Max Strategy Drawdown (%)": number
-  chart_data?: Record<string, any>
+  chart_data?: Record<string, unknown>
   // ... add others as needed dynamically
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface ThreeWayMetrics {
@@ -30,7 +30,7 @@ export interface EquityPoint {
   date: string
   equity_close: number
   drawdown_usd: number
-  [key: string]: any
+  [key: string]: unknown
 }
 
 // Simple in-memory cache for performance data
@@ -110,7 +110,7 @@ export function usePerformanceData() {
       setEquityCurves(null)
 
       try {
-        let trades = selectedBacktest.trades
+        let trades: TradeLike[] | undefined = selectedBacktest.trades
         let initialBalance = selectedBacktest.initial_balance || 10000
 
         // If trades are missing, try to fetch full backtest details using backtest_id directly
@@ -156,17 +156,17 @@ export function usePerformanceData() {
         // =================================================================
 
         // Prepare trade subsets for equity curves
-        const longTrades = trades.filter((t: any) => {
+        const longTrades = trades.filter((t: TradeLike) => {
             const type = (t.type || t.side || "").toString().toLowerCase()
             return type === "buy" || type === "long"
         })
-        const shortTrades = trades.filter((t: any) => {
+        const shortTrades = trades.filter((t: TradeLike) => {
             const type = (t.type || t.side || "").toString().toLowerCase()
             return type === "sell" || type === "short"
         })
 
         // Fetch full metrics and equity curves in parallel
-        const fetchCurve = async (t: any[]) => {
+        const fetchCurve = async (t: TradeLike[]) => {
           if (t.length === 0) return []
           return await strategyApi.getEquityCurveDetailed(t, initialBalance)
         }
@@ -197,9 +197,9 @@ export function usePerformanceData() {
           timestamp: Date.now()
         })
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching performance data:", err)
-        setError(err.message || "Failed to fetch data")
+        setError(err instanceof Error ? err.message : "Failed to fetch data")
       } finally {
         setQuickLoading(false)
         setDetailedLoading(false)
@@ -208,7 +208,9 @@ export function usePerformanceData() {
     }
 
     fetchData()
-  }, [backtestId]) // Only depend on backtest ID, not the whole object
+  // selectedBacktest-driven refetching is intentionally keyed only by backtest_id.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backtestId])
 
   return {
     metrics,           // Combined metrics (full if available, else quick)

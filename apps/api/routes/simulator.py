@@ -25,7 +25,7 @@ from apps.api.websocket import backtest_log_manager
 from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
-from apps.trading import Engine
+from apps.trading import Engine, core
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
 from apps.utils.data_getters import load_dukascopy
@@ -1198,6 +1198,12 @@ class BacktestRequest(BaseModel):
     lot_increment: float = 0.2
     kelly_fraction_limit: float = 0.25
     fraction: float = 2.0
+    fractional_factor: float = 2.0
+    use_dynamic_stop_loss: bool = False
+    atr_multiplier: float = 2.0
+    win_rate: float = 0.55
+    avg_win: float = 150.0
+    avg_loss: float = 100.0
     alias: Optional[str] = None
     description: Optional[str] = None
 
@@ -1271,6 +1277,12 @@ class PortfolioBacktestRequest(BaseModel):
     lot_increment: float = 0.2
     kelly_fraction_limit: float = 0.25
     fraction: float = 2.0
+    fractional_factor: float = 2.0
+    use_dynamic_stop_loss: bool = False
+    atr_multiplier: float = 2.0
+    win_rate: float = 0.55
+    avg_win: float = 150.0
+    avg_loss: float = 100.0
     alias: Optional[str] = None
     description: Optional[str] = None
 
@@ -1543,6 +1555,92 @@ def _seed_engine_account(engine: Engine, initial_capital: float) -> None:
     account["margin_level"] = 0.0
 
 
+def _normalize_position_sizing_method(value: Optional[str]) -> str:
+    raw = str(value or "fixed_lot").strip().lower().replace("-", "_")
+    mapping = {
+        "fixed_lot": "fixed_lot",
+        "fixed_percent": "fixed_risk",
+        "fixed_risk": "fixed_risk",
+        "milestone": "milestone",
+        "kelly_criterion": "kelly",
+        "kelly": "kelly",
+        "volatility_adjusted_atr": "volatility",
+        "volatility": "volatility",
+        "fixed_fractional": "fixed_fractional",
+    }
+    return mapping.get(raw, "fixed_lot")
+
+
+def _build_position_sizing_config(request: BacktestRequest, method: str) -> dict:
+    if method == "fixed_risk":
+        return {
+            "risk_percent": float(request.risk_percent),
+            "use_dynamic_stop_loss": bool(getattr(request, "use_dynamic_stop_loss", False)),
+        }
+    if method == "milestone":
+        return {
+            "initial_balance": float(request.initial_capital),
+            "base_lot_size": float(request.base_lot_size),
+            "milestone_amount": float(request.milestone_amount),
+            "lot_increment": float(request.lot_increment),
+        }
+    if method == "kelly":
+        return {
+            "kelly_fraction_limit": float(request.kelly_fraction_limit),
+            "win_rate": float(getattr(request, "win_rate", 0.55)),
+            "avg_win": float(getattr(request, "avg_win", 150.0)),
+            "avg_loss": float(getattr(request, "avg_loss", 100.0)),
+        }
+    if method == "volatility":
+        return {
+            "risk_percent": float(request.risk_percent),
+            "atr_multiplier": float(getattr(request, "atr_multiplier", 2.0)),
+        }
+    if method == "fixed_fractional":
+        return {
+            "fraction": float(getattr(request, "fractional_factor", request.fraction)),
+        }
+    return {"lot_size": float(request.lot_size)}
+
+
+def _configure_backtest_engine(
+    engine: Engine,
+    request: BacktestRequest,
+    historical_data=None,
+) -> None:
+    account = engine.account_info()
+    account["balance"] = float(request.initial_capital)
+    account["credit"] = 0.0
+    account["profit"] = 0.0
+    account["equity"] = float(request.initial_capital)
+    account["margin"] = 0.0
+    account["margin_free"] = float(request.initial_capital)
+    account["margin_level"] = 0.0
+    account["commission"] = float(request.commission)
+    account["leverage"] = int(request.leverage)
+
+    engine.state.execution_settings = core.DotDict(
+        {
+            "slippage_model": str(request.slippage_type or "fixed"),
+            "slippage_points": float(request.slippage or 0),
+            "slippage_min": float(request.slippage_min or 0),
+            "slippage_max": float(request.slippage_max or 0),
+        }
+    )
+
+    method = _normalize_position_sizing_method(request.position_sizing_method)
+    if method == "fixed_lot":
+        engine.configure_position_sizing(enabled=False)
+        return
+
+    engine.configure_position_sizing(
+        enabled=True,
+        position_sizing_method=method,
+        position_sizing_config=_build_position_sizing_config(request, method),
+        historical_data=historical_data or {},
+    )
+
+
 def _ensure_engine_symbol(engine: Engine, symbol_name: str):
     for row in engine.state.trading_symbols:
         if str(getattr(row, "name", "") or "") == str(symbol_name):
@@ -1674,7 +1772,11 @@ async def _run_backtest_task(
             data = strategy_instance.on_bar(data)
 
         engine = Engine(backend="sim")
-        _seed_engine_account(engine, float(request.initial_capital))
+        _configure_backtest_engine(
+            engine,
+            request,
+            historical_data={symbol: {request.timeframe: data.copy()}},
+        )
         _ensure_engine_symbol(engine, symbol)
 
         ticks_data, tick_model = _generate_ticks_for_backtest(
@@ -2202,7 +2304,14 @@ async def _run_portfolio_backtest_task(
             strategy_dict[symbol] = strategy_instance
 
         engine = Engine(backend="sim")
-        _seed_engine_account(engine, float(request.initial_capital))
+        _configure_backtest_engine(
+            engine,
+            request,
+            historical_data={
+                symbol_name: {request.timeframe: symbol_data.copy()}
+                for symbol_name, symbol_data in data_dict.items()
+            },
+        )
 
         merged_ticks = []
         tick_model_used = None

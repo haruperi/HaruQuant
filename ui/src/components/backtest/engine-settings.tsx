@@ -5,23 +5,24 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+export interface EngineSettingsValues {
+    initialCapital: number
+    commission: number
+    slippageType: "fixed" | "variable"
+    slippage: number
+    slippageMin: number
+    slippageMax: number
+    spreadType: "use-broker" | "fixed" | "variable"
+    spread: number
+    spreadMin: number
+    spreadMax: number
+    leverage: number
+    dataResolution: "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks"
+}
+
 interface EngineSettingsProps {
-    values: {
-        initialCapital: number
-        commission: number
-        slippageType: "fixed" | "variable"
-        slippage: number
-        slippageMin: number
-        slippageMax: number
-        spreadType: "use-broker" | "fixed" | "variable"
-        spread: number
-        spreadMin: number
-        spreadMax: number
-        leverage: number
-        engineType: "vectorised" | "event-driven"
-        dataResolution: "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks"
-    }
-    onChange: (key: string, value: any) => void
+    values: EngineSettingsValues
+    onChange: <K extends keyof EngineSettingsValues>(key: K, value: EngineSettingsValues[K]) => void
 }
 
 export function EngineSettings({ values, onChange }: EngineSettingsProps) {
@@ -31,23 +32,7 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                 <CardTitle className="text-lg">Engine Settings</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="engineType">Engine Type</Label>
-                        <Select
-                            value={values.engineType}
-                            onValueChange={(val) => onChange("engineType", val)}
-                        >
-                            <SelectTrigger id="engineType">
-                                <SelectValue placeholder="Select Engine" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="vectorised">Vectorised (Fast)</SelectItem>
-                                <SelectItem value="event-driven">Event-Driven (Detailed)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="dataResolution">Data Resolution</Label>
                         <Select
