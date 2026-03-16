@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, cast
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
@@ -17,7 +18,22 @@ from apps.edge.config import (
     EdgeLabConfig,
     PermutationConfig,
 )
-from apps.edge.datasets import DataSource, load_ohlc, normalize_columns
+from apps.edge.core_metrics import build_core_metric_profile
+from apps.edge.data import (
+    CanonicalOHLCVSSchema,
+    CleaningConfig,
+    CleaningAction,
+    DataQualityReportModel,
+    DatasetIssue,
+    EnrichmentConfig,
+    PreparedDataset,
+)
+from apps.edge.datasets import (
+    DataSource,
+    load_ohlc,
+    normalize_columns,
+    prepare_ohlcvs_dataset,
+)
 from apps.edge.eds_mean_reversion import run_eds_mean_reversion
 from apps.edge.eds_null_models import run_eds_null_baseline
 from apps.edge.eds_session import run_eds_session
@@ -50,6 +66,7 @@ class EdgeLabRunRequest(BaseModel):
     n_perm: int = 2000
     save_db: bool = False
     save_trades: bool = True
+    prepared_dataset: Optional[Dict[str, Any]] = None
 
 
 class EdgeLabSummary(BaseModel):
@@ -85,6 +102,188 @@ class EdgeLabSeasonalityRequest(BaseModel):
     hours: Optional[List[int]] = None
     data_offset: int = 0
     data_limit: int = 20
+    prepared_dataset: Optional[Dict[str, Any]] = None
+
+
+class EdgeCoreMetricRequest(BaseModel):
+    """Request model for Core Metric MVP profile generation."""
+
+    symbol: Optional[str] = None
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    prepared_dataset: Optional[Dict[str, Any]] = None
+    save_db: bool = True
+
+
+class EdgeLabDatasetRequest(BaseModel):
+    """Request model for preparing a reusable Edge Lab dataset."""
+
+    symbol: str
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+
+
+def _json_safe_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, (datetime, pd.Timestamp)):
+        return value.isoformat()
+    if isinstance(value, (np.floating, float)):
+        value = float(value)
+        if np.isnan(value) or np.isinf(value):
+            return None
+        return value
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    return value
+
+
+def _report_to_dict(report: DataQualityReportModel) -> Dict[str, Any]:
+    return {
+        "checks_performed": list(report.checks_performed),
+        "warnings": [
+            {
+                "code": item.code,
+                "severity": item.severity,
+                "message": item.message,
+                "count": item.count,
+                "details": {k: _json_safe_value(v) for k, v in item.details.items()},
+            }
+            for item in report.warnings
+        ],
+        "fatal_errors": [
+            {
+                "code": item.code,
+                "severity": item.severity,
+                "message": item.message,
+                "count": item.count,
+                "details": {k: _json_safe_value(v) for k, v in item.details.items()},
+            }
+            for item in report.fatal_errors
+        ],
+        "cleaning_actions": [
+            {
+                "action": item.action,
+                "count": item.count,
+                "details": {k: _json_safe_value(v) for k, v in item.details.items()},
+            }
+            for item in report.cleaning_actions
+        ],
+        "metadata": {k: _json_safe_value(v) for k, v in report.metadata.items()},
+        "is_valid": report.is_valid,
+    }
+
+
+def _serialize_prepared_dataset(prepared: PreparedDataset) -> Dict[str, Any]:
+    frame = prepared.data.copy()
+    frame = frame.reset_index().rename(columns={frame.index.name or "index": "timestamp"})
+    if "timestamp" not in frame.columns:
+        frame = frame.rename(columns={"index": "timestamp"})
+    rows: List[Dict[str, Any]] = []
+    for row in frame.to_dict(orient="records"):
+        rows.append({key: _json_safe_value(value) for key, value in row.items()})
+    preview = rows[:200]
+    return {
+        "meta": {
+            "symbol": prepared.report.metadata.get("symbol"),
+            "timeframe": prepared.report.metadata.get("timeframe"),
+            "n_rows": len(rows),
+            "start": prepared.report.metadata.get("start"),
+            "end": prepared.report.metadata.get("end"),
+        },
+        "schema": {
+            "open": prepared.schema.open,
+            "high": prepared.schema.high,
+            "low": prepared.schema.low,
+            "close": prepared.schema.close,
+            "volume": prepared.schema.volume,
+            "spread": prepared.schema.spread,
+        },
+        "report": _report_to_dict(prepared.report),
+        "rows": rows,
+        "preview_rows": preview,
+    }
+
+
+def _deserialize_prepared_dataset(payload: Dict[str, Any]) -> PreparedDataset:
+    rows = payload.get("rows") or []
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Prepared dataset rows are required.",
+        )
+
+    frame = pd.DataFrame(rows)
+    if "timestamp" not in frame.columns:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Prepared dataset timestamp column is missing.",
+        )
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"])
+    frame = frame.set_index("timestamp").sort_index()
+
+    schema_payload = payload.get("schema") or {}
+    schema = CanonicalOHLCVSSchema(
+        open=str(schema_payload.get("open") or "Open"),
+        high=str(schema_payload.get("high") or "High"),
+        low=str(schema_payload.get("low") or "Low"),
+        close=str(schema_payload.get("close") or "Close"),
+        volume=str(schema_payload.get("volume") or "Volume"),
+        spread=str(schema_payload.get("spread") or "Spread"),
+    )
+
+    report_payload = payload.get("report") or {}
+    report = DataQualityReportModel(
+        checks_performed=list(report_payload.get("checks_performed") or []),
+        metadata=dict(report_payload.get("metadata") or {}),
+    )
+    for item in report_payload.get("warnings") or []:
+        report.add_issue(
+            DatasetIssue(
+                code=str(item.get("code") or ""),
+                severity="warning",
+                message=str(item.get("message") or ""),
+                count=int(item.get("count") or 0),
+                details=dict(item.get("details") or {}),
+            )
+        )
+    for item in report_payload.get("fatal_errors") or []:
+        report.add_issue(
+            DatasetIssue(
+                code=str(item.get("code") or ""),
+                severity="fatal",
+                message=str(item.get("message") or ""),
+                count=int(item.get("count") or 0),
+                details=dict(item.get("details") or {}),
+            )
+        )
+    for item in report_payload.get("cleaning_actions") or []:
+        report.add_action(
+            CleaningAction(
+                action=str(item.get("action") or ""),
+                count=int(item.get("count") or 0),
+                details=dict(item.get("details") or {}),
+            )
+        )
+    return PreparedDataset(data=frame, report=report, schema=schema)
+
+
+def _resolve_prepared_dataset_from_payload(
+    payload: Optional[Dict[str, Any]],
+) -> Optional[PreparedDataset]:
+    if not payload:
+        return None
+    return _deserialize_prepared_dataset(payload)
 
 
 class MT5DataSource:
@@ -415,19 +614,46 @@ async def run_edge_lab(request: EdgeLabRunRequest, authorization: str = AUTH_HEA
         user_id = get_user_id_from_token(authorization)
     except Exception:
         user_id = 1
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
 
-    symbols, eds_type, range_by, start_date, end_date, number_of_bars = (
-        _validate_run_request(request)
-    )
+    if prepared is None:
+        symbols, eds_type, range_by, start_date, end_date, number_of_bars = (
+            _validate_run_request(request)
+        )
 
-    source = _create_data_source(
-        request.data_source.lower(),
-        user_id,
-        start_date,
-        end_date,
-        number_of_bars,
-        (request.start_date, request.end_date),
-    )
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
+        )
+    else:
+        meta = prepared.report.metadata
+        symbol = str(meta.get("symbol") or request.symbol or "")
+        timeframe = str(meta.get("timeframe") or request.timeframe)
+        request.symbol = symbol
+        request.timeframe = timeframe
+        request.symbols = [symbol]
+        symbols = [symbol]
+        eds_type = request.eds.lower()
+        if eds_type not in ("all", "null", "mr", "tp", "session"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid EDS type.",
+            )
+        range_by = str(
+            (request.prepared_dataset or {}).get("request", {}).get("range_by")
+            or request.range_by
+        )
+        number_of_bars = (
+            (request.prepared_dataset or {}).get("request", {}).get("number_of_bars")
+            or request.number_of_bars
+        )
+        start_date = None
+        end_date = None
+        source = None
 
     all_results: List[EdgeResult] = []
 
@@ -442,21 +668,24 @@ async def run_edge_lab(request: EdgeLabRunRequest, authorization: str = AUTH_HEA
             perm=PermutationConfig(n_perm=request.n_perm),
         )
 
-        try:
-            df = load_ohlc(
-                source=source,
-                symbol=cfg.data.symbol,
-                timeframe=cfg.data.timeframe,
-                start_pos=cfg.data.start_pos,
-                end_pos=cfg.data.end_pos,
-                exclude_last_bar=cfg.data.exclude_last_bar,
-            )
-        except Exception as exc:
-            logger.error(f"Failed to load data for {symbol}: {exc}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to load data for {symbol}.",
-            )
+        if prepared is None:
+            try:
+                df = load_ohlc(
+                    source=source,
+                    symbol=cfg.data.symbol,
+                    timeframe=cfg.data.timeframe,
+                    start_pos=cfg.data.start_pos,
+                    end_pos=cfg.data.end_pos,
+                    exclude_last_bar=cfg.data.exclude_last_bar,
+                )
+            except Exception as exc:
+                logger.error(f"Failed to load data for {symbol}: {exc}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to load data for {symbol}.",
+                )
+        else:
+            df = prepared.data.copy()
 
         results = _run_eds(
             df=df,
@@ -691,6 +920,53 @@ async def get_edge_run_summary(
     return {"total": total, "rows": paged}
 
 
+@router.post("/dataset/prepare", response_model=Dict[str, Any])
+async def prepare_edge_lab_dataset(
+    request: EdgeLabDatasetRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Prepare and serialize a reusable Edge Lab dataset."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    range_by, start_date, end_date, number_of_bars = _validate_range_params(
+        request.range_by,
+        request.start_date,
+        request.end_date,
+        request.number_of_bars,
+    )
+    source = _create_data_source(
+        request.data_source.lower(),
+        user_id,
+        start_date,
+        end_date,
+        number_of_bars,
+        (request.start_date, request.end_date),
+    )
+    prepared = prepare_ohlcvs_dataset(
+        source=source,
+        symbol=request.symbol,
+        timeframe=request.timeframe,
+        start_pos=0,
+        end_pos=number_of_bars or 5000,
+        cleaning=CleaningConfig(timeframe=request.timeframe),
+        enrichment=EnrichmentConfig(symbol=request.symbol),
+    )
+    payload = _serialize_prepared_dataset(prepared)
+    payload["request"] = {
+        "symbol": request.symbol,
+        "timeframe": request.timeframe,
+        "data_source": request.data_source.lower(),
+        "range_by": range_by,
+        "start_date": request.start_date,
+        "end_date": request.end_date,
+        "number_of_bars": number_of_bars,
+    }
+    return payload
+
+
 @router.post("/seasonality", response_model=Dict[str, Any])
 async def run_seasonality_lab(
     request: EdgeLabSeasonalityRequest,
@@ -702,45 +978,55 @@ async def run_seasonality_lab(
     except Exception:
         user_id = 1
 
-    # Reuse validation logic where applicable or keep custom validation
-    range_by, start_date, end_date, number_of_bars = _validate_range_params(
-        request.range_by,
-        request.start_date,
-        request.end_date,
-        request.number_of_bars,
-    )
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
+    range_by = request.range_by.lower()
+    number_of_bars = request.number_of_bars
+    symbol_digits: Optional[int] = None
+    resolved_point_size = request.point_size
+    resolved_pip_size: Optional[float] = None
 
-    # Use shared source creation
-    source = _create_data_source(
-        request.data_source.lower(),
-        user_id,
-        start_date,
-        end_date,
-        number_of_bars,
-        (request.start_date, request.end_date),
-    )
-
-    symbol_digits, resolved_point_size, resolved_pip_size = (
-        _resolve_seasonality_symbol_info(source, request.symbol, request.point_size)
-    )
-
-    try:
-        df = load_ohlc(
-            source=source,
-            symbol=request.symbol,
-            timeframe=request.timeframe,
-            start_pos=0,
-            end_pos=number_of_bars or 5000,
+    if prepared is None:
+        range_by, start_date, end_date, number_of_bars = _validate_range_params(
+            request.range_by,
+            request.start_date,
+            request.end_date,
+            request.number_of_bars,
         )
-    except Exception as exc:
-        logger.error(f"Failed to load data for {request.symbol}: {exc}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to load data for {request.symbol}.",
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
         )
+        symbol_digits, resolved_point_size, resolved_pip_size = (
+            _resolve_seasonality_symbol_info(source, request.symbol, request.point_size)
+        )
+        try:
+            df = load_ohlc(
+                source=source,
+                symbol=request.symbol,
+                timeframe=request.timeframe,
+                start_pos=0,
+                end_pos=number_of_bars or 5000,
+            )
+        except Exception as exc:
+            logger.error(f"Failed to load data for {request.symbol}: {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to load data for {request.symbol}.",
+            )
+        df = normalize_columns(df)
+    else:
+        df = prepared.data
+        meta = prepared.report.metadata
+        request.symbol = str(meta.get("symbol") or request.symbol)
+        request.timeframe = str(meta.get("timeframe") or request.timeframe)
+        range_by = str((request.prepared_dataset or {}).get("request", {}).get("range_by") or request.range_by)
+        resolved_pip_size = float(df.get("pip_size", pd.Series([request.point_size])).iloc[0])
+        resolved_point_size = float(df.get("point_size", pd.Series([request.point_size])).iloc[0])
 
-    logger.info(f"Seasonality raw MT5 tail:\n{df.tail()}")
-    df = normalize_columns(df)
     if resolved_point_size <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -825,4 +1111,107 @@ async def delete_edge_run(run_id: int):
             detail=f"Edge run {run_id} not found.",
         )
     return None
+
+
+@router.post("/core-metrics/run", response_model=Dict[str, Any])
+async def run_core_metrics(
+    request: EdgeCoreMetricRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Run the Core Metric MVP profile for one symbol."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
+    range_by = request.range_by.lower()
+    number_of_bars = request.number_of_bars
+    symbol = request.symbol or ""
+    timeframe = request.timeframe
+    data_source = request.data_source.lower()
+
+    if prepared is None:
+        range_by, start_date, end_date, number_of_bars = _validate_range_params(
+            request.range_by,
+            request.start_date,
+            request.end_date,
+            request.number_of_bars,
+        )
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
+        )
+        prepared = prepare_ohlcvs_dataset(
+            source=source,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_pos=0,
+            end_pos=number_of_bars or 5000,
+            cleaning=CleaningConfig(timeframe=timeframe),
+            enrichment=EnrichmentConfig(symbol=symbol),
+        )
+    else:
+        meta = prepared.report.metadata
+        symbol = str(meta.get("symbol") or symbol)
+        timeframe = str(meta.get("timeframe") or timeframe)
+        data_source = str(
+            (request.prepared_dataset or {}).get("request", {}).get("data_source")
+            or data_source
+        )
+        range_by = str(
+            (request.prepared_dataset or {}).get("request", {}).get("range_by")
+            or range_by
+        )
+
+    profile = build_core_metric_profile(
+        prepared,
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source,
+        range_by=range_by,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        number_of_bars=number_of_bars,
+    )
+
+    saved_run_id: Optional[int] = None
+    if request.save_db:
+        saved_run_id = db_manager.save_core_metric_profile(profile, user_id=user_id)
+
+    payload = profile.to_dict()
+    payload["run_id"] = saved_run_id
+    return payload
+
+
+@router.get("/core-metrics/runs", response_model=List[Dict[str, Any]])
+async def list_core_metric_runs(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """List stored Core Metric profile runs."""
+    return db_manager.get_core_metric_runs(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/core-metrics/runs/{run_id}", response_model=Dict[str, Any])
+async def get_core_metric_run(run_id: int):
+    """Get one stored Core Metric profile."""
+    run = db_manager.get_core_metric_run(run_id)
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Core metric run {run_id} not found.",
+        )
+    return run
 

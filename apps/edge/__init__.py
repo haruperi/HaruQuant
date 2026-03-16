@@ -41,6 +41,12 @@ from .data import (
     EnrichmentConfig,
     PreparedDataset,
 )
+from .core_metrics import (
+    CoreMetricProfile,
+    MetricRegistry,
+    build_core_metric_profile,
+    build_default_registry,
+)
 from .eds_mean_reversion import run_eds_mean_reversion
 from .eds_null_models import run_eds_null_baseline
 from .eds_session import run_eds_session
@@ -104,6 +110,10 @@ __all__ = [
     "EnrichmentConfig",
     "DataQualityReportModel",
     "PreparedDataset",
+    "CoreMetricProfile",
+    "MetricRegistry",
+    "build_core_metric_profile",
+    "build_default_registry",
     # EDS Runners
     "run_eds_mean_reversion",
     "run_eds_trend_persistence",

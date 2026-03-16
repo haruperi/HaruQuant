@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from apps.edge.core_metrics import CoreMetricProfile
 from apps.utils.logger import logger
 
 from .base import DatabaseBase
@@ -12,6 +13,185 @@ from .base import DatabaseBase
 
 class EdgeDiscoveryManager(DatabaseBase):
     """Edge Discovery database operations."""
+
+    def save_core_metric_profile(
+        self,
+        profile: CoreMetricProfile,
+        user_id: Optional[int] = None,
+    ) -> Optional[int]:
+        """Persist a Core Metric profile and its normalized values."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                INSERT INTO edge_core_metric_runs (
+                    user_id, symbol, timeframe, data_source, range_by,
+                    start_date, end_date, number_of_bars, bar_count,
+                    is_valid, warning_count, fatal_error_count, report, summary
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    profile.symbol,
+                    profile.timeframe,
+                    profile.data_source,
+                    profile.range_by,
+                    profile.start_date,
+                    profile.end_date,
+                    profile.number_of_bars,
+                    profile.bar_count,
+                    1 if profile.report.is_valid else 0,
+                    len(profile.report.warnings),
+                    len(profile.report.fatal_errors),
+                    json.dumps(profile.to_dict().get("report", {})),
+                    json.dumps(profile.summary or {}),
+                ),
+            )
+            run_id = cursor.lastrowid
+
+            for value in profile.values:
+                value_num = None
+                value_text = None
+                if value.value_type == "number":
+                    value_num = float(value.value) if value.value is not None else None
+                else:
+                    value_text = str(value.value) if value.value is not None else None
+
+                cursor.execute(
+                    """
+                    INSERT INTO edge_core_metric_values (
+                        run_id, family, metric_key, value_num, value_text, value_type, context
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        run_id,
+                        value.family,
+                        value.key,
+                        value_num,
+                        value_text,
+                        value.value_type,
+                        json.dumps(value.context) if value.context else None,
+                    ),
+                )
+
+            conn.commit()
+            return int(run_id)
+        except Exception as e:
+            logger.error(f"Error saving core metric profile: {e}")
+            if conn:
+                conn.rollback()
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def get_core_metric_runs(
+        self,
+        symbol: Optional[str] = None,
+        timeframe: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """List stored Core Metric profile runs."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            query = "SELECT * FROM edge_core_metric_runs WHERE 1=1"
+            params: List[Any] = []
+            if symbol:
+                query += " AND symbol = ?"
+                params.append(symbol)
+            if timeframe:
+                query += " AND timeframe = ?"
+                params.append(timeframe)
+            query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+            cursor.execute(query, params)
+            rows = []
+            for row in cursor.fetchall():
+                item = dict(row)
+                if item.get("report"):
+                    item["report"] = json.loads(item["report"])
+                if item.get("summary"):
+                    item["summary"] = json.loads(item["summary"])
+                rows.append(item)
+            return rows
+        except Exception as e:
+            logger.error(f"Error getting core metric runs: {e}")
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    def get_core_metric_run(self, run_id: int) -> Optional[Dict[str, Any]]:
+        """Get one Core Metric run with summary fields."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM edge_core_metric_runs WHERE run_id = ?",
+                (run_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            item = dict(row)
+            if item.get("report"):
+                item["report"] = json.loads(item["report"])
+            if item.get("summary"):
+                item["summary"] = json.loads(item["summary"])
+            item["values"] = self.get_core_metric_values(run_id)
+            return item
+        except Exception as e:
+            logger.error(f"Error getting core metric run {run_id}: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def get_core_metric_values(
+        self,
+        run_id: int,
+        family: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get normalized Core Metric values for a run."""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            query = "SELECT * FROM edge_core_metric_values WHERE run_id = ?"
+            params: List[Any] = [run_id]
+            if family:
+                query += " AND family = ?"
+                params.append(family)
+            query += " ORDER BY family ASC, metric_key ASC"
+            cursor.execute(query, params)
+            items = []
+            for row in cursor.fetchall():
+                item = dict(row)
+                if item.get("context"):
+                    item["context"] = json.loads(item["context"])
+                item["value"] = (
+                    item.get("value_num")
+                    if item.get("value_type") == "number"
+                    else item.get("value_text")
+                )
+                items.append(item)
+            return items
+        except Exception as e:
+            logger.error(f"Error getting core metric values for run {run_id}: {e}")
+            return []
+        finally:
+            if conn:
+                conn.close()
 
     def save_edge_result(  # noqa: C901
         self,

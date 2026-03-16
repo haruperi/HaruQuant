@@ -16,6 +16,53 @@
 - `apps/edge/data/enrichment.py` adds analysis columns such as pip metadata, bar geometry, returns, direction labels, session fields, and rollover-hour flags.
 - `apps/edge/datasets.py -> prepare_ohlcvs_dataset(...)` is the end-to-end orchestration entrypoint and returns a prepared DataFrame plus a report that separates warnings from fatal errors.
 
+## Edge Lab Core Metric MVP
+
+- `apps/edge/core_metrics/base.py` defines the normalized metric contract used by the MVP:
+  - `MetricValue` for persisted metric rows
+  - `MetricContext` for prepared dataset execution
+  - `MetricCalculator` as the family interface
+- `apps/edge/core_metrics/registry.py` keeps a small family registry so the profile builder can stay declarative.
+- `apps/edge/core_metrics/service.py -> build_core_metric_profile(...)` builds the first descriptive pair profile from a prepared OHLCVS dataset.
+- The initial metric families are:
+  - `returns`
+  - `roc`
+  - `candles`
+  - `ranges`
+  - `volatility`
+  - `spread`
+  - `volume_activity`
+- Persistence is intentionally normalized and reuses the existing SQLite edge manager:
+  - `edge_core_metric_runs` stores one profile header plus validation/cleaning report JSON
+  - `edge_core_metric_values` stores one row per metric (`family`, `metric_key`, numeric/text value, context JSON)
+- API integration stays inside `apps/api/routes/edge.py`:
+  - `POST /api/edge-lab/core-metrics/run`
+  - `GET /api/edge-lab/core-metrics/runs`
+  - `GET /api/edge-lab/core-metrics/runs/{run_id}`
+- UI integration stays inside the existing Edge Lab surface:
+  - `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
+  - `ui/src/components/edge-lab/edge-lab-nav.tsx`
+
+## Edge Lab Shared Dataset Flow
+
+- Edge Lab now has a shared dataset-first UI flow similar to the Performance area.
+- `ui/src/contexts/edge-lab-data-context.tsx` holds the active prepared dataset in React state and mirrors it to `sessionStorage`.
+- `ui/src/app/(dashboard)/edge-lab/layout.tsx` wraps all Edge Lab tabs with that provider.
+- `ui/src/app/(dashboard)/edge-lab/page.tsx` is the canonical place to:
+  - fetch market data
+  - run validation / cleaning / enrichment
+  - inspect report state
+  - preview the prepared dataset
+- Backend support stays inside `apps/api/routes/edge.py`:
+  - `POST /api/edge-lab/dataset/prepare`
+  - `POST /api/edge-lab/seasonality` can now consume a serialized prepared dataset
+  - `POST /api/edge-lab/core-metrics/run` can now consume a serialized prepared dataset
+- First migrated consumers are:
+  - `ui/src/app/(dashboard)/edge-lab/discovery/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/seasonality/page.tsx`
+- This removes repeated data-download forms from those tabs and keeps one session-scoped dataset across navigation.
+
 ## Trading Engine Tick Loop (Python Skeleton)
 
 ## API Backtest Runtime

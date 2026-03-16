@@ -78,3 +78,36 @@ def test_prepare_ohlcvs_dataset_flags_fatal_ohlc_errors():
 
     assert not prepared.report.is_valid
     assert len(prepared.report.fatal_errors) >= 1
+
+
+def test_prepare_ohlcvs_dataset_handles_integer_spread_cleaning():
+    idx = pd.date_range("2024-01-01", periods=8, freq="h")
+    df = pd.DataFrame(
+        {
+            "Open": [1.1000, 1.1002, 1.1004, 1.1003, 1.1005, 1.1006, 1.1007, 1.1008],
+            "High": [1.1004, 1.1005, 1.1008, 1.1007, 1.1009, 1.1010, 1.1011, 1.1012],
+            "Low": [1.0998, 1.1000, 1.1002, 1.1001, 1.1003, 1.1004, 1.1005, 1.1006],
+            "Close": [1.1002, 1.1004, 1.1003, 1.1005, 1.1006, 1.1007, 1.1008, 1.1009],
+            "Volume": [10, 11, 12, 13, 14, 15, 16, 17],
+            "Spread": [8, 8, 9, 8, 200, 8, 9, 8],
+        },
+        index=idx,
+    )
+    df["Spread"] = df["Spread"].astype("int32")
+
+    prepared = prepare_ohlcvs_dataset(
+        DummySource(df),
+        symbol="EURUSD",
+        timeframe="H1",
+        start_pos=0,
+        end_pos=10,
+        exclude_last_bar=False,
+        cleaning=CleaningConfig(
+            timeframe="H1",
+            spread_anomaly_action="clip",
+        ),
+        enrichment=EnrichmentConfig(symbol="EURUSD"),
+    )
+
+    assert prepared.report.is_valid
+    assert prepared.data["Spread"].dtype.kind == "f"

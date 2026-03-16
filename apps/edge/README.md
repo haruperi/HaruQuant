@@ -21,10 +21,24 @@ python scripts/run_edge.py --symbols EURUSD,GBPUSD,USDJPY --timeframe H1 --eds m
 - **EDS-1**: Mean Reversion Detector (compression + z-score fade)
 - **EDS-2**: Trend Persistence Detector (high-ATR breakout follow-through)
 - **EDS-3**: Session Edge Detector (time-of-day alpha)
+- **Core Metric MVP**: Descriptive and cost-aware pair profile built from prepared OHLCVS data
 - Block bootstrap confidence intervals (autocorrelation-aware)
 - R-space permutation tests
 - Multiple hypothesis correction (Benjamini-Hochberg FDR)
 - Markdown + JSON reporting
+
+## Analysis Pipeline
+
+- `datasets.py -> prepare_ohlcvs_dataset(...)` loads, validates, cleans, and enriches analysis-ready OHLCVS data.
+- `data/` contains the validation, cleaning, enrichment, and report models used by that pipeline.
+- `core_metrics/` contains the Core Metric MVP:
+  - base metric interface
+  - family registry
+  - normalized profile builder for returns, ROC, candles, ranges, volatility, spread, and basic volume/activity
+- Core Metric outputs can be persisted and queried through the Edge Lab API and SQLite tables `edge_core_metric_runs` and `edge_core_metric_values`.
+- Edge Lab UI now follows a dataset-first workflow:
+  - landing page `/edge-lab` is the `Data` tab and prepares/previews the dataset once
+  - `Discovery`, `Core Metric`, and `Seasonality` reuse that prepared dataset from session state instead of re-downloading it
 
 ## Philosophy
 

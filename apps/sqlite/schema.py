@@ -824,6 +824,58 @@ class SchemaManager:
                 "CREATE INDEX IF NOT EXISTS idx_edge_trades_run_id ON edge_discovery_trades(run_id)"
             )
 
+            create_edge_core_metric_runs_table = """
+            CREATE TABLE IF NOT EXISTS edge_core_metric_runs (
+                run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                data_source TEXT NOT NULL,
+                range_by TEXT NOT NULL,
+                start_date TEXT,
+                end_date TEXT,
+                number_of_bars INTEGER,
+                bar_count INTEGER,
+                is_valid BOOLEAN DEFAULT 1,
+                warning_count INTEGER DEFAULT 0,
+                fatal_error_count INTEGER DEFAULT 0,
+                report TEXT,
+                summary TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+            );
+            """
+            cursor.execute(create_edge_core_metric_runs_table)
+
+            create_edge_core_metric_values_table = """
+            CREATE TABLE IF NOT EXISTS edge_core_metric_values (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                family TEXT NOT NULL,
+                metric_key TEXT NOT NULL,
+                value_num REAL,
+                value_text TEXT,
+                value_type TEXT NOT NULL,
+                context TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES edge_core_metric_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_core_metric_values_table)
+
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_core_runs_symbol ON edge_core_metric_runs(symbol)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_core_runs_created_at ON edge_core_metric_runs(created_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_core_values_run_id ON edge_core_metric_values(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_core_values_family_key ON edge_core_metric_values(family, metric_key)"
+            )
+
             # Create indices for performance
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_backtest_trades_backtest_id ON backtest_trades(backtest_id)"

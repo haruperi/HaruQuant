@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { edgeLabApi, type EdgeLabSeasonalityResponse } from "@/lib/api/edge"
+import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
 import {
   Bar,
   BarChart,
@@ -202,16 +202,7 @@ const HeatmapTable = ({
 }
 
 export default function SeasonalityPage() {
-  const [symbol, setSymbol] = useState("EURUSD")
-  const [timeframe, setTimeframe] = useState("H1")
-  const [dataSource, setDataSource] = useState<"mt5" | "dukascopy">("mt5")
-  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("dates")
-  const defaultEnd = new Date()
-  const defaultStart = new Date()
-  defaultStart.setFullYear(defaultStart.getFullYear() - 10)
-  const [startDate, setStartDate] = useState(defaultStart.toISOString().slice(0, 10))
-  const [endDate, setEndDate] = useState(defaultEnd.toISOString().slice(0, 10))
-  const [numberOfBars, setNumberOfBars] = useState("5000")
+  const { dataset } = useEdgeLabData()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<EdgeLabSeasonalityResponse | null>(null)
@@ -222,18 +213,23 @@ export default function SeasonalityPage() {
   >("avg_co_points")
 
   const runSeasonality = async (overrideOffset?: number) => {
+    if (!dataset) {
+      setError("Load a dataset in the Data tab first.")
+      return
+    }
     setLoading(true)
     setError(null)
     try {
       const effectiveOffset = overrideOffset ?? dataOffset
       const payload = {
-        symbol: symbol.trim().toUpperCase(),
-        timeframe,
-        data_source: dataSource,
-        range_by: rangeBy,
-        start_date: rangeBy === "dates" ? startDate || undefined : undefined,
-        end_date: rangeBy === "dates" ? endDate || undefined : undefined,
-        number_of_bars: rangeBy === "bars" ? Number(numberOfBars) || 5000 : undefined,
+        symbol: dataset.request.symbol,
+        timeframe: dataset.request.timeframe,
+        data_source: dataset.request.data_source,
+        range_by: dataset.request.range_by,
+        start_date: dataset.request.start_date ?? undefined,
+        end_date: dataset.request.end_date ?? undefined,
+        number_of_bars: dataset.request.number_of_bars ?? undefined,
+        prepared_dataset: dataset,
         data_offset: effectiveOffset,
         data_limit: dataLimit,
       }
@@ -255,103 +251,26 @@ export default function SeasonalityPage() {
       <Card>
         <CardHeader>
           <CardTitle>Run Seasonality</CardTitle>
-          <CardDescription>Generate intraday bias, heatmaps, and calendar stats.</CardDescription>
+          <CardDescription>Generate intraday bias, heatmaps, and calendar stats from the session dataset.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol</Label>
-              <Input
-                id="symbol"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                placeholder="EURUSD"
-              />
+          {!dataset ? (
+            <div className="text-sm text-muted-foreground">Load a dataset in the Data tab before running Seasonality.</div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-4 text-sm">
+              <div><div className="text-muted-foreground">Symbol</div><div>{dataset.request.symbol}</div></div>
+              <div><div className="text-muted-foreground">Timeframe</div><div>{dataset.request.timeframe}</div></div>
+              <div><div className="text-muted-foreground">Rows</div><div>{dataset.meta.n_rows}</div></div>
+              <div><div className="text-muted-foreground">Warnings</div><div>{dataset.report.warnings.length}</div></div>
             </div>
-            <div className="space-y-2">
-              <Label>Timeframe</Label>
-              <Select value={timeframe} onValueChange={setTimeframe}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="M1">M1</SelectItem>
-                  <SelectItem value="M5">M5</SelectItem>
-                  <SelectItem value="M15">M15</SelectItem>
-                  <SelectItem value="M30">M30</SelectItem>
-                  <SelectItem value="H1">H1</SelectItem>
-                  <SelectItem value="H4">H4</SelectItem>
-                  <SelectItem value="D1">D1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Data Source</Label>
-              <Select value={dataSource} onValueChange={(val) => setDataSource(val as any)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mt5">MetaTrader 5</SelectItem>
-                  <SelectItem value="dukascopy">Dukascopy</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Range By</Label>
-              <Select value={rangeBy} onValueChange={(val) => setRangeBy(val as any)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dates">Dates</SelectItem>
-                  <SelectItem value="bars">Bars</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {rangeBy === "dates" ? (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="space-y-2 md:col-span-3">
-                <Label htmlFor="numberOfBars">Number of Bars</Label>
-                <Input
-                  id="numberOfBars"
-                  type="number"
-                  value={numberOfBars}
-                  onChange={(e) => setNumberOfBars(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           <div className="flex items-center gap-3">
             <Button
               onClick={() => {
                 runSeasonality(0)
               }}
-              disabled={loading || !symbol.trim()}
+              disabled={loading || !dataset}
             >
               {loading ? "Running..." : "Run Seasonality"}
             </Button>
@@ -390,7 +309,7 @@ export default function SeasonalityPage() {
                       }
                     />
                     <Tooltip
-                      formatter={(value: any) =>
+                      formatter={(value: number | string) =>
                         typeof value === "number" ? `${value.toFixed(2)} pips` : "-"
                       }
                       labelFormatter={(label) => {

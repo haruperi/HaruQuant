@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
-  { label: "Discovery", href: "/edge-lab" },
+  { label: "Data", href: "/edge-lab" },
+  { label: "Discovery", href: "/edge-lab/discovery" },
+  { label: "Core Metric", href: "/edge-lab/core-metric" },
   { label: "Seasonality", href: "/edge-lab/seasonality" },
   { label: "SQX Import", href: "/edge-lab/sqx-import" },
   { label: "Monte Carlo Lab", href: "/edge-lab/monte-carlo-lab" },
