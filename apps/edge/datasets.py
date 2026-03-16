@@ -8,7 +8,13 @@ from typing import Any, Dict, List, Optional, Protocol, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
+from apps.utils.data_validator import DataValidator
 from apps.utils.logger import logger
+
+from .data.cleaning import CleaningConfig, clean_dataset
+from .data.enrichment import EnrichmentConfig, enrich_dataset
+from .data.models import CanonicalOHLCVSSchema, PreparedDataset
+from .data.validation import validate_dataset
 
 
 class DataSource(Protocol):
@@ -360,4 +366,84 @@ def validate_data_quality(
 
     logger.debug(f"Data quality diagnostics: {diagnostics}")
     return diagnostics
+
+
+def _synthesize_ohlcvs_columns(
+    df: pd.DataFrame,
+    schema: CanonicalOHLCVSSchema,
+) -> pd.DataFrame:
+    """Ensure canonical volume and spread columns exist for analysis."""
+    out = df.copy()
+    if schema.volume not in out.columns:
+        out[schema.volume] = 0.0
+    if schema.spread not in out.columns:
+        validator = DataValidator()
+        prepared = validator.prepare_data(out)
+        out[schema.spread] = prepared["spread"].to_numpy()
+        if schema.volume in prepared.columns:
+            out[schema.volume] = prepared["volume"].to_numpy()
+    return out
+
+
+def prepare_ohlcvs_dataset(
+    source: DataSource,
+    symbol: str,
+    timeframe: str,
+    start_pos: int,
+    end_pos: int,
+    *,
+    exclude_last_bar: bool = True,
+    schema: OHLCVSchema | None = None,
+    cleaning: CleaningConfig | None = None,
+    enrichment: EnrichmentConfig | None = None,
+) -> PreparedDataset:
+    """Load, validate, clean, and enrich an analysis-ready OHLCVS dataset."""
+    schema = schema or DEFAULT_SCHEMA
+    canonical = CanonicalOHLCVSSchema(
+        open=schema.open,
+        high=schema.high,
+        low=schema.low,
+        close=schema.close,
+        volume=schema.volume,
+        spread="Spread",
+    )
+
+    raw = load_ohlc(
+        source=source,
+        symbol=symbol,
+        timeframe=timeframe,
+        start_pos=start_pos,
+        end_pos=end_pos,
+        exclude_last_bar=exclude_last_bar,
+        schema=schema,
+    )
+    raw = _synthesize_ohlcvs_columns(raw, canonical)
+
+    report = validate_dataset(raw, schema=canonical, timeframe=timeframe)
+    if report.is_valid:
+        cleaned = clean_dataset(
+            raw,
+            report=report,
+            schema=canonical,
+            config=cleaning or CleaningConfig(timeframe=timeframe),
+        )
+        enriched = enrich_dataset(
+            cleaned,
+            schema=canonical,
+            config=enrichment or EnrichmentConfig(symbol=symbol),
+        )
+    else:
+        cleaned = raw
+        enriched = raw
+
+    report.metadata.update(
+        {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "n_rows": len(enriched),
+            "start": str(enriched.index.min()) if len(enriched) else None,
+            "end": str(enriched.index.max()) if len(enriched) else None,
+        }
+    )
+    return PreparedDataset(data=enriched, report=report, schema=canonical)
 

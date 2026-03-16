@@ -226,7 +226,8 @@ edge_lab_outputs/
 apps/edge/
 ├── __init__.py          # Public API exports
 ├── config.py            # Configuration dataclasses
-├── datasets.py          # Data loading, session tagging
+├── data/                # Validation, cleaning, enrichment pipeline
+├── datasets.py          # Data loading and end-to-end dataset preparation
 ├── features.py          # Technical indicators (40+)
 ├── null_models.py       # Statistical tests
 ├── eds_null_models.py   # EDS-0: Baseline detector

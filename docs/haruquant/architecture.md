@@ -9,6 +9,13 @@
   - `apps/finance/metrics.py` for Edge-oriented summary helpers such as `median_mae_mfe()` and `compute_trade_metrics()`
 - Edge runners import those finance functions directly so the metric logic is centralized without adding new files.
 
+## Edge Lab Dataset Pipeline
+
+- `apps/edge/data/validation.py` wraps the existing utility validator in `apps/utils/data_validator.py` to validate schema, OHLC logic, continuity, duplicates, spread, and volume.
+- `apps/edge/data/cleaning.py` applies policy-driven cleaning for timezone normalization, missing bars, weekend/holiday filtering, and spread anomaly handling.
+- `apps/edge/data/enrichment.py` adds analysis columns such as pip metadata, bar geometry, returns, direction labels, session fields, and rollover-hour flags.
+- `apps/edge/datasets.py -> prepare_ohlcvs_dataset(...)` is the end-to-end orchestration entrypoint and returns a prepared DataFrame plus a report that separates warnings from fatal errors.
+
 ## Trading Engine Tick Loop (Python Skeleton)
 
 ## API Backtest Runtime

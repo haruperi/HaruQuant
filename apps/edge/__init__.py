@@ -30,9 +30,16 @@ from .datasets import (
     DataSource,
     OHLCVSchema,
     load_ohlc,
+    prepare_ohlcvs_dataset,
     resample_ohlc,
     tag_sessions,
     validate_data_quality,
+)
+from .data import (
+    CleaningConfig,
+    DataQualityReportModel,
+    EnrichmentConfig,
+    PreparedDataset,
 )
 from .eds_mean_reversion import run_eds_mean_reversion
 from .eds_null_models import run_eds_null_baseline
@@ -89,9 +96,14 @@ __all__ = [
     "DataSource",
     "OHLCVSchema",
     "load_ohlc",
+    "prepare_ohlcvs_dataset",
     "resample_ohlc",
     "tag_sessions",
     "validate_data_quality",
+    "CleaningConfig",
+    "EnrichmentConfig",
+    "DataQualityReportModel",
+    "PreparedDataset",
     # EDS Runners
     "run_eds_mean_reversion",
     "run_eds_trend_persistence",
