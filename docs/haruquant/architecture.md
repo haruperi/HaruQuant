@@ -58,9 +58,12 @@
   - `POST /api/edge-lab/seasonality` can now consume a serialized prepared dataset
   - `POST /api/edge-lab/core-metrics/run` can now consume a serialized prepared dataset
 - First migrated consumers are:
-  - `ui/src/app/(dashboard)/edge-lab/discovery/page.tsx`
-  - `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
-  - `ui/src/app/(dashboard)/edge-lab/seasonality/page.tsx`
+- `ui/src/app/(dashboard)/edge-lab/discovery/page.tsx`
+- `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
+- `ui/src/app/(dashboard)/edge-lab/seasonality/page.tsx`
+- `ui/src/components/edge-lab/dataset-summary.tsx` keeps the repeated shared-dataset banner consistent across those tabs.
+- `ui/src/components/edge-lab/collection-state.tsx` keeps common loading / empty collection states consistent for saved-run panels.
+- `ui/src/components/edge-lab/control-toggle.tsx` keeps repeated bordered toggle controls consistent for page-level Edge Lab actions such as persistence flags.
 - This removes repeated data-download forms from those tabs and keeps one session-scoped dataset across navigation.
 
 ## Trading Engine Tick Loop (Python Skeleton)

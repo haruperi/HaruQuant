@@ -12,10 +12,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  ResponsiveContainer,
+  Tooltip as ChartTooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import {
   edgeLabApi,
   type EdgeLabDbTrade,
@@ -27,6 +38,9 @@ import {
 } from "@/lib/api/edge"
 import { cn } from "@/lib/utils"
 import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
+import { EdgeLabDatasetSummary } from "@/components/edge-lab/dataset-summary"
+import { EdgeLabCollectionState } from "@/components/edge-lab/collection-state"
+import { EdgeLabControlToggle } from "@/components/edge-lab/control-toggle"
 
 const verdictFromStats = (stats: EdgeLabStats) => {
   if (stats.n_trades < 30) return "INSUFFICIENT_DATA"
@@ -49,6 +63,24 @@ const formatValue = (value: number | null | undefined, digits = 2) => {
   return value.toFixed(digits)
 }
 
+const edgeOutline = (expectancy: number | null | undefined, ciLow: number | null | undefined) => {
+  if (expectancy === null || expectancy === undefined || Number.isNaN(expectancy)) {
+    return { stroke: "none", strokeWidth: 0 }
+  }
+  if (expectancy <= 0) {
+    return { stroke: "none", strokeWidth: 0 }
+  }
+  if (ciLow !== null && ciLow !== undefined && ciLow > 0) {
+    return { stroke: "#22c55e", strokeWidth: 2 }
+  }
+  return { stroke: "#94a3b8", strokeWidth: 1 }
+}
+
+const legendLabel = (value: string) => {
+  const color = value === "MR" ? "#94a3b8" : "#fb7185"
+  return <span style={{ color }}>{value}</span>
+}
+
 export default function EdgeLabDiscoveryPage() {
   const { dataset } = useEdgeLabData()
   const [eds, setEds] = useState<EdgeLabEdsType>("all")
@@ -66,6 +98,7 @@ export default function EdgeLabDiscoveryPage() {
   const [selectedRun, setSelectedRun] = useState<EdgeLabSummaryRow | null>(null)
   const [selectedStats, setSelectedStats] = useState<EdgeLabRunStats | null>(null)
   const [selectedTrades, setSelectedTrades] = useState<EdgeLabDbTrade[]>([])
+  const [chartMetric, setChartMetric] = useState<"expectancy" | "total_r">("expectancy")
 
   const refreshRuns = async () => {
     setLoadingRuns(true)
@@ -147,6 +180,43 @@ export default function EdgeLabDiscoveryPage() {
     }
   }
 
+  const handleDeleteRun = async (run: EdgeLabSummaryRow) => {
+    if (!run.latest_run_id) return
+    const confirmed = window.confirm(`Delete run #${run.latest_run_id}?`)
+    if (!confirmed) return
+    try {
+      await edgeLabApi.deleteRun(run.latest_run_id)
+      if (selectedRun?.latest_run_id === run.latest_run_id) {
+        setSelectedRun(null)
+        setSelectedStats(null)
+        setSelectedTrades([])
+      }
+      await refreshRuns()
+    } catch (err) {
+      console.error("Failed to delete discovery run:", err)
+    }
+  }
+
+  const chartRows = runs
+    .map((run) => {
+      const mrVal =
+        chartMetric === "expectancy" ? run.mr.expectancy_r ?? null : run.mr.total_r ?? null
+      const boVal =
+        chartMetric === "expectancy" ? run.bo.expectancy_r ?? null : run.bo.total_r ?? null
+      return {
+        key: `${run.symbol}-${run.timeframe}`,
+        label: `${run.symbol} ${run.timeframe}`,
+        mr: mrVal,
+        bo: boVal,
+        mr_expectancy: run.mr.expectancy_r ?? null,
+        bo_expectancy: run.bo.expectancy_r ?? null,
+        mr_ci_low: run.mr.ci_low ?? null,
+        bo_ci_low: run.bo.ci_low ?? null,
+        sortValue: (mrVal || 0) + (boVal || 0),
+      }
+    })
+    .sort((a, b) => a.sortValue - b.sortValue)
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <Card>
@@ -158,16 +228,10 @@ export default function EdgeLabDiscoveryPage() {
           <CardDescription>Run edge discovery strategies against the prepared session dataset.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {!dataset ? (
-            <div className="text-sm text-muted-foreground">Load a dataset in the Data tab before running Discovery.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-4 text-sm">
-              <div><div className="text-muted-foreground">Symbol</div><div>{dataset.request.symbol}</div></div>
-              <div><div className="text-muted-foreground">Timeframe</div><div>{dataset.request.timeframe}</div></div>
-              <div><div className="text-muted-foreground">Rows</div><div>{dataset.meta.n_rows}</div></div>
-              <div><div className="text-muted-foreground">Warnings</div><div>{dataset.report.warnings.length}</div></div>
-            </div>
-          )}
+          <EdgeLabDatasetSummary
+            dataset={dataset}
+            emptyMessage="Load a dataset in the Data tab before running Discovery."
+          />
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
@@ -210,20 +274,18 @@ export default function EdgeLabDiscoveryPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <Label>Save To Database</Label>
-                <p className="text-xs text-muted-foreground">Store run and summary stats.</p>
-              </div>
-              <Switch checked={saveDb} onCheckedChange={setSaveDb} />
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <Label>Save Trades</Label>
-                <p className="text-xs text-muted-foreground">Persist trade-level records with the run.</p>
-              </div>
-              <Switch checked={saveTrades} onCheckedChange={setSaveTrades} />
-            </div>
+            <EdgeLabControlToggle
+              label="Save To Database"
+              description="Store run and summary stats."
+              checked={saveDb}
+              onCheckedChange={setSaveDb}
+            />
+            <EdgeLabControlToggle
+              label="Save Trades"
+              description="Persist trade-level records with the run."
+              checked={saveTrades}
+              onCheckedChange={setSaveTrades}
+            />
           </div>
 
           <div className="flex items-center gap-3">
@@ -281,23 +343,27 @@ export default function EdgeLabDiscoveryPage() {
           <CardDescription>Latest persisted runs for the current symbol/timeframe.</CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingRuns ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading runs...
-            </div>
-          ) : runs.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No saved runs yet.</div>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
+          <EdgeLabCollectionState
+            loading={loadingRuns}
+            hasItems={runs.length > 0}
+            emptyMessage="No saved runs yet."
+          >
+            <div className="overflow-x-auto">
+              <Table className="min-w-[1200px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Symbol</TableHead>
                     <TableHead>Timeframe</TableHead>
                     <TableHead>MR Exp</TableHead>
+                    <TableHead>MR CI Low</TableHead>
+                    <TableHead>MR p-val</TableHead>
                     <TableHead>BO Exp</TableHead>
+                    <TableHead>BO CI Low</TableHead>
+                    <TableHead>BO p-val</TableHead>
                     <TableHead>Verdict</TableHead>
+                    <TableHead>Confidence</TableHead>
+                    <TableHead>Robustness</TableHead>
+                    <TableHead>Range</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -307,8 +373,44 @@ export default function EdgeLabDiscoveryPage() {
                       <TableCell>{run.symbol}</TableCell>
                       <TableCell>{run.timeframe}</TableCell>
                       <TableCell>{formatValue(run.mr.expectancy_r, 2)}</TableCell>
+                      <TableCell>{formatValue(run.mr.ci_low, 2)}</TableCell>
+                      <TableCell>{formatValue(run.mr.p_value_perm, 3)}</TableCell>
                       <TableCell>{formatValue(run.bo.expectancy_r, 2)}</TableCell>
+                      <TableCell>{formatValue(run.bo.ci_low, 2)}</TableCell>
+                      <TableCell>{formatValue(run.bo.p_value_perm, 3)}</TableCell>
                       <TableCell>{run.verdict ? <Badge className={verdictTone(run.verdict)}>{run.verdict}</Badge> : "—"}</TableCell>
+                      <TableCell>
+                        {run.confidence !== undefined ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="underline decoration-dotted cursor-help">{run.confidence}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <div className="space-y-1">
+                                <div>Robustness: {run.robustness ?? 0}</div>
+                                <div>Bonus: {run.score_breakdown?.bonus ?? 0}</div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {run.robustness !== undefined ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="underline decoration-dotted cursor-help">{run.robustness}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <div className="space-y-1">
+                                <div>Trade Score: {run.score_breakdown?.trade_score ?? 0}</div>
+                                <div>CI Score: {run.score_breakdown?.ci_score ?? 0}</div>
+                                <div>Exp Score: {run.score_breakdown?.exp_score ?? 0}</div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell>{run.range || "—"}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -320,6 +422,33 @@ export default function EdgeLabDiscoveryPage() {
                             <DropdownMenuItem onClick={() => loadRunDetails(run)} disabled={!run.latest_run_id}>
                               View Latest
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (run.mr.run_id) {
+                                  loadRunDetails({ ...run, latest_run_id: run.mr.run_id })
+                                }
+                              }}
+                              disabled={!run.mr.run_id}
+                            >
+                              View MR
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (run.bo.run_id) {
+                                  loadRunDetails({ ...run, latest_run_id: run.bo.run_id })
+                                }
+                              }}
+                              disabled={!run.bo.run_id}
+                            >
+                              View BO
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteRun(run)}
+                              disabled={!run.latest_run_id}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              Delete
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -328,7 +457,72 @@ export default function EdgeLabDiscoveryPage() {
                 </TableBody>
               </Table>
             </div>
+          </EdgeLabCollectionState>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Edge Expectancy Chart</CardTitle>
+          <CardDescription>Bars show MR and BO values sorted by combined total.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 pb-4">
+            <Label>Metric</Label>
+            <Select
+              value={chartMetric}
+              onValueChange={(val) => setChartMetric(val as "expectancy" | "total_r")}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="expectancy">Expectancy (R)</SelectItem>
+                <SelectItem value="total_r">Total R</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {chartRows.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No summary data to chart yet.</div>
+          ) : (
+            <div className="h-[360px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartRows} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" angle={-45} textAnchor="end" height={70} interval={0} />
+                  <YAxis />
+                  <ChartTooltip
+                    formatter={(value: number | string, name: string) => [
+                      typeof value === "number" ? value.toFixed(3) : "—",
+                      name.toUpperCase(),
+                    ]}
+                  />
+                  <Legend formatter={legendLabel} />
+                  <Bar dataKey="mr" name="MR" barSize={10} fill="#60a5fa">
+                    {chartRows.map((row, idx) => (
+                      <Cell
+                        key={`mr-${row.key}-${idx}`}
+                        fill="#60a5fa"
+                        {...edgeOutline(row.mr_expectancy, row.mr_ci_low)}
+                      />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="bo" name="BO" barSize={10} fill="#f97316">
+                    {chartRows.map((row, idx) => (
+                      <Cell
+                        key={`bo-${row.key}-${idx}`}
+                        fill="#f97316"
+                        {...edgeOutline(row.bo_expectancy, row.bo_ci_low)}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
+          <div className="text-xs text-muted-foreground pt-3">
+            Green: CI low &gt; 0. Gray: CI overlaps 0. Red: negative expectancy.
+          </div>
         </CardContent>
       </Card>
 
@@ -358,6 +552,9 @@ export default function EdgeLabDiscoveryPage() {
                   <div><div className="text-muted-foreground">Expectancy (R)</div><div className="font-mono">{(selectedStats.expectancy_r ?? 0).toFixed(4)}</div></div>
                   <div><div className="text-muted-foreground">Win Rate</div><div className="font-mono">{(((selectedStats.win_rate ?? 0) * 100) || 0).toFixed(1)}%</div></div>
                   <div><div className="text-muted-foreground">Profit Factor</div><div className="font-mono">{(selectedStats.profit_factor ?? 0).toFixed(2)}</div></div>
+                  <div><div className="text-muted-foreground">CI Low</div><div className="font-mono">{(selectedStats.ci_low ?? 0).toFixed(4)}</div></div>
+                  <div><div className="text-muted-foreground">CI High</div><div className="font-mono">{(selectedStats.ci_high ?? 0).toFixed(4)}</div></div>
+                  <div><div className="text-muted-foreground">Permutation p</div><div className="font-mono">{(selectedStats.p_value_perm ?? 0).toFixed(4)}</div></div>
                 </div>
               )}
 
@@ -371,12 +568,13 @@ export default function EdgeLabDiscoveryPage() {
                       <TableHead>R</TableHead>
                       <TableHead>MAE</TableHead>
                       <TableHead>MFE</TableHead>
+                      <TableHead>Hold</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {selectedTrades.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-sm text-muted-foreground">No trades stored for this run.</TableCell>
+                        <TableCell colSpan={7} className="text-sm text-muted-foreground">No trades stored for this run.</TableCell>
                       </TableRow>
                     ) : (
                       selectedTrades.map((trade) => (
@@ -387,6 +585,7 @@ export default function EdgeLabDiscoveryPage() {
                           <TableCell className="font-mono">{trade.r_multiple.toFixed(2)}</TableCell>
                           <TableCell className="font-mono">{trade.mae_r.toFixed(2)}</TableCell>
                           <TableCell className="font-mono">{trade.mfe_r.toFixed(2)}</TableCell>
+                          <TableCell className="font-mono">{trade.hold_bars}</TableCell>
                         </TableRow>
                       ))
                     )}

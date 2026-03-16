@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { edgeLabApi, type EdgeLabSeasonalityResponse } from "@/lib/api/edge"
 import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
+import { EdgeLabDatasetSummary } from "@/components/edge-lab/dataset-summary"
 import {
   Bar,
   BarChart,
@@ -254,16 +255,10 @@ export default function SeasonalityPage() {
           <CardDescription>Generate intraday bias, heatmaps, and calendar stats from the session dataset.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {!dataset ? (
-            <div className="text-sm text-muted-foreground">Load a dataset in the Data tab before running Seasonality.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-4 text-sm">
-              <div><div className="text-muted-foreground">Symbol</div><div>{dataset.request.symbol}</div></div>
-              <div><div className="text-muted-foreground">Timeframe</div><div>{dataset.request.timeframe}</div></div>
-              <div><div className="text-muted-foreground">Rows</div><div>{dataset.meta.n_rows}</div></div>
-              <div><div className="text-muted-foreground">Warnings</div><div>{dataset.report.warnings.length}</div></div>
-            </div>
-          )}
+          <EdgeLabDatasetSummary
+            dataset={dataset}
+            emptyMessage="Load a dataset in the Data tab before running Seasonality."
+          />
 
           <div className="flex items-center gap-3">
             <Button

@@ -6,12 +6,13 @@ import { Loader2, RefreshCcw, Sigma } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { edgeLabApi, type EdgeCoreMetricProfile, type EdgeCoreMetricRunRow, type EdgeCoreMetricValue } from "@/lib/api/edge"
 import { cn } from "@/lib/utils"
 import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
+import { EdgeLabDatasetSummary } from "@/components/edge-lab/dataset-summary"
+import { EdgeLabCollectionState } from "@/components/edge-lab/collection-state"
+import { EdgeLabControlToggle } from "@/components/edge-lab/control-toggle"
 
 function formatMetricValue(value: number | string | null) {
   if (value === null || value === undefined) return "—"
@@ -106,24 +107,17 @@ export default function EdgeLabCoreMetricPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {!dataset ? (
-            <div className="text-sm text-muted-foreground">Load a dataset in the Data tab before running Core Metric.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-4 text-sm">
-              <div><div className="text-muted-foreground">Symbol</div><div>{dataset.request.symbol}</div></div>
-              <div><div className="text-muted-foreground">Timeframe</div><div>{dataset.request.timeframe}</div></div>
-              <div><div className="text-muted-foreground">Rows</div><div>{dataset.meta.n_rows}</div></div>
-              <div><div className="text-muted-foreground">Warnings</div><div>{dataset.report.warnings.length}</div></div>
-            </div>
-          )}
+          <EdgeLabDatasetSummary
+            dataset={dataset}
+            emptyMessage="Load a dataset in the Data tab before running Core Metric."
+          />
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <Label>Save To Database</Label>
-              <p className="text-xs text-muted-foreground">Persist normalized profile metrics.</p>
-            </div>
-            <Switch checked={saveDb} onCheckedChange={setSaveDb} />
-          </div>
+          <EdgeLabControlToggle
+            label="Save To Database"
+            description="Persist normalized profile metrics."
+            checked={saveDb}
+            onCheckedChange={setSaveDb}
+          />
 
           <div className="flex items-center gap-3">
             <Button onClick={runProfile} disabled={loading || !dataset}>
@@ -198,14 +192,11 @@ export default function EdgeLabCoreMetricPage() {
           <CardDescription>Recent profiles persisted in normalized form.</CardDescription>
         </CardHeader>
         <CardContent>
-          {runsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading runs...
-            </div>
-          ) : runs.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No saved Core Metric runs yet.</div>
-          ) : (
+          <EdgeLabCollectionState
+            loading={runsLoading}
+            hasItems={runs.length > 0}
+            emptyMessage="No saved Core Metric runs yet."
+          >
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -238,7 +229,7 @@ export default function EdgeLabCoreMetricPage() {
                 </TableBody>
               </Table>
             </div>
-          )}
+          </EdgeLabCollectionState>
         </CardContent>
       </Card>
     </div>
