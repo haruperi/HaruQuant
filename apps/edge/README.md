@@ -228,7 +228,6 @@ apps/edge/
 ├── config.py            # Configuration dataclasses
 ├── datasets.py          # Data loading, session tagging
 ├── features.py          # Technical indicators (40+)
-├── metrics.py           # Performance metrics
 ├── null_models.py       # Statistical tests
 ├── eds_null_models.py   # EDS-0: Baseline detector
 ├── eds_mean_reversion.py # EDS-1: Mean reversion

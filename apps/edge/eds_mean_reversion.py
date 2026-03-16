@@ -8,11 +8,12 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
+from apps.finance.metrics import median_mae_mfe, win_rate_fraction
+from apps.finance.ratios import expectancy, profit_factor
 from apps.utils.logger import logger
 
 from .config import BootstrapConfig, MeanReversionConfig, PermutationConfig
 from .features import adr, bb_width, rolling_percentile_rank, zscore
-from .metrics import expectancy, median_mae_mfe, profit_factor, win_rate
 from .null_models import block_bootstrap_ci, permutation_test, r_space_null
 from .results_schema import EdgeResult, EdgeStats, TradeSample
 
@@ -160,7 +161,7 @@ def run_eds_mean_reversion(  # noqa: C901
     hold = np.array([t.hold_bars for t in trades], dtype=float)
 
     exp_r = expectancy(r)
-    wr = win_rate(r)
+    wr = win_rate_fraction(r)
     pf = profit_factor(r)
     med_mae, med_mfe = median_mae_mfe(mae, mfe)
     avg_hold = float(np.mean(hold)) if len(hold) else float("nan")

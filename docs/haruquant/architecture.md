@@ -1,5 +1,14 @@
 # HaruQuant Architecture Notes
 
+## Edge Lab Metrics Boundary
+
+- `apps/edge` no longer has a dedicated metrics module.
+- Shared 1D performance math now lives directly in the existing finance modules:
+  - `apps/finance/ratios.py` for ratio-style metrics
+  - `apps/finance/drawdowns.py` for returns drawdown metrics
+  - `apps/finance/metrics.py` for Edge-oriented summary helpers such as `median_mae_mfe()` and `compute_trade_metrics()`
+- Edge runners import those finance functions directly so the metric logic is centralized without adding new files.
+
 ## Trading Engine Tick Loop (Python Skeleton)
 
 ## API Backtest Runtime

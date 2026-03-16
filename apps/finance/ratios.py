@@ -9,13 +9,57 @@ import pandas as pd
 
 from . import drawdowns, metrics, returns
 
+
+def _to_1d_float_array(values) -> np.ndarray:
+    """Normalize 1D numeric inputs to a float NumPy array."""
+    if isinstance(values, pd.Series):
+        array = values.astype(float).to_numpy()
+    else:
+        array = np.asarray(values, dtype=float)
+
+    if array.ndim == 0:
+        array = array.reshape(1)
+
+    return array[~np.isnan(array)]
+
+
+def _expectancy_1d(values) -> float:
+    """Calculate mean outcome from a trade frame or 1D numeric input."""
+    if isinstance(values, pd.DataFrame):
+        if len(values) == 0:
+            return 0.0
+        return float(values["profit_loss"].mean())
+
+    normalized = _to_1d_float_array(values)
+    if len(normalized) == 0:
+        return float("nan")
+    return float(np.mean(normalized))
+
+
+def win_rate_fraction(values) -> float:
+    """Calculate win rate on a 0-1 scale from 1D numeric input."""
+    normalized = _to_1d_float_array(values)
+    if len(normalized) == 0:
+        return float("nan")
+    return float(np.mean(normalized > 0))
+
+
+def _avg_win_loss_1d(values) -> tuple[float, float]:
+    """Calculate mean winning and losing outcomes from 1D numeric input."""
+    normalized = _to_1d_float_array(values)
+    wins = normalized[normalized > 0]
+    losses = normalized[normalized < 0]
+    avg_win = float(np.mean(wins)) if len(wins) else float("nan")
+    avg_loss = float(np.mean(losses)) if len(losses) else float("nan")
+    return avg_win, avg_loss
+
 # =========================================================================
 # Classical Ratios
 # =========================================================================
 
 
 def sharpe_ratio(
-    returns: pd.Series, risk_free_rate: float = 0.0, annualize: bool = True
+    returns: pd.Series | np.ndarray, risk_free_rate: float = 0.0, annualize: bool = True
 ) -> float:
     """
     Sharpe Ratio - excess return per unit of volatility.
@@ -33,12 +77,14 @@ def sharpe_ratio(
     Returns:
         Sharpe ratio value
     """
-    if len(returns) < 2:
+    normalized = _to_1d_float_array(returns)
+
+    if len(normalized) < 2:
         return 0.0
 
-    excess_returns = returns - (risk_free_rate / 252)  # Daily risk-free rate
+    excess_returns = normalized - (risk_free_rate / 252)
     mean_excess = excess_returns.mean()
-    std_excess = excess_returns.std()
+    std_excess = excess_returns.std(ddof=1)
 
     if std_excess == 0:
         return 0.0
@@ -66,7 +112,7 @@ def annualized_sharpe_ratio(
 
 
 def sortino_ratio(
-    returns: pd.Series, target_return: float = 0.0, annualize: bool = True
+    returns: pd.Series | np.ndarray, target_return: float = 0.0, annualize: bool = True
 ) -> float:
     """
     Sortino Ratio - excess return per unit of downside volatility.
@@ -76,10 +122,12 @@ def sortino_ratio(
     MAR: Minimal acceptable rate of return (target_return)
     DD: Downside risk (standard deviation of returns below MAR)
     """
-    if len(returns) < 2:
+    normalized = _to_1d_float_array(returns)
+
+    if len(normalized) < 2:
         return 0.0
 
-    excess_returns = returns - target_return
+    excess_returns = normalized - target_return
     mean_excess = excess_returns.mean()
 
     # Downside deviation relative to target return
@@ -90,7 +138,7 @@ def sortino_ratio(
     # Let's use the explicit Lower Partial Moment (LPM) order 2 formula which is standard for Sortino.
 
     # Calculate deviations from target
-    deviations = returns - target_return
+    deviations = normalized - target_return
     # Keep only negative deviations (those failing to meet target)
     downside_deviations = deviations[deviations < 0]
 
@@ -100,7 +148,7 @@ def sortino_ratio(
     # If using Root Mean Square of downside deviations (LPM 2):
     # This matches the "Downside Deviation" definition typically used with Sortino.
     sum_sq_diff = (downside_deviations**2).sum()
-    n = len(returns)  # Divide by total N, not N_downside
+    n = len(normalized)
     downside_risk = np.sqrt(sum_sq_diff / n)
 
     if downside_risk == 0:
@@ -195,7 +243,11 @@ def upside_potential_ratio(returns: pd.Series, target: float = 0.0) -> float:
     return float(upside_potential / downside_risk)
 
 
-def calmar_ratio(cagr_value: float, max_dd: float) -> float:
+def calmar_ratio(
+    cagr_value: float | pd.Series | np.ndarray,
+    max_dd: float | None = None,
+    periods_per_year: int = 252,
+) -> float:
     """
     Calmar Ratio - CAGR divided by maximum drawdown.
 
@@ -206,6 +258,20 @@ def calmar_ratio(cagr_value: float, max_dd: float) -> float:
     Returns:
         Calmar ratio value
     """
+    if max_dd is None and not np.isscalar(cagr_value):
+        normalized = _to_1d_float_array(cagr_value)
+        if len(normalized) < 2:
+            return float("nan")
+
+        annual_return = np.mean(normalized) * periods_per_year
+        drawdown = drawdowns.max_drawdown(normalized)
+        if drawdown == 0:
+            return float("inf") if annual_return > 0 else float("nan")
+        return float(annual_return / abs(drawdown))
+
+    if max_dd is None:
+        raise ValueError("max_dd is required when calmar_ratio receives a scalar CAGR")
+
     if max_dd == 0:
         return 0.0 if cagr_value == 0 else float("inf")
 
@@ -674,6 +740,9 @@ def expectancy(trades: pd.DataFrame) -> float:
 
     Formula: (Win% x Avg Win) + (Loss% x Avg Loss)
     """
+    if not isinstance(trades, pd.DataFrame):
+        return _expectancy_1d(trades)
+
     win_pct = metrics.win_rate(trades) / 100.0
     loss_pct = metrics.loss_rate(trades) / 100.0
     avg_win_val = metrics.avg_win(trades)
@@ -706,8 +775,14 @@ def expectancy_r(trades: pd.DataFrame) -> float:
     return (win_pct * avg_r_win) + (loss_pct * avg_r_loss)
 
 
-def payoff_ratio(trades: pd.DataFrame) -> float:
+def payoff_ratio(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """Measure payoff ratio: |Avg Win| / |Avg Loss|."""
+    if not isinstance(trades, pd.DataFrame):
+        avg_win_val, avg_loss_val = _avg_win_loss_1d(trades)
+        if np.isnan(avg_loss_val) or avg_loss_val == 0:
+            return 0.0 if np.isnan(avg_win_val) or avg_win_val == 0 else float("inf")
+        return abs(avg_win_val / avg_loss_val)
+
     avg_win_val = metrics.avg_win(trades)
     avg_loss_val = abs(metrics.avg_loss(trades))
 
@@ -717,8 +792,16 @@ def payoff_ratio(trades: pd.DataFrame) -> float:
     return avg_win_val / avg_loss_val
 
 
-def profit_factor(trades: pd.DataFrame) -> float:
+def profit_factor(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """Measure profit factor: Gross Profit / |Gross Loss|."""
+    if not isinstance(trades, pd.DataFrame):
+        normalized = _to_1d_float_array(trades)
+        wins = normalized[normalized > 0].sum()
+        gross_l = abs(normalized[normalized < 0].sum())
+        if gross_l == 0:
+            return 0.0 if wins == 0 else float("inf")
+        return float(wins / gross_l)
+
     gross_p = returns.gross_profit(trades)
     gross_l = abs(returns.gross_loss(trades))
 

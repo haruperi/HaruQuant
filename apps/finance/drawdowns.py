@@ -9,6 +9,19 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+
+def _returns_array(values) -> np.ndarray:
+    """Normalize returns-like input to a float NumPy array."""
+    if isinstance(values, pd.Series):
+        array = values.astype(float).to_numpy()
+    else:
+        array = np.asarray(values, dtype=float)
+
+    if array.ndim == 0:
+        array = array.reshape(1)
+
+    return array[~np.isnan(array)]
+
 # =========================================================================
 # Core Drawdowns
 # =========================================================================
@@ -177,7 +190,7 @@ def drawdown_duration_series(equity_curve: pd.Series) -> pd.Series:
     return duration
 
 
-def max_drawdown_duration(equity_curve: pd.Series) -> int:
+def max_drawdown_duration(equity_curve: pd.Series | np.ndarray) -> int:
     """
     Maximum drawdown duration in periods.
 
@@ -187,6 +200,25 @@ def max_drawdown_duration(equity_curve: pd.Series) -> int:
     Returns:
         Maximum number of periods in drawdown
     """
+    if not isinstance(equity_curve, pd.Series):
+        returns = _returns_array(equity_curve)
+        if len(returns) == 0:
+            return 0
+
+        cumulative = np.cumprod(1 + returns)
+        running_max = np.maximum.accumulate(cumulative)
+        in_drawdown = cumulative < running_max
+
+        max_duration = 0
+        current_duration = 0
+        for drawdown_flag in in_drawdown:
+            if drawdown_flag:
+                current_duration += 1
+                max_duration = max(max_duration, current_duration)
+            else:
+                current_duration = 0
+        return max_duration
+
     if len(equity_curve) == 0:
         return 0
 
@@ -215,6 +247,18 @@ def avg_drawdown_duration(equity_curve: pd.Series) -> float:
         return 0.0
 
     return float(dd_periods.mean())
+
+
+def max_drawdown(returns: pd.Series | np.ndarray) -> float:
+    """Calculate maximum drawdown from a returns series."""
+    normalized = _returns_array(returns)
+    if len(normalized) == 0:
+        return float("nan")
+
+    cumulative = np.cumprod(1 + normalized)
+    running_max = np.maximum.accumulate(cumulative)
+    drawdowns = (cumulative - running_max) / running_max
+    return float(np.min(drawdowns))
 
 
 def time_to_recovery(equity_curve: pd.Series) -> List[int]:
@@ -335,7 +379,7 @@ def pain_ratio(equity_curve: pd.Series, returns: pd.Series) -> float:
     return float(total_return / pain)
 
 
-def recovery_factor(equity_curve: pd.Series) -> float:
+def recovery_factor(equity_curve: pd.Series | np.ndarray) -> float:
     """
     Recovery Factor - net profit divided by maximum drawdown.
 
@@ -348,6 +392,17 @@ def recovery_factor(equity_curve: pd.Series) -> float:
     Returns:
         Recovery factor value (net profit / max drawdown)
     """
+    if not isinstance(equity_curve, pd.Series):
+        normalized = _returns_array(equity_curve)
+        if len(normalized) == 0:
+            return float("nan")
+
+        total_return = np.prod(1 + normalized) - 1
+        drawdown = max_drawdown(normalized)
+        if drawdown == 0:
+            return float("inf") if total_return > 0 else float("nan")
+        return float(total_return / abs(drawdown))
+
     if len(equity_curve) < 2:
         return 0.0
 

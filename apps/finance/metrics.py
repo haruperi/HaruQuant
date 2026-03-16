@@ -9,6 +9,118 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from . import drawdowns, ratios
+
+
+def _to_1d_float_array(values) -> np.ndarray:
+    """Normalize 1D numeric inputs to a float NumPy array."""
+    if isinstance(values, pd.Series):
+        array = values.astype(float).to_numpy()
+    else:
+        array = np.asarray(values, dtype=float)
+
+    if array.ndim == 0:
+        array = array.reshape(1)
+
+    return array[~np.isnan(array)]
+
+
+def win_rate_fraction(values) -> float:
+    """Calculate win rate on a 0-1 scale from 1D numeric input."""
+    normalized = _to_1d_float_array(values)
+    if len(normalized) == 0:
+        return float("nan")
+    return float(np.mean(normalized > 0))
+
+
+def avg_win_loss(values) -> tuple[float, float]:
+    """Calculate mean winning and losing outcomes from 1D numeric input."""
+    normalized = _to_1d_float_array(values)
+    wins = normalized[normalized > 0]
+    losses = normalized[normalized < 0]
+    avg_win = float(np.mean(wins)) if len(wins) else float("nan")
+    avg_loss = float(np.mean(losses)) if len(losses) else float("nan")
+    return avg_win, avg_loss
+
+
+def consecutive_wins_losses(values) -> tuple[int, int]:
+    """Calculate max consecutive wins and losses from 1D numeric input."""
+    normalized = _to_1d_float_array(values)
+    if len(normalized) == 0:
+        return 0, 0
+
+    wins = normalized > 0
+    max_wins = 0
+    max_losses = 0
+    current_wins = 0
+    current_losses = 0
+
+    for is_win in wins:
+        if is_win:
+            current_wins += 1
+            max_wins = max(max_wins, current_wins)
+            current_losses = 0
+        else:
+            current_losses += 1
+            max_losses = max(max_losses, current_losses)
+            current_wins = 0
+
+    return max_wins, max_losses
+
+
+def median_mae_mfe(mae: np.ndarray, mfe: np.ndarray) -> tuple[float, float]:
+    """Calculate median MAE and MFE from R-space arrays."""
+    mae = np.asarray(mae, dtype=float)
+    mfe = np.asarray(mfe, dtype=float)
+    return (
+        float(np.median(mae)) if len(mae) else float("nan"),
+        float(np.median(mfe)) if len(mfe) else float("nan"),
+    )
+
+
+def _r_trade_efficiency(r: np.ndarray, mfe: np.ndarray) -> float:
+    """Calculate realized R captured relative to available MFE."""
+    r = np.asarray(r, dtype=float)
+    mfe = np.asarray(mfe, dtype=float)
+    if len(r) != len(mfe) or len(r) == 0:
+        return float("nan")
+
+    mask = mfe > 0
+    if not np.any(mask):
+        return float("nan")
+
+    return float(np.mean(r[mask] / mfe[mask]))
+
+
+def _r_edge_ratio(mfe: np.ndarray, mae: np.ndarray) -> float:
+    """Calculate excursion edge ratio as MFE divided by MAE magnitude."""
+    mfe = np.asarray(mfe, dtype=float)
+    mae = np.asarray(mae, dtype=float)
+    if len(mfe) != len(mae) or len(mfe) == 0:
+        return float("nan")
+
+    mae_abs = np.abs(mae)
+    mask = mae_abs > 0
+    if not np.any(mask):
+        return float("inf") if np.mean(mfe) > 0 else float("nan")
+
+    return float(np.mean(mfe[mask] / mae_abs[mask]))
+
+
+def t_statistic(values) -> float:
+    """Calculate t-statistic for mean outcome."""
+    normalized = _to_1d_float_array(values)
+    n = len(normalized)
+    if n < 2:
+        return float("nan")
+
+    mean = np.mean(normalized)
+    std = np.std(normalized, ddof=1)
+    if std == 0:
+        return float("inf") if mean > 0 else float("-inf") if mean < 0 else float("nan")
+
+    return float(mean / (std / np.sqrt(n)))
+
 # =========================================================================
 # Core Trade Counts & Costs
 # =========================================================================
@@ -451,7 +563,7 @@ def min_time_in_trade(trades: pd.DataFrame) -> float:
 # =========================================================================
 
 
-def sqn(trades: pd.DataFrame) -> float:
+def sqn(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """
     Calculate System Quality Number (Van Tharp).
 
@@ -466,22 +578,84 @@ def sqn(trades: pd.DataFrame) -> float:
     - 5.0 - 7.0: Excellent
     - > 7.0: Holy Grail
     """
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
-        return 0.0
+    if isinstance(trades, pd.DataFrame):
+        if len(trades) == 0 or "r_multiple" not in trades.columns:
+            return 0.0
+        r_values = trades["r_multiple"].astype(float).to_numpy()
+    else:
+        r_values = _to_1d_float_array(trades)
 
-    r_values = trades["r_multiple"]
     n = len(r_values)
-
-    if n == 0:
+    if n < 2:
         return 0.0
 
     avg_r = r_values.mean()
-    std_r = r_values.std()
+    std_r = np.std(r_values, ddof=1)
 
     if std_r == 0:
         return 0.0
 
     return float(np.sqrt(n) * (avg_r / std_r))
+
+
+def compute_trade_metrics(
+    values,
+    mae: Optional[np.ndarray] = None,
+    mfe: Optional[np.ndarray] = None,
+) -> dict:
+    """Compute Edge-style trade metrics from 1D R-space inputs."""
+    normalized = _to_1d_float_array(values)
+
+    summary = {
+        "n_trades": len(normalized),
+        "expectancy": ratios.expectancy(normalized),
+        "win_rate": win_rate_fraction(normalized),
+        "profit_factor": ratios.profit_factor(normalized),
+        "sqn": sqn(normalized),
+        "t_stat": t_statistic(normalized),
+    }
+
+    avg_win, avg_loss = avg_win_loss(normalized)
+    summary["avg_win"] = avg_win
+    summary["avg_loss"] = avg_loss
+    summary["payoff_ratio"] = ratios.payoff_ratio(normalized)
+
+    max_cons_wins, max_cons_losses = consecutive_wins_losses(normalized)
+    summary["max_consecutive_wins"] = max_cons_wins
+    summary["max_consecutive_losses"] = max_cons_losses
+
+    if mae is not None:
+        mae = np.asarray(mae, dtype=float)
+        summary["median_mae"] = float(np.median(mae)) if len(mae) else float("nan")
+
+    if mfe is not None:
+        mfe = np.asarray(mfe, dtype=float)
+        summary["median_mfe"] = float(np.median(mfe)) if len(mfe) else float("nan")
+        if mae is not None:
+            summary["edge_ratio"] = _r_edge_ratio(mfe, mae)
+            summary["trade_efficiency"] = _r_trade_efficiency(normalized, mfe)
+
+    return summary
+
+
+def compute_equity_metrics(returns_input, periods_per_year: int = 252) -> dict:
+    """Compute Edge-style equity metrics from returns inputs."""
+    normalized = _to_1d_float_array(returns_input)
+    total_return = float(np.prod(1 + normalized) - 1) if len(normalized) else float("nan")
+    annual_return = (
+        float(np.mean(normalized) * periods_per_year) if len(normalized) else float("nan")
+    )
+
+    return {
+        "total_return": total_return,
+        "annual_return": annual_return,
+        "sharpe_ratio": ratios.sharpe_ratio(normalized, annualize=True),
+        "sortino_ratio": ratios.sortino_ratio(normalized, annualize=True),
+        "calmar_ratio": ratios.calmar_ratio(normalized, periods_per_year=periods_per_year),
+        "max_drawdown": drawdowns.max_drawdown(normalized),
+        "max_dd_duration": drawdowns.max_drawdown_duration(normalized),
+        "recovery_factor": drawdowns.recovery_factor(normalized),
+    }
 
 
 def trade_efficiency(trades: pd.DataFrame) -> float:

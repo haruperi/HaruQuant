@@ -22,12 +22,13 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from apps.finance.metrics import median_mae_mfe, win_rate_fraction
+from apps.finance.ratios import expectancy, profit_factor
 from apps.utils.logger import logger
 
 from .config import BootstrapConfig, PermutationConfig, SessionConfig, SessionEdgeConfig
 from .datasets import tag_sessions
 from .features import atr
-from .metrics import expectancy, median_mae_mfe, profit_factor, win_rate
 from .null_models import (
     benjamini_hochberg,
     block_bootstrap_ci,
@@ -450,7 +451,7 @@ def run_eds_session(
                 strategy_results[f"{session}_breakout"] = {
                     "n_trades": len(breakout_trades),
                     "expectancy": exp,
-                    "win_rate": win_rate(r_vals),
+                    "win_rate": win_rate_fraction(r_vals),
                     "ci_low": ci_low,
                     "ci_high": ci_high,
                     "p_value": pval,
@@ -507,7 +508,7 @@ def run_eds_session(
                 strategy_results[f"{session}_fade"] = {
                     "n_trades": len(fade_trades),
                     "expectancy": exp,
-                    "win_rate": win_rate(r_vals),
+                    "win_rate": win_rate_fraction(r_vals),
                     "ci_low": ci_low,
                     "ci_high": ci_high,
                     "p_value": pval,
@@ -540,7 +541,7 @@ def run_eds_session(
         hold = np.array([t.hold_bars for t in all_trades])
 
         exp_r = expectancy(r)
-        wr = win_rate(r)
+        wr = win_rate_fraction(r)
         pf = profit_factor(r)
         med_mae, med_mfe = median_mae_mfe(mae, mfe)
         avg_hold = float(np.mean(hold))
