@@ -443,6 +443,13 @@ def prepare_ohlcvs_dataset(
             "n_rows": len(enriched),
             "start": str(enriched.index.min()) if len(enriched) else None,
             "end": str(enriched.index.max()) if len(enriched) else None,
+            "session_basis": (enrichment or EnrichmentConfig(symbol=symbol)).session_basis,
+            "session_hours": {
+                "sydney": list(range(0, 7)),
+                "tokyo": list(range(2, 9)),
+                "london": list(range(10, 17)),
+                "ny": list(range(15, 22)),
+            },
         }
     )
     return PreparedDataset(data=enriched, report=report, schema=canonical)

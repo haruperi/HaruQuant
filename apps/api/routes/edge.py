@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import os
+import hashlib
+import json
+from time import perf_counter
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
@@ -16,6 +20,7 @@ from apps.edge.config import (
     BootstrapConfig,
     DataConfig,
     EdgeLabConfig,
+    MarketStructureConfig,
     PermutationConfig,
 )
 from apps.edge.core_metrics import build_core_metric_profile
@@ -38,7 +43,20 @@ from apps.edge.eds_mean_reversion import run_eds_mean_reversion
 from apps.edge.eds_null_models import run_eds_null_baseline
 from apps.edge.eds_session import run_eds_session
 from apps.edge.eds_trend_persistence import run_eds_trend_persistence
+from apps.edge.market_structure import build_market_structure_profile
+from apps.edge.market_structure_calibration import evaluate_calibration_candidates
+from apps.edge.market_structure_metric_calibration import evaluate_metric_calibration_candidates
+from apps.edge.market_structure_profile_calibration import evaluate_profile_calibration
+from apps.edge.market_structure_robustness import build_market_structure_robustness_report
+from apps.edge.market_structure_profiles import resolve_market_structure_profile
+from apps.edge.market_structure_stability import build_market_structure_stability_report
+from apps.edge.market_structure_validation import (
+    build_validation_summary,
+    confidence_bucket,
+    label_realized_market_behavior,
+)
 from apps.edge.results_schema import EdgeResult, EdgeStats
+from apps.edge.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
 from apps.edge.seasonality import SeasonalityFilters, run_seasonality
 from apps.utils.logger import logger
 from apps.mt5.client import MT5Client
@@ -129,6 +147,170 @@ class EdgeLabDatasetRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     number_of_bars: Optional[int] = None
+    session_basis: str = "dataset_index"
+
+
+class EdgeMarketStructureRequest(BaseModel):
+    """Request model for Market Structure profile generation."""
+
+    symbol: Optional[str] = None
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    prepared_dataset: Optional[Dict[str, Any]] = None
+    save_db: bool = True
+
+
+class EdgeProfileSnapshotRequest(BaseModel):
+    """Request model for persisting one versioned Edge Lab profile snapshot."""
+
+    dataset: Dict[str, Any]
+    core_metric_profile: Dict[str, Any]
+    seasonality_result: Dict[str, Any]
+    market_structure_profile: Dict[str, Any]
+    market_structure_stability: Optional[Dict[str, Any]] = None
+    market_structure_robustness: Optional[Dict[str, Any]] = None
+    scorecard_report: Dict[str, Any]
+    artifacts: Optional[List[Dict[str, Any]]] = None
+
+
+class EdgeLabAutomationRequest(BaseModel):
+    """Request model for automated single-symbol Edge Lab execution."""
+
+    symbol: str
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    metric_families: Optional[List[str]] = None
+    save_snapshot: bool = True
+    use_cache: bool = True
+    force_rerun: bool = False
+    trigger_type: str = "manual"
+    run_reason: Optional[str] = None
+
+
+class EdgeLabAutomationBatchRequest(BaseModel):
+    """Request model for automated batch Edge Lab execution."""
+
+    symbols: List[str]
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    metric_families: Optional[List[str]] = None
+    save_snapshot: bool = True
+    use_cache: bool = True
+    force_rerun: bool = False
+    trigger_type: str = "batch_manual"
+    run_reason: Optional[str] = None
+
+
+class EdgeLabAutomationScheduleRequest(BaseModel):
+    """Request model for scheduled Edge Lab refresh workflow."""
+
+    symbols: List[str]
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    metric_families: Optional[List[str]] = None
+    save_snapshot: bool = True
+    use_cache: bool = True
+    force_rerun: bool = False
+    trigger_type: str = "scheduled"
+    run_reason: Optional[str] = None
+
+
+async def _refresh_market_structure_evaluations(
+    *,
+    limit: int,
+    horizon_bars: int,
+    authorization: str,
+) -> List[Dict[str, Any]]:
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    runs = db_manager.get_market_structure_runs(limit=limit, offset=0)
+    rows: List[Dict[str, Any]] = []
+
+    for run in runs:
+        report = run.get("report") or {}
+        metadata = report.get("metadata") or {}
+        end_value = metadata.get("end")
+        if not end_value:
+            continue
+        try:
+            end_dt = _parse_date(str(end_value))
+        except Exception:
+            continue
+        if end_dt is None:
+            continue
+
+        data_source = str(run.get("data_source") or "mt5").lower()
+        symbol = str(run.get("symbol") or "")
+        timeframe = str(run.get("timeframe") or "")
+        source = _create_data_source(
+            data_source,
+            user_id,
+            end_dt,
+            None,
+            horizon_bars + 2,
+            (end_dt.isoformat(), None),
+        )
+
+        try:
+            future = load_ohlc(
+                source=source,
+                symbol=symbol,
+                timeframe=timeframe,
+                start_pos=0,
+                end_pos=horizon_bars + 2,
+                exclude_last_bar=False,
+            )
+        except Exception:
+            continue
+
+        future = normalize_columns(future)
+        future = future[future.index > end_dt].head(horizon_bars)
+        realized = label_realized_market_behavior(
+            future,
+            symbol=symbol,
+            close_col="Close",
+            high_col="High",
+            low_col="Low",
+        )
+        predicted_verdict = str((run.get("summary") or {}).get("verdict") or "MIXED")
+        decision_confidence = (run.get("summary") or {}).get("decision_confidence_score")
+        realized_verdict = str(realized.get("realized_verdict") or "INSUFFICIENT_DATA")
+        row = {
+            "run_id": run.get("run_id"),
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "run_created_at": run.get("created_at"),
+            "predicted_verdict": predicted_verdict,
+            "realized_verdict": realized_verdict,
+            "matched": predicted_verdict == realized_verdict,
+            "decision_confidence_score": decision_confidence,
+            "confidence_bucket": confidence_bucket(decision_confidence),
+            "forward_end": future.index.max().isoformat() if len(future) else None,
+            "calibration_metadata": (run.get("summary") or {}).get("calibration_metadata") or run.get("calibration_metadata") or {},
+            **realized,
+        }
+        db_manager.save_market_structure_evaluation(row)
+        rows.append(row)
+    return rows
 
 
 def _json_safe_value(value: Any) -> Any:
@@ -200,6 +382,8 @@ def _serialize_prepared_dataset(prepared: PreparedDataset) -> Dict[str, Any]:
             "n_rows": len(rows),
             "start": prepared.report.metadata.get("start"),
             "end": prepared.report.metadata.get("end"),
+            "session_basis": prepared.report.metadata.get("session_basis"),
+            "session_hours": prepared.report.metadata.get("session_hours"),
         },
         "schema": {
             "open": prepared.schema.open,
@@ -213,6 +397,19 @@ def _serialize_prepared_dataset(prepared: PreparedDataset) -> Dict[str, Any]:
         "rows": rows,
         "preview_rows": preview,
     }
+
+
+def _hash_jsonable(payload: Dict[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _dataset_fingerprint(prepared: PreparedDataset) -> str:
+    row_hashes = pd.util.hash_pandas_object(prepared.data, index=True)
+    digest = hashlib.sha256()
+    digest.update(row_hashes.to_numpy().tobytes())
+    digest.update("|".join(str(column) for column in prepared.data.columns).encode("utf-8"))
+    return digest.hexdigest()
 
 
 def _deserialize_prepared_dataset(payload: Dict[str, Any]) -> PreparedDataset:
@@ -607,6 +804,446 @@ def _resolve_seasonality_symbol_info(
     return symbol_digits, resolved_point_size, resolved_pip_size
 
 
+def _infer_digits_from_point_size(point_size: float) -> Optional[int]:
+    """Infer quote display digits from point size when broker metadata is absent."""
+    if point_size <= 0:
+        return None
+    point_text = f"{point_size:.10f}".rstrip("0")
+    if "." not in point_text:
+        return 0
+    return len(point_text.split(".", 1)[1])
+
+
+def _default_session_hours() -> Dict[str, List[int]]:
+    return {
+        "sydney": list(range(0, 7)),
+        "tokyo": list(range(2, 9)),
+        "london": list(range(10, 17)),
+        "ny": list(range(15, 22)),
+    }
+
+
+EDGE_AUTOMATION_FAMILIES = ("core_metric", "seasonality", "market_structure", "scorecard")
+
+
+def _expand_metric_families(metric_families: Optional[List[str]]) -> List[str]:
+    requested = [str(item).strip().lower() for item in (metric_families or []) if str(item).strip()]
+    if not requested:
+        return list(EDGE_AUTOMATION_FAMILIES)
+
+    expanded: List[str] = []
+    if "scorecard" in requested:
+        requested.extend(["market_structure", "seasonality", "core_metric"])
+    if "market_structure" in requested:
+        requested.extend(["seasonality", "core_metric"])
+    if "seasonality" in requested:
+        requested.extend(["core_metric"])
+
+    for family in EDGE_AUTOMATION_FAMILIES:
+        if family in requested and family not in expanded:
+            expanded.append(family)
+    return expanded
+
+
+def _dataset_request_meta(
+    *,
+    symbol: str,
+    timeframe: str,
+    data_source: str,
+    range_by: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    number_of_bars: Optional[int],
+) -> Dict[str, Any]:
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "data_source": data_source,
+        "range_by": range_by,
+        "start_date": start_date,
+        "end_date": end_date,
+        "number_of_bars": number_of_bars,
+        "session_basis": "dataset_index",
+        "session_hours": _default_session_hours(),
+    }
+
+
+def _extract_point_and_pip_size(prepared: PreparedDataset, symbol: str) -> Tuple[float, float]:
+    point_size = 1.0
+    pip_size = 1.0
+    if len(prepared.data) > 0:
+        first = prepared.data.iloc[0]
+        point_size = float(first.get("point_size", point_size) or point_size)
+        pip_size = float(first.get("pip_size", pip_size) or pip_size)
+    if point_size <= 0:
+        point_size = 1.0
+    if pip_size <= 0:
+        pip_size = point_size * (10 if symbol.upper().endswith("JPY") else 1)
+    return point_size, pip_size
+
+
+def _build_automation_metadata(
+    *,
+    trigger_type: str,
+    run_reason: Optional[str],
+    requested_families: List[str],
+    recomputed_families: List[str],
+    reused_families: List[str],
+    cache_hit: bool,
+    cache_policy: str,
+    dependency_policy: str,
+    partial_snapshot: bool,
+    stage_timings: Optional[Dict[str, float]] = None,
+) -> Dict[str, Any]:
+    return {
+        "trigger_type": trigger_type,
+        "run_reason": run_reason,
+        "requested_families": requested_families,
+        "recomputed_families": recomputed_families,
+        "reused_families": reused_families,
+        "cache_hit": cache_hit,
+        "cache_policy": cache_policy,
+        "dependency_policy": dependency_policy,
+        "partial_snapshot": partial_snapshot,
+        "stage_timings": stage_timings or {},
+        "executed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _run_edge_lab_symbol_profile_sync(
+    *,
+    symbol: str,
+    timeframe: str,
+    data_source: str,
+    range_by: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    number_of_bars: Optional[int],
+    metric_families: Optional[List[str]],
+    save_snapshot: bool,
+    use_cache: bool,
+    force_rerun: bool,
+    trigger_type: str,
+    run_reason: Optional[str],
+    user_id: int,
+) -> Dict[str, Any]:
+    run_started = perf_counter()
+    range_by, parsed_start, parsed_end, validated_bars = _validate_range_params(
+        range_by,
+        start_date,
+        end_date,
+        number_of_bars,
+    )
+    expanded_families = _expand_metric_families(metric_families)
+    cache_policy = "reuse_latest_matching_snapshot"
+    dependency_policy = "scorecard->market_structure->seasonality->core_metric"
+    stage_timings: Dict[str, float] = {}
+
+    dataset_started = perf_counter()
+    source = _create_data_source(
+        data_source.lower(),
+        user_id,
+        parsed_start,
+        parsed_end,
+        validated_bars,
+        (start_date, end_date),
+    )
+    prepared = prepare_ohlcvs_dataset(
+        source=source,
+        symbol=symbol,
+        timeframe=timeframe,
+        start_pos=0,
+        end_pos=validated_bars or 5000,
+        cleaning=CleaningConfig(timeframe=timeframe),
+        enrichment=EnrichmentConfig(symbol=symbol, session_basis="dataset_index"),
+    )
+    dataset_payload = _serialize_prepared_dataset(prepared)
+    dataset_payload["request"] = _dataset_request_meta(
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source.lower(),
+        range_by=range_by,
+        start_date=start_date,
+        end_date=end_date,
+        number_of_bars=validated_bars,
+    )
+    cfg = MarketStructureConfig()
+    dataset_payload["meta"]["dataset_fingerprint"] = _dataset_fingerprint(prepared)
+    dataset_payload["meta"]["config_fingerprint"] = _hash_jsonable(
+        {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "data_source": data_source.lower(),
+            "range_by": range_by,
+            "start_date": start_date,
+            "end_date": end_date,
+            "number_of_bars": validated_bars,
+            "model_version": cfg.model_version,
+            "baseline_id": cfg.baseline_id,
+        }
+    )
+    dataset_payload["meta"]["score_spec_version"] = SCORECARD_SPEC_VERSION
+    stage_timings["dataset_prepare_seconds"] = round(perf_counter() - dataset_started, 6)
+
+    cached_snapshot: Optional[Dict[str, Any]] = None
+    if use_cache and not force_rerun and expanded_families == list(EDGE_AUTOMATION_FAMILIES):
+        cache_started = perf_counter()
+        cached_snapshot = db_manager.find_matching_profile_snapshot(
+            symbol=symbol,
+            timeframe=timeframe,
+            data_source=data_source.lower(),
+            range_by=range_by,
+            start=str(dataset_payload.get("meta", {}).get("start") or ""),
+            end=str(dataset_payload.get("meta", {}).get("end") or ""),
+            row_count=int(dataset_payload.get("meta", {}).get("n_rows") or 0),
+            dataset_fingerprint=str(dataset_payload["meta"].get("dataset_fingerprint") or ""),
+            config_fingerprint=str(dataset_payload["meta"].get("config_fingerprint") or ""),
+            model_version=cfg.model_version,
+            baseline_id=cfg.baseline_id,
+        )
+        if cached_snapshot is not None:
+            stage_timings["cache_lookup_seconds"] = round(perf_counter() - cache_started, 6)
+            stage_timings["total_seconds"] = round(perf_counter() - run_started, 6)
+            metadata = _build_automation_metadata(
+                trigger_type=trigger_type,
+                run_reason=run_reason,
+                requested_families=metric_families or list(EDGE_AUTOMATION_FAMILIES),
+                recomputed_families=[],
+                reused_families=list(EDGE_AUTOMATION_FAMILIES),
+                cache_hit=True,
+                cache_policy=cache_policy,
+                dependency_policy=dependency_policy,
+                partial_snapshot=False,
+                stage_timings=stage_timings,
+            )
+            cached_snapshot["automation_metadata"] = metadata
+            return {
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "status": "cached",
+                "snapshot": cached_snapshot,
+                "automation_metadata": metadata,
+            }
+
+    previous_snapshot = None if force_rerun else db_manager.find_matching_profile_snapshot(
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source.lower(),
+        range_by=range_by,
+        start=str(dataset_payload.get("meta", {}).get("start") or ""),
+        end=str(dataset_payload.get("meta", {}).get("end") or ""),
+        row_count=int(dataset_payload.get("meta", {}).get("n_rows") or 0),
+        dataset_fingerprint=str(dataset_payload["meta"].get("dataset_fingerprint") or ""),
+        config_fingerprint=str(dataset_payload["meta"].get("config_fingerprint") or ""),
+        limit=10,
+    )
+
+    recomputed: List[str] = []
+    reused: List[str] = []
+
+    core_metric_profile: Dict[str, Any]
+    if "core_metric" in expanded_families:
+        stage_started = perf_counter()
+        core_metric_profile = build_core_metric_profile(
+            prepared,
+            symbol=symbol,
+            timeframe=timeframe,
+            data_source=data_source.lower(),
+            range_by=range_by,
+            start_date=start_date,
+            end_date=end_date,
+            number_of_bars=validated_bars,
+        ).to_dict()
+        recomputed.append("core_metric")
+        stage_timings["core_metric_seconds"] = round(perf_counter() - stage_started, 6)
+    elif previous_snapshot:
+        core_metric_profile = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "data_source": data_source.lower(),
+            "range_by": range_by,
+            "summary": previous_snapshot.get("core_metric_summary") or {},
+        }
+        reused.append("core_metric")
+    else:
+        raise HTTPException(status_code=400, detail="Partial recompute requested without a reusable prior core metric snapshot.")
+
+    seasonality_result: Dict[str, Any]
+    if "seasonality" in expanded_families:
+        stage_started = perf_counter()
+        point_size, pip_size = _extract_point_and_pip_size(prepared, symbol)
+        seasonality_result = run_seasonality(
+            prepared.data,
+            symbol=symbol,
+            timeframe=timeframe,
+            point_size=point_size,
+            pip_size=pip_size,
+            filters=SeasonalityFilters(),
+            data_offset=0,
+            data_limit=20,
+        )
+        seasonality_result.setdefault("meta", {})["digits"] = _infer_digits_from_point_size(point_size)
+        recomputed.append("seasonality")
+        stage_timings["seasonality_seconds"] = round(perf_counter() - stage_started, 6)
+    elif previous_snapshot:
+        seasonality_result = dict(previous_snapshot.get("seasonality_summary") or {})
+        reused.append("seasonality")
+    else:
+        raise HTTPException(status_code=400, detail="Partial recompute requested without a reusable prior seasonality snapshot.")
+
+    market_structure_profile: Dict[str, Any]
+    if "market_structure" in expanded_families:
+        stage_started = perf_counter()
+        market_structure_profile = build_market_structure_profile(
+            prepared,
+            symbol=symbol,
+            timeframe=timeframe,
+            data_source=data_source.lower(),
+            range_by=range_by,
+            start_date=start_date,
+            end_date=end_date,
+            number_of_bars=validated_bars,
+        ).to_dict()
+        recomputed.append("market_structure")
+        stage_timings["market_structure_seconds"] = round(perf_counter() - stage_started, 6)
+    elif previous_snapshot:
+        market_summary = dict(previous_snapshot.get("market_structure_summary", {}).get("summary") or {})
+        market_structure_profile = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "data_source": data_source.lower(),
+            "range_by": range_by,
+            "summary": market_summary,
+        }
+        reused.append("market_structure")
+    else:
+        raise HTTPException(status_code=400, detail="Partial recompute requested without a reusable prior market structure snapshot.")
+
+    scorecard_report: Optional[Dict[str, Any]] = None
+    if "scorecard" in expanded_families:
+        stage_started = perf_counter()
+        scorecard_report = build_edge_lab_scorecard_report(
+            dataset=dataset_payload,
+            core_metric_profile=core_metric_profile,
+            seasonality_result=seasonality_result,
+            market_structure_profile=market_structure_profile,
+            stability=None,
+            robustness=None,
+        )
+        recomputed.append("scorecard")
+        stage_timings["scorecard_seconds"] = round(perf_counter() - stage_started, 6)
+    elif previous_snapshot:
+        scorecard_report = dict(previous_snapshot.get("scorecard_summary") or {})
+        reused.append("scorecard")
+
+    partial_snapshot = expanded_families != list(EDGE_AUTOMATION_FAMILIES)
+    automation_metadata = _build_automation_metadata(
+        trigger_type=trigger_type,
+        run_reason=run_reason,
+        requested_families=metric_families or list(EDGE_AUTOMATION_FAMILIES),
+        recomputed_families=recomputed,
+        reused_families=reused,
+        cache_hit=False,
+        cache_policy=cache_policy,
+        dependency_policy=dependency_policy,
+        partial_snapshot=partial_snapshot,
+        stage_timings=stage_timings,
+    )
+
+    snapshot = None
+    snapshot_saved = False
+    if save_snapshot and "scorecard" in recomputed and scorecard_report is not None:
+        stage_started = perf_counter()
+        snapshot_payload = {
+            "dataset": dataset_payload,
+            "core_metric_profile": core_metric_profile,
+            "seasonality_result": seasonality_result,
+            "market_structure_profile": market_structure_profile,
+            "market_structure_stability": None,
+            "market_structure_robustness": None,
+            "scorecard_report": scorecard_report,
+            "automation_metadata": automation_metadata,
+            "artifacts": [],
+        }
+        snapshot_id = db_manager.save_profile_snapshot(snapshot_payload, user_id=user_id)
+        if snapshot_id is not None:
+            snapshot = db_manager.get_profile_snapshot(snapshot_id)
+            snapshot_saved = snapshot is not None
+        stage_timings["snapshot_persist_seconds"] = round(perf_counter() - stage_started, 6)
+
+    stage_timings["total_seconds"] = round(perf_counter() - run_started, 6)
+    automation_metadata["stage_timings"] = stage_timings
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "status": "completed",
+        "dataset_meta": dataset_payload.get("meta") or {},
+        "core_metric_summary": core_metric_profile.get("summary") or {},
+        "seasonality_meta": seasonality_result.get("meta") or {},
+        "market_structure_summary": market_structure_profile.get("summary") or {},
+        "scorecard_summary": {
+            "final_score": scorecard_report.get("finalScore") if scorecard_report else None,
+            "final_label": scorecard_report.get("finalLabel") if scorecard_report else None,
+            "overall_confidence": scorecard_report.get("overallConfidence") if scorecard_report else None,
+            "score_spec_version": scorecard_report.get("scoreSpecVersion") if scorecard_report else None,
+            "research_ready": scorecard_report.get("research_ready") if scorecard_report else None,
+            "readiness_label": scorecard_report.get("readiness_label") if scorecard_report else None,
+            "readiness_reasons": scorecard_report.get("readiness_reasons") if scorecard_report else [],
+        },
+        "snapshot_saved": snapshot_saved,
+        "snapshot": snapshot,
+        "automation_metadata": automation_metadata,
+    }
+
+
+def run_scheduled_edge_lab_refresh() -> Dict[str, Any]:
+    """Run one scheduled Edge Lab batch refresh from environment configuration."""
+    symbols = [item.strip() for item in os.getenv("EDGE_LAB_BATCH_SYMBOLS", "").split(",") if item.strip()]
+    if not symbols:
+        return {"status": "skipped", "reason": "EDGE_LAB_BATCH_SYMBOLS not configured"}
+
+    request = EdgeLabAutomationBatchRequest(
+        symbols=symbols,
+        timeframe=os.getenv("EDGE_LAB_BATCH_TIMEFRAME", "M15"),
+        data_source=os.getenv("EDGE_LAB_BATCH_SOURCE", "mt5"),
+        range_by=os.getenv("EDGE_LAB_BATCH_RANGE_BY", "bars"),
+        start_date=os.getenv("EDGE_LAB_BATCH_START") or None,
+        end_date=os.getenv("EDGE_LAB_BATCH_END") or None,
+        number_of_bars=int(os.getenv("EDGE_LAB_BATCH_BARS", "1500") or 1500),
+        metric_families=None,
+        save_snapshot=True,
+        use_cache=True,
+        force_rerun=False,
+        trigger_type="scheduled",
+        run_reason="scheduler_refresh",
+    )
+    results = [
+        _run_edge_lab_symbol_profile_sync(
+            symbol=symbol,
+            timeframe=request.timeframe,
+            data_source=request.data_source,
+            range_by=request.range_by,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            number_of_bars=request.number_of_bars,
+            metric_families=request.metric_families,
+            save_snapshot=request.save_snapshot,
+            use_cache=request.use_cache,
+            force_rerun=request.force_rerun,
+            trigger_type=request.trigger_type,
+            run_reason=request.run_reason,
+            user_id=1,
+        )
+        for symbol in request.symbols
+    ]
+    return {
+        "status": "completed",
+        "run_count": len(results),
+        "results": results,
+    }
+
+
 @router.post("/run", response_model=EdgeLabRunResponse, status_code=status.HTTP_200_OK)
 async def run_edge_lab(request: EdgeLabRunRequest, authorization: str = AUTH_HEADER):
     """Run Edge Lab analysis."""
@@ -945,6 +1582,7 @@ async def prepare_edge_lab_dataset(
         number_of_bars,
         (request.start_date, request.end_date),
     )
+    session_hours = _default_session_hours()
     prepared = prepare_ohlcvs_dataset(
         source=source,
         symbol=request.symbol,
@@ -952,7 +1590,10 @@ async def prepare_edge_lab_dataset(
         start_pos=0,
         end_pos=number_of_bars or 5000,
         cleaning=CleaningConfig(timeframe=request.timeframe),
-        enrichment=EnrichmentConfig(symbol=request.symbol),
+        enrichment=EnrichmentConfig(
+            symbol=request.symbol,
+            session_basis=request.session_basis,
+        ),
     )
     payload = _serialize_prepared_dataset(prepared)
     payload["request"] = {
@@ -963,6 +1604,8 @@ async def prepare_edge_lab_dataset(
         "start_date": request.start_date,
         "end_date": request.end_date,
         "number_of_bars": number_of_bars,
+        "session_basis": request.session_basis,
+        "session_hours": session_hours,
     }
     return payload
 
@@ -984,6 +1627,8 @@ async def run_seasonality_lab(
     symbol_digits: Optional[int] = None
     resolved_point_size = request.point_size
     resolved_pip_size: Optional[float] = None
+    session_basis = "dataset_index"
+    session_hours = _default_session_hours()
 
     if prepared is None:
         range_by, start_date, end_date, number_of_bars = _validate_range_params(
@@ -1003,6 +1648,7 @@ async def run_seasonality_lab(
         symbol_digits, resolved_point_size, resolved_pip_size = (
             _resolve_seasonality_symbol_info(source, request.symbol, request.point_size)
         )
+        session_basis = "dataset_index"
         try:
             df = load_ohlc(
                 source=source,
@@ -1024,8 +1670,14 @@ async def run_seasonality_lab(
         request.symbol = str(meta.get("symbol") or request.symbol)
         request.timeframe = str(meta.get("timeframe") or request.timeframe)
         range_by = str((request.prepared_dataset or {}).get("request", {}).get("range_by") or request.range_by)
+        session_basis = str(meta.get("session_basis") or session_basis)
+        session_hours = dict(meta.get("session_hours") or session_hours)
         resolved_pip_size = float(df.get("pip_size", pd.Series([request.point_size])).iloc[0])
         resolved_point_size = float(df.get("point_size", pd.Series([request.point_size])).iloc[0])
+        symbol_digits = _infer_digits_from_point_size(resolved_point_size)
+
+    if symbol_digits is None:
+        symbol_digits = _infer_digits_from_point_size(resolved_point_size)
 
     if resolved_point_size <= 0:
         raise HTTPException(
@@ -1065,6 +1717,8 @@ async def run_seasonality_lab(
             "number_of_bars": number_of_bars,
             "timezone": "broker",
             "digits": symbol_digits,
+            "session_basis": session_basis,
+            "session_hours": session_hours,
         }
     )
     result["meta"] = result_meta
@@ -1214,4 +1868,594 @@ async def get_core_metric_run(run_id: int):
             detail=f"Core metric run {run_id} not found.",
         )
     return run
+
+
+@router.delete("/core-metrics/runs/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_core_metric_run(run_id: int):
+    """Delete a stored Core Metric profile."""
+    success = db_manager.delete_core_metric_run(run_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Core metric run {run_id} not found.",
+        )
+    return None
+
+
+@router.post("/market-structure/run", response_model=Dict[str, Any])
+async def run_market_structure(
+    request: EdgeMarketStructureRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Run the Market Structure profile for one symbol."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
+    range_by = request.range_by.lower()
+    number_of_bars = request.number_of_bars
+    symbol = request.symbol or ""
+    timeframe = request.timeframe
+    data_source = request.data_source.lower()
+
+    if prepared is None:
+        range_by, start_date, end_date, number_of_bars = _validate_range_params(
+            request.range_by,
+            request.start_date,
+            request.end_date,
+            request.number_of_bars,
+        )
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
+        )
+        prepared = prepare_ohlcvs_dataset(
+            source=source,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_pos=0,
+            end_pos=number_of_bars or 5000,
+            cleaning=CleaningConfig(timeframe=timeframe),
+            enrichment=EnrichmentConfig(symbol=symbol),
+        )
+    else:
+        meta = prepared.report.metadata
+        symbol = str(meta.get("symbol") or symbol)
+        timeframe = str(meta.get("timeframe") or timeframe)
+        data_source = str(
+            (request.prepared_dataset or {}).get("request", {}).get("data_source")
+            or data_source
+        )
+        range_by = str(
+            (request.prepared_dataset or {}).get("request", {}).get("range_by")
+            or range_by
+        )
+
+    profile = build_market_structure_profile(
+        prepared,
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source,
+        range_by=range_by,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        number_of_bars=number_of_bars,
+    )
+
+    saved_run_id: Optional[int] = None
+    if request.save_db:
+        saved_run_id = db_manager.save_market_structure_profile(profile, user_id=user_id)
+
+    payload = profile.to_dict()
+    payload["run_id"] = saved_run_id
+    return payload
+
+
+@router.get("/market-structure/runs", response_model=List[Dict[str, Any]])
+async def list_market_structure_runs(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """List stored Market Structure runs."""
+    return db_manager.get_market_structure_runs(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/market-structure/runs/{run_id}", response_model=Dict[str, Any])
+async def get_market_structure_run(run_id: int):
+    """Get one stored Market Structure profile."""
+    run = db_manager.get_market_structure_run(run_id)
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trend structure run {run_id} not found.",
+        )
+    return run
+
+
+@router.delete("/market-structure/runs/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_market_structure_run(run_id: int):
+    """Delete a stored Market Structure profile."""
+    success = db_manager.delete_market_structure_run(run_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trend structure run {run_id} not found.",
+        )
+    return None
+
+
+@router.get("/market-structure/validation", response_model=Dict[str, Any])
+async def get_market_structure_validation(
+    limit: int = 20,
+    horizon_bars: int = 48,
+    refresh: bool = True,
+    authorization: str = AUTH_HEADER,
+):
+    """Validate saved Market Structure runs against simple forward realized behavior."""
+    rows = (
+        await _refresh_market_structure_evaluations(
+            limit=limit,
+            horizon_bars=horizon_bars,
+            authorization=authorization,
+        )
+        if refresh
+        else db_manager.get_market_structure_evaluations(limit=limit, offset=0)
+    )
+
+    return {
+        "summary": build_validation_summary(rows),
+        "rows": rows,
+    }
+
+
+@router.get("/market-structure/evaluations", response_model=List[Dict[str, Any]])
+async def list_market_structure_evaluations(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """List persisted Market Structure forward-evaluation rows."""
+    return db_manager.get_market_structure_evaluations(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/market-structure/evaluations/refresh", response_model=Dict[str, Any])
+async def refresh_market_structure_evaluations(
+    limit: int = 100,
+    horizon_bars: int = 48,
+    authorization: str = AUTH_HEADER,
+):
+    """Refresh persisted Market Structure forward-evaluation rows."""
+    rows = await _refresh_market_structure_evaluations(
+        limit=limit,
+        horizon_bars=horizon_bars,
+        authorization=authorization,
+    )
+    return {
+        "summary": build_validation_summary(rows),
+        "rows": rows,
+    }
+
+
+@router.get("/market-structure/calibration", response_model=Dict[str, Any])
+async def get_market_structure_calibration(
+    limit: int = 50,
+    horizon_bars: int = 48,
+    authorization: str = AUTH_HEADER,
+):
+    """Evaluate a small grid of top-level verdict thresholds against forward validation rows."""
+    persisted = db_manager.get_market_structure_evaluations(limit=limit, offset=0)
+    validation_rows = persisted or await _refresh_market_structure_evaluations(
+        limit=limit,
+        horizon_bars=horizon_bars,
+        authorization=authorization,
+    )
+    runs = db_manager.get_market_structure_runs(limit=limit, offset=0)
+    return evaluate_calibration_candidates(runs, validation_rows)
+
+
+@router.get("/market-structure/profile-calibration", response_model=Dict[str, Any])
+async def get_market_structure_profile_calibration(
+    limit: int = 100,
+    horizon_bars: int = 48,
+    authorization: str = AUTH_HEADER,
+):
+    """Group calibration results by symbol/timeframe profile class."""
+    persisted = db_manager.get_market_structure_evaluations(limit=limit, offset=0)
+    validation_rows = persisted or await _refresh_market_structure_evaluations(
+        limit=limit,
+        horizon_bars=horizon_bars,
+        authorization=authorization,
+    )
+    runs = db_manager.get_market_structure_runs(limit=limit, offset=0)
+    return evaluate_profile_calibration(runs, validation_rows)
+
+
+@router.get("/market-structure/metric-calibration", response_model=Dict[str, Any])
+async def get_market_structure_metric_calibration(
+    limit: int = 50,
+    horizon_bars: int = 48,
+    authorization: str = AUTH_HEADER,
+):
+    """Evaluate a small grid of lower-level score normalization bands."""
+    persisted = db_manager.get_market_structure_evaluations(limit=limit, offset=0)
+    validation_rows = persisted or await _refresh_market_structure_evaluations(
+        limit=limit,
+        horizon_bars=horizon_bars,
+        authorization=authorization,
+    )
+    runs = db_manager.get_market_structure_runs(limit=limit, offset=0)
+    detailed_runs = []
+    for run in runs:
+        run_id = int(run.get("run_id") or 0)
+        detail = db_manager.get_market_structure_run(run_id)
+        if detail:
+            detailed_runs.append(detail)
+    return evaluate_metric_calibration_candidates(detailed_runs, validation_rows)
+
+
+@router.post("/market-structure/stability", response_model=Dict[str, Any])
+async def get_market_structure_stability(
+    request: EdgeMarketStructureRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Evaluate block-by-block Market Structure stability on the current dataset."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
+    range_by = request.range_by.lower()
+    number_of_bars = request.number_of_bars
+    symbol = request.symbol or ""
+    timeframe = request.timeframe
+    data_source = request.data_source.lower()
+
+    if prepared is None:
+        range_by, start_date, end_date, number_of_bars = _validate_range_params(
+            request.range_by,
+            request.start_date,
+            request.end_date,
+            request.number_of_bars,
+        )
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
+        )
+        prepared = prepare_ohlcvs_dataset(
+            source=source,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_pos=0,
+            end_pos=number_of_bars or 5000,
+            cleaning=CleaningConfig(timeframe=timeframe),
+            enrichment=EnrichmentConfig(symbol=symbol),
+        )
+    else:
+        meta = prepared.report.metadata
+        symbol = str(meta.get("symbol") or symbol)
+        timeframe = str(meta.get("timeframe") or timeframe)
+        data_source = str(
+            (request.prepared_dataset or {}).get("request", {}).get("data_source")
+            or data_source
+        )
+        range_by = str(
+            (request.prepared_dataset or {}).get("request", {}).get("range_by")
+            or range_by
+        )
+
+    return build_market_structure_stability_report(
+        prepared,
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source,
+        range_by=range_by,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        number_of_bars=number_of_bars,
+        config=MarketStructureConfig(
+            apply_quality_adjustments=False,
+            eds_boot_n=MarketStructureConfig().research_eds_boot_n,
+            eds_perm_n=MarketStructureConfig().research_eds_perm_n,
+        ),
+    )
+
+
+@router.post("/market-structure/robustness", response_model=Dict[str, Any])
+async def get_market_structure_robustness(
+    request: EdgeMarketStructureRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Evaluate verdict robustness across nearby parameter variants."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
+    range_by = request.range_by.lower()
+    number_of_bars = request.number_of_bars
+    symbol = request.symbol or ""
+    timeframe = request.timeframe
+    data_source = request.data_source.lower()
+
+    if prepared is None:
+        range_by, start_date, end_date, number_of_bars = _validate_range_params(
+            request.range_by,
+            request.start_date,
+            request.end_date,
+            request.number_of_bars,
+        )
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
+        )
+        prepared = prepare_ohlcvs_dataset(
+            source=source,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_pos=0,
+            end_pos=number_of_bars or 5000,
+            cleaning=CleaningConfig(timeframe=timeframe),
+            enrichment=EnrichmentConfig(symbol=symbol),
+        )
+    else:
+        meta = prepared.report.metadata
+        symbol = str(meta.get("symbol") or symbol)
+        timeframe = str(meta.get("timeframe") or timeframe)
+        data_source = str(
+            (request.prepared_dataset or {}).get("request", {}).get("data_source")
+            or data_source
+        )
+        range_by = str(
+            (request.prepared_dataset or {}).get("request", {}).get("range_by")
+            or range_by
+        )
+
+    return build_market_structure_robustness_report(
+        prepared,
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source,
+        range_by=range_by,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        number_of_bars=number_of_bars,
+        config=MarketStructureConfig(
+            apply_quality_adjustments=False,
+            eds_boot_n=MarketStructureConfig().research_eds_boot_n,
+            eds_perm_n=MarketStructureConfig().research_eds_perm_n,
+        ),
+    )
+
+
+@router.post("/automation/run", response_model=Dict[str, Any])
+async def run_edge_lab_automation(
+    request: EdgeLabAutomationRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Run the progressive Edge Lab chain for one symbol with cache/dependency metadata."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    return _run_edge_lab_symbol_profile_sync(
+        symbol=request.symbol,
+        timeframe=request.timeframe,
+        data_source=request.data_source,
+        range_by=request.range_by,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        number_of_bars=request.number_of_bars,
+        metric_families=request.metric_families,
+        save_snapshot=request.save_snapshot,
+        use_cache=request.use_cache,
+        force_rerun=request.force_rerun,
+        trigger_type=request.trigger_type,
+        run_reason=request.run_reason,
+        user_id=user_id,
+    )
+
+
+@router.post("/automation/batch", response_model=Dict[str, Any])
+async def run_edge_lab_automation_batch(
+    request: EdgeLabAutomationBatchRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Run the progressive Edge Lab chain across a batch of symbols."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    results = []
+    for symbol in request.symbols:
+        results.append(
+            _run_edge_lab_symbol_profile_sync(
+                symbol=symbol,
+                timeframe=request.timeframe,
+                data_source=request.data_source,
+                range_by=request.range_by,
+                start_date=request.start_date,
+                end_date=request.end_date,
+                number_of_bars=request.number_of_bars,
+                metric_families=request.metric_families,
+                save_snapshot=request.save_snapshot,
+                use_cache=request.use_cache,
+                force_rerun=request.force_rerun,
+                trigger_type=request.trigger_type,
+                run_reason=request.run_reason,
+                user_id=user_id,
+            )
+        )
+    return {
+        "symbol_count": len(request.symbols),
+        "results": results,
+    }
+
+
+@router.post("/automation/refresh", response_model=Dict[str, Any])
+async def refresh_edge_lab_automation_schedule(
+    request: EdgeLabAutomationScheduleRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Run one scheduled-style refresh workflow for a symbol batch."""
+    batch_request = EdgeLabAutomationBatchRequest(**request.model_dump())
+    return await run_edge_lab_automation_batch(batch_request, authorization=authorization)
+
+
+@router.post("/scorecard/snapshots", response_model=Dict[str, Any])
+async def save_scorecard_snapshot(
+    request: EdgeProfileSnapshotRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Persist one versioned Edge Lab profile snapshot from the progressive tab chain."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    snapshot_id = db_manager.save_profile_snapshot(request.model_dump(), user_id=user_id)
+    if snapshot_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save profile snapshot.",
+        )
+    snapshot = db_manager.get_profile_snapshot(snapshot_id)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Snapshot saved but could not be reloaded.",
+        )
+    return snapshot
+
+
+@router.get("/scorecard/snapshots", response_model=List[Dict[str, Any]])
+async def list_scorecard_snapshots(
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """List stored Edge Lab profile snapshots."""
+    return db_manager.get_profile_snapshots(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/scorecard/snapshots/{snapshot_id}", response_model=Dict[str, Any])
+async def get_scorecard_snapshot(snapshot_id: int):
+    """Get one stored Edge Lab profile snapshot."""
+    snapshot = db_manager.get_profile_snapshot(snapshot_id)
+    if not snapshot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scorecard snapshot {snapshot_id} not found.",
+        )
+    return snapshot
+
+
+@router.get("/scorecard/snapshots/compare", response_model=Dict[str, Any])
+async def compare_scorecard_snapshots(
+    left_snapshot_id: int,
+    right_snapshot_id: int,
+):
+    """Compare two stored Edge Lab profile snapshots."""
+    comparison = db_manager.compare_profile_snapshots(
+        left_snapshot_id=left_snapshot_id,
+        right_snapshot_id=right_snapshot_id,
+    )
+    if not comparison:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or both scorecard snapshots were not found.",
+        )
+    return comparison
+
+
+@router.post("/scorecard/snapshots/{snapshot_id}/export-parquet", response_model=Dict[str, Any])
+async def export_scorecard_snapshot_parquet(snapshot_id: int):
+    """Export one profile snapshot's wide metrics to a Parquet artifact."""
+    artifact = db_manager.export_profile_snapshot_metrics_parquet(snapshot_id)
+    if not artifact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scorecard snapshot {snapshot_id} not found or has no metrics.",
+        )
+    return artifact
+
+
+@router.get("/scorecard/snapshots/{snapshot_id}/report", response_model=Dict[str, Any])
+async def get_scorecard_snapshot_report(snapshot_id: int):
+    """Build a machine-readable complete pair report from one stored snapshot."""
+    snapshot = db_manager.get_profile_snapshot(snapshot_id)
+    if not snapshot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scorecard snapshot {snapshot_id} not found.",
+        )
+    from apps.edge.profile_reporting import snapshot_report_json
+
+    return snapshot_report_json(snapshot)
+
+
+@router.post("/scorecard/snapshots/{snapshot_id}/export-report", response_model=Dict[str, Any])
+async def export_scorecard_snapshot_report(snapshot_id: int):
+    """Export Markdown and JSON reports for one stored snapshot."""
+    result = db_manager.export_profile_snapshot_reports(snapshot_id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scorecard snapshot {snapshot_id} not found.",
+        )
+    return result
+
+
+@router.post("/scorecard/snapshots/compare/export-markdown", response_model=Dict[str, Any])
+async def export_scorecard_snapshot_comparison_markdown(
+    left_snapshot_id: int,
+    right_snapshot_id: int,
+):
+    """Export a Markdown comparison report for two stored snapshots."""
+    result = db_manager.export_profile_snapshot_comparison_markdown(
+        left_snapshot_id=left_snapshot_id,
+        right_snapshot_id=right_snapshot_id,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or both scorecard snapshots were not found.",
+        )
+    return result
 

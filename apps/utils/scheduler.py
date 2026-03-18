@@ -16,6 +16,17 @@ def _cleanup_old_simulation_sessions() -> None:
         logger.info(f"Deleted {deleted} old simulation sessions")
 
 
+def _refresh_edge_lab_universe() -> None:
+    try:
+        from apps.api.routes.edge import run_scheduled_edge_lab_refresh
+
+        result = run_scheduled_edge_lab_refresh()
+        if result.get("status") != "skipped":
+            logger.info(f"Edge Lab scheduled refresh completed: {result.get('run_count', 0)} runs")
+    except Exception as exc:
+        logger.error(f"Edge Lab scheduled refresh failed: {exc}")
+
+
 def start_scheduler() -> None:
     """Start the background scheduler if not already running."""
     if _scheduler.running:
@@ -24,6 +35,12 @@ def start_scheduler() -> None:
         _cleanup_old_simulation_sessions,
         CronTrigger(hour=3, minute=0),
         id="cleanup_simulation_sessions",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _refresh_edge_lab_universe,
+        CronTrigger(hour=4, minute=0),
+        id="refresh_edge_lab_universe",
         replace_existing=True,
     )
     _scheduler.start()

@@ -18,6 +18,9 @@ import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
 
 export default function EdgeLabDataPage() {
   const { dataset, loading, error, loadDataset, clearDataset } = useEdgeLabData()
+  const today = new Date()
+  const earliestSelectableMonth = new Date(today.getFullYear() - 30, 0, 1)
+  const latestSelectableMonth = new Date(today.getFullYear() + 1, 11, 31)
   const [symbol, setSymbol] = useState("EURUSD")
   const [timeframe, setTimeframe] = useState("H1")
   const [dataSource, setDataSource] = useState<"mt5" | "dukascopy">("mt5")
@@ -37,6 +40,7 @@ export default function EdgeLabDataPage() {
       start_date: rangeBy === "dates" && startDate ? format(startDate, "yyyy-MM-dd") : undefined,
       end_date: rangeBy === "dates" && endDate ? format(endDate, "yyyy-MM-dd") : undefined,
       number_of_bars: rangeBy === "bars" ? Number(numberOfBars) || 5000 : undefined,
+      session_basis: "dataset_index",
     })
   }
 
@@ -87,6 +91,14 @@ export default function EdgeLabDataPage() {
             </div>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-1">
+            <div className="text-sm text-muted-foreground">
+              Session classification uses dataset index time as-is. Fixed session windows:
+              {" "}Sydney 00:00-06:59, Tokyo 02:00-08:59, London 10:00-16:59, NY 15:00-21:59.
+              Overlaps and gaps are derived automatically.
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label>Range By</Label>
@@ -113,7 +125,15 @@ export default function EdgeLabDataPage() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                      <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        captionLayout="dropdown"
+                        startMonth={earliestSelectableMonth}
+                        endMonth={latestSelectableMonth}
+                        initialFocus
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -130,7 +150,15 @@ export default function EdgeLabDataPage() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        captionLayout="dropdown"
+                        startMonth={earliestSelectableMonth}
+                        endMonth={latestSelectableMonth}
+                        initialFocus
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -178,9 +206,17 @@ export default function EdgeLabDataPage() {
               <div className="grid gap-4 md:grid-cols-5 text-sm">
                 <div><div className="text-muted-foreground">Source</div><div>{dataset.request.data_source}</div></div>
                 <div><div className="text-muted-foreground">Range</div><div>{dataset.request.range_by}</div></div>
+                <div><div className="text-muted-foreground">Session Basis</div><div>{dataset.meta.session_basis ?? dataset.request.session_basis ?? "dataset_index"}</div></div>
                 <div><div className="text-muted-foreground">Warnings</div><div>{dataset.report.warnings.length}</div></div>
                 <div><div className="text-muted-foreground">Fatal Errors</div><div>{dataset.report.fatal_errors.length}</div></div>
                 <div><div className="text-muted-foreground">Checks</div><div>{dataset.report.checks_performed.length}</div></div>
+              </div>
+              <div className="mt-4 text-sm text-muted-foreground">
+                Session hours:
+                {" "}
+                {dataset.meta.session_hours
+                  ? `Sydney ${dataset.meta.session_hours.sydney?.[0] ?? 0}-${(dataset.meta.session_hours.sydney?.slice(-1)[0] ?? 0)} / Tokyo ${dataset.meta.session_hours.tokyo?.[0] ?? 0}-${(dataset.meta.session_hours.tokyo?.slice(-1)[0] ?? 0)} / London ${dataset.meta.session_hours.london?.[0] ?? 0}-${(dataset.meta.session_hours.london?.slice(-1)[0] ?? 0)} / NY ${dataset.meta.session_hours.ny?.[0] ?? 0}-${(dataset.meta.session_hours.ny?.slice(-1)[0] ?? 0)}`
+                  : "default"}
               </div>
             </CardContent>
           </Card>

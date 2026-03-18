@@ -9,6 +9,15 @@ import numpy as np
 import pandas as pd
 
 DEFAULT_ADR_PERIOD = 10
+SESSION_ORDER = (
+    "sydney",
+    "tokyo",
+    "sydney_tokyo",
+    "london",
+    "london_ny",
+    "ny",
+    "gap",
+)
 
 
 @dataclass(frozen=True)
@@ -130,7 +139,49 @@ def _prepare_working_data(
     working["dow"] = working.index.dayofweek
     working["hour"] = working.index.hour
     working["decade"] = (working["year"] // 10) * 10
+    if "session" not in working.columns:
+        working["session"] = np.select(
+            [
+                working["hour"].isin(range(0, 2)),
+                working["hour"].isin(range(2, 7)),
+                working["hour"].isin(range(7, 9)),
+                working["hour"].isin(range(10, 15)),
+                working["hour"].isin(range(15, 17)),
+                working["hour"].isin(range(17, 22)),
+            ],
+            ["sydney", "sydney_tokyo", "tokyo", "london", "london_ny", "ny"],
+            default="gap",
+        )
+    if "session_basis" not in working.columns:
+        working["session_basis"] = "dataset_index"
     return working
+
+
+def _label_opportunity(score: float) -> str:
+    if score >= 65:
+        return "opportunity"
+    if score <= 35:
+        return "dead"
+    return "mixed"
+
+
+def _score_window(
+    avg_range_pips: float,
+    avg_spread_pips: float,
+    avg_abs_co_pips: float,
+    win_rate: float,
+) -> float:
+    range_score = max(0.0, min(100.0, (avg_range_pips / 25.0) * 100.0))
+    spread_efficiency = avg_spread_pips / max(avg_range_pips, 1e-9)
+    spread_score = max(0.0, min(100.0, 100.0 - ((spread_efficiency - 0.05) / 0.25) * 100.0))
+    movement_score = max(0.0, min(100.0, (avg_abs_co_pips / 10.0) * 100.0))
+    directional_score = max(0.0, min(100.0, abs((win_rate - 0.5) * 2.0) * 100.0))
+    return float(
+        (range_score * 0.40)
+        + (spread_score * 0.30)
+        + (movement_score * 0.20)
+        + (directional_score * 0.10)
+    )
 
 
 def _calculate_intraday_bias(
@@ -197,6 +248,136 @@ def _calculate_heatmaps(
     }
 
 
+def _calculate_session_high_low_rates(filtered: pd.DataFrame) -> Dict[str, Any]:
+    if filtered.empty:
+        return {"total_days": 0, "rows": []}
+
+    high_counts = {session: 0 for session in SESSION_ORDER}
+    low_counts = {session: 0 for session in SESSION_ORDER}
+    evaluable_days = 0
+
+    for _, frame in filtered.groupby(filtered.index.normalize()):
+        if frame.empty:
+            continue
+        evaluable_days += 1
+        high_session = str(frame.loc[frame["High"].idxmax(), "session"])
+        low_session = str(frame.loc[frame["Low"].idxmin(), "session"])
+        high_counts[high_session] = high_counts.get(high_session, 0) + 1
+        low_counts[low_session] = low_counts.get(low_session, 0) + 1
+
+    rows = []
+    for session in SESSION_ORDER:
+        rows.append(
+            {
+                "session": session,
+                "high_count": int(high_counts.get(session, 0)),
+                "low_count": int(low_counts.get(session, 0)),
+                "high_rate": float(high_counts.get(session, 0) / evaluable_days) if evaluable_days else 0.0,
+                "low_rate": float(low_counts.get(session, 0) / evaluable_days) if evaluable_days else 0.0,
+            }
+        )
+    return {"total_days": evaluable_days, "rows": rows}
+
+
+def _calculate_session_summary(
+    filtered: pd.DataFrame,
+    point_size: float,
+    pip_size: float,
+    high_low_rates: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    rate_map = {str(row["session"]): row for row in high_low_rates.get("rows", [])}
+    rows: List[Dict[str, Any]] = []
+    for session in SESSION_ORDER:
+        frame = filtered[filtered["session"] == session]
+        if frame.empty:
+            rows.append(
+                {
+                    "session": session,
+                    "bars": 0,
+                    "avg_range_pips": None,
+                    "avg_spread_pips": None,
+                    "avg_abs_co_pips": None,
+                    "avg_volume": None,
+                    "win_rate": None,
+                    "opportunity_score": 0.0,
+                    "label": "dead",
+                    "high_rate": float(rate_map.get(session, {}).get("high_rate", 0.0)),
+                    "low_rate": float(rate_map.get(session, {}).get("low_rate", 0.0)),
+                }
+            )
+            continue
+        avg_range_pips = float((((frame["High"] - frame["Low"]) / pip_size)).mean())
+        avg_spread_pips = float(((frame["Spread"] * point_size) / pip_size).mean())
+        avg_abs_co_pips = float((((frame["Close"] - frame["Open"]).abs()) / pip_size).mean())
+        avg_volume = _clean_value(frame["Volume"].mean())
+        win_rate = float((frame["co_points"] > 0).mean())
+        score = _score_window(avg_range_pips, avg_spread_pips, avg_abs_co_pips, win_rate)
+        rows.append(
+            {
+                "session": session,
+                "bars": int(len(frame)),
+                "avg_range_pips": avg_range_pips,
+                "avg_spread_pips": avg_spread_pips,
+                "avg_abs_co_pips": avg_abs_co_pips,
+                "avg_volume": avg_volume,
+                "win_rate": win_rate,
+                "opportunity_score": score,
+                "label": _label_opportunity(score),
+                "high_rate": float(rate_map.get(session, {}).get("high_rate", 0.0)),
+                "low_rate": float(rate_map.get(session, {}).get("low_rate", 0.0)),
+            }
+        )
+    return rows
+
+
+def _calculate_hourly_window_summary(
+    filtered: pd.DataFrame,
+    point_size: float,
+    pip_size: float,
+) -> Dict[str, List[Dict[str, Any]]]:
+    rows: List[Dict[str, Any]] = []
+    for hour in range(24):
+        frame = filtered[filtered["hour"] == hour]
+        if frame.empty:
+            score = 0.0
+            rows.append(
+                {
+                    "hour": hour,
+                    "bars": 0,
+                    "avg_range_pips": None,
+                    "avg_spread_pips": None,
+                    "avg_abs_co_pips": None,
+                    "win_rate": None,
+                    "opportunity_score": score,
+                    "label": "dead",
+                }
+            )
+            continue
+        avg_range_pips = float((((frame["High"] - frame["Low"]) / pip_size)).mean())
+        avg_spread_pips = float(((frame["Spread"] * point_size) / pip_size).mean())
+        avg_abs_co_pips = float((((frame["Close"] - frame["Open"]).abs()) / pip_size).mean())
+        win_rate = float((frame["co_points"] > 0).mean())
+        score = _score_window(avg_range_pips, avg_spread_pips, avg_abs_co_pips, win_rate)
+        rows.append(
+            {
+                "hour": hour,
+                "bars": int(len(frame)),
+                "avg_range_pips": avg_range_pips,
+                "avg_spread_pips": avg_spread_pips,
+                "avg_abs_co_pips": avg_abs_co_pips,
+                "win_rate": win_rate,
+                "opportunity_score": score,
+                "label": _label_opportunity(score),
+            }
+        )
+    ranked = sorted(rows, key=lambda row: float(row["opportunity_score"]), reverse=True)
+    return {
+        "all": rows,
+        "best_hours": ranked[:5],
+        "dead_hours": list(reversed(ranked[-5:])),
+    }
+
+
 def _generate_data_rows(
     filtered: pd.DataFrame,
     data_offset: int,
@@ -260,8 +441,9 @@ def _extreme(series: pd.Series, mode: str, *, nonzero: bool = False) -> Dict[str
         series = series[series != 0]
         if series.empty:
             return {"value": None, "timestamp": None}
-    value = series.min() if mode == "min" else series.max()
-    idx = series.idxmin() if mode == "min" else series.idxmax()
+    pos = int(series.to_numpy().argmin() if mode == "min" else series.to_numpy().argmax())
+    value = series.iloc[pos]
+    idx = series.index[pos]
     return {"value": float(value), "timestamp": idx.strftime("%Y-%m-%d %H:%M")}
 
 
@@ -273,8 +455,9 @@ def _extreme_abs(series: pd.Series, mode: str) -> Dict[str, Any]:
     if series.empty:
         return {"value": None, "timestamp": None}
     abs_series = series.abs()
-    idx = abs_series.idxmin() if mode == "min" else abs_series.idxmax()
-    value = series.loc[idx]
+    pos = int(abs_series.to_numpy().argmin() if mode == "min" else abs_series.to_numpy().argmax())
+    idx = abs_series.index[pos]
+    value = series.iloc[pos]
     return {"value": float(value), "timestamp": idx.strftime("%Y-%m-%d %H:%M")}
 
 
@@ -385,6 +568,14 @@ def run_seasonality(
         "day_of_month": _calendar_agg(filtered, "day_of_month"),
         "dow": _calendar_agg(filtered, "dow"),
     }
+    session_high_low = _calculate_session_high_low_rates(filtered)
+    session_summary = _calculate_session_summary(
+        filtered, point_size, pip_size, session_high_low
+    )
+    hourly_windows = _calculate_hourly_window_summary(filtered, point_size, pip_size)
+    ranked_sessions = sorted(
+        session_summary, key=lambda row: float(row["opportunity_score"]), reverse=True
+    )
     data_rows = _generate_data_rows(
         filtered, data_offset, data_limit, point_size, pip_size
     )
@@ -419,6 +610,15 @@ def run_seasonality(
         },
         "heatmaps": heatmaps,
         "calendar": calendar,
+        "session_summary": session_summary,
+        "session_high_low": session_high_low,
+        "opportunity_windows": {
+            "best_sessions": ranked_sessions[:4],
+            "dead_sessions": list(reversed(ranked_sessions[-4:])),
+            "best_hours": hourly_windows["best_hours"],
+            "dead_hours": hourly_windows["dead_hours"],
+            "hourly_rows": hourly_windows["all"],
+        },
         "data_rows": data_rows,
         "data_rows_count": len(filtered),
         "data_rows_offset": data_offset,

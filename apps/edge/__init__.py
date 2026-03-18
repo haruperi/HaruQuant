@@ -24,6 +24,7 @@ from .config import (
     MeanReversionConfig,
     PermutationConfig,
     SessionConfig,
+    MarketStructureConfig,
     TrendPersistenceConfig,
 )
 from .datasets import (
@@ -51,6 +52,11 @@ from .eds_mean_reversion import run_eds_mean_reversion
 from .eds_null_models import run_eds_null_baseline
 from .eds_session import run_eds_session
 from .eds_trend_persistence import run_eds_trend_persistence
+from .market_structure import (
+    MarketStructureProfile,
+    build_market_structure_profile,
+    build_market_structure_research_profile,
+)
 from .features import (
     atr,
     bb_width,
@@ -97,6 +103,7 @@ __all__ = [
     "MeanReversionConfig",
     "PermutationConfig",
     "SessionConfig",
+    "MarketStructureConfig",
     "TrendPersistenceConfig",
     # Datasets
     "DataSource",
@@ -119,6 +126,9 @@ __all__ = [
     "run_eds_trend_persistence",
     "run_eds_null_baseline",
     "run_eds_session",
+    "MarketStructureProfile",
+    "build_market_structure_profile",
+    "build_market_structure_research_profile",
     # Features
     "atr",
     "bb_width",

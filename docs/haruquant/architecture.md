@@ -14,6 +14,16 @@
 - `apps/edge/data/validation.py` wraps the existing utility validator in `apps/utils/data_validator.py` to validate schema, OHLC logic, continuity, duplicates, spread, and volume.
 - `apps/edge/data/cleaning.py` applies policy-driven cleaning for timezone normalization, missing bars, weekend/holiday filtering, and spread anomaly handling.
 - `apps/edge/data/enrichment.py` adds analysis columns such as pip metadata, bar geometry, returns, direction labels, session fields, and rollover-hour flags.
+- Session classification is now explicit and dataset-scoped:
+  - `EnrichmentConfig.session_basis` records what the session hours are relative to
+  - Edge Lab currently uses the dataset index time directly, with no extra DST layer
+  - fixed windows are:
+    - Sydney `00:00-06:59`
+    - Tokyo `02:00-08:59`
+    - London `10:00-16:59`
+    - NY `15:00-21:59`
+  - overlaps and gaps are derived from those fixed windows
+  - the prepared dataset metadata persists both `session_basis` and `session_hours`
 - `apps/edge/datasets.py -> prepare_ohlcvs_dataset(...)` is the end-to-end orchestration entrypoint and returns a prepared DataFrame plus a report that separates warnings from fatal errors.
 
 ## Edge Lab Core Metric MVP
@@ -43,10 +53,106 @@
   - `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
   - `ui/src/components/edge-lab/edge-lab-nav.tsx`
 
+## Edge Lab Market Structure
+
+- `apps/edge/market_structure.py -> build_market_structure_profile(...)` now acts as the Market Structure engine on top of the prepared OHLCVS dataset.
+- `build_market_structure_profile(...)` is now the fast interactive path:
+  - one base Market Structure profile
+  - reduced EDS bootstrap / permutation defaults for UI responsiveness
+  - no internal stability / robustness fan-out by default
+- `build_market_structure_research_profile(...)` is the explicit research-mode helper:
+  - re-enables quality adjustments
+  - uses research-grade EDS bootstrap / permutation counts
+- The engine is deterministic and table-first:
+  - swing point detection using a pivot-window method
+  - optional ATR-based swing filtering
+  - `HH`, `HL`, `LH`, `LL` labeling
+  - directional chain construction and chain-length statistics
+  - trend-leg and pullback analytics
+  - range-state, false-break, reentry, half-life, band/z-score reversion, and chop metrics
+  - a Phase 6 deep-dive layer for:
+    - distribution shape and tail metrics
+    - percentile tables
+    - normality diagnostics
+    - return asymmetry
+    - breakout failure / retest / retracement / extension behavior
+    - event-based breakout and pullback-resumption excursion studies (MFE/MAE, time-to-excursion, stop/target proxy hit rates)
+  - a Phase 7 regime layer for:
+    - per-bar trend, volatility, and liquidity regime classification
+    - regime share and average duration
+    - transition matrices
+    - key metrics aggregated by regime
+    - regime-conditioned score inputs that can be consumed by later scoring work
+  - score rows split across `direction`, `confidence`, `reversion`, and `chop` groups
+  - both `trend_bias_score` and `reversion_bias_score` are confidence-scaled before the final comparison
+  - top-level verdict thresholds and the reversion/chop blend weights now live in `MarketStructureConfig` instead of hidden magic numbers
+  - runtime profile-specific overrides can now adjust the top-level Market Structure config by symbol/timeframe class before scoring
+  - stability and robustness now act as bounded confidence adjustments inside the engine instead of remaining UI-only diagnostics
+  - the Market Structure baseline is now explicitly versioned through `model_version` and `baseline_id` in the run summary / calibration metadata
+  - stability analysis now supports multiple slicing modes (`early_middle_late`, `monthly`, `quarterly`) and reports `confidence_drift`
+  - robustness now explores nearby `swing_window`, `min_swing_atr`, `range_window`, and `breakout_horizon` variants
+  - the engine now marks the regime state as `STABLE` or `TRANSITIONAL` based on the stability report
+  - `trend_bias_score` versus `reversion_bias_score` drives the final market-bias verdict
+- Existing detectors are reused as confirmation layers rather than standalone verdicts:
+  - `EDS-2` trend persistence supports the trend side
+  - `EDS-1` mean reversion supports the reversion side
+- Persistence mirrors the Core Metric pattern, but keeps audit tables for structure details:
+  - `edge_market_structure_runs`
+  - `edge_market_structure_values`
+  - `edge_market_structure_scores`
+  - `edge_market_structure_swings`
+  - `edge_market_structure_legs`
+  - `edge_market_structure_evaluations`
+- API integration stays in `apps/api/routes/edge.py`:
+  - `POST /api/edge-lab/market-structure/run`
+  - `GET /api/edge-lab/market-structure/runs`
+  - `GET /api/edge-lab/market-structure/runs/{run_id}`
+  - `GET /api/edge-lab/market-structure/evaluations`
+- UI integration stays in Edge Lab and reuses the shared session dataset:
+  - `ui/src/app/(dashboard)/edge-lab/market-structure/page.tsx`
+  - the main `Run Market Structure` button now calls only the fast base run path
+  - `Stability` and `Robustness` are explicit secondary actions instead of automatic follow-up calls
+  - the page now treats forward validation as a persisted research dataset and shows compact breakdowns by verdict, confidence bucket, and timeframe
+  - the lower-level metric calibration snapshot now also covers pullback-depth and false-break normalization bands
+  - the tradeability overlay now includes session spread burden, rollover penalty, volatility-adjusted spread burden, and liquidity consistency
+  - `ui/src/lib/api/edge.ts`
+  - the page includes a `Market Structure Edge Chart` that compares the latest saved run per symbol by `final_score`
+  - the page also includes a separate `Tradeability Overlay` derived from the prepared dataset so structural bias stays separate from execution friction
+  - the page includes a first-pass `Forward Validation` report that compares saved Market Structure runs against a simple realized-behavior label over the next bar window
+  - the page includes a `Calibration Snapshot` based on a small grid of top-level verdict thresholds evaluated against the forward-validation sample
+  - the page includes a `Metric Calibration` snapshot based on a small grid of lower-level normalization bands for chain strength, mean-reversion half-life, choppiness, and direction-flip scoring
+  - the page includes a compact `Model Quality` block that summarizes validation accuracy, calibration quality, stability, and robustness in one place
+  - the page includes a `Stability Snapshot` that reruns Market Structure on contiguous sub-blocks of the loaded dataset and reports verdict agreement plus final-score drift
+  - the page includes a `Robustness Snapshot` that reruns Market Structure across nearby swing-parameter variants and reports verdict agreement plus final-score drift
+  - the page includes a `Profile Calibration` snapshot keyed by symbol/timeframe class so profile-specific top-level settings can be compared separately from the global calibration sample
+  - the page includes a `Strategy Fit` section that maps the current structure profile into ranked strategy archetypes such as breakout trend-following, pullback continuation, range fade, mean-reversion fade, and avoid-chop
+  - the page now also includes a compact `Research Conclusion` block that synthesizes verdict, decision confidence, stability, robustness, tradeability, and primary strategy fit into one readable summary
+  - the page now includes explicit Phase 6 decision-support sections for:
+    - `Distribution Deep Dive`
+    - `Breakout and Retracement`
+    - `Excursion Studies`
+  - those Phase 6 sections now also expose plain-language interpretation labels such as:
+    - distribution risk
+    - breakout quality
+    - retracement profile
+    - stop/target fit for breakout and pullback-resumption events
+  - the page now includes a `Regime Engine` section with:
+    - regime-aware score inputs
+    - regime share and duration summaries
+    - a trend transition matrix
+    - top combined regime aggregates
+  - saved Market Structure runs now also persist `calibration_metadata` so profile overrides and confidence adjustments are traceable later
+
 ## Edge Lab Shared Dataset Flow
 
 - Edge Lab now has a shared dataset-first UI flow similar to the Performance area.
 - `ui/src/contexts/edge-lab-data-context.tsx` holds the active prepared dataset in React state and mirrors it to `sessionStorage`.
+- The same context now also caches the latest session-scoped outputs for:
+  - `Core Metric`
+  - `Seasonality`
+  - `Market Structure`
+  - `Market Structure Stability`
+  - `Market Structure Robustness`
 - `ui/src/app/(dashboard)/edge-lab/layout.tsx` wraps all Edge Lab tabs with that provider.
 - `ui/src/app/(dashboard)/edge-lab/page.tsx` is the canonical place to:
   - fetch market data
@@ -58,13 +164,192 @@
   - `POST /api/edge-lab/seasonality` can now consume a serialized prepared dataset
   - `POST /api/edge-lab/core-metrics/run` can now consume a serialized prepared dataset
 - First migrated consumers are:
-- `ui/src/app/(dashboard)/edge-lab/discovery/page.tsx`
-- `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
-- `ui/src/app/(dashboard)/edge-lab/seasonality/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/discovery/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/core-metric/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/market-structure/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/seasonality/page.tsx`
+  - `ui/src/app/(dashboard)/edge-lab/scorecard/page.tsx`
+- Edge Lab now supports a progressive tab flow:
+  - `Data`
+  - `Core Metric`
+  - `Seasonality`
+  - `Market Structure`
+  - `Scorecard`
+- Later tabs depend on prior session-scoped outputs instead of only on the prepared dataset:
+  - `Seasonality` requires a `Core Metric` run
+  - `Market Structure` requires a `Seasonality` run
+  - `Scorecard` requires a `Market Structure` run
+- The Seasonality tab now renders both graphical views and tabular views:
+  - intraday bias line chart
+  - hour x day heatmap cards
+  - calendar bar charts
+  - session opportunity and daily high/low bar charts
+  - summary tables for auditability
 - `ui/src/components/edge-lab/dataset-summary.tsx` keeps the repeated shared-dataset banner consistent across those tabs.
 - `ui/src/components/edge-lab/collection-state.tsx` keeps common loading / empty collection states consistent for saved-run panels.
 - `ui/src/components/edge-lab/control-toggle.tsx` keeps repeated bordered toggle controls consistent for page-level Edge Lab actions such as persistence flags.
+- `ui/src/components/edge-lab/prerequisite-state.tsx` provides the locked-state card used when a later progressive tab has not had its prerequisite run yet.
 - This removes repeated data-download forms from those tabs and keeps one session-scoped dataset across navigation.
+
+## Edge Lab Scorecard
+
+- `ui/src/app/(dashboard)/edge-lab/scorecard/page.tsx` is the final progressive tab in the Edge Lab flow.
+- The scorecard is a deterministic aggregation layer built from cached outputs of:
+  - Data
+  - Core Metric
+  - Seasonality
+  - Market Structure
+- `ui/src/lib/edge-lab-scorecard.ts` computes explainable named scores such as:
+  - Trendability
+  - Noise
+  - Cost Efficiency
+  - Mean Reversion
+  - Breakout Quality
+  - Session Opportunity
+  - Stability
+  - Tradability
+- The same scorecard layer now also includes a Phase 9 strategy-fit engine with ranked archetypes:
+  - Trend Breakout
+  - Trend Pullback Continuation
+  - Mean Reversion Fade
+  - Range Reversion
+  - Session Breakout
+  - Intraday Scalping
+  - Swing Trend Following
+  - Volatility Expansion
+- The scorecard page exposes:
+  - a final aggregate score and label
+  - per-score confidence labels
+  - score explanations with the raw inputs used for each score
+  - ranked strategy suitability with warnings and anti-fit conditions
+- The scorecard page can now persist one versioned profile snapshot and export a wide-metrics Parquet artifact.
+
+## Edge Lab Snapshot Storage
+
+- `apps/edge/profile_snapshot.py` builds one normalized profile snapshot from the current progressive Edge Lab chain:
+  - dataset metadata
+  - Core Metric summary and values
+  - Seasonality summary
+  - Market Structure summary
+  - Scorecard rows
+  - Scorecard strategy-fit rankings
+- `apps/sqlite/schema.py` now includes snapshot persistence tables:
+  - `edge_profile_snapshots`
+  - `edge_profile_snapshot_metrics`
+  - `edge_profile_snapshot_scores`
+  - `edge_profile_snapshot_strategy_fit`
+  - `edge_profile_snapshot_artifacts`
+- `apps/sqlite/edge_discovery.py` now provides the repository layer for:
+  - saving snapshots
+  - listing snapshots
+  - loading one snapshot with normalized detail rows
+  - comparing two snapshots
+  - exporting one snapshot's wide metrics to Parquet
+- `apps/api/routes/edge.py` exposes those through `/api/edge-lab/scorecard/snapshots...`.
+- Snapshot persistence preserves:
+  - `model_version`
+  - `baseline_id`
+  - Scorecard rows and explanations
+  - ranked strategy-fit outputs
+  - artifact references such as wide-metrics Parquet exports
+
+## Edge Lab Reporting Layer
+
+- `apps/edge/profile_reporting.py` now builds the reporting layer for saved snapshots.
+- It provides:
+  - profile summary builder
+  - dashboard summary builder
+  - complete machine-readable JSON report
+  - complete human-readable Markdown pair report
+  - Markdown pair-comparison report
+- `apps/api/routes/edge.py` now exposes report endpoints on top of saved scorecard snapshots:
+  - fetch a machine-readable snapshot report
+  - export full pair reports as JSON + Markdown artifacts
+  - export pair-comparison Markdown reports
+- `ui/src/app/(dashboard)/edge-lab/scorecard/page.tsx` now exposes:
+  - save snapshot
+  - export wide-metrics Parquet
+  - export full pair report
+  - compare snapshots
+  - export comparison report
+- The reporting layer is snapshot-based, so reports stay aligned with the persisted score/spec version rather than rerunning analysis.
+
+## Edge Lab Automation
+
+- `apps/api/routes/edge.py` now also exposes a small automation layer for repeatable profiling:
+  - `POST /api/edge-lab/automation/run`
+  - `POST /api/edge-lab/automation/batch`
+  - `POST /api/edge-lab/automation/refresh`
+- The automation path runs the progressive chain server-side:
+  - dataset prepare
+  - Core Metric
+  - Seasonality
+  - Market Structure
+  - backend Scorecard
+- `apps/edge/scorecard.py` is the backend scorecard builder used by automation and snapshot persistence.
+- Snapshot persistence now stores `automation_metadata` so reruns preserve:
+  - trigger type
+  - run reason
+  - requested families
+  - recomputed vs reused families
+  - cache/dependency policy
+  - partial-snapshot flag
+- `automation_metadata` now also stores per-stage timings for:
+  - dataset prepare
+  - cache lookup
+  - Core Metric
+  - Seasonality
+  - Market Structure
+  - backend Scorecard
+  - snapshot persistence
+  - total runtime
+- Snapshot dataset metadata now also persists reproducibility fingerprints:
+  - `dataset_fingerprint`
+  - `config_fingerprint`
+  - `score_spec_version`
+- The backend scorecard/snapshot path now also exposes a top-level readiness gate:
+  - `research_ready`
+  - `readiness_label`
+  - `readiness_reasons`
+- `apps/utils/scheduler.py` now includes an Edge Lab universe refresh job that can run from environment configuration when `EDGE_LAB_BATCH_SYMBOLS` is set.
+- Current partial recomputation support is family-based:
+  - `core_metric`
+  - `seasonality`
+  - `market_structure`
+  - `scorecard`
+- Dependency policy is explicit:
+  - `scorecard -> market_structure -> seasonality -> core_metric`
+- Cache policy is intentionally simple:
+  - reuse the latest matching snapshot for the same symbol/timeframe/data source/range/window when a full run is requested and `force_rerun` is false.
+
+## Edge Lab Dashboard View Models
+
+- `ui/src/lib/edge-lab-dashboard.ts` is now the shared chart/view-model package for Edge Lab UI consumers.
+- It centralizes reusable UI-facing builders for:
+  - pair overview widgets
+  - Core Metric grouped values
+  - seasonality weekly-bias and calendar series
+  - seasonality takeaway widgets
+  - tradeability model
+  - market-structure edge chart rows
+  - regime timeline rows
+  - scorecard widgets
+  - snapshot comparison widgets
+- This reduces page-local data shaping so Edge Lab tabs can render core pair profile sections from stable typed models instead of duplicating ad hoc transforms inline.
+
+## Edge Lab Seasonality
+
+- `apps/edge/seasonality.py -> run_seasonality(...)` now covers both chart-ready intraday/calendar outputs and explicit time-window summaries.
+- Seasonality now reuses the session classification already embedded in the prepared dataset instead of silently re-imposing a separate hidden mapping.
+- Current output groups include:
+  - hourly movement, spread, and volatility heatmaps
+  - weekday and monthly calendar aggregates
+  - session summary rows for `asia`, `london`, `ny`, and `off`
+  - daily high/low formation rates by session
+  - ranked best/dead sessions and hours via an opportunity-score summary
+- UI integration lives in:
+  - `ui/src/app/(dashboard)/edge-lab/seasonality/page.tsx`
+- The seasonality tab now makes pair opportunity windows and dead sessions explicit instead of requiring the user to infer them only from raw heatmaps.
 
 ## Trading Engine Tick Loop (Python Skeleton)
 
@@ -1430,6 +1715,8 @@
   - edge-lab run execution
   - saved run summary/detail/trade retrieval and deletion
   - seasonality execution for the edge-lab seasonality screen
+  - Core Metric profile execution and retrieval
+  - Market Structure profile execution and retrieval
 
 ## Frontend Live Trading Client
 
@@ -1472,4 +1759,41 @@
   - markdown content loading
   - markdown content save
   - markdown file deletion
+
+## Edge Lab Test Coverage
+
+- Edge Lab now has a dedicated synthetic fixture layer in:
+  - `tests/fixtures/edge_lab_scenarios.py`
+- The fixture registry provides stable scenario datasets for:
+  - trending
+  - ranging / mixed
+  - noisy
+  - spread-heavy
+  - missing-data
+  - short-history
+  - DST/session-boundary
+- `tests/conftest.py` isolates those runs from live data by:
+  - patching `apps.api.routes.edge._create_data_source(...)`
+  - patching `apps.api.routes.edge.db_manager`
+  - creating a temp SQLite database per test
+- Edge Lab integration coverage now lives in:
+  - `tests/integration/apps/edge/test_edge_lab_automation.py`
+  - `tests/integration/apps/edge/test_edge_lab_audit.py`
+- That integration layer checks:
+  - full automation execution to completed snapshot
+  - cache reuse
+  - partial recompute metadata
+  - reproducibility
+  - snapshot comparison
+  - report export consistency
+- Edge Lab acceptance coverage now lives in:
+  - `tests/acceptance/apps/edge/test_edge_lab_acceptance.py`
+- That acceptance layer checks:
+  - trending scenario
+  - ranging / mixed scenario
+  - noisy scenario
+  - spread-heavy scenario
+  - missing-data scenario
+  - short-history scenario
+  - DST/session-boundary scenario
 

@@ -138,20 +138,20 @@ def run_eds_mean_reversion(  # noqa: C901
             mae = (entry_price - np.max(segment)) / stop_dist
             mfe = (entry_price - np.min(segment)) / stop_dist
 
-            trades.append(
-                TradeSample(
-                    entry_time=out.index[i],
-                    exit_time=out.index[exit_i],
-                    side=side,
-                    entry_price=entry_price,
-                    exit_price=exit_price,
-                    r_multiple=float(r_mult),
-                    mae_r=float(mae),
-                    mfe_r=float(mfe),
-                    hold_bars=int(exit_i - i),
-                    meta={"bbw_rank": bbw_rank, "z": z, "adr_d1": adr_i},
-                )
+        trades.append(
+            TradeSample(
+                entry_time=out.index[i],
+                exit_time=out.index[exit_i],
+                side=side,
+                entry_price=entry_price,
+                exit_price=exit_price,
+                r_multiple=float(r_mult),
+                mae_r=float(mae),
+                mfe_r=float(mfe),
+                hold_bars=int(exit_i - i),
+                meta={"bbw_rank": bbw_rank, "z": z, "adr_d1": adr_i},
             )
+        )
 
         i = exit_i + 1
 

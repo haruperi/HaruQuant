@@ -1,305 +1,506 @@
-# Edge Lab: Symbol-Specific Edge Discovery Toolkit
+# Edge Lab
 
-Edge Lab is a framework for discovering and statistically validating trading edges **before** committing to production strategies. It applies the scientific method to trading: hypothesis, experiment, statistical validation.
+Edge Lab is HaruQuant's pair-intelligence and symbol-research subsystem.
 
-## Quick Start
+Its job is to answer, before strategy design:
 
-```bash
-# Demo mode (no MT5 required)
-python scripts/run_edge.py --symbol EURUSD --timeframe M15 --eds all --demo
+1. What kind of market character does this symbol have?
+2. Is that character stable, tradeable, and strong enough to matter?
+3. Which strategy styles fit it best?
 
-# With real MT5 data
-python scripts/run_edge.py --symbol EURUSD --timeframe M15 --eds all
+The subsystem is now dataset-first, progressive, snapshot-aware, and automation-ready.
 
-# Multi-symbol screening
-python scripts/run_edge.py --symbols EURUSD,GBPUSD,USDJPY --timeframe H1 --eds mr
+## Progressive Flow
+
+The main Edge Lab flow is intentionally sequential:
+
+1. `Data`
+   - load one OHLCVS dataset
+   - validate, clean, enrich, and cache it for the current session
+2. `Core Metric`
+   - build a descriptive, cost-aware profile from the prepared dataset
+3. `Seasonality`
+   - map hourly, session, weekday, and monthly behavior
+4. `Market Structure`
+   - classify trend, reversion, chop, breakout quality, regime behavior, and deeper structure
+5. `Scorecard`
+   - convert the earlier outputs into decision-support scores and strategy-fit guidance
+
+Later tabs depend on prior outputs rather than rebuilding everything independently.
+
+## Main Capability Areas
+
+- shared OHLCVS preparation pipeline
+- EDS studies:
+  - `EDS-0` null / baseline
+  - `EDS-1` mean reversion
+  - `EDS-2` trend persistence
+  - `EDS-3` session edge
+- `Core Metric` descriptive profile
+- `Seasonality` time-based opportunity mapping
+- `Market Structure` unified trend / reversion / range / chop engine
+- `Scorecard` explainable decision-support layer
+- snapshot storage, report export, pair comparison
+- automation, batch execution, scheduled refresh
+- validation, calibration, stability, robustness, and acceptance testing
+
+## Dataset Pipeline
+
+Canonical preparation entrypoint:
+
+- `apps/edge/datasets.py -> prepare_ohlcvs_dataset(...)`
+
+Supporting modules:
+
+- `apps/edge/data/validation.py`
+- `apps/edge/data/cleaning.py`
+- `apps/edge/data/enrichment.py`
+- `apps/edge/data/models.py`
+
+Prepared datasets include:
+
+- canonical OHLCVS schema
+- OHLC logical validation
+- continuity and duplicate checks
+- spread and volume validation
+- missing-bar handling
+- pip / point metadata
+- body / wick / range features
+- returns and log returns
+- session and calendar enrichment
+
+Session classification now uses dataset index time as-is, with fixed windows:
+
+- `sydney` `00:00-06:59`
+- `tokyo` `02:00-08:59`
+- `london` `10:00-16:59`
+- `ny` `15:00-21:59`
+
+Overlaps and gaps are derived automatically and stored in the prepared dataset.
+
+## Core Metric
+
+Core Metric builds the first descriptive profile on top of the prepared dataset.
+
+Location:
+
+- `apps/edge/core_metrics/`
+
+Current families:
+
+- returns
+- ROC
+- candles
+- ranges
+- volatility
+- spread
+- volume / activity
+
+Persistence:
+
+- `edge_core_metric_runs`
+- `edge_core_metric_values`
+
+## EDS Studies
+
+### EDS-0
+
+Purpose:
+
+- establish null / no-edge baselines
+
+### EDS-1 Mean Reversion
+
+Purpose:
+
+- test whether stretched / compressed states revert
+
+### EDS-2 Trend Persistence
+
+Purpose:
+
+- test whether breakout-style states continue
+
+### EDS-3 Session Edge
+
+Purpose:
+
+- test time-window-specific behavior
+
+These studies remain useful directly, but they also feed the wider Market Structure and Scorecard layers.
+
+## Seasonality
+
+Main entrypoint:
+
+- `apps/edge/seasonality.py -> run_seasonality(...)`
+
+Seasonality now covers:
+
+- hourly movement metrics
+- hourly spread metrics
+- hourly volatility metrics
+- session movement summaries
+- session high / low formation rates
+- weekday and monthly statistics
+- ranked opportunity windows
+- low-opportunity windows
+- chart-ready heatmap and calendar models
+
+The UI now exposes both:
+
+- graphical heatmaps / charts for fast reading
+- summary tables for auditability
+
+## Market Structure
+
+Main entrypoint:
+
+- `apps/edge/market_structure.py -> build_market_structure_profile(...)`
+
+This is the main behavior engine. It classifies:
+
+- `TREND_BIASED`
+- `REVERSION_BIASED`
+- `MIXED`
+
+### What It Measures
+
+Trend-side structure:
+
+- swing detection
+- `HH` / `HL` / `LH` / `LL` structure
+- chains and legs
+- pullback quality
+- continuation after pullback
+
+Range / reversion / chop:
+
+- range-state detection
+- range duration and height
+- breakout follow-through
+- false-break frequency
+- reentry probability
+- half-life of reversion
+- z-score / band reentry
+- choppiness / whipsaw
+
+Phase 6 deep-dive metrics:
+
+- distribution metrics
+- breakout and retracement analysis
+- excursion studies
+- stop/target suitability proxies
+
+Phase 7 regime outputs:
+
+- trend regime
+- volatility regime
+- liquidity regime
+- transition matrix
+- regime share and duration
+- regime-conditioned metrics
+- regime-aware score inputs
+
+### Research Layers Around Market Structure
+
+Supporting modules:
+
+- `apps/edge/market_structure_validation.py`
+- `apps/edge/market_structure_calibration.py`
+- `apps/edge/market_structure_metric_calibration.py`
+- `apps/edge/market_structure_profiles.py`
+- `apps/edge/market_structure_profile_calibration.py`
+- `apps/edge/market_structure_stability.py`
+- `apps/edge/market_structure_robustness.py`
+- `apps/edge/market_structure_strategy_fit.py`
+
+These provide:
+
+- forward validation
+- top-level threshold calibration
+- lower-level metric-band calibration
+- symbol/timeframe profile calibration
+- regime stability
+- parameter robustness
+- strategy-fit mapping
+
+Persistence:
+
+- `edge_market_structure_runs`
+- `edge_market_structure_values`
+- `edge_market_structure_scores`
+- `edge_market_structure_swings`
+- `edge_market_structure_legs`
+- `edge_market_structure_evaluations`
+
+## Scorecard
+
+There are now two scorecard layers:
+
+1. frontend progressive scorecard
+   - `ui/src/lib/edge-lab-scorecard.ts`
+2. backend automation scorecard
+   - `apps/edge/scorecard.py`
+
+The scorecard converts upstream analytics into named, explainable scores such as:
+
+- Trendability
+- Noise
+- Cost Efficiency
+- Mean Reversion
+- Breakout Quality
+- Session Opportunity
+- Stability
+- Tradability
+
+It also adds:
+
+- per-score confidence labels
+- ranked strategy-fit outputs
+- warnings and anti-fit conditions
+- final opportunity label
+
+The backend scorecard now also exposes:
+
+- `score_spec_version`
+- `research_ready`
+- `readiness_label`
+- `readiness_reasons`
+
+## Strategy-Fit Engine
+
+The final scorecard stage ranks strategy archetypes such as:
+
+- Trend Breakout
+- Trend Pullback Continuation
+- Mean Reversion Fade
+- Range Reversion
+- Session Breakout
+- Intraday Scalping
+- Swing Trend Following
+- Volatility Expansion
+
+Each archetype includes:
+
+- fit score
+- rationale
+- warnings
+- anti-fit conditions
+- explicit inputs used
+
+## Snapshot Storage
+
+Edge Lab now persists versioned pair-profile snapshots through:
+
+- `apps/edge/profile_snapshot.py`
+- `apps/sqlite/edge_discovery.py`
+- `apps/sqlite/schema.py`
+
+Snapshot tables:
+
+- `edge_profile_snapshots`
+- `edge_profile_snapshot_metrics`
+- `edge_profile_snapshot_scores`
+- `edge_profile_snapshot_strategy_fit`
+- `edge_profile_snapshot_artifacts`
+
+Snapshots preserve:
+
+- dataset metadata
+- Core Metric summary
+- Seasonality summary
+- Market Structure summary
+- Scorecard rows
+- strategy-fit rankings
+- automation metadata
+- report / artifact refs
+
+Important reproducibility fields now preserved with snapshots:
+
+- `model_version`
+- `baseline_id`
+- `dataset_fingerprint`
+- `config_fingerprint`
+- `score_spec_version`
+
+## Reporting
+
+Main reporting module:
+
+- `apps/edge/profile_reporting.py`
+
+Current outputs:
+
+- profile summary builder
+- dashboard summary builder
+- JSON pair report
+- Markdown pair report
+- Markdown pair comparison report
+
+Reports are snapshot-based, so they stay aligned with the stored version/spec instead of re-running analysis on export.
+
+## Automation
+
+Automation entrypoints live in:
+
+- `apps/api/routes/edge.py`
+
+Current automation endpoints:
+
+- `POST /api/edge-lab/automation/run`
+- `POST /api/edge-lab/automation/batch`
+- `POST /api/edge-lab/automation/refresh`
+
+The automation path runs:
+
+1. dataset preparation
+2. Core Metric
+3. Seasonality
+4. Market Structure
+5. backend Scorecard
+6. optional snapshot persistence
+
+Current automation features:
+
+- single-symbol runner
+- batch runner
+- scheduled refresh hook
+- rerun metadata
+- partial recomputation by family
+- cache reuse of matching snapshots
+
+Dependency policy:
+
+- `scorecard -> market_structure -> seasonality -> core_metric`
+
+Automation metadata now includes:
+
+- trigger type
+- run reason
+- requested families
+- recomputed vs reused families
+- cache / dependency policy
+- partial-snapshot flag
+- per-stage timings
+
+Per-stage timings currently cover:
+
+- dataset prepare
+- cache lookup
+- Core Metric
+- Seasonality
+- Market Structure
+- backend Scorecard
+- snapshot persistence
+- total runtime
+
+Scheduler integration exists in:
+
+- `apps/utils/scheduler.py`
+
+and can run universe refreshes when `EDGE_LAB_BATCH_SYMBOLS` is configured.
+
+## UI Integration
+
+Relevant frontend areas:
+
+- `ui/src/contexts/edge-lab-data-context.tsx`
+- `ui/src/components/edge-lab/`
+- `ui/src/lib/api/edge.ts`
+- `ui/src/lib/edge-lab-dashboard.ts`
+
+Main pages:
+
+- `/edge-lab`
+- `/edge-lab/core-metric`
+- `/edge-lab/seasonality`
+- `/edge-lab/market-structure`
+- `/edge-lab/scorecard`
+- `/edge-lab/automation`
+- `/edge-lab/discovery`
+
+The UI now supports:
+
+- progressive prerequisite gating
+- shared prepared dataset reuse
+- Market Structure research panels
+- Scorecard snapshot save/export/compare
+- automation execution page
+- shared dashboard/view-model builders
+
+## Testing
+
+Edge Lab now has dedicated coverage for:
+
+- unit tests under `tests/unit/apps/edge`
+- integration tests under `tests/integration/apps/edge`
+- acceptance tests under `tests/acceptance/apps/edge`
+- synthetic fixtures under `tests/fixtures/edge_lab_scenarios.py`
+
+Acceptance scenarios include:
+
+- trending
+- ranging / mixed
+- noisy
+- spread-heavy
+- missing-data
+- short-history
+- DST/session-boundary
+
+The integration/audit layer verifies:
+
+- completed automation runs
+- cache reuse
+- partial recompute metadata
+- reproducibility
+- snapshot comparison
+- report consistency
+
+## Public Module Surface
+
+```text
+apps/edge/
+|-- __init__.py
+|-- config.py
+|-- datasets.py
+|-- results_schema.py
+|-- scorecard.py
+|-- profile_snapshot.py
+|-- profile_reporting.py
+|-- seasonality.py
+|-- market_structure.py
+|-- market_structure_validation.py
+|-- market_structure_calibration.py
+|-- market_structure_metric_calibration.py
+|-- market_structure_profiles.py
+|-- market_structure_profile_calibration.py
+|-- market_structure_stability.py
+|-- market_structure_robustness.py
+|-- market_structure_strategy_fit.py
+|-- core_metrics/
+|-- data/
+|-- eds_null_models.py
+|-- eds_mean_reversion.py
+|-- eds_trend_persistence.py
+|-- eds_session.py
+`-- README.md
 ```
-
-## What You Get
-
-- **EDS-0**: Null Models / Baseline (establish what random trading produces)
-- **EDS-1**: Mean Reversion Detector (compression + z-score fade)
-- **EDS-2**: Trend Persistence Detector (high-ATR breakout follow-through)
-- **EDS-3**: Session Edge Detector (time-of-day alpha)
-- **Core Metric MVP**: Descriptive and cost-aware pair profile built from prepared OHLCVS data
-- Block bootstrap confidence intervals (autocorrelation-aware)
-- R-space permutation tests
-- Multiple hypothesis correction (Benjamini-Hochberg FDR)
-- Markdown + JSON reporting
-
-## Analysis Pipeline
-
-- `datasets.py -> prepare_ohlcvs_dataset(...)` loads, validates, cleans, and enriches analysis-ready OHLCVS data.
-- `data/` contains the validation, cleaning, enrichment, and report models used by that pipeline.
-- `core_metrics/` contains the Core Metric MVP:
-  - base metric interface
-  - family registry
-  - normalized profile builder for returns, ROC, candles, ranges, volatility, spread, and basic volume/activity
-- Core Metric outputs can be persisted and queried through the Edge Lab API and SQLite tables `edge_core_metric_runs` and `edge_core_metric_values`.
-- Edge Lab UI now follows a dataset-first workflow:
-  - landing page `/edge-lab` is the `Data` tab and prepares/previews the dataset once
-  - `Discovery`, `Core Metric`, and `Seasonality` reuse that prepared dataset from session state instead of re-downloading it
 
 ## Philosophy
 
-Traditional strategy development often leads to curve-fitting:
-1. Backtest with many parameters
-2. Pick the best result
-3. Wonder why it fails in live trading
+Edge Lab is not the final execution strategy layer.
 
-Edge Lab flips this approach:
-1. **Hypothesize**: State a clear market behavior hypothesis
-2. **Test**: Run a minimal rule-based strategy
-3. **Validate**: Use rigorous statistics to prove/disprove
-4. **Compare to Null**: Ensure results beat random chance
+It is the upstream research layer that helps decide:
 
----
+- what kind of symbol behavior exists
+- whether that behavior is stable and trustworthy
+- whether it is efficient enough to trade
+- which strategy archetypes fit it best
+- how that profile compares across runs, versions, and symbols
 
-## Edge Discovery Strategies (EDS)
+## Related Documentation
 
-### EDS-0: Null Models / Baseline
+Detailed architecture notes are maintained in:
 
-**Purpose**: Establish what "no edge" looks like before claiming one exists.
-
-Baselines computed:
-- Random-entry, fixed-exit (same holding period distribution)
-- R-space simulation (preserving ATR-based stop distances)
-- Shuffled returns (break temporal structure)
-
-**Your strategy must beat the 95th percentile of null results.**
-
-```bash
-python scripts/run_edge.py --symbol EURUSD --eds null
-```
-
-### EDS-1: Mean Reversion Detector
-
-**Hypothesis**: In low-volatility (compressed) regimes, extreme z-score deviations revert to the mean.
-
-**Entry Conditions**:
-- Bollinger Band Width in bottom quartile (compression)
-- Z-score beyond threshold (e.g., |z| > 2.0)
-
-**Exit**: Mean touch (z crosses 0) or time stop
-
-**Configuration**:
-```python
-from apps.edge import MeanReversionConfig
-
-cfg = MeanReversionConfig(
-    sma_n=20,
-    z_entry=2.0,
-    bbw_n=20,
-    compression_q=0.25,
-    max_hold_bars=32,
-    k_stop_atr=1.2,
-)
-```
-
-### EDS-2: Trend Persistence Detector
-
-**Hypothesis**: After breakout in high-volatility regimes, momentum persists.
-
-**Entry Conditions**:
-- ATR in top 30% (high volatility)
-- Price breaks N-bar high/low
-
-**Exit**: Target (k×ATR), time stop, or opposite breakout
-
-**Why It Works**: High-ATR regimes often signal institutional participation.
-
-### EDS-3: Session Edge Detector
-
-**Hypothesis**: Price behavior differs by trading session (Asia/London/NY).
-
-**Strategies Tested**:
-- Session opening range breakout
-- Session mean-reversion fade
-
-**Statistical Guard**: Benjamini-Hochberg FDR correction for multiple testing.
-
----
-
-## Statistical Methods
-
-### Block Bootstrap CI
-
-Standard bootstrap assumes IID samples, but trade returns have autocorrelation. Block bootstrap preserves this structure.
-
-```python
-from apps.edge import block_bootstrap_ci
-ci_low, ci_high = block_bootstrap_ci(
-    r_multiples,
-    statistic=np.mean,
-    n_boot=2000,
-    block_size=20,
-    ci_level=0.95,
-)
-```
-
-### R-Space Null Distribution
-
-Simulate random entries in R-multiple space (normalized by stop distance):
-
-```python
-from apps.edge import r_space_null, permutation_test
-null_dist = r_space_null(
-    df, n_trades=200, hold_bars=32,
-    side="BUY", k_stop_atr=1.5, atr_series=atr,
-)
-pval = permutation_test(observed_exp, null_dist)
-```
-
-### Multiple Hypothesis Correction
-
-```python
-from apps.edge import benjamini_hochberg
-significant = benjamini_hochberg(p_values, q=0.10)
-```
-
----
-
-## Acceptance Criteria
-
-An edge is **confirmed** when:
-1. Bootstrap CI lower bound > 0
-2. Permutation p-value < 0.05
-3. Sample size >= 200 trades
-4. Results exceed 95th percentile of null baseline
-
-| Verdict | Meaning |
-|---------|---------|
-| EDGE_CONFIRMED | CI > 0 AND p < 0.05 - Strong evidence |
-| POTENTIAL_EDGE | CI > 0 but p >= 0.05 - Investigate further |
-| WEAK_SIGNAL | Positive expectancy but CI includes 0 |
-| NO_EDGE | Negative expectancy |
-| INSUFFICIENT_DATA | < 30 trades - Need more data |
-
----
-
-## Programmatic Usage
-
-```python
-from apps.edge import (
-    EdgeLabConfig,
-    DataConfig,
-    load_ohlc,
-    run_eds_mean_reversion,
-    run_eds_null_baseline,
-    print_result_summary,
-)
-from apps.mt5.client import MT5Client
-
-# Configure
-cfg = EdgeLabConfig(
-    data=DataConfig(symbol="EURUSD", timeframe="M15", end_pos=5000),
-)
-
-# Load data
-client = MT5Client()
-df = load_ohlc(client, "EURUSD", "M15", 0, 5000)
-
-# Establish baseline first
-null_result = run_eds_null_baseline(df, "EURUSD", "M15", cfg.null, cfg.bootstrap, cfg.perm)
-
-# Run strategy
-result = run_eds_mean_reversion(df, "EURUSD", "M15", cfg.mr, cfg.bootstrap, cfg.perm)
-
-# Print verdict
-print_result_summary(result)
-
-# Check if edge confirmed
-if result.stats.ci_low > 0 and result.stats.p_value_perm < 0.05:
-    print("Edge statistically confirmed!")
-```
-
----
-
-## Output Structure
-
-Results are saved to `edge_lab_outputs/`:
-
-```
-edge_lab_outputs/
-├── EURUSD_M15_EDS0_null.md
-├── EURUSD_M15_EDS0_null.json
-├── EURUSD_M15_EDS1_meanreversion.md
-├── EURUSD_M15_EDS1_meanreversion.json
-├── EURUSD_M15_EDS2_trendpersistence.md
-├── EURUSD_M15_EDS2_trendpersistence.json
-├── EURUSD_M15_EDS3_session.md
-├── EURUSD_M15_EDS3_session.json
-└── summary.md
-```
-
----
-
-## Module Structure
-
-```
-apps/edge/
-├── __init__.py          # Public API exports
-├── config.py            # Configuration dataclasses
-├── data/                # Validation, cleaning, enrichment pipeline
-├── datasets.py          # Data loading and end-to-end dataset preparation
-├── features.py          # Technical indicators (40+)
-├── null_models.py       # Statistical tests
-├── eds_null_models.py   # EDS-0: Baseline detector
-├── eds_mean_reversion.py # EDS-1: Mean reversion
-├── eds_trend_persistence.py # EDS-2: Trend following
-├── eds_session.py       # EDS-3: Session edge
-├── reporting.py         # Markdown/JSON output
-├── results_schema.py    # Result dataclasses
-└── README.md            # This file
-```
-
----
-
-## Best Practices
-
-1. **Start with EDS-0**: Always establish null baseline first
-2. **Sufficient Data**: Use 3000+ bars minimum, 5000+ preferred
-3. **Don't Cherry-Pick**: Run full analysis, not just favorable periods
-4. **Multiple Timeframes**: Test hypothesis across M15, H1, H4
-5. **Out-of-Sample**: Reserve 30% of data for validation
-6. **Document Everything**: Save reports for audit trail
-
----
-
-## Integration with RiskGovernor
-
-Once an EDS produces a proven edge, convert it to production:
-
-1. Define precise entry/exit rules
-2. Set stop_distance (ATR-based)
-3. Add slippage assumptions
-
-Then RiskGovernor handles:
-- Portfolio VaR/ES
-- Risk contribution caps
-- Correlation risk
-- Margin management
-
-**Strategy focuses on edge. Risk system focuses on survivability.**
-
----
-
-## Examples
-
-See `scripts/examples/edge_discovery_example.py` for comprehensive examples:
-
-1. Basic edge discovery for single symbol
-2. Multi-symbol screening
-3. Session analysis
-4. Custom parameters
-5. Null baseline comparison
-6. Exploratory data analysis
-
----
-
-## References
-
-- Van Tharp: *Definitive Guide to Position Sizing*
-- Efron & Tibshirani: *An Introduction to the Bootstrap*
-- Lopez de Prado: *Advances in Financial Machine Learning*
-- Bailey et al.: *The Probability of Backtest Overfitting*
+- `docs/haruquant/architecture.md`

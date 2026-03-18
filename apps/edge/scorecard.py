@@ -1,610 +1,626 @@
-"""
-Strategy Scorecard Module.
+"""Backend Edge Lab scorecard builder for automation and snapshot runs."""
 
-Computes the FINAL_SCORE (0-100) for SQX strategies based on:
-- Hard filter rejection
-- Normalized pillar scores (EDGE/ROBUST/STABILITY/RISK/SIMPLE)
-- Soft fragility penalty
-- Per-symbol ranking
-"""
+from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
-import numpy as np
-import pandas as pd
+SCORECARD_SPEC_VERSION = "edge_lab_scorecard_v1"
 
 
-# =============================
-# Normalization helpers
-# =============================
-def clamp(x: float, lo: float, hi: float) -> float:
-    """Clamp a value between a minimum and maximum."""
-    if x is None or (isinstance(x, float) and math.isnan(x)):
-        return float("nan")
-    return min(max(x, lo), hi)
+def _clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
+    return max(lo, min(hi, value))
 
 
-def norm_up(x: float, lo: float, hi: float) -> float:
-    """Normalize a value (higher is better) to 0-1 range."""
-    if x is None or (isinstance(x, float) and math.isnan(x)):
-        return float("nan")
-    if hi == lo:
+def _mean(values: Iterable[Optional[float]]) -> float:
+    clean = [float(value) for value in values if value is not None]
+    if not clean:
         return 0.0
-    return clamp((x - lo) / (hi - lo), 0.0, 1.0)
+    return sum(clean) / len(clean)
 
 
-def norm_down(x: float, lo: float, hi: float) -> float:
-    """Normalize a value (lower is better) to 0-1 range."""
-    if x is None or (isinstance(x, float) and math.isnan(x)):
-        return float("nan")
-    if hi == lo:
+def _normalize(value: Optional[float], lo: float, hi: float) -> float:
+    if value is None or hi <= lo:
         return 0.0
-    return clamp((hi - x) / (hi - lo), 0.0, 1.0)
+    return _clamp(((value - lo) / (hi - lo)) * 100.0)
 
 
-def logistic(x: float, mid: float, steep: float) -> float:
-    """Apply logistic function normalization."""
-    if x is None or (isinstance(x, float) and math.isnan(x)):
-        return float("nan")
-    z = -steep * (x - mid)
-    z = clamp(z, -60.0, 60.0)
-    return 1.0 / (1.0 + math.exp(z))
+def _score_confidence(value: float) -> str:
+    if value >= 70:
+        return "High"
+    if value >= 45:
+        return "Moderate"
+    return "Low"
 
 
-def ratio_score(r: float, lo: float = 0.50, hi: float = 1.10) -> float:
-    """Score a ratio value using norm_up."""
-    if r is None or (isinstance(r, float) and math.isnan(r)):
-        return float("nan")
-    return norm_up(r, lo, hi)
+def _warning_if(condition: bool, text: str) -> List[str]:
+    return [text] if condition else []
 
 
-def _nan_to_default_series(s: pd.Series, default: float) -> pd.Series:
-    return s.fillna(default)
+def _input_label(key: str) -> str:
+    return key.replace("_", " ")
 
 
-def safe_div(a: float, b: float, default: float = np.nan) -> float:
-    """Safely divide two numbers, returning default on zero division or error."""
-    try:
-        if b == 0 or (isinstance(b, float) and math.isnan(b)):
-            return default
-        return a / b
-    except Exception:
-        return default
-
-
-def _mean_score(scores: Dict[str, pd.Series], default: float = 0.0) -> pd.Series:
-    if not scores:
-        return pd.Series([default] * 0)
-    df = pd.DataFrame(scores)
-    df = df.astype(float)
-    mean = df.mean(axis=1, skipna=True)
-    mean = mean.fillna(default)
-    return mean
-
-
-def _weighted_sum(
-    scores: Dict[str, pd.Series], weights: Dict[str, float], default: float = 0.0
-) -> pd.Series:
-    if not scores:
-        return pd.Series([default] * 0)
-    df = pd.DataFrame(scores)
-    df = df.astype(float).fillna(default)
-    weight_vec = np.array([weights[k] for k in df.columns])
-    weighted = df.values * weight_vec
-    return pd.Series(weighted.sum(axis=1), index=df.index)
-
-
-@dataclass
-class ScoreConfig:
-    """Configuration for the scorecard."""
-
-    thresholds: Dict[str, Any] = field(
-        default_factory=lambda: {
-            "min_trades": 300,
-            "min_pf_final": 1.00,
-            "min_net_profit": 0.0,
-            "max_dd_pct": 40.0,
-            "min_ret_dd": 0.30,
-        }
+def _build_dynamic_rationale(
+    base: str,
+    inputs: Dict[str, Optional[float]],
+    warnings: List[str],
+) -> str:
+    ranked = sorted(
+        [(key, value) for key, value in inputs.items() if value is not None],
+        key=lambda item: item[1],
+        reverse=True,
     )
-    weights: Dict[str, float] = field(
-        default_factory=lambda: {
-            "EDGE": 0.30,
-            "ROBUST": 0.30,
-            "STABILITY": 0.20,
-            "RISK": 0.15,
-            "SIMPLE": 0.05,
-        }
+    strongest = [f"{_input_label(key)} {value:.1f}" for key, value in ranked[:2]]
+    weakest = ranked[-1] if ranked else None
+
+    parts = [base]
+    if strongest:
+        parts.append(f"Strongest inputs: {', '.join(strongest)}.")
+    if weakest is not None:
+        parts.append(f"Weakest input: {_input_label(weakest[0])} {weakest[1]:.1f}.")
+    if warnings:
+        parts.append(f"Main warning: {warnings[0]}")
+    return " ".join(parts)
+
+
+def _derive_tradeability(dataset: Dict[str, Any]) -> Optional[Dict[str, float]]:
+    rows = list(dataset.get("rows") or [])
+    schema = dict(dataset.get("schema") or {})
+    spread_key = str(schema.get("spread") or "Spread")
+    if not rows:
+        return None
+
+    spread_pips: List[float] = []
+    range_pips: List[float] = []
+    rollover_spread_pips: List[float] = []
+    active_flags: List[float] = []
+
+    for row in rows:
+        range_value = row.get("range_pips")
+        spread_value = row.get(spread_key)
+        point_size = row.get("point_size")
+        pip_size = row.get("pip_size")
+
+        if isinstance(range_value, (int, float)) and range_value > 0:
+            range_pips.append(float(range_value))
+            active_flags.append(1.0 if range_value >= 5 else 0.0)
+
+        if (
+            isinstance(spread_value, (int, float))
+            and isinstance(point_size, (int, float))
+            and isinstance(pip_size, (int, float))
+            and pip_size > 0
+        ):
+            spread_in_pips = (float(spread_value) * float(point_size)) / float(pip_size)
+            spread_pips.append(spread_in_pips)
+            if row.get("is_rollover_hour") is True:
+                rollover_spread_pips.append(spread_in_pips)
+
+    avg_spread_pips = _mean(spread_pips)
+    avg_range_pips = _mean(range_pips)
+    spread_to_range = (
+        avg_spread_pips / avg_range_pips if avg_spread_pips > 0 and avg_range_pips > 0 else None
     )
-    symbol_overrides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    rollover_spread = _mean(rollover_spread_pips)
+    active_rate = _mean(active_flags)
 
-
-class StrategyScorecard:
-    """Computes scores for strategy DataFrames."""
-
-    def __init__(self, config: Optional[ScoreConfig] = None):
-        """Initialize the StrategyScorecard with an optional configuration."""
-        self.config = config or ScoreConfig()
-
-    def process(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Run the full scoring pipeline on the dataframe."""
-        if df.empty:
-            return df
-
-        df = self._ensure_numeric(df)
-        df = self._compute_derived(df)
-        df = self._score_pillars(df)
-        df = self._apply_hard_filters(df)
-        df = self._apply_soft_penalties(df)
-        df = self._compute_final_score(df)
-        df = self._rank_within_symbol(df)
-        return df
-
-    def _ensure_numeric(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Columns that should be numeric
-        # We assume the DF comes from DB or CSV with mostly correct types,
-        # but let's enforce core metrics
-        cols = [
-            "trades",
-            "profit_factor",
-            "net_profit",
-            "max_drawdown_pct",
-            "return_pct",
-            "annual_return_pct",
-            "ret_dd",
-            "oos_profit_factor",
-            "oos_ret_dd",
-            "oos_annual_return_pct",
-            "oos_profitable_windows_ratio",
-            "spread_p99_retdd_ratio",
-            "spread_max_retdd_ratio",
-            "slip_retdd_ratio",
-            "delay_pf_ratio",
-            "mc_survival_rate",
-            "mc_retdd_p95_ratio",
-            "mc_dd_inflation",
-            "mc_overall_survival_rate",
-            "mc_overall_retdd_ratio",
-            "stagnation_days",
-            "max_consecutive_losses",
-            "pf_degradation_ratio",
-            "time_in_market_pct",
-            "parameter_count",
-            "indicator_count",
-            "mtf_count",
-            "param_perturb_profitable_rate",
-            "history_perturb_pf_ratio",
-            "ret_dd_ratio",
-            "win_percent",
-            "stagnation",
-            "a1_profit_factor",
-            "a1_ret_dd_ratio",
-            "a1_annual_return_pct",
-            "a1_trades",
-            "a1_net_profit",
-            "a1_max_drawdown_pct",
-            "a1_edge_score",
-            "a2_profit_factor",
-            "a2_ret_dd_ratio",
-            "a2_annual_return_pct",
-            "a2_trades",
-            "a2_net_profit",
-            "a2_max_drawdown_pct",
-            "a2_edge_score",
-            "e1_profit_factor",
-            "e1_ret_dd_ratio",
-            "e1_annual_return_pct",
-            "e1_trades",
-            "e1_net_profit",
-            "e1_max_drawdown_pct",
-            "e1_edge_score",
+    friction_score = 0.0 if spread_to_range is None else _clamp(100 - ((spread_to_range - 0.05) / 0.2) * 100)
+    activity_score = _clamp(active_rate * 100)
+    rollover_penalty = (
+        _clamp(100 - (((rollover_spread / avg_spread_pips) - 1) / 2) * 100)
+        if avg_spread_pips > 0 and rollover_spread > 0
+        else 50.0
+    )
+    volatility_adjusted_burden = (
+        (avg_spread_pips / max(1.0, avg_range_pips)) * 100
+        if avg_spread_pips > 0 and avg_range_pips > 0
+        else None
+    )
+    tradability_score = _mean(
+        [
+            friction_score,
+            activity_score,
+            rollover_penalty,
+            None if volatility_adjusted_burden is None else 100 - min(100, volatility_adjusted_burden),
         ]
-        for c in cols:
-            if c in df.columns:
-                df[c] = pd.to_numeric(df[c], errors="coerce")
-        return df
+    )
+    return {
+        "frictionScore": friction_score,
+        "activityScore": activity_score,
+        "rolloverPenalty": rollover_penalty,
+        "volatilityAdjustedBurden": volatility_adjusted_burden or 0.0,
+        "tradabilityScore": tradability_score,
+    }
 
-    def _compute_derived(self, df: pd.DataFrame) -> pd.DataFrame:
-        if "win_rate" in df.columns:
-            wr = df["win_rate"].copy()
-            # If win_rate > 1 (e.g. 55.5), convert to 0.555. 0-1 scale needed.
-            if np.nanmedian(wr.values) > 1.0:
-                df["win_rate"] = wr / 100.0
 
-        if "gross_loss" in df.columns:
-            df["gross_loss"] = df["gross_loss"].abs()
+def _derive_readiness(
+    *,
+    dataset: Dict[str, Any],
+    core_metric_profile: Dict[str, Any],
+    market_summary: Dict[str, Any],
+    overall_confidence: str,
+) -> Dict[str, Any]:
+    reasons: List[str] = []
+    row_count = int((dataset.get("meta") or {}).get("n_rows") or 0)
+    warning_count = int((core_metric_profile.get("summary") or {}).get("warning_count") or 0)
 
-        if "win_percent" in df.columns:
-            wp = df["win_percent"].copy()
-            if np.nanmedian(wp.values) > 1.0:
-                df["win_percent"] = wp / 100.0
+    if row_count < 50:
+        reasons.append("short_history")
+    if market_summary.get("is_valid") is False:
+        reasons.append("market_structure_invalid")
+    if float(market_summary.get("decision_confidence_score") or 0.0) < 35.0:
+        reasons.append("low_decision_confidence")
+    if overall_confidence == "Low":
+        reasons.append("low_scorecard_confidence")
+    if warning_count > 0:
+        reasons.append("data_warnings_present")
 
-        if "ret_dd" not in df.columns and {"return_pct", "max_drawdown_pct"}.issubset(
-            df.columns
-        ):
-            df["ret_dd"] = df.apply(
-                lambda r: safe_div(r["return_pct"], r["max_drawdown_pct"]), axis=1
-            )
+    if row_count < 50:
+        label = "INSUFFICIENT_SAMPLE"
+    elif any(reason in reasons for reason in ("market_structure_invalid", "low_decision_confidence", "low_scorecard_confidence")):
+        label = "USE_WITH_CAUTION"
+    else:
+        label = "RESEARCH_READY"
 
-        if "ret_dd" not in df.columns and "ret_dd_ratio" in df.columns:
-            df["ret_dd"] = df["ret_dd_ratio"]
+    return {
+        "research_ready": label == "RESEARCH_READY",
+        "readiness_label": label,
+        "readiness_reasons": reasons,
+    }
 
-        if "stagnation_days" not in df.columns and "stagnation" in df.columns:
-            df["stagnation_days"] = df["stagnation"]
 
-        # Basic degradations if OOS columns exist
-        if "pf_degradation_ratio" not in df.columns and {
-            "oos_profit_factor",
-            "is_profit_factor",
-        }.issubset(df.columns):
-            df["pf_degradation_ratio"] = df.apply(
-                lambda r: safe_div(r["oos_profit_factor"], r["is_profit_factor"]),
-                axis=1,
-            )
+def build_edge_lab_scorecard_report(
+    *,
+    dataset: Dict[str, Any],
+    core_metric_profile: Dict[str, Any],
+    seasonality_result: Dict[str, Any],
+    market_structure_profile: Dict[str, Any],
+    stability: Optional[Dict[str, Any]] = None,
+    robustness: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Build a deterministic backend scorecard report from progressive Edge Lab outputs."""
+    if not dataset or not core_metric_profile or not seasonality_result or not market_structure_profile:
+        return None
 
-        return df
+    tradeability = _derive_tradeability(dataset)
+    summary = dict(market_structure_profile.get("summary") or {})
+    breakout = dict(summary.get("breakout_analysis") or {})
+    regime_inputs = dict(summary.get("regime_score_inputs") or {})
 
-    def _apply_hard_filters(self, df: pd.DataFrame) -> pd.DataFrame:
-        thr = self.config.thresholds
-        defaults = {
-            "min_trades": float(thr.get("min_trades", 300)),
-            "min_pf_final": float(thr.get("min_pf_final", 1.00)),
-            "min_net_profit": float(thr.get("min_net_profit", 0.0)),
-            "max_dd_pct": float(thr.get("max_dd_pct", 40.0)),
-            "min_ret_dd": float(thr.get("min_ret_dd", 0.30)),
-        }
+    session_summary = list(seasonality_result.get("session_summary") or [])
+    opportunity_windows = dict(seasonality_result.get("opportunity_windows") or {})
 
-        # We'll stick "rejected" (lowercase to match DB schema)
-        df["rejected"] = 0
+    best_session = float((opportunity_windows.get("best_sessions") or [{}])[0].get("opportunity_score") or 0.0)
+    best_hour = float((opportunity_windows.get("best_hours") or [{}])[0].get("opportunity_score") or 0.0)
+    avg_session_opportunity = _mean(
+        [row.get("opportunity_score") for row in session_summary if isinstance(row, dict)]
+    )
 
-        for idx, row in df.iterrows():
-            if "stage" in df.columns:
-                stage = str(row.get("stage", ""))
-                if stage and stage != "F1_FINAL":
-                    continue
+    stability_agreement = (
+        float(stability.get("agreement_rate") or 0.0) * 100
+        if stability
+        else float(summary.get("decision_confidence_score") or 0.0)
+    )
+    robustness_agreement = (
+        float(robustness.get("verdict_agreement_rate") or 0.0) * 100
+        if robustness
+        else float(summary.get("decision_confidence_score") or 0.0)
+    )
 
-            if self._is_hard_fail(row, defaults):
-                df.at[idx, "rejected"] = 1
+    trendability = _mean(
+        [
+            summary.get("trend_bias_score"),
+            summary.get("trend_confidence_score"),
+            float(summary.get("breakout_follow_probability") or 0.0) * 100,
+            float(summary.get("continuation_after_pullback_rate") or 0.0) * 100,
+            float(regime_inputs.get("favorable_breakout_regime_share") or 0.0) * 100,
+        ]
+    )
+    noise = _mean(
+        [
+            summary.get("chop_score"),
+            float(summary.get("whipsaw_rate") or 0.0) * 100,
+            float(summary.get("false_break_frequency") or 0.0) * 100,
+            float(regime_inputs.get("low_liquidity_share") or 0.0) * 100,
+        ]
+    )
+    cost_efficiency = _mean(
+        [
+            None if tradeability is None else tradeability["frictionScore"],
+            None if tradeability is None else tradeability["rolloverPenalty"],
+            None
+            if tradeability is None
+            else 100 - min(100, float(tradeability.get("volatilityAdjustedBurden") or 0.0)),
+        ]
+    )
+    mean_reversion = _mean(
+        [
+            summary.get("reversion_bias_score"),
+            summary.get("reversion_confidence_score"),
+            float(summary.get("reentry_probability") or 0.0) * 100,
+            float(summary.get("zscore_reentry_rate") or 0.0) * 100,
+            float(summary.get("band_reentry_rate") or 0.0) * 100,
+            float(regime_inputs.get("favorable_reversion_regime_share") or 0.0) * 100,
+        ]
+    )
+    breakout_quality = _mean(
+        [
+            float(summary.get("breakout_follow_probability") or 0.0) * 100,
+            100 - (float(summary.get("false_break_frequency") or 0.0) * 100),
+            float(breakout.get("retest_success_rate") or 0.0) * 100,
+            _normalize(breakout.get("extension_behavior", {}).get("avg_extension_pips"), 2, 20),
+        ]
+    )
+    session_opportunity = _mean([best_session, best_hour, avg_session_opportunity])
+    stability_score = _mean(
+        [
+            float(summary.get("decision_confidence_score") or 0.0),
+            stability_agreement,
+            robustness_agreement,
+        ]
+    )
+    tradability = 0.0 if tradeability is None else float(tradeability.get("tradabilityScore") or 0.0)
 
-        return df
-
-    def _is_hard_fail(self, row: pd.Series, defaults: Dict[str, float]) -> bool:
-        """Check if a single row fails hard filters."""
-        sym = str(row.get("symbol", ""))
-        ovr = self.config.symbol_overrides.get(sym, {})
-
-        min_trades = float(ovr.get("min_trades", defaults["min_trades"]))
-        min_pf = float(ovr.get("min_pf_final", defaults["min_pf_final"]))
-        min_net_profit = float(ovr.get("min_net_profit", defaults["min_net_profit"]))
-        max_dd = float(ovr.get("max_dd_pct", defaults["max_dd_pct"]))
-        min_ret_dd = float(ovr.get("min_ret_dd", defaults["min_ret_dd"]))
-
-        trades = row.get("trades", np.nan)
-        # Use oos_profit_factor if available as primary, else profit_factor
-        pf = (
-            row.get("oos_profit_factor")
-            if pd.notna(row.get("oos_profit_factor"))
-            else row.get("profit_factor", np.nan)
-        )
-        netp = row.get("net_profit", np.nan)
-        dd = (
-            row.get("max_drawdown_pct")
-            if pd.notna(row.get("max_drawdown_pct"))
-            else row.get("drawdown_pct", np.nan)
-        )
-        retdd = row.get("ret_dd", row.get("ret_dd_ratio", np.nan))
-
-        # Trade count
-        if not (
-            isinstance(trades, (int, float))
-            and not math.isnan(float(trades))
-            and float(trades) >= min_trades
-        ):
-            return True
-
-        # Profit Factor
-        if isinstance(pf, (int, float)) and not math.isnan(float(pf)):
-            if float(pf) < min_pf:
-                return True
-        else:
-            return True  # Missing PF is fail
-
-        # Net Profit
-        if isinstance(netp, (int, float)) and not math.isnan(float(netp)):
-            if float(netp) <= min_net_profit:
-                return True
-        else:
-            return True  # Missing NP is fail
-
-        # Drawdown
-        if isinstance(dd, (int, float)) and not math.isnan(float(dd)):
-            if float(dd) > max_dd:
-                return True
-        else:
-            # Fallback: Ret/DD check if DD% missing
-            if not (
-                isinstance(retdd, (int, float))
-                and not math.isnan(float(retdd))
-                and float(retdd) >= min_ret_dd
-            ):
-                return True
-
-        return False
-
-    def _score_pillars(self, df: pd.DataFrame) -> pd.DataFrame:
-        # EDGE
-        def edge_from_prefix(prefix: str) -> pd.Series:
-            pf_col = f"{prefix}_profit_factor"
-            retdd_col = f"{prefix}_ret_dd_ratio"
-            ann_col = f"{prefix}_annual_return_pct"
-            if not ({pf_col, retdd_col, ann_col}.intersection(df.columns)):
-                return pd.Series([np.nan] * len(df), index=df.index)
-            pf = (
-                df[pf_col]
-                if pf_col in df.columns
-                else pd.Series([np.nan] * len(df), index=df.index)
-            )
-            retdd = (
-                df[retdd_col]
-                if retdd_col in df.columns
-                else pd.Series([np.nan] * len(df), index=df.index)
-            )
-            ann = (
-                df[ann_col]
-                if ann_col in df.columns
-                else pd.Series([np.nan] * len(df), index=df.index)
-            )
-            pf_s = pf.apply(lambda x: logistic(x, mid=1.20, steep=4.0))
-            retdd_s = retdd.apply(lambda x: logistic(x, mid=0.80, steep=3.0))
-            ann_s = ann.apply(lambda x: norm_up(x, lo=0.0, hi=40.0))
-            winwin_s = pd.Series([0.5] * len(df), index=df.index)
-            return 0.40 * pf_s + 0.35 * retdd_s + 0.15 * ann_s + 0.10 * winwin_s
-
-        edge_a1 = edge_from_prefix("a1")
-        edge_a2 = edge_from_prefix("a2")
-        edge_e1 = edge_from_prefix("e1")
-
-        df["a1_edge_score"] = edge_a1
-        df["a2_edge_score"] = edge_a2
-        df["e1_edge_score"] = edge_e1
-
-        edge_weights = {"a1": 10.0, "a2": 8.0, "e1": 12.0}
-        df["edge_score"] = _weighted_sum(
-            {"a1": edge_a1, "a2": edge_a2, "e1": edge_e1},
-            edge_weights,
-            default=0.0,
-        )
-
-        # ROBUST
-        def rs(col: str, default: float = 0.5) -> pd.Series:
-            return (
-                df[col].apply(lambda x: ratio_score(x))
-                if col in df.columns
-                else pd.Series([default] * len(df), index=df.index)
-            )
-
-        spread_s = rs("spread_p99_retdd_ratio", np.nan)
-        slip_s = rs("slip_retdd_ratio", np.nan)
-        delay_s = rs("delay_pf_ratio", np.nan)
-
-        mc_surv_s = (
-            df["mc_survival_rate"].apply(lambda x: clamp(x, 0.0, 1.0))
-            if "mc_survival_rate" in df.columns
-            else pd.Series([np.nan] * len(df), index=df.index)
-        )
-        mc_retdd_s = rs("mc_retdd_p95_ratio", np.nan)
-        dd_infl_s = (
-            df["mc_dd_inflation"].apply(lambda x: norm_down(x, lo=1.0, hi=1.5))
-            if "mc_dd_inflation" in df.columns
-            else pd.Series([np.nan] * len(df), index=df.index)
-        )
-        mc_all_surv_s = (
-            df["mc_overall_survival_rate"].apply(lambda x: clamp(x, 0.0, 1.0))
-            if "mc_overall_survival_rate" in df.columns
-            else pd.Series([np.nan] * len(df), index=df.index)
-        )
-        mc_all_retdd_s = rs("mc_overall_retdd_ratio", np.nan)
-
-        c1_score = _mean_score(
-            {"survival": mc_surv_s, "retdd": mc_retdd_s},
-            default=0.0,
-        )
-        c2_score = dd_infl_s
-        c3_score = pd.Series([np.nan] * len(df), index=df.index)
-        c4_score = (
-            df["param_perturb_profitable_rate"].apply(
-                lambda x: norm_up(x, lo=0.70, hi=0.95)
-            )
-            if "param_perturb_profitable_rate" in df.columns
-            else pd.Series([np.nan] * len(df), index=df.index)
-        )
-        c5_score = rs("history_perturb_pf_ratio", np.nan)
-        c6_score = _mean_score(
-            {"survival": mc_all_surv_s, "retdd": mc_all_retdd_s},
-            default=0.0,
-        )
-
-        robust_weights = {
-            "b1": 5.0,
-            "b3": 5.0,
-            "b4": 5.0,
-            "c1": 5.0,
-            "c2": 3.0,
-            "c3": 2.0,
-            "c4": 2.0,
-            "c5": 1.0,
-            "c6": 2.0,
-        }
-        df["robust_score"] = _weighted_sum(
-            {
-                "b1": spread_s,
-                "b3": slip_s,
-                "b4": delay_s,
-                "c1": c1_score,
-                "c2": c2_score,
-                "c3": c3_score,
-                "c4": c4_score,
-                "c5": c5_score,
-                "c6": c6_score,
+    rows: List[Dict[str, Any]] = [
+        {
+            "key": "trendability",
+            "label": "Trendability Score",
+            "score": trendability,
+            "confidence": _score_confidence(float(summary.get("trend_confidence_score") or 0.0)),
+            "explanation": "Combines trend bias, trend confidence, follow-through, pullback continuation, and favorable breakout regime share.",
+            "inputs": {
+                "trend_bias": summary.get("trend_bias_score"),
+                "trend_confidence": summary.get("trend_confidence_score"),
+                "breakout_follow_through": float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                "continuation_after_pullback": float(summary.get("continuation_after_pullback_rate") or 0.0) * 100,
             },
-            robust_weights,
-            default=0.0,
+        },
+        {
+            "key": "noise",
+            "label": "Noise Score",
+            "score": noise,
+            "confidence": _score_confidence(100 - noise),
+            "explanation": "Higher means more chop, whipsaw, false-break pressure, and low-liquidity disturbance.",
+            "inputs": {
+                "chop": summary.get("chop_score"),
+                "whipsaw_rate": float(summary.get("whipsaw_rate") or 0.0) * 100,
+                "false_break_frequency": float(summary.get("false_break_frequency") or 0.0) * 100,
+                "low_liquidity_share": float(regime_inputs.get("low_liquidity_share") or 0.0) * 100,
+            },
+        },
+        {
+            "key": "cost_efficiency",
+            "label": "Cost Efficiency Score",
+            "score": cost_efficiency,
+            "confidence": _score_confidence(cost_efficiency),
+            "explanation": "Focuses on friction only: spread burden, rollover burden, and volatility-adjusted cost.",
+            "inputs": {
+                "friction": None if tradeability is None else tradeability["frictionScore"],
+                "rollover": None if tradeability is None else tradeability["rolloverPenalty"],
+                "vol_adj_cost": None if tradeability is None else tradeability["volatilityAdjustedBurden"],
+            },
+        },
+        {
+            "key": "mean_reversion",
+            "label": "Mean Reversion Score",
+            "score": mean_reversion,
+            "confidence": _score_confidence(float(summary.get("reversion_confidence_score") or 0.0)),
+            "explanation": "Combines reversion bias, reversion confidence, reentry behavior, and favorable reversion regime share.",
+            "inputs": {
+                "reversion_bias": summary.get("reversion_bias_score"),
+                "reversion_confidence": summary.get("reversion_confidence_score"),
+                "reentry_probability": float(summary.get("reentry_probability") or 0.0) * 100,
+                "zscore_reentry": float(summary.get("zscore_reentry_rate") or 0.0) * 100,
+            },
+        },
+        {
+            "key": "breakout_quality",
+            "label": "Breakout Quality Score",
+            "score": breakout_quality,
+            "confidence": _score_confidence(breakout_quality),
+            "explanation": "Measures whether breaks tend to continue, survive retests, and extend enough to be strategy-useful.",
+            "inputs": {
+                "follow_through": float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                "inverse_failure": 100 - (float(summary.get("false_break_frequency") or 0.0) * 100),
+                "retest_success": float(breakout.get("retest_success_rate") or 0.0) * 100,
+                "extension": _normalize(breakout.get("extension_behavior", {}).get("avg_extension_pips"), 2, 20),
+            },
+        },
+        {
+            "key": "session_opportunity",
+            "label": "Session Opportunity Score",
+            "score": session_opportunity,
+            "confidence": _score_confidence(session_opportunity),
+            "explanation": "Uses the best session, best hour, and average session opportunity from Seasonality.",
+            "inputs": {
+                "best_session": best_session,
+                "best_hour": best_hour,
+                "avg_session_opportunity": avg_session_opportunity,
+            },
+        },
+        {
+            "key": "stability",
+            "label": "Stability Score",
+            "score": stability_score,
+            "confidence": _score_confidence(stability_score),
+            "explanation": "Combines decision confidence with any available stability and robustness snapshots.",
+            "inputs": {
+                "decision_confidence": summary.get("decision_confidence_score"),
+                "stability_agreement": stability_agreement if stability else None,
+                "robustness_agreement": robustness_agreement if robustness else None,
+            },
+        },
+        {
+            "key": "tradability",
+            "label": "Tradability Score",
+            "score": tradability,
+            "confidence": _score_confidence(tradability),
+            "explanation": "Composite execution friendliness using friction, activity, rollover, and volatility-adjusted burden.",
+            "inputs": {
+                "tradability": tradability,
+                "friction": None if tradeability is None else tradeability["frictionScore"],
+                "activity": None if tradeability is None else tradeability["activityScore"],
+                "rollover": None if tradeability is None else tradeability["rolloverPenalty"],
+            },
+        },
+    ]
+
+    strategy_candidates: List[Dict[str, Any]] = [
+        {
+            "archetype": "Trend Breakout",
+            "fitScore": _mean(
+                [
+                    summary.get("trend_bias_score"),
+                    summary.get("trend_confidence_score"),
+                    float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                    float(breakout.get("retest_success_rate") or 0.0) * 100,
+                    float(regime_inputs.get("favorable_breakout_regime_share") or 0.0) * 100,
+                ]
+            ),
+            "warnings": [
+                *_warning_if(float(summary.get("false_break_frequency") or 0.0) >= 0.45, "False-break frequency is elevated."),
+                *_warning_if(float(summary.get("whipsaw_rate") or 0.0) >= 0.35, "Whipsaw pressure can degrade breakout entries."),
+                *_warning_if((tradeability or {}).get("frictionScore", 0.0) < 45, "Execution friction is high for breakout-style entries."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(summary.get("reversion_bias_score") or 0.0) > float(summary.get("trend_bias_score") or 0.0), "Reversion bias currently dominates trend bias."),
+            ],
+            "inputs": {
+                "trend_bias": summary.get("trend_bias_score"),
+                "breakout_follow": float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                "retest_success": float(breakout.get("retest_success_rate") or 0.0) * 100,
+                "breakout_regime_share": float(regime_inputs.get("favorable_breakout_regime_share") or 0.0) * 100,
+            },
+            "base": "Best when trend bias is strong, breakouts follow through, and the favorable breakout regime share is high.",
+        },
+        {
+            "archetype": "Trend Pullback Continuation",
+            "fitScore": _mean(
+                [
+                    summary.get("trend_bias_score"),
+                    summary.get("trend_confidence_score"),
+                    float(summary.get("continuation_after_pullback_rate") or 0.0) * 100,
+                    _normalize(summary.get("pullback_leg_count"), 2, 20),
+                    stability_agreement,
+                ]
+            ),
+            "warnings": [
+                *_warning_if(float(summary.get("continuation_after_pullback_rate") or 0.0) < 0.45, "Pullback continuation rate is weak."),
+                *_warning_if(float(summary.get("pullback_leg_count") or 0.0) < 3, "Pullback sample is thin."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(summary.get("chop_score") or 0.0) >= 60, "High chop can make pullback structure unreliable."),
+            ],
+            "inputs": {
+                "trend_bias": summary.get("trend_bias_score"),
+                "continuation_after_pullback": float(summary.get("continuation_after_pullback_rate") or 0.0) * 100,
+                "pullback_count": summary.get("pullback_leg_count"),
+                "stability": stability_agreement,
+            },
+            "base": "Best when the dominant trend survives pullbacks and continuation after pullback stays strong.",
+        },
+        {
+            "archetype": "Mean Reversion Fade",
+            "fitScore": _mean(
+                [
+                    summary.get("reversion_bias_score"),
+                    summary.get("reversion_confidence_score"),
+                    float(summary.get("zscore_reentry_rate") or 0.0) * 100,
+                    float(summary.get("band_reentry_rate") or 0.0) * 100,
+                    float(regime_inputs.get("favorable_reversion_regime_share") or 0.0) * 100,
+                ]
+            ),
+            "warnings": [
+                *_warning_if(float(summary.get("breakout_follow_probability") or 0.0) >= 0.55, "Breakout continuation is strong enough to punish fades."),
+                *_warning_if((tradeability or {}).get("frictionScore", 0.0) < 50, "Costs may consume short-horizon mean-reversion edges."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(summary.get("trend_bias_score") or 0.0) >= 60, "Trend bias is too strong for a pure mean-reversion fade."),
+            ],
+            "inputs": {
+                "reversion_bias": summary.get("reversion_bias_score"),
+                "zscore_reentry": float(summary.get("zscore_reentry_rate") or 0.0) * 100,
+                "band_reentry": float(summary.get("band_reentry_rate") or 0.0) * 100,
+                "favorable_reversion_regime_share": float(regime_inputs.get("favorable_reversion_regime_share") or 0.0) * 100,
+            },
+            "base": "Best when deviations snap back quickly, reentry behavior is frequent, and reversion-favorable regimes dominate.",
+        },
+        {
+            "archetype": "Range Reversion",
+            "fitScore": _mean(
+                [
+                    summary.get("reversion_bias_score"),
+                    float(summary.get("reentry_probability") or 0.0) * 100,
+                    float(summary.get("false_break_frequency") or 0.0) * 100,
+                    _normalize(summary.get("range_duration_bars"), 3, 30),
+                    float(breakout.get("retest_success_rate") or 0.0) * 100,
+                ]
+            ),
+            "warnings": [
+                *_warning_if(float(summary.get("range_duration_bars") or 0.0) < 4, "Detected ranges are short-lived."),
+                *_warning_if(float(summary.get("breakout_follow_probability") or 0.0) > 0.55, "Breakout follow-through is too strong for comfortable range fading."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(summary.get("trend_confidence_score") or 0.0) > float(summary.get("reversion_confidence_score") or 0.0) + 15, "Trend confidence dominates reversion confidence."),
+            ],
+            "inputs": {
+                "reversion_bias": summary.get("reversion_bias_score"),
+                "reentry_probability": float(summary.get("reentry_probability") or 0.0) * 100,
+                "false_break_frequency": float(summary.get("false_break_frequency") or 0.0) * 100,
+                "range_duration": summary.get("range_duration_bars"),
+            },
+            "base": "Best when ranges persist, breakouts fail, and price reenters instead of extending cleanly.",
+        },
+        {
+            "archetype": "Session Breakout",
+            "fitScore": _mean(
+                [
+                    best_session,
+                    best_hour,
+                    summary.get("trend_bias_score"),
+                    float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                    None if tradeability is None else tradeability["frictionScore"],
+                ]
+            ),
+            "warnings": [
+                *_warning_if(best_session < 55, "Seasonality does not show a clearly strong breakout session."),
+                *_warning_if((tradeability or {}).get("frictionScore", 0.0) < 45, "Session breakout edge may be eroded by spread burden."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(summary.get("chop_score") or 0.0) >= 65, "High chop undermines clean session breakout execution."),
+            ],
+            "inputs": {
+                "best_session_opportunity": best_session,
+                "best_hour_opportunity": best_hour,
+                "breakout_follow": float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                "friction": None if tradeability is None else tradeability["frictionScore"],
+            },
+            "base": "Best when seasonality shows obvious opportunity windows and breakout behavior is still structurally supportive.",
+        },
+        {
+            "archetype": "Intraday Scalping",
+            "fitScore": _mean(
+                [
+                    avg_session_opportunity,
+                    None if tradeability is None else tradeability["frictionScore"],
+                    None if tradeability is None else tradeability["activityScore"],
+                    100 - float(summary.get("chop_score") or 0.0),
+                ]
+            ),
+            "warnings": [
+                *_warning_if((tradeability or {}).get("frictionScore", 0.0) < 60, "Spread burden is high for scalping."),
+                *_warning_if((tradeability or {}).get("activityScore", 0.0) < 45, "Intraday activity is inconsistent."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float((opportunity_windows.get("dead_sessions") or [{}])[0].get("opportunity_score") or 0.0) > 40, "Low-opportunity windows are not clearly separated from better windows."),
+            ],
+            "inputs": {
+                "avg_session_opportunity": avg_session_opportunity,
+                "friction": None if tradeability is None else tradeability["frictionScore"],
+                "activity": None if tradeability is None else tradeability["activityScore"],
+                "inverse_noise": 100 - float(summary.get("chop_score") or 0.0),
+            },
+            "base": "Best when intraday opportunity is broad, activity is stable, and friction is low enough for smaller targets.",
+        },
+        {
+            "archetype": "Swing Trend Following",
+            "fitScore": _mean(
+                [
+                    summary.get("trend_bias_score"),
+                    summary.get("trend_confidence_score"),
+                    stability_agreement,
+                    robustness_agreement,
+                    _normalize(((breakout.get("extension_behavior") or {}).get("p75_extension_pips")), 5, 35),
+                ]
+            ),
+            "warnings": [
+                *_warning_if(stability_agreement < 55, "Trend read is not stable enough across subperiods."),
+                *_warning_if(robustness_agreement < 55, "Trend read is sensitive to nearby parameter changes."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(summary.get("reversion_bias_score") or 0.0) >= 60, "Reversion bias remains too strong for comfortable swing trend holding."),
+            ],
+            "inputs": {
+                "trend_bias": summary.get("trend_bias_score"),
+                "trend_confidence": summary.get("trend_confidence_score"),
+                "stability": stability_agreement,
+                "robustness": robustness_agreement,
+            },
+            "base": "Best when trend bias is stable across blocks and nearby parameter changes, with enough extension to hold swings.",
+        },
+        {
+            "archetype": "Volatility Expansion",
+            "fitScore": _mean(
+                [
+                    float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                    _normalize(summary.get("range_height_pips"), 5, 50),
+                    _normalize(((breakout.get("extension_behavior") or {}).get("avg_extension_pips")), 2, 25),
+                    float(regime_inputs.get("high_vol_trend_share") or 0.0) * 100,
+                ]
+            ),
+            "warnings": [
+                *_warning_if(float(summary.get("false_break_frequency") or 0.0) >= 0.40, "Too many breaks still fail for a clean expansion profile."),
+                *_warning_if((tradeability or {}).get("rolloverPenalty", 0.0) < 45, "Volatility-expansion trades may be hurt by rollover friction."),
+            ],
+            "antiFitConditions": [
+                *_warning_if(float(regime_inputs.get("high_vol_trend_share") or 0.0) < 0.20, "High-volatility trend regimes are too rare."),
+            ],
+            "inputs": {
+                "breakout_follow": float(summary.get("breakout_follow_probability") or 0.0) * 100,
+                "range_height": summary.get("range_height_pips"),
+                "avg_extension": ((breakout.get("extension_behavior") or {}).get("avg_extension_pips")),
+                "high_vol_trend_share": float(regime_inputs.get("high_vol_trend_share") or 0.0) * 100,
+            },
+            "base": "Best when high-vol trend regimes are frequent and breakout extensions are large enough to exploit expansion moves.",
+        },
+    ]
+
+    ranked_fit: List[Dict[str, Any]] = []
+    for candidate in sorted(strategy_candidates, key=lambda row: row["fitScore"], reverse=True):
+        ranked_fit.append(
+            {
+                "archetype": candidate["archetype"],
+                "fitScore": candidate["fitScore"],
+                "rationale": _build_dynamic_rationale(candidate["base"], candidate["inputs"], candidate["warnings"]),
+                "warnings": candidate["warnings"],
+                "antiFitConditions": candidate["antiFitConditions"],
+                "inputs": candidate["inputs"],
+            }
         )
 
-        # STABILITY
-        stagn_s = (
-            df["stagnation_days"].apply(lambda x: norm_down(x, lo=0.0, hi=30.0))
-            if "stagnation_days" in df.columns
-            else pd.Series([0.5] * len(df), index=df.index)
-        )
-        consec_s = (
-            df["max_consecutive_losses"].apply(lambda x: norm_down(x, lo=4.0, hi=12.0))
-            if "max_consecutive_losses" in df.columns
-            else pd.Series([0.5] * len(df), index=df.index)
-        )
-        deg_pf_s = (
-            df["pf_degradation_ratio"].apply(lambda x: ratio_score(x))
-            if "pf_degradation_ratio" in df.columns
-            else pd.Series([0.5] * len(df), index=df.index)
-        )
+    final_score = _mean(
+        [
+            max(trendability, mean_reversion),
+            breakout_quality,
+            session_opportunity,
+            cost_efficiency,
+            tradability,
+            stability_score,
+            100 - noise,
+        ]
+    )
+    final_label = "Low Opportunity"
+    if final_score >= 70:
+        final_label = "High Opportunity"
+    elif final_score >= 45:
+        final_label = "Moderate Opportunity"
+    overall_confidence = _score_confidence(_mean([row["score"] for row in rows]))
+    readiness = _derive_readiness(
+        dataset=dataset,
+        core_metric_profile=core_metric_profile,
+        market_summary=summary,
+        overall_confidence=overall_confidence,
+    )
 
-        a2_stability = _mean_score(
-            {"deg": deg_pf_s, "stagn": stagn_s, "consec": consec_s},
-            default=0.0,
-        )
-        if "a2_profit_factor" in df.columns:
-            a2_available = df["a2_profit_factor"].notna()
-        elif "a2_ret_dd_ratio" in df.columns:
-            a2_available = df["a2_ret_dd_ratio"].notna()
-        elif "a2_trades" in df.columns:
-            a2_available = df["a2_trades"].notna()
-        else:
-            a2_available = pd.Series([False] * len(df), index=df.index)
-        a2_stability = a2_stability.where(a2_available, np.nan)
-        stability_weights = {"a2": 10.0, "c2": 5.0, "c3": 5.0}
-        df["stability_score"] = _weighted_sum(
-            {"a2": a2_stability, "c2": c2_score, "c3": c3_score},
-            stability_weights,
-            default=0.0,
-        )
-
-        # RISK
-        retdd_base_s = (
-            df["ret_dd"].apply(lambda x: logistic(x, mid=0.80, steep=3.0))
-            if "ret_dd" in df.columns
-            else pd.Series([0.5] * len(df), index=df.index)
-        )
-        dd_s = (
-            df["max_drawdown_pct"].apply(lambda x: norm_down(x, lo=10.0, hi=40.0))
-            if ("max_drawdown_pct" in df.columns)
-            else pd.Series([0.5] * len(df), index=df.index)
-        )
-        # fallback for DD if not found? max_drawdown_pct is standard in many exports
-
-        tim_s = (
-            df["time_in_market_pct"].apply(lambda x: norm_down(x, lo=20.0, hi=80.0))
-            if "time_in_market_pct" in df.columns
-            else pd.Series([0.5] * len(df), index=df.index)
-        )
-
-        risk_weights = {"retdd": 7.0, "dd": 5.0, "tim": 3.0}
-        df["risk_score"] = _weighted_sum(
-            {"retdd": retdd_base_s, "dd": dd_s, "tim": tim_s},
-            risk_weights,
-            default=0.0,
-        )
-
-        # SIMPLE
-        if {"parameter_count", "indicator_count"}.issubset(df.columns):
-            par_s = df["parameter_count"].apply(lambda x: norm_down(x, lo=5.0, hi=25.0))
-            ind_s = df["indicator_count"].apply(lambda x: norm_down(x, lo=2.0, hi=12.0))
-            simple_weights = {"par": 3.0, "ind": 2.0}
-            df["simple_score"] = _weighted_sum(
-                {"par": par_s, "ind": ind_s},
-                simple_weights,
-                default=0.0,
-            )
-        else:
-            df["simple_score"] = 0.0
-
-        return df
-
-    def _apply_soft_penalties(self, df: pd.DataFrame) -> pd.DataFrame:
-        if "param_perturb_profitable_rate" in df.columns:
-            pp_s = df["param_perturb_profitable_rate"].apply(
-                lambda x: norm_up(x, lo=0.70, hi=0.95)
-            )
-        else:
-            pp_s = pd.Series([np.nan] * len(df), index=df.index)
-
-        if "history_perturb_pf_ratio" in df.columns:
-            hist_s = df["history_perturb_pf_ratio"].apply(lambda x: ratio_score(x))
-        else:
-            hist_s = pd.Series([np.nan] * len(df), index=df.index)
-
-        weight_sum = (pp_s.notna().astype(float) * 0.60) + (
-            hist_s.notna().astype(float) * 0.40
-        )
-        weighted = (pp_s.fillna(0.0) * 0.60) + (hist_s.fillna(0.0) * 0.40)
-        score = weighted.div(weight_sum.where(weight_sum > 0), fill_value=1.0)
-        df["fragility_penalty"] = (10.0 * (1 - score)).clip(0.0, 10.0)
-        df.loc[weight_sum == 0, "fragility_penalty"] = 0.0
-
-        if "spread_max_retdd_ratio" in df.columns:
-            ratio = df["spread_max_retdd_ratio"]
-            penalty = ratio.apply(
-                lambda x: (
-                    3.0 * (0.70 - x) / 0.70
-                    if isinstance(x, (int, float))
-                    and not math.isnan(float(x))
-                    and x < 0.70
-                    else 0.0
-                )
-            )
-            df["fragility_penalty"] = (df["fragility_penalty"] + penalty).clip(
-                0.0, 15.0
-            )
-
-        return df
-
-    def _compute_final_score(self, df: pd.DataFrame) -> pd.DataFrame:
-        base_points = (
-            df["edge_score"]
-            + df["robust_score"]
-            + df["stability_score"]
-            + df["risk_score"]
-            + df["simple_score"]
-        ).clip(0.0, 100.0)
-
-        df["base_score_0_1"] = (base_points / 100.0).round(4)
-        df["final_score"] = (
-            (base_points - df["fragility_penalty"]).clip(0.0, 100.0).round(3)
-        )
-
-        # Zero out rejected strategies
-        df.loc[df["rejected"] == 1, "final_score"] = 0.0
-        return df
-
-    def _rank_within_symbol(self, df: pd.DataFrame) -> pd.DataFrame:
-        def col_or_default(c: str, default: float) -> pd.Series:
-            return (
-                df[c]
-                if c in df.columns
-                else pd.Series([default] * len(df), index=df.index)
-            )
-
-        df["_tb1"] = col_or_default("mc_overall_survival_rate", 0.5)
-        df["_tb2"] = col_or_default("mc_overall_retdd_ratio", 0.9)
-        df["_tb3"] = col_or_default("parameter_count", 999.0)  # lower better
-        df["_tb4"] = col_or_default("max_drawdown_pct", 999.0)  # lower better
-
-        df = df.sort_values(
-            by=["symbol", "final_score", "_tb1", "_tb2", "_tb3", "_tb4"],
-            ascending=[True, False, False, False, True, True],
-            kind="mergesort",
-        ).copy()
-
-        df["rank_in_symbol"] = df.groupby("symbol").cumcount() + 1
-        return df.drop(columns=["_tb1", "_tb2", "_tb3", "_tb4"], errors="ignore")
+    return {
+        "rows": rows,
+        "finalScore": final_score,
+        "finalLabel": final_label,
+        "overallConfidence": overall_confidence,
+        "scoreSpecVersion": SCORECARD_SPEC_VERSION,
+        **readiness,
+        "strategyFit": {
+            "primary": ranked_fit[0] if ranked_fit else None,
+            "ranked": ranked_fit,
+        },
+    }

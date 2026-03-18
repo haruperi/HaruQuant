@@ -3,38 +3,24 @@
 import { useEffect, useState } from "react"
 import { Loader2, RefreshCcw, Sigma } from "lucide-react"
 
+import { EdgeLabCollectionState } from "@/components/edge-lab/collection-state"
+import { EdgeLabControlToggle } from "@/components/edge-lab/control-toggle"
+import { EdgeLabDatasetSummary } from "@/components/edge-lab/dataset-summary"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { edgeLabApi, type EdgeCoreMetricProfile, type EdgeCoreMetricRunRow, type EdgeCoreMetricValue } from "@/lib/api/edge"
-import { cn } from "@/lib/utils"
 import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
-import { EdgeLabDatasetSummary } from "@/components/edge-lab/dataset-summary"
-import { EdgeLabCollectionState } from "@/components/edge-lab/collection-state"
-import { EdgeLabControlToggle } from "@/components/edge-lab/control-toggle"
-
-function formatMetricValue(value: number | string | null) {
-  if (value === null || value === undefined) return "—"
-  if (typeof value === "number") return value.toFixed(4)
-  return value
-}
-
-function groupMetrics(values: EdgeCoreMetricValue[]) {
-  return values.reduce<Record<string, EdgeCoreMetricValue[]>>((acc, value) => {
-    if (!acc[value.family]) acc[value.family] = []
-    acc[value.family].push(value)
-    return acc
-  }, {})
-}
+import { edgeLabApi, type EdgeCoreMetricRunRow, type EdgeCoreMetricValue } from "@/lib/api/edge"
+import { formatEdgeValue, groupCoreMetricValues } from "@/lib/edge-lab-dashboard"
+import { cn } from "@/lib/utils"
 
 export default function EdgeLabCoreMetricPage() {
-  const { dataset } = useEdgeLabData()
+  const { dataset, coreMetricProfile, setCoreMetricProfile } = useEdgeLabData()
   const [saveDb, setSaveDb] = useState(true)
   const [loading, setLoading] = useState(false)
   const [runsLoading, setRunsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [profile, setProfile] = useState<EdgeCoreMetricProfile | null>(null)
   const [runs, setRuns] = useState<EdgeCoreMetricRunRow[]>([])
 
   const refreshRuns = async () => {
@@ -71,7 +57,7 @@ export default function EdgeLabCoreMetricPage() {
         prepared_dataset: dataset,
         save_db: saveDb,
       })
-      setProfile(response)
+      setCoreMetricProfile(response)
       await refreshRuns()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to run Core Metric profile.")
@@ -84,7 +70,7 @@ export default function EdgeLabCoreMetricPage() {
     setLoading(true)
     setError(null)
     try {
-      setProfile(await edgeLabApi.getCoreMetricRun(runId))
+      setCoreMetricProfile(await edgeLabApi.getCoreMetricRun(runId))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Core Metric run.")
     } finally {
@@ -92,7 +78,21 @@ export default function EdgeLabCoreMetricPage() {
     }
   }
 
-  const grouped = groupMetrics(profile?.values || [])
+  const deleteRun = async (runId: number) => {
+    const confirmed = window.confirm(`Delete core metric run #${runId}?`)
+    if (!confirmed) return
+    try {
+      await edgeLabApi.deleteCoreMetricRun(runId)
+      if (coreMetricProfile?.run_id === runId) {
+        setCoreMetricProfile(null)
+      }
+      await refreshRuns()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete Core Metric run.")
+    }
+  }
+
+  const grouped = groupCoreMetricValues((coreMetricProfile?.values || []) as EdgeCoreMetricValue[])
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -133,25 +133,25 @@ export default function EdgeLabCoreMetricPage() {
         </CardContent>
       </Card>
 
-      {profile && (
+      {coreMetricProfile && (
         <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>{profile.symbol} {profile.timeframe}</span>
-                <Badge className={profile.summary.is_valid ? "bg-emerald-500/15 text-emerald-600" : "bg-rose-500/15 text-rose-600"}>
-                  {profile.summary.is_valid ? "VALID" : "HAS_FATAL_ERRORS"}
+                <span>{coreMetricProfile.symbol} {coreMetricProfile.timeframe}</span>
+                <Badge className={coreMetricProfile.summary.is_valid ? "bg-emerald-500/15 text-emerald-600" : "bg-rose-500/15 text-rose-600"}>
+                  {coreMetricProfile.summary.is_valid ? "VALID" : "HAS_FATAL_ERRORS"}
                 </Badge>
               </CardTitle>
-              <CardDescription>{profile.bar_count} bars, {profile.summary.metric_count} persisted metrics.</CardDescription>
+              <CardDescription>{coreMetricProfile.bar_count} bars, {coreMetricProfile.summary.metric_count} persisted metrics.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-5 text-sm">
-                <div><div className="text-muted-foreground">Families</div><div>{profile.summary.family_count}</div></div>
-                <div><div className="text-muted-foreground">Warnings</div><div>{profile.summary.warning_count}</div></div>
-                <div><div className="text-muted-foreground">Fatal Errors</div><div>{profile.summary.fatal_error_count}</div></div>
-                <div><div className="text-muted-foreground">Data Source</div><div>{profile.data_source}</div></div>
-                <div><div className="text-muted-foreground">Run ID</div><div>{profile.run_id ?? "Not saved"}</div></div>
+                <div><div className="text-muted-foreground">Families</div><div>{coreMetricProfile.summary.family_count}</div></div>
+                <div><div className="text-muted-foreground">Warnings</div><div>{coreMetricProfile.summary.warning_count}</div></div>
+                <div><div className="text-muted-foreground">Fatal Errors</div><div>{coreMetricProfile.summary.fatal_error_count}</div></div>
+                <div><div className="text-muted-foreground">Data Source</div><div>{coreMetricProfile.data_source}</div></div>
+                <div><div className="text-muted-foreground">Run ID</div><div>{coreMetricProfile.run_id ?? "Not saved"}</div></div>
               </div>
             </CardContent>
           </Card>
@@ -174,7 +174,7 @@ export default function EdgeLabCoreMetricPage() {
                       {values.map((value) => (
                         <TableRow key={`${family}-${value.metric_key}`}>
                           <TableCell className="font-mono">{value.metric_key}</TableCell>
-                          <TableCell className="text-right font-mono">{formatMetricValue(value.value)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatEdgeValue(value.value, 4)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -222,7 +222,10 @@ export default function EdgeLabCoreMetricPage() {
                       <TableCell>{run.fatal_error_count}</TableCell>
                       <TableCell>{run.created_at}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => loadRun(run.run_id)}>View</Button>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => loadRun(run.run_id)}>View</Button>
+                          <Button variant="outline" size="sm" onClick={() => deleteRun(run.run_id)}>Delete</Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

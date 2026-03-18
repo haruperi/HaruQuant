@@ -6,12 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { edgeLabApi, type EdgeLabSeasonalityResponse } from "@/lib/api/edge"
+import {
+  EDGE_LAB_DOW_ORDER,
+  buildSeasonalityCalendarSeries,
+  buildSeasonalityTakeawayModel,
+  buildSeasonalityWeeklyBias,
+} from "@/lib/edge-lab-dashboard"
 import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
 import { EdgeLabDatasetSummary } from "@/components/edge-lab/dataset-summary"
+import { EdgeLabPrerequisiteState } from "@/components/edge-lab/prerequisite-state"
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -22,54 +30,14 @@ import {
 } from "recharts"
 
 const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-const DOW_ORDER = [6, 0, 1, 2, 3, 4, 5]
-
-const buildWeeklyBias = (result: EdgeLabSeasonalityResponse | null) => {
-  if (!result) return []
-  const rows: Array<{
-    index: number
-    hour: number
-    day: number
-    dayLabel: string
-    value: number
-  }> = []
-  let cumulative = 0
-  let idx = 0
-  DOW_ORDER.forEach((dow) => {
-    const values = result.intraday_bias.by_dow[String(dow)] ?? []
-    let prev = 0
-    values.forEach((value, hour) => {
-      const delta = (value ?? 0) - prev
-      cumulative += delta
-      prev = value ?? prev
-      rows.push({
-        index: idx,
-        hour,
-        day: dow,
-        dayLabel: DOW_LABELS[dow] ?? String(dow),
-        value: cumulative,
-      })
-      idx += 1
-    })
-  })
-  return rows
-}
-
-const buildCalendarSeries = (
-  result: EdgeLabSeasonalityResponse,
-  key: "year" | "month" | "day_of_month" | "dow",
-  metric: "count" | "avg_range_points" | "avg_co_points" | "avg_spread_points" | "avg_co_pct"
-) => {
-  const source = result.calendar[key]
-  return source.index.map((value, idx) => ({
-    label: key === "dow" ? DOW_LABELS[value] ?? value : value,
-    value: source[metric][idx] ?? null,
-  }))
-}
-
 const formatCell = (value: number | null, digits = 2) => {
   if (value === null || Number.isNaN(value)) return "-"
   return value.toFixed(digits)
+}
+
+const formatPct = (value: number | null | undefined, digits = 1) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-"
+  return `${(value * 100).toFixed(digits)}%`
 }
 
 const DataInputTable = ({
@@ -144,7 +112,7 @@ const DataInputTable = ({
   </div>
 )
 
-const HeatmapTable = ({
+const HeatmapChart = ({
   title,
   table,
   digits = 2,
@@ -159,54 +127,52 @@ const HeatmapTable = ({
   const min = values.length ? Math.min(...values) : 0
   const max = values.length ? Math.max(...values) : 1
   const scale = (value: number | null) => {
-    if (value === null || Number.isNaN(value)) return "transparent"
+    if (value === null || Number.isNaN(value)) return "rgba(30, 41, 59, 0.25)"
     const norm = max === min ? 0.5 : (value - min) / (max - min)
-    const alpha = 0.15 + norm * 0.75
+    const alpha = 0.2 + norm * 0.75
     return `rgba(59, 130, 246, ${alpha})`
   }
 
   return (
-    <div className="space-y-2">
+    <div className="rounded-md border p-3">
       <div className="text-sm font-medium">{title}</div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs">
-          <thead>
-            <tr>
-              <th className="border px-2 py-1 text-left">Hour</th>
-              {table.columns.map((col) => (
-                <th key={col} className="border px-2 py-1">
-                  {DOW_LABELS[col] ?? col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {table.index.map((hour, rowIdx) => (
-              <tr key={hour}>
-                <td className="border px-2 py-1 font-mono">{hour}</td>
-                {table.values[rowIdx].map((value, colIdx) => (
-                  <td
-                    key={`${hour}-${colIdx}`}
-                    className="border px-2 py-1 text-center text-slate-100"
-                    style={{ backgroundColor: scale(value) }}
-                  >
-                    {percent ? `${Math.round((value ?? 0) * 100)}` : formatCell(value, digits)}
-                  </td>
-                ))}
-              </tr>
+      <div className="mt-3 grid grid-cols-[44px_repeat(7,minmax(0,1fr))] gap-1 text-[10px]">
+        <div />
+        {table.columns.map((col) => (
+          <div key={`head-${title}-${col}`} className="text-center text-muted-foreground">
+            {DOW_LABELS[col] ?? col}
+          </div>
+        ))}
+        {table.index.map((hour, rowIdx) => (
+          <div key={`row-${title}-${hour}`} className="contents">
+            <div
+              className="flex items-center justify-end pr-1 font-mono text-muted-foreground"
+            >
+              {hour}
+            </div>
+            {table.values[rowIdx].map((value, colIdx) => (
+              <div
+                key={`${title}-${hour}-${colIdx}`}
+                className="flex h-7 items-center justify-center rounded text-[10px] font-medium text-white"
+                style={{ backgroundColor: scale(value) }}
+                title={`${DOW_LABELS[table.columns[colIdx] ?? colIdx] ?? colIdx} ${hour}:00 = ${
+                  percent ? `${Math.round((value ?? 0) * 100)}%` : formatCell(value, digits)
+                }`}
+              >
+                {percent ? `${Math.round((value ?? 0) * 100)}` : formatCell(value, digits)}
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
 export default function SeasonalityPage() {
-  const { dataset } = useEdgeLabData()
+  const { dataset, coreMetricProfile, seasonalityResult, setSeasonalityResult } = useEdgeLabData()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<EdgeLabSeasonalityResponse | null>(null)
   const [dataOffset, setDataOffset] = useState(0)
   const dataLimit = 20
   const [calendarMetric, setCalendarMetric] = useState<
@@ -235,17 +201,54 @@ export default function SeasonalityPage() {
         data_limit: dataLimit,
       }
       const response = await edgeLabApi.getSeasonality(payload)
-      setResult(response)
+      setSeasonalityResult(response)
       setDataOffset(effectiveOffset)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to run seasonality.")
-      setResult(null)
+      setSeasonalityResult(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const intradayRows = buildWeeklyBias(result)
+  const intradayRows = buildSeasonalityWeeklyBias(seasonalityResult)
+  const takeaway = buildSeasonalityTakeawayModel(seasonalityResult)
+  const sessionOpportunityRows = seasonalityResult?.session_summary.map((row) => ({
+    session: row.session,
+    opportunity: row.opportunity_score,
+    avgRange: row.avg_range_pips,
+    avgSpread: row.avg_spread_pips,
+  })) ?? []
+  const sessionHighLowRows = seasonalityResult?.session_high_low.rows.map((row) => ({
+    session: row.session,
+    highRate: (row.high_rate ?? 0) * 100,
+    lowRate: (row.low_rate ?? 0) * 100,
+  })) ?? []
+  const opportunityHourRows = [
+    ...(seasonalityResult?.opportunity_windows.best_hours.map((row) => ({
+      label: `${row.hour}:00`,
+      score: row.opportunity_score,
+      group: "Best",
+    })) ?? []),
+    ...(seasonalityResult?.opportunity_windows.dead_hours.map((row) => ({
+      label: `${row.hour}:00`,
+      score: row.opportunity_score,
+      group: "Low",
+    })) ?? []),
+  ]
+
+  if (!coreMetricProfile) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <EdgeLabPrerequisiteState
+          title="Seasonality Requires Core Metric"
+          description="Run Core Metric first so Seasonality becomes the next progressive step in the Edge Lab flow."
+          actionHref="/edge-lab/core-metric"
+          actionLabel="Go To Core Metric"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -271,16 +274,21 @@ export default function SeasonalityPage() {
             </Button>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
+          {dataset?.meta.session_basis && (
+            <div className="text-xs text-muted-foreground">
+              Session classification uses {dataset.meta.session_basis} hours.
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {result && (
+      {seasonalityResult && (
         <>
           <Card>
             <CardHeader>
               <CardTitle>Intraday Bias</CardTitle>
               <CardDescription>
-                {result.meta.filtered_rows} of {result.meta.total_rows} bars in scope.
+                {seasonalityResult.meta.filtered_rows} of {seasonalityResult.meta.total_rows} bars in scope.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -313,7 +321,7 @@ export default function SeasonalityPage() {
                         return `${row.dayLabel} ${row.hour}:00`
                       }}
                     />
-                    {DOW_ORDER.map((dow, idx) => (
+                    {EDGE_LAB_DOW_ORDER.map((dow, idx) => (
                       <ReferenceLine
                         key={`day-${dow}`}
                         x={idx * 24}
@@ -348,36 +356,38 @@ export default function SeasonalityPage() {
               <CardDescription>Average metrics per hour and day-of-week.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <HeatmapTable title="Avg Range (Pips)" table={result.heatmaps.avg_range_pips} />
-              <HeatmapTable title="Avg Volume" table={result.heatmaps.avg_volume} digits={0} />
-              <HeatmapTable title="Win Rate (%)" table={result.heatmaps.win_rate} percent />
-              <HeatmapTable title="Avg Spread (Pips)" table={result.heatmaps.avg_spread_pips} />
+              <div className="grid gap-4 xl:grid-cols-2">
+                <HeatmapChart title="Avg Range (Pips)" table={seasonalityResult.heatmaps.avg_range_pips} />
+                <HeatmapChart title="Avg Volume" table={seasonalityResult.heatmaps.avg_volume} digits={0} />
+                <HeatmapChart title="Win Rate (%)" table={seasonalityResult.heatmaps.win_rate} percent />
+                <HeatmapChart title="Avg Spread (Pips)" table={seasonalityResult.heatmaps.avg_spread_pips} />
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-md border p-3 text-sm">
                   <div className="font-medium">Range (Pips)</div>
                   <div className="flex items-center justify-between">
                     <span>Min</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.range_pips.min.value, 1)} @ {result.extremes.range_pips.min.timestamp}
+                      {formatCell(seasonalityResult.extremes.range_pips.min.value, 1)} @ {seasonalityResult.extremes.range_pips.min.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Max</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.range_pips.max.value, 1)} @ {result.extremes.range_pips.max.timestamp}
+                      {formatCell(seasonalityResult.extremes.range_pips.max.value, 1)} @ {seasonalityResult.extremes.range_pips.max.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Average</span>
-                    <span className="font-mono">{formatCell(result.extremes.range_pips.avg, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.range_pips.avg, 1)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>95% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.range_pips.p95, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.range_pips.p95, 1)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>99% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.range_pips.p99, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.range_pips.p99, 1)}</span>
                   </div>
                 </div>
                 <div className="rounded-md border p-3 text-sm">
@@ -385,26 +395,26 @@ export default function SeasonalityPage() {
                   <div className="flex items-center justify-between">
                     <span>Min</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.co_pips.min.value, 1)} @ {result.extremes.co_pips.min.timestamp}
+                      {formatCell(seasonalityResult.extremes.co_pips.min.value, 1)} @ {seasonalityResult.extremes.co_pips.min.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Max</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.co_pips.max.value, 1)} @ {result.extremes.co_pips.max.timestamp}
+                      {formatCell(seasonalityResult.extremes.co_pips.max.value, 1)} @ {seasonalityResult.extremes.co_pips.max.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Average</span>
-                    <span className="font-mono">{formatCell(result.extremes.co_pips.avg, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.co_pips.avg, 1)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>95% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.co_pips.p95, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.co_pips.p95, 1)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>99% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.co_pips.p99, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.co_pips.p99, 1)}</span>
                   </div>
                 </div>
                 <div className="rounded-md border p-3 text-sm">
@@ -412,26 +422,26 @@ export default function SeasonalityPage() {
                   <div className="flex items-center justify-between">
                     <span>Min</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.volume.min.value, 0)} @ {result.extremes.volume.min.timestamp}
+                      {formatCell(seasonalityResult.extremes.volume.min.value, 0)} @ {seasonalityResult.extremes.volume.min.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Max</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.volume.max.value, 0)} @ {result.extremes.volume.max.timestamp}
+                      {formatCell(seasonalityResult.extremes.volume.max.value, 0)} @ {seasonalityResult.extremes.volume.max.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Average</span>
-                    <span className="font-mono">{formatCell(result.extremes.volume.avg, 0)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.volume.avg, 0)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>95% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.volume.p95, 0)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.volume.p95, 0)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>99% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.volume.p99, 0)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.volume.p99, 0)}</span>
                   </div>
                 </div>
                 <div className="rounded-md border p-3 text-sm">
@@ -439,26 +449,26 @@ export default function SeasonalityPage() {
                   <div className="flex items-center justify-between">
                     <span>Min</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.spread_pips.min.value, 1)} @ {result.extremes.spread_pips.min.timestamp}
+                      {formatCell(seasonalityResult.extremes.spread_pips.min.value, 1)} @ {seasonalityResult.extremes.spread_pips.min.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Max</span>
                     <span className="font-mono">
-                      {formatCell(result.extremes.spread_pips.max.value, 1)} @ {result.extremes.spread_pips.max.timestamp}
+                      {formatCell(seasonalityResult.extremes.spread_pips.max.value, 1)} @ {seasonalityResult.extremes.spread_pips.max.timestamp}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Average</span>
-                    <span className="font-mono">{formatCell(result.extremes.spread_pips.avg, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.spread_pips.avg, 1)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>95% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.spread_pips.p95, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.spread_pips.p95, 1)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>99% percentile</span>
-                    <span className="font-mono">{formatCell(result.extremes.spread_pips.p99, 1)}</span>
+                    <span className="font-mono">{formatCell(seasonalityResult.extremes.spread_pips.p99, 1)}</span>
                   </div>
                 </div>
               </div>
@@ -506,7 +516,7 @@ export default function SeasonalityPage() {
                     </div>
                     <div className="h-[180px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={buildCalendarSeries(result, key, calendarMetric)}>
+                        <BarChart data={buildSeasonalityCalendarSeries(seasonalityResult, key, calendarMetric)}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="label" interval={0} angle={-20} textAnchor="end" height={50} />
                           <YAxis />
@@ -517,6 +527,219 @@ export default function SeasonalityPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Session Summary</CardTitle>
+              <CardDescription>
+                Quantifies movement, spread efficiency, and daily high/low ownership by session.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="h-[280px] rounded-md border p-3">
+                  <div className="text-sm font-medium">Session Opportunity Chart</div>
+                  <div className="mt-2 h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={sessionOpportunityRows}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="session" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="opportunity" name="Opportunity Score" fill="#3b82f6" />
+                        <Bar dataKey="avgRange" name="Avg Range (Pips)" fill="#10b981" />
+                        <Bar dataKey="avgSpread" name="Avg Spread (Pips)" fill="#f97316" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="h-[280px] rounded-md border p-3">
+                  <div className="text-sm font-medium">Daily High/Low Formation Chart</div>
+                  <div className="mt-2 h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={sessionHighLowRows}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="session" />
+                        <YAxis unit="%" />
+                        <Tooltip formatter={(value: number | string) => `${Number(value).toFixed(1)}%`} />
+                        <Legend />
+                        <Bar dataKey="highRate" name="High Rate" fill="#8b5cf6" />
+                        <Bar dataKey="lowRate" name="Low Rate" fill="#f43f5e" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className="border px-2 py-1 text-left">Session</th>
+                      <th className="border px-2 py-1 text-right">Bars</th>
+                      <th className="border px-2 py-1 text-right">Avg Range (Pips)</th>
+                      <th className="border px-2 py-1 text-right">Avg Spread (Pips)</th>
+                      <th className="border px-2 py-1 text-right">Avg |C-O| (Pips)</th>
+                      <th className="border px-2 py-1 text-right">Win Rate</th>
+                      <th className="border px-2 py-1 text-right">Daily High Rate</th>
+                      <th className="border px-2 py-1 text-right">Daily Low Rate</th>
+                      <th className="border px-2 py-1 text-right">Opportunity Score</th>
+                      <th className="border px-2 py-1 text-left">Label</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {seasonalityResult.session_summary.map((row) => (
+                      <tr key={row.session}>
+                        <td className="border px-2 py-1 capitalize">{row.session}</td>
+                        <td className="border px-2 py-1 text-right">{row.bars}</td>
+                        <td className="border px-2 py-1 text-right">{formatCell(row.avg_range_pips, 1)}</td>
+                        <td className="border px-2 py-1 text-right">{formatCell(row.avg_spread_pips, 1)}</td>
+                        <td className="border px-2 py-1 text-right">{formatCell(row.avg_abs_co_pips, 1)}</td>
+                        <td className="border px-2 py-1 text-right">{formatPct(row.win_rate, 1)}</td>
+                        <td className="border px-2 py-1 text-right">{formatPct(row.high_rate, 1)}</td>
+                        <td className="border px-2 py-1 text-right">{formatPct(row.low_rate, 1)}</td>
+                        <td className="border px-2 py-1 text-right font-mono">{formatCell(row.opportunity_score, 1)}</td>
+                        <td className="border px-2 py-1 capitalize">{row.label}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-md border p-3 text-sm">
+                  <div className="font-medium">Daily High/Low Formation</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Based on {seasonalityResult.session_high_low.total_days} daily sessions.
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {seasonalityResult.session_high_low.rows.map((row) => (
+                      <div key={row.session} className="flex items-center justify-between">
+                        <span className="capitalize">{row.session}</span>
+                        <span className="font-mono">
+                          High {formatPct(row.high_rate, 1)} / Low {formatPct(row.low_rate, 1)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3 text-sm">
+                  <div className="font-medium">Session Takeaway</div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span>Best session</span>
+                      <span className="font-mono capitalize">
+                        {takeaway?.bestSession.label ?? "-"} ({formatCell(takeaway?.bestSession.score ?? null, 1)})
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Dead session</span>
+                      <span className="font-mono capitalize">
+                        {takeaway?.lowOpportunitySession.label ?? "-"} ({formatCell(takeaway?.lowOpportunitySession.score ?? null, 1)})
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Best hour</span>
+                      <span className="font-mono">
+                        {takeaway?.bestHour.label ?? "-"} ({formatCell(takeaway?.bestHour.score ?? null, 1)})
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Dead hour</span>
+                      <span className="font-mono">
+                        {takeaway?.lowOpportunityHour.label ?? "-"} ({formatCell(takeaway?.lowOpportunityHour.score ?? null, 1)})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Opportunity Windows</CardTitle>
+              <CardDescription>
+                Ranked best and low-opportunity sessions/hours from movement, spread, and efficiency.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="h-[280px] rounded-md border p-3 md:col-span-2">
+                <div className="text-sm font-medium">Opportunity Hours Chart</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Compares the strongest and weakest hours identified in this dataset.
+                </div>
+                <div className="mt-2 h-[210px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={opportunityHourRows}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip formatter={(value: number | string) => `${Number(value).toFixed(1)} / 100`} />
+                      <Legend />
+                      <Bar dataKey="score" name="Opportunity Score" fill="#38bdf8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="rounded-md border p-3 text-sm">
+                <div className="font-medium">Best Sessions</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Opportunity Score is a 0-100 composite. Higher means stronger movement with better spread efficiency.
+                </div>
+                <div className="mt-3 space-y-2">
+                  {seasonalityResult.opportunity_windows.best_sessions.map((row) => (
+                    <div key={`best-session-${row.session}`} className="flex items-center justify-between">
+                      <span className="capitalize">{row.session}</span>
+                      <span className="font-mono">{formatCell(row.opportunity_score, 1)} / 100</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border p-3 text-sm">
+                <div className="font-medium">Low-Opportunity Sessions</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Lower scores mean weaker movement and/or worse spread burden relative to the move.
+                </div>
+                <div className="mt-3 space-y-2">
+                  {seasonalityResult.opportunity_windows.dead_sessions.map((row) => (
+                    <div key={`dead-session-${row.session}`} className="flex items-center justify-between">
+                      <span className="capitalize">{row.session}</span>
+                      <span className="font-mono">{formatCell(row.opportunity_score, 1)} / 100</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border p-3 text-sm">
+                <div className="font-medium">Best Hours</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Read as relative opportunity quality inside this dataset, not an absolute edge guarantee.
+                </div>
+                <div className="mt-3 space-y-2">
+                  {seasonalityResult.opportunity_windows.best_hours.map((row) => (
+                    <div key={`best-hour-${row.hour}`} className="flex items-center justify-between">
+                      <span>{row.hour}:00</span>
+                      <span className="font-mono">{formatCell(row.opportunity_score, 1)} / 100</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border p-3 text-sm">
+                <div className="font-medium">Low-Opportunity Hours</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Typically lower range, lower movement, or poorer spread efficiency than stronger windows.
+                </div>
+                <div className="mt-3 space-y-2">
+                  {seasonalityResult.opportunity_windows.dead_hours.map((row) => (
+                    <div key={`dead-hour-${row.hour}`} className="flex items-center justify-between">
+                      <span>{row.hour}:00</span>
+                      <span className="font-mono">{formatCell(row.opportunity_score, 1)} / 100</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -556,14 +779,14 @@ export default function SeasonalityPage() {
                     size="sm"
                     onClick={() => {
                       const next = dataOffset + dataLimit
-                      if (result.data_rows_count && next < result.data_rows_count) {
+                      if (seasonalityResult.data_rows_count && next < seasonalityResult.data_rows_count) {
                         runSeasonality(next)
                       }
                     }}
                     disabled={
                       loading ||
-                      !result.data_rows_count ||
-                      dataOffset + dataLimit >= result.data_rows_count
+                      !seasonalityResult.data_rows_count ||
+                      dataOffset + dataLimit >= seasonalityResult.data_rows_count
                     }
                   >
                     Next
@@ -572,30 +795,30 @@ export default function SeasonalityPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if (!result.data_rows_count) return
-                      const lastOffset = Math.max(0, result.data_rows_count - dataLimit)
+                      if (!seasonalityResult.data_rows_count) return
+                      const lastOffset = Math.max(0, seasonalityResult.data_rows_count - dataLimit)
                       runSeasonality(lastOffset)
                     }}
                     disabled={
                       loading ||
-                      !result.data_rows_count ||
-                      dataOffset + dataLimit >= result.data_rows_count
+                      !seasonalityResult.data_rows_count ||
+                      dataOffset + dataLimit >= seasonalityResult.data_rows_count
                     }
                   >
                     End
                   </Button>
                 </div>
               </div>
-              {result.meta.digits === undefined || result.meta.digits === null ? (
+              {seasonalityResult.meta.digits === undefined || seasonalityResult.meta.digits === null ? (
                 <div className="text-sm text-destructive">
                   Missing MT5 symbol digits for formatting.
                 </div>
               ) : (
                 <DataInputTable
-                  rows={result.data_rows}
-                  total={result.data_rows_count}
-                  offset={result.data_rows_offset}
-                  digits={result.meta.digits}
+                  rows={seasonalityResult.data_rows}
+                  total={seasonalityResult.data_rows_count}
+                  offset={seasonalityResult.data_rows_offset}
+                  digits={seasonalityResult.meta.digits}
                 />
               )}
             </CardContent>

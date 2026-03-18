@@ -876,6 +876,284 @@ class SchemaManager:
                 "CREATE INDEX IF NOT EXISTS idx_edge_core_values_family_key ON edge_core_metric_values(family, metric_key)"
             )
 
+            create_edge_market_structure_runs_table = """
+            CREATE TABLE IF NOT EXISTS edge_market_structure_runs (
+                run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                data_source TEXT NOT NULL,
+                range_by TEXT NOT NULL,
+                start_date TEXT,
+                end_date TEXT,
+                number_of_bars INTEGER,
+                bar_count INTEGER,
+                is_valid BOOLEAN DEFAULT 1,
+                warning_count INTEGER DEFAULT 0,
+                fatal_error_count INTEGER DEFAULT 0,
+                report TEXT,
+                summary TEXT,
+                calibration_metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+            );
+            """
+            cursor.execute(create_edge_market_structure_runs_table)
+            cursor.execute("PRAGMA table_info(edge_market_structure_runs)")
+            market_structure_run_columns = {row[1] for row in cursor.fetchall()}
+            if "calibration_metadata" not in market_structure_run_columns:
+                cursor.execute(
+                    "ALTER TABLE edge_market_structure_runs ADD COLUMN calibration_metadata TEXT"
+                )
+
+            create_edge_market_structure_values_table = """
+            CREATE TABLE IF NOT EXISTS edge_market_structure_values (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                family TEXT NOT NULL,
+                metric_key TEXT NOT NULL,
+                value_num REAL,
+                value_text TEXT,
+                value_type TEXT NOT NULL,
+                context TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES edge_market_structure_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_market_structure_values_table)
+
+            create_edge_market_structure_scores_table = """
+            CREATE TABLE IF NOT EXISTS edge_market_structure_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                score_group TEXT,
+                score_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                raw_value TEXT,
+                score REAL,
+                weight REAL,
+                contribution REAL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES edge_market_structure_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_market_structure_scores_table)
+            cursor.execute("PRAGMA table_info(edge_market_structure_scores)")
+            market_structure_score_columns = {row[1] for row in cursor.fetchall()}
+            if "score_group" not in market_structure_score_columns:
+                cursor.execute(
+                    "ALTER TABLE edge_market_structure_scores ADD COLUMN score_group TEXT"
+                )
+
+            create_edge_market_structure_swings_table = """
+            CREATE TABLE IF NOT EXISTS edge_market_structure_swings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                timestamp TEXT NOT NULL,
+                price REAL NOT NULL,
+                swing_type TEXT NOT NULL,
+                label TEXT NOT NULL,
+                swing_index INTEGER NOT NULL,
+                atr_value REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES edge_market_structure_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_market_structure_swings_table)
+
+            create_edge_market_structure_legs_table = """
+            CREATE TABLE IF NOT EXISTS edge_market_structure_legs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                amplitude_pips REAL,
+                duration_bars INTEGER,
+                efficiency_ratio REAL,
+                directional_consistency REAL,
+                pullback_depth REAL,
+                pullback_duration INTEGER,
+                continuation_after_pullback BOOLEAN,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES edge_market_structure_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_market_structure_legs_table)
+
+            create_edge_market_structure_evaluations_table = """
+            CREATE TABLE IF NOT EXISTS edge_market_structure_evaluations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL UNIQUE,
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                run_created_at TEXT,
+                predicted_verdict TEXT,
+                realized_verdict TEXT,
+                matched BOOLEAN,
+                decision_confidence_score REAL,
+                confidence_bucket TEXT,
+                forward_end TEXT,
+                net_move_pips REAL,
+                path_pips REAL,
+                efficiency REAL,
+                reversion_ratio REAL,
+                flip_rate REAL,
+                avg_range_pips REAL,
+                max_excursion_pips REAL,
+                continuation_label TEXT,
+                range_reentry_label TEXT,
+                breakout_failure_label TEXT,
+                chop_label TEXT,
+                calibration_metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES edge_market_structure_runs (run_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_market_structure_evaluations_table)
+
+            create_edge_profile_snapshots_table = """
+            CREATE TABLE IF NOT EXISTS edge_profile_snapshots (
+                snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                data_source TEXT,
+                range_by TEXT,
+                model_version TEXT,
+                baseline_id TEXT,
+                core_metric_run_id INTEGER,
+                market_structure_run_id INTEGER,
+                dataset_meta TEXT,
+                core_metric_summary TEXT,
+                seasonality_summary TEXT,
+                market_structure_summary TEXT,
+                scorecard_summary TEXT,
+                automation_metadata TEXT,
+                artifact_refs TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+                FOREIGN KEY (core_metric_run_id) REFERENCES edge_core_metric_runs (run_id) ON DELETE SET NULL,
+                FOREIGN KEY (market_structure_run_id) REFERENCES edge_market_structure_runs (run_id) ON DELETE SET NULL
+            );
+            """
+            cursor.execute(create_edge_profile_snapshots_table)
+            try:
+                cursor.execute(
+                    "ALTER TABLE edge_profile_snapshots ADD COLUMN automation_metadata TEXT"
+                )
+            except Exception:
+                pass
+
+            create_edge_profile_snapshot_metrics_table = """
+            CREATE TABLE IF NOT EXISTS edge_profile_snapshot_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                section TEXT NOT NULL,
+                metric_key TEXT NOT NULL,
+                value_num REAL,
+                value_text TEXT,
+                value_type TEXT NOT NULL,
+                context TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (snapshot_id) REFERENCES edge_profile_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_profile_snapshot_metrics_table)
+
+            create_edge_profile_snapshot_scores_table = """
+            CREATE TABLE IF NOT EXISTS edge_profile_snapshot_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                score_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                score REAL,
+                confidence TEXT,
+                explanation TEXT,
+                inputs TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (snapshot_id) REFERENCES edge_profile_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_profile_snapshot_scores_table)
+
+            create_edge_profile_snapshot_strategy_fit_table = """
+            CREATE TABLE IF NOT EXISTS edge_profile_snapshot_strategy_fit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                rank_order INTEGER NOT NULL,
+                archetype TEXT NOT NULL,
+                fit_score REAL,
+                rationale TEXT,
+                warnings TEXT,
+                anti_fit_conditions TEXT,
+                inputs TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (snapshot_id) REFERENCES edge_profile_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_profile_snapshot_strategy_fit_table)
+
+            create_edge_profile_snapshot_artifacts_table = """
+            CREATE TABLE IF NOT EXISTS edge_profile_snapshot_artifacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                artifact_type TEXT NOT NULL,
+                artifact_ref TEXT NOT NULL,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (snapshot_id) REFERENCES edge_profile_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_edge_profile_snapshot_artifacts_table)
+
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_runs_symbol ON edge_market_structure_runs(symbol)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_runs_created_at ON edge_market_structure_runs(created_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_values_run_id ON edge_market_structure_values(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_scores_run_id ON edge_market_structure_scores(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_swings_run_id ON edge_market_structure_swings(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_evals_run_id ON edge_market_structure_evaluations(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_evals_symbol_timeframe ON edge_market_structure_evaluations(symbol, timeframe)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_market_legs_run_id ON edge_market_structure_legs(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshots_symbol_timeframe ON edge_profile_snapshots(symbol, timeframe)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshots_created_at ON edge_profile_snapshots(created_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshot_metrics_snapshot_id ON edge_profile_snapshot_metrics(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshot_metrics_section_key ON edge_profile_snapshot_metrics(section, metric_key)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshot_scores_snapshot_id ON edge_profile_snapshot_scores(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshot_strategy_fit_snapshot_id ON edge_profile_snapshot_strategy_fit(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_edge_profile_snapshot_artifacts_snapshot_id ON edge_profile_snapshot_artifacts(snapshot_id)"
+            )
+
             # Create indices for performance
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_backtest_trades_backtest_id ON backtest_trades(backtest_id)"

@@ -93,6 +93,41 @@ class TrendPersistenceConfig:
 
 
 @dataclass(frozen=True)
+class MarketStructureConfig:
+    """Market Structure engine configuration."""
+
+    model_version: str = "market_structure_baseline_v1"
+    baseline_id: str = "ms_baseline_2026_03_17"
+    swing_window: int = 3
+    min_swing_atr: float = 0.5
+    atr_window: int = 14
+    range_window: int = 20
+    breakout_horizon: int = 5
+    min_chain_length: int = 2
+    eds_boot_n: int = 50
+    eds_perm_n: int = 50
+    research_eds_boot_n: int = 500
+    research_eds_perm_n: int = 500
+    bias_verdict_min_gap: float = 15.0
+    trend_confidence_min: float = 35.0
+    reversion_confidence_min: float = 35.0
+    reversion_score_weight: float = 0.75
+    chop_score_weight: float = 0.25
+    stability_block_count: int = 3
+    stability_min_bars_per_block: int = 80
+    stability_score_std_max: float = 20.0
+    stability_modes: Sequence[str] = ("early_middle_late", "monthly", "quarterly")
+    robustness_swing_windows: Sequence[int] = (2, 3, 4)
+    robustness_min_swing_atrs: Sequence[float] = (0.3, 0.5, 0.7)
+    robustness_range_windows: Sequence[int] = (15, 20, 25)
+    robustness_breakout_horizons: Sequence[int] = (3, 5, 8)
+    apply_profile_overrides: bool = True
+    apply_quality_adjustments: bool = False
+    stability_confidence_weight: float = 0.10
+    robustness_confidence_weight: float = 0.10
+
+
+@dataclass(frozen=True)
 class SessionEdgeConfig:
     """EDS-3: Session Edge Detector configuration."""
 
@@ -118,6 +153,7 @@ class EdgeLabConfig:
     null: NullModelsConfig = field(default_factory=NullModelsConfig)
     mr: MeanReversionConfig = field(default_factory=MeanReversionConfig)
     tp: TrendPersistenceConfig = field(default_factory=TrendPersistenceConfig)
+    market_structure: MarketStructureConfig = field(default_factory=MarketStructureConfig)
     session_edge: SessionEdgeConfig = field(default_factory=SessionEdgeConfig)
 
 
