@@ -1,5 +1,38 @@
 # HaruQuant Architecture Notes
 
+## Risk Engine Canonical State Foundation
+
+- Phase 1 of `apps/risk` now adds a canonical portfolio-state layer instead of rebuilding the risk engine from scratch.
+- The new layer is additive and sits under the existing runtime components:
+  - `apps/risk/position_sizing.py`
+  - `apps/risk/regime.py`
+  - `apps/risk/allocator.py`
+  - `apps/risk/governor.py`
+- New package layout:
+  - `apps/risk/models/` for normalized `AccountState`, `PositionState`, `SymbolState`, `MarketState`, and `PortfolioState`
+  - `apps/risk/validators/` for thin risk-specific validation wrappers
+  - `apps/risk/core/portfolio_state_engine.py` for raw-input normalization into one validated state object
+- Existing utility validators are reused instead of duplicated:
+  - `apps/utils/data_validator.py` remains the market-data preparation and OHLC sanity layer
+  - `apps/utils/trade_validators.py` remains the source for symbol/volume/trade validation patterns
+- The canonical state engine accepts existing-style raw inputs such as:
+  - account dicts or objects
+  - current positions as `{symbol: lots}` or broker-style position objects
+  - symbol specs as MT5-style dicts/objects
+  - market bars as DataFrames keyed by symbol
+- Validation responsibilities in Phase 1 are intentionally narrow:
+  - account completeness
+  - position completeness
+  - symbol spec completeness for risk math
+  - market data preparation and price sanity
+  - synchronized market coverage warnings across active symbols
+  - `RiskLimits` config checks
+- The current public risk API is preserved:
+  - no Phase 1 rewrite of governor math
+  - no Phase 1 rewrite of allocator behavior
+  - no new storage, replay, or reporting subsystem yet
+- `PortfolioState.exposures` provides a simple derived notional exposure map so later phases can reuse one normalized foundation rather than re-deriving it in multiple places.
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

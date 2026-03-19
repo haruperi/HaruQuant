@@ -11,7 +11,15 @@ This package provides institutional-grade risk management with:
 """
 
 from apps.risk.allocator import RiskBudgetAllocator
+from apps.risk.core import PortfolioStateEngine
 from apps.risk.governor import RiskGovernor, RiskReport
+from apps.risk.models import (
+    AccountState,
+    MarketState,
+    PortfolioState,
+    PositionState,
+    SymbolState,
+)
 from apps.risk.position_sizing import (
     PositionSizer,
     estimate_kelly_parameters,
@@ -24,11 +32,17 @@ __all__ = [
     "RiskGovernor",
     "RiskReport",
     "RiskBudgetAllocator",
+    "PortfolioStateEngine",
     "RiskRegimeDetector",
     "RegimeState",
     "PositionSizer",
     "RiskLimits",
     "CorrelationPreference",
+    "AccountState",
+    "PositionState",
+    "SymbolState",
+    "MarketState",
+    "PortfolioState",
     "validate_position_size",
     "estimate_kelly_parameters",
 ]

@@ -104,6 +104,29 @@ Each layer has a specific responsibility and cannot be bypassed.
 
 ## Architecture
 
+### Phase 1 Canonical State Foundation
+
+The current risk engine is no longer just a set of standalone runtime components.
+Phase 1 adds a canonical state layer that standardizes existing inputs before they
+reach higher-level risk logic.
+
+New additive modules:
+
+- `apps/risk/models/` - normalized account, position, symbol, market, and portfolio state models
+- `apps/risk/validators/` - thin risk validators that reuse existing utility validators where possible
+- `apps/risk/core/portfolio_state_engine.py` - builds a validated `PortfolioState` from raw existing-system inputs
+
+This is intentionally an extension of the current system, not a rewrite:
+
+- `PositionSizer` still owns trade sizing
+- `RiskRegimeDetector` still owns regime classification
+- `RiskBudgetAllocator` still owns soft portfolio planning
+- `RiskGovernor` still owns hard portfolio gating
+
+The canonical state layer exists so later phases can share one validated input
+contract instead of each module rebuilding its own assumptions from raw MT5 or
+wrapper data.
+
 ### Three-Layer System
 
 **Layer 1: Regime Detection**
