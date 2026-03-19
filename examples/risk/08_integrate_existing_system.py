@@ -24,10 +24,10 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.risk import (
+    AllocationPlanner,
     GovernanceEngine,
     PortfolioRiskEngine,
     PositionSizer,
-    RiskBudgetAllocator,
     RiskLimits,
     RiskRegimeDetector,
 )
@@ -164,7 +164,7 @@ class RiskManagedTradingWrapper:
 
         # Risk Allocator (optional, for multi-strategy)
         if risk_config.get("enable_allocation", False):
-            self.allocator = RiskBudgetAllocator(self.governor)
+            self.allocator = AllocationPlanner(self.governor)
         else:
             self.allocator = None
 

@@ -27,10 +27,10 @@ if repo_root not in sys.path:
 
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.risk import (
+    AllocationPlanner,
     GovernanceEngine,
     PortfolioRiskEngine,
     PositionSizer,
-    RiskBudgetAllocator,
     RiskLimits,
     RiskRegimeDetector,
     RegimeState,
@@ -187,7 +187,7 @@ def main() -> None:
             limits=limits,
         )
         corr_pref = CorrelationPreference(target_corr=0.50, penalty_strength=2.0)
-        allocator = RiskBudgetAllocator(governor, corr_pref)
+        allocator = AllocationPlanner(governor, corr_pref)
         sizer = PositionSizer(
             method="fixed_risk",
             config={"risk_percent": 1.0, "use_dynamic_stop_loss": False},

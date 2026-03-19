@@ -4,13 +4,12 @@ Portfolio-First Risk Governance for Algorithmic Trading.
 
 This package provides institutional-grade risk management with:
 - GovernanceEngine: Hard constraints (VaR, ES, margin, concentration)
-- RiskBudgetAllocator: Risk parity allocation
+- AllocationPlanner: Risk parity allocation planning
 - RiskRegimeDetector / RegimeEngine: Market regime detection and state-aware risk context
 - PositionSizer: Dynamic position sizing (multiple methods)
 - RiskLimits: Configuration for risk parameters
 """
 
-from apps.risk.allocator import RiskBudgetAllocator
 from apps.risk.core import (
     GovernanceEngine,
     GovernanceReport,
@@ -47,6 +46,7 @@ from apps.risk.position_sizing import (
     validate_position_size,
 )
 from apps.risk.optimization import (
+    AllocationPlanner,
     AllocationOptimizer,
     CapitalEfficiencyRanker,
     HedgeOptimizer,
@@ -111,7 +111,7 @@ __all__ = [
     "GovernanceEngine",
     "GovernanceReport",
     "PortfolioRiskEngine",
-    "RiskBudgetAllocator",
+    "AllocationPlanner",
     "PortfolioStateEngine",
     "RecommendationEngine",
     "RiskScorecardEngine",

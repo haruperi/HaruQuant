@@ -27,10 +27,10 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.risk import (
+    AllocationPlanner,
     GovernanceEngine,
     PortfolioRiskEngine,
     PositionSizer,
-    RiskBudgetAllocator,
     RiskLimits,
     RiskRegimeDetector,
 )
@@ -191,7 +191,7 @@ def main():
         min_budget_frac=0.30,  # Never reduce below 30% of budget
     )
 
-    allocator = RiskBudgetAllocator(governor, corr_pref)
+    allocator = AllocationPlanner(governor, corr_pref)
 
     print("[SETUP] Risk Management Components Initialized")
 

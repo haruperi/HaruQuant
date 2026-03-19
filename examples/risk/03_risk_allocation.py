@@ -28,9 +28,9 @@ if repo_root not in sys.path:
 
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.risk import (
+    AllocationPlanner,
     GovernanceEngine,
     PortfolioRiskEngine,
-    RiskBudgetAllocator,
     RiskLimits,
     RegimeState,
 )
@@ -115,7 +115,7 @@ def main() -> None:
         # 1) Equal allocation
         print("\n" + "-" * 80)
         print("1) Equal Risk Allocation")
-        allocator = RiskBudgetAllocator(governance_engine)
+        allocator = AllocationPlanner(governance_engine)
         target_equal = allocator.compute_target_lots(
             symbols=symbols, base_lots=base_lots, budgets=None, regime=None
         )
@@ -138,7 +138,7 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("3) Correlation Preference")
         corr_pref = CorrelationPreference(target_corr=0.40, penalty_strength=3.0, min_budget_frac=0.20)
-        allocator_corr = RiskBudgetAllocator(governance_engine, corr_pref)
+        allocator_corr = AllocationPlanner(governance_engine, corr_pref)
         target_corr = allocator_corr.compute_target_lots(
             symbols=symbols, base_lots=base_lots, budgets=None, regime=None
         )

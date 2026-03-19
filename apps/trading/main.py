@@ -7,11 +7,11 @@ import pandas as pd
 
 from apps.mt5 import MT5Utils, get_mt5_api
 from apps.risk import (
+    AllocationPlanner,
     CorrelationPreference,
     GovernanceEngine,
     PositionSizer,
     PortfolioRiskEngine,
-    RiskBudgetAllocator,
     RiskLimits,
     RiskRegimeDetector,
 )
@@ -909,7 +909,7 @@ class Engine:
             mt5_client=self._risk_adapter,
         )
         regime_detector = RiskRegimeDetector(**regime_cfg)
-        allocator = RiskBudgetAllocator(governance_engine, corr_pref) if enable_allocation else None
+        allocator = AllocationPlanner(governance_engine, corr_pref) if enable_allocation else None
 
         self.risk_management = {
             "enabled": True,

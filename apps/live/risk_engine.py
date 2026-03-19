@@ -14,9 +14,9 @@ import pandas as pd
 
 from apps.live.engine import MultiStrategyEngine, StrategyInstance
 from apps.utils.logger import logger
-from apps.risk.allocator import RiskBudgetAllocator
 from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
 from apps.risk.limits import CorrelationPreference, RiskLimits
+from apps.risk.optimization import AllocationPlanner
 from apps.risk.position_sizing import PositionSizer
 from apps.risk.regimes import RegimeState, RiskRegimeDetector
 
@@ -45,7 +45,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         self.position_sizer: Optional[PositionSizer] = None
         self.regime_detector: Optional[RiskRegimeDetector] = None
         self.governance_engine: Optional[GovernanceEngine] = None
-        self.risk_allocator: Optional[RiskBudgetAllocator] = None
+        self.risk_allocator: Optional[AllocationPlanner] = None
 
         # Symbol clustering for cluster limits
         self.symbol_clusters: Dict[str, str] = self.config.get("symbol_clusters", {})
@@ -168,7 +168,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
                 penalty_strength=corr_pref_config.get("penalty_strength", 2.0),
                 min_budget_frac=corr_pref_config.get("min_budget_frac", 0.30),
             )
-            self.risk_allocator = RiskBudgetAllocator(self.governance_engine, corr_pref)
+            self.risk_allocator = AllocationPlanner(self.governance_engine, corr_pref)
             logger.info("Risk Budget Allocator initialized")
 
             # 6. Initialize equity curve for regime detection
@@ -453,7 +453,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
     def _allocate_risk_budgets(
         self, signals: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Allocate risk budgets using RiskBudgetAllocator.
+        """Allocate risk budgets using AllocationPlanner.
 
         Args:
             signals: List of entry signals with base volumes

@@ -19,7 +19,7 @@ if repo_root not in sys.path:
 
 from apps.risk.limits import RiskLimits, CorrelationPreference
 from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
-from apps.risk.allocator import RiskBudgetAllocator
+from apps.risk.optimization import AllocationPlanner
 from apps.risk.regimes import RiskRegimeDetector
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
@@ -121,7 +121,7 @@ def main():
     )
 
     corr_pref = CorrelationPreference(target_corr=0.50, penalty_strength=2.0, min_budget_frac=0.30)
-    allocator = RiskBudgetAllocator(governor, corr_pref=corr_pref)
+    allocator = AllocationPlanner(governor, corr_pref=corr_pref)
 
     detector = RiskRegimeDetector()
 
