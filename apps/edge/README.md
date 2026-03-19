@@ -401,6 +401,36 @@ Scheduler integration exists in:
 
 and can run universe refreshes when `EDGE_LAB_BATCH_SYMBOLS` is configured.
 
+## Non-UI Examples
+
+The current progressive Edge Lab workflow also has non-UI example scripts under:
+
+- `examples/edge/01_prepare_dataset.py`
+- `examples/edge/02_core_metric.py`
+- `examples/edge/03_seasonality.py`
+- `examples/edge/04_market_structure.py`
+- `examples/edge/05_scorecard_snapshot.py`
+- `examples/edge/06_automation_run.py`
+
+These examples use real MT5 data and mirror the main progressive flow:
+
+1. prepare one dataset
+2. build Core Metric
+3. run Seasonality
+4. run Market Structure
+5. build/export Scorecard + snapshot
+6. exercise the backend automation runner
+
+Shared helper code for the examples lives in:
+
+- `examples/edge/_workflow_common.py`
+
+The examples are intentionally simple and are useful for:
+
+- quick manual verification outside the UI
+- MT5-backed smoke testing
+- showing the progressive Edge Lab flow in script form
+
 ## UI Integration
 
 Relevant frontend areas:
