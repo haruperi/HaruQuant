@@ -385,6 +385,23 @@ The reporting boundary stays narrow:
 - JSON and Markdown artifacts are written under the SQLite database `exports/` directory
 - the reporting style follows the same snapshot-first pattern already used in `apps/edge`
 
+### Phase 12 Testing and Acceptance
+
+Phase 12 adds deterministic synthetic portfolio fixtures plus integration and acceptance coverage for the full Python risk stack.
+
+New additive test layers:
+
+- `tests/fixtures/risk_portfolios.py` - reusable synthetic portfolio scenarios
+- `tests/integration/apps/risk/test_risk_pipeline_integration.py` - state to snapshot to scorecard to storage to report
+- `tests/integration/apps/risk/test_risk_replay_reporting_integration.py` - replay, what-if, storage, and replay reporting consistency
+- `tests/acceptance/apps/risk/test_risk_acceptance.py` - outcome-level acceptance scenarios
+
+The acceptance boundary stays practical:
+
+- tests are deterministic and synthetic rather than MT5/live dependent
+- acceptance scenarios cover balanced, concentrated, high-leverage, high-correlation, margin-stressed, volatility-expansion, and replay what-if cases
+- storage and reporting paths are exercised as part of the higher-level checks
+
 Each score row carries:
 
 - a 0-100 score
@@ -2220,6 +2237,14 @@ python examples/risk/16_recommendation_engine.py
 python examples/risk/17_replay_and_what_if.py
 python examples/risk/18_storage_and_snapshot_store.py
 python examples/risk/19_reporting_layer.py
+```
+
+### Focused Test Commands
+
+```bash
+pytest --no-cov tests/unit/apps/risk
+pytest --no-cov tests/integration/apps/risk
+pytest --no-cov tests/acceptance/apps/risk
 ```
 
 ### Notes

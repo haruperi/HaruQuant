@@ -288,6 +288,23 @@
   - JSON and Markdown artifacts are written under an `exports/` directory next to the SQLite database
   - export helpers return report payloads plus artifact references
 
+## Risk Testing and Acceptance Layer
+
+- Phase 12 adds deterministic synthetic portfolio fixtures and higher-level risk validation on top of the Phase 1-11 stack.
+- New test coverage:
+  - `tests/fixtures/risk_portfolios.py`
+  - `tests/integration/apps/risk/test_risk_pipeline_integration.py`
+  - `tests/integration/apps/risk/test_risk_replay_reporting_integration.py`
+  - `tests/acceptance/apps/risk/test_risk_acceptance.py`
+- The test strategy stays aligned with the rest of the repo:
+  - unit tests continue to validate focused math and engine behavior
+  - integration tests validate the stored snapshot/report pipeline and replay/report path
+  - acceptance tests validate outcome-level portfolio behavior across balanced, concentrated, fragile, margin-stressed, and replay what-if scenarios
+- These tests are synthetic and deterministic on purpose:
+  - no live MT5 dependency
+  - no second test-only backend
+  - acceptance cases exercise the same Python risk, storage, and reporting layers used by the examples
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.
