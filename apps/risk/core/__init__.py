@@ -6,6 +6,7 @@ from .portfolio_risk_engine import PortfolioRiskEngine
 from .recommendation_engine import RecommendationEngine
 from .risk_scorecard_engine import RiskScorecardEngine
 from .risk_snapshot_engine import RiskSnapshotEngine
+from .timeline_reconstructor import TimelinePoint, TimelineReconstructor
 
 __all__ = [
     "GovernanceEngine",
@@ -15,4 +16,6 @@ __all__ = [
     "RecommendationEngine",
     "RiskScorecardEngine",
     "RiskSnapshotEngine",
+    "TimelinePoint",
+    "TimelineReconstructor",
 ]

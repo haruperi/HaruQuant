@@ -1213,6 +1213,7 @@ class Engine:
         monitor_verbose: bool = False,
         show_progress: bool = False,
         progress_desc: str = "Tester Progress",
+        frame_observer=None,
     ):
         """Simple backtest loop placeholder that iterates over tick data."""
         if data is None:
@@ -1464,6 +1465,14 @@ class Engine:
                     verbose=bool(monitor_verbose),
                 ):
                     self._schedule_state_dirty = True
+
+                if frame_observer is not None:
+                    frame_observer(
+                        engine=self,
+                        timestamp=self.state.current_tick_datetime,
+                        tick_number=processed,
+                        batch_end=batch_end,
+                    )
 
                 idx = batch_end
         finally:

@@ -19,6 +19,8 @@ from apps.risk.core import (
     PortfolioStateEngine,
     RecommendationEngine,
     RiskSnapshotEngine,
+    TimelinePoint,
+    TimelineReconstructor,
 )
 from apps.risk.limits import (
     BudgetUtilization,
@@ -75,6 +77,18 @@ from apps.risk.scenarios import (
     build_default_scenario_registry,
     evaluate_scenarios,
 )
+from apps.risk.simulation import (
+    CockpitStatePayload,
+    HypotheticalOrderAction,
+    ReplayClock,
+    ReplayEngine,
+    ReplayFrame,
+    ReplayRun,
+    WhatIfComparison,
+    WhatIfEngine,
+    apply_hypothetical_actions,
+    build_cockpit_state,
+)
 
 __all__ = [
     "PolicyEngine",
@@ -121,6 +135,18 @@ __all__ = [
     "SymbolState",
     "MarketState",
     "PortfolioState",
+    "TimelinePoint",
+    "TimelineReconstructor",
+    "ReplayClock",
+    "ReplayFrame",
+    "ReplayRun",
+    "ReplayEngine",
+    "HypotheticalOrderAction",
+    "WhatIfComparison",
+    "WhatIfEngine",
+    "CockpitStatePayload",
+    "apply_hypothetical_actions",
+    "build_cockpit_state",
     "ScenarioRegistry",
     "ScenarioResult",
     "StressScenario",

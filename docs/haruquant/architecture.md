@@ -209,6 +209,38 @@
   - feasibility status
   - explanation
 
+## Risk Engine Replay Layer
+
+- Phase 9 adds replay and what-if support on top of the existing Python simulator in `apps/trading/main.py`.
+- New package layout:
+  - `apps/risk/core/timeline_reconstructor.py`
+  - `apps/risk/simulation/replay_models.py`
+  - `apps/risk/simulation/simulation_clock.py`
+  - `apps/risk/simulation/replay_engine.py`
+  - `apps/risk/simulation/hypothetical_orders.py`
+  - `apps/risk/simulation/what_if_engine.py`
+  - `apps/risk/simulation/cockpit_state.py`
+- The execution boundary stays simple:
+  - `Engine.run(...)` remains the single simulator loop
+  - replay uses one optional `frame_observer` hook in that loop to capture deterministic frame boundaries
+  - no second simulator or replay-specific execution engine is introduced
+- Per replay frame, the system now rebuilds:
+  - canonical `PortfolioState`
+  - `RiskSnapshot`
+  - `RiskScorecard`
+  - optional recommendation batch
+- Replay what-if stays additive:
+  - hypothetical actions are applied to cloned canonical state
+  - baseline replay state is not mutated
+  - before/after summaries are produced by the same risk and recommendation engines already used elsewhere
+- The new cockpit payload is intentionally compact and UI-ready:
+  - account summary
+  - open positions
+  - top risk summary
+  - governance and regime state
+  - top recommendations
+  - optional what-if summary
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

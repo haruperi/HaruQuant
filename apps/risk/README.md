@@ -305,6 +305,34 @@ The output is explainable and simulator-ready:
 - projected score, VaR, ES, stress, and margin deltas are attached
 - governance-feasible and governance-rejected ideas are both visible
 - ranked recommendation batches can be used directly by later simulator and reporting phases
+
+### Phase 9 Replay and Simulator Backend Support
+
+Phase 9 adds a replay layer on top of the existing simulator and risk engines instead of introducing a second execution backend.
+
+New additive modules:
+
+- `apps/risk/core/timeline_reconstructor.py` - deterministic replay capture plans from merged simulator timelines
+- `apps/risk/simulation/replay_models.py` - normalized replay frame and what-if contracts
+- `apps/risk/simulation/simulation_clock.py` - Python-side replay cursor
+- `apps/risk/simulation/replay_engine.py` - simulator-backed replay orchestration
+- `apps/risk/simulation/hypothetical_orders.py` - hypothetical action injection on cloned canonical state
+- `apps/risk/simulation/what_if_engine.py` - before/after replay-frame comparisons
+- `apps/risk/simulation/cockpit_state.py` - compact cockpit payloads for UI use
+
+This phase builds directly on the current simulator backend:
+
+- `Engine.run(...)` remains the single execution loop
+- replay uses an optional frame observer hook instead of reimplementing execution
+- `PortfolioStateEngine`, `RiskSnapshotEngine`, `RiskScorecardEngine`, and `RecommendationEngine` are reused per replay frame
+
+The resulting replay path stays intentionally narrow:
+
+- deterministic timeline reconstruction
+- canonical per-frame portfolio state
+- simulator-backed current-state risk outputs
+- hypothetical action injection without mutating the baseline replay frame
+- cockpit payloads stable enough for later UI consumption
 - overall risk quality from the component scores
 
 Each score row carries:
