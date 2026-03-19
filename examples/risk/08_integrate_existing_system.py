@@ -24,9 +24,10 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.risk import (
+    GovernanceEngine,
+    PortfolioRiskEngine,
     PositionSizer,
     RiskBudgetAllocator,
-    RiskGovernor,
     RiskLimits,
     RiskRegimeDetector,
 )
@@ -141,14 +142,16 @@ class RiskManagedTradingWrapper:
             mt5_client=self.mt5_client,
         )
 
-        # Risk Governor
+        # Governance Engine
         gov_config = risk_config.get("governor_config", {})
-        self.governor = RiskGovernor(
-            mt5_client=self.mt5_client,
+        self.governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=self.mt5_client,
+                timeframe=gov_config.get("timeframe", "H1"),
+                start_pos=gov_config.get("start_pos", 0),
+                end_pos=gov_config.get("end_pos", 500),
+            ),
             limits=self.limits,
-            timeframe=gov_config.get("timeframe", "H1"),
-            start_pos=gov_config.get("start_pos", 0),
-            end_pos=gov_config.get("end_pos", 500),
         )
 
         # Regime Detector
@@ -222,7 +225,7 @@ class RiskManagedTradingWrapper:
         self._update_regime()
 
         # ====================================================================
-        # STEP 4: Risk Governor Check
+        # STEP 4: Governance Engine Check
         # ====================================================================
 
         report = self.governor.evaluate_add_position(
@@ -380,7 +383,7 @@ class RiskManagedTradingWrapper:
             print("[RiskWrapper] No positions to rebalance")
             return {}
 
-        # Use risk governor's rebalancing helper
+        # Use the governance engine's shared rebalancing helper
         target_budgets = {s: self.risk_budgets.get(s, 1.0 / len(current_positions)) for s in current_positions}
 
         deltas = self.governor.propose_rc_rebalance(

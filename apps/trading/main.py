@@ -8,9 +8,10 @@ import pandas as pd
 from apps.mt5 import MT5Utils, get_mt5_api
 from apps.risk import (
     CorrelationPreference,
+    GovernanceEngine,
     PositionSizer,
+    PortfolioRiskEngine,
     RiskBudgetAllocator,
-    RiskGovernor,
     RiskLimits,
     RiskRegimeDetector,
 )
@@ -893,12 +894,14 @@ class Engine:
         corr_pref = correlation_preference if isinstance(correlation_preference, CorrelationPreference) else CorrelationPreference(**(correlation_preference or {}))
 
         self._risk_adapter = _SimulationRiskAdapter(self, historical_data or {})
-        governor = RiskGovernor(
-            mt5_client=self._risk_adapter,
+        governance_engine = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=self._risk_adapter,
+                timeframe=governor_timeframe,
+                start_pos=int(governor_start_pos),
+                end_pos=int(governor_end_pos),
+            ),
             limits=limits_obj,
-            timeframe=governor_timeframe,
-            start_pos=int(governor_start_pos),
-            end_pos=int(governor_end_pos),
         )
         position_sizer = PositionSizer(
             method=position_sizing_method,
@@ -906,13 +909,13 @@ class Engine:
             mt5_client=self._risk_adapter,
         )
         regime_detector = RiskRegimeDetector(**regime_cfg)
-        allocator = RiskBudgetAllocator(governor, corr_pref) if enable_allocation else None
+        allocator = RiskBudgetAllocator(governance_engine, corr_pref) if enable_allocation else None
 
         self.risk_management = {
             "enabled": True,
             "position_sizer": position_sizer,
             "regime_detector": regime_detector,
-            "governor": governor,
+            "governance_engine": governance_engine,
             "allocator": allocator,
             "symbol_clusters": dict(symbol_clusters or {}),
             "risk_budgets": dict(risk_budgets or {}),
@@ -1054,7 +1057,7 @@ class Engine:
             self.monitor_account(verbose=False)
         self._record_risk_equity_point()
 
-        governor = self.risk_management.get("governor")
+        governance_engine = self.risk_management.get("governance_engine")
         position_sizer = self.risk_management.get("position_sizer")
         allocator = self.risk_management.get("allocator")
         regime_detector = self.risk_management.get("regime_detector")
@@ -1085,10 +1088,14 @@ class Engine:
             prepared.append(candidate)
 
         regime = None
-        if self.risk_management.get("enable_regime_detection") and regime_detector is not None and governor is not None:
+        if self.risk_management.get("enable_regime_detection") and regime_detector is not None and governance_engine is not None:
             symbols = sorted({str(candidate.get("symbol_name")) for candidate in prepared if candidate.get("symbol_name")})
             if symbols:
-                returns_df = governor._build_returns_df(governor._get_data(symbols, exclude_current_bar=True), symbols)
+                risk_engine = governance_engine.risk_engine
+                returns_df = risk_engine.build_returns_df(
+                    risk_engine.get_data(symbols, exclude_current_bar=True),
+                    symbols,
+                )
                 equity_curve = self._build_risk_equity_series()
                 regime = regime_detector.detect(returns_df, equity_curve) if not returns_df.empty else None
 
@@ -1117,7 +1124,7 @@ class Engine:
             if target_lots <= 0.0:
                 continue
             signed_lots = self._candidate_signed_lots(candidate, target_lots)
-            report = governor.evaluate_add_position(
+            report = governance_engine.evaluate_add_position(
                 current_positions=current_positions,
                 candidate_symbol=candidate["symbol_name"],
                 candidate_lots=signed_lots,

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from apps.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
-from apps.risk.governor import RiskGovernor
+from apps.risk import (
+    GovernanceEngine,
+    PortfolioRiskEngine,
+    PortfolioStateEngine,
+    RiskLimits,
+    RiskSnapshotEngine,
+)
 
 
 def _bars(periods: int = 80, start: str = "2024-01-01") -> pd.DataFrame:
@@ -104,19 +109,21 @@ def test_snapshot_engine_builds_useful_top_level_summary():
     assert snapshot.summary["portfolio_es"] > snapshot.summary["portfolio_var"]
 
 
-def test_snapshot_engine_matches_existing_governor_var_es_math():
+def test_snapshot_engine_matches_shared_portfolio_risk_engine_var_es_math():
     state = _build_state()
     snapshot_engine = RiskSnapshotEngine()
     snapshot = snapshot_engine.build_snapshot(state)
 
-    governor = RiskGovernor(
-        mt5_client=_DummyRiskAdapter(state),
+    governance_engine = GovernanceEngine(
+        risk_engine=PortfolioRiskEngine(
+            mt5_client=_DummyRiskAdapter(state),
+            timeframe="H1",
+            start_pos=0,
+            end_pos=80,
+        ),
         limits=state.limits or RiskLimits(),
-        timeframe="H1",
-        start_pos=0,
-        end_pos=80,
     )
-    gov_var, gov_es, _, _ = governor._compute_portfolio_risk(
+    gov_var, gov_es, _, _ = governance_engine.risk_engine.compute_portfolio_risk(
         state.position_map,
         float(state.account.equity),
         state.limits or RiskLimits(),

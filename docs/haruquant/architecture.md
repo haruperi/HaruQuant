@@ -7,7 +7,7 @@
   - `apps/risk/position_sizing.py`
   - `apps/risk/regime.py`
   - `apps/risk/allocator.py`
-  - `apps/risk/governor.py`
+  - `apps/risk/core/governance_engine.py`
 - New package layout:
   - `apps/risk/models/` for normalized `AccountState`, `PositionState`, `SymbolState`, `MarketState`, and `PortfolioState`
   - `apps/risk/validators/` for thin risk-specific validation wrappers
@@ -28,7 +28,7 @@
   - synchronized market coverage warnings across active symbols
   - `RiskLimits` config checks
 - The current public risk API is preserved:
-  - no Phase 1 rewrite of governor math
+  - no Phase 1 rewrite of trade-gating math
   - no Phase 1 rewrite of allocator behavior
   - no new storage, replay, or reporting subsystem yet
 - `PortfolioState.exposures` provides a simple derived notional exposure map so later phases can reuse one normalized foundation rather than re-deriving it in multiple places.
@@ -41,8 +41,8 @@
   - `apps/risk/metrics/registry.py` for the family registry
   - `apps/risk/metrics/*.py` for the metric families
   - `apps/risk/core/risk_snapshot_engine.py` for current-state metric orchestration
-- The Phase 2 metric layer does not replace the governor.
-  - `apps/risk/governor.py` remains the hard decision engine
+- The Phase 2 metric layer does not replace governance.
+  - `apps/risk/core/governance_engine.py` remains the hard decision engine
   - the metric layer provides a reusable descriptive snapshot for later governance, reporting, and simulator work
 - The first metric families are:
   - `account_state`
@@ -54,6 +54,24 @@
   - `margin_risk`
   - `concentration`
 - The current-state VaR, ES, exposure, and RC math is kept aligned with the governor formulas so the metric MVP does not drift into a separate risk model.
+
+## Risk Engine Governance and Limits Layer
+
+- Phase 3 adds a dedicated governance layer under `apps/risk/limits/`.
+- The new modules now sit under `apps/risk/core/governance_engine.py` and `apps/risk/core/portfolio_risk_engine.py`.
+- New package layout:
+  - `apps/risk/limits/models.py` for `RiskPolicy`, `RiskLimits`, overrides, circuit-breaker state, utilization, and governance state
+  - `apps/risk/limits/events.py` for normalized policy events and decisions
+  - `apps/risk/limits/pre_trade_checks.py` and `post_trade_checks.py` for transition vs current-state checks
+  - `apps/risk/limits/hard_limits.py` and `soft_limits.py` for threshold rules
+  - `apps/risk/limits/circuit_breakers.py` for drawdown and repeated-breach halts
+  - `apps/risk/limits/policy_engine.py` for effective-policy orchestration and regime tightening
+- `apps/risk/risk_limits.py` has been removed.
+- `GovernanceEngine` now owns the trade-gating entry point and delegates the accept/reject policy decision to `PolicyEngine`.
+- `RiskSnapshotEngine` now attaches governance state and policy events to each current-state snapshot so compliance can be persisted later without redesign.
+- Phase 3.5 completes the retirement path:
+  - `apps/risk/core/portfolio_risk_engine.py` owns the shared portfolio math and raw market-data access
+  - `apps/risk/core/governance_engine.py` is the canonical governance entry point
 
 ## Edge Lab Metrics Boundary
 
@@ -422,7 +440,7 @@
   - account seeding applies `initial_capital`, `leverage`, and per-lot `commission`
   - execution settings apply backtest slippage in `core.order_send(...)`
   - position sizing names are normalized at the route boundary (`fixed_percent -> fixed_risk`, `kelly_criterion -> kelly`, `volatility_adjusted_atr -> volatility`)
-  - non-`fixed_lot` position sizing is wired through `Engine.configure_position_sizing(...)` without enabling the broader portfolio risk governor path
+  - non-`fixed_lot` position sizing is wired through `Engine.configure_position_sizing(...)` without enabling the broader portfolio governance path
 
 - Runtime entrypoint: `apps/trading/main.py -> Engine.run(data)`.
 - Current skeleton expects tick-like DataFrame input with `bid` and `ask` columns.
@@ -473,7 +491,7 @@
 
 - `apps/trading/main.py -> Engine.configure_risk_management(...)` enables optional simulator-side reuse of the existing `apps/risk` module.
 - Risk integration is adapter-based:
-  - `_SimulationRiskAdapter` exposes MT5-like methods expected by `RiskGovernor` / `PositionSizer`
+  - `_SimulationRiskAdapter` exposes MT5-like methods expected by `GovernanceEngine` / `PositionSizer`
   - account equity comes from simulator state
   - symbol info comes from simulator symbol state
   - historical bars come from preloaded backtest data caches passed into `configure_risk_management(...)`
@@ -484,7 +502,7 @@
     - `PositionSizer`
     - `RiskRegimeDetector`
     - `RiskBudgetAllocator` (optional)
-    - `RiskGovernor`
+    - `GovernanceEngine`
     - existing order execution helpers
 - This keeps `run(...)` as the single chronological execution loop while allowing portfolio-aware approval of simultaneous signals across symbols.
 - Multi-timeframe strategy logic remains outside the engine:

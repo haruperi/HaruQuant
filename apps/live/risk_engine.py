@@ -15,10 +15,10 @@ import pandas as pd
 from apps.live.engine import MultiStrategyEngine, StrategyInstance
 from apps.utils.logger import logger
 from apps.risk.allocator import RiskBudgetAllocator
-from apps.risk.governor import RiskGovernor
+from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
 from apps.risk.position_sizing import PositionSizer
 from apps.risk.regime import RegimeState, RiskRegimeDetector
-from apps.risk.risk_limits import CorrelationPreference, RiskLimits
+from apps.risk.limits import CorrelationPreference, RiskLimits
 
 
 class RiskIntegratedEngine(MultiStrategyEngine):
@@ -28,7 +28,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
     - Position Sizing (dynamic lot calculation)
     - Regime Detection (NORMAL vs STRESS)
     - Risk Budget Allocation (risk parity)
-    - Risk Governor (hard constraints: VaR, ES, RC, cluster limits)
+    - Governance Engine (hard constraints: VaR, ES, RC, cluster limits)
     """
 
     def __init__(self, config_path: str):
@@ -44,7 +44,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         self.risk_enabled = self.config.get("risk_management", {}).get("enabled", False)
         self.position_sizer: Optional[PositionSizer] = None
         self.regime_detector: Optional[RiskRegimeDetector] = None
-        self.risk_governor: Optional[RiskGovernor] = None
+        self.governance_engine: Optional[GovernanceEngine] = None
         self.risk_allocator: Optional[RiskBudgetAllocator] = None
 
         # Symbol clustering for cluster limits
@@ -140,21 +140,23 @@ class RiskIntegratedEngine(MultiStrategyEngine):
                 f"Risk Limits: VaR={risk_limits.var_cap_frac:.1%}, ES={risk_limits.es_cap_frac:.1%}"
             )
 
-            # 4. Initialize Risk Governor
-            logger.info("Initializing Risk Governor...")
+            # 4. Initialize Governance Engine
+            logger.info("Initializing Governance Engine...")
             if not self.client:
                 logger.error("MT5 client not initialized")
                 return False
 
             gov_config = self.config["risk_management"].get("governor_config", {})
-            self.risk_governor = RiskGovernor(
-                mt5_client=self.client,
+            self.governance_engine = GovernanceEngine(
+                risk_engine=PortfolioRiskEngine(
+                    mt5_client=self.client,
+                    timeframe=gov_config.get("timeframe", "D1"),
+                    start_pos=gov_config.get("start_pos", 0),
+                    end_pos=gov_config.get("end_pos", 500),
+                ),
                 limits=risk_limits,
-                timeframe=gov_config.get("timeframe", "D1"),
-                start_pos=gov_config.get("start_pos", 0),
-                end_pos=gov_config.get("end_pos", 500),
             )
-            logger.info("Risk Governor initialized")
+            logger.info("Governance Engine initialized")
 
             # 5. Initialize Risk Budget Allocator
             logger.info("Initializing Risk Budget Allocator...")
@@ -166,7 +168,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
                 penalty_strength=corr_pref_config.get("penalty_strength", 2.0),
                 min_budget_frac=corr_pref_config.get("min_budget_frac", 0.30),
             )
-            self.risk_allocator = RiskBudgetAllocator(self.risk_governor, corr_pref)
+            self.risk_allocator = RiskBudgetAllocator(self.governance_engine, corr_pref)
             logger.info("Risk Budget Allocator initialized")
 
             # 6. Initialize equity curve for regime detection
@@ -193,7 +195,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         3. Collect signals from all strategies
         4. Calculate base position sizes
         5. Run risk budget allocation
-        6. Gate each position through risk governor
+        6. Gate each position through governance engine
         7. Execute approved trades
         """
         # 1. Check state
@@ -324,7 +326,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         1. Collect all signals from strategies
         2. Calculate base position sizes for each signal
         3. Run risk budget allocation
-        4. Gate through risk governor
+        4. Gate through governance engine
         5. Execute approved trades
         """
         try:
@@ -541,7 +543,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             return volume
 
     def _gate_and_execute(self, instance: StrategyInstance, signal: Dict[str, Any]):
-        """Gate signal through risk governor and execute if approved.
+        """Gate signal through governance engine and execute if approved.
 
         Args:
             instance: Strategy instance
@@ -554,14 +556,14 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             # Refresh positions
             instance.position_manager.refresh_positions()
 
-            # For exit signals, skip risk governor (always allow exits)
+            # For exit signals, skip governance checks (always allow exits)
             if signal["signal"] in [
                 "close buy",
                 "close sell",
                 "Close Buy",
                 "Close Sell",
             ]:
-                logger.info(f"[{instance.name}] Exit signal - bypassing risk governor")
+                logger.info(f"[{instance.name}] Exit signal - bypassing governance engine")
                 self._execute_trade(instance, signal)
                 return
 
@@ -569,8 +571,8 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             if not self._validate_signal(instance, signal):
                 return
 
-            # Gate through risk governor
-            if not self._risk_governor_gate(instance, signal):
+            # Gate through governance engine
+            if not self._risk_governance_gate(instance, signal):
                 return
 
             # Execute trade
@@ -579,10 +581,10 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         except Exception as e:
             logger.error(f"Error in gate_and_execute: {e}", exc_info=True)
 
-    def _risk_governor_gate(
+    def _risk_governance_gate(
         self, instance: StrategyInstance, signal: Dict[str, Any]
     ) -> bool:
-        """Gate signal through risk governor.
+        """Gate signal through governance engine.
 
         Args:
             instance: Strategy instance
@@ -592,10 +594,10 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             True if approved, False if rejected
         """
         try:
-            if not self.risk_governor:
-                return True  # No governor, allow
+            if not self.governance_engine:
+                return True  # No governance engine, allow
 
-            logger.info(f"[{instance.name}] Gating through Risk Governor...")
+            logger.info(f"[{instance.name}] Gating through Governance Engine...")
 
             # Get current portfolio positions (all strategies)
             current_positions = self._get_portfolio_positions()
@@ -605,8 +607,8 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             if signal["signal"].lower() == "sell":
                 candidate_lots = -candidate_lots  # Short position
 
-            # Evaluate through governor
-            report = self.risk_governor.evaluate_add_position(
+            # Evaluate through governance engine
+            report = self.governance_engine.evaluate_add_position(
                 current_positions=current_positions,
                 candidate_symbol=instance.symbol,
                 candidate_lots=candidate_lots,
@@ -616,7 +618,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
 
             # Log report
             logger.info("=" * 60)
-            logger.info(f"Risk Governor Decision: {report.decision}")
+            logger.info(f"Governance Engine Decision: {report.decision}")
             logger.info(f"Reason: {report.reason}")
             logger.info(f"Current VaR: ${report.current_var:,.2f}")
             logger.info(f"New VaR: ${report.new_var:,.2f}")
@@ -629,18 +631,18 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             logger.info("=" * 60)
 
             if report.decision == "REJECT":
-                logger.warning(f"[{instance.name}] Trade REJECTED by Risk Governor")
+                logger.warning(f"[{instance.name}] Trade REJECTED by Governance Engine")
                 if self.notifier:
                     self.notifier.notify_safety_violation(
-                        f"[{instance.name}] Risk Governor: {report.reason}"
+                        f"[{instance.name}] Governance Engine: {report.reason}"
                     )
                 return False
 
-            logger.info(f"[{instance.name}] Trade APPROVED by Risk Governor")
+            logger.info(f"[{instance.name}] Trade APPROVED by Governance Engine")
             return True
 
         except Exception as e:
-            logger.error(f"Error in risk governor gate: {e}", exc_info=True)
+            logger.error(f"Error in governance engine gate: {e}", exc_info=True)
             # Fail safe: reject if error
             return False
 

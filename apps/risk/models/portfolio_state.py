@@ -9,8 +9,8 @@ from apps.risk.models.account_state import AccountState
 from apps.risk.models.market_state import MarketState
 from apps.risk.models.position_state import PositionState
 from apps.risk.models.symbol_state import SymbolState
+from apps.risk.limits import RiskLimits
 from apps.risk.validators.common import ValidationSummary
-from apps.risk.risk_limits import RiskLimits
 
 
 @dataclass(frozen=True)

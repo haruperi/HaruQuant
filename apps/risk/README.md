@@ -11,7 +11,7 @@ This package implements a professional-grade, portfolio-centric risk management 
 - [Architecture](#architecture)
 - [Risk Math Foundations](#risk-math-foundations)
 - [Module Reference](#module-reference)
-  - [RiskGovernor](#riskgovernor)
+  - [GovernanceEngine](#governanceengine)
   - [RiskBudgetAllocator](#riskbudgetallocator)
   - [RiskRegimeDetector](#riskregimedetector)
   - [PositionSizer](#positionsizer)
@@ -34,7 +34,7 @@ python -m apps.live.run_risk --config config/risk_enabled_multi_strategy.json
 python -m apps.live.dashboard
 
 # Monitor risk decisions
-tail -f logs/risk_enabled/multi_strategy.log | grep "Risk Governor"
+tail -f logs/risk_enabled/multi_strategy.log | grep "Governance"
 ```
 
 ### Minimal Configuration
@@ -94,7 +94,7 @@ Each layer has a specific responsibility and cannot be bypassed.
 
 | Component                     | Type              | Purpose                                                                                    |
 | ----------------------------- | ----------------- | ------------------------------------------------------------------------------------------ |
-| **RiskGovernor**        | Hard Constraints  | Portfolio risk gatekeeper - enforces absolute limits on VaR, ES, margin, and concentration |
+| **GovernanceEngine**   | Hard Constraints  | Portfolio risk gatekeeper - enforces absolute limits on VaR, ES, margin, and concentration |
 | **RiskBudgetAllocator** | Soft Optimization | Plans target positions using risk parity / risk contribution budgeting                     |
 | **RiskRegimeDetector**  | State Awareness   | Detects NORMAL vs STRESS regimes to dynamically tighten limits                             |
 | **PositionSizer**       | Position Sizing   | Calculates lot sizes using various methods (fixed, Kelly, volatility, etc.)                |
@@ -121,7 +121,7 @@ This is intentionally an extension of the current system, not a rewrite:
 - `PositionSizer` still owns trade sizing
 - `RiskRegimeDetector` still owns regime classification
 - `RiskBudgetAllocator` still owns soft portfolio planning
-- `RiskGovernor` still owns hard portfolio gating
+- `GovernanceEngine` now owns hard portfolio gating
 
 The canonical state layer exists so later phases can share one validated input
 contract instead of each module rebuilding its own assumptions from raw MT5 or
@@ -152,6 +152,36 @@ The initial metric families are:
 - portfolio risk
 - margin risk
 - concentration
+
+### Phase 3 Governance and Limits Engine
+
+Phase 3 adds a dedicated governance layer under `apps/risk/limits/`.
+
+New additive modules:
+
+- `apps/risk/limits/models.py` - policy models, governance state, overrides, and utilization records
+- `apps/risk/limits/events.py` - explainable breach and warning event records
+- `apps/risk/limits/pre_trade_checks.py` - candidate trade policy checks
+- `apps/risk/limits/post_trade_checks.py` - current portfolio compliance checks
+- `apps/risk/limits/hard_limits.py` - hard cap evaluation
+- `apps/risk/limits/soft_limits.py` - near-limit warnings
+- `apps/risk/limits/circuit_breakers.py` - drawdown and repeated-breach halts
+- `apps/risk/limits/policy_engine.py` - effective-policy orchestration and regime tightening
+
+This remains an extension of the current system, not a second risk engine:
+
+- `GovernanceEngine` owns the public trade-gating API
+- `PortfolioRiskEngine` owns the shared portfolio math and raw market-data access
+- the new policy engine owns the limit rules, explainable events, and governance state
+- `risk_limits.py` has been removed; policy/limit imports now come from `apps/risk/limits`
+- `RiskSnapshotEngine` now includes compliance state and policy events in snapshot output
+
+### Governor Retirement Foundation
+
+The next cleanup step has already started:
+
+- `apps/risk/core/portfolio_risk_engine.py` now owns the shared portfolio math and raw market-data access
+- `apps/risk/core/governance_engine.py` is the canonical governance entry point for pre-trade and post-trade evaluation
 
 ### Three-Layer System
 
@@ -246,11 +276,11 @@ Measures how aligned each asset is with the overall portfolio. Used for correlat
 
 ## Module Reference
 
-### RiskGovernor
+### GovernanceEngine
 
 **Purpose**: Portfolio risk gatekeeper that enforces hard constraints.
 
-**Location**: `apps/risk/governor.py`
+**Location**: `apps/risk/core/governance_engine.py`
 
 **Key Methods**:
 
@@ -261,7 +291,7 @@ def evaluate_add_position(
     candidate_lots: float,
     symbol_to_cluster: Optional[Dict[str, str]] = None,
     regime: Optional[RegimeState] = None,
-) -> RiskReport
+) -> GovernanceReport
 ```
 
 Evaluates whether adding a position violates risk limits.
@@ -274,7 +304,7 @@ Evaluates whether adding a position violates risk limits.
 4. Risk contribution concentration limits
 5. Cluster caps (e.g., max VaR per asset class)
 
-**Returns**: `RiskReport` with decision (ACCEPT/REJECT) and detailed metrics.
+**Returns**: `GovernanceReport` with decision (ACCEPT/REJECT) and detailed metrics.
 
 **Regime Handling**:
 In STRESS regime, limits are automatically tightened:
@@ -505,7 +535,7 @@ lots = sizer.calculate_size(
 
 **Purpose**: Configuration dataclass for portfolio-level risk limits.
 
-**Location**: `apps/risk/risk_limits.py`
+**Location**: `apps/risk/limits/models.py`
 
 **Key Parameters**:
 
@@ -577,7 +607,7 @@ corr_pref = CorrelationPreference(
 ### Example 1: Basic Risk Governance
 
 ```python
-from apps.risk import RiskGovernor, RiskLimits
+from apps.risk import GovernanceEngine, PortfolioRiskEngine, RiskLimits
 
 # Configure limits
 limits = RiskLimits(
@@ -586,19 +616,19 @@ limits = RiskLimits(
     delta_var_cap_frac=0.02
 )
 
-# Initialize governor
-governor = RiskGovernor(
+# Initialize governance
+risk_engine = PortfolioRiskEngine(
     mt5_client=mt5_client,
-    limits=limits,
     timeframe="D1",
     start_pos=0,
-    end_pos=500
+    end_pos=500,
 )
+governance = GovernanceEngine(risk_engine=risk_engine, limits=limits)
 
 # Evaluate adding a position
 current_positions = {"EURUSD": 0.5, "GBPUSD": 0.3}
 
-report = governor.evaluate_add_position(
+report = governance.evaluate_add_position(
     current_positions=current_positions,
     candidate_symbol="USDJPY",
     candidate_lots=0.2
@@ -614,12 +644,19 @@ else:
 ### Example 2: Regime-Aware Allocation
 
 ```python
-from apps.risk import RiskGovernor, RiskBudgetAllocator, RiskRegimeDetector, RiskLimits
+from apps.risk import (
+    GovernanceEngine,
+    PortfolioRiskEngine,
+    RiskBudgetAllocator,
+    RiskRegimeDetector,
+    RiskLimits,
+)
 
 # Setup
 limits = RiskLimits()
-governor = RiskGovernor(mt5_client, limits)
-allocator = RiskBudgetAllocator(governor)
+risk_engine = PortfolioRiskEngine(mt5_client)
+governance = GovernanceEngine(risk_engine, limits)
+allocator = RiskBudgetAllocator(governance)
 detector = RiskRegimeDetector()
 
 # Get market data
@@ -651,12 +688,12 @@ print(f"Target lots: {target_lots}")
 current_lots = {"EURUSD": 0.2, "GBPUSD": 0.1, "USDJPY": 0.3}
 deltas = allocator.lots_to_deltas(current_lots, target_lots)
 
-# Gate each change through governor
+# Gate each change through governance
 for symbol, delta in deltas.items():
     if abs(delta) < 0.01:
         continue
 
-    report = governor.evaluate_add_position(
+    report = governance.evaluate_add_position(
         current_positions=current_lots,
         candidate_symbol=symbol,
         candidate_lots=delta,
@@ -733,7 +770,8 @@ limits = RiskLimits(
     }
 )
 
-governor = RiskGovernor(mt5_client, limits)
+risk_engine = PortfolioRiskEngine(mt5_client)
+governance = GovernanceEngine(risk_engine, limits)
 
 # Define symbol clusters
 symbol_to_cluster = {
@@ -750,7 +788,7 @@ current_positions = {
     "XAUUSD": 0.2
 }
 
-report = governor.evaluate_add_position(
+report = governance.evaluate_add_position(
     current_positions=current_positions,
     candidate_symbol="USDJPY",
     candidate_lots=0.3,
@@ -805,8 +843,9 @@ def get_margin_required(symbol: str, lots: float) -> float:
 ```python
 # 1. Initialize components
 limits = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12)
-governor = RiskGovernor(mt5_client, limits, timeframe="D1")
-allocator = RiskBudgetAllocator(governor)
+risk_engine = PortfolioRiskEngine(mt5_client, timeframe="D1")
+governance = GovernanceEngine(risk_engine, limits)
+allocator = RiskBudgetAllocator(governance)
 detector = RiskRegimeDetector()
 sizer = PositionSizer("fixed_risk", {"risk_percent": 1.0})
 
@@ -835,7 +874,7 @@ target_lots = allocator.compute_target_lots(
     regime=regime
 )
 
-# 6. Gate through risk governor
+# 6. Gate through governance
 current_positions = get_current_positions()  # Your position tracking
 
 for symbol, target_lot in target_lots.items():
@@ -893,7 +932,7 @@ for symbol, target_lot in target_lots.items():
 └─────────────────────┘
 ```
 
-**Critical**: The RiskGovernor gate **must never be bypassed**. All position changes flow through it.
+**Critical**: The GovernanceEngine gate **must never be bypassed**. All position changes flow through it.
 
 ### Key Features
 
@@ -905,7 +944,7 @@ for symbol, target_lot in target_lots.items():
 - **Risk Budget Allocation**: Portfolio-level risk parity
   - Balances risk contributions across positions
   - Favors low-correlation additions
-- **Risk Governor**: Hard constraints enforcement
+- **Governance Engine**: Hard constraints enforcement
   - VaR and ES caps (portfolio + incremental)
   - Margin limits
   - Concentration limits (risk contribution)
@@ -1006,13 +1045,14 @@ target_lots = allocator.compute_target_lots(
 # (Adjusted based on correlations and risk contributions)
 ```
 
-#### 6. Risk Governor Gating
+#### 6. Governance Gating
 
 ```python
-# Gate each trade through risk governor
-governor = RiskGovernor(mt5_client, risk_limits)
+# Gate each trade through governance
+risk_engine = PortfolioRiskEngine(mt5_client)
+governance = GovernanceEngine(risk_engine, risk_limits)
 
-report = governor.evaluate_add_position(
+report = governance.evaluate_add_position(
     current_positions={'EURUSD': 0.30, 'GBPUSD': 0.25},
     candidate_symbol='XAUUSD',
     candidate_lots=0.35,
@@ -1301,8 +1341,8 @@ Initializing Regime Detector...
 Regime Detector configured: {'vol_spike_mult': 1.8, ...}
 Initializing Risk Limits...
 Risk Limits: VaR=8.0%, ES=12.0%
-Initializing Risk Governor...
-Risk Governor initialized
+Initializing Governance Engine...
+Governance Engine initialized
 Initializing Risk Budget Allocator...
 Risk Budget Allocator initialized
 Initial equity: $10,000.00
@@ -1347,9 +1387,9 @@ Reason: Fast(20) crossed above Slow(50) > Filter(200)
 Entry Price: 1.10000
 [EURUSD_Trend] Portfolio check passed
 [EURUSD_Trend] All safety checks passed
-[EURUSD_Trend] Gating through Risk Governor...
+[EURUSD_Trend] Gating through Governance Engine...
 ============================================================
-Risk Governor Decision: ACCEPT
+Governance Decision: ACCEPT
 Reason: All risk limits satisfied.
 Current VaR: $450.00
 New VaR: $612.00
@@ -1359,7 +1399,7 @@ New ES: $790.00
 Delta ES: $210.00
 Risk Contributions: {'GBPUSD': 0.45, 'EURUSD': 0.55}
 ============================================================
-[EURUSD_Trend] Trade APPROVED by Risk Governor
+[EURUSD_Trend] Trade APPROVED by Governance Engine
 Order sent: BUY 0.204 EURUSD at 1.10000
 ============================================================
 Total trades today: 1
@@ -1452,8 +1492,8 @@ Search for these in logs:
 # Regime changes
 grep "Current Regime:" logs/risk_enabled/multi_strategy.log
 
-# Risk governor decisions
-grep "Risk Governor Decision:" logs/risk_enabled/multi_strategy.log
+# Governance decisions
+grep "Governance Decision:" logs/risk_enabled/multi_strategy.log
 
 # Trade rejections
 grep "REJECT" logs/risk_enabled/multi_strategy.log
@@ -1693,14 +1733,15 @@ Before live Use historical data to validate that your limits would have protecte
 ```python
 ## Test how often limits would have been hit
 from apps.backtest import VectorizedBacktest
-from apps.risk import RiskGovernor, RiskLimits
+from apps.risk import GovernanceEngine, PortfolioRiskEngine, RiskLimits
 
 limits = RiskLimits(var_cap_frac=0.08, ...)
-governor = RiskGovernor(mt5_client, limits)
+risk_engine = PortfolioRiskEngine(mt5_client)
+governance = GovernanceEngine(risk_engine, limits)
 
 rejected = 0
 for trade in historical_trades:
-    report = governor.evaluate_add_position(...)
+    report = governance.evaluate_add_position(...)
     if report.decision == "REJECT":
         rejected += 1
 
@@ -1716,7 +1757,7 @@ total_signals = 0
 
 for signal in backtest_signals:
     total_signals += 1
-    report = governor.evaluate_add_position(...)
+    report = governance.evaluate_add_position(...)
 
     if report.decision == "REJECT":
         rejected_count += 1
@@ -1915,7 +1956,7 @@ Use it to build trading systems that survive adverse conditions and scale across
 
 ## Usage Tests & Examples (Local)
 
-These scripts live under `tests/usage/risk/` and are intended for hands-on learning with your local MT5 setup.
+These scripts live under `examples/risk/` and are intended for hands-on learning with your local MT5 setup.
 Most scripts connect to MT5 and use live data. Make sure MT5 is running and your default broker credentials
 exist in the local DB.
 
@@ -1924,23 +1965,29 @@ exist in the local DB.
 1. `01_position_sizing.py` - Position sizing methods (live MT5)
 2. `02_regime_detection.py` - Regime detection (live + synthetic), includes `main_actual()` bar-by-bar mode
 3. `03_risk_allocation.py` - Risk budget allocation and rebalancing
-4. `04_risk_governor.py` - Accept/reject scenarios and caps
+4. `04_risk_governor.py` - Governance accept/reject scenarios and caps
 5. `05_full_scenarios.py` - End-to-end workflows
 6. `06_simple_single_strategy.py` - Single-strategy trading loop
 7. `07_multi_strategy_portfolio.py` - Multi-strategy trading loop
 8. `08_integrate_existing_system.py` - Wrapper pattern for integration
+9. `09_portfolio_state_foundation.py` - Canonical portfolio state foundation
+10. `10_core_risk_metric_snapshot.py` - Core risk metric snapshot
+11. `11_governance_limits_engine.py` - Governance and limits walkthrough
 
 ### Run Commands
 
 ```bash
-python tests/usage/risk/01_position_sizing.py
-python tests/usage/risk/02_regime_detection.py
-python tests/usage/risk/03_risk_allocation.py
-python tests/usage/risk/04_risk_governor.py
-python tests/usage/risk/05_full_scenarios.py
-python -m tests.usage.risk.06_simple_single_strategy
-python -m tests.usage.risk.07_multi_strategy_portfolio
-python -m tests.usage.risk.08_integrate_existing_system
+python examples/risk/01_position_sizing.py
+python examples/risk/02_regime_detection.py
+python examples/risk/03_risk_allocation.py
+python examples/risk/04_risk_governor.py
+python examples/risk/05_full_scenarios.py
+python -m examples.risk.06_simple_single_strategy
+python -m examples.risk.07_multi_strategy_portfolio
+python -m examples.risk.08_integrate_existing_system
+python examples/risk/09_portfolio_state_foundation.py
+python examples/risk/10_core_risk_metric_snapshot.py
+python examples/risk/11_governance_limits_engine.py
 ```
 
 ### Notes

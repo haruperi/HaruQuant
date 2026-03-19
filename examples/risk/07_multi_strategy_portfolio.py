@@ -27,13 +27,14 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.risk import (
+    GovernanceEngine,
+    PortfolioRiskEngine,
     PositionSizer,
     RiskBudgetAllocator,
-    RiskGovernor,
     RiskLimits,
     RiskRegimeDetector,
 )
-from apps.risk.risk_limits import CorrelationPreference
+from apps.risk.limits import CorrelationPreference
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.sqlite.users import UserManager
 from apps.trading import Engine
@@ -170,9 +171,12 @@ def main():
         mt5_client=mt5_client,
     )
 
-    # Initialize Risk Governor
-    governor = RiskGovernor(
-        mt5_client=mt5_client, limits=limits, timeframe="H1", start_pos=0, end_pos=500
+    # Initialize Governance Engine
+    governor = GovernanceEngine(
+        risk_engine=PortfolioRiskEngine(
+            mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=500
+        ),
+        limits=limits,
     )
 
     # Initialize Regime Detector
@@ -419,7 +423,7 @@ def main():
             # ================================================================
             # STEP 6: RISK GOVERNANCE
             # ================================================================
-            print("\n[STEP 6] Risk Governor Review...")
+            print("\n[STEP 6] Governance Engine Review...")
 
             # Get current positions
             current_positions = {}
@@ -437,7 +441,7 @@ def main():
             else:
                 print("  Current Portfolio: Empty")
 
-            # Evaluate each signal through risk governor
+            # Evaluate each signal through governance engine
             approved_signals = []
             rejected_signals = []
 

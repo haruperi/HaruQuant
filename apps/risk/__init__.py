@@ -3,7 +3,7 @@
 Portfolio-First Risk Governance for Algorithmic Trading.
 
 This package provides institutional-grade risk management with:
-- RiskGovernor: Hard constraints (VaR, ES, margin, concentration)
+- GovernanceEngine: Hard constraints (VaR, ES, margin, concentration)
 - RiskBudgetAllocator: Risk parity allocation
 - RiskRegimeDetector: Market regime detection (NORMAL vs STRESS)
 - PositionSizer: Dynamic position sizing (multiple methods)
@@ -11,8 +11,25 @@ This package provides institutional-grade risk management with:
 """
 
 from apps.risk.allocator import RiskBudgetAllocator
-from apps.risk.core import PortfolioStateEngine, RiskSnapshotEngine
-from apps.risk.governor import RiskGovernor, RiskReport
+from apps.risk.core import (
+    GovernanceEngine,
+    GovernanceReport,
+    PortfolioRiskEngine,
+    PortfolioStateEngine,
+    RiskSnapshotEngine,
+)
+from apps.risk.limits import (
+    BudgetUtilization,
+    CircuitBreakerState,
+    CorrelationPreference,
+    GovernanceState,
+    LimitEvent,
+    OverrideRecord,
+    PolicyDecision,
+    PolicyEngine,
+    RiskLimits,
+    RiskPolicy,
+)
 from apps.risk.models import (
     AccountState,
     MarketState,
@@ -26,17 +43,25 @@ from apps.risk.position_sizing import (
     validate_position_size,
 )
 from apps.risk.regime import RegimeState, RiskRegimeDetector
-from apps.risk.risk_limits import CorrelationPreference, RiskLimits
 
 __all__ = [
-    "RiskGovernor",
-    "RiskReport",
+    "PolicyEngine",
+    "PolicyDecision",
+    "LimitEvent",
+    "GovernanceState",
+    "OverrideRecord",
+    "BudgetUtilization",
+    "CircuitBreakerState",
+    "GovernanceEngine",
+    "GovernanceReport",
+    "PortfolioRiskEngine",
     "RiskBudgetAllocator",
     "PortfolioStateEngine",
     "RiskSnapshotEngine",
     "RiskRegimeDetector",
     "RegimeState",
     "PositionSizer",
+    "RiskPolicy",
     "RiskLimits",
     "CorrelationPreference",
     "AccountState",

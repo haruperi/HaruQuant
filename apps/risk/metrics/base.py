@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Protocol
 
+from apps.risk.limits import GovernanceState, LimitEvent
 from apps.risk.models import PortfolioState
 
 
@@ -46,3 +47,5 @@ class RiskSnapshot:
     state: PortfolioState
     metric_rows: List[MetricRow]
     summary: Dict[str, Any] = field(default_factory=dict)
+    governance_state: Optional[GovernanceState] = None
+    policy_events: List[LimitEvent] = field(default_factory=list)

@@ -17,8 +17,8 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk.risk_limits import RiskLimits, CorrelationPreference
-from apps.risk.governor import RiskGovernor
+from apps.risk.limits import RiskLimits, CorrelationPreference
+from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
 from apps.risk.allocator import RiskBudgetAllocator
 from apps.risk.regime import RiskRegimeDetector
 from apps.mt5.client import MT5Client
@@ -111,7 +111,14 @@ def main():
         cluster_es_caps={"FX:USD": 0.09},
     )
 
-    governor = RiskGovernor(mt5_client=mt5_client, limits=limits, timeframe="D1", end_pos=350)
+    governor = GovernanceEngine(
+        risk_engine=PortfolioRiskEngine(
+            mt5_client=mt5_client,
+            timeframe="D1",
+            end_pos=350,
+        ),
+        limits=limits,
+    )
 
     corr_pref = CorrelationPreference(target_corr=0.50, penalty_strength=2.0, min_budget_frac=0.30)
     allocator = RiskBudgetAllocator(governor, corr_pref=corr_pref)

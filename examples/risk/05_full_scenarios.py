@@ -27,14 +27,15 @@ if repo_root not in sys.path:
 
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.risk import (
+    GovernanceEngine,
+    PortfolioRiskEngine,
     PositionSizer,
     RiskBudgetAllocator,
-    RiskGovernor,
     RiskLimits,
     RiskRegimeDetector,
     RegimeState,
 )
-from apps.risk.risk_limits import CorrelationPreference
+from apps.risk.limits import CorrelationPreference
 from apps.sqlite.users import UserManager
 from apps.trading import Engine
 
@@ -119,8 +120,14 @@ def main() -> None:
             method="fixed_risk",
             config={"risk_percent": 0.5, "use_dynamic_stop_loss": False},
         )
-        governor = RiskGovernor(
-            mt5_client=mt5_client, limits=limits, timeframe="H1", start_pos=0, end_pos=200
+        governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client,
+                timeframe="H1",
+                start_pos=0,
+                end_pos=200,
+            ),
+            limits=limits,
         )
 
         size1 = sizer.calculate_size(
@@ -170,8 +177,14 @@ def main() -> None:
         # 3) Multi-strategy portfolio
         _print_header("3) Multi-Strategy Portfolio")
         limits = RiskLimits(var_cap_frac=0.10, es_cap_frac=0.15, delta_var_cap_frac=0.02, max_single_rc_frac=0.35)
-        governor = RiskGovernor(
-            mt5_client=mt5_client, limits=limits, timeframe="H1", start_pos=0, end_pos=200
+        governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client,
+                timeframe="H1",
+                start_pos=0,
+                end_pos=200,
+            ),
+            limits=limits,
         )
         corr_pref = CorrelationPreference(target_corr=0.50, penalty_strength=2.0)
         allocator = RiskBudgetAllocator(governor, corr_pref)

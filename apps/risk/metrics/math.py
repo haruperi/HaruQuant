@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from apps.risk.limits import RiskLimits
 from apps.risk.models import PortfolioState
-from apps.risk.risk_limits import RiskLimits
 
 
 def state_positions_map(state: PortfolioState) -> Dict[str, float]:

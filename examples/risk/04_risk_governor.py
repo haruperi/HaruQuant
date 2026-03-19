@@ -1,5 +1,5 @@
 """
-Usage Example: Risk Governor with Live MT5 Data
+Usage Example: Governance Engine with Live MT5 Data
 
 Demonstrates:
 1. Basic accept (first trade)
@@ -13,7 +13,7 @@ Demonstrates:
 9. Position reduction acceptance
 
 Run:
-    python tests/usage/risk/04_risk_governor.py
+    python examples/risk/04_risk_governor.py
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.mt5 import MT5Client, get_mt5_api
-from apps.risk import RiskGovernor, RiskLimits, RegimeState
+from apps.risk import GovernanceEngine, PortfolioRiskEngine, RiskLimits, RegimeState
 from apps.sqlite.users import UserManager
 from apps.trading import Engine
 
@@ -127,8 +127,11 @@ def main() -> None:
             cluster_es_caps={"FOREX": 0.08, "METALS": 0.06},
         )
 
-        governor = RiskGovernor(
-            mt5_client=mt5_client, limits=limits, timeframe="H1", start_pos=0, end_pos=200
+        governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=200
+            ),
+            limits=limits,
         )
 
         # 1) First trade accept
@@ -151,8 +154,11 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("3) VaR Cap Violation")
         tight_limits = RiskLimits(var_cap_frac=0.03, es_cap_frac=0.15)
-        tight_governor = RiskGovernor(
-            mt5_client=mt5_client, limits=tight_limits, timeframe="H1", start_pos=0, end_pos=200
+        tight_governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=200
+            ),
+            limits=tight_limits,
         )
         report3 = tight_governor.evaluate_add_position(
             current_positions={}, candidate_symbol="EURUSD", candidate_lots=1.0
@@ -163,8 +169,11 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("4) Delta VaR Cap Violation")
         delta_limits = RiskLimits(var_cap_frac=0.10, es_cap_frac=0.15, delta_var_cap_frac=0.01)
-        delta_governor = RiskGovernor(
-            mt5_client=mt5_client, limits=delta_limits, timeframe="H1", start_pos=0, end_pos=200
+        delta_governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=200
+            ),
+            limits=delta_limits,
         )
         delta_governor.evaluate_add_position(
             current_positions={}, candidate_symbol="EURUSD", candidate_lots=0.1
@@ -178,8 +187,11 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("5) ES Cap Violation")
         es_limits = RiskLimits(var_cap_frac=0.10, es_cap_frac=0.05)
-        es_governor = RiskGovernor(
-            mt5_client=mt5_client, limits=es_limits, timeframe="H1", start_pos=0, end_pos=200
+        es_governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=200
+            ),
+            limits=es_limits,
         )
         report5 = es_governor.evaluate_add_position(
             current_positions={}, candidate_symbol="EURUSD", candidate_lots=0.8
@@ -190,8 +202,11 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("6) Risk Contribution Cap Violation")
         rc_limits = RiskLimits(var_cap_frac=0.10, es_cap_frac=0.15, max_single_rc_frac=0.40)
-        rc_governor = RiskGovernor(
-            mt5_client=mt5_client, limits=rc_limits, timeframe="H1", start_pos=0, end_pos=200
+        rc_governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=200
+            ),
+            limits=rc_limits,
         )
         current = {"EURUSD": 0.1, "GBPUSD": 0.1, "USDJPY": 0.1}
         report6 = rc_governor.evaluate_add_position(
@@ -208,8 +223,11 @@ def main() -> None:
             cluster_var_caps={"FOREX": 0.05, "METALS": 0.03},
             cluster_es_caps={"FOREX": 0.07, "METALS": 0.05},
         )
-        cluster_governor = RiskGovernor(
-            mt5_client=mt5_client, limits=cluster_limits, timeframe="H1", start_pos=0, end_pos=200
+        cluster_governor = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client, timeframe="H1", start_pos=0, end_pos=200
+            ),
+            limits=cluster_limits,
         )
         current_fx = {"EURUSD": 0.3, "GBPUSD": 0.3}
         report7 = cluster_governor.evaluate_add_position(

@@ -27,8 +27,14 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.mt5 import MT5Client, get_mt5_api
-from apps.risk import RiskBudgetAllocator, RiskGovernor, RiskLimits, RegimeState
-from apps.risk.risk_limits import CorrelationPreference
+from apps.risk import (
+    GovernanceEngine,
+    PortfolioRiskEngine,
+    RiskBudgetAllocator,
+    RiskLimits,
+    RegimeState,
+)
+from apps.risk.limits import CorrelationPreference
 from apps.sqlite.users import UserManager
 from apps.trading import Engine
 
@@ -94,8 +100,14 @@ def main() -> None:
         symbols = ["EURUSD", "GBPUSD", "USDJPY"]
 
         limits = RiskLimits(var_cap_frac=0.10, es_cap_frac=0.15)
-        governor = RiskGovernor(
-            mt5_client=mt5_client, limits=limits, timeframe="H1", start_pos=0, end_pos=200
+        governance_engine = GovernanceEngine(
+            risk_engine=PortfolioRiskEngine(
+                mt5_client=mt5_client,
+                timeframe="H1",
+                start_pos=0,
+                end_pos=200,
+            ),
+            limits=limits,
         )
 
         base_lots = {"EURUSD": 0.30, "GBPUSD": 0.30, "USDJPY": 0.30}
@@ -103,7 +115,7 @@ def main() -> None:
         # 1) Equal allocation
         print("\n" + "-" * 80)
         print("1) Equal Risk Allocation")
-        allocator = RiskBudgetAllocator(governor)
+        allocator = RiskBudgetAllocator(governance_engine)
         target_equal = allocator.compute_target_lots(
             symbols=symbols, base_lots=base_lots, budgets=None, regime=None
         )
@@ -126,7 +138,7 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("3) Correlation Preference")
         corr_pref = CorrelationPreference(target_corr=0.40, penalty_strength=3.0, min_budget_frac=0.20)
-        allocator_corr = RiskBudgetAllocator(governor, corr_pref)
+        allocator_corr = RiskBudgetAllocator(governance_engine, corr_pref)
         target_corr = allocator_corr.compute_target_lots(
             symbols=symbols, base_lots=base_lots, budgets=None, regime=None
         )
@@ -148,8 +160,12 @@ def main() -> None:
         print("\n" + "-" * 80)
         print("5) Risk Contribution Rebalance")
         rc_target = {"EURUSD": 1 / 3, "GBPUSD": 1 / 3, "USDJPY": 1 / 3}
-        rc_deltas = governor.propose_rc_rebalance(
-            positions=current_positions, target_rc_budget=rc_target, max_iters=10, step_frac=0.10
+        rc_deltas = governance_engine.risk_engine.propose_rc_rebalance(
+            positions=current_positions,
+            target_rc_budget=rc_target,
+            limits=governance_engine.effective_limits(None),
+            max_iters=10,
+            step_frac=0.10,
         )
         if rc_deltas:
             print("Proposed RC Deltas:")

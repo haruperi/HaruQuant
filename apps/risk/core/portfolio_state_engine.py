@@ -14,7 +14,7 @@ from apps.risk.models import (
     PositionState,
     SymbolState,
 )
-from apps.risk.risk_limits import RiskLimits
+from apps.risk.limits import RiskLimits
 from apps.risk.validators import (
     ValidationSummary,
     validate_account_state,

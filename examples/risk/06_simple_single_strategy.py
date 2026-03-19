@@ -24,7 +24,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import PositionSizer, RiskGovernor, RiskLimits, RiskRegimeDetector
+from apps.risk import GovernanceEngine, PortfolioRiskEngine, PositionSizer, RiskLimits, RiskRegimeDetector
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.sqlite.users import UserManager
 from apps.trading import Engine
@@ -100,13 +100,15 @@ def main():
         mt5_client=mt5_client,
     )
 
-    # Initialize Risk Governor
-    governor = RiskGovernor(
-        mt5_client=mt5_client,
+    # Initialize Governance Engine
+    governor = GovernanceEngine(
+        risk_engine=PortfolioRiskEngine(
+            mt5_client=mt5_client,
+            timeframe="H1",
+            start_pos=0,
+            end_pos=500,
+        ),
         limits=limits,
-        timeframe="H1",  # Use H1 for demo accounts
-        start_pos=0,
-        end_pos=500,
     )
 
     # Initialize Regime Detector
@@ -270,7 +272,7 @@ def main():
             # ================================================================
             # STEP 6: RISK GOVERNANCE
             # ================================================================
-            print("\n[STEP 6] Risk Governor Review...")
+            print("\n[STEP 6] Governance Engine Review...")
 
             # Get current positions
             current_positions = {}
@@ -281,7 +283,7 @@ def main():
                     current_positions[symbol] = total_volume
                     print(f"  Current Position: {symbol} {total_volume:.3f} lots")
 
-            # Evaluate trade through risk governor
+            # Evaluate trade through governance engine
             report = governor.evaluate_add_position(
                 current_positions=current_positions,
                 candidate_symbol=symbol,
@@ -302,10 +304,10 @@ def main():
             print("\n[STEP 7] Trade Execution...")
 
             if report.decision == "REJECT":
-                print("  ✗ Trade REJECTED by Risk Governor")
+                print("  ✗ Trade REJECTED by Governance Engine")
                 print(f"  Reason: {report.reason}")
             else:
-                print("  ✓ Trade APPROVED by Risk Governor")
+                print("  ✓ Trade APPROVED by Governance Engine")
 
                 # Execute the trade
                 order_type = mt5_client.ORDER_TYPE_BUY if signal["type"] == "buy" else mt5_client.ORDER_TYPE_SELL

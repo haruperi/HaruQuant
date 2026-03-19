@@ -6,19 +6,21 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from .governor import RiskGovernor
+from .core import GovernanceEngine
 from .regime import RegimeState
-from .risk_limits import CorrelationPreference
+from .limits import CorrelationPreference
 
 
 class RiskBudgetAllocator:
     """Planner that computes target lots using RC budgeting (risk parity style)."""
 
     def __init__(
-        self, governor: RiskGovernor, corr_pref: Optional[CorrelationPreference] = None
+        self,
+        risk_source: GovernanceEngine,
+        corr_pref: Optional[CorrelationPreference] = None,
     ):
-        """Initialize allocator with governor and preferences."""
-        self.gov = governor
+        """Initialize allocator with a risk data/math source and preferences."""
+        self.risk_source = risk_source
         self.corr_pref = corr_pref or CorrelationPreference()
 
     def compute_target_lots(
@@ -31,13 +33,14 @@ class RiskBudgetAllocator:
         lr: float = 0.25,
     ) -> Dict[str, float]:
         """Compute target lots for each symbol using risk parity."""
-        data = self.gov._get_data(symbols, exclude_current_bar=True)
-        returns_df = self.gov._build_returns_df(data, symbols)
+        math_source = self._math_source()
+        data = math_source._get_data(symbols, exclude_current_bar=True)
+        returns_df = math_source._build_returns_df(data, symbols)
         if returns_df.empty:
             return base_lots
 
-        eff = self.gov.effective_limits(regime)
-        cov = self.gov._estimate_covariance(returns_df, symbols, eff)
+        eff = self.risk_source.effective_limits(regime)
+        cov = math_source._estimate_covariance(returns_df, symbols, eff)
 
         # Normalize base budgets
         if not budgets:
@@ -50,8 +53,8 @@ class RiskBudgetAllocator:
             b = {s: v / ssum for s, v in b.items()}
 
         # --- Pro move: soft correlation preference ---
-        weights0 = self.gov._build_weights_from_positions(base_lots, data, symbols)
-        corr_map = self.gov._portfolio_correlation_map(weights0, cov, symbols)
+        weights0 = math_source._build_weights_from_positions(base_lots, data, symbols)
+        corr_map = math_source._portfolio_correlation_map(weights0, cov, symbols)
         b = self._apply_correlation_penalty(b, corr_map)
 
         # Initialize lots from base lots
@@ -59,8 +62,8 @@ class RiskBudgetAllocator:
 
         # Iteratively align RC% to budgets
         for _ in range(max_iters):
-            w = self.gov._build_weights_from_positions(lots, data, symbols)
-            rc_pct = self.gov._compute_risk_contributions_pct(w, cov, symbols)
+            w = math_source._build_weights_from_positions(lots, data, symbols)
+            rc_pct = math_source._compute_risk_contributions_pct(w, cov, symbols)
 
             max_err = 0.0
             for s in symbols:
@@ -101,3 +104,6 @@ class RiskBudgetAllocator:
         if ssum > 0:
             adjusted = {s: v / ssum for s, v in adjusted.items()}
         return adjusted
+
+    def _math_source(self):
+        return self.risk_source.risk_engine
