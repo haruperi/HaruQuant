@@ -176,6 +176,31 @@ This remains an extension of the current system, not a second risk engine:
 - `risk_limits.py` has been removed; policy/limit imports now come from `apps/risk/limits`
 - `RiskSnapshotEngine` now includes compliance state and policy events in snapshot output
 
+### Phase 4 Volatility, Correlation, and Concentration Analytics
+
+Phase 4 extends the metric layer with structural fragility analytics.
+
+New additive modules:
+
+- `apps/risk/metrics/volatility_risk.py` - symbol and portfolio volatility state metrics
+- `apps/risk/metrics/correlation_risk.py` - pairwise and cluster correlation summaries
+- enhanced `apps/risk/metrics/concentration.py` - hidden overlap, effective bets, and diversification ratio
+
+This phase builds on the existing state and snapshot path:
+
+- `PortfolioStateEngine` still provides the canonical validated input
+- `PortfolioRiskEngine` still provides the shared covariance and exposure math
+- `RiskSnapshotEngine` still orchestrates one current-state normalized snapshot
+
+The new analytics focus on structural fragility rather than governance:
+
+- realized symbol and portfolio volatility
+- volatility-adjusted exposure and simple shock-loss estimates
+- pairwise and cluster correlation summaries
+- hidden overlap and redundancy
+- effective independent bets
+- diversification ratio
+
 ### Governor Retirement Foundation
 
 The next cleanup step has already started:

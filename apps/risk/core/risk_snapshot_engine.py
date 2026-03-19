@@ -67,6 +67,13 @@ class RiskSnapshotEngine:
                 "gross_leverage",
                 "margin_used",
                 "margin_used_frac",
+                "portfolio_realized_volatility",
+                "portfolio_vol_shock_loss_estimate",
+                "average_pair_correlation",
+                "max_pair_correlation",
+                "hidden_overlap_score",
+                "effective_independent_bets",
+                "diversification_ratio",
             }:
                 summary[row.metric_key] = row.numeric_value
         return summary

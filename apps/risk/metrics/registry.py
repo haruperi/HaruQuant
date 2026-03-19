@@ -8,12 +8,14 @@ from typing import Iterable, List
 from .account_risk import AccountRiskMetrics
 from .base import MetricContext, MetricFamily, MetricRow
 from .concentration import ConcentrationMetrics
+from .correlation_risk import CorrelationRiskMetrics
 from .currency_exposure import CurrencyExposureMetrics
 from .margin_risk import MarginRiskMetrics
 from .portfolio_risk import PortfolioRiskMetrics
 from .position_risk import PositionRiskMetrics
 from .strategy_risk import StrategyRiskMetrics
 from .symbol_risk import SymbolRiskMetrics
+from .volatility_risk import VolatilityRiskMetrics
 
 
 @dataclass
@@ -48,6 +50,8 @@ def build_default_metric_registry() -> MetricRegistry:
             PortfolioRiskMetrics(),
             MarginRiskMetrics(),
             ConcentrationMetrics(),
+            VolatilityRiskMetrics(),
+            CorrelationRiskMetrics(),
         ]
     )
     return registry

@@ -1,4 +1,4 @@
-"""Shared metric math derived from the existing governor formulas."""
+"""Shared metric math derived from the existing governance formulas."""
 
 from __future__ import annotations
 
@@ -76,6 +76,31 @@ def estimate_covariance(
         corr_mat = apply_corr_floors(corr_mat, limits)
 
     return np.outer(vol, vol) * corr_mat
+
+
+def estimate_correlation_matrix(
+    returns_df: pd.DataFrame,
+    symbols: List[str],
+    limits: RiskLimits,
+) -> np.ndarray:
+    """Estimate the latest rolling correlation matrix for active symbols."""
+    if returns_df.empty:
+        return np.eye(len(symbols), dtype=float)
+
+    r = returns_df[symbols].dropna()
+    if r.empty:
+        return np.eye(len(symbols), dtype=float)
+
+    rolling_corr = r.rolling(limits.corr_lookback).corr()
+    if rolling_corr.empty:
+        return np.eye(len(symbols), dtype=float)
+
+    last_ts = rolling_corr.index.get_level_values(0).unique()[-1]
+    corr_mat = rolling_corr.loc[last_ts].reindex(index=symbols, columns=symbols).values
+    corr_mat = np.nan_to_num(corr_mat, nan=0.0)
+    corr_mat = np.clip(corr_mat, -1.0, 1.0)
+    np.fill_diagonal(corr_mat, 1.0)
+    return corr_mat
 
 
 def apply_corr_floors(corr_mat: np.ndarray, limits: RiskLimits) -> np.ndarray:
@@ -162,6 +187,171 @@ def build_weights_from_state(
     return np.array([n / total for n in notionals], dtype=float)
 
 
+def build_notional_vector(
+    state: PortfolioState,
+    symbols: Optional[List[str]] = None,
+    exclude_current_bar: bool = False,
+) -> np.ndarray:
+    """Return absolute notional exposures for active symbols."""
+    active = symbols or state_symbol_list(state)
+    return np.array(
+        [
+            abs(
+                symbol_notional_value(
+                    state,
+                    symbol,
+                    float(state.position_map.get(symbol, 0.0)),
+                    exclude_current_bar=exclude_current_bar,
+                )
+            )
+            for symbol in active
+        ],
+        dtype=float,
+    )
+
+
+def compute_symbol_volatility_state(
+    returns_df: pd.DataFrame,
+    symbols: List[str],
+    limits: RiskLimits,
+) -> Dict[str, float]:
+    """Return latest rolling realized volatility per symbol."""
+    if returns_df.empty:
+        return dict.fromkeys(symbols, 0.0)
+
+    r = returns_df[symbols].dropna()
+    if r.empty:
+        return dict.fromkeys(symbols, 0.0)
+
+    vol = r.rolling(limits.vol_lookback).std().iloc[-1]
+    if isinstance(vol, pd.Series):
+        return {symbol: float(vol.get(symbol, 0.0) or 0.0) for symbol in symbols}
+    return dict.fromkeys(symbols, 0.0)
+
+
+def average_off_diagonal(corr_mat: np.ndarray) -> float:
+    """Return the mean off-diagonal correlation for a square matrix."""
+    if corr_mat.size == 0 or corr_mat.shape[0] <= 1:
+        return 0.0
+    mask = ~np.eye(corr_mat.shape[0], dtype=bool)
+    values = corr_mat[mask]
+    if values.size == 0:
+        return 0.0
+    return float(np.mean(values))
+
+
+def max_off_diagonal(corr_mat: np.ndarray) -> float:
+    """Return the maximum off-diagonal correlation for a square matrix."""
+    if corr_mat.size == 0 or corr_mat.shape[0] <= 1:
+        return 0.0
+    mask = ~np.eye(corr_mat.shape[0], dtype=bool)
+    values = corr_mat[mask]
+    if values.size == 0:
+        return 0.0
+    return float(np.max(values))
+
+
+def compute_diversification_ratio(
+    weights: np.ndarray,
+    cov: np.ndarray,
+) -> float:
+    """Return the diversification ratio for the current portfolio."""
+    if weights.size == 0 or cov.size == 0:
+        return 0.0
+    sigma = np.sqrt(np.clip(np.diag(cov), 0.0, None))
+    numerator = float(weights @ sigma)
+    denominator = float(np.sqrt(max(weights.T @ cov @ weights, 0.0)))
+    if denominator <= 0.0:
+        return 0.0
+    return numerator / denominator
+
+
+def compute_effective_independent_bets(
+    corr_mat: np.ndarray,
+) -> float:
+    """Estimate effective independent bets from correlation eigenvalues."""
+    if corr_mat.size == 0:
+        return 0.0
+    try:
+        eigenvalues = np.linalg.eigvalsh(corr_mat)
+    except np.linalg.LinAlgError:
+        return 0.0
+    eigenvalues = np.clip(eigenvalues, 0.0, None)
+    total = float(np.sum(eigenvalues))
+    denom = float(np.sum(np.square(eigenvalues)))
+    if total <= 0.0 or denom <= 0.0:
+        return 0.0
+    return (total * total) / denom
+
+
+def compute_hidden_overlap_score(
+    weights: np.ndarray,
+    corr_mat: np.ndarray,
+) -> float:
+    """Estimate hidden overlap from weighted pairwise correlation."""
+    if weights.size <= 1 or corr_mat.size == 0:
+        return 0.0
+    overlap = 0.0
+    for i in range(len(weights)):
+        for j in range(i + 1, len(weights)):
+            overlap += float(weights[i] * weights[j] * max(corr_mat[i, j], 0.0))
+    return float(min(max(overlap * 2.0, 0.0), 1.0))
+
+
+def compute_cluster_exposure_breakdown(
+    state: PortfolioState,
+    symbols: Optional[List[str]] = None,
+    exclude_current_bar: bool = False,
+) -> Dict[str, float]:
+    """Aggregate gross notional exposure by cluster."""
+    active = symbols or state_symbol_list(state)
+    cluster_gross: Dict[str, float] = {}
+    for symbol in active:
+        cluster = state.symbol_to_cluster.get(symbol)
+        position_lots = float(state.position_map.get(symbol, 0.0))
+        if not cluster or abs(position_lots) <= 0.0:
+            continue
+        cluster_gross[cluster] = cluster_gross.get(cluster, 0.0) + abs(
+            symbol_notional_value(
+                state,
+                symbol,
+                position_lots,
+                exclude_current_bar=exclude_current_bar,
+            )
+        )
+    return cluster_gross
+
+
+def compute_cluster_correlation_summary(
+    symbols: List[str],
+    corr_mat: np.ndarray,
+    symbol_to_cluster: Dict[str, str],
+) -> Dict[str, Dict[str, float]]:
+    """Summarize average and max intra-cluster correlation."""
+    summary: Dict[str, Dict[str, float]] = {}
+    cluster_to_indices: Dict[str, List[int]] = {}
+    for idx, symbol in enumerate(symbols):
+        cluster = symbol_to_cluster.get(symbol)
+        if not cluster:
+            continue
+        cluster_to_indices.setdefault(cluster, []).append(idx)
+
+    for cluster, indices in cluster_to_indices.items():
+        if len(indices) <= 1:
+            summary[cluster] = {"avg_corr": 0.0, "max_corr": 0.0, "symbol_count": float(len(indices))}
+            continue
+        values: List[float] = []
+        for i_pos, i in enumerate(indices):
+            for j in indices[i_pos + 1 :]:
+                values.append(float(corr_mat[i, j]))
+        summary[cluster] = {
+            "avg_corr": float(np.mean(values)) if values else 0.0,
+            "max_corr": float(np.max(values)) if values else 0.0,
+            "symbol_count": float(len(indices)),
+        }
+    return summary
+
+
 def compute_risk_contributions_pct(
     weights: np.ndarray,
     cov: np.ndarray,
@@ -212,7 +402,9 @@ def compute_portfolio_var_es(
         }
 
     cov = estimate_covariance(returns_df, symbols, eff)
+    corr_mat = estimate_correlation_matrix(returns_df, symbols, eff)
     weights = build_weights_from_state(state, symbols, exclude_current_bar=True)
+    notionals = build_notional_vector(state, symbols, exclude_current_bar=True)
     port_var = float(weights.T @ cov @ weights)
     port_std = float(np.sqrt(max(port_var, 0.0)))
     portfolio_notional = float(
@@ -236,6 +428,8 @@ def compute_portfolio_var_es(
             "portfolio_notional": portfolio_notional,
             "portfolio_std": port_std,
             "symbols": symbols,
+            "correlation": corr_mat,
+            "notionals": notionals,
         }
 
     z = stats.norm.ppf(eff.confidence_level)
@@ -253,6 +447,8 @@ def compute_portfolio_var_es(
         "portfolio_notional": portfolio_notional,
         "portfolio_std": port_std,
         "symbols": symbols,
+        "correlation": corr_mat,
+        "notionals": notionals,
     }
 
 

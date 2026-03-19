@@ -5,7 +5,14 @@ from __future__ import annotations
 from typing import Dict, List
 
 from .base import MetricContext, MetricRow
-from .math import compute_portfolio_var_es, symbol_notional_value
+from .math import (
+    compute_cluster_exposure_breakdown,
+    compute_diversification_ratio,
+    compute_effective_independent_bets,
+    compute_hidden_overlap_score,
+    compute_portfolio_var_es,
+    symbol_notional_value,
+)
 
 
 class ConcentrationMetrics:
@@ -15,7 +22,7 @@ class ConcentrationMetrics:
 
     def compute(self, context: MetricContext) -> List[MetricRow]:
         rows: List[MetricRow] = []
-        _, _, rc_map, _ = compute_portfolio_var_es(context.state)
+        _, _, rc_map, artifacts = compute_portfolio_var_es(context.state)
 
         exposures: Dict[str, float] = {}
         gross_exposure = 0.0
@@ -66,15 +73,41 @@ class ConcentrationMetrics:
                 )
             )
 
-        cluster_gross: Dict[str, float] = {}
-        for position in context.state.positions:
-            cluster = position.cluster or context.state.symbol_to_cluster.get(position.symbol)
-            if not cluster:
-                continue
-            cluster_gross[cluster] = cluster_gross.get(cluster, 0.0) + abs(
-                symbol_notional_value(context.state, position.symbol, position.lots)
+        corr_mat = artifacts.get("correlation")
+        cov = artifacts.get("covariance")
+        weights = artifacts.get("weights")
+        if corr_mat is not None and weights is not None:
+            rows.append(
+                MetricRow(
+                    self.family_name,
+                    "hidden_overlap_score",
+                    "portfolio",
+                    numeric_value=compute_hidden_overlap_score(weights, corr_mat),
+                    unit="fraction",
+                )
+            )
+            rows.append(
+                MetricRow(
+                    self.family_name,
+                    "effective_independent_bets",
+                    "portfolio",
+                    numeric_value=compute_effective_independent_bets(corr_mat),
+                    unit="count",
+                )
+            )
+        if cov is not None and weights is not None:
+            rows.append(
+                MetricRow(
+                    self.family_name,
+                    "diversification_ratio",
+                    "portfolio",
+                    numeric_value=compute_diversification_ratio(weights, cov),
+                    unit="ratio",
+                )
             )
 
+        cluster_gross = compute_cluster_exposure_breakdown(context.state, exclude_current_bar=True)
+        gross_cluster_total = float(sum(cluster_gross.values()))
         for cluster, gross in sorted(cluster_gross.items()):
             rows.append(
                 MetricRow(
@@ -84,6 +117,16 @@ class ConcentrationMetrics:
                     scope_key=cluster,
                     numeric_value=float(gross),
                     unit="currency",
+                )
+            )
+            rows.append(
+                MetricRow(
+                    self.family_name,
+                    "cluster_gross_exposure_frac",
+                    "cluster",
+                    scope_key=cluster,
+                    numeric_value=float(gross / gross_cluster_total) if gross_cluster_total > 0.0 else 0.0,
+                    unit="fraction",
                 )
             )
         return rows

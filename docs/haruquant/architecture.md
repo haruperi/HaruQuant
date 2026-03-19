@@ -73,6 +73,33 @@
   - `apps/risk/core/portfolio_risk_engine.py` owns the shared portfolio math and raw market-data access
   - `apps/risk/core/governance_engine.py` is the canonical governance entry point
 
+## Risk Engine Structural Fragility Analytics
+
+- Phase 4 extends the existing metric layer instead of adding a second analytics engine.
+- New package layout:
+  - `apps/risk/metrics/volatility_risk.py`
+  - `apps/risk/metrics/correlation_risk.py`
+  - enhanced `apps/risk/metrics/concentration.py`
+- Shared helper math remains centralized in `apps/risk/metrics/math.py`:
+  - realized volatility state
+  - rolling correlation matrix extraction
+  - hidden overlap scoring
+  - effective independent bets
+  - diversification ratio
+  - cluster exposure and cluster correlation summaries
+- `apps/risk/metrics/registry.py` now includes these families in the default snapshot path.
+- `apps/risk/core/risk_snapshot_engine.py` surfaces top-level structural fragility metrics in the snapshot summary:
+  - `portfolio_realized_volatility`
+  - `portfolio_vol_shock_loss_estimate`
+  - `average_pair_correlation`
+  - `max_pair_correlation`
+  - `hidden_overlap_score`
+  - `effective_independent_bets`
+  - `diversification_ratio`
+- The design intent is descriptive structural fragility, not scenario stress testing yet.
+  - explicit stress scenarios remain a later phase
+  - governance continues to consume the same underlying exposure/covariance foundation
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.
