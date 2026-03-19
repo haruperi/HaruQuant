@@ -144,7 +144,11 @@ def main():
 
     # Rebalance to equal RC budgets
     budget_now = {s: 1.0 for s in positions.keys()}
-    deltas = governor.propose_rc_rebalance(positions, budget_now, regime=regime)
+    deltas = governor.risk_engine.propose_rc_rebalance(
+        positions,
+        budget_now,
+        limits=governor.effective_limits(regime),
+    )
     print("\nRebalance deltas:", deltas)
 
     mt5_client.shutdown()

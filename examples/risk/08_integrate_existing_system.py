@@ -386,10 +386,10 @@ class RiskManagedTradingWrapper:
         # Use the governance engine's shared rebalancing helper
         target_budgets = {s: self.risk_budgets.get(s, 1.0 / len(current_positions)) for s in current_positions}
 
-        deltas = self.governor.propose_rc_rebalance(
+        deltas = self.governor.risk_engine.propose_rc_rebalance(
             positions=current_positions,
             target_rc_budget=target_budgets,
-            regime=self.current_regime,
+            limits=self.governor.effective_limits(self.current_regime),
         )
 
         if deltas:
@@ -408,10 +408,14 @@ class RiskManagedTradingWrapper:
         current_positions = self._get_current_positions()
         equity = self.mt5_client.get_account_equity()
 
-        # Calculate portfolio risk
-        var, es, margin, rc_map = self.governor._compute_portfolio_risk(
-            current_positions, equity, self.limits
+        report = self.governor.evaluate_portfolio_positions(
+            positions=current_positions,
+            symbol_to_cluster=self.symbol_clusters,
+            regime=self.current_regime,
         )
+        var = report.new_var
+        es = report.new_es
+        rc_map = report.rc_map_new or {}
 
         return {
             "equity": equity,

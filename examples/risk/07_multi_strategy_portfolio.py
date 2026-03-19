@@ -246,12 +246,13 @@ def main():
     # ============================================================================
 
     print("\n" + "=" * 80)
-    print("STARTING MULTI-STRATEGY TRADING LOOP (Press Ctrl+C to stop)")
+    print("STARTING MULTI-STRATEGY TRADING LOOP (single demonstration iteration)")
     print("=" * 80)
 
     try:
         iteration = 0
-        while True:
+        max_iterations = 1
+        while iteration < max_iterations:
             iteration += 1
             print(f"\n{'=' * 80}")
             print(f"[Iteration {iteration}] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -272,17 +273,16 @@ def main():
                 )
 
                 if data is None or data.empty:
-                    print(f"  ⚠ {strategy.symbol}: No data available")
+                    print(f"  [WARN] {strategy.symbol}: No data available")
                     continue
 
                 all_data[strategy.symbol] = data
                 print(
-                    f"  ✓ {strategy.symbol}: {len(data)} bars, Latest: {data['close'].iloc[-1]:.5f}"
+                    f"  [OK] {strategy.symbol}: {len(data)} bars, Latest: {data['close'].iloc[-1]:.5f}"
                 )
 
             if not all_data:
-                print("  ✗ No data available for any strategy, skipping iteration")
-                time.sleep(60)
+                print("  [WARN] No data available for any strategy, skipping iteration")
                 continue
 
             # ================================================================
@@ -300,12 +300,11 @@ def main():
                 if signal:
                     signal["strategy_name"] = strategy.name
                     signals.append(signal)
-                    print(f"  ✓ {strategy.name}: {signal['type'].upper()} signal")
+                    print(f"  [OK] {strategy.name}: {signal['type'].upper()} signal")
                     print(f"    Reason: {signal['reason']}")
 
             if not signals:
-                print("  ℹ No signals generated from any strategy")
-                time.sleep(60)
+                print("  [INFO] No signals generated from any strategy")
                 continue
 
             print(f"\n  Total Signals: {len(signals)}")
@@ -334,7 +333,7 @@ def main():
                 signal["volume"] = volume
                 base_lots[symbol] = volume
 
-                print(f"  ✓ {symbol}: {volume:.3f} lots (1% risk)")
+                print(f"  [OK] {symbol}: {volume:.3f} lots (1% risk)")
 
             # ================================================================
             # STEP 4: REGIME DETECTION
@@ -354,7 +353,7 @@ def main():
                     returns_data[symbol] = daily_data["close"].pct_change()
 
             if len(returns_data) < 2:
-                print("  ⚠ Insufficient data for regime detection, assuming NORMAL")
+                print("  [WARN] Insufficient data for regime detection, assuming NORMAL")
                 regime = None
             else:
                 returns_df = pd.DataFrame(returns_data)
@@ -366,10 +365,10 @@ def main():
 
                 regime = regime_detector.detect(returns_df, equity_curve)
 
-                print(f"  ✓ Detected Regime: {regime.name}")
+                print(f"  [OK] Detected Regime: {regime.name}")
 
                 if regime.name == "STRESS":
-                    print("  ⚠ STRESS regime detected!")
+                    print("  [WARN] STRESS regime detected!")
                     print("    - VaR cap will be tightened to 7%")
                     print("    - ES cap will be tightened to 10%")
                     print("    - Correlation floor raised to 0.75")
@@ -383,7 +382,7 @@ def main():
             entry_signals = [s for s in signals if s["type"] in ["buy", "sell"]]
 
             if not entry_signals:
-                print("  ℹ No entry signals to allocate")
+                print("  [INFO] No entry signals to allocate")
                 target_lots = base_lots
             else:
                 # Get symbols from entry signals
@@ -478,7 +477,7 @@ def main():
             print("\n[STEP 7] Trade Execution...")
 
             if not approved_signals:
-                print("  ℹ No trades to execute")
+                print("  [INFO] No trades to execute")
             else:
                 for signal in approved_signals:
                     print(f"\n  Executing {signal['type'].upper()}: {signal['symbol']}")
@@ -497,12 +496,13 @@ def main():
                     #     comment=f"{signal['strategy_name']} - Risk Managed"
                     # )
 
-                    print("    ℹ DEMO MODE - Order not actually sent")
+                    print("    [INFO] DEMO MODE - Order not actually sent")
 
             # Wait before next iteration
-            print("\n" + "=" * 80)
-            print("Waiting 60 seconds before next iteration...")
-            time.sleep(60)
+            if iteration < max_iterations:
+                print("\n" + "=" * 80)
+                print("Waiting 60 seconds before next iteration...")
+                time.sleep(60)
 
     except KeyboardInterrupt:
         print("\n\n[SHUTDOWN] Trading loop stopped by user")

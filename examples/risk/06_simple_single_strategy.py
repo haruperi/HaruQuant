@@ -136,12 +136,13 @@ def main():
     # ============================================================================
 
     print("\n" + "=" * 80)
-    print("STARTING TRADING LOOP (Press Ctrl+C to stop)")
+    print("STARTING TRADING LOOP (single demonstration iteration)")
     print("=" * 80)
 
     try:
         iteration = 0
-        while True:
+        max_iterations = 1
+        while iteration < max_iterations:
             iteration += 1
             print(f"\n[Iteration {iteration}] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -154,11 +155,10 @@ def main():
             data = mt5_client.get_bars(symbol=symbol, timeframe=timeframe, count=200, start_pos=0)
 
             if data is None or data.empty:
-                print("  ⚠ No data available, skipping iteration")
-                time.sleep(30)
+                print("  [WARN] No data available, skipping iteration")
                 continue
 
-            print(f"  ✓ Fetched {len(data)} bars")
+            print(f"  [OK] Fetched {len(data)} bars")
             print(f"  Latest Close: {data['close'].iloc[-1]:.5f}")
 
             # ================================================================
@@ -204,11 +204,10 @@ def main():
                 }
 
             if signal is None:
-                print("  ℹ No signal generated")
-                time.sleep(30)
+                print("  [INFO] No signal generated")
                 continue
 
-            print(f"  ✓ Signal: {signal['type'].upper()}")
+            print(f"  [OK] Signal: {signal['type'].upper()}")
             print(f"  Entry: {signal['entry_price']:.5f}")
             print(f"  Reason: {signal['reason']}")
 
@@ -230,7 +229,7 @@ def main():
                 signal_type=signal["type"],
             )
 
-            print(f"  ✓ Calculated Size: {volume:.3f} lots")
+            print(f"  [OK] Calculated Size: {volume:.3f} lots")
             print(f"  Account Balance: ${account_balance:,.2f}")
             print(f"  Risk: 1% = ${account_balance * 0.01:,.2f}")
 
@@ -244,7 +243,7 @@ def main():
             daily_data = mt5_client.get_bars(symbol=symbol, timeframe="D1", count=100, start_pos=0)
 
             if daily_data is None or daily_data.empty or len(daily_data) < 60:
-                print("  ⚠ Insufficient data for regime detection, assuming NORMAL")
+                print("  [WARN] Insufficient data for regime detection, assuming NORMAL")
                 regime = None
             else:
                 # Calculate returns
@@ -258,16 +257,16 @@ def main():
 
                 # Detect regime
                 regime = regime_detector.detect(returns, equity_curve)
-                print(f"  ✓ Detected Regime: {regime.name}")
+                print(f"  [OK] Detected Regime: {regime.name}")
 
                 if regime.name == "STRESS":
-                    print("  ⚠ STRESS regime - limits will be tightened!")
+                    print("  [WARN] STRESS regime - limits will be tightened!")
 
             # ================================================================
             # STEP 5: SKIP ALLOCATION (Single Strategy)
             # ================================================================
             print("\n[STEP 5] Risk Budget Allocation...")
-            print("  ℹ Skipped (only needed for multi-strategy)")
+            print("  [INFO] Skipped (only needed for multi-strategy)")
 
             # ================================================================
             # STEP 6: RISK GOVERNANCE
@@ -304,10 +303,10 @@ def main():
             print("\n[STEP 7] Trade Execution...")
 
             if report.decision == "REJECT":
-                print("  ✗ Trade REJECTED by Governance Engine")
+                print("  [REJECT] Trade rejected by Governance Engine")
                 print(f"  Reason: {report.reason}")
             else:
-                print("  ✓ Trade APPROVED by Governance Engine")
+                print("  [OK] Trade approved by Governance Engine")
 
                 # Execute the trade
                 order_type = mt5_client.ORDER_TYPE_BUY if signal["type"] == "buy" else mt5_client.ORDER_TYPE_SELL
@@ -327,12 +326,13 @@ def main():
                 #     comment="Risk-managed trade"
                 # )
 
-                print("  ℹ DEMO MODE - Order not actually sent")
+                print("  [INFO] DEMO MODE - Order not actually sent")
 
             # Wait before next iteration
-            print("\n" + "-" * 80)
-            print("Waiting 30 seconds before next iteration...")
-            time.sleep(30)
+            if iteration < max_iterations:
+                print("\n" + "-" * 80)
+                print("Waiting 30 seconds before next iteration...")
+                time.sleep(30)
 
     except KeyboardInterrupt:
         print("\n\n[SHUTDOWN] Trading loop stopped by user")

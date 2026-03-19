@@ -235,8 +235,12 @@ def main() -> None:
         _print_header("5) Rebalancing Workflow")
         current_positions = {"EURUSD": 0.8, "GBPUSD": 0.2, "USDJPY": 0.2, "XAUUSD": 0.1}
         target_budget = {s: 1 / len(current_positions) for s in current_positions}
-        rebalance = governor.propose_rc_rebalance(
-            positions=current_positions, target_rc_budget=target_budget, max_iters=10, step_frac=0.10
+        rebalance = governor.risk_engine.propose_rc_rebalance(
+            positions=current_positions,
+            target_rc_budget=target_budget,
+            limits=governor.effective_limits(regime),
+            max_iters=10,
+            step_frac=0.10,
         )
         if rebalance:
             print("Rebalance Deltas:")
