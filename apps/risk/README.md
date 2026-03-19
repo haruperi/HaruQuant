@@ -201,6 +201,37 @@ The new analytics focus on structural fragility rather than governance:
 - effective independent bets
 - diversification ratio
 
+### Phase 5 Drawdown, Tail Risk, and Stress Testing
+
+Phase 5 extends the existing snapshot path with downside and scenario analytics.
+
+New additive modules:
+
+- `apps/risk/metrics/drawdown_risk.py` - current drawdown, max drawdown, velocity, and time under water
+- `apps/risk/metrics/var_cvar.py` - method-tagged tail-risk rows on top of the existing VaR/ES math
+- `apps/risk/metrics/stress_risk.py` - deterministic scenario losses and stressed summaries
+- `apps/risk/scenarios/` - simple scenario models, registry, and deterministic evaluation helpers
+
+This phase still builds on the same foundations:
+
+- `PortfolioStateEngine` remains the canonical input layer
+- `PortfolioRiskEngine` remains the shared portfolio math layer
+- `RiskSnapshotEngine` remains the single current-state orchestration path
+
+The initial downside analytics cover:
+
+- current and max drawdown when an equity curve is available
+- drawdown velocity and time under water
+- method-tagged parametric VaR/CVaR output
+- deterministic scenario losses for:
+  - volatility shock
+  - spread blowout
+  - gap risk
+  - correlation spike
+  - liquidity crunch
+
+Scenario assumptions are carried in metric-row context so later storage and reporting work can persist them without redesign.
+
 ### Governor Retirement Foundation
 
 The next cleanup step has already started:

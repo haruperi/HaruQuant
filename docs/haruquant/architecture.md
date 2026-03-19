@@ -100,6 +100,28 @@
   - explicit stress scenarios remain a later phase
   - governance continues to consume the same underlying exposure/covariance foundation
 
+## Risk Engine Drawdown, Tail Risk, and Stress Analytics
+
+- Phase 5 extends the same normalized snapshot path rather than introducing a separate stress engine.
+- New package layout:
+  - `apps/risk/metrics/drawdown_risk.py`
+  - `apps/risk/metrics/var_cvar.py`
+  - `apps/risk/metrics/stress_risk.py`
+  - `apps/risk/scenarios/`
+- Drawdown analytics are metadata-driven:
+  - drawdown rows are emitted only when an equity curve is supplied through snapshot shared state or `PortfolioState.metadata`
+  - current drawdown, max drawdown, drawdown velocity, and time-under-water are computed from that supplied curve
+- Tail-risk analytics stay aligned with the existing portfolio-risk math:
+  - `portfolio_var` and `portfolio_es` remain the baseline summary keys
+  - `tail_risk` adds explicit method and lookback metadata on top of that same computation path
+- Stress analytics are deterministic and explainable:
+  - volatility shock
+  - spread blowout
+  - gap risk
+  - correlation spike
+  - liquidity crunch
+- Scenario assumptions remain explicit in row context so later persistence/reporting phases can reuse the same outputs.
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

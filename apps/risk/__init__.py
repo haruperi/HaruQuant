@@ -43,6 +43,13 @@ from apps.risk.position_sizing import (
     validate_position_size,
 )
 from apps.risk.regime import RegimeState, RiskRegimeDetector
+from apps.risk.scenarios import (
+    ScenarioRegistry,
+    ScenarioResult,
+    StressScenario,
+    build_default_scenario_registry,
+    evaluate_scenarios,
+)
 
 __all__ = [
     "PolicyEngine",
@@ -69,6 +76,11 @@ __all__ = [
     "SymbolState",
     "MarketState",
     "PortfolioState",
+    "ScenarioRegistry",
+    "ScenarioResult",
+    "StressScenario",
+    "build_default_scenario_registry",
+    "evaluate_scenarios",
     "validate_position_size",
     "estimate_kelly_parameters",
 ]

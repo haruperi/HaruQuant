@@ -74,8 +74,15 @@ class RiskSnapshotEngine:
                 "hidden_overlap_score",
                 "effective_independent_bets",
                 "diversification_ratio",
+                "current_drawdown",
+                "max_drawdown",
+                "portfolio_var_parametric",
+                "portfolio_cvar_parametric",
+                "worst_scenario_loss",
             }:
                 summary[row.metric_key] = row.numeric_value
+            if row.metric_key in {"worst_scenario_name"}:
+                summary[row.metric_key] = row.text_value
         return summary
 
     def _build_governance(

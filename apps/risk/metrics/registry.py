@@ -10,11 +10,14 @@ from .base import MetricContext, MetricFamily, MetricRow
 from .concentration import ConcentrationMetrics
 from .correlation_risk import CorrelationRiskMetrics
 from .currency_exposure import CurrencyExposureMetrics
+from .drawdown_risk import DrawdownRiskMetrics
 from .margin_risk import MarginRiskMetrics
 from .portfolio_risk import PortfolioRiskMetrics
 from .position_risk import PositionRiskMetrics
+from .stress_risk import StressRiskMetrics
 from .strategy_risk import StrategyRiskMetrics
 from .symbol_risk import SymbolRiskMetrics
+from .var_cvar import TailRiskMetrics
 from .volatility_risk import VolatilityRiskMetrics
 
 
@@ -52,6 +55,9 @@ def build_default_metric_registry() -> MetricRegistry:
             ConcentrationMetrics(),
             VolatilityRiskMetrics(),
             CorrelationRiskMetrics(),
+            DrawdownRiskMetrics(),
+            TailRiskMetrics(),
+            StressRiskMetrics(),
         ]
     )
     return registry
