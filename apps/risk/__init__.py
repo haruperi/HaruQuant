@@ -70,6 +70,16 @@ from apps.risk.regimes import (
     VolatilityRegimeDetector,
     build_regime_transition,
 )
+from apps.risk.reports import (
+    build_replay_report,
+    build_risk_snapshot_report,
+    build_scenario_report,
+    render_replay_report_markdown,
+    render_risk_report_markdown,
+    render_scenario_report_markdown,
+    save_json_report,
+    save_markdown_report,
+)
 from apps.risk.scenarios import (
     ScenarioRegistry,
     ScenarioResult,
@@ -117,6 +127,14 @@ __all__ = [
     "VolatilityRegimeDetector",
     "LiquidityRegimeDetector",
     "build_regime_transition",
+    "build_risk_snapshot_report",
+    "build_scenario_report",
+    "build_replay_report",
+    "render_risk_report_markdown",
+    "render_scenario_report_markdown",
+    "render_replay_report_markdown",
+    "save_json_report",
+    "save_markdown_report",
     "PositionSizer",
     "RecommendationAction",
     "RecommendationBatch",

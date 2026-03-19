@@ -67,5 +67,14 @@ class RiskSnapshotStore:
     def load_snapshot_bundle(self, snapshot_id: int):
         return self.repository.load_snapshot_bundle(snapshot_id)
 
+    def load_run(self, run_id: int):
+        return self.repository.load_run(run_id)
+
     def load_replay_frames(self, run_id: int):
         return self.repository.load_replay_frames(run_id)
+
+    def export_snapshot_reports(self, snapshot_id: int):
+        return self.repository.export_snapshot_reports(snapshot_id)
+
+    def export_replay_report(self, run_id: int):
+        return self.repository.export_replay_report(run_id)

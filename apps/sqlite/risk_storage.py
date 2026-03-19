@@ -6,6 +6,7 @@ import json
 import sqlite3
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from apps.risk.limits import LimitEvent
@@ -321,6 +322,20 @@ class RiskStorageManager:
         finally:
             conn.close()
 
+    def get_risk_run(self, run_id: int) -> dict[str, Any]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute(
+                "SELECT * FROM risk_runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Risk run {run_id} not found.")
+            return self._decode_row(row)
+        finally:
+            conn.close()
+
     def get_risk_replay_frames(self, run_id: int) -> list[dict[str, Any]]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -332,6 +347,75 @@ class RiskStorageManager:
             return [self._decode_row(row) for row in rows]
         finally:
             conn.close()
+
+    def export_risk_snapshot_reports(self, snapshot_id: int) -> dict[str, Any]:
+        """Export stored risk snapshot reports as JSON and Markdown."""
+        from apps.risk.reports import (
+            build_risk_snapshot_report,
+            build_scenario_report,
+            render_risk_report_markdown,
+            render_scenario_report_markdown,
+            save_json_report,
+            save_markdown_report,
+        )
+
+        bundle = self.get_risk_snapshot_bundle(snapshot_id)
+        run = self.get_risk_run(int(bundle["snapshot"]["run_id"]))
+        risk_report = build_risk_snapshot_report(bundle, run=run)
+        scenario_report = build_scenario_report(bundle, run=run)
+
+        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+
+        risk_json = export_dir / f"risk_snapshot_{snapshot_id}.json"
+        risk_md = export_dir / f"risk_snapshot_{snapshot_id}.md"
+        scenario_json = export_dir / f"risk_scenarios_{snapshot_id}.json"
+        scenario_md = export_dir / f"risk_scenarios_{snapshot_id}.md"
+
+        save_json_report(risk_report, risk_json)
+        save_markdown_report(render_risk_report_markdown(risk_report), risk_md)
+        save_json_report(scenario_report, scenario_json)
+        save_markdown_report(render_scenario_report_markdown(scenario_report), scenario_md)
+
+        return {
+            "risk_report": risk_report,
+            "scenario_report": scenario_report,
+            "artifacts": [
+                {"artifact_type": "json_report", "artifact_ref": str(risk_json)},
+                {"artifact_type": "markdown_report", "artifact_ref": str(risk_md)},
+                {"artifact_type": "json_scenario_report", "artifact_ref": str(scenario_json)},
+                {"artifact_type": "markdown_scenario_report", "artifact_ref": str(scenario_md)},
+            ],
+        }
+
+    def export_risk_replay_report(self, run_id: int) -> dict[str, Any]:
+        """Export a compact replay report as JSON and Markdown."""
+        from apps.risk.reports import (
+            build_replay_report,
+            render_replay_report_markdown,
+            save_json_report,
+            save_markdown_report,
+        )
+
+        run = self.get_risk_run(run_id)
+        frames = self.get_risk_replay_frames(run_id)
+        replay_report = build_replay_report(frames, run=run)
+
+        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        replay_json = export_dir / f"risk_replay_{run_id}.json"
+        replay_md = export_dir / f"risk_replay_{run_id}.md"
+
+        save_json_report(replay_report, replay_json)
+        save_markdown_report(render_replay_report_markdown(replay_report), replay_md)
+
+        return {
+            "replay_report": replay_report,
+            "artifacts": [
+                {"artifact_type": "json_replay_report", "artifact_ref": str(replay_json)},
+                {"artifact_type": "markdown_replay_report", "artifact_ref": str(replay_md)},
+            ],
+        }
 
     def _insert_metric_rows(
         self,

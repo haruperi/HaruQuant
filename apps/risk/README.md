@@ -365,6 +365,26 @@ This phase stays aligned with the existing app architecture:
 - replay artifacts remain compact summaries instead of raw simulator-state dumps
 - snapshot storage can link back to existing `backtest_runs` through nullable `backtest_id`
 
+### Phase 11 Reporting Layer
+
+Phase 11 adds a reporting layer on top of stored risk artifacts rather than rerunning the engines.
+
+New additive modules:
+
+- `apps/risk/reports/risk_report_builder.py` - machine-readable current snapshot reports
+- `apps/risk/reports/scenario_report_builder.py` - stored scenario/stress reports
+- `apps/risk/reports/replay_report_builder.py` - replay summary reports
+- `apps/risk/reports/markdown_report.py` - human-readable Markdown rendering
+- `apps/risk/reports/json_export.py` - JSON/Markdown export helpers
+- `apps/risk/reports/summary_templates.py` - shared report formatting helpers
+
+The reporting boundary stays narrow:
+
+- reports are built from stored snapshot bundles and replay frames
+- report export reuses the Phase 10 SQLite storage manager
+- JSON and Markdown artifacts are written under the SQLite database `exports/` directory
+- the reporting style follows the same snapshot-first pattern already used in `apps/edge`
+
 Each score row carries:
 
 - a 0-100 score
@@ -2176,6 +2196,7 @@ exist in the local DB.
 16. `16_recommendation_engine.py` - Recommendation and optimization walkthrough
 17. `17_replay_and_what_if.py` - Replay and what-if walkthrough
 18. `18_storage_and_snapshot_store.py` - Storage and snapshot infrastructure walkthrough
+19. `19_reporting_layer.py` - Reporting layer walkthrough
 
 ### Run Commands
 
@@ -2198,6 +2219,7 @@ python examples/risk/15_scorecard_engine.py
 python examples/risk/16_recommendation_engine.py
 python examples/risk/17_replay_and_what_if.py
 python examples/risk/18_storage_and_snapshot_store.py
+python examples/risk/19_reporting_layer.py
 ```
 
 ### Notes

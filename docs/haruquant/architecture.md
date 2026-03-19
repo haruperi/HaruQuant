@@ -270,6 +270,24 @@
   - replay persistence stores compact frame summaries instead of raw simulator state
   - risk runs and snapshots can optionally link back to `backtest_runs` through nullable `backtest_id`
 
+## Risk Reporting Layer
+
+- Phase 11 adds a snapshot-first reporting layer on top of the persisted risk artifacts from Phase 10.
+- New reporting modules:
+  - `apps/risk/reports/risk_report_builder.py`
+  - `apps/risk/reports/scenario_report_builder.py`
+  - `apps/risk/reports/replay_report_builder.py`
+  - `apps/risk/reports/markdown_report.py`
+  - `apps/risk/reports/json_export.py`
+  - `apps/risk/reports/summary_templates.py`
+- The reporting path intentionally reuses existing storage instead of rerunning the engines:
+  - one stored snapshot bundle becomes a machine-readable current risk report
+  - one stored snapshot bundle becomes a stored scenario/stress report
+  - stored replay frames become a compact replay report
+- Export behavior follows the same general pattern already used in the Edge Lab reporting flow:
+  - JSON and Markdown artifacts are written under an `exports/` directory next to the SQLite database
+  - export helpers return report payloads plus artifact references
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

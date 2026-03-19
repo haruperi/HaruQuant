@@ -33,5 +33,14 @@ class RiskRepository:
     def load_snapshot_bundle(self, snapshot_id: int) -> dict[str, Any]:
         return self.db.get_risk_snapshot_bundle(snapshot_id)
 
+    def load_run(self, run_id: int) -> dict[str, Any]:
+        return self.db.get_risk_run(run_id)
+
     def load_replay_frames(self, run_id: int) -> list[dict[str, Any]]:
         return self.db.get_risk_replay_frames(run_id)
+
+    def export_snapshot_reports(self, snapshot_id: int) -> dict[str, Any]:
+        return self.db.export_risk_snapshot_reports(snapshot_id)
+
+    def export_replay_report(self, run_id: int) -> dict[str, Any]:
+        return self.db.export_risk_replay_report(run_id)
