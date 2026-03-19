@@ -1747,9 +1747,182 @@ class SchemaManager:
             """
             cursor.execute(create_imports_table)
 
+            # =========================================================================
+            # RISK STORAGE TABLES
+            # =========================================================================
+
+            create_risk_runs_table = """
+            CREATE TABLE IF NOT EXISTS risk_runs (
+                run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                backtest_id INTEGER,
+                label TEXT,
+                description TEXT,
+                source TEXT DEFAULT 'manual',
+                context_json TEXT DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (backtest_id) REFERENCES backtest_runs (backtest_id) ON DELETE SET NULL
+            );
+            """
+            cursor.execute(create_risk_runs_table)
+
+            create_risk_snapshots_table = """
+            CREATE TABLE IF NOT EXISTS risk_snapshots (
+                snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                backtest_id INTEGER,
+                as_of TIMESTAMP,
+                summary_json TEXT DEFAULT '{}',
+                governance_state_json TEXT,
+                regime_state_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES risk_runs (run_id) ON DELETE CASCADE,
+                FOREIGN KEY (backtest_id) REFERENCES backtest_runs (backtest_id) ON DELETE SET NULL
+            );
+            """
+            cursor.execute(create_risk_snapshots_table)
+
+            create_risk_metric_rows_table = """
+            CREATE TABLE IF NOT EXISTS risk_metric_rows (
+                metric_row_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                family TEXT NOT NULL,
+                metric_key TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                scope_key TEXT,
+                numeric_value REAL,
+                text_value TEXT,
+                unit TEXT,
+                context_json TEXT DEFAULT '{}',
+                FOREIGN KEY (snapshot_id) REFERENCES risk_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_risk_metric_rows_table)
+
+            create_risk_score_rows_table = """
+            CREATE TABLE IF NOT EXISTS risk_score_rows (
+                score_row_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                family TEXT NOT NULL,
+                score_key TEXT NOT NULL,
+                score_value REAL NOT NULL,
+                confidence REAL DEFAULT 0.0,
+                confidence_label TEXT DEFAULT 'low',
+                explanation TEXT DEFAULT '',
+                context_json TEXT DEFAULT '{}',
+                FOREIGN KEY (snapshot_id) REFERENCES risk_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_risk_score_rows_table)
+
+            create_risk_policy_events_table = """
+            CREATE TABLE IF NOT EXISTS risk_policy_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                rule_key TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                message TEXT NOT NULL,
+                observed_value REAL,
+                threshold_value REAL,
+                unit TEXT,
+                scope TEXT DEFAULT 'portfolio',
+                scope_key TEXT,
+                context_json TEXT DEFAULT '{}',
+                FOREIGN KEY (snapshot_id) REFERENCES risk_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_risk_policy_events_table)
+
+            create_risk_recommendations_table = """
+            CREATE TABLE IF NOT EXISTS risk_recommendations (
+                recommendation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                action_type TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                delta_lots REAL NOT NULL,
+                current_lots REAL NOT NULL,
+                projected_lots REAL NOT NULL,
+                usefulness_score REAL NOT NULL,
+                score_delta REAL,
+                var_delta REAL,
+                es_delta REAL,
+                worst_scenario_loss_delta REAL,
+                margin_used_delta REAL,
+                governance_feasible BOOLEAN DEFAULT 0,
+                explanation TEXT DEFAULT '',
+                context_json TEXT DEFAULT '{}',
+                FOREIGN KEY (snapshot_id) REFERENCES risk_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_risk_recommendations_table)
+
+            create_risk_replay_frames_table = """
+            CREATE TABLE IF NOT EXISTS risk_replay_frames (
+                replay_frame_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id INTEGER NOT NULL,
+                backtest_id INTEGER,
+                frame_index INTEGER NOT NULL,
+                frame_timestamp TIMESTAMP,
+                capture_timestamp TIMESTAMP,
+                snapshot_id INTEGER,
+                score_summary_json TEXT DEFAULT '{}',
+                cockpit_payload_json TEXT,
+                what_if_summary_json TEXT,
+                context_json TEXT DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (run_id) REFERENCES risk_runs (run_id) ON DELETE CASCADE,
+                FOREIGN KEY (backtest_id) REFERENCES backtest_runs (backtest_id) ON DELETE SET NULL,
+                FOREIGN KEY (snapshot_id) REFERENCES risk_snapshots (snapshot_id) ON DELETE SET NULL,
+                UNIQUE(run_id, frame_index)
+            );
+            """
+            cursor.execute(create_risk_replay_frames_table)
+
+            create_risk_scenarios_table = """
+            CREATE TABLE IF NOT EXISTS risk_scenarios (
+                scenario_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                scenario_name TEXT NOT NULL,
+                loss REAL NOT NULL,
+                stressed_var REAL,
+                stressed_es REAL,
+                context_json TEXT DEFAULT '{}',
+                FOREIGN KEY (snapshot_id) REFERENCES risk_snapshots (snapshot_id) ON DELETE CASCADE
+            );
+            """
+            cursor.execute(create_risk_scenarios_table)
+
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_runs_backtest ON risk_runs(backtest_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_snapshots_run ON risk_snapshots(run_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_snapshots_backtest ON risk_snapshots(backtest_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_metric_rows_snapshot ON risk_metric_rows(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_score_rows_snapshot ON risk_score_rows(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_policy_events_snapshot ON risk_policy_events(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_recommendations_snapshot ON risk_recommendations(snapshot_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_replay_frames_run ON risk_replay_frames(run_id, frame_index)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_risk_scenarios_snapshot ON risk_scenarios(snapshot_id)"
+            )
+
             conn.commit()
             logger.info(
-                "Database schema initialized successfully with 4-layer architecture + optimization + live trading + edge discovery"
+                "Database schema initialized successfully with 4-layer architecture + optimization + live trading + edge discovery + risk storage"
             )
             logger.info("  Layer 1 (Run): backtest_runs")
             logger.info(
@@ -1767,6 +1940,9 @@ class SchemaManager:
                 "  Live Trading: live_trading_sessions, session_strategies, live_signals, live_positions, etc."
             )
             logger.info("  SQX Strategy Edge: sqx_strategy_edge, imports")
+            logger.info(
+                "  Risk Storage: risk_runs, risk_snapshots, risk_metric_rows, risk_score_rows, risk_policy_events, risk_recommendations, risk_replay_frames, risk_scenarios"
+            )
             return True
 
         except sqlite3.Error as e:

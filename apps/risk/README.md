@@ -335,6 +335,36 @@ The resulting replay path stays intentionally narrow:
 - cockpit payloads stable enough for later UI consumption
 - overall risk quality from the component scores
 
+### Phase 10 Storage and Snapshot Infrastructure
+
+Phase 10 adds persistence for normalized risk artifacts by extending the existing SQLite stack under `apps/sqlite`.
+
+New additive modules:
+
+- `apps/sqlite/risk_storage.py` - SQLite CRUD helpers for normalized risk artifacts
+- `apps/risk/storage/repositories.py` - thin repository facade over the shared DB manager
+- `apps/risk/storage/snapshot_store.py` - high-level snapshot, scorecard, recommendation, and replay-frame persistence
+- `apps/risk/storage/scenario_store.py` - narrow scenario persistence helper
+- `apps/risk/storage/schema.py` - table metadata for the risk storage layer
+
+New SQLite tables:
+
+- `risk_runs`
+- `risk_snapshots`
+- `risk_metric_rows`
+- `risk_score_rows`
+- `risk_policy_events`
+- `risk_recommendations`
+- `risk_replay_frames`
+- `risk_scenarios`
+
+This phase stays aligned with the existing app architecture:
+
+- no second schema system is introduced
+- normalized `MetricRow`, `ScoreRow`, policy-event, recommendation, and replay summary outputs are persisted directly
+- replay artifacts remain compact summaries instead of raw simulator-state dumps
+- snapshot storage can link back to existing `backtest_runs` through nullable `backtest_id`
+
 Each score row carries:
 
 - a 0-100 score
@@ -2139,6 +2169,13 @@ exist in the local DB.
 9. `09_portfolio_state_foundation.py` - Canonical portfolio state foundation
 10. `10_core_risk_metric_snapshot.py` - Core risk metric snapshot
 11. `11_governance_limits_engine.py` - Governance and limits walkthrough
+12. `12_structural_fragility_analytics.py` - Volatility, correlation, and concentration analytics
+13. `13_drawdown_tail_and_stress.py` - Drawdown, tail risk, and stress testing
+14. `14_regime_engine.py` - Regime engine walkthrough
+15. `15_scorecard_engine.py` - Scorecard engine walkthrough
+16. `16_recommendation_engine.py` - Recommendation and optimization walkthrough
+17. `17_replay_and_what_if.py` - Replay and what-if walkthrough
+18. `18_storage_and_snapshot_store.py` - Storage and snapshot infrastructure walkthrough
 
 ### Run Commands
 
@@ -2154,6 +2191,13 @@ python -m examples.risk.08_integrate_existing_system
 python examples/risk/09_portfolio_state_foundation.py
 python examples/risk/10_core_risk_metric_snapshot.py
 python examples/risk/11_governance_limits_engine.py
+python examples/risk/12_structural_fragility_analytics.py
+python examples/risk/13_drawdown_tail_and_stress.py
+python examples/risk/14_regime_engine.py
+python examples/risk/15_scorecard_engine.py
+python examples/risk/16_recommendation_engine.py
+python examples/risk/17_replay_and_what_if.py
+python examples/risk/18_storage_and_snapshot_store.py
 ```
 
 ### Notes

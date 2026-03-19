@@ -241,6 +241,35 @@
   - top recommendations
   - optional what-if summary
 
+## Risk Storage Layer
+
+- Phase 10 adds persistence for normalized risk artifacts by extending the existing SQLite infrastructure under `apps/sqlite`.
+- The schema continues to be owned by `apps/sqlite/schema.py`; no second schema manager is introduced.
+- New persistence helpers:
+  - `apps/sqlite/risk_storage.py`
+  - `apps/risk/storage/repositories.py`
+  - `apps/risk/storage/snapshot_store.py`
+  - `apps/risk/storage/scenario_store.py`
+- New SQLite tables:
+  - `risk_runs`
+  - `risk_snapshots`
+  - `risk_metric_rows`
+  - `risk_score_rows`
+  - `risk_policy_events`
+  - `risk_recommendations`
+  - `risk_replay_frames`
+  - `risk_scenarios`
+- Storage remains aligned with the current Python risk contracts:
+  - `MetricRow`
+  - `ScoreRow`
+  - `LimitEvent`
+  - normalized recommendation rows
+  - replay frame summaries and cockpit payloads
+- The storage boundary is intentionally narrow:
+  - snapshot headers and normalized rows are persisted directly
+  - replay persistence stores compact frame summaries instead of raw simulator state
+  - risk runs and snapshots can optionally link back to `backtest_runs` through nullable `backtest_id`
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

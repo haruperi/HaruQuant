@@ -6,6 +6,7 @@ from .edge_discovery import EdgeDiscoveryManager
 from .live_trading import LiveTradingManager
 from .market_data import MarketDataManager
 from .optimization import OptimizationManager
+from .risk_storage import RiskStorageManager
 from .schema import SchemaManager
 from .simulator import SimulatorManager
 from .sqx import SQXManager
@@ -20,6 +21,7 @@ class SQLiteDatabase(
     SQXManager,
     BacktestManager,
     OptimizationManager,
+    RiskStorageManager,
     LiveTradingManager,
     MarketDataManager,
     EdgeDiscoveryManager,
