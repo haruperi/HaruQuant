@@ -256,6 +256,36 @@ The current design keeps migration simple:
 - `RiskSnapshotEngine` now includes regime labels, confidence, triggered signals, and sub-regime names in snapshot output
 - `GovernanceEngine` and `PolicyEngine` can react to the normalized regime state directly
 
+### Phase 7 Scorecard Engine
+
+Phase 7 adds an explainable score layer on top of `RiskSnapshot`.
+
+New additive modules:
+
+- `apps/risk/scoring/base.py` - normalized score row and scorecard contracts
+- `apps/risk/scoring/registry.py` - score registry
+- `apps/risk/scoring/normalization.py` - shared score normalization helpers
+- `apps/risk/scoring/*` - focused score families
+- `apps/risk/core/risk_scorecard_engine.py` - scorecard orchestration
+
+The scorecard consumes existing analytics instead of recalculating them:
+
+- portfolio health from drawdown and tail risk
+- concentration from overlap, concentration, and correlation
+- diversification from diversification ratio and effective bets
+- leverage and margin safety from existing exposure and margin metrics
+- stress resilience from worst scenario loss
+- regime alignment from regime and governance context
+- governance compliance from warnings/breaches/compliance state
+- overall risk quality from the component scores
+
+Each score row carries:
+
+- a 0-100 score
+- a confidence value and label
+- a short explanation
+- the raw inputs used for the score
+
 ### Governor Retirement Foundation
 
 The next cleanup step has already started:

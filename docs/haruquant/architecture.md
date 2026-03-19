@@ -153,6 +153,36 @@
   - `PolicyEngine` still tightens limits from the regime state
   - it now consumes the normalized regime model rather than the removed standalone module
 
+## Risk Engine Scorecard Layer
+
+- Phase 7 adds a dedicated scorecard layer on top of `RiskSnapshot`.
+- New package layout:
+  - `apps/risk/scoring/base.py`
+  - `apps/risk/scoring/registry.py`
+  - `apps/risk/scoring/normalization.py`
+  - `apps/risk/scoring/*.py`
+  - `apps/risk/core/risk_scorecard_engine.py`
+- The scorecard consumes the existing snapshot output rather than raw portfolio state:
+  - no duplicate VaR/ES math
+  - no duplicate concentration math
+  - no duplicate stress or regime engines
+- Current score families include:
+  - portfolio health
+  - concentration
+  - diversification
+  - leverage safety
+  - margin safety
+  - stress resilience
+  - regime alignment
+  - governance compliance
+  - overall risk quality
+- Each `ScoreRow` includes:
+  - score value
+  - confidence and confidence label
+  - explanation
+  - raw input context
+- `RiskScorecardEngine` keeps score orchestration separate from snapshot orchestration, so metrics and scores remain distinct layers.
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

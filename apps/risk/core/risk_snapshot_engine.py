@@ -79,6 +79,7 @@ class RiskSnapshotEngine:
                 "portfolio_var",
                 "portfolio_es",
                 "gross_exposure_to_equity",
+                "max_single_exposure_frac",
                 "gross_leverage",
                 "margin_used",
                 "margin_used_frac",

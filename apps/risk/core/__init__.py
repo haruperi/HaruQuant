@@ -3,6 +3,7 @@
 from .governance_engine import GovernanceEngine, GovernanceReport
 from .portfolio_state_engine import PortfolioStateEngine
 from .portfolio_risk_engine import PortfolioRiskEngine
+from .risk_scorecard_engine import RiskScorecardEngine
 from .risk_snapshot_engine import RiskSnapshotEngine
 
 __all__ = [
@@ -10,5 +11,6 @@ __all__ = [
     "GovernanceReport",
     "PortfolioRiskEngine",
     "PortfolioStateEngine",
+    "RiskScorecardEngine",
     "RiskSnapshotEngine",
 ]

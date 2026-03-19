@@ -15,6 +15,7 @@ from apps.risk.core import (
     GovernanceEngine,
     GovernanceReport,
     PortfolioRiskEngine,
+    RiskScorecardEngine,
     PortfolioStateEngine,
     RiskSnapshotEngine,
 )
@@ -76,6 +77,7 @@ __all__ = [
     "PortfolioRiskEngine",
     "RiskBudgetAllocator",
     "PortfolioStateEngine",
+    "RiskScorecardEngine",
     "RiskSnapshotEngine",
     "RegimeEngine",
     "RegimeReport",
