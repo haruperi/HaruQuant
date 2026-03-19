@@ -33,6 +33,28 @@
   - no new storage, replay, or reporting subsystem yet
 - `PortfolioState.exposures` provides a simple derived notional exposure map so later phases can reuse one normalized foundation rather than re-deriving it in multiple places.
 
+## Risk Engine Core Metric MVP
+
+- Phase 2 adds a normalized metric layer on top of `PortfolioState`.
+- New package layout:
+  - `apps/risk/metrics/base.py` for the normalized metric row and snapshot contracts
+  - `apps/risk/metrics/registry.py` for the family registry
+  - `apps/risk/metrics/*.py` for the metric families
+  - `apps/risk/core/risk_snapshot_engine.py` for current-state metric orchestration
+- The Phase 2 metric layer does not replace the governor.
+  - `apps/risk/governor.py` remains the hard decision engine
+  - the metric layer provides a reusable descriptive snapshot for later governance, reporting, and simulator work
+- The first metric families are:
+  - `account_state`
+  - `position_risk`
+  - `symbol_risk`
+  - `currency_exposure`
+  - `strategy_exposure`
+  - `portfolio_risk`
+  - `margin_risk`
+  - `concentration`
+- The current-state VaR, ES, exposure, and RC math is kept aligned with the governor formulas so the metric MVP does not drift into a separate risk model.
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

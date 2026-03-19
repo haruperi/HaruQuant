@@ -127,6 +127,32 @@ The canonical state layer exists so later phases can share one validated input
 contract instead of each module rebuilding its own assumptions from raw MT5 or
 wrapper data.
 
+### Phase 2 Core Risk Metric MVP
+
+Phase 2 adds a normalized metric layer on top of `PortfolioState`.
+
+New additive modules:
+
+- `apps/risk/metrics/` - metric families, registry, and shared metric row contract
+- `apps/risk/core/risk_snapshot_engine.py` - orchestrates one current-state metric snapshot
+
+The design stays intentionally simple:
+
+- metrics consume `PortfolioState`, not raw MT5 payloads
+- metric rows are normalized so they can be persisted later without redesign
+- the math for exposure, covariance, VaR, ES, and RC stays aligned with the existing governor formulas
+
+The initial metric families are:
+
+- account state
+- position risk
+- symbol risk
+- currency exposure
+- strategy exposure
+- portfolio risk
+- margin risk
+- concentration
+
 ### Three-Layer System
 
 **Layer 1: Regime Detection**

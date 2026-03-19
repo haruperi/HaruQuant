@@ -11,7 +11,7 @@ This package provides institutional-grade risk management with:
 """
 
 from apps.risk.allocator import RiskBudgetAllocator
-from apps.risk.core import PortfolioStateEngine
+from apps.risk.core import PortfolioStateEngine, RiskSnapshotEngine
 from apps.risk.governor import RiskGovernor, RiskReport
 from apps.risk.models import (
     AccountState,
@@ -33,6 +33,7 @@ __all__ = [
     "RiskReport",
     "RiskBudgetAllocator",
     "PortfolioStateEngine",
+    "RiskSnapshotEngine",
     "RiskRegimeDetector",
     "RegimeState",
     "PositionSizer",
