@@ -277,6 +277,34 @@ The scorecard consumes existing analytics instead of recalculating them:
 - stress resilience from worst scenario loss
 - regime alignment from regime and governance context
 - governance compliance from warnings/breaches/compliance state
+
+### Phase 8 Recommendation and Optimization Engine
+
+Phase 8 adds an action-oriented recommendation layer on top of the existing snapshot, scorecard, and governance engines.
+
+New additive modules:
+
+- `apps/risk/optimization/models.py` - normalized recommendation action, score, result, and batch contracts
+- `apps/risk/optimization/marginal_risk.py` - one hypothetical action evaluator built on canonical state cloning
+- `apps/risk/optimization/rebalance_suggestions.py` - RC-budget rebalance suggestions reusing `PortfolioRiskEngine.propose_rc_rebalance(...)`
+- `apps/risk/optimization/capital_efficiency.py` - position ranking by risk burden relative to capital share
+- `apps/risk/optimization/allocation_optimizer.py` - bounded add, remove, and resize candidates
+- `apps/risk/optimization/hedge_optimizer.py` - shortlist-based hedge candidate evaluation
+- `apps/risk/core/recommendation_engine.py` - orchestration and ranking
+
+The design stays intentionally constrained:
+
+- recommendations consume `PortfolioState`, `RiskSnapshot`, and `RiskScorecard`
+- governance feasibility is checked through `GovernanceEngine`
+- no second VaR/ES engine is introduced
+- no broad search solver or opaque optimizer is introduced
+
+The output is explainable and simulator-ready:
+
+- each recommendation contains the proposed action
+- projected score, VaR, ES, stress, and margin deltas are attached
+- governance-feasible and governance-rejected ideas are both visible
+- ranked recommendation batches can be used directly by later simulator and reporting phases
 - overall risk quality from the component scores
 
 Each score row carries:

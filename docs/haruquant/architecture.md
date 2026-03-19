@@ -183,6 +183,32 @@
   - raw input context
 - `RiskScorecardEngine` keeps score orchestration separate from snapshot orchestration, so metrics and scores remain distinct layers.
 
+## Risk Engine Recommendation Layer
+
+- Phase 8 adds a bounded recommendation and optimization layer on top of the existing snapshot, scorecard, and governance engines.
+- New package layout:
+  - `apps/risk/optimization/models.py`
+  - `apps/risk/optimization/marginal_risk.py`
+  - `apps/risk/optimization/rebalance_suggestions.py`
+  - `apps/risk/optimization/capital_efficiency.py`
+  - `apps/risk/optimization/allocation_optimizer.py`
+  - `apps/risk/optimization/hedge_optimizer.py`
+  - `apps/risk/core/recommendation_engine.py`
+- The core design stays additive:
+  - `RiskSnapshotEngine` still owns current-state analytics
+  - `RiskScorecardEngine` still owns explainable scoring
+  - `GovernanceEngine` still owns accept/reject feasibility
+  - `PortfolioRiskEngine.propose_rc_rebalance(...)` is reused instead of duplicated
+- The new recommendation layer is intentionally small and deterministic:
+  - one marginal-action evaluator rebuilds projected snapshot and scorecard from a canonical `PortfolioState`
+  - bounded add, remove, resize, hedge, and rebalance candidates are generated around that primitive
+  - recommendation ranking is explainable from score delta, VaR delta, ES delta, stress delta, and governance outcome
+- Outputs are normalized and simulator-ready:
+  - recommendation action
+  - projected impact
+  - feasibility status
+  - explanation
+
 ## Edge Lab Metrics Boundary
 
 - `apps/edge` no longer has a dedicated metrics module.

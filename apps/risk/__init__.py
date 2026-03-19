@@ -17,6 +17,7 @@ from apps.risk.core import (
     PortfolioRiskEngine,
     RiskScorecardEngine,
     PortfolioStateEngine,
+    RecommendationEngine,
     RiskSnapshotEngine,
 )
 from apps.risk.limits import (
@@ -42,6 +43,17 @@ from apps.risk.position_sizing import (
     PositionSizer,
     estimate_kelly_parameters,
     validate_position_size,
+)
+from apps.risk.optimization import (
+    AllocationOptimizer,
+    CapitalEfficiencyRanker,
+    HedgeOptimizer,
+    MarginalRiskEvaluator,
+    RecommendationAction,
+    RecommendationBatch,
+    RecommendationResult,
+    RecommendationScore,
+    RebalanceSuggestionEngine,
 )
 from apps.risk.regimes import (
     CrisisRegimeDetector,
@@ -77,6 +89,7 @@ __all__ = [
     "PortfolioRiskEngine",
     "RiskBudgetAllocator",
     "PortfolioStateEngine",
+    "RecommendationEngine",
     "RiskScorecardEngine",
     "RiskSnapshotEngine",
     "RegimeEngine",
@@ -91,6 +104,15 @@ __all__ = [
     "LiquidityRegimeDetector",
     "build_regime_transition",
     "PositionSizer",
+    "RecommendationAction",
+    "RecommendationBatch",
+    "RecommendationResult",
+    "RecommendationScore",
+    "MarginalRiskEvaluator",
+    "RebalanceSuggestionEngine",
+    "CapitalEfficiencyRanker",
+    "AllocationOptimizer",
+    "HedgeOptimizer",
     "RiskPolicy",
     "RiskLimits",
     "CorrelationPreference",
