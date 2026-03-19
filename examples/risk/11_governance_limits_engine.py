@@ -36,7 +36,7 @@ from apps.risk import (
     RiskLimits,
     RiskSnapshotEngine,
 )
-from apps.risk.regime import RegimeState
+from apps.risk.regimes import RegimeState
 from apps.trading import Engine, Trade, core
 
 

@@ -16,9 +16,9 @@ from apps.live.engine import MultiStrategyEngine, StrategyInstance
 from apps.utils.logger import logger
 from apps.risk.allocator import RiskBudgetAllocator
 from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
-from apps.risk.position_sizing import PositionSizer
-from apps.risk.regime import RegimeState, RiskRegimeDetector
 from apps.risk.limits import CorrelationPreference, RiskLimits
+from apps.risk.position_sizing import PositionSizer
+from apps.risk.regimes import RegimeState, RiskRegimeDetector
 
 
 class RiskIntegratedEngine(MultiStrategyEngine):

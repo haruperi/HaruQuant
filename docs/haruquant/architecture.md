@@ -5,7 +5,7 @@
 - Phase 1 of `apps/risk` now adds a canonical portfolio-state layer instead of rebuilding the risk engine from scratch.
 - The new layer is additive and sits under the existing runtime components:
   - `apps/risk/position_sizing.py`
-  - `apps/risk/regime.py`
+  - `apps/risk/regimes/engine.py`
   - `apps/risk/allocator.py`
   - `apps/risk/core/governance_engine.py`
 - New package layout:
@@ -121,6 +121,37 @@
   - correlation spike
   - liquidity crunch
 - Scenario assumptions remain explicit in row context so later persistence/reporting phases can reuse the same outputs.
+
+## Risk Engine Regime Layer
+
+- Phase 6 moves regime handling into `apps/risk/regimes/` and removes the old `apps/risk/regime.py` module.
+- New package layout:
+  - `apps/risk/regimes/models.py`
+  - `apps/risk/regimes/engine.py`
+  - `apps/risk/regimes/crisis_regime.py`
+  - `apps/risk/regimes/market_regime.py`
+  - `apps/risk/regimes/volatility_regime.py`
+  - `apps/risk/regimes/liquidity_regime.py`
+  - `apps/risk/regimes/regime_transition.py`
+- The old `RiskRegimeDetector` behavior is preserved as the crisis-regime seed logic:
+  - volatility spike
+  - correlation spike
+  - drawdown trigger
+- `RegimeEngine` now aggregates:
+  - crisis regime
+  - market regime
+  - volatility regime
+  - liquidity regime
+  - transition metadata
+- `RiskSnapshotEngine` now attaches regime output to the snapshot summary:
+  - top-level regime name
+  - confidence
+  - triggered crisis signals
+  - sub-regime names
+  - transition changed flag
+- Governance integration remains simple:
+  - `PolicyEngine` still tightens limits from the regime state
+  - it now consumes the normalized regime model rather than the removed standalone module
 
 ## Edge Lab Metrics Boundary
 

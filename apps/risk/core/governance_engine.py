@@ -13,7 +13,7 @@ from apps.risk.limits import (
     RiskLimits,
 )
 from apps.risk.models import PortfolioState
-from apps.risk.regime import RegimeState
+from apps.risk.regimes import RegimeState
 
 from .portfolio_risk_engine import PortfolioRiskEngine
 

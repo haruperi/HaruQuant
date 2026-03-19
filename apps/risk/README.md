@@ -232,6 +232,30 @@ The initial downside analytics cover:
 
 Scenario assumptions are carried in metric-row context so later storage and reporting work can persist them without redesign.
 
+### Phase 6 Regime Engine
+
+Phase 6 turns regime handling into a dedicated subsystem under `apps/risk/regimes/`.
+
+New additive modules:
+
+- `apps/risk/regimes/engine.py` - aggregate regime orchestration
+- `apps/risk/regimes/crisis_regime.py` - absorbed legacy stress detector logic
+- `apps/risk/regimes/market_regime.py` - market fragility classification
+- `apps/risk/regimes/volatility_regime.py` - volatility state classification
+- `apps/risk/regimes/liquidity_regime.py` - spread/liquidity state classification
+- `apps/risk/regimes/regime_transition.py` - regime change metadata
+- `apps/risk/regimes/models.py` - normalized regime models and signals
+
+This phase retires the old `apps/risk/regime.py` module.
+
+The current design keeps migration simple:
+
+- `RiskRegimeDetector` still exists as a compatibility detector, but now lives under the new regime package
+- the old `NORMAL` / `STRESS` crisis logic is preserved inside the crisis regime detector
+- `RegimeEngine` adds richer sub-regimes and transition metadata on top of that existing logic
+- `RiskSnapshotEngine` now includes regime labels, confidence, triggered signals, and sub-regime names in snapshot output
+- `GovernanceEngine` and `PolicyEngine` can react to the normalized regime state directly
+
 ### Governor Retirement Foundation
 
 The next cleanup step has already started:
@@ -447,7 +471,7 @@ Not to be confused with price‑action, market structure regimes detection.
     If at least 2 signals are triggered => STRESS, else NORMAL.
 
 
-**Location**: `apps/risk/regime.py`
+**Location**: `apps/risk/regimes/engine.py`
 
 **Detection Logic**:
 

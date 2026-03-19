@@ -20,7 +20,7 @@ if repo_root not in sys.path:
 from apps.risk.limits import RiskLimits, CorrelationPreference
 from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
 from apps.risk.allocator import RiskBudgetAllocator
-from apps.risk.regime import RiskRegimeDetector
+from apps.risk.regimes import RiskRegimeDetector
 from apps.mt5.client import MT5Client
 from apps.sqlite.users import UserManager
 from apps.trading import Engine

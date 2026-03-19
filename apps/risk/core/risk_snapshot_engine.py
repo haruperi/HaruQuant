@@ -8,6 +8,7 @@ from apps.risk.limits import GovernanceState, LimitEvent
 from apps.risk.metrics import MetricContext, RiskSnapshot
 from apps.risk.metrics.registry import MetricRegistry, build_default_metric_registry
 from apps.risk.models import PortfolioState
+from apps.risk.regimes import RegimeEngine, RegimeReport
 from .governance_engine import GovernanceEngine
 from .portfolio_risk_engine import PortfolioRiskEngine
 
@@ -26,14 +27,17 @@ class RiskSnapshotEngine:
         """Compute all registered metrics and return a normalized snapshot."""
         context = MetricContext(state=state, shared=dict(shared or {}))
         rows = self.registry.compute_all(context)
-        governance_state, policy_events = self._build_governance(state)
-        summary = self._build_summary(state, rows, governance_state)
+        regime_report = self._build_regime(state, context.shared)
+        governance_state, policy_events = self._build_governance(state, regime_report)
+        summary = self._build_summary(state, rows, governance_state, regime_report)
         return RiskSnapshot(
             state=state,
             metric_rows=rows,
             summary=summary,
             governance_state=governance_state,
             policy_events=policy_events,
+            regime_state=None if regime_report is None else regime_report.current,
+            regime_report=regime_report,
         )
 
     def _build_summary(
@@ -41,6 +45,7 @@ class RiskSnapshotEngine:
         state: PortfolioState,
         rows,
         governance_state: Optional[GovernanceState],
+        regime_report: Optional[RegimeReport],
     ) -> Dict[str, Any]:
         summary: Dict[str, Any] = {
             "as_of": state.as_of,
@@ -55,6 +60,16 @@ class RiskSnapshotEngine:
             summary["governance_reason"] = governance_state.reason
             summary["governance_warnings_count"] = governance_state.warnings_count
             summary["governance_breaches_count"] = governance_state.breaches_count
+        if regime_report is not None:
+            summary["regime_name"] = regime_report.current.name
+            summary["regime_confidence"] = regime_report.current.confidence
+            summary["regime_signals_triggered"] = list(regime_report.current.signals_triggered)
+            summary["regime_warnings"] = list(regime_report.current.warnings)
+            summary["market_regime"] = regime_report.market.name
+            summary["volatility_regime"] = regime_report.volatility.name
+            summary["liquidity_regime"] = regime_report.liquidity.name
+            summary["crisis_regime"] = regime_report.crisis.name
+            summary["regime_transition_changed"] = regime_report.transition.changed
         for row in rows:
             if row.scope != "portfolio":
                 continue
@@ -88,6 +103,7 @@ class RiskSnapshotEngine:
     def _build_governance(
         self,
         state: PortfolioState,
+        regime_report: Optional[RegimeReport],
     ) -> tuple[Optional[GovernanceState], list[LimitEvent]]:
         if state.limits is None:
             return None, []
@@ -103,8 +119,21 @@ class RiskSnapshotEngine:
         )
         report = governance_engine.evaluate_portfolio_state(
             state=state,
+            regime=None if regime_report is None else regime_report.current,
         )
         return report.governance_state, list(report.policy_events or [])
+
+    def _build_regime(
+        self,
+        state: PortfolioState,
+        shared: Dict[str, Any],
+    ) -> Optional[RegimeReport]:
+        regime_engine = shared.get("regime_engine")
+        if regime_engine is None:
+            regime_engine = RegimeEngine()
+        previous = shared.get("previous_regime")
+        equity_curve = shared.get("equity_curve")
+        return regime_engine.evaluate_state(state, previous=previous, equity_curve=equity_curve)
 
 
 class _PortfolioStateRiskAdapter:

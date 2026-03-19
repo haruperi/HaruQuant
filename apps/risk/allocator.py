@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from .core import GovernanceEngine
-from .regime import RegimeState
+from .regimes import RegimeState
 from .limits import CorrelationPreference
 
 

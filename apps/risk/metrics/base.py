@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Protocol
 
 from apps.risk.limits import GovernanceState, LimitEvent
 from apps.risk.models import PortfolioState
+from apps.risk.regimes.models import RegimeReport, RegimeState
 
 
 @dataclass(frozen=True)
@@ -49,3 +50,5 @@ class RiskSnapshot:
     summary: Dict[str, Any] = field(default_factory=dict)
     governance_state: Optional[GovernanceState] = None
     policy_events: List[LimitEvent] = field(default_factory=list)
+    regime_state: Optional[RegimeState] = None
+    regime_report: Optional[RegimeReport] = None

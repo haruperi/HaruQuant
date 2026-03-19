@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
 
-from apps.risk.regime import RegimeState
+from apps.risk.regimes import RegimeState
 
 from .events import PolicyDecision
 from .models import CircuitBreakerState, OverrideRecord, RiskLimits, RiskPolicy
@@ -21,7 +21,10 @@ class PolicyEngine:
         regime: Optional[RegimeState] = None,
     ) -> Tuple[RiskPolicy, list[OverrideRecord]]:
         """Return the effective policy after regime-specific tightening."""
-        if regime is None or regime.name == "NORMAL":
+        regime_is_stress = False
+        if regime is not None:
+            regime_is_stress = bool(getattr(regime, "is_stress", False)) or str(getattr(regime, "name", "")).upper() == "STRESS"
+        if not regime_is_stress:
             return policy, []
 
         overrides = []
@@ -141,4 +144,3 @@ class PolicyEngine:
 def as_policy(limits: Optional[RiskPolicy]) -> RiskPolicy:
     """Normalize legacy RiskLimits-style input to RiskPolicy."""
     return limits if limits is not None else RiskLimits()
-
