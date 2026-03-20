@@ -2,21 +2,48 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
+import { ChevronDown } from "lucide-react"
 import { SimulationConfigForm } from "@/components/simulation/config-form"
+import { RiskAllocationPanel } from "@/components/simulation/risk-allocation"
 import { SimulationExecutionView } from "@/components/simulation/execution-view"
+import { RiskGovernorPanel } from "@/components/simulation/risk-governor"
+import { RiskRegimeDetectionPanel } from "@/components/simulation/risk-regime-detection"
+import { RiskPositionSizingPanel } from "@/components/simulation/risk-position-sizing"
 import { SimulationResultsView } from "@/components/simulation/results-view"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { AccountMetrics } from "@/components/simulation/account-metrics"
 import type { SimulationConfig, SimulationStartResponse } from "@/lib/api/simulator"
 
 type ViewState = "config" | "execution" | "results"
+type ToolView =
+  | "simulator"
+  | "risk-position-sizing"
+  | "risk-regime-detection"
+  | "risk-allocation"
+  | "risk-governor"
+type SimulationTrade = {
+  time?: string
+  symbol?: string
+  side?: string
+  price?: number
+  volume?: number
+  pnl?: number
+}
 
 export default function SimulationPage() {
   const [view, setView] = useState<ViewState>("config")
+  const [toolView, setToolView] = useState<ToolView>("simulator")
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [sessionConfig, setSessionConfig] = useState<SimulationConfig | null>(null)
   const [totalBars, setTotalBars] = useState<number>(0)
   const [symbolDigits, setSymbolDigits] = useState<number>(5)
-  const [trades, setTrades] = useState<any[]>([])
+  const [trades, setTrades] = useState<SimulationTrade[]>([])
   const [finalAccount, setFinalAccount] = useState<AccountMetrics | null>(null)
 
   const handleStart = (id: number, config: SimulationConfig, response?: SimulationStartResponse) => {
@@ -63,11 +90,42 @@ export default function SimulationPage() {
         </p>
       </div>
 
-      {view === "config" && (
+      <div className="flex items-center gap-3">
+        <Button
+          variant={toolView === "simulator" ? "default" : "outline"}
+          onClick={() => setToolView("simulator")}
+        >
+          Simulator
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant={toolView === "risk-position-sizing" ? "default" : "outline"}>
+              Risk
+              <ChevronDown className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => setToolView("risk-position-sizing")}>
+              Position Sizing
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setToolView("risk-regime-detection")}>
+              Regime Detection
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setToolView("risk-allocation")}>
+              Risk Allocation
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setToolView("risk-governor")}>
+              Risk Governor
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {toolView === "simulator" && view === "config" && (
         <SimulationConfigForm onStart={handleStart} onResume={handleResume} />
       )}
 
-      {view === "execution" && sessionId && (
+      {toolView === "simulator" && view === "execution" && sessionId && (
         <SimulationExecutionView
           sessionId={sessionId}
           config={sessionConfig}
@@ -80,7 +138,7 @@ export default function SimulationPage() {
         />
       )}
 
-      {view === "results" && sessionId && (
+      {toolView === "simulator" && view === "results" && sessionId && (
         <SimulationResultsView
           sessionId={sessionId}
           trades={trades}
@@ -88,6 +146,11 @@ export default function SimulationPage() {
           onBack={handleBackToConfig}
         />
       )}
+
+      {toolView === "risk-position-sizing" && <RiskPositionSizingPanel />}
+      {toolView === "risk-regime-detection" && <RiskRegimeDetectionPanel />}
+      {toolView === "risk-allocation" && <RiskAllocationPanel />}
+      {toolView === "risk-governor" && <RiskGovernorPanel />}
     </div>
   )
 }

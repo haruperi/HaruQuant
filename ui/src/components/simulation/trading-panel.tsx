@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -21,8 +20,6 @@ interface TradingPanelProps {
   sessionId?: number
   symbol?: string
   currentPrice?: number
-  chartClickEnabled?: boolean
-  onToggleChartClick?: (enabled: boolean) => void
   onTradeExecuted?: (positions: Position[], orders: Order[]) => void
 }
 
@@ -30,8 +27,6 @@ export function TradingPanel({
   sessionId,
   symbol = "EURUSD",
   currentPrice,
-  chartClickEnabled = false,
-  onToggleChartClick,
   onTradeExecuted,
 }: TradingPanelProps) {
   const [volume, setVolume] = useState("0.1")
@@ -62,7 +57,6 @@ export function TradingPanel({
       const response = await simulatorApi.executeTrade(sessionId, {
         side,
         volume: vol,
-        price: currentPrice,
         sl: sl ? Number(sl) : undefined,
         tp: tp ? Number(tp) : undefined,
       })
@@ -80,7 +74,7 @@ export function TradingPanel({
         volume: vol,
         price: response.trade?.price ? Number(response.trade.price) : currentPrice,
       })
-    } catch (error) {
+    } catch {
       toast.error("Trade failed")
     } finally {
       setSubmitting(false)
@@ -119,7 +113,7 @@ export function TradingPanel({
       if (onTradeExecuted && response.positions) {
         onTradeExecuted(response.positions, response.orders || [])
       }
-    } catch (error) {
+    } catch {
       toast.error("Pending order failed")
     } finally {
       setSubmitting(false)
@@ -132,32 +126,33 @@ export function TradingPanel({
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">Trading Panel</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Symbol</span>
-          <span className="font-medium text-foreground">{symbol}</span>
-        </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Current Price</span>
-          <span className="font-medium text-foreground">
-            {currentPrice ? currentPrice.toFixed(5) : "--"}
-          </span>
-        </div>
+      <CardContent>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-[100px] space-y-1 text-xs text-muted-foreground">
+            <div>Symbol</div>
+            <div className="font-medium text-foreground">{symbol}</div>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="lotSize">Lot Size</Label>
-          <Input
-            id="lotSize"
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={volume}
-            onChange={(e) => setVolume(e.target.value)}
-          />
-        </div>
+          <div className="min-w-[120px] space-y-1 text-xs text-muted-foreground">
+            <div>Current Price</div>
+            <div className="font-medium text-foreground">
+              {currentPrice ? currentPrice.toFixed(5) : "--"}
+            </div>
+          </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-2">
+          <div className="w-[120px] space-y-2">
+            <Label htmlFor="lotSize">Lot Size</Label>
+            <Input
+              id="lotSize"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={volume}
+              onChange={(e) => setVolume(e.target.value)}
+            />
+          </div>
+
+          <div className="w-[140px] space-y-2">
             <Label htmlFor="slInput">Stop Loss</Label>
             <Input
               id="slInput"
@@ -167,7 +162,8 @@ export function TradingPanel({
               placeholder="Optional"
             />
           </div>
-          <div className="space-y-2">
+
+          <div className="w-[140px] space-y-2">
             <Label htmlFor="tpInput">Take Profit</Label>
             <Input
               id="tpInput"
@@ -177,107 +173,100 @@ export function TradingPanel({
               placeholder="Optional"
             />
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label>Order Type</Label>
-          <Select
-            value={tradeMode}
-            onValueChange={(val) => setTradeMode(val as "market" | "pending")}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="market">Market</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {tradeMode === "pending" && (
-          <div className="space-y-2">
-            <Label>Pending Type</Label>
+          <div className="w-[160px] space-y-2">
+            <Label>Order Type</Label>
             <Select
-              value={pendingType}
-              onValueChange={(val) =>
-                setPendingType(
-                  val as
-                    | "buy_limit"
-                    | "sell_limit"
-                    | "buy_stop"
-                    | "sell_stop"
-                    | "buy_stop_limit"
-                    | "sell_stop_limit"
-                )
-              }
+              value={tradeMode}
+              onValueChange={(val) => setTradeMode(val as "market" | "pending")}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="buy_limit">Buy Limit</SelectItem>
-                <SelectItem value="sell_limit">Sell Limit</SelectItem>
-                <SelectItem value="buy_stop">Buy Stop</SelectItem>
-                <SelectItem value="sell_stop">Sell Stop</SelectItem>
-                <SelectItem value="buy_stop_limit">Buy Stop Limit</SelectItem>
-                <SelectItem value="sell_stop_limit">Sell Stop Limit</SelectItem>
+                <SelectItem value="market">Market</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
 
-        {tradeMode === "pending" && (
-          <div className="space-y-2">
-            <Label htmlFor="pendingPrice">Pending Price</Label>
-            <Input
-              id="pendingPrice"
-              type="number"
-              value={pendingPrice}
-              onChange={(e) => setPendingPrice(e.target.value)}
-              placeholder="Entry price"
-            />
-          </div>
-        )}
+          {tradeMode === "pending" && (
+            <div className="w-[170px] space-y-2">
+              <Label>Pending Type</Label>
+              <Select
+                value={pendingType}
+                onValueChange={(val) =>
+                  setPendingType(
+                    val as
+                      | "buy_limit"
+                      | "sell_limit"
+                      | "buy_stop"
+                      | "sell_stop"
+                      | "buy_stop_limit"
+                      | "sell_stop_limit"
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="buy_limit">Buy Limit</SelectItem>
+                  <SelectItem value="sell_limit">Sell Limit</SelectItem>
+                  <SelectItem value="buy_stop">Buy Stop</SelectItem>
+                  <SelectItem value="sell_stop">Sell Stop</SelectItem>
+                  <SelectItem value="buy_stop_limit">Buy Stop Limit</SelectItem>
+                  <SelectItem value="sell_stop_limit">Sell Stop Limit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-        {tradeMode === "market" ? (
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button
-              variant="outline"
-              className="text-red-500 hover:text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/20"
-              onClick={() => handleTrade("sell")}
-              disabled={submitting || chartClickEnabled}
-            >
-              SELL
-            </Button>
-            <Button
-              variant="outline"
-              className="text-emerald-500 hover:text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-900/30 dark:hover:bg-emerald-900/20"
-              onClick={() => handleTrade("buy")}
-              disabled={submitting || chartClickEnabled}
-            >
-              BUY
-            </Button>
-          </div>
-        ) : (
-          <div className="pt-2">
-            <Button
-              variant="outline"
-              className="w-full border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/30"
-              onClick={handlePending}
-              disabled={submitting}
-            >
-              Place Pending Order
-            </Button>
-          </div>
-        )}
+          {tradeMode === "pending" && (
+            <div className="w-[150px] space-y-2">
+              <Label htmlFor="pendingPrice">Pending Price</Label>
+              <Input
+                id="pendingPrice"
+                type="number"
+                value={pendingPrice}
+                onChange={(e) => setPendingPrice(e.target.value)}
+                placeholder="Entry price"
+              />
+            </div>
+          )}
 
-        <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-          <span>Chart Click Trading</span>
-          <Switch
-            checked={chartClickEnabled}
-            onCheckedChange={(checked) => onToggleChartClick?.(checked)}
-          />
+          {tradeMode === "market" ? (
+            <div className="flex min-w-[220px] gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 text-red-500 hover:text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/20"
+                onClick={() => handleTrade("sell")}
+                disabled={submitting}
+              >
+                SELL
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 text-emerald-500 hover:text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-900/30 dark:hover:bg-emerald-900/20"
+                onClick={() => handleTrade("buy")}
+                disabled={submitting}
+              >
+                BUY
+              </Button>
+            </div>
+          ) : (
+            <div className="min-w-[180px]">
+              <Button
+                variant="outline"
+                className="w-full border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/30"
+                onClick={handlePending}
+                disabled={submitting}
+              >
+                Place Pending Order
+              </Button>
+            </div>
+          )}
+
         </div>
       </CardContent>
     </Card>

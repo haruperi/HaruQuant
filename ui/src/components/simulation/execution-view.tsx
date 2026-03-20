@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { IndicatorControl, type IndicatorSelection } from "@/components/simulation/indicator-control"
 import { SpeedControl } from "@/components/simulation/speed-control"
 import { SkipControl } from "@/components/simulation/skip-control"
 import { SimulationChart, type ChartBarData, type ChartIndicatorData } from "@/components/simulation/simulation-chart"
 import { TradingPanel } from "@/components/simulation/trading-panel"
-import { TradeDialog } from "@/components/simulation/trade-dialog"
 import { PositionsPanel, type PositionRow } from "@/components/simulation/positions-panel"
 import { OrdersPanel, type OrderRow } from "@/components/simulation/orders-panel"
 import { AccountMetricsBar, type AccountMetrics } from "@/components/simulation/account-metrics"
-import simulatorApi, { type SimulationConfig, type Position, type Order } from "@/lib/api/simulator"
+import simulatorApi, { type SimulationConfig } from "@/lib/api/simulator"
 
 interface SimulationTrade {
   time?: string
@@ -20,6 +21,60 @@ interface SimulationTrade {
   price?: number
   volume?: number
   pnl?: number
+}
+
+function toPositionRows(positions: Array<{
+  id: number
+  symbol: string
+  type: string
+  volume: number
+  open_price: number
+  sl: number
+  tp: number
+  price: number
+  profit: number
+  swap?: number
+  margin_required?: number
+  time?: string | number | null
+}>): PositionRow[] {
+  return positions.map((p) => ({
+    id: p.id,
+    ticket: p.id,
+    symbol: p.symbol,
+    time: p.time,
+    type: p.type as "buy" | "sell",
+    volume: p.volume,
+    openPrice: p.open_price,
+    sl: p.sl,
+    tp: p.tp,
+    currentPrice: p.price,
+    swap: p.swap ?? 0,
+    pnl: p.profit,
+    marginRequired: p.margin_required ?? 0,
+  }))
+}
+
+function toOrderRows(orders: Array<{
+  id: number
+  symbol: string
+  type: string
+  volume: number
+  open_price: number
+  sl: number
+  tp: number
+  time?: string | number | null
+}>): OrderRow[] {
+  return orders.map((o) => ({
+    id: o.id,
+    ticket: o.id,
+    symbol: o.symbol,
+    time: o.time,
+    type: o.type,
+    volume: o.volume,
+    price: o.open_price,
+    sl: o.sl,
+    tp: o.tp,
+  }))
 }
 
 interface SimulationExecutionViewProps {
@@ -61,7 +116,6 @@ export function SimulationExecutionView({
   )
   const [isPaused, setIsPaused] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [chartClickEnabled, setChartClickEnabled] = useState(false)
   const [currentPrice, setCurrentPrice] = useState<number | undefined>(undefined)
   const [accountState, setAccountState] = useState<AccountMetrics>({
     balance: config?.initial_balance || 10000,
@@ -69,10 +123,9 @@ export function SimulationExecutionView({
     margin: 0,
     profit: 0,
     margin_free: config?.initial_balance || 10000,
+    margin_level: 0,
   })
-  const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
-  const [tradeDialogPrice, setTradeDialogPrice] = useState<number | undefined>(undefined)
-  const [trades, setTrades] = useState<SimulationTrade[]>([])
+  const [trades] = useState<SimulationTrade[]>([])
   const [positions, setPositions] = useState<PositionRow[]>([])
   const [orders, setOrders] = useState<OrderRow[]>([])
 
@@ -81,6 +134,11 @@ export function SimulationExecutionView({
   const [chartIndicators, setChartIndicators] = useState<ChartIndicatorData[]>([])
   const [currentBarIndex, setCurrentBarIndex] = useState(0)
   const [digits, setDigits] = useState(symbolDigits)
+  const [indicatorSelection, setIndicatorSelection] = useState<IndicatorSelection>({
+    sma: Boolean(config?.indicator_sma_enabled),
+    ema: Boolean(config?.indicator_ema_enabled),
+    rsi: Boolean(config?.indicator_rsi_enabled),
+  })
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const isFetchingRef = useRef(false)
@@ -158,6 +216,7 @@ export function SimulationExecutionView({
               margin: Number(item.account.margin ?? accountState.margin),
               profit: Number(item.account.profit ?? accountState.profit),
               margin_free: Number(item.account.margin_free ?? accountState.margin_free ?? 0),
+              margin_level: Number(item.account.margin_level ?? accountState.margin_level ?? 0),
             }
           }
 
@@ -182,29 +241,11 @@ export function SimulationExecutionView({
       }
 
       if (response.positions) {
-        const positionRows: PositionRow[] = response.positions.map((p) => ({
-          id: p.id,
-          symbol: p.symbol,
-          type: p.type as "buy" | "sell",
-          volume: p.volume,
-          openPrice: p.open_price,
-          currentPrice: p.price,
-          pnl: p.profit,
-        }))
-        setPositions(positionRows)
+        setPositions(toPositionRows(response.positions))
       }
 
       if (response.orders) {
-        const orderRows: OrderRow[] = response.orders.map((o) => ({
-          id: o.id,
-          symbol: o.symbol,
-          type: o.type,
-          volume: o.volume,
-          price: o.open_price,
-          sl: o.sl,
-          tp: o.tp,
-        }))
-        setOrders(orderRows)
+        setOrders(toOrderRows(response.orders))
       }
 
       setCurrentBarIndex(response.current_index)
@@ -259,15 +300,6 @@ export function SimulationExecutionView({
     onTradesUpdate?.(trades)
   }, [onTradesUpdate, trades])
 
-  const handleChartClick = useCallback(
-    (payload: { time: string; price: number }) => {
-      if (!chartClickEnabled) return
-      setTradeDialogPrice(payload.price)
-      setTradeDialogOpen(true)
-    },
-    [chartClickEnabled]
-  )
-
   const handlePauseToggle = async () => {
     try {
       await simulatorApi.updateSession(sessionId, { paused: !isPaused })
@@ -277,7 +309,7 @@ export function SimulationExecutionView({
         lastUpdateTimeRef.current = Date.now()
         accumulatorRef.current = 0
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to toggle pause")
     }
   }
@@ -287,7 +319,7 @@ export function SimulationExecutionView({
       await simulatorApi.deleteSession(sessionId)
       toast.success("Simulation stopped")
       onStop()
-    } catch (error) {
+    } catch {
       toast.error("Failed to stop simulation")
     }
   }
@@ -330,16 +362,36 @@ export function SimulationExecutionView({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <SpeedControl
-            sessionId={sessionId}
-            initialSpeed={currentSpeed}
-            onSpeedChange={handleSpeedChange}
-          />
-          <SkipControl
-            sessionId={sessionId}
-            getBarIndexForTime={getBarIndexForTime}
-          />
+        <div className="space-y-4 lg:col-span-3">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <SkipControl
+              sessionId={sessionId}
+              getBarIndexForTime={getBarIndexForTime}
+            />
+            <SpeedControl
+              sessionId={sessionId}
+              initialSpeed={currentSpeed}
+              onSpeedChange={handleSpeedChange}
+            />
+            <IndicatorControl
+              sessionId={sessionId}
+              value={indicatorSelection}
+              onChange={setIndicatorSelection}
+            />
+          </div>
+
+          <div>
+            <TradingPanel
+              sessionId={sessionId}
+              symbol={symbol}
+              currentPrice={currentPrice}
+              onTradeExecuted={(newPositions, newOrders) => {
+                setPositions(toPositionRows(newPositions))
+                setOrders(toOrderRows(newOrders))
+              }}
+            />
+          </div>
+
           <SimulationChart
             sessionId={sessionId}
             symbol={symbol}
@@ -347,178 +399,61 @@ export function SimulationExecutionView({
             bars={chartBars}
             indicators={chartIndicators}
             digits={digits}
-            onChartClick={handleChartClick}
+            indicatorVisibility={indicatorSelection}
           />
-        </div>
 
-        <div className="space-y-4">
-          <AccountMetricsBar metrics={accountState} />
-          <TradingPanel
-            sessionId={sessionId}
-            symbol={symbol}
-            currentPrice={currentPrice}
-            chartClickEnabled={chartClickEnabled}
-            onToggleChartClick={setChartClickEnabled}
-            onTradeExecuted={(newPositions, newOrders) => {
-              // Convert API positions to PositionRow format
-              const positionRows: PositionRow[] = newPositions.map((p) => ({
-                id: p.id,
-                symbol: p.symbol,
-                type: p.type as "buy" | "sell",
-                volume: p.volume,
-                openPrice: p.open_price,
-                currentPrice: p.price,
-                pnl: p.profit,
-              }))
-              setPositions(positionRows)
-
-              // Convert API orders to OrderRow format
-              const orderRows: OrderRow[] = newOrders.map((o) => ({
-                id: o.id,
-                symbol: o.symbol,
-                type: o.type,
-                volume: o.volume,
-                price: o.open_price,
-                sl: o.sl,
-                tp: o.tp,
-              }))
-              setOrders(orderRows)
-            }}
-          />
-          <PositionsPanel
-            positions={positions}
-            onModifyPosition={async (positionId) => {
-              const slInput = window.prompt("New Stop Loss (leave blank to keep)")
-              const tpInput = window.prompt("New Take Profit (leave blank to keep)")
-              const payload: { sl?: number; tp?: number } = {}
-              if (slInput) payload.sl = Number(slInput)
-              if (tpInput) payload.tp = Number(tpInput)
-              const response = await simulatorApi.modifyPosition(
-                sessionId,
-                Number(positionId),
-                payload
-              )
-              const positionRows: PositionRow[] = response.positions.map((p) => ({
-                id: p.id,
-                symbol: p.symbol,
-                type: p.type as "buy" | "sell",
-                volume: p.volume,
-                openPrice: p.open_price,
-                currentPrice: p.price,
-                pnl: p.profit,
-              }))
-              setPositions(positionRows)
-              const orderRows: OrderRow[] = response.orders.map((o) => ({
-                id: o.id,
-                symbol: o.symbol,
-                type: o.type,
-                volume: o.volume,
-                price: o.open_price,
-                sl: o.sl,
-                tp: o.tp,
-              }))
-              setOrders(orderRows)
-            }}
-            onClosePosition={async (positionId) => {
-              const response = await simulatorApi.closePosition(
-                sessionId,
-                Number(positionId)
-              )
-              const positionRows: PositionRow[] = response.positions.map((p) => ({
-                id: p.id,
-                symbol: p.symbol,
-                type: p.type as "buy" | "sell",
-                volume: p.volume,
-                openPrice: p.open_price,
-                currentPrice: p.price,
-                pnl: p.profit,
-              }))
-              setPositions(positionRows)
-              const orderRows: OrderRow[] = response.orders.map((o) => ({
-                id: o.id,
-                symbol: o.symbol,
-                type: o.type,
-                volume: o.volume,
-                price: o.open_price,
-                sl: o.sl,
-                tp: o.tp,
-              }))
-              setOrders(orderRows)
-            }}
-          />
-          <OrdersPanel
-            orders={orders}
-            onModifyOrder={async (orderId) => {
-              const priceInput = window.prompt("New Price (leave blank to keep)")
-              const slInput = window.prompt("New Stop Loss (leave blank to keep)")
-              const tpInput = window.prompt("New Take Profit (leave blank to keep)")
-              const payload: { price?: number; sl?: number; tp?: number } = {}
-              if (priceInput) payload.price = Number(priceInput)
-              if (slInput) payload.sl = Number(slInput)
-              if (tpInput) payload.tp = Number(tpInput)
-              const response = await simulatorApi.modifyOrder(
-                sessionId,
-                Number(orderId),
-                payload
-              )
-              const positionRows: PositionRow[] = response.positions.map((p) => ({
-                id: p.id,
-                symbol: p.symbol,
-                type: p.type as "buy" | "sell",
-                volume: p.volume,
-                openPrice: p.open_price,
-                currentPrice: p.price,
-                pnl: p.profit,
-              }))
-              setPositions(positionRows)
-              const orderRows: OrderRow[] = response.orders.map((o) => ({
-                id: o.id,
-                symbol: o.symbol,
-                type: o.type,
-                volume: o.volume,
-                price: o.open_price,
-                sl: o.sl,
-                tp: o.tp,
-              }))
-              setOrders(orderRows)
-            }}
-            onCancelOrder={async (orderId) => {
-              const response = await simulatorApi.cancelOrder(
-                sessionId,
-                Number(orderId)
-              )
-              const positionRows: PositionRow[] = response.positions.map((p) => ({
-                id: p.id,
-                symbol: p.symbol,
-                type: p.type as "buy" | "sell",
-                volume: p.volume,
-                openPrice: p.open_price,
-                currentPrice: p.price,
-                pnl: p.profit,
-              }))
-              setPositions(positionRows)
-              const orderRows: OrderRow[] = response.orders.map((o) => ({
-                id: o.id,
-                symbol: o.symbol,
-                type: o.type,
-                volume: o.volume,
-                price: o.open_price,
-                sl: o.sl,
-                tp: o.tp,
-              }))
-              setOrders(orderRows)
-            }}
-          />
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Trading Terminal</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <AccountMetricsBar metrics={accountState} />
+              <PositionsPanel
+                positions={positions}
+                digits={digits}
+                onModifyPositionField={async (positionId, field, newValue) => {
+                  const payload: { sl?: number; tp?: number } = {}
+                  payload[field] = newValue ?? 0
+                  const response = await simulatorApi.modifyPosition(
+                    sessionId,
+                    Number(positionId),
+                    payload
+                  )
+                  setPositions(toPositionRows(response.positions))
+                  setOrders(toOrderRows(response.orders))
+                }}
+              />
+              <div className="grid grid-cols-1 gap-4">
+                <OrdersPanel
+                  orders={orders}
+                  digits={digits}
+                  onModifyOrderField={async (orderId, field, currentValue) => {
+                    const input = window.prompt(
+                      `New ${field.toUpperCase()} value`,
+                      currentValue ? String(currentValue) : ""
+                    )
+                    if (input === null) return
+                    const numericValue = input.trim() === "" ? 0 : Number(input)
+                    if (Number.isNaN(numericValue)) {
+                      toast.error(`Invalid ${field.toUpperCase()} value`)
+                      return
+                    }
+                    const payload: { price?: number; sl?: number; tp?: number } = {}
+                    payload[field] = numericValue
+                    const response = await simulatorApi.modifyOrder(
+                      sessionId,
+                      Number(orderId),
+                      payload
+                    )
+                    setPositions(toPositionRows(response.positions))
+                    setOrders(toOrderRows(response.orders))
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      <TradeDialog
-        open={tradeDialogOpen}
-        sessionId={sessionId}
-        symbol={symbol}
-        price={tradeDialogPrice}
-        onOpenChange={setTradeDialogOpen}
-      />
     </div>
   )
 }

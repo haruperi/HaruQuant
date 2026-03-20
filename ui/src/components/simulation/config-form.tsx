@@ -52,12 +52,12 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
   const { backtests, loading: loadingBacktests } = useAllBacktests(200)
 
   const [sessionName, setSessionName] = useState("")
-  const [symbol, setSymbol] = useState("")
-  const [timeframe, setTimeframe] = useState("M1")
+  const [symbol, setSymbol] = useState("EURUSD")
+  const [timeframe, setTimeframe] = useState("H1")
   const [initialBalance, setInitialBalance] = useState(10000)
   const [speed, setSpeed] = useState("1")
 
-  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("dates")
+  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("bars")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [numberOfBars, setNumberOfBars] = useState(500)

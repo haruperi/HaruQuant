@@ -7,6 +7,7 @@ export interface AccountMetrics {
   equity: number
   margin: number
   margin_free?: number
+  margin_level?: number
   profit: number
 }
 
@@ -23,7 +24,7 @@ export function AccountMetricsBar({ metrics }: AccountMetricsProps) {
         <CardTitle className="text-sm font-medium">Account Metrics</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-6">
           <div className="space-y-1">
             <div className="text-muted-foreground">Balance</div>
             <div className="font-medium">{metrics.balance.toFixed(2)}</div>
@@ -40,6 +41,12 @@ export function AccountMetricsBar({ metrics }: AccountMetricsProps) {
             <div className="text-muted-foreground">Free Margin</div>
             <div className="font-medium">
               {Number(metrics.margin_free ?? 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-muted-foreground">Margin Level</div>
+            <div className="font-medium">
+              {Number(metrics.margin_level ?? 0).toFixed(2)}%
             </div>
           </div>
           <div className="space-y-1">

@@ -10,9 +10,7 @@ import {
   Time,
   createChart,
 } from "lightweight-charts"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import simulatorApi from "@/lib/api/simulator"
+import type { IndicatorSelection } from "@/components/simulation/indicator-control"
 
 type IndicatorKey = "sma" | "ema" | "rsi"
 
@@ -34,14 +32,13 @@ export interface ChartIndicatorData {
 }
 
 interface SimulationChartProps {
-  sessionId?: number
   symbol?: string
   timeframe?: string
   height?: number
   bars: ChartBarData[]
   indicators?: ChartIndicatorData[]
   digits?: number
-  onChartClick?: (payload: { time: string; price: number }) => void
+  indicatorVisibility?: IndicatorSelection
 }
 
 interface TradeMarker {
@@ -74,8 +71,6 @@ const parseDate = (value: unknown): Date | null => {
   return null
 }
 
-const toIsoString = (time: number) => new Date(time * 1000).toISOString()
-
 const isDailyOrHigher = (timeframe?: string) => {
   if (!timeframe) return false
   const tf = timeframe.toUpperCase()
@@ -97,14 +92,13 @@ const resolveChartTime = (value: unknown, timeframe?: string): Time | null => {
 }
 
 export function SimulationChart({
-  sessionId,
   symbol = "EURUSD",
   timeframe,
   height = 520,
   bars,
   indicators = [],
   digits = 5,
-  onChartClick,
+  indicatorVisibility = { sma: false, ema: false, rsi: false },
 }: SimulationChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -115,11 +109,6 @@ export function SimulationChart({
   const markersRef = useRef<TradeMarker[]>([])
   const digitsRef = useRef<number>(digits)
 
-  const [indicatorVisibility, setIndicatorVisibility] = useState({
-    sma: false,
-    ema: false,
-    rsi: false,
-  })
   const [markerPositions, setMarkerPositions] = useState<
     { id: number; x: number; y: number; side: "buy" | "sell" }[]
   >([])
@@ -212,27 +201,6 @@ export function SimulationChart({
     })
     resizeObserver.observe(chartContainerRef.current)
 
-    if (onChartClick) {
-      chart.subscribeClick((param) => {
-        if (!param.time || !param.point || !candleSeriesRef.current) return
-        const price = candleSeriesRef.current.coordinateToPrice(param.point.y)
-        if (price === null) return
-
-        let timeString = ""
-        if (typeof param.time === "string") {
-          timeString = param.time
-        } else if (typeof param.time === "number") {
-          timeString = toIsoString(param.time)
-        } else {
-          const t = param.time as { year: number; month: number; day: number }
-          timeString = `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`
-        }
-
-        if (!timeString) return
-        onChartClick({ time: timeString, price })
-      })
-    }
-
     chart.timeScale().subscribeVisibleTimeRangeChange(updateMarkerPositions)
 
     return () => {
@@ -244,7 +212,7 @@ export function SimulationChart({
       emaSeriesRef.current = null
       rsiSeriesRef.current = null
     }
-  }, [height, onChartClick, timeframe, updateMarkerPositions, digits])
+  }, [height, timeframe, updateMarkerPositions, digits])
 
   // Update bars when they change
   useEffect(() => {
@@ -341,64 +309,10 @@ export function SimulationChart({
     }
   }, [indicatorVisibility])
 
-  // Update API when indicators are toggled
-  useEffect(() => {
-    if (!sessionId) return
-    const indicatorsEnabled =
-      indicatorVisibility.sma ||
-      indicatorVisibility.ema ||
-      indicatorVisibility.rsi
-    simulatorApi.updateSession(sessionId, {
-      indicators_enabled: indicatorsEnabled,
-      indicator_sma_enabled: indicatorVisibility.sma,
-      indicator_ema_enabled: indicatorVisibility.ema,
-      indicator_rsi_enabled: indicatorVisibility.rsi,
-    }).catch(() => {
-      // ignore toggle failures
-    })
-  }, [indicatorVisibility, sessionId])
-
-  if (!sessionId) {
-    return (
-      <div className="w-full h-full min-h-[400px] flex items-center justify-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed border-muted">
-        Select a session to view chart
-      </div>
-    )
-  }
-
   return (
     <div className="w-full space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm font-medium text-muted-foreground">{symbol} Chart</div>
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={indicatorVisibility.sma}
-              onCheckedChange={(checked) =>
-                setIndicatorVisibility((prev) => ({ ...prev, sma: checked }))
-              }
-            />
-            <Label className="text-xs text-muted-foreground">SMA</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={indicatorVisibility.ema}
-              onCheckedChange={(checked) =>
-                setIndicatorVisibility((prev) => ({ ...prev, ema: checked }))
-              }
-            />
-            <Label className="text-xs text-muted-foreground">EMA</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={indicatorVisibility.rsi}
-              onCheckedChange={(checked) =>
-                setIndicatorVisibility((prev) => ({ ...prev, rsi: checked }))
-              }
-            />
-            <Label className="text-xs text-muted-foreground">RSI</Label>
-          </div>
-        </div>
       </div>
 
       <div className="relative w-full rounded-lg border border-border/60 bg-muted/10">

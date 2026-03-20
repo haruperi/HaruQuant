@@ -675,7 +675,11 @@ def monitor_positions(
         if bid <= 0.0 or ask <= 0.0:
             continue
 
-        order_type = int(getattr(position, "type", -1) or -1)
+        _type_val = getattr(position, "type", -1)
+        try:
+            order_type = int(_type_val)
+        except (ValueError, TypeError):
+            order_type = -1
         is_buy = order_type == 0
         is_sell = order_type == 1
         if not is_buy and not is_sell:

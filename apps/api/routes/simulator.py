@@ -96,10 +96,23 @@ class _EngineSimulatorFacade:
 
     def close_position(self, pos_data: dict, reason: str = "manual"):
         symbol_name = str(pos_data.get("symbol", "") or "")
-        pos_type = int(pos_data.get("type", 0) or 0)
-        close_type = 1 if pos_type == 0 else 0
+        _type_val = pos_data.get("type", -1)
+        try:
+            order_type = int(_type_val)
+        except (ValueError, TypeError):
+            order_type = -1
+        is_buy = order_type == mt5.ORDER_TYPE_BUY
+        is_sell = order_type == mt5.ORDER_TYPE_SELL
+        if not is_buy and not is_sell:
+            # Fallback if type is not clearly BUY/SELL, assume BUY for closing SELL, SELL for closing BUY
+            # This logic might need refinement based on actual MT5 behavior or simulator needs
+            # For now, we'll use the original logic of pos_type 0 for BUY, 1 for SELL
+            pos_type = int(pos_data.get("type", 0) or 0)
+            close_type = 1 if pos_type == 0 else 0 # If original position was BUY (0), close with SELL (1)
+        else:
+            close_type = mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY # If original position was BUY, close with SELL
         tick = self.engine.symbol_info_tick(symbol_name)
-        close_price = float(getattr(tick, "bid", 0.0) if close_type == 1 else getattr(tick, "ask", 0.0))
+        close_price = float(getattr(tick, "bid", 0.0) if close_type == mt5.ORDER_TYPE_SELL else getattr(tick, "ask", 0.0))
         result = self.engine.order_send(
             {
                 "action": 1,
@@ -282,7 +295,9 @@ class SimulatorSession:
         return out
 
     def execute_trade(self, request: Dict[str, Any]):
-        row = self._bar_row(max(self.current_bar_index - 1, 0)) or self._bar_row(0)
+        row = self._bar_row(max(self.current_bar_index - 1, 0))
+        if row is None:
+            row = self._bar_row(0)
         if row is not None:
             symbol, bid, ask = self._update_symbol_from_bar(row, max(self.current_bar_index - 1, 0))
         else:
@@ -925,11 +940,11 @@ async def modify_position(
         if not pos:
             raise HTTPException(status_code=404, detail="Position not found")
 
-        pos_data = pos._asdict() if hasattr(pos, "_asdict") else asdict(pos)
+        pos_data = _object_to_dict(pos)
         ok = active.simulator.modify_position(
             pos_data,
-            new_sl=request.sl,
-            new_tp=request.tp,
+            new_sl=request.sl if request.sl is not None else pos_data.get("sl", 0.0),
+            new_tp=request.tp if request.tp is not None else pos_data.get("tp", 0.0),
         )
         if not ok:
             logger.error(
@@ -977,7 +992,7 @@ async def close_position(
         if not pos:
             raise HTTPException(status_code=404, detail="Position not found")
 
-        pos_data = pos._asdict() if hasattr(pos, "_asdict") else asdict(pos)
+        pos_data = _object_to_dict(pos)
         ok = active.simulator.close_position(pos_data, reason="manual")
         if not ok:
             logger.error(
@@ -1027,15 +1042,15 @@ async def modify_order(
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        order_data = order._asdict() if hasattr(order, "_asdict") else dict(order)
+        order_data = _object_to_dict(order)
         new_price = (
             request.price if request.price is not None else order_data.get("open_price")
         )
         ok = active.simulator.order_modify(
             order_data,
             new_open_price=float(new_price or 0.0),
-            new_sl=float(request.sl or order_data.get("sl") or 0.0),
-            new_tp=float(request.tp or order_data.get("tp") or 0.0),
+            new_sl=float(request.sl if request.sl is not None else order_data.get("sl", 0.0)),
+            new_tp=float(request.tp if request.tp is not None else order_data.get("tp", 0.0)),
         )
         if not ok:
             logger.error(f"Modify order failed | session={session_id} order={order_id}")
@@ -1079,7 +1094,7 @@ async def delete_order(
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        order_data = order._asdict() if hasattr(order, "_asdict") else dict(order)
+        order_data = _object_to_dict(order)
         ok = active.simulator.order_delete(order_data)
         if not ok:
             logger.error(f"Delete order failed | session={session_id} order={order_id}")
