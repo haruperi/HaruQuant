@@ -137,6 +137,9 @@ class SimulatorSession:
         self.strategy = None
         self.replay_trades = []
         self.data = None
+        self.tick_data = None
+        self._tick_bar_indices = []
+        self._bar_first_tick_index: Dict[int, int] = {}
         self._seed_account()
         self._ensure_symbol()
 
@@ -150,6 +153,16 @@ class SimulatorSession:
         account["margin"] = 0.0
         account["margin_free"] = initial_balance
         account["margin_level"] = 0.0
+        account["commission"] = float(self.config.get("commission", 7.0) or 7.0)
+        account["leverage"] = int(self.config.get("leverage", 400) or 400)
+        self.engine.state.execution_settings = core.DotDict(
+            {
+                "slippage_model": str(self.config.get("slippage_type", "fixed") or "fixed"),
+                "slippage_points": float(self.config.get("slippage", 0.0) or 0.0),
+                "slippage_min": float(self.config.get("slippage_min", 0.0) or 0.0),
+                "slippage_max": float(self.config.get("slippage_max", 0.0) or 0.0),
+            }
+        )
 
     def _ensure_symbol(self):
         symbol_name = str(self.config.get("symbol", "") or "")
@@ -172,7 +185,85 @@ class SimulatorSession:
     def set_replay_trades(self, trades):
         self.replay_trades = list(trades or [])
 
+    def _timeframe_seconds(self) -> int:
+        mapping = {
+            "M1": 60,
+            "M5": 300,
+            "M15": 900,
+            "M30": 1800,
+            "H1": 3600,
+            "H4": 14400,
+            "D1": 86400,
+            "W1": 604800,
+        }
+        return int(mapping.get(str(self.config.get("timeframe", "M1")).upper(), 60))
+
+    def _load_auxiliary_step_data(self, data_mode: str):
+        if self.data is None or self.data.empty:
+            return None
+        symbol = str(self.config.get("symbol", "") or "")
+        first_index = self.data.index[0]
+        last_index = self.data.index[-1]
+        end_dt = last_index + pd.to_timedelta(self._timeframe_seconds(), unit="s")
+
+        if data_mode in {"m1_ohlc", "synthetic_ticks"}:
+            step_data = self.engine.client.get_bars(
+                symbol=symbol,
+                timeframe="M1",
+                date_from=first_index.to_pydatetime() if hasattr(first_index, "to_pydatetime") else first_index,
+                date_to=end_dt.to_pydatetime() if hasattr(end_dt, "to_pydatetime") else end_dt,
+            )
+            if step_data is None or step_data.empty:
+                raise ValueError("No M1 data loaded for simulator session")
+            return DataValidator.prepare_data(step_data)
+
+        if data_mode == "real_ticks":
+            step_data = self.engine.client.get_ticks(
+                symbol=symbol,
+                start=first_index.to_pydatetime() if hasattr(first_index, "to_pydatetime") else first_index,
+                end=end_dt.to_pydatetime() if hasattr(end_dt, "to_pydatetime") else end_dt,
+            )
+            if step_data is None or len(step_data) == 0:
+                raise ValueError("No tick data loaded for simulator session")
+            step_data.columns = [str(c).lower() for c in step_data.columns]
+            return step_data
+
+        return None
+
+    def _build_tick_stream(self, data_mode: str, step_data=None):
+        request_like = core.DotDict(
+            {
+                "spread_type": str(self.config.get("spread_type", "use-broker") or "use-broker"),
+                "spread": float(self.config.get("spread", 0.0) or 0.0),
+                "spread_min": float(self.config.get("spread_min", 0.0) or 0.0),
+                "spread_max": float(self.config.get("spread_max", 0.0) or 0.0),
+            }
+        )
+        ticks_data, _ = _generate_ticks_for_backtest(
+            engine=self.engine,
+            symbol_name=str(self.config.get("symbol", "") or ""),
+            timeframe=str(self.config.get("timeframe", "M1") or "M1"),
+            request=request_like,
+            data_mode=data_mode,
+            bars_data=self.data,
+            step_data=step_data,
+        )
+        return ticks_data
+
+    def _build_tick_bar_index_cache(self):
+        self._tick_bar_indices = []
+        self._bar_first_tick_index = {}
+        if self.data is None or self.data.empty or self.tick_data is None or self.tick_data.empty:
+            return
+        raw_indices = self.data.index.searchsorted(self.tick_data.index, side="right") - 1
+        bar_count = len(self.data.index)
+        clamped = [max(0, min(int(idx), bar_count - 1)) for idx in raw_indices]
+        self._tick_bar_indices = clamped
+        for tick_index, bar_index in enumerate(clamped):
+            self._bar_first_tick_index.setdefault(bar_index, tick_index)
+
     def load_historical_bars(self):
+        data_mode = _resolve_modelling(self.config.get("data_resolution"))
         symbol = str(self.config.get("symbol", "") or "")
         timeframe = str(self.config.get("timeframe", "M1") or "M1")
         number_of_bars = self.config.get("number_of_bars")
@@ -186,34 +277,85 @@ class SimulatorSession:
             data = self.engine.client.get_bars(symbol=symbol, timeframe=timeframe, date_from=date_from, date_to=date_to)
         if data is None or data.empty:
             raise ValueError("No historical bars loaded for simulator session")
+        data = DataValidator.prepare_data(data)
         if self.strategy is not None and hasattr(self.strategy, "on_bar"):
             data = self.strategy.on_bar(data)
         self.data = data
-        self.total_bars = len(data)
+        step_data = self._load_auxiliary_step_data(data_mode)
+        self.tick_data = self._build_tick_stream(data_mode, step_data=step_data)
+        self._build_tick_bar_index_cache()
+        self.total_bars = len(self.tick_data)
+        if self.total_bars <= 0:
+            raise ValueError("No ticks generated for simulator session")
+        self.current_bar_index = max(0, min(self.current_bar_index, self.total_bars - 1))
 
     def _bar_row(self, index: int):
         if self.data is None or index < 0 or index >= len(self.data):
             return None
         return self.data.iloc[index]
 
+    def _tick_row(self, index: int):
+        if self.tick_data is None or index < 0 or index >= len(self.tick_data):
+            return None
+        return self.tick_data.iloc[index]
+
+    def _tick_timestamp(self, index: int):
+        if self.tick_data is None or index < 0 or index >= len(self.tick_data.index):
+            return None
+        return self.tick_data.index[index]
+
+    def _bar_index_for_tick(self, index: int) -> int:
+        if not self._tick_bar_indices:
+            return 0
+        idx = max(0, min(int(index), len(self._tick_bar_indices) - 1))
+        return int(self._tick_bar_indices[idx])
+
     def get_bar(self, index: int):
-        row = self._bar_row(index)
+        tick_row = self._tick_row(index)
+        if tick_row is None or self.data is None or self.data.empty:
+            return None
+        bar_index = self._bar_index_for_tick(index)
+        row = self._bar_row(bar_index)
         if row is None:
             return None
+
+        start_tick_index = self._bar_first_tick_index.get(bar_index, index)
+        bar_ticks = self.tick_data.iloc[start_tick_index : index + 1]
+        bid_values = pd.to_numeric(bar_ticks["bid"], errors="coerce").dropna()
+        if bid_values.empty:
+            open_price = float(row.get("close", row.get("Close", 0.0)) or 0.0)
+            high_price = open_price
+            low_price = open_price
+            close_price = open_price
+        else:
+            open_price = float(bid_values.iloc[0])
+            high_price = float(bid_values.max())
+            low_price = float(bid_values.min())
+            close_price = float(bid_values.iloc[-1])
+
         payload = row.to_dict()
-        payload["time"] = self.data.index[index].isoformat() if hasattr(self.data.index[index], "isoformat") else str(self.data.index[index])
+        payload["open"] = open_price
+        payload["high"] = high_price
+        payload["low"] = low_price
+        payload["close"] = close_price
+        payload["time"] = (
+            self.data.index[bar_index].isoformat()
+            if hasattr(self.data.index[bar_index], "isoformat")
+            else str(self.data.index[bar_index])
+        )
         return payload
 
-    def _update_symbol_from_bar(self, row, index: int):
+    def _update_symbol_from_tick(self, row, index: int):
         symbol = str(self.config.get("symbol", "") or "")
-        symbol_info = self.engine.symbol_info(symbol)
-        close_price = float(row.get("close", row.get("Close", 0.0)) or 0.0)
-        spread_points = float(row.get("spread", row.get("Spread", 0.0)) or 0.0)
-        point = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
-        bid = close_price
-        ask = close_price + (spread_points * point)
-        self.engine.state.current_tick_datetime = self.data.index[index].to_pydatetime() if hasattr(self.data.index[index], 'to_pydatetime') else self.data.index[index]
-        self.engine.state.current_tick_epoch = int(self.data.index[index].timestamp()) if hasattr(self.data.index[index], 'timestamp') else None
+        bid = float(row.get("bid", row.get("close", row.get("Close", 0.0))) or 0.0)
+        ask = float(row.get("ask", bid) or bid)
+        tick_time = self._tick_timestamp(index)
+        self.engine.state.current_tick_datetime = (
+            tick_time.to_pydatetime() if hasattr(tick_time, "to_pydatetime") else tick_time
+        )
+        self.engine.state.current_tick_epoch = (
+            int(tick_time.timestamp()) if hasattr(tick_time, "timestamp") else None
+        )
         self.engine._build_symbol_map()
         self.engine._update_symbol_tick(self.engine._build_symbol_map(), symbol, bid, ask)
         return symbol, bid, ask
@@ -230,10 +372,10 @@ class SimulatorSession:
         }
 
     def process_bar_at_index(self, index: int):
-        row = self._bar_row(index)
+        row = self._tick_row(index)
         if row is None:
             return self._account_snapshot()
-        symbol, bid, ask = self._update_symbol_from_bar(row, index)
+        symbol, bid, ask = self._update_symbol_from_tick(row, index)
         self.engine._apply_tick_signals(
             symbol_name=symbol,
             bid=bid,
@@ -257,7 +399,7 @@ class SimulatorSession:
         return self._account_snapshot()
 
     def get_indicators_at_index(self, index: int):
-        row = self._bar_row(index)
+        row = self._bar_row(self._bar_index_for_tick(index))
         if row is None:
             return {}
         excluded = {"open", "high", "low", "close", "tick_volume", "real_volume", "spread", "Open", "High", "Low", "Close", "TickVolume", "RealVolume", "Spread"}
@@ -270,11 +412,11 @@ class SimulatorSession:
         return out
 
     def execute_trade(self, request: Dict[str, Any]):
-        row = self._bar_row(max(self.current_bar_index - 1, 0))
+        row = self._tick_row(max(self.current_bar_index - 1, 0))
         if row is None:
-            row = self._bar_row(0)
+            row = self._tick_row(0)
         if row is not None:
-            symbol, bid, ask = self._update_symbol_from_bar(row, max(self.current_bar_index - 1, 0))
+            symbol, bid, ask = self._update_symbol_from_tick(row, max(self.current_bar_index - 1, 0))
         else:
             symbol = str(self.config.get("symbol", "") or "")
             tick = self.engine.symbol_info_tick(symbol)
@@ -367,15 +509,15 @@ class SimulatorSession:
 
         start_dt = None
         end_dt = None
-        if self.data is not None and len(self.data.index) > 0:
-            first_index = self.data.index[0]
+        if self.tick_data is not None and len(self.tick_data.index) > 0:
+            first_index = self.tick_data.index[0]
             start_dt = (
                 first_index.to_pydatetime()
                 if hasattr(first_index, "to_pydatetime")
                 else first_index
             )
-            current_idx = min(max(self.current_bar_index - 1, 0), len(self.data.index) - 1)
-            end_index = self.data.index[current_idx]
+            current_idx = min(max(self.current_bar_index - 1, 0), len(self.tick_data.index) - 1)
+            end_index = self.tick_data.index[current_idx]
             end_dt = (
                 end_index.to_pydatetime()
                 if hasattr(end_index, "to_pydatetime")
@@ -400,7 +542,7 @@ class SimulatorSession:
             start_date=start_dt,
             end_date=end_dt,
             engine_type="simulation",
-            data_resolution="trading_timeframe",
+            data_resolution=str(self.config.get("data_resolution", "trading_timeframe") or "trading_timeframe"),
             config_hash=str(hash((self.session_id, symbol, timeframe, self.current_bar_index))),
             strategy_version_id=int(strategy_version_id) if strategy_version_id else None,
             user_id=user_id,
@@ -436,7 +578,11 @@ class SimulatorSession:
         self.db.update_simulation_session(self.session_id, current_bar_index=self.current_bar_index)
 
     def seek_to_bar(self, index: int):
-        self.current_bar_index = max(0, min(int(index), max(self.total_bars - 1, 0)))
+        if self.data is None or self.data.empty:
+            self.current_bar_index = 0
+        else:
+            bar_index = max(0, min(int(index), len(self.data.index) - 1))
+            self.current_bar_index = self._bar_first_tick_index.get(bar_index, 0)
         self.save_state()
 
     def stop(self):
@@ -571,6 +717,17 @@ class SimulationStartRequest(BaseModel):
     number_of_bars: Optional[int] = None
     initial_balance: float = 10000.0
     speed_multiplier: float = 1.0
+    commission: float = 7.0
+    leverage: int = 400
+    slippage_type: str = "fixed"
+    slippage: float = 0.0
+    slippage_min: float = 0.0
+    slippage_max: float = 10.0
+    spread_type: str = "use-broker"
+    spread: float = 20.0
+    spread_min: float = 10.0
+    spread_max: float = 50.0
+    data_resolution: str = "trading_timeframe"
     mode: str = Field(default="manual", description="manual | strategy | replay")
 
     strategy_id: Optional[int] = None
@@ -651,7 +808,7 @@ class SeekRequest(BaseModel):
 
 
 class AdvanceRequest(BaseModel):
-    """Request to advance by N bars."""
+    """Request to advance by N simulator steps."""
 
     count: int = 1
 

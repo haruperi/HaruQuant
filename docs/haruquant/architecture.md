@@ -1999,6 +1999,12 @@
     - `Quit` deletes the simulation session without persistence
     - `Save` closes open positions, deletes pending orders, persists the current run into `backtest_runs` plus trades/equity storage, then routes the user to Performance with the saved backtest preselected
   - pending-order volume reduction is implemented through the simulator `PATCH /api/simulator/{session_id}/orders/{order_id}` route by recreating the order at a smaller volume after validation
+- `ui/src/components/simulation/config-form.tsx` now reuses the backtest `Engine Settings` card so simulation sessions can choose:
+  - data resolution (`trading_timeframe`, `m1_ohlc`, `synthetic_ticks`, `real_ticks`)
+  - initial capital, commission, leverage
+  - spread and slippage models
+- `apps/api/routes/simulator.py::SimulatorSession` now converts loaded bars into a tick stream using the same `TicksGenerator` modelling choices as backtests and advances the simulation over those ticks rather than one raw bar at a time.
+- `ui/src/components/simulation/execution-view.tsx` upserts chart bars by timestamp so the currently forming trading bar can be redrawn multiple times as tick-driven prices evolve.
 
 ## Frontend Simulator Trade Notifications
 

@@ -33,6 +33,33 @@ interface SimulationTrade {
   pnl?: number
 }
 
+function mergeBarsByTime(previous: ChartBarData[], incoming: ChartBarData[]) {
+  const merged = new Map<string, ChartBarData>()
+  for (const bar of previous) {
+    merged.set(bar.time, bar)
+  }
+  for (const bar of incoming) {
+    merged.set(bar.time, bar)
+  }
+  return Array.from(merged.values()).sort((a, b) => a.time.localeCompare(b.time))
+}
+
+function mergeIndicatorsByTime(
+  previous: ChartIndicatorData[],
+  incoming: ChartIndicatorData[]
+) {
+  const merged = new Map<string, ChartIndicatorData>()
+  for (const item of previous) {
+    if (item.time) merged.set(item.time, item)
+  }
+  for (const item of incoming) {
+    if (item.time) merged.set(item.time, item)
+  }
+  return Array.from(merged.values()).sort((a, b) =>
+    String(a.time).localeCompare(String(b.time))
+  )
+}
+
 function toPositionRows(positions: Array<{
   id: number
   symbol: string
@@ -241,10 +268,10 @@ export function SimulationExecutionView({
 
         // Batch state updates
         if (newBars.length > 0) {
-          setChartBars((prev) => [...prev, ...newBars])
+          setChartBars((prev) => mergeBarsByTime(prev, newBars))
         }
         if (newIndicators.length > 0) {
-          setChartIndicators((prev) => [...prev, ...newIndicators])
+          setChartIndicators((prev) => mergeIndicatorsByTime(prev, newIndicators))
         }
         if (lastPrice !== undefined) {
           setCurrentPrice(lastPrice)
@@ -389,7 +416,7 @@ export function SimulationExecutionView({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
-          Session {sessionId} - {symbol} {config?.timeframe || "M1"} | Bar: {currentBarIndex}/{totalBars}
+          Session {sessionId} - {symbol} {config?.timeframe || "M1"} | Step: {currentBarIndex}/{totalBars}
           {isCompleted && <span className="ml-2 text-green-500">(Completed)</span>}
         </div>
         <div className="flex gap-2">

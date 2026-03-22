@@ -20,11 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import {
+  EngineSettings,
+  type EngineSettingsValues,
+} from "@/components/backtest/engine-settings"
 import { getErrorMessage } from "@/lib/api-error"
 import { useAllBacktests, useStrategies } from "@/lib/use-strategies"
 import simulatorApi, {
   type ReplaySource,
   type SimulationConfig,
+  type SimulationDataResolution,
   type SimulationMode,
   type SimulationSession,
   type SimulationStartResponse,
@@ -54,8 +59,21 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
   const [sessionName, setSessionName] = useState("")
   const [symbol, setSymbol] = useState("EURUSD")
   const [timeframe, setTimeframe] = useState("H1")
-  const [initialBalance, setInitialBalance] = useState(10000)
   const [speed, setSpeed] = useState("1")
+  const [engineSettings, setEngineSettings] = useState<EngineSettingsValues>({
+    initialCapital: 10000,
+    commission: 7,
+    slippageType: "fixed",
+    slippage: 0,
+    slippageMin: 0,
+    slippageMax: 10,
+    spreadType: "use-broker",
+    spread: 20,
+    spreadMin: 10,
+    spreadMax: 50,
+    leverage: 400,
+    dataResolution: "trading_timeframe",
+  })
 
   const [rangeBy, setRangeBy] = useState<"dates" | "bars">("bars")
   const [startDate, setStartDate] = useState("")
@@ -138,8 +156,19 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
       session_name: sessionName || undefined,
       symbol,
       timeframe,
-      initial_balance: initialBalance,
+      initial_balance: engineSettings.initialCapital,
       speed_multiplier: Number(speed),
+      commission: engineSettings.commission,
+      leverage: engineSettings.leverage,
+      slippage_type: engineSettings.slippageType,
+      slippage: engineSettings.slippage,
+      slippage_min: engineSettings.slippageMin,
+      slippage_max: engineSettings.slippageMax,
+      spread_type: engineSettings.spreadType,
+      spread: engineSettings.spread,
+      spread_min: engineSettings.spreadMin,
+      spread_max: engineSettings.spreadMax,
+      data_resolution: engineSettings.dataResolution as SimulationDataResolution,
       mode,
     }
 
@@ -226,7 +255,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     formData.append("strategy_name", importStrategyName)
     formData.append("symbol", symbol)
     formData.append("timeframe", timeframe)
-    formData.append("initial_balance", initialBalance.toString())
+    formData.append("initial_balance", engineSettings.initialCapital.toString())
     if (importAlias) formData.append("alias", importAlias)
     if (importDescription) formData.append("description", importDescription)
 
@@ -340,7 +369,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="symbol">Symbol</Label>
               <Input
@@ -364,17 +393,8 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
                   <SelectItem value="H4">H4</SelectItem>
                   <SelectItem value="D1">D1</SelectItem>
                 </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="initialBalance">Initial Balance</Label>
-              <Input
-                id="initialBalance"
-                type="number"
-                value={initialBalance}
-                onChange={(e) => setInitialBalance(Number(e.target.value))}
-              />
-            </div>
+                </Select>
+              </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -565,6 +585,16 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
           </CardContent>
         </Card>
       )}
+
+      <EngineSettings
+        values={engineSettings}
+        onChange={(key, value) =>
+          setEngineSettings((prev) => ({
+            ...prev,
+            [key]: value,
+          }))
+        }
+      />
 
       <div className="flex justify-end">
         <Button
