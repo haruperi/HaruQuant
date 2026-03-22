@@ -14,6 +14,7 @@ from fastapi import (
     BackgroundTasks,
     Header,
     HTTPException,
+    Request,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -56,6 +57,8 @@ class _EngineSimulatorFacade:
     def __init__(self, engine: Engine):
         self._simulator = engine
         self.engine = engine
+        from apps.trading.trade import Trade
+        self.trade_api = Trade(api=self.engine)
 
     @property
     def _positions_data(self) -> Dict[int, Any]:
@@ -83,67 +86,36 @@ class _EngineSimulatorFacade:
 
     def modify_position(self, pos_data: dict, new_sl=None, new_tp=None):
         ticket = int(pos_data.get("ticket") or pos_data.get("position_id") or pos_data.get("identifier") or 0)
-        result = self.engine.order_send(
-            {
-                "action": 6,
-                "position": ticket,
-                "symbol": pos_data.get("symbol", ""),
-                "sl": float(new_sl or 0.0),
-                "tp": float(new_tp or 0.0),
-            }
+        symbol = str(pos_data.get("symbol", "") or "")
+        result = self.trade_api.PositionModify(
+            symbol=symbol,
+            ticket=ticket,
+            sl=float(new_sl or 0.0),
+            tp=float(new_tp or 0.0),
         )
         return int(getattr(result, "retcode", 0) or 0) == 10009
 
     def close_position(self, pos_data: dict, reason: str = "manual"):
         symbol_name = str(pos_data.get("symbol", "") or "")
-        _type_val = pos_data.get("type", -1)
-        try:
-            order_type = int(_type_val)
-        except (ValueError, TypeError):
-            order_type = -1
-        is_buy = order_type == mt5.ORDER_TYPE_BUY
-        is_sell = order_type == mt5.ORDER_TYPE_SELL
-        if not is_buy and not is_sell:
-            # Fallback if type is not clearly BUY/SELL, assume BUY for closing SELL, SELL for closing BUY
-            # This logic might need refinement based on actual MT5 behavior or simulator needs
-            # For now, we'll use the original logic of pos_type 0 for BUY, 1 for SELL
-            pos_type = int(pos_data.get("type", 0) or 0)
-            close_type = 1 if pos_type == 0 else 0 # If original position was BUY (0), close with SELL (1)
-        else:
-            close_type = mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY # If original position was BUY, close with SELL
-        tick = self.engine.symbol_info_tick(symbol_name)
-        close_price = float(getattr(tick, "bid", 0.0) if close_type == mt5.ORDER_TYPE_SELL else getattr(tick, "ask", 0.0))
-        result = self.engine.order_send(
-            {
-                "action": 1,
-                "symbol": symbol_name,
-                "type": close_type,
-                "position": int(pos_data.get("ticket") or pos_data.get("position_id") or pos_data.get("identifier") or 0),
-                "volume": float(pos_data.get("volume") or 0.0),
-                "price": close_price,
-                "comment": f"Session {reason}",
-            }
+        ticket = int(pos_data.get("ticket") or pos_data.get("position_id") or pos_data.get("identifier") or 0)
+        result = self.trade_api.PositionClose(
+            symbol=symbol_name,
+            ticket=ticket,
         )
         return int(getattr(result, "retcode", 0) or 0) in (10008, 10009)
 
     def order_modify(self, order_data: dict, new_open_price: float, new_sl: float, new_tp: float):
-        result = self.engine.order_send(
-            {
-                "action": 7,
-                "order": int(order_data.get("ticket") or 0),
-                "price": float(new_open_price or 0.0),
-                "sl": float(new_sl or 0.0),
-                "tp": float(new_tp or 0.0),
-            }
+        result = self.trade_api.OrderModify(
+            ticket=int(order_data.get("ticket") or 0),
+            price=float(new_open_price or 0.0),
+            sl=float(new_sl or 0.0),
+            tp=float(new_tp or 0.0),
         )
         return int(getattr(result, "retcode", 0) or 0) == 10009
 
     def order_delete(self, order_data: dict):
-        result = self.engine.order_send(
-            {
-                "action": 8,
-                "order": int(order_data.get("ticket") or 0),
-            }
+        result = self.trade_api.OrderDelete(
+            ticket=int(order_data.get("ticket") or 0)
         )
         return int(getattr(result, "retcode", 0) or 0) == 10009
 
@@ -155,6 +127,8 @@ class SimulatorSession:
         self.db = db
         self.engine = Engine(backend="sim")
         self.simulator = _EngineSimulatorFacade(self.engine)
+        from apps.trading.trade import Trade
+        self.trade_api = Trade(api=self.engine)
         self.speed_multiplier = float(self.config.get("speed_multiplier", 1.0) or 1.0)
         self.current_bar_index = int(self.config.get("current_bar_index", 0) or 0)
         self.total_bars = 0
@@ -252,6 +226,7 @@ class SimulatorSession:
             "margin": float(account.get("margin", 0.0) or 0.0),
             "profit": float(account.get("profit", 0.0) or 0.0),
             "margin_free": float(account.get("margin_free", 0.0) or 0.0),
+            "margin_level": float(account.get("margin_level", 0.0) or 0.0),
         }
 
     def process_bar_at_index(self, index: int):
@@ -306,21 +281,18 @@ class SimulatorSession:
             bid = float(getattr(tick, "bid", 0.0) or 0.0)
             ask = float(getattr(tick, "ask", 0.0) or 0.0)
         side = str(request.get("side", "buy") or "buy").lower()
-        order_type = 0 if side == "buy" else 1
+        order_type_str = "BUY" if side == "buy" else "SELL"
         price = request.get("price")
         if price is None:
-            price = ask if order_type == 0 else bid
-        result = self.engine.order_send(
-            {
-                "action": 1,
-                "symbol": symbol,
-                "type": order_type,
-                "volume": float(request.get("volume", 0.1) or 0.1),
-                "price": float(price or 0.0),
-                "sl": float(request.get("sl") or 0.0),
-                "tp": float(request.get("tp") or 0.0),
-                "comment": str(request.get("comment") or "Manual trade"),
-            }
+            price = ask if order_type_str == "BUY" else bid
+        result = self.trade_api.PositionOpen(
+            symbol=symbol,
+            order_type=order_type_str,
+            volume=float(request.get("volume", 0.1) or 0.1),
+            price=float(price or 0.0),
+            sl=float(request.get("sl") or 0.0),
+            tp=float(request.get("tp") or 0.0),
+            comment=str(request.get("comment") or "Manual trade"),
         )
         self.engine.monitor_positions(verbose=False)
         self.engine.monitor_account(verbose=False)
@@ -328,23 +300,23 @@ class SimulatorSession:
 
     def place_pending_order(self, request: Dict[str, Any]):
         order_type_map = {
-            "buy_limit": 2,
-            "sell_limit": 3,
-            "buy_stop": 4,
-            "sell_stop": 5,
+            "buy_limit": "BUY_LIMIT",
+            "sell_limit": "SELL_LIMIT",
+            "buy_stop": "BUY_STOP",
+            "sell_stop": "SELL_STOP",
+            "buy_stop_limit": "BUY_STOP_LIMIT",
+            "sell_stop_limit": "SELL_STOP_LIMIT",
         }
         symbol = str(self.config.get("symbol", "") or "")
-        result = self.engine.order_send(
-            {
-                "action": 5,
-                "symbol": symbol,
-                "type": int(order_type_map.get(str(request.get("type", "")).lower(), 0)),
-                "volume": float(request.get("volume", 0.1) or 0.1),
-                "price": float(request.get("price", 0.0) or 0.0),
-                "sl": float(request.get("sl") or 0.0),
-                "tp": float(request.get("tp") or 0.0),
-                "comment": str(request.get("comment") or "Pending order"),
-            }
+        order_type_str = order_type_map.get(str(request.get("type", "")).lower(), "BUY_LIMIT")
+        result = self.trade_api.OrderOpen(
+            symbol=symbol,
+            order_type=order_type_str,
+            volume=float(request.get("volume", 0.1) or 0.1),
+            price=float(request.get("price", 0.0) or 0.0),
+            sl=float(request.get("sl") or 0.0),
+            tp=float(request.get("tp") or 0.0),
+            comment=str(request.get("comment") or "Pending order"),
         )
         self.engine.monitor_account(verbose=False)
         return _object_to_dict(result)
@@ -354,6 +326,111 @@ class SimulatorSession:
 
     def resume(self):
         self.paused = False
+
+    def finalize_for_saved_backtest(self, user_id: int) -> int:
+        for order in list(self.simulator._orders_data.values()):
+            order_data = _object_to_dict(order)
+            ok = self.simulator.order_delete(order_data)
+            if not ok:
+                raise RuntimeError(
+                    f"Failed to delete pending order {order_data.get('ticket') or order_data.get('id')}"
+                )
+
+        for position in list(self.simulator._positions_data.values()):
+            pos_data = _object_to_dict(position)
+            ok = self.simulator.close_position(pos_data, reason="simulation_stop_save")
+            if not ok:
+                raise RuntimeError(
+                    f"Failed to close position {pos_data.get('ticket') or pos_data.get('position_id')}"
+                )
+
+        totals = self.simulator.monitor_positions()
+        self.simulator.monitor_account(totals)
+
+        strategy_id = self.config.get("strategy_id")
+        strategy_version_id = self.config.get("strategy_version_id")
+        strategy_name = "Simulation Session"
+        strategy_version = "simulation"
+
+        if strategy_id:
+            strategy = db_manager.get_strategy(int(strategy_id))
+            if strategy:
+                strategy_name = str(strategy.get("name") or strategy_name)
+        if strategy_version_id:
+            version = db_manager.get_strategy_version(int(strategy_version_id))
+            if version:
+                strategy_version = str(
+                    version.get("version")
+                    or version.get("version_name")
+                    or strategy_version
+                )
+
+        start_dt = None
+        end_dt = None
+        if self.data is not None and len(self.data.index) > 0:
+            first_index = self.data.index[0]
+            start_dt = (
+                first_index.to_pydatetime()
+                if hasattr(first_index, "to_pydatetime")
+                else first_index
+            )
+            current_idx = min(max(self.current_bar_index - 1, 0), len(self.data.index) - 1)
+            end_index = self.data.index[current_idx]
+            end_dt = (
+                end_index.to_pydatetime()
+                if hasattr(end_index, "to_pydatetime")
+                else end_index
+            )
+
+        if start_dt is None:
+            start_dt = datetime.utcnow()
+        if end_dt is None:
+            end_dt = datetime.utcnow()
+
+        symbol = str(self.config.get("symbol", "") or "")
+        timeframe = str(self.config.get("timeframe", "M1") or "M1")
+        alias = str(
+            self.config.get("session_name")
+            or f"Saved Simulation - {symbol} {timeframe}"
+        )
+
+        backtest_id = db_manager.create_backtest_run(
+            strategy_name=strategy_name,
+            strategy_version=strategy_version,
+            start_date=start_dt,
+            end_date=end_dt,
+            engine_type="simulation",
+            data_resolution="trading_timeframe",
+            config_hash=str(hash((self.session_id, symbol, timeframe, self.current_bar_index))),
+            strategy_version_id=int(strategy_version_id) if strategy_version_id else None,
+            user_id=user_id,
+            symbols=[symbol] if symbol else None,
+            timeframes=[timeframe],
+            initial_balance=float(self.config.get("initial_balance", 10000.0) or 10000.0),
+            alias=alias,
+            description=f"Saved from simulation session {self.session_id}",
+        )
+
+        completed_trades = self.engine.get_completed_trades()
+        equity_curve = self.engine.get_equity_curve()
+        if completed_trades:
+            db_manager.save_backtest_trades(backtest_id, completed_trades)
+        if equity_curve:
+            db_manager.save_backtest_equity_curve(backtest_id, equity_curve)
+
+        final_balance = float(
+            self.engine.account_info().get(
+                "balance",
+                self.config.get("initial_balance", 10000.0),
+            )
+            or self.config.get("initial_balance", 10000.0)
+        )
+        db_manager.update_backtest_status(
+            backtest_id,
+            "completed",
+            final_balance=final_balance,
+        )
+        return backtest_id
 
     def save_state(self):
         self.db.update_simulation_session(self.session_id, current_bar_index=self.current_bar_index)
@@ -391,6 +468,7 @@ def _normalize_position(position: dict) -> dict:
         "profit": float(position.get("profit") or 0.0),
         "swap": float(position.get("swap") or 0.0),
         "commission": float(position.get("commission") or 0.0),
+        "margin_required": float(position.get("margin_required") or 0.0),
         "time": position.get("time"),
         "comment": position.get("comment", ""),
     }
@@ -443,6 +521,7 @@ def _position_info_to_dict(position: Any) -> dict:
         "profit": float(getattr(position, "profit", 0.0) or 0.0),
         "swap": float(getattr(position, "swap", 0.0) or 0.0),
         "commission": float(getattr(position, "commission", 0.0) or 0.0),
+        "margin_required": float(getattr(position, "margin_required", 0.0) or 0.0),
         "time": int(time_value) if time_value is not None else None,
         "comment": getattr(position, "comment", ""),
     }
@@ -559,6 +638,7 @@ class PositionModifyRequest(BaseModel):
 class OrderModifyRequest(BaseModel):
     """Request to modify a pending order."""
 
+    volume: Optional[float] = None
     price: Optional[float] = None
     sl: Optional[float] = None
     tp: Optional[float] = None
@@ -848,6 +928,7 @@ async def get_positions(session_id: int, authorization: str = AUTH_HEADER):
             "margin": float(active.simulator._account_data.margin),
             "profit": float(active.simulator._account_data.profit),
             "margin_free": float(active.simulator._account_data.margin_free),
+            "margin_level": float(active.simulator._account_data.margin_level),
         },
     }
 
@@ -1015,6 +1096,73 @@ async def close_position(
         raise HTTPException(status_code=500, detail="Failed to close position")
 
 
+@router.post("/{session_id}/positions/{position_id}/partial")
+async def partial_close_position(
+    session_id: int,
+    position_id: int,
+    request: Request,
+    authorization: str = AUTH_HEADER,
+):
+    """Partially close a position by the given volume."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+        session = db_manager.get_simulation_session(session_id)
+        if not session or session.get("user_id") != user_id:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        active = active_sessions.get(session_id)
+        if not active:
+            raise HTTPException(status_code=400, detail="Session is not running")
+
+        body = await request.json()
+        volume = float(body.get("volume", 0.0) or 0.0)
+        if volume <= 0:
+            raise HTTPException(status_code=400, detail="Volume must be > 0")
+
+        logger.info(
+            f"Partial close request | session={session_id} position={position_id} volume={volume}"
+        )
+
+        pos = active.simulator._positions_data.get(int(position_id))
+        if not pos:
+            raise HTTPException(status_code=404, detail="Position not found")
+
+        pos_data = _object_to_dict(pos)
+        current_volume = float(pos_data.get("volume", 0.0) or 0.0)
+
+        if volume >= current_volume:
+            # Full close
+            ok = active.simulator.close_position(pos_data, reason="manual")
+        else:
+            # Partial close via Trade.PositionClosePartial
+            symbol = str(pos_data.get("symbol", "") or "")
+            ticket = int(pos_data.get("ticket") or pos_data.get("position_id") or pos_data.get("identifier") or 0)
+            result = active.simulator.trade_api.PositionClosePartial(
+                symbol=symbol,
+                ticket=ticket,
+                volume=volume,
+            )
+            ok = int(getattr(result, "retcode", 0) or 0) in (10008, 10009)
+
+        if not ok:
+            logger.error(
+                f"Partial close failed | session={session_id} position={position_id}"
+            )
+            raise HTTPException(status_code=500, detail="Failed to close position")
+
+        totals = active.simulator.monitor_positions()
+        active.simulator.monitor_account(totals)
+        positions, orders = _collect_positions_orders(active)
+        return {"positions": positions, "orders": orders}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            f"Partial close error | session={session_id} position={position_id} err={exc}"
+        )
+        raise HTTPException(status_code=500, detail="Failed to close position")
+
+
 @router.patch("/{session_id}/orders/{order_id}")
 async def modify_order(
     session_id: int,
@@ -1022,7 +1170,7 @@ async def modify_order(
     request: OrderModifyRequest,
     authorization: str = AUTH_HEADER,
 ):
-    """Modify a pending order's price/SL/TP."""
+    """Modify a pending order's price/SL/TP and optionally reduce its volume."""
     try:
         user_id = get_user_id_from_token(authorization)
         session = db_manager.get_simulation_session(session_id)
@@ -1035,26 +1183,75 @@ async def modify_order(
 
         logger.info(
             f"Modify order request | session={session_id} order={order_id} "
-            f"price={request.price} sl={request.sl} tp={request.tp}"
+            f"volume={request.volume} price={request.price} sl={request.sl} tp={request.tp}"
         )
 
-        order = active.simulator._simulator._orders_data.get(int(order_id))
+        order = active.simulator._orders_data.get(int(order_id))
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
         order_data = _object_to_dict(order)
+        normalized_order = _normalize_order(_order_info_to_dict(order))
+        current_volume = float(
+            order_data.get("volume_current") or order_data.get("volume_initial") or 0.0
+        )
+        if request.volume is not None:
+            if request.volume <= 0:
+                raise HTTPException(status_code=400, detail="Volume must be > 0")
+            if request.volume > current_volume:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Volume cannot exceed current order volume ({current_volume:.2f})",
+                )
+
         new_price = (
             request.price if request.price is not None else order_data.get("open_price")
         )
-        ok = active.simulator.order_modify(
-            order_data,
-            new_open_price=float(new_price or 0.0),
-            new_sl=float(request.sl if request.sl is not None else order_data.get("sl", 0.0)),
-            new_tp=float(request.tp if request.tp is not None else order_data.get("tp", 0.0)),
-        )
-        if not ok:
-            logger.error(f"Modify order failed | session={session_id} order={order_id}")
-            raise HTTPException(status_code=500, detail="Failed to modify order")
+        new_sl = float(request.sl if request.sl is not None else order_data.get("sl", 0.0))
+        new_tp = float(request.tp if request.tp is not None else order_data.get("tp", 0.0))
+        requested_volume = float(request.volume) if request.volume is not None else current_volume
+
+        if request.volume is not None and abs(requested_volume - current_volume) > 1e-12:
+            delete_ok = active.simulator.order_delete(order_data)
+            if not delete_ok:
+                logger.error(
+                    f"Delete order before recreate failed | session={session_id} order={order_id}"
+                )
+                raise HTTPException(status_code=500, detail="Failed to modify order")
+
+            recreated = active.place_pending_order(
+                {
+                    "type": str(normalized_order.get("type", "") or ""),
+                    "volume": requested_volume,
+                    "price": float(new_price or 0.0),
+                    "sl": new_sl,
+                    "tp": new_tp,
+                    "comment": str(normalized_order.get("comment") or "Pending order"),
+                }
+            )
+            if not recreated or int(recreated.get("retcode", 0) or 0) not in (10008, 10009):
+                active.place_pending_order(
+                    {
+                        "type": str(normalized_order.get("type", "") or ""),
+                        "volume": current_volume,
+                        "price": float(normalized_order.get("open_price") or 0.0),
+                        "sl": float(normalized_order.get("sl") or 0.0),
+                        "tp": float(normalized_order.get("tp") or 0.0),
+                        "comment": str(normalized_order.get("comment") or "Pending order"),
+                    }
+                )
+                logger.error(f"Recreate order failed | session={session_id} order={order_id}")
+                raise HTTPException(status_code=500, detail="Failed to modify order")
+        else:
+            ok = active.simulator.order_modify(
+                order_data,
+                new_open_price=float(new_price or 0.0),
+                new_sl=new_sl,
+                new_tp=new_tp,
+            )
+            if not ok:
+                logger.error(f"Modify order failed | session={session_id} order={order_id}")
+                raise HTTPException(status_code=500, detail="Failed to modify order")
 
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
@@ -1090,7 +1287,7 @@ async def delete_order(
 
         logger.info(f"Delete order request | session={session_id} order={order_id}")
 
-        order = active.simulator._simulator._orders_data.get(int(order_id))
+        order = active.simulator._orders_data.get(int(order_id))
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
@@ -1173,6 +1370,41 @@ async def delete_session(session_id: int, authorization: str = AUTH_HEADER):
 
     db_manager.delete_simulation_session(session_id)
     return {"session_id": session_id, "status": "deleted"}
+
+
+@router.post("/{session_id}/stop-and-save")
+async def stop_and_save_session(session_id: int, authorization: str = AUTH_HEADER):
+    """Stop a simulation session and persist it as a completed backtest run."""
+    user_id = get_user_id_from_token(authorization)
+    session = db_manager.get_simulation_session(session_id)
+    if not session or session.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    active = active_sessions.pop(session_id, None)
+    if not active:
+        raise HTTPException(status_code=400, detail="Session is not running")
+
+    save_succeeded = False
+    try:
+        backtest_id = active.finalize_for_saved_backtest(user_id)
+        save_succeeded = True
+    except Exception as exc:
+        active_sessions[session_id] = active
+        logger.error(
+            f"Stop and save session failed | session={session_id} err={exc}"
+        )
+        raise HTTPException(status_code=500, detail="Failed to save simulation")
+    finally:
+        if save_succeeded:
+            with suppress(Exception):
+                active.stop()
+
+    db_manager.delete_simulation_session(session_id)
+    return {
+        "session_id": session_id,
+        "status": "saved",
+        "backtest_id": backtest_id,
+    }
 
 
 # ========================================

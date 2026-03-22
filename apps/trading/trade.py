@@ -211,6 +211,8 @@ class Trade:
                 "symbol": symbol,
                 "entry": "0",
                 "volume": str(float(row.get("volume", 0.0) or 0.0)),
+                "price_open": str(float(row.get("price_open", row.get("price", 0.0)) or 0.0)),
+                "type": str(int(row.get("type", 0) or 0)),
             }
 
         if ticket_hint:
@@ -728,7 +730,7 @@ class Trade:
             "sl": float(sl),
             "tp": float(tp),
         }
-        _, _, state = self._validation_context(
+        _, symbol_info, state = self._validation_context(
             symbol=str(data.get("symbol")) if data.get("symbol") else None,
             ticket=position_id,
         )
@@ -736,6 +738,9 @@ class Trade:
             str(data.get("symbol") or ""),
             int(position_id),
             state,
+            sl=sl,
+            tp=tp,
+            symbol_info=symbol_info,
         )
         if not vres.ok:
             return self._validation_fail(vres)

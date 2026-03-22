@@ -13,7 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Pencil } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Pencil, X } from "lucide-react"
 
 export interface PositionRow {
   id: string | number
@@ -39,6 +48,10 @@ interface PositionsPanelProps {
     field: "sl" | "tp",
     newValue: number | null
   ) => Promise<void> | void
+  onClosePosition?: (
+    positionId: PositionRow["id"],
+    volume: number
+  ) => Promise<void> | void
 }
 
 const COLUMN_WIDTHS = [
@@ -55,6 +68,7 @@ const COLUMN_WIDTHS = [
   "minmax(96px, 0.95fr)",
   "minmax(96px, 0.95fr)",
   "minmax(100px, 1fr)",
+  "minmax(60px, 0.6fr)",
 ].join(" ")
 
 function formatPrice(value?: number | null, digits = 5) {
@@ -156,11 +170,26 @@ function InlineEditableNumber({
   )
 }
 
+interface CloseDialogState {
+  open: boolean
+  position: PositionRow | null
+  volumeInput: string
+  isSubmitting: boolean
+}
+
 export function PositionsPanel({
   positions,
   digits = 5,
   onModifyPositionField,
+  onClosePosition,
 }: PositionsPanelProps) {
+  const [closeDialog, setCloseDialog] = useState<CloseDialogState>({
+    open: false,
+    position: null,
+    volumeInput: "",
+    isSubmitting: false,
+  })
+
   const handleModifyField = async (
     positionId: PositionRow["id"],
     field: "sl" | "tp",
@@ -177,90 +206,232 @@ export function PositionsPanel({
     }
   }
 
-  return (
-    <Card className="h-fit">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Open Positions</CardTitle>
-      </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <Table className="min-w-[1440px]">
-          <colgroup>
-            {COLUMN_WIDTHS.split(" ").map((width, index) => (
-              <col key={index} style={{ width }} />
-            ))}
-          </colgroup>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Symbol</TableHead>
-              <TableHead>Ticket</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Volume</TableHead>
-              <TableHead>Open</TableHead>
-              <TableHead>SL</TableHead>
-              <TableHead>TP</TableHead>
-              <TableHead>Current</TableHead>
-              <TableHead>Swap</TableHead>
-              <TableHead>P&amp;L ($)</TableHead>
-              <TableHead>P&amp;L (Pips)</TableHead>
-              <TableHead>Margin Req</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {positions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={13} className="text-center text-muted-foreground">
-                  No open positions.
-                </TableCell>
-              </TableRow>
-            ) : (
-              positions.map((position) => {
-                const pipSize = inferPipSize(position.openPrice, digits)
-                const pipDelta =
-                  position.type === "buy"
-                    ? (position.currentPrice - position.openPrice) / pipSize
-                    : (position.openPrice - position.currentPrice) / pipSize
+  const openCloseDialog = (position: PositionRow) => {
+    setCloseDialog({
+      open: true,
+      position,
+      volumeInput: position.volume.toFixed(2),
+      isSubmitting: false,
+    })
+  }
 
-                return (
-                  <TableRow key={position.id}>
-                    <TableCell>{position.symbol}</TableCell>
-                    <TableCell>{position.ticket}</TableCell>
-                    <TableCell>{formatTime(position.time)}</TableCell>
-                    <TableCell className={position.type === "buy" ? "text-emerald-500" : "text-red-500"}>
-                      {position.type.toUpperCase()}
-                    </TableCell>
-                    <TableCell>{position.volume.toFixed(2)}</TableCell>
-                    <TableCell>{formatPrice(position.openPrice, digits)}</TableCell>
-                    <TableCell>
-                      <InlineEditableNumber
-                        value={position.sl}
-                        digits={digits}
-                        onSave={(newVal) => handleModifyField(position.id, "sl", newVal)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <InlineEditableNumber
-                        value={position.tp}
-                        digits={digits}
-                        onSave={(newVal) => handleModifyField(position.id, "tp", newVal)}
-                      />
-                    </TableCell>
-                    <TableCell>{formatPrice(position.currentPrice, digits)}</TableCell>
-                    <TableCell>{(position.swap ?? 0).toFixed(2)}</TableCell>
-                    <TableCell className={position.pnl >= 0 ? "text-emerald-500" : "text-red-500"}>
-                      {position.pnl.toFixed(2)}
-                    </TableCell>
-                    <TableCell className={pipDelta >= 0 ? "text-emerald-500" : "text-red-500"}>
-                      {pipDelta.toFixed(1)}
-                    </TableCell>
-                    <TableCell>{(position.marginRequired ?? 0).toFixed(2)}</TableCell>
-                  </TableRow>
-                )
-              })
+  const handleCloseDialogConfirm = async () => {
+    if (!closeDialog.position || !onClosePosition) return
+
+    const volume = parseFloat(closeDialog.volumeInput)
+    if (isNaN(volume) || volume <= 0) {
+      toast.error("Invalid volume")
+      return
+    }
+    if (volume > closeDialog.position.volume) {
+      toast.error(`Volume cannot exceed position size (${closeDialog.position.volume.toFixed(2)})`)
+      return
+    }
+
+    setCloseDialog((prev) => ({ ...prev, isSubmitting: true }))
+    try {
+      await onClosePosition(closeDialog.position.id, volume)
+      setCloseDialog({ open: false, position: null, volumeInput: "", isSubmitting: false })
+    } catch {
+      toast.error("Failed to close position")
+      setCloseDialog((prev) => ({ ...prev, isSubmitting: false }))
+    }
+  }
+
+  const isPartial =
+    closeDialog.position !== null &&
+    parseFloat(closeDialog.volumeInput) < closeDialog.position.volume
+
+  return (
+    <>
+      <Card className="h-fit">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Open Positions</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table className="min-w-[1440px]">
+            <colgroup>
+              {COLUMN_WIDTHS.split(" ").map((width, index) => (
+                <col key={index} style={{ width }} />
+              ))}
+            </colgroup>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Symbol</TableHead>
+                <TableHead>Ticket</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Volume</TableHead>
+                <TableHead>Open</TableHead>
+                <TableHead>SL</TableHead>
+                <TableHead>TP</TableHead>
+                <TableHead>Current</TableHead>
+                <TableHead>Swap</TableHead>
+                <TableHead>P&amp;L ($)</TableHead>
+                <TableHead>P&amp;L (Pips)</TableHead>
+                <TableHead>Margin Req</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {positions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={14} className="text-center text-muted-foreground">
+                    No open positions.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                positions.map((position) => {
+                  const pipSize = inferPipSize(position.openPrice, digits)
+                  const pipDelta =
+                    position.type === "buy"
+                      ? (position.currentPrice - position.openPrice) / pipSize
+                      : (position.openPrice - position.currentPrice) / pipSize
+
+                  return (
+                    <TableRow key={position.id}>
+                      <TableCell>{position.symbol}</TableCell>
+                      <TableCell>{position.ticket}</TableCell>
+                      <TableCell>{formatTime(position.time)}</TableCell>
+                      <TableCell className={position.type === "buy" ? "text-emerald-500" : "text-red-500"}>
+                        {position.type.toUpperCase()}
+                      </TableCell>
+                      <TableCell>{position.volume.toFixed(2)}</TableCell>
+                      <TableCell>{formatPrice(position.openPrice, digits)}</TableCell>
+                      <TableCell>
+                        <InlineEditableNumber
+                          value={position.sl}
+                          digits={digits}
+                          onSave={(newVal) => handleModifyField(position.id, "sl", newVal)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <InlineEditableNumber
+                          value={position.tp}
+                          digits={digits}
+                          onSave={(newVal) => handleModifyField(position.id, "tp", newVal)}
+                        />
+                      </TableCell>
+                      <TableCell>{formatPrice(position.currentPrice, digits)}</TableCell>
+                      <TableCell>{(position.swap ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className={position.pnl >= 0 ? "text-emerald-500" : "text-red-500"}>
+                        {position.pnl.toFixed(2)}
+                      </TableCell>
+                      <TableCell className={pipDelta >= 0 ? "text-emerald-500" : "text-red-500"}>
+                        {pipDelta.toFixed(1)}
+                      </TableCell>
+                      <TableCell>{(position.marginRequired ?? 0).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          title="Close position"
+                          onClick={() => openCloseDialog(position)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Close Position Dialog */}
+      <Dialog
+        open={closeDialog.open}
+        onOpenChange={(open) => {
+          if (!open && !closeDialog.isSubmitting) {
+            setCloseDialog({ open: false, position: null, volumeInput: "", isSubmitting: false })
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Close Position</DialogTitle>
+            <DialogDescription>
+              {closeDialog.position && (
+                <>
+                  {closeDialog.position.symbol} &nbsp;
+                  <span className={closeDialog.position.type === "buy" ? "text-emerald-500 font-semibold" : "text-red-500 font-semibold"}>
+                    {closeDialog.position.type.toUpperCase()}
+                  </span>
+                  &nbsp;· Ticket #{closeDialog.position.ticket}
+                  &nbsp;· Current P&L:{" "}
+                  <span className={closeDialog.position.pnl >= 0 ? "text-emerald-500" : "text-red-500"}>
+                    ${closeDialog.position.pnl.toFixed(2)}
+                  </span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="close-volume">
+                Volume to close{" "}
+                <span className="text-muted-foreground text-xs">
+                  (max {closeDialog.position?.volume.toFixed(2)})
+                </span>
+              </Label>
+              <Input
+                id="close-volume"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={closeDialog.position?.volume ?? undefined}
+                value={closeDialog.volumeInput}
+                onChange={(e) =>
+                  setCloseDialog((prev) => ({ ...prev, volumeInput: e.target.value }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCloseDialogConfirm()
+                  if (e.key === "Escape")
+                    setCloseDialog({ open: false, position: null, volumeInput: "", isSubmitting: false })
+                }}
+                autoFocus
+              />
+            </div>
+            {isPartial && (
+              <p className="text-xs text-amber-500">
+                ⚠ Partial close — remaining volume:{" "}
+                <strong>
+                  {(
+                    (closeDialog.position?.volume ?? 0) - parseFloat(closeDialog.volumeInput || "0")
+                  ).toFixed(2)}
+                </strong>
+              </p>
             )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setCloseDialog({ open: false, position: null, volumeInput: "", isSubmitting: false })
+              }
+              disabled={closeDialog.isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCloseDialogConfirm}
+              disabled={closeDialog.isSubmitting}
+            >
+              {closeDialog.isSubmitting
+                ? "Closing…"
+                : isPartial
+                ? "Partial Close"
+                : "Close Position"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

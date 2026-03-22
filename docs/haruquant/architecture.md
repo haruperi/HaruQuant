@@ -699,9 +699,8 @@
   - `pending_signal_2`, `cancel_pending_signal_2`, `price_2`
   - `Engine.run(...)` applies both legs in the same tick, after cancel signals and before scheduled monitors
   - `TicksGenerator` propagates these columns from bars to generated ticks
-- `core.monitor_pending_orders(...)` now enforces one-symbol breakout behavior when a pending triggers:
-  - closes any existing open position for that symbol before opening the triggered side
-  - removes sibling pending orders for that symbol after a successful trigger
+- `core.monitor_pending_orders(...)` triggers only the matched pending order and does not apply implicit same-symbol cleanup.
+- Strategy-specific breakout policies such as closing opposite positions or canceling sibling pending legs must be expressed explicitly in strategy logic rather than hard-coded in the engine.
 - Signal execution uses `core.order_send(...)` and keeps scheduler callbacks unchanged.
 - In `Engine` simulation flow, profit/margin calculations are now strict MT5-based:
   - uses `client.order_calc_profit(...)` and `client.order_calc_margin(...)`
@@ -1993,6 +1992,13 @@
   - modifying and deleting pending orders
   - seeking to a bar index and deleting sessions
 - The client uses the same browser token storage key as `ui/src/lib/auth-context.tsx` and attaches bearer auth headers for all simulator requests.
+- In the simulator trading terminal:
+  - `ui/src/components/simulation/positions-panel.tsx` provides inline SL/TP edits and partial-close/full-close actions for open positions
+  - `ui/src/components/simulation/orders-panel.tsx` mirrors that interaction model for pending orders with a live current-price column, inline open/SL/TP editing, dialog-based volume reduction, and full delete
+  - stopping from `ui/src/components/simulation/execution-view.tsx` now opens a confirmation dialog:
+    - `Quit` deletes the simulation session without persistence
+    - `Save` closes open positions, deletes pending orders, persists the current run into `backtest_runs` plus trades/equity storage, then routes the user to Performance with the saved backtest preselected
+  - pending-order volume reduction is implemented through the simulator `PATCH /api/simulator/{session_id}/orders/{order_id}` route by recreating the order at a smaller volume after validation
 
 ## Frontend Simulator Trade Notifications
 

@@ -906,53 +906,6 @@ def monitor_pending_orders(
                 f"ticket={int(getattr(order, 'ticket', 0) or 0)}"
             )
 
-    def _close_symbol_positions(symbol_name: str) -> None:
-        close_targets = []
-        for position in list(state.trading_deals):
-            if str(getattr(position, "symbol", "") or "") != symbol_name:
-                continue
-            close_targets.append(position)
-
-        for position in close_targets:
-            position_type = int(getattr(position, "type", -1) or -1)
-            close_type = 1 if position_type == 0 else 0
-            close_request = DotDict(
-                action=1,
-                symbol=symbol_name,
-                type=close_type,
-                position=int(getattr(position, "ticket", getattr(position, "position_id", 0)) or 0),
-                volume=float(getattr(position, "volume", 0.0) or 0.0),
-                price=0.0,
-                comment="Pending trigger flip",
-            )
-            order_send(
-                state,
-                close_request,
-                profit_calculator=profit_calculator,
-                margin_calculator=margin_calculator,
-                strict_calc_access=strict_calc_access,
-                verbose=verbose,
-            )
-
-    def _remove_sibling_pending_orders(triggered_order) -> None:
-        symbol_name = str(getattr(triggered_order, "symbol", "") or "")
-        siblings = [
-            order for order in list(state.trading_orders)
-            if order is not triggered_order
-            and str(getattr(order, "symbol", "") or "") == symbol_name
-            and int(getattr(order, "type", -1) or -1) in (2, 3, 4, 5)
-        ]
-        for sibling in siblings:
-            sibling_ticket = int(getattr(sibling, "ticket", 0) or 0)
-            hist_row = HistoryOrderInfo(dict(sibling))
-            hist_row.time_done = now
-            hist_row.time_done_msc = now_msc
-            hist_row.state = 4
-            state.trading_history_orders.append(hist_row)
-            state.trading_orders = [o for o in state.trading_orders if o is not sibling]
-            if verbose:
-                print(f"[monitor_pending_orders] Removed sibling pending order ticket={sibling_ticket}")
-
     processed_tickets = set()
     for order in to_trigger:
         if not allow_auto_trigger:
@@ -974,8 +927,6 @@ def monitor_pending_orders(
         symbol_name = str(getattr(order, "symbol", "") or "")
         if volume <= 0.0 or not symbol_name:
             continue
-
-        _close_symbol_positions(symbol_name)
 
         request = DotDict(
             action=1,
@@ -1006,8 +957,6 @@ def monitor_pending_orders(
         hist_row.state = 4 if int(getattr(result, "retcode", 0) or 0) == 10009 else 5
         state.trading_history_orders.append(hist_row)
         state.trading_orders = [o for o in state.trading_orders if o is not order]
-        if int(getattr(result, "retcode", 0) or 0) == 10009:
-            _remove_sibling_pending_orders(order)
 
         if verbose:
             print(

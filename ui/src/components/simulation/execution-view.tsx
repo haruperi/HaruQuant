@@ -1,9 +1,18 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { IndicatorControl, type IndicatorSelection } from "@/components/simulation/indicator-control"
 import { SpeedControl } from "@/components/simulation/speed-control"
 import { SkipControl } from "@/components/simulation/skip-control"
@@ -12,6 +21,7 @@ import { TradingPanel } from "@/components/simulation/trading-panel"
 import { PositionsPanel, type PositionRow } from "@/components/simulation/positions-panel"
 import { OrdersPanel, type OrderRow } from "@/components/simulation/orders-panel"
 import { AccountMetricsBar, type AccountMetrics } from "@/components/simulation/account-metrics"
+import { getErrorMessage } from "@/lib/api-error"
 import simulatorApi, { type SimulationConfig } from "@/lib/api/simulator"
 
 interface SimulationTrade {
@@ -111,6 +121,7 @@ export function SimulationExecutionView({
   onTradesUpdate,
   onFinalAccount,
 }: SimulationExecutionViewProps) {
+  const router = useRouter()
   const [currentSpeed, setCurrentSpeed] = useState<number>(
     config?.speed_multiplier || 1
   )
@@ -139,6 +150,9 @@ export function SimulationExecutionView({
     ema: Boolean(config?.indicator_ema_enabled),
     rsi: Boolean(config?.indicator_rsi_enabled),
   })
+  const [stopDialogOpen, setStopDialogOpen] = useState(false)
+  const [stopActionLoading, setStopActionLoading] = useState<"save" | "quit" | null>(null)
+  const isStopping = stopActionLoading !== null
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const isFetchingRef = useRef(false)
@@ -172,7 +186,7 @@ export function SimulationExecutionView({
 
   // Fetch bars in batch
   const fetchBars = useCallback(async () => {
-    if (isFetchingRef.current || isPaused || isCompleted) return
+    if (isFetchingRef.current || isPaused || isCompleted || isStopping) return
 
     const barsToFetch = calculateBarsToFetch()
     if (barsToFetch <= 0) return
@@ -197,11 +211,11 @@ export function SimulationExecutionView({
           const bar = item.bar
           if (bar && bar.time) {
             newBars.push({
-              time: bar.time || bar.timestamp || "",
-              open: bar.open || 0,
-              high: bar.high || 0,
-              low: bar.low || 0,
-              close: bar.close || 0,
+              time: (bar.time as string) || (bar.timestamp as string) || "",
+              open: (bar.open as number) || 0,
+              high: (bar.high as number) || 0,
+              low: (bar.low as number) || 0,
+              close: (bar.close as number) || 0,
             })
 
             if (typeof bar.close === "number") {
@@ -255,11 +269,14 @@ export function SimulationExecutionView({
         onComplete()
       }
     } catch (error) {
+      if (isStopping && getErrorMessage(error) === "Session not found") {
+        return
+      }
       console.error("Failed to fetch bars:", error)
     } finally {
       isFetchingRef.current = false
     }
-  }, [sessionId, isPaused, isCompleted, calculateBarsToFetch, onComplete, accountState])
+  }, [sessionId, isPaused, isCompleted, isStopping, calculateBarsToFetch, onComplete, accountState])
 
   // Start/stop interval with fixed update rate
   useEffect(() => {
@@ -315,12 +332,40 @@ export function SimulationExecutionView({
   }
 
   const handleStopSimulation = async () => {
+    setStopDialogOpen(true)
+  }
+
+  const handleQuitSimulation = async () => {
     try {
+      setStopActionLoading("quit")
+      setIsPaused(true)
       await simulatorApi.deleteSession(sessionId)
       toast.success("Simulation stopped")
+      setStopDialogOpen(false)
       onStop()
-    } catch {
-      toast.error("Failed to stop simulation")
+    } catch (error) {
+      toast.error("Failed to stop simulation", {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setStopActionLoading(null)
+    }
+  }
+
+  const handleSaveAndStopSimulation = async () => {
+    try {
+      setStopActionLoading("save")
+      setIsPaused(true)
+      const response = await simulatorApi.stopAndSaveSession(sessionId)
+      toast.success("Simulation saved to backtest results")
+      setStopDialogOpen(false)
+      router.push(`/performance?selected=${response.backtest_id}`)
+    } catch (error) {
+      toast.error("Failed to save simulation", {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setStopActionLoading(null)
     }
   }
 
@@ -393,7 +438,6 @@ export function SimulationExecutionView({
           </div>
 
           <SimulationChart
-            sessionId={sessionId}
             symbol={symbol}
             timeframe={config?.timeframe}
             bars={chartBars}
@@ -422,31 +466,51 @@ export function SimulationExecutionView({
                   setPositions(toPositionRows(response.positions))
                   setOrders(toOrderRows(response.orders))
                 }}
+                onClosePosition={async (positionId, volume) => {
+                  const response = await simulatorApi.partialClosePosition(
+                    sessionId,
+                    Number(positionId),
+                    volume
+                  )
+                  setPositions(toPositionRows(response.positions))
+                  setOrders(toOrderRows(response.orders))
+                }}
               />
               <div className="grid grid-cols-1 gap-4">
                 <OrdersPanel
                   orders={orders}
                   digits={digits}
-                  onModifyOrderField={async (orderId, field, currentValue) => {
-                    const input = window.prompt(
-                      `New ${field.toUpperCase()} value`,
-                      currentValue ? String(currentValue) : ""
-                    )
-                    if (input === null) return
-                    const numericValue = input.trim() === "" ? 0 : Number(input)
-                    if (Number.isNaN(numericValue)) {
-                      toast.error(`Invalid ${field.toUpperCase()} value`)
-                      return
+                  currentPrice={currentPrice}
+                  onModifyOrder={async (orderId, payload) => {
+                    try {
+                      const response = await simulatorApi.modifyOrder(
+                        sessionId,
+                        Number(orderId),
+                        payload
+                      )
+                      setPositions(toPositionRows(response.positions))
+                      setOrders(toOrderRows(response.orders))
+                    } catch (error) {
+                      toast.error("Failed to modify order", {
+                        description: getErrorMessage(error),
+                      })
+                      throw error
                     }
-                    const payload: { price?: number; sl?: number; tp?: number } = {}
-                    payload[field] = numericValue
-                    const response = await simulatorApi.modifyOrder(
-                      sessionId,
-                      Number(orderId),
-                      payload
-                    )
-                    setPositions(toPositionRows(response.positions))
-                    setOrders(toOrderRows(response.orders))
+                  }}
+                  onDeleteOrder={async (orderId) => {
+                    try {
+                      const response = await simulatorApi.cancelOrder(
+                        sessionId,
+                        Number(orderId)
+                      )
+                      setPositions(toPositionRows(response.positions))
+                      setOrders(toOrderRows(response.orders))
+                    } catch (error) {
+                      toast.error("Failed to delete order", {
+                        description: getErrorMessage(error),
+                      })
+                      throw error
+                    }
                   }}
                 />
               </div>
@@ -454,6 +518,49 @@ export function SimulationExecutionView({
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={stopDialogOpen}
+        onOpenChange={(open) => {
+          if (!stopActionLoading) {
+            setStopDialogOpen(open)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Stop Simulation</DialogTitle>
+            <DialogDescription>
+              Do you want to save this simulation as a completed backtest, or quit without saving?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setStopDialogOpen(false)}
+              disabled={stopActionLoading !== null}
+            >
+              Cancel
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={handleSaveAndStopSimulation}
+                disabled={stopActionLoading !== null}
+              >
+                {stopActionLoading === "save" ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleQuitSimulation}
+                disabled={stopActionLoading !== null}
+              >
+                {stopActionLoading === "quit" ? "Quitting..." : "Quit"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

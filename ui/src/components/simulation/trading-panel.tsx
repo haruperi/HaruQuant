@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { validatePendingOrder } from "@/components/simulation/order-validation"
+import { getErrorMessage } from "@/lib/api-error"
 import simulatorApi, { type Position, type Order } from "@/lib/api/simulator"
 import { useSimulatorTradeNotifications } from "@/lib/hooks/use-simulator-trade-notifications"
 
@@ -99,22 +101,49 @@ export function TradingPanel({
       return
     }
 
+    const slValue = sl ? Number(sl.replace(",", ".")) : null
+    if (sl && (slValue === null || Number.isNaN(slValue))) {
+      toast.error("Enter a valid Stop Loss.")
+      return
+    }
+
+    const tpValue = tp ? Number(tp.replace(",", ".")) : null
+    if (tp && (tpValue === null || Number.isNaN(tpValue))) {
+      toast.error("Enter a valid Take Profit.")
+      return
+    }
+
+    const validationError = validatePendingOrder({
+      type: pendingType,
+      volume: vol,
+      price,
+      sl: slValue,
+      tp: tpValue,
+      currentPrice: currentPrice ?? null,
+    })
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
     try {
       setSubmitting(true)
       const response = await simulatorApi.placePendingOrder(sessionId, {
         type: pendingType,
         volume: vol,
         price,
-        sl: sl ? Number(sl) : undefined,
-        tp: tp ? Number(tp) : undefined,
+        sl: slValue ?? undefined,
+        tp: tpValue ?? undefined,
       })
 
       toast.success(`Pending order placed (${pendingType.replace("_", " ").toUpperCase()})`)
       if (onTradeExecuted && response.positions) {
         onTradeExecuted(response.positions, response.orders || [])
       }
-    } catch {
-      toast.error("Pending order failed")
+    } catch (error) {
+      toast.error("Pending order failed", {
+        description: getErrorMessage(error),
+      })
     } finally {
       setSubmitting(false)
     }

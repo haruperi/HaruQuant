@@ -930,7 +930,14 @@ def open_position_validations(request: Any, account: Any, symbol_info: Optional[
     return out
 
 
-def modify_position_validations(symbol: str, ticket: int, state: Optional[BacktestState]) -> TradeValidationResult:
+def modify_position_validations(
+    symbol: str, 
+    ticket: int, 
+    state: Optional[BacktestState], 
+    sl: float = 0.0, 
+    tp: float = 0.0, 
+    symbol_info: Optional[Any] = None
+) -> TradeValidationResult:
     has_ticket = int(ticket) > 0
     has_symbol = bool(symbol)
     if not has_ticket and not has_symbol:
@@ -946,28 +953,73 @@ def modify_position_validations(symbol: str, ticket: int, state: Optional[Backte
 
     found = False
     found_symbol = ""
+    found_row = None
 
-    if has_symbol:
-        for key, row in state.trading_deals.items():
-            row_symbol = row.get("symbol") or key
-            entry = row.get("entry", "0")
-            if entry == "0" and row_symbol == symbol:
+    # Helper: normalize a position object to a dict regardless of type
+    def _pos_to_row(pos):
+        if isinstance(pos, dict):
+            return pos
+        if hasattr(pos, "_asdict"):
+            return pos._asdict()
+        return {k: getattr(pos, k) for k in dir(pos) if not k.startswith("_")}
+
+    # state.trading_deals is a list of objects in the simulator engine
+    deals_iterable = state.trading_deals if isinstance(state.trading_deals, list) else list(state.trading_deals.values())
+
+    for deal in deals_iterable:
+        row = _pos_to_row(deal)
+        entry = str(row.get("entry", "0"))
+        if entry != "0":
+            continue  # skip closed positions
+        row_symbol = str(row.get("symbol", "") or "")
+        row_ticket = str(row.get("ticket") or row.get("position_id") or row.get("identifier") or "")
+        if has_symbol and not has_ticket:
+            if row_symbol == symbol:
                 found = True
                 found_symbol = row_symbol
+                found_row = row
                 break
-    else:
-        ticket_str = str(ticket)
-        for key, row in state.trading_deals.items():
-            entry = row.get("entry", "0")
-            if row.get("ticket") == ticket_str and entry == "0":
+        else:
+            if row_ticket == str(ticket):
                 found = True
-                found_symbol = row.get("symbol") or key
+                found_symbol = row_symbol
+                found_row = row
                 break
 
     if not found:
         return _fail_trade(10036, "Position not found")
     if has_ticket and has_symbol and found_symbol and found_symbol != symbol:
         return _fail_trade(10013, "Ticket does not belong to the provided symbol")
+
+    if symbol_info is not None and found_row is not None:
+        ctx = ValidationContext(
+            symbol_info=symbol_info,
+            symbol_exists=True,
+            symbol_visible=True,
+            symbol_select_ok=True,
+            symbol_tick=SymbolTickData(float(symbol_info.Bid()), float(symbol_info.Ask())),
+        )
+        rules = ValidationRules()
+        
+        entry_price = _parse_float_or(found_row.get("price_open", found_row.get("price", "")), 0.0)
+        order_type_val = found_row.get("type", "")
+        if isinstance(order_type_val, str) and not order_type_val.isdigit():
+            order_type_int = 0 if order_type_val.lower() == "buy" else 1
+        else:
+            order_type_int = _parse_int_or(order_type_val, 0)
+            
+        current_price = float(symbol_info.Bid()) if order_type_int == 0 else float(symbol_info.Ask())
+        reference_price = current_price if current_price > 0.0 else (entry_price if entry_price > 0.0 else None)
+        
+        if sl > 0.0:
+            sl_ok = validate_stop_loss(float(sl), reference_price, order_type_int, ctx, rules)
+            if not sl_ok.ok:
+                return _fail_trade(10016, sl_ok.message)
+
+        if tp > 0.0:
+            tp_ok = validate_take_profit(float(tp), reference_price, order_type_int, ctx, rules)
+            if not tp_ok.ok:
+                return _fail_trade(10016, tp_ok.message)
 
     return TradeValidationResult()
 
