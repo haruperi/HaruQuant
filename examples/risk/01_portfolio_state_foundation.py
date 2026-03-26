@@ -1,5 +1,5 @@
 """
-Example 9: Canonical Portfolio State Foundation
+Example 01: Canonical Portfolio State Foundation
 
 Phase 1 task-by-task walkthrough using the actual HaruQuant stack:
 1. define canonical risk-state models
@@ -29,9 +29,9 @@ from apps.trading import Engine, Trade, core
 
 
 TIMEFRAME = "H1"
-BAR_COUNT = 300
-SYMBOLS = ["EURUSD", "XAUUSD"]
-SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "XAUUSD": "METALS"}
+BAR_COUNT = 500
+SYMBOLS = ["EURUSD", "GBPUSD"]
+SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "GBPUSD": "METALS"}
 BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12)
 
 
@@ -137,7 +137,7 @@ class ExampleContext:
         trade = Trade(self.engine.api)
         requests = [
             {"symbol": "EURUSD", "side": "BUY", "target_volume": 0.10},
-            {"symbol": "XAUUSD", "side": "SELL", "target_volume": 0.05},
+            {"symbol": "GBPUSD", "side": "SELL", "target_volume": 0.05},
         ]
         for request in requests:
             symbol = request["symbol"]

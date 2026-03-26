@@ -22,7 +22,17 @@ import { PositionsPanel, type PositionRow } from "@/components/simulation/positi
 import { OrdersPanel, type OrderRow } from "@/components/simulation/orders-panel"
 import { AccountMetricsBar, type AccountMetrics } from "@/components/simulation/account-metrics"
 import { getErrorMessage } from "@/lib/api-error"
-import simulatorApi, { type SimulationConfig } from "@/lib/api/simulator"
+import simulatorApi, {
+  type PositionsResponse,
+  type SimulationConfig,
+  type SimulationGovernanceReport,
+  type SimulationMarketRow,
+  type SimulationRecommendationSummary,
+  type SimulationRiskSnapshotSummary,
+  type SimulationRiskScorecardSummary,
+  type SimulationStartResponse,
+  type SimulationWhatIfComparison,
+} from "@/lib/api/simulator"
 
 interface SimulationTrade {
   time?: string
@@ -60,6 +70,47 @@ function mergeIndicatorsByTime(
   )
 }
 
+function mergeMarketBySymbol(
+  previous: Record<string, SimulationMarketRow>,
+  incoming?: SimulationMarketRow[]
+) {
+  const next = { ...previous }
+  for (const row of incoming || []) {
+    next[row.symbol] = row
+  }
+  return next
+}
+
+function formatMarketTime(value?: string) {
+  if (!value) {
+    return "--"
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  const hours = String(date.getHours()).padStart(2, "0")
+  const minutes = String(date.getMinutes()).padStart(2, "0")
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+function toAccountMetrics(
+  account: Partial<AccountMetrics> | undefined,
+  fallback: AccountMetrics
+): AccountMetrics {
+  return {
+    balance: Number(account?.balance ?? fallback.balance),
+    equity: Number(account?.equity ?? fallback.equity),
+    margin: Number(account?.margin ?? fallback.margin),
+    profit: Number(account?.profit ?? fallback.profit),
+    margin_free: Number(account?.margin_free ?? fallback.margin_free ?? 0),
+    margin_level: Number(account?.margin_level ?? fallback.margin_level ?? 0),
+  }
+}
+
 function toPositionRows(positions: Array<{
   id: number
   symbol: string
@@ -72,6 +123,8 @@ function toPositionRows(positions: Array<{
   profit: number
   swap?: number
   margin_required?: number
+  exposure?: number
+  weight?: number
   time?: string | number | null
 }>): PositionRow[] {
   return positions.map((p) => ({
@@ -88,6 +141,8 @@ function toPositionRows(positions: Array<{
     swap: p.swap ?? 0,
     pnl: p.profit,
     marginRequired: p.margin_required ?? 0,
+    exposure: p.exposure,
+    weight: p.weight,
   }))
 }
 
@@ -117,6 +172,7 @@ function toOrderRows(orders: Array<{
 interface SimulationExecutionViewProps {
   sessionId: number
   config?: SimulationConfig | null
+  sessionResponse?: SimulationStartResponse | null
   totalBars?: number
   symbolDigits?: number
   onComplete: () => void
@@ -125,22 +181,13 @@ interface SimulationExecutionViewProps {
   onFinalAccount?: (account: AccountMetrics) => void
 }
 
-const timeframeSeconds: Record<string, number> = {
-  M1: 60,
-  M5: 300,
-  M15: 900,
-  M30: 1800,
-  H1: 3600,
-  H4: 14400,
-  D1: 86400,
-}
-
 // Fixed update rate: 30 updates per second for smooth animation without overwhelming the system
 const UPDATE_RATE_MS = 33 // ~30 fps
 
 export function SimulationExecutionView({
   sessionId,
   config,
+  sessionResponse,
   totalBars = 0,
   symbolDigits = 5,
   onComplete,
@@ -155,6 +202,10 @@ export function SimulationExecutionView({
   const [isPaused, setIsPaused] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
   const [currentPrice, setCurrentPrice] = useState<number | undefined>(undefined)
+  const symbols = (config?.symbol || "EURUSD")
+    .split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean)
   const [accountState, setAccountState] = useState<AccountMetrics>({
     balance: config?.initial_balance || 10000,
     equity: config?.initial_balance || 10000,
@@ -168,8 +219,15 @@ export function SimulationExecutionView({
   const [orders, setOrders] = useState<OrderRow[]>([])
 
   // Chart data
-  const [chartBars, setChartBars] = useState<ChartBarData[]>([])
-  const [chartIndicators, setChartIndicators] = useState<ChartIndicatorData[]>([])
+  const [chartBarsBySymbol, setChartBarsBySymbol] = useState<Record<string, ChartBarData[]>>({})
+  const [chartIndicatorsBySymbol, setChartIndicatorsBySymbol] = useState<Record<string, ChartIndicatorData[]>>({})
+  const [marketBySymbol, setMarketBySymbol] = useState<Record<string, SimulationMarketRow>>({})
+  const [riskSnapshot, setRiskSnapshot] = useState<SimulationRiskSnapshotSummary>({})
+  const [riskScorecard, setRiskScorecard] = useState<SimulationRiskScorecardSummary>({})
+  const [recommendations, setRecommendations] = useState<SimulationRecommendationSummary>({ items: [] })
+  const [latestGovernanceReport, setLatestGovernanceReport] = useState<SimulationGovernanceReport | null>(null)
+  const [whatIfComparison, setWhatIfComparison] = useState<SimulationWhatIfComparison | null>(null)
+  const [whatIfLoading, setWhatIfLoading] = useState(false)
   const [currentBarIndex, setCurrentBarIndex] = useState(0)
   const [digits, setDigits] = useState(symbolDigits)
   const [indicatorSelection, setIndicatorSelection] = useState<IndicatorSelection>({
@@ -186,7 +244,18 @@ export function SimulationExecutionView({
   const accumulatorRef = useRef(0) // Accumulates fractional bars over time
   const lastUpdateTimeRef = useRef(Date.now())
 
-  const symbol = config?.symbol || "EURUSD"
+  const symbol = symbols[0] || "EURUSD"
+  const sessionDetails = [
+    { label: "Login", value: sessionResponse?.account_login ?? "--" },
+    { label: "Server", value: sessionResponse?.account_server || "--" },
+    { label: "Company", value: sessionResponse?.account_company || "--" },
+    { label: "Initial balance", value: config?.initial_balance ?? "--" },
+    { label: "Leverage", value: sessionResponse?.account_leverage ?? config?.leverage ?? "--" },
+    { label: "Commission", value: config?.commission ?? "--" },
+    { label: "Slippage Type", value: config?.slippage_type || "--" },
+    { label: "Spread type", value: config?.spread_type || "--" },
+    { label: "Data Resolution", value: config?.data_resolution || "--" },
+  ]
 
   // Calculate how many bars to fetch based on speed and elapsed time
   const calculateBarsToFetch = useCallback(() => {
@@ -229,23 +298,25 @@ export function SimulationExecutionView({
 
       if (response.bars.length > 0) {
         // Batch update chart bars
-        const newBars: ChartBarData[] = []
-        const newIndicators: ChartIndicatorData[] = []
+        const barsBySymbol: Record<string, ChartBarData[]> = {}
+        const indicatorsBySymbol: Record<string, ChartIndicatorData[]> = {}
         let lastPrice: number | undefined
         let lastAccount: AccountMetrics | undefined
 
         for (const item of response.bars) {
           const bar = item.bar
+          const barSymbol = String(bar?.symbol || symbol)
           if (bar && bar.time) {
-            newBars.push({
+            const nextBar = {
               time: (bar.time as string) || (bar.timestamp as string) || "",
               open: (bar.open as number) || 0,
               high: (bar.high as number) || 0,
               low: (bar.low as number) || 0,
               close: (bar.close as number) || 0,
-            })
+            }
+            barsBySymbol[barSymbol] = [...(barsBySymbol[barSymbol] || []), nextBar]
 
-            if (typeof bar.close === "number") {
+            if (typeof bar.close === "number" && barSymbol === symbol) {
               lastPrice = bar.close
             }
           }
@@ -262,16 +333,35 @@ export function SimulationExecutionView({
           }
 
           if (item.indicators && Object.keys(item.indicators).length > 0) {
-            newIndicators.push(item.indicators)
+            indicatorsBySymbol[barSymbol] = [
+              ...(indicatorsBySymbol[barSymbol] || []),
+              item.indicators,
+            ]
           }
         }
 
-        // Batch state updates
-        if (newBars.length > 0) {
-          setChartBars((prev) => mergeBarsByTime(prev, newBars))
+        const barSymbols = Object.keys(barsBySymbol)
+        if (barSymbols.length > 0) {
+          setChartBarsBySymbol((prev) => {
+            const next = { ...prev }
+            for (const symbolKey of barSymbols) {
+              next[symbolKey] = mergeBarsByTime(prev[symbolKey] || [], barsBySymbol[symbolKey])
+            }
+            return next
+          })
         }
-        if (newIndicators.length > 0) {
-          setChartIndicators((prev) => mergeIndicatorsByTime(prev, newIndicators))
+        const indicatorSymbols = Object.keys(indicatorsBySymbol)
+        if (indicatorSymbols.length > 0) {
+          setChartIndicatorsBySymbol((prev) => {
+            const next = { ...prev }
+            for (const symbolKey of indicatorSymbols) {
+              next[symbolKey] = mergeIndicatorsByTime(
+                prev[symbolKey] || [],
+                indicatorsBySymbol[symbolKey]
+              )
+            }
+            return next
+          })
         }
         if (lastPrice !== undefined) {
           setCurrentPrice(lastPrice)
@@ -279,6 +369,26 @@ export function SimulationExecutionView({
         if (lastAccount) {
           setAccountState(lastAccount)
         }
+      }
+
+      if (response.market) {
+        setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+        const primaryMarket = response.market.find((item) => item.symbol === symbol)
+        if (primaryMarket) {
+          setCurrentPrice(primaryMarket.close)
+        }
+      }
+      if (response.risk_snapshot) {
+        setRiskSnapshot(response.risk_snapshot)
+      }
+      if (response.risk_scorecard) {
+        setRiskScorecard(response.risk_scorecard)
+      }
+      if (response.recommendations) {
+        setRecommendations(response.recommendations)
+      }
+      if (response.governance) {
+        setLatestGovernanceReport(response.governance)
       }
 
       if (response.positions) {
@@ -303,7 +413,7 @@ export function SimulationExecutionView({
     } finally {
       isFetchingRef.current = false
     }
-  }, [sessionId, isPaused, isCompleted, isStopping, calculateBarsToFetch, onComplete, accountState])
+  }, [sessionId, isPaused, isCompleted, isStopping, calculateBarsToFetch, onComplete, accountState, symbol])
 
   // Start/stop interval with fixed update rate
   useEffect(() => {
@@ -343,6 +453,10 @@ export function SimulationExecutionView({
   useEffect(() => {
     onTradesUpdate?.(trades)
   }, [onTradesUpdate, trades])
+
+  useEffect(() => {
+    setWhatIfComparison(null)
+  }, [currentBarIndex, positions, orders, accountState.equity, accountState.margin])
 
   const handlePauseToggle = async () => {
     try {
@@ -400,24 +514,100 @@ export function SimulationExecutionView({
     setCurrentSpeed(newSpeed)
   }
 
+  const handleSeek = useCallback(
+    async (barIndex: number) => {
+      try {
+        const response: PositionsResponse = await simulatorApi.getPositions(sessionId)
+        setPositions(toPositionRows(response.positions))
+        setOrders(toOrderRows(response.orders))
+        if (response.market) {
+          setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+          const primaryMarket = response.market.find((item) => item.symbol === symbol)
+          if (primaryMarket) {
+            setCurrentPrice(primaryMarket.close)
+          }
+        }
+        if (response.risk_snapshot) {
+          setRiskSnapshot(response.risk_snapshot)
+        }
+        if (response.risk_scorecard) {
+          setRiskScorecard(response.risk_scorecard)
+        }
+        if (response.recommendations) {
+          setRecommendations(response.recommendations)
+        }
+        if (response.governance) {
+          setLatestGovernanceReport(response.governance)
+        }
+        if (response.account) {
+          setAccountState((prev) => toAccountMetrics(response.account, prev))
+        }
+        setCurrentBarIndex(barIndex)
+      } catch (error) {
+        toast.error("Failed to refresh simulation state", {
+          description: getErrorMessage(error),
+        })
+      }
+    },
+    [sessionId, symbol]
+  )
+
   const getBarIndexForTime = (isoTime: string) => {
-    if (!config?.start_time || !config?.timeframe) return null
-    const start = new Date(config.start_time).getTime()
     const target = new Date(isoTime).getTime()
-    if (Number.isNaN(start) || Number.isNaN(target)) return null
-    const step = timeframeSeconds[config.timeframe] || 0
-    if (!step) return null
-    const diffSeconds = Math.floor((target - start) / 1000)
-    if (diffSeconds < 0) return 0
-    return Math.floor(diffSeconds / step)
+    if (Number.isNaN(target)) return null
+
+    const primaryBars = chartBarsBySymbol[symbol] || []
+    if (primaryBars.length === 0) {
+      return null
+    }
+
+    let closestIndex = 0
+    let closestDistance = Number.POSITIVE_INFINITY
+
+    for (let index = 0; index < primaryBars.length; index += 1) {
+      const barTime = new Date(primaryBars[index].time).getTime()
+      if (Number.isNaN(barTime)) {
+        continue
+      }
+      const distance = Math.abs(barTime - target)
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closestIndex = index
+      }
+      if (barTime >= target) {
+        return index
+      }
+    }
+
+    return closestIndex
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-muted-foreground">
-          Session {sessionId} - {symbol} {config?.timeframe || "M1"} | Step: {currentBarIndex}/{totalBars}
-          {isCompleted && <span className="ml-2 text-green-500">(Completed)</span>}
+        <div className="space-y-2">
+          <div className="text-sm text-muted-foreground">
+            Session {sessionId} - {symbol} {config?.timeframe || "M1"} | Step: {currentBarIndex}/{totalBars}
+            {isCompleted && <span className="ml-2 text-green-500">(Completed)</span>}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Regime: <span className="text-foreground">{riskSnapshot.regime_name || "--"}</span>
+            {" | "}Confidence: <span className="text-foreground">
+              {typeof riskSnapshot.regime_confidence === "number"
+                ? `${(riskSnapshot.regime_confidence * 100).toFixed(0)}%`
+                : "--"}
+            </span>
+            {" | "}Market: <span className="text-foreground">{riskSnapshot.market_regime || "--"}</span>
+            {" | "}Volatility: <span className="text-foreground">{riskSnapshot.volatility_regime || "--"}</span>
+            {" | "}Liquidity: <span className="text-foreground">{riskSnapshot.liquidity_regime || "--"}</span>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {sessionDetails.map((item) => (
+              <span key={item.label}>
+                {item.label}: <span className="text-foreground">{String(item.value)}</span>
+              </span>
+            ))}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -439,6 +629,7 @@ export function SimulationExecutionView({
             <SkipControl
               sessionId={sessionId}
               getBarIndexForTime={getBarIndexForTime}
+              onSeek={handleSeek}
             />
             <SpeedControl
               sessionId={sessionId}
@@ -452,33 +643,128 @@ export function SimulationExecutionView({
             />
           </div>
 
-          <div>
-            <TradingPanel
-              sessionId={sessionId}
-              symbol={symbol}
-              currentPrice={currentPrice}
-              onTradeExecuted={(newPositions, newOrders) => {
-                setPositions(toPositionRows(newPositions))
-                setOrders(toOrderRows(newOrders))
-              }}
-            />
-          </div>
-
-          <SimulationChart
-            symbol={symbol}
-            timeframe={config?.timeframe}
-            bars={chartBars}
-            indicators={chartIndicators}
-            digits={digits}
-            indicatorVisibility={indicatorSelection}
-          />
+          {symbols.length <= 4 ? (
+            <div
+              className={
+                symbols.length === 1
+                  ? "grid grid-cols-1 gap-4"
+                  : "grid grid-cols-1 gap-4 lg:grid-cols-2"
+              }
+            >
+              {symbols.map((symbolKey) => (
+                <SimulationChart
+                  key={symbolKey}
+                  symbol={symbolKey}
+                  timeframe={config?.timeframe}
+                  bars={chartBarsBySymbol[symbolKey] || []}
+                  indicators={chartIndicatorsBySymbol[symbolKey] || []}
+                  digits={digits}
+                  indicatorVisibility={indicatorSelection}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold">Market Snapshot</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="p-2">Symbol</th>
+                      <th className="p-2">Time</th>
+                      <th className="p-2">Open</th>
+                      <th className="p-2">High</th>
+                      <th className="p-2">Low</th>
+                      <th className="p-2">Close</th>
+                      <th className="p-2">Bid</th>
+                      <th className="p-2">Ask</th>
+                      <th className="p-2">Spread</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {symbols.map((symbolKey) => {
+                      const market = marketBySymbol[symbolKey]
+                      return (
+                        <tr key={symbolKey} className="border-b">
+                          <td className="p-2">{symbolKey}</td>
+                          <td className="p-2">{formatMarketTime(market?.time)}</td>
+                          <td className="p-2">{market ? market.open.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market ? market.high.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market ? market.low.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market ? market.close.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market ? market.bid.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market ? market.ask.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market ? market.spread.toFixed(0) : "--"}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">Trading Terminal</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <AccountMetricsBar metrics={accountState} />
+              <AccountMetricsBar
+                metrics={accountState}
+                riskSnapshot={riskSnapshot}
+                riskScorecard={riskScorecard}
+                recommendations={recommendations}
+                governanceReport={latestGovernanceReport}
+                whatIfComparison={whatIfComparison}
+                whatIfLoading={whatIfLoading}
+                positions={positions.map((position) => ({
+                  id: Number(position.id),
+                  symbol: position.symbol,
+                  type: position.type,
+                  volume: Number(position.volume),
+                }))}
+                symbols={symbols}
+                currentLeverage={
+                  typeof sessionResponse?.account_leverage === "number"
+                    ? sessionResponse.account_leverage
+                    : typeof config?.leverage === "number"
+                      ? config.leverage
+                      : null
+                }
+                onEvaluateWhatIf={async (payload) => {
+                  try {
+                    setWhatIfLoading(true)
+                    const response = await simulatorApi.evaluateWhatIf(sessionId, payload)
+                    setWhatIfComparison(response)
+                  } catch (error) {
+                    toast.error("Failed to evaluate what-if", {
+                      description: getErrorMessage(error),
+                    })
+                  } finally {
+                    setWhatIfLoading(false)
+                  }
+                }}
+              />
+              <TradingPanel
+                sessionId={sessionId}
+                symbol={symbol}
+                symbols={symbols}
+                currentPrice={currentPrice}
+                currentPricesBySymbol={Object.fromEntries(
+                  Object.entries(marketBySymbol).map(([key, value]) => [key, value.close])
+                )}
+                accountEquity={accountState.equity}
+                onTradeExecuted={(newPositions, newOrders) => {
+                  setPositions(toPositionRows(newPositions))
+                  setOrders(toOrderRows(newOrders))
+                }}
+                onGovernanceEvaluated={setLatestGovernanceReport}
+                onRiskSnapshotUpdate={setRiskSnapshot}
+                onRiskScorecardUpdate={setRiskScorecard}
+                onRecommendationsUpdate={setRecommendations}
+              />
               <PositionsPanel
                 positions={positions}
                 digits={digits}
@@ -492,6 +778,19 @@ export function SimulationExecutionView({
                   )
                   setPositions(toPositionRows(response.positions))
                   setOrders(toOrderRows(response.orders))
+                  setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+                  if (response.risk_snapshot) {
+                    setRiskSnapshot(response.risk_snapshot)
+                  }
+                  if (response.risk_scorecard) {
+                    setRiskScorecard(response.risk_scorecard)
+                  }
+                  if (response.recommendations) {
+                    setRecommendations(response.recommendations)
+                  }
+                  if (response.governance) {
+                    setLatestGovernanceReport(response.governance)
+                  }
                 }}
                 onClosePosition={async (positionId, volume) => {
                   const response = await simulatorApi.partialClosePosition(
@@ -501,6 +800,19 @@ export function SimulationExecutionView({
                   )
                   setPositions(toPositionRows(response.positions))
                   setOrders(toOrderRows(response.orders))
+                  setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+                  if (response.risk_snapshot) {
+                    setRiskSnapshot(response.risk_snapshot)
+                  }
+                  if (response.risk_scorecard) {
+                    setRiskScorecard(response.risk_scorecard)
+                  }
+                  if (response.recommendations) {
+                    setRecommendations(response.recommendations)
+                  }
+                  if (response.governance) {
+                    setLatestGovernanceReport(response.governance)
+                  }
                 }}
               />
               <div className="grid grid-cols-1 gap-4">
@@ -508,6 +820,9 @@ export function SimulationExecutionView({
                   orders={orders}
                   digits={digits}
                   currentPrice={currentPrice}
+                  currentPricesBySymbol={Object.fromEntries(
+                    Object.entries(marketBySymbol).map(([key, value]) => [key, value.close])
+                  )}
                   onModifyOrder={async (orderId, payload) => {
                     try {
                       const response = await simulatorApi.modifyOrder(
@@ -517,6 +832,19 @@ export function SimulationExecutionView({
                       )
                       setPositions(toPositionRows(response.positions))
                       setOrders(toOrderRows(response.orders))
+                      setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+                      if (response.risk_snapshot) {
+                        setRiskSnapshot(response.risk_snapshot)
+                      }
+                      if (response.risk_scorecard) {
+                        setRiskScorecard(response.risk_scorecard)
+                      }
+                      if (response.recommendations) {
+                        setRecommendations(response.recommendations)
+                      }
+                      if (response.governance) {
+                        setLatestGovernanceReport(response.governance)
+                      }
                     } catch (error) {
                       toast.error("Failed to modify order", {
                         description: getErrorMessage(error),
@@ -532,6 +860,19 @@ export function SimulationExecutionView({
                       )
                       setPositions(toPositionRows(response.positions))
                       setOrders(toOrderRows(response.orders))
+                      setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+                      if (response.risk_snapshot) {
+                        setRiskSnapshot(response.risk_snapshot)
+                      }
+                      if (response.risk_scorecard) {
+                        setRiskScorecard(response.risk_scorecard)
+                      }
+                      if (response.recommendations) {
+                        setRecommendations(response.recommendations)
+                      }
+                      if (response.governance) {
+                        setLatestGovernanceReport(response.governance)
+                      }
                     } catch (error) {
                       toast.error("Failed to delete order", {
                         description: getErrorMessage(error),

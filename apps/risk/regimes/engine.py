@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -40,7 +40,9 @@ class RegimeEngine:
     ) -> RegimeReport:
         """Build one aggregate regime report from canonical portfolio state."""
         returns_df = build_returns_df(state)
-        equity_series = equity_curve or _equity_curve_from_state(state)
+        equity_series = _normalize_equity_curve_input(equity_curve)
+        if equity_series is None:
+            equity_series = _equity_curve_from_state(state)
 
         crisis_state, signals = self.crisis_detector.detect_with_signals(returns_df, equity_series)
         market_state = self.market_detector.detect(returns_df)
@@ -82,6 +84,27 @@ def _equity_curve_from_state(state: PortfolioState) -> Optional[pd.Series]:
         return equity_curve
     if isinstance(equity_curve, list) and equity_curve:
         return pd.Series(equity_curve, dtype=float)
+    return None
+
+
+def _normalize_equity_curve_input(equity_curve: Any) -> Optional[pd.Series]:
+    if equity_curve is None:
+        return None
+    if isinstance(equity_curve, pd.Series):
+        return equity_curve.astype(float)
+    if isinstance(equity_curve, list):
+        if not equity_curve:
+            return None
+        values = []
+        for item in equity_curve:
+            if isinstance(item, dict):
+                value = item.get("equity")
+            else:
+                value = getattr(item, "equity", None)
+            if value is None:
+                continue
+            values.append(float(value))
+        return pd.Series(values, dtype=float) if values else None
     return None
 
 

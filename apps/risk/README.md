@@ -38,11 +38,17 @@ Files:
 - `apps/risk/validators/`
 - [`apps/risk/core/portfolio_state_engine.py`](C:/Users/rharu/Documents/MyApplications/HaruQuant/apps/risk/core/portfolio_state_engine.py)
 
+UI Backend hook:
+
+`apps/api/routes/simulator`
+
 Purpose:
 
 - normalize raw account, position, symbol, market, and limit inputs
 - validate that the portfolio has the minimum data needed for risk math
-- produce one shared `PortfolioState` contract used by later layers
+- produce one shared `PortfolioState` contract used by later layers as well as live simulator session after each frame
+- UI - a session helper like build_risk_state()
+- UI - source data from current simulator account, open positions, symbol specs, and current market bars
 
 Core models:
 
@@ -54,7 +60,7 @@ Core models:
 
 Key point:
 
-- later risk layers should consume canonical state instead of rebuilding assumptions from raw MT5 payloads
+- everything else in apps/risk expects normalized state. Later risk layers should consume canonical state instead of rebuilding assumptions from raw MT5 payloads
 
 ### 2. Portfolio Risk Math Layer
 

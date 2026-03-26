@@ -2,6 +2,97 @@
 
 ## Risk Engine Canonical State Foundation
 
+- The `/simulation` page now exposes session-local risk inputs for descriptive snapshot math:
+  - `risk_confidence_level`
+  - `risk_horizon_unit`
+  - `risk_horizon_value`
+  - `risk_vol_lookback`
+  - `risk_corr_lookback`
+- The same `/simulation` risk card now also exposes session-local governance limit inputs:
+  - `risk_var_cap_frac`
+  - `risk_es_cap_frac`
+  - `risk_delta_var_cap_frac`
+  - `risk_delta_es_cap_frac`
+  - `risk_max_margin_used_frac`
+  - `risk_max_single_rc_frac` as a buffer above equal-weight average contribution
+  - `risk_warning_utilization_frac`
+- The `single_rc_cap` governance rule now evaluates normalized absolute risk-contribution shares for concentration checks, so hedged books keep both legs represented in the compliance panel while the displayed concentration shares remain bounded at `100%`.
+- `apps/api/routes/simulator.py` passes those values into `RiskLimits` inside `SimulatorSession.build_risk_state()`.
+- `apps/risk/metrics/math.py` now scales VaR/ES using the simulation timeframe plus the selected horizon unit:
+  - `bars`: square-root-of-bars scaling
+  - `hours`: hours converted to bar count for the active timeframe
+  - `days`: days converted to bar count for the active timeframe
+- The current VaR/CVaR path now uses signed symbol notionals normalized by gross absolute notional, so hedged long/short portfolios can reduce portfolio risk while gross exposure metrics remain unchanged.
+- `/simulation` now feeds regime context into risk snapshots and governance:
+  - `apps/api/routes/simulator.py::SimulatorSession.refresh_risk_state()` passes `previous_regime` and the current engine equity curve into `RiskSnapshotEngine`
+  - regime transition state is preserved across simulator frames
+  - the snapshot summary now exposes:
+    - `regime_name`
+    - `regime_confidence`
+    - `regime_signals_triggered`
+    - `regime_warnings`
+    - `market_regime`
+    - `volatility_regime`
+    - `liquidity_regime`
+    - `crisis_regime`
+    - `regime_transition_changed`
+  - governance tightening under stress/crisis continues to flow through `apps/risk/limits/policy_engine.py`
+  - the simulator header and account metrics card now render the live regime context directly from the snapshot summary
+- This changes only the risk snapshot inputs for that simulation session. It does not change the global risk defaults in `apps/risk/limits/models.py` and it does not change execution behavior.
+- `/simulation` keeps live risk surfaced through the expanded account metrics area rather than a separate risk panel, so risk visibility stays consolidated in one place while later phases add more detail.
+- `/simulation` open positions now receive per-position exposure fields directly from `apps/api/routes/simulator.py`:
+  - `exposure`: gross notional for that open position using current simulator price and symbol contract size
+  - `weight`: absolute notional share of the current open-position book
+  - `ui/src/components/simulation/execution-view.tsx` passes those fields through to the `Open Positions` table
+- `/simulation` risk settings now include a session-local enforcement mode:
+  - `risk_limits_enforced=true` keeps the current behavior where governance can reject manual trades and pending orders
+  - `risk_limits_enforced=false` keeps governance descriptive only, so the simulator still computes and returns governance warnings, breaches, and snapshots without blocking order entry
+- `/simulation` `risk_snapshot` now also exposes:
+  - `currency_exposure`: net currency rows derived from the existing `currency_exposure` metric family
+  - `currency_weights`: normalized weights derived from the absolute currency exposure rows
+  - the `Current Regime` area in `ui/src/components/simulation/account-metrics.tsx` renders both lists as `Currency Exposure` and `Currency Weights`, while `Open Positions` continues to render position/symbol weights separately
+- Manual trades and pending orders on `/simulation` now run a pre-trade governance check before execution:
+  - the simulator builds the current canonical `PortfolioState`
+  - converts the candidate order into a signed symbol exposure change
+  - evaluates it through `apps/risk/core/governance_engine.py`
+  - rejects with a structured `409` governance payload when limits are breached
+  - accepts normally but can still return governance warnings for the UI to display
+- `/simulation` now also evaluates ongoing portfolio governance continuously:
+  - after frame advances
+  - after `/positions` refreshes
+  - after market trades and pending-order placements
+  - after position modify / close / partial-close actions
+  - after pending-order modify / delete actions
+  - the live backend governance report is now returned with these responses and feeds the persistent compliance state in the account metrics area, so risk deterioration can surface without a new trade attempt
+- `/simulation` now also builds a compact risk scorecard from the live snapshot using `apps/risk/core/risk_scorecard_engine.py`:
+  - backend responses now include `risk_scorecard`
+  - the account metrics area renders:
+    - portfolio health
+    - leverage safety
+    - margin safety
+    - diversification
+    - governance compliance
+    - overall risk quality
+  - the scorecard remains read-only and is derived from the existing snapshot path rather than a separate analytics flow
+- `/simulation` now also supports non-mutating replay-style what-if analysis on top of the live session state:
+  - `apps/api/routes/simulator.py` builds a current `ReplayFrame` from the cached canonical state, snapshot, scorecard, and recommendations
+  - `apps/risk/simulation/what_if_engine.py` evaluates hypothetical actions on cloned state, so the running simulator baseline is never mutated
+  - `apps/risk/core/timeline_reconstructor.py` is used to keep a deterministic timeline signature for the live session context
+  - `/api/simulator/{session_id}/what-if` returns compact before/after deltas for VaR, CVaR, margin, score, compliance, and projected recommendations
+  - the `Account Metrics` card now hosts the quick what-if actions for:
+    - close half of a selected position
+    - add a hedge on a selected symbol
+    - reduce leverage hypothetically
+- `/simulation` now also persists normalized risk artifacts through `apps/risk/storage`:
+  - one `risk_run` is created per simulation session
+  - the run id is stored on the session config and reused across resume
+  - `POST /api/simulator/{session_id}/what-if` stores:
+    - the current snapshot bundle
+    - the current replay frame
+    - the what-if summary attached to that replay frame
+  - `POST /api/simulator/{session_id}/stop-and-save` stores the final snapshot bundle for the completed simulated backtest state
+  - the simulator intentionally does not autosave every live frame, so the playback loop stays read-heavy and deterministic while storage writes occur only at stable checkpoints
+
 - Phase 1 of `apps/risk` now adds a canonical portfolio-state layer instead of rebuilding the risk engine from scratch.
 - The new layer is additive and sits under the existing runtime components:
   - `apps/risk/position_sizing.py`
@@ -1990,7 +2081,7 @@
   - executing market trades and placing pending orders
   - modifying and closing positions
   - modifying and deleting pending orders
-  - seeking to a bar index and deleting sessions
+  - seeking by selected timestamp against the session's full base-symbol history, then deleting sessions
 - The client uses the same browser token storage key as `ui/src/lib/auth-context.tsx` and attaches bearer auth headers for all simulator requests.
 - In the simulator trading terminal:
   - `ui/src/components/simulation/positions-panel.tsx` provides inline SL/TP edits and partial-close/full-close actions for open positions
@@ -2005,6 +2096,33 @@
   - spread and slippage models
 - `apps/api/routes/simulator.py::SimulatorSession` now converts loaded bars into a tick stream using the same `TicksGenerator` modelling choices as backtests and advances the simulation over those ticks rather than one raw bar at a time.
 - `ui/src/components/simulation/execution-view.tsx` upserts chart bars by timestamp so the currently forming trading bar can be redrawn multiple times as tick-driven prices evolve.
+- Phase 1 risk integration now runs passively inside the simulator session:
+  - `SimulatorSession.build_risk_state()` uses `apps/risk/core/portfolio_state_engine.py` to build canonical `PortfolioState` snapshots from the live simulator account, open positions, symbol specs, and current per-symbol bar slices
+  - the session caches the latest snapshot as `latest_risk_state`
+  - that cached state is refreshed after frame advances and after position/order mutations
+  - this phase does not yet expose risk UI or block trades
+- Phase 2 risk integration now builds descriptive snapshots from the cached `PortfolioState`:
+  - `SimulatorSession` runs `apps/risk/core/risk_snapshot_engine.py` and caches the latest `RiskSnapshot`
+  - `/api/simulator/{session_id}/advance` and `/api/simulator/{session_id}/positions` now return a compact `risk_snapshot` summary payload
+  - `ui/src/components/simulation/execution-view.tsx` renders a read-only simulator risk card showing gross exposure, net exposure, margin used, margin used fraction, portfolio VaR, portfolio ES, max single exposure fraction, and current compliance state
+  - this remains descriptive only and does not alter simulator execution behavior
+- Simulation now enters portfolio mode automatically when `config.symbol` contains multiple comma-separated symbols:
+  - `SimulatorSession` loads and ticks each symbol independently, then merges those tick streams into one shared chronological execution timeline
+  - `/api/simulator/{session_id}/advance` now processes all merged ticks that share the next timestamp before returning, so multi-symbol UI updates are synchronized on one visible clock frame instead of arriving one symbol at a time
+  - `ui/src/components/simulation/execution-view.tsx` renders one chart for a single symbol, a responsive 2-column chart grid for 2-4 symbols, and a market snapshot table for 5 or more symbols
+  - `ui/src/components/simulation/trading-panel.tsx` switches the symbol display into a dropdown in portfolio mode, and manual trades or pending orders are submitted for the selected symbol
+  - `ui/src/components/simulation/orders-panel.tsx` validates and displays the pending-order `Current` price against the matching symbol instead of one shared market price
+- The simulation execution header now shows session/account metadata pulled from the start response plus config:
+  - broker login, server, company when available from MT5 credentials/account info
+  - initial balance, leverage, commission, slippage type, spread type, and data resolution
+  - if the engine-settings leverage input is `0`, the simulator resolves leverage from the connected MT5 account and returns that effective leverage in the start response
+- The simulator now applies a broker-style tiered margin rule when the effective account leverage is `1:1000` or higher:
+  - scope is simulator-only
+  - eligible symbols are FX pairs plus `XAUUSD`
+  - total open notional per symbol is aggregated across all open positions on that symbol
+  - the first `$500,000` notional is margined at `1:1000`
+  - any excess notional is margined at `1:500`
+  - the resulting symbol margin is redistributed back across the symbol’s open positions proportionally by notional before account margin totals are recomputed
 
 ## Frontend Simulator Trade Notifications
 

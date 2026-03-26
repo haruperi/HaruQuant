@@ -38,6 +38,8 @@ export interface PositionRow {
   swap?: number
   pnl: number
   marginRequired?: number
+  exposure?: number
+  weight?: number
 }
 
 interface PositionsPanelProps {
@@ -66,8 +68,9 @@ const COLUMN_WIDTHS = [
   "minmax(94px, 0.9fr)",
   "minmax(82px, 0.8fr)",
   "minmax(96px, 0.95fr)",
-  "minmax(96px, 0.95fr)",
   "minmax(100px, 1fr)",
+  "minmax(100px, 1fr)",
+  "minmax(80px, 0.8fr)",
   "minmax(60px, 0.6fr)",
 ].join(" ")
 
@@ -270,13 +273,15 @@ export function PositionsPanel({
                 <TableHead>P&amp;L ($)</TableHead>
                 <TableHead>P&amp;L (Pips)</TableHead>
                 <TableHead>Margin Req</TableHead>
+                <TableHead>Exposure</TableHead>
+                <TableHead>Weight</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {positions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center text-muted-foreground">
+                  <TableCell colSpan={16} className="text-center text-muted-foreground">
                     No open positions.
                   </TableCell>
                 </TableRow>
@@ -321,6 +326,8 @@ export function PositionsPanel({
                         {pipDelta.toFixed(1)}
                       </TableCell>
                       <TableCell>{(position.marginRequired ?? 0).toFixed(2)}</TableCell>
+                      <TableCell>{position.exposure !== undefined ? position.exposure.toFixed(2) : "--"}</TableCell>
+                      <TableCell>{position.weight !== undefined ? (position.weight * 100).toFixed(2) + "%" : "--"}</TableCell>
                       <TableCell>
                         <Button
                           size="icon"

@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional
 
 from .events import LimitEvent
 from .models import BudgetUtilization, RiskPolicy
+
+
+def _effective_single_rc_threshold(
+    rc_map_new: Optional[Dict[str, float]],
+    buffer_frac: float,
+) -> float:
+    active_count = len(rc_map_new or {})
+    if active_count <= 0:
+        return max(0.0, float(buffer_frac))
+    average_contribution = 1.0 / float(active_count)
+    return max(0.0, average_contribution + float(buffer_frac))
+
+
+def _normalized_absolute_rc_map(rc_map_new: Optional[Dict[str, float]]) -> Dict[str, float]:
+    if not rc_map_new:
+        return {}
+    absolute_map = {
+        str(symbol): abs(float(value))
+        for symbol, value in rc_map_new.items()
+    }
+    total_absolute = float(sum(absolute_map.values()))
+    if total_absolute <= 0.0:
+        return {symbol: 0.0 for symbol in absolute_map}
+    return {
+        symbol: float(value) / total_absolute
+        for symbol, value in absolute_map.items()
+    }
 
 
 def build_budget_utilizations(
@@ -42,13 +70,15 @@ def build_budget_utilizations(
             "currency",
         )
 
-    if rc_map_new:
-        rc_peak = max(float(v) for v in rc_map_new.values())
+    normalized_rc_map = _normalized_absolute_rc_map(rc_map_new)
+    if normalized_rc_map:
+        rc_peak = max(float(v) for v in normalized_rc_map.values())
+        effective_single_rc = _effective_single_rc_threshold(normalized_rc_map, max_single_rc)
         _add_utilization(
             utilizations,
             "single_rc",
             rc_peak,
-            max_single_rc,
+            effective_single_rc,
             "ratio",
         )
 
@@ -150,9 +180,14 @@ def evaluate_hard_limits(
             )
         )
 
-    if rc_map_new and len(rc_map_new) > 1:
-        for symbol, value in rc_map_new.items():
-            if float(value) <= policy.max_single_rc_frac:
+    normalized_rc_map = _normalized_absolute_rc_map(rc_map_new)
+    if normalized_rc_map and len(normalized_rc_map) > 1:
+        effective_single_rc = _effective_single_rc_threshold(
+            normalized_rc_map,
+            policy.max_single_rc_frac,
+        )
+        for symbol, value in normalized_rc_map.items():
+            if float(value) <= effective_single_rc:
                 continue
             breaches.append(
                 LimitEvent(
@@ -161,7 +196,7 @@ def evaluate_hard_limits(
                     severity="breach",
                     message=f"Risk contribution cap exceeded for {symbol}.",
                     observed_value=float(value),
-                    threshold_value=policy.max_single_rc_frac,
+                    threshold_value=effective_single_rc,
                     unit="ratio",
                     scope="symbol",
                     scope_key=symbol,
@@ -206,7 +241,7 @@ def _add_utilization(
     threshold: float,
     unit: str,
 ) -> None:
-    if threshold <= 0:
+    if threshold <= 0 or not math.isfinite(float(observed)) or not math.isfinite(float(threshold)):
         return
     utilizations[key] = BudgetUtilization(
         key=key,
@@ -226,6 +261,8 @@ def _threshold_breach(
     scope: str = "portfolio",
     scope_key: Optional[str] = None,
 ) -> List[LimitEvent]:
+    if not math.isfinite(float(observed)) or not math.isfinite(float(threshold)):
+        return []
     if observed <= threshold:
         return []
     return [
@@ -241,4 +278,3 @@ def _threshold_breach(
             scope_key=scope_key,
         )
     ]
-

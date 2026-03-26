@@ -1,5 +1,5 @@
 """
-Example 10: Core Risk Metric Snapshot
+Example 1002: Core Risk Metric Snapshot
 
 Phase 2 task-by-task walkthrough using the actual HaruQuant stack:
 1. create metric interface and registry
@@ -150,7 +150,7 @@ class ExampleContext:
         for request in [
             {"symbol": "EURUSD", "side": "BUY", "volume": 0.10},
             {"symbol": "GBPUSD", "side": "BUY", "volume": 0.08},
-            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},
+            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},   
         ]:
             symbol_info = self.engine.symbol_info(request["symbol"])
             if symbol_info is None:

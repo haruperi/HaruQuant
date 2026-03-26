@@ -54,7 +54,7 @@ class PortfolioRiskEngine:
             return float("inf"), float("inf"), self.estimate_margin_used(positions), None
 
         cov = self.estimate_covariance(returns_df, symbols, limits)
-        weights = self.build_weights_from_positions(positions, data, symbols)
+        weights = self.build_signed_weights_from_positions(positions, data, symbols)
 
         port_var = float(weights.T @ cov @ weights)
         port_std = float(np.sqrt(max(port_var, 0.0)))
@@ -154,6 +154,29 @@ class PortfolioRiskEngine:
         if total <= 0:
             return np.zeros(len(symbols), dtype=float)
         return np.array([n / total for n in notionals], dtype=float)
+
+    def build_signed_weights_from_positions(
+        self,
+        positions: Dict[str, float],
+        historical_data: Dict[str, pd.DataFrame],
+        symbols: List[str],
+    ) -> np.ndarray:
+        """Build signed notional weights normalized by gross absolute notional."""
+        signed_notionals = []
+        gross_notionals = []
+        for symbol in symbols:
+            notional = self.symbol_notional_value(
+                symbol,
+                float(positions.get(symbol, 0.0)),
+                historical_data,
+            )
+            signed_notionals.append(float(notional))
+            gross_notionals.append(abs(float(notional)))
+
+        total = float(np.sum(gross_notionals))
+        if total <= 0:
+            return np.zeros(len(symbols), dtype=float)
+        return np.array([n / total for n in signed_notionals], dtype=float)
 
     def compute_risk_contributions_pct(
         self,
@@ -278,7 +301,7 @@ class PortfolioRiskEngine:
         lots: float,
         historical_data: Dict[str, pd.DataFrame],
     ) -> float:
-        """Compute symbol notional from client-backed symbol specs."""
+        """Compute symbol notional normalized to account currency."""
         df = historical_data.get(symbol)
         if df is None or df.empty:
             logger.warning("PortfolioRiskEngine: missing historical data for %s", symbol)
@@ -297,8 +320,22 @@ class PortfolioRiskEngine:
             if isinstance(info, dict)
             else float(getattr(info, "trade_contract_size", 0.0))
         )
+        profit_currency = (
+            str(info.get("currency_profit", "") or info.get("profit_currency", "") or "")
+            if isinstance(info, dict)
+            else str(
+                getattr(info, "currency_profit", getattr(info, "profit_currency", "")) or ""
+            )
+        ).upper().strip() or self._symbol_quote_currency(symbol)
+        account_currency = self._account_currency()
         if contract_size > 0:
-            return lots * contract_size * price
+            raw_notional = float(lots * contract_size * price)
+            return self._convert_value_to_account_currency(
+                raw_notional,
+                profit_currency,
+                account_currency,
+                historical_data,
+            )
 
         tick_value = (
             float(info.get("trade_tick_value", 0.0))
@@ -312,7 +349,13 @@ class PortfolioRiskEngine:
         )
         if tick_value > 0 and tick_size > 0:
             value_per_price_unit = tick_value / tick_size
-            return lots * value_per_price_unit * price
+            raw_notional = float(lots * value_per_price_unit * price)
+            return self._convert_value_to_account_currency(
+                raw_notional,
+                profit_currency,
+                account_currency,
+                historical_data,
+            )
 
         logger.warning(
             "PortfolioRiskEngine: no valid contract/tick values for %s (contract_size=%s, tick_value=%s, tick_size=%s)",
@@ -322,6 +365,112 @@ class PortfolioRiskEngine:
             tick_size,
         )
         return 0.0
+
+    def _account_currency(self) -> str:
+        if self.mt5_client is not None:
+            if hasattr(self.mt5_client, "get_account_currency"):
+                try:
+                    currency = self.mt5_client.get_account_currency()
+                    if currency:
+                        token = str(currency).upper().strip()
+                        if token:
+                            return token
+                except Exception:
+                    pass
+            if hasattr(self.mt5_client, "account_info"):
+                try:
+                    raw_account = self.mt5_client.account_info()
+                    if raw_account is not None:
+                        if hasattr(raw_account, "_asdict"):
+                            raw_account = raw_account._asdict()
+                        if isinstance(raw_account, dict):
+                            currency = raw_account.get("currency") or raw_account.get("currency_code")
+                        else:
+                            currency = getattr(raw_account, "currency", getattr(raw_account, "currency_code", None))
+                        if currency:
+                            token = str(currency).upper().strip()
+                            if token:
+                                return token
+                except Exception:
+                    pass
+        return "USD"
+
+    def _convert_value_to_account_currency(
+        self,
+        value: float,
+        source_currency: Optional[str],
+        target_currency: Optional[str],
+        historical_data: Dict[str, pd.DataFrame],
+    ) -> float:
+        amount = float(value or 0.0)
+        source = str(source_currency or "").upper().strip()
+        target = str(target_currency or "").upper().strip()
+        if amount == 0.0 or not source or not target or source == target:
+            return amount
+        rate = self._currency_conversion_rate(source, target, historical_data)
+        if rate is None or rate <= 0.0:
+            return amount
+        return float(amount * rate)
+
+    def _currency_conversion_rate(
+        self,
+        source: str,
+        target: str,
+        historical_data: Dict[str, pd.DataFrame],
+    ) -> Optional[float]:
+        if source == target:
+            return 1.0
+        direct = self._direct_currency_conversion_rate(source, target, historical_data)
+        if direct is not None:
+            return direct
+        for bridge in ("USD", "EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD"):
+            if bridge in {source, target}:
+                continue
+            leg_one = self._direct_currency_conversion_rate(source, bridge, historical_data)
+            if leg_one is None:
+                continue
+            leg_two = self._direct_currency_conversion_rate(bridge, target, historical_data)
+            if leg_two is None:
+                continue
+            return float(leg_one * leg_two)
+        return None
+
+    def _direct_currency_conversion_rate(
+        self,
+        source: str,
+        target: str,
+        historical_data: Dict[str, pd.DataFrame],
+    ) -> Optional[float]:
+        direct_symbol = f"{source}{target}"
+        direct_price = self._price_for_symbol(direct_symbol, historical_data)
+        if direct_price is not None and direct_price > 0.0:
+            return float(direct_price)
+        inverse_symbol = f"{target}{source}"
+        inverse_price = self._price_for_symbol(inverse_symbol, historical_data)
+        if inverse_price is not None and inverse_price > 0.0:
+            return float(1.0 / inverse_price)
+        return None
+
+    def _price_for_symbol(
+        self,
+        symbol: str,
+        historical_data: Dict[str, pd.DataFrame],
+    ) -> Optional[float]:
+        df = historical_data.get(symbol)
+        if df is not None and not df.empty and "Close" in df.columns:
+            try:
+                price = float(df["Close"].iloc[-1])
+                if price > 0.0:
+                    return price
+            except Exception:
+                return None
+        return None
+
+    def _symbol_quote_currency(self, symbol: str) -> Optional[str]:
+        token = str(symbol).upper()
+        if len(token) >= 6 and token[:6].isalpha():
+            return token[3:6]
+        return None
 
     def compute_cluster_metrics(
         self,

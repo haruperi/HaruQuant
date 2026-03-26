@@ -3,6 +3,7 @@ Core simulator components.
 """
 import time
 import uuid
+import re
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from typing import Any, Optional
@@ -983,8 +984,83 @@ def _record_equity_point(state: SimulatorState, balance: float, equity: float) -
     state.completed_equity_curve.append(point)
 
 
+_FX_MARGIN_CURRENCIES = {
+    "USD", "EUR", "GBP", "JPY", "AUD", "NZD", "CAD", "CHF",
+    "SGD", "HKD", "NOK", "SEK", "DKK", "PLN", "CZK", "HUF",
+    "TRY", "ZAR", "MXN", "CNH",
+}
+
+
+def _is_margin_tier_symbol(symbol_name: str) -> bool:
+    symbol = str(symbol_name or "").upper()
+    if not symbol:
+        return False
+    if symbol.startswith("XAUUSD"):
+        return True
+    match = re.match(r"^([A-Z]{3})([A-Z]{3})", symbol)
+    if not match:
+        return False
+    base, quote = match.groups()
+    return base in _FX_MARGIN_CURRENCIES and quote in _FX_MARGIN_CURRENCIES
+
+
+def _position_notional(state: SimulatorState, position) -> float:
+    symbol_name = str(getattr(position, "symbol", "") or "")
+    sym_info = symbol_info(state, symbol_name)
+    contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+    market_price = float(
+        getattr(
+            position,
+            "price_current",
+            getattr(position, "price_open", getattr(position, "price", 0.0)),
+        )
+        or 0.0
+    )
+    return float(abs(float(getattr(position, "volume", 0.0) or 0.0)) * contract_size * market_price)
+
+
+def _apply_margin_tier_policy(state: SimulatorState) -> None:
+    policy = getattr(state.execution_settings, "margin_tier_policy", None)
+    if not policy or not bool(getattr(policy, "enabled", False)):
+        return
+
+    threshold = float(getattr(policy, "threshold_notional", 500000.0) or 500000.0)
+    base_leverage = float(getattr(policy, "base_leverage", 1000.0) or 1000.0)
+    excess_leverage = float(getattr(policy, "excess_leverage", 500.0) or 500.0)
+    if threshold <= 0.0 or base_leverage <= 0.0 or excess_leverage <= 0.0:
+        return
+
+    grouped_positions: dict[str, list[Any]] = {}
+    for position in state.trading_deals:
+        if str(getattr(position, "entry", 0)) != "0":
+            continue
+        symbol_name = str(getattr(position, "symbol", "") or "")
+        if not _is_margin_tier_symbol(symbol_name):
+            continue
+        grouped_positions.setdefault(symbol_name, []).append(position)
+
+    for symbol_name, positions in grouped_positions.items():
+        notionals = {int(getattr(pos, "ticket", 0) or 0): _position_notional(state, pos) for pos in positions}
+        total_notional = float(sum(notionals.values()) or 0.0)
+        if total_notional <= 0.0:
+            for position in positions:
+                position.margin_required = 0.0
+            continue
+
+        tier_one_margin = min(total_notional, threshold) / base_leverage
+        tier_two_margin = max(total_notional - threshold, 0.0) / excess_leverage
+        total_margin = float(tier_one_margin + tier_two_margin)
+
+        for position in positions:
+            ticket = int(getattr(position, "ticket", 0) or 0)
+            position_notional = float(notionals.get(ticket, 0.0) or 0.0)
+            share = position_notional / total_notional if total_notional > 0.0 else 0.0
+            position.margin_required = float(total_margin * share)
+
+
 def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
     """Monitor account aggregates from open positions."""
+    _apply_margin_tier_policy(state)
     total_unrealized_profit = 0.0
     used_margin = 0.0
 

@@ -28,24 +28,22 @@ export function SkipControl({ sessionId, getBarIndexForTime, onSeek }: SkipContr
       return
     }
 
-    if (!getBarIndexForTime) {
-      toast.error("Bar index lookup not available yet.")
-      return
-    }
-
     const isoTime = new Date(dateTime).toISOString()
-    const barIndex = getBarIndexForTime(isoTime)
-    if (barIndex === null || Number.isNaN(barIndex)) {
+    const barIndex = getBarIndexForTime?.(isoTime)
+    if (barIndex !== undefined && barIndex !== null && Number.isNaN(barIndex)) {
       toast.error("Unable to calculate bar index for that time.")
       return
     }
 
     try {
       setSeeking(true)
-      await simulatorApi.seekToBar(sessionId, { bar_index: barIndex })
+      const response = await simulatorApi.seekToBar(sessionId, {
+        bar_index: barIndex ?? undefined,
+        target_time: isoTime,
+      })
       toast.success("Jumped to selected date")
-      onSeek?.(barIndex)
-    } catch (error) {
+      onSeek?.(response.bar_index)
+    } catch {
       toast.error("Failed to jump to date")
     } finally {
       setSeeking(false)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from apps.risk.core import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
 
@@ -34,11 +34,15 @@ class WhatIfEngine:
         candidate_symbols=None,
         hedge_symbols=None,
         max_recommendations: int = 5,
+        snapshot_shared: Optional[Dict[str, Any]] = None,
     ) -> WhatIfComparison:
         """Build a before/after comparison for one replay-frame hypothetical."""
         resolved_actions = ensure_actions(actions)
         projected_state = apply_hypothetical_actions(frame.state, resolved_actions)
-        projected_snapshot = self.snapshot_engine.build_snapshot(projected_state)
+        projected_snapshot = self.snapshot_engine.build_snapshot(
+            projected_state,
+            shared=dict(snapshot_shared or {}),
+        )
         projected_scorecard = self.scorecard_engine.build_scorecard(projected_snapshot)
         projected_recommendations = None
         if include_recommendations:

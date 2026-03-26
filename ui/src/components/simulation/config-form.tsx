@@ -31,6 +31,7 @@ import simulatorApi, {
   type SimulationConfig,
   type SimulationDataResolution,
   type SimulationMode,
+  type SimulationRiskHorizonUnit,
   type SimulationSession,
   type SimulationStartResponse,
 } from "@/lib/api/simulator"
@@ -51,6 +52,29 @@ const speedOptions = [
   { label: "X720", value: "720" },
   { label: "X1440", value: "1440" },
 ]
+
+const riskPresetsByTimeframe: Partial<
+  Record<string, { horizonUnit: SimulationRiskHorizonUnit; horizonValue: number; volLookback: number; corrLookback: number }>
+> = {
+  M5: {
+    horizonUnit: "hours",
+    horizonValue: 1,
+    volLookback: 48,
+    corrLookback: 96,
+  },
+  H1: {
+    horizonUnit: "hours",
+    horizonValue: 1,
+    volLookback: 24,
+    corrLookback: 72,
+  },
+  D1: {
+    horizonUnit: "days",
+    horizonValue: 1,
+    volLookback: 20,
+    corrLookback: 60,
+  },
+}
 
 export function SimulationConfigForm({ onStart, onResume }: SimulationConfigFormProps) {
   const { strategies, loading: loadingStrategies } = useStrategies()
@@ -73,6 +97,21 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     spreadMax: 50,
     leverage: 400,
     dataResolution: "trading_timeframe",
+  })
+  const [riskSettings, setRiskSettings] = useState({
+    confidenceLevel: 0.95,
+    horizonUnit: "days" as SimulationRiskHorizonUnit,
+    horizonValue: 1,
+    volLookback: 20,
+    corrLookback: 60,
+    varCapFrac: 0.10,
+    esCapFrac: 0.15,
+    deltaVarCapFrac: 0.02,
+    deltaEsCapFrac: 0.03,
+    maxMarginUsedFrac: 0.50,
+    maxSingleRcFrac: 0.10,
+    warningUtilizationFrac: 0.90,
+    limitsEnforced: true,
   })
 
   const [rangeBy, setRangeBy] = useState<"dates" | "bars">("bars")
@@ -114,6 +153,20 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
 
     loadPausedSessions()
   }, [])
+
+  useEffect(() => {
+    const preset = riskPresetsByTimeframe[timeframe]
+    if (!preset) {
+      return
+    }
+    setRiskSettings((prev) => ({
+      ...prev,
+      horizonUnit: preset.horizonUnit,
+      horizonValue: preset.horizonValue,
+      volLookback: preset.volLookback,
+      corrLookback: preset.corrLookback,
+    }))
+  }, [timeframe])
 
   const pausedOptions = useMemo(() => {
     return pausedSessions.map((session) => {
@@ -169,6 +222,19 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
       spread_min: engineSettings.spreadMin,
       spread_max: engineSettings.spreadMax,
       data_resolution: engineSettings.dataResolution as SimulationDataResolution,
+      risk_confidence_level: riskSettings.confidenceLevel,
+      risk_horizon_unit: riskSettings.horizonUnit,
+      risk_horizon_value: riskSettings.horizonValue,
+      risk_vol_lookback: riskSettings.volLookback,
+      risk_corr_lookback: riskSettings.corrLookback,
+      risk_var_cap_frac: riskSettings.varCapFrac,
+      risk_es_cap_frac: riskSettings.esCapFrac,
+      risk_delta_var_cap_frac: riskSettings.deltaVarCapFrac,
+      risk_delta_es_cap_frac: riskSettings.deltaEsCapFrac,
+      risk_max_margin_used_frac: riskSettings.maxMarginUsedFrac,
+      risk_max_single_rc_frac: riskSettings.maxSingleRcFrac,
+      risk_warning_utilization_frac: riskSettings.warningUtilizationFrac,
+      risk_limits_enforced: riskSettings.limitsEnforced,
       mode,
     }
 
@@ -376,8 +442,13 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
                 id="symbol"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                placeholder="EURUSD"
+                placeholder="EURUSD or EURUSD, GBPUSD"
               />
+              {symbol.includes(",") && (
+                <p className="text-xs text-muted-foreground">
+                  Portfolio mode: {symbol.split(",").map((item) => item.trim()).filter(Boolean).length} symbols
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="timeframe">Timeframe</Label>
@@ -595,6 +666,249 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
           }))
         }
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Risk Settings</CardTitle>
+          <CardDescription>Configure the VaR, CVaR, and limit inputs for this simulation session.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="space-y-2">
+            <Label>Risk Limit Mode</Label>
+            <ToggleGroup
+              type="single"
+              value={riskSettings.limitsEnforced ? "blocking" : "descriptive"}
+              onValueChange={(value) => {
+                if (!value) return
+                setRiskSettings((prev) => ({
+                  ...prev,
+                  limitsEnforced: value === "blocking",
+                }))
+              }}
+            >
+              <ToggleGroupItem value="blocking">Blocking</ToggleGroupItem>
+              <ToggleGroupItem value="descriptive">Descriptive Only</ToggleGroupItem>
+            </ToggleGroup>
+            <div className="text-xs text-muted-foreground">
+              Blocking rejects trades and pending orders on governance breaches. Descriptive Only still computes and shows governance warnings without enforcing them.
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm font-medium">VaR And CVaR</div>
+            <div className="text-xs text-muted-foreground">
+              Controls the descriptive portfolio risk snapshot calculations.
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="riskConfidenceLevel">Confidence Level</Label>
+              <Input
+                id="riskConfidenceLevel"
+                type="number"
+                min="0.5"
+                max="0.999"
+                step="0.01"
+                value={riskSettings.confidenceLevel}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    confidenceLevel: Number(e.target.value) || 0.95,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskHorizonUnit">Risk Horizon Unit</Label>
+              <Select
+                value={riskSettings.horizonUnit}
+                onValueChange={(value) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    horizonUnit: value as SimulationRiskHorizonUnit,
+                  }))
+                }
+              >
+                <SelectTrigger id="riskHorizonUnit">
+                  <SelectValue placeholder="Select horizon unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bars">Bars</SelectItem>
+                  <SelectItem value="hours">Hours</SelectItem>
+                  <SelectItem value="days">Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskHorizonValue">Risk Horizon Value</Label>
+              <Input
+                id="riskHorizonValue"
+                type="number"
+                min="1"
+                step="1"
+                value={riskSettings.horizonValue}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    horizonValue: Number.parseInt(e.target.value, 10) || 1,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskVolLookback">Volatility Lookback</Label>
+              <Input
+                id="riskVolLookback"
+                type="number"
+                min="2"
+                step="1"
+                value={riskSettings.volLookback}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    volLookback: Number.parseInt(e.target.value, 10) || 20,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskCorrLookback">Correlation Lookback</Label>
+              <Input
+                id="riskCorrLookback"
+                type="number"
+                min="2"
+                step="1"
+                value={riskSettings.corrLookback}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    corrLookback: Number.parseInt(e.target.value, 10) || 60,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <div className="space-y-1 pt-2">
+            <div className="text-sm font-medium">Limits</div>
+            <div className="text-xs text-muted-foreground">
+              These values feed the current compliance and warning status.
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="riskVarCapFrac">VaR Cap %</Label>
+              <Input
+                id="riskVarCapFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.varCapFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    varCapFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskEsCapFrac">CVaR Cap %</Label>
+              <Input
+                id="riskEsCapFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.esCapFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    esCapFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskDeltaVarCapFrac">Delta VaR Cap %</Label>
+              <Input
+                id="riskDeltaVarCapFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.deltaVarCapFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    deltaVarCapFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskDeltaEsCapFrac">Delta CVaR Cap %</Label>
+              <Input
+                id="riskDeltaEsCapFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.deltaEsCapFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    deltaEsCapFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskMaxMarginUsedFrac">Max Margin Used %</Label>
+              <Input
+                id="riskMaxMarginUsedFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.maxMarginUsedFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    maxMarginUsedFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskMaxSingleRcFrac">Max Single Risk Contribution Buffer %</Label>
+              <Input
+                id="riskMaxSingleRcFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.maxSingleRcFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    maxSingleRcFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="riskWarningUtilizationFrac">Warning Utilization %</Label>
+              <Input
+                id="riskWarningUtilizationFrac"
+                type="number"
+                min="0"
+                step="0.01"
+                value={riskSettings.warningUtilizationFrac}
+                onChange={(e) =>
+                  setRiskSettings((prev) => ({
+                    ...prev,
+                    warningUtilizationFrac: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end">
         <Button

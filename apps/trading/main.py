@@ -80,6 +80,10 @@ class _SimulationRiskAdapter:
         account = self.engine.account_info()
         return float(account.get("equity", account.get("balance", 0.0)) or 0.0)
 
+    def get_account_currency(self):
+        account = self.engine.account_info()
+        return str(account.get("currency") or account.get("currency_code") or "USD")
+
     def get_symbol_info(self, symbol):
         sym = self.engine.symbol_info(symbol)
         if sym is None:

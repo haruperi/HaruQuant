@@ -76,11 +76,14 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                         <Input
                             id="leverage"
                             type="number"
-                            min="1"
+                            min="0"
                             step="1"
                             value={values.leverage}
-                            onChange={(e) => onChange("leverage", parseInt(e.target.value) || 1)}
+                            onChange={(e) => onChange("leverage", Number.parseInt(e.target.value, 10) || 0)}
                         />
+                        <p className="text-xs text-muted-foreground">
+                            Use `0` to inherit the MT5 account leverage.
+                        </p>
                     </div>
                 </div>
 

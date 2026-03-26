@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime
+import math
 from typing import Annotated, Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -26,6 +27,19 @@ from apps.api.websocket import backtest_log_manager
 from apps.utils.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
+from apps.risk.core import PortfolioStateEngine
+from apps.risk.core.timeline_reconstructor import TimelineReconstructor
+from apps.risk.core.governance_engine import GovernanceEngine
+from apps.risk.core.portfolio_risk_engine import PortfolioRiskEngine
+from apps.risk.core.recommendation_engine import RecommendationEngine
+from apps.risk.core.risk_scorecard_engine import RiskScorecardEngine
+from apps.risk.core.risk_snapshot_engine import RiskSnapshotEngine
+from apps.risk.limits import RiskLimits
+from apps.risk.models import PortfolioState
+from apps.risk.metrics import RiskSnapshot
+from apps.risk.scoring import RiskScorecard
+from apps.risk.simulation import HypotheticalOrderAction, ReplayFrame, WhatIfEngine
+from apps.risk.storage import RiskRepository, RiskSnapshotStore
 from apps.trading import Engine, core
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
@@ -120,6 +134,69 @@ class _EngineSimulatorFacade:
         return int(getattr(result, "retcode", 0) or 0) == 10009
 
 
+class _SimulatorPortfolioStateRiskAdapter:
+    def __init__(self, state: PortfolioState):
+        self._state = state
+
+    def get_account_equity(self):
+        return float(self._state.account.equity)
+
+    def get_account_currency(self):
+        return str(self._state.account.currency or "USD")
+
+    def get_peak_equity(self):
+        peak_equity = self._state.metadata.get("peak_equity")
+        if peak_equity is None:
+            return None
+        return float(peak_equity)
+
+    def get_symbol_info(self, symbol):
+        spec = self._state.symbols[symbol]
+        return {
+            "trade_contract_size": spec.contract_size,
+            "trade_tick_value": spec.tick_value,
+            "trade_tick_size": spec.tick_size,
+        }
+
+    def get_margin_required(self, symbol, lots):
+        try:
+            spec = self._state.symbols.get(symbol)
+            market = self._state.markets.get(symbol)
+            if spec is None or market is None or market.bars.empty:
+                return None
+
+            bars = market.bars
+            close_column = "close" if "close" in bars.columns else "Close"
+            if close_column not in bars.columns:
+                return None
+            last_close = float(bars[close_column].iloc[-1] or 0.0)
+            contract_size = float(spec.contract_size or 0.0)
+            leverage = float(
+                self._state.account.metadata.get("leverage")
+                or self._state.metadata.get("account_leverage")
+                or 0.0
+            )
+            if contract_size <= 0.0 or last_close <= 0.0 or leverage <= 0.0:
+                return None
+            notional = abs(float(lots)) * contract_size * last_close
+            return notional / leverage
+        except Exception:
+            return None
+
+    def get_bars(self, symbol, timeframe, count=100, start_pos=0):
+        market = self._state.markets.get(symbol)
+        if market is None:
+            return None
+        bars = market.bars.copy()
+        if "Close" in bars.columns and "close" not in bars.columns:
+            bars = bars.rename(columns={"Close": "close"})
+        if start_pos > 0:
+            bars = bars.iloc[start_pos:]
+        if count is not None and count > 0:
+            bars = bars.tail(int(count))
+        return bars
+
+
 class SimulatorSession:
     def __init__(self, session_id: int, config: Dict[str, Any], db: DatabaseManager):
         self.session_id = session_id
@@ -129,6 +206,11 @@ class SimulatorSession:
         self.simulator = _EngineSimulatorFacade(self.engine)
         from apps.trading.trade import Trade
         self.trade_api = Trade(api=self.engine)
+        self.symbols = [
+            s.strip().upper()
+            for s in str(self.config.get("symbol", "") or "").split(",")
+            if s.strip()
+        ] or ["EURUSD"]
         self.speed_multiplier = float(self.config.get("speed_multiplier", 1.0) or 1.0)
         self.current_bar_index = int(self.config.get("current_bar_index", 0) or 0)
         self.total_bars = 0
@@ -138,13 +220,58 @@ class SimulatorSession:
         self.replay_trades = []
         self.data = None
         self.tick_data = None
-        self._tick_bar_indices = []
-        self._bar_first_tick_index: Dict[int, int] = {}
+        self.data_by_symbol: Dict[str, Any] = {}
+        self.symbol_digits_by_symbol: Dict[str, int] = {}
+        self.current_market_by_symbol: Dict[str, Dict[str, Any]] = {}
+        self.current_bar_index_by_symbol: Dict[str, int] = {}
+        self._bar_first_tick_index: Dict[tuple[str, int], int] = {}
+        self.risk_state_engine = PortfolioStateEngine()
+        self.risk_snapshot_engine = RiskSnapshotEngine()
+        self.risk_scorecard_engine = RiskScorecardEngine()
+        self.recommendation_engine = RecommendationEngine(
+            snapshot_engine=self.risk_snapshot_engine,
+            scorecard_engine=self.risk_scorecard_engine,
+        )
+        self.what_if_engine = WhatIfEngine(
+            snapshot_engine=self.risk_snapshot_engine,
+            scorecard_engine=self.risk_scorecard_engine,
+            recommendation_engine=self.recommendation_engine,
+        )
+        self.timeline_reconstructor = TimelineReconstructor()
+        self.risk_repository = RiskRepository(self.db)
+        self.risk_snapshot_store = RiskSnapshotStore(self.risk_repository)
+        self.latest_risk_state: Optional[PortfolioState] = None
+        self.latest_risk_snapshot: Optional[RiskSnapshot] = None
+        self.latest_risk_scorecard: Optional[RiskScorecard] = None
+        self.latest_recommendation_batch = None
+        self.latest_regime_report = None
+        self.previous_regime_state = None
+        self.timeline_signature = "timestamp:empty"
+        self.risk_run_id: Optional[int] = self._parse_optional_int(
+            self.config.get("risk_run_id")
+        )
+        self.latest_risk_snapshot_id: Optional[int] = None
+        self.latest_risk_replay_frame_id: Optional[int] = None
         self._seed_account()
-        self._ensure_symbol()
+        self._ensure_symbols()
+
+    @staticmethod
+    def _parse_optional_int(value: Any) -> Optional[int]:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed > 0 else None
 
     def _seed_account(self):
         initial_balance = float(self.config.get("initial_balance", 10000.0) or 10000.0)
+        requested_leverage = self.config.get("leverage", 400)
+        try:
+            leverage = int(requested_leverage)
+        except (TypeError, ValueError):
+            leverage = 400
+        if leverage <= 0:
+            leverage = 0
         account = self.engine.account_info()
         account["balance"] = initial_balance
         account["credit"] = 0.0
@@ -154,7 +281,8 @@ class SimulatorSession:
         account["margin_free"] = initial_balance
         account["margin_level"] = 0.0
         account["commission"] = float(self.config.get("commission", 7.0) or 7.0)
-        account["leverage"] = int(self.config.get("leverage", 400) or 400)
+        account["leverage"] = leverage if leverage > 0 else 0
+        account["currency"] = str(account.get("currency") or account.get("currency_code") or "USD")
         self.engine.state.execution_settings = core.DotDict(
             {
                 "slippage_model": str(self.config.get("slippage_type", "fixed") or "fixed"),
@@ -163,19 +291,67 @@ class SimulatorSession:
                 "slippage_max": float(self.config.get("slippage_max", 0.0) or 0.0),
             }
         )
+        self._configure_margin_tier_policy()
 
-    def _ensure_symbol(self):
-        symbol_name = str(self.config.get("symbol", "") or "")
+    def _configure_margin_tier_policy(self):
+        leverage = float(self.engine.account_info().get("leverage", 0.0) or 0.0)
+        self.engine.state.execution_settings.margin_tier_policy = core.DotDict(
+            {
+                "enabled": leverage >= 1000.0,
+                "threshold_notional": 500000.0,
+                "base_leverage": 1000.0,
+                "excess_leverage": 500.0,
+            }
+        )
+
+    def apply_mt5_account_defaults(self):
+        requested_leverage = self.config.get("leverage", 400)
+        try:
+            leverage = int(requested_leverage)
+        except (TypeError, ValueError):
+            leverage = 400
+        if leverage > 0:
+            return
+
+        try:
+            account_info = self.engine.client.account_info()
+        except Exception:
+            account_info = None
+
+        if account_info is None:
+            return
+
+        row = account_info._asdict() if hasattr(account_info, "_asdict") else {}
+        mt5_leverage = row.get("leverage")
+        try:
+            effective_leverage = int(mt5_leverage)
+        except (TypeError, ValueError):
+            effective_leverage = 0
+        if effective_leverage > 0:
+            self.config["leverage"] = effective_leverage
+            account = self.engine.account_info()
+            account["leverage"] = effective_leverage
+        self._configure_margin_tier_policy()
+
+    def _ensure_symbol(self, symbol_name: str):
         for row in self.engine.state.trading_symbols:
             if str(getattr(row, "name", "") or "") == symbol_name:
-                self.symbol_digits = int(getattr(row, "digits", 5) or 5)
+                digits = int(getattr(row, "digits", 5) or 5)
+                self.symbol_digits = digits
+                self.symbol_digits_by_symbol[symbol_name] = digits
                 return row
         symbol_info = self.engine.client.symbol_info(symbol_name)
         if symbol_info is None:
             raise ValueError(f"Symbol info unavailable for {symbol_name}")
         self.engine.state.trading_symbols.append(symbol_info)
-        self.symbol_digits = int(getattr(symbol_info, "digits", 5) or 5)
+        digits = int(getattr(symbol_info, "digits", 5) or 5)
+        self.symbol_digits = digits
+        self.symbol_digits_by_symbol[symbol_name] = digits
         return symbol_info
+
+    def _ensure_symbols(self):
+        for symbol_name in self.symbols:
+            self._ensure_symbol(symbol_name)
 
     def set_strategy(self, strategy_instance):
         self.strategy = strategy_instance
@@ -198,12 +374,11 @@ class SimulatorSession:
         }
         return int(mapping.get(str(self.config.get("timeframe", "M1")).upper(), 60))
 
-    def _load_auxiliary_step_data(self, data_mode: str):
-        if self.data is None or self.data.empty:
+    def _load_auxiliary_step_data(self, symbol: str, data, data_mode: str):
+        if data is None or data.empty:
             return None
-        symbol = str(self.config.get("symbol", "") or "")
-        first_index = self.data.index[0]
-        last_index = self.data.index[-1]
+        first_index = data.index[0]
+        last_index = data.index[-1]
         end_dt = last_index + pd.to_timedelta(self._timeframe_seconds(), unit="s")
 
         if data_mode in {"m1_ohlc", "synthetic_ticks"}:
@@ -230,7 +405,7 @@ class SimulatorSession:
 
         return None
 
-    def _build_tick_stream(self, data_mode: str, step_data=None):
+    def _build_tick_stream(self, symbol: str, data, data_mode: str, step_data=None):
         request_like = core.DotDict(
             {
                 "spread_type": str(self.config.get("spread_type", "use-broker") or "use-broker"),
@@ -241,58 +416,97 @@ class SimulatorSession:
         )
         ticks_data, _ = _generate_ticks_for_backtest(
             engine=self.engine,
-            symbol_name=str(self.config.get("symbol", "") or ""),
+            symbol_name=symbol,
             timeframe=str(self.config.get("timeframe", "M1") or "M1"),
             request=request_like,
             data_mode=data_mode,
-            bars_data=self.data,
+            bars_data=data,
             step_data=step_data,
         )
         return ticks_data
 
-    def _build_tick_bar_index_cache(self):
-        self._tick_bar_indices = []
-        self._bar_first_tick_index = {}
-        if self.data is None or self.data.empty or self.tick_data is None or self.tick_data.empty:
-            return
-        raw_indices = self.data.index.searchsorted(self.tick_data.index, side="right") - 1
-        bar_count = len(self.data.index)
-        clamped = [max(0, min(int(idx), bar_count - 1)) for idx in raw_indices]
-        self._tick_bar_indices = clamped
-        for tick_index, bar_index in enumerate(clamped):
-            self._bar_first_tick_index.setdefault(bar_index, tick_index)
-
     def load_historical_bars(self):
         data_mode = _resolve_modelling(self.config.get("data_resolution"))
-        symbol = str(self.config.get("symbol", "") or "")
         timeframe = str(self.config.get("timeframe", "M1") or "M1")
         number_of_bars = self.config.get("number_of_bars")
         start_time = self.config.get("start_time")
         end_time = self.config.get("end_time")
-        if number_of_bars:
-            data = self.engine.client.get_bars(symbol=symbol, timeframe=timeframe, count=int(number_of_bars))
-        else:
-            date_from = datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None
-            date_to = datetime.fromisoformat(end_time.replace("Z", "+00:00")) if end_time else None
-            data = self.engine.client.get_bars(symbol=symbol, timeframe=timeframe, date_from=date_from, date_to=date_to)
-        if data is None or data.empty:
-            raise ValueError("No historical bars loaded for simulator session")
-        data = DataValidator.prepare_data(data)
-        if self.strategy is not None and hasattr(self.strategy, "on_bar"):
-            data = self.strategy.on_bar(data)
-        self.data = data
-        step_data = self._load_auxiliary_step_data(data_mode)
-        self.tick_data = self._build_tick_stream(data_mode, step_data=step_data)
-        self._build_tick_bar_index_cache()
+        if len(self.symbols) > 1 and self.strategy is not None:
+            raise ValueError("Multi-symbol strategy simulation is not supported yet.")
+
+        merged_ticks = []
+        self.data_by_symbol = {}
+        self.current_market_by_symbol = {}
+        self.current_bar_index_by_symbol = {}
+        self._bar_first_tick_index = {}
+
+        for symbol in self.symbols:
+            if number_of_bars:
+                data = self.engine.client.get_bars(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    count=int(number_of_bars),
+                )
+            else:
+                date_from = datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None
+                date_to = datetime.fromisoformat(end_time.replace("Z", "+00:00")) if end_time else None
+                data = self.engine.client.get_bars(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+            if data is None or data.empty:
+                raise ValueError(f"No historical bars loaded for simulator session: {symbol}")
+            data = DataValidator.prepare_data(data)
+            if self.strategy is not None and hasattr(self.strategy, "on_bar"):
+                data = self.strategy.on_bar(data)
+            self.data_by_symbol[symbol] = data
+
+            step_data = self._load_auxiliary_step_data(symbol, data, data_mode)
+            symbol_ticks = self._build_tick_stream(symbol, data, data_mode, step_data=step_data).copy()
+            symbol_ticks["_symbol"] = symbol
+            source_times = pd.DatetimeIndex(symbol_ticks["source_bar_time"])
+            bar_indices = data.index.get_indexer(source_times)
+            symbol_ticks["_bar_index"] = bar_indices
+            merged_ticks.append(symbol_ticks)
+
+        if not merged_ticks:
+            raise ValueError("No ticks generated for simulator session")
+
+        self.data = self.data_by_symbol.get(self.symbols[0])
+        self.tick_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
+        for tick_index, (_, tick_row) in enumerate(self.tick_data.iterrows()):
+            symbol = str(tick_row.get("_symbol", "") or "")
+            bar_index = int(tick_row.get("_bar_index", 0) or 0)
+            self._bar_first_tick_index.setdefault((symbol, bar_index), tick_index)
+
         self.total_bars = len(self.tick_data)
         if self.total_bars <= 0:
             raise ValueError("No ticks generated for simulator session")
         self.current_bar_index = max(0, min(self.current_bar_index, self.total_bars - 1))
+        try:
+            timeline = self.timeline_reconstructor.build_timeline(
+                self.tick_data,
+                frame_mode="timestamp",
+            )
+            self.timeline_signature = self.timeline_reconstructor.timeline_signature(
+                timeline,
+                frame_mode="timestamp",
+            )
+        except Exception:
+            self.timeline_signature = "timestamp:empty"
 
     def _bar_row(self, index: int):
         if self.data is None or index < 0 or index >= len(self.data):
             return None
         return self.data.iloc[index]
+
+    def _symbol_bar_row(self, symbol: str, index: int):
+        symbol_data = self.data_by_symbol.get(symbol)
+        if symbol_data is None or index < 0 or index >= len(symbol_data):
+            return None
+        return symbol_data.iloc[index]
 
     def _tick_row(self, index: int):
         if self.tick_data is None or index < 0 or index >= len(self.tick_data):
@@ -304,23 +518,40 @@ class SimulatorSession:
             return None
         return self.tick_data.index[index]
 
+    def _same_tick_time(self, left_index: int, right_index: int) -> bool:
+        left = self._tick_timestamp(left_index)
+        right = self._tick_timestamp(right_index)
+        if left is None or right is None:
+            return False
+        return bool(left == right)
+
+    def _tick_symbol(self, index: int) -> str:
+        row = self._tick_row(index)
+        if row is None:
+            return self.symbols[0]
+        return str(row.get("_symbol", self.symbols[0]) or self.symbols[0])
+
     def _bar_index_for_tick(self, index: int) -> int:
-        if not self._tick_bar_indices:
+        row = self._tick_row(index)
+        if row is None:
             return 0
-        idx = max(0, min(int(index), len(self._tick_bar_indices) - 1))
-        return int(self._tick_bar_indices[idx])
+        return int(row.get("_bar_index", 0) or 0)
 
     def get_bar(self, index: int):
         tick_row = self._tick_row(index)
-        if tick_row is None or self.data is None or self.data.empty:
+        if tick_row is None or not self.data_by_symbol:
             return None
+        symbol = self._tick_symbol(index)
         bar_index = self._bar_index_for_tick(index)
-        row = self._bar_row(bar_index)
+        row = self._symbol_bar_row(symbol, bar_index)
         if row is None:
             return None
 
-        start_tick_index = self._bar_first_tick_index.get(bar_index, index)
+        start_tick_index = self._bar_first_tick_index.get((symbol, bar_index), index)
         bar_ticks = self.tick_data.iloc[start_tick_index : index + 1]
+        bar_ticks = bar_ticks[
+            (bar_ticks["_symbol"] == symbol) & (bar_ticks["_bar_index"] == bar_index)
+        ]
         bid_values = pd.to_numeric(bar_ticks["bid"], errors="coerce").dropna()
         if bid_values.empty:
             open_price = float(row.get("close", row.get("Close", 0.0)) or 0.0)
@@ -338,17 +569,20 @@ class SimulatorSession:
         payload["high"] = high_price
         payload["low"] = low_price
         payload["close"] = close_price
+        payload["symbol"] = symbol
         payload["time"] = (
-            self.data.index[bar_index].isoformat()
-            if hasattr(self.data.index[bar_index], "isoformat")
-            else str(self.data.index[bar_index])
+            self.data_by_symbol[symbol].index[bar_index].isoformat()
+            if hasattr(self.data_by_symbol[symbol].index[bar_index], "isoformat")
+            else str(self.data_by_symbol[symbol].index[bar_index])
         )
         return payload
 
     def _update_symbol_from_tick(self, row, index: int):
-        symbol = str(self.config.get("symbol", "") or "")
+        symbol = self._tick_symbol(index)
+        bar_index = self._bar_index_for_tick(index)
         bid = float(row.get("bid", row.get("close", row.get("Close", 0.0))) or 0.0)
         ask = float(row.get("ask", bid) or bid)
+        spread = float(row.get("spread", 0.0) or 0.0)
         tick_time = self._tick_timestamp(index)
         self.engine.state.current_tick_datetime = (
             tick_time.to_pydatetime() if hasattr(tick_time, "to_pydatetime") else tick_time
@@ -358,6 +592,19 @@ class SimulatorSession:
         )
         self.engine._build_symbol_map()
         self.engine._update_symbol_tick(self.engine._build_symbol_map(), symbol, bid, ask)
+        bar_snapshot = self.get_bar(index) or {}
+        self.current_market_by_symbol[symbol] = {
+            "symbol": symbol,
+            "time": bar_snapshot.get("time"),
+            "open": float(bar_snapshot.get("open", bid) or bid),
+            "high": float(bar_snapshot.get("high", bid) or bid),
+            "low": float(bar_snapshot.get("low", bid) or bid),
+            "close": float(bar_snapshot.get("close", bid) or bid),
+            "bid": bid,
+            "ask": ask,
+            "spread": spread,
+        }
+        self.current_bar_index_by_symbol[symbol] = int(bar_index)
         return symbol, bid, ask
 
     def _account_snapshot(self):
@@ -398,8 +645,52 @@ class SimulatorSession:
         self.engine.monitor_account(verbose=False)
         return self._account_snapshot()
 
+    def advance_frames(self, count: int) -> List[Dict[str, Any]]:
+        frames: List[Dict[str, Any]] = []
+        requested = max(0, int(count or 0))
+        if requested <= 0:
+            return frames
+
+        for _ in range(requested):
+            if self.current_bar_index >= self.total_bars:
+                break
+
+            frame_by_symbol: Dict[str, Dict[str, Any]] = {}
+            while self.current_bar_index < self.total_bars:
+                tick_index = self.current_bar_index
+                bar = self.get_bar(tick_index)
+                symbol = self._tick_symbol(tick_index)
+                account = self.process_bar_at_index(tick_index)
+                indicators = self.get_indicators_at_index(tick_index)
+
+                if bar:
+                    frame_by_symbol[symbol] = {
+                        "bar": bar,
+                        "index": tick_index,
+                        "account": account,
+                        "indicators": indicators,
+                    }
+
+                self.current_bar_index += 1
+                if (
+                    self.current_bar_index >= self.total_bars
+                    or not self._same_tick_time(tick_index, self.current_bar_index)
+                ):
+                    break
+
+            if frame_by_symbol:
+                frames.extend(
+                    frame_by_symbol[symbol]
+                    for symbol in self.symbols
+                    if symbol in frame_by_symbol
+                )
+                self.save_state()
+
+        return frames
+
     def get_indicators_at_index(self, index: int):
-        row = self._bar_row(self._bar_index_for_tick(index))
+        symbol = self._tick_symbol(index)
+        row = self._symbol_bar_row(symbol, self._bar_index_for_tick(index))
         if row is None:
             return {}
         excluded = {"open", "high", "low", "close", "tick_volume", "real_volume", "spread", "Open", "High", "Low", "Close", "TickVolume", "RealVolume", "Spread"}
@@ -412,13 +703,24 @@ class SimulatorSession:
         return out
 
     def execute_trade(self, request: Dict[str, Any]):
+        request_symbol = str(request.get("symbol", "") or "").strip().upper()
+        target_symbol = request_symbol or self.symbols[0]
+
         row = self._tick_row(max(self.current_bar_index - 1, 0))
-        if row is None:
-            row = self._tick_row(0)
+        if row is None or self._tick_symbol(max(self.current_bar_index - 1, 0)) != target_symbol:
+            row = None
+            if self.tick_data is not None and not self.tick_data.empty:
+                matches = self.tick_data[self.tick_data["_symbol"] == target_symbol]
+                if not matches.empty:
+                    row = matches.iloc[-1]
         if row is not None:
-            symbol, bid, ask = self._update_symbol_from_tick(row, max(self.current_bar_index - 1, 0))
+            bid = float(row.get("bid", 0.0) or 0.0)
+            ask = float(row.get("ask", bid) or bid)
+            self.engine._build_symbol_map()
+            self.engine._update_symbol_tick(self.engine._build_symbol_map(), target_symbol, bid, ask)
+            symbol = target_symbol
         else:
-            symbol = str(self.config.get("symbol", "") or "")
+            symbol = target_symbol
             tick = self.engine.symbol_info_tick(symbol)
             bid = float(getattr(tick, "bid", 0.0) or 0.0)
             ask = float(getattr(tick, "ask", 0.0) or 0.0)
@@ -449,7 +751,7 @@ class SimulatorSession:
             "buy_stop_limit": "BUY_STOP_LIMIT",
             "sell_stop_limit": "SELL_STOP_LIMIT",
         }
-        symbol = str(self.config.get("symbol", "") or "")
+        symbol = str(request.get("symbol", "") or "").strip().upper() or self.symbols[0]
         order_type_str = order_type_map.get(str(request.get("type", "")).lower(), "BUY_LIMIT")
         result = self.trade_api.OrderOpen(
             symbol=symbol,
@@ -462,6 +764,462 @@ class SimulatorSession:
         )
         self.engine.monitor_account(verbose=False)
         return _object_to_dict(result)
+
+    def get_market_snapshots(self):
+        return [
+            self.current_market_by_symbol[symbol]
+            for symbol in self.symbols
+            if symbol in self.current_market_by_symbol
+        ]
+
+    def risk_limits_enforced(self) -> bool:
+        return bool(self.config.get("risk_limits_enforced", True))
+
+    def evaluate_pre_trade_governance(
+        self,
+        *,
+        symbol: str,
+        signed_volume: float,
+    ):
+        state = self.latest_risk_state or self.build_risk_state()
+        if state.limits is None:
+            return None
+
+        current_positions = {
+            str(sym): float(lots)
+            for sym, lots in dict(state.position_map or {}).items()
+            if abs(float(lots)) > 0.0
+        }
+        risk_engine = PortfolioRiskEngine(
+            mt5_client=_SimulatorPortfolioStateRiskAdapter(state),
+            timeframe=str(state.metadata.get("timeframe", "H1")),
+            start_pos=0,
+            end_pos=max(max((market.row_count for market in state.markets.values()), default=0), 1),
+        )
+        governance = GovernanceEngine(
+            risk_engine=risk_engine,
+            limits=state.limits,
+        )
+        return governance.evaluate_add_position(
+            current_positions=current_positions,
+            candidate_symbol=str(symbol),
+            candidate_lots=float(signed_volume),
+        )
+
+    def evaluate_current_governance(self):
+        state = self.latest_risk_state or self.build_risk_state()
+        if state.limits is None:
+            return None
+        risk_engine = PortfolioRiskEngine(
+            mt5_client=_SimulatorPortfolioStateRiskAdapter(state),
+            timeframe=str(state.metadata.get("timeframe", "H1")),
+            start_pos=0,
+            end_pos=max(max((market.row_count for market in state.markets.values()), default=0), 1),
+        )
+        governance = GovernanceEngine(
+            risk_engine=risk_engine,
+            limits=state.limits,
+        )
+        return governance.evaluate_portfolio_state(state)
+
+    def build_risk_state(self) -> PortfolioState:
+        market_data: Dict[str, pd.DataFrame] = {}
+        for symbol in self.symbols:
+            symbol_data = self.data_by_symbol.get(symbol)
+            if symbol_data is None:
+                continue
+            current_symbol_bar = self.current_bar_index_by_symbol.get(symbol)
+            if current_symbol_bar is None:
+                market_data[symbol] = symbol_data.iloc[0:0].copy()
+                continue
+            capped_index = max(0, min(int(current_symbol_bar), len(symbol_data.index) - 1))
+            market_data[symbol] = symbol_data.iloc[: capped_index + 1].copy()
+
+        current_tick_dt = getattr(self.engine.state, "current_tick_datetime", None)
+        as_of = None
+        if current_tick_dt is not None:
+            as_of = (
+                current_tick_dt.isoformat()
+                if hasattr(current_tick_dt, "isoformat")
+                else str(current_tick_dt)
+            )
+
+        symbol_specs: Dict[str, Any] = {}
+        for symbol in self.symbols:
+            spec = self.engine.symbol_info(symbol)
+            if spec is not None:
+                symbol_specs[symbol] = spec
+
+        limits = RiskLimits(
+            var_cap_frac=max(0.0, float(self.config.get("risk_var_cap_frac", 0.10) or 0.10)),
+            es_cap_frac=max(0.0, float(self.config.get("risk_es_cap_frac", 0.15) or 0.15)),
+            delta_var_cap_frac=max(0.0, float(self.config.get("risk_delta_var_cap_frac", 0.02) or 0.02)),
+            delta_es_cap_frac=max(0.0, float(self.config.get("risk_delta_es_cap_frac", 0.03) or 0.03)),
+            max_margin_used_frac=max(0.0, float(self.config.get("risk_max_margin_used_frac", 0.50) or 0.50)),
+            max_single_rc_frac=max(0.0, float(self.config.get("risk_max_single_rc_frac", 0.10) or 0.10)),
+            warning_utilization_frac=max(0.0, float(self.config.get("risk_warning_utilization_frac", 0.90) or 0.90)),
+            confidence_level=float(self.config.get("risk_confidence_level", 0.95) or 0.95),
+            time_horizon_days=max(1, int(self.config.get("risk_horizon_value", 1) or 1)),
+            vol_lookback=max(2, int(self.config.get("risk_vol_lookback", 20) or 20)),
+            corr_lookback=max(2, int(self.config.get("risk_corr_lookback", 60) or 60)),
+        )
+
+        state = self.risk_state_engine.build_state(
+            account=self.engine.account_info(),
+            positions=list(self.simulator._positions_data.values()),
+            symbol_specs=symbol_specs,
+            market_data=market_data,
+            limits=limits,
+            timeframe=str(self.config.get("timeframe", "M1") or "M1"),
+            as_of=as_of,
+            metadata={
+                "source": "simulation_session",
+                "session_id": int(self.session_id),
+                "mode": str(self.config.get("mode", "manual") or "manual"),
+                "current_bar_index": int(self.current_bar_index),
+                "symbols": list(self.symbols),
+                "timeframe": str(self.config.get("timeframe", "M1") or "M1"),
+                "risk_horizon_unit": str(self.config.get("risk_horizon_unit", "days") or "days"),
+                "risk_horizon_value": max(1, int(self.config.get("risk_horizon_value", 1) or 1)),
+            },
+        )
+        self.latest_risk_state = state
+        return state
+
+    def refresh_risk_state(self) -> Optional[PortfolioState]:
+        try:
+            state = self.build_risk_state()
+            try:
+                self.latest_risk_snapshot = self.risk_snapshot_engine.build_snapshot(
+                    state,
+                    shared={
+                        "previous_regime": self.previous_regime_state,
+                        "equity_curve": self.engine.get_equity_curve(),
+                    },
+                )
+                self.latest_risk_scorecard = self.risk_scorecard_engine.build_scorecard(
+                    self.latest_risk_snapshot
+                )
+                self.latest_recommendation_batch = self.recommendation_engine.build_recommendations(
+                    state,
+                    snapshot=self.latest_risk_snapshot,
+                    scorecard=self.latest_risk_scorecard,
+                    candidate_symbols=self.symbols,
+                    hedge_symbols=self.symbols,
+                    max_recommendations=6,
+                )
+                self.latest_regime_report = self.latest_risk_snapshot.regime_report
+                self.previous_regime_state = self.latest_risk_snapshot.regime_state
+            except Exception as exc:
+                self.latest_risk_snapshot = None
+                self.latest_risk_scorecard = None
+                self.latest_recommendation_batch = None
+                self.latest_regime_report = None
+                logger.warning(
+                    f"Failed to build risk snapshot | session={self.session_id} err={exc}"
+                )
+            try:
+                self.latest_governance_report = self.evaluate_current_governance()
+            except Exception as exc:
+                self.latest_governance_report = None
+                logger.warning(
+                    f"Failed to build governance report | session={self.session_id} err={exc}"
+                )
+            return state
+        except Exception as exc:
+            logger.warning(
+                f"Failed to build risk state | session={self.session_id} err={exc}"
+            )
+            return None
+
+    def get_risk_summary(self) -> Dict[str, Any]:
+        snapshot = self.latest_risk_snapshot
+        if snapshot is None:
+            return {}
+
+        summary = dict(snapshot.summary or {})
+        metric_rows = list(getattr(snapshot, "metric_rows", []) or [])
+        def _json_safe_number(value: Any) -> Any:
+            if isinstance(value, (int, float)):
+                numeric = float(value)
+                if not math.isfinite(numeric):
+                    return None
+            return value
+
+        currency_exposure = []
+        currency_weights = []
+        for row in metric_rows:
+            scope = getattr(row, "scope", None)
+            metric_key = getattr(row, "metric_key", None)
+            scope_key = getattr(row, "scope_key", None)
+            numeric_value = _json_safe_number(getattr(row, "numeric_value", None))
+            if scope == "currency" and metric_key == "net_currency_exposure" and scope_key:
+                currency_exposure.append(
+                    {
+                        "currency": str(scope_key),
+                        "value": numeric_value,
+                    }
+                )
+
+        currency_exposure.sort(key=lambda item: abs(float(item.get("value") or 0.0)), reverse=True)
+        total_currency_exposure = float(
+            sum(abs(float(item.get("value") or 0.0)) for item in currency_exposure)
+        )
+        for item in currency_exposure:
+            numeric_value = float(item.get("value") or 0.0)
+            currency_weights.append(
+                {
+                    "currency": item["currency"],
+                    "value": (abs(numeric_value) / total_currency_exposure)
+                    if total_currency_exposure > 0.0
+                    else 0.0,
+                }
+            )
+
+        return {
+            "gross_exposure": _json_safe_number(summary.get("gross_exposure")),
+            "net_exposure": _json_safe_number(summary.get("net_exposure")),
+            "margin_used": _json_safe_number(summary.get("margin_used")),
+            "margin_used_frac": _json_safe_number(summary.get("margin_used_frac")),
+            "portfolio_var": _json_safe_number(summary.get("portfolio_var")),
+            "portfolio_es": _json_safe_number(summary.get("portfolio_es")),
+            "max_single_exposure_frac": _json_safe_number(summary.get("max_single_exposure_frac")),
+            "average_pair_correlation": _json_safe_number(summary.get("average_pair_correlation")),
+            "max_pair_correlation": _json_safe_number(summary.get("max_pair_correlation")),
+            "hidden_overlap_score": _json_safe_number(summary.get("hidden_overlap_score")),
+            "compliance_state": summary.get("compliance_state"),
+            "governance_decision": summary.get("governance_decision"),
+            "governance_reason": summary.get("governance_reason"),
+            "regime_name": summary.get("regime_name"),
+            "regime_confidence": _json_safe_number(summary.get("regime_confidence")),
+            "regime_signals_triggered": summary.get("regime_signals_triggered") or [],
+            "regime_warnings": summary.get("regime_warnings") or [],
+            "market_regime": summary.get("market_regime"),
+            "volatility_regime": summary.get("volatility_regime"),
+            "liquidity_regime": summary.get("liquidity_regime"),
+            "crisis_regime": summary.get("crisis_regime"),
+            "regime_transition_changed": bool(summary.get("regime_transition_changed", False)),
+            "currency_exposure": currency_exposure,
+            "currency_weights": currency_weights,
+        }
+
+    def get_governance_report(self) -> Optional[Dict[str, Any]]:
+        if getattr(self, "latest_governance_report", None) is None:
+            return None
+        return _serialize_governance_report(self.latest_governance_report)
+
+    def get_risk_score_summary(self) -> Dict[str, Any]:
+        scorecard = self.latest_risk_scorecard
+        if scorecard is None:
+            return {}
+
+        summary = dict(scorecard.summary or {})
+
+        def _json_safe_number(value: Any) -> Any:
+            if isinstance(value, (int, float)):
+                numeric = float(value)
+                if not math.isfinite(numeric):
+                    return None
+                return numeric
+            return value
+
+        return {
+            "portfolio_health_score": _json_safe_number(summary.get("portfolio_health_score")),
+            "leverage_safety_score": _json_safe_number(summary.get("leverage_safety_score")),
+            "margin_safety_score": _json_safe_number(summary.get("margin_safety_score")),
+            "diversification_score": _json_safe_number(summary.get("diversification_score")),
+            "governance_compliance_score": _json_safe_number(summary.get("governance_compliance_score")),
+            "overall_risk_quality_score": _json_safe_number(summary.get("overall_risk_quality_score")),
+            "overall_confidence": _json_safe_number(summary.get("overall_confidence")),
+            "overall_confidence_label": summary.get("overall_confidence_label"),
+        }
+
+    def get_recommendation_summary(self) -> Dict[str, Any]:
+        batch = self.latest_recommendation_batch
+        return _serialize_recommendation_batch(batch)
+
+    def ensure_risk_run(self) -> int:
+        if self.risk_run_id:
+            return int(self.risk_run_id)
+        run_id = self.risk_snapshot_store.create_run(
+            label=str(
+                self.config.get("session_name")
+                or f"Simulation Session {self.session_id}"
+            ),
+            description=(
+                f"Risk storage for simulation session {self.session_id} "
+                f"({','.join(self.symbols)} {self.config.get('timeframe', 'M1')})"
+            ),
+            source="simulation",
+            context={
+                "session_id": int(self.session_id),
+                "symbols": list(self.symbols),
+                "timeframe": str(self.config.get("timeframe", "M1") or "M1"),
+                "mode": str(self.config.get("mode", "manual") or "manual"),
+                "timeline_signature": self.timeline_signature,
+            },
+        )
+        self.risk_run_id = int(run_id)
+        self.config["risk_run_id"] = int(run_id)
+        self.db.update_simulation_session(self.session_id, config=dict(self.config))
+        return int(run_id)
+
+    def persist_current_risk_bundle(
+        self,
+        *,
+        backtest_id: Optional[int] = None,
+    ) -> Optional[int]:
+        if self.latest_risk_snapshot is None:
+            return None
+        run_id = self.ensure_risk_run()
+        snapshot_id = self.risk_snapshot_store.store_snapshot_bundle(
+            run_id=run_id,
+            snapshot=self.latest_risk_snapshot,
+            scorecard=self.latest_risk_scorecard,
+            recommendations=self.latest_recommendation_batch,
+            backtest_id=backtest_id,
+        )
+        self.latest_risk_snapshot_id = int(snapshot_id)
+        return int(snapshot_id)
+
+    def persist_what_if_comparison(self, comparison: Any) -> Dict[str, Optional[int]]:
+        run_id = self.ensure_risk_run()
+        snapshot_id = self.persist_current_risk_bundle()
+        frame = self.build_current_replay_frame()
+        replay_frame_id = self.risk_snapshot_store.store_replay_frame(
+            run_id=run_id,
+            frame=frame,
+            snapshot_id=snapshot_id,
+            what_if=comparison,
+        )
+        self.latest_risk_replay_frame_id = int(replay_frame_id)
+        return {
+            "risk_run_id": int(run_id),
+            "risk_snapshot_id": int(snapshot_id) if snapshot_id else None,
+            "risk_replay_frame_id": int(replay_frame_id),
+        }
+
+    def build_current_replay_frame(self) -> ReplayFrame:
+        state = self.latest_risk_state or self.build_risk_state()
+        snapshot = self.latest_risk_snapshot or self.risk_snapshot_engine.build_snapshot(
+            state,
+            shared={
+                "previous_regime": self.previous_regime_state,
+                "equity_curve": self.engine.get_equity_curve(),
+            },
+        )
+        scorecard = self.latest_risk_scorecard or self.risk_scorecard_engine.build_scorecard(
+            snapshot
+        )
+        recommendations = self.latest_recommendation_batch
+        tick_index = max(min(self.current_bar_index - 1, self.total_bars - 1), 0)
+        tick_timestamp = self._tick_timestamp(tick_index)
+        frame_timestamp = (
+            pd.Timestamp(tick_timestamp)
+            if tick_timestamp is not None
+            else pd.Timestamp.utcnow()
+        )
+        return ReplayFrame(
+            frame_index=int(self.current_bar_index),
+            timestamp=frame_timestamp,
+            capture_timestamp=frame_timestamp,
+            state=state,
+            snapshot=snapshot,
+            scorecard=scorecard,
+            recommendations=recommendations,
+            context={
+                "timeframe": str(self.config.get("timeframe", "M1") or "M1"),
+                "timeline_signature": self.timeline_signature,
+            },
+        )
+
+    def evaluate_what_if(
+        self,
+        *,
+        actions: List[HypotheticalOrderAction],
+        leverage_override: Optional[int] = None,
+    ):
+        frame = self.build_current_replay_frame()
+        comparison = self.what_if_engine.evaluate(
+            frame,
+            actions,
+            include_recommendations=True,
+            candidate_symbols=self.symbols,
+            hedge_symbols=self.symbols,
+            max_recommendations=6,
+            snapshot_shared={
+                "previous_regime": self.previous_regime_state,
+                "equity_curve": self.engine.get_equity_curve(),
+            },
+        )
+        baseline_margin = float(
+            frame.state.account.margin_used
+            or frame.snapshot.state.account.margin_used
+            or 0.0
+        )
+        projected_margin = float(comparison.projected_state.account.margin_used or 0.0)
+        comparison.summary.update(
+            {
+                "baseline_margin_used": baseline_margin,
+                "projected_margin_used": projected_margin,
+                "margin_used_delta": projected_margin - baseline_margin,
+                "baseline_compliance_state": frame.snapshot.summary.get("compliance_state"),
+                "projected_compliance_state": comparison.projected_snapshot.summary.get(
+                    "compliance_state"
+                ),
+                "baseline_governance_decision": frame.snapshot.summary.get(
+                    "governance_decision"
+                ),
+                "projected_governance_decision": comparison.projected_snapshot.summary.get(
+                    "governance_decision"
+                ),
+            }
+        )
+        if leverage_override is None or leverage_override <= 0:
+            return comparison
+
+        projected_state = _apply_leverage_override_to_state(
+            comparison.projected_state,
+            int(leverage_override),
+        )
+        projected_snapshot = self.risk_snapshot_engine.build_snapshot(
+            projected_state,
+            shared={
+                "previous_regime": self.previous_regime_state,
+                "equity_curve": self.engine.get_equity_curve(),
+            },
+        )
+        projected_scorecard = self.risk_scorecard_engine.build_scorecard(projected_snapshot)
+        projected_recommendations = self.recommendation_engine.build_recommendations(
+            projected_state,
+            snapshot=projected_snapshot,
+            scorecard=projected_scorecard,
+            candidate_symbols=self.symbols,
+            hedge_symbols=self.symbols,
+            max_recommendations=6,
+        )
+
+        baseline_summary = comparison.summary or {}
+        projected_margin = float(projected_state.account.margin_used or 0.0)
+
+        comparison.summary.update(
+            {
+                **baseline_summary,
+                "projected_margin_used": projected_margin,
+                "margin_used_delta": projected_margin
+                - float(baseline_summary.get("baseline_margin_used", 0.0) or 0.0),
+                "projected_compliance_state": projected_snapshot.summary.get("compliance_state"),
+                "projected_governance_decision": projected_snapshot.summary.get("governance_decision"),
+                "leverage_override": int(leverage_override),
+            }
+        )
+        return replace(
+            comparison,
+            projected_state=projected_state,
+            projected_snapshot=projected_snapshot,
+            projected_scorecard=projected_scorecard,
+            projected_recommendations=projected_recommendations,
+        )
 
     def pause(self):
         self.paused = True
@@ -546,7 +1304,7 @@ class SimulatorSession:
             config_hash=str(hash((self.session_id, symbol, timeframe, self.current_bar_index))),
             strategy_version_id=int(strategy_version_id) if strategy_version_id else None,
             user_id=user_id,
-            symbols=[symbol] if symbol else None,
+            symbols=self.symbols,
             timeframes=[timeframe],
             initial_balance=float(self.config.get("initial_balance", 10000.0) or 10000.0),
             alias=alias,
@@ -577,12 +1335,33 @@ class SimulatorSession:
     def save_state(self):
         self.db.update_simulation_session(self.session_id, current_bar_index=self.current_bar_index)
 
+    def resolve_base_bar_index(self, target_time: Optional[str], fallback_index: Optional[int]) -> int:
+        base_data = self.data_by_symbol.get(self.symbols[0]) if self.symbols else self.data
+        if base_data is None or base_data.empty:
+            return 0
+
+        if target_time:
+            try:
+                target_dt = pd.Timestamp(target_time)
+                if getattr(target_dt, "tzinfo", None) is not None:
+                    target_dt = target_dt.tz_convert(None)
+                bar_index = int(base_data.index.searchsorted(target_dt, side="left"))
+                if bar_index >= len(base_data.index):
+                    return len(base_data.index) - 1
+                return max(0, bar_index)
+            except Exception:
+                pass
+
+        return max(0, min(int(fallback_index or 0), len(base_data.index) - 1))
+
     def seek_to_bar(self, index: int):
-        if self.data is None or self.data.empty:
+        base_data = self.data_by_symbol.get(self.symbols[0]) if self.symbols else self.data
+        if base_data is None or base_data.empty:
             self.current_bar_index = 0
         else:
-            bar_index = max(0, min(int(index), len(self.data.index) - 1))
-            self.current_bar_index = self._bar_first_tick_index.get(bar_index, 0)
+            symbol = self.symbols[0]
+            bar_index = max(0, min(int(index), len(base_data.index) - 1))
+            self.current_bar_index = self._bar_first_tick_index.get((symbol, bar_index), 0)
         self.save_state()
 
     def stop(self):
@@ -618,6 +1397,146 @@ def _normalize_position(position: dict) -> dict:
         "time": position.get("time"),
         "comment": position.get("comment", ""),
     }
+
+
+def _position_notional_from_payload(active: SimulatorSession, position: dict) -> float:
+    symbol_name = str(position.get("symbol", "") or "")
+    if not symbol_name:
+        return 0.0
+
+    symbol_info = active.engine.symbol_info(symbol_name)
+    contract_size = float(
+        getattr(symbol_info, "trade_contract_size", 0.0) or 0.0
+    )
+    if contract_size <= 0.0:
+        return 0.0
+
+    market_price = float(
+        position.get("price_current") or position.get("price_open") or 0.0
+    )
+    volume = float(position.get("volume") or 0.0)
+    if market_price <= 0.0 or volume <= 0.0:
+        return 0.0
+
+    raw_notional = float(volume * contract_size * market_price)
+    profit_currency = str(
+        getattr(symbol_info, "currency_profit", getattr(symbol_info, "profit_currency", "")) or ""
+    ).upper().strip()
+    account_currency = _simulator_account_currency(active)
+    return _convert_simulator_value_to_account_currency(
+        active,
+        raw_notional,
+        profit_currency,
+        account_currency,
+    )
+
+
+def _simulator_account_currency(active: SimulatorSession) -> str:
+    if getattr(active, "latest_risk_state", None) is not None:
+        currency = getattr(active.latest_risk_state.account, "currency", None)
+        if currency:
+            token = str(currency).upper().strip()
+            if token:
+                return token
+    account = active.engine.account_info()
+    token = str(account.get("currency") or account.get("currency_code") or "USD").upper().strip()
+    return token or "USD"
+
+
+def _convert_simulator_value_to_account_currency(
+    active: SimulatorSession,
+    value: float,
+    source_currency: str,
+    target_currency: str,
+) -> float:
+    amount = float(value or 0.0)
+    source = str(source_currency or "").upper().strip()
+    target = str(target_currency or "").upper().strip()
+    if amount == 0.0 or not source or not target or source == target:
+        return amount
+    rate = _simulator_currency_conversion_rate(active, source, target)
+    if rate is None or rate <= 0.0:
+        return amount
+    return float(amount * rate)
+
+
+def _simulator_currency_conversion_rate(
+    active: SimulatorSession,
+    source: str,
+    target: str,
+) -> Optional[float]:
+    if source == target:
+        return 1.0
+
+    direct = _simulator_direct_currency_conversion_rate(active, source, target)
+    if direct is not None:
+        return direct
+
+    for bridge in ("USD", "EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD"):
+        if bridge in {source, target}:
+            continue
+        leg_one = _simulator_direct_currency_conversion_rate(active, source, bridge)
+        if leg_one is None:
+            continue
+        leg_two = _simulator_direct_currency_conversion_rate(active, bridge, target)
+        if leg_two is None:
+            continue
+        return float(leg_one * leg_two)
+
+    return None
+
+
+def _simulator_direct_currency_conversion_rate(
+    active: SimulatorSession,
+    source: str,
+    target: str,
+) -> Optional[float]:
+    direct_symbol = f"{source}{target}"
+    direct_price = _simulator_price_for_symbol(active, direct_symbol)
+    if direct_price is not None and direct_price > 0.0:
+        return float(direct_price)
+
+    inverse_symbol = f"{target}{source}"
+    inverse_price = _simulator_price_for_symbol(active, inverse_symbol)
+    if inverse_price is not None and inverse_price > 0.0:
+        return float(1.0 / inverse_price)
+
+    return None
+
+
+def _simulator_price_for_symbol(active: SimulatorSession, symbol: str) -> Optional[float]:
+    market = getattr(active, "current_market_by_symbol", {}).get(symbol)
+    if market is not None:
+        try:
+            price = float(market.get("close", 0.0) or 0.0)
+        except Exception:
+            price = 0.0
+        if price > 0.0:
+            return price
+
+    state = getattr(active, "latest_risk_state", None)
+    if state is not None:
+        market_state = state.markets.get(symbol)
+        if market_state is not None and market_state.last_close is not None:
+            try:
+                price = float(market_state.last_close)
+            except Exception:
+                price = 0.0
+            if price > 0.0:
+                return price
+
+    symbol_data = getattr(active, "data_by_symbol", {}).get(symbol)
+    if symbol_data is not None and not symbol_data.empty:
+        close_col = "close" if "close" in symbol_data.columns else "Close"
+        if close_col in symbol_data.columns:
+            try:
+                price = float(symbol_data[close_col].iloc[-1])
+            except Exception:
+                price = 0.0
+            if price > 0.0:
+                return price
+
+    return None
 
 
 def _normalize_order(order: dict) -> dict:
@@ -697,9 +1616,249 @@ def _order_info_to_dict(order: Any) -> dict:
 def _collect_positions_orders(active: SimulatorSession) -> tuple[list[dict], list[dict]]:
     positions_raw = active.simulator._simulator.positions_get() or []
     orders_raw = active.simulator._simulator.orders_get() or []
-    positions = [_normalize_position(_position_info_to_dict(pos)) for pos in positions_raw]
+    position_payloads = [_position_info_to_dict(pos) for pos in positions_raw]
+    gross_notional = float(
+        sum(_position_notional_from_payload(active, pos) for pos in position_payloads)
+    )
+    positions = []
+    for pos in position_payloads:
+        normalized = _normalize_position(pos)
+        exposure = _position_notional_from_payload(active, pos)
+        normalized["exposure"] = float(exposure)
+        normalized["weight"] = float(exposure / gross_notional) if gross_notional > 0.0 else 0.0
+        positions.append(normalized)
     orders = [_normalize_order(_order_info_to_dict(order)) for order in orders_raw]
     return positions, orders
+
+
+def _serialize_limit_events(events: Optional[List[Any]]) -> list[dict]:
+    def _json_safe_number(value: Any) -> Any:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                return None
+        return value
+
+    output: list[dict] = []
+    for event in events or []:
+        output.append(
+            {
+                "rule_key": getattr(event, "rule_key", None),
+                "severity": getattr(event, "severity", None),
+                "message": getattr(event, "message", None),
+                "observed_value": _json_safe_number(getattr(event, "observed_value", None)),
+                "threshold_value": _json_safe_number(getattr(event, "threshold_value", None)),
+                "scope": getattr(event, "scope", "portfolio"),
+                "scope_key": getattr(event, "scope_key", None),
+            }
+        )
+    return output
+
+
+def _serialize_governance_report(report: Any) -> dict:
+    governance_state = getattr(report, "governance_state", None)
+    def _json_safe_number(value: Any) -> Any:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                return None
+            return numeric
+        return value
+
+    return {
+        "decision": getattr(report, "decision", None),
+        "reason": getattr(report, "reason", None),
+        "compliance_state": getattr(governance_state, "status", None) if governance_state else None,
+        "current_var": _json_safe_number(getattr(report, "current_var", None)),
+        "new_var": _json_safe_number(getattr(report, "new_var", None)),
+        "delta_var": _json_safe_number(getattr(report, "delta_var", None)),
+        "current_es": _json_safe_number(getattr(report, "current_es", None)),
+        "new_es": _json_safe_number(getattr(report, "new_es", None)),
+        "delta_es": _json_safe_number(getattr(report, "delta_es", None)),
+        "current_margin_used": _json_safe_number(getattr(report, "current_margin_used", None)),
+        "new_margin_used": _json_safe_number(getattr(report, "new_margin_used", None)),
+        "warnings": _serialize_limit_events(getattr(report, "warnings", None)),
+        "breaches": _serialize_limit_events(getattr(report, "breaches", None)),
+    }
+
+
+def _serialize_recommendation_batch(batch: Any) -> dict:
+    if batch is None:
+        return {"items": []}
+
+    def _json_safe_number(value: Any) -> Any:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                return None
+            return numeric
+        return value
+
+    items = []
+    for item in list(getattr(batch, "recommendations", []) or []):
+        action = getattr(item, "action", None)
+        score = getattr(item, "recommendation_score", None)
+        if action is None or score is None:
+            continue
+        raw_action_type = str(getattr(action, "action_type", "") or "")
+        display_action = raw_action_type
+        if (
+            raw_action_type == "rebalance"
+            and _json_safe_number(getattr(score, "margin_used_delta", None)) is not None
+        ):
+            margin_delta = float(getattr(score, "margin_used_delta", 0.0) or 0.0)
+            if margin_delta < 0:
+                display_action = "cut_margin"
+        items.append(
+            {
+                "action_type": raw_action_type,
+                "display_action": display_action,
+                "symbol": getattr(action, "symbol", None),
+                "delta_lots": _json_safe_number(getattr(action, "delta_lots", None)),
+                "usefulness_score": _json_safe_number(getattr(score, "usefulness_score", None)),
+                "var_delta": _json_safe_number(getattr(score, "var_delta", None)),
+                "es_delta": _json_safe_number(getattr(score, "es_delta", None)),
+                "margin_used_delta": _json_safe_number(
+                    getattr(score, "margin_used_delta", None)
+                ),
+                "governance_feasible": bool(getattr(item, "governance_feasible", False)),
+                "explanation": getattr(item, "explanation", None),
+            }
+        )
+    return {
+        "items": items,
+        "recommendation_count": int(
+            batch.summary.get("recommendation_count", len(items)) or len(items)
+        ),
+        "feasible_count": int(batch.summary.get("feasible_count", 0) or 0),
+        "top_action_type": batch.summary.get("top_action_type"),
+        "top_action_symbol": batch.summary.get("top_action_symbol"),
+        "top_usefulness_score": _json_safe_number(
+            batch.summary.get("top_usefulness_score")
+        ),
+    }
+
+
+def _apply_leverage_override_to_state(
+    state: PortfolioState,
+    leverage_override: int,
+) -> PortfolioState:
+    effective_leverage = max(1, int(leverage_override))
+    current_leverage = float(
+        state.account.metadata.get("leverage")
+        or state.metadata.get("account_leverage")
+        or 0.0
+    )
+    current_margin_used = float(state.account.margin_used or 0.0)
+    if current_leverage > 0.0:
+        projected_margin_used = current_margin_used * (current_leverage / effective_leverage)
+    else:
+        projected_margin_used = current_margin_used
+    new_account_metadata = {
+        **dict(state.account.metadata or {}),
+        "leverage": effective_leverage,
+    }
+    new_account = replace(
+        state.account,
+        margin_used=float(projected_margin_used),
+        free_margin=float(state.account.equity) - float(projected_margin_used),
+        metadata=new_account_metadata,
+    )
+    new_metadata = {
+        **dict(state.metadata or {}),
+        "account_leverage": effective_leverage,
+    }
+    return replace(
+        state,
+        account=new_account,
+        metadata=new_metadata,
+    )
+
+
+def _serialize_what_if_comparison(comparison: Any) -> dict:
+    if comparison is None:
+        return {}
+
+    def _json_safe_number(value: Any) -> Any:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                return None
+            return numeric
+        return value
+
+    summary = dict(getattr(comparison, "summary", {}) or {})
+    projected_snapshot = getattr(comparison, "projected_snapshot", None)
+    projected_scorecard = getattr(comparison, "projected_scorecard", None)
+    projected_recommendations = getattr(comparison, "projected_recommendations", None)
+    baseline_frame = getattr(comparison, "baseline_frame", None)
+
+    return {
+        "summary": {key: _json_safe_number(value) for key, value in summary.items()},
+        "actions": [
+            {
+                "action_type": getattr(action, "action_type", None),
+                "symbol": getattr(action, "symbol", None),
+                "delta_lots": _json_safe_number(getattr(action, "delta_lots", None)),
+                "target_lots": _json_safe_number(getattr(action, "target_lots", None)),
+                "rationale": getattr(action, "rationale", None),
+            }
+            for action in list(getattr(comparison, "actions", []) or [])
+        ],
+        "baseline": {
+            "compliance_state": baseline_frame.snapshot.summary.get("compliance_state")
+            if baseline_frame is not None
+            else None,
+            "overall_risk_quality_score": _json_safe_number(
+                baseline_frame.scorecard.summary.get("overall_risk_quality_score")
+                if baseline_frame is not None
+                else None
+            ),
+        },
+        "projected": {
+            "compliance_state": projected_snapshot.summary.get("compliance_state")
+            if projected_snapshot is not None
+            else None,
+            "governance_decision": projected_snapshot.summary.get("governance_decision")
+            if projected_snapshot is not None
+            else None,
+            "governance_reason": projected_snapshot.summary.get("governance_reason")
+            if projected_snapshot is not None
+            else None,
+            "overall_risk_quality_score": _json_safe_number(
+                projected_scorecard.summary.get("overall_risk_quality_score")
+                if projected_scorecard is not None
+                else None
+            ),
+            "risk_snapshot": {
+                "portfolio_var": _json_safe_number(
+                    projected_snapshot.summary.get("portfolio_var")
+                    if projected_snapshot is not None
+                    else None
+                ),
+                "portfolio_es": _json_safe_number(
+                    projected_snapshot.summary.get("portfolio_es")
+                    if projected_snapshot is not None
+                    else None
+                ),
+                "margin_used": _json_safe_number(
+                    projected_snapshot.summary.get("margin_used")
+                    if projected_snapshot is not None
+                    else None
+                ),
+                "compliance_state": projected_snapshot.summary.get("compliance_state")
+                if projected_snapshot is not None
+                else None,
+            },
+        },
+        "projected_recommendations": _serialize_recommendation_batch(
+            projected_recommendations
+        ),
+    }
+
+
+def _refresh_session_risk_state(active: SimulatorSession) -> None:
+    active.refresh_risk_state()
 
 
 # session_id -> SimulatorSession
@@ -728,6 +1887,19 @@ class SimulationStartRequest(BaseModel):
     spread_min: float = 10.0
     spread_max: float = 50.0
     data_resolution: str = "trading_timeframe"
+    risk_confidence_level: float = 0.95
+    risk_horizon_unit: str = "days"
+    risk_horizon_value: int = 1
+    risk_vol_lookback: int = 20
+    risk_corr_lookback: int = 60
+    risk_var_cap_frac: float = 0.10
+    risk_es_cap_frac: float = 0.15
+    risk_delta_var_cap_frac: float = 0.02
+    risk_delta_es_cap_frac: float = 0.03
+    risk_max_margin_used_frac: float = 0.50
+    risk_max_single_rc_frac: float = 0.10
+    risk_warning_utilization_frac: float = 0.90
+    risk_limits_enforced: bool = True
     mode: str = Field(default="manual", description="manual | strategy | replay")
 
     strategy_id: Optional[int] = None
@@ -761,6 +1933,7 @@ class SimulationUpdateRequest(BaseModel):
 class ManualTradeRequest(BaseModel):
     """Request to execute a manual trade."""
 
+    symbol: Optional[str] = None
     side: str = Field(..., description="buy | sell")
     volume: float = 0.1
     price: Optional[float] = None
@@ -772,6 +1945,7 @@ class ManualTradeRequest(BaseModel):
 class PendingOrderRequest(BaseModel):
     """Request to place a pending order."""
 
+    symbol: Optional[str] = None
     type: str = Field(
         ...,
         description="buy_limit | sell_limit | buy_stop | sell_stop | buy_stop_limit | sell_stop_limit",
@@ -804,13 +1978,31 @@ class OrderModifyRequest(BaseModel):
 class SeekRequest(BaseModel):
     """Request to seek to a bar index."""
 
-    bar_index: int
+    bar_index: Optional[int] = None
+    target_time: Optional[str] = None
 
 
 class AdvanceRequest(BaseModel):
-    """Request to advance by N simulator steps."""
+    """Request to advance by N synchronized simulator frames."""
 
     count: int = 1
+
+
+class WhatIfActionRequest(BaseModel):
+    """One hypothetical non-mutating portfolio action."""
+
+    action_type: str
+    symbol: str
+    delta_lots: Optional[float] = None
+    target_lots: Optional[float] = None
+    rationale: Optional[str] = None
+
+
+class WhatIfRequest(BaseModel):
+    """Request to evaluate a what-if scenario against the current simulator state."""
+
+    actions: List[WhatIfActionRequest] = Field(default_factory=list)
+    leverage_override: Optional[int] = None
 
 
 def _load_strategy_class(user_id: int, strategy_id: int, version_id: int):
@@ -885,6 +2077,9 @@ async def start_simulation(
                 session.set_replay_trades(trades)
 
         session.load_historical_bars()
+        session.apply_mt5_account_defaults()
+        session.refresh_risk_state()
+        session.ensure_risk_run()
         db_manager.update_simulation_session(
             session_id,
             total_bars=session.total_bars,
@@ -893,11 +2088,25 @@ async def start_simulation(
         )
 
         active_sessions[session_id] = session
+        credentials = db_manager.get_mt5_credentials(user_id) or {}
+        company = ""
+        try:
+            account_info = session.engine.client.account_info()
+            if account_info is not None:
+                row = account_info._asdict() if hasattr(account_info, "_asdict") else {}
+                company = str(row.get("company") or "")
+        except Exception:
+            company = ""
         return {
             "session_id": session_id,
             "status": "running",
             "total_bars": session.total_bars,
             "symbol_digits": session.symbol_digits,
+            "risk_run_id": session.risk_run_id,
+            "account_leverage": session.engine.account_info().get("leverage"),
+            "account_login": credentials.get("login"),
+            "account_server": credentials.get("server"),
+            "account_company": company or None,
         }
 
     except HTTPException:
@@ -997,6 +2206,7 @@ async def get_bar(session_id: int, bar_index: int, authorization: str = AUTH_HEA
     # Process bar through simulator for account updates
     account = active.process_bar_at_index(bar_index)
     indicators = active.get_indicators_at_index(bar_index)
+    _refresh_session_risk_state(active)
 
     return {
         "bar": bar,
@@ -1023,28 +2233,11 @@ async def advance_bars(
     if not active:
         raise HTTPException(status_code=400, detail="Session is not running")
 
-    bars = []
-    # current bar index tracked on the session
-    for _ in range(request.count):
-        if active.current_bar_index >= active.total_bars:
-            break
-        bar = active.get_bar(active.current_bar_index)
-        if bar:
-            account = active.process_bar_at_index(active.current_bar_index)
-            indicators = active.get_indicators_at_index(active.current_bar_index)
-            bars.append(
-                {
-                    "bar": bar,
-                    "index": active.current_bar_index,
-                    "account": account,
-                    "indicators": indicators,
-                }
-            )
-            active.current_bar_index += 1
-            active.save_state()
+    bars = active.advance_frames(request.count)
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
+    _refresh_session_risk_state(active)
 
     positions, orders = _collect_positions_orders(active)
 
@@ -1056,6 +2249,11 @@ async def advance_bars(
         "completed": active.current_bar_index >= active.total_bars,
         "positions": positions,
         "orders": orders,
+        "market": active.get_market_snapshots(),
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
+        "governance": active.get_governance_report(),
     }
 
 
@@ -1073,12 +2271,18 @@ async def get_positions(session_id: int, authorization: str = AUTH_HEADER):
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
+    _refresh_session_risk_state(active)
 
     positions, orders = _collect_positions_orders(active)
 
     return {
         "positions": positions,
         "orders": orders,
+        "market": active.get_market_snapshots(),
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
+        "governance": active.get_governance_report(),
         "account": {
             "balance": float(active.simulator._account_data.balance),
             "equity": float(active.simulator._account_data.equity),
@@ -1104,12 +2308,33 @@ async def execute_trade(
     if not active:
         raise HTTPException(status_code=400, detail="Session is not running")
 
+    signed_volume = abs(float(request.volume or 0.0))
+    if str(request.side or "buy").lower() == "sell":
+        signed_volume *= -1.0
+    governance = active.evaluate_pre_trade_governance(
+        symbol=str(request.symbol or active.symbols[0]).strip().upper() or active.symbols[0],
+        signed_volume=signed_volume,
+    )
+    if (
+        active.risk_limits_enforced()
+        and governance is not None
+        and str(getattr(governance, "decision", "ACCEPT")) != "ACCEPT"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "type": "governance_reject",
+                "governance": _serialize_governance_report(governance),
+            },
+        )
+
     trade = active.execute_trade(request.dict())
     if not trade:
         raise HTTPException(status_code=500, detail="Trade execution failed")
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
+    _refresh_session_risk_state(active)
 
     positions, orders = _collect_positions_orders(active)
 
@@ -1118,6 +2343,10 @@ async def execute_trade(
         "trade": trade,
         "positions": positions,
         "orders": orders,
+        "governance": active.get_governance_report() or (_serialize_governance_report(governance) if governance is not None else None),
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
     }
 
 
@@ -1135,12 +2364,33 @@ async def place_pending_order(
     if not active:
         raise HTTPException(status_code=400, detail="Session is not running")
 
+    signed_volume = abs(float(request.volume or 0.0))
+    if str(request.type or "").lower().startswith("sell"):
+        signed_volume *= -1.0
+    governance = active.evaluate_pre_trade_governance(
+        symbol=str(request.symbol or active.symbols[0]).strip().upper() or active.symbols[0],
+        signed_volume=signed_volume,
+    )
+    if (
+        active.risk_limits_enforced()
+        and governance is not None
+        and str(getattr(governance, "decision", "ACCEPT")) != "ACCEPT"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "type": "governance_reject",
+                "governance": _serialize_governance_report(governance),
+            },
+        )
+
     order = active.place_pending_order(request.dict())
     if not order:
         raise HTTPException(status_code=500, detail="Pending order failed")
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
+    _refresh_session_risk_state(active)
 
     positions, orders = _collect_positions_orders(active)
 
@@ -1148,7 +2398,49 @@ async def place_pending_order(
         "order": order,
         "positions": positions,
         "orders": orders,
+        "governance": active.get_governance_report() or (_serialize_governance_report(governance) if governance is not None else None),
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
     }
+
+
+@router.post("/{session_id}/what-if")
+async def evaluate_what_if(
+    session_id: int,
+    request: WhatIfRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Evaluate a hypothetical portfolio change without mutating the live simulator."""
+    user_id = get_user_id_from_token(authorization)
+    session = db_manager.get_simulation_session(session_id)
+    if not session or session.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    active = active_sessions.get(session_id)
+    if not active:
+        raise HTTPException(status_code=400, detail="Session is not running")
+
+    _refresh_session_risk_state(active)
+    actions = [
+        HypotheticalOrderAction(
+            action_type=str(item.action_type or "").strip(),
+            symbol=str(item.symbol or "").strip().upper(),
+            delta_lots=item.delta_lots,
+            target_lots=item.target_lots,
+            rationale=str(item.rationale or ""),
+        )
+        for item in request.actions
+        if str(item.symbol or "").strip()
+    ]
+    comparison = active.evaluate_what_if(
+        actions=actions,
+        leverage_override=request.leverage_override,
+    )
+    storage_refs = active.persist_what_if_comparison(comparison)
+    payload = _serialize_what_if_comparison(comparison)
+    payload.update(storage_refs)
+    return payload
 
 
 @router.patch("/{session_id}/positions/{position_id}")
@@ -1192,10 +2484,19 @@ async def modify_position(
 
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
+        _refresh_session_risk_state(active)
 
         positions, orders = _collect_positions_orders(active)
 
-        return {"positions": positions, "orders": orders}
+        return {
+            "positions": positions,
+            "orders": orders,
+            "market": active.get_market_snapshots(),
+            "risk_snapshot": active.get_risk_summary(),
+            "risk_scorecard": active.get_risk_score_summary(),
+            "recommendations": active.get_recommendation_summary(),
+            "governance": active.get_governance_report(),
+        }
     except HTTPException:
         raise
     except Exception as exc:
@@ -1240,10 +2541,19 @@ async def close_position(
 
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
+        _refresh_session_risk_state(active)
 
         positions, orders = _collect_positions_orders(active)
 
-        return {"positions": positions, "orders": orders}
+        return {
+            "positions": positions,
+            "orders": orders,
+            "market": active.get_market_snapshots(),
+            "risk_snapshot": active.get_risk_summary(),
+            "risk_scorecard": active.get_risk_score_summary(),
+            "recommendations": active.get_recommendation_summary(),
+            "governance": active.get_governance_report(),
+        }
     except HTTPException:
         raise
     except Exception as exc:
@@ -1309,8 +2619,17 @@ async def partial_close_position(
 
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
+        _refresh_session_risk_state(active)
         positions, orders = _collect_positions_orders(active)
-        return {"positions": positions, "orders": orders}
+        return {
+            "positions": positions,
+            "orders": orders,
+            "market": active.get_market_snapshots(),
+            "risk_snapshot": active.get_risk_summary(),
+            "risk_scorecard": active.get_risk_score_summary(),
+            "recommendations": active.get_recommendation_summary(),
+            "governance": active.get_governance_report(),
+        }
     except HTTPException:
         raise
     except Exception as exc:
@@ -1412,10 +2731,19 @@ async def modify_order(
 
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
+        _refresh_session_risk_state(active)
 
         positions, orders = _collect_positions_orders(active)
 
-        return {"positions": positions, "orders": orders}
+        return {
+            "positions": positions,
+            "orders": orders,
+            "market": active.get_market_snapshots(),
+            "risk_snapshot": active.get_risk_summary(),
+            "risk_scorecard": active.get_risk_score_summary(),
+            "recommendations": active.get_recommendation_summary(),
+            "governance": active.get_governance_report(),
+        }
     except HTTPException:
         raise
     except Exception as exc:
@@ -1456,10 +2784,19 @@ async def delete_order(
 
         totals = active.simulator.monitor_positions()
         active.simulator.monitor_account(totals)
+        _refresh_session_risk_state(active)
 
         positions, orders = _collect_positions_orders(active)
 
-        return {"positions": positions, "orders": orders}
+        return {
+            "positions": positions,
+            "orders": orders,
+            "market": active.get_market_snapshots(),
+            "risk_snapshot": active.get_risk_summary(),
+            "risk_scorecard": active.get_risk_score_summary(),
+            "recommendations": active.get_recommendation_summary(),
+            "governance": active.get_governance_report(),
+        }
     except HTTPException:
         raise
     except Exception as exc:
@@ -1489,6 +2826,9 @@ async def resume_session(session_id: int, authorization: str = AUTH_HEADER):
 
     session = SimulatorSession(session_id=session_id, config=config, db=db_manager)
     session.load_historical_bars()
+    session.apply_mt5_account_defaults()
+    session.refresh_risk_state()
+    session.ensure_risk_run()
     active_sessions[session_id] = session
     db_manager.update_simulation_session(session_id, status="running")
 
@@ -1509,7 +2849,11 @@ async def seek_session(
     if not active:
         raise HTTPException(status_code=400, detail="Session is not running")
 
-    active.seek_to_bar(request.bar_index)
+    target_bar_index = active.resolve_base_bar_index(request.target_time, request.bar_index)
+    active.seek_to_bar(target_bar_index)
+    if active.current_bar_index < active.total_bars:
+        active.process_bar_at_index(active.current_bar_index)
+        _refresh_session_risk_state(active)
     return {"session_id": session_id, "bar_index": active.current_bar_index}
 
 
@@ -1542,8 +2886,11 @@ async def stop_and_save_session(session_id: int, authorization: str = AUTH_HEADE
         raise HTTPException(status_code=400, detail="Session is not running")
 
     save_succeeded = False
+    risk_snapshot_id: Optional[int] = None
     try:
         backtest_id = active.finalize_for_saved_backtest(user_id)
+        _refresh_session_risk_state(active)
+        risk_snapshot_id = active.persist_current_risk_bundle(backtest_id=backtest_id)
         save_succeeded = True
     except Exception as exc:
         active_sessions[session_id] = active
@@ -1561,6 +2908,8 @@ async def stop_and_save_session(session_id: int, authorization: str = AUTH_HEADE
         "session_id": session_id,
         "status": "saved",
         "backtest_id": backtest_id,
+        "risk_run_id": active.risk_run_id,
+        "risk_snapshot_id": risk_snapshot_id,
     }
 
 

@@ -34,4 +34,8 @@ class PortfolioState:
 
     @property
     def position_map(self) -> Dict[str, float]:
-        return {position.symbol: float(position.lots) for position in self.positions}
+        totals: Dict[str, float] = {}
+        for position in self.positions:
+            symbol = str(position.symbol)
+            totals[symbol] = float(totals.get(symbol, 0.0) + float(position.lots))
+        return totals

@@ -41,6 +41,7 @@ interface OrdersPanelProps {
   orders: OrderRow[]
   digits?: number
   currentPrice?: number
+  currentPricesBySymbol?: Record<string, number>
   onModifyOrder?: (
     orderId: OrderRow["id"],
     payload: { volume?: number; price?: number; sl?: number; tp?: number }
@@ -68,10 +69,7 @@ function formatPrice(value?: number | null, digits = 5) {
 
 function formatTime(value?: string | number | null) {
   if (value === null || value === undefined || value === "") return "--"
-  const date =
-    typeof value === "number"
-      ? new Date(value * 1000)
-      : new Date(value)
+  const date = typeof value === "number" ? new Date(value * 1000) : new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
   return date.toLocaleString([], {
     year: "numeric",
@@ -191,6 +189,7 @@ export function OrdersPanel({
   orders,
   digits = 5,
   currentPrice,
+  currentPricesBySymbol,
   onModifyOrder,
   onDeleteOrder,
 }: OrdersPanelProps) {
@@ -220,6 +219,8 @@ export function OrdersPanel({
     field: "price" | "sl" | "tp",
     newValue: number | null
   ) => {
+    const orderCurrentPrice =
+      currentPricesBySymbol?.[order.symbol] ?? currentPrice ?? null
     const nextPrice = field === "price" ? newValue : order.price
     const nextSl = field === "sl" ? newValue : order.sl
     const nextTp = field === "tp" ? newValue : order.tp
@@ -230,7 +231,7 @@ export function OrdersPanel({
       price: nextPrice,
       sl: nextSl,
       tp: nextTp,
-      currentPrice: currentPrice ?? null,
+      currentPrice: orderCurrentPrice,
       maxVolume: order.volume,
     })
     if (validationError) {
@@ -274,6 +275,8 @@ export function OrdersPanel({
       return
     }
 
+    const orderCurrentPrice =
+      currentPricesBySymbol?.[orderDialog.order.symbol] ?? currentPrice ?? null
     const volume = parseOptionalNumber(orderDialog.volumeInput)
     const price = parseOptionalNumber(orderDialog.priceInput)
     const sl = parseOptionalNumber(orderDialog.slInput)
@@ -305,7 +308,7 @@ export function OrdersPanel({
       price,
       sl,
       tp,
-      currentPrice: currentPrice ?? null,
+      currentPrice: orderCurrentPrice,
       maxVolume: orderDialog.order.volume,
     })
     if (validationError) {
@@ -413,7 +416,12 @@ export function OrdersPanel({
                         onSave={(newVal) => handleInlineSave(order, "tp", newVal)}
                       />
                     </TableCell>
-                    <TableCell>{formatPrice(currentPrice, digits)}</TableCell>
+                    <TableCell>
+                      {formatPrice(
+                        currentPricesBySymbol?.[order.symbol] ?? currentPrice,
+                        digits
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Button
                         size="icon"
@@ -445,12 +453,9 @@ export function OrdersPanel({
           <DialogHeader>
             <DialogTitle>Manage Pending Order</DialogTitle>
             <DialogDescription>
-              {orderDialog.order && (
-                <>
-                  {orderDialog.order.symbol} · {formatOrderType(orderDialog.order.type)} · Ticket #
-                  {orderDialog.order.ticket}
-                </>
-              )}
+              {orderDialog.order
+                ? `${orderDialog.order.symbol} | ${formatOrderType(orderDialog.order.type)} | Ticket #${orderDialog.order.ticket}`
+                : null}
             </DialogDescription>
           </DialogHeader>
 

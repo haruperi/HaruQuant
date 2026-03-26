@@ -15,6 +15,7 @@ from apps.risk.models import (
     SymbolState,
 )
 from apps.risk.limits import RiskLimits
+from apps.risk.metrics.math import symbol_notional_value
 from apps.risk.validators import (
     ValidationSummary,
     validate_account_state,
@@ -125,7 +126,12 @@ class PortfolioStateEngine:
         if limits is not None:
             summary = summary.extend(validate_risk_limits(limits))
 
-        exposures = self._compute_exposures(position_states, symbol_states, market_states)
+        exposures = self._compute_exposures(
+            account_state,
+            position_states,
+            symbol_states,
+            market_states,
+        )
         return PortfolioState(
             account=account_state,
             positions=position_states,
@@ -414,33 +420,22 @@ class PortfolioStateEngine:
 
     def _compute_exposures(
         self,
+        account_state: AccountState,
         positions: List[PositionState],
         symbol_states: Dict[str, SymbolState],
         market_states: Dict[str, MarketState],
     ) -> Dict[str, float]:
+        temp_state = PortfolioState(
+            account=account_state,
+            positions=positions,
+            symbols=symbol_states,
+            markets=market_states,
+        )
         exposures: Dict[str, float] = {}
-
         for position in positions:
-            spec = symbol_states.get(position.symbol)
-            market = market_states.get(position.symbol)
-            if spec is None or market is None:
-                continue
-
-            price = market.last_close
-            if price is None:
-                continue
-
-            if spec.contract_size and spec.contract_size > 0:
-                exposures[position.symbol] = float(position.lots * spec.contract_size * price)
-            elif (
-                spec.tick_value
-                and spec.tick_value > 0
-                and spec.tick_size
-                and spec.tick_size > 0
-            ):
-                value_per_price_unit = spec.tick_value / spec.tick_size
-                exposures[position.symbol] = float(position.lots * value_per_price_unit * price)
-
+            exposures[position.symbol] = float(
+                symbol_notional_value(temp_state, position.symbol, position.lots)
+            )
         return exposures
 
     def _infer_as_of(self, bars: pd.DataFrame) -> Optional[pd.Timestamp]:

@@ -41,6 +41,7 @@ export default function SimulationPage() {
   const [toolView, setToolView] = useState<ToolView>("simulator")
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [sessionConfig, setSessionConfig] = useState<SimulationConfig | null>(null)
+  const [sessionResponse, setSessionResponse] = useState<SimulationStartResponse | null>(null)
   const [totalBars, setTotalBars] = useState<number>(0)
   const [symbolDigits, setSymbolDigits] = useState<number>(5)
   const [trades, setTrades] = useState<SimulationTrade[]>([])
@@ -49,6 +50,7 @@ export default function SimulationPage() {
   const handleStart = (id: number, config: SimulationConfig, response?: SimulationStartResponse) => {
     setSessionId(id)
     setSessionConfig(config)
+    setSessionResponse(response || null)
     setTotalBars(response?.total_bars || config.number_of_bars || 500)
     setSymbolDigits(response?.symbol_digits || 5)
     setTrades([])
@@ -59,6 +61,7 @@ export default function SimulationPage() {
   const handleResume = (id: number) => {
     setSessionId(id)
     setSessionConfig(null)
+    setSessionResponse(null)
     setTotalBars(0)
     setTrades([])
     setFinalAccount(null)
@@ -69,6 +72,7 @@ export default function SimulationPage() {
     setView("config")
     setSessionId(null)
     setSessionConfig(null)
+    setSessionResponse(null)
     setTotalBars(0)
     setTrades([])
     setFinalAccount(null)
@@ -129,6 +133,7 @@ export default function SimulationPage() {
         <SimulationExecutionView
           sessionId={sessionId}
           config={sessionConfig}
+          sessionResponse={sessionResponse}
           totalBars={totalBars}
           symbolDigits={symbolDigits}
           onComplete={handleComplete}
