@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   Database,
   BrainCircuit,
-  LineChart,
   Activity,
   BarChart,
   Settings,
@@ -54,12 +53,6 @@ const routes = [
       icon: BrainCircuit,
       href: "/strategies",
       color: "text-pink-700",
-    },
-    {
-      label: "Backtest",
-      icon: LineChart,
-      href: "/backtest",
-      color: "text-orange-700",
     },
     {
       label: "Simulation",

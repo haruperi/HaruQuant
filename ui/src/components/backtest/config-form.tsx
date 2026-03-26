@@ -33,6 +33,9 @@ import { toast } from "sonner"
 import { useStrategies } from "@/lib/use-strategies"
 import { backtestApi } from "@/lib/api/backtest"
 import { useSearchParams } from "next/navigation"
+import { StrategySelector } from "@/components/historical-run/strategy-selector"
+import { RangeModeSelector } from "@/components/historical-run/range-mode-selector"
+import { WarmupControls } from "@/components/historical-run/warmup-controls"
 
 interface BacktestConfigFormProps {
     onSubmit: (backtestId: number, strategyId: number) => void
@@ -218,23 +221,15 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                 </CardHeader>
                 <CardContent className="grid gap-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="strategy">Strategy</Label>
-                            <Select
-                                value={config.strategyId}
-                                onValueChange={(val) => setConfig({...config, strategyId: val})}
-                                disabled={loadingStrategies}
-                            >
-                                <SelectTrigger id="strategy">
-                                    <SelectValue placeholder={loadingStrategies ? "Loading strategies..." : "Select Strategy"} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {strategies.map(s => (
-                                        <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <StrategySelector
+                            id="strategy"
+                            label="Strategy"
+                            value={config.strategyId}
+                            onValueChange={(val) => setConfig({...config, strategyId: val})}
+                            strategies={strategies}
+                            loading={loadingStrategies}
+                            placeholder="Select Strategy"
+                        />
                         <div className="space-y-2">
                             <Label htmlFor="timeframe">Timeframe</Label>
                             <Select
@@ -526,21 +521,11 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="rangeBy">Range By</Label>
-                            <Select
-                                value={rangeBy}
-                                onValueChange={(val) => setRangeBy(val as "dates" | "bars")}
-                            >
-                                <SelectTrigger id="rangeBy">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="dates">Dates</SelectItem>
-                                    <SelectItem value="bars">Bars</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <RangeModeSelector
+                            value={rangeBy}
+                            onValueChange={(val) => setRangeBy(val)}
+                            variant="select"
+                        />
                         {rangeBy === "dates" ? (
                             <>
                                 <div className="space-y-2 flex flex-col">
@@ -615,72 +600,14 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
                         )}
                     </div>
 
-                    {/* Warmup Period Configuration */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                        <div className="space-y-2">
-                            <Label htmlFor="warmupBy">Warmup Period</Label>
-                            <Select
-                                value={warmupBy}
-                                onValueChange={(val) => setWarmupBy(val as "date" | "bars")}
-                            >
-                                <SelectTrigger id="warmupBy">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="date">By Date</SelectItem>
-                                    <SelectItem value="bars">By Bars</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        {warmupBy === "date" ? (
-                            <div className="space-y-2 flex flex-col md:col-span-2">
-                                <Label>Warmup Start Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full justify-start text-left font-normal",
-                                                !warmupStartDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {warmupStartDate ? format(warmupStartDate, "PPP") : <span>Pick a date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={warmupStartDate}
-                                            onSelect={setWarmupStartDate}
-                                            initialFocus
-                                            captionLayout="dropdown"
-                                            fromYear={2000}
-                                            toYear={new Date().getFullYear() + 1}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <p className="text-xs text-muted-foreground">
-                                    Data will be downloaded from this date to calculate indicators, but trading starts at the Start Date
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="warmupBars">Warmup Bars</Label>
-                                <Input
-                                    id="warmupBars"
-                                    type="number"
-                                    min="0"
-                                    placeholder="e.g. 100"
-                                    value={warmupBars}
-                                    onChange={(e) => setWarmupBars(parseInt(e.target.value) || 0)}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Number of bars before the trading period to use for indicator warmup
-                                </p>
-                            </div>
-                        )}
-                    </div>
+                    <WarmupControls
+                        warmupBy={warmupBy}
+                        onWarmupByChange={setWarmupBy}
+                        warmupStartDate={warmupStartDate}
+                        onWarmupStartDateChange={setWarmupStartDate}
+                        warmupBars={warmupBars}
+                        onWarmupBarsChange={setWarmupBars}
+                    />
                 </CardContent>
             </Card>
 

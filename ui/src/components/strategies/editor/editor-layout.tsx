@@ -226,10 +226,14 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
                     <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => router.push(`/backtest?strategyId=${strategyId}`)}
+                        onClick={() =>
+                            router.push(
+                                `/simulation?execution=batch&source=strategy&strategyId=${strategyId}`
+                            )
+                        }
                     >
                          <Play className="mr-2 h-4 w-4" />
-                         Backtest
+                         Run Batch
                     </Button>
                 </div>
             </div>

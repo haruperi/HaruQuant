@@ -24,7 +24,12 @@ import {
   EngineSettings,
   type EngineSettingsValues,
 } from "@/components/backtest/engine-settings"
+import { StrategyParametersCard } from "@/components/historical-run/strategy-parameters-card"
+import { RangeModeSelector } from "@/components/historical-run/range-mode-selector"
+import { RunSourceSelector } from "@/components/historical-run/run-source-selector"
+import { StrategySelector } from "@/components/historical-run/strategy-selector"
 import { getErrorMessage } from "@/lib/api-error"
+import { strategyApi, type StrategyCodeResponse } from "@/lib/api/strategies"
 import { useAllBacktests, useStrategies } from "@/lib/use-strategies"
 import simulatorApi, {
   type ReplaySource,
@@ -121,6 +126,10 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
 
   const [mode, setMode] = useState<SimulationMode>("manual")
   const [strategyId, setStrategyId] = useState("")
+  const [strategyVersionId, setStrategyVersionId] = useState<number | undefined>(undefined)
+  const [strategyParams, setStrategyParams] = useState<Record<string, unknown>>({})
+  const [strategyParameterTypes, setStrategyParameterTypes] = useState<Record<string, string>>({})
+  const [loadingStrategyParams, setLoadingStrategyParams] = useState(false)
   const [replaySource, setReplaySource] = useState<ReplaySource>("backtest")
   const [replayBacktestId, setReplayBacktestId] = useState("")
   const [replayFileName, setReplayFileName] = useState("")
@@ -168,6 +177,40 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     }))
   }, [timeframe])
 
+  useEffect(() => {
+    const selectedStrategy = strategies.find((item) => item.id === Number(strategyId))
+    if (!selectedStrategy?.active_version_id) {
+      setStrategyVersionId(undefined)
+      setStrategyParams({})
+      setStrategyParameterTypes({})
+      return
+    }
+
+    const loadStrategyParameters = async () => {
+      try {
+        setLoadingStrategyParams(true)
+        const versionCode: StrategyCodeResponse = await strategyApi.getVersionCode(
+          selectedStrategy.id,
+          selectedStrategy.active_version_id as number
+        )
+        setStrategyVersionId(versionCode.version_id)
+        setStrategyParams({ ...(versionCode.parameters || {}) })
+        setStrategyParameterTypes({ ...(versionCode.parameterTypes || {}) })
+      } catch (error) {
+        setStrategyVersionId(selectedStrategy.active_version_id ?? undefined)
+        setStrategyParams({})
+        setStrategyParameterTypes({})
+        toast.error("Failed to load strategy parameters", {
+          description: getErrorMessage(error),
+        })
+      } finally {
+        setLoadingStrategyParams(false)
+      }
+    }
+
+    void loadStrategyParameters()
+  }, [strategyId, strategies])
+
   const pausedOptions = useMemo(() => {
     return pausedSessions.map((session) => {
       const name = session.session_name || `Session ${session.session_id}`
@@ -178,6 +221,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
       }
     })
   }, [pausedSessions])
+  const symbolCount = symbol.split(",").map((item) => item.trim()).filter(Boolean).length
 
   const handleStart = async () => {
     if (!symbol) {
@@ -247,6 +291,8 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
 
     if (mode === "strategy") {
       config.strategy_id = Number(strategyId)
+      config.strategy_version_id = strategyVersionId
+      config.strategy_params = strategyParams
     }
 
     if (mode === "replay") {
@@ -444,9 +490,14 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                 placeholder="EURUSD or EURUSD, GBPUSD"
               />
-              {symbol.includes(",") && (
+              {symbolCount > 1 && symbolCount <= 4 && (
                 <p className="text-xs text-muted-foreground">
-                  Portfolio mode: {symbol.split(",").map((item) => item.trim()).filter(Boolean).length} symbols
+                  Visualized simulation will render {symbolCount} charts, one per symbol.
+                </p>
+              )}
+              {symbolCount > 4 && (
+                <p className="text-xs text-muted-foreground">
+                  Visualized simulation will switch to table view when more than 4 symbols are entered.
                 </p>
               )}
             </div>
@@ -469,29 +520,12 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Mode</Label>
-              <ToggleGroup
-                type="single"
-                value={mode}
-                onValueChange={(val) => val && setMode(val as SimulationMode)}
-              >
-                <ToggleGroupItem value="manual">Manual</ToggleGroupItem>
-                <ToggleGroupItem value="strategy">Strategy</ToggleGroupItem>
-                <ToggleGroupItem value="replay">Replay</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-            <div className="space-y-2">
-              <Label>Range By</Label>
-              <ToggleGroup
-                type="single"
-                value={rangeBy}
-                onValueChange={(val) => val && setRangeBy(val as "dates" | "bars")}
-              >
-                <ToggleGroupItem value="dates">Dates</ToggleGroupItem>
-                <ToggleGroupItem value="bars">Bars</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
+            <RunSourceSelector value={mode} onValueChange={setMode} />
+            <RangeModeSelector
+              value={rangeBy}
+              onValueChange={setRangeBy}
+              variant="toggle"
+            />
           </div>
 
           {rangeBy === "dates" ? (
@@ -531,33 +565,34 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
       </Card>
 
       {mode === "strategy" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Strategy Selection</CardTitle>
-            <CardDescription>Select a strategy to execute.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="strategyId">Strategy</Label>
-              <Select
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Strategy Selection</CardTitle>
+              <CardDescription>Select a strategy to execute.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <StrategySelector
+                id="strategyId"
                 value={strategyId}
                 onValueChange={setStrategyId}
-                disabled={loadingStrategies}
-              >
-                <SelectTrigger id="strategyId">
-                  <SelectValue placeholder={loadingStrategies ? "Loading..." : "Select strategy"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {strategies.map((strategy) => (
-                    <SelectItem key={strategy.id} value={strategy.id.toString()}>
-                      {strategy.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+                strategies={strategies}
+                loading={loadingStrategies}
+              />
+            </CardContent>
+          </Card>
+          <StrategyParametersCard
+            values={strategyParams}
+            parameterTypes={strategyParameterTypes}
+            loading={loadingStrategyParams}
+            onChange={(key, value) =>
+              setStrategyParams((prev) => ({
+                ...prev,
+                [key]: value,
+              }))
+            }
+          />
+        </>
       )}
 
       {mode === "replay" && (

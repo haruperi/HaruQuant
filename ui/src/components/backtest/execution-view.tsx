@@ -95,6 +95,7 @@ export function BacktestExecutionView({ backtestId, strategyId, onCancel, onComp
                 // Update status
                 if (backtest.status === "completed") {
                     setStatus("completed")
+                    addLog("Backtest completed. Opening performance report...", "SUCCESS")
                     clearInterval(pollInterval)
                     // Close WebSocket
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -103,6 +104,7 @@ export function BacktestExecutionView({ backtestId, strategyId, onCancel, onComp
                     setTimeout(onComplete, 1000)
                 } else if (backtest.status === "failed") {
                     setStatus("failed")
+                    addLog("Backtest failed. Review logs for details.", "ERROR")
                     clearInterval(pollInterval)
                     // Close WebSocket
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -149,13 +151,25 @@ export function BacktestExecutionView({ backtestId, strategyId, onCancel, onComp
         <Card className="w-full">
             <CardHeader>
                 <CardTitle className="flex justify-between items-center">
-                    <span>Running Backtest...</span>
+                    <span>
+                        {status === "completed"
+                            ? "Backtest Completed"
+                            : status === "failed"
+                                ? "Backtest Failed"
+                                : "Running Backtest..."}
+                    </span>
                     <Button variant="destructive" size="sm" onClick={handleCancel} disabled={status !== "running"}>
                         <X className="mr-2 h-4 w-4" />
                         Abort
                     </Button>
                 </CardTitle>
-                <CardDescription>Simulating historical processing.</CardDescription>
+                <CardDescription>
+                    {status === "completed"
+                        ? "Batch runs are already persisted as backtests and will open the performance report automatically."
+                        : status === "failed"
+                            ? "The backtest did not complete successfully."
+                            : "Simulating historical processing."}
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {/* Progress Section */}

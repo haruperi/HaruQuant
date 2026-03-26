@@ -41,6 +41,8 @@ export function SimulationResultsView({
   const router = useRouter()
   const [session, setSession] = useState<SimulationSession | null>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savedBacktestId, setSavedBacktestId] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -57,6 +59,23 @@ export function SimulationResultsView({
 
     fetchSession()
   }, [sessionId])
+
+  const handleSaveAsBacktest = async () => {
+    try {
+      setSaving(true)
+      const result = await simulatorApi.stopAndSaveSession(sessionId)
+      setSavedBacktestId(result.backtest_id)
+      toast.success("Simulation saved as backtest", {
+        description: `Backtest ${result.backtest_id}`,
+      })
+    } catch (error) {
+      toast.error("Failed to save simulation", {
+        description: error instanceof Error ? error.message : "An error occurred",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const metrics = useMemo(() => {
     const totalTrades = trades.length
@@ -98,11 +117,27 @@ export function SimulationResultsView({
           <p className="text-sm text-muted-foreground">
             Session {sessionId} {session?.symbol ? `- ${session.symbol}` : ""}
           </p>
+          <p className="text-xs text-muted-foreground">
+            Visualized runs can be saved as completed backtests for the same downstream reporting flow used by batch runs.
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/performance")}>
-            View Detailed Report
-          </Button>
+          {savedBacktestId ? (
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/performance?selected=${savedBacktestId}`)}
+            >
+              Open Saved Backtest Report
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={handleSaveAsBacktest}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save As Backtest"}
+            </Button>
+          )}
           <Button onClick={onBack}>New Simulation</Button>
         </div>
       </div>

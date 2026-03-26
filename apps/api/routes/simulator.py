@@ -67,6 +67,22 @@ def _object_to_dict(value: Any) -> dict:
         return {}
 
 
+def _json_safe_value(value: Any) -> Any:
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            return None
+        return numeric
+    return value
+
+
+def _json_safe_dict(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        str(key): _json_safe_value(value)
+        for key, value in payload.items()
+    }
+
+
 class _EngineSimulatorFacade:
     def __init__(self, engine: Engine):
         self._simulator = engine
@@ -214,9 +230,12 @@ class SimulatorSession:
         self.speed_multiplier = float(self.config.get("speed_multiplier", 1.0) or 1.0)
         self.current_bar_index = int(self.config.get("current_bar_index", 0) or 0)
         self.total_bars = 0
+        self.visible_start_bar_index = 0
+        self.visible_start_tick_index = 0
         self.symbol_digits = 5
         self.paused = False
         self.strategy = None
+        self.strategies_by_symbol: Dict[str, Any] = {}
         self.replay_trades = []
         self.data = None
         self.tick_data = None
@@ -355,8 +374,16 @@ class SimulatorSession:
 
     def set_strategy(self, strategy_instance):
         self.strategy = strategy_instance
+        self.strategies_by_symbol = {}
         if hasattr(self.strategy, "on_init"):
             self.strategy.on_init()
+
+    def set_strategy_map(self, strategies_by_symbol: Dict[str, Any]):
+        self.strategy = None
+        self.strategies_by_symbol = dict(strategies_by_symbol or {})
+        for strategy_instance in self.strategies_by_symbol.values():
+            if hasattr(strategy_instance, "on_init"):
+                strategy_instance.on_init()
 
     def set_replay_trades(self, trades):
         self.replay_trades = list(trades or [])
@@ -373,6 +400,30 @@ class SimulatorSession:
             "W1": 604800,
         }
         return int(mapping.get(str(self.config.get("timeframe", "M1")).upper(), 60))
+
+    def _parse_config_datetime(self, value: Any):
+        if not value:
+            return None
+        text = str(value)
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+
+    def _initial_load_window(self) -> tuple[Optional[int], Optional[datetime], Optional[datetime]]:
+        number_of_bars = self.config.get("number_of_bars")
+        start_time = self._parse_config_datetime(self.config.get("start_time"))
+        end_time = self._parse_config_datetime(self.config.get("end_time"))
+        warmup_by = str(self.config.get("warmup_by", "date") or "date").lower()
+        warmup_bars = int(self.config.get("warmup_bars", 0) or 0)
+        warmup_start_time = self._parse_config_datetime(self.config.get("warmup_start_date"))
+
+        load_count = int(number_of_bars) if number_of_bars else None
+        if load_count is not None and warmup_by == "bars" and warmup_bars > 0:
+            load_count += warmup_bars
+
+        load_start_time = start_time
+        if load_count is None and warmup_by == "date" and warmup_start_time is not None:
+            load_start_time = warmup_start_time
+
+        return load_count, load_start_time, end_time
 
     def _load_auxiliary_step_data(self, symbol: str, data, data_mode: str):
         if data is None or data.empty:
@@ -428,11 +479,7 @@ class SimulatorSession:
     def load_historical_bars(self):
         data_mode = _resolve_modelling(self.config.get("data_resolution"))
         timeframe = str(self.config.get("timeframe", "M1") or "M1")
-        number_of_bars = self.config.get("number_of_bars")
-        start_time = self.config.get("start_time")
-        end_time = self.config.get("end_time")
-        if len(self.symbols) > 1 and self.strategy is not None:
-            raise ValueError("Multi-symbol strategy simulation is not supported yet.")
+        load_count, load_start_time, load_end_time = self._initial_load_window()
 
         merged_ticks = []
         self.data_by_symbol = {}
@@ -441,26 +488,25 @@ class SimulatorSession:
         self._bar_first_tick_index = {}
 
         for symbol in self.symbols:
-            if number_of_bars:
+            if load_count:
                 data = self.engine.client.get_bars(
                     symbol=symbol,
                     timeframe=timeframe,
-                    count=int(number_of_bars),
+                    count=int(load_count),
                 )
             else:
-                date_from = datetime.fromisoformat(start_time.replace("Z", "+00:00")) if start_time else None
-                date_to = datetime.fromisoformat(end_time.replace("Z", "+00:00")) if end_time else None
                 data = self.engine.client.get_bars(
                     symbol=symbol,
                     timeframe=timeframe,
-                    date_from=date_from,
-                    date_to=date_to,
+                    date_from=load_start_time,
+                    date_to=load_end_time,
                 )
             if data is None or data.empty:
                 raise ValueError(f"No historical bars loaded for simulator session: {symbol}")
             data = DataValidator.prepare_data(data)
-            if self.strategy is not None and hasattr(self.strategy, "on_bar"):
-                data = self.strategy.on_bar(data)
+            strategy_instance = self.strategies_by_symbol.get(symbol) or self.strategy
+            if strategy_instance is not None and hasattr(strategy_instance, "on_bar"):
+                data = strategy_instance.on_bar(data)
             self.data_by_symbol[symbol] = data
 
             step_data = self._load_auxiliary_step_data(symbol, data, data_mode)
@@ -475,6 +521,7 @@ class SimulatorSession:
             raise ValueError("No ticks generated for simulator session")
 
         self.data = self.data_by_symbol.get(self.symbols[0])
+        self._apply_visible_start_offset()
         self.tick_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
         for tick_index, (_, tick_row) in enumerate(self.tick_data.iterrows()):
             symbol = str(tick_row.get("_symbol", "") or "")
@@ -484,6 +531,14 @@ class SimulatorSession:
         self.total_bars = len(self.tick_data)
         if self.total_bars <= 0:
             raise ValueError("No ticks generated for simulator session")
+        visible_tick_indices = [
+            int(self._bar_first_tick_index[(symbol, self.visible_start_bar_index)])
+            for symbol in self.symbols
+            if (symbol, self.visible_start_bar_index) in self._bar_first_tick_index
+        ]
+        self.visible_start_tick_index = min(visible_tick_indices) if visible_tick_indices else 0
+        if self.config.get("current_bar_index") in (None, ""):
+            self.current_bar_index = self.visible_start_tick_index
         self.current_bar_index = max(0, min(self.current_bar_index, self.total_bars - 1))
         try:
             timeline = self.timeline_reconstructor.build_timeline(
@@ -496,6 +551,26 @@ class SimulatorSession:
             )
         except Exception:
             self.timeline_signature = "timestamp:empty"
+
+    def _apply_visible_start_offset(self):
+        base_data = self.data_by_symbol.get(self.symbols[0]) if self.symbols else self.data
+        if base_data is None or base_data.empty:
+            self.visible_start_bar_index = 0
+            return
+
+        visible_start_bar_index = 0
+        number_of_bars = self.config.get("number_of_bars")
+        warmup_by = str(self.config.get("warmup_by", "date") or "date").lower()
+        warmup_bars = int(self.config.get("warmup_bars", 0) or 0)
+
+        if number_of_bars and warmup_by == "bars" and warmup_bars > 0:
+            visible_start_bar_index = warmup_bars
+        elif self.config.get("start_time"):
+            target_dt = self._parse_config_datetime(self.config.get("start_time"))
+            if target_dt is not None:
+                visible_start_bar_index = int(base_data.index.searchsorted(pd.Timestamp(target_dt), side="left"))
+
+        self.visible_start_bar_index = max(0, min(visible_start_bar_index, len(base_data.index) - 1))
 
     def _bar_row(self, index: int):
         if self.data is None or index < 0 or index >= len(self.data):
@@ -564,7 +639,7 @@ class SimulatorSession:
             low_price = float(bid_values.min())
             close_price = float(bid_values.iloc[-1])
 
-        payload = row.to_dict()
+        payload = _json_safe_dict(row.to_dict())
         payload["open"] = open_price
         payload["high"] = high_price
         payload["low"] = low_price
@@ -699,7 +774,7 @@ class SimulatorSession:
             if str(key) in excluded:
                 continue
             if isinstance(value, (int, float, str, bool)) or value is None:
-                out[str(key)] = value
+                out[str(key)] = _json_safe_value(value)
         return out
 
     def execute_trade(self, request: Dict[str, Any]):
@@ -1290,8 +1365,13 @@ class SimulatorSession:
         symbol = str(self.config.get("symbol", "") or "")
         timeframe = str(self.config.get("timeframe", "M1") or "M1")
         alias = str(
-            self.config.get("session_name")
+            self.config.get("alias")
+            or self.config.get("session_name")
             or f"Saved Simulation - {symbol} {timeframe}"
+        )
+        description = str(
+            self.config.get("description")
+            or f"Saved from simulation session {self.session_id}"
         )
 
         backtest_id = db_manager.create_backtest_run(
@@ -1308,7 +1388,7 @@ class SimulatorSession:
             timeframes=[timeframe],
             initial_balance=float(self.config.get("initial_balance", 10000.0) or 10000.0),
             alias=alias,
-            description=f"Saved from simulation session {self.session_id}",
+            description=description,
         )
 
         completed_trades = self.engine.get_completed_trades()
@@ -1335,6 +1415,12 @@ class SimulatorSession:
     def save_state(self):
         self.db.update_simulation_session(self.session_id, current_bar_index=self.current_bar_index)
 
+    def visible_total_steps(self) -> int:
+        return max(0, int(self.total_bars - self.visible_start_tick_index))
+
+    def visible_current_step(self) -> int:
+        return max(0, int(self.current_bar_index - self.visible_start_tick_index))
+
     def resolve_base_bar_index(self, target_time: Optional[str], fallback_index: Optional[int]) -> int:
         base_data = self.data_by_symbol.get(self.symbols[0]) if self.symbols else self.data
         if base_data is None or base_data.empty:
@@ -1348,11 +1434,12 @@ class SimulatorSession:
                 bar_index = int(base_data.index.searchsorted(target_dt, side="left"))
                 if bar_index >= len(base_data.index):
                     return len(base_data.index) - 1
-                return max(0, bar_index)
+                return max(self.visible_start_bar_index, bar_index)
             except Exception:
                 pass
 
-        return max(0, min(int(fallback_index or 0), len(base_data.index) - 1))
+        visible_index = self.visible_start_bar_index + int(fallback_index or 0)
+        return max(self.visible_start_bar_index, min(visible_index, len(base_data.index) - 1))
 
     def seek_to_bar(self, index: int):
         base_data = self.data_by_symbol.get(self.symbols[0]) if self.symbols else self.data
@@ -1871,9 +1958,13 @@ class SimulationStartRequest(BaseModel):
     session_name: Optional[str] = None
     symbol: str
     timeframe: str = "M1"
+    range_by: Optional[str] = "bars"  # "dates" or "bars"
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     number_of_bars: Optional[int] = None
+    warmup_by: Optional[str] = "date"  # "date" or "bars"
+    warmup_start_date: Optional[str] = None
+    warmup_bars: Optional[int] = None
     initial_balance: float = 10000.0
     speed_multiplier: float = 1.0
     commission: float = 7.0
@@ -1886,7 +1977,22 @@ class SimulationStartRequest(BaseModel):
     spread: float = 20.0
     spread_min: float = 10.0
     spread_max: float = 50.0
+    data_source: Optional[str] = "mt5"
     data_resolution: str = "trading_timeframe"
+    position_sizing_method: Optional[str] = "fixed_lot"
+    lot_size: float = 0.1
+    risk_percent: float = 1.0
+    base_lot_size: float = 0.1
+    milestone_amount: float = 3000.0
+    lot_increment: float = 0.2
+    kelly_fraction_limit: float = 0.25
+    fraction: float = 2.0
+    fractional_factor: float = 2.0
+    use_dynamic_stop_loss: bool = False
+    atr_multiplier: float = 2.0
+    win_rate: float = 0.55
+    avg_win: float = 150.0
+    avg_loss: float = 100.0
     risk_confidence_level: float = 0.95
     risk_horizon_unit: str = "days"
     risk_horizon_value: int = 1
@@ -1909,6 +2015,8 @@ class SimulationStartRequest(BaseModel):
     replay_source: Optional[str] = None  # backtest | csv
     replay_backtest_id: Optional[int] = None
     replay_file_name: Optional[str] = None
+    alias: Optional[str] = None
+    description: Optional[str] = None
 
     sma_period: Optional[int] = 14
     ema_period: Optional[int] = 14
@@ -2058,13 +2166,21 @@ async def start_simulation(
                 if request.strategy_version_id
                 else _resolve_strategy_version_id(request.strategy_id)
             )
-            strategy_class = _load_strategy_class(
+            _, _, strategy_class = _load_strategy_class(
                 user_id, request.strategy_id, version_id
             )
-            params = request.strategy_params or {}
-            params.setdefault("symbol", request.symbol)
-            strategy_instance = strategy_class(params=params)
-            session.set_strategy(strategy_instance)
+            if len(session.symbols) > 1:
+                strategies_by_symbol = {}
+                for symbol in session.symbols:
+                    params = dict(request.strategy_params or {})
+                    params["symbol"] = symbol
+                    strategies_by_symbol[symbol] = strategy_class(params=params)
+                session.set_strategy_map(strategies_by_symbol)
+            else:
+                params = dict(request.strategy_params or {})
+                params.setdefault("symbol", request.symbol)
+                strategy_instance = strategy_class(params=params)
+                session.set_strategy(strategy_instance)
 
         if request.mode == "replay":
             if request.replay_source == "csv" and not request.replay_backtest_id:
@@ -2085,6 +2201,7 @@ async def start_simulation(
             total_bars=session.total_bars,
             status="running",
             speed_multiplier=request.speed_multiplier,
+            current_bar_index=session.current_bar_index,
         )
 
         active_sessions[session_id] = session
@@ -2100,7 +2217,7 @@ async def start_simulation(
         return {
             "session_id": session_id,
             "status": "running",
-            "total_bars": session.total_bars,
+            "total_bars": session.visible_total_steps(),
             "symbol_digits": session.symbol_digits,
             "risk_run_id": session.risk_run_id,
             "account_leverage": session.engine.account_info().get("leverage"),
@@ -2211,11 +2328,11 @@ async def get_bar(session_id: int, bar_index: int, authorization: str = AUTH_HEA
     return {
         "bar": bar,
         "index": bar_index,
-        "total_bars": active.total_bars,
+        "total_bars": active.visible_total_steps(),
         "digits": active.symbol_digits,
         "account": account,
         "indicators": indicators,
-        "completed": bar_index >= active.total_bars - 1,
+        "completed": active.visible_current_step() >= max(active.visible_total_steps() - 1, 0),
     }
 
 
@@ -2243,8 +2360,8 @@ async def advance_bars(
 
     return {
         "bars": bars,
-        "current_index": active.current_bar_index,
-        "total_bars": active.total_bars,
+        "current_index": active.visible_current_step(),
+        "total_bars": active.visible_total_steps(),
         "digits": active.symbol_digits,
         "completed": active.current_bar_index >= active.total_bars,
         "positions": positions,
@@ -2334,7 +2451,6 @@ async def execute_trade(
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
-    _refresh_session_risk_state(active)
 
     positions, orders = _collect_positions_orders(active)
 
@@ -2343,10 +2459,10 @@ async def execute_trade(
         "trade": trade,
         "positions": positions,
         "orders": orders,
-        "governance": active.get_governance_report() or (_serialize_governance_report(governance) if governance is not None else None),
-        "risk_snapshot": active.get_risk_summary(),
-        "risk_scorecard": active.get_risk_score_summary(),
-        "recommendations": active.get_recommendation_summary(),
+        "governance": _serialize_governance_report(governance) if governance is not None else active.get_governance_report(),
+        "risk_snapshot": None,
+        "risk_scorecard": None,
+        "recommendations": None,
     }
 
 
@@ -2390,7 +2506,6 @@ async def place_pending_order(
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
-    _refresh_session_risk_state(active)
 
     positions, orders = _collect_positions_orders(active)
 
@@ -2398,10 +2513,10 @@ async def place_pending_order(
         "order": order,
         "positions": positions,
         "orders": orders,
-        "governance": active.get_governance_report() or (_serialize_governance_report(governance) if governance is not None else None),
-        "risk_snapshot": active.get_risk_summary(),
-        "risk_scorecard": active.get_risk_score_summary(),
-        "recommendations": active.get_recommendation_summary(),
+        "governance": _serialize_governance_report(governance) if governance is not None else active.get_governance_report(),
+        "risk_snapshot": None,
+        "risk_scorecard": None,
+        "recommendations": None,
     }
 
 
@@ -2854,7 +2969,7 @@ async def seek_session(
     if active.current_bar_index < active.total_bars:
         active.process_bar_at_index(active.current_bar_index)
         _refresh_session_risk_state(active)
-    return {"session_id": session_id, "bar_index": active.current_bar_index}
+    return {"session_id": session_id, "bar_index": active.visible_current_step()}
 
 
 @router.delete("/{session_id}")

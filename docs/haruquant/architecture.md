@@ -1,5 +1,33 @@
 # HaruQuant Architecture Notes
 
+## Simulation Unified Run Model
+
+- `/simulation` is now the single canonical frontend route for manual, strategy, replay, and batch historical execution.
+- Visualized simulation now honors warmup inputs for manual, strategy, and replay runs:
+  - warmup history is loaded into the simulator state before the visible run start
+  - indicators and risk math such as VaR/CVaR can use that hidden preload history immediately at the first visible bar
+  - the chart and session step counter still begin at the requested visible `start date` or visible bar range rather than showing the warmup segment
+- The unified model has two top-level dimensions:
+  - `Run Source`: `manual | strategy | replay`
+  - `Execution Mode`: `visualized | batch`
+- The execution-mode contract is:
+  - `visualized` uses the simulator-style interactive session flow with charting, live panels, and optional manual trade intervention
+  - `batch` uses the backtest-style non-visual historical run flow with async execution, progress/log streaming, and persisted result output
+- Phase 1 scope is intentionally narrow:
+  - `visualized` manual and replay runs support multiple comma-separated symbols on `/simulation`
+  - the visual layout uses one chart for one symbol, a chart grid for 2-4 symbols, and a table-style market view for larger symbol sets
+  - `visualized` strategy execution also supports multiple symbols by instantiating one strategy runtime per symbol before merging the simulator tick timeline
+  - no immediate backend endpoint merge is required
+- The merge priority is product orchestration first:
+  - unify the user-facing run model and config surface
+  - reuse the current simulator execution view for `visualized`
+  - reuse the current backtest execution view for `batch`
+  - defer deeper engine consolidation until the shared workflow is stable
+- The previous interim `/historical-run` and legacy `/backtest` frontend routes have been retired.
+- Preset entry behavior now happens through `/simulation` query parameters instead:
+  - `?execution=visualized&source=manual`
+  - `?execution=batch&source=strategy`
+
 ## Risk Engine Canonical State Foundation
 
 - The `/simulation` page now exposes session-local risk inputs for descriptive snapshot math:
@@ -57,6 +85,10 @@
   - evaluates it through `apps/risk/core/governance_engine.py`
   - rejects with a structured `409` governance payload when limits are breached
   - accepts normally but can still return governance warnings for the UI to display
+- The manual trade and pending-order click path is intentionally optimized for responsiveness:
+  - pre-trade governance still runs before execution
+  - the expensive descriptive rebuild of risk snapshot, scorecard, and recommendations is deferred to the normal session refresh cycle (`/advance`, `/positions`, and other state refresh endpoints)
+  - this keeps buy/sell entry near-instant while preserving risk gating
 - `/simulation` now also evaluates ongoing portfolio governance continuously:
   - after frame advances
   - after `/positions` refreshes
