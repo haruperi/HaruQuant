@@ -20,6 +20,48 @@ def _effective_single_rc_threshold(
     return max(0.0, average_contribution + float(buffer_frac))
 
 
+def _effective_currency_weight_threshold(
+    currency_exposure: Optional[Dict[str, float]],
+    buffer_frac: float,
+) -> float:
+    if not currency_exposure:
+        return max(0.0, float(buffer_frac))
+    active_count = _active_currency_count(currency_exposure)
+    if active_count <= 0:
+        return max(0.0, float(buffer_frac))
+    average_contribution = 1.0 / float(active_count)
+    return max(0.0, average_contribution * (1.0 + float(buffer_frac)))
+
+
+def _active_currency_count(currency_exposure: Optional[Dict[str, float]]) -> int:
+    if not currency_exposure:
+        return 0
+    return sum(
+        1
+        for value in currency_exposure.values()
+        if abs(float(value or 0.0)) > 1e-12
+    )
+
+
+def _normalized_currency_weight_map(
+    currency_exposure: Optional[Dict[str, float]],
+) -> Dict[str, float]:
+    if not currency_exposure:
+        return {}
+    absolute_map = {
+        str(currency): abs(float(value or 0.0))
+        for currency, value in currency_exposure.items()
+        if abs(float(value or 0.0)) > 1e-12
+    }
+    total_absolute = float(sum(absolute_map.values()))
+    if total_absolute <= 0.0:
+        return {}
+    return {
+        currency: float(value) / total_absolute
+        for currency, value in absolute_map.items()
+    }
+
+
 def _normalized_absolute_rc_map(rc_map_new: Optional[Dict[str, float]]) -> Dict[str, float]:
     if not rc_map_new:
         return {}
@@ -48,6 +90,8 @@ def build_budget_utilizations(
     new_margin_used: Optional[float],
     max_single_rc: float,
     rc_map_new: Optional[Dict[str, float]],
+    currency_exposure: Optional[Dict[str, float]],
+    gross_portfolio_notional: Optional[float],
     cluster_metrics: Optional[Dict[str, Dict[str, float]]],
     policy: RiskPolicy,
 ) -> Dict[str, BudgetUtilization]:
@@ -69,6 +113,21 @@ def build_budget_utilizations(
             policy.max_margin_used_frac * equity,
             "currency",
         )
+
+    normalized_currency_weights = _normalized_currency_weight_map(currency_exposure)
+    if normalized_currency_weights:
+        effective_currency_cap = _effective_currency_weight_threshold(
+            currency_exposure,
+            policy.max_currency_exposure_frac,
+        )
+        for currency, observed in normalized_currency_weights.items():
+            _add_utilization(
+                utilizations,
+                f"currency_weight:{currency}",
+                float(observed),
+                float(effective_currency_cap),
+                "ratio",
+            )
 
     normalized_rc_map = _normalized_absolute_rc_map(rc_map_new)
     if normalized_rc_map:
@@ -114,6 +173,8 @@ def evaluate_hard_limits(
     current_margin_used: Optional[float],
     new_margin_used: Optional[float],
     rc_map_new: Optional[Dict[str, float]],
+    currency_exposure: Optional[Dict[str, float]],
+    gross_portfolio_notional: Optional[float],
     cluster_metrics: Optional[Dict[str, Dict[str, float]]],
     policy: RiskPolicy,
 ) -> List[LimitEvent]:
@@ -179,6 +240,25 @@ def evaluate_hard_limits(
                 "currency",
             )
         )
+
+    normalized_currency_weights = _normalized_currency_weight_map(currency_exposure)
+    if normalized_currency_weights:
+        effective_currency_cap = _effective_currency_weight_threshold(
+            currency_exposure,
+            policy.max_currency_exposure_frac,
+        )
+        for currency, observed in normalized_currency_weights.items():
+            breaches.extend(
+                _threshold_breach(
+                    "currency_weight_cap",
+                    f"Currency weight cap exceeded for {currency}.",
+                    float(observed),
+                    float(effective_currency_cap),
+                    "ratio",
+                    scope="currency",
+                    scope_key=str(currency),
+                )
+            )
 
     normalized_rc_map = _normalized_absolute_rc_map(rc_map_new)
     if normalized_rc_map and len(normalized_rc_map) > 1:

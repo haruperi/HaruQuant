@@ -92,6 +92,8 @@ class RiskSnapshotEngine:
                 "diversification_ratio",
                 "current_drawdown",
                 "max_drawdown",
+                "drawdown_velocity",
+                "time_under_water",
                 "portfolio_var_parametric",
                 "portfolio_cvar_parametric",
                 "worst_scenario_loss",

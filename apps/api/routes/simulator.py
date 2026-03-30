@@ -35,8 +35,9 @@ from apps.risk.core.recommendation_engine import RecommendationEngine
 from apps.risk.core.risk_scorecard_engine import RiskScorecardEngine
 from apps.risk.core.risk_snapshot_engine import RiskSnapshotEngine
 from apps.risk.limits import RiskLimits
-from apps.risk.models import PortfolioState
+from apps.risk.models import PortfolioState, PositionState
 from apps.risk.metrics import RiskSnapshot
+from apps.risk.metrics.math import extract_currency_exposure
 from apps.risk.scoring import RiskScorecard
 from apps.risk.simulation import HypotheticalOrderAction, ReplayFrame, WhatIfEngine
 from apps.risk.storage import RiskRepository, RiskSnapshotStore
@@ -52,6 +53,7 @@ backtest_router = APIRouter()
 db_manager = DatabaseManager()
 AUTH_HEADER = Header(None)
 mt5 = get_mt5_api()
+FX_CLUSTER_CURRENCIES = {"USD", "EUR", "JPY", "CAD", "AUD", "NZD", "CHF", "GBP"}
 
 
 def _object_to_dict(value: Any) -> dict:
@@ -81,6 +83,35 @@ def _json_safe_dict(payload: Dict[str, Any]) -> Dict[str, Any]:
         str(key): _json_safe_value(value)
         for key, value in payload.items()
     }
+
+
+def _extract_symbol_currency_clusters(symbol: str, spec: Any = None) -> List[str]:
+    payload = _object_to_dict(spec)
+    base = str(payload.get("currency_base") or payload.get("base_currency") or "").upper()
+    profit = str(payload.get("currency_profit") or payload.get("profit_currency") or "").upper()
+    token = str(symbol).upper()
+    if not base and len(token) >= 6 and token[:6].isalpha():
+        base = token[:3]
+    if not profit and len(token) >= 6 and token[:6].isalpha():
+        profit = token[3:6]
+    clusters: List[str] = []
+    for currency in (base, profit):
+        if currency in FX_CLUSTER_CURRENCIES and currency not in clusters:
+            clusters.append(currency)
+    return clusters
+
+
+def _build_symbol_currency_clusters(symbols: List[str], symbol_specs: Dict[str, Any]) -> Dict[str, List[str]]:
+    return {
+        str(symbol): _extract_symbol_currency_clusters(symbol, symbol_specs.get(symbol))
+        for symbol in symbols
+    }
+
+
+def _default_currency_cluster_var_caps(limit_frac: float) -> Dict[str, float]:
+    if limit_frac <= 0.0:
+        return {}
+    return {currency: float(limit_frac) for currency in sorted(FX_CLUSTER_CURRENCIES)}
 
 
 class _EngineSimulatorFacade:
@@ -860,11 +891,6 @@ class SimulatorSession:
         if state.limits is None:
             return None
 
-        current_positions = {
-            str(sym): float(lots)
-            for sym, lots in dict(state.position_map or {}).items()
-            if abs(float(lots)) > 0.0
-        }
         risk_engine = PortfolioRiskEngine(
             mt5_client=_SimulatorPortfolioStateRiskAdapter(state),
             timeframe=str(state.metadata.get("timeframe", "H1")),
@@ -875,11 +901,217 @@ class SimulatorSession:
             risk_engine=risk_engine,
             limits=state.limits,
         )
-        return governance.evaluate_add_position(
-            current_positions=current_positions,
-            candidate_symbol=str(symbol),
-            candidate_lots=float(signed_volume),
+        projected_state = self.project_state_for_signed_volume(
+            symbol=str(symbol),
+            signed_volume=float(signed_volume),
         )
+        forced_decision = None
+        forced_reason = None
+        if len(projected_state.positions) < len(state.positions):
+            forced_decision = "ACCEPT"
+            forced_reason = "Candidate reduces or nets existing exposure."
+        return governance.evaluate_transition_from_states(
+            state,
+            projected_state,
+            forced_decision=forced_decision,
+            forced_reason=forced_reason,
+        )
+
+    def project_state_for_signed_volume(
+        self,
+        *,
+        symbol: str,
+        signed_volume: float,
+    ) -> PortfolioState:
+        state = self.latest_risk_state or self.build_risk_state()
+        candidate_symbol = str(symbol)
+        projected_positions = list(state.positions)
+        applied = False
+        for index, position in enumerate(projected_positions):
+            if position.symbol != candidate_symbol:
+                continue
+            next_lots = float(position.lots) + float(signed_volume)
+            if abs(next_lots) < 1e-12:
+                projected_positions.pop(index)
+            else:
+                projected_positions[index] = replace(
+                    position,
+                    lots=next_lots,
+                    side="LONG" if next_lots >= 0 else "SHORT",
+                )
+            applied = True
+            break
+        if not applied and abs(float(signed_volume)) > 0.0:
+            projected_positions.append(
+                PositionState(
+                    symbol=candidate_symbol,
+                    lots=float(signed_volume),
+                    side="LONG" if float(signed_volume) >= 0 else "SHORT",
+                    cluster=getattr(state, "symbol_to_cluster", {}).get(candidate_symbol),
+                )
+            )
+        projected_account = state.account
+        projected_state = replace(
+            state,
+            positions=projected_positions,
+            exposures=self.risk_state_engine._compute_exposures(
+                state.account,
+                projected_positions,
+                state.symbols,
+                state.markets,
+            ),
+        )
+        projected_margin_used = _estimate_state_margin_used(projected_state)
+        projected_account = replace(
+            projected_account,
+            margin_used=float(projected_margin_used),
+            free_margin=float(state.account.equity or 0.0) - float(projected_margin_used),
+        )
+        return replace(
+            projected_state,
+            account=projected_account,
+        )
+
+    def build_manual_trade_review(
+        self,
+        *,
+        symbol: str,
+        signed_volume: float,
+    ) -> dict:
+        current_state = self.latest_risk_state or self.build_risk_state()
+        projected_state = self.project_state_for_signed_volume(
+            symbol=str(symbol),
+            signed_volume=float(signed_volume),
+        )
+        if current_state.limits is None:
+            return {"governance": None, "rows": []}
+
+        risk_engine = PortfolioRiskEngine(
+            mt5_client=_SimulatorPortfolioStateRiskAdapter(current_state),
+            timeframe=str(current_state.metadata.get("timeframe", "H1")),
+            start_pos=0,
+            end_pos=max(max((market.row_count for market in current_state.markets.values()), default=0), 1),
+        )
+        governance_engine = GovernanceEngine(
+            risk_engine=risk_engine,
+            limits=current_state.limits,
+        )
+        governance = governance_engine.evaluate_transition_from_states(
+            current_state,
+            projected_state,
+        )
+        effective_limits = governance_engine.effective_limits(None)
+        current_var, current_es, current_margin, current_rc = risk_engine.compute_portfolio_risk_from_state(
+            current_state,
+            limits=effective_limits,
+        )
+        new_var, new_es, new_margin, new_rc = risk_engine.compute_portfolio_risk_from_state(
+            projected_state,
+            limits=effective_limits,
+        )
+
+        def _fmt_ratio(value: Optional[float]) -> str:
+            if value is None or not math.isfinite(float(value)):
+                return "--"
+            return f"{float(value) * 100:.2f}%"
+
+        def _normalize_abs_map(payload: Optional[Dict[str, float]]) -> Dict[str, float]:
+            absolute_map = {
+                str(key): abs(float(val))
+                for key, val in (payload or {}).items()
+                if abs(float(val or 0.0)) > 1e-12
+            }
+            total = float(sum(absolute_map.values()))
+            if total <= 0.0:
+                return {}
+            return {key: float(value) / total for key, value in absolute_map.items()}
+
+        current_equity = float(current_state.account.equity or 0.0)
+        new_equity = float(projected_state.account.equity or 0.0)
+        current_currency_weights = _normalize_abs_map(extract_currency_exposure(current_state))
+        proposed_currency_weights = _normalize_abs_map(extract_currency_exposure(projected_state))
+        proposed_currency_count = max(1, len(proposed_currency_weights))
+        currency_weight_limit = (1.0 / float(proposed_currency_count)) * (
+            1.0 + float(effective_limits.max_currency_exposure_frac)
+        )
+        current_rc_weights = _normalize_abs_map(current_rc)
+        proposed_rc_weights = _normalize_abs_map(new_rc)
+        proposed_symbol_count = max(1, len(proposed_rc_weights))
+        single_rc_limit = (1.0 / float(proposed_symbol_count)) + float(effective_limits.max_single_rc_frac)
+
+        rows = [
+            {
+                "key": "portfolio_var_cap",
+                "item": "Portfolio VaR",
+                "current_value": _fmt_ratio((current_var / current_equity) if current_equity > 0.0 else None),
+                "proposed_value": _fmt_ratio((new_var / new_equity) if new_equity > 0.0 else None),
+                "reference_value": _fmt_ratio(effective_limits.var_cap_frac),
+                "acceptable": float(new_var) <= float(effective_limits.var_cap_frac) * max(new_equity, 0.0),
+            },
+            {
+                "key": "portfolio_es_cap",
+                "item": "Portfolio CVaR",
+                "current_value": _fmt_ratio((current_es / current_equity) if current_equity > 0.0 else None),
+                "proposed_value": _fmt_ratio((new_es / new_equity) if new_equity > 0.0 else None),
+                "reference_value": _fmt_ratio(effective_limits.es_cap_frac),
+                "acceptable": float(new_es) <= float(effective_limits.es_cap_frac) * max(new_equity, 0.0),
+            },
+            {
+                "key": "delta_var_cap",
+                "item": "Delta VaR",
+                "current_value": "0.00%",
+                "proposed_value": _fmt_ratio(((new_var - current_var) / new_equity) if new_equity > 0.0 else None),
+                "reference_value": _fmt_ratio(effective_limits.delta_var_cap_frac),
+                "acceptable": float(new_var - current_var) <= float(effective_limits.delta_var_cap_frac) * max(new_equity, 0.0),
+            },
+            {
+                "key": "delta_es_cap",
+                "item": "Delta CVaR",
+                "current_value": "0.00%",
+                "proposed_value": _fmt_ratio(((new_es - current_es) / new_equity) if new_equity > 0.0 else None),
+                "reference_value": _fmt_ratio(effective_limits.delta_es_cap_frac),
+                "acceptable": float(new_es - current_es) <= float(effective_limits.delta_es_cap_frac) * max(new_equity, 0.0),
+            },
+            {
+                "key": "margin_cap",
+                "item": "Margin Used",
+                "current_value": _fmt_ratio((current_margin / current_equity) if current_equity > 0.0 else None),
+                "proposed_value": _fmt_ratio((new_margin / new_equity) if new_equity > 0.0 else None),
+                "reference_value": _fmt_ratio(effective_limits.max_margin_used_frac),
+                "acceptable": float(new_margin or 0.0) <= float(effective_limits.max_margin_used_frac) * max(new_equity, 0.0),
+            },
+        ]
+
+        for currency in sorted(proposed_currency_weights.keys()):
+            proposed_weight = float(proposed_currency_weights.get(currency, 0.0))
+            rows.append(
+                {
+                    "key": f"currency_weight:{currency}",
+                    "item": f"Currency Weight {currency}",
+                    "current_value": _fmt_ratio(current_currency_weights.get(currency)),
+                    "proposed_value": _fmt_ratio(proposed_weight),
+                    "reference_value": _fmt_ratio(currency_weight_limit),
+                    "acceptable": proposed_weight <= currency_weight_limit,
+                }
+            )
+
+        for symbol_key in sorted(proposed_rc_weights.keys()):
+            proposed_weight = float(proposed_rc_weights.get(symbol_key, 0.0))
+            rows.append(
+                {
+                    "key": f"single_rc:{symbol_key}",
+                    "item": f"Single RC {symbol_key}",
+                    "current_value": _fmt_ratio(current_rc_weights.get(symbol_key)),
+                    "proposed_value": _fmt_ratio(proposed_weight),
+                    "reference_value": _fmt_ratio(single_rc_limit),
+                    "acceptable": proposed_weight <= single_rc_limit,
+                }
+            )
+
+        return {
+            "governance": _serialize_governance_report(governance),
+            "rows": rows,
+        }
 
     def evaluate_current_governance(self):
         state = self.latest_risk_state or self.build_risk_state()
@@ -924,6 +1156,12 @@ class SimulatorSession:
             spec = self.engine.symbol_info(symbol)
             if spec is not None:
                 symbol_specs[symbol] = spec
+        symbol_to_clusters = _build_symbol_currency_clusters(self.symbols, symbol_specs)
+        symbol_to_cluster = {
+            symbol: clusters[0]
+            for symbol, clusters in symbol_to_clusters.items()
+            if clusters
+        }
 
         limits = RiskLimits(
             var_cap_frac=max(0.0, float(self.config.get("risk_var_cap_frac", 0.10) or 0.10)),
@@ -931,6 +1169,7 @@ class SimulatorSession:
             delta_var_cap_frac=max(0.0, float(self.config.get("risk_delta_var_cap_frac", 0.02) or 0.02)),
             delta_es_cap_frac=max(0.0, float(self.config.get("risk_delta_es_cap_frac", 0.03) or 0.03)),
             max_margin_used_frac=max(0.0, float(self.config.get("risk_max_margin_used_frac", 0.50) or 0.50)),
+            max_currency_exposure_frac=max(0.0, float(self.config.get("risk_max_currency_exposure_frac", 0.20) or 0.20)),
             max_single_rc_frac=max(0.0, float(self.config.get("risk_max_single_rc_frac", 0.10) or 0.10)),
             warning_utilization_frac=max(0.0, float(self.config.get("risk_warning_utilization_frac", 0.90) or 0.90)),
             confidence_level=float(self.config.get("risk_confidence_level", 0.95) or 0.95),
@@ -945,6 +1184,8 @@ class SimulatorSession:
             symbol_specs=symbol_specs,
             market_data=market_data,
             limits=limits,
+            symbol_to_cluster=symbol_to_cluster,
+            symbol_to_clusters=symbol_to_clusters,
             timeframe=str(self.config.get("timeframe", "M1") or "M1"),
             as_of=as_of,
             metadata={
@@ -1023,6 +1264,9 @@ class SimulatorSession:
 
         currency_exposure = []
         currency_weights = []
+        pair_correlations = []
+        max_risk_contribution_frac = 0.0
+        max_risk_contribution_symbol = None
         for row in metric_rows:
             scope = getattr(row, "scope", None)
             metric_key = getattr(row, "metric_key", None)
@@ -1035,8 +1279,29 @@ class SimulatorSession:
                         "value": numeric_value,
                     }
                 )
+            if scope == "pair" and metric_key == "pair_correlation" and scope_key:
+                pair_correlations.append(
+                    {
+                        "pair": str(scope_key),
+                        "value": numeric_value,
+                    }
+                )
+            if (
+                scope == "symbol"
+                and metric_key == "risk_contribution_frac"
+                and scope_key
+                and isinstance(numeric_value, (int, float))
+            ):
+                contribution_value = abs(float(numeric_value))
+                if contribution_value >= max_risk_contribution_frac:
+                    max_risk_contribution_frac = contribution_value
+                    max_risk_contribution_symbol = str(scope_key)
 
         currency_exposure.sort(key=lambda item: abs(float(item.get("value") or 0.0)), reverse=True)
+        pair_correlations.sort(
+            key=lambda item: abs(float(item.get("value") or 0.0)),
+            reverse=True,
+        )
         total_currency_exposure = float(
             sum(abs(float(item.get("value") or 0.0)) for item in currency_exposure)
         )
@@ -1062,6 +1327,13 @@ class SimulatorSession:
             "average_pair_correlation": _json_safe_number(summary.get("average_pair_correlation")),
             "max_pair_correlation": _json_safe_number(summary.get("max_pair_correlation")),
             "hidden_overlap_score": _json_safe_number(summary.get("hidden_overlap_score")),
+            "redundancy_score": _json_safe_number(summary.get("redundancy_score")),
+            "effective_independent_bets": _json_safe_number(summary.get("effective_independent_bets")),
+            "diversification_ratio": _json_safe_number(summary.get("diversification_ratio")),
+            "current_drawdown": _json_safe_number(summary.get("current_drawdown")),
+            "max_drawdown": _json_safe_number(summary.get("max_drawdown")),
+            "drawdown_velocity": _json_safe_number(summary.get("drawdown_velocity")),
+            "time_under_water": _json_safe_number(summary.get("time_under_water")),
             "compliance_state": summary.get("compliance_state"),
             "governance_decision": summary.get("governance_decision"),
             "governance_reason": summary.get("governance_reason"),
@@ -1076,6 +1348,9 @@ class SimulatorSession:
             "regime_transition_changed": bool(summary.get("regime_transition_changed", False)),
             "currency_exposure": currency_exposure,
             "currency_weights": currency_weights,
+            "pair_correlations": pair_correlations,
+            "max_risk_contribution_frac": max_risk_contribution_frac,
+            "max_risk_contribution_symbol": max_risk_contribution_symbol,
         }
 
     def get_governance_report(self) -> Optional[Dict[str, Any]]:
@@ -1089,6 +1364,7 @@ class SimulatorSession:
             return {}
 
         summary = dict(scorecard.summary or {})
+        score_rows = list(getattr(scorecard, "score_rows", []) or [])
 
         def _json_safe_number(value: Any) -> Any:
             if isinstance(value, (int, float)):
@@ -1098,8 +1374,25 @@ class SimulatorSession:
                 return numeric
             return value
 
+        detailed_scores = {}
+        for row in score_rows:
+            score_key = getattr(row, "score_key", None)
+            if not score_key:
+                continue
+            context = getattr(row, "context", {}) or {}
+            detailed_scores[str(score_key)] = {
+                "value": _json_safe_number(getattr(row, "score_value", None)),
+                "confidence": _json_safe_number(getattr(row, "confidence", None)),
+                "confidence_label": getattr(row, "confidence_label", None),
+                "explanation": getattr(row, "explanation", None),
+                "context": _json_safe_dict(dict(context)),
+            }
+
         return {
             "portfolio_health_score": _json_safe_number(summary.get("portfolio_health_score")),
+            "concentration_score": _json_safe_number(summary.get("concentration_score")),
+            "stress_resilience_score": _json_safe_number(summary.get("stress_resilience_score")),
+            "regime_alignment_score": _json_safe_number(summary.get("regime_alignment_score")),
             "leverage_safety_score": _json_safe_number(summary.get("leverage_safety_score")),
             "margin_safety_score": _json_safe_number(summary.get("margin_safety_score")),
             "diversification_score": _json_safe_number(summary.get("diversification_score")),
@@ -1107,6 +1400,7 @@ class SimulatorSession:
             "overall_risk_quality_score": _json_safe_number(summary.get("overall_risk_quality_score")),
             "overall_confidence": _json_safe_number(summary.get("overall_confidence")),
             "overall_confidence_label": summary.get("overall_confidence_label"),
+            "details": detailed_scores,
         }
 
     def get_recommendation_summary(self) -> Dict[str, Any]:
@@ -1703,7 +1997,13 @@ def _order_info_to_dict(order: Any) -> dict:
 def _collect_positions_orders(active: SimulatorSession) -> tuple[list[dict], list[dict]]:
     positions_raw = active.simulator._simulator.positions_get() or []
     orders_raw = active.simulator._simulator.orders_get() or []
-    position_payloads = [_position_info_to_dict(pos) for pos in positions_raw]
+    position_payloads = []
+    for pos in positions_raw:
+        payload = _position_info_to_dict(pos)
+        volume = float(payload.get("volume", 0.0) or 0.0)
+        if abs(volume) <= 1e-12:
+            continue
+        position_payloads.append(payload)
     gross_notional = float(
         sum(_position_notional_from_payload(active, pos) for pos in position_payloads)
     )
@@ -1781,12 +2081,11 @@ def _serialize_recommendation_batch(batch: Any) -> dict:
             return numeric
         return value
 
-    items = []
-    for item in list(getattr(batch, "recommendations", []) or []):
+    def _serialize_recommendation_item(item: Any) -> Optional[dict]:
         action = getattr(item, "action", None)
         score = getattr(item, "recommendation_score", None)
         if action is None or score is None:
-            continue
+            return None
         raw_action_type = str(getattr(action, "action_type", "") or "")
         display_action = raw_action_type
         if (
@@ -1796,33 +2095,75 @@ def _serialize_recommendation_batch(batch: Any) -> dict:
             margin_delta = float(getattr(score, "margin_used_delta", 0.0) or 0.0)
             if margin_delta < 0:
                 display_action = "cut_margin"
-        items.append(
+        governance_report = getattr(item, "governance_report", None)
+        return {
+            "action_type": raw_action_type,
+            "display_action": display_action,
+            "symbol": getattr(action, "symbol", None),
+            "delta_lots": _json_safe_number(getattr(action, "delta_lots", None)),
+            "current_lots": _json_safe_number(getattr(action, "current_lots", None)),
+            "projected_lots": _json_safe_number(getattr(action, "projected_lots", None)),
+            "rationale": getattr(action, "rationale", None),
+            "usefulness_score": _json_safe_number(getattr(score, "usefulness_score", None)),
+            "score_delta": _json_safe_number(getattr(score, "score_delta", None)),
+            "var_delta": _json_safe_number(getattr(score, "var_delta", None)),
+            "es_delta": _json_safe_number(getattr(score, "es_delta", None)),
+            "worst_scenario_loss_delta": _json_safe_number(
+                getattr(score, "worst_scenario_loss_delta", None)
+            ),
+            "margin_used_delta": _json_safe_number(
+                getattr(score, "margin_used_delta", None)
+            ),
+            "governance_feasible": bool(getattr(item, "governance_feasible", False)),
+            "governance_decision": getattr(governance_report, "decision", None),
+            "explanation": getattr(item, "explanation", None),
+        }
+
+    items = []
+    for item in list(getattr(batch, "recommendations", []) or []):
+        serialized = _serialize_recommendation_item(item)
+        if serialized is not None:
+            items.append(serialized)
+
+    summary = dict(getattr(batch, "summary", {}) or {})
+    capital_efficiency_items = []
+    for item in list(summary.get("capital_efficiency", []) or []):
+        capital_efficiency_items.append(
             {
-                "action_type": raw_action_type,
-                "display_action": display_action,
-                "symbol": getattr(action, "symbol", None),
-                "delta_lots": _json_safe_number(getattr(action, "delta_lots", None)),
-                "usefulness_score": _json_safe_number(getattr(score, "usefulness_score", None)),
-                "var_delta": _json_safe_number(getattr(score, "var_delta", None)),
-                "es_delta": _json_safe_number(getattr(score, "es_delta", None)),
-                "margin_used_delta": _json_safe_number(
-                    getattr(score, "margin_used_delta", None)
-                ),
-                "governance_feasible": bool(getattr(item, "governance_feasible", False)),
-                "explanation": getattr(item, "explanation", None),
+                "symbol": item.get("symbol"),
+                "gross_notional": _json_safe_number(item.get("gross_notional")),
+                "portfolio_weight": _json_safe_number(item.get("portfolio_weight")),
+                "risk_contribution_frac": _json_safe_number(item.get("risk_contribution_frac")),
+                "capital_efficiency_ratio": _json_safe_number(item.get("capital_efficiency_ratio")),
             }
         )
+
+    def _serialize_stage_list(values: Any) -> list[dict]:
+        output = []
+        for value in list(values or []):
+            serialized = _serialize_recommendation_item(value)
+            if serialized is not None:
+                output.append(serialized)
+        return output
+
     return {
         "items": items,
         "recommendation_count": int(
-            batch.summary.get("recommendation_count", len(items)) or len(items)
+            summary.get("recommendation_count", len(items)) or len(items)
         ),
-        "feasible_count": int(batch.summary.get("feasible_count", 0) or 0),
-        "top_action_type": batch.summary.get("top_action_type"),
-        "top_action_symbol": batch.summary.get("top_action_symbol"),
+        "feasible_count": int(summary.get("feasible_count", 0) or 0),
+        "top_action_type": summary.get("top_action_type"),
+        "top_action_symbol": summary.get("top_action_symbol"),
         "top_usefulness_score": _json_safe_number(
-            batch.summary.get("top_usefulness_score")
+            summary.get("top_usefulness_score")
         ),
+        "marginal_risk_recommendation": _serialize_recommendation_item(
+            summary.get("marginal_risk_recommendation")
+        ),
+        "allocation_candidates": _serialize_stage_list(summary.get("allocation_candidates")),
+        "hedge_candidates": _serialize_stage_list(summary.get("hedge_candidates")),
+        "rebalance_candidates": _serialize_stage_list(summary.get("rebalance_candidates")),
+        "capital_efficiency": capital_efficiency_items,
     }
 
 
@@ -1862,6 +2203,29 @@ def _apply_leverage_override_to_state(
     )
 
 
+def _estimate_state_margin_used(state: PortfolioState) -> float:
+    positions = {
+        str(symbol): float(lots)
+        for symbol, lots in state.position_map.items()
+        if abs(float(lots or 0.0)) > 1e-12
+    }
+    if not positions:
+        return 0.0
+    risk_engine = PortfolioRiskEngine(
+        mt5_client=_SimulatorPortfolioStateRiskAdapter(state),
+        timeframe=str(state.metadata.get("timeframe", "H1")),
+        start_pos=0,
+        end_pos=max(
+            max((market.row_count for market in state.markets.values()), default=0),
+            1,
+        ),
+    )
+    estimated_margin = risk_engine.estimate_margin_used(positions)
+    if estimated_margin is None:
+        return float(state.account.margin_used or 0.0)
+    return float(estimated_margin)
+
+
 def _serialize_what_if_comparison(comparison: Any) -> dict:
     if comparison is None:
         return {}
@@ -1879,6 +2243,58 @@ def _serialize_what_if_comparison(comparison: Any) -> dict:
     projected_scorecard = getattr(comparison, "projected_scorecard", None)
     projected_recommendations = getattr(comparison, "projected_recommendations", None)
     baseline_frame = getattr(comparison, "baseline_frame", None)
+
+    def _stress_map(snapshot: Any) -> Dict[str, Dict[str, Any]]:
+        if snapshot is None:
+            return {}
+        rows = list(getattr(snapshot, "metric_rows", []) or [])
+        scenario_map: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            if getattr(row, "family", None) != "stress_risk":
+                continue
+            scope_key = getattr(row, "scope_key", None)
+            metric_key = getattr(row, "metric_key", None)
+            if getattr(row, "scope", None) == "scenario" and scope_key:
+                bucket = scenario_map.setdefault(
+                    str(scope_key),
+                    {
+                        "scenario": str(scope_key),
+                        "context": dict(getattr(row, "context", {}) or {}),
+                    },
+                )
+                if metric_key == "scenario_loss":
+                    bucket["loss"] = _json_safe_number(getattr(row, "numeric_value", None))
+                elif metric_key == "stressed_var":
+                    bucket["stressed_var"] = _json_safe_number(getattr(row, "numeric_value", None))
+                elif metric_key == "stressed_es":
+                    bucket["stressed_es"] = _json_safe_number(getattr(row, "numeric_value", None))
+        return scenario_map
+
+    baseline_stress = _stress_map(baseline_frame.snapshot if baseline_frame is not None else None)
+    projected_stress = _stress_map(projected_snapshot)
+    stress_scenarios = []
+    for scenario_name in sorted(set(baseline_stress.keys()) | set(projected_stress.keys())):
+        baseline_item = baseline_stress.get(scenario_name, {})
+        projected_item = projected_stress.get(scenario_name, {})
+        baseline_loss = baseline_item.get("loss")
+        projected_loss = projected_item.get("loss")
+        stress_scenarios.append(
+            {
+                "scenario": scenario_name,
+                "baseline_loss": baseline_loss,
+                "projected_loss": projected_loss,
+                "loss_delta": (
+                    _json_safe_number(float(projected_loss) - float(baseline_loss))
+                    if isinstance(baseline_loss, (int, float)) and isinstance(projected_loss, (int, float))
+                    else None
+                ),
+                "baseline_stressed_var": baseline_item.get("stressed_var"),
+                "projected_stressed_var": projected_item.get("stressed_var"),
+                "baseline_stressed_es": baseline_item.get("stressed_es"),
+                "projected_stressed_es": projected_item.get("stressed_es"),
+                "context": projected_item.get("context") or baseline_item.get("context") or {},
+            }
+        )
 
     return {
         "summary": {key: _json_safe_number(value) for key, value in summary.items()},
@@ -1941,6 +2357,25 @@ def _serialize_what_if_comparison(comparison: Any) -> dict:
         "projected_recommendations": _serialize_recommendation_batch(
             projected_recommendations
         ),
+        "stress_scenarios": stress_scenarios,
+        "stress_summary": {
+            "baseline_worst_scenario_name": baseline_frame.snapshot.summary.get("worst_scenario_name")
+            if baseline_frame is not None
+            else None,
+            "baseline_worst_scenario_loss": _json_safe_number(
+                baseline_frame.snapshot.summary.get("worst_scenario_loss")
+                if baseline_frame is not None
+                else None
+            ),
+            "projected_worst_scenario_name": projected_snapshot.summary.get("worst_scenario_name")
+            if projected_snapshot is not None
+            else None,
+            "projected_worst_scenario_loss": _json_safe_number(
+                projected_snapshot.summary.get("worst_scenario_loss")
+                if projected_snapshot is not None
+                else None
+            ),
+        },
     }
 
 
@@ -2003,6 +2438,7 @@ class SimulationStartRequest(BaseModel):
     risk_delta_var_cap_frac: float = 0.02
     risk_delta_es_cap_frac: float = 0.03
     risk_max_margin_used_frac: float = 0.50
+    risk_max_currency_exposure_frac: float = 0.20
     risk_max_single_rc_frac: float = 0.10
     risk_warning_utilization_frac: float = 0.90
     risk_limits_enforced: bool = True
@@ -2048,6 +2484,7 @@ class ManualTradeRequest(BaseModel):
     sl: Optional[float] = None
     tp: Optional[float] = None
     comment: Optional[str] = None
+    manual_review_accepted: bool = False
 
 
 class PendingOrderRequest(BaseModel):
@@ -2436,6 +2873,10 @@ async def execute_trade(
         active.risk_limits_enforced()
         and governance is not None
         and str(getattr(governance, "decision", "ACCEPT")) != "ACCEPT"
+        and not (
+            str(active.config.get("mode", "manual") or "manual") == "manual"
+            and bool(request.manual_review_accepted)
+        )
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -2460,10 +2901,34 @@ async def execute_trade(
         "positions": positions,
         "orders": orders,
         "governance": _serialize_governance_report(governance) if governance is not None else active.get_governance_report(),
-        "risk_snapshot": None,
-        "risk_scorecard": None,
-        "recommendations": None,
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
     }
+
+
+@router.post("/{session_id}/trade/preview")
+async def preview_trade(
+    session_id: int, request: ManualTradeRequest, authorization: str = AUTH_HEADER
+):
+    """Preview a manual trade without executing it."""
+    user_id = get_user_id_from_token(authorization)
+    session = db_manager.get_simulation_session(session_id)
+    if not session or session.get("user_id") != user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    active = active_sessions.get(session_id)
+    if not active:
+        raise HTTPException(status_code=400, detail="Session is not running")
+
+    signed_volume = abs(float(request.volume or 0.0))
+    if str(request.side or "buy").lower() == "sell":
+        signed_volume *= -1.0
+
+    return active.build_manual_trade_review(
+        symbol=str(request.symbol or active.symbols[0]).strip().upper() or active.symbols[0],
+        signed_volume=signed_volume,
+    )
 
 
 @router.post("/{session_id}/order/pending")
@@ -2514,9 +2979,9 @@ async def place_pending_order(
         "positions": positions,
         "orders": orders,
         "governance": _serialize_governance_report(governance) if governance is not None else active.get_governance_report(),
-        "risk_snapshot": None,
-        "risk_scorecard": None,
-        "recommendations": None,
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
     }
 
 

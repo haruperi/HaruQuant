@@ -73,7 +73,7 @@ class CorrelationRiskMetrics:
         cluster_summary = compute_cluster_correlation_summary(
             symbols,
             corr_mat,
-            context.state.symbol_to_cluster,
+            context.state.symbol_to_clusters or context.state.symbol_to_cluster,
         )
         for cluster, summary in sorted(cluster_summary.items()):
             rows.append(

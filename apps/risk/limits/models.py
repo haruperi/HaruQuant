@@ -15,6 +15,7 @@ class RiskPolicy:
     delta_var_cap_frac: float = 0.02
     delta_es_cap_frac: float = 0.03
     max_margin_used_frac: float = 0.50
+    max_currency_exposure_frac: float = 0.20
 
     min_pair_corr: float = 0.20
     stressed_corr_floor: float = 0.50
@@ -93,4 +94,3 @@ class GovernanceState:
     warnings_count: int = 0
     breaches_count: int = 0
     utilizations: Dict[str, BudgetUtilization] = field(default_factory=dict)
-

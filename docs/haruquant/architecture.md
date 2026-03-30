@@ -42,8 +42,18 @@
   - `risk_delta_var_cap_frac`
   - `risk_delta_es_cap_frac`
   - `risk_max_margin_used_frac`
+  - `risk_max_currency_exposure_frac` as the currency-weight buffer used by the currency concentration rule
   - `risk_max_single_rc_frac` as a buffer above equal-weight average contribution
   - `risk_warning_utilization_frac`
+- Currency concentration governance now uses the canonical signed currency exposure map:
+  - long `EURUSD` adds EUR exposure and offsets USD exposure
+  - short `GBPUSD` offsets GBP exposure and adds USD exposure
+  - currency weights are derived as `abs(currency exposure) / sum(abs(all currency exposures))`
+  - the rule breaches when a currency weight exceeds `equal-weight average * (1 + risk_max_currency_exposure_frac)`
+  - with the default `0.20` buffer, a 3-currency book breaches once one currency rises above `40%`
+- The `/simulation` `Currency Mix` UI now reads from that same signed exposure layer:
+  - each currency row shows weight and signed net exposure
+  - warning and breach highlighting is driven by the existing currency-weight governance events with `scope="currency"`
 - The `single_rc_cap` governance rule now evaluates normalized absolute risk-contribution shares for concentration checks, so hedged books keep both legs represented in the compliance panel while the displayed concentration shares remain bounded at `100%`.
 - `apps/api/routes/simulator.py` passes those values into `RiskLimits` inside `SimulatorSession.build_risk_state()`.
 - `apps/risk/metrics/math.py` now scales VaR/ES using the simulation timeframe plus the selected horizon unit:
@@ -78,13 +88,21 @@
 - `/simulation` `risk_snapshot` now also exposes:
   - `currency_exposure`: net currency rows derived from the existing `currency_exposure` metric family
   - `currency_weights`: normalized weights derived from the absolute currency exposure rows
-  - the `Current Regime` area in `ui/src/components/simulation/account-metrics.tsx` renders both lists as `Currency Exposure` and `Currency Weights`, while `Open Positions` continues to render position/symbol weights separately
+  - `pair_correlations`: pair-level correlation rows derived from the existing `pair_correlation` metric family
+  - `max_risk_contribution_frac` and `max_risk_contribution_symbol`: the current top normalized symbol risk-contribution share across the open book
+  - the lower `Currency Mix` card renders the currency lists, while the adjacent `Correlations Table` renders the pair-correlation rows from the same live snapshot
 - Manual trades and pending orders on `/simulation` now run a pre-trade governance check before execution:
   - the simulator builds the current canonical `PortfolioState`
   - converts the candidate order into a signed symbol exposure change
   - evaluates it through `apps/risk/core/governance_engine.py`
   - rejects with a structured `409` governance payload when limits are breached
   - accepts normally but can still return governance warnings for the UI to display
+- Manual market trades on `/simulation` now insert a human review step before execution:
+  - clicking `Buy` or `Sell` pauses the visualized simulator
+  - the UI calls `/api/simulator/{session_id}/trade/preview`
+  - the preview returns a governance table with current value, proposed value, and threshold per rule item
+  - the user explicitly accepts or rejects the trade from the modal
+  - non-manual modes keep the existing automated accept/reject behavior
 - The manual trade and pending-order click path is intentionally optimized for responsiveness:
   - pre-trade governance still runs before execution
   - the expensive descriptive rebuild of risk snapshot, scorecard, and recommendations is deferred to the normal session refresh cycle (`/advance`, `/positions`, and other state refresh endpoints)
@@ -110,7 +128,7 @@
   - `apps/api/routes/simulator.py` builds a current `ReplayFrame` from the cached canonical state, snapshot, scorecard, and recommendations
   - `apps/risk/simulation/what_if_engine.py` evaluates hypothetical actions on cloned state, so the running simulator baseline is never mutated
   - `apps/risk/core/timeline_reconstructor.py` is used to keep a deterministic timeline signature for the live session context
-  - `/api/simulator/{session_id}/what-if` returns compact before/after deltas for VaR, CVaR, margin, score, compliance, and projected recommendations
+  - `/api/simulator/{session_id}/what-if` returns compact before/after deltas for VaR, CVaR, margin, score, compliance, projected recommendations, and the existing `stress_risk` scenario rows (`volatility_shock`, `spread_blowout`, `gap_risk`, `correlation_spike`, `liquidity_crunch`) plus worst-case stress summary
   - the `Account Metrics` card now hosts the quick what-if actions for:
     - close half of a selected position
     - add a hedge on a selected symbol
@@ -124,6 +142,36 @@
     - the what-if summary attached to that replay frame
   - `POST /api/simulator/{session_id}/stop-and-save` stores the final snapshot bundle for the completed simulated backtest state
   - the simulator intentionally does not autosave every live frame, so the playback loop stays read-heavy and deterministic while storage writes occur only at stable checkpoints
+- The `/simulation` `Recommendations` panel now exposes the staged recommendation-engine flow instead of only the final ranked batch:
+  - `01` marginal risk engine recommendation
+  - `02` add / remove / resize candidates
+  - `03` hedge candidate evaluation
+  - `04` rebalance suggestions
+  - `05` capital-efficiency ranking
+  - `06` action recommendation scoring
+  - `07` governance feasibility checks
+  - `08` final ranked recommendation batch
+  - these sections are serialized from the existing `apps/risk/core/recommendation_engine.py` pipeline; the engine logic itself is unchanged
+- `examples/risk/03_governance_limits_engine.py` is now scenario-driven rather than task-driven:
+  - first trade from empty portfolio
+  - second trade within limits
+  - VaR / delta VaR / ES / single-RC / cluster cap breaches
+  - regime tightening comparison
+  - position reduction / netting path
+- The live risk workflow examples under `examples/risk/` are now consolidated into one entry point:
+  - `examples/risk/comprehensive_workflows.py`
+  - it replaces the older fragmented files:
+    - `demo.py`
+    - `full_scenarios.py`
+    - `integrate_existing_system.py`
+    - `simple_single_strategy.py`
+    - `multi_strategy_portfolio.py`
+  - the consolidated file keeps the same coverage split into five sections:
+    - single-strategy workflow
+    - multi-strategy portfolio workflow
+    - existing-system integration wrapper
+    - scenario showcase
+    - compact live workflow and rebalance demo
 
 - Phase 1 of `apps/risk` now adds a canonical portfolio-state layer instead of rebuilding the risk engine from scratch.
 - The new layer is additive and sits under the existing runtime components:

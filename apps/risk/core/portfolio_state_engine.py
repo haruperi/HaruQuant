@@ -42,6 +42,7 @@ class PortfolioStateEngine:
         account: Any = None,
         limits: Optional[RiskLimits] = None,
         symbol_to_cluster: Optional[Dict[str, str]] = None,
+        symbol_to_clusters: Optional[Dict[str, List[str]]] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> PortfolioState:
         """Build a validated portfolio state directly from the existing engine stack.
@@ -95,6 +96,7 @@ class PortfolioStateEngine:
             market_data=market_data,
             limits=limits,
             symbol_to_cluster=symbol_to_cluster,
+            symbol_to_clusters=symbol_to_clusters,
             timeframe=timeframe,
             as_of=resolved_as_of,
             metadata=merged_metadata,
@@ -108,13 +110,23 @@ class PortfolioStateEngine:
         market_data: Optional[Dict[str, pd.DataFrame]] = None,
         limits: Optional[RiskLimits] = None,
         symbol_to_cluster: Optional[Dict[str, str]] = None,
+        symbol_to_clusters: Optional[Dict[str, List[str]]] = None,
         timeframe: str = "D1",
         as_of: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> PortfolioState:
         """Build a validated canonical portfolio state."""
+        resolved_symbol_to_cluster = dict(symbol_to_cluster or {})
+        resolved_symbol_to_clusters: Dict[str, List[str]] = {
+            str(symbol): [str(cluster) for cluster in list(clusters or []) if str(cluster)]
+            for symbol, clusters in dict(symbol_to_clusters or {}).items()
+        }
+        for symbol, clusters in resolved_symbol_to_clusters.items():
+            if symbol not in resolved_symbol_to_cluster and clusters:
+                resolved_symbol_to_cluster[symbol] = str(clusters[0])
+
         account_state = self._normalize_account(account)
-        position_states = self._normalize_positions(positions, symbol_to_cluster or {})
+        position_states = self._normalize_positions(positions, resolved_symbol_to_cluster)
         symbol_states = self._normalize_symbol_specs(symbol_specs or {}, position_states)
         market_states = self._normalize_market_data(market_data or {}, timeframe)
 
@@ -138,7 +150,8 @@ class PortfolioStateEngine:
             symbols=symbol_states,
             markets=market_states,
             limits=limits,
-            symbol_to_cluster=dict(symbol_to_cluster or {}),
+            symbol_to_cluster=resolved_symbol_to_cluster,
+            symbol_to_clusters=resolved_symbol_to_clusters,
             validation_summary=summary,
             exposures=exposures,
             as_of=as_of,

@@ -23,6 +23,8 @@ def evaluate_pre_trade(
     current_margin_used: Optional[float],
     new_margin_used: Optional[float],
     rc_map_new: Optional[Dict[str, float]],
+    currency_exposure: Optional[Dict[str, float]],
+    gross_portfolio_notional: Optional[float],
     cluster_metrics: Optional[Dict[str, Dict[str, float]]],
     policy: RiskPolicy,
     peak_equity: Optional[float] = None,
@@ -41,6 +43,8 @@ def evaluate_pre_trade(
         new_margin_used=new_margin_used,
         max_single_rc=policy.max_single_rc_frac,
         rc_map_new=rc_map_new,
+        currency_exposure=currency_exposure,
+        gross_portfolio_notional=gross_portfolio_notional,
         cluster_metrics=cluster_metrics,
         policy=policy,
     )
@@ -56,6 +60,8 @@ def evaluate_pre_trade(
         current_margin_used=current_margin_used,
         new_margin_used=new_margin_used,
         rc_map_new=rc_map_new,
+        currency_exposure=currency_exposure,
+        gross_portfolio_notional=gross_portfolio_notional,
         cluster_metrics=cluster_metrics,
         policy=policy,
     )
@@ -103,4 +109,3 @@ def _build_reason(
     if warnings:
         return warnings[0].message
     return "All risk limits satisfied."
-

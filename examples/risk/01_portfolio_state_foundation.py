@@ -8,7 +8,7 @@ Phase 1 task-by-task walkthrough using the actual HaruQuant stack:
 4. reconstruct deterministic point-in-time state
 
 Run:
-    python examples/risk/09_portfolio_state_foundation.py
+    python examples/risk/01_portfolio_state_foundation.py
 """
 
 from __future__ import annotations

@@ -17,6 +17,7 @@ import { IndicatorControl, type IndicatorSelection } from "@/components/simulati
 import { SpeedControl } from "@/components/simulation/speed-control"
 import { SkipControl } from "@/components/simulation/skip-control"
 import { SimulationChart, type ChartBarData, type ChartIndicatorData } from "@/components/simulation/simulation-chart"
+import { SessionOverviewCards } from "@/components/simulation/session-overview-cards"
 import { TradingPanel } from "@/components/simulation/trading-panel"
 import { PositionsPanel, type PositionRow } from "@/components/simulation/positions-panel"
 import { OrdersPanel, type OrderRow } from "@/components/simulation/orders-panel"
@@ -95,6 +96,101 @@ function formatMarketTime(value?: string) {
   const hours = String(date.getHours()).padStart(2, "0")
   const minutes = String(date.getMinutes()).padStart(2, "0")
   return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+function formatPercent(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "--"
+  }
+  return `${(value * 100).toFixed(1)}%`
+}
+
+function formatNumber(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "--"
+  }
+  return value.toFixed(2)
+}
+
+function formatScore(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "--"
+  }
+  return `${value.toFixed(1)}%`
+}
+
+function formatBars(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "--"
+  }
+  return `${Math.round(value)}`
+}
+
+function toScoreProgress(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0
+  }
+  return Math.max(0, Math.min(value, 100))
+}
+
+function formatScoreTooltip(
+  explanation?: string | null,
+  context?: Record<string, unknown>
+) {
+  const lines: string[] = []
+  if (explanation) {
+    lines.push(String(explanation))
+  }
+  const entries = Object.entries(context || {}).filter(([, value]) => {
+    if (value === null || value === undefined || value === "") {
+      return false
+    }
+    if (Array.isArray(value)) {
+      return value.length > 0
+    }
+    return true
+  })
+  if (entries.length > 0) {
+    if (lines.length > 0) {
+      lines.push("")
+    }
+    for (const [key, value] of entries) {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        lines.push(`${key}: ${value.toFixed(4)}`)
+      } else if (Array.isArray(value)) {
+        lines.push(`${key}: ${value.join(", ")}`)
+      } else {
+        lines.push(`${key}: ${String(value)}`)
+      }
+    }
+  }
+  return lines.join("\n")
+}
+
+function toRiskFraction(value?: number | null, equity?: number | null) {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    typeof equity !== "number" ||
+    !Number.isFinite(equity) ||
+    equity <= 0
+  ) {
+    return null
+  }
+  return value / equity
+}
+
+function toCapProgress(currentFraction?: number | null, limit?: number | null) {
+  if (
+    typeof currentFraction !== "number" ||
+    !Number.isFinite(currentFraction) ||
+    typeof limit !== "number" ||
+    !Number.isFinite(limit) ||
+    limit <= 0
+  ) {
+    return 0
+  }
+  return Math.max(0, Math.min((currentFraction / limit) * 100, 100))
 }
 
 function toAccountMetrics(
@@ -229,6 +325,8 @@ export function SimulationExecutionView({
   const [whatIfComparison, setWhatIfComparison] = useState<SimulationWhatIfComparison | null>(null)
   const [whatIfLoading, setWhatIfLoading] = useState(false)
   const [currentBarIndex, setCurrentBarIndex] = useState(0)
+  const [acceptedTradeCount, setAcceptedTradeCount] = useState(0)
+  const [rejectedTradeCount, setRejectedTradeCount] = useState(0)
   const [digits, setDigits] = useState(symbolDigits)
   const [indicatorSelection, setIndicatorSelection] = useState<IndicatorSelection>({
     sma: Boolean(config?.indicator_sma_enabled),
@@ -245,18 +343,206 @@ export function SimulationExecutionView({
   const lastUpdateTimeRef = useRef(Date.now())
 
   const symbol = symbols[0] || "EURUSD"
-  const sessionDetails = [
-    { label: "Login", value: sessionResponse?.account_login ?? "--" },
-    { label: "Server", value: sessionResponse?.account_server || "--" },
-    { label: "Company", value: sessionResponse?.account_company || "--" },
-    { label: "Initial balance", value: config?.initial_balance ?? "--" },
-    { label: "Leverage", value: sessionResponse?.account_leverage ?? config?.leverage ?? "--" },
-    { label: "Commission", value: config?.commission ?? "--" },
-    { label: "Slippage Type", value: config?.slippage_type || "--" },
-    { label: "Spread type", value: config?.spread_type || "--" },
-    { label: "Data Resolution", value: config?.data_resolution || "--" },
-  ]
-
+  const sessionDetails = {
+    sessionNumber: String(sessionId),
+    sessionName: config?.session_name || `Session ${sessionId}`,
+    step: `${currentBarIndex}/${totalBars}`,
+    login: String(sessionResponse?.account_login ?? "--"),
+    server: sessionResponse?.account_server || "--",
+    leverage: String(sessionResponse?.account_leverage ?? config?.leverage ?? "--"),
+    commission: String(config?.commission ?? "--"),
+    slippageType: config?.slippage_type || "--",
+    spreadType: config?.spread_type || "--",
+    dataResolution: config?.data_resolution || "--",
+  }
+  const strategyControl = {
+    strategyLabel:
+      config?.mode === "manual"
+        ? "Manual"
+        : config?.mode === "replay"
+          ? "Replay"
+          : config?.strategy_name || "Strategy",
+    symbols: symbols.join(", "),
+    timeframe: config?.timeframe || "--",
+    approvedCount: String(acceptedTradeCount),
+    rejectedCount: String(rejectedTradeCount),
+  }
+  const currentEquity = accountState.equity
+  const portfolioVarFrac = toRiskFraction(riskSnapshot.portfolio_var, currentEquity)
+  const portfolioEsFrac = toRiskFraction(riskSnapshot.portfolio_es, currentEquity)
+  const riskMonitor = {
+    varCap: {
+      current: formatPercent(portfolioVarFrac),
+      limit: formatPercent(config?.risk_var_cap_frac),
+      progress: toCapProgress(portfolioVarFrac, config?.risk_var_cap_frac),
+    },
+    cvarCap: {
+      current: formatPercent(portfolioEsFrac),
+      limit: formatPercent(config?.risk_es_cap_frac),
+      progress: toCapProgress(portfolioEsFrac, config?.risk_es_cap_frac),
+    },
+    currentDrawdown: formatPercent(riskSnapshot.current_drawdown),
+    maxDrawdown: formatPercent(riskSnapshot.max_drawdown),
+    drawdownVelocity: formatBars(riskSnapshot.drawdown_velocity),
+    timeUnderWater: formatBars(riskSnapshot.time_under_water),
+    scores: [
+      {
+        key: "portfolio_health_score",
+        label: "Portfolio Health",
+        value: formatScore(riskScorecard.portfolio_health_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.portfolio_health_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.portfolio_health_score?.explanation,
+          riskScorecard.details?.portfolio_health_score?.context
+        ),
+      },
+      {
+        key: "concentration_score",
+        label: "Concentration",
+        value: formatScore(riskScorecard.concentration_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.concentration_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.concentration_score?.explanation,
+          riskScorecard.details?.concentration_score?.context
+        ),
+      },
+      {
+        key: "stress_resilience_score",
+        label: "Stress Resilience",
+        value: formatScore(riskScorecard.stress_resilience_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.stress_resilience_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.stress_resilience_score?.explanation,
+          riskScorecard.details?.stress_resilience_score?.context
+        ),
+      },
+      {
+        key: "leverage_safety_score",
+        label: "Leverage Safety",
+        value: formatScore(riskScorecard.leverage_safety_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.leverage_safety_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.leverage_safety_score?.explanation,
+          riskScorecard.details?.leverage_safety_score?.context
+        ),
+      },
+      {
+        key: "margin_safety_score",
+        label: "Margin Safety",
+        value: formatScore(riskScorecard.margin_safety_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.margin_safety_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.margin_safety_score?.explanation,
+          riskScorecard.details?.margin_safety_score?.context
+        ),
+      },
+      {
+        key: "diversification_score",
+        label: "Diversification",
+        value: formatScore(riskScorecard.diversification_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.diversification_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.diversification_score?.explanation,
+          riskScorecard.details?.diversification_score?.context
+        ),
+      },
+      {
+        key: "regime_alignment_score",
+        label: "Regime Alignment",
+        value: formatScore(riskScorecard.regime_alignment_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.regime_alignment_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.regime_alignment_score?.explanation,
+          riskScorecard.details?.regime_alignment_score?.context
+        ),
+      },
+      {
+        key: "governance_compliance_score",
+        label: "Governance Compliance",
+        value: formatScore(riskScorecard.governance_compliance_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.governance_compliance_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.governance_compliance_score?.explanation,
+          riskScorecard.details?.governance_compliance_score?.context
+        ),
+      },
+      {
+        key: "overall_risk_quality_score",
+        label: "Overall Risk Quality",
+        value: formatScore(riskScorecard.overall_risk_quality_score),
+        max: "100.0%",
+        progress: toScoreProgress(riskScorecard.overall_risk_quality_score),
+        tooltip: formatScoreTooltip(
+          riskScorecard.details?.overall_risk_quality_score?.explanation,
+          riskScorecard.details?.overall_risk_quality_score?.context
+        ),
+      },
+    ],
+  }
+  const marginUsed =
+    typeof riskSnapshot.margin_used === "number" && Number.isFinite(riskSnapshot.margin_used)
+      ? riskSnapshot.margin_used
+      : accountState.margin
+  const marginUsedPct =
+    typeof riskSnapshot.margin_used_frac === "number" && Number.isFinite(riskSnapshot.margin_used_frac)
+      ? riskSnapshot.margin_used_frac
+      : currentEquity > 0
+        ? marginUsed / currentEquity
+        : null
+  const accountMargin = {
+    balance: formatNumber(accountState.balance),
+    equity: formatNumber(accountState.equity),
+    profit: formatNumber(accountState.profit),
+    profitTone: accountState.profit >= 0 ? "text-emerald-500" : "text-red-500",
+    freeMargin: formatNumber(accountState.margin_free),
+    marginUsed: formatNumber(marginUsed),
+    marginUsedPct: formatPercent(marginUsedPct),
+    marginLevel:
+      typeof accountState.margin_level === "number" && Number.isFinite(accountState.margin_level)
+        ? `${accountState.margin_level.toFixed(2)}%`
+        : "--",
+  }
+  const exposureHeat = {
+    grossExposure: formatNumber(riskSnapshot.gross_exposure),
+    netExposure: formatNumber(riskSnapshot.net_exposure),
+    maxSingleExposurePct: formatPercent(riskSnapshot.max_single_exposure_frac),
+    currencyExposure: (riskSnapshot.currency_exposure || []).slice(0, 8).map((item) => ({
+      label: item.currency,
+      value: formatNumber(item.value),
+    })),
+    currencyWeights: (riskSnapshot.currency_weights || []).slice(0, 8).map((item) => ({
+      label: item.currency,
+      value:
+        typeof item.value === "number" && Number.isFinite(item.value)
+          ? `${(item.value * 100).toFixed(2)}%`
+          : "--",
+    })),
+    avgCorrelation: formatNumber(riskSnapshot.average_pair_correlation),
+    maxCorrelation: formatNumber(riskSnapshot.max_pair_correlation),
+    hiddenOverlap: formatNumber(riskSnapshot.hidden_overlap_score),
+    redundancyScore: formatNumber(riskSnapshot.redundancy_score),
+    effectiveIndependentBets: formatNumber(riskSnapshot.effective_independent_bets),
+    diversificationRatio: formatNumber(riskSnapshot.diversification_ratio),
+  }
+  const regime = {
+    aggregate: riskSnapshot.regime_name || "--",
+    confidence: formatPercent(riskSnapshot.regime_confidence),
+    transitionChanged: riskSnapshot.regime_transition_changed ? "Yes" : "No",
+    market: riskSnapshot.market_regime || "--",
+    volatility: riskSnapshot.volatility_regime || "--",
+    liquidity: riskSnapshot.liquidity_regime || "--",
+    crisis: riskSnapshot.crisis_regime || "--",
+    warnings: riskSnapshot.regime_warnings || [],
+    signals: riskSnapshot.regime_signals_triggered || [],
+  }
   // Calculate how many bars to fetch based on speed and elapsed time
   const calculateBarsToFetch = useCallback(() => {
     const now = Date.now()
@@ -455,8 +741,49 @@ export function SimulationExecutionView({
   }, [onTradesUpdate, trades])
 
   useEffect(() => {
-    setWhatIfComparison(null)
-  }, [currentBarIndex, positions, orders, accountState.equity, accountState.margin])
+    let cancelled = false
+
+    const loadInitialState = async () => {
+      try {
+        const response: PositionsResponse = await simulatorApi.getPositions(sessionId)
+        if (cancelled) {
+          return
+        }
+        setPositions(toPositionRows(response.positions))
+        setOrders(toOrderRows(response.orders))
+        if (response.market) {
+          setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+          const primaryMarket = response.market.find((item) => item.symbol === symbol)
+          if (primaryMarket) {
+            setCurrentPrice(primaryMarket.close)
+          }
+        }
+        if (response.risk_snapshot) {
+          setRiskSnapshot(response.risk_snapshot)
+        }
+        if (response.risk_scorecard) {
+          setRiskScorecard(response.risk_scorecard)
+        }
+        if (response.recommendations) {
+          setRecommendations(response.recommendations)
+        }
+        if (response.governance) {
+          setLatestGovernanceReport(response.governance)
+        }
+        if (response.account) {
+          setAccountState((prev) => toAccountMetrics(response.account, prev))
+        }
+      } catch (error) {
+        console.error("Failed to load simulation state:", error)
+      }
+    }
+
+    loadInitialState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, symbol])
 
   const handlePauseToggle = async () => {
     try {
@@ -492,6 +819,16 @@ export function SimulationExecutionView({
       setStopActionLoading(null)
     }
   }
+
+  const pauseForManualReview = useCallback(async () => {
+    if (isPaused) {
+      return
+    }
+    await simulatorApi.updateSession(sessionId, { paused: true })
+    setIsPaused(true)
+    lastUpdateTimeRef.current = Date.now()
+    accumulatorRef.current = 0
+  }, [isPaused, sessionId])
 
   const handleSaveAndStopSimulation = async () => {
     try {
@@ -586,10 +923,9 @@ export function SimulationExecutionView({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
-          <div className="text-sm text-muted-foreground">
-            Session {sessionId} - {symbol} {config?.timeframe || "M1"} | Step: {currentBarIndex}/{totalBars}
-            {isCompleted && <span className="ml-2 text-green-500">(Completed)</span>}
-          </div>
+          {isCompleted && (
+            <div className="text-sm text-green-500">(Completed)</div>
+          )}
           <div className="text-xs text-muted-foreground">
             Regime: <span className="text-foreground">{riskSnapshot.regime_name || "--"}</span>
             {" | "}Confidence: <span className="text-foreground">
@@ -600,13 +936,6 @@ export function SimulationExecutionView({
             {" | "}Market: <span className="text-foreground">{riskSnapshot.market_regime || "--"}</span>
             {" | "}Volatility: <span className="text-foreground">{riskSnapshot.volatility_regime || "--"}</span>
             {" | "}Liquidity: <span className="text-foreground">{riskSnapshot.liquidity_regime || "--"}</span>
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {sessionDetails.map((item) => (
-              <span key={item.label}>
-                {item.label}: <span className="text-foreground">{String(item.value)}</span>
-              </span>
-            ))}
           </div>
         </div>
         <div className="flex gap-2">
@@ -706,6 +1035,15 @@ export function SimulationExecutionView({
             </Card>
           )}
 
+          <SessionOverviewCards
+            sessionDetails={sessionDetails}
+            strategyControl={strategyControl}
+            riskMonitor={riskMonitor}
+            accountMargin={accountMargin}
+            exposureHeat={exposureHeat}
+            regime={regime}
+          />
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">Trading Terminal</CardTitle>
@@ -736,6 +1074,7 @@ export function SimulationExecutionView({
                 onEvaluateWhatIf={async (payload) => {
                   try {
                     setWhatIfLoading(true)
+                    await pauseForManualReview()
                     const response = await simulatorApi.evaluateWhatIf(sessionId, payload)
                     setWhatIfComparison(response)
                   } catch (error) {
@@ -749,6 +1088,7 @@ export function SimulationExecutionView({
               />
               <TradingPanel
                 sessionId={sessionId}
+                mode={config?.mode}
                 symbol={symbol}
                 symbols={symbols}
                 currentPrice={currentPrice}
@@ -760,10 +1100,18 @@ export function SimulationExecutionView({
                   setPositions(toPositionRows(newPositions))
                   setOrders(toOrderRows(newOrders))
                 }}
+                onTradeAttemptResult={({ accepted }) => {
+                  if (accepted) {
+                    setAcceptedTradeCount((prev) => prev + 1)
+                    return
+                  }
+                  setRejectedTradeCount((prev) => prev + 1)
+                }}
                 onGovernanceEvaluated={setLatestGovernanceReport}
                 onRiskSnapshotUpdate={setRiskSnapshot}
                 onRiskScorecardUpdate={setRiskScorecard}
                 onRecommendationsUpdate={setRecommendations}
+                onPauseForManualReview={pauseForManualReview}
               />
               <PositionsPanel
                 positions={positions}

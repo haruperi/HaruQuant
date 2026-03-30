@@ -100,7 +100,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     spread: 20,
     spreadMin: 10,
     spreadMax: 50,
-    leverage: 400,
+    leverage: 0,
     dataResolution: "trading_timeframe",
   })
   const [riskSettings, setRiskSettings] = useState({

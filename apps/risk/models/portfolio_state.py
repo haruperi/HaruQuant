@@ -23,6 +23,7 @@ class PortfolioState:
     markets: Dict[str, MarketState]
     limits: Optional[RiskLimits] = None
     symbol_to_cluster: Dict[str, str] = field(default_factory=dict)
+    symbol_to_clusters: Dict[str, List[str]] = field(default_factory=dict)
     validation_summary: ValidationSummary = field(default_factory=ValidationSummary)
     exposures: Dict[str, float] = field(default_factory=dict)
     as_of: Optional[str] = None

@@ -121,7 +121,7 @@ export function HistoricalRunForm({
     spread: 20,
     spreadMin: 10,
     spreadMax: 50,
-    leverage: 400,
+    leverage: 0,
     dataResolution: "trading_timeframe",
   })
   const [riskSettings, setRiskSettings] = useState({
@@ -135,6 +135,7 @@ export function HistoricalRunForm({
     deltaVarCapFrac: 0.02,
     deltaEsCapFrac: 0.03,
     maxMarginUsedFrac: 0.5,
+    maxCurrencyExposureFrac: 0.2,
     maxSingleRcFrac: 0.1,
     warningUtilizationFrac: 0.9,
     limitsEnforced: false,
@@ -262,6 +263,8 @@ export function HistoricalRunForm({
   const showReplay = mode === "replay"
   const canUseBatch = showStrategy
   const symbolCount = symbol.split(",").map((item) => item.trim()).filter(Boolean).length
+  const selectedStrategyName =
+    strategies.find((item) => item.id === Number(strategyId))?.name || undefined
 
   const config: HistoricalRunConfig = {
     source: mode,
@@ -307,6 +310,7 @@ export function HistoricalRunForm({
           deltaVarCapFrac: riskSettings.deltaVarCapFrac,
           deltaEsCapFrac: riskSettings.deltaEsCapFrac,
           maxMarginUsedFrac: riskSettings.maxMarginUsedFrac,
+          maxCurrencyExposureFrac: riskSettings.maxCurrencyExposureFrac,
           maxSingleRcFrac: riskSettings.maxSingleRcFrac,
           warningUtilizationFrac: riskSettings.warningUtilizationFrac,
           limitsEnforced: riskSettings.limitsEnforced,
@@ -315,6 +319,7 @@ export function HistoricalRunForm({
     strategy: showStrategy
       ? {
           strategyId: strategyId ? Number(strategyId) : undefined,
+          strategyName: selectedStrategyName,
           strategyVersionId,
           strategyParams,
         }
@@ -672,6 +677,7 @@ export function HistoricalRunForm({
               <div className="space-y-2"><Label htmlFor="riskDeltaVarCapFrac">Delta VaR Cap %</Label><Input id="riskDeltaVarCapFrac" type="number" min="0" step="0.01" value={riskSettings.deltaVarCapFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, deltaVarCapFrac: Number(e.target.value) || 0 }))} /></div>
               <div className="space-y-2"><Label htmlFor="riskDeltaEsCapFrac">Delta CVaR Cap %</Label><Input id="riskDeltaEsCapFrac" type="number" min="0" step="0.01" value={riskSettings.deltaEsCapFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, deltaEsCapFrac: Number(e.target.value) || 0 }))} /></div>
               <div className="space-y-2"><Label htmlFor="riskMaxMarginUsedFrac">Max Margin Used %</Label><Input id="riskMaxMarginUsedFrac" type="number" min="0" step="0.01" value={riskSettings.maxMarginUsedFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, maxMarginUsedFrac: Number(e.target.value) || 0 }))} /></div>
+              <div className="space-y-2"><Label htmlFor="riskMaxCurrencyExposureFrac">Max Currency Weight Buffer %</Label><Input id="riskMaxCurrencyExposureFrac" type="number" min="0" step="0.01" value={riskSettings.maxCurrencyExposureFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, maxCurrencyExposureFrac: Number(e.target.value) || 0 }))} /></div>
               <div className="space-y-2"><Label htmlFor="riskMaxSingleRcFrac">Max Single Risk Contribution Buffer %</Label><Input id="riskMaxSingleRcFrac" type="number" min="0" step="0.01" value={riskSettings.maxSingleRcFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, maxSingleRcFrac: Number(e.target.value) || 0 }))} /></div>
               <div className="space-y-2"><Label htmlFor="riskWarningUtilizationFrac">Warning Utilization %</Label><Input id="riskWarningUtilizationFrac" type="number" step="0.01" value={riskSettings.warningUtilizationFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, warningUtilizationFrac: Number(e.target.value) || 0.9 }))} /></div>
             </div>

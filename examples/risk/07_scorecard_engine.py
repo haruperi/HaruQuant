@@ -1,18 +1,18 @@
 """
-Example 12: Structural Fragility Analytics
+Example 15: Scorecard Engine
 
-Phase 4 task-by-task walkthrough using the actual HaruQuant stack:
-1. symbol volatility state metrics
-2. volatility-adjusted exposure
-3. volatility shock loss estimates
-4. rolling pairwise correlations
-5. intra-portfolio correlation summary
-6. redundancy and hidden overlap metrics
-7. cluster exposure analysis
-8. effective independent bets and diversification ratio
+Phase 7 task-by-task walkthrough using the actual HaruQuant stack:
+1. portfolio health score
+2. concentration score
+3. diversification score
+4. leverage and margin safety scores
+5. stress resilience score
+6. regime alignment score
+7. governance compliance score
+8. overall risk quality score
 
 Run:
-    python examples/risk/12_structural_fragility_analytics.py
+    python examples/risk/07_scorecard_engine.py
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from apps.risk import PortfolioStateEngine, RiskLimits, RiskScorecardEngine, RiskSnapshotEngine
 from apps.trading import Engine, Trade, core
 
 
@@ -107,13 +107,19 @@ def prepare_symbol(engine: Engine, symbol: str, latest_close: float):
     return mutable
 
 
+def synthetic_equity_curve() -> pd.Series:
+    values = [10000.0, 10100.0, 10060.0, 9960.0, 9890.0, 9920.0, 9980.0]
+    return pd.Series(values, index=pd.date_range("2024-01-01", periods=len(values), freq="h"), dtype=float)
+
+
 class ExampleContext:
     def __init__(self):
         self.engine = Engine(backend="sim")
         seed_sim_account(self.engine)
         self.market_data = {}
-        self.snapshot = None
         self.state = None
+        self.snapshot = None
+        self.scorecard = None
 
     def setup(self) -> None:
         print("Loading real historical bars from connected client...")
@@ -142,21 +148,23 @@ class ExampleContext:
             limits=BASE_LIMITS,
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
-                "source": "phase4_structural_fragility_example",
+                "source": "phase7_scorecard_engine_example",
                 "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
+                "equity_curve": synthetic_equity_curve(),
             },
         )
         self.snapshot = RiskSnapshotEngine().build_snapshot(self.state)
+        self.scorecard = RiskScorecardEngine().build_scorecard(self.snapshot)
 
     def open_positions(self) -> None:
         print("Opening small simulator positions...")
         trade = Trade(self.engine.api)
         for request in [
             {"symbol": "EURUSD", "side": "BUY", "volume": 0.10},
-            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.09},
-            {"symbol": "USDJPY", "side": "SELL", "volume": 0.07},
-            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.05},
+            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.08},
+            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},
+            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.04},
         ]:
             symbol_info = self.engine.symbol_info(request["symbol"])
             if symbol_info is None:
@@ -179,7 +187,7 @@ class ExampleContext:
                 price=price,
                 sl=sl,
                 tp=0.0,
-                comment="Phase 4 structural fragility example",
+                comment="Phase 7 scorecard example",
             )
             print(
                 f"  {request['symbol']} {request['side']}: retcode={int(result.retcode)} "
@@ -187,108 +195,77 @@ class ExampleContext:
             )
         self.engine.monitor_account(verbose=False)
 
-    def rows(self, family: str):
-        return [row for row in self.snapshot.metric_rows if row.family == family]
+    def score(self, key: str):
+        return next(row for row in self.scorecard.score_rows if row.score_key == key)
 
     def close(self):
         if getattr(self.engine, "client", None) is not None:
             self.engine.client.shutdown()
 
 
-def example_01_symbol_volatility_state_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 01: Symbol Volatility State Metrics")
-    for row in ctx.rows("volatility_risk"):
-        if row.metric_key != "symbol_realized_volatility":
-            continue
-        print(f"  symbol={row.scope_key} realized_vol={row.numeric_value}")
+def example_01_portfolio_health_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 01: Portfolio Health Score")
+    row = ctx.score("portfolio_health_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_02_volatility_adjusted_exposure(ctx: ExampleContext) -> None:
-    print_example_header("Example 02: Volatility-Adjusted Exposure")
-    for row in ctx.rows("volatility_risk"):
-        if row.metric_key != "vol_adjusted_exposure":
-            continue
-        print(f"  symbol={row.scope_key} vol_adjusted_exposure={row.numeric_value}")
+def example_02_concentration_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 02: Concentration Score")
+    row = ctx.score("concentration_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_03_volatility_shock_loss_estimates(ctx: ExampleContext) -> None:
-    print_example_header("Example 03: Volatility Shock Loss Estimates")
-    for row in ctx.rows("volatility_risk"):
-        if row.metric_key not in {"vol_shock_loss_estimate", "portfolio_vol_shock_loss_estimate"}:
-            continue
-        label = row.scope_key or "portfolio"
-        print(f"  scope={label} shock_loss_estimate={row.numeric_value}")
+def example_03_diversification_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 03: Diversification Score")
+    row = ctx.score("diversification_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_04_rolling_pairwise_correlations(ctx: ExampleContext) -> None:
-    print_example_header("Example 04: Rolling Pairwise Correlations")
-    for row in ctx.rows("correlation_risk"):
-        if row.metric_key != "pair_correlation":
-            continue
-        print(f"  pair={row.scope_key} correlation={row.numeric_value}")
+def example_04_leverage_and_margin_safety_scores(ctx: ExampleContext) -> None:
+    print_example_header("Example 04: Leverage and Margin Safety Scores")
+    for key in ["leverage_safety_score", "margin_safety_score"]:
+        row = ctx.score(key)
+        print(f"  key={key} score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_05_intra_portfolio_correlation_summary(ctx: ExampleContext) -> None:
-    print_example_header("Example 05: Intra-Portfolio Correlation Summary")
-    for key in ["average_pair_correlation", "max_pair_correlation"]:
-        value = next(
-            row.numeric_value
-            for row in ctx.rows("correlation_risk")
-            if row.metric_key == key and row.scope == "portfolio"
-        )
-        print(f"  {key}={value}")
+def example_05_stress_resilience_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 05: Stress Resilience Score")
+    row = ctx.score("stress_resilience_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_06_redundancy_and_hidden_overlap_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 06: Redundancy and Hidden Overlap Metrics")
-    for family, key in [
-        ("correlation_risk", "redundancy_score"),
-        ("concentration", "hidden_overlap_score"),
-    ]:
-        value = next(
-            row.numeric_value
-            for row in ctx.snapshot.metric_rows
-            if row.family == family and row.metric_key == key and row.scope == "portfolio"
-        )
-        print(f"  {key}={value}")
+def example_06_regime_alignment_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 06: Regime Alignment Score")
+    row = ctx.score("regime_alignment_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_07_cluster_exposure_analysis(ctx: ExampleContext) -> None:
-    print_example_header("Example 07: Cluster Exposure Analysis")
-    for row in ctx.rows("concentration"):
-        if row.metric_key not in {"cluster_gross_exposure", "cluster_gross_exposure_frac"}:
-            continue
-        print(f"  cluster={row.scope_key} {row.metric_key}={row.numeric_value}")
-    for row in ctx.rows("correlation_risk"):
-        if row.metric_key not in {"cluster_average_correlation", "cluster_max_correlation"}:
-            continue
-        print(f"  cluster={row.scope_key} {row.metric_key}={row.numeric_value}")
+def example_07_governance_compliance_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 07: Governance Compliance Score")
+    row = ctx.score("governance_compliance_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
 
 
-def example_08_effective_independent_bets_and_diversification_ratio(ctx: ExampleContext) -> None:
-    print_example_header("Example 08: Effective Independent Bets and Diversification Ratio")
-    for key in ["effective_independent_bets", "diversification_ratio"]:
-        value = next(
-            row.numeric_value
-            for row in ctx.rows("concentration")
-            if row.metric_key == key and row.scope == "portfolio"
-        )
-        print(f"  {key}={value}")
+def example_08_overall_risk_quality_score(ctx: ExampleContext) -> None:
+    print_example_header("Example 08: Overall Risk Quality Score")
+    row = ctx.score("overall_risk_quality_score")
+    print(f"  score={row.score_value} confidence={row.confidence_label}")
+    print(f"  components={row.context.get('components')}")
 
 
 def main() -> None:
-    print_example_header("PHASE 4 STRUCTURAL FRAGILITY ANALYTICS")
+    print_example_header("PHASE 7 SCORECARD ENGINE")
     ctx = ExampleContext()
     try:
         ctx.setup()
-        example_01_symbol_volatility_state_metrics(ctx)
-        example_02_volatility_adjusted_exposure(ctx)
-        example_03_volatility_shock_loss_estimates(ctx)
-        example_04_rolling_pairwise_correlations(ctx)
-        example_05_intra_portfolio_correlation_summary(ctx)
-        example_06_redundancy_and_hidden_overlap_metrics(ctx)
-        example_07_cluster_exposure_analysis(ctx)
-        example_08_effective_independent_bets_and_diversification_ratio(ctx)
+        example_01_portfolio_health_score(ctx)
+        example_02_concentration_score(ctx)
+        example_03_diversification_score(ctx)
+        example_04_leverage_and_margin_safety_scores(ctx)
+        example_05_stress_resilience_score(ctx)
+        example_06_regime_alignment_score(ctx)
+        example_07_governance_compliance_score(ctx)
+        example_08_overall_risk_quality_score(ctx)
     finally:
         ctx.close()
 

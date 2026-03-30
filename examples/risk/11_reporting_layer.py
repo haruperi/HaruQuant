@@ -10,7 +10,7 @@ Phase 11 task-by-task walkthrough using the actual HaruQuant stack:
 6. build replay report
 
 Run:
-    python examples/risk/19_reporting_layer.py
+    python examples/risk/11_reporting_layer.py
 """
 
 from __future__ import annotations

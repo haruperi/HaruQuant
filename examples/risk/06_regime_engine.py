@@ -1,18 +1,16 @@
 """
-Example 1002: Core Risk Metric Snapshot
+Example 14: Regime Engine
 
-Phase 2 task-by-task walkthrough using the actual HaruQuant stack:
-1. create metric interface and registry
-2. implement position risk metrics
-3. implement symbol risk metrics
-4. implement currency exposure metrics
-5. implement strategy group metrics
-6. implement portfolio exposure and heat metrics
-7. implement margin and leverage metrics
-8. persist normalized metric rows
+Phase 6 task-by-task walkthrough using the actual HaruQuant stack:
+1. market regime logic
+2. volatility regime logic
+3. liquidity regime logic
+4. crisis regime logic
+5. regime transition metadata
+6. governance-aware top-level regime summary
 
 Run:
-    python examples/risk/02_core_risk_metric_snapshot.py
+    python examples/risk/06_regime_engine.py
 """
 
 from __future__ import annotations
@@ -27,14 +25,19 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from apps.risk import PortfolioStateEngine, RegimeEngine, RegimeState, RiskLimits, RiskSnapshotEngine
 from apps.trading import Engine, Trade, core
 
 
 TIMEFRAME = "H1"
-BAR_COUNT = 300
-SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY"]
-SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "GBPUSD": "FOREX", "USDJPY": "FOREX"}
+BAR_COUNT = 320
+SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"]
+SYMBOL_TO_CLUSTER = {
+    "EURUSD": "FOREX",
+    "GBPUSD": "FOREX",
+    "USDJPY": "FOREX",
+    "XAUUSD": "METALS",
+}
 BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12, vol_lookback=20, corr_lookback=60)
 
 
@@ -102,13 +105,19 @@ def prepare_symbol(engine: Engine, symbol: str, latest_close: float):
     return mutable
 
 
+def synthetic_equity_curve() -> pd.Series:
+    values = [10000.0, 10080.0, 10020.0, 9940.0, 9880.0, 9835.0, 9810.0]
+    return pd.Series(values, index=pd.date_range("2024-01-01", periods=len(values), freq="h"), dtype=float)
+
+
 class ExampleContext:
     def __init__(self):
         self.engine = Engine(backend="sim")
         seed_sim_account(self.engine)
         self.market_data = {}
-        self.snapshot = None
         self.state = None
+        self.regime_report = None
+        self.snapshot = None
 
     def setup(self) -> None:
         print("Loading real historical bars from connected client...")
@@ -137,20 +146,27 @@ class ExampleContext:
             limits=BASE_LIMITS,
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
-                "source": "phase2_metric_snapshot_example",
+                "source": "phase6_regime_engine_example",
                 "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
+                "equity_curve": synthetic_equity_curve(),
             },
         )
-        self.snapshot = RiskSnapshotEngine().build_snapshot(self.state)
+        regime_engine = RegimeEngine()
+        self.regime_report = regime_engine.evaluate_state(self.state, previous=RegimeState(name="NORMAL"))
+        self.snapshot = RiskSnapshotEngine().build_snapshot(
+            self.state,
+            shared={"previous_regime": RegimeState(name="NORMAL")},
+        )
 
     def open_positions(self) -> None:
         print("Opening small simulator positions...")
         trade = Trade(self.engine.api)
         for request in [
             {"symbol": "EURUSD", "side": "BUY", "volume": 0.10},
-            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.08},
-            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},   
+            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.09},
+            {"symbol": "USDJPY", "side": "SELL", "volume": 0.07},
+            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.04},
         ]:
             symbol_info = self.engine.symbol_info(request["symbol"])
             if symbol_info is None:
@@ -173,7 +189,7 @@ class ExampleContext:
                 price=price,
                 sl=sl,
                 tp=0.0,
-                comment="Phase 2 metric snapshot example",
+                comment="Phase 6 regime engine example",
             )
             print(
                 f"  {request['symbol']} {request['side']}: retcode={int(result.retcode)} "
@@ -181,96 +197,71 @@ class ExampleContext:
             )
         self.engine.monitor_account(verbose=False)
 
-    def rows(self, family: str):
-        return [row for row in self.snapshot.metric_rows if row.family == family]
-
     def close(self):
         if getattr(self.engine, "client", None) is not None:
             self.engine.client.shutdown()
 
 
-def example_01_create_metric_interface_and_registry(ctx: ExampleContext) -> None:
-    print_example_header("Example 01: Create Metric Interface and Registry")
-    print(f"metric_count={len(ctx.snapshot.metric_rows)}")
-    print(f"metric_families={sorted({row.family for row in ctx.snapshot.metric_rows})}")
+def example_01_market_regime_logic(ctx: ExampleContext) -> None:
+    print_example_header("Example 01: Market Regime Logic")
+    print(f"  market_regime={ctx.regime_report.market.name}")
+    print(f"  confidence={ctx.regime_report.market.confidence}")
 
 
-def example_02_position_risk_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 02: Position Risk Metrics")
-    for row in ctx.rows("position_risk")[:9]:
-        print(
-            f"  key={row.metric_key} scope_key={row.scope_key} value={row.numeric_value or row.text_value}"
-        )
+def example_02_volatility_regime_logic(ctx: ExampleContext) -> None:
+    print_example_header("Example 02: Volatility Regime Logic")
+    print(f"  volatility_regime={ctx.regime_report.volatility.name}")
+    print(f"  confidence={ctx.regime_report.volatility.confidence}")
 
 
-def example_03_symbol_risk_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 03: Symbol Risk Metrics")
-    for row in ctx.rows("symbol_risk")[:12]:
-        print(
-            f"  key={row.metric_key} scope_key={row.scope_key} value={row.numeric_value or row.text_value}"
-        )
+def example_03_liquidity_regime_logic(ctx: ExampleContext) -> None:
+    print_example_header("Example 03: Liquidity Regime Logic")
+    print(f"  liquidity_regime={ctx.regime_report.liquidity.name}")
+    print(f"  confidence={ctx.regime_report.liquidity.confidence}")
 
 
-def example_04_currency_exposure_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 04: Currency Exposure Metrics")
-    for row in ctx.rows("currency_exposure"):
-        print(f"  currency={row.scope_key} exposure={row.numeric_value}")
+def example_04_crisis_regime_logic(ctx: ExampleContext) -> None:
+    print_example_header("Example 04: Crisis Regime Logic")
+    print(f"  crisis_regime={ctx.regime_report.crisis.name}")
+    print(f"  signals_triggered={ctx.regime_report.crisis.signals_triggered}")
+    for signal in ctx.regime_report.signals:
+        print(f"  signal={signal.signal_key} triggered={signal.triggered}")
 
 
-def example_05_strategy_group_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 05: Strategy Group Metrics")
-    strategy_rows = ctx.rows("strategy_risk")
-    if not strategy_rows:
-        print("  no strategy rows")
-        return
-    for row in strategy_rows[:12]:
-        print(
-            f"  key={row.metric_key} scope_key={row.scope_key} value={row.numeric_value or row.text_value}"
-        )
+def example_05_regime_transition_metadata(ctx: ExampleContext) -> None:
+    print_example_header("Example 05: Regime Transition Metadata")
+    print(f"  previous={ctx.regime_report.transition.previous_name}")
+    print(f"  current={ctx.regime_report.transition.current_name}")
+    print(f"  changed={ctx.regime_report.transition.changed}")
 
 
-def example_06_portfolio_exposure_and_heat_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 06: Portfolio Exposure and Heat Metrics")
+def example_06_governance_aware_top_level_regime_summary(ctx: ExampleContext) -> None:
+    print_example_header("Example 06: Governance-Aware Top-Level Regime Summary")
     for key in [
-        "gross_exposure",
-        "net_exposure",
-        "portfolio_var",
-        "portfolio_es",
-        "gross_exposure_to_equity",
-        "max_single_exposure_frac",
+        "regime_name",
+        "regime_confidence",
+        "regime_signals_triggered",
+        "market_regime",
+        "volatility_regime",
+        "liquidity_regime",
+        "crisis_regime",
+        "governance_decision",
+        "governance_reason",
     ]:
         print(f"  {key}={ctx.snapshot.summary.get(key)}")
 
 
-def example_07_margin_and_leverage_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 07: Margin and Leverage Metrics")
-    for row in ctx.rows("margin_risk"):
-        print(f"  key={row.metric_key} value={row.numeric_value}")
-
-
-def example_08_persist_normalized_metric_rows(ctx: ExampleContext) -> None:
-    print_example_header("Example 08: Persist Normalized Metric Rows")
-    print("sample_rows:")
-    for row in ctx.snapshot.metric_rows[:10]:
-        print(
-            f"  family={row.family} key={row.metric_key} scope={row.scope} "
-            f"scope_key={row.scope_key} numeric={row.numeric_value} text={row.text_value}"
-        )
-
-
 def main() -> None:
-    print_example_header("PHASE 2 CORE RISK METRIC SNAPSHOT")
+    print_example_header("PHASE 6 REGIME ENGINE")
     ctx = ExampleContext()
     try:
         ctx.setup()
-        example_01_create_metric_interface_and_registry(ctx)
-        example_02_position_risk_metrics(ctx)
-        example_03_symbol_risk_metrics(ctx)
-        example_04_currency_exposure_metrics(ctx)
-        example_05_strategy_group_metrics(ctx)
-        example_06_portfolio_exposure_and_heat_metrics(ctx)
-        example_07_margin_and_leverage_metrics(ctx)
-        example_08_persist_normalized_metric_rows(ctx)
+        example_01_market_regime_logic(ctx)
+        example_02_volatility_regime_logic(ctx)
+        example_03_liquidity_regime_logic(ctx)
+        example_04_crisis_regime_logic(ctx)
+        example_05_regime_transition_metadata(ctx)
+        example_06_governance_aware_top_level_regime_summary(ctx)
     finally:
         ctx.close()
 

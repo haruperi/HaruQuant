@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -476,7 +476,7 @@ class PortfolioRiskEngine:
         self,
         positions: Dict[str, float],
         equity: float,
-        symbol_to_cluster: Optional[Dict[str, str]],
+        symbol_to_cluster: Optional[Dict[str, Any]],
         limits: RiskLimits,
     ) -> Dict[str, Dict[str, float]]:
         """Compute per-cluster VaR/ES metrics."""
@@ -503,7 +503,7 @@ class PortfolioRiskEngine:
         out: Dict[str, Dict[str, float]] = {}
         for cluster_key, cluster_positions in self.group_positions_by_cluster(
             state.position_map,
-            state.symbol_to_cluster,
+            state.symbol_to_clusters or state.symbol_to_cluster,
         ).items():
             subset_state = PortfolioState(
                 account=state.account,
@@ -512,6 +512,11 @@ class PortfolioRiskEngine:
                 markets={key: value for key, value in state.markets.items() if key in cluster_positions},
                 limits=effective,
                 symbol_to_cluster={key: value for key, value in state.symbol_to_cluster.items() if key in cluster_positions},
+                symbol_to_clusters={
+                    key: value
+                    for key, value in getattr(state, "symbol_to_clusters", {}).items()
+                    if key in cluster_positions
+                },
                 validation_summary=state.validation_summary,
                 exposures={key: value for key, value in state.exposures.items() if key in cluster_positions},
                 as_of=state.as_of,
@@ -527,16 +532,26 @@ class PortfolioRiskEngine:
     def group_positions_by_cluster(
         self,
         positions: Dict[str, float],
-        symbol_to_cluster: Dict[str, str],
+        symbol_to_cluster: Dict[str, Any],
     ) -> Dict[str, Dict[str, float]]:
         """Group positions by cluster key."""
         clusters: Dict[str, Dict[str, float]] = {}
         for sym, lots in positions.items():
-            cluster_key = symbol_to_cluster.get(sym)
-            if not cluster_key:
+            cluster_keys = self._iter_cluster_keys(symbol_to_cluster.get(sym))
+            if not cluster_keys:
                 continue
-            clusters.setdefault(cluster_key, {})[sym] = lots
+            for cluster_key in cluster_keys:
+                clusters.setdefault(cluster_key, {})[sym] = lots
         return clusters
+
+    @staticmethod
+    def _iter_cluster_keys(value: Any) -> List[str]:
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple, set)):
+            return [str(item) for item in value if str(item)]
+        token = str(value)
+        return [token] if token else []
 
     def propose_rc_rebalance(
         self,

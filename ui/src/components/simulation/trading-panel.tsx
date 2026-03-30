@@ -4,6 +4,14 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -20,6 +28,8 @@ import simulatorApi, {
   type Position,
   type Order,
   type SimulationGovernanceReport,
+  type SimulationMode,
+  type SimulationTradePreviewResponse,
   type SimulationRecommendationSummary,
   type SimulationRiskSnapshotSummary,
   type SimulationRiskScorecardSummary,
@@ -28,30 +38,36 @@ import { useSimulatorTradeNotifications } from "@/lib/hooks/use-simulator-trade-
 
 interface TradingPanelProps {
   sessionId?: number
+  mode?: SimulationMode
   symbol?: string
   symbols?: string[]
   currentPrice?: number
   currentPricesBySymbol?: Record<string, number>
   accountEquity?: number
   onTradeExecuted?: (positions: Position[], orders: Order[]) => void
+  onTradeAttemptResult?: (result: { accepted: boolean; kind: "market" | "pending" }) => void
   onGovernanceEvaluated?: (report: SimulationGovernanceReport) => void
   onRiskSnapshotUpdate?: (snapshot: SimulationRiskSnapshotSummary) => void
   onRiskScorecardUpdate?: (scorecard: SimulationRiskScorecardSummary) => void
   onRecommendationsUpdate?: (recommendations: SimulationRecommendationSummary) => void
+  onPauseForManualReview?: () => Promise<void> | void
 }
 
 export function TradingPanel({
   sessionId,
+  mode = "manual",
   symbol = "EURUSD",
   symbols,
   currentPrice,
   currentPricesBySymbol,
   accountEquity,
   onTradeExecuted,
+  onTradeAttemptResult,
   onGovernanceEvaluated,
   onRiskSnapshotUpdate,
   onRiskScorecardUpdate,
   onRecommendationsUpdate,
+  onPauseForManualReview,
 }: TradingPanelProps) {
   const availableSymbols = symbols && symbols.length > 0 ? symbols : [symbol]
   const availableSymbolsKey = (symbols && symbols.length > 0 ? symbols : [symbol]).join("|")
@@ -79,6 +95,9 @@ export function TradingPanel({
   const [pendingPrice, setPendingPrice] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [confirmedSizingKey, setConfirmedSizingKey] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewSide, setPreviewSide] = useState<"buy" | "sell">("buy")
+  const [previewData, setPreviewData] = useState<SimulationTradePreviewResponse | null>(null)
   const { notifyTrade } = useSimulatorTradeNotifications()
 
   const selectedCurrentPrice =
@@ -249,6 +268,69 @@ export function TradingPanel({
     return suggestedSize
   }
 
+  const executeApprovedTrade = async (side: "buy" | "sell", manualReviewAccepted = false) => {
+    const vol = Number(volume.replace(",", "."))
+    try {
+      setSubmitting(true)
+      const response = await simulatorApi.executeTrade(sessionId!, {
+        symbol: selectedSymbol,
+        side,
+        volume: vol,
+        sl: sl ? Number(sl) : undefined,
+        tp: tp ? Number(tp) : undefined,
+        manual_review_accepted: manualReviewAccepted,
+      })
+
+      onTradeAttemptResult?.({ accepted: true, kind: "market" })
+      toast.success(`Trade executed (${side.toUpperCase()})`)
+      if (onTradeExecuted && response.positions) {
+        onTradeExecuted(response.positions, response.orders || [])
+      }
+      if (response.governance?.warnings?.length) {
+        onGovernanceEvaluated?.(response.governance)
+        toast.warning(response.governance.reason || "Trade accepted with governance warnings.", {
+          description: renderGovernanceMessages(response.governance) || undefined,
+        })
+      } else if (response.governance) {
+        onGovernanceEvaluated(response.governance)
+      }
+      if (response.risk_snapshot) {
+        onRiskSnapshotUpdate?.(response.risk_snapshot)
+      }
+      if (response.risk_scorecard) {
+        onRiskScorecardUpdate?.(response.risk_scorecard)
+      }
+      if (response.recommendations) {
+        onRecommendationsUpdate?.(response.recommendations)
+      }
+
+      await notifyTrade({
+        side,
+        symbol: selectedSymbol,
+        volume: vol,
+        price: response.trade?.price ? Number(response.trade.price) : selectedCurrentPrice,
+      })
+      resetSizingConfirmation()
+      setPreviewOpen(false)
+      setPreviewData(null)
+    } catch (error) {
+      const governance = extractGovernanceFromError(error)
+      if (governance) {
+        onTradeAttemptResult?.({ accepted: false, kind: "market" })
+        onGovernanceEvaluated?.(governance)
+        toast.error(governance.reason || "Trade rejected by governance.", {
+          description: renderGovernanceMessages(governance) || undefined,
+        })
+        return
+      }
+      toast.error("Trade failed", {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleTrade = async (side: "buy" | "sell") => {
     if (!sessionId) {
       toast.error("Start a simulation session first.")
@@ -283,63 +365,33 @@ export function TradingPanel({
       }
     }
 
-    try {
-      setSubmitting(true)
-      const response = await simulatorApi.executeTrade(sessionId, {
-        symbol: selectedSymbol,
-        side,
-        volume: vol,
-        sl: sl ? Number(sl) : undefined,
-        tp: tp ? Number(tp) : undefined,
-      })
-
-      toast.success(`Trade executed (${side.toUpperCase()})`)
-
-      // Notify parent of updated positions
-      if (onTradeExecuted && response.positions) {
-        onTradeExecuted(response.positions, response.orders || [])
-      }
-
-      if (response.governance?.warnings?.length) {
-        onGovernanceEvaluated?.(response.governance)
-        toast.warning(response.governance.reason || "Trade accepted with governance warnings.", {
-          description: renderGovernanceMessages(response.governance) || undefined,
+    if (mode === "manual") {
+      try {
+        setSubmitting(true)
+        await onPauseForManualReview?.()
+        const preview = await simulatorApi.previewTrade(sessionId, {
+          symbol: selectedSymbol,
+          side,
+          volume: vol,
+          sl: sl ? Number(sl) : undefined,
+          tp: tp ? Number(tp) : undefined,
         })
-      } else if (response.governance) {
-        onGovernanceEvaluated(response.governance)
-      }
-      if (response.risk_snapshot) {
-        onRiskSnapshotUpdate?.(response.risk_snapshot)
-      }
-      if (response.risk_scorecard) {
-        onRiskScorecardUpdate?.(response.risk_scorecard)
-      }
-      if (response.recommendations) {
-        onRecommendationsUpdate?.(response.recommendations)
-      }
-
-      await notifyTrade({
-        side,
-        symbol: selectedSymbol,
-        volume: vol,
-        price: response.trade?.price ? Number(response.trade.price) : selectedCurrentPrice,
-      })
-      resetSizingConfirmation()
-    } catch (error) {
-      const governance = extractGovernanceFromError(error)
-      if (governance) {
-        onGovernanceEvaluated?.(governance)
-        toast.error(governance.reason || "Trade rejected by governance.", {
-          description: renderGovernanceMessages(governance) || undefined,
+        setPreviewSide(side)
+        setPreviewData(preview)
+        setPreviewOpen(true)
+        if (preview.governance) {
+          onGovernanceEvaluated?.(preview.governance)
+        }
+      } catch (error) {
+        toast.error("Failed to preview trade", {
+          description: getErrorMessage(error),
         })
-        return
+      } finally {
+        setSubmitting(false)
       }
-      toast.error("Trade failed", {
-        description: getErrorMessage(error),
-      })
-    } finally {
-      setSubmitting(false)
+      return
     }
+    await executeApprovedTrade(side, false)
   }
 
   const handlePending = async () => {
@@ -414,6 +466,7 @@ export function TradingPanel({
         tp: tpValue ?? undefined,
       })
 
+      onTradeAttemptResult?.({ accepted: true, kind: "pending" })
       toast.success(`Pending order placed (${pendingType.replace("_", " ").toUpperCase()})`)
       if (onTradeExecuted && response.positions) {
         onTradeExecuted(response.positions, response.orders || [])
@@ -439,6 +492,7 @@ export function TradingPanel({
     } catch (error) {
       const governance = extractGovernanceFromError(error)
       if (governance) {
+        onTradeAttemptResult?.({ accepted: false, kind: "pending" })
         onGovernanceEvaluated?.(governance)
         toast.error(governance.reason || "Pending order rejected by governance.", {
           description: renderGovernanceMessages(governance) || undefined,
@@ -819,6 +873,56 @@ export function TradingPanel({
 
         </div>
       </CardContent>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Manual Trade Review</DialogTitle>
+            <DialogDescription>
+              Review the proposed trade before it is placed. Green proposed values are within threshold; red ones exceed it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="px-3 py-2">Item</th>
+                  <th className="px-3 py-2">Current Value</th>
+                  <th className="px-3 py-2">Proposed Value</th>
+                  <th className="px-3 py-2">Reference / Limit / Threshold</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(previewData?.rows || []).map((row) => (
+                  <tr key={row.key} className="border-b">
+                    <td className="px-3 py-2">{row.item}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.current_value}</td>
+                    <td className={`px-3 py-2 font-medium ${row.acceptable ? "text-emerald-500" : "text-red-500"}`}>
+                      {row.proposed_value}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{row.reference_value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPreviewOpen(false)
+                setPreviewData(null)
+                onTradeAttemptResult?.({ accepted: false, kind: "market" })
+              }}
+              disabled={submitting}
+            >
+              Reject
+            </Button>
+            <Button onClick={() => void executeApprovedTrade(previewSide, true)} disabled={submitting}>
+              {submitting ? "Placing..." : "Accept"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

@@ -58,46 +58,45 @@ class RecommendationEngine:
         """Build one ranked recommendation batch for the supplied portfolio state."""
         baseline_snapshot = snapshot or self.snapshot_engine.build_snapshot(state)
         baseline_scorecard = scorecard or self.scorecard_engine.build_scorecard(baseline_snapshot)
-        recommendations = []
-        recommendations.extend(
-            self.capital_efficiency_ranker.build_reduce_candidates(
-                state=state,
-                snapshot=baseline_snapshot,
-                scorecard=baseline_scorecard,
-                evaluator=self.evaluator,
-                max_items=2,
-            )
+        reduce_candidates = self.capital_efficiency_ranker.build_reduce_candidates(
+            state=state,
+            snapshot=baseline_snapshot,
+            scorecard=baseline_scorecard,
+            evaluator=self.evaluator,
+            max_items=2,
         )
-        recommendations.extend(
-            self.allocation_optimizer.generate(
-                state=state,
-                snapshot=baseline_snapshot,
-                scorecard=baseline_scorecard,
-                evaluator=self.evaluator,
-                candidate_symbols=candidate_symbols,
-                max_items=5,
-            )
+        allocation_candidates = self.allocation_optimizer.generate(
+            state=state,
+            snapshot=baseline_snapshot,
+            scorecard=baseline_scorecard,
+            evaluator=self.evaluator,
+            candidate_symbols=candidate_symbols,
+            max_items=5,
         )
-        recommendations.extend(
-            self.rebalance_engine.generate(
+        rebalance_candidates = self.rebalance_engine.generate(
+            state=state,
+            snapshot=baseline_snapshot,
+            scorecard=baseline_scorecard,
+            evaluator=self.evaluator,
+            max_items=3,
+        )
+        hedge_candidates = []
+        if hedge_symbols is not None:
+            hedge_candidates = self.hedge_optimizer.generate(
                 state=state,
                 snapshot=baseline_snapshot,
                 scorecard=baseline_scorecard,
                 evaluator=self.evaluator,
+                hedge_symbols=hedge_symbols,
                 max_items=3,
             )
-        )
-        if hedge_symbols is not None:
-            recommendations.extend(
-                self.hedge_optimizer.generate(
-                    state=state,
-                    snapshot=baseline_snapshot,
-                    scorecard=baseline_scorecard,
-                    evaluator=self.evaluator,
-                    hedge_symbols=hedge_symbols,
-                    max_items=3,
-                )
-            )
+        recommendations = [
+            *reduce_candidates,
+            *allocation_candidates,
+            *rebalance_candidates,
+            *hedge_candidates,
+        ]
+        capital_efficiency = self.capital_efficiency_ranker.rank(baseline_snapshot)
 
         unique = {}
         for item in recommendations:
@@ -119,7 +118,16 @@ class RecommendationEngine:
             ),
             reverse=True,
         )[:max_recommendations]
-        summary = self._build_summary(baseline_snapshot, baseline_scorecard, ranked)
+        summary = self._build_summary(
+            baseline_snapshot,
+            baseline_scorecard,
+            ranked,
+            reduce_candidates=reduce_candidates,
+            allocation_candidates=allocation_candidates,
+            hedge_candidates=hedge_candidates,
+            rebalance_candidates=rebalance_candidates,
+            capital_efficiency=capital_efficiency,
+        )
         return RecommendationBatch(
             snapshot=baseline_snapshot,
             scorecard=baseline_scorecard,
@@ -127,7 +135,18 @@ class RecommendationEngine:
             summary=summary,
         )
 
-    def _build_summary(self, snapshot: RiskSnapshot, scorecard: RiskScorecard, recommendations) -> dict:
+    def _build_summary(
+        self,
+        snapshot: RiskSnapshot,
+        scorecard: RiskScorecard,
+        recommendations,
+        *,
+        reduce_candidates=None,
+        allocation_candidates=None,
+        hedge_candidates=None,
+        rebalance_candidates=None,
+        capital_efficiency=None,
+    ) -> dict:
         best = recommendations[0] if recommendations else None
         return {
             "as_of": snapshot.summary.get("as_of"),
@@ -137,4 +156,9 @@ class RecommendationEngine:
             "top_action_type": None if best is None else best.action.action_type,
             "top_action_symbol": None if best is None else best.action.symbol,
             "top_usefulness_score": None if best is None else best.recommendation_score.usefulness_score,
+            "marginal_risk_recommendation": None if not reduce_candidates else reduce_candidates[0],
+            "allocation_candidates": list(allocation_candidates or []),
+            "hedge_candidates": list(hedge_candidates or []),
+            "rebalance_candidates": list(rebalance_candidates or []),
+            "capital_efficiency": list(capital_efficiency or []),
         }

@@ -16,6 +16,7 @@ from apps.risk.models import PortfolioState
 from apps.risk.regimes import RegimeState
 
 from .portfolio_risk_engine import PortfolioRiskEngine
+from apps.risk.metrics.math import extract_currency_exposure
 
 Decision = Literal["ACCEPT", "REJECT"]
 
@@ -116,6 +117,9 @@ class GovernanceEngine:
         )
         delta_var = new_var - cur_var
         delta_es = new_es - cur_es
+        gross_portfolio_notional = float(
+            sum(abs(float(value or 0.0)) for value in new_positions.values())
+        )
         cluster_metrics = self.risk_engine.compute_cluster_metrics(
             new_positions,
             equity,
@@ -133,6 +137,8 @@ class GovernanceEngine:
             current_margin_used=cur_margin,
             new_margin_used=new_margin,
             rc_map_new=rc_map_new,
+            currency_exposure=None,
+            gross_portfolio_notional=gross_portfolio_notional,
             cluster_metrics=cluster_metrics,
             policy=eff,
             regime=regime,
@@ -175,6 +181,9 @@ class GovernanceEngine:
             equity,
             eff,
         )
+        gross_portfolio_notional = float(
+            sum(abs(float(value or 0.0)) for value in positions.values())
+        )
         cluster_metrics = self.risk_engine.compute_cluster_metrics(
             positions,
             equity,
@@ -187,6 +196,8 @@ class GovernanceEngine:
             portfolio_es=portfolio_es,
             margin_used=margin_used,
             rc_map=rc_map,
+            currency_exposure=None,
+            gross_portfolio_notional=gross_portfolio_notional,
             cluster_metrics=cluster_metrics,
             policy=eff,
             regime=regime,
@@ -216,6 +227,10 @@ class GovernanceEngine:
             state,
             limits=eff,
         )
+        currency_exposure = extract_currency_exposure(state)
+        gross_portfolio_notional = float(
+            sum(abs(float(value or 0.0)) for value in dict(state.exposures or {}).values())
+        )
         cluster_metrics = self.risk_engine.compute_cluster_metrics_from_state(
             state,
             limits=eff,
@@ -226,6 +241,8 @@ class GovernanceEngine:
             portfolio_es=portfolio_es,
             margin_used=margin_used,
             rc_map=rc_map,
+            currency_exposure=currency_exposure,
+            gross_portfolio_notional=gross_portfolio_notional,
             cluster_metrics=cluster_metrics,
             policy=eff,
             regime=regime,
@@ -242,6 +259,75 @@ class GovernanceEngine:
             current_margin_used=margin_used,
             new_margin_used=margin_used,
             rc_map_new=rc_map,
+        )
+
+    def evaluate_transition_from_states(
+        self,
+        current_state: PortfolioState,
+        new_state: PortfolioState,
+        regime: Optional[RegimeState] = None,
+        forced_decision: Optional[Decision] = None,
+        forced_reason: Optional[str] = None,
+    ) -> GovernanceReport:
+        """Evaluate a projected canonical-state transition before execution."""
+        eff = self.effective_limits(regime)
+        cur_var, cur_es, cur_margin, _ = self.risk_engine.compute_portfolio_risk_from_state(
+            current_state,
+            limits=eff,
+        )
+        new_var, new_es, new_margin, rc_map_new = self.risk_engine.compute_portfolio_risk_from_state(
+            new_state,
+            limits=eff,
+        )
+        delta_var = new_var - cur_var
+        delta_es = new_es - cur_es
+        currency_exposure = extract_currency_exposure(new_state)
+        gross_portfolio_notional = float(
+            sum(abs(float(value or 0.0)) for value in dict(new_state.exposures or {}).values())
+        )
+        cluster_metrics = self.risk_engine.compute_cluster_metrics_from_state(
+            new_state,
+            limits=eff,
+        )
+        policy_decision = self.policy_engine.evaluate_pre_trade(
+            equity=float(new_state.account.equity),
+            current_var=cur_var,
+            new_var=new_var,
+            delta_var=delta_var,
+            current_es=cur_es,
+            new_es=new_es,
+            delta_es=delta_es,
+            current_margin_used=cur_margin,
+            new_margin_used=new_margin,
+            rc_map_new=rc_map_new,
+            currency_exposure=currency_exposure,
+            gross_portfolio_notional=gross_portfolio_notional,
+            cluster_metrics=cluster_metrics,
+            policy=eff,
+            regime=regime,
+            peak_equity=self._extract_peak_equity_from_state(new_state),
+        )
+        if forced_decision is not None and forced_reason is not None:
+            policy_decision = type(policy_decision)(
+                decision=forced_decision,
+                reason=forced_reason,
+                breaches=policy_decision.breaches,
+                warnings=policy_decision.warnings,
+                overrides=policy_decision.overrides,
+                governance_state=policy_decision.governance_state,
+                circuit_breaker_state=policy_decision.circuit_breaker_state,
+            )
+        return self._build_report(
+            policy_decision=policy_decision,
+            current_var=cur_var,
+            new_var=new_var,
+            delta_var=delta_var,
+            current_es=cur_es,
+            new_es=new_es,
+            delta_es=delta_es,
+            current_margin_used=cur_margin,
+            new_margin_used=new_margin,
+            rc_map_new=rc_map_new,
         )
 
     def _build_report(

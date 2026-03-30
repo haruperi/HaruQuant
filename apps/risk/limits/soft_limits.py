@@ -45,5 +45,6 @@ def _parse_scope(key: str):
     prefix, suffix = key.split(":", 1)
     if prefix.startswith("cluster_"):
         return "cluster", suffix
+    if prefix in {"currency_exposure", "currency_weight"}:
+        return "currency", suffix
     return "portfolio", suffix
-

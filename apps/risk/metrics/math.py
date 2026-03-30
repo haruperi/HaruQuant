@@ -385,11 +385,15 @@ def compute_cluster_exposure_breakdown(
     active = symbols or state_symbol_list(state)
     cluster_gross: Dict[str, float] = {}
     for symbol in active:
-        cluster = state.symbol_to_cluster.get(symbol)
+        memberships = _cluster_memberships_for_symbol(
+            symbol,
+            getattr(state, "symbol_to_clusters", {}),
+            getattr(state, "symbol_to_cluster", {}),
+        )
         position_lots = float(state.position_map.get(symbol, 0.0))
-        if not cluster or abs(position_lots) <= 0.0:
+        if not memberships or abs(position_lots) <= 0.0:
             continue
-        cluster_gross[cluster] = cluster_gross.get(cluster, 0.0) + abs(
+        gross_value = abs(
             symbol_notional_value(
                 state,
                 symbol,
@@ -397,22 +401,25 @@ def compute_cluster_exposure_breakdown(
                 exclude_current_bar=exclude_current_bar,
             )
         )
+        for cluster in memberships:
+            cluster_gross[cluster] = cluster_gross.get(cluster, 0.0) + gross_value
     return cluster_gross
 
 
 def compute_cluster_correlation_summary(
     symbols: List[str],
     corr_mat: np.ndarray,
-    symbol_to_cluster: Dict[str, str],
+    symbol_to_cluster: Dict[str, Any],
 ) -> Dict[str, Dict[str, float]]:
     """Summarize average and max intra-cluster correlation."""
     summary: Dict[str, Dict[str, float]] = {}
     cluster_to_indices: Dict[str, List[int]] = {}
     for idx, symbol in enumerate(symbols):
-        cluster = symbol_to_cluster.get(symbol)
-        if not cluster:
+        memberships = _cluster_memberships_for_symbol(symbol, {}, symbol_to_cluster)
+        if not memberships:
             continue
-        cluster_to_indices.setdefault(cluster, []).append(idx)
+        for cluster in memberships:
+            cluster_to_indices.setdefault(cluster, []).append(idx)
 
     for cluster, indices in cluster_to_indices.items():
         if len(indices) <= 1:
@@ -428,6 +435,26 @@ def compute_cluster_correlation_summary(
             "symbol_count": float(len(indices)),
         }
     return summary
+
+
+def _cluster_memberships_for_symbol(
+    symbol: str,
+    symbol_to_clusters: Dict[str, List[str]],
+    symbol_to_cluster: Dict[str, Any],
+) -> List[str]:
+    clusters = [
+        str(cluster)
+        for cluster in list(symbol_to_clusters.get(symbol, []) or [])
+        if str(cluster)
+    ]
+    if clusters:
+        return clusters
+    single = symbol_to_cluster.get(symbol)
+    if isinstance(single, (list, tuple, set)):
+        return [str(cluster) for cluster in single if str(cluster)]
+    if single:
+        return [str(single)]
+    return []
 
 
 def compute_risk_contributions_pct(

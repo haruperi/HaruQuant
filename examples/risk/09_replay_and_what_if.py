@@ -1,18 +1,16 @@
 """
-Example 15: Scorecard Engine
+Example 17: Replay and What-If Engine
 
-Phase 7 task-by-task walkthrough using the actual HaruQuant stack:
-1. portfolio health score
-2. concentration score
-3. diversification score
-4. leverage and margin safety scores
-5. stress resilience score
-6. regime alignment score
-7. governance compliance score
-8. overall risk quality score
+Phase 9 task-by-task walkthrough using the actual HaruQuant stack:
+1. timeline reconstruction
+2. replay clock stepping
+3. per-frame risk snapshot reconstruction
+4. cockpit payload generation
+5. hypothetical action injection
+6. what-if comparison
 
 Run:
-    python examples/risk/15_scorecard_engine.py
+    python examples/risk/09_replay_and_what_if.py
 """
 
 from __future__ import annotations
@@ -27,20 +25,23 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import PortfolioStateEngine, RiskLimits, RiskScorecardEngine, RiskSnapshotEngine
+from apps.risk import (
+    HypotheticalOrderAction,
+    ReplayClock,
+    ReplayEngine,
+    RiskLimits,
+    TimelineReconstructor,
+    WhatIfEngine,
+)
 from apps.trading import Engine, Trade, core
+from apps.utils.data_manipulator import TicksGenerator
 
 
 TIMEFRAME = "H1"
-BAR_COUNT = 320
-SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"]
-SYMBOL_TO_CLUSTER = {
-    "EURUSD": "FOREX",
-    "GBPUSD": "FOREX",
-    "USDJPY": "FOREX",
-    "XAUUSD": "METALS",
-}
-BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12, vol_lookback=20, corr_lookback=60)
+BAR_COUNT = 40
+SYMBOLS = ["EURUSD", "GBPUSD"]
+SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "GBPUSD": "FOREX"}
+BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12, vol_lookback=6, corr_lookback=8)
 
 
 def print_example_header(title: str) -> None:
@@ -107,9 +108,16 @@ def prepare_symbol(engine: Engine, symbol: str, latest_close: float):
     return mutable
 
 
-def synthetic_equity_curve() -> pd.Series:
-    values = [10000.0, 10100.0, 10060.0, 9960.0, 9890.0, 9920.0, 9980.0]
-    return pd.Series(values, index=pd.date_range("2024-01-01", periods=len(values), freq="h"), dtype=float)
+def build_ticks(symbol: str, bars: pd.DataFrame, point_value: float) -> pd.DataFrame:
+    ticks = TicksGenerator(
+        model="timeframe_ticks",
+        trading_timeframe=TIMEFRAME,
+        point_value=point_value,
+        spread_model="native_spread",
+    ).generate(bars.copy())
+    ticks = ticks.copy()
+    ticks["symbol"] = symbol
+    return ticks
 
 
 class ExampleContext:
@@ -117,12 +125,14 @@ class ExampleContext:
         self.engine = Engine(backend="sim")
         seed_sim_account(self.engine)
         self.market_data = {}
-        self.state = None
-        self.snapshot = None
-        self.scorecard = None
+        self.ticks_data = None
+        self.replay_run = None
+        self.what_if = None
+        self.timeline = None
 
     def setup(self) -> None:
         print("Loading real historical bars from connected client...")
+        merged_ticks = []
         for symbol in SYMBOLS:
             bars = self.engine.client.get_bars(symbol=symbol, timeframe=TIMEFRAME, count=BAR_COUNT, start_pos=0)
             if bars is None or bars.empty:
@@ -135,36 +145,50 @@ class ExampleContext:
             if prepared is None:
                 print(f"  {symbol}: symbol info unavailable, skipped")
                 continue
+            point_value = float(getattr(prepared, "point", 0.0001) or 0.0001)
+            merged_ticks.append(build_ticks(symbol, bars.tail(12), point_value))
             print(f"  {symbol}: loaded {len(bars)} bars, latest_close={latest_close:.5f}")
 
         self.open_positions()
-        latest_ts = max(df.index[-1] for df in self.market_data.values() if not df.empty)
-        self.state = PortfolioStateEngine().build_state_from_engine(
+        self.ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
+        self.timeline = TimelineReconstructor().build_timeline(self.ticks_data, frame_mode="bar")
+        self.replay_run = ReplayEngine().replay(
             engine=self.engine,
+            data=self.ticks_data,
             symbols=[symbol for symbol in SYMBOLS if symbol in self.market_data],
             timeframe=TIMEFRAME,
-            count=BAR_COUNT,
-            as_of=pd.Timestamp(latest_ts).isoformat(),
+            market_data=self.market_data,
             limits=BASE_LIMITS,
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
-                "source": "phase7_scorecard_engine_example",
+                "source": "phase9_replay_example",
                 "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
-                "equity_curve": synthetic_equity_curve(),
             },
+            frame_mode="bar",
+            include_recommendations=False,
+            candidate_symbols=SYMBOLS,
+            hedge_symbols=SYMBOLS,
+            max_recommendations=5,
+            max_frames=8,
+            run_kwargs={"position_size": 0.01, "monitor_verbose": False, "show_progress": False},
         )
-        self.snapshot = RiskSnapshotEngine().build_snapshot(self.state)
-        self.scorecard = RiskScorecardEngine().build_scorecard(self.snapshot)
+        if self.replay_run.frames:
+            self.what_if = WhatIfEngine().evaluate(
+                self.replay_run.frames[-1],
+                actions=[HypotheticalOrderAction(action_type="add", symbol="EURUSD", delta_lots=0.02)],
+                include_recommendations=True,
+                candidate_symbols=SYMBOLS,
+                hedge_symbols=SYMBOLS,
+                max_recommendations=5,
+            )
 
     def open_positions(self) -> None:
         print("Opening small simulator positions...")
         trade = Trade(self.engine.api)
         for request in [
             {"symbol": "EURUSD", "side": "BUY", "volume": 0.10},
-            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.08},
-            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},
-            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.04},
+            {"symbol": "GBPUSD", "side": "SELL", "volume": 0.08},
         ]:
             symbol_info = self.engine.symbol_info(request["symbol"])
             if symbol_info is None:
@@ -187,85 +211,82 @@ class ExampleContext:
                 price=price,
                 sl=sl,
                 tp=0.0,
-                comment="Phase 7 scorecard example",
+                comment="Phase 9 replay example",
             )
             print(
                 f"  {request['symbol']} {request['side']}: retcode={int(result.retcode)} "
                 f"order={int(result.order)} volume={volume:.2f}"
             )
-        self.engine.monitor_account(verbose=False)
-
-    def score(self, key: str):
-        return next(row for row in self.scorecard.score_rows if row.score_key == key)
 
     def close(self):
         if getattr(self.engine, "client", None) is not None:
             self.engine.client.shutdown()
 
 
-def example_01_portfolio_health_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 01: Portfolio Health Score")
-    row = ctx.score("portfolio_health_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
+def example_01_timeline_reconstruction(ctx: ExampleContext) -> None:
+    print_example_header("Example 01: Timeline Reconstruction")
+    print(f"  timeline_points={len(ctx.timeline)}")
+    if ctx.timeline:
+        print(f"  first={ctx.timeline[0].frame_timestamp} capture={ctx.timeline[0].capture_timestamp}")
+        print(f"  last={ctx.timeline[-1].frame_timestamp} capture={ctx.timeline[-1].capture_timestamp}")
 
 
-def example_02_concentration_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 02: Concentration Score")
-    row = ctx.score("concentration_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
+def example_02_replay_clock_stepping(ctx: ExampleContext) -> None:
+    print_example_header("Example 02: Replay Clock Stepping")
+    clock = ReplayClock.from_timeline(ctx.replay_run.timeline)
+    first = clock.advance()
+    second = clock.advance()
+    print(f"  first_step={None if first is None else first.frame_timestamp}")
+    print(f"  second_step={None if second is None else second.frame_timestamp}")
+    print(f"  finished={clock.finished}")
 
 
-def example_03_diversification_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 03: Diversification Score")
-    row = ctx.score("diversification_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
+def example_03_per_frame_risk_snapshot(ctx: ExampleContext) -> None:
+    print_example_header("Example 03: Per-Frame Risk Snapshot")
+    frame = ctx.replay_run.frames[-1]
+    print(f"  frame_index={frame.frame_index} timestamp={frame.timestamp}")
+    print(f"  portfolio_var={frame.snapshot.summary.get('portfolio_var')}")
+    print(f"  portfolio_es={frame.snapshot.summary.get('portfolio_es')}")
+    print(f"  overall_score={frame.scorecard.summary.get('overall_risk_quality_score')}")
 
 
-def example_04_leverage_and_margin_safety_scores(ctx: ExampleContext) -> None:
-    print_example_header("Example 04: Leverage and Margin Safety Scores")
-    for key in ["leverage_safety_score", "margin_safety_score"]:
-        row = ctx.score(key)
-        print(f"  key={key} score={row.score_value} confidence={row.confidence_label} context={row.context}")
+def example_04_cockpit_payload(ctx: ExampleContext) -> None:
+    print_example_header("Example 04: Cockpit Payload")
+    cockpit = ctx.replay_run.frames[-1].cockpit_state
+    print(f"  account={cockpit.account}")
+    print(f"  governance={cockpit.governance}")
+    print(f"  top_recommendations={cockpit.recommendations[:2]}")
 
 
-def example_05_stress_resilience_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 05: Stress Resilience Score")
-    row = ctx.score("stress_resilience_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
+def example_05_hypothetical_action_injection(ctx: ExampleContext) -> None:
+    print_example_header("Example 05: Hypothetical Action Injection")
+    action = ctx.what_if.actions[0]
+    print(f"  action_type={action.action_type} symbol={action.symbol} delta_lots={action.delta_lots}")
 
 
-def example_06_regime_alignment_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 06: Regime Alignment Score")
-    row = ctx.score("regime_alignment_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
-
-
-def example_07_governance_compliance_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 07: Governance Compliance Score")
-    row = ctx.score("governance_compliance_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label} context={row.context}")
-
-
-def example_08_overall_risk_quality_score(ctx: ExampleContext) -> None:
-    print_example_header("Example 08: Overall Risk Quality Score")
-    row = ctx.score("overall_risk_quality_score")
-    print(f"  score={row.score_value} confidence={row.confidence_label}")
-    print(f"  components={row.context.get('components')}")
+def example_06_what_if_comparison(ctx: ExampleContext) -> None:
+    print_example_header("Example 06: What-If Comparison")
+    print(f"  summary={ctx.what_if.summary}")
+    projected = ctx.what_if.projected_recommendations
+    if projected is not None and projected.recommendations:
+        top = projected.recommendations[0]
+        print(
+            f"  projected_top={top.action.action_type} {top.action.symbol} "
+            f"usefulness={top.recommendation_score.usefulness_score:.2f}"
+        )
 
 
 def main() -> None:
-    print_example_header("PHASE 7 SCORECARD ENGINE")
+    print_example_header("PHASE 9 REPLAY AND WHAT-IF ENGINE")
     ctx = ExampleContext()
     try:
         ctx.setup()
-        example_01_portfolio_health_score(ctx)
-        example_02_concentration_score(ctx)
-        example_03_diversification_score(ctx)
-        example_04_leverage_and_margin_safety_scores(ctx)
-        example_05_stress_resilience_score(ctx)
-        example_06_regime_alignment_score(ctx)
-        example_07_governance_compliance_score(ctx)
-        example_08_overall_risk_quality_score(ctx)
+        example_01_timeline_reconstruction(ctx)
+        example_02_replay_clock_stepping(ctx)
+        example_03_per_frame_risk_snapshot(ctx)
+        example_04_cockpit_payload(ctx)
+        example_05_hypothetical_action_injection(ctx)
+        example_06_what_if_comparison(ctx)
     finally:
         ctx.close()
 

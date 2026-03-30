@@ -16,6 +16,8 @@ def evaluate_post_trade(
     portfolio_es: float,
     margin_used: Optional[float],
     rc_map: Optional[Dict[str, float]],
+    currency_exposure: Optional[Dict[str, float]],
+    gross_portfolio_notional: Optional[float],
     cluster_metrics: Optional[Dict[str, Dict[str, float]]],
     policy: RiskPolicy,
     peak_equity: Optional[float] = None,
@@ -33,9 +35,10 @@ def evaluate_post_trade(
         current_margin_used=margin_used,
         new_margin_used=margin_used,
         rc_map_new=rc_map,
+        currency_exposure=currency_exposure,
+        gross_portfolio_notional=gross_portfolio_notional,
         cluster_metrics=cluster_metrics,
         policy=policy,
         peak_equity=peak_equity,
         breaker_state=breaker_state,
     )
-

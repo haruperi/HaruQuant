@@ -1,18 +1,18 @@
 """
-Example 13: Drawdown, Tail Risk, and Stress Testing
+Example 12: Structural Fragility Analytics
 
-Phase 5 task-by-task walkthrough using the actual HaruQuant stack:
-1. drawdown metrics
-2. drawdown velocity and time-under-water
-3. method-tagged tail risk
-4. volatility shock scenario
-5. spread blowout scenario
-6. gap risk scenario
-7. correlation spike scenario
-8. liquidity crunch scenario and worst-case summary
+Phase 4 task-by-task walkthrough using the actual HaruQuant stack:
+1. symbol volatility state metrics
+2. volatility-adjusted exposure
+3. volatility shock loss estimates
+4. rolling pairwise correlations
+5. intra-portfolio correlation summary
+6. redundancy and hidden overlap metrics
+7. cluster exposure analysis
+8. effective independent bets and diversification ratio
 
 Run:
-    python examples/risk/13_drawdown_tail_and_stress.py
+    python examples/risk/04_structural_fragility_analytics.py
 """
 
 from __future__ import annotations
@@ -107,11 +107,6 @@ def prepare_symbol(engine: Engine, symbol: str, latest_close: float):
     return mutable
 
 
-def synthetic_equity_curve() -> pd.Series:
-    values = [10000.0, 10120.0, 10070.0, 9950.0, 9840.0, 9890.0, 9945.0, 10010.0]
-    return pd.Series(values, index=pd.date_range("2024-01-01", periods=len(values), freq="h"), dtype=float)
-
-
 class ExampleContext:
     def __init__(self):
         self.engine = Engine(backend="sim")
@@ -147,10 +142,9 @@ class ExampleContext:
             limits=BASE_LIMITS,
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
-                "source": "phase5_drawdown_tail_stress_example",
+                "source": "phase4_structural_fragility_example",
                 "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
-                "equity_curve": synthetic_equity_curve(),
             },
         )
         self.snapshot = RiskSnapshotEngine().build_snapshot(self.state)
@@ -160,9 +154,9 @@ class ExampleContext:
         trade = Trade(self.engine.api)
         for request in [
             {"symbol": "EURUSD", "side": "BUY", "volume": 0.10},
-            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.08},
-            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},
-            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.04},
+            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.09},
+            {"symbol": "USDJPY", "side": "SELL", "volume": 0.07},
+            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.05},
         ]:
             symbol_info = self.engine.symbol_info(request["symbol"])
             if symbol_info is None:
@@ -185,7 +179,7 @@ class ExampleContext:
                 price=price,
                 sl=sl,
                 tp=0.0,
-                comment="Phase 5 drawdown tail stress example",
+                comment="Phase 4 structural fragility example",
             )
             print(
                 f"  {request['symbol']} {request['side']}: retcode={int(result.retcode)} "
@@ -201,75 +195,100 @@ class ExampleContext:
             self.engine.client.shutdown()
 
 
-def example_01_drawdown_metrics(ctx: ExampleContext) -> None:
-    print_example_header("Example 01: Drawdown Metrics")
-    for key in ["current_drawdown", "max_drawdown"]:
-        value = next(row.numeric_value for row in ctx.rows("drawdown_risk") if row.metric_key == key)
-        print(f"  {key}={value}")
-
-
-def example_02_drawdown_velocity_and_time_under_water(ctx: ExampleContext) -> None:
-    print_example_header("Example 02: Drawdown Velocity and Time Under Water")
-    for key in ["drawdown_velocity", "time_under_water"]:
-        value = next(row.numeric_value for row in ctx.rows("drawdown_risk") if row.metric_key == key)
-        print(f"  {key}={value}")
-
-
-def example_03_method_tagged_tail_risk(ctx: ExampleContext) -> None:
-    print_example_header("Example 03: Method-Tagged Tail Risk")
-    for row in ctx.rows("tail_risk"):
-        print(f"  key={row.metric_key} value={row.numeric_value or row.text_value}")
-
-
-def example_04_volatility_shock_scenario(ctx: ExampleContext) -> None:
-    print_example_header("Example 04: Volatility Shock Scenario")
-    for row in ctx.rows("stress_risk"):
-        if row.scope_key != "volatility_shock":
+def example_01_symbol_volatility_state_metrics(ctx: ExampleContext) -> None:
+    print_example_header("Example 01: Symbol Volatility State Metrics")
+    for row in ctx.rows("volatility_risk"):
+        if row.metric_key != "symbol_realized_volatility":
             continue
-        print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
+        print(f"  symbol={row.scope_key} realized_vol={row.numeric_value}")
 
 
-def example_05_spread_blowout_scenario(ctx: ExampleContext) -> None:
-    print_example_header("Example 05: Spread Blowout Scenario")
-    for row in ctx.rows("stress_risk"):
-        if row.scope_key == "spread_blowout":
-            print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
+def example_02_volatility_adjusted_exposure(ctx: ExampleContext) -> None:
+    print_example_header("Example 02: Volatility-Adjusted Exposure")
+    for row in ctx.rows("volatility_risk"):
+        if row.metric_key != "vol_adjusted_exposure":
+            continue
+        print(f"  symbol={row.scope_key} vol_adjusted_exposure={row.numeric_value}")
 
 
-def example_06_gap_risk_scenario(ctx: ExampleContext) -> None:
-    print_example_header("Example 06: Gap Risk Scenario")
-    for row in ctx.rows("stress_risk"):
-        if row.scope_key == "gap_risk":
-            print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
+def example_03_volatility_shock_loss_estimates(ctx: ExampleContext) -> None:
+    print_example_header("Example 03: Volatility Shock Loss Estimates")
+    for row in ctx.rows("volatility_risk"):
+        if row.metric_key not in {"vol_shock_loss_estimate", "portfolio_vol_shock_loss_estimate"}:
+            continue
+        label = row.scope_key or "portfolio"
+        print(f"  scope={label} shock_loss_estimate={row.numeric_value}")
 
 
-def example_07_correlation_spike_scenario(ctx: ExampleContext) -> None:
-    print_example_header("Example 07: Correlation Spike Scenario")
-    for row in ctx.rows("stress_risk"):
-        if row.scope_key == "correlation_spike":
-            print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
+def example_04_rolling_pairwise_correlations(ctx: ExampleContext) -> None:
+    print_example_header("Example 04: Rolling Pairwise Correlations")
+    for row in ctx.rows("correlation_risk"):
+        if row.metric_key != "pair_correlation":
+            continue
+        print(f"  pair={row.scope_key} correlation={row.numeric_value}")
 
 
-def example_08_liquidity_crunch_and_worst_case_summary(ctx: ExampleContext) -> None:
-    print_example_header("Example 08: Liquidity Crunch and Worst-Case Summary")
-    for row in ctx.rows("stress_risk"):
-        if row.scope_key == "liquidity_crunch" or row.metric_key in {"worst_scenario_loss", "worst_scenario_name"}:
-            print(f"  key={row.metric_key} scope_key={row.scope_key} value={row.numeric_value or row.text_value}")
+def example_05_intra_portfolio_correlation_summary(ctx: ExampleContext) -> None:
+    print_example_header("Example 05: Intra-Portfolio Correlation Summary")
+    for key in ["average_pair_correlation", "max_pair_correlation"]:
+        value = next(
+            row.numeric_value
+            for row in ctx.rows("correlation_risk")
+            if row.metric_key == key and row.scope == "portfolio"
+        )
+        print(f"  {key}={value}")
+
+
+def example_06_redundancy_and_hidden_overlap_metrics(ctx: ExampleContext) -> None:
+    print_example_header("Example 06: Redundancy and Hidden Overlap Metrics")
+    for family, key in [
+        ("correlation_risk", "redundancy_score"),
+        ("concentration", "hidden_overlap_score"),
+    ]:
+        value = next(
+            row.numeric_value
+            for row in ctx.snapshot.metric_rows
+            if row.family == family and row.metric_key == key and row.scope == "portfolio"
+        )
+        print(f"  {key}={value}")
+
+
+def example_07_cluster_exposure_analysis(ctx: ExampleContext) -> None:
+    print_example_header("Example 07: Cluster Exposure Analysis")
+    for row in ctx.rows("concentration"):
+        if row.metric_key not in {"cluster_gross_exposure", "cluster_gross_exposure_frac"}:
+            continue
+        print(f"  cluster={row.scope_key} {row.metric_key}={row.numeric_value}")
+    for row in ctx.rows("correlation_risk"):
+        if row.metric_key not in {"cluster_average_correlation", "cluster_max_correlation"}:
+            continue
+        print(f"  cluster={row.scope_key} {row.metric_key}={row.numeric_value}")
+
+
+def example_08_effective_independent_bets_and_diversification_ratio(ctx: ExampleContext) -> None:
+    print_example_header("Example 08: Effective Independent Bets and Diversification Ratio")
+    for key in ["effective_independent_bets", "diversification_ratio"]:
+        value = next(
+            row.numeric_value
+            for row in ctx.rows("concentration")
+            if row.metric_key == key and row.scope == "portfolio"
+        )
+        print(f"  {key}={value}")
 
 
 def main() -> None:
-    print_example_header("PHASE 5 DRAWDOWN, TAIL RISK, AND STRESS TESTING")
+    print_example_header("PHASE 4 STRUCTURAL FRAGILITY ANALYTICS")
     ctx = ExampleContext()
     try:
         ctx.setup()
-        example_01_drawdown_metrics(ctx)
-        example_02_drawdown_velocity_and_time_under_water(ctx)
-        example_03_method_tagged_tail_risk(ctx)
-        example_04_volatility_shock_scenario(ctx)
-        example_05_spread_blowout_scenario(ctx)
-        example_06_gap_risk_scenario(ctx)
-        example_07_correlation_spike_scenario(ctx)
-        example_08_liquidity_crunch_and_worst_case_summary(ctx)
+        example_01_symbol_volatility_state_metrics(ctx)
+        example_02_volatility_adjusted_exposure(ctx)
+        example_03_volatility_shock_loss_estimates(ctx)
+        example_04_rolling_pairwise_correlations(ctx)
+        example_05_intra_portfolio_correlation_summary(ctx)
+        example_06_redundancy_and_hidden_overlap_metrics(ctx)
+        example_07_cluster_exposure_analysis(ctx)
+        example_08_effective_independent_bets_and_diversification_ratio(ctx)
     finally:
         ctx.close()
 

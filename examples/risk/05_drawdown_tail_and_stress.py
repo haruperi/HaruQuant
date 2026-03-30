@@ -1,16 +1,18 @@
 """
-Example 17: Replay and What-If Engine
+Example 13: Drawdown, Tail Risk, and Stress Testing
 
-Phase 9 task-by-task walkthrough using the actual HaruQuant stack:
-1. timeline reconstruction
-2. replay clock stepping
-3. per-frame risk snapshot reconstruction
-4. cockpit payload generation
-5. hypothetical action injection
-6. what-if comparison
+Phase 5 task-by-task walkthrough using the actual HaruQuant stack:
+1. drawdown metrics
+2. drawdown velocity and time-under-water
+3. method-tagged tail risk
+4. volatility shock scenario
+5. spread blowout scenario
+6. gap risk scenario
+7. correlation spike scenario
+8. liquidity crunch scenario and worst-case summary
 
 Run:
-    python examples/risk/17_replay_and_what_if.py
+    python examples/risk/05_drawdown_tail_and_stress.py
 """
 
 from __future__ import annotations
@@ -25,23 +27,20 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import (
-    HypotheticalOrderAction,
-    ReplayClock,
-    ReplayEngine,
-    RiskLimits,
-    TimelineReconstructor,
-    WhatIfEngine,
-)
+from apps.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
 from apps.trading import Engine, Trade, core
-from apps.utils.data_manipulator import TicksGenerator
 
 
 TIMEFRAME = "H1"
-BAR_COUNT = 40
-SYMBOLS = ["EURUSD", "GBPUSD"]
-SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "GBPUSD": "FOREX"}
-BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12, vol_lookback=6, corr_lookback=8)
+BAR_COUNT = 320
+SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"]
+SYMBOL_TO_CLUSTER = {
+    "EURUSD": "FOREX",
+    "GBPUSD": "FOREX",
+    "USDJPY": "FOREX",
+    "XAUUSD": "METALS",
+}
+BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12, vol_lookback=20, corr_lookback=60)
 
 
 def print_example_header(title: str) -> None:
@@ -108,16 +107,9 @@ def prepare_symbol(engine: Engine, symbol: str, latest_close: float):
     return mutable
 
 
-def build_ticks(symbol: str, bars: pd.DataFrame, point_value: float) -> pd.DataFrame:
-    ticks = TicksGenerator(
-        model="timeframe_ticks",
-        trading_timeframe=TIMEFRAME,
-        point_value=point_value,
-        spread_model="native_spread",
-    ).generate(bars.copy())
-    ticks = ticks.copy()
-    ticks["symbol"] = symbol
-    return ticks
+def synthetic_equity_curve() -> pd.Series:
+    values = [10000.0, 10120.0, 10070.0, 9950.0, 9840.0, 9890.0, 9945.0, 10010.0]
+    return pd.Series(values, index=pd.date_range("2024-01-01", periods=len(values), freq="h"), dtype=float)
 
 
 class ExampleContext:
@@ -125,14 +117,11 @@ class ExampleContext:
         self.engine = Engine(backend="sim")
         seed_sim_account(self.engine)
         self.market_data = {}
-        self.ticks_data = None
-        self.replay_run = None
-        self.what_if = None
-        self.timeline = None
+        self.snapshot = None
+        self.state = None
 
     def setup(self) -> None:
         print("Loading real historical bars from connected client...")
-        merged_ticks = []
         for symbol in SYMBOLS:
             bars = self.engine.client.get_bars(symbol=symbol, timeframe=TIMEFRAME, count=BAR_COUNT, start_pos=0)
             if bars is None or bars.empty:
@@ -145,50 +134,35 @@ class ExampleContext:
             if prepared is None:
                 print(f"  {symbol}: symbol info unavailable, skipped")
                 continue
-            point_value = float(getattr(prepared, "point", 0.0001) or 0.0001)
-            merged_ticks.append(build_ticks(symbol, bars.tail(12), point_value))
             print(f"  {symbol}: loaded {len(bars)} bars, latest_close={latest_close:.5f}")
 
         self.open_positions()
-        self.ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
-        self.timeline = TimelineReconstructor().build_timeline(self.ticks_data, frame_mode="bar")
-        self.replay_run = ReplayEngine().replay(
+        latest_ts = max(df.index[-1] for df in self.market_data.values() if not df.empty)
+        self.state = PortfolioStateEngine().build_state_from_engine(
             engine=self.engine,
-            data=self.ticks_data,
             symbols=[symbol for symbol in SYMBOLS if symbol in self.market_data],
             timeframe=TIMEFRAME,
-            market_data=self.market_data,
+            count=BAR_COUNT,
+            as_of=pd.Timestamp(latest_ts).isoformat(),
             limits=BASE_LIMITS,
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
-                "source": "phase9_replay_example",
+                "source": "phase5_drawdown_tail_stress_example",
                 "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
+                "equity_curve": synthetic_equity_curve(),
             },
-            frame_mode="bar",
-            include_recommendations=False,
-            candidate_symbols=SYMBOLS,
-            hedge_symbols=SYMBOLS,
-            max_recommendations=5,
-            max_frames=8,
-            run_kwargs={"position_size": 0.01, "monitor_verbose": False, "show_progress": False},
         )
-        if self.replay_run.frames:
-            self.what_if = WhatIfEngine().evaluate(
-                self.replay_run.frames[-1],
-                actions=[HypotheticalOrderAction(action_type="add", symbol="EURUSD", delta_lots=0.02)],
-                include_recommendations=True,
-                candidate_symbols=SYMBOLS,
-                hedge_symbols=SYMBOLS,
-                max_recommendations=5,
-            )
+        self.snapshot = RiskSnapshotEngine().build_snapshot(self.state)
 
     def open_positions(self) -> None:
         print("Opening small simulator positions...")
         trade = Trade(self.engine.api)
         for request in [
             {"symbol": "EURUSD", "side": "BUY", "volume": 0.10},
-            {"symbol": "GBPUSD", "side": "SELL", "volume": 0.08},
+            {"symbol": "GBPUSD", "side": "BUY", "volume": 0.08},
+            {"symbol": "USDJPY", "side": "SELL", "volume": 0.06},
+            {"symbol": "XAUUSD", "side": "BUY", "volume": 0.04},
         ]:
             symbol_info = self.engine.symbol_info(request["symbol"])
             if symbol_info is None:
@@ -211,82 +185,91 @@ class ExampleContext:
                 price=price,
                 sl=sl,
                 tp=0.0,
-                comment="Phase 9 replay example",
+                comment="Phase 5 drawdown tail stress example",
             )
             print(
                 f"  {request['symbol']} {request['side']}: retcode={int(result.retcode)} "
                 f"order={int(result.order)} volume={volume:.2f}"
             )
+        self.engine.monitor_account(verbose=False)
+
+    def rows(self, family: str):
+        return [row for row in self.snapshot.metric_rows if row.family == family]
 
     def close(self):
         if getattr(self.engine, "client", None) is not None:
             self.engine.client.shutdown()
 
 
-def example_01_timeline_reconstruction(ctx: ExampleContext) -> None:
-    print_example_header("Example 01: Timeline Reconstruction")
-    print(f"  timeline_points={len(ctx.timeline)}")
-    if ctx.timeline:
-        print(f"  first={ctx.timeline[0].frame_timestamp} capture={ctx.timeline[0].capture_timestamp}")
-        print(f"  last={ctx.timeline[-1].frame_timestamp} capture={ctx.timeline[-1].capture_timestamp}")
+def example_01_drawdown_metrics(ctx: ExampleContext) -> None:
+    print_example_header("Example 01: Drawdown Metrics")
+    for key in ["current_drawdown", "max_drawdown"]:
+        value = next(row.numeric_value for row in ctx.rows("drawdown_risk") if row.metric_key == key)
+        print(f"  {key}={value}")
 
 
-def example_02_replay_clock_stepping(ctx: ExampleContext) -> None:
-    print_example_header("Example 02: Replay Clock Stepping")
-    clock = ReplayClock.from_timeline(ctx.replay_run.timeline)
-    first = clock.advance()
-    second = clock.advance()
-    print(f"  first_step={None if first is None else first.frame_timestamp}")
-    print(f"  second_step={None if second is None else second.frame_timestamp}")
-    print(f"  finished={clock.finished}")
+def example_02_drawdown_velocity_and_time_under_water(ctx: ExampleContext) -> None:
+    print_example_header("Example 02: Drawdown Velocity and Time Under Water")
+    for key in ["drawdown_velocity", "time_under_water"]:
+        value = next(row.numeric_value for row in ctx.rows("drawdown_risk") if row.metric_key == key)
+        print(f"  {key}={value}")
 
 
-def example_03_per_frame_risk_snapshot(ctx: ExampleContext) -> None:
-    print_example_header("Example 03: Per-Frame Risk Snapshot")
-    frame = ctx.replay_run.frames[-1]
-    print(f"  frame_index={frame.frame_index} timestamp={frame.timestamp}")
-    print(f"  portfolio_var={frame.snapshot.summary.get('portfolio_var')}")
-    print(f"  portfolio_es={frame.snapshot.summary.get('portfolio_es')}")
-    print(f"  overall_score={frame.scorecard.summary.get('overall_risk_quality_score')}")
+def example_03_method_tagged_tail_risk(ctx: ExampleContext) -> None:
+    print_example_header("Example 03: Method-Tagged Tail Risk")
+    for row in ctx.rows("tail_risk"):
+        print(f"  key={row.metric_key} value={row.numeric_value or row.text_value}")
 
 
-def example_04_cockpit_payload(ctx: ExampleContext) -> None:
-    print_example_header("Example 04: Cockpit Payload")
-    cockpit = ctx.replay_run.frames[-1].cockpit_state
-    print(f"  account={cockpit.account}")
-    print(f"  governance={cockpit.governance}")
-    print(f"  top_recommendations={cockpit.recommendations[:2]}")
+def example_04_volatility_shock_scenario(ctx: ExampleContext) -> None:
+    print_example_header("Example 04: Volatility Shock Scenario")
+    for row in ctx.rows("stress_risk"):
+        if row.scope_key != "volatility_shock":
+            continue
+        print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
 
 
-def example_05_hypothetical_action_injection(ctx: ExampleContext) -> None:
-    print_example_header("Example 05: Hypothetical Action Injection")
-    action = ctx.what_if.actions[0]
-    print(f"  action_type={action.action_type} symbol={action.symbol} delta_lots={action.delta_lots}")
+def example_05_spread_blowout_scenario(ctx: ExampleContext) -> None:
+    print_example_header("Example 05: Spread Blowout Scenario")
+    for row in ctx.rows("stress_risk"):
+        if row.scope_key == "spread_blowout":
+            print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
 
 
-def example_06_what_if_comparison(ctx: ExampleContext) -> None:
-    print_example_header("Example 06: What-If Comparison")
-    print(f"  summary={ctx.what_if.summary}")
-    projected = ctx.what_if.projected_recommendations
-    if projected is not None and projected.recommendations:
-        top = projected.recommendations[0]
-        print(
-            f"  projected_top={top.action.action_type} {top.action.symbol} "
-            f"usefulness={top.recommendation_score.usefulness_score:.2f}"
-        )
+def example_06_gap_risk_scenario(ctx: ExampleContext) -> None:
+    print_example_header("Example 06: Gap Risk Scenario")
+    for row in ctx.rows("stress_risk"):
+        if row.scope_key == "gap_risk":
+            print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
+
+
+def example_07_correlation_spike_scenario(ctx: ExampleContext) -> None:
+    print_example_header("Example 07: Correlation Spike Scenario")
+    for row in ctx.rows("stress_risk"):
+        if row.scope_key == "correlation_spike":
+            print(f"  key={row.metric_key} value={row.numeric_value} context={row.context}")
+
+
+def example_08_liquidity_crunch_and_worst_case_summary(ctx: ExampleContext) -> None:
+    print_example_header("Example 08: Liquidity Crunch and Worst-Case Summary")
+    for row in ctx.rows("stress_risk"):
+        if row.scope_key == "liquidity_crunch" or row.metric_key in {"worst_scenario_loss", "worst_scenario_name"}:
+            print(f"  key={row.metric_key} scope_key={row.scope_key} value={row.numeric_value or row.text_value}")
 
 
 def main() -> None:
-    print_example_header("PHASE 9 REPLAY AND WHAT-IF ENGINE")
+    print_example_header("PHASE 5 DRAWDOWN, TAIL RISK, AND STRESS TESTING")
     ctx = ExampleContext()
     try:
         ctx.setup()
-        example_01_timeline_reconstruction(ctx)
-        example_02_replay_clock_stepping(ctx)
-        example_03_per_frame_risk_snapshot(ctx)
-        example_04_cockpit_payload(ctx)
-        example_05_hypothetical_action_injection(ctx)
-        example_06_what_if_comparison(ctx)
+        example_01_drawdown_metrics(ctx)
+        example_02_drawdown_velocity_and_time_under_water(ctx)
+        example_03_method_tagged_tail_risk(ctx)
+        example_04_volatility_shock_scenario(ctx)
+        example_05_spread_blowout_scenario(ctx)
+        example_06_gap_risk_scenario(ctx)
+        example_07_correlation_spike_scenario(ctx)
+        example_08_liquidity_crunch_and_worst_case_summary(ctx)
     finally:
         ctx.close()
 
