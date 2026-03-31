@@ -10,6 +10,7 @@ from apps.risk import (
     AllocationPlanner,
     CorrelationPreference,
     GovernanceEngine,
+    PortfolioStateEngine,
     PositionSizer,
     PortfolioRiskEngine,
     RiskLimits,
@@ -170,6 +171,7 @@ class Engine:
             "adapter": None,
         }
         self._risk_adapter = None
+        self._portfolio_state_engine = PortfolioStateEngine()
         self._risk_equity_history = []
 
         logger.info(f"successfully initialised trading engine {self.backend}")
@@ -1039,6 +1041,46 @@ class Engine:
             "requested_volume": float(self._safe_float(requested_volume, 0.0)),
         }
 
+    def _build_risk_portfolio_state(self, positions, governance_engine, symbols):
+        if self._risk_adapter is None:
+            raise ValueError("Risk adapter is not initialized.")
+
+        risk_engine = governance_engine.risk_engine
+        timeframe = str(risk_engine.timeframe or "D1")
+        count = max(int(risk_engine.end_pos - risk_engine.start_pos), 1)
+        start_pos = int(risk_engine.start_pos)
+        clean_symbols = sorted({str(symbol).strip().upper() for symbol in symbols if str(symbol).strip()})
+
+        symbol_specs = {}
+        market_data = {}
+        for symbol in clean_symbols:
+            spec = self._risk_adapter.get_symbol_info(symbol)
+            if spec is not None:
+                symbol_specs[symbol] = spec
+            bars = self._risk_adapter.get_bars(
+                symbol=symbol,
+                timeframe=timeframe,
+                count=count,
+                start_pos=start_pos,
+            )
+            if bars is not None and not bars.empty:
+                market_data[symbol] = bars.copy()
+
+        return self._portfolio_state_engine.build_state(
+            account=self.account_info(),
+            positions=positions,
+            symbol_specs=symbol_specs,
+            market_data=market_data,
+            limits=governance_engine.limits,
+            symbol_to_cluster=self.risk_management.get("symbol_clusters") or {},
+            timeframe=timeframe,
+            metadata={
+                "source": "simulation_risk_governance",
+                "start_pos": start_pos,
+                "count": count,
+            },
+        )
+
 
     def _risk_log_report(self, candidate, base_lots, target_lots, regime, report, verbose: bool = False):
         if not verbose:
@@ -1121,18 +1163,21 @@ class Engine:
             )
 
         state_changed = False
-        symbol_clusters = self.risk_management.get("symbol_clusters") or {}
         for idx, candidate in enumerate(prepared):
             key = f"{idx}:{candidate['symbol_name']}:{candidate['action']}"
             target_lots = float(target_map.get(key, candidate["base_lots"]))
             if target_lots <= 0.0:
                 continue
             signed_lots = self._candidate_signed_lots(candidate, target_lots)
-            report = governance_engine.evaluate_add_position(
-                current_positions=current_positions,
+            current_state = self._build_risk_portfolio_state(
+                current_positions,
+                governance_engine,
+                symbols=list(current_positions.keys()) + [candidate["symbol_name"]],
+            )
+            report = governance_engine.evaluate_add_position_from_state(
+                current_state=current_state,
                 candidate_symbol=candidate["symbol_name"],
                 candidate_lots=signed_lots,
-                symbol_to_cluster=symbol_clusters,
                 regime=regime,
             )
             self._risk_log_report(candidate, candidate["base_lots"], target_lots, regime, report, verbose=verbose)

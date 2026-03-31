@@ -10,6 +10,40 @@
 - The unified model has two top-level dimensions:
   - `Run Source`: `manual | strategy | replay`
   - `Execution Mode`: `visualized | batch`
+- Backtest listing now follows the same auth boundary as the rest of the simulator API:
+  - `apps/api/routes/simulator.py::list_all_backtests()` resolves the user from the authorization token instead of defaulting to a fixed user id
+- Simulator runtime sessions now sit behind a tiny in-process session manager:
+  - `apps/simulation/session_manager.py`
+  - this remains process-local in-memory state, but the route layer no longer mutates a naked global dict directly
+- Simulator and backtest route responsibilities are now split more explicitly:
+  - `apps/api/routes/simulator.py` contains the interactive simulator HTTP layer
+  - `apps/api/routes/backtest.py` contains backtest models, helpers, and backtest endpoints
+  - `apps/simulation/api_models.py` owns the simulator route request models
+  - `apps/simulation/session_runtime.py` owns `SimulatorSession` and the simulator runtime orchestration
+  - `apps/simulation/serializers.py` owns shared risk/report serialization helpers used by both the runtime and route layers
+  - `apps/simulation/route_support.py` owns shared simulator response-building and position/order normalization helpers
+  - `apps/simulation/route_guards.py` owns the shared simulator session ownership and running-session guard checks
+  - `apps/simulation/session_service.py` owns simulator session lifecycle helpers such as resume, delete, and stop-and-save
+  - `apps/simulation/trade_service.py` owns trade/order mutation orchestration and the shared governance-check path
+  - `apps/api/routes/simulator.py` now uses local FastAPI dependencies for authenticated user id, owned session, and running session so route handlers no longer repeat the same auth/session lookup boilerplate
+- Simulator mutation responses now share one post-mutation refresh sequence:
+  - monitor positions/account
+  - refresh risk state
+  - build response payload from refreshed state
+- Risk covariance now distinguishes standard vs stressed modes:
+  - standard mode preserves observed pair correlations
+  - stressed mode applies the configured pairwise floor before covariance construction
+- Raw governance no longer force-accepts trades merely because they net or reduce position count.
+- The preferred governance gateway is now canonical `PortfolioState`:
+  - `apps/api/routes/risk.py`, `apps/live/risk_engine.py`, `apps/trading/main.py`, and `apps/risk/optimization/marginal_risk.py` now evaluate candidate changes from canonical state instead of raw position maps
+  - legacy raw-governance methods still exist for compatibility, but production paths should favor state-based evaluation
+
+## Edge Dataset Session Source
+
+- Edge session windows now come from one shared module:
+  - `apps/edge/session_config.py`
+- The prepared dataset enrichment path and seasonality analysis both read from that same source.
+- `apps/edge/datasets.py::prepare_ohlcvs_dataset()` now fails fast on validation errors instead of continuing with raw invalid data.
 - The execution-mode contract is:
   - `visualized` uses the simulator-style interactive session flow with charting, live panels, and optional manual trade intervention
   - `batch` uses the backtest-style non-visual historical run flow with async execution, progress/log streaming, and persisted result output

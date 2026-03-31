@@ -11,6 +11,7 @@ import pandas as pd
 from apps.utils.data_validator import DataValidator
 from apps.utils.logger import logger
 
+from .session_config import session_hours_payload
 from .data.cleaning import CleaningConfig, clean_dataset
 from .data.enrichment import EnrichmentConfig, enrich_dataset
 from .data.models import CanonicalOHLCVSSchema, PreparedDataset
@@ -420,21 +421,23 @@ def prepare_ohlcvs_dataset(
     raw = _synthesize_ohlcvs_columns(raw, canonical)
 
     report = validate_dataset(raw, schema=canonical, timeframe=timeframe)
-    if report.is_valid:
-        cleaned = clean_dataset(
-            raw,
-            report=report,
-            schema=canonical,
-            config=cleaning or CleaningConfig(timeframe=timeframe),
+    if not report.is_valid:
+        fatal_count = len(report.fatal_errors)
+        raise ValueError(
+            f"Dataset validation failed for {symbol} {timeframe}: {fatal_count} fatal errors"
         )
-        enriched = enrich_dataset(
-            cleaned,
-            schema=canonical,
-            config=enrichment or EnrichmentConfig(symbol=symbol),
-        )
-    else:
-        cleaned = raw
-        enriched = raw
+
+    cleaned = clean_dataset(
+        raw,
+        report=report,
+        schema=canonical,
+        config=cleaning or CleaningConfig(timeframe=timeframe),
+    )
+    enriched = enrich_dataset(
+        cleaned,
+        schema=canonical,
+        config=enrichment or EnrichmentConfig(symbol=symbol),
+    )
 
     report.metadata.update(
         {
@@ -444,12 +447,7 @@ def prepare_ohlcvs_dataset(
             "start": str(enriched.index.min()) if len(enriched) else None,
             "end": str(enriched.index.max()) if len(enriched) else None,
             "session_basis": (enrichment or EnrichmentConfig(symbol=symbol)).session_basis,
-            "session_hours": {
-                "sydney": list(range(0, 7)),
-                "tokyo": list(range(2, 9)),
-                "london": list(range(10, 17)),
-                "ny": list(range(15, 22)),
-            },
+            "session_hours": session_hours_payload(),
         }
     )
     return PreparedDataset(data=enriched, report=report, schema=canonical)

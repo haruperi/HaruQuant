@@ -1,0 +1,306 @@
+"""Shared helpers for simulator route payloads."""
+
+from __future__ import annotations
+
+from typing import Any, Dict, Optional
+
+from apps.mt5 import get_mt5_api
+
+from .session_runtime import SimulatorSession
+
+mt5 = get_mt5_api()
+
+
+def normalize_position(position: dict) -> dict:
+    pos_type = position.get("type")
+    is_buy = pos_type == mt5.POSITION_TYPE_BUY or str(pos_type).lower() == "buy"
+    return {
+        "id": int(
+            position.get("id")
+            or position.get("ticket")
+            or position.get("identifier")
+            or 0
+        ),
+        "symbol": position.get("symbol", ""),
+        "type": "buy" if is_buy else "sell",
+        "volume": float(position.get("volume") or 0.0),
+        "open_price": float(position.get("price_open") or 0.0),
+        "price": float(
+            position.get("price_current") or position.get("price_open") or 0.0
+        ),
+        "sl": float(position.get("sl") or 0.0),
+        "tp": float(position.get("tp") or 0.0),
+        "profit": float(position.get("profit") or 0.0),
+        "swap": float(position.get("swap") or 0.0),
+        "commission": float(position.get("commission") or 0.0),
+        "margin_required": float(position.get("margin_required") or 0.0),
+        "time": position.get("time"),
+        "comment": position.get("comment", ""),
+    }
+
+
+def _simulator_account_currency(active: SimulatorSession) -> str:
+    if getattr(active, "latest_risk_state", None) is not None:
+        currency = getattr(active.latest_risk_state.account, "currency", None)
+        if currency:
+            token = str(currency).upper().strip()
+            if token:
+                return token
+    account = active.engine.account_info()
+    token = str(
+        account.get("currency") or account.get("currency_code") or "USD"
+    ).upper().strip()
+    return token or "USD"
+
+
+def _simulator_price_for_symbol(
+    active: SimulatorSession, symbol: str
+) -> Optional[float]:
+    market = getattr(active, "current_market_by_symbol", {}).get(symbol)
+    if market is not None:
+        try:
+            price = float(market.get("close", 0.0) or 0.0)
+        except Exception:
+            price = 0.0
+        if price > 0.0:
+            return price
+
+    state = getattr(active, "latest_risk_state", None)
+    if state is not None:
+        market_state = state.markets.get(symbol)
+        if market_state is not None and market_state.last_close is not None:
+            try:
+                price = float(market_state.last_close)
+            except Exception:
+                price = 0.0
+            if price > 0.0:
+                return price
+
+    symbol_data = getattr(active, "data_by_symbol", {}).get(symbol)
+    if symbol_data is not None and not symbol_data.empty:
+        close_col = "close" if "close" in symbol_data.columns else "Close"
+        if close_col in symbol_data.columns:
+            try:
+                price = float(symbol_data[close_col].iloc[-1])
+            except Exception:
+                price = 0.0
+            if price > 0.0:
+                return price
+
+    return None
+
+
+def _simulator_direct_currency_conversion_rate(
+    active: SimulatorSession,
+    source: str,
+    target: str,
+) -> Optional[float]:
+    direct_symbol = f"{source}{target}"
+    direct_price = _simulator_price_for_symbol(active, direct_symbol)
+    if direct_price is not None and direct_price > 0.0:
+        return float(direct_price)
+
+    inverse_symbol = f"{target}{source}"
+    inverse_price = _simulator_price_for_symbol(active, inverse_symbol)
+    if inverse_price is not None and inverse_price > 0.0:
+        return float(1.0 / inverse_price)
+
+    return None
+
+
+def _simulator_currency_conversion_rate(
+    active: SimulatorSession,
+    source: str,
+    target: str,
+) -> Optional[float]:
+    if source == target:
+        return 1.0
+
+    direct = _simulator_direct_currency_conversion_rate(active, source, target)
+    if direct is not None:
+        return direct
+
+    for bridge in ("USD", "EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD"):
+        if bridge in {source, target}:
+            continue
+        leg_one = _simulator_direct_currency_conversion_rate(active, source, bridge)
+        if leg_one is None:
+            continue
+        leg_two = _simulator_direct_currency_conversion_rate(active, bridge, target)
+        if leg_two is None:
+            continue
+        return float(leg_one * leg_two)
+
+    return None
+
+
+def _convert_simulator_value_to_account_currency(
+    active: SimulatorSession,
+    value: float,
+    source_currency: str,
+    target_currency: str,
+) -> float:
+    amount = float(value or 0.0)
+    source = str(source_currency or "").upper().strip()
+    target = str(target_currency or "").upper().strip()
+    if amount == 0.0 or not source or not target or source == target:
+        return amount
+    rate = _simulator_currency_conversion_rate(active, source, target)
+    if rate is None or rate <= 0.0:
+        return amount
+    return float(amount * rate)
+
+
+def _position_notional_from_payload(active: SimulatorSession, position: dict) -> float:
+    symbol_name = str(position.get("symbol", "") or "")
+    if not symbol_name:
+        return 0.0
+
+    symbol_info = active.engine.symbol_info(symbol_name)
+    contract_size = float(getattr(symbol_info, "trade_contract_size", 0.0) or 0.0)
+    if contract_size <= 0.0:
+        return 0.0
+
+    market_price = float(position.get("price_current") or position.get("price_open") or 0.0)
+    volume = float(position.get("volume") or 0.0)
+    if market_price <= 0.0 or volume <= 0.0:
+        return 0.0
+
+    raw_notional = float(volume * contract_size * market_price)
+    profit_currency = str(
+        getattr(
+            symbol_info,
+            "currency_profit",
+            getattr(symbol_info, "profit_currency", ""),
+        )
+        or ""
+    ).upper().strip()
+    account_currency = _simulator_account_currency(active)
+    return _convert_simulator_value_to_account_currency(
+        active,
+        raw_notional,
+        profit_currency,
+        account_currency,
+    )
+
+
+def normalize_order(order: dict) -> dict:
+    type_map = {
+        mt5.ORDER_TYPE_BUY_LIMIT: "buy_limit",
+        mt5.ORDER_TYPE_SELL_LIMIT: "sell_limit",
+        mt5.ORDER_TYPE_BUY_STOP: "buy_stop",
+        mt5.ORDER_TYPE_SELL_STOP: "sell_stop",
+        mt5.ORDER_TYPE_BUY_STOP_LIMIT: "buy_stop_limit",
+        mt5.ORDER_TYPE_SELL_STOP_LIMIT: "sell_stop_limit",
+    }
+    order_type = order.get("type")
+    return {
+        "id": int(order.get("ticket") or order.get("identifier") or order.get("id") or 0),
+        "symbol": order.get("symbol", ""),
+        "type": type_map.get(order_type, str(order_type)),
+        "volume": float(order.get("volume_current") or order.get("volume_initial") or 0.0),
+        "open_price": float(order.get("open_price") or order.get("price_open") or 0.0),
+        "sl": float(order.get("sl") or 0.0),
+        "tp": float(order.get("tp") or 0.0),
+        "time": order.get("time"),
+        "expiry_date": order.get("expiry_date"),
+        "comment": order.get("comment", ""),
+    }
+
+
+def position_info_to_dict(position: Any) -> dict:
+    if isinstance(position, dict):
+        return position
+    if hasattr(position, "_asdict"):
+        return dict(position._asdict())
+    time_value = position.Time() if hasattr(position, "Time") else None
+    return {
+        "ticket": int(getattr(position, "ticket", 0) or 0),
+        "identifier": int(getattr(position, "identifier", 0) or 0),
+        "symbol": getattr(position, "symbol", ""),
+        "type": int(getattr(position, "type", 0) or 0),
+        "volume": float(getattr(position, "volume", 0.0) or 0.0),
+        "price_open": float(getattr(position, "price_open", 0.0) or 0.0),
+        "price_current": float(getattr(position, "price_current", 0.0) or 0.0),
+        "sl": float(getattr(position, "sl", 0.0) or 0.0),
+        "tp": float(getattr(position, "tp", 0.0) or 0.0),
+        "profit": float(getattr(position, "profit", 0.0) or 0.0),
+        "swap": float(getattr(position, "swap", 0.0) or 0.0),
+        "commission": float(getattr(position, "commission", 0.0) or 0.0),
+        "margin_required": float(getattr(position, "margin_required", 0.0) or 0.0),
+        "time": int(time_value) if time_value is not None else None,
+        "comment": getattr(position, "comment", ""),
+    }
+
+
+def order_info_to_dict(order: Any) -> dict:
+    if isinstance(order, dict):
+        return order
+    if hasattr(order, "_asdict"):
+        return dict(order._asdict())
+    time_value = order.TimeSetup() if hasattr(order, "TimeSetup") else None
+    return {
+        "ticket": int(getattr(order, "ticket", 0) or 0),
+        "identifier": int(getattr(order, "position_id", 0) or 0),
+        "symbol": getattr(order, "symbol", ""),
+        "type": int(getattr(order, "type", 0) or 0),
+        "volume_initial": float(getattr(order, "volume_initial", 0.0) or 0.0),
+        "volume_current": float(getattr(order, "volume_current", 0.0) or 0.0),
+        "price_open": float(getattr(order, "price_open", 0.0) or 0.0),
+        "sl": float(getattr(order, "sl", 0.0) or 0.0),
+        "tp": float(getattr(order, "tp", 0.0) or 0.0),
+        "time": int(time_value) if time_value is not None else None,
+        "comment": getattr(order, "comment", ""),
+    }
+
+
+def collect_positions_orders(active: SimulatorSession) -> tuple[list[dict], list[dict]]:
+    positions_raw = active.simulator._simulator.positions_get() or []
+    orders_raw = active.simulator._simulator.orders_get() or []
+    position_payloads = []
+    for pos in positions_raw:
+        payload = position_info_to_dict(pos)
+        volume = float(payload.get("volume", 0.0) or 0.0)
+        if abs(volume) <= 1e-12:
+            continue
+        position_payloads.append(payload)
+    gross_notional = float(
+        sum(_position_notional_from_payload(active, pos) for pos in position_payloads)
+    )
+    positions = []
+    for pos in position_payloads:
+        normalized = normalize_position(pos)
+        exposure = _position_notional_from_payload(active, pos)
+        normalized["exposure"] = float(exposure)
+        normalized["weight"] = (
+            float(exposure / gross_notional) if gross_notional > 0.0 else 0.0
+        )
+        positions.append(normalized)
+    orders = [normalize_order(order_info_to_dict(order)) for order in orders_raw]
+    return positions, orders
+
+
+def refresh_session_risk_state(active: SimulatorSession) -> None:
+    active.refresh_risk_state()
+
+
+def monitor_refresh_collect(
+    active: SimulatorSession,
+) -> tuple[list[dict], list[dict]]:
+    totals = active.simulator.monitor_positions()
+    active.simulator.monitor_account(totals)
+    refresh_session_risk_state(active)
+    return collect_positions_orders(active)
+
+
+def build_session_state_response(active: SimulatorSession) -> Dict[str, Any]:
+    positions, orders = monitor_refresh_collect(active)
+    return {
+        "positions": positions,
+        "orders": orders,
+        "market": active.get_market_snapshots(),
+        "risk_snapshot": active.get_risk_summary(),
+        "risk_scorecard": active.get_risk_score_summary(),
+        "recommendations": active.get_recommendation_summary(),
+        "governance": active.get_governance_report(),
+    }

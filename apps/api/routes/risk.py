@@ -15,6 +15,7 @@ from apps.risk import (
     CorrelationPreference,
     GovernanceEngine,
     PortfolioRiskEngine,
+    PortfolioStateEngine,
     PositionSizer,
     RegimeState,
     RiskLimits,
@@ -25,6 +26,7 @@ from apps.trading import Engine
 
 router = APIRouter()
 AUTH_HEADER = Header(None)
+state_engine = PortfolioStateEngine()
 
 SizingMethod = Literal[
     "fixed_lot",
@@ -523,6 +525,14 @@ async def evaluate_risk_governance(
             engine.client.get_symbol_info = engine.client.symbol_info  # type: ignore[attr-defined]
 
         risk_client = _RiskApiClientAdapter(engine.client)
+        governance_limits = RiskLimits(
+            var_cap_frac=float(request.var_cap_frac),
+            es_cap_frac=float(request.es_cap_frac),
+            delta_var_cap_frac=float(request.delta_var_cap_frac),
+            delta_es_cap_frac=float(request.delta_es_cap_frac),
+            max_margin_used_frac=float(request.max_margin_used_frac),
+            max_single_rc_frac=float(request.max_single_rc_frac),
+        )
         governance_engine = GovernanceEngine(
             risk_engine=PortfolioRiskEngine(
                 mt5_client=risk_client,
@@ -530,27 +540,30 @@ async def evaluate_risk_governance(
                 start_pos=0,
                 end_pos=request.bar_count,
             ),
-            limits=RiskLimits(
-                var_cap_frac=float(request.var_cap_frac),
-                es_cap_frac=float(request.es_cap_frac),
-                delta_var_cap_frac=float(request.delta_var_cap_frac),
-                delta_es_cap_frac=float(request.delta_es_cap_frac),
-                max_margin_used_frac=float(request.max_margin_used_frac),
-                max_single_rc_frac=float(request.max_single_rc_frac),
-            ),
+            limits=governance_limits,
         )
         regime = (
             RegimeState(name=str(request.regime_name).upper())
             if request.regime_name and str(request.regime_name).strip()
             else None
         )
-
-        current_report = governance_engine.evaluate_portfolio_positions(
+        current_state = state_engine.build_state_from_engine(
+            engine=engine,
+            symbols=clean_symbols,
+            timeframe=request.timeframe,
+            count=request.bar_count,
+            start_pos=0,
             positions=current_positions,
+            limits=governance_limits,
+            metadata={"source": "risk_api_governance"},
+        )
+
+        current_report = governance_engine.evaluate_portfolio_state(
+            state=current_state,
             regime=regime,
         )
-        candidate_report = governance_engine.evaluate_add_position(
-            current_positions=current_positions,
+        candidate_report = governance_engine.evaluate_add_position_from_state(
+            current_state=current_state,
             candidate_symbol=candidate_symbol,
             candidate_lots=float(request.candidate_lots),
             regime=regime,

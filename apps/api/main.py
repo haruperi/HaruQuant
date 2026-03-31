@@ -11,6 +11,7 @@ from apps.api.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
     auth,
+    backtest,
     docs,
     risk,
     settings,
@@ -91,7 +92,7 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
-app.include_router(simulator.backtest_router, prefix="/api/backtest", tags=["backtest"])
+app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
 app.include_router(simulator.router, prefix="/api/simulator", tags=["simulator"])
 app.include_router(risk.router, prefix="/api/risk", tags=["risk"])
 _include_optional_router(app, live, prefix="/api/live", tags=["live"])

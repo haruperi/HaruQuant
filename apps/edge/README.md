@@ -69,7 +69,7 @@ Prepared datasets include:
 - returns and log returns
 - session and calendar enrichment
 
-Session classification now uses dataset index time as-is, with fixed windows:
+Session classification now uses one shared source in `apps/edge/session_config.py` and dataset index time as-is, with fixed windows:
 
 - `sydney` `00:00-06:59`
 - `tokyo` `02:00-08:59`

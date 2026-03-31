@@ -8,16 +8,13 @@ from typing import Any, Dict, Iterable, List, Optional
 import numpy as np
 import pandas as pd
 
-DEFAULT_ADR_PERIOD = 10
-SESSION_ORDER = (
-    "sydney",
-    "tokyo",
-    "sydney_tokyo",
-    "london",
-    "london_ny",
-    "ny",
-    "gap",
+from apps.edge.session_config import (
+    EDGE_SESSION_ORDER,
+    session_label_for_hour,
 )
+
+DEFAULT_ADR_PERIOD = 10
+SESSION_ORDER = EDGE_SESSION_ORDER
 
 
 @dataclass(frozen=True)
@@ -115,7 +112,8 @@ def _prepare_working_data(
 
     working["range_points"] = (working["High"] - working["Low"]) / point_size
     working["co_points"] = (working["Close"] - working["Open"]) / point_size
-    working["co_pct"] = (working["Close"] - working["Open"]) / working["Close"]
+    close_denom = working["Close"].where(working["Close"].abs() > 1e-12, np.nan)
+    working["co_pct"] = (working["Close"] - working["Open"]) / close_denom
     working["win_flag"] = (working["co_points"] > 0).astype(int)
     working["spread_points"] = working["Spread"]
 
@@ -140,18 +138,7 @@ def _prepare_working_data(
     working["hour"] = working.index.hour
     working["decade"] = (working["year"] // 10) * 10
     if "session" not in working.columns:
-        working["session"] = np.select(
-            [
-                working["hour"].isin(range(0, 2)),
-                working["hour"].isin(range(2, 7)),
-                working["hour"].isin(range(7, 9)),
-                working["hour"].isin(range(10, 15)),
-                working["hour"].isin(range(15, 17)),
-                working["hour"].isin(range(17, 22)),
-            ],
-            ["sydney", "sydney_tokyo", "tokyo", "london", "london_ny", "ny"],
-            default="gap",
-        )
+        working["session"] = working["hour"].map(session_label_for_hour)
     if "session_basis" not in working.columns:
         working["session_basis"] = "dataset_index"
     return working
@@ -194,8 +181,9 @@ def _calculate_intraday_bias(
     co_pips_series = filtered["co_points"] * (point_size / pip_size)
     intraday_bias = {}
     for dow in dow_index:
+        working = filtered.assign(co_pips=co_pips_series)
         hourly = (
-            filtered.assign(co_pips=co_pips_series)[filtered["dow"] == dow]
+            working.loc[working["dow"] == dow]
             .groupby("hour")["co_pips"]
             .mean()
             .reindex(hour_index)
