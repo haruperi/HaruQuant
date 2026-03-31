@@ -54,12 +54,41 @@ class DummyActiveSessions:
         return active
 
 
+class DummyCoordinator:
+    def __init__(self, active_sessions: DummyActiveSessions, db_manager: DummyDb) -> None:
+        self.active_sessions = active_sessions
+        self.db_manager = db_manager
+
+    def get_owned_metadata(self, session_id: int, user_id: int):
+        session = self.db_manager.get_simulation_session(session_id)
+        if not session or session.get("user_id") != user_id:
+            raise simulator.HTTPException(status_code=404, detail="Session not found")
+        return SimpleNamespace(as_record=lambda: dict(session))
+
+    def require_runtime(self, session_id: int):
+        active = self.active_sessions.get(session_id)
+        if not active:
+            raise simulator.HTTPException(status_code=400, detail="Session is not running")
+        return active
+
+    def attach_runtime(self, session_id: int, active) -> None:
+        self.active_sessions.put(session_id, active)
+
+    def get_runtime(self, session_id: int, *, renew: bool = True):
+        return self.active_sessions.get(session_id)
+
+    def release_runtime(self, session_id: int):
+        return self.active_sessions.remove(session_id)
+
+
 def _make_client(monkeypatch, *, db_manager, active=None):
     app = FastAPI()
     app.include_router(simulator.router, prefix="/api/simulator")
     sessions = DummyActiveSessions(active)
+    coordinator = DummyCoordinator(sessions, db_manager)
     monkeypatch.setattr(simulator, "db_manager", db_manager)
     monkeypatch.setattr(simulator, "active_sessions", sessions)
+    monkeypatch.setattr(simulator, "session_coordinator", coordinator)
     monkeypatch.setattr(simulator, "get_user_id_from_token", lambda authorization: 7)
     return TestClient(app), sessions
 

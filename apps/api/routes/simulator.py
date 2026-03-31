@@ -26,8 +26,9 @@ from apps.simulation.api_models import (
     WhatIfRequest,
 )
 from apps.utils.logger import logger
-from apps.simulation import SimulatorSessionManager
+from apps.simulation import SessionCoordinator, SimulatorSessionManager
 from apps.simulation.route_guards import get_owned_session_record, get_running_session
+from apps.simulation.session_backend import SQLiteSessionRuntimeStore
 from apps.simulation.route_support import (
     build_session_state_response,
     collect_positions_orders,
@@ -60,6 +61,10 @@ AUTH_HEADER = Header(None)
 
 
 active_sessions = SimulatorSessionManager[SimulatorSession]()
+session_coordinator = SessionCoordinator(
+    store=SQLiteSessionRuntimeStore(db_manager),
+    runtimes=active_sessions,
+)
 
 
 def _get_authenticated_user_id(authorization: str = AUTH_HEADER) -> int:
@@ -71,7 +76,7 @@ def _get_owned_session(
     user_id: Annotated[int, Depends(_get_authenticated_user_id)],
 ) -> Dict[str, Any]:
     return get_owned_session_record(
-        db_manager=db_manager,
+        coordinator=session_coordinator,
         session_id=session_id,
         user_id=user_id,
     )
@@ -81,7 +86,7 @@ def _get_running_session(
     session_id: int,
     _session: Annotated[Dict[str, Any], Depends(_get_owned_session)],
 ) -> SimulatorSession:
-    return get_running_session(active_sessions=active_sessions, session_id=session_id)
+    return get_running_session(coordinator=session_coordinator, session_id=session_id)
 
 
 @router.post("/start")
@@ -149,7 +154,7 @@ async def start_simulation(
             current_bar_index=session.current_bar_index,
         )
 
-        active_sessions.put(session_id, session)
+        session_coordinator.attach_runtime(session_id, session)
         credentials = db_manager.get_mt5_credentials(user_id) or {}
         company = ""
         try:
@@ -211,7 +216,7 @@ async def update_session(  # noqa: C901
     session: Annotated[Dict[str, Any], Depends(_get_owned_session)],
 ):
     """Update speed or pause state."""
-    active = active_sessions.get(session_id)
+    active = session_coordinator.get_runtime(session_id, renew=True)
     if request.speed_multiplier is not None:
         db_manager.update_simulation_session(
             session_id, speed_multiplier=request.speed_multiplier
@@ -496,7 +501,7 @@ async def resume_session(
     """Resume a paused session."""
     return resume_or_restore_session(
         db_manager=db_manager,
-        active_sessions=active_sessions,
+        coordinator=session_coordinator,
         session_id=session_id,
         session_data=session_data,
         user_id=user_id,
@@ -526,7 +531,7 @@ async def delete_session(
     """Delete a session."""
     return delete_session_runtime(
         db_manager=db_manager,
-        active_sessions=active_sessions,
+        coordinator=session_coordinator,
         session_id=session_id,
     )
 
@@ -540,7 +545,7 @@ async def stop_and_save_session(
     """Stop a simulation session and persist it as a completed backtest run."""
     return stop_and_save_session_runtime(
         db_manager=db_manager,
-        active_sessions=active_sessions,
+        coordinator=session_coordinator,
         session_id=session_id,
         user_id=user_id,
     )

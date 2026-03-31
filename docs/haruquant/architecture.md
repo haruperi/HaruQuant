@@ -15,11 +15,20 @@
 - Simulator runtime sessions now sit behind a tiny in-process session manager:
   - `apps/simulation/session_manager.py`
   - this remains process-local in-memory state, but the route layer no longer mutates a naked global dict directly
+  - it is now only the local runtime cache, not the source of truth for session identity
+- Simulator session identity and runtime ownership are now separated:
+  - `apps/sqlite/simulator.py` and the `simulation_sessions` table remain the persistent source of truth for session existence and user ownership
+  - `runtime_owner`, `lease_expires_at`, and `last_heartbeat_at` are persisted on `simulation_sessions`
+  - `apps/simulation/session_backend.py` owns the metadata/lease abstraction for the current SQLite-backed implementation
+  - `apps/simulation/session_coordinator.py` is now the single seam routes and services use for owned-session lookup, active-runtime lease checks, and local runtime attachment/release
+  - this is still single-process/runtime-local today because the active `SimulatorSession` object lives in worker memory, but ownership is now explicit and ready for a future shared lease backend
 - Simulator and backtest route responsibilities are now split more explicitly:
   - `apps/api/routes/simulator.py` contains the interactive simulator HTTP layer
   - `apps/api/routes/backtest.py` contains backtest models, helpers, and backtest endpoints
   - `apps/simulation/api_models.py` owns the simulator route request models
   - `apps/simulation/session_runtime.py` owns `SimulatorSession` and the simulator runtime orchestration
+  - `apps/simulation/session_backend.py` owns the persisted session metadata and lease abstraction
+  - `apps/simulation/session_coordinator.py` owns runtime attachment, lease renewal, and active-session access
   - `apps/simulation/serializers.py` owns shared risk/report serialization helpers used by both the runtime and route layers
   - `apps/simulation/route_support.py` owns shared simulator response-building and position/order normalization helpers
   - `apps/simulation/route_guards.py` owns the shared simulator session ownership and running-session guard checks

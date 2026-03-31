@@ -12,7 +12,7 @@ from apps.strategy import storage
 from apps.utils.logger import logger
 
 from .route_support import refresh_session_risk_state
-from .session_manager import SimulatorSessionManager
+from .session_coordinator import SessionCoordinator
 from .session_runtime import SimulatorSession
 
 
@@ -52,12 +52,12 @@ def resolve_strategy_version_id(db_manager: DatabaseManager, strategy_id: int) -
 def resume_or_restore_session(
     *,
     db_manager: DatabaseManager,
-    active_sessions: SimulatorSessionManager[SimulatorSession],
+    coordinator: SessionCoordinator[SimulatorSession],
     session_id: int,
     session_data: dict[str, Any],
     user_id: int,
 ) -> dict[str, Any]:
-    active = active_sessions.get(session_id)
+    active = coordinator.get_runtime(session_id, renew=True)
     if active:
         active.resume()
         return {"session_id": session_id, "status": "running"}
@@ -72,7 +72,7 @@ def resume_or_restore_session(
     session.apply_mt5_account_defaults()
     session.refresh_risk_state()
     session.ensure_risk_run()
-    active_sessions.put(session_id, session)
+    coordinator.attach_runtime(session_id, session)
     db_manager.update_simulation_session(session_id, status="running")
 
     return {"session_id": session_id, "status": "running"}
@@ -81,10 +81,10 @@ def resume_or_restore_session(
 def delete_session_runtime(
     *,
     db_manager: DatabaseManager,
-    active_sessions: SimulatorSessionManager[SimulatorSession],
+    coordinator: SessionCoordinator[SimulatorSession],
     session_id: int,
 ) -> dict[str, Any]:
-    active = active_sessions.remove(session_id)
+    active = coordinator.release_runtime(session_id)
     if active:
         active.stop()
 
@@ -95,11 +95,11 @@ def delete_session_runtime(
 def stop_and_save_session_runtime(
     *,
     db_manager: DatabaseManager,
-    active_sessions: SimulatorSessionManager[SimulatorSession],
+    coordinator: SessionCoordinator[SimulatorSession],
     session_id: int,
     user_id: int,
 ) -> dict[str, Any]:
-    active = active_sessions.remove(session_id)
+    active = coordinator.release_runtime(session_id)
     if not active:
         raise HTTPException(status_code=400, detail="Session is not running")
 
@@ -111,7 +111,7 @@ def stop_and_save_session_runtime(
         risk_snapshot_id = active.persist_current_risk_bundle(backtest_id=backtest_id)
         save_succeeded = True
     except Exception as exc:
-        active_sessions.put(session_id, active)
+        coordinator.attach_runtime(session_id, active)
         logger.error(f"Stop and save session failed | session={session_id} err={exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -5,20 +5,21 @@ from types import SimpleNamespace
 from apps.simulation import session_service
 
 
-class DummyActiveSessions:
+class DummyCoordinator:
     def __init__(self, active=None) -> None:
         self.active = active
-        self.put_calls: list[tuple[int, object]] = []
-        self.remove_calls: list[int] = []
+        self.attach_calls: list[tuple[int, object]] = []
+        self.release_calls: list[int] = []
 
-    def get(self, session_id: int):
+    def get_runtime(self, session_id: int, *, renew: bool = True):
         return self.active
 
-    def put(self, session_id: int, session) -> None:
-        self.put_calls.append((session_id, session))
+    def attach_runtime(self, session_id: int, session) -> None:
+        self.attach_calls.append((session_id, session))
+        self.active = session
 
-    def remove(self, session_id: int):
-        self.remove_calls.append(session_id)
+    def release_runtime(self, session_id: int):
+        self.release_calls.append(session_id)
         active = self.active
         self.active = None
         return active
@@ -45,7 +46,7 @@ def test_resume_or_restore_session_resumes_existing_active():
     active.resume = resume
     result = session_service.resume_or_restore_session(
         db_manager=DummyDb(),
-        active_sessions=DummyActiveSessions(active),
+        coordinator=DummyCoordinator(active),
         session_id=9,
         session_data={"config": {}, "current_bar_index": 3},
         user_id=42,
@@ -62,7 +63,7 @@ def test_delete_session_runtime_stops_active_before_delete():
 
     result = session_service.delete_session_runtime(
         db_manager=db,
-        active_sessions=DummyActiveSessions(active),
+        coordinator=DummyCoordinator(active),
         session_id=15,
     )
 
