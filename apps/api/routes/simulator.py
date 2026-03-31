@@ -67,6 +67,14 @@ session_coordinator = SessionCoordinator(
 )
 
 
+def cleanup_stale_simulation_leases() -> int:
+    """Clear expired simulator runtime leases during application startup."""
+    cleared = session_coordinator.clear_expired_leases()
+    if cleared > 0:
+        logger.info(f"Cleared {cleared} stale simulator session lease(s)")
+    return cleared
+
+
 def _get_authenticated_user_id(authorization: str = AUTH_HEADER) -> int:
     return get_user_id_from_token(authorization)
 

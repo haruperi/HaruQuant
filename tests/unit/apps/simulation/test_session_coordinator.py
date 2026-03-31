@@ -119,3 +119,22 @@ def test_session_coordinator_rejects_conflicting_worker_lease():
 
     assert exc.value.status_code == 409
     assert exc.value.detail == "Session is active on another worker"
+
+
+def test_session_coordinator_reports_owner_and_expiry():
+    store = DummyStore()
+    coordinator = SessionCoordinator(
+        store=store,
+        runtimes=SimulatorSessionManager[DummyRuntime](),
+        worker_id="worker-a",
+        lease_ttl_seconds=15,
+    )
+
+    assert coordinator.get_runtime_owner(42) is None
+    assert coordinator.is_lease_expired(42) is True
+
+    store.acquire_lease(42, "worker-a", 15)
+
+    assert coordinator.get_runtime_owner(42) == "worker-a"
+    assert coordinator.is_owned_by_me(42) is True
+    assert coordinator.is_lease_expired(42) is False

@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
     try:
         db = DatabaseManager()
         db.initialize_database()
+        simulator.cleanup_stale_simulation_leases()
         logger.info("Database initialized successfully on startup.")
         start_scheduler()
     except Exception as e:

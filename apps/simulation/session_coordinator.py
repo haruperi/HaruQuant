@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 from typing import Generic, Optional, TypeVar
 
 from fastapi import HTTPException
@@ -48,7 +49,11 @@ class SessionCoordinator(Generic[SessionT]):
                 status_code=409,
                 detail="Session is active on another worker",
             )
-        self._runtimes.put(int(session_id), runtime)
+        try:
+            self._runtimes.put(int(session_id), runtime)
+        except Exception:
+            self._store.release_lease(int(session_id), self.worker_id)
+            raise
 
     def get_runtime(self, session_id: int, *, renew: bool = True) -> Optional[SessionT]:
         runtime = self._runtimes.get(int(session_id))
@@ -90,3 +95,29 @@ class SessionCoordinator(Generic[SessionT]):
 
     def update_metadata(self, session_id: int, patch: dict[str, object]) -> None:
         self._store.update_metadata(int(session_id), patch)
+
+    def is_owned_by_me(self, session_id: int) -> bool:
+        metadata = self.get_metadata(session_id)
+        if metadata is None:
+            return False
+        return metadata.runtime_owner == self.worker_id and not self.is_lease_expired(
+            session_id
+        )
+
+    def is_lease_expired(self, session_id: int) -> bool:
+        metadata = self.get_metadata(session_id)
+        if metadata is None or metadata.lease_expires_at is None:
+            return True
+        expires_at = metadata.lease_expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        return expires_at <= datetime.now(UTC)
+
+    def get_runtime_owner(self, session_id: int) -> Optional[str]:
+        metadata = self.get_metadata(session_id)
+        if metadata is None:
+            return None
+        return metadata.runtime_owner
+
+    def clear_expired_leases(self) -> int:
+        return self._store.clear_expired_leases()

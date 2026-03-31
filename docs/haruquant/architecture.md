@@ -21,6 +21,9 @@
   - `runtime_owner`, `lease_expires_at`, and `last_heartbeat_at` are persisted on `simulation_sessions`
   - `apps/simulation/session_backend.py` owns the metadata/lease abstraction for the current SQLite-backed implementation
   - `apps/simulation/session_coordinator.py` is now the single seam routes and services use for owned-session lookup, active-runtime lease checks, and local runtime attachment/release
+  - the SQLite lease backend now acquires and renews ownership with one conditional `UPDATE` inside a transaction instead of a read-then-write sequence, so lease contention is safer under multiple workers
+  - releasing a lease now clears `runtime_owner`, `lease_expires_at`, and `last_heartbeat_at`
+  - API startup clears expired simulator leases and normalizes any stale `running` rows back to `paused` before serving requests
   - this is still single-process/runtime-local today because the active `SimulatorSession` object lives in worker memory, but ownership is now explicit and ready for a future shared lease backend
 - Simulator and backtest route responsibilities are now split more explicitly:
   - `apps/api/routes/simulator.py` contains the interactive simulator HTTP layer
