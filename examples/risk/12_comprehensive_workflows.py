@@ -1,6 +1,8 @@
 """
 Comprehensive live MT5 risk-management workflows.
 
+Type: live-broker dependent manual demo
+
 This file consolidates the older example entry points into one place:
 - simple_single_strategy.py
 - multi_strategy_portfolio.py

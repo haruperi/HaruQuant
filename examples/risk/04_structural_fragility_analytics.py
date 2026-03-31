@@ -1,6 +1,8 @@
 """
 Example 12: Structural Fragility Analytics
 
+Type: live-broker dependent manual demo
+
 Phase 4 task-by-task walkthrough using the actual HaruQuant stack:
 1. symbol volatility state metrics
 2. volatility-adjusted exposure

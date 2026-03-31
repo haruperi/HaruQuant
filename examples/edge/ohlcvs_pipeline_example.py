@@ -1,5 +1,10 @@
 #!/usr/bin/env python
-"""Example: prepare an analysis-ready OHLCVS dataset for Edge Lab."""
+"""OHLCVS Pipeline Example.
+
+Type: live-broker dependent manual demo
+
+Prepare an analysis-ready OHLCVS dataset for Edge Lab.
+"""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ import pandas as pd
 from apps.utils.data_validator import DataValidator
 from apps.utils.logger import logger
 
-from .session_config import session_hours_payload
+from .session_config import session_hours_payload, session_label_for_hour
 from .data.cleaning import CleaningConfig, clean_dataset
 from .data.enrichment import EnrichmentConfig, enrich_dataset
 from .data.models import CanonicalOHLCVSSchema, PreparedDataset
@@ -40,10 +40,6 @@ class OHLCVSchema:
 
 
 DEFAULT_SCHEMA = OHLCVSchema()
-DEFAULT_ASIA_HOURS = tuple(range(0, 7))
-DEFAULT_LONDON_HOURS = tuple(range(7, 13))
-DEFAULT_NY_HOURS = tuple(range(13, 21))
-DEFAULT_OFF_HOURS = tuple(range(21, 24))
 
 
 def normalize_columns(
@@ -183,10 +179,10 @@ def resample_ohlc(
 
 def tag_sessions(
     df: pd.DataFrame,
-    asia_hours: Sequence[int] = DEFAULT_ASIA_HOURS,
-    london_hours: Sequence[int] = DEFAULT_LONDON_HOURS,
-    ny_hours: Sequence[int] = DEFAULT_NY_HOURS,
-    off_hours: Sequence[int] = DEFAULT_OFF_HOURS,
+    asia_hours: Optional[Sequence[int]] = None,
+    london_hours: Optional[Sequence[int]] = None,
+    ny_hours: Optional[Sequence[int]] = None,
+    off_hours: Optional[Sequence[int]] = None,
 ) -> pd.DataFrame:
     """Tag each bar with its trading session.
 
@@ -210,17 +206,19 @@ def tag_sessions(
         raise ValueError("DataFrame must have a DatetimeIndex for session tagging")
 
     df = df.copy()
-    hours = df.index.hour
+    session_windows: Optional[Dict[str, Sequence[int]]] = None
+    if any(hours is not None for hours in (asia_hours, london_hours, ny_hours, off_hours)):
+        session_windows = {
+            "asia": tuple(asia_hours or ()),
+            "london": tuple(london_hours or ()),
+            "ny": tuple(ny_hours or ()),
+            "off": tuple(off_hours or ()),
+        }
 
-    conditions = [
-        hours.isin(asia_hours),
-        hours.isin(london_hours),
-        hours.isin(ny_hours),
-        hours.isin(off_hours),
+    df["session"] = [
+        session_label_for_hour(int(hour), session_windows=session_windows)
+        for hour in df.index.hour
     ]
-    choices = ["asia", "london", "ny", "off"]
-
-    df["session"] = np.select(conditions, choices, default="unknown")
 
     session_counts = df["session"].value_counts()
     logger.debug(f"Session distribution: {session_counts.to_dict()}")

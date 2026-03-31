@@ -1,4 +1,8 @@
-"""Thread-safe in-memory simulator session store."""
+"""Thread-safe in-memory simulator session store.
+
+This store is intentionally process-local. It is suitable for single-process
+development/runtime use, but it is not a shared or restart-safe session layer.
+"""
 
 from __future__ import annotations
 

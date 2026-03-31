@@ -1,6 +1,6 @@
 import pandas as pd
 
-from apps.edge.datasets import prepare_ohlcvs_dataset
+from apps.edge.datasets import prepare_ohlcvs_dataset, tag_sessions
 from apps.edge.data.enrichment import EnrichmentConfig, enrich_dataset
 from apps.edge.data.models import CanonicalOHLCVSSchema
 
@@ -78,3 +78,19 @@ def test_prepare_dataset_reports_shared_session_hours():
         "london": list(range(10, 17)),
         "ny": list(range(15, 22)),
     }
+
+
+def test_tag_sessions_uses_shared_edge_session_labels_by_default():
+    index = pd.to_datetime(
+        [
+            "2024-01-01 01:00:00",
+            "2024-01-01 03:00:00",
+            "2024-01-01 15:00:00",
+            "2024-01-01 23:00:00",
+        ]
+    )
+    frame = pd.DataFrame({"Close": [1.0, 1.0, 1.0, 1.0]}, index=index)
+
+    tagged = tag_sessions(frame)
+
+    assert tagged["session"].tolist() == ["sydney", "sydney_tokyo", "london_ny", "gap"]

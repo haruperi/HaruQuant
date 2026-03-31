@@ -1,6 +1,8 @@
 """
 Example 16: Recommendation Engine
 
+Type: live-broker dependent manual demo
+
 Phase 8 task-by-task walkthrough using the actual HaruQuant stack:
 1. marginal risk engine
 2. add/remove/resize evaluation

@@ -1,6 +1,8 @@
 """
 Example 19: Reporting Layer
 
+Type: live-broker dependent manual demo
+
 Phase 11 task-by-task walkthrough using the actual HaruQuant stack:
 1. load stored snapshot artifacts
 2. build machine-readable risk report
@@ -39,7 +41,7 @@ def print_example_header(title: str) -> None:
 
 
 def load_phase10_module():
-    path = os.path.join(os.path.dirname(__file__), "18_storage_and_snapshot_store.py")
+    path = os.path.join(os.path.dirname(__file__), "10_storage_and_snapshot_store.py")
     spec = importlib.util.spec_from_file_location("phase10_storage_example", path)
     module = importlib.util.module_from_spec(spec)
     assert spec is not None and spec.loader is not None
