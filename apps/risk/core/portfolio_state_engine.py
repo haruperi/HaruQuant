@@ -116,6 +116,9 @@ class PortfolioStateEngine:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> PortfolioState:
         """Build a validated canonical portfolio state."""
+        resolved_metadata = dict(metadata or {})
+        resolved_metadata.setdefault("timeframe", timeframe)
+
         resolved_symbol_to_cluster = dict(symbol_to_cluster or {})
         resolved_symbol_to_clusters: Dict[str, List[str]] = {
             str(symbol): [str(cluster) for cluster in list(clusters or []) if str(cluster)]
@@ -155,7 +158,7 @@ class PortfolioStateEngine:
             validation_summary=summary,
             exposures=exposures,
             as_of=as_of,
-            metadata=dict(metadata or {}),
+            metadata=resolved_metadata,
         )
 
     def _normalize_account(self, account: Any) -> AccountState:

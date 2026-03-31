@@ -282,6 +282,9 @@
 - Drawdown analytics are metadata-driven:
   - drawdown rows are emitted only when an equity curve is supplied through snapshot shared state or `PortfolioState.metadata`
   - current drawdown, max drawdown, drawdown velocity, and time-under-water are computed from that supplied curve
+- Canonical risk horizon scaling is also metadata-driven:
+  - `PortfolioStateEngine` persists the requested timeframe into `PortfolioState.metadata`
+  - state-based VaR and ES scaling therefore use the caller's intended bar horizon instead of silently falling back to `D1`
 - Tail-risk analytics stay aligned with the existing portfolio-risk math:
   - `portfolio_var` and `portfolio_es` remain the baseline summary keys
   - `tail_risk` adds explicit method and lookback metadata on top of that same computation path

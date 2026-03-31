@@ -160,6 +160,8 @@ class _PortfolioStateRiskAdapter:
             "trade_contract_size": spec.contract_size,
             "trade_tick_value": spec.tick_value,
             "trade_tick_size": spec.tick_size,
+            "currency_base": spec.currency_base,
+            "currency_profit": spec.currency_profit,
         }
 
     def get_margin_required(self, symbol, lots):

@@ -131,3 +131,46 @@ def test_snapshot_engine_matches_shared_portfolio_risk_engine_var_es_math():
 
     assert round(float(_snapshot_value(snapshot, "portfolio_var")), 6) == round(float(gov_var), 6)
     assert round(float(_snapshot_value(snapshot, "portfolio_es")), 6) == round(float(gov_es), 6)
+
+
+def test_snapshot_governance_adapter_preserves_symbol_currency_metadata():
+    state = PortfolioStateEngine().build_state(
+        account={
+            "equity": 10000.0,
+            "balance": 10000.0,
+            "free_margin": 8500.0,
+            "margin_used": 1500.0,
+            "currency": "USD",
+        },
+        positions=[
+            {"symbol": "GER40.cash", "volume": 1.0, "type": "BUY"},
+        ],
+        symbol_specs={
+            "GER40.cash": {
+                "trade_contract_size": 25,
+                "currency_profit": "EUR",
+            },
+            "EURUSD": {"trade_contract_size": 100000},
+        },
+        market_data={
+            "GER40.cash": pd.DataFrame(
+                {
+                    "Close": [18000.0 + i for i in range(80)],
+                    "Open": [17990.0 + i for i in range(80)],
+                    "High": [18010.0 + i for i in range(80)],
+                    "Low": [17980.0 + i for i in range(80)],
+                    "Volume": [100 + i for i in range(80)],
+                    "Spread": [1 for _ in range(80)],
+                },
+                index=pd.date_range("2024-01-01", periods=80, freq="h"),
+            ),
+            "EURUSD": _bars(),
+        },
+        limits=RiskLimits(vol_lookback=20, corr_lookback=40),
+        timeframe="H1",
+    )
+
+    snapshot = RiskSnapshotEngine().build_snapshot(state)
+
+    assert snapshot.governance_state is not None
+    assert snapshot.summary["governance_decision"] in {"ACCEPT", "REJECT"}

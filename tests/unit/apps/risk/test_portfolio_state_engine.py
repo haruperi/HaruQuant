@@ -88,6 +88,20 @@ def test_build_state_warns_when_market_coverage_is_unsynchronized():
     assert not state.validation_summary.has_errors
 
 
+def test_build_state_persists_requested_timeframe_in_metadata():
+    engine = PortfolioStateEngine()
+
+    state = engine.build_state(
+        account={"equity": 10000.0},
+        positions={"EURUSD": 0.5},
+        symbol_specs={"EURUSD": {"trade_contract_size": 100000}},
+        market_data={"EURUSD": _bars()},
+        timeframe="H1",
+    )
+
+    assert state.metadata["timeframe"] == "H1"
+
+
 class _DummyClient:
     def __init__(self, bars_by_symbol):
         self._bars_by_symbol = bars_by_symbol
