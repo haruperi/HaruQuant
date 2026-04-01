@@ -1,5 +1,27 @@
 # HaruQuant Architecture Notes
 
+## AI Agent Foundation
+
+- A new bounded orchestration foundation now exists under `apps/agents/`.
+- Phase 0 currently provides only the minimum shared seams:
+  - shared task/result/tool contracts in `apps/agents/core/agent_models.py`
+  - permission tiers and baseline settings loading in `apps/agents/core/policies.py`
+  - append-only workflow audit logging in `apps/agents/core/audit.py`
+  - minimal registries/planner/verifier/memory placeholders in `apps/agents/core/`
+  - a deterministic provider stub in `apps/agents/integrations/llm_client.py`
+  - a no-op end-to-end workflow in `apps/agents/workflows/noop_workflow.py`
+- The baseline agent config is stored at:
+  - `config/agent_settings.json`
+- The default Phase 0 audit sink is:
+  - `artifacts/logs/agents/agent_runs.jsonl`
+- This layer is intentionally non-authoritative:
+  - it does not own risk truth, execution truth, or research truth
+  - it does not call live mutation paths
+  - it exists only to establish typed boundaries before real agent tools are added
+- Current Phase 0 planner behavior is deliberately narrow:
+  - only a deterministic `noop_workflow` is routable
+  - this exists to prove task -> plan -> verify -> audit flow without integrating Edge, Risk, or Live subsystems yet
+
 ## Simulation Unified Run Model
 
 - `/simulation` is now the single canonical frontend route for manual, strategy, replay, and batch historical execution.

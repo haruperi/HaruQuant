@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "default_approval_mode": "auto_read_only",
+  "enabled_permission_tiers": [
+    "read_only",
+    "advisory_write"
+  ],
+  "audit_log_path": "artifacts/logs/agents/agent_runs.jsonl",
+  "provider": {
+    "provider": "noop",
+    "model": "noop-model",
+    "timeout_seconds": 5.0
+  },
+  "workflow_defaults": {
+    "noop_workflow_enabled": true
+  }
+}
