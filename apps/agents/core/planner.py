@@ -60,6 +60,27 @@ class AgentPlanner:
                 required_inputs=["backtest_id", "optimization_id", "strategy_version_id"],
                 metadata={"reason": "stored_validation_review"},
             )
+        if task.task_type == "snapshot_drift_watch" or task.intent == "snapshot_drift_watch":
+            return WorkflowPlan(
+                workflow_name="snapshot_drift_watch",
+                specialist_names=["edge_intelligence"],
+                required_inputs=[],
+                metadata={"reason": "edge_snapshot_drift_watch"},
+            )
+        if task.task_type == "execution_quality_watch" or task.intent == "execution_quality_watch":
+            return WorkflowPlan(
+                workflow_name="execution_quality_watch",
+                specialist_names=["execution_oversight"],
+                required_inputs=["session_id"],
+                metadata={"reason": "live_execution_quality_watch"},
+            )
+        if task.task_type == "portfolio_allocation_review" or task.intent == "portfolio_allocation_review":
+            return WorkflowPlan(
+                workflow_name="portfolio_allocation_review",
+                specialist_names=["portfolio_allocator"],
+                required_inputs=["snapshot_id"],
+                metadata={"reason": "risk_recommendation_allocation_review"},
+            )
         return WorkflowPlan(
             workflow_name="unmapped_task",
             specialist_names=[],

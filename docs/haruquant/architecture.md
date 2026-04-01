@@ -48,10 +48,28 @@
   - `RiskSupervisorAgent`
   - `IncidentInvestigatorAgent`
   - `StrategyQAAgent`
+- Phase 5 extends that deterministic specialist layer with desk-memo workflows for:
+  - `EdgeIntelligenceAgent` using saved snapshot comparisons and fit-change summaries
+  - `ExecutionOversightAgent` using persisted live session counters and runtime status
+  - `PortfolioAllocationAgent` using stored risk recommendations plus optional Edge fit context
+- The current desk-memo workflow set now covers:
+  - research briefs
+  - risk watch
+  - incident review
+  - strategy promotion review
+  - snapshot drift watch
+  - execution quality watch
+  - portfolio allocation review
 - The agent-side tool wrappers are still thin adapters over existing deterministic modules:
   - `apps/agents/tools/edge_tools.py`
   - `apps/agents/tools/risk_tools.py`
   - `apps/agents/tools/backtest_tools.py`
+- Phase 5 also adds:
+  - `apps/agents/tools/live_tools.py`
+- The formal read-only tool boundary now includes:
+  - Edge snapshot comparison reads
+  - live session status reads
+  - live execution-quality summary reads
 - The verifier now checks:
   - workflow routing
   - required task inputs

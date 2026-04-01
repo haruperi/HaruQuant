@@ -66,6 +66,9 @@ Body shape:
 - `live_risk_watch`
 - `incident_review`
 - `strategy_promotion_review`
+- `snapshot_drift_watch`
+- `execution_quality_watch`
+- `portfolio_allocation_review`
 
 ## Outbound Flow
 
@@ -106,6 +109,36 @@ This local outbox mode is the safe default for development.
 4. HTTP Request -> HaruQuant
 5. Send review packet to operator channel
 
+### 4. Snapshot Drift Watch
+
+`n8n` steps:
+1. Schedule after a new Edge snapshot is saved
+2. Build `snapshot_drift_watch` payload with either:
+   - `left_snapshot_id` and `right_snapshot_id`, or
+   - `symbol` and `timeframe` so HaruQuant resolves the latest two snapshots
+3. Sign request
+4. HTTP Request -> HaruQuant
+5. Route the returned fit-change memo to research or strategy-review channels
+
+### 5. Execution Quality Watch
+
+`n8n` steps:
+1. Schedule during live trading hours or after a session heartbeat
+2. Build `execution_quality_watch` payload with `session_id`
+3. Sign request
+4. HTTP Request -> HaruQuant
+5. Route only non-`normal` responses to the operations channel
+
+### 6. Portfolio Allocation Review
+
+`n8n` steps:
+1. Trigger after a new risk snapshot or overnight risk batch completes
+2. Build `portfolio_allocation_review` payload with `snapshot_id`
+3. Optionally include `edge_snapshot_id` for Edge context
+4. Sign request
+5. HTTP Request -> HaruQuant
+6. Route the returned allocation memo to the portfolio manager channel
+
 ## Example Payload Files
 
 See:
@@ -119,3 +152,20 @@ See:
 3. Add a Code node that computes `X-Haru-Signature` with the shared secret.
 4. Route the returned `summary`, `status`, and `metadata` to Slack/Telegram/email or follow-up nodes.
 5. Do not reimplement HaruQuant decision logic in `n8n`.
+
+## Phase 5 Notes
+
+These Phase 5 workflows are now ready on the Python side, but the actual `n8n` buildout should still wait until the remaining Python phases are complete:
+- `snapshot_drift_watch`
+- `execution_quality_watch`
+- `portfolio_allocation_review`
+
+When `n8n` is finally configured, it should only:
+- trigger those workflows
+- route their summaries and warnings
+- escalate based on returned metadata
+
+It should not:
+- compare snapshots itself
+- infer allocation actions itself
+- compute execution quality itself

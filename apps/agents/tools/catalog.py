@@ -7,6 +7,7 @@ from apps.agents.core.policies import PermissionTier
 from apps.agents.core.tool_registry import ToolRegistry
 from apps.agents.tools.backtest_tools import BacktestTools
 from apps.agents.tools.edge_tools import EdgeTools
+from apps.agents.tools.live_tools import LiveTools
 from apps.agents.tools.report_tools import ReportTools
 from apps.agents.tools.risk_tools import RiskTools
 from apps.agents.tools.workflow_tools import WorkflowTools
@@ -17,6 +18,7 @@ def build_default_tool_registry(
     edge_tools: EdgeTools | None = None,
     risk_tools: RiskTools | None = None,
     backtest_tools: BacktestTools | None = None,
+    live_tools: LiveTools | None = None,
     report_tools: ReportTools | None = None,
     workflow_tools: WorkflowTools | None = None,
 ) -> ToolRegistry:
@@ -24,6 +26,7 @@ def build_default_tool_registry(
     edge = edge_tools or EdgeTools()
     risk = risk_tools or RiskTools()
     backtest = backtest_tools or BacktestTools()
+    live = live_tools or LiveTools()
     reports = report_tools or ReportTools()
     workflows = workflow_tools or WorkflowTools()
     registry = ToolRegistry()
@@ -45,6 +48,15 @@ def build_default_tool_registry(
             description="Load one saved Edge profile snapshot.",
         ),
         edge.edge_get_snapshot,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="edge_compare_snapshots",
+            domain="edge",
+            mode=PermissionTier.READ_ONLY,
+            description="Compare two saved Edge profile snapshots.",
+        ),
+        edge.edge_compare_snapshots,
     )
     registry.register(
         ToolSpec(
@@ -153,6 +165,24 @@ def build_default_tool_registry(
             description="Load strategy version manifest metadata.",
         ),
         backtest.validation_get_manifest,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="live_get_session_status",
+            domain="live",
+            mode=PermissionTier.READ_ONLY,
+            description="Load persisted and runtime-aware live session status.",
+        ),
+        live.live_get_session_status,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="live_get_execution_quality",
+            domain="live",
+            mode=PermissionTier.READ_ONLY,
+            description="Build a compact execution-quality summary from live counters.",
+        ),
+        live.live_get_execution_quality,
     )
     registry.register(
         ToolSpec(

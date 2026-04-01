@@ -12,13 +12,20 @@ from apps.agents.specialists.incident_investigator import IncidentInvestigatorAg
 from apps.agents.specialists.research_orchestrator import ResearchOrchestratorAgent
 from apps.agents.specialists.risk_supervisor import RiskSupervisorAgent
 from apps.agents.specialists.strategy_qa import StrategyQAAgent
+from apps.agents.specialists.edge_intelligence import EdgeIntelligenceAgent
+from apps.agents.specialists.execution_oversight import ExecutionOversightAgent
+from apps.agents.specialists.portfolio_allocator import PortfolioAllocationAgent
 from apps.agents.tools.catalog import build_default_tool_registry
 from apps.agents.tools.edge_tools import EdgeTools
+from apps.agents.tools.live_tools import LiveTools
 from apps.agents.tools.risk_tools import RiskTools
 from apps.agents.workflows.daily_market_brief import run_daily_market_brief
+from apps.agents.workflows.execution_quality_watch import run_execution_quality_watch
 from apps.agents.workflows.incident_review import run_incident_review
 from apps.agents.workflows.live_risk_watch import run_live_risk_watch
 from apps.agents.workflows.noop_workflow import run_noop_workflow
+from apps.agents.workflows.portfolio_allocation_review import run_portfolio_allocation_review
+from apps.agents.workflows.snapshot_drift_watch import run_snapshot_drift_watch
 from apps.agents.workflows.strategy_promotion_review import run_strategy_promotion_review
 from apps.agents.integrations.llm_client import NoOpLLMClient
 
@@ -84,5 +91,32 @@ class AgentWorkflowGateway:
                 audit_logger=self.audit_logger,
                 settings=self.settings,
                 specialist=StrategyQAAgent(self.tool_registry),
+            )
+        if plan.workflow_name == "snapshot_drift_watch":
+            return run_snapshot_drift_watch(
+                task,
+                planner=self.planner,
+                verifier=self.verifier,
+                audit_logger=self.audit_logger,
+                settings=self.settings,
+                specialist=EdgeIntelligenceAgent(EdgeTools()),
+            )
+        if plan.workflow_name == "execution_quality_watch":
+            return run_execution_quality_watch(
+                task,
+                planner=self.planner,
+                verifier=self.verifier,
+                audit_logger=self.audit_logger,
+                settings=self.settings,
+                specialist=ExecutionOversightAgent(LiveTools()),
+            )
+        if plan.workflow_name == "portfolio_allocation_review":
+            return run_portfolio_allocation_review(
+                task,
+                planner=self.planner,
+                verifier=self.verifier,
+                audit_logger=self.audit_logger,
+                settings=self.settings,
+                specialist=PortfolioAllocationAgent(RiskTools(), EdgeTools()),
             )
         raise ValueError(f"Unsupported workflow plan: {plan.workflow_name}")

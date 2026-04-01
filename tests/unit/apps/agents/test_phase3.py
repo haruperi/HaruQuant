@@ -69,6 +69,7 @@ def test_default_tool_registry_includes_phase3_advisory_tools():
             {
                 "edge_list_snapshots": staticmethod(lambda **kwargs: []),
                 "edge_get_snapshot": staticmethod(lambda **kwargs: None),
+                "edge_compare_snapshots": staticmethod(lambda **kwargs: {}),
             },
         )(),
         risk_tools=type(
@@ -95,6 +96,14 @@ def test_default_tool_registry_includes_phase3_advisory_tools():
                 "validation_get_manifest": staticmethod(lambda **kwargs: {}),
             },
         )(),
+        live_tools=type(
+            "LiveStub",
+            (),
+            {
+                "live_get_session_status": staticmethod(lambda **kwargs: {}),
+                "live_get_execution_quality": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
         report_tools=type(
             "ReportStub",
             (),
@@ -117,5 +126,6 @@ def test_default_tool_registry_includes_phase3_advisory_tools():
     )
 
     assert "risk_run_what_if" in registry.list_names()
+    assert "live_get_execution_quality" in registry.list_names()
     assert "report_generate_markdown" in registry.list_names()
     assert "workflow_send_notification" in registry.list_names()

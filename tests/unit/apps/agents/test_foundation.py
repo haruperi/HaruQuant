@@ -50,6 +50,7 @@ def test_default_tool_registry_registers_read_only_catalog():
             {
                 "edge_list_snapshots": staticmethod(lambda **kwargs: []),
                 "edge_get_snapshot": staticmethod(lambda **kwargs: None),
+                "edge_compare_snapshots": staticmethod(lambda **kwargs: {}),
             },
         )(),
         risk_tools=type(
@@ -76,6 +77,14 @@ def test_default_tool_registry_registers_read_only_catalog():
                 "validation_get_manifest": staticmethod(lambda **kwargs: {}),
             },
         )(),
+        live_tools=type(
+            "LiveStub",
+            (),
+            {
+                "live_get_session_status": staticmethod(lambda **kwargs: {}),
+                "live_get_execution_quality": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
         report_tools=type(
             "ReportStub",
             (),
@@ -98,6 +107,8 @@ def test_default_tool_registry_registers_read_only_catalog():
     )
 
     assert "backtest_get_run" in registry.list_names()
+    assert "edge_compare_snapshots" in registry.list_names()
+    assert "live_get_execution_quality" in registry.list_names()
     assert "validation_get_manifest" in registry.list_names()
     assert "workflow_trigger_n8n" in registry.list_names()
 

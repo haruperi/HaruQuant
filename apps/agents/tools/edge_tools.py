@@ -26,3 +26,15 @@ class EdgeTools:
     def edge_get_snapshot(self, *, snapshot_id: int) -> Optional[Dict[str, Any]]:
         """Return one detailed Edge snapshot if present."""
         return self.manager.get_profile_snapshot(int(snapshot_id))
+
+    def edge_compare_snapshots(
+        self,
+        *,
+        left_snapshot_id: int,
+        right_snapshot_id: int,
+    ) -> Dict[str, Any]:
+        """Compare two stored Edge snapshots."""
+        return self.manager.compare_profile_snapshots(
+            int(left_snapshot_id),
+            int(right_snapshot_id),
+        )
