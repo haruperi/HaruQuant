@@ -25,13 +25,33 @@
   - `daily_market_brief` via saved Edge snapshots
   - `live_risk_watch` via stored risk snapshot bundles and report builders
   - `incident_review` via stored replay frames
+- The read-only tool boundary is now formalized through the registry in:
+  - `apps/agents/core/tool_registry.py`
+  - `apps/agents/tools/catalog.py`
+- Phase 3 now adds advisory-write wrappers without introducing live mutation paths:
+  - replay-frame `risk_run_what_if`
+  - Edge/risk/replay report export tools
+  - generic JSON/Markdown report generation helpers
+  - workflow notification helper
+  - local-safe outbound n8n trigger helper
+- The current outbound workflow integration is intentionally local-first:
+  - `apps/agents/core/tool_registry.py`
+  - `apps/agents/tools/catalog.py`
+  - `apps/agents/integrations/n8n_client.py`
+  - payloads are written to a local outbox artifact path instead of being sent to a real webhook yet
+- The current catalog covers saved Edge, risk/replay, and validation inputs:
+  - Edge snapshot reads
+  - risk snapshot/replay report reads
+  - backtest, optimization, walk-forward, Monte Carlo, and strategy manifest reads
 - The first specialist agents remain intentionally narrow and deterministic:
   - `ResearchOrchestratorAgent`
   - `RiskSupervisorAgent`
   - `IncidentInvestigatorAgent`
+  - `StrategyQAAgent`
 - The agent-side tool wrappers are still thin adapters over existing deterministic modules:
   - `apps/agents/tools/edge_tools.py`
   - `apps/agents/tools/risk_tools.py`
+  - `apps/agents/tools/backtest_tools.py`
 - The verifier now checks:
   - workflow routing
   - required task inputs

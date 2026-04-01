@@ -10,6 +10,7 @@ from apps.agents.core.policies import (
     PermissionTier,
     load_agent_settings,
 )
+from apps.agents.tools.catalog import build_default_tool_registry
 from apps.agents.core.tool_registry import ToolRegistry
 from apps.agents.core.verifier import AgentVerifier
 from apps.agents.integrations.llm_client import NoOpLLMClient
@@ -34,10 +35,71 @@ def test_tool_registry_validates_permission_modes():
             tool_name="edge_list_snapshots",
             domain="edge",
             mode=PermissionTier.READ_ONLY,
-        )
+        ),
+        lambda **kwargs: kwargs,
     )
 
     assert registry.get("edge_list_snapshots") is not None
+
+
+def test_default_tool_registry_registers_read_only_catalog():
+    registry = build_default_tool_registry(
+        edge_tools=type(
+            "EdgeStub",
+            (),
+            {
+                "edge_list_snapshots": staticmethod(lambda **kwargs: []),
+                "edge_get_snapshot": staticmethod(lambda **kwargs: None),
+            },
+        )(),
+        risk_tools=type(
+            "RiskStub",
+            (),
+            {
+                "risk_get_snapshot_bundle": staticmethod(lambda **kwargs: {}),
+                "risk_get_snapshot_report": staticmethod(lambda **kwargs: {}),
+                "replay_get_report": staticmethod(lambda **kwargs: {}),
+                "risk_run_what_if": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
+        backtest_tools=type(
+            "BacktestStub",
+            (),
+            {
+                "backtest_get_run": staticmethod(lambda **kwargs: {}),
+                "backtest_get_trades": staticmethod(lambda **kwargs: []),
+                "backtest_get_finance_metrics": staticmethod(lambda **kwargs: {}),
+                "optimization_get_run": staticmethod(lambda **kwargs: {}),
+                "optimization_get_top_results": staticmethod(lambda **kwargs: []),
+                "validation_get_wfo_summary": staticmethod(lambda **kwargs: {}),
+                "validation_get_monte_carlo_summary": staticmethod(lambda **kwargs: {}),
+                "validation_get_manifest": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
+        report_tools=type(
+            "ReportStub",
+            (),
+            {
+                "edge_export_profile_report": staticmethod(lambda **kwargs: {}),
+                "risk_export_report": staticmethod(lambda **kwargs: {}),
+                "replay_export_report": staticmethod(lambda **kwargs: {}),
+                "report_generate_json": staticmethod(lambda **kwargs: {}),
+                "report_generate_markdown": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
+        workflow_tools=type(
+            "WorkflowStub",
+            (),
+            {
+                "workflow_send_notification": staticmethod(lambda **kwargs: {}),
+                "workflow_trigger_n8n": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
+    )
+
+    assert "backtest_get_run" in registry.list_names()
+    assert "validation_get_manifest" in registry.list_names()
+    assert "workflow_trigger_n8n" in registry.list_names()
 
 
 def test_noop_workflow_runs_end_to_end_and_writes_audit_log(tmp_path):

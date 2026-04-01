@@ -53,6 +53,13 @@ class AgentPlanner:
                 required_inputs=["run_id"],
                 metadata={"reason": "replay_backed_incident_review"},
             )
+        if task.task_type == "strategy_promotion_review" or task.intent == "strategy_promotion_review":
+            return WorkflowPlan(
+                workflow_name="strategy_promotion_review",
+                specialist_names=["strategy_qa"],
+                required_inputs=["backtest_id", "optimization_id", "strategy_version_id"],
+                metadata={"reason": "stored_validation_review"},
+            )
         return WorkflowPlan(
             workflow_name="unmapped_task",
             specialist_names=[],
