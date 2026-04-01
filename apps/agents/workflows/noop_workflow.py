@@ -39,7 +39,7 @@ def run_noop_workflow(
         confidence=1.0 if plan.workflow_name == "noop_workflow" else 0.0,
         metadata={"workflow_name": plan.workflow_name},
     )
-    verification = verifier.verify(task, result)
+    verification = verifier.verify(task, result, plan=plan)
     result.warnings.extend(verification.warnings)
     audit_logger.append(
         AgentAuditEvent(

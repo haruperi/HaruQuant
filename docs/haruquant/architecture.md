@@ -21,6 +21,22 @@
 - Current Phase 0 planner behavior is deliberately narrow:
   - only a deterministic `noop_workflow` is routable
   - this exists to prove task -> plan -> verify -> audit flow without integrating Edge, Risk, or Live subsystems yet
+- Phase 2 now adds three read-only workflow paths on top of that foundation:
+  - `daily_market_brief` via saved Edge snapshots
+  - `live_risk_watch` via stored risk snapshot bundles and report builders
+  - `incident_review` via stored replay frames
+- The first specialist agents remain intentionally narrow and deterministic:
+  - `ResearchOrchestratorAgent`
+  - `RiskSupervisorAgent`
+  - `IncidentInvestigatorAgent`
+- The agent-side tool wrappers are still thin adapters over existing deterministic modules:
+  - `apps/agents/tools/edge_tools.py`
+  - `apps/agents/tools/risk_tools.py`
+- The verifier now checks:
+  - workflow routing
+  - required task inputs
+  - permission tier allowance
+  - evidence presence before a workflow is considered complete
 
 ## Simulation Unified Run Model
 
