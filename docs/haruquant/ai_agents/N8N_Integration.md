@@ -68,7 +68,10 @@ Body shape:
 - `strategy_promotion_review`
 - `snapshot_drift_watch`
 - `execution_quality_watch`
+- `live_ops_summary`
 - `portfolio_allocation_review`
+- `daily_desk_pack`
+- `trade_review_assistant`
 
 ## Outbound Flow
 
@@ -139,11 +142,48 @@ This local outbox mode is the safe default for development.
 5. HTTP Request -> HaruQuant
 6. Route the returned allocation memo to the portfolio manager channel
 
+### 7. Live Ops Summary
+
+`n8n` steps:
+1. Schedule during live trading hours or after a live heartbeat
+2. Build `live_ops_summary` payload with `session_id`
+3. Sign request
+4. HTTP Request -> HaruQuant
+5. Route the returned operating-state memo to the operations channel when useful
+
+### 8. Daily Desk Pack
+
+`n8n` steps:
+1. Schedule once per desk reporting cycle
+2. Build `daily_desk_pack` payload with the required research and risk inputs
+3. Optionally include:
+   - `session_id`
+   - `backtest_id`, `optimization_id`, `strategy_version_id`
+   - `incident_run_id`
+4. Sign request
+5. HTTP Request -> HaruQuant
+6. Route the returned consolidated summary and artifact refs to the desk distribution channel
+
+### 9. Trade Review Assistant
+
+`n8n` steps:
+1. Usually do not schedule this workflow
+2. Use it only when an operator-facing approval or review surface needs a structured advisory response
+3. Build `trade_review_assistant` payload with:
+   - `session_id`
+   - `trade_request`
+   - optional `what_if_actions`
+   - optional `edge_snapshot_id`
+4. Sign request
+5. HTTP Request -> HaruQuant
+6. Route the advisory response back to the human operator
+
 ## Example Payload Files
 
 See:
 - [daily_edge_brief.json](C:/Users/rharu/Documents/MyApplications/HaruQuant/docs/haruquant/ai_agents/n8n_examples/daily_edge_brief.json)
 - [risk_alert.json](C:/Users/rharu/Documents/MyApplications/HaruQuant/docs/haruquant/ai_agents/n8n_examples/risk_alert.json)
+- [daily_desk_pack.json](C:/Users/rharu/Documents/MyApplications/HaruQuant/docs/haruquant/ai_agents/n8n_examples/daily_desk_pack.json)
 
 ## What You Need To Do In n8n
 
@@ -169,3 +209,70 @@ It should not:
 - compare snapshots itself
 - infer allocation actions itself
 - compute execution quality itself
+
+## Phase 6 Notes
+
+Phase 6 is now implemented on the Python side as an approval boundary for privileged actions.
+
+Current approval-backed action families:
+- `strategy_promotion`
+- `live_deployment`
+- `live_pause_session`
+- `live_stop_session`
+- `risk_override`
+
+What `n8n` may eventually do:
+- notify an operator that a new approval request exists
+- present approval details in Slack/Telegram/email/ticketing
+- call HaruQuant again after a human decision is made
+
+What `n8n` should not do:
+- decide approvals itself
+- rewrite approval payloads
+- execute live stop/pause or risk overrides directly
+
+When the final `n8n` integration pass happens, the intended approval flow is:
+1. HaruQuant creates an approval artifact with `approval_request_action`.
+2. `n8n` routes that artifact to a human approval surface.
+3. A human decision is sent back to HaruQuant through `approval_apply_decision`.
+4. HaruQuant executes the matching privileged wrapper only after the artifact is in `approved` status.
+
+## Phase 7 Notes
+
+Phase 7 adds deterministic report packaging and the first consolidated desk memo.
+
+Current packaged workflow:
+- `daily_desk_pack`
+
+When `n8n` is eventually wired, it should:
+- trigger `daily_desk_pack` on a schedule
+- route the returned summary
+- optionally forward the returned `artifact_refs` links or paths to downstream operators
+
+It should not:
+- assemble the desk pack itself
+- merge workflow summaries itself
+- regenerate the report artifacts itself
+
+## Live Ops Notes
+
+`live_ops_summary` is now available on the Python side and is the preferred live-operations input for `daily_desk_pack`.
+
+When `n8n` is eventually configured, it should:
+- trigger `live_ops_summary` directly when operations wants a standalone memo
+- provide `session_id` to `daily_desk_pack` so the live-ops section is included
+
+It should not:
+- compute live operating state itself
+- infer pause/stop recommendations from raw counters outside HaruQuant
+
+## Trade Review Notes
+
+`trade_review_assistant` is now available on the Python side as a bounded simulator/manual-review workflow.
+
+When `n8n` is eventually configured, it should only use this workflow for human-facing review orchestration, not as an autonomous trade path.
+
+It should not:
+- submit reviewed trades automatically
+- reinterpret simulator governance outside HaruQuant
+- bypass the existing approval boundary for privileged actions

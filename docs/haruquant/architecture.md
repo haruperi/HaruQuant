@@ -70,6 +70,62 @@
   - Edge snapshot comparison reads
   - live session status reads
   - live execution-quality summary reads
+- Phase 6 adds a file-backed approval boundary for privileged actions:
+  - approval artifacts are persisted under the agent settings approval store path
+  - privileged actions are matched against explicit `action_type` and `target_ref`
+  - approved artifacts transition through `pending -> approved/rejected -> applied`
+- The current privileged surface is intentionally narrow:
+  - `approval_request_action`
+  - `approval_get_status`
+  - `approval_apply_decision`
+  - `privileged_strategy_promote` as advisory-only promotion handoff
+  - `privileged_live_deploy` as advisory-only deployment handoff
+  - `privileged_live_pause_session`
+  - `privileged_live_stop_session`
+  - `privileged_risk_override`
+- Phase 6 keeps privileged logic bounded:
+  - strategy promotion and live deployment do not mutate production state yet
+  - live pause/stop and risk override require a matching approved artifact before execution
+  - approval and execution events are appended to the agent audit log with the stored approval payload
+- Phase 7 adds a deterministic reporter layer in:
+  - `apps/agents/core/reporter.py`
+- The reporter layer currently:
+  - converts workflow results into compact report sections
+  - writes JSON and Markdown artifacts through the existing report tools
+  - keeps report packaging deterministic and local
+- The first multi-workflow packaged report is:
+  - `daily_desk_pack`
+- `daily_desk_pack` currently composes:
+  - daily market brief
+  - live risk watch
+  - execution quality watch when `session_id` is provided
+  - strategy promotion review when validation ids are provided
+  - incident review when `incident_run_id` is provided
+- The webhook response contract now allows packaged artifact refs so future orchestration layers can route generated memos without re-reading local state.
+- A dedicated live-operations specialist now exists in:
+  - `apps/agents/specialists/live_ops.py`
+- The corresponding workflow is:
+  - `live_ops_summary`
+- `live_ops_summary` is intentionally narrow:
+  - it summarizes one live session's persisted/runtime status
+  - it uses the existing live session counters and execution-quality ratios
+  - it does not mutate live state
+- `daily_desk_pack` now uses `live_ops_summary` as its live-operations section when `session_id` is provided.
+- A simulator-facing advisory layer now exists in:
+  - `apps/agents/tools/simulator_tools.py`
+- The simulator tool surface currently includes:
+  - `sim_list_sessions`
+  - `sim_get_session`
+  - `sim_preview_trade`
+  - `sim_run_what_if`
+  - `sim_resume_session`
+  - `sim_stop_and_save`
+- The first simulator advisory workflow is:
+  - `trade_review_assistant`
+- `trade_review_assistant` is bounded to advisory review:
+  - it uses simulator trade preview and optional simulator what-if output
+  - it can add optional Edge context through a saved snapshot
+  - it returns accept / caution / avoid style guidance without executing a trade
 - The verifier now checks:
   - workflow routing
   - required task inputs

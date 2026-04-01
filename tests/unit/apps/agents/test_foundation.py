@@ -25,7 +25,7 @@ def test_load_agent_settings_from_baseline_config():
     assert settings.provider.provider == "noop"
     assert settings.allows_permission(PermissionTier.READ_ONLY)
     assert settings.allows_permission(PermissionTier.ADVISORY_WRITE)
-    assert not settings.allows_permission(PermissionTier.PRIVILEGED)
+    assert settings.allows_permission(PermissionTier.PRIVILEGED)
 
 
 def test_tool_registry_validates_permission_modes():
@@ -85,6 +85,18 @@ def test_default_tool_registry_registers_read_only_catalog():
                 "live_get_execution_quality": staticmethod(lambda **kwargs: {}),
             },
         )(),
+        simulator_tools=type(
+            "SimulatorStub",
+            (),
+            {
+                "sim_list_sessions": staticmethod(lambda **kwargs: []),
+                "sim_get_session": staticmethod(lambda **kwargs: {}),
+                "sim_preview_trade": staticmethod(lambda **kwargs: {}),
+                "sim_run_what_if": staticmethod(lambda **kwargs: {}),
+                "sim_resume_session": staticmethod(lambda **kwargs: {}),
+                "sim_stop_and_save": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
         report_tools=type(
             "ReportStub",
             (),
@@ -102,6 +114,14 @@ def test_default_tool_registry_registers_read_only_catalog():
             {
                 "workflow_send_notification": staticmethod(lambda **kwargs: {}),
                 "workflow_trigger_n8n": staticmethod(lambda **kwargs: {}),
+                "approval_request_action": staticmethod(lambda **kwargs: {}),
+                "approval_get_status": staticmethod(lambda **kwargs: {}),
+                "approval_apply_decision": staticmethod(lambda **kwargs: {}),
+                "privileged_strategy_promote": staticmethod(lambda **kwargs: {}),
+                "privileged_live_deploy": staticmethod(lambda **kwargs: {}),
+                "privileged_live_pause_session": staticmethod(lambda **kwargs: {}),
+                "privileged_live_stop_session": staticmethod(lambda **kwargs: {}),
+                "privileged_risk_override": staticmethod(lambda **kwargs: {}),
             },
         )(),
     )
@@ -109,7 +129,10 @@ def test_default_tool_registry_registers_read_only_catalog():
     assert "backtest_get_run" in registry.list_names()
     assert "edge_compare_snapshots" in registry.list_names()
     assert "live_get_execution_quality" in registry.list_names()
+    assert "sim_preview_trade" in registry.list_names()
     assert "validation_get_manifest" in registry.list_names()
+    assert "approval_request_action" in registry.list_names()
+    assert "privileged_risk_override" in registry.list_names()
     assert "workflow_trigger_n8n" in registry.list_names()
 
 

@@ -104,6 +104,18 @@ def test_default_tool_registry_includes_phase3_advisory_tools():
                 "live_get_execution_quality": staticmethod(lambda **kwargs: {}),
             },
         )(),
+        simulator_tools=type(
+            "SimulatorStub",
+            (),
+            {
+                "sim_list_sessions": staticmethod(lambda **kwargs: []),
+                "sim_get_session": staticmethod(lambda **kwargs: {}),
+                "sim_preview_trade": staticmethod(lambda **kwargs: {}),
+                "sim_run_what_if": staticmethod(lambda **kwargs: {}),
+                "sim_resume_session": staticmethod(lambda **kwargs: {}),
+                "sim_stop_and_save": staticmethod(lambda **kwargs: {}),
+            },
+        )(),
         report_tools=type(
             "ReportStub",
             (),
@@ -121,11 +133,21 @@ def test_default_tool_registry_includes_phase3_advisory_tools():
             {
                 "workflow_send_notification": staticmethod(lambda **kwargs: {}),
                 "workflow_trigger_n8n": staticmethod(lambda **kwargs: {}),
+                "approval_request_action": staticmethod(lambda **kwargs: {}),
+                "approval_get_status": staticmethod(lambda **kwargs: {}),
+                "approval_apply_decision": staticmethod(lambda **kwargs: {}),
+                "privileged_strategy_promote": staticmethod(lambda **kwargs: {}),
+                "privileged_live_deploy": staticmethod(lambda **kwargs: {}),
+                "privileged_live_pause_session": staticmethod(lambda **kwargs: {}),
+                "privileged_live_stop_session": staticmethod(lambda **kwargs: {}),
+                "privileged_risk_override": staticmethod(lambda **kwargs: {}),
             },
         )(),
     )
 
     assert "risk_run_what_if" in registry.list_names()
     assert "live_get_execution_quality" in registry.list_names()
+    assert "sim_run_what_if" in registry.list_names()
+    assert "approval_request_action" in registry.list_names()
     assert "report_generate_markdown" in registry.list_names()
     assert "workflow_send_notification" in registry.list_names()

@@ -64,4 +64,5 @@ async def trigger_agent_workflow(
         summary=result.summary,
         correlation_id=task.correlation_id,
         metadata=dict(result.metadata or {}),
+        artifact_refs=list((result.metadata or {}).get("artifact_refs") or []),
     )

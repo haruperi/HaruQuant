@@ -31,6 +31,7 @@ class AgentWebhookTaskResponse(BaseModel):
     summary: str
     correlation_id: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    artifact_refs: list[str] = Field(default_factory=list)
 
 
 class AgentNotificationPayload(BaseModel):

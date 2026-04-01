@@ -70,6 +70,13 @@ class N8NSettings:
 
 
 @dataclass(frozen=True)
+class ApprovalSettings:
+    """Approval artifact storage settings."""
+
+    store_dir: str = "artifacts/approvals"
+
+
+@dataclass(frozen=True)
 class AgentSettings:
     """Minimal configuration required for the Phase 0 scaffold."""
 
@@ -81,6 +88,7 @@ class AgentSettings:
     audit_log_path: str = "artifacts/logs/agents/agent_runs.jsonl"
     provider: ProviderSettings = field(default_factory=ProviderSettings)
     n8n: N8NSettings = field(default_factory=N8NSettings)
+    approvals: ApprovalSettings = field(default_factory=ApprovalSettings)
     workflow_defaults: Dict[str, Any] = field(
         default_factory=lambda: {"noop_workflow_enabled": True}
     )
@@ -94,6 +102,7 @@ def _coerce_settings(raw: Dict[str, Any]) -> AgentSettings:
     """Normalize JSON data into an AgentSettings instance."""
     provider_raw = dict(raw.get("provider") or {})
     n8n_raw = dict(raw.get("n8n") or {})
+    approvals_raw = dict(raw.get("approvals") or {})
     enabled_tiers = [
         PermissionTier.from_value(value)
         for value in (raw.get("enabled_permission_tiers") or [PermissionTier.READ_ONLY])
@@ -117,6 +126,9 @@ def _coerce_settings(raw: Dict[str, Any]) -> AgentSettings:
             shared_secret_env=str(n8n_raw.get("shared_secret_env") or "HQT_N8N_WEBHOOK_SECRET"),
             outbox_dir=str(n8n_raw.get("outbox_dir") or "artifacts/workflows/n8n_outbox"),
             require_signature=bool(n8n_raw.get("require_signature", True)),
+        ),
+        approvals=ApprovalSettings(
+            store_dir=str(approvals_raw.get("store_dir") or "artifacts/approvals"),
         ),
         workflow_defaults=dict(raw.get("workflow_defaults") or {}),
     )

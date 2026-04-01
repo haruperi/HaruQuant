@@ -74,12 +74,33 @@ class AgentPlanner:
                 required_inputs=["session_id"],
                 metadata={"reason": "live_execution_quality_watch"},
             )
+        if task.task_type == "live_ops_summary" or task.intent == "live_ops_summary":
+            return WorkflowPlan(
+                workflow_name="live_ops_summary",
+                specialist_names=["live_ops"],
+                required_inputs=["session_id"],
+                metadata={"reason": "live_operations_summary"},
+            )
+        if task.task_type == "trade_review_assistant" or task.intent == "trade_review_assistant":
+            return WorkflowPlan(
+                workflow_name="trade_review_assistant",
+                specialist_names=["trade_review_assistant"],
+                required_inputs=["session_id", "trade_request"],
+                metadata={"reason": "simulator_trade_review"},
+            )
         if task.task_type == "portfolio_allocation_review" or task.intent == "portfolio_allocation_review":
             return WorkflowPlan(
                 workflow_name="portfolio_allocation_review",
                 specialist_names=["portfolio_allocator"],
                 required_inputs=["snapshot_id"],
                 metadata={"reason": "risk_recommendation_allocation_review"},
+            )
+        if task.task_type == "daily_desk_pack" or task.intent == "daily_desk_pack":
+            return WorkflowPlan(
+                workflow_name="daily_desk_pack",
+                specialist_names=["reporter"],
+                required_inputs=["symbol", "timeframe", "snapshot_id", "session_id"],
+                metadata={"reason": "consolidated_daily_desk_report"},
             )
         return WorkflowPlan(
             workflow_name="unmapped_task",

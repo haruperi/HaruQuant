@@ -6,27 +6,35 @@ from apps.agents.core.agent_models import AgentResult, AgentTask
 from apps.agents.core.audit import AgentAuditLogger
 from apps.agents.core.planner import AgentPlanner
 from apps.agents.core.policies import AgentSettings, load_agent_settings
+from apps.agents.core.reporter import AgentReporter
 from apps.agents.core.tool_registry import ToolRegistry
 from apps.agents.core.verifier import AgentVerifier
 from apps.agents.specialists.incident_investigator import IncidentInvestigatorAgent
+from apps.agents.specialists.live_ops import LiveOpsAgent
 from apps.agents.specialists.research_orchestrator import ResearchOrchestratorAgent
 from apps.agents.specialists.risk_supervisor import RiskSupervisorAgent
 from apps.agents.specialists.strategy_qa import StrategyQAAgent
+from apps.agents.specialists.trade_review_assistant import TradeReviewAssistantAgent
 from apps.agents.specialists.edge_intelligence import EdgeIntelligenceAgent
 from apps.agents.specialists.execution_oversight import ExecutionOversightAgent
 from apps.agents.specialists.portfolio_allocator import PortfolioAllocationAgent
 from apps.agents.tools.catalog import build_default_tool_registry
 from apps.agents.tools.edge_tools import EdgeTools
 from apps.agents.tools.live_tools import LiveTools
+from apps.agents.tools.report_tools import ReportTools
 from apps.agents.tools.risk_tools import RiskTools
+from apps.agents.tools.simulator_tools import SimulatorTools
 from apps.agents.workflows.daily_market_brief import run_daily_market_brief
+from apps.agents.workflows.daily_desk_pack import run_daily_desk_pack
 from apps.agents.workflows.execution_quality_watch import run_execution_quality_watch
 from apps.agents.workflows.incident_review import run_incident_review
+from apps.agents.workflows.live_ops_summary import run_live_ops_summary
 from apps.agents.workflows.live_risk_watch import run_live_risk_watch
 from apps.agents.workflows.noop_workflow import run_noop_workflow
 from apps.agents.workflows.portfolio_allocation_review import run_portfolio_allocation_review
 from apps.agents.workflows.snapshot_drift_watch import run_snapshot_drift_watch
 from apps.agents.workflows.strategy_promotion_review import run_strategy_promotion_review
+from apps.agents.workflows.trade_review_assistant import run_trade_review_assistant
 from apps.agents.integrations.llm_client import NoOpLLMClient
 
 
@@ -65,6 +73,19 @@ class AgentWorkflowGateway:
                 settings=self.settings,
                 specialist=ResearchOrchestratorAgent(EdgeTools()),
             )
+        if plan.workflow_name == "daily_desk_pack":
+            return run_daily_desk_pack(
+                task,
+                planner=self.planner,
+                verifier=self.verifier,
+                audit_logger=self.audit_logger,
+                settings=self.settings,
+                reporter=AgentReporter(ReportTools()),
+                tool_registry=self.tool_registry,
+                edge_tools=EdgeTools(),
+                risk_tools=RiskTools(),
+                live_tools=LiveTools(),
+            )
         if plan.workflow_name == "live_risk_watch":
             return run_live_risk_watch(
                 task,
@@ -73,6 +94,15 @@ class AgentWorkflowGateway:
                 audit_logger=self.audit_logger,
                 settings=self.settings,
                 specialist=RiskSupervisorAgent(RiskTools()),
+            )
+        if plan.workflow_name == "live_ops_summary":
+            return run_live_ops_summary(
+                task,
+                planner=self.planner,
+                verifier=self.verifier,
+                audit_logger=self.audit_logger,
+                settings=self.settings,
+                specialist=LiveOpsAgent(LiveTools()),
             )
         if plan.workflow_name == "incident_review":
             return run_incident_review(
@@ -91,6 +121,15 @@ class AgentWorkflowGateway:
                 audit_logger=self.audit_logger,
                 settings=self.settings,
                 specialist=StrategyQAAgent(self.tool_registry),
+            )
+        if plan.workflow_name == "trade_review_assistant":
+            return run_trade_review_assistant(
+                task,
+                planner=self.planner,
+                verifier=self.verifier,
+                audit_logger=self.audit_logger,
+                settings=self.settings,
+                specialist=TradeReviewAssistantAgent(SimulatorTools(), EdgeTools()),
             )
         if plan.workflow_name == "snapshot_drift_watch":
             return run_snapshot_drift_watch(

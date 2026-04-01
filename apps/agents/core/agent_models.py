@@ -62,6 +62,47 @@ class AgentResult:
 
 
 @dataclass(frozen=True)
+class ApprovalRequest:
+    """Immutable approval artifact for one privileged action."""
+
+    approval_id: str
+    action_type: str
+    target_ref: str
+    requested_by_user_id: int
+    requested_by_role: str
+    rationale: str
+    request_payload: Dict[str, Any] = field(default_factory=dict)
+    status: str = "pending"
+    decision: str = ""
+    decision_notes: str = ""
+    decided_by_user_id: Optional[int] = None
+    decided_by_role: str = ""
+    created_at: str = ""
+    decided_at: str = ""
+    executed_at: str = ""
+    execution_metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-serializable representation."""
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ApprovalDecision:
+    """One human decision applied to an approval artifact."""
+
+    approval_id: str
+    decision: str
+    actor_user_id: int
+    actor_role: str
+    notes: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-serializable representation."""
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class ToolCallRecord:
     """Audit-friendly record of one logical tool call."""
 

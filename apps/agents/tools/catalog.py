@@ -10,6 +10,7 @@ from apps.agents.tools.edge_tools import EdgeTools
 from apps.agents.tools.live_tools import LiveTools
 from apps.agents.tools.report_tools import ReportTools
 from apps.agents.tools.risk_tools import RiskTools
+from apps.agents.tools.simulator_tools import SimulatorTools
 from apps.agents.tools.workflow_tools import WorkflowTools
 
 
@@ -19,6 +20,7 @@ def build_default_tool_registry(
     risk_tools: RiskTools | None = None,
     backtest_tools: BacktestTools | None = None,
     live_tools: LiveTools | None = None,
+    simulator_tools: SimulatorTools | None = None,
     report_tools: ReportTools | None = None,
     workflow_tools: WorkflowTools | None = None,
 ) -> ToolRegistry:
@@ -27,6 +29,7 @@ def build_default_tool_registry(
     risk = risk_tools or RiskTools()
     backtest = backtest_tools or BacktestTools()
     live = live_tools or LiveTools()
+    simulator = simulator_tools or SimulatorTools()
     reports = report_tools or ReportTools()
     workflows = workflow_tools or WorkflowTools()
     registry = ToolRegistry()
@@ -186,6 +189,60 @@ def build_default_tool_registry(
     )
     registry.register(
         ToolSpec(
+            tool_name="sim_list_sessions",
+            domain="simulation",
+            mode=PermissionTier.READ_ONLY,
+            description="List simulator sessions for one user.",
+        ),
+        simulator.sim_list_sessions,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="sim_get_session",
+            domain="simulation",
+            mode=PermissionTier.READ_ONLY,
+            description="Load one persisted simulator session.",
+        ),
+        simulator.sim_get_session,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="sim_preview_trade",
+            domain="simulation",
+            mode=PermissionTier.ADVISORY_WRITE,
+            description="Preview a manual trade in a running simulator session.",
+        ),
+        simulator.sim_preview_trade,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="sim_run_what_if",
+            domain="simulation",
+            mode=PermissionTier.ADVISORY_WRITE,
+            description="Run a non-mutating what-if analysis in a running simulator session.",
+        ),
+        simulator.sim_run_what_if,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="sim_resume_session",
+            domain="simulation",
+            mode=PermissionTier.ADVISORY_WRITE,
+            description="Resume one paused simulator session.",
+        ),
+        simulator.sim_resume_session,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="sim_stop_and_save",
+            domain="simulation",
+            mode=PermissionTier.PRIVILEGED,
+            description="Persist one running simulator session as saved artifacts.",
+        ),
+        simulator.sim_stop_and_save,
+    )
+    registry.register(
+        ToolSpec(
             tool_name="edge_export_profile_report",
             domain="reporting",
             mode=PermissionTier.ADVISORY_WRITE,
@@ -246,5 +303,77 @@ def build_default_tool_registry(
             description="Queue one outbound workflow payload for future n8n delivery.",
         ),
         workflows.workflow_trigger_n8n,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="approval_request_action",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Create one approval request for a privileged action.",
+        ),
+        workflows.approval_request_action,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="approval_get_status",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Read one persisted approval request.",
+        ),
+        workflows.approval_get_status,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="approval_apply_decision",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Apply one approve or reject decision to an approval request.",
+        ),
+        workflows.approval_apply_decision,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="privileged_strategy_promote",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Apply one approval-gated strategy promotion handoff.",
+        ),
+        workflows.privileged_strategy_promote,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="privileged_live_deploy",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Apply one approval-gated live deployment handoff.",
+        ),
+        workflows.privileged_live_deploy,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="privileged_live_pause_session",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Pause one live session only with an approved artifact.",
+        ),
+        workflows.privileged_live_pause_session,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="privileged_live_stop_session",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Stop one live session only with an approved artifact.",
+        ),
+        workflows.privileged_live_stop_session,
+    )
+    registry.register(
+        ToolSpec(
+            tool_name="privileged_risk_override",
+            domain="policy",
+            mode=PermissionTier.PRIVILEGED,
+            description="Apply one live risk override only with an approved artifact.",
+        ),
+        workflows.privileged_risk_override,
     )
     return registry
