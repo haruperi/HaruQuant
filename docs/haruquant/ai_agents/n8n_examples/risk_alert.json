@@ -1,0 +1,14 @@
+{
+  "task_id": "risk-watch-2026-04-01T09-00-00Z",
+  "task_type": "live_risk_watch",
+  "actor_user_id": 0,
+  "actor_role": "n8n",
+  "scope": "risk",
+  "intent": "live_risk_watch",
+  "correlation_id": "n8n-risk-watch-2026-04-01T09-00-00Z",
+  "run_id": "run-risk-watch-2026-04-01T09-00-00Z",
+  "input_payload": {
+    "snapshot_id": 123
+  },
+  "approval_mode": "auto_read_only"
+}

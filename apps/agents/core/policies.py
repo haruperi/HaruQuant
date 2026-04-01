@@ -60,6 +60,16 @@ class ProviderSettings:
 
 
 @dataclass(frozen=True)
+class N8NSettings:
+    """Outbound/inbound workflow integration settings."""
+
+    webhook_url: str = ""
+    shared_secret_env: str = "HQT_N8N_WEBHOOK_SECRET"
+    outbox_dir: str = "artifacts/workflows/n8n_outbox"
+    require_signature: bool = True
+
+
+@dataclass(frozen=True)
 class AgentSettings:
     """Minimal configuration required for the Phase 0 scaffold."""
 
@@ -70,6 +80,7 @@ class AgentSettings:
     )
     audit_log_path: str = "artifacts/logs/agents/agent_runs.jsonl"
     provider: ProviderSettings = field(default_factory=ProviderSettings)
+    n8n: N8NSettings = field(default_factory=N8NSettings)
     workflow_defaults: Dict[str, Any] = field(
         default_factory=lambda: {"noop_workflow_enabled": True}
     )
@@ -82,6 +93,7 @@ class AgentSettings:
 def _coerce_settings(raw: Dict[str, Any]) -> AgentSettings:
     """Normalize JSON data into an AgentSettings instance."""
     provider_raw = dict(raw.get("provider") or {})
+    n8n_raw = dict(raw.get("n8n") or {})
     enabled_tiers = [
         PermissionTier.from_value(value)
         for value in (raw.get("enabled_permission_tiers") or [PermissionTier.READ_ONLY])
@@ -99,6 +111,12 @@ def _coerce_settings(raw: Dict[str, Any]) -> AgentSettings:
             provider=str(provider_raw.get("provider") or "noop"),
             model=str(provider_raw.get("model") or "noop-model"),
             timeout_seconds=float(provider_raw.get("timeout_seconds") or 5.0),
+        ),
+        n8n=N8NSettings(
+            webhook_url=str(n8n_raw.get("webhook_url") or ""),
+            shared_secret_env=str(n8n_raw.get("shared_secret_env") or "HQT_N8N_WEBHOOK_SECRET"),
+            outbox_dir=str(n8n_raw.get("outbox_dir") or "artifacts/workflows/n8n_outbox"),
+            require_signature=bool(n8n_raw.get("require_signature", True)),
         ),
         workflow_defaults=dict(raw.get("workflow_defaults") or {}),
     )

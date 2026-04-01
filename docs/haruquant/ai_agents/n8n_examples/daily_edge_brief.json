@@ -1,0 +1,15 @@
+{
+  "task_id": "daily-brief-2026-04-01",
+  "task_type": "daily_market_brief",
+  "actor_user_id": 0,
+  "actor_role": "n8n",
+  "scope": "edge",
+  "intent": "daily_market_brief",
+  "correlation_id": "n8n-daily-brief-2026-04-01",
+  "run_id": "run-daily-brief-2026-04-01",
+  "input_payload": {
+    "symbol": "EURUSD",
+    "timeframe": "H1"
+  },
+  "approval_mode": "auto_read_only"
+}

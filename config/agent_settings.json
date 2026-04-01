@@ -11,6 +11,12 @@
     "model": "noop-model",
     "timeout_seconds": 5.0
   },
+  "n8n": {
+    "webhook_url": "",
+    "shared_secret_env": "HQT_N8N_WEBHOOK_SECRET",
+    "outbox_dir": "artifacts/workflows/n8n_outbox",
+    "require_signature": true
+  },
   "workflow_defaults": {
     "noop_workflow_enabled": true
   }
