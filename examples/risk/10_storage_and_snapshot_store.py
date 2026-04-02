@@ -1,6 +1,8 @@
 """
 Example 18: Storage and Snapshot Infrastructure
 
+Type: live-broker dependent manual demo
+
 Phase 10 task-by-task walkthrough using the actual HaruQuant stack:
 1. create a risk run
 2. store a normalized snapshot

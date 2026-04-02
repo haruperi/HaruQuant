@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from apps.risk import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from apps.risk.limits import LimitEvent
 from apps.risk.limits import PolicyEngine
 
 
@@ -67,6 +68,8 @@ def test_policy_engine_returns_explainable_hard_limit_breach():
         current_margin_used=1000.0,
         new_margin_used=2000.0,
         rc_map_new={"EURUSD": 0.55, "GBPUSD": 0.45},
+        currency_exposure=None,
+        gross_portfolio_notional=100000.0,
         cluster_metrics={"FOREX": {"var": 1200.0, "es": 1600.0}},
         policy=RiskLimits(
             var_cap_frac=0.05,
@@ -151,10 +154,10 @@ class _DummyRiskAdapter:
 def test_governance_engine_rejects_breaching_candidate_trade():
     state = _build_state(
         RiskLimits(
-            var_cap_frac=0.01,
-            es_cap_frac=0.02,
-            delta_var_cap_frac=0.01,
-            delta_es_cap_frac=0.02,
+            var_cap_frac=0.0001,
+            es_cap_frac=0.0002,
+            delta_var_cap_frac=0.0001,
+            delta_es_cap_frac=0.0002,
             max_single_rc_frac=0.45,
             cluster_var_caps={"FOREX": 0.02},
             cluster_es_caps={"FOREX": 0.03},
@@ -175,6 +178,85 @@ def test_governance_engine_rejects_breaching_candidate_trade():
         candidate_symbol="EURUSD",
         candidate_lots=0.60,
         symbol_to_cluster=state.symbol_to_cluster,
+    )
+
+    assert report.decision == "REJECT"
+    assert report.breaches
+
+
+def test_governance_engine_does_not_force_accept_netting_candidate():
+    state = _build_state(RiskLimits())
+    governance = GovernanceEngine(
+        risk_engine=PortfolioRiskEngine(
+            mt5_client=_DummyRiskAdapter(state),
+            timeframe="H1",
+            start_pos=0,
+            end_pos=80,
+        ),
+        limits=state.limits or RiskLimits(),
+    )
+
+    breach_event = LimitEvent(
+        event_type="hard_limit",
+        rule_key="portfolio_var_cap",
+        severity="breach",
+        message="Projected VaR exceeds limit.",
+        observed_value=2000.0,
+        threshold_value=500.0,
+    )
+
+    def fake_evaluate_pre_trade(**kwargs):
+        return type(
+            "Decision",
+            (),
+            {
+                "decision": "REJECT",
+                "reason": "Projected VaR exceeds limit.",
+                "breaches": [breach_event],
+                "warnings": [],
+                "overrides": [],
+                "governance_state": None,
+                "circuit_breaker_state": None,
+                "policy_events": [],
+            },
+        )()
+
+    governance.policy_engine.evaluate_pre_trade = fake_evaluate_pre_trade  # type: ignore[method-assign]
+
+    report = governance.evaluate_add_position(
+        current_positions={"EURUSD": 1.0},
+        candidate_symbol="EURUSD",
+        candidate_lots=-1.0,
+    )
+
+    assert report.decision == "REJECT"
+    assert report.reason == "Projected VaR exceeds limit."
+    assert report.breaches
+
+
+def test_governance_engine_can_evaluate_candidate_from_canonical_state():
+    state = _build_state(
+        RiskLimits(
+            var_cap_frac=0.0001,
+            es_cap_frac=0.0002,
+            delta_var_cap_frac=0.0001,
+            delta_es_cap_frac=0.0002,
+        )
+    )
+    governance = GovernanceEngine(
+        risk_engine=PortfolioRiskEngine(
+            mt5_client=_DummyRiskAdapter(state),
+            timeframe="H1",
+            start_pos=0,
+            end_pos=80,
+        ),
+        limits=state.limits or RiskLimits(),
+    )
+
+    report = governance.evaluate_add_position_from_state(
+        current_state=state,
+        candidate_symbol="EURUSD",
+        candidate_lots=0.60,
     )
 
     assert report.decision == "REJECT"

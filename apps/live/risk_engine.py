@@ -14,7 +14,7 @@ import pandas as pd
 
 from apps.live.engine import MultiStrategyEngine, StrategyInstance
 from apps.utils.logger import logger
-from apps.risk.core import GovernanceEngine, PortfolioRiskEngine
+from apps.risk.core import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine
 from apps.risk.limits import CorrelationPreference, RiskLimits
 from apps.risk.optimization import AllocationPlanner
 from apps.risk.position_sizing import PositionSizer
@@ -46,6 +46,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
         self.regime_detector: Optional[RiskRegimeDetector] = None
         self.governance_engine: Optional[GovernanceEngine] = None
         self.risk_allocator: Optional[AllocationPlanner] = None
+        self.portfolio_state_engine = PortfolioStateEngine()
 
         # Symbol clustering for cluster limits
         self.symbol_clusters: Dict[str, str] = self.config.get("symbol_clusters", {})
@@ -607,12 +608,25 @@ class RiskIntegratedEngine(MultiStrategyEngine):
             if signal["signal"].lower() == "sell":
                 candidate_lots = -candidate_lots  # Short position
 
+            risk_engine = self.governance_engine.risk_engine
+            current_state = self.portfolio_state_engine.build_state_from_engine(
+                engine=self,
+                symbols=sorted(set(current_positions.keys()) | {str(instance.symbol)}),
+                timeframe=risk_engine.timeframe,
+                count=max(int(risk_engine.end_pos - risk_engine.start_pos), 1),
+                start_pos=int(risk_engine.start_pos),
+                positions=current_positions,
+                account=self.account_info(),
+                limits=self.governance_engine.limits,
+                symbol_to_cluster=self.symbol_clusters,
+                metadata={"source": "live_risk_governance"},
+            )
+
             # Evaluate through governance engine
-            report = self.governance_engine.evaluate_add_position(
-                current_positions=current_positions,
+            report = self.governance_engine.evaluate_add_position_from_state(
+                current_state=current_state,
                 candidate_symbol=instance.symbol,
                 candidate_lots=candidate_lots,
-                symbol_to_cluster=self.symbol_clusters,
                 regime=self.current_regime,
             )
 

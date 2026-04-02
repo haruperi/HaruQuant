@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-"""Edge Lab Runner: Symbol edge discovery CLI.
+"""Run Edge CLI helper.
+
+Type: manual demo
 
 This script runs Edge Discovery Strategies (EDS) on real MT5 data
 to find and statistically validate trading edges.

@@ -1,6 +1,8 @@
 """
 Example 01: Canonical Portfolio State Foundation
 
+Type: live-broker dependent manual demo
+
 Phase 1 task-by-task walkthrough using the actual HaruQuant stack:
 1. define canonical risk-state models
 2. reuse validators through canonical state construction
@@ -31,7 +33,7 @@ from apps.trading import Engine, Trade, core
 TIMEFRAME = "H1"
 BAR_COUNT = 500
 SYMBOLS = ["EURUSD", "GBPUSD"]
-SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "GBPUSD": "METALS"}
+SYMBOL_TO_CLUSTER = {"EURUSD": "FOREX", "GBPUSD": "FOREX"}
 BASE_LIMITS = RiskLimits(var_cap_frac=0.08, es_cap_frac=0.12)
 
 
@@ -111,6 +113,7 @@ class ExampleContext:
         self.latest_ts = None
 
     def setup(self) -> None:
+        print("Example type: live-broker dependent manual demo")
         print("Loading real historical bars from connected client...")
         for symbol in SYMBOLS:
             data = load_market_data(self.engine, symbol, TIMEFRAME, BAR_COUNT)

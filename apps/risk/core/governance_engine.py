@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, List, Literal, Optional
 
 from apps.risk.limits import (
@@ -12,7 +12,7 @@ from apps.risk.limits import (
     PolicyEngine,
     RiskLimits,
 )
-from apps.risk.models import PortfolioState
+from apps.risk.models import PortfolioState, PositionState
 from apps.risk.regimes import RegimeState
 
 from .portfolio_risk_engine import PortfolioRiskEngine
@@ -78,19 +78,11 @@ class GovernanceEngine:
         if abs(new_positions[candidate_symbol]) < 1e-12:
             del new_positions[candidate_symbol]
 
-        forced_decision: Optional[Decision] = None
-        forced_reason: Optional[str] = None
-        if len(new_positions) < len(current_positions):
-            forced_decision = "ACCEPT"
-            forced_reason = "Candidate reduces or nets existing exposure."
-
         return self.evaluate_transition(
             current_positions=current_positions,
             new_positions=new_positions,
             symbol_to_cluster=symbol_to_cluster,
             regime=regime,
-            forced_decision=forced_decision,
-            forced_reason=forced_reason,
         )
 
     def evaluate_transition(
@@ -330,6 +322,37 @@ class GovernanceEngine:
             rc_map_new=rc_map_new,
         )
 
+    def evaluate_add_position_from_state(
+        self,
+        current_state: PortfolioState,
+        candidate_symbol: str,
+        candidate_lots: float,
+        regime: Optional[RegimeState] = None,
+        forced_decision: Optional[Decision] = None,
+        forced_reason: Optional[str] = None,
+    ) -> GovernanceReport:
+        """Evaluate one signed-lot change from a canonical portfolio state."""
+        new_positions = dict(current_state.position_map)
+        new_positions[candidate_symbol] = (
+            new_positions.get(candidate_symbol, 0.0) + float(candidate_lots)
+        )
+        if abs(new_positions[candidate_symbol]) < 1e-12:
+            del new_positions[candidate_symbol]
+
+        projected_margin_used = self.risk_engine.estimate_margin_used(new_positions)
+        projected_state = self._project_state_with_positions(
+            current_state,
+            new_positions=new_positions,
+            projected_margin_used=projected_margin_used,
+        )
+        return self.evaluate_transition_from_states(
+            current_state=current_state,
+            new_state=projected_state,
+            regime=regime,
+            forced_decision=forced_decision,
+            forced_reason=forced_reason,
+        )
+
     def _build_report(
         self,
         policy_decision,
@@ -397,3 +420,51 @@ class GovernanceEngine:
     def _extract_peak_equity_from_state(self, state: PortfolioState) -> Optional[float]:
         peak_equity = state.metadata.get("peak_equity")
         return None if peak_equity is None else float(peak_equity)
+
+    def _project_state_with_positions(
+        self,
+        state: PortfolioState,
+        new_positions: Dict[str, float],
+        projected_margin_used: Optional[float],
+    ) -> PortfolioState:
+        existing_positions = {position.symbol: position for position in state.positions}
+        next_positions: List[PositionState] = []
+
+        for symbol in sorted(new_positions.keys()):
+            lots = float(new_positions[symbol])
+            if abs(lots) < 1e-12:
+                continue
+            base_position = existing_positions.get(symbol)
+            if base_position is None:
+                next_positions.append(
+                    PositionState(
+                        symbol=symbol,
+                        lots=lots,
+                        side="LONG" if lots >= 0 else "SHORT",
+                        cluster=state.symbol_to_cluster.get(symbol),
+                    )
+                )
+                continue
+            next_positions.append(
+                replace(
+                    base_position,
+                    lots=lots,
+                    side="LONG" if lots >= 0 else "SHORT",
+                    cluster=base_position.cluster or state.symbol_to_cluster.get(symbol),
+                )
+            )
+
+        free_margin = state.account.free_margin
+        if projected_margin_used is not None:
+            free_margin = float(state.account.equity) - float(projected_margin_used)
+        next_account = replace(
+            state.account,
+            margin_used=None if projected_margin_used is None else float(projected_margin_used),
+            free_margin=None if free_margin is None else float(free_margin),
+        )
+        return replace(
+            state,
+            account=next_account,
+            positions=next_positions,
+            exposures={},
+        )

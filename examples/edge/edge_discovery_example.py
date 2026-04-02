@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """Edge Discovery Example: Complete workflow with real MT5 data.
 
+Type: live-broker dependent manual demo
+
 This example demonstrates how to use the Edge Lab framework to:
 1. Connect to MT5 and fetch real market data
 2. Run edge discovery strategies (EDS)

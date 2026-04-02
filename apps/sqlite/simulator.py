@@ -83,6 +83,9 @@ class SimulatorManager:
             "replay_file_name",
             "config",
             "completed_at",
+            "runtime_owner",
+            "lease_expires_at",
+            "last_heartbeat_at",
         }
 
         update_fields = []
@@ -90,7 +93,13 @@ class SimulatorManager:
         for key, value in kwargs.items():
             if key not in allowed_fields:
                 continue
-            if key in {"start_time", "end_time", "completed_at"}:
+            if key in {
+                "start_time",
+                "end_time",
+                "completed_at",
+                "lease_expires_at",
+                "last_heartbeat_at",
+            }:
                 value = self._format_time(value) or None
             if key == "config" and isinstance(value, (dict, list)):
                 value = json.dumps(value)

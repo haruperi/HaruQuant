@@ -1,5 +1,137 @@
 # HaruQuant Architecture Notes
 
+## AI Agent Foundation
+
+- A new bounded orchestration foundation now exists under `apps/agents/`.
+- Phase 0 currently provides only the minimum shared seams:
+  - shared task/result/tool contracts in `apps/agents/core/agent_models.py`
+  - permission tiers and baseline settings loading in `apps/agents/core/policies.py`
+  - append-only workflow audit logging in `apps/agents/core/audit.py`
+  - minimal registries/planner/verifier/memory placeholders in `apps/agents/core/`
+  - a deterministic provider stub in `apps/agents/integrations/llm_client.py`
+  - a no-op end-to-end workflow in `apps/agents/workflows/noop_workflow.py`
+- The baseline agent config is stored at:
+  - `config/agent_settings.json`
+- The default Phase 0 audit sink is:
+  - `artifacts/logs/agents/agent_runs.jsonl`
+- This layer is intentionally non-authoritative:
+  - it does not own risk truth, execution truth, or research truth
+  - it does not call live mutation paths
+  - it exists only to establish typed boundaries before real agent tools are added
+- Current Phase 0 planner behavior is deliberately narrow:
+  - only a deterministic `noop_workflow` is routable
+  - this exists to prove task -> plan -> verify -> audit flow without integrating Edge, Risk, or Live subsystems yet
+- Phase 2 now adds three read-only workflow paths on top of that foundation:
+  - `daily_market_brief` via saved Edge snapshots
+  - `live_risk_watch` via stored risk snapshot bundles and report builders
+  - `incident_review` via stored replay frames
+- The read-only tool boundary is now formalized through the registry in:
+  - `apps/agents/core/tool_registry.py`
+  - `apps/agents/tools/catalog.py`
+- Phase 3 now adds advisory-write wrappers without introducing live mutation paths:
+  - replay-frame `risk_run_what_if`
+  - Edge/risk/replay report export tools
+  - generic JSON/Markdown report generation helpers
+  - workflow notification helper
+  - local-safe outbound n8n trigger helper
+- The current outbound workflow integration is intentionally local-first:
+  - `apps/agents/core/tool_registry.py`
+  - `apps/agents/tools/catalog.py`
+  - `apps/agents/integrations/n8n_client.py`
+  - payloads are written to a local outbox artifact path instead of being sent to a real webhook yet
+- The current catalog covers saved Edge, risk/replay, and validation inputs:
+  - Edge snapshot reads
+  - risk snapshot/replay report reads
+  - backtest, optimization, walk-forward, Monte Carlo, and strategy manifest reads
+- The first specialist agents remain intentionally narrow and deterministic:
+  - `ResearchOrchestratorAgent`
+  - `RiskSupervisorAgent`
+  - `IncidentInvestigatorAgent`
+  - `StrategyQAAgent`
+- Phase 5 extends that deterministic specialist layer with desk-memo workflows for:
+  - `EdgeIntelligenceAgent` using saved snapshot comparisons and fit-change summaries
+  - `ExecutionOversightAgent` using persisted live session counters and runtime status
+  - `PortfolioAllocationAgent` using stored risk recommendations plus optional Edge fit context
+- The current desk-memo workflow set now covers:
+  - research briefs
+  - risk watch
+  - incident review
+  - strategy promotion review
+  - snapshot drift watch
+  - execution quality watch
+  - portfolio allocation review
+- The agent-side tool wrappers are still thin adapters over existing deterministic modules:
+  - `apps/agents/tools/edge_tools.py`
+  - `apps/agents/tools/risk_tools.py`
+  - `apps/agents/tools/backtest_tools.py`
+- Phase 5 also adds:
+  - `apps/agents/tools/live_tools.py`
+- The formal read-only tool boundary now includes:
+  - Edge snapshot comparison reads
+  - live session status reads
+  - live execution-quality summary reads
+- Phase 6 adds a file-backed approval boundary for privileged actions:
+  - approval artifacts are persisted under the agent settings approval store path
+  - privileged actions are matched against explicit `action_type` and `target_ref`
+  - approved artifacts transition through `pending -> approved/rejected -> applied`
+- The current privileged surface is intentionally narrow:
+  - `approval_request_action`
+  - `approval_get_status`
+  - `approval_apply_decision`
+  - `privileged_strategy_promote` as advisory-only promotion handoff
+  - `privileged_live_deploy` as advisory-only deployment handoff
+  - `privileged_live_pause_session`
+  - `privileged_live_stop_session`
+  - `privileged_risk_override`
+- Phase 6 keeps privileged logic bounded:
+  - strategy promotion and live deployment do not mutate production state yet
+  - live pause/stop and risk override require a matching approved artifact before execution
+  - approval and execution events are appended to the agent audit log with the stored approval payload
+- Phase 7 adds a deterministic reporter layer in:
+  - `apps/agents/core/reporter.py`
+- The reporter layer currently:
+  - converts workflow results into compact report sections
+  - writes JSON and Markdown artifacts through the existing report tools
+  - keeps report packaging deterministic and local
+- The first multi-workflow packaged report is:
+  - `daily_desk_pack`
+- `daily_desk_pack` currently composes:
+  - daily market brief
+  - live risk watch
+  - execution quality watch when `session_id` is provided
+  - strategy promotion review when validation ids are provided
+  - incident review when `incident_run_id` is provided
+- The webhook response contract now allows packaged artifact refs so future orchestration layers can route generated memos without re-reading local state.
+- A dedicated live-operations specialist now exists in:
+  - `apps/agents/specialists/live_ops.py`
+- The corresponding workflow is:
+  - `live_ops_summary`
+- `live_ops_summary` is intentionally narrow:
+  - it summarizes one live session's persisted/runtime status
+  - it uses the existing live session counters and execution-quality ratios
+  - it does not mutate live state
+- `daily_desk_pack` now uses `live_ops_summary` as its live-operations section when `session_id` is provided.
+- A simulator-facing advisory layer now exists in:
+  - `apps/agents/tools/simulator_tools.py`
+- The simulator tool surface currently includes:
+  - `sim_list_sessions`
+  - `sim_get_session`
+  - `sim_preview_trade`
+  - `sim_run_what_if`
+  - `sim_resume_session`
+  - `sim_stop_and_save`
+- The first simulator advisory workflow is:
+  - `trade_review_assistant`
+- `trade_review_assistant` is bounded to advisory review:
+  - it uses simulator trade preview and optional simulator what-if output
+  - it can add optional Edge context through a saved snapshot
+  - it returns accept / caution / avoid style guidance without executing a trade
+- The verifier now checks:
+  - workflow routing
+  - required task inputs
+  - permission tier allowance
+  - evidence presence before a workflow is considered complete
+
 ## Simulation Unified Run Model
 
 - `/simulation` is now the single canonical frontend route for manual, strategy, replay, and batch historical execution.
@@ -10,6 +142,52 @@
 - The unified model has two top-level dimensions:
   - `Run Source`: `manual | strategy | replay`
   - `Execution Mode`: `visualized | batch`
+- Backtest listing now follows the same auth boundary as the rest of the simulator API:
+  - `apps/api/routes/simulator.py::list_all_backtests()` resolves the user from the authorization token instead of defaulting to a fixed user id
+- Simulator runtime sessions now sit behind a tiny in-process session manager:
+  - `apps/simulation/session_manager.py`
+  - this remains process-local in-memory state, but the route layer no longer mutates a naked global dict directly
+  - it is now only the local runtime cache, not the source of truth for session identity
+- Simulator session identity and runtime ownership are now separated:
+  - `apps/sqlite/simulator.py` and the `simulation_sessions` table remain the persistent source of truth for session existence and user ownership
+  - `runtime_owner`, `lease_expires_at`, and `last_heartbeat_at` are persisted on `simulation_sessions`
+  - `apps/simulation/session_backend.py` owns the metadata/lease abstraction for the current SQLite-backed implementation
+  - `apps/simulation/session_coordinator.py` is now the single seam routes and services use for owned-session lookup, active-runtime lease checks, and local runtime attachment/release
+  - the SQLite lease backend now acquires and renews ownership with one conditional `UPDATE` inside a transaction instead of a read-then-write sequence, so lease contention is safer under multiple workers
+  - releasing a lease now clears `runtime_owner`, `lease_expires_at`, and `last_heartbeat_at`
+  - API startup clears expired simulator leases and normalizes any stale `running` rows back to `paused` before serving requests
+  - this is still single-process/runtime-local today because the active `SimulatorSession` object lives in worker memory, but ownership is now explicit and ready for a future shared lease backend
+- Simulator and backtest route responsibilities are now split more explicitly:
+  - `apps/api/routes/simulator.py` contains the interactive simulator HTTP layer
+  - `apps/api/routes/backtest.py` contains backtest models, helpers, and backtest endpoints
+  - `apps/simulation/api_models.py` owns the simulator route request models
+  - `apps/simulation/session_runtime.py` owns `SimulatorSession` and the simulator runtime orchestration
+  - `apps/simulation/session_backend.py` owns the persisted session metadata and lease abstraction
+  - `apps/simulation/session_coordinator.py` owns runtime attachment, lease renewal, and active-session access
+  - `apps/simulation/serializers.py` owns shared risk/report serialization helpers used by both the runtime and route layers
+  - `apps/simulation/route_support.py` owns shared simulator response-building and position/order normalization helpers
+  - `apps/simulation/route_guards.py` owns the shared simulator session ownership and running-session guard checks
+  - `apps/simulation/session_service.py` owns simulator session lifecycle helpers such as resume, delete, and stop-and-save
+  - `apps/simulation/trade_service.py` owns trade/order mutation orchestration and the shared governance-check path
+  - `apps/api/routes/simulator.py` now uses local FastAPI dependencies for authenticated user id, owned session, and running session so route handlers no longer repeat the same auth/session lookup boilerplate
+- Simulator mutation responses now share one post-mutation refresh sequence:
+  - monitor positions/account
+  - refresh risk state
+  - build response payload from refreshed state
+- Risk covariance now distinguishes standard vs stressed modes:
+  - standard mode preserves observed pair correlations
+  - stressed mode applies the configured pairwise floor before covariance construction
+- Raw governance no longer force-accepts trades merely because they net or reduce position count.
+- The preferred governance gateway is now canonical `PortfolioState`:
+  - `apps/api/routes/risk.py`, `apps/live/risk_engine.py`, `apps/trading/main.py`, and `apps/risk/optimization/marginal_risk.py` now evaluate candidate changes from canonical state instead of raw position maps
+  - legacy raw-governance methods still exist for compatibility, but production paths should favor state-based evaluation
+
+## Edge Dataset Session Source
+
+- Edge session windows now come from one shared module:
+  - `apps/edge/session_config.py`
+- The prepared dataset enrichment path and seasonality analysis both read from that same source.
+- `apps/edge/datasets.py::prepare_ohlcvs_dataset()` now fails fast on validation errors instead of continuing with raw invalid data.
 - The execution-mode contract is:
   - `visualized` uses the simulator-style interactive session flow with charting, live panels, and optional manual trade intervention
   - `batch` uses the backtest-style non-visual historical run flow with async execution, progress/log streaming, and persisted result output

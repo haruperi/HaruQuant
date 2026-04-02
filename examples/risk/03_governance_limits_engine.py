@@ -1,6 +1,8 @@
 """
 Example 11: Governance and Limits Engine
 
+Type: live-broker dependent manual demo
+
 Scenario-based walkthrough using the actual HaruQuant governance stack:
 1. first trade from an empty portfolio
 2. add second position within limits

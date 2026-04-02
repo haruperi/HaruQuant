@@ -13,8 +13,8 @@ export function DailyPnlChart() {
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Daily PnL</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="h-[80px]">
+      <CardContent className="min-w-0">
+        <div className="h-[80px] min-w-0">
           {loading ? (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
               Loading...

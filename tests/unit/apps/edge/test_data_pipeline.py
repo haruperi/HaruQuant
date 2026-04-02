@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from apps.edge.data.cleaning import CleaningConfig
 from apps.edge.data.enrichment import EnrichmentConfig
@@ -67,17 +68,15 @@ def test_prepare_ohlcvs_dataset_flags_fatal_ohlc_errors():
         index=idx,
     )
 
-    prepared = prepare_ohlcvs_dataset(
-        DummySource(df),
-        symbol="EURUSD",
-        timeframe="M1",
-        start_pos=0,
-        end_pos=10,
-        exclude_last_bar=False,
-    )
-
-    assert not prepared.report.is_valid
-    assert len(prepared.report.fatal_errors) >= 1
+    with pytest.raises(ValueError, match="Dataset validation failed for EURUSD M1"):
+        prepare_ohlcvs_dataset(
+            DummySource(df),
+            symbol="EURUSD",
+            timeframe="M1",
+            start_pos=0,
+            end_pos=10,
+            exclude_last_bar=False,
+        )
 
 
 def test_prepare_ohlcvs_dataset_handles_integer_spread_cleaning():

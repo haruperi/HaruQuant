@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "default_approval_mode": "auto_read_only",
+  "enabled_permission_tiers": [
+    "read_only",
+    "advisory_write",
+    "privileged"
+  ],
+  "audit_log_path": "artifacts/logs/agents/agent_runs.jsonl",
+  "provider": {
+    "provider": "noop",
+    "model": "noop-model",
+    "timeout_seconds": 5.0
+  },
+  "n8n": {
+    "webhook_url": "",
+    "shared_secret_env": "HQT_N8N_WEBHOOK_SECRET",
+    "outbox_dir": "artifacts/workflows/n8n_outbox",
+    "require_signature": true
+  },
+  "approvals": {
+    "store_dir": "artifacts/approvals"
+  },
+  "workflow_defaults": {
+    "noop_workflow_enabled": true
+  }
+}

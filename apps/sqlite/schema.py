@@ -1542,6 +1542,9 @@ class SchemaManager:
                 replay_backtest_id INTEGER,
                 replay_file_name TEXT,
                 config TEXT,
+                runtime_owner TEXT,
+                lease_expires_at TIMESTAMP,
+                last_heartbeat_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed_at TIMESTAMP,
@@ -1549,6 +1552,21 @@ class SchemaManager:
             );
             """
             cursor.execute(create_simulation_sessions_table)
+
+            cursor.execute("PRAGMA table_info(simulation_sessions)")
+            simulation_session_columns = {row[1] for row in cursor.fetchall()}
+            if "runtime_owner" not in simulation_session_columns:
+                cursor.execute(
+                    "ALTER TABLE simulation_sessions ADD COLUMN runtime_owner TEXT"
+                )
+            if "lease_expires_at" not in simulation_session_columns:
+                cursor.execute(
+                    "ALTER TABLE simulation_sessions ADD COLUMN lease_expires_at TIMESTAMP"
+                )
+            if "last_heartbeat_at" not in simulation_session_columns:
+                cursor.execute(
+                    "ALTER TABLE simulation_sessions ADD COLUMN last_heartbeat_at TIMESTAMP"
+                )
 
             create_simulation_trades_table = """
             CREATE TABLE IF NOT EXISTS simulation_trades (

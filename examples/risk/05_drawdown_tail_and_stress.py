@@ -1,6 +1,8 @@
 """
 Example 13: Drawdown, Tail Risk, and Stress Testing
 
+Type: live-broker dependent manual demo
+
 Phase 5 task-by-task walkthrough using the actual HaruQuant stack:
 1. drawdown metrics
 2. drawdown velocity and time-under-water

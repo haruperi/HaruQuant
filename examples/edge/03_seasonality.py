@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""Example 03: Seasonality.
+
+Type: live-broker dependent manual demo
+"""
 from __future__ import annotations
 
 import argparse

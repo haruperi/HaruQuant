@@ -1,6 +1,8 @@
 """
 Example 17: Replay and What-If Engine
 
+Type: live-broker dependent manual demo
+
 Phase 9 task-by-task walkthrough using the actual HaruQuant stack:
 1. timeline reconstruction
 2. replay clock stepping

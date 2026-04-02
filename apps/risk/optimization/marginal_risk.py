@@ -130,20 +130,14 @@ class MarginalRiskEvaluator:
         baseline_scorecard = scorecard or self.scorecard_engine.build_scorecard(baseline_snapshot)
         current_lots = float(state.position_map.get(action.symbol, 0.0))
 
-        new_positions = dict(state.position_map)
-        if abs(action.projected_lots) < 1e-10:
-            new_positions.pop(action.symbol, None)
-        else:
-            new_positions[action.symbol] = float(action.projected_lots)
-
         governance_engine = GovernanceEngine(
             risk_engine=build_state_risk_engine(state),
             limits=state.limits,
         )
-        governance_report = governance_engine.evaluate_transition(
-            current_positions=state.position_map,
-            new_positions=new_positions,
-            symbol_to_cluster=state.symbol_to_cluster,
+        governance_report = governance_engine.evaluate_add_position_from_state(
+            current_state=state,
+            candidate_symbol=action.symbol,
+            candidate_lots=action.delta_lots,
             regime=baseline_snapshot.regime_state,
             forced_decision="ACCEPT" if abs(action.projected_lots) <= abs(current_lots) else None,
             forced_reason="Candidate reduces or nets existing exposure."

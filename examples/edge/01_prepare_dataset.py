@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""Example 01: Prepare Dataset.
+
+Type: live-broker dependent manual demo
+"""
 from __future__ import annotations
 
 import argparse

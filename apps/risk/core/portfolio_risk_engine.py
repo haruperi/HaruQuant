@@ -110,22 +110,16 @@ class PortfolioRiskEngine:
         return np.outer(vol, vol) * corr_mat
 
     def apply_corr_floors(self, corr_mat: np.ndarray, limits: RiskLimits) -> np.ndarray:
-        """Apply configured correlation floors to covariance inputs."""
-        n = corr_mat.shape[0]
+        """Apply correlation stress only when stressed covariance is requested."""
         out = corr_mat.copy()
-
-        floor = (
-            limits.stressed_corr_floor
-            if limits.use_stressed_corr
-            else limits.min_pair_corr
-        )
-        floor = max(limits.min_pair_corr, floor)
-
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    continue
-                out[i, j] = max(out[i, j], floor)
+        if limits.use_stressed_corr:
+            floor = max(limits.min_pair_corr, limits.stressed_corr_floor)
+            n = corr_mat.shape[0]
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        continue
+                    out[i, j] = max(out[i, j], floor)
 
         out = np.clip(out, -1.0, 1.0)
         np.fill_diagonal(out, 1.0)

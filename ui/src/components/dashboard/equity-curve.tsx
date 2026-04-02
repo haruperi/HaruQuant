@@ -148,51 +148,53 @@ export function EquityCurve() {
         <CardTitle>Equity Curve</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="pl-2">
+      <CardContent className="pl-2 min-w-0">
         {loading ? (
           <div className="flex h-[350px] items-center justify-center text-sm text-muted-foreground">
             Loading equity curve...
           </div>
         ) : (
-        <ResponsiveContainer width="100%" height={350}>
-          <AreaChart data={data}>
-            <defs>
-                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="label"
-              stroke="#888888"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              stroke="#888888"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(value) => formatCurrency(value)}
-              domain={['auto', 'auto']}
-            />
-             <Tooltip
-                contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
-                itemStyle={{ color: 'hsl(var(--foreground))' }}
-                formatter={(value: number) => [formatCurrency(value), "Equity"]}
-            />
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-            <Area
-              type="monotone"
-              dataKey="total"
-              stroke="#10b981"
-              strokeWidth={2}
-              fillOpacity={1}
-              fill="url(#colorTotal)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+          <div className="h-[350px] min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data}>
+                <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => formatCurrency(value)}
+                  domain={['auto', 'auto']}
+                />
+                 <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 'var(--radius)' }}
+                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                    formatter={(value: number) => [formatCurrency(value), "Equity"]}
+                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorTotal)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>

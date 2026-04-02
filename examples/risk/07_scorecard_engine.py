@@ -1,6 +1,8 @@
 """
 Example 15: Scorecard Engine
 
+Type: live-broker dependent manual demo
+
 Phase 7 task-by-task walkthrough using the actual HaruQuant stack:
 1. portfolio health score
 2. concentration score

@@ -1,6 +1,8 @@
 """
 Example 14: Regime Engine
 
+Type: live-broker dependent manual demo
+
 Phase 6 task-by-task walkthrough using the actual HaruQuant stack:
 1. market regime logic
 2. volatility regime logic

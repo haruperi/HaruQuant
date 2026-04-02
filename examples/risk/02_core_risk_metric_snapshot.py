@@ -1,5 +1,7 @@
 """
-Example 1002: Core Risk Metric Snapshot
+Example 02: Core Risk Metric Snapshot
+
+Type: live-broker dependent manual demo
 
 Phase 2 task-by-task walkthrough using the actual HaruQuant stack:
 1. create metric interface and registry
