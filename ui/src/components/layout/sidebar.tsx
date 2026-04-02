@@ -47,6 +47,16 @@ const routes = [
       icon: Database,
       href: "/data",
       color: "text-violet-500",
+      subRoutes: [
+        {
+          label: "Quotes",
+          href: "/data/quotes",
+        },
+        {
+          label: "Forex Calendar",
+          href: "/data/forex-calendar",
+        },
+      ],
     },
     {
       label: "Strategies",

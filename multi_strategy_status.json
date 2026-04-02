@@ -1,0 +1,59 @@
+{
+  "initialized": true,
+  "running": true,
+  "state": {
+    "enabled": true,
+    "paused": false,
+    "last_run": "2026-04-02T13:16:54.318080",
+    "trade_count_today": 1,
+    "last_reset_date": "2026-04-02"
+  },
+  "portfolio": {
+    "total_positions": 3,
+    "buy_positions": 2,
+    "sell_positions": 1,
+    "balance": 50010.36,
+    "equity": 50010.36,
+    "margin": 0.0,
+    "free_margin": 50010.36,
+    "margin_level": 0.0,
+    "profit": 0.0,
+    "top_symbols": [
+      [
+        "EURUSD",
+        2
+      ],
+      [
+        "XAUUSD",
+        1
+      ]
+    ],
+    "currency_exposure": {
+      "XAU": 1,
+      "USD": 3,
+      "EUR": 2
+    }
+  },
+  "strategies": [
+    {
+      "name": "EURUSD_Mean Reversion_M1",
+      "symbol": "EURUSD",
+      "timeframe": "M1",
+      "signals_detected": 9,
+      "trades_executed": 0,
+      "trades_failed": 0,
+      "last_signal_time": "2026-04-02T13:16:01.313221",
+      "last_trade_time": null
+    },
+    {
+      "name": "XAUUSD_Trend Following_M1",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "signals_detected": 10,
+      "trades_executed": 1,
+      "trades_failed": 0,
+      "last_signal_time": "2026-04-02T13:16:01.578615",
+      "last_trade_time": "2026-04-02T13:07:00.670080"
+    }
+  ]
+}

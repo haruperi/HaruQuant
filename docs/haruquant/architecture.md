@@ -1,5 +1,30 @@
 # HaruQuant Architecture Notes
 
+## Data Dashboard
+
+- `/data` is now a landing page under the Next app at:
+  - `ui/src/app/(dashboard)/data/page.tsx`
+- The current child pages are:
+  - `ui/src/app/(dashboard)/data/quotes/page.tsx`
+  - `ui/src/app/(dashboard)/data/forex-calendar/page.tsx`
+- The Forex Calendar page renders from:
+  - `ui/src/components/data/forex-calendar-panel.tsx`
+- The frontend reads the local backend endpoint instead of requesting Forex Factory directly:
+  - `GET /api/dashboard/forex-calendar`
+- That endpoint is implemented in:
+  - `apps/api/routes/dashboard/forex_calendar.py`
+- The backend does not scrape the Cloudflare-protected HTML page.
+  - It uses Forex Factory's published weekly JSON export hosted by `nfs.faireconomy.media`.
+- The normalization helper lives in:
+  - `apps/api/services/forex_calendar.py`
+- The backend now uses a short disk-backed cache for the weekly export.
+  - fresh cached responses avoid hitting the upstream on repeated page loads
+  - stale cached responses are returned when the upstream feed is temporarily rate-limited
+- The current payload includes:
+  - top-level source metadata
+  - a compact summary block for UI metric cards
+  - normalized weekly event rows with day, time, currency, impact, forecast, and previous values
+
 ## AI Agent Foundation
 
 - A new bounded orchestration foundation now exists under `apps/agents/`.
