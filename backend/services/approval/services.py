@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import sqlite3
 
 from apps.core import ValidationError, generate_id
-from backend.db import ApprovalRecord, GovernanceRepository
+from backend.db import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
 
 from .models import ApprovalState
 
@@ -54,3 +55,51 @@ class ApprovalCreationService:
             expires_at=request.expires_at,
             metadata_json=request.metadata_json,
         )
+
+
+@dataclass(frozen=True)
+class ApprovalVoteRequest:
+    approval_id: str
+    approver_role: str
+    approver_id: str
+    decision: str
+    reason_code: str | None = None
+    rationale: str | None = None
+
+
+class ApprovalVoteService:
+    """Persist approval votes while enforcing distinct approver identity."""
+
+    def __init__(self, repository: GovernanceRepository) -> None:
+        self.repository = repository
+
+    def vote(self, request: ApprovalVoteRequest) -> ApprovalVoteRecord:
+        with self.repository._connect() as connection:  # noqa: SLF001
+            existing = connection.execute(
+                """
+                SELECT 1
+                FROM gov_approval_votes
+                WHERE approval_id = ? AND approver_id = ?
+                """,
+                (request.approval_id, request.approver_id),
+            ).fetchone()
+        if existing is not None:
+            raise ValidationError(
+                "approval_duplicate_voter",
+                "An approver may vote only once per approval.",
+            )
+
+        try:
+            return self.repository.add_vote(
+                approval_id=request.approval_id,
+                approver_role=request.approver_role,
+                approver_id=request.approver_id,
+                decision=request.decision,
+                reason_code=request.reason_code,
+                rationale=request.rationale,
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ValidationError(
+                "approval_duplicate_voter",
+                "An approver may vote only once per approval.",
+            ) from exc

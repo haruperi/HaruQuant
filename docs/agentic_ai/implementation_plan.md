@@ -531,7 +531,7 @@ A task is only complete when all are true:
   **Unit tests:** approval creation and expiry tests  
   **Commit:** `feat(approval): implement approval request creation`
 
-- [ ] Implement approval vote service with distinct approver enforcement.  
+- [x] Implement approval vote service with distinct approver enforcement.  
   **Refs:** FR-037, COMP-012  
   **Unit tests:** duplicate voter rejection tests  
   **Commit:** `feat(approval): implement distinct approver voting rules`

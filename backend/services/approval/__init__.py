@@ -1,7 +1,12 @@
 """Approval service skeleton modules."""
 
 from .models import ApprovalRequest, ApprovalState
-from .services import ApprovalCreateRequest, ApprovalCreationService
+from .services import (
+    ApprovalCreateRequest,
+    ApprovalCreationService,
+    ApprovalVoteRequest,
+    ApprovalVoteService,
+)
 from .state_machine import APPROVAL_TRANSITIONS, ApprovalStateMachine
 
 __all__ = [
@@ -11,4 +16,6 @@ __all__ = [
     "ApprovalRequest",
     "ApprovalState",
     "ApprovalStateMachine",
+    "ApprovalVoteRequest",
+    "ApprovalVoteService",
 ]
