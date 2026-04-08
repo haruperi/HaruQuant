@@ -464,7 +464,7 @@ A task is only complete when all are true:
   **Unit tests:** enum coverage tests  
   **Commit:** `feat(workflow): add workflow state definitions`
 
-- [ ] Create workflow transition rule map.  
+- [x] Create workflow transition rule map.  
   **Refs:** FR-005 to FR-009  
   **Unit tests:** allowed/disallowed transition tests  
   **Commit:** `feat(workflow): add workflow transition rule map`
