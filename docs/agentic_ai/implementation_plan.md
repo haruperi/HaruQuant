@@ -506,7 +506,7 @@ A task is only complete when all are true:
 
 ### 6.6 Policy and Approval Skeleton
 
-- [ ] Implement policy domain models (bundle, version, scope, enforcement result).  
+- [x] Implement policy domain models (bundle, version, scope, enforcement result).  
   **Refs:** FR-035, FR-038, COMP-001  
   **Unit tests:** policy model validation tests  
   **Commit:** `feat(policy): add policy domain models`
