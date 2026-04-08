@@ -19,6 +19,11 @@ Current namespace mapping:
 - `research` -> `main`
 - `ref` -> `main`
 
+Single-schema naming convention:
+- `core.workflows` -> `core_workflows`
+- `risk.risk_decisions` -> `risk_risk_decisions`
+- `gov.override_requests` -> `gov_override_requests`
+
 Migration file naming:
 - `0001_description.sql`
 - `0002_add_example_table.sql`

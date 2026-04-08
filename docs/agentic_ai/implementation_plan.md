@@ -330,7 +330,7 @@ A task is only complete when all are true:
   **Unit tests:** migration apply test  
   **Commit:** `feat(db): add core risk gov audit research and ref schemas`
 
-- [ ] Create `core.workflows` table migration.  
+- [x] Create `core.workflows` table migration.  
   **Refs:** FR-008, FR-015  
   **Unit tests:** create/insert/select tests  
   **Commit:** `feat(db): add workflows table`
