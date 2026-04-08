@@ -365,7 +365,7 @@ A task is only complete when all are true:
   **Unit tests:** decision enum and unique-token tests  
   **Commit:** `feat(db): add risk decisions table`
 
-- [ ] Create `risk.risk_constraints` table migration.  
+- [x] Create `risk.risk_constraints` table migration.  
   **Refs:** FR-033  
   **Unit tests:** FK/index tests  
   **Commit:** `feat(db): add risk constraints table`
