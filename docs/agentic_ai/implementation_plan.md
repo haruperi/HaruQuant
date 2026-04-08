@@ -442,7 +442,7 @@ A task is only complete when all are true:
   **Unit tests:** decision fetch-by-token and expiry tests  
   **Commit:** `feat(repo): add risk repositories`
 
-- [ ] Implement execution repository.  
+- [x] Implement execution repository.  
   **Refs:** FR-059, FR-060, FR-077  
   **Unit tests:** idempotency and attempt persistence tests  
   **Commit:** `feat(repo): add execution repositories`
