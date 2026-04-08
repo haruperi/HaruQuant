@@ -1,6 +1,7 @@
 """Approval service skeleton modules."""
 
 from .models import ApprovalRequest, ApprovalState
+from .override import OverrideRequestDraft, OverrideRequestService
 from .services import (
     ApprovalCreateRequest,
     ApprovalCreationService,
@@ -18,4 +19,6 @@ __all__ = [
     "ApprovalStateMachine",
     "ApprovalVoteRequest",
     "ApprovalVoteService",
+    "OverrideRequestDraft",
+    "OverrideRequestService",
 ]

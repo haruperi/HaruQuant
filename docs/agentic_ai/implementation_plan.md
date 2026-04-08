@@ -536,7 +536,7 @@ A task is only complete when all are true:
   **Unit tests:** duplicate voter rejection tests  
   **Commit:** `feat(approval): implement distinct approver voting rules`
 
-- [ ] Implement override request skeleton.  
+- [x] Implement override request skeleton.  
   **Refs:** FR-037  
   **Unit tests:** missing reason/rationale rejection tests  
   **Commit:** `feat(approval): implement override request skeleton`
