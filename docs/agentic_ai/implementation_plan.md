@@ -185,7 +185,7 @@ A task is only complete when all are true:
 
 ### 5.2 Delivery Policy
 
-- [ ] Create branch naming and commit convention guide.  
+- [x] Create branch naming and commit convention guide.  
   **Refs:** NFR-010  
   **Unit tests:** none  
   **Commit:** `docs(devx): add branch and commit conventions`
