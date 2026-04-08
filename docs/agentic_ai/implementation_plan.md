@@ -474,7 +474,7 @@ A task is only complete when all are true:
   **Unit tests:** allowed/disallowed proposal transitions  
   **Commit:** `feat(workflow): add proposal transition rule map`
 
-- [ ] Create incident transition rule map.  
+- [x] Create incident transition rule map.  
   **Refs:** FR-011  
   **Unit tests:** incident state transition tests  
   **Commit:** `feat(workflow): add incident transition rule map`
