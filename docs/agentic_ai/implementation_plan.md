@@ -286,7 +286,7 @@ A task is only complete when all are true:
   **Unit tests:** completeness and manifest validation tests  
   **Commit:** `feat(contracts): implement replay bundle contract`
 
-- [ ] Add canonical serialization helpers.  
+- [x] Add canonical serialization helpers.  
   **Refs:** CS-004, CS-006  
   **Unit tests:** deterministic sort and round-trip tests  
   **Commit:** `feat(contracts): add canonical serialization utilities`
