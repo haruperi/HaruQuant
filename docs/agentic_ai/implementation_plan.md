@@ -459,7 +459,7 @@ A task is only complete when all are true:
 
 ### 6.5 Workflow Skeleton
 
-- [ ] Create workflow domain state enums.  
+- [x] Create workflow domain state enums.  
   **Refs:** FR-008, FR-009  
   **Unit tests:** enum coverage tests  
   **Commit:** `feat(workflow): add workflow state definitions`
