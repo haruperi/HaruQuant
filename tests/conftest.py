@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
+import sys
 import uuid
 
 import pytest
@@ -12,10 +13,12 @@ from tests.fixtures.edge_lab_scenarios import ScenarioDataSource, build_edge_lab
 
 
 def pytest_configure(config):
+    sys.dont_write_bytecode = True
+
     # Pytest's Windows temp-path plugin is intermittently unreadable in this
     # environment during fixture setup/session cleanup. The tests below only
     # need disposable directories, so we neutralize that cleanup hook and
-    # provide our own tmp_path fixture from tempfile.
+    # provide our own repo-owned tmp_path fixture.
     try:
         import _pytest.pathlib
         import _pytest.tmpdir

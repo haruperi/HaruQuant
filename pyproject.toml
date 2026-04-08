@@ -94,7 +94,7 @@ good-names = ["i", "j", "k", "ex", "Run", "_", "df", "mt5", "id"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --cov=. --cov-report=term-missing --cov-fail-under=80"
+addopts = "-ra -q -p no:cacheprovider --cov=. --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
