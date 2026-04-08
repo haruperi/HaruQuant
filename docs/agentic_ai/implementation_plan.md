@@ -427,7 +427,7 @@ A task is only complete when all are true:
 
 ### 6.4 Repository Layer
 
-- [ ] Implement workflow repository.  
+- [x] Implement workflow repository.  
   **Refs:** FR-008, FR-009  
   **Unit tests:** CRUD and optimistic lock tests  
   **Commit:** `feat(repo): add workflow repository`
