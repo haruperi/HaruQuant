@@ -345,7 +345,7 @@ A task is only complete when all are true:
   **Unit tests:** FK/index tests  
   **Commit:** `feat(db): add workflow steps table`
 
-- [ ] Create `core.trade_hypotheses` table migration.  
+- [x] Create `core.trade_hypotheses` table migration.  
   **Refs:** FR-039, FR-040, FR-072  
   **Unit tests:** insert and constraint tests  
   **Commit:** `feat(db): add trade hypotheses table`
