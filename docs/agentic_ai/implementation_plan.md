@@ -420,7 +420,7 @@ A task is only complete when all are true:
   **Unit tests:** insert and retention/legal-hold tests  
   **Commit:** `feat(db): add research and audit tables`
 
-- [ ] Create reference/lookup seed tables for workflow/proposal/decision/approval/incident/kill-switch/mode/strategy states.  
+- [x] Create reference/lookup seed tables for workflow/proposal/decision/approval/incident/kill-switch/mode/strategy states.  
   **Refs:** FR-001, FR-008, FR-010 to FR-013, FR-044  
   **Unit tests:** seed integrity tests  
   **Commit:** `feat(db): add reference state lookup seeds`
