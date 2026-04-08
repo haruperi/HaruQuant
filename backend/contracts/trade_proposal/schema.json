@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TradeProposal",
+  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
+  "type": "object"
+}

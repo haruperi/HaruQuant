@@ -206,7 +206,7 @@ A task is only complete when all are true:
 
 ### 6.1 Canonical Contracts Package
 
-- [ ] Create `contracts/` repository structure for every canonical contract family.  
+- [x] Create `contracts/` repository structure for every canonical contract family.  
   **Refs:** FR-025, FR-026, CS-001 to CS-006  
   **Unit tests:** folder existence smoke test  
   **Commit:** `feat(contracts): scaffold canonical contract package structure`
