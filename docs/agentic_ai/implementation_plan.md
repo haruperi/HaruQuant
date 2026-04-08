@@ -355,7 +355,7 @@ A task is only complete when all are true:
   **Unit tests:** FK/index tests  
   **Commit:** `feat(db): add trade proposals table`
 
-- [ ] Create `risk.risk_assessment_requests` table migration.  
+- [x] Create `risk.risk_assessment_requests` table migration.  
   **Refs:** FR-028 to FR-031  
   **Unit tests:** insert and FK tests  
   **Commit:** `feat(db): add risk assessment requests table`
