@@ -10,6 +10,13 @@ from .errors import (
     ValidationError,
 )
 from .logging import WorkflowLogContext, bind_log_context, get_service_logger
+from .telemetry import (
+    CounterMetric,
+    InMemoryTelemetry,
+    SpanRecord,
+    TelemetryEvent,
+    TimerMetric,
+)
 
 __all__ = [
     "BrokerError",
@@ -22,4 +29,9 @@ __all__ = [
     "WorkflowLogContext",
     "bind_log_context",
     "get_service_logger",
+    "CounterMetric",
+    "InMemoryTelemetry",
+    "SpanRecord",
+    "TelemetryEvent",
+    "TimerMetric",
 ]

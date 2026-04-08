@@ -132,7 +132,7 @@ A task is only complete when all are true:
   **Unit tests:** log context injection tests  
   **Commit:** `feat(obs): add structured logging with workflow correlation context`
 
-- [ ] Create shared telemetry package for metrics, spans, and event attributes.  
+- [x] Create shared telemetry package for metrics, spans, and event attributes.  
   **Refs:** NFR-004, NFR-005  
   **Unit tests:** metric registration tests  
   **Commit:** `feat(obs): add telemetry helpers for metrics and tracing`
