@@ -1,6 +1,106 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "IncidentAlert",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for incident and warning emissions.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "IncidentAlert"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "severity",
+        "alert_type",
+        "summary",
+        "source",
+        "recommended_action"
+      ],
+      "properties": {
+        "incident_id": {"type": "string"},
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"]
+        },
+        "alert_type": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "related_refs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "recommended_action": {"type": "string", "minLength": 1},
+        "incident_state": {
+          "type": "string",
+          "enum": ["open", "acknowledged", "mitigated", "closed"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }

@@ -266,7 +266,7 @@ A task is only complete when all are true:
   **Unit tests:** rubric-score validation tests  
   **Commit:** `feat(contracts): implement evaluation report contract`
 
-- [ ] Implement `IncidentAlert` schema/model/examples.  
+- [x] Implement `IncidentAlert` schema/model/examples.  
   **Refs:** FR-011, FR-062  
   **Unit tests:** severity/state validation tests  
   **Commit:** `feat(contracts): implement incident alert contract`

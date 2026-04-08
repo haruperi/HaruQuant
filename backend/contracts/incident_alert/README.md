@@ -1,3 +1,9 @@
 # incident_alert
 
-Scaffold placeholder for the `IncidentAlert` canonical contract family.
+Canonical contract family for incident and warning emissions.
+
+Files in this package:
+- `schema.json`: machine-readable schema
+- `model.py`: Pydantic contract models
+- `examples/valid/`: valid example payloads
+- `examples/invalid/`: intentionally invalid payloads
