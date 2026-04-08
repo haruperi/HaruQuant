@@ -320,7 +320,7 @@ A task is only complete when all are true:
 
 ### 6.3 Database Baseline
 
-- [ ] Create Alembic or migration framework baseline.  
+- [x] Create Alembic or migration framework baseline.  
   **Refs:** NFR-020  
   **Unit tests:** migration smoke test  
   **Commit:** `feat(db): initialize migration framework`
