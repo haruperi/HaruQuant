@@ -9,6 +9,7 @@ from .schema_registry_persistence import (
     row_to_record,
 )
 from .schema_registry_service import SchemaRegistryResolutionError, SchemaRegistryService
+from .schema_registry_validator import ContractValidationError, validate_contract_payload
 from .serialization import (
     canonical_json_dumps,
     canonical_json_loads,
@@ -28,10 +29,12 @@ __all__ = [
     "SchemaRegistryRow",
     "SchemaRegistryResolutionError",
     "SchemaRegistryService",
+    "ContractValidationError",
     "canonical_json_dumps",
     "canonical_json_loads",
     "deserialize_contract",
     "record_to_row",
     "row_to_record",
     "serialize_contract",
+    "validate_contract_payload",
 ]

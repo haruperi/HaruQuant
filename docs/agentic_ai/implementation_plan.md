@@ -308,7 +308,7 @@ A task is only complete when all are true:
   **Unit tests:** active/deprecated version lookup tests  
   **Commit:** `feat(schema-registry): implement version resolution service`
 
-- [ ] Implement runtime contract validator against registry.  
+- [x] Implement runtime contract validator against registry.  
   **Refs:** INV-003, FR-021, CS-005  
   **Unit tests:** malformed contract rejection tests  
   **Commit:** `feat(schema-registry): implement runtime contract validation`
