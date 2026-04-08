@@ -350,7 +350,7 @@ A task is only complete when all are true:
   **Unit tests:** insert and constraint tests  
   **Commit:** `feat(db): add trade hypotheses table`
 
-- [ ] Create `core.trade_proposals` table migration.  
+- [x] Create `core.trade_proposals` table migration.  
   **Refs:** FR-041, FR-043, FR-072  
   **Unit tests:** FK/index tests  
   **Commit:** `feat(db): add trade proposals table`
