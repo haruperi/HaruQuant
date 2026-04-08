@@ -122,7 +122,7 @@ A task is only complete when all are true:
 
 ## 4.2 Shared Engineering Foundations
 
-- [ ] Create shared error model package for domain, validation, policy, broker, and infra errors.  
+- [x] Create shared error model package for domain, validation, policy, broker, and infra errors.  
   **Refs:** FR-076, NFR-002  
   **Unit tests:** exception serialization/deserialization tests  
   **Commit:** `feat(core): add shared domain error hierarchy`
