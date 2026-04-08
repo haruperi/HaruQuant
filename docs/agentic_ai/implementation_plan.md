@@ -489,7 +489,7 @@ A task is only complete when all are true:
   **Unit tests:** phase skipping rejection tests  
   **Commit:** `feat(workflow): implement workflow state validator`
 
-- [ ] Implement workflow creation service.  
+- [x] Implement workflow creation service.  
   **Refs:** FR-014, FR-015  
   **Unit tests:** required-objective/constraints/tool declarations tests  
   **Commit:** `feat(workflow): implement workflow creation service`
