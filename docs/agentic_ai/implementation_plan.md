@@ -236,7 +236,7 @@ A task is only complete when all are true:
   **Unit tests:** transformation compatibility tests  
   **Commit:** `feat(contracts): implement trade proposal contract`
 
-- [ ] Implement `RiskAssessmentRequest` schema/model/examples.  
+- [x] Implement `RiskAssessmentRequest` schema/model/examples.  
   **Refs:** FR-028 to FR-031  
   **Unit tests:** freshness and required-context validation tests  
   **Commit:** `feat(contracts): implement risk assessment request contract`

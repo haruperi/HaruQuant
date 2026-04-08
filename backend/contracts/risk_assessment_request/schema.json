@@ -1,6 +1,132 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RiskAssessmentRequest",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for requesting deterministic risk review of a proposal.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "RiskAssessmentRequest"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "risk_request_id",
+        "proposal_id",
+        "action_type",
+        "account_snapshot_ref",
+        "portfolio_snapshot_ref",
+        "market_snapshot_ref",
+        "requested_freshness_classes",
+        "strategy_lifecycle_state",
+        "active_policy_bundle",
+        "compliance_profile_id",
+        "current_kill_switch_state"
+      ],
+      "properties": {
+        "risk_request_id": {"type": "string", "minLength": 1},
+        "proposal_id": {"type": "string", "minLength": 1},
+        "action_type": {
+          "type": "string",
+          "enum": ["new_entry", "modify_position", "reduce_position", "force_exit"]
+        },
+        "account_snapshot_ref": {"type": "string", "minLength": 1},
+        "portfolio_snapshot_ref": {"type": "string", "minLength": 1},
+        "market_snapshot_ref": {"type": "string", "minLength": 1},
+        "requested_freshness_classes": {
+          "type": "object",
+          "required": ["account_snapshot", "portfolio_snapshot", "market_snapshot"],
+          "properties": {
+            "account_snapshot": {"type": "string", "enum": ["HOT", "WARM", "COOL"]},
+            "portfolio_snapshot": {"type": "string", "enum": ["HOT", "WARM", "COOL"]},
+            "market_snapshot": {"type": "string", "enum": ["HOT", "WARM", "COOL"]}
+          },
+          "additionalProperties": false
+        },
+        "strategy_lifecycle_state": {
+          "type": "string",
+          "enum": ["sandbox", "candidate", "paper", "approved", "restricted", "retired"]
+        },
+        "active_policy_bundle": {
+          "type": "object",
+          "required": ["policy_version", "formula_version"],
+          "properties": {
+            "policy_version": {"type": "string", "minLength": 1},
+            "formula_version": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        },
+        "compliance_profile_id": {"type": "string", "minLength": 1},
+        "current_kill_switch_state": {
+          "type": "string",
+          "enum": ["inactive", "armed", "engaged"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }
