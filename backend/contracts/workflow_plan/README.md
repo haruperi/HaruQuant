@@ -1,3 +1,9 @@
 # workflow_plan
 
-Scaffold placeholder for the `WorkflowPlan` canonical contract family.
+Canonical contract family for a formalized executable workflow plan.
+
+Files in this package:
+- `schema.json`: machine-readable schema
+- `model.py`: Pydantic contract models
+- `examples/valid/`: valid example payloads
+- `examples/invalid/`: intentionally invalid payloads

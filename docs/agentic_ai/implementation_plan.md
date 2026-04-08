@@ -221,7 +221,7 @@ A task is only complete when all are true:
   **Unit tests:** valid/invalid payload tests  
   **Commit:** `feat(contracts): implement workflow intent contract`
 
-- [ ] Implement `WorkflowPlan` schema/model/examples.  
+- [x] Implement `WorkflowPlan` schema/model/examples.  
   **Refs:** FR-015, FR-025  
   **Unit tests:** valid/invalid payload tests  
   **Commit:** `feat(contracts): implement workflow plan contract`
