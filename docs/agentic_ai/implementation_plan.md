@@ -281,7 +281,7 @@ A task is only complete when all are true:
   **Unit tests:** approval outcome validation tests  
   **Commit:** `feat(contracts): implement override decision contract`
 
-- [ ] Implement `ReplayBundle` schema/model/examples.  
+- [x] Implement `ReplayBundle` schema/model/examples.  
   **Refs:** FR-072, FR-073, FR-074  
   **Unit tests:** completeness and manifest validation tests  
   **Commit:** `feat(contracts): implement replay bundle contract`

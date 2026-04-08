@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "ReplayBundle",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_15",
+  "timestamp_utc": "2026-04-08T10:26:00Z",
+  "originator": {
+    "type": "service",
+    "id": "replay_bundle_service"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "replay_bundle_id": "rpb_01",
+    "workflow_id": "wf_01",
+    "completeness_status": "complete",
+    "included_refs": [
+      "prop_01",
+      "risk_01",
+      "exec_01",
+      "rcpt_01"
+    ],
+    "integrity_manifest": {
+      "manifest_hash": "sha256:ff0011",
+      "manifest_algorithm": "sha256"
+    },
+    "export_profile": "standard_replay",
+    "generated_at": "2026-04-08T10:25:59Z"
+  }
+}
