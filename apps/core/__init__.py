@@ -17,6 +17,7 @@ from .telemetry import (
     TelemetryEvent,
     TimerMetric,
 )
+from .time_utils import Clock, FixedClock, FreshnessWindow, SystemClock, is_stale
 
 __all__ = [
     "BrokerError",
@@ -34,4 +35,9 @@ __all__ = [
     "SpanRecord",
     "TelemetryEvent",
     "TimerMetric",
+    "Clock",
+    "FixedClock",
+    "FreshnessWindow",
+    "SystemClock",
+    "is_stale",
 ]

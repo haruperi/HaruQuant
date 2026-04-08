@@ -137,7 +137,7 @@ A task is only complete when all are true:
   **Unit tests:** metric registration tests  
   **Commit:** `feat(obs): add telemetry helpers for metrics and tracing`
 
-- [ ] Create shared time/freshness utility package for TTL checks and time-source abstraction.  
+- [x] Create shared time/freshness utility package for TTL checks and time-source abstraction.  
   **Refs:** FR-070, TTL-011, TTL-012  
   **Unit tests:** ttl evaluation and clock abstraction tests  
   **Commit:** `feat(core): add freshness and ttl utility module`
