@@ -298,7 +298,7 @@ A task is only complete when all are true:
   **Unit tests:** registry record validation tests  
   **Commit:** `feat(schema-registry): add registry domain models`
 
-- [ ] Create schema registry persistence table/model.  
+- [x] Create schema registry persistence table/model.  
   **Refs:** FR-027, NFR-020  
   **Unit tests:** ORM mapping tests  
   **Commit:** `feat(schema-registry): add persistence model for schema registry`

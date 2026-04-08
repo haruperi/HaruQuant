@@ -2,6 +2,12 @@
 
 from .common import CanonicalEnvelope, Environment, OperatingMode, Originator, OriginatorType
 from .schema_registry import RegistryStatus, SchemaRegistryRecord
+from .schema_registry_persistence import (
+    SCHEMA_REGISTRY_TABLE,
+    SchemaRegistryRow,
+    record_to_row,
+    row_to_record,
+)
 from .serialization import (
     canonical_json_dumps,
     canonical_json_loads,
@@ -17,8 +23,12 @@ __all__ = [
     "OriginatorType",
     "RegistryStatus",
     "SchemaRegistryRecord",
+    "SCHEMA_REGISTRY_TABLE",
+    "SchemaRegistryRow",
     "canonical_json_dumps",
     "canonical_json_loads",
     "deserialize_contract",
+    "record_to_row",
+    "row_to_record",
     "serialize_contract",
 ]
