@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "OverrideRequest",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_13",
+  "timestamp_utc": "2026-04-08T10:24:00Z",
+  "originator": {
+    "type": "operator",
+    "id": "trader_supervisor"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "override_request_id": "ovrreq_01",
+    "original_decision_ref": "risk_01",
+    "original_action_ref": "prop_01",
+    "requested_action": "permit reduced-size entry",
+    "reason_code": "fast_track",
+    "rationale": "Operator approved a smaller size after manual review of current liquidity conditions.",
+    "requested_expiry": "2026-04-08T11:00:00Z",
+    "required_roles": ["risk_manager", "supervisor"]
+  }
+}

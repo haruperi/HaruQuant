@@ -271,7 +271,7 @@ A task is only complete when all are true:
   **Unit tests:** severity/state validation tests  
   **Commit:** `feat(contracts): implement incident alert contract`
 
-- [ ] Implement `OverrideRequest` schema/model/examples.  
+- [x] Implement `OverrideRequest` schema/model/examples.  
   **Refs:** FR-037, FR-038  
   **Unit tests:** dual-auth field validation tests  
   **Commit:** `feat(contracts): implement override request contract`

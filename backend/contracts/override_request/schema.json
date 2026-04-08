@@ -1,6 +1,115 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OverrideRequest",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for a request to supersede a blocked decision under policy.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "OverrideRequest"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "override_request_id",
+        "original_decision_ref",
+        "original_action_ref",
+        "requested_action",
+        "reason_code",
+        "rationale",
+        "requested_expiry",
+        "required_roles"
+      ],
+      "properties": {
+        "override_request_id": {"type": "string", "minLength": 1},
+        "original_decision_ref": {"type": "string", "minLength": 1},
+        "original_action_ref": {"type": "string", "minLength": 1},
+        "requested_action": {"type": "string", "minLength": 1},
+        "reason_code": {
+          "type": "string",
+          "enum": [
+            "policy_exception",
+            "emergency_exit",
+            "incident_recovery",
+            "manual_supervision"
+          ]
+        },
+        "rationale": {"type": "string", "minLength": 1},
+        "requested_expiry": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "required_roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }
