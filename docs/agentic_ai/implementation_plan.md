@@ -437,7 +437,7 @@ A task is only complete when all are true:
   **Unit tests:** state transition persistence tests  
   **Commit:** `feat(repo): add proposal repository`
 
-- [ ] Implement risk repository.  
+- [x] Implement risk repository.  
   **Refs:** FR-028 to FR-034  
   **Unit tests:** decision fetch-by-token and expiry tests  
   **Commit:** `feat(repo): add risk repositories`

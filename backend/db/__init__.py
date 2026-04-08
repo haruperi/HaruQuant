@@ -9,6 +9,10 @@ from .migrations.runner import (
 from .repositories import (
     ProposalRecord,
     ProposalRepository,
+    RiskAssessmentRequestRecord,
+    RiskConstraintRecord,
+    RiskDecisionRecord,
+    RiskRepository,
     WorkflowRecord,
     WorkflowRepository,
 )
@@ -20,6 +24,10 @@ __all__ = [
     "ensure_migration_table",
     "ProposalRecord",
     "ProposalRepository",
+    "RiskAssessmentRequestRecord",
+    "RiskConstraintRecord",
+    "RiskDecisionRecord",
+    "RiskRepository",
     "WorkflowRecord",
     "WorkflowRepository",
 ]
