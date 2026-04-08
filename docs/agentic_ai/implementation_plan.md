@@ -335,7 +335,7 @@ A task is only complete when all are true:
   **Unit tests:** create/insert/select tests  
   **Commit:** `feat(db): add workflows table`
 
-- [ ] Create `core.workflow_transitions` table migration.  
+- [x] Create `core.workflow_transitions` table migration.  
   **Refs:** FR-009, FR-072  
   **Unit tests:** FK/index tests  
   **Commit:** `feat(db): add workflow transitions table`
