@@ -553,7 +553,7 @@ A task is only complete when all are true:
   **Unit tests:** unauthorized route tests  
   **Commit:** `feat(api): add authentication and authorization middleware`
 
-- [ ] Add health endpoints for app, db, redis, schema registry.  
+- [x] Add health endpoints for app, db, redis, schema registry.  
   **Refs:** FR-061, NFR-004  
   **Unit tests:** health endpoint response tests  
   **Commit:** `feat(api): add service health endpoints`

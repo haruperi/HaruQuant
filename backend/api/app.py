@@ -7,6 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import OperatorAuthMiddleware, require_operator_role
 from .dependencies import OperatorApiDependencies, build_operator_api_dependencies
+from .health import (
+    check_app_health,
+    check_database_health,
+    check_redis_health,
+    check_schema_registry_health,
+)
 
 
 def get_operator_api_dependencies(request: Request) -> OperatorApiDependencies:
@@ -50,6 +56,46 @@ def create_app(
             "actor_id": principal.actor_id,
             "role": principal.role,
         }
+
+    @router.get("/health")
+    def operator_api_health(request: Request) -> dict[str, object]:
+        wired = get_operator_api_dependencies(request)
+        app_health = check_app_health(wired)
+        db_health = check_database_health(wired)
+        redis_health = check_redis_health(wired)
+        schema_registry_health = check_schema_registry_health(wired)
+        component_statuses = (
+            app_health["status"],
+            db_health["status"],
+            redis_health["status"],
+            schema_registry_health["status"],
+        )
+        overall_status = (
+            "healthy"
+            if all(status in {"healthy", "disabled"} for status in component_statuses)
+            else "degraded"
+        )
+        return {
+            "status": overall_status,
+            "components": {
+                "app": app_health,
+                "db": db_health,
+                "redis": redis_health,
+                "schema_registry": schema_registry_health,
+            },
+        }
+
+    @router.get("/health/db")
+    def operator_api_database_health(request: Request) -> dict[str, object]:
+        return check_database_health(get_operator_api_dependencies(request))
+
+    @router.get("/health/redis")
+    def operator_api_redis_health(request: Request) -> dict[str, object]:
+        return check_redis_health(get_operator_api_dependencies(request))
+
+    @router.get("/health/schema-registry")
+    def operator_api_schema_registry_health(request: Request) -> dict[str, object]:
+        return check_schema_registry_health(get_operator_api_dependencies(request))
 
     app.include_router(router)
     return app

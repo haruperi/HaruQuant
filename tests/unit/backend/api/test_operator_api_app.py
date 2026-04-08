@@ -1,5 +1,7 @@
 """Tests for the operator API application skeleton."""
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from apps.core.settings import load_runtime_settings_from_mapping
@@ -71,3 +73,26 @@ def test_operator_api_rejects_unsupported_role() -> None:
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Unsupported operator role 'viewer'."
+
+
+def test_operator_api_health_reports_component_statuses(tmp_path: Path) -> None:
+    settings = load_runtime_settings_from_mapping(
+        {
+            "environment": "test",
+            "ui_origin": "http://localhost:3000",
+            "database_url": f"sqlite:///{tmp_path / 'operator-health.db'}",
+            "event_backend": "inmemory",
+        }
+    )
+    app = create_app(build_operator_api_dependencies(settings=settings))
+    client = TestClient(app)
+
+    response = client.get("/api/operator/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "healthy"
+    assert payload["components"]["app"]["status"] == "healthy"
+    assert payload["components"]["db"]["status"] == "healthy"
+    assert payload["components"]["redis"]["status"] == "disabled"
+    assert payload["components"]["schema_registry"]["status"] == "healthy"
