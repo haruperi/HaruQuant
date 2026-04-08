@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "ExecutionReceipt",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_09",
+  "timestamp_utc": "2026-04-08T10:20:04Z",
+  "originator": {
+    "type": "tool",
+    "id": "mt5_mcp"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "receipt_id": "rcpt_01",
+    "execution_intent_id": "exec_01",
+    "broker": "mt5",
+    "broker_order_id": "ord_1001",
+    "broker_deal_id": "deal_2001",
+    "status": "filled",
+    "requested_price": 1.0845,
+    "fill_price": 1.0846,
+    "fill_qty": 0.25,
+    "spread_points": 12,
+    "slippage_points": 1,
+    "slippage_bps": 0.09,
+    "broker_message": "Order filled",
+    "broker_retcode": "10009",
+    "receipt_hash": "sha256:def456",
+    "authoritative_state": {
+      "position_state": "open",
+      "remaining_qty": 0.0
+    }
+  }
+}

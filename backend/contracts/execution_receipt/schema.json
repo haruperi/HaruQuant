@@ -1,6 +1,118 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ExecutionReceipt",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for a normalized broker execution response.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "ExecutionReceipt"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "receipt_id",
+        "execution_intent_id",
+        "broker",
+        "status",
+        "receipt_hash",
+        "authoritative_state"
+      ],
+      "properties": {
+        "receipt_id": {"type": "string", "minLength": 1},
+        "execution_intent_id": {"type": "string", "minLength": 1},
+        "broker": {"type": "string", "minLength": 1},
+        "broker_order_id": {"type": "string"},
+        "broker_deal_id": {"type": "string"},
+        "status": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "queued",
+            "partially_filled",
+            "filled",
+            "cancelled",
+            "rejected",
+            "expired",
+            "failed"
+          ]
+        },
+        "requested_price": {"type": "number"},
+        "fill_price": {"type": "number"},
+        "fill_qty": {"type": "number"},
+        "spread_points": {"type": "number"},
+        "slippage_points": {"type": "number"},
+        "slippage_bps": {"type": "number"},
+        "broker_message": {"type": "string"},
+        "broker_retcode": {"type": "string"},
+        "receipt_hash": {"type": "string", "minLength": 1},
+        "authoritative_state": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }

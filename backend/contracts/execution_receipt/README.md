@@ -1,3 +1,9 @@
 # execution_receipt
 
-Scaffold placeholder for the `ExecutionReceipt` canonical contract family.
+Canonical contract family for a normalized broker execution response.
+
+Files in this package:
+- `schema.json`: machine-readable schema
+- `model.py`: Pydantic contract models
+- `examples/valid/`: valid example payloads
+- `examples/invalid/`: intentionally invalid payloads

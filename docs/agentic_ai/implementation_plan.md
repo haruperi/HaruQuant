@@ -251,7 +251,7 @@ A task is only complete when all are true:
   **Unit tests:** idempotency and linkage validation tests  
   **Commit:** `feat(contracts): implement execution intent contract`
 
-- [ ] Implement `ExecutionReceipt` schema/model/examples.  
+- [x] Implement `ExecutionReceipt` schema/model/examples.  
   **Refs:** FR-059, FR-060  
   **Unit tests:** normalized receipt parsing tests  
   **Commit:** `feat(contracts): implement execution receipt contract`
