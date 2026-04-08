@@ -400,7 +400,7 @@ A task is only complete when all are true:
   **Unit tests:** severity/source query tests  
   **Commit:** `feat(db): add observations table`
 
-- [ ] Create `core.evaluation_reports` table migration.  
+- [x] Create `core.evaluation_reports` table migration.  
   **Refs:** FR-055, FR-072  
   **Unit tests:** insert and index tests  
   **Commit:** `feat(db): add evaluation reports table`
