@@ -380,7 +380,7 @@ A task is only complete when all are true:
   **Unit tests:** unique attempt number tests  
   **Commit:** `feat(db): add execution send attempts table`
 
-- [ ] Create `core.execution_receipts` table migration.  
+- [x] Create `core.execution_receipts` table migration.  
   **Refs:** FR-059, FR-060  
   **Unit tests:** normalized receipt insert tests  
   **Commit:** `feat(db): add execution receipts table`
