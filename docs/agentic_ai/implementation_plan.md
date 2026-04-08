@@ -163,7 +163,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `docs(adr): add architecture decision record template`
 
-- [ ] Write ADR for event backbone choice.  
+- [x] Write ADR for event backbone choice.  
   **Refs:** NFR-006, NFR-007  
   **Unit tests:** none  
   **Commit:** `docs(adr): record event backbone decision`
