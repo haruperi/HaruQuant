@@ -195,7 +195,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `docs(test): add multi-layer testing policy`
 
-- [ ] Create requirement traceability template for PRs.  
+- [x] Create requirement traceability template for PRs.  
   **Refs:** FR-023, NFR-018  
   **Unit tests:** PR template presence check  
   **Commit:** `docs(process): add requirement traceability pull request template`
