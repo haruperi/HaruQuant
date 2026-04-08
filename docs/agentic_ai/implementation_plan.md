@@ -543,7 +543,7 @@ A task is only complete when all are true:
 
 ### 6.7 API and Dashboard Skeleton
 
-- [ ] Create FastAPI app skeleton and dependency wiring.  
+- [x] Create FastAPI app skeleton and dependency wiring.  
   **Refs:** FR-064 to FR-067  
   **Unit tests:** app startup tests  
   **Commit:** `feat(api): initialize operator api application`
