@@ -256,7 +256,7 @@ A task is only complete when all are true:
   **Unit tests:** normalized receipt parsing tests  
   **Commit:** `feat(contracts): implement execution receipt contract`
 
-- [ ] Implement `ObservationEvent` schema/model/examples.  
+- [x] Implement `ObservationEvent` schema/model/examples.  
   **Refs:** FR-061, FR-063  
   **Unit tests:** source/severity validation tests  
   **Commit:** `feat(contracts): implement observation event contract`
