@@ -511,7 +511,7 @@ A task is only complete when all are true:
   **Unit tests:** policy model validation tests  
   **Commit:** `feat(policy): add policy domain models`
 
-- [ ] Implement compliance profile domain models.  
+- [x] Implement compliance profile domain models.  
   **Refs:** COMP-001 to COMP-013  
   **Unit tests:** profile parsing tests  
   **Commit:** `feat(policy): add compliance profile models`
