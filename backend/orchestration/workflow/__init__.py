@@ -20,6 +20,7 @@ from .states import (
 )
 from .transitions import WORKFLOW_TRANSITIONS, is_allowed_workflow_transition
 from .services import WorkflowCreateRequest, WorkflowCreationService
+from .persistence import WorkflowTransitionEvent, WorkflowTransitionLogger
 from .validator import (
     WorkflowStateValidationError,
     WorkflowStateValidator,
@@ -37,6 +38,8 @@ __all__ = [
     "WorkflowState",
     "WorkflowCreateRequest",
     "WorkflowCreationService",
+    "WorkflowTransitionEvent",
+    "WorkflowTransitionLogger",
     "is_allowed_incident_transition",
     "is_allowed_kill_switch_transition",
     "is_allowed_proposal_transition",

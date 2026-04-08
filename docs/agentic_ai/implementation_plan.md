@@ -494,7 +494,7 @@ A task is only complete when all are true:
   **Unit tests:** required-objective/constraints/tool declarations tests  
   **Commit:** `feat(workflow): implement workflow creation service`
 
-- [ ] Implement workflow transition persistence service.  
+- [x] Implement workflow transition persistence service.  
   **Refs:** FR-072, NFR-004  
   **Unit tests:** transition append-only behavior tests  
   **Commit:** `feat(workflow): implement workflow transition logger`
