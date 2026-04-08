@@ -370,7 +370,7 @@ A task is only complete when all are true:
   **Unit tests:** FK/index tests  
   **Commit:** `feat(db): add risk constraints table`
 
-- [ ] Create `core.execution_intents` table migration.  
+- [x] Create `core.execution_intents` table migration.  
   **Refs:** FR-056, FR-059, FR-060  
   **Unit tests:** idempotency uniqueness tests  
   **Commit:** `feat(db): add execution intents table`
