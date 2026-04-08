@@ -1,6 +1,172 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "TradeHypothesis",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for a non-executable strategy hypothesis.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "TradeHypothesis"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "hypothesis_id",
+        "symbol",
+        "direction",
+        "thesis",
+        "entry_rationale",
+        "invalidation_rationale",
+        "stop_loss_logic",
+        "holding_horizon",
+        "confidence",
+        "calibration_note",
+        "evidence",
+        "required_validation_data",
+        "strategy_family",
+        "feature_version",
+        "strategy_code_hash"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["buy", "sell"]
+        },
+        "thesis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry_rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invalidation_rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stop_loss_logic": {
+          "type": "object"
+        },
+        "take_profit_logic": {
+          "type": "object"
+        },
+        "holding_horizon": {
+          "type": "string",
+          "enum": ["intraday", "swing", "position"]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "calibration_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_type", "ref_id", "summary"],
+            "properties": {
+              "source_type": {"type": "string", "minLength": 1},
+              "ref_id": {"type": "string", "minLength": 1},
+              "summary": {"type": "string", "minLength": 1},
+              "freshness_class": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "required_validation_data": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "strategy_family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "feature_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strategy_code_hash": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }

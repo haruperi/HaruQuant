@@ -226,7 +226,7 @@ A task is only complete when all are true:
   **Unit tests:** valid/invalid payload tests  
   **Commit:** `feat(contracts): implement workflow plan contract`
 
-- [ ] Implement `TradeHypothesis` schema/model/examples.  
+- [x] Implement `TradeHypothesis` schema/model/examples.  
   **Refs:** FR-039, FR-040, FR-041  
   **Unit tests:** required-field and enum tests  
   **Commit:** `feat(contracts): implement trade hypothesis contract`
