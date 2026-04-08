@@ -11,7 +11,7 @@ This report records the local verification state for Phase 1 after completing se
 - `PASS` Workflow FSM validation working.
 - `PASS` Policy and approval services resolve and persist.
 - `PASS` API and dashboard shells boot successfully.
-- `OPEN` Unit test suite for contracts, FSMs, repositories, policy baseline green.
+- `PASS` Unit test suite for contracts, FSMs, repositories, policy baseline green.
 
 ## Evidence
 
@@ -29,10 +29,16 @@ This report records the local verification state for Phase 1 after completing se
   - auth middleware success and failure paths
   - aggregate health endpoint responses
 - Direct DB and workflow smoke checks were already used while completing sections 6.3 through 6.6.
-- `python -m pytest tests/unit/contracts --basetemp .tmp_pytest_contracts --no-cov` completed successfully with `65 passed`.
+- `python -m pytest tests/unit/contracts tests/unit/backend/db tests/unit/backend/orchestration tests/unit/backend/services tests/unit/backend/api --no-cov -q` completed successfully.
+- Result: `124 passed`.
 
-## Open Blocker
+## Temp Path Fix
 
-- The remaining targeted pytest slices that rely on `tmp_path` are currently blocked in this environment by a Windows permission failure inside pytest temp-directory handling.
-- The failure happens during pytest temp-root scanning and cleanup, not in the underlying Phase 1 domain assertions.
-- Until that environment-specific pytest issue is neutralized, the final Phase 1 unit-suite gate should remain open.
+- `tests/conftest.py` now provides a repo-owned `tmp_path` fixture rooted under `.tmp_pytest_runtime/`.
+- The same file also neutralizes the failing pytest dead-symlink cleanup hook in this Windows sandbox.
+- This avoids the previous permission failure in pytest temp-directory setup and session cleanup.
+
+## Residual Warning
+
+- The test run still emits a non-fatal pytest cache warning for `.pytest_cache` creation in this sandbox.
+- That warning does not prevent collection, execution, or completion of the Phase 1 targeted unit suite.

@@ -575,7 +575,7 @@ A task is only complete when all are true:
 - [x] Workflow FSM validation working.  
 - [x] Policy and approval services resolve and persist.  
 - [x] API and dashboard shells boot successfully.  
-- [ ] Unit test suite for contracts, FSMs, repositories, policy baseline green.  
+- [x] Unit test suite for contracts, FSMs, repositories, policy baseline green.  
 
 ---
 

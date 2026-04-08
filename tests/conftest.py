@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+import uuid
 
 import pytest
 
@@ -10,11 +12,30 @@ from tests.fixtures.edge_lab_scenarios import ScenarioDataSource, build_edge_lab
 
 
 def pytest_configure(config):
-    if getattr(config.option, "basetemp", None):
-        return
-    base = Path(__file__).resolve().parent / "_tmp_pytest"
+    # Pytest's Windows temp-path plugin is intermittently unreadable in this
+    # environment during fixture setup/session cleanup. The tests below only
+    # need disposable directories, so we neutralize that cleanup hook and
+    # provide our own tmp_path fixture from tempfile.
+    try:
+        import _pytest.pathlib
+        import _pytest.tmpdir
+
+        _pytest.pathlib.cleanup_dead_symlinks = lambda root: None
+        _pytest.tmpdir.cleanup_dead_symlinks = lambda root: None
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def tmp_path():
+    base = Path(__file__).resolve().parents[1] / ".tmp_pytest_runtime"
     base.mkdir(parents=True, exist_ok=True)
-    config.option.basetemp = str(base)
+    path = (base.resolve() / f"haruquant-pytest-{uuid.uuid4().hex}").resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path, ignore_errors=True)
 
 
 @pytest.fixture
