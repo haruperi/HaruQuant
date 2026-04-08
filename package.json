@@ -1,0 +1,13 @@
+{
+  "name": "haruquant-workspace",
+  "private": true,
+  "workspaces": [
+    "ui",
+    "frontend/shared-types"
+  ],
+  "scripts": {
+    "lint:ui": "npm --prefix ui run lint",
+    "build:ui": "npm --prefix ui run build"
+  }
+}
+

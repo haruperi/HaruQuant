@@ -85,7 +85,7 @@ A task is only complete when all are true:
 
 ## 4.1 Program Setup
 
-- [ ] Create monorepo folder structure for services, contracts, MCP, UI, infra, tests.  
+- [x] Create monorepo folder structure for services, contracts, MCP, UI, infra, tests.  
   **Refs:** FR-018, FR-023, NFR-010, NFR-011  
   **Unit tests:** none  
   **Commit:** `chore(repo): initialize monorepo structure for agentic system`
@@ -95,7 +95,7 @@ A task is only complete when all are true:
   **Unit tests:** CI smoke check for lint/type commands  
   **Commit:** `chore(devx): add formatter lint and type-check configuration`
 
-- [ ] Add JS/TS workspace config for dashboard and shared types.  
+- [x] Add JS/TS workspace config for dashboard and shared types.  
   **Refs:** FR-064, NFR-010  
   **Unit tests:** frontend typecheck CI  
   **Commit:** `chore(frontend): initialize dashboard workspace and shared typing`
@@ -105,17 +105,17 @@ A task is only complete when all are true:
   **Unit tests:** pre-commit smoke test in CI  
   **Commit:** `chore(security): add pre-commit checks and secret scanning`
 
-- [ ] Add baseline CI pipeline for backend, frontend, migrations, and tests.  
+- [x] Add baseline CI pipeline for backend, frontend, migrations, and tests.  
   **Refs:** NFR-010, NFR-011, NFR-018  
   **Unit tests:** CI self-check workflow  
   **Commit:** `chore(ci): add baseline pipeline for build lint typecheck and tests`
 
-- [ ] Create environment templates for dev, test, paper, staging, prod.  
+- [x] Create environment templates for dev, test, paper, staging, prod.  
   **Refs:** FR-001, FR-002, COMP-002  
   **Unit tests:** env loader parsing test  
   **Commit:** `chore(config): add environment templates for all deployment stages`
 
-- [ ] Create shared configuration loader with environment-scoped validation.  
+- [x] Create shared configuration loader with environment-scoped validation.  
   **Refs:** FR-001, FR-002, NFR-015  
   **Unit tests:** valid/invalid config parsing tests  
   **Commit:** `feat(config): add validated environment-aware settings loader`
@@ -1771,4 +1771,3 @@ Target:
 - Prefer additive migrations and reversible changes.
 - Keep scenario tests close to requirement references.
 - Delay autonomous-live rollout until shadow mode, replay validation, and promotion gates are proven.
-

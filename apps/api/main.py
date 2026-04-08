@@ -10,7 +10,6 @@ from apps.utils.logger import logger
 from apps.api.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
-    agents,
     auth,
     backtest,
     docs,
@@ -91,7 +90,6 @@ def _include_optional_router(app: FastAPI, module, prefix: str, tags: list[str])
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
-app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
