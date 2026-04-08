@@ -395,7 +395,7 @@ A task is only complete when all are true:
   **Unit tests:** snapshot upsert tests  
   **Commit:** `feat(db): add broker positions table`
 
-- [ ] Create `core.observations` table migration.  
+- [x] Create `core.observations` table migration.  
   **Refs:** FR-061, FR-063  
   **Unit tests:** severity/source query tests  
   **Commit:** `feat(db): add observations table`
