@@ -325,7 +325,7 @@ A task is only complete when all are true:
   **Unit tests:** migration smoke test  
   **Commit:** `feat(db): initialize migration framework`
 
-- [ ] Create database namespaces/schema bootstrap.  
+- [x] Create database namespaces/schema bootstrap.  
   **Refs:** DB namespaces in Schemas.md  
   **Unit tests:** migration apply test  
   **Commit:** `feat(db): add core risk gov audit research and ref schemas`

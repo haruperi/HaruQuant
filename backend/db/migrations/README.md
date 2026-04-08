@@ -7,8 +7,17 @@ Current baseline:
 - ordered `.sql` migration files
 - internal `_schema_migrations` history table
 - additive, file-based migration application
+- logical namespace bootstrap for single-schema SQLite deployments
 
 This keeps the first storage step compatible with the current `sqlite3` runtime while the new backend database slice is still being introduced.
+
+Current namespace mapping:
+- `core` -> `main`
+- `risk` -> `main`
+- `gov` -> `main`
+- `audit` -> `main`
+- `research` -> `main`
+- `ref` -> `main`
 
 Migration file naming:
 - `0001_description.sql`
