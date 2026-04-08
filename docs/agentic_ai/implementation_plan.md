@@ -127,7 +127,7 @@ A task is only complete when all are true:
   **Unit tests:** exception serialization/deserialization tests  
   **Commit:** `feat(core): add shared domain error hierarchy`
 
-- [ ] Create shared logging package with workflow_id/correlation_id propagation.  
+- [x] Create shared logging package with workflow_id/correlation_id propagation.  
   **Refs:** FR-063, NFR-004  
   **Unit tests:** log context injection tests  
   **Commit:** `feat(obs): add structured logging with workflow correlation context`

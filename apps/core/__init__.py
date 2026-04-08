@@ -9,6 +9,7 @@ from .errors import (
     PolicyError,
     ValidationError,
 )
+from .logging import WorkflowLogContext, bind_log_context, get_service_logger
 
 __all__ = [
     "BrokerError",
@@ -18,4 +19,7 @@ __all__ = [
     "InfrastructureError",
     "PolicyError",
     "ValidationError",
+    "WorkflowLogContext",
+    "bind_log_context",
+    "get_service_logger",
 ]
