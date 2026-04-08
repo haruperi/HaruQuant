@@ -178,7 +178,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `docs(adr): record vector store decision`
 
-- [ ] Write ADR for REST vs GraphQL dashboard read model.  
+- [x] Write ADR for REST vs GraphQL dashboard read model.  
   **Refs:** FR-064, FR-065, NFR-007  
   **Unit tests:** none  
   **Commit:** `docs(adr): record operator api query strategy`
