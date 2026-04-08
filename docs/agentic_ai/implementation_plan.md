@@ -563,7 +563,7 @@ A task is only complete when all are true:
   **Unit tests:** component render tests  
   **Commit:** `feat(ui): create dashboard shell and navigation`
 
-- [ ] Add placeholder pages for workflows, proposals, risk, approvals, incidents, replay, strategies.  
+- [x] Add placeholder pages for workflows, proposals, risk, approvals, incidents, replay, strategies.  
   **Refs:** FR-064 to FR-067  
   **Unit tests:** route smoke tests  
   **Commit:** `feat(ui): add operator page skeletons`
