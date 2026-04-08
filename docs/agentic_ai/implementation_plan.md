@@ -385,7 +385,7 @@ A task is only complete when all are true:
   **Unit tests:** normalized receipt insert tests  
   **Commit:** `feat(db): add execution receipts table`
 
-- [ ] Create `core.reconciliation_runs` table migration.  
+- [x] Create `core.reconciliation_runs` table migration.  
   **Refs:** FR-077  
   **Unit tests:** insert and conflict flag tests  
   **Commit:** `feat(db): add reconciliation runs table`
