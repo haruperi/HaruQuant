@@ -432,7 +432,7 @@ A task is only complete when all are true:
   **Unit tests:** CRUD and optimistic lock tests  
   **Commit:** `feat(repo): add workflow repository`
 
-- [ ] Implement proposal repository.  
+- [x] Implement proposal repository.  
   **Refs:** FR-010, FR-041  
   **Unit tests:** state transition persistence tests  
   **Commit:** `feat(repo): add proposal repository`
