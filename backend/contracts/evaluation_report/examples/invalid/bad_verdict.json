@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "EvaluationReport",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_11",
+  "timestamp_utc": "2026-04-08T10:22:00Z",
+  "originator": {
+    "type": "service",
+    "id": "adk_evaluator"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "evaluation_id": "eval_01",
+    "target_type": "workflow",
+    "target_ref": "wf_01",
+    "rubric_name": "trade_review_rubric",
+    "rubric_scores": {
+      "schema_compliance": 0.98
+    },
+    "overall_score": 0.945,
+    "verdict": "approve",
+    "evaluator_identity": "workflow_eval_v1",
+    "evaluation_model_id": "gpt-5.4-mini"
+  }
+}

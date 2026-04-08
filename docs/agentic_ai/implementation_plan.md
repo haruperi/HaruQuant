@@ -261,7 +261,7 @@ A task is only complete when all are true:
   **Unit tests:** source/severity validation tests  
   **Commit:** `feat(contracts): implement observation event contract`
 
-- [ ] Implement `EvaluationReport` schema/model/examples.  
+- [x] Implement `EvaluationReport` schema/model/examples.  
   **Refs:** FR-055, FR-072  
   **Unit tests:** rubric-score validation tests  
   **Commit:** `feat(contracts): implement evaluation report contract`
