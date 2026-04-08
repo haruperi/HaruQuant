@@ -405,7 +405,7 @@ A task is only complete when all are true:
   **Unit tests:** insert and index tests  
   **Commit:** `feat(db): add evaluation reports table`
 
-- [ ] Create `core.incidents` table migration.  
+- [x] Create `core.incidents` table migration.  
   **Refs:** FR-011, FR-062  
   **Unit tests:** state enum tests  
   **Commit:** `feat(db): add incidents table`
