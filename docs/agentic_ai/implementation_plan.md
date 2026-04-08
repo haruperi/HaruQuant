@@ -168,7 +168,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `docs(adr): record event backbone decision`
 
-- [ ] Write ADR for object store choice.  
+- [x] Write ADR for object store choice.  
   **Refs:** FR-072, FR-074, NFR-020  
   **Unit tests:** none  
   **Commit:** `docs(adr): record artifact object store decision`
