@@ -313,7 +313,7 @@ A task is only complete when all are true:
   **Unit tests:** malformed contract rejection tests  
   **Commit:** `feat(schema-registry): implement runtime contract validation`
 
-- [ ] Implement registry seed loader for initial active schemas.  
+- [x] Implement registry seed loader for initial active schemas.  
   **Refs:** FR-025, FR-027  
   **Unit tests:** seed loading tests  
   **Commit:** `feat(schema-registry): add bootstrap schema seeds`
