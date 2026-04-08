@@ -158,7 +158,7 @@ A task is only complete when all are true:
 
 ### 5.1 Architecture Decision Record Stream
 
-- [ ] Create ADR template.  
+- [x] Create ADR template.  
   **Refs:** NFR-018, NFR-020  
   **Unit tests:** none  
   **Commit:** `docs(adr): add architecture decision record template`
