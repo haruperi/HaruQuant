@@ -390,7 +390,7 @@ A task is only complete when all are true:
   **Unit tests:** insert and conflict flag tests  
   **Commit:** `feat(db): add reconciliation runs table`
 
-- [ ] Create `core.broker_positions` table migration.  
+- [x] Create `core.broker_positions` table migration.  
   **Refs:** FR-048, FR-061  
   **Unit tests:** snapshot upsert tests  
   **Commit:** `feat(db): add broker positions table`
