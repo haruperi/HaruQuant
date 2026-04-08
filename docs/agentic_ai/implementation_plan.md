@@ -452,7 +452,7 @@ A task is only complete when all are true:
   **Unit tests:** approval vote distinctness tests  
   **Commit:** `feat(repo): add governance repositories`
 
-- [ ] Implement research/audit repository.  
+- [x] Implement research/audit repository.  
   **Refs:** FR-052, FR-072 to FR-074  
   **Unit tests:** replay/legal-hold repository tests  
   **Commit:** `feat(repo): add research and audit repositories`

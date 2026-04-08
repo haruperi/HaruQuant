@@ -15,6 +15,13 @@ from .governance_repository import (
     StrategyRecord,
 )
 from .proposal_repository import ProposalRecord, ProposalRepository
+from .research_audit_repository import (
+    EvidenceBundleRecord,
+    LegalHoldRecord,
+    ReplayBundleRecord,
+    ResearchAuditRepository,
+    TrajectoryLogRecord,
+)
 from .risk_repository import (
     RiskAssessmentRequestRecord,
     RiskConstraintRecord,
@@ -26,20 +33,25 @@ from .workflow_repository import WorkflowRecord, WorkflowRepository
 __all__ = [
     "ApprovalRecord",
     "ApprovalVoteRecord",
+    "EvidenceBundleRecord",
     "ExecutionIntentRecord",
     "ExecutionReceiptRecord",
     "ExecutionRepository",
     "ExecutionSendAttemptRecord",
     "GovernanceRepository",
+    "LegalHoldRecord",
     "PolicyRecord",
     "ProposalRecord",
     "ProposalRepository",
+    "ReplayBundleRecord",
+    "ResearchAuditRepository",
     "ReconciliationRunRecord",
     "RiskAssessmentRequestRecord",
     "RiskConstraintRecord",
     "RiskDecisionRecord",
     "RiskRepository",
     "StrategyRecord",
+    "TrajectoryLogRecord",
     "WorkflowRecord",
     "WorkflowRepository",
 ]
