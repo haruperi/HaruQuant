@@ -1,6 +1,117 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OverrideDecision",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for the result of an override workflow.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "OverrideDecision"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "override_decision_id",
+        "override_request_id",
+        "decision",
+        "approver_records",
+        "effective_until",
+        "audit_ref"
+      ],
+      "properties": {
+        "override_decision_id": {"type": "string", "minLength": 1},
+        "override_request_id": {"type": "string", "minLength": 1},
+        "decision": {
+          "type": "string",
+          "enum": ["approved", "rejected", "expired"]
+        },
+        "approver_records": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["approver_id", "role", "decision", "decided_at"],
+            "properties": {
+              "approver_id": {"type": "string", "minLength": 1},
+              "role": {"type": "string", "minLength": 1},
+              "decision": {
+                "type": "string",
+                "enum": ["approved", "rejected"]
+              },
+              "decided_at": {"type": "string", "format": "date-time"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "effective_until": {"type": "string", "format": "date-time"},
+        "downstream_execution_ref": {"type": "string"},
+        "audit_ref": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }

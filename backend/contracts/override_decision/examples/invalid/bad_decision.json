@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "OverrideDecision",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_14",
+  "timestamp_utc": "2026-04-08T10:25:00Z",
+  "originator": {
+    "type": "operator",
+    "id": "risk_manager_lead"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "override_decision_id": "ovrdec_01",
+    "override_request_id": "ovrreq_01",
+    "decision": "granted",
+    "approver_records": [
+      {
+        "approver_id": "risk_manager_lead",
+        "role": "risk_manager",
+        "decision": "approved",
+        "decided_at": "2026-04-08T10:24:30Z"
+      }
+    ],
+    "effective_until": "2026-04-08T11:00:00Z",
+    "audit_ref": "audit_01"
+  }
+}

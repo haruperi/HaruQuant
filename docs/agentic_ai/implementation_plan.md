@@ -276,7 +276,7 @@ A task is only complete when all are true:
   **Unit tests:** dual-auth field validation tests  
   **Commit:** `feat(contracts): implement override request contract`
 
-- [ ] Implement `OverrideDecision` schema/model/examples.  
+- [x] Implement `OverrideDecision` schema/model/examples.  
   **Refs:** FR-037, FR-038  
   **Unit tests:** approval outcome validation tests  
   **Commit:** `feat(contracts): implement override decision contract`
