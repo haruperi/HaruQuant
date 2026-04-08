@@ -410,7 +410,7 @@ A task is only complete when all are true:
   **Unit tests:** state enum tests  
   **Commit:** `feat(db): add incidents table`
 
-- [ ] Create governance table migrations (`kill_switch_events`, `approvals`, `approval_votes`, `override_requests`, `override_decisions`, `policies`, `compliance_profiles`, `strategy_registry`, `strategy_promotions`).  
+- [x] Create governance table migrations (`kill_switch_events`, `approvals`, `approval_votes`, `override_requests`, `override_decisions`, `policies`, `compliance_profiles`, `strategy_registry`, `strategy_promotions`).  
   **Refs:** FR-035 to FR-038, FR-044 to FR-046, COMP-001 to COMP-013  
   **Unit tests:** FK, unique distinct-vote, policy version tests  
   **Commit:** `feat(db): add governance and strategy lifecycle tables`
