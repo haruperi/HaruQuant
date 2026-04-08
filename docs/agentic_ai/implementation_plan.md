@@ -469,7 +469,7 @@ A task is only complete when all are true:
   **Unit tests:** allowed/disallowed transition tests  
   **Commit:** `feat(workflow): add workflow transition rule map`
 
-- [ ] Create trade proposal transition rule map.  
+- [x] Create trade proposal transition rule map.  
   **Refs:** FR-010  
   **Unit tests:** allowed/disallowed proposal transitions  
   **Commit:** `feat(workflow): add proposal transition rule map`
