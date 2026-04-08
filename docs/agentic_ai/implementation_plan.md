@@ -570,11 +570,11 @@ A task is only complete when all are true:
 
 ### 6.8 Phase 1 Exit Criteria
 
-- [ ] All canonical contract families implemented and registry-backed.  
-- [ ] Core DB schema applied in fresh environment.  
-- [ ] Workflow FSM validation working.  
-- [ ] Policy and approval services resolve and persist.  
-- [ ] API and dashboard shells boot successfully.  
+- [x] All canonical contract families implemented and registry-backed.  
+- [x] Core DB schema applied in fresh environment.  
+- [x] Workflow FSM validation working.  
+- [x] Policy and approval services resolve and persist.  
+- [x] API and dashboard shells boot successfully.  
 - [ ] Unit test suite for contracts, FSMs, repositories, policy baseline green.  
 
 ---
