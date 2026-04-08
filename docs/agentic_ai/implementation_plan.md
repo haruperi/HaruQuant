@@ -360,7 +360,7 @@ A task is only complete when all are true:
   **Unit tests:** insert and FK tests  
   **Commit:** `feat(db): add risk assessment requests table`
 
-- [ ] Create `risk.risk_decisions` table migration.  
+- [x] Create `risk.risk_decisions` table migration.  
   **Refs:** FR-032 to FR-034  
   **Unit tests:** decision enum and unique-token tests  
   **Commit:** `feat(db): add risk decisions table`
