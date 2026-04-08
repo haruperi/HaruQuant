@@ -526,7 +526,7 @@ A task is only complete when all are true:
   **Unit tests:** approval transition tests  
   **Commit:** `feat(approval): add approval domain model and state machine`
 
-- [ ] Implement approval creation service.  
+- [x] Implement approval creation service.  
   **Refs:** FR-038  
   **Unit tests:** approval creation and expiry tests  
   **Commit:** `feat(approval): implement approval request creation`
