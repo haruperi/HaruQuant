@@ -303,7 +303,7 @@ A task is only complete when all are true:
   **Unit tests:** ORM mapping tests  
   **Commit:** `feat(schema-registry): add persistence model for schema registry`
 
-- [ ] Implement schema version resolution service.  
+- [x] Implement schema version resolution service.  
   **Refs:** FR-027, CS-003  
   **Unit tests:** active/deprecated version lookup tests  
   **Commit:** `feat(schema-registry): implement version resolution service`

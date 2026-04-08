@@ -8,6 +8,7 @@ from .schema_registry_persistence import (
     record_to_row,
     row_to_record,
 )
+from .schema_registry_service import SchemaRegistryResolutionError, SchemaRegistryService
 from .serialization import (
     canonical_json_dumps,
     canonical_json_loads,
@@ -25,6 +26,8 @@ __all__ = [
     "SchemaRegistryRecord",
     "SCHEMA_REGISTRY_TABLE",
     "SchemaRegistryRow",
+    "SchemaRegistryResolutionError",
+    "SchemaRegistryService",
     "canonical_json_dumps",
     "canonical_json_loads",
     "deserialize_contract",
