@@ -479,7 +479,7 @@ A task is only complete when all are true:
   **Unit tests:** incident state transition tests  
   **Commit:** `feat(workflow): add incident transition rule map`
 
-- [ ] Create kill-switch transition rule map.  
+- [x] Create kill-switch transition rule map.  
   **Refs:** FR-012, FR-013  
   **Unit tests:** unauthorized recovery transition tests  
   **Commit:** `feat(workflow): add kill switch transition rule map`
