@@ -521,7 +521,7 @@ A task is only complete when all are true:
   **Unit tests:** scoped resolution tests  
   **Commit:** `feat(policy): implement scoped policy resolution`
 
-- [ ] Implement approval domain models and FSM.  
+- [x] Implement approval domain models and FSM.  
   **Refs:** FR-035, FR-037, FR-038  
   **Unit tests:** approval transition tests  
   **Commit:** `feat(approval): add approval domain model and state machine`
