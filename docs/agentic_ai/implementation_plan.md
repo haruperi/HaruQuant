@@ -231,7 +231,7 @@ A task is only complete when all are true:
   **Unit tests:** required-field and enum tests  
   **Commit:** `feat(contracts): implement trade hypothesis contract`
 
-- [ ] Implement `TradeProposal` schema/model/examples.  
+- [x] Implement `TradeProposal` schema/model/examples.  
   **Refs:** FR-041, FR-043  
   **Unit tests:** transformation compatibility tests  
   **Commit:** `feat(contracts): implement trade proposal contract`
