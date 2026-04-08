@@ -375,7 +375,7 @@ A task is only complete when all are true:
   **Unit tests:** idempotency uniqueness tests  
   **Commit:** `feat(db): add execution intents table`
 
-- [ ] Create `core.execution_send_attempts` table migration.  
+- [x] Create `core.execution_send_attempts` table migration.  
   **Refs:** FR-060, FR-076  
   **Unit tests:** unique attempt number tests  
   **Commit:** `feat(db): add execution send attempts table`
