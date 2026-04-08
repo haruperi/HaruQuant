@@ -173,7 +173,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `docs(adr): record artifact object store decision`
 
-- [ ] Write ADR for vector store choice.  
+- [x] Write ADR for vector store choice.  
   **Refs:** FR-052, FR-068  
   **Unit tests:** none  
   **Commit:** `docs(adr): record vector store decision`
