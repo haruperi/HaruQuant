@@ -18,6 +18,7 @@ from .telemetry import (
     TimerMetric,
 )
 from .time_utils import Clock, FixedClock, FreshnessWindow, SystemClock, is_stale
+from .ids import generate_id, generate_prefixed_id
 
 __all__ = [
     "BrokerError",
@@ -40,4 +41,6 @@ __all__ = [
     "FreshnessWindow",
     "SystemClock",
     "is_stale",
+    "generate_id",
+    "generate_prefixed_id",
 ]

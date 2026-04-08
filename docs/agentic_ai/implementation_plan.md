@@ -142,7 +142,7 @@ A task is only complete when all are true:
   **Unit tests:** ttl evaluation and clock abstraction tests  
   **Commit:** `feat(core): add freshness and ttl utility module`
 
-- [ ] Create shared identifier generator for workflow, proposal, decision, intent, receipt, incident, replay IDs.  
+- [x] Create shared identifier generator for workflow, proposal, decision, intent, receipt, incident, replay IDs.  
   **Refs:** FR-026, FR-073  
   **Unit tests:** uniqueness and prefix format tests  
   **Commit:** `feat(core): add canonical identifier generation utilities`
