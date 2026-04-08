@@ -484,7 +484,7 @@ A task is only complete when all are true:
   **Unit tests:** unauthorized recovery transition tests  
   **Commit:** `feat(workflow): add kill switch transition rule map`
 
-- [ ] Implement workflow FSM validator service.  
+- [x] Implement workflow FSM validator service.  
   **Refs:** FR-006, FR-009, NFR-012  
   **Unit tests:** phase skipping rejection tests  
   **Commit:** `feat(workflow): implement workflow state validator`

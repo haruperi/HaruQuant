@@ -19,6 +19,11 @@ from .states import (
     WorkflowState,
 )
 from .transitions import WORKFLOW_TRANSITIONS, is_allowed_workflow_transition
+from .validator import (
+    WorkflowStateValidationError,
+    WorkflowStateValidator,
+    WorkflowValidationContext,
+)
 
 __all__ = [
     "INCIDENT_TRANSITIONS",
@@ -33,4 +38,7 @@ __all__ = [
     "is_allowed_kill_switch_transition",
     "is_allowed_proposal_transition",
     "is_allowed_workflow_transition",
+    "WorkflowStateValidationError",
+    "WorkflowStateValidator",
+    "WorkflowValidationContext",
 ]
