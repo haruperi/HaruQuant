@@ -447,7 +447,7 @@ A task is only complete when all are true:
   **Unit tests:** idempotency and attempt persistence tests  
   **Commit:** `feat(repo): add execution repositories`
 
-- [ ] Implement governance repository.  
+- [x] Implement governance repository.  
   **Refs:** FR-035 to FR-038  
   **Unit tests:** approval vote distinctness tests  
   **Commit:** `feat(repo): add governance repositories`
