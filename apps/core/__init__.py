@@ -10,6 +10,7 @@ from .errors import (
     ValidationError,
 )
 from .logging import WorkflowLogContext, bind_log_context, get_service_logger
+from .optimistic import ConcurrencyState, StaleVersionError, apply_version_update, ensure_version
 from .telemetry import (
     CounterMetric,
     InMemoryTelemetry,
@@ -43,4 +44,8 @@ __all__ = [
     "is_stale",
     "generate_id",
     "generate_prefixed_id",
+    "ConcurrencyState",
+    "StaleVersionError",
+    "apply_version_update",
+    "ensure_version",
 ]

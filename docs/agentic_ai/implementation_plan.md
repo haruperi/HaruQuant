@@ -147,7 +147,7 @@ A task is only complete when all are true:
   **Unit tests:** uniqueness and prefix format tests  
   **Commit:** `feat(core): add canonical identifier generation utilities`
 
-- [ ] Create shared optimistic concurrency helper for versioned records.  
+- [x] Create shared optimistic concurrency helper for versioned records.  
   **Refs:** FR-009, CS/DB concurrency rules  
   **Unit tests:** stale version conflict tests  
   **Commit:** `feat(core): add optimistic concurrency helpers`
