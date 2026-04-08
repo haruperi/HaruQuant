@@ -190,7 +190,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `docs(devx): add branch and commit conventions`
 
-- [ ] Create test-layer policy document for unit/integration/scenario/chaos/security/replay.  
+- [x] Create test-layer policy document for unit/integration/scenario/chaos/security/replay.  
   **Refs:** NFR-018  
   **Unit tests:** none  
   **Commit:** `docs(test): add multi-layer testing policy`
