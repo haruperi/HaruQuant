@@ -7,12 +7,15 @@ from .models import (
     PolicyScope,
     PolicyVersion,
 )
+from .resolver import PolicyResolutionQuery, PolicyResolver
 
 __all__ = [
     "ApprovalPolicy",
     "ComplianceProfile",
     "PolicyBundle",
     "PolicyEnforcementResult",
+    "PolicyResolutionQuery",
+    "PolicyResolver",
     "PolicyScope",
     "PolicyVersion",
     "RetentionPolicy",

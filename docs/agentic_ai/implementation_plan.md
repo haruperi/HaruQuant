@@ -516,7 +516,7 @@ A task is only complete when all are true:
   **Unit tests:** profile parsing tests  
   **Commit:** `feat(policy): add compliance profile models`
 
-- [ ] Implement policy resolution service by environment/account/strategy/symbol/workflow/role.  
+- [x] Implement policy resolution service by environment/account/strategy/symbol/workflow/role.  
   **Refs:** FR-001, FR-002, FR-003  
   **Unit tests:** scoped resolution tests  
   **Commit:** `feat(policy): implement scoped policy resolution`
