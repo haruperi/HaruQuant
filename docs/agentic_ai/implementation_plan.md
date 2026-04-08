@@ -293,7 +293,7 @@ A task is only complete when all are true:
 
 ### 6.2 Schema Registry
 
-- [ ] Create schema registry domain model.  
+- [x] Create schema registry domain model.  
   **Refs:** FR-027, CS-003  
   **Unit tests:** registry record validation tests  
   **Commit:** `feat(schema-registry): add registry domain models`
