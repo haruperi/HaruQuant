@@ -246,7 +246,7 @@ A task is only complete when all are true:
   **Unit tests:** decision enum and constraint validation tests  
   **Commit:** `feat(contracts): implement risk assessment decision contract`
 
-- [ ] Implement `ExecutionIntent` schema/model/examples.  
+- [x] Implement `ExecutionIntent` schema/model/examples.  
   **Refs:** FR-056, FR-059  
   **Unit tests:** idempotency and linkage validation tests  
   **Commit:** `feat(contracts): implement execution intent contract`

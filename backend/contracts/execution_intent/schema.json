@@ -1,6 +1,120 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ExecutionIntent",
-  "description": "Scaffold placeholder. Contract fields will be defined in a later task.",
-  "type": "object"
+  "description": "Canonical contract for an approved broker action request.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "contract_type": {
+      "type": "string",
+      "const": "ExecutionIntent"
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "originator": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "agent", "service", "tool", "operator"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "test", "paper", "staging", "prod"]
+    },
+    "operating_mode": {
+      "type": "string",
+      "enum": ["MODE-000", "MODE-001", "MODE-002", "MODE-003", "MODE-004"]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "execution_intent_id",
+        "proposal_id",
+        "risk_decision_id",
+        "broker_action_type",
+        "symbol",
+        "side",
+        "size",
+        "order_type",
+        "idempotency_key",
+        "expiry_time",
+        "pre_send_validation_snapshot_ref"
+      ],
+      "properties": {
+        "execution_intent_id": {"type": "string", "minLength": 1},
+        "proposal_id": {"type": "string", "minLength": 1},
+        "risk_decision_id": {"type": "string", "minLength": 1},
+        "broker_action_type": {
+          "type": "string",
+          "enum": ["submit_order", "modify_order", "cancel_order", "close_position"]
+        },
+        "symbol": {"type": "string", "minLength": 1},
+        "side": {
+          "type": "string",
+          "enum": ["buy", "sell"]
+        },
+        "size": {"type": "object"},
+        "order_type": {
+          "type": "string",
+          "enum": ["market", "limit", "stop", "stop_limit"]
+        },
+        "price_params": {"type": "object"},
+        "sl_tp_params": {"type": "object"},
+        "idempotency_key": {"type": "string", "minLength": 1},
+        "expiry_time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "pre_send_validation_snapshot_ref": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "tenant_id": {"type": "string"},
+    "account_scope_id": {"type": "string"},
+    "strategy_scope_id": {"type": "string"},
+    "compliance_profile_id": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "signature": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "replay_bundle_hint": {"type": "string"}
+  },
+  "additionalProperties": false
 }
