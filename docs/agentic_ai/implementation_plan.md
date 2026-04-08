@@ -415,7 +415,7 @@ A task is only complete when all are true:
   **Unit tests:** FK, unique distinct-vote, policy version tests  
   **Commit:** `feat(db): add governance and strategy lifecycle tables`
 
-- [ ] Create research and audit tables (`evidence_bundles`, `trajectory_logs`, `replay_bundles`, `legal_holds`).  
+- [x] Create research and audit tables (`evidence_bundles`, `trajectory_logs`, `replay_bundles`, `legal_holds`).  
   **Refs:** FR-052 to FR-055, FR-072 to FR-074, NFR-004, NFR-019, NFR-020  
   **Unit tests:** insert and retention/legal-hold tests  
   **Commit:** `feat(db): add research and audit tables`
