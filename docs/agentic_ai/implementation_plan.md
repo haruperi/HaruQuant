@@ -211,7 +211,7 @@ A task is only complete when all are true:
   **Unit tests:** folder existence smoke test  
   **Commit:** `feat(contracts): scaffold canonical contract package structure`
 
-- [ ] Implement shared canonical envelope model.  
+- [x] Implement shared canonical envelope model.  
   **Refs:** FR-026, CS-002  
   **Unit tests:** required-field validation tests  
   **Commit:** `feat(contracts): add canonical envelope model`
