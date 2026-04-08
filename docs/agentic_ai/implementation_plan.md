@@ -216,7 +216,7 @@ A task is only complete when all are true:
   **Unit tests:** required-field validation tests  
   **Commit:** `feat(contracts): add canonical envelope model`
 
-- [ ] Implement `WorkflowIntent` schema/model/examples.  
+- [x] Implement `WorkflowIntent` schema/model/examples.  
   **Refs:** FR-025, FR-026  
   **Unit tests:** valid/invalid payload tests  
   **Commit:** `feat(contracts): implement workflow intent contract`

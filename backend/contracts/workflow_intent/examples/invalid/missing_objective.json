@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "WorkflowIntent",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "user",
+    "id": "user_123"
+  },
+  "environment": "prod",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "workflow_type": "trade_review",
+    "trigger_type": "user_action",
+    "requested_scope": {
+      "account_id": "acct_prod_01",
+      "symbol_group": ["EURUSD"]
+    }
+  }
+}
