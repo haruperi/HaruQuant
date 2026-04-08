@@ -10,6 +10,7 @@ import {
   Database,
   BrainCircuit,
   Activity,
+  ShieldCheck,
   BarChart,
   Settings,
   Menu,
@@ -83,6 +84,12 @@ const routes = [
       icon: Activity,
       href: "/live",
       color: "text-emerald-500",
+    },
+    {
+      label: "Operator",
+      icon: ShieldCheck,
+      href: "/operator",
+      color: "text-orange-400",
     },
     {
       label: "Tools",

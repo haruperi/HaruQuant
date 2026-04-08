@@ -558,7 +558,7 @@ A task is only complete when all are true:
   **Unit tests:** health endpoint response tests  
   **Commit:** `feat(api): add service health endpoints`
 
-- [ ] Initialize dashboard shell with navigation, auth guard, and live status layout.  
+- [x] Initialize dashboard shell with navigation, auth guard, and live status layout.  
   **Refs:** FR-064, FR-065  
   **Unit tests:** component render tests  
   **Commit:** `feat(ui): create dashboard shell and navigation`
