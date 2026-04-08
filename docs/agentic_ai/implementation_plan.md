@@ -548,7 +548,7 @@ A task is only complete when all are true:
   **Unit tests:** app startup tests  
   **Commit:** `feat(api): initialize operator api application`
 
-- [ ] Add authn/authz middleware skeleton.  
+- [x] Add authn/authz middleware skeleton.  
   **Refs:** FR-035, NFR-015  
   **Unit tests:** unauthorized route tests  
   **Commit:** `feat(api): add authentication and authorization middleware`

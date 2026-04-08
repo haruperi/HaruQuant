@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from .auth import OperatorAuthMiddleware, require_operator_role
 from .dependencies import OperatorApiDependencies, build_operator_api_dependencies
 
 
@@ -33,17 +34,21 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(OperatorAuthMiddleware)
 
     router = APIRouter(prefix="/api/operator", tags=["operator"])
 
     @router.get("")
     def operator_api_metadata(request: Request) -> dict[str, object]:
         wired = get_operator_api_dependencies(request)
+        principal = require_operator_role(request, "operator", "approver", "admin")
         return {
             "service": "haruquant-operator-api",
             "environment": wired.settings.environment,
             "schema_registry_contracts": len(wired.schema_registry.list_versions("WorkflowIntent")),
             "policy_bundle_count": len(wired.policy_resolver.bundles),
+            "actor_id": principal.actor_id,
+            "role": principal.role,
         }
 
     app.include_router(router)
