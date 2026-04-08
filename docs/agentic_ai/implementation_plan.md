@@ -241,7 +241,7 @@ A task is only complete when all are true:
   **Unit tests:** freshness and required-context validation tests  
   **Commit:** `feat(contracts): implement risk assessment request contract`
 
-- [ ] Implement `RiskAssessmentDecision` schema/model/examples.  
+- [x] Implement `RiskAssessmentDecision` schema/model/examples.  
   **Refs:** FR-032, FR-033, FR-034  
   **Unit tests:** decision enum and constraint validation tests  
   **Commit:** `feat(contracts): implement risk assessment decision contract`
