@@ -499,7 +499,7 @@ A task is only complete when all are true:
   **Unit tests:** transition append-only behavior tests  
   **Commit:** `feat(workflow): implement workflow transition logger`
 
-- [ ] Implement workflow step recorder.  
+- [x] Implement workflow step recorder.  
   **Refs:** FR-015, FR-072  
   **Unit tests:** ordered-step persistence tests  
   **Commit:** `feat(workflow): implement workflow step recorder`
