@@ -120,3 +120,52 @@ def test_policy_change_approval_requires_dual_authorization(tmp_path: Path) -> N
 
     assert single_auth.status_code == 400
     assert dual_auth.status_code == 200
+
+
+def test_override_approval_enforces_expiry_and_rationale(tmp_path: Path) -> None:
+    settings = load_runtime_settings_from_mapping(
+        {
+            "environment": "test",
+            "ui_origin": "http://localhost:3000",
+            "database_url": f"sqlite:///{tmp_path / 'approval-api.db'}",
+        }
+    )
+    app = create_app(build_operator_api_dependencies(settings=settings))
+    client = TestClient(app)
+
+    missing_rationale = client.post(
+        "/api/operator/approvals/override",
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-HQ-Actor-Id": "operator:test",
+            "X-HQ-Role": "operator",
+        },
+        json={
+            "original_decision_ref": "risk_001",
+            "original_action_ref": "exec_001",
+            "requested_action": {"action": "force_send"},
+            "reason_code": "manual_override",
+            "rationale": "",
+            "requested_expiry": "2026-04-09T12:00:00Z",
+        },
+    )
+    valid = client.post(
+        "/api/operator/approvals/override",
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-HQ-Actor-Id": "operator:test",
+            "X-HQ-Role": "operator",
+        },
+        json={
+            "original_decision_ref": "risk_001",
+            "original_action_ref": "exec_001",
+            "requested_action": {"action": "force_send"},
+            "reason_code": "manual_override",
+            "rationale": "Operator accepts bounded temporary override.",
+            "requested_expiry": "2026-04-09T12:00:00Z",
+            "required_roles": ["approver"],
+        },
+    )
+
+    assert missing_rationale.status_code == 422
+    assert valid.status_code == 200

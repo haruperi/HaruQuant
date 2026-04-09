@@ -10,6 +10,8 @@ from backend.services.approval import (
     ApprovalCreationService,
     ApprovalVoteRequest,
     ApprovalVoteService,
+    OverrideRequestDraft,
+    OverrideRequestService,
 )
 
 from .auth import require_operator_role
@@ -31,6 +33,18 @@ class ApprovalVoteBody(BaseModel):
     decision: str = Field(min_length=1)
     reason_code: str | None = None
     rationale: str | None = None
+
+
+class OverrideApprovalCreateBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    original_decision_ref: str = Field(min_length=1)
+    original_action_ref: str = Field(min_length=1)
+    requested_action: dict[str, object]
+    reason_code: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+    requested_expiry: str = Field(min_length=1)
+    required_roles: tuple[str, ...] = ()
 
 
 router = APIRouter(prefix="/api/operator/approvals", tags=["approvals"])
@@ -96,6 +110,42 @@ def create_policy_change_approval(
         "state": approval.state,
         "target_ref_id": approval.target_ref_id,
         "required_count": approval.required_count,
+    }
+
+
+@router.post("/override")
+def create_override_approval(
+    body: OverrideApprovalCreateBody,
+    request: Request,
+) -> dict[str, object]:
+    principal = require_operator_role(request, "operator", "approver", "admin")
+    draft = OverrideRequestService().validate(
+        OverrideRequestDraft(
+            original_decision_ref=body.original_decision_ref,
+            original_action_ref=body.original_action_ref,
+            requested_action=body.requested_action,
+            reason_code=body.reason_code,
+            rationale=body.rationale,
+            requested_expiry=body.requested_expiry,
+            required_roles=body.required_roles,
+        )
+    )
+    approval = ApprovalCreationService(_dependencies(request).governance_repository).create(
+        ApprovalCreateRequest(
+            action_type="override",
+            target_ref_type="override_request",
+            target_ref_id=draft.original_action_ref,
+            required_count=max(1, len(draft.required_roles) or 1),
+            created_by_actor_type="operator",
+            created_by_actor_id=principal.actor_id,
+            expires_at=draft.requested_expiry,
+            metadata_json=body.model_dump_json(),
+        )
+    )
+    return {
+        "approval_id": approval.approval_id,
+        "state": approval.state,
+        "expires_at": approval.expires_at,
     }
 
 

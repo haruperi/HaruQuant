@@ -1134,7 +1134,7 @@ A task is only complete when all are true:
   **Unit tests:** dual-auth policy change tests  
   **Commit:** `feat(approval-api): implement policy change approvals`
 
-- [ ] Implement override approval flow with bounded expiry.  
+- [x] Implement override approval flow with bounded expiry.  
   **Refs:** FR-037  
   **Unit tests:** expiry and rationale enforcement tests  
   **Commit:** `feat(approval-api): implement override approval flow`
