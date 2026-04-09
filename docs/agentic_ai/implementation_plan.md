@@ -944,7 +944,7 @@ A task is only complete when all are true:
   **Unit tests:** volatility summary schema tests  
   **Commit:** `feat(agents): implement volatility sub-agent`
 
-- [ ] Implement RegimeAgent.  
+  - [x] Implement RegimeAgent.  
   **Refs:** FR-020, FR-031  
   **Unit tests:** regime output schema tests  
   **Commit:** `feat(agents): implement regime sub-agent`

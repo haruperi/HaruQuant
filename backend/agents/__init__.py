@@ -7,6 +7,7 @@ from .risk_governor_agent import RiskGovernorAgentAdapter
 from .monitoring_agent import MONITORING_AGENT_INSTRUCTION, MonitoringAgentWrapper
 from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgentWrapper
 from .research_agent import RESEARCH_AGENT_INSTRUCTION, ResearchAgentWrapper
+from .regime_agent import REGIME_AGENT_INSTRUCTION, RegimeAgentWrapper
 from .strategy_agent import STRATEGY_AGENT_INSTRUCTION, StrategyAgentWrapper
 from .volatility_agent import VOLATILITY_AGENT_INSTRUCTION, VolatilityAgentWrapper
 from .runtime import (
@@ -51,6 +52,7 @@ __all__ = [
     "ORCHESTRATOR_AGENT_INSTRUCTION",
     "PORTFOLIO_AGENT_INSTRUCTION",
     "RESEARCH_AGENT_INSTRUCTION",
+    "REGIME_AGENT_INSTRUCTION",
     "STRATEGY_AGENT_INSTRUCTION",
     "VOLATILITY_AGENT_INSTRUCTION",
     "AgentSession",
@@ -64,6 +66,7 @@ __all__ = [
     "PortfolioAgentWrapper",
     "RiskGovernorAgentAdapter",
     "ResearchAgentWrapper",
+    "RegimeAgentWrapper",
     "StrategyAgentWrapper",
     "VolatilityAgentWrapper",
     "CanonicalOutputValidator",
