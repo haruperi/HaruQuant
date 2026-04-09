@@ -1124,7 +1124,7 @@ A task is only complete when all are true:
 
 ### 9.3 Approval Flows
 
-- [ ] Implement live execution approval API endpoints.  
+- [x] Implement live execution approval API endpoints.  
   **Refs:** FR-035, FR-038  
   **Unit tests:** endpoint authorization tests  
   **Commit:** `feat(approval-api): add live execution approval endpoints`

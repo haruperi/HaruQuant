@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from .approvals import router as approvals_router
 from .auth import OperatorAuthMiddleware, require_operator_role
 from .dependencies import OperatorApiDependencies, build_operator_api_dependencies
 from .health import (
@@ -98,6 +99,7 @@ def create_app(
         return check_schema_registry_health(get_operator_api_dependencies(request))
 
     app.include_router(router)
+    app.include_router(approvals_router)
     return app
 
 
