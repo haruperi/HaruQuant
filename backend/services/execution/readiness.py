@@ -6,6 +6,12 @@ from dataclasses import dataclass, field
 
 from apps.core import Clock
 from apps.core.time_utils import evaluate_freshness
+from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
+from backend.contracts.trade_proposal.model import TradeProposal
+from backend.services.risk import (
+    enforce_risk_decision_expiry,
+    invalidate_for_material_proposal_change,
+)
 
 from .metadata_cache import SymbolMetadataCacheEntry
 
@@ -126,6 +132,40 @@ def validate_terminal_connectivity(*, connected: bool) -> ReadinessCheckResult:
     )
 
 
+def validate_risk_decision_for_execution(
+    risk_decision: RiskAssessmentDecision,
+    *,
+    approved_proposal: TradeProposal,
+    current_proposal: TradeProposal,
+    clock: Clock | None = None,
+) -> ReadinessCheckResult:
+    """Reject execution when the risk decision is stale or no longer matches the proposal."""
+
+    expiry = enforce_risk_decision_expiry(
+        freshness_expiry=risk_decision.payload.freshness_expiry,
+        clock=clock,
+    )
+    proposal_match = invalidate_for_material_proposal_change(
+        approved_proposal=approved_proposal,
+        current_proposal=current_proposal,
+    )
+
+    reasons = []
+    if not expiry.valid:
+        reasons.extend(expiry.reason_codes)
+    if not proposal_match.valid:
+        reasons.extend(proposal_match.reason_codes)
+
+    return ReadinessCheckResult(
+        allowed=not reasons,
+        reason_codes=tuple(reasons),
+        metadata={
+            "risk_decision_id": risk_decision.payload.risk_decision_id,
+            "proposal_id": risk_decision.payload.proposal_id,
+        },
+    )
+
+
 __all__ = [
     "ReadinessCheckResult",
     "validate_market_open",
@@ -134,4 +174,5 @@ __all__ = [
     "validate_symbol_tradability",
     "validate_fill_mode_compatibility",
     "validate_terminal_connectivity",
+    "validate_risk_decision_for_execution",
 ]

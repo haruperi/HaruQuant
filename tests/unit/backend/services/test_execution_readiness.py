@@ -3,11 +3,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from apps.core import FixedClock
+from backend.contracts.common import Originator
+from backend.contracts.risk_assessment_decision.model import (
+    ProvenanceBundleRef,
+    RiskAssessmentDecision,
+    RiskAssessmentDecisionPayload,
+)
+from backend.contracts.trade_proposal.model import TradeProposal
 from backend.services import (
     SymbolMetadataCacheEntry,
     validate_fill_mode_compatibility,
     validate_market_open,
     validate_price_freshness,
+    validate_risk_decision_for_execution,
     validate_stop_and_freeze_levels,
     validate_terminal_connectivity,
     validate_symbol_tradability,
@@ -31,6 +39,61 @@ def _metadata(*, market_open: bool = True, tradable: bool = True) -> SymbolMetad
         point_value=10.0,
         contract_size=100000.0,
         max_age_seconds=5,
+    )
+
+
+def _proposal(*, size_units: int) -> TradeProposal:
+    return TradeProposal.model_validate(
+        {
+            "workflow_id": "wf_001",
+            "correlation_id": "corr_001",
+            "causation_id": "evt_001",
+            "timestamp_utc": "2026-04-09T10:00:00Z",
+            "originator": {"type": "service", "id": "proposal-service"},
+            "environment": "dev",
+            "operating_mode": "MODE-002",
+            "contract_type": "TradeProposal",
+            "payload": {
+                "proposal_id": "prop_001",
+                "source_hypothesis_id": "hyp_001",
+                "symbol": "EURUSD",
+                "direction": "buy",
+                "candidate_price_logic": {"entry": "market"},
+                "proposed_size": {"units": size_units},
+                "operating_envelope": {"strategy_id": "strat_001"},
+                "session_restrictions": {"session": "london"},
+                "expiry_at": "2026-04-09T10:05:00Z",
+                "transformation_version": "proposal_v1",
+                "readiness_state": "ready_for_risk",
+            },
+        }
+    )
+
+
+def _risk_decision() -> RiskAssessmentDecision:
+    return RiskAssessmentDecision(
+        workflow_id="wf_001",
+        correlation_id="corr_001",
+        causation_id="evt_001",
+        originator=Originator(type="service", id="risk-governor"),
+        environment="dev",
+        operating_mode="MODE-002",
+        payload=RiskAssessmentDecisionPayload(
+            risk_decision_id="risk_001",
+            proposal_id="prop_001",
+            decision="APPROVE",
+            reasons=["ok"],
+            limit_constraints=[],
+            risk_metrics_snapshot={"margin_utilization": 0.3},
+            freshness_expiry=datetime(2026, 4, 9, 10, 0, 30, tzinfo=UTC),
+            policy_version="risk_bundle_v1",
+            formula_version="formula_v1",
+            provenance_bundle_ref=ProvenanceBundleRef(
+                bundle_id="bundle_001",
+                account_snapshot_ref="acct_001",
+                market_snapshot_ref="mkt_001",
+            ),
+        ),
     )
 
 
@@ -84,3 +147,15 @@ def test_validate_terminal_connectivity_rejects_disconnected_terminal() -> None:
 
     assert result.allowed is False
     assert result.reason_codes == ("terminal_disconnected",)
+
+
+def test_validate_risk_decision_for_execution_rejects_stale_or_mismatched_approval() -> None:
+    result = validate_risk_decision_for_execution(
+        _risk_decision(),
+        approved_proposal=_proposal(size_units=1000),
+        current_proposal=_proposal(size_units=1200),
+        clock=FixedClock(datetime(2026, 4, 9, 10, 0, 31, tzinfo=UTC)),
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == ("risk_decision_expired", "material_proposal_change")

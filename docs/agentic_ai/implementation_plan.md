@@ -759,7 +759,7 @@ A task is only complete when all are true:
   **Unit tests:** disconnected terminal tests  
   **Commit:** `feat(exec): implement terminal connectivity validation`
 
-- [ ] Implement risk-decision freshness and proposal-match validation.  
+- [x] Implement risk-decision freshness and proposal-match validation.  
   **Refs:** FR-057, FR-029, FR-030  
   **Unit tests:** stale or mismatched risk decision tests  
   **Commit:** `feat(exec): validate risk approval freshness and proposal match`
