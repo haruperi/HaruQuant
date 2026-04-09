@@ -863,7 +863,7 @@ A task is only complete when all are true:
   **Unit tests:** workflow memory isolation tests  
   **Commit:** `feat(agent-runtime): add workflow memory bindings`
 
-- [ ] Create tool allowlist enforcement middleware.  
+  - [x] Create tool allowlist enforcement middleware.  
   **Refs:** FR-022, NFR-003, NFR-015  
   **Unit tests:** forbidden tool rejection tests  
   **Commit:** `feat(agent-runtime): enforce per-agent tool allowlists`
