@@ -152,6 +152,7 @@ from .safety import (
     evaluate_new_entry_block,
     require_hard_trigger_recovery_dual_auth,
 )
+from .shadow import ShadowExecutionDecision, ShadowExecutionRequest, ShadowExecutionService
 from .strategy_gov import (
     PROMOTION_APPROVAL_ROLES,
     PromotionApprovalRoute,
@@ -327,6 +328,9 @@ __all__ = [
     "evaluate_suspension_triggers",
     "route_promotion_approval",
     "update_operating_envelope_for_promotion",
+    "ShadowExecutionDecision",
+    "ShadowExecutionRequest",
+    "ShadowExecutionService",
     "validate_fill_mode_compatibility",
     "validate_market_open",
     "validate_price_freshness",

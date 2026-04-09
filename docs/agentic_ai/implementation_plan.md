@@ -1404,7 +1404,7 @@ A task is only complete when all are true:
 
 ### 11.2 Shadow Mode
 
-- [ ] Implement shadow-mode workflow execution flag.  
+  - [x] Implement shadow-mode workflow execution flag.  
   **Refs:** MODE-002/003 rollout intent, FR-017  
   **Unit tests:** shadow mode blocks broker side effects tests  
   **Commit:** `feat(shadow): implement shadow mode execution flag`
