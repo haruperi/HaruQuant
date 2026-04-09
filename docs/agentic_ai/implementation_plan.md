@@ -1512,7 +1512,7 @@ A task is only complete when all are true:
   **Unit tests:** async timeout tests  
   **Commit:** `feat(perf): convert mcp integrations to async io`
 
-- [ ] Partition high-volume tables (`workflow_transitions`, `observations`, `trajectory_logs`).  
+  - [x] Partition high-volume tables (`workflow_transitions`, `observations`, `trajectory_logs`).  
   **Refs:** NFR-006, NFR-020  
   **Unit tests:** partition-routing tests  
   **Commit:** `feat(db): partition high-volume event tables`

@@ -1,5 +1,6 @@
 """Database migration scaffolding for the agentic backend."""
 
+from .partitions import PartitionTarget, resolve_partition_target
 from .migrations.runner import (
     MigrationRecord,
     apply_pending_migrations,
@@ -37,9 +38,11 @@ from .repositories import (
 
 __all__ = [
     "MigrationRecord",
+    "PartitionTarget",
     "apply_pending_migrations",
     "discover_migrations",
     "ensure_migration_table",
+    "resolve_partition_target",
     "ApprovalRecord",
     "ApprovalVoteRecord",
     "EvidenceBundleRecord",
