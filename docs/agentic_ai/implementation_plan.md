@@ -1733,18 +1733,18 @@ Target:
 ## 16. Final Production Readiness Checklist
 
 - [ ] All FR, NFR, INV, COMP, PROM, and TTL-linked tasks mapped and implemented.
-- [ ] All canonical schemas registered, tested, and versioned.
-- [ ] All live side effects mediated by execution service + MT5 MCP only.
-- [ ] Risk decision required and enforced for every live mutation.
-- [ ] Reconciliation blocks blind retries.
-- [ ] Kill switch blocks new entries and enforces governed recovery.
-- [ ] Replay bundle completeness verified for execution-bound workflows.
-- [ ] Compliance profile attached to every live workflow.
-- [ ] UAE Enterprise Profile seeded and validated for initial production baseline.
-- [ ] Scenario, chaos, security, replay, and performance test suites passing.
+- [x] All canonical schemas registered, tested, and versioned.
+- [x] All live side effects mediated by execution service + MT5 MCP only.
+- [x] Risk decision required and enforced for every live mutation.
+- [x] Reconciliation blocks blind retries.
+- [x] Kill switch blocks new entries and enforces governed recovery.
+- [x] Replay bundle completeness verified for execution-bound workflows.
+- [x] Compliance profile attached to every live workflow.
+- [x] UAE Enterprise Profile seeded and validated for initial production baseline.
+- [x] Scenario, chaos, security, replay, and performance test suites passing.
 - [ ] Shadow mode comparisons reviewed and accepted.
-- [ ] Strategy promotion gates operational before autonomous-live rollout.
-- [ ] Board-approved baselines encoded as policy, not tribal knowledge.
+- [x] Strategy promotion gates operational before autonomous-live rollout.
+- [x] Board-approved baselines encoded as policy, not tribal knowledge.
 
 ---
 
