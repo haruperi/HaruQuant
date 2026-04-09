@@ -2,16 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class MCPToolSpec:
-    """Static MCP tool metadata exposed by the server."""
-
-    name: str
-    mode: str
-    description: str
+from .models import MCPToolSpec
+from .tools import MUTATING_TOOL_SPECS, READ_ONLY_TOOL_SPECS
 
 
 class MT5MCPServer:
@@ -40,7 +32,7 @@ class MT5MCPServer:
 def create_mt5_mcp_server() -> MT5MCPServer:
     """Create the initial MT5 MCP server shell with no tools wired yet."""
 
-    return MT5MCPServer()
+    return MT5MCPServer(tools=READ_ONLY_TOOL_SPECS + MUTATING_TOOL_SPECS)
 
 
 __all__ = [

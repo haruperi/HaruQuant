@@ -776,7 +776,7 @@ A task is only complete when all are true:
   **Unit tests:** MCP server startup tests  
   **Commit:** `feat(mt5-mcp): initialize mt5 mcp server`
 
-- [ ] Implement read-only MT5 tools for account, positions, orders, symbol metadata, ticks.  
+- [x] Implement read-only MT5 tools for account, positions, orders, symbol metadata, ticks.  
   **Refs:** FR-061, FR-069  
   **Unit tests:** tool contract tests with fixtures  
   **Commit:** `feat(mt5-mcp): add read-only broker tools`

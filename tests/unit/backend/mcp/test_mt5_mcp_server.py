@@ -7,7 +7,7 @@ def test_mt5_mcp_server_starts_with_empty_tool_registry() -> None:
     assert isinstance(server, MT5MCPServer)
     assert server.name == "mt5_mcp"
     assert server.started is False
-    assert server.list_tools() == ()
+    assert len(server.list_tools()) == 10
 
 
 def test_mt5_mcp_server_startup_marks_server_ready() -> None:
