@@ -848,7 +848,7 @@ A task is only complete when all are true:
 
 ### 8.1 ADK Runtime Foundation
 
-- [ ] Create ADK runner wrapper service.  
+  - [x] Create ADK runner wrapper service.  
   **Refs:** FR-018 to FR-024  
   **Unit tests:** runner initialization tests  
   **Commit:** `feat(agent-runtime): add adk runner wrapper`
