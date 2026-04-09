@@ -1,6 +1,35 @@
 # HaruQuant Architecture Notes
 
+<<<<<<< HEAD
 ## Agentic AI Transition Status
+=======
+## Data Dashboard
+
+- `/data` is now a landing page under the Next app at:
+  - `ui/src/app/(dashboard)/data/page.tsx`
+- The current child pages are:
+  - `ui/src/app/(dashboard)/data/quotes/page.tsx`
+  - `ui/src/app/(dashboard)/data/forex-calendar/page.tsx`
+- The Forex Calendar page renders from:
+  - `ui/src/components/data/forex-calendar-panel.tsx`
+- The frontend reads the local backend endpoint instead of requesting Forex Factory directly:
+  - `GET /api/dashboard/forex-calendar`
+- That endpoint is implemented in:
+  - `apps/api/routes/dashboard/forex_calendar.py`
+- The backend does not scrape the Cloudflare-protected HTML page.
+  - It uses Forex Factory's published weekly JSON export hosted by `nfs.faireconomy.media`.
+- The normalization helper lives in:
+  - `apps/api/services/forex_calendar.py`
+- The backend now uses a short disk-backed cache for the weekly export.
+  - fresh cached responses avoid hitting the upstream on repeated page loads
+  - stale cached responses are returned when the upstream feed is temporarily rate-limited
+- The current payload includes:
+  - top-level source metadata
+  - a compact summary block for UI metric cards
+  - normalized weekly event rows with day, time, currency, impact, forecast, and previous values
+
+## AI Agent Foundation
+>>>>>>> 396f71a56fdf086e9538a6f48a3d111f15c8ebb9
 
 - The previous experimental `apps/agents/` package has been intentionally removed.
 - It was used only for isolated experimentation and was not part of the authoritative runtime.

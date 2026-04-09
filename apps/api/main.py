@@ -33,6 +33,7 @@ live = _optional_import('.routes.live', 'Live route')
 edge = _optional_import('.routes.edge', 'Edge route')
 dashboard_broker = _optional_import('.routes.dashboard.broker', 'Dashboard broker route')
 dashboard_currency_strength = _optional_import('.routes.dashboard.currency_strength', 'Dashboard currency-strength route')
+dashboard_forex_calendar = _optional_import('.routes.dashboard.forex_calendar', 'Dashboard forex-calendar route')
 dashboard_market_hours = _optional_import('.routes.dashboard.market_hours', 'Dashboard market-hours route')
 dashboard_system = _optional_import('.routes.dashboard.system', 'Dashboard system route')
 
@@ -104,6 +105,7 @@ _include_optional_router(app, dashboard_broker, prefix="/api/dashboard", tags=["
 _include_optional_router(app, dashboard_system, prefix="/api/dashboard", tags=["dashboard"])
 _include_optional_router(app, dashboard_market_hours, prefix="/api/dashboard", tags=["dashboard"])
 _include_optional_router(app, dashboard_currency_strength, prefix="/api/dashboard", tags=["dashboard"])
+_include_optional_router(app, dashboard_forex_calendar, prefix="/api/dashboard", tags=["dashboard"])
 
 app.include_router(docs.router, prefix="/api/docs", tags=["docs"])
 _include_optional_router(app, edge, prefix="/api/edge-lab", tags=["edge-lab"])
