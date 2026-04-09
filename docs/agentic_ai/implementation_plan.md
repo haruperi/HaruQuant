@@ -1331,7 +1331,7 @@ A task is only complete when all are true:
   **Unit tests:** operating envelope update tests  
   **Commit:** `feat(strategy-gov): update operating envelope on promotion`
 
-- [ ] Implement suspension triggers.  
+- [x] Implement suspension triggers.  
   **Refs:** PROM-020, PROM-021  
   **Unit tests:** suspension trigger tests  
   **Commit:** `feat(strategy-gov): implement automatic suspension triggers`

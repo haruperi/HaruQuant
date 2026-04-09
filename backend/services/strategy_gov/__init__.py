@@ -19,6 +19,11 @@ from .persistence import (
     StrategyPromotionPersistenceService,
 )
 from .registry import StrategyRegistrationRequest, StrategyRegistryService
+from .suspension import (
+    SuspensionTriggerDecision,
+    SuspensionTriggerRequest,
+    evaluate_suspension_triggers,
+)
 
 __all__ = [
     "PROMOTION_APPROVAL_ROLES",
@@ -36,6 +41,9 @@ __all__ = [
     "StrategyRegistrationRequest",
     "StrategyPromotionPersistenceService",
     "StrategyRegistryService",
+    "SuspensionTriggerDecision",
+    "SuspensionTriggerRequest",
+    "evaluate_suspension_triggers",
     "route_promotion_approval",
     "update_operating_envelope_for_promotion",
 ]
