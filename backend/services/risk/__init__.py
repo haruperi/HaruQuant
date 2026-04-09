@@ -23,6 +23,7 @@ from .margin import (
     calculate_volatility_adjusted_size,
 )
 from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
+from .restrictions import RestrictionEvaluation, evaluate_regime_restriction
 from .snapshots import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
     AccountSnapshot,
@@ -44,6 +45,7 @@ __all__ = [
     "MarginUtilization",
     "VolatilityAdjustedSizing",
     "PositionExposure",
+    "RestrictionEvaluation",
     "calculate_correlation_concentration",
     "calculate_drawdown_state",
     "calculate_margin_utilization",
@@ -52,6 +54,7 @@ __all__ = [
     "calculate_exposure_summary",
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
+    "evaluate_regime_restriction",
     "RiskRequestAssemblyContext",
     "assemble_risk_assessment_request",
     "ACCOUNT_SNAPSHOT_TTL_POLICY",

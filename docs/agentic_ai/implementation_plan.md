@@ -655,7 +655,7 @@ A task is only complete when all are true:
   **Unit tests:** drawdown band classification tests  
   **Commit:** `feat(risk): implement drawdown state calculator`
 
-- [ ] Implement regime restriction evaluator.  
+- [x] Implement regime restriction evaluator.  
   **Refs:** FR-031  
   **Unit tests:** regime allow/deny tests  
   **Commit:** `feat(risk): implement regime restriction evaluation`

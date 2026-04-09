@@ -18,6 +18,7 @@ from .risk import (
     PortfolioSnapshot,
     PortfolioSnapshotType,
     PositionExposure,
+    RestrictionEvaluation,
     RiskRequestAssemblyContext,
     VolatilityAdjustedSizing,
     assemble_risk_assessment_request,
@@ -29,6 +30,7 @@ from .risk import (
     calculate_exposure_summary,
     calculate_strategy_family_concentration,
     calculate_symbol_concentration,
+    evaluate_regime_restriction,
 )
 
 __all__ = [
@@ -48,6 +50,7 @@ __all__ = [
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
     "PositionExposure",
+    "RestrictionEvaluation",
     "RiskRequestAssemblyContext",
     "VolatilityAdjustedSizing",
     "assemble_risk_assessment_request",
@@ -59,6 +62,7 @@ __all__ = [
     "calculate_exposure_summary",
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
+    "evaluate_regime_restriction",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
 ]
