@@ -1146,7 +1146,7 @@ A task is only complete when all are true:
 
 ### 9.4 Monitoring and Incident Management
 
-- [ ] Implement observation ingestion pipeline.  
+- [x] Implement observation ingestion pipeline.  
   **Refs:** FR-061, FR-063  
   **Unit tests:** observation event ingestion tests  
   **Commit:** `feat(monitoring): implement observation ingestion pipeline`

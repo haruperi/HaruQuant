@@ -25,6 +25,7 @@ from .execution import (
     validate_terminal_connectivity,
     validate_symbol_tradability,
 )
+from .monitoring import ObservationIngestionService, ObservationRecord
 from .proposals import (
     ProposalReadinessResult,
     ProposalStateTransitionResult,
@@ -123,6 +124,8 @@ __all__ = [
     "MarginUtilization",
     "MarketSnapshot",
     "MarketSnapshotType",
+    "ObservationIngestionService",
+    "ObservationRecord",
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
