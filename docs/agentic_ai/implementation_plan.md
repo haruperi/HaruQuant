@@ -675,7 +675,7 @@ A task is only complete when all are true:
   **Unit tests:** mode mismatch rejection tests  
   **Commit:** `feat(risk): implement operating mode compatibility checks`
 
-- [ ] Implement compliance profile compatibility evaluator.  
+- [x] Implement compliance profile compatibility evaluator.  
   **Refs:** COMP-010, COMP-011  
   **Unit tests:** profile resolution/blocking tests  
   **Commit:** `feat(risk): implement compliance profile enforcement in risk path`

@@ -25,6 +25,7 @@ from .margin import (
 from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
 from .restrictions import (
     RestrictionEvaluation,
+    evaluate_compliance_profile_compatibility,
     evaluate_operating_mode_compatibility,
     evaluate_regime_restriction,
     evaluate_session_restrictions,
@@ -52,6 +53,7 @@ __all__ = [
     "VolatilityAdjustedSizing",
     "PositionExposure",
     "RestrictionEvaluation",
+    "evaluate_compliance_profile_compatibility",
     "calculate_correlation_concentration",
     "calculate_drawdown_state",
     "calculate_margin_utilization",

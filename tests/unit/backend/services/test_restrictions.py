@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from backend.services.risk import evaluate_regime_restriction
 from backend.services.risk import evaluate_session_restrictions
 from backend.services.risk import evaluate_operating_mode_compatibility
+from backend.services.risk import evaluate_compliance_profile_compatibility
 from backend.services.risk import evaluate_spread_slippage_precheck
 
 
@@ -75,3 +76,13 @@ def test_evaluate_operating_mode_compatibility_blocks_mode_mismatch():
 
     assert result.allowed is False
     assert result.reason_codes == ("operating_mode_not_allowed",)
+
+
+def test_evaluate_compliance_profile_compatibility_blocks_disallowed_profile():
+    result = evaluate_compliance_profile_compatibility(
+        active_compliance_profile_id="uae_enterprise",
+        allowed_compliance_profile_ids=("internal_non_regulated",),
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == ("compliance_profile_not_allowed",)

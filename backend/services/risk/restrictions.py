@@ -117,10 +117,33 @@ def evaluate_operating_mode_compatibility(
     )
 
 
+def evaluate_compliance_profile_compatibility(
+    *,
+    active_compliance_profile_id: str,
+    allowed_compliance_profile_ids: tuple[str, ...],
+) -> RestrictionEvaluation:
+    """Check whether the active compliance profile is permitted for the action."""
+
+    if active_compliance_profile_id in allowed_compliance_profile_ids:
+        return RestrictionEvaluation(
+            allowed=True,
+            metadata={"active_compliance_profile_id": active_compliance_profile_id},
+        )
+    return RestrictionEvaluation(
+        allowed=False,
+        reason_codes=("compliance_profile_not_allowed",),
+        metadata={
+            "active_compliance_profile_id": active_compliance_profile_id,
+            "allowed_compliance_profile_ids": allowed_compliance_profile_ids,
+        },
+    )
+
+
 __all__ = [
     "RestrictionEvaluation",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
     "evaluate_spread_slippage_precheck",
     "evaluate_operating_mode_compatibility",
+    "evaluate_compliance_profile_compatibility",
 ]
