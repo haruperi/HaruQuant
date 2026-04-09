@@ -1301,7 +1301,7 @@ A task is only complete when all are true:
 
 ### 10.2 Strategy Registry and Lifecycle
 
-- [ ] Implement strategy registry service.  
+- [x] Implement strategy registry service.  
   **Refs:** FR-044  
   **Unit tests:** lifecycle state persistence tests  
   **Commit:** `feat(strategy-gov): implement strategy registry service`

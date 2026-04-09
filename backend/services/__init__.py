@@ -144,6 +144,11 @@ from .safety import (
     evaluate_new_entry_block,
     require_hard_trigger_recovery_dual_auth,
 )
+from .strategy_gov import (
+    StrategyLifecycleState,
+    StrategyRegistrationRequest,
+    StrategyRegistryService,
+)
 
 __all__ = [
     "ACCOUNT_SNAPSHOT_TTL_POLICY",
@@ -267,6 +272,9 @@ __all__ = [
     "evaluate_spread_slippage_precheck",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
+    "StrategyLifecycleState",
+    "StrategyRegistrationRequest",
+    "StrategyRegistryService",
     "validate_fill_mode_compatibility",
     "validate_market_open",
     "validate_price_freshness",
