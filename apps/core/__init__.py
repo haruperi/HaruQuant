@@ -11,6 +11,7 @@ from .errors import (
 )
 from .logging import WorkflowLogContext, bind_log_context, get_service_logger
 from .optimistic import ConcurrencyState, StaleVersionError, apply_version_update, ensure_version
+from .secrets import SecretRef, SecretRotationPolicy, redact_secret_mapping, select_active_secret_version
 from .telemetry import (
     CounterMetric,
     InMemoryTelemetry,
@@ -58,6 +59,10 @@ __all__ = [
     "is_stale",
     "generate_id",
     "generate_prefixed_id",
+    "SecretRef",
+    "SecretRotationPolicy",
+    "redact_secret_mapping",
+    "select_active_secret_version",
     "ConcurrencyState",
     "StaleVersionError",
     "apply_version_update",

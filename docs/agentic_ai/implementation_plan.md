@@ -1480,7 +1480,7 @@ A task is only complete when all are true:
   **Unit tests:** unauthorized MCP call rejection tests  
   **Commit:** `feat(security): add service auth for mcp calls`
 
-- [ ] Implement secrets isolation and rotation strategy.  
+  - [x] Implement secrets isolation and rotation strategy.  
   **Refs:** NFR-016  
   **Unit tests:** config load redaction tests  
   **Commit:** `feat(security): add secrets isolation and rotation support`
