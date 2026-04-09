@@ -42,7 +42,32 @@ def generate_resize_proposal(
     )
 
 
+def generate_rebalance_proposal(
+    *,
+    target_allocations: dict[str, float],
+) -> AdvisoryPortfolioProposal:
+    """Generate an advisory rebalance proposal for target portfolio weights."""
+
+    if not target_allocations:
+        raise ValueError("target_allocations must not be empty")
+    allocation_total = sum(target_allocations.values())
+    if allocation_total <= 0:
+        raise ValueError("target_allocations must sum to a positive value")
+
+    normalized_allocations = {
+        symbol: value / allocation_total
+        for symbol, value in sorted(target_allocations.items())
+    }
+    return AdvisoryPortfolioProposal(
+        action_type="rebalance",
+        target_allocations=normalized_allocations,
+        affected_symbols=tuple(normalized_allocations.keys()),
+        rationale="rebalance portfolio weights toward target symbol allocation mix",
+    )
+
+
 __all__ = [
     "AdvisoryPortfolioProposal",
+    "generate_rebalance_proposal",
     "generate_resize_proposal",
 ]

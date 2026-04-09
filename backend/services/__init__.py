@@ -54,6 +54,7 @@ from .portfolio import (
     MarginalRiskContribution,
     PortfolioSnapshotAssemblyInput,
     calculate_marginal_risk_contribution,
+    generate_rebalance_proposal,
     generate_resize_proposal,
     assemble_portfolio_snapshot,
 )
@@ -221,6 +222,7 @@ __all__ = [
     "aggregate_readiness_results",
     "assemble_execution_intent",
     "calculate_marginal_risk_contribution",
+    "generate_rebalance_proposal",
     "generate_resize_proposal",
     "assemble_portfolio_snapshot",
     "generate_execution_idempotency_key",

@@ -1269,7 +1269,7 @@ A task is only complete when all are true:
   **Unit tests:** resize proposal tests  
   **Commit:** `feat(portfolio): implement resize proposal generation`
 
-- [ ] Implement rebalance proposal generator.  
+- [x] Implement rebalance proposal generator.  
   **Refs:** FR-049  
   **Unit tests:** rebalance proposal tests  
   **Commit:** `feat(portfolio): implement rebalance proposal generation`
