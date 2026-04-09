@@ -1,6 +1,6 @@
 """Service-layer skeletons for the agentic backend."""
 
-from .audit import ReplayBundleAssembler, ReplayBundleAssemblyResult
+from .audit import ReplayBundleAssembler, ReplayBundleAssemblyResult, generate_integrity_manifest
 from .execution import (
     ExecutionIntentAssemblyConfig,
     ExecutionAttemptPersistenceService,
@@ -126,6 +126,7 @@ __all__ = [
     "AccountSnapshotType",
     "ReplayBundleAssembler",
     "ReplayBundleAssemblyResult",
+    "generate_integrity_manifest",
     "ComposedRiskDecision",
     "CorrelationConcentration",
     "CorrelationPair",

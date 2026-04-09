@@ -1183,7 +1183,7 @@ A task is only complete when all are true:
   **Unit tests:** bundle completeness tests  
   **Commit:** `feat(replay): implement replay bundle assembler`
 
-- [ ] Implement integrity manifest generator.  
+- [x] Implement integrity manifest generator.  
   **Refs:** NFR-019, NFR-020  
   **Unit tests:** hash manifest tests  
   **Commit:** `feat(replay): implement integrity manifest generation`
