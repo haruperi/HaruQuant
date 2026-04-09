@@ -1306,7 +1306,7 @@ A task is only complete when all are true:
   **Unit tests:** lifecycle state persistence tests  
   **Commit:** `feat(strategy-gov): implement strategy registry service`
 
-- [ ] Implement lifecycle transition validator.  
+- [x] Implement lifecycle transition validator.  
   **Refs:** FR-044, FR-045  
   **Unit tests:** invalid lifecycle jump rejection tests  
   **Commit:** `feat(strategy-gov): implement lifecycle transition validator`

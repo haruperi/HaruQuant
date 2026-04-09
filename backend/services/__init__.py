@@ -145,7 +145,10 @@ from .safety import (
     require_hard_trigger_recovery_dual_auth,
 )
 from .strategy_gov import (
+    STRATEGY_LIFECYCLE_TRANSITIONS,
     StrategyLifecycleState,
+    StrategyLifecycleTransition,
+    StrategyLifecycleTransitionValidator,
     StrategyRegistrationRequest,
     StrategyRegistryService,
 )
@@ -184,6 +187,7 @@ __all__ = [
     "ObservationRecord",
     "PortfolioSnapshotAssemblyInput",
     "StaleStateDetection",
+    "STRATEGY_LIFECYCLE_TRANSITIONS",
     "ToolHealthResult",
     "WorkflowTimeoutResult",
     "WorkflowTimeoutService",
@@ -273,6 +277,8 @@ __all__ = [
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
     "StrategyLifecycleState",
+    "StrategyLifecycleTransition",
+    "StrategyLifecycleTransitionValidator",
     "StrategyRegistrationRequest",
     "StrategyRegistryService",
     "validate_fill_mode_compatibility",
