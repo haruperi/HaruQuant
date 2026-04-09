@@ -1107,7 +1107,7 @@ A task is only complete when all are true:
   **Unit tests:** attempt increment tests  
   **Commit:** `feat(execution): persist execution send attempts`
 
-- [ ] Implement receipt normalization and persistence.  
+- [x] Implement receipt normalization and persistence.  
   **Refs:** FR-059  
   **Unit tests:** receipt mapping tests  
   **Commit:** `feat(execution): normalize and persist receipts`
