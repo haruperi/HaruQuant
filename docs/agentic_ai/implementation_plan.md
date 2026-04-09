@@ -1539,7 +1539,7 @@ A task is only complete when all are true:
   **Unit tests:** profile seed tests  
   **Commit:** `feat(compliance): seed uae enterprise profile`
 
-- [ ] Implement profile attachment to every live execution workflow.  
+  - [x] Implement profile attachment to every live execution workflow.  
   **Refs:** COMP-010  
   **Unit tests:** missing-profile live workflow rejection tests  
   **Commit:** `feat(compliance): attach active profile to live workflows`

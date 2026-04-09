@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from apps.core import ValidationError
 from backend.services.policy import ApprovalPolicy, ComplianceProfile, RetentionPolicy
 
 
@@ -43,3 +44,14 @@ def seed_uae_enterprise_profile() -> ComplianceProfile:
         ),
         metadata={"regulatory_tier": "enterprise", "board_baseline": True},
     )
+
+
+def require_live_execution_profile(*, compliance_profile_id: str | None, operating_mode: str) -> str:
+    """Attach and validate the active compliance profile for live-capable workflows."""
+
+    if operating_mode in {"MODE-003", "MODE-004"} and not compliance_profile_id:
+        raise ValidationError(
+            "live_workflow_compliance_profile_required",
+            "Live execution workflows require an attached compliance profile.",
+        )
+    return compliance_profile_id or ""
