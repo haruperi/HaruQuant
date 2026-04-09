@@ -1,5 +1,6 @@
 """Safety service primitives for kill-switch and hard-stop controls."""
 
+from .audit import KillSwitchAuditService
 from .kill_switch import (
     KillSwitchBlockEvaluation,
     KillSwitchAction,
@@ -13,6 +14,7 @@ from .kill_switch import (
 )
 
 __all__ = [
+    "KillSwitchAuditService",
     "KillSwitchBlockEvaluation",
     "KillSwitchAction",
     "KillSwitchService",

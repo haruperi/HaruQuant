@@ -26,6 +26,20 @@ class ApprovalRecord:
 
 
 @dataclass(frozen=True)
+class KillSwitchEventRecord:
+    kill_event_id: int
+    previous_state: str
+    new_state: str
+    trigger_type: str
+    reason_code: str
+    actor_type: str
+    actor_id: str
+    workflow_id: str | None
+    created_at: str
+    metadata_json: str
+
+
+@dataclass(frozen=True)
 class ApprovalVoteRecord:
     vote_id: int
     approval_id: str
@@ -98,6 +112,67 @@ class GovernanceRepository:
                 """,
                 (compliance_profile_id, name, version, profile_json, active_flag),
             )
+
+    def create_kill_switch_event(
+        self,
+        *,
+        previous_state: str,
+        new_state: str,
+        trigger_type: str,
+        reason_code: str,
+        actor_type: str,
+        actor_id: str,
+        workflow_id: str | None = None,
+        metadata_json: str = "{}",
+    ) -> KillSwitchEventRecord:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO gov_kill_switch_events (
+                    previous_state,
+                    new_state,
+                    trigger_type,
+                    reason_code,
+                    actor_type,
+                    actor_id,
+                    workflow_id,
+                    metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    previous_state,
+                    new_state,
+                    trigger_type,
+                    reason_code,
+                    actor_type,
+                    actor_id,
+                    workflow_id,
+                    metadata_json,
+                ),
+            )
+            record_id = int(cursor.lastrowid)
+
+        record = self.get_kill_switch_event(record_id)
+        if record is None:
+            raise LookupError(f"kill-switch event not found after create: {record_id}")
+        return record
+
+    def get_kill_switch_event(self, kill_event_id: int) -> KillSwitchEventRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM gov_kill_switch_events WHERE kill_event_id = ?",
+                (kill_event_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return KillSwitchEventRecord(**dict(row))
+
+    def list_kill_switch_events(self) -> list[KillSwitchEventRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM gov_kill_switch_events ORDER BY created_at DESC, kill_event_id DESC"
+            ).fetchall()
+        return [KillSwitchEventRecord(**dict(row)) for row in rows]
 
     def create_approval(
         self,

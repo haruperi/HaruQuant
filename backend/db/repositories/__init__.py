@@ -11,6 +11,7 @@ from .governance_repository import (
     ApprovalRecord,
     ApprovalVoteRecord,
     GovernanceRepository,
+    KillSwitchEventRecord,
     PolicyRecord,
     StrategyRecord,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "ExecutionRepository",
     "ExecutionSendAttemptRecord",
     "GovernanceRepository",
+    "KillSwitchEventRecord",
     "LegalHoldRecord",
     "PolicyRecord",
     "ProposalRecord",

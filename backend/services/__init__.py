@@ -47,6 +47,7 @@ from .risk import (
     evaluate_spread_slippage_precheck,
 )
 from .safety import (
+    KillSwitchAuditService,
     KillSwitchBlockEvaluation,
     KillSwitchAction,
     KillSwitchService,
@@ -83,6 +84,7 @@ __all__ = [
     "RiskDecisionPersistenceService",
     "RiskDecisionProvenance",
     "RiskRequestAssemblyContext",
+    "KillSwitchAuditService",
     "KillSwitchBlockEvaluation",
     "KillSwitchAction",
     "KillSwitchService",

@@ -722,7 +722,7 @@ A task is only complete when all are true:
   **Unit tests:** single approver recovery rejection tests  
   **Commit:** `feat(safety): require dual auth for hard trigger recovery`
 
-- [ ] Implement kill-switch event persistence and audit logging.  
+- [x] Implement kill-switch event persistence and audit logging.  
   **Refs:** FR-072, NFR-019  
   **Unit tests:** event append-only tests  
   **Commit:** `feat(safety): persist and audit kill switch events`
