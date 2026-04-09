@@ -82,3 +82,24 @@ export const operatorApprovals = [
     expiresAt: "2026-04-09T11:00:00Z",
   },
 ] as const
+
+export const operatorIncidents = [
+  {
+    incidentId: "inc_001",
+    severity: "critical",
+    state: "OPEN",
+    alertType: "broker_conflict",
+    source: "reconciliation",
+    summary: "Broker receipt diverged from local execution status.",
+    recommendedAction: "Hold retries and review reconciliation evidence.",
+  },
+  {
+    incidentId: "inc_002",
+    severity: "warning",
+    state: "ACKNOWLEDGED",
+    alertType: "stale_state",
+    source: "monitoring",
+    summary: "Market snapshot aged beyond short TTL.",
+    recommendedAction: "Refresh market and account snapshots before risk review.",
+  },
+] as const

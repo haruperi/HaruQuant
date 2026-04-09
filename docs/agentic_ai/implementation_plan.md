@@ -1220,7 +1220,7 @@ A task is only complete when all are true:
   **Unit tests:** pending approval rendering tests  
   **Commit:** `feat(ui): add approval queue screens`
 
-- [ ] Implement incident console.  
+- [x] Implement incident console.  
   **Refs:** FR-064, FR-066  
   **Unit tests:** incident table and detail tests  
   **Commit:** `feat(ui): add incident console`
