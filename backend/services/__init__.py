@@ -11,6 +11,8 @@ from .risk import (
     PORTFOLIO_SNAPSHOT_TTL_POLICY,
     PortfolioSnapshot,
     PortfolioSnapshotType,
+    RiskRequestAssemblyContext,
+    assemble_risk_assessment_request,
 )
 
 __all__ = [
@@ -23,6 +25,8 @@ __all__ = [
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
+    "RiskRequestAssemblyContext",
+    "assemble_risk_assessment_request",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
 ]

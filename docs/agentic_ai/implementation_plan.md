@@ -610,7 +610,7 @@ A task is only complete when all are true:
 
 ### 7.2 Risk Engine Core
 
-- [ ] Implement risk request assembler from proposal + snapshots + policy.  
+- [x] Implement risk request assembler from proposal + snapshots + policy.  
   **Refs:** FR-028 to FR-031  
   **Unit tests:** request assembly completeness tests  
   **Commit:** `feat(risk): implement risk request assembler`

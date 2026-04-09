@@ -1,5 +1,6 @@
 """Risk service primitives for deterministic safety-core slices."""
 
+from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
 from .snapshots import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
     AccountSnapshot,
@@ -13,6 +14,8 @@ from .snapshots import (
 )
 
 __all__ = [
+    "RiskRequestAssemblyContext",
+    "assemble_risk_assessment_request",
     "ACCOUNT_SNAPSHOT_TTL_POLICY",
     "AccountSnapshot",
     "AccountSnapshotType",
