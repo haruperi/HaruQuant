@@ -1615,7 +1615,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): block duplicate retry until reconciliation`
 
-- [ ] Research agent attempt to issue execution instruction is rejected.  
+- [x] Research agent attempt to issue execution instruction is rejected.  
   **Refs:** FR-054, INV-011  
   **Tests:** scenario  
   **Commit:** `test(scenario): reject research agent execution attempt`
