@@ -1215,7 +1215,7 @@ A task is only complete when all are true:
   **Unit tests:** component data mapping tests  
   **Commit:** `feat(ui): add proposal and risk decision views`
 
-- [ ] Implement approval queue views.  
+- [x] Implement approval queue views.  
   **Refs:** FR-064, FR-066  
   **Unit tests:** pending approval rendering tests  
   **Commit:** `feat(ui): add approval queue screens`

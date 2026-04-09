@@ -57,3 +57,28 @@ export const operatorProposals = [
     constraints: ["session_blackout"],
   },
 ] as const
+
+export const operatorApprovals = [
+  {
+    approvalId: "appr_live_exec_001",
+    actionType: "live_execution",
+    targetRefId: "exec_001",
+    state: "PENDING",
+    requiredCount: 2,
+    collectedVotes: 1,
+    createdBy: "operator:desk_a",
+    pendingRoles: ["approver"],
+    expiresAt: "2026-04-09T10:38:00Z",
+  },
+  {
+    approvalId: "appr_policy_001",
+    actionType: "policy_change",
+    targetRefId: "policy_003",
+    state: "PENDING",
+    requiredCount: 2,
+    collectedVotes: 0,
+    createdBy: "approver:risk_ops",
+    pendingRoles: ["risk_manager", "compliance"],
+    expiresAt: "2026-04-09T11:00:00Z",
+  },
+] as const
