@@ -1316,7 +1316,7 @@ A task is only complete when all are true:
   **Unit tests:** missing-evidence rejection tests  
   **Commit:** `feat(strategy-gov): implement promotion evidence validation`
 
-- [ ] Implement promotion approval routing.  
+- [x] Implement promotion approval routing.  
   **Refs:** FR-045, FR-046  
   **Unit tests:** required-approver routing tests  
   **Commit:** `feat(strategy-gov): implement promotion approval routing`

@@ -1,5 +1,6 @@
 """Strategy governance services."""
 
+from .approval import PROMOTION_APPROVAL_ROLES, PromotionApprovalRoute, route_promotion_approval
 from .evidence import (
     PROMOTION_EVIDENCE_REQUIREMENTS,
     PromotionEvidenceValidation,
@@ -14,6 +15,8 @@ from .models import StrategyLifecycleState
 from .registry import StrategyRegistrationRequest, StrategyRegistryService
 
 __all__ = [
+    "PROMOTION_APPROVAL_ROLES",
+    "PromotionApprovalRoute",
     "PROMOTION_EVIDENCE_REQUIREMENTS",
     "PromotionEvidenceValidation",
     "PromotionEvidenceValidator",
@@ -23,4 +26,5 @@ __all__ = [
     "StrategyLifecycleTransitionValidator",
     "StrategyRegistrationRequest",
     "StrategyRegistryService",
+    "route_promotion_approval",
 ]

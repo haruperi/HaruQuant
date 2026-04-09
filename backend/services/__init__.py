@@ -145,6 +145,8 @@ from .safety import (
     require_hard_trigger_recovery_dual_auth,
 )
 from .strategy_gov import (
+    PROMOTION_APPROVAL_ROLES,
+    PromotionApprovalRoute,
     PROMOTION_EVIDENCE_REQUIREMENTS,
     PromotionEvidenceValidation,
     PromotionEvidenceValidator,
@@ -154,6 +156,7 @@ from .strategy_gov import (
     StrategyLifecycleTransitionValidator,
     StrategyRegistrationRequest,
     StrategyRegistryService,
+    route_promotion_approval,
 )
 
 __all__ = [
@@ -189,7 +192,9 @@ __all__ = [
     "ObservationIngestionService",
     "ObservationRecord",
     "PortfolioSnapshotAssemblyInput",
+    "PROMOTION_APPROVAL_ROLES",
     "PROMOTION_EVIDENCE_REQUIREMENTS",
+    "PromotionApprovalRoute",
     "StaleStateDetection",
     "PromotionEvidenceValidation",
     "PromotionEvidenceValidator",
@@ -287,6 +292,7 @@ __all__ = [
     "StrategyLifecycleTransitionValidator",
     "StrategyRegistrationRequest",
     "StrategyRegistryService",
+    "route_promotion_approval",
     "validate_fill_mode_compatibility",
     "validate_market_open",
     "validate_price_freshness",
