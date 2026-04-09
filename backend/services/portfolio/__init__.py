@@ -3,6 +3,7 @@
 from .contributions import MarginalRiskContribution, calculate_marginal_risk_contribution
 from .proposals import (
     AdvisoryPortfolioProposal,
+    generate_hedge_proposal,
     generate_rebalance_proposal,
     generate_resize_proposal,
 )
@@ -13,6 +14,7 @@ __all__ = [
     "MarginalRiskContribution",
     "PortfolioSnapshotAssemblyInput",
     "calculate_marginal_risk_contribution",
+    "generate_hedge_proposal",
     "generate_rebalance_proposal",
     "generate_resize_proposal",
     "assemble_portfolio_snapshot",

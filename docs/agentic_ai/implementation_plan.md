@@ -1274,7 +1274,7 @@ A task is only complete when all are true:
   **Unit tests:** rebalance proposal tests  
   **Commit:** `feat(portfolio): implement rebalance proposal generation`
 
-- [ ] Implement hedge proposal generator.  
+- [x] Implement hedge proposal generator.  
   **Refs:** FR-049  
   **Unit tests:** hedge proposal tests  
   **Commit:** `feat(portfolio): implement hedge proposal generation`

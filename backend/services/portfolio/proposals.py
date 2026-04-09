@@ -66,8 +66,28 @@ def generate_rebalance_proposal(
     )
 
 
+def generate_hedge_proposal(
+    *,
+    source_position: PositionExposure,
+    hedge_symbols: tuple[str, ...],
+) -> AdvisoryPortfolioProposal:
+    """Generate an advisory hedge proposal around one source position."""
+
+    if not hedge_symbols:
+        raise ValueError("hedge_symbols must not be empty")
+
+    return AdvisoryPortfolioProposal(
+        action_type="hedge",
+        symbol=source_position.symbol,
+        hedge_symbols=hedge_symbols,
+        affected_symbols=(source_position.symbol, *hedge_symbols),
+        rationale=f"introduce hedge coverage for {source_position.symbol} concentration",
+    )
+
+
 __all__ = [
     "AdvisoryPortfolioProposal",
+    "generate_hedge_proposal",
     "generate_rebalance_proposal",
     "generate_resize_proposal",
 ]
