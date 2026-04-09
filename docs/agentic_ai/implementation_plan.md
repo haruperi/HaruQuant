@@ -1529,7 +1529,7 @@ A task is only complete when all are true:
 
 ### 11.7 Compliance Rollout
 
-- [ ] Seed Internal / Non-Regulated compliance profile.  
+  - [x] Seed Internal / Non-Regulated compliance profile.  
   **Refs:** COMP-001, COMP-002  
   **Unit tests:** profile seed tests  
   **Commit:** `feat(compliance): seed internal non-regulated profile`
