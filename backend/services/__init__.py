@@ -5,6 +5,7 @@ from .risk import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
     AccountSnapshot,
     AccountSnapshotType,
+    ConcentrationResult,
     ExposureSummary,
     MARKET_SNAPSHOT_TTL_POLICY,
     MarketSnapshot,
@@ -16,12 +17,14 @@ from .risk import (
     RiskRequestAssemblyContext,
     assemble_risk_assessment_request,
     calculate_exposure_summary,
+    calculate_symbol_concentration,
 )
 
 __all__ = [
     "ACCOUNT_SNAPSHOT_TTL_POLICY",
     "AccountSnapshot",
     "AccountSnapshotType",
+    "ConcentrationResult",
     "ExposureSummary",
     "MARKET_SNAPSHOT_TTL_POLICY",
     "MarketSnapshot",
@@ -33,6 +36,7 @@ __all__ = [
     "RiskRequestAssemblyContext",
     "assemble_risk_assessment_request",
     "calculate_exposure_summary",
+    "calculate_symbol_concentration",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
 ]

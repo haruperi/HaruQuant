@@ -33,6 +33,16 @@ class ExposureSummary:
     position_count: int
 
 
+@dataclass(frozen=True)
+class ConcentrationResult:
+    """Concentration summary for one grouping dimension."""
+
+    total_gross_exposure: float
+    concentrations: dict[str, float]
+    threshold: float
+    breached_keys: tuple[str, ...]
+
+
 def calculate_exposure_summary(positions: tuple[PositionExposure, ...]) -> ExposureSummary:
     """Calculate gross and net exposure from normalized open positions."""
 
@@ -45,8 +55,36 @@ def calculate_exposure_summary(positions: tuple[PositionExposure, ...]) -> Expos
     )
 
 
+def calculate_symbol_concentration(
+    positions: tuple[PositionExposure, ...],
+    *,
+    threshold: float,
+) -> ConcentrationResult:
+    """Calculate gross concentration share for each symbol."""
+
+    gross_total = sum(abs(position.notional_exposure) for position in positions)
+    concentrations: dict[str, float] = {}
+    if gross_total > 0:
+        for position in positions:
+            concentrations[position.symbol] = concentrations.get(position.symbol, 0.0) + (
+                abs(position.notional_exposure) / gross_total
+            )
+
+    breached_keys = tuple(
+        key for key, value in sorted(concentrations.items()) if value > threshold
+    )
+    return ConcentrationResult(
+        total_gross_exposure=gross_total,
+        concentrations=concentrations,
+        threshold=threshold,
+        breached_keys=breached_keys,
+    )
+
+
 __all__ = [
+    "ConcentrationResult",
     "ExposureSummary",
     "PositionExposure",
     "calculate_exposure_summary",
+    "calculate_symbol_concentration",
 ]

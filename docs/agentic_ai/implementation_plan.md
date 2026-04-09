@@ -620,7 +620,7 @@ A task is only complete when all are true:
   **Unit tests:** gross/net exposure tests  
   **Commit:** `feat(risk): implement exposure calculators`
 
-- [ ] Implement per-symbol concentration calculator.  
+- [x] Implement per-symbol concentration calculator.  
   **Refs:** FR-031  
   **Unit tests:** concentration threshold tests  
   **Commit:** `feat(risk): implement per-symbol concentration checks`

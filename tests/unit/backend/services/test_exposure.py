@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from backend.services.risk import PositionExposure, calculate_exposure_summary
+from backend.services.risk import (
+    PositionExposure,
+    calculate_exposure_summary,
+    calculate_symbol_concentration,
+)
 
 
 def test_calculate_exposure_summary_returns_gross_and_net_exposure():
@@ -50,3 +54,36 @@ def test_position_exposure_rejects_unknown_direction_when_signed_exposure_reques
         assert "unsupported direction" in str(exc)
     else:
         raise AssertionError("expected ValueError for unsupported direction")
+
+
+def test_calculate_symbol_concentration_reports_threshold_breach():
+    positions = (
+        PositionExposure(
+            symbol="EURUSD",
+            currency="USD",
+            strategy_family="trend",
+            notional_exposure=800.0,
+            direction="buy",
+        ),
+        PositionExposure(
+            symbol="EURUSD",
+            currency="USD",
+            strategy_family="mean_reversion",
+            notional_exposure=200.0,
+            direction="sell",
+        ),
+        PositionExposure(
+            symbol="USDJPY",
+            currency="JPY",
+            strategy_family="carry",
+            notional_exposure=500.0,
+            direction="buy",
+        ),
+    )
+
+    result = calculate_symbol_concentration(positions, threshold=0.6)
+
+    assert result.total_gross_exposure == 1500.0
+    assert result.concentrations["EURUSD"] == 1000.0 / 1500.0
+    assert result.concentrations["USDJPY"] == 500.0 / 1500.0
+    assert result.breached_keys == ("EURUSD",)
