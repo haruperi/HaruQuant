@@ -1458,7 +1458,7 @@ A task is only complete when all are true:
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add duplicate receipt chaos scenario`
 
-- [ ] Implement chaos test for process restart during execution.  
+  - [x] Implement chaos test for process restart during execution.  
   **Refs:** FR-076, FR-077  
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add restart-during-execution scenario`
