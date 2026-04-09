@@ -897,7 +897,7 @@ A task is only complete when all are true:
 
 ### 8.3 Core Agents
 
-- [ ] Implement OrchestratorAgent instructions and wrapper.  
+  - [x] Implement OrchestratorAgent instructions and wrapper.  
   **Refs:** FR-019, FR-024, FR-005  
   **Unit tests:** goal decomposition stub tests  
   **Commit:** `feat(agents): implement orchestrator agent`

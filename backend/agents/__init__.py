@@ -1,5 +1,6 @@
 """Agent runtime scaffolding for the agentic backend."""
 
+from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgentWrapper
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -36,10 +37,12 @@ __all__ = [
     "ADKRunResult",
     "ADKRunnerConfig",
     "ADKRunnerService",
+    "ORCHESTRATOR_AGENT_INSTRUCTION",
     "AgentSession",
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "OrchestratorAgentWrapper",
     "CanonicalOutputValidator",
     "CanonicalValidationResult",
     "ContractValidationError",
