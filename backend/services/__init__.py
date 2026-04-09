@@ -46,6 +46,13 @@ from .risk import (
     evaluate_session_restrictions,
     evaluate_spread_slippage_precheck,
 )
+from .safety import (
+    KillSwitchAction,
+    KillSwitchService,
+    KillSwitchStateMachine,
+    KillSwitchTransitionError,
+    RecoveryAuthorization,
+)
 
 __all__ = [
     "ACCOUNT_SNAPSHOT_TTL_POLICY",
@@ -72,6 +79,11 @@ __all__ = [
     "RiskDecisionPersistenceService",
     "RiskDecisionProvenance",
     "RiskRequestAssemblyContext",
+    "KillSwitchAction",
+    "KillSwitchService",
+    "KillSwitchStateMachine",
+    "KillSwitchTransitionError",
+    "RecoveryAuthorization",
     "VolatilityAdjustedSizing",
     "assemble_risk_assessment_request",
     "calculate_correlation_concentration",

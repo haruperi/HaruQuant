@@ -707,7 +707,7 @@ A task is only complete when all are true:
 
 ### 7.3 Kill Switch
 
-- [ ] Implement kill-switch domain model and state machine.  
+- [x] Implement kill-switch domain model and state machine.  
   **Refs:** FR-012, FR-013, NFR-001  
   **Unit tests:** transition authorization tests  
   **Commit:** `feat(safety): add kill switch domain state machine`
