@@ -78,7 +78,7 @@ class RuntimeTrajectoryLog:
 
     @property
     def tool_calls_json(self) -> str:
-        return canonical_json_dumps(list(self.tool_calls))
+        return canonical_json_dumps(_normalize_tool_calls(self.tool_calls))
 
     @property
     def token_usage_json(self) -> str | None:
@@ -170,3 +170,18 @@ def _hash_schema_payload(schema_name: str, payload: dict[str, Any]) -> str:
             }
         ).encode("utf-8")
     ).hexdigest()
+
+
+def _normalize_tool_calls(tool_calls: tuple[dict[str, Any], ...]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for tool_call in tool_calls:
+        call_payload = dict(tool_call)
+        normalized.append(
+            {
+                **call_payload,
+                "call_hash": hashlib.sha256(
+                    canonical_json_dumps(call_payload).encode("utf-8")
+                ).hexdigest(),
+            }
+        )
+    return normalized

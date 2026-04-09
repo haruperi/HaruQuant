@@ -127,3 +127,30 @@ def test_runtime_trajectory_log_captures_schema_names_and_hashes() -> None:
     assert log.input_schema_hash == hash_schema_name("WorkflowIntent")
     assert log.output_schema_hash == hash_schema_name("ObservationEvent")
     assert log.input_hash != same_payload_different_schema.input_hash
+
+
+def test_runtime_trajectory_log_captures_tool_call_hashes_and_latency() -> None:
+    log = RuntimeTrajectoryLog(
+        workflow_id="wf_123",
+        correlation_id="corr_123",
+        agent_name="research_agent",
+        phase="research",
+        iteration_no=0,
+        input_schema="WorkflowIntent",
+        input_payload={"query": "eurusd macro"},
+        output_schema="ObservationEvent",
+        output_payload={"summary": "fresh signal"},
+        latency_ms=44,
+        final_state="COMPLETED",
+        tool_calls=(
+            {
+                "tool_name": "research.lookup",
+                "latency_ms": 12,
+                "arguments": {"query": "eurusd macro"},
+            },
+        ),
+    )
+
+    assert '"call_hash":"' in log.tool_calls_json
+    assert '"latency_ms":12' in log.tool_calls_json
+    assert log.latency_ms == 44

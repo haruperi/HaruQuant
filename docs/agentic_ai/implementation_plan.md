@@ -1040,7 +1040,7 @@ A task is only complete when all are true:
   **Unit tests:** schema hash capture tests  
   **Commit:** `feat(obs): log schema names and hashes`
 
-- [ ] Capture tool calls, hashes, and latency.  
+- [x] Capture tool calls, hashes, and latency.  
   **Refs:** FR-061, NFR-004  
   **Unit tests:** tool-call logging tests  
   **Commit:** `feat(obs): capture tool call hashes and latency`
