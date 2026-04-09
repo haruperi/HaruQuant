@@ -30,7 +30,7 @@ class OperatorPrincipal:
 def _is_public_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in PUBLIC_PATH_PREFIXES) or path.startswith(
         "/api/operator/health"
-    )
+    ) or path.startswith("/api/operator/events/stream")
 
 
 def _extract_principal(request: Request) -> OperatorPrincipal:

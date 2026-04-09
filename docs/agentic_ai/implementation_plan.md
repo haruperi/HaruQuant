@@ -1230,7 +1230,7 @@ A task is only complete when all are true:
   **Unit tests:** replay detail rendering tests  
   **Commit:** `feat(ui): add replay bundle view`
 
-- [ ] Implement live event streaming to dashboard.  
+- [x] Implement live event streaming to dashboard.  
   **Refs:** FR-064, NFR-005  
   **Unit tests:** websocket/sse subscription tests  
   **Commit:** `feat(ui): add real-time event streaming`

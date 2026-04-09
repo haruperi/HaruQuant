@@ -1,5 +1,6 @@
 import { Activity, AlertTriangle, ShieldCheck, Workflow } from "lucide-react"
 
+import { OperatorLiveEvents } from "@/components/operator/operator-live-events"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -80,6 +81,8 @@ export default function OperatorOverviewPage() {
           </div>
         </CardContent>
       </Card>
+
+      <OperatorLiveEvents />
     </div>
   )
 }

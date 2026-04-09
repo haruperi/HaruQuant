@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .approvals import router as approvals_router
 from .auth import OperatorAuthMiddleware, require_operator_role
 from .dependencies import OperatorApiDependencies, build_operator_api_dependencies
+from .events import router as events_router
 from .health import (
     check_app_health,
     check_database_health,
@@ -100,6 +101,7 @@ def create_app(
 
     app.include_router(router)
     app.include_router(approvals_router)
+    app.include_router(events_router)
     return app
 
 
