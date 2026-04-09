@@ -2,6 +2,7 @@
 
 from .assembler import ExecutionIntentAssemblyConfig, assemble_execution_intent
 from .attempts import ExecutionAttemptPersistenceService
+from .authority import AuthorityStateView, propagate_authority_state
 from .idempotency import generate_execution_idempotency_key
 from .metadata_cache import SymbolMetadataCache, SymbolMetadataCacheEntry
 from .pre_send import PreSendValidationRequest, run_pre_send_validation
@@ -25,6 +26,7 @@ __all__ = [
     "ReadinessCheckResult",
     "ExecutionIntentAssemblyConfig",
     "ExecutionAttemptPersistenceService",
+    "AuthorityStateView",
     "BrokerSendResult",
     "ExecutionReceiptService",
     "NormalizedExecutionReceipt",
@@ -33,6 +35,7 @@ __all__ = [
     "aggregate_readiness_results",
     "assemble_execution_intent",
     "generate_execution_idempotency_key",
+    "propagate_authority_state",
     "run_pre_send_validation",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",

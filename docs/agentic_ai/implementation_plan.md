@@ -1112,7 +1112,7 @@ A task is only complete when all are true:
   **Unit tests:** receipt mapping tests  
   **Commit:** `feat(execution): normalize and persist receipts`
 
-- [ ] Implement authoritative/provisional/reconciling state propagation.  
+- [x] Implement authoritative/provisional/reconciling state propagation.  
   **Refs:** FR-067  
   **Unit tests:** state badge mapping tests  
   **Commit:** `feat(execution): propagate authoritative provisional and reconciling states`

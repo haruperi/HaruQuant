@@ -3,6 +3,7 @@
 from .execution import (
     ExecutionIntentAssemblyConfig,
     ExecutionAttemptPersistenceService,
+    AuthorityStateView,
     BrokerSendResult,
     ExecutionReceiptService,
     NormalizedExecutionReceipt,
@@ -136,6 +137,7 @@ __all__ = [
     "ReadinessCheckResult",
     "ExecutionIntentAssemblyConfig",
     "ExecutionAttemptPersistenceService",
+    "AuthorityStateView",
     "BrokerSendResult",
     "ExecutionReceiptService",
     "NormalizedExecutionReceipt",
@@ -167,6 +169,7 @@ __all__ = [
     "aggregate_readiness_results",
     "assemble_execution_intent",
     "generate_execution_idempotency_key",
+    "propagate_authority_state",
     "run_pre_send_validation",
     "assemble_risk_assessment_request",
     "build_local_execution_truth",
