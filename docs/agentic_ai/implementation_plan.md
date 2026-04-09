@@ -680,7 +680,7 @@ A task is only complete when all are true:
   **Unit tests:** profile resolution/blocking tests  
   **Commit:** `feat(risk): implement compliance profile enforcement in risk path`
 
-- [ ] Implement risk decision composer (`APPROVE`, `APPROVE_WITH_LIMITS`, `REJECT`, `FORCE_EXIT`).  
+- [x] Implement risk decision composer (`APPROVE`, `APPROVE_WITH_LIMITS`, `REJECT`, `FORCE_EXIT`).  
   **Refs:** FR-032, FR-033  
   **Unit tests:** decision outcome matrix tests  
   **Commit:** `feat(risk): implement risk decision composer`

@@ -1,5 +1,6 @@
 """Risk service primitives for deterministic safety-core slices."""
 
+from .decisions import ComposedRiskDecision, compose_risk_decision
 from .correlation import (
     CorrelationConcentration,
     CorrelationPair,
@@ -44,6 +45,7 @@ from .snapshots import (
 )
 
 __all__ = [
+    "ComposedRiskDecision",
     "CorrelationConcentration",
     "CorrelationPair",
     "ConcentrationResult",
@@ -54,6 +56,7 @@ __all__ = [
     "PositionExposure",
     "RestrictionEvaluation",
     "evaluate_compliance_profile_compatibility",
+    "compose_risk_decision",
     "calculate_correlation_concentration",
     "calculate_drawdown_state",
     "calculate_margin_utilization",
