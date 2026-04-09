@@ -1463,7 +1463,7 @@ A task is only complete when all are true:
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add restart-during-execution scenario`
 
-- [ ] Implement chaos test for policy service outage.  
+  - [x] Implement chaos test for policy service outage.  
   **Refs:** FR-076, NFR-002  
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add policy service outage scenario`
