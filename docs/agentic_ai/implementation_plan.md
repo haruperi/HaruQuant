@@ -1065,7 +1065,7 @@ A task is only complete when all are true:
 
 ### 9.1 Proposal Pipeline
 
-- [ ] Implement hypothesis-to-proposal transformer.  
+- [x] Implement hypothesis-to-proposal transformer.  
   **Refs:** INV-006, FR-041  
   **Unit tests:** transform validity tests  
   **Commit:** `feat(proposals): implement hypothesis to proposal transformation`
