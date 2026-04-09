@@ -635,7 +635,7 @@ A task is only complete when all are true:
   **Unit tests:** family concentration tests  
   **Commit:** `feat(risk): implement strategy family concentration checks`
 
-- [ ] Implement margin utilization calculator.  
+- [x] Implement margin utilization calculator.  
   **Refs:** FR-031, FR-051  
   **Unit tests:** free-margin utilization tests  
   **Commit:** `feat(risk): implement margin utilization calculator`

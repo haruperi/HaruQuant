@@ -9,6 +9,7 @@ from .exposure import (
     calculate_strategy_family_concentration,
     calculate_symbol_concentration,
 )
+from .margin import MarginUtilization, calculate_margin_utilization
 from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
 from .snapshots import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
@@ -25,7 +26,9 @@ from .snapshots import (
 __all__ = [
     "ConcentrationResult",
     "ExposureSummary",
+    "MarginUtilization",
     "PositionExposure",
+    "calculate_margin_utilization",
     "calculate_currency_concentration",
     "calculate_exposure_summary",
     "calculate_strategy_family_concentration",
