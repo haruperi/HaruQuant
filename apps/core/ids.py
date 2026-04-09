@@ -20,6 +20,7 @@ ID_PREFIXES = {
     "approval": "appr",
     "strategy": "strat",
     "promotion": "prom",
+    "evidence_bundle": "evid",
 }
 
 

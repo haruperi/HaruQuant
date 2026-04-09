@@ -1353,7 +1353,7 @@ A task is only complete when all are true:
   **Unit tests:** lifecycle evidence assembly tests  
   **Commit:** `feat(evidence): assemble lifecycle evidence bundles`
 
-- [ ] Implement evidence bundle hashing and storage.  
+- [x] Implement evidence bundle hashing and storage.  
   **Refs:** FR-073, NFR-020  
   **Unit tests:** hash integrity tests  
   **Commit:** `feat(evidence): hash and store evidence bundles`

@@ -12,8 +12,10 @@ from .audit import (
     verify_audit_signature,
 )
 from .evidence import (
+    EvidenceBundleStorageService,
     EvidenceArtifact,
     LifecycleEvidenceBundle,
+    StoredEvidenceBundle,
     assemble_lifecycle_evidence_bundle,
     build_evidence_bundle_manifest,
 )
@@ -183,6 +185,7 @@ __all__ = [
     "ReplayBundleAssemblyResult",
     "AuditExportPackage",
     "AdvisoryPortfolioProposal",
+    "EvidenceBundleStorageService",
     "EvidenceArtifact",
     "LifecycleEvidenceBundle",
     "LegalHoldAwareReplayResult",
@@ -320,6 +323,7 @@ __all__ = [
     "StrategyRetirementService",
     "SuspensionTriggerDecision",
     "SuspensionTriggerRequest",
+    "StoredEvidenceBundle",
     "evaluate_suspension_triggers",
     "route_promotion_approval",
     "update_operating_envelope_for_promotion",
