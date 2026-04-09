@@ -917,22 +917,22 @@ A task is only complete when all are true:
   **Unit tests:** alert classification output tests  
   **Commit:** `feat(agents): implement monitoring agent`
 
-- [ ] Implement PortfolioAgent instructions and wrapper.  
+  - [x] Implement PortfolioAgent instructions and wrapper.  
   **Refs:** FR-019, FR-048 to FR-051  
   **Unit tests:** portfolio proposal output tests  
   **Commit:** `feat(agents): implement portfolio agent`
 
-- [ ] Implement ComplianceAgent instructions and wrapper.  
+  - [x] Implement ComplianceAgent instructions and wrapper.  
   **Refs:** FR-019, FR-035 to FR-038, COMP-010 to COMP-013  
   **Unit tests:** compliance review output tests  
   **Commit:** `feat(agents): implement compliance agent`
 
-- [ ] Implement ExecutionAgent instructions and wrapper.  
+  - [x] Implement ExecutionAgent instructions and wrapper.  
   **Refs:** FR-019, FR-056 to FR-060  
   **Unit tests:** intent translation output tests  
   **Commit:** `feat(agents): implement execution agent`
 
-- [ ] Implement RiskGovernorAgent wrapper as controlled adapter over deterministic risk service.  
+  - [x] Implement RiskGovernorAgent wrapper as controlled adapter over deterministic risk service.  
   **Refs:** FR-028 to FR-034, NFR-003  
   **Unit tests:** agent cannot bypass deterministic decision source tests  
   **Commit:** `feat(agents): implement risk governor adapter`
