@@ -16,6 +16,7 @@ from .risk import (
     PositionExposure,
     RiskRequestAssemblyContext,
     assemble_risk_assessment_request,
+    calculate_currency_concentration,
     calculate_exposure_summary,
     calculate_symbol_concentration,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "PositionExposure",
     "RiskRequestAssemblyContext",
     "assemble_risk_assessment_request",
+    "calculate_currency_concentration",
     "calculate_exposure_summary",
     "calculate_symbol_concentration",
     "SymbolMetadataCache",

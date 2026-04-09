@@ -625,7 +625,7 @@ A task is only complete when all are true:
   **Unit tests:** concentration threshold tests  
   **Commit:** `feat(risk): implement per-symbol concentration checks`
 
-- [ ] Implement per-currency concentration calculator.  
+- [x] Implement per-currency concentration calculator.  
   **Refs:** FR-031  
   **Unit tests:** multi-currency concentration tests  
   **Commit:** `feat(risk): implement per-currency concentration checks`

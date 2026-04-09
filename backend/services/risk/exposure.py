@@ -81,10 +81,37 @@ def calculate_symbol_concentration(
     )
 
 
+def calculate_currency_concentration(
+    positions: tuple[PositionExposure, ...],
+    *,
+    threshold: float,
+) -> ConcentrationResult:
+    """Calculate gross concentration share for each currency bucket."""
+
+    gross_total = sum(abs(position.notional_exposure) for position in positions)
+    concentrations: dict[str, float] = {}
+    if gross_total > 0:
+        for position in positions:
+            concentrations[position.currency] = concentrations.get(position.currency, 0.0) + (
+                abs(position.notional_exposure) / gross_total
+            )
+
+    breached_keys = tuple(
+        key for key, value in sorted(concentrations.items()) if value > threshold
+    )
+    return ConcentrationResult(
+        total_gross_exposure=gross_total,
+        concentrations=concentrations,
+        threshold=threshold,
+        breached_keys=breached_keys,
+    )
+
+
 __all__ = [
     "ConcentrationResult",
     "ExposureSummary",
     "PositionExposure",
     "calculate_exposure_summary",
+    "calculate_currency_concentration",
     "calculate_symbol_concentration",
 ]

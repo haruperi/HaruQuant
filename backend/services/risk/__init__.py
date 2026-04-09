@@ -4,6 +4,7 @@ from .exposure import (
     ConcentrationResult,
     ExposureSummary,
     PositionExposure,
+    calculate_currency_concentration,
     calculate_exposure_summary,
     calculate_symbol_concentration,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "ConcentrationResult",
     "ExposureSummary",
     "PositionExposure",
+    "calculate_currency_concentration",
     "calculate_exposure_summary",
     "calculate_symbol_concentration",
     "RiskRequestAssemblyContext",
