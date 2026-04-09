@@ -14,6 +14,7 @@ ID_PREFIXES = {
     "risk_decision": "risk",
     "execution_intent": "exec",
     "receipt": "rcpt",
+    "session": "sess",
     "incident": "inc",
     "replay_bundle": "rpb",
     "approval": "appr",
