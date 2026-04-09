@@ -739,7 +739,7 @@ A task is only complete when all are true:
   **Unit tests:** non-tradable symbol rejection tests  
   **Commit:** `feat(exec): implement symbol tradability validation`
 
-- [ ] Implement price freshness validation.  
+- [x] Implement price freshness validation.  
   **Refs:** FR-057, FR-070  
   **Unit tests:** stale price rejection tests  
   **Commit:** `feat(exec): implement price freshness validation`

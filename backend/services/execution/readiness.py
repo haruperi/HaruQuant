@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from apps.core import Clock
+from apps.core.time_utils import evaluate_freshness
+
 from .metadata_cache import SymbolMetadataCacheEntry
 
 
@@ -40,8 +43,33 @@ def validate_symbol_tradability(metadata: SymbolMetadataCacheEntry) -> Readiness
     )
 
 
+def validate_price_freshness(
+    metadata: SymbolMetadataCacheEntry,
+    *,
+    clock: Clock | None = None,
+) -> ReadinessCheckResult:
+    """Reject execution when the cached price/metadata snapshot is stale."""
+
+    freshness = evaluate_freshness(
+        metadata.observed_at,
+        max_age_seconds=metadata.max_age_seconds,
+        clock=clock,
+    )
+    if freshness.is_fresh:
+        return ReadinessCheckResult(
+            allowed=True,
+            metadata={"symbol": metadata.symbol, "expires_at": freshness.expires_at.isoformat()},
+        )
+    return ReadinessCheckResult(
+        allowed=False,
+        reason_codes=("stale_price_snapshot",),
+        metadata={"symbol": metadata.symbol, "expires_at": freshness.expires_at.isoformat()},
+    )
+
+
 __all__ = [
     "ReadinessCheckResult",
     "validate_market_open",
+    "validate_price_freshness",
     "validate_symbol_tradability",
 ]

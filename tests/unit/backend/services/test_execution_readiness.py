@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from apps.core import FixedClock
 from backend.services import (
     SymbolMetadataCacheEntry,
     validate_market_open,
+    validate_price_freshness,
     validate_symbol_tradability,
 )
 
@@ -41,3 +43,13 @@ def test_validate_symbol_tradability_rejects_non_tradable_symbol() -> None:
 
     assert result.allowed is False
     assert result.reason_codes == ("symbol_not_tradable",)
+
+
+def test_validate_price_freshness_rejects_stale_snapshot() -> None:
+    result = validate_price_freshness(
+        _metadata(),
+        clock=FixedClock(datetime(2026, 4, 9, 10, 0, 6, tzinfo=UTC)),
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == ("stale_price_snapshot",)
