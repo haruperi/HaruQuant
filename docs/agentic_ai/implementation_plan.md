@@ -1588,7 +1588,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): add human-approved live workflow scenario`
 
-- [ ] Bounded autonomous live workflow only executes inside approved envelope.  
+- [x] Bounded autonomous live workflow only executes inside approved envelope.  
   **Refs:** MODE-004, FR-047  
   **Tests:** scenario  
   **Commit:** `test(scenario): add bounded autonomous live workflow scenario`
