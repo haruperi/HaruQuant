@@ -5,9 +5,12 @@ from .runtime import (
     ADKRunResult,
     ADKRunnerConfig,
     ADKRunnerService,
+    AgentSession,
     AgentExecutionContext,
     AgentExecutionResult,
     AgentRuntime,
+    SessionManager,
+    SessionState,
 )
 
 __all__ = [
@@ -15,7 +18,10 @@ __all__ = [
     "ADKRunResult",
     "ADKRunnerConfig",
     "ADKRunnerService",
+    "AgentSession",
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "SessionManager",
+    "SessionState",
 ]

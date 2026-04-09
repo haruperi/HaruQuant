@@ -853,7 +853,7 @@ A task is only complete when all are true:
   **Unit tests:** runner initialization tests  
   **Commit:** `feat(agent-runtime): add adk runner wrapper`
 
-- [ ] Create session manager abstraction.  
+  - [x] Create session manager abstraction.  
   **Refs:** FR-068  
   **Unit tests:** session state lifecycle tests  
   **Commit:** `feat(agent-runtime): add session manager abstraction`
