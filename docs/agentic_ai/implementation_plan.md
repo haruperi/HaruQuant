@@ -615,7 +615,7 @@ A task is only complete when all are true:
   **Unit tests:** request assembly completeness tests  
   **Commit:** `feat(risk): implement risk request assembler`
 
-- [ ] Implement position and exposure calculators.  
+- [x] Implement position and exposure calculators.  
   **Refs:** FR-031, FR-048  
   **Unit tests:** gross/net exposure tests  
   **Commit:** `feat(risk): implement exposure calculators`

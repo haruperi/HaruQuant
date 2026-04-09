@@ -1,0 +1,52 @@
+from __future__ import annotations
+
+from backend.services.risk import PositionExposure, calculate_exposure_summary
+
+
+def test_calculate_exposure_summary_returns_gross_and_net_exposure():
+    positions = (
+        PositionExposure(
+            symbol="EURUSD",
+            currency="USD",
+            strategy_family="trend",
+            notional_exposure=1000.0,
+            direction="buy",
+        ),
+        PositionExposure(
+            symbol="USDJPY",
+            currency="JPY",
+            strategy_family="carry",
+            notional_exposure=600.0,
+            direction="sell",
+        ),
+        PositionExposure(
+            symbol="GBPUSD",
+            currency="USD",
+            strategy_family="trend",
+            notional_exposure=250.0,
+            direction="buy",
+        ),
+    )
+
+    summary = calculate_exposure_summary(positions)
+
+    assert summary.gross_exposure == 1850.0
+    assert summary.net_exposure == 650.0
+    assert summary.position_count == 3
+
+
+def test_position_exposure_rejects_unknown_direction_when_signed_exposure_requested():
+    position = PositionExposure(
+        symbol="EURUSD",
+        currency="USD",
+        strategy_family="trend",
+        notional_exposure=1000.0,
+        direction="hold",
+    )
+
+    try:
+        position.signed_exposure
+    except ValueError as exc:
+        assert "unsupported direction" in str(exc)
+    else:
+        raise AssertionError("expected ValueError for unsupported direction")
