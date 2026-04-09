@@ -1392,7 +1392,7 @@ A task is only complete when all are true:
   **Unit tests:** MCP wrapper contract tests  
   **Commit:** `feat(migration): wrap risk module as risk analytics mcp`
 
-- [ ] Wrap existing database access as governed `sql_mcp`.  
+  - [x] Wrap existing database access as governed `sql_mcp`.  
   **Refs:** INV-002, FR-022  
   **Unit tests:** governed query contract tests  
   **Commit:** `feat(migration): wrap database module as sql mcp`
