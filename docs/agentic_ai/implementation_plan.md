@@ -818,7 +818,7 @@ A task is only complete when all are true:
   **Unit tests:** confirmed/absent/conflicting classification tests  
   **Commit:** `feat(recon): compare local and broker execution truth`
 
-- [ ] Implement no-blind-retry guard when ack delay or uncertainty exists.  
+  - [x] Implement no-blind-retry guard when ack delay or uncertainty exists.  
   **Refs:** FR-060, FR-075  
   **Unit tests:** retry blocked pending reconciliation tests  
   **Commit:** `feat(recon): block blind retries before reconciliation`

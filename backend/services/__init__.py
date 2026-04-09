@@ -22,8 +22,10 @@ from .reconciliation import (
     ReconciliationComparison,
     ReconciliationResultState,
     ReconciliationStartupLoader,
+    RetryGuardDecision,
     build_local_execution_truth,
     compare_execution_truth,
+    evaluate_retry_guard,
 )
 from .risk import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
@@ -112,6 +114,7 @@ __all__ = [
     "ReconciliationComparison",
     "ReconciliationResultState",
     "ReconciliationStartupLoader",
+    "RetryGuardDecision",
     "RiskDecisionEnvelopeContext",
     "RiskDecisionValidity",
     "RiskDecisionPersistenceService",
@@ -141,6 +144,7 @@ __all__ = [
     "calculate_symbol_concentration",
     "compose_risk_decision",
     "compare_execution_truth",
+    "evaluate_retry_guard",
     "enforce_risk_decision_expiry",
     "invalidate_for_material_proposal_change",
     "pack_risk_decision_rationale_and_provenance",
