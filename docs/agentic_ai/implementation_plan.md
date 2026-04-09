@@ -1178,7 +1178,7 @@ A task is only complete when all are true:
 
 ### 9.5 Replay and Audit
 
-- [ ] Implement replay bundle assembler.  
+- [x] Implement replay bundle assembler.  
   **Refs:** FR-072, FR-073, FR-074  
   **Unit tests:** bundle completeness tests  
   **Commit:** `feat(replay): implement replay bundle assembler`

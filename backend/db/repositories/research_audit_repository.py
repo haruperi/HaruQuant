@@ -128,6 +128,18 @@ class ResearchAuditRepository:
             return None
         return EvidenceBundleRecord(**dict(row))
 
+    def list_evidence_bundles_for_workflow(self, workflow_id: str) -> list[EvidenceBundleRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM research_evidence_bundles
+                WHERE workflow_id = ?
+                ORDER BY created_at ASC, evidence_bundle_id ASC
+                """,
+                (workflow_id,),
+            ).fetchall()
+        return [EvidenceBundleRecord(**dict(row)) for row in rows]
+
     def add_trajectory_log(
         self,
         *,
@@ -210,6 +222,18 @@ class ResearchAuditRepository:
         if row is None:
             return None
         return TrajectoryLogRecord(**dict(row))
+
+    def list_trajectory_logs_for_workflow(self, workflow_id: str) -> list[TrajectoryLogRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM audit_trajectory_logs
+                WHERE workflow_id = ?
+                ORDER BY created_at ASC, log_id ASC
+                """,
+                (workflow_id,),
+            ).fetchall()
+        return [TrajectoryLogRecord(**dict(row)) for row in rows]
 
     def create_replay_bundle(
         self,
