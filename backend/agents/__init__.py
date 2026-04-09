@@ -8,6 +8,7 @@ from .monitoring_agent import MONITORING_AGENT_INSTRUCTION, MonitoringAgentWrapp
 from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgentWrapper
 from .research_agent import RESEARCH_AGENT_INSTRUCTION, ResearchAgentWrapper
 from .strategy_agent import STRATEGY_AGENT_INSTRUCTION, StrategyAgentWrapper
+from .volatility_agent import VOLATILITY_AGENT_INSTRUCTION, VolatilityAgentWrapper
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -51,6 +52,7 @@ __all__ = [
     "PORTFOLIO_AGENT_INSTRUCTION",
     "RESEARCH_AGENT_INSTRUCTION",
     "STRATEGY_AGENT_INSTRUCTION",
+    "VOLATILITY_AGENT_INSTRUCTION",
     "AgentSession",
     "AgentExecutionContext",
     "AgentExecutionResult",
@@ -63,6 +65,7 @@ __all__ = [
     "RiskGovernorAgentAdapter",
     "ResearchAgentWrapper",
     "StrategyAgentWrapper",
+    "VolatilityAgentWrapper",
     "CanonicalOutputValidator",
     "CanonicalValidationResult",
     "ContractValidationError",

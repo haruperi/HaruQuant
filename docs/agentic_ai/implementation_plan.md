@@ -939,7 +939,7 @@ A task is only complete when all are true:
 
 ### 8.4 Optional Sub-Agents
 
-- [ ] Implement VolatilityAgent.  
+  - [x] Implement VolatilityAgent.  
   **Refs:** FR-020, FR-031  
   **Unit tests:** volatility summary schema tests  
   **Commit:** `feat(agents): implement volatility sub-agent`
