@@ -78,6 +78,20 @@ class StrategyRecord:
     updated_at: str
 
 
+@dataclass(frozen=True)
+class StrategyPromotionRecord:
+    promotion_id: str
+    strategy_id: str
+    from_state: str
+    to_state: str
+    evidence_bundle_id: str
+    approver_1_id: str
+    approver_2_id: str | None
+    effective_at: str
+    rationale: str | None
+    created_at: str
+
+
 class GovernanceRepository:
     """Minimal persistence wrapper for governance and lifecycle state."""
 
@@ -389,3 +403,80 @@ class GovernanceRepository:
         if row is None:
             return None
         return StrategyRecord(**dict(row))
+
+    def update_strategy_lifecycle_state(
+        self,
+        *,
+        strategy_id: str,
+        lifecycle_state: str,
+    ) -> StrategyRecord:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE gov_strategy_registry
+                SET current_lifecycle_state = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE strategy_id = ?
+                """,
+                (lifecycle_state, strategy_id),
+            )
+
+        record = self.get_strategy(strategy_id)
+        if record is None:
+            raise LookupError(f"strategy not found after update: {strategy_id}")
+        return record
+
+    def create_promotion(
+        self,
+        *,
+        promotion_id: str,
+        strategy_id: str,
+        from_state: str,
+        to_state: str,
+        evidence_bundle_id: str,
+        approver_1_id: str,
+        effective_at: str,
+        approver_2_id: str | None = None,
+        rationale: str | None = None,
+    ) -> StrategyPromotionRecord:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO gov_strategy_promotions (
+                    promotion_id,
+                    strategy_id,
+                    from_state,
+                    to_state,
+                    evidence_bundle_id,
+                    approver_1_id,
+                    approver_2_id,
+                    effective_at,
+                    rationale
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    promotion_id,
+                    strategy_id,
+                    from_state,
+                    to_state,
+                    evidence_bundle_id,
+                    approver_1_id,
+                    approver_2_id,
+                    effective_at,
+                    rationale,
+                ),
+            )
+
+        record = self.get_promotion(promotion_id)
+        if record is None:
+            raise LookupError(f"promotion not found after create: {promotion_id}")
+        return record
+
+    def get_promotion(self, promotion_id: str) -> StrategyPromotionRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM gov_strategy_promotions WHERE promotion_id = ?",
+                (promotion_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return StrategyPromotionRecord(**dict(row))

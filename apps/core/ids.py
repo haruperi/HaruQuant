@@ -19,6 +19,7 @@ ID_PREFIXES = {
     "replay_bundle": "rpb",
     "approval": "appr",
     "strategy": "strat",
+    "promotion": "prom",
 }
 
 

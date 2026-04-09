@@ -13,6 +13,7 @@ from .governance_repository import (
     GovernanceRepository,
     KillSwitchEventRecord,
     PolicyRecord,
+    StrategyPromotionRecord,
     StrategyRecord,
 )
 from .proposal_repository import ProposalRecord, ProposalRepository
@@ -55,6 +56,7 @@ __all__ = [
     "RiskDecisionRecord",
     "RiskRepository",
     "StrategyRecord",
+    "StrategyPromotionRecord",
     "TrajectoryLogRecord",
     "WorkflowRecord",
     "WorkflowRepository",

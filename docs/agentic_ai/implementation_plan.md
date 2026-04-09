@@ -1321,7 +1321,7 @@ A task is only complete when all are true:
   **Unit tests:** required-approver routing tests  
   **Commit:** `feat(strategy-gov): implement promotion approval routing`
 
-- [ ] Implement promotion persistence service.  
+- [x] Implement promotion persistence service.  
   **Refs:** FR-046  
   **Unit tests:** promotion record persistence tests  
   **Commit:** `feat(strategy-gov): implement promotion persistence`

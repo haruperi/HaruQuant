@@ -12,6 +12,11 @@ from .lifecycle import (
     StrategyLifecycleTransitionValidator,
 )
 from .models import StrategyLifecycleState
+from .persistence import (
+    PromotionPersistenceRequest,
+    PromotionPersistenceResult,
+    StrategyPromotionPersistenceService,
+)
 from .registry import StrategyRegistrationRequest, StrategyRegistryService
 
 __all__ = [
@@ -24,7 +29,10 @@ __all__ = [
     "StrategyLifecycleState",
     "StrategyLifecycleTransition",
     "StrategyLifecycleTransitionValidator",
+    "PromotionPersistenceRequest",
+    "PromotionPersistenceResult",
     "StrategyRegistrationRequest",
+    "StrategyPromotionPersistenceService",
     "StrategyRegistryService",
     "route_promotion_approval",
 ]
