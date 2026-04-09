@@ -902,7 +902,7 @@ A task is only complete when all are true:
   **Unit tests:** goal decomposition stub tests  
   **Commit:** `feat(agents): implement orchestrator agent`
 
-- [ ] Implement StrategyAgent instructions and wrapper.  
+  - [x] Implement StrategyAgent instructions and wrapper.  
   **Refs:** FR-019, FR-039 to FR-043  
   **Unit tests:** hypothesis output schema tests  
   **Commit:** `feat(agents): implement strategy agent`
