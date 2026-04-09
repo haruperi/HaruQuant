@@ -1409,7 +1409,7 @@ A task is only complete when all are true:
   **Unit tests:** shadow mode blocks broker side effects tests  
   **Commit:** `feat(shadow): implement shadow mode execution flag`
 
-- [ ] Implement production-like data feed into shadow mode.  
+  - [x] Implement production-like data feed into shadow mode.  
   **Refs:** FR-014, FR-017  
   **Unit tests:** shadow data pipeline tests  
   **Commit:** `feat(shadow): feed production-like data into shadow workflows`
