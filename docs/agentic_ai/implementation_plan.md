@@ -1431,7 +1431,7 @@ A task is only complete when all are true:
   **Unit tests:** missing-artifact detection tests  
   **Commit:** `feat(replay): implement replay completeness checker`
 
-- [ ] Implement replay-vs-original comparison report.  
+  - [x] Implement replay-vs-original comparison report.  
   **Refs:** FR-073  
   **Unit tests:** replay comparison diff tests  
   **Commit:** `feat(replay): implement replay versus original comparison`
