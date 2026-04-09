@@ -1387,7 +1387,7 @@ A task is only complete when all are true:
   **Unit tests:** MCP wrapper contract tests  
   **Commit:** `feat(migration): wrap optimization module as optimization mcp`
 
-- [ ] Wrap existing risk module as `risk_analytics_mcp`.  
+  - [x] Wrap existing risk module as `risk_analytics_mcp`.  
   **Refs:** FR-031, FR-048  
   **Unit tests:** MCP wrapper contract tests  
   **Commit:** `feat(migration): wrap risk module as risk analytics mcp`
