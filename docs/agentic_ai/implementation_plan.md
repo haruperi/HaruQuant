@@ -1605,7 +1605,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): block autonomy self-escalation`
 
-- [ ] Live entry blocked when kill switch triggered.  
+- [x] Live entry blocked when kill switch triggered.  
   **Refs:** FR-012, NFR-001  
   **Tests:** scenario  
   **Commit:** `test(scenario): block entry under kill switch`
