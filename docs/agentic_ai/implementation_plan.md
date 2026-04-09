@@ -971,7 +971,7 @@ A task is only complete when all are true:
 
 ### 8.5 Workflow Patterns
 
-- [ ] Implement sequential workflow runner.  
+  - [x] Implement sequential workflow runner.  
   **Refs:** FR-024, FR-005 to FR-007  
   **Unit tests:** ordered phase execution tests  
   **Commit:** `feat(agent-runtime): implement sequential workflow pattern`

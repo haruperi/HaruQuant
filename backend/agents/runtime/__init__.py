@@ -26,6 +26,7 @@ from .prompts import PromptRegistryRecord, PromptStatus
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
 from .tool_policy import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
+from .workflows import SequentialWorkflowRunner, SequentialWorkflowStep
 
 __all__ = [
     "ADKRunRequest",
@@ -54,6 +55,8 @@ __all__ = [
     "ToolAllowlistDecision",
     "ToolAllowlistMiddleware",
     "ToolPolicyError",
+    "SequentialWorkflowRunner",
+    "SequentialWorkflowStep",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",
 ]

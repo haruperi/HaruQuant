@@ -41,6 +41,8 @@ from .runtime import (
     ToolAllowlistDecision,
     ToolAllowlistMiddleware,
     ToolPolicyError,
+    SequentialWorkflowRunner,
+    SequentialWorkflowStep,
     WorkflowMemoryBinding,
     WorkflowMemoryBindings,
 )
@@ -99,6 +101,8 @@ __all__ = [
     "ToolAllowlistDecision",
     "ToolAllowlistMiddleware",
     "ToolPolicyError",
+    "SequentialWorkflowRunner",
+    "SequentialWorkflowStep",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",
 ]
