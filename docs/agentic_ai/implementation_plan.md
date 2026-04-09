@@ -1724,7 +1724,7 @@ Target:
   **Commit:** `test(security): verify secret isolation from model and ui payloads`
 
 ### 15.5 Auditability
-- [ ] Verify every execution-bound decision reconstructs with replay bundle completeness.  
+- [x] Verify every execution-bound decision reconstructs with replay bundle completeness.  
   **Refs:** NFR-019, NFR-020  
   **Commit:** `test(replay): verify execution-bound decision replay completeness`
 
