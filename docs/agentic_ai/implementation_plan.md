@@ -603,7 +603,7 @@ A task is only complete when all are true:
   **Unit tests:** symbol metadata cache retrieval tests  
   **Commit:** `feat(exec): add symbol metadata cache model`
 
-- [ ] Implement freshness evaluator utility against Board baselines.  
+- [x] Implement freshness evaluator utility against Board baselines.  
   **Refs:** FR-029, FR-070, TTL-011, TTL-012  
   **Unit tests:** board TTL baseline tests  
   **Commit:** `feat(core): implement board-baseline freshness evaluator`

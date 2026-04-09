@@ -18,7 +18,17 @@ from .telemetry import (
     TelemetryEvent,
     TimerMetric,
 )
-from .time_utils import Clock, FixedClock, FreshnessWindow, SystemClock, is_stale
+from .time_utils import (
+    BOARD_BASELINE_TTL_POLICY,
+    BoardBaselineArtifactWindow,
+    BoardBaselineFreshnessEvaluation,
+    Clock,
+    FixedClock,
+    FreshnessWindow,
+    SystemClock,
+    evaluate_board_baseline_freshness,
+    is_stale,
+)
 from .ids import generate_id, generate_prefixed_id
 
 __all__ = [
@@ -37,10 +47,14 @@ __all__ = [
     "SpanRecord",
     "TelemetryEvent",
     "TimerMetric",
+    "BOARD_BASELINE_TTL_POLICY",
+    "BoardBaselineArtifactWindow",
+    "BoardBaselineFreshnessEvaluation",
     "Clock",
     "FixedClock",
     "FreshnessWindow",
     "SystemClock",
+    "evaluate_board_baseline_freshness",
     "is_stale",
     "generate_id",
     "generate_prefixed_id",
