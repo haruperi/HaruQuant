@@ -1448,7 +1448,7 @@ A task is only complete when all are true:
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add stale risk decision chaos scenario`
 
-- [ ] Implement chaos test for broker ack delay.  
+  - [x] Implement chaos test for broker ack delay.  
   **Refs:** FR-076, FR-060  
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add broker ack delay chaos scenario`
