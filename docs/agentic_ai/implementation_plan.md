@@ -1502,7 +1502,7 @@ A task is only complete when all are true:
 
 ### 11.6 Performance and Capacity
 
-- [ ] Implement Redis cache for hot snapshots with freshness metadata.  
+  - [x] Implement Redis cache for hot snapshots with freshness metadata.  
   **Refs:** FR-070, NFR-006 to NFR-011  
   **Unit tests:** cache freshness tests  
   **Commit:** `feat(perf): add hot snapshot caching with freshness metadata`

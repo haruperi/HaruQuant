@@ -78,6 +78,7 @@ from .portfolio import (
     generate_resize_proposal,
     assemble_portfolio_snapshot,
 )
+from .performance import HotSnapshotCache, LatencyAlert, LatencyBudgetMonitor, LatencySample, SnapshotCacheEntry
 from .proposals import (
     ProposalReadinessResult,
     ProposalStateTransitionResult,
@@ -236,6 +237,10 @@ __all__ = [
     "ObservationIngestionService",
     "ObservationRecord",
     "PortfolioSnapshotAssemblyInput",
+    "HotSnapshotCache",
+    "LatencyAlert",
+    "LatencyBudgetMonitor",
+    "LatencySample",
     "PROMOTION_APPROVAL_ROLES",
     "PROMOTION_EVIDENCE_REQUIREMENTS",
     "PromotionApprovalRoute",
@@ -344,6 +349,7 @@ __all__ = [
     "StrategyRetirementService",
     "SuspensionTriggerDecision",
     "SuspensionTriggerRequest",
+    "SnapshotCacheEntry",
     "StoredEvidenceBundle",
     "evaluate_suspension_triggers",
     "route_promotion_approval",
