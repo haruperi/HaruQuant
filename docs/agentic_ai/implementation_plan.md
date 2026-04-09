@@ -588,7 +588,7 @@ A task is only complete when all are true:
   **Unit tests:** hot/warm/cool freshness tests  
   **Commit:** `feat(risk): add market snapshot model with ttl metadata`
 
-- [ ] Implement account snapshot model with TTL metadata.  
+- [x] Implement account snapshot model with TTL metadata.  
   **Refs:** FR-031, FR-070  
   **Unit tests:** account snapshot expiry tests  
   **Commit:** `feat(risk): add account snapshot freshness model`

@@ -12,11 +12,15 @@ from backend.contracts.risk_assessment_request.model import FreshnessClass
 
 
 MarketSnapshotType = Literal["best_bid_ask_tick", "spread_snapshot", "symbol_tradability_status"]
+AccountSnapshotType = Literal["account_equity_free_margin_snapshot"]
 
 MARKET_SNAPSHOT_TTL_POLICY: dict[MarketSnapshotType, tuple[FreshnessClass, int]] = {
     "best_bid_ask_tick": ("HOT", 2),
     "spread_snapshot": ("HOT", 2),
     "symbol_tradability_status": ("HOT", 5),
+}
+ACCOUNT_SNAPSHOT_TTL_POLICY: dict[AccountSnapshotType, tuple[FreshnessClass, int]] = {
+    "account_equity_free_margin_snapshot": ("HOT", 5),
 }
 
 
@@ -73,6 +77,71 @@ class MarketSnapshot(BaseModel):
             spread_points=spread_points,
             tradable=tradable,
             source=source,
+        )
+
+    def evaluate(self, *, clock: Clock | None = None) -> FreshnessWindow:
+        """Evaluate the snapshot against its declared TTL."""
+
+        return evaluate_freshness(
+            self.observed_at,
+            max_age_seconds=self.max_age_seconds,
+            clock=clock,
+        )
+
+
+class AccountSnapshot(BaseModel):
+    """Account state snapshot with embedded TTL metadata."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    snapshot_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
+    snapshot_type: AccountSnapshotType = "account_equity_free_margin_snapshot"
+    observed_at: datetime
+    freshness_class: FreshnessClass
+    max_age_seconds: int = Field(gt=0)
+    balance: float
+    equity: float
+    free_margin: float
+    margin_used: float
+    currency: str = Field(min_length=1)
+
+    @computed_field
+    @property
+    def expires_at(self) -> datetime:
+        return evaluate_freshness(
+            self.observed_at,
+            max_age_seconds=self.max_age_seconds,
+            clock=SystemClock(),
+        ).expires_at
+
+    @classmethod
+    def from_policy(
+        cls,
+        *,
+        snapshot_id: str,
+        account_id: str,
+        observed_at: datetime,
+        balance: float,
+        equity: float,
+        free_margin: float,
+        margin_used: float,
+        currency: str,
+    ) -> "AccountSnapshot":
+        freshness_class, max_age_seconds = ACCOUNT_SNAPSHOT_TTL_POLICY[
+            "account_equity_free_margin_snapshot"
+        ]
+        return cls(
+            snapshot_id=snapshot_id,
+            account_id=account_id,
+            observed_at=observed_at,
+            freshness_class=freshness_class,
+            max_age_seconds=max_age_seconds,
+            balance=balance,
+            equity=equity,
+            free_margin=free_margin,
+            margin_used=margin_used,
+            currency=currency,
         )
 
     def evaluate(self, *, clock: Clock | None = None) -> FreshnessWindow:
