@@ -1025,7 +1025,7 @@ A task is only complete when all are true:
 
 ### 8.7 Observability and Trajectory Logs
 
-- [ ] Implement trajectory log model and persistence.  
+- [x] Implement trajectory log model and persistence.  
   **Refs:** FR-072, NFR-004  
   **Unit tests:** trajectory insert tests  
   **Commit:** `feat(obs): implement trajectory log persistence`
