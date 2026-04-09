@@ -1171,7 +1171,7 @@ A task is only complete when all are true:
   **Unit tests:** downstream health degradation tests  
   **Commit:** `feat(monitoring): implement tool health monitoring`
 
-- [ ] Implement workflow-timeout detector.  
+- [x] Implement workflow-timeout detector.  
   **Refs:** FR-015, FR-076  
   **Unit tests:** timeout transition tests  
   **Commit:** `feat(monitoring): implement workflow timeout detection`
