@@ -1522,7 +1522,7 @@ A task is only complete when all are true:
   **Unit tests:** query performance smoke tests  
   **Commit:** `feat(read-models): add denormalized operator dashboard read models`
 
-- [ ] Add latency budget monitors and alerts.  
+  - [x] Add latency budget monitors and alerts.  
   **Refs:** NFR-004, NFR-006 to NFR-011  
   **Unit tests:** alert threshold tests  
   **Commit:** `feat(obs): add latency budget monitors and alerts`

@@ -32,3 +32,6 @@ class LatencyBudgetMonitor:
             threshold_ms=self._threshold_ms,
             observed_latency_ms=sample.latency_ms,
         )
+
+    def evaluate_many(self, samples: tuple[LatencySample, ...]) -> tuple[LatencyAlert, ...]:
+        return tuple(alert for sample in samples if (alert := self.evaluate(sample)) is not None)
