@@ -1348,7 +1348,7 @@ A task is only complete when all are true:
   **Unit tests:** manifest completeness tests  
   **Commit:** `feat(evidence): implement evidence bundle manifest format`
 
-- [ ] Implement evidence bundle assembler for backtest/robustness/paper/live-limited artifacts.  
+- [x] Implement evidence bundle assembler for backtest/robustness/paper/live-limited artifacts.  
   **Refs:** PROM-010 to PROM-014  
   **Unit tests:** lifecycle evidence assembly tests  
   **Commit:** `feat(evidence): assemble lifecycle evidence bundles`

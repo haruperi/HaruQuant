@@ -13,6 +13,8 @@ from .audit import (
 )
 from .evidence import (
     EvidenceArtifact,
+    LifecycleEvidenceBundle,
+    assemble_lifecycle_evidence_bundle,
     build_evidence_bundle_manifest,
 )
 from .execution import (
@@ -182,9 +184,11 @@ __all__ = [
     "AuditExportPackage",
     "AdvisoryPortfolioProposal",
     "EvidenceArtifact",
+    "LifecycleEvidenceBundle",
     "LegalHoldAwareReplayResult",
     "LegalHoldAwareReplayService",
     "build_audit_export_package",
+    "assemble_lifecycle_evidence_bundle",
     "build_evidence_bundle_manifest",
     "generate_integrity_manifest",
     "sign_audit_evidence",
