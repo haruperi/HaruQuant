@@ -6,6 +6,7 @@ from .execution import (
     SymbolMetadataCacheEntry,
     validate_market_open,
     validate_price_freshness,
+    validate_stop_and_freeze_levels,
     validate_symbol_tradability,
 )
 from .risk import (
@@ -125,5 +126,6 @@ __all__ = [
     "SymbolMetadataCacheEntry",
     "validate_market_open",
     "validate_price_freshness",
+    "validate_stop_and_freeze_levels",
     "validate_symbol_tradability",
 ]

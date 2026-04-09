@@ -7,6 +7,7 @@ from backend.services import (
     SymbolMetadataCacheEntry,
     validate_market_open,
     validate_price_freshness,
+    validate_stop_and_freeze_levels,
     validate_symbol_tradability,
 )
 
@@ -53,3 +54,14 @@ def test_validate_price_freshness_rejects_stale_snapshot() -> None:
 
     assert result.allowed is False
     assert result.reason_codes == ("stale_price_snapshot",)
+
+
+def test_validate_stop_and_freeze_levels_rejects_too_close_distances() -> None:
+    result = validate_stop_and_freeze_levels(
+        _metadata(),
+        stop_distance_points=8,
+        modify_distance_points=3,
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == ("stop_level_too_close", "freeze_level_too_close")

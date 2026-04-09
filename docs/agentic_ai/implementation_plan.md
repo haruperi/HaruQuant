@@ -744,7 +744,7 @@ A task is only complete when all are true:
   **Unit tests:** stale price rejection tests  
   **Commit:** `feat(exec): implement price freshness validation`
 
-- [ ] Implement stop/freeze-level validation.  
+- [x] Implement stop/freeze-level validation.  
   **Refs:** FR-057  
   **Unit tests:** invalid stop distance tests  
   **Commit:** `feat(exec): implement stop and freeze level validation`

@@ -67,9 +67,35 @@ def validate_price_freshness(
     )
 
 
+def validate_stop_and_freeze_levels(
+    metadata: SymbolMetadataCacheEntry,
+    *,
+    stop_distance_points: float | None = None,
+    modify_distance_points: float | None = None,
+) -> ReadinessCheckResult:
+    """Reject execution when requested stop or modification distances violate broker rules."""
+
+    reasons: list[str] = []
+    if stop_distance_points is not None and stop_distance_points < metadata.stop_level_points:
+        reasons.append("stop_level_too_close")
+    if modify_distance_points is not None and modify_distance_points < metadata.freeze_level_points:
+        reasons.append("freeze_level_too_close")
+
+    return ReadinessCheckResult(
+        allowed=not reasons,
+        reason_codes=tuple(reasons),
+        metadata={
+            "symbol": metadata.symbol,
+            "stop_level_points": metadata.stop_level_points,
+            "freeze_level_points": metadata.freeze_level_points,
+        },
+    )
+
+
 __all__ = [
     "ReadinessCheckResult",
     "validate_market_open",
     "validate_price_freshness",
+    "validate_stop_and_freeze_levels",
     "validate_symbol_tradability",
 ]
