@@ -1139,7 +1139,7 @@ A task is only complete when all are true:
   **Unit tests:** expiry and rationale enforcement tests  
   **Commit:** `feat(approval-api): implement override approval flow`
 
-- [ ] Implement hard-trigger kill-switch recovery approval flow.  
+- [x] Implement hard-trigger kill-switch recovery approval flow.  
   **Refs:** FR-013, Board baseline  
   **Unit tests:** dual-auth recovery tests  
   **Commit:** `feat(approval-api): implement kill switch recovery approvals`

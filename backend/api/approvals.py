@@ -47,6 +47,14 @@ class OverrideApprovalCreateBody(BaseModel):
     required_roles: tuple[str, ...] = ()
 
 
+class KillSwitchRecoveryApprovalBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_ref_id: str = Field(min_length=1)
+    expires_at: str = Field(min_length=1)
+    required_roles: tuple[str, ...]
+
+
 router = APIRouter(prefix="/api/operator/approvals", tags=["approvals"])
 
 
@@ -146,6 +154,38 @@ def create_override_approval(
         "approval_id": approval.approval_id,
         "state": approval.state,
         "expires_at": approval.expires_at,
+    }
+
+
+@router.post("/kill-switch-recovery")
+def create_kill_switch_recovery_approval(
+    body: KillSwitchRecoveryApprovalBody,
+    request: Request,
+) -> dict[str, object]:
+    required_roles = set(body.required_roles)
+    if {"risk_manager", "compliance"} - required_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="kill switch recovery approvals require risk_manager and compliance roles",
+        )
+
+    principal = require_operator_role(request, "approver", "admin")
+    approval = ApprovalCreationService(_dependencies(request).governance_repository).create(
+        ApprovalCreateRequest(
+            action_type="kill_switch_recovery",
+            target_ref_type="kill_switch_event",
+            target_ref_id=body.target_ref_id,
+            required_count=2,
+            created_by_actor_type="operator",
+            created_by_actor_id=principal.actor_id,
+            expires_at=body.expires_at,
+            metadata_json=body.model_dump_json(),
+        )
+    )
+    return {
+        "approval_id": approval.approval_id,
+        "state": approval.state,
+        "required_count": approval.required_count,
     }
 
 

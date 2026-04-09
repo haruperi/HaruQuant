@@ -169,3 +169,45 @@ def test_override_approval_enforces_expiry_and_rationale(tmp_path: Path) -> None
 
     assert missing_rationale.status_code == 422
     assert valid.status_code == 200
+
+
+def test_kill_switch_recovery_approval_requires_dual_auth_roles(tmp_path: Path) -> None:
+    settings = load_runtime_settings_from_mapping(
+        {
+            "environment": "test",
+            "ui_origin": "http://localhost:3000",
+            "database_url": f"sqlite:///{tmp_path / 'approval-api.db'}",
+        }
+    )
+    app = create_app(build_operator_api_dependencies(settings=settings))
+    client = TestClient(app)
+
+    invalid = client.post(
+        "/api/operator/approvals/kill-switch-recovery",
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-HQ-Actor-Id": "approver:test",
+            "X-HQ-Role": "approver",
+        },
+        json={
+            "target_ref_id": "kill_001",
+            "expires_at": "2026-04-09T12:00:00Z",
+            "required_roles": ["risk_manager"],
+        },
+    )
+    valid = client.post(
+        "/api/operator/approvals/kill-switch-recovery",
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-HQ-Actor-Id": "approver:test",
+            "X-HQ-Role": "approver",
+        },
+        json={
+            "target_ref_id": "kill_001",
+            "expires_at": "2026-04-09T12:00:00Z",
+            "required_roles": ["risk_manager", "compliance"],
+        },
+    )
+
+    assert invalid.status_code == 400
+    assert valid.status_code == 200
