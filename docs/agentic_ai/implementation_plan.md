@@ -1495,7 +1495,7 @@ A task is only complete when all are true:
   **Unit tests:** red-team tests  
   **Commit:** `test(security): add retrieval contamination scenarios`
 
-- [ ] Implement audit integrity verification tests.  
+  - [x] Implement audit integrity verification tests.  
   **Refs:** NFR-019, NFR-020  
   **Unit tests:** signature/hash validation tests  
   **Commit:** `test(security): add audit integrity verification tests`
