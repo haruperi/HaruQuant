@@ -954,17 +954,17 @@ A task is only complete when all are true:
   **Unit tests:** slippage assessment schema tests  
   **Commit:** `feat(agents): implement slippage sub-agent`
 
-- [ ] Implement CorrelationAgent.  
+  - [x] Implement CorrelationAgent.  
   **Refs:** FR-020, FR-031, FR-048  
   **Unit tests:** correlation output schema tests  
   **Commit:** `feat(agents): implement correlation sub-agent`
 
-- [ ] Implement ExposureAgent.  
+  - [x] Implement ExposureAgent.  
   **Refs:** FR-020, FR-031, FR-048  
   **Unit tests:** exposure output schema tests  
   **Commit:** `feat(agents): implement exposure sub-agent`
 
-- [ ] Implement DrawdownAgent.  
+  - [x] Implement DrawdownAgent.  
   **Refs:** FR-020, FR-031  
   **Unit tests:** drawdown output schema tests  
   **Commit:** `feat(agents): implement drawdown sub-agent`

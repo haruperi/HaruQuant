@@ -1,7 +1,10 @@
 """Agent runtime scaffolding for the agentic backend."""
 
 from .compliance_agent import COMPLIANCE_AGENT_INSTRUCTION, ComplianceAgentWrapper
+from .correlation_agent import CORRELATION_AGENT_INSTRUCTION, CorrelationAgentWrapper
+from .drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION, DrawdownAgentWrapper
 from .execution_agent import EXECUTION_AGENT_INSTRUCTION, ExecutionAgentWrapper
+from .exposure_agent import EXPOSURE_AGENT_INSTRUCTION, ExposureAgentWrapper
 from .portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
 from .risk_governor_agent import RiskGovernorAgentAdapter
 from .monitoring_agent import MONITORING_AGENT_INSTRUCTION, MonitoringAgentWrapper
@@ -48,7 +51,10 @@ __all__ = [
     "ADKRunnerConfig",
     "ADKRunnerService",
     "COMPLIANCE_AGENT_INSTRUCTION",
+    "CORRELATION_AGENT_INSTRUCTION",
+    "DRAWDOWN_AGENT_INSTRUCTION",
     "EXECUTION_AGENT_INSTRUCTION",
+    "EXPOSURE_AGENT_INSTRUCTION",
     "MONITORING_AGENT_INSTRUCTION",
     "ORCHESTRATOR_AGENT_INSTRUCTION",
     "PORTFOLIO_AGENT_INSTRUCTION",
@@ -62,7 +68,10 @@ __all__ = [
     "AgentExecutionResult",
     "AgentRuntime",
     "ComplianceAgentWrapper",
+    "CorrelationAgentWrapper",
+    "DrawdownAgentWrapper",
     "ExecutionAgentWrapper",
+    "ExposureAgentWrapper",
     "MonitoringAgentWrapper",
     "OrchestratorAgentWrapper",
     "PortfolioAgentWrapper",
