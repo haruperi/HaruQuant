@@ -1129,7 +1129,7 @@ A task is only complete when all are true:
   **Unit tests:** endpoint authorization tests  
   **Commit:** `feat(approval-api): add live execution approval endpoints`
 
-- [ ] Implement policy-change approval flow.  
+- [x] Implement policy-change approval flow.  
   **Refs:** FR-038, COMP-012  
   **Unit tests:** dual-auth policy change tests  
   **Commit:** `feat(approval-api): implement policy change approvals`

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.services.approval import (
@@ -63,6 +63,39 @@ def create_live_execution_approval(
         "approval_id": approval.approval_id,
         "state": approval.state,
         "target_ref_id": approval.target_ref_id,
+    }
+
+
+@router.post("/policy-change")
+def create_policy_change_approval(
+    body: LiveExecutionApprovalCreateBody,
+    request: Request,
+) -> dict[str, object]:
+    if body.required_count < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="policy change approvals require dual authorization",
+        )
+
+    principal = require_operator_role(request, "approver", "admin")
+    approval = ApprovalCreationService(_dependencies(request).governance_repository).create(
+        ApprovalCreateRequest(
+            action_type="policy_change",
+            target_ref_type="policy_version",
+            target_ref_id=body.target_ref_id,
+            required_count=body.required_count,
+            created_by_actor_type="operator",
+            created_by_actor_id=principal.actor_id,
+            compliance_profile_id=body.compliance_profile_id,
+            expires_at=body.expires_at,
+            metadata_json=body.metadata_json,
+        )
+    )
+    return {
+        "approval_id": approval.approval_id,
+        "state": approval.state,
+        "target_ref_id": approval.target_ref_id,
+        "required_count": approval.required_count,
     }
 
 

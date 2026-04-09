@@ -78,3 +78,45 @@ def test_live_execution_approval_vote_endpoint_requires_approver_role(tmp_path: 
 
     assert forbidden.status_code == 403
     assert allowed.status_code == 200
+
+
+def test_policy_change_approval_requires_dual_authorization(tmp_path: Path) -> None:
+    settings = load_runtime_settings_from_mapping(
+        {
+            "environment": "test",
+            "ui_origin": "http://localhost:3000",
+            "database_url": f"sqlite:///{tmp_path / 'approval-api.db'}",
+        }
+    )
+    app = create_app(build_operator_api_dependencies(settings=settings))
+    client = TestClient(app)
+
+    single_auth = client.post(
+        "/api/operator/approvals/policy-change",
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-HQ-Actor-Id": "approver:test",
+            "X-HQ-Role": "approver",
+        },
+        json={
+            "target_ref_id": "policy_001",
+            "required_count": 1,
+            "expires_at": "2026-04-09T12:00:00Z",
+        },
+    )
+    dual_auth = client.post(
+        "/api/operator/approvals/policy-change",
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-HQ-Actor-Id": "approver:test",
+            "X-HQ-Role": "approver",
+        },
+        json={
+            "target_ref_id": "policy_001",
+            "required_count": 2,
+            "expires_at": "2026-04-09T12:00:00Z",
+        },
+    )
+
+    assert single_auth.status_code == 400
+    assert dual_auth.status_code == 200
