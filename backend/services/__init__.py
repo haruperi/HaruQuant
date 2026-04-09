@@ -32,6 +32,7 @@ from .risk import (
     calculate_symbol_concentration,
     evaluate_regime_restriction,
     evaluate_session_restrictions,
+    evaluate_spread_slippage_precheck,
 )
 
 __all__ = [
@@ -65,6 +66,7 @@ __all__ = [
     "calculate_symbol_concentration",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
+    "evaluate_spread_slippage_precheck",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
 ]

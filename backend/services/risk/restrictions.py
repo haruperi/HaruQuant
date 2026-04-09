@@ -68,8 +68,36 @@ def evaluate_session_restrictions(
     )
 
 
+def evaluate_spread_slippage_precheck(
+    *,
+    spread_points: float,
+    max_spread_points: float,
+    expected_slippage_points: float,
+    max_slippage_points: float,
+) -> RestrictionEvaluation:
+    """Block entries when spread or expected slippage exceed configured limits."""
+
+    reasons: list[str] = []
+    if spread_points > max_spread_points:
+        reasons.append("spread_threshold_exceeded")
+    if expected_slippage_points > max_slippage_points:
+        reasons.append("slippage_threshold_exceeded")
+
+    return RestrictionEvaluation(
+        allowed=not reasons,
+        reason_codes=tuple(reasons),
+        metadata={
+            "spread_points": spread_points,
+            "max_spread_points": max_spread_points,
+            "expected_slippage_points": expected_slippage_points,
+            "max_slippage_points": max_slippage_points,
+        },
+    )
+
+
 __all__ = [
     "RestrictionEvaluation",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
+    "evaluate_spread_slippage_precheck",
 ]

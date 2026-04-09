@@ -665,7 +665,7 @@ A task is only complete when all are true:
   **Unit tests:** session window and blackout tests  
   **Commit:** `feat(risk): implement session and blackout checks`
 
-- [ ] Implement spread/slippage pre-check evaluator.  
+- [x] Implement spread/slippage pre-check evaluator.  
   **Refs:** FR-031, FR-057  
   **Unit tests:** spread threshold rejection tests  
   **Commit:** `feat(risk): implement spread and slippage prechecks`

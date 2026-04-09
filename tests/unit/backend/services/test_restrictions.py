@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from backend.services.risk import evaluate_regime_restriction
 from backend.services.risk import evaluate_session_restrictions
+from backend.services.risk import evaluate_spread_slippage_precheck
 
 
 UTC = timezone.utc
@@ -48,3 +49,18 @@ def test_evaluate_session_restrictions_blocks_active_blackout_window():
 
     assert result.allowed is False
     assert result.reason_codes == ("active_blackout_window",)
+
+
+def test_evaluate_spread_slippage_precheck_reports_threshold_failures():
+    result = evaluate_spread_slippage_precheck(
+        spread_points=3.0,
+        max_spread_points=2.0,
+        expected_slippage_points=1.5,
+        max_slippage_points=1.0,
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == (
+        "spread_threshold_exceeded",
+        "slippage_threshold_exceeded",
+    )

@@ -27,6 +27,7 @@ from .restrictions import (
     RestrictionEvaluation,
     evaluate_regime_restriction,
     evaluate_session_restrictions,
+    evaluate_spread_slippage_precheck,
 )
 from .snapshots import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
@@ -60,6 +61,7 @@ __all__ = [
     "calculate_symbol_concentration",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
+    "evaluate_spread_slippage_precheck",
     "RiskRequestAssemblyContext",
     "assemble_risk_assessment_request",
     "ACCOUNT_SNAPSHOT_TTL_POLICY",
