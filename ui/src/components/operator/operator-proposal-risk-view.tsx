@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+import { OperatorAuthorityBadge } from "./operator-authority-badge"
 import { operatorProposals } from "./operator-mock-data"
 
 
@@ -42,6 +43,9 @@ export function OperatorProposalRiskView() {
                     </Badge>
                   </TableCell>
                   <TableCell>{proposal.riskDecision}</TableCell>
+                  <TableCell>
+                    <OperatorAuthorityBadge authorityState={proposal.authorityState} />
+                  </TableCell>
                   <TableCell>{proposal.expiryAt}</TableCell>
                 </TableRow>
               ))}
@@ -64,6 +68,9 @@ export function OperatorProposalRiskView() {
                   <p className="text-sm text-muted-foreground">{proposal.state}</p>
                 </div>
                 <Badge variant="secondary">Queue #{proposal.queuePosition}</Badge>
+              </div>
+              <div className="mt-3">
+                <OperatorAuthorityBadge authorityState={proposal.authorityState} />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {proposal.constraints.map((constraint) => (

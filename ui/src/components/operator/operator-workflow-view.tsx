@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+import { OperatorAuthorityBadge } from "./operator-authority-badge"
 import { operatorWorkflows, selectedWorkflow } from "./operator-mock-data"
 
 export function OperatorWorkflowView() {
@@ -35,9 +36,12 @@ export function OperatorWorkflowView() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="border-slate-300 text-slate-700">
-                      {workflow.state}
-                    </Badge>
+                    <div className="flex flex-col gap-2">
+                      <Badge variant="outline" className="border-slate-300 text-slate-700">
+                        {workflow.state}
+                      </Badge>
+                      <OperatorAuthorityBadge authorityState={workflow.authorityState} />
+                    </div>
                   </TableCell>
                   <TableCell>{workflow.owner}</TableCell>
                   <TableCell>{workflow.currentStep}</TableCell>
@@ -63,6 +67,9 @@ export function OperatorWorkflowView() {
             <div className="rounded-lg border p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">State</p>
               <p className="mt-2 font-medium">{selectedWorkflow.state}</p>
+              <div className="mt-2">
+                <OperatorAuthorityBadge authorityState={selectedWorkflow.authorityState} />
+              </div>
             </div>
             <div className="rounded-lg border p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Transitions</p>

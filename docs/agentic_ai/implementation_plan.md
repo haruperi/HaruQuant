@@ -1235,18 +1235,18 @@ A task is only complete when all are true:
   **Unit tests:** websocket/sse subscription tests  
   **Commit:** `feat(ui): add real-time event streaming`
 
-- [ ] Implement authoritative/provisional/reconciling visual badges.  
+- [x] Implement authoritative/provisional/reconciling visual badges.  
   **Refs:** FR-067  
   **Unit tests:** state badge tests  
   **Commit:** `feat(ui): add authority-state visual indicators`
 
 ### 9.7 Phase 4 Exit Criteria
 
-- [ ] End-to-end supervised live execution path works in non-production with simulator/paper target.  
-- [ ] Approval, override, incident, replay, and export paths exist.  
-- [ ] Dashboard exposes operational supervision views.  
-- [ ] All live actions create intent, receipt, provenance, and replay artifacts.  
-- [ ] Integration + scenario tests for live control plane green.  
+- [x] End-to-end supervised live execution path works in non-production with simulator/paper target.  
+- [x] Approval, override, incident, replay, and export paths exist.  
+- [x] Dashboard exposes operational supervision views.  
+- [x] All live actions create intent, receipt, provenance, and replay artifacts.  
+- [x] Integration + scenario tests for live control plane green.  
 
 ---
 

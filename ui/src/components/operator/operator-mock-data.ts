@@ -8,6 +8,7 @@ export const operatorWorkflows = [
     updatedAt: "2026-04-09T10:24:00Z",
     currentStep: "reconcile_receipts",
     transitionCount: 11,
+    authorityState: "RECONCILING",
     notes: [
       "Workflow entered reconciliation after broker receipt divergence.",
       "Replay coverage already includes strategy, risk, and execution phases.",
@@ -23,6 +24,7 @@ export const operatorWorkflows = [
     updatedAt: "2026-04-09T09:58:00Z",
     currentStep: "risk_decision_review",
     transitionCount: 7,
+    authorityState: "PROVISIONAL",
     notes: [
       "Volatility-adjusted sizing reduced original exposure request.",
       "Session restriction flagged London close proximity.",
@@ -43,6 +45,7 @@ export const operatorProposals = [
     queuePosition: 1,
     expiryAt: "2026-04-09T10:40:00Z",
     riskDecision: "APPROVE_WITH_LIMITS",
+    authorityState: "PROVISIONAL",
     constraints: ["reduced_size", "spread_cap_1.8"],
   },
   {
@@ -54,6 +57,7 @@ export const operatorProposals = [
     queuePosition: 2,
     expiryAt: "2026-04-09T10:52:00Z",
     riskDecision: "REJECT",
+    authorityState: "AUTHORITATIVE",
     constraints: ["session_blackout"],
   },
 ] as const
@@ -92,6 +96,7 @@ export const operatorIncidents = [
     source: "reconciliation",
     summary: "Broker receipt diverged from local execution status.",
     recommendedAction: "Hold retries and review reconciliation evidence.",
+    authorityState: "RECONCILING",
   },
   {
     incidentId: "inc_002",
@@ -101,6 +106,7 @@ export const operatorIncidents = [
     source: "monitoring",
     summary: "Market snapshot aged beyond short TTL.",
     recommendedAction: "Refresh market and account snapshots before risk review.",
+    authorityState: "PROVISIONAL",
   },
 ] as const
 
@@ -113,5 +119,6 @@ export const operatorReplayBundles = [
     manifestHash: "a91cf8d2f9e0c3",
     includedRefs: ["evidence_001", "log_001", "log_002", "receipt_001"],
     objectStoreUri: "memory://replay/rpb_001",
+    authorityState: "AUTHORITATIVE",
   },
 ] as const

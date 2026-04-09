@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+import { OperatorAuthorityBadge } from "./operator-authority-badge"
 import { operatorReplayBundles } from "./operator-mock-data"
 
 
@@ -32,6 +33,9 @@ export function OperatorReplayView() {
           <div className="rounded-lg border p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Object Store URI</p>
             <p className="mt-2 text-sm text-slate-700">{replay.objectStoreUri}</p>
+            <div className="mt-3">
+              <OperatorAuthorityBadge authorityState={replay.authorityState} />
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+import { OperatorAuthorityBadge } from "./operator-authority-badge"
 import { operatorIncidents } from "./operator-mock-data"
 
 
@@ -39,6 +40,9 @@ export function OperatorIncidentView() {
                     </Badge>
                   </TableCell>
                   <TableCell>{incident.source}</TableCell>
+                  <TableCell>
+                    <OperatorAuthorityBadge authorityState={incident.authorityState} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -57,6 +61,9 @@ export function OperatorIncidentView() {
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium text-slate-900">{incident.alertType}</p>
                 <Badge variant="secondary">{incident.severity}</Badge>
+              </div>
+              <div className="mt-3">
+                <OperatorAuthorityBadge authorityState={incident.authorityState} />
               </div>
               <p className="mt-3 text-sm text-slate-700">{incident.recommendedAction}</p>
             </div>
