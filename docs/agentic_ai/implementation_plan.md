@@ -1311,7 +1311,7 @@ A task is only complete when all are true:
   **Unit tests:** invalid lifecycle jump rejection tests  
   **Commit:** `feat(strategy-gov): implement lifecycle transition validator`
 
-- [ ] Implement promotion evidence bundle validator.  
+- [x] Implement promotion evidence bundle validator.  
   **Refs:** FR-045, PROM-010 to PROM-014  
   **Unit tests:** missing-evidence rejection tests  
   **Commit:** `feat(strategy-gov): implement promotion evidence validation`

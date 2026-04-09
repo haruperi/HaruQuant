@@ -145,6 +145,9 @@ from .safety import (
     require_hard_trigger_recovery_dual_auth,
 )
 from .strategy_gov import (
+    PROMOTION_EVIDENCE_REQUIREMENTS,
+    PromotionEvidenceValidation,
+    PromotionEvidenceValidator,
     STRATEGY_LIFECYCLE_TRANSITIONS,
     StrategyLifecycleState,
     StrategyLifecycleTransition,
@@ -186,7 +189,10 @@ __all__ = [
     "ObservationIngestionService",
     "ObservationRecord",
     "PortfolioSnapshotAssemblyInput",
+    "PROMOTION_EVIDENCE_REQUIREMENTS",
     "StaleStateDetection",
+    "PromotionEvidenceValidation",
+    "PromotionEvidenceValidator",
     "STRATEGY_LIFECYCLE_TRANSITIONS",
     "ToolHealthResult",
     "WorkflowTimeoutResult",
