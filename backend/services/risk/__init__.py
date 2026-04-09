@@ -30,6 +30,7 @@ from .margin import (
     calculate_margin_utilization,
     calculate_volatility_adjusted_size,
 )
+from .persistence import RiskDecisionPersistenceService
 from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
 from .restrictions import (
     RestrictionEvaluation,
@@ -64,6 +65,7 @@ __all__ = [
     "PositionExposure",
     "RestrictionEvaluation",
     "RiskDecisionEnvelopeContext",
+    "RiskDecisionPersistenceService",
     "RiskDecisionProvenance",
     "evaluate_compliance_profile_compatibility",
     "compose_risk_decision",

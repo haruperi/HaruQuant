@@ -111,7 +111,7 @@ def pack_risk_decision_rationale_and_provenance(
     context: RiskDecisionEnvelopeContext,
     provenance: RiskDecisionProvenance,
     risk_decision_id: str | None = None,
-) -> RiskAssessmentDecision:
+) -> PackedRiskDecisionArtifacts:
     """Pack a composed decision into canonical and persistence-ready artifacts."""
 
     contract = RiskAssessmentDecision(

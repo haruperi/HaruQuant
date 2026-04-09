@@ -690,7 +690,7 @@ A task is only complete when all are true:
   **Unit tests:** rationale/provenance completeness tests  
   **Commit:** `feat(risk): persist rationale and provenance fields`
 
-- [ ] Implement risk decision persistence service.  
+- [x] Implement risk decision persistence service.  
   **Refs:** FR-034, FR-072  
   **Unit tests:** decision save and constraint persistence tests  
   **Commit:** `feat(risk): implement risk decision persistence`
