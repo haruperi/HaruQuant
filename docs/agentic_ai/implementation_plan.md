@@ -1696,7 +1696,7 @@ Target:
 ## 15. Non-Functional Work Packages
 
 ### 15.1 Safety
-- [ ] Verify every live path has hard technical gate before broker mutation.  
+- [x] Verify every live path has hard technical gate before broker mutation.  
   **Refs:** NFR-001, NFR-002, NFR-003  
   **Commit:** `test(readiness): verify hard technical live gates`
 
