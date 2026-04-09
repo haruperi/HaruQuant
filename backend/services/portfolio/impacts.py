@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from backend.services.risk import MarginUtilization, calculate_margin_utilization
+
 
 @dataclass(frozen=True)
 class ProjectedVarEsImpact:
@@ -40,7 +42,31 @@ def calculate_projected_var_es_impact(
     )
 
 
+def calculate_projected_margin_impact(
+    *,
+    balance: float,
+    equity: float,
+    free_margin: float,
+    margin_used: float,
+    projected_margin_delta: float,
+) -> MarginUtilization:
+    """Project margin utilization after an additive margin change."""
+
+    projected_margin_used = margin_used + projected_margin_delta
+    if projected_margin_used < 0:
+        raise ValueError("projected margin used must be non-negative")
+
+    projected_free_margin = free_margin - projected_margin_delta
+    return calculate_margin_utilization(
+        balance=balance,
+        equity=equity,
+        free_margin=projected_free_margin,
+        margin_used=projected_margin_used,
+    )
+
+
 __all__ = [
     "ProjectedVarEsImpact",
+    "calculate_projected_margin_impact",
     "calculate_projected_var_es_impact",
 ]

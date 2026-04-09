@@ -1289,7 +1289,7 @@ A task is only complete when all are true:
   **Unit tests:** projected risk impact tests  
   **Commit:** `feat(portfolio): implement projected var and es impact`
 
-- [ ] Implement projected margin utilization calculator.  
+- [x] Implement projected margin utilization calculator.  
   **Refs:** FR-051  
   **Unit tests:** projected margin tests  
   **Commit:** `feat(portfolio): implement projected margin impact`

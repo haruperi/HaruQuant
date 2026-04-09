@@ -1,7 +1,11 @@
 """Portfolio analytics services."""
 
 from .contributions import MarginalRiskContribution, calculate_marginal_risk_contribution
-from .impacts import ProjectedVarEsImpact, calculate_projected_var_es_impact
+from .impacts import (
+    ProjectedVarEsImpact,
+    calculate_projected_margin_impact,
+    calculate_projected_var_es_impact,
+)
 from .proposals import (
     AdvisoryPortfolioProposal,
     generate_derisk_proposal,
@@ -16,6 +20,7 @@ __all__ = [
     "MarginalRiskContribution",
     "PortfolioSnapshotAssemblyInput",
     "ProjectedVarEsImpact",
+    "calculate_projected_margin_impact",
     "calculate_marginal_risk_contribution",
     "calculate_projected_var_es_impact",
     "generate_derisk_proposal",
