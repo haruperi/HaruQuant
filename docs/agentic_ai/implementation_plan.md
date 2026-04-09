@@ -1193,7 +1193,7 @@ A task is only complete when all are true:
   **Unit tests:** export profile labeling tests  
   **Commit:** `feat(audit): implement compliance-profile-aware audit export`
 
-- [ ] Implement legal-hold aware retrieval.  
+- [x] Implement legal-hold aware retrieval.  
   **Refs:** FR-074, COMP-002  
   **Unit tests:** legal-hold protected export tests  
   **Commit:** `feat(audit): add legal-hold aware retrieval`

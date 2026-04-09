@@ -2,6 +2,8 @@
 
 from .audit import (
     AuditExportPackage,
+    LegalHoldAwareReplayResult,
+    LegalHoldAwareReplayService,
     ReplayBundleAssembler,
     ReplayBundleAssemblyResult,
     build_audit_export_package,
@@ -133,6 +135,8 @@ __all__ = [
     "ReplayBundleAssembler",
     "ReplayBundleAssemblyResult",
     "AuditExportPackage",
+    "LegalHoldAwareReplayResult",
+    "LegalHoldAwareReplayService",
     "build_audit_export_package",
     "generate_integrity_manifest",
     "ComposedRiskDecision",
