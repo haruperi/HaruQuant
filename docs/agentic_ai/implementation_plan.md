@@ -1453,7 +1453,7 @@ A task is only complete when all are true:
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add broker ack delay chaos scenario`
 
-- [ ] Implement chaos test for duplicate receipt.  
+  - [x] Implement chaos test for duplicate receipt.  
   **Refs:** FR-076  
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add duplicate receipt chaos scenario`
