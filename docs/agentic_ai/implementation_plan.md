@@ -1377,7 +1377,7 @@ A task is only complete when all are true:
 
 ### 11.1 Legacy Wrapping
 
-- [ ] Wrap existing simulation module as `backtest_mcp`.  
+  - [x] Wrap existing simulation module as `backtest_mcp`.  
   **Refs:** FR-052, Migration design  
   **Unit tests:** MCP wrapper contract tests  
   **Commit:** `feat(migration): wrap simulation module as backtest mcp`
