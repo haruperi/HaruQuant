@@ -55,3 +55,9 @@ def require_live_execution_profile(*, compliance_profile_id: str | None, operati
             "Live execution workflows require an attached compliance profile.",
         )
     return compliance_profile_id or ""
+
+
+def build_compliance_profile_labels(*, export_profile: str, compliance_profile_id: str) -> tuple[str, ...]:
+    """Build stable export labels from the active compliance profile."""
+
+    return (export_profile, f"profile:{compliance_profile_id}")

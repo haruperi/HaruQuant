@@ -1544,7 +1544,7 @@ A task is only complete when all are true:
   **Unit tests:** missing-profile live workflow rejection tests  
   **Commit:** `feat(compliance): attach active profile to live workflows`
 
-- [ ] Implement export labeling by compliance profile.  
+  - [x] Implement export labeling by compliance profile.  
   **Refs:** COMP-013  
   **Unit tests:** export metadata tests  
   **Commit:** `feat(compliance): label exports by active compliance profile`

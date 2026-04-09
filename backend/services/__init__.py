@@ -19,6 +19,7 @@ from .audit import (
 )
 from .compliance_rollout import (
     require_live_execution_profile,
+    build_compliance_profile_labels,
     seed_internal_non_regulated_profile,
     seed_uae_enterprise_profile,
 )
@@ -211,6 +212,7 @@ __all__ = [
     "seed_internal_non_regulated_profile",
     "seed_uae_enterprise_profile",
     "require_live_execution_profile",
+    "build_compliance_profile_labels",
     "EvidenceBundleStorageService",
     "EvidenceArtifact",
     "LifecycleEvidenceBundle",

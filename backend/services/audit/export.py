@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.db import ReplayBundleRecord
+from backend.services.compliance_rollout import build_compliance_profile_labels
 
 
 @dataclass(frozen=True)
@@ -31,5 +32,8 @@ def build_audit_export_package(
         compliance_profile_id=compliance_profile_id,
         replay_bundle_id=replay_bundle.replay_bundle_id,
         object_store_uri=replay_bundle.object_store_uri,
-        labels=(export_profile, f"profile:{compliance_profile_id}"),
+        labels=build_compliance_profile_labels(
+            export_profile=export_profile,
+            compliance_profile_id=compliance_profile_id,
+        ),
     )
