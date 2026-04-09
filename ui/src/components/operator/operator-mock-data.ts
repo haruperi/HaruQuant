@@ -103,3 +103,15 @@ export const operatorIncidents = [
     recommendedAction: "Refresh market and account snapshots before risk review.",
   },
 ] as const
+
+export const operatorReplayBundles = [
+  {
+    replayBundleId: "rpb_001",
+    workflowId: "wf_trade_review_001",
+    completeness: "complete",
+    exportProfile: "regulatory_export",
+    manifestHash: "a91cf8d2f9e0c3",
+    includedRefs: ["evidence_001", "log_001", "log_002", "receipt_001"],
+    objectStoreUri: "memory://replay/rpb_001",
+  },
+] as const

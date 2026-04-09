@@ -1225,7 +1225,7 @@ A task is only complete when all are true:
   **Unit tests:** incident table and detail tests  
   **Commit:** `feat(ui): add incident console`
 
-- [ ] Implement replay bundle view.  
+- [x] Implement replay bundle view.  
   **Refs:** FR-065, FR-072  
   **Unit tests:** replay detail rendering tests  
   **Commit:** `feat(ui): add replay bundle view`
