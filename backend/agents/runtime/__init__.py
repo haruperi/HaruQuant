@@ -10,6 +10,7 @@ from .runner import (
     AgentRuntime,
 )
 from .memory import WorkflowMemoryBinding, WorkflowMemoryBindings
+from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
 from .tool_policy import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
 
@@ -22,6 +23,8 @@ __all__ = [
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "ContextRedactionMiddleware",
+    "RedactedContext",
     "SessionManager",
     "SessionState",
     "ToolAllowlistDecision",

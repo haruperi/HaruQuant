@@ -868,7 +868,7 @@ A task is only complete when all are true:
   **Unit tests:** forbidden tool rejection tests  
   **Commit:** `feat(agent-runtime): enforce per-agent tool allowlists`
 
-- [ ] Create context redaction middleware for secrets and privileged state.  
+  - [x] Create context redaction middleware for secrets and privileged state.  
   **Refs:** INV-020, NFR-015, NFR-016  
   **Unit tests:** secret redaction tests  
   **Commit:** `feat(agent-runtime): add context redaction middleware`
