@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.services import SymbolMetadataCacheEntry, validate_market_open
+from backend.services import (
+    SymbolMetadataCacheEntry,
+    validate_market_open,
+    validate_symbol_tradability,
+)
 
 
 UTC = timezone.utc
@@ -30,3 +34,10 @@ def test_validate_market_open_rejects_closed_market() -> None:
 
     assert result.allowed is False
     assert result.reason_codes == ("market_closed",)
+
+
+def test_validate_symbol_tradability_rejects_non_tradable_symbol() -> None:
+    result = validate_symbol_tradability(_metadata(tradable=False))
+
+    assert result.allowed is False
+    assert result.reason_codes == ("symbol_not_tradable",)

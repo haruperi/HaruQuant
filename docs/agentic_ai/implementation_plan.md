@@ -734,7 +734,7 @@ A task is only complete when all are true:
   **Unit tests:** closed market rejection tests  
   **Commit:** `feat(exec): implement market-open validation`
 
-- [ ] Implement symbol tradability validation.  
+- [x] Implement symbol tradability validation.  
   **Refs:** FR-057  
   **Unit tests:** non-tradable symbol rejection tests  
   **Commit:** `feat(exec): implement symbol tradability validation`

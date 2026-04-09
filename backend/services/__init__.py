@@ -5,6 +5,7 @@ from .execution import (
     SymbolMetadataCache,
     SymbolMetadataCacheEntry,
     validate_market_open,
+    validate_symbol_tradability,
 )
 from .risk import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
@@ -122,4 +123,5 @@ __all__ = [
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
     "validate_market_open",
+    "validate_symbol_tradability",
 ]
