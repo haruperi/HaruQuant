@@ -1475,7 +1475,7 @@ A task is only complete when all are true:
   **Unit tests:** security tests  
   **Commit:** `test(security): add rbac coverage for operator endpoints`
 
-- [ ] Implement service-to-service auth for MCP calls.  
+  - [x] Implement service-to-service auth for MCP calls.  
   **Refs:** INV-002, NFR-015  
   **Unit tests:** unauthorized MCP call rejection tests  
   **Commit:** `feat(security): add service auth for mcp calls`
