@@ -1714,7 +1714,7 @@ Target:
   **Refs:** performance budgets  
   **Commit:** `test(perf): benchmark readiness validation latency`
 
-- [ ] Verify dashboard propagation p95 <= 500ms.  
+- [x] Verify dashboard propagation p95 <= 500ms.  
   **Refs:** performance budgets  
   **Commit:** `test(perf): benchmark dashboard propagation latency`
 
