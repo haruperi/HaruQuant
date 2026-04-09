@@ -1620,7 +1620,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): reject research agent execution attempt`
 
-- [ ] Agent attempt to call forbidden external tool is rejected.  
+- [x] Agent attempt to call forbidden external tool is rejected.  
   **Refs:** FR-022, INV-002  
   **Tests:** scenario  
   **Commit:** `test(scenario): reject forbidden external tool access`
