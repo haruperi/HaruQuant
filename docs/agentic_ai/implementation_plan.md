@@ -1583,7 +1583,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): add paper execution workflow scenario`
 
-- [ ] Human-approved live workflow requires risk approval and operator approval.  
+- [x] Human-approved live workflow requires risk approval and operator approval.  
   **Refs:** MODE-003, FR-028, FR-035, FR-038  
   **Tests:** scenario  
   **Commit:** `test(scenario): add human-approved live workflow scenario`
