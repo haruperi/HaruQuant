@@ -786,7 +786,7 @@ A task is only complete when all are true:
   **Unit tests:** tool request/response contract tests  
   **Commit:** `feat(mt5-mcp): add side-effecting broker tools`
 
-- [ ] Implement tool-level stale-input rejection.  
+- [x] Implement tool-level stale-input rejection.  
   **Refs:** FR-070, NFR-002  
   **Unit tests:** stale request rejection tests  
   **Commit:** `feat(mt5-mcp): reject stale execution-critical inputs`

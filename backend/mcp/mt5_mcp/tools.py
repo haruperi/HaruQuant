@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from apps.core import Clock
+from apps.core.time_utils import evaluate_freshness
 from apps.mt5 import MT5Client
 
 from .models import MCPToolSpec
@@ -103,6 +105,23 @@ class MT5MutatingTools:
         return self.gateway.order_send(request)
 
 
+def reject_stale_execution_inputs(
+    *,
+    observed_at: datetime,
+    max_age_seconds: int,
+    clock: Clock | None = None,
+) -> None:
+    """Fail closed when execution-critical MT5 tool inputs are stale."""
+
+    freshness = evaluate_freshness(
+        observed_at,
+        max_age_seconds=max_age_seconds,
+        clock=clock,
+    )
+    if freshness.is_stale:
+        raise ValueError("stale execution-critical inputs")
+
+
 def default_mt5_gateway() -> MT5Client:
     """Create the default MT5 gateway adapter."""
 
@@ -132,4 +151,5 @@ __all__ = [
     "MUTATING_TOOL_SPECS",
     "READ_ONLY_TOOL_SPECS",
     "default_mt5_gateway",
+    "reject_stale_execution_inputs",
 ]

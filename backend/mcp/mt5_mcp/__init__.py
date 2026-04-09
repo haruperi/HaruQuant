@@ -2,7 +2,7 @@
 
 from .models import MCPToolSpec
 from .server import MT5MCPServer, create_mt5_mcp_server
-from .tools import MT5MutatingTools, MT5ReadOnlyTools
+from .tools import MT5MutatingTools, MT5ReadOnlyTools, reject_stale_execution_inputs
 
 __all__ = [
     "MCPToolSpec",
@@ -10,4 +10,5 @@ __all__ = [
     "MT5MCPServer",
     "MT5ReadOnlyTools",
     "create_mt5_mcp_server",
+    "reject_stale_execution_inputs",
 ]

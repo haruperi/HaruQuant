@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.mcp.mt5_mcp import MT5MutatingTools, MT5ReadOnlyTools
+from datetime import datetime, timezone
+
+import pytest
+
+from apps.core import FixedClock
+from backend.mcp.mt5_mcp import (
+    MT5MutatingTools,
+    MT5ReadOnlyTools,
+    reject_stale_execution_inputs,
+)
 
 
 @dataclass(frozen=True)
@@ -71,3 +80,14 @@ def test_mt5_mutating_tools_forward_requests_to_order_send() -> None:
     assert partial_close_result["request"]["volume"] == 0.1
     assert full_close_result["request"]["action"] == "deal"
     assert cancel_result["request"]["symbol"] == "EURUSD"
+
+
+def test_reject_stale_execution_inputs_blocks_expired_request() -> None:
+    observed_at = datetime(2026, 4, 9, 10, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(ValueError, match="stale execution-critical inputs"):
+        reject_stale_execution_inputs(
+            observed_at=observed_at,
+            max_age_seconds=5,
+            clock=FixedClock(datetime(2026, 4, 9, 10, 0, 6, tzinfo=timezone.utc)),
+        )
