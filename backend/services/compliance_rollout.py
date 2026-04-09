@@ -23,3 +23,23 @@ def seed_internal_non_regulated_profile() -> ComplianceProfile:
         ),
         metadata={"regulatory_tier": "internal"},
     )
+
+
+def seed_uae_enterprise_profile() -> ComplianceProfile:
+    """Seed the UAE enterprise profile as the initial production baseline."""
+
+    return ComplianceProfile(
+        compliance_profile_id="comp_uae_enterprise",
+        name="UAE Enterprise",
+        version="1.0.0",
+        active=True,
+        jurisdictions=("UAE",),
+        retention=RetentionPolicy(90, 2555, 2555),
+        approvals=ApprovalPolicy(
+            dual_auth_live_override=True,
+            hard_kill_recovery_dual_auth=True,
+            policy_change_dual_auth=True,
+            required_roles=("risk_manager", "compliance"),
+        ),
+        metadata={"regulatory_tier": "enterprise", "board_baseline": True},
+    )

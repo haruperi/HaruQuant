@@ -1534,7 +1534,7 @@ A task is only complete when all are true:
   **Unit tests:** profile seed tests  
   **Commit:** `feat(compliance): seed internal non-regulated profile`
 
-- [ ] Seed UAE Enterprise compliance profile as initial production baseline.  
+  - [x] Seed UAE Enterprise compliance profile as initial production baseline.  
   **Refs:** COMP-001 to COMP-013, Board baseline  
   **Unit tests:** profile seed tests  
   **Commit:** `feat(compliance): seed uae enterprise profile`

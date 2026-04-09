@@ -17,7 +17,7 @@ from .audit import (
     sign_audit_evidence,
     verify_audit_signature,
 )
-from .compliance_rollout import seed_internal_non_regulated_profile
+from .compliance_rollout import seed_internal_non_regulated_profile, seed_uae_enterprise_profile
 from .evidence import (
     EvidenceBundleStorageService,
     EvidenceArtifact,
@@ -205,6 +205,7 @@ __all__ = [
     "AuditExportPackage",
     "AdvisoryPortfolioProposal",
     "seed_internal_non_regulated_profile",
+    "seed_uae_enterprise_profile",
     "EvidenceBundleStorageService",
     "EvidenceArtifact",
     "LifecycleEvidenceBundle",
