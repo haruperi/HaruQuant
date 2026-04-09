@@ -1426,7 +1426,7 @@ A task is only complete when all are true:
   **Unit tests:** deterministic replay tests  
   **Commit:** `feat(replay): implement stored bundle replay runner`
 
-- [ ] Implement replay completeness checker.  
+  - [x] Implement replay completeness checker.  
   **Refs:** FR-073, NFR-020  
   **Unit tests:** missing-artifact detection tests  
   **Commit:** `feat(replay): implement replay completeness checker`
