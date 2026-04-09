@@ -33,6 +33,31 @@ class MT5TradeGateway(MT5ReadGateway, Protocol):
     def order_send(self, request: dict[str, Any]) -> Any: ...
 
 
+@dataclass(frozen=True)
+class LegacyMT5GatewayAdapter:
+    """Compatibility adapter exposing the legacy MT5 client through the MCP gateway shape."""
+
+    client: MT5Client
+
+    def account_info(self) -> Any:
+        return self.client.account_info()
+
+    def positions_get(self) -> Any:
+        return self.client.positions_get()
+
+    def orders_get(self) -> Any:
+        return self.client.orders_get()
+
+    def symbol_info(self, symbol: str) -> Any:
+        return self.client.symbol_info(symbol)
+
+    def get_ticks(self, symbol: str, count: int = 100, as_dataframe: bool = True) -> Any:
+        return self.client.get_ticks(symbol, count=count, as_dataframe=as_dataframe)
+
+    def order_send(self, request: dict[str, Any]) -> Any:
+        return self.client.order_send(request)
+
+
 def _normalize_mt5_record(record: Any) -> dict[str, Any]:
     if record is None:
         return {}
@@ -148,6 +173,7 @@ MUTATING_TOOL_SPECS: tuple[MCPToolSpec, ...] = (
 __all__ = [
     "MT5MutatingTools",
     "MT5ReadOnlyTools",
+    "LegacyMT5GatewayAdapter",
     "MUTATING_TOOL_SPECS",
     "READ_ONLY_TOOL_SPECS",
     "default_mt5_gateway",

@@ -1397,7 +1397,7 @@ A task is only complete when all are true:
   **Unit tests:** governed query contract tests  
   **Commit:** `feat(migration): wrap database module as sql mcp`
 
-- [ ] Wrap existing MT5 integration as governed `mt5_mcp` where not yet replaced.  
+  - [x] Wrap existing MT5 integration as governed `mt5_mcp` where not yet replaced.  
   **Refs:** INV-002, FR-056  
   **Unit tests:** wrapper compatibility tests  
   **Commit:** `feat(migration): wrap legacy mt5 integration as governed mcp`

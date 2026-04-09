@@ -8,6 +8,7 @@ import pytest
 
 from apps.core import FixedClock
 from backend.mcp.mt5_mcp import (
+    LegacyMT5GatewayAdapter,
     MT5MutatingTools,
     MT5ReadOnlyTools,
     MT5ToolAuthorizationError,
@@ -49,6 +50,10 @@ class FakeTradeGateway(FakeReadGateway):
         return {"retcode": 10009, "request": request}
 
 
+class FakeLegacyClient(FakeTradeGateway):
+    pass
+
+
 def test_mt5_read_only_tools_normalize_account_positions_orders_and_ticks() -> None:
     tools = MT5ReadOnlyTools(gateway=FakeReadGateway())
 
@@ -83,6 +88,17 @@ def test_mt5_mutating_tools_forward_requests_to_order_send() -> None:
     assert partial_close_result["request"]["volume"] == 0.1
     assert full_close_result["request"]["action"] == "deal"
     assert cancel_result["request"]["symbol"] == "EURUSD"
+
+
+def test_legacy_mt5_gateway_adapter_exposes_expected_gateway_shape() -> None:
+    gateway = LegacyMT5GatewayAdapter(client=FakeLegacyClient())  # type: ignore[arg-type]
+
+    assert gateway.account_info()["login"] == 12345
+    assert gateway.positions_get()[0].ticket == 1
+    assert gateway.orders_get()[0].ticket == 2
+    assert gateway.symbol_info("EURUSD")["symbol"] == "EURUSD"
+    assert gateway.get_ticks("EURUSD", count=1, as_dataframe=False)[0]["symbol"] == "EURUSD"
+    assert gateway.order_send({"action": "deal"})["retcode"] == 10009
 
 
 def test_reject_stale_execution_inputs_blocks_expired_request() -> None:
