@@ -670,7 +670,7 @@ A task is only complete when all are true:
   **Unit tests:** spread threshold rejection tests  
   **Commit:** `feat(risk): implement spread and slippage prechecks`
 
-- [ ] Implement operating mode compatibility evaluator.  
+- [x] Implement operating mode compatibility evaluator.  
   **Refs:** FR-001 to FR-004, FR-031  
   **Unit tests:** mode mismatch rejection tests  
   **Commit:** `feat(risk): implement operating mode compatibility checks`

@@ -25,6 +25,7 @@ from .margin import (
 from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
 from .restrictions import (
     RestrictionEvaluation,
+    evaluate_operating_mode_compatibility,
     evaluate_regime_restriction,
     evaluate_session_restrictions,
     evaluate_spread_slippage_precheck,
@@ -59,6 +60,7 @@ __all__ = [
     "calculate_exposure_summary",
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
+    "evaluate_operating_mode_compatibility",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
     "evaluate_spread_slippage_precheck",

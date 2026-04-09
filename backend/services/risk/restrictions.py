@@ -95,9 +95,32 @@ def evaluate_spread_slippage_precheck(
     )
 
 
+def evaluate_operating_mode_compatibility(
+    *,
+    workflow_operating_mode: str,
+    allowed_operating_modes: tuple[str, ...],
+) -> RestrictionEvaluation:
+    """Check whether the current workflow mode is permitted for the action."""
+
+    if workflow_operating_mode in allowed_operating_modes:
+        return RestrictionEvaluation(
+            allowed=True,
+            metadata={"workflow_operating_mode": workflow_operating_mode},
+        )
+    return RestrictionEvaluation(
+        allowed=False,
+        reason_codes=("operating_mode_not_allowed",),
+        metadata={
+            "workflow_operating_mode": workflow_operating_mode,
+            "allowed_operating_modes": allowed_operating_modes,
+        },
+    )
+
+
 __all__ = [
     "RestrictionEvaluation",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
     "evaluate_spread_slippage_precheck",
+    "evaluate_operating_mode_compatibility",
 ]

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from backend.services.risk import evaluate_regime_restriction
 from backend.services.risk import evaluate_session_restrictions
+from backend.services.risk import evaluate_operating_mode_compatibility
 from backend.services.risk import evaluate_spread_slippage_precheck
 
 
@@ -64,3 +65,13 @@ def test_evaluate_spread_slippage_precheck_reports_threshold_failures():
         "spread_threshold_exceeded",
         "slippage_threshold_exceeded",
     )
+
+
+def test_evaluate_operating_mode_compatibility_blocks_mode_mismatch():
+    result = evaluate_operating_mode_compatibility(
+        workflow_operating_mode="MODE-004",
+        allowed_operating_modes=("MODE-001", "MODE-002"),
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == ("operating_mode_not_allowed",)
