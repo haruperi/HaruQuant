@@ -808,7 +808,7 @@ A task is only complete when all are true:
   **Unit tests:** startup loading tests  
   **Commit:** `feat(recon): load in-flight intents on startup`
 
-- [ ] Implement broker truth fetch by client_order_id and account state.  
+  - [x] Implement broker truth fetch by client_order_id and account state.  
   **Refs:** FR-077  
   **Unit tests:** client-order-id lookup tests  
   **Commit:** `feat(recon): fetch broker truth for in-flight intents`
