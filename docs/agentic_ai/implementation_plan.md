@@ -1205,7 +1205,7 @@ A task is only complete when all are true:
 
 ### 9.6 Operator Dashboard
 
-- [ ] Implement workflow list/read views.  
+- [x] Implement workflow list/read views.  
   **Refs:** FR-064, FR-065  
   **Unit tests:** UI query rendering tests  
   **Commit:** `feat(ui): add workflow list and detail views`
