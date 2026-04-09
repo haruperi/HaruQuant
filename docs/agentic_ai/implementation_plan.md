@@ -1517,7 +1517,7 @@ A task is only complete when all are true:
   **Unit tests:** partition-routing tests  
   **Commit:** `feat(db): partition high-volume event tables`
 
-- [ ] Add selective denormalized read models for dashboard hot paths.  
+  - [x] Add selective denormalized read models for dashboard hot paths.  
   **Refs:** FR-064, NFR-007  
   **Unit tests:** query performance smoke tests  
   **Commit:** `feat(read-models): add denormalized operator dashboard read models`
