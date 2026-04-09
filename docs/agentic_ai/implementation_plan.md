@@ -771,7 +771,7 @@ A task is only complete when all are true:
 
 ### 7.5 MT5 MCP Boundary
 
-- [ ] Create MT5 MCP server skeleton.  
+- [x] Create MT5 MCP server skeleton.  
   **Refs:** INV-002, FR-022, FR-056  
   **Unit tests:** MCP server startup tests  
   **Commit:** `feat(mt5-mcp): initialize mt5 mcp server`
