@@ -1568,7 +1568,7 @@ A task is only complete when all are true:
 
 ### 12.1 Core Scenarios
 
-- [ ] Research-only workflow runs without executable intent creation.  
+  - [x] Research-only workflow runs without executable intent creation.  
   **Refs:** MODE-000, FR-052 to FR-055  
   **Tests:** scenario  
   **Commit:** `test(scenario): add research-only workflow scenario`
