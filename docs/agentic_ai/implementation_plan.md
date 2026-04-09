@@ -1284,7 +1284,7 @@ A task is only complete when all are true:
   **Unit tests:** de-risk proposal tests  
   **Commit:** `feat(portfolio): implement de-risk proposal generation`
 
-- [ ] Implement projected VaR / ES impact calculator.  
+- [x] Implement projected VaR / ES impact calculator.  
   **Refs:** FR-051  
   **Unit tests:** projected risk impact tests  
   **Commit:** `feat(portfolio): implement projected var and es impact`
