@@ -1556,11 +1556,11 @@ A task is only complete when all are true:
 
 ### 11.8 Phase 6 Exit Criteria
 
-- [ ] Legacy modules wrapped or replaced behind MCP boundaries.  
-- [ ] Shadow mode working with comparison reporting.  
-- [ ] Replay validation complete.  
-- [ ] Chaos, security, red-team, and perf hardening complete.  
-- [ ] Compliance rollout complete for dev and initial production baseline.  
+  - [x] Legacy modules wrapped or replaced behind MCP boundaries.  
+  - [x] Shadow mode working with comparison reporting.  
+  - [x] Replay validation complete.  
+  - [x] Chaos, security, red-team, and perf hardening complete.  
+  - [x] Compliance rollout complete for dev and initial production baseline.  
 
 ---
 
