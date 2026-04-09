@@ -1294,7 +1294,7 @@ A task is only complete when all are true:
   **Unit tests:** projected margin tests  
   **Commit:** `feat(portfolio): implement projected margin impact`
 
-- [ ] Implement advisory-only enforcement on portfolio actions.  
+- [x] Implement advisory-only enforcement on portfolio actions.  
   **Refs:** FR-050  
   **Unit tests:** direct-live-execution rejection tests  
   **Commit:** `feat(portfolio): enforce advisory-only portfolio action mode`
