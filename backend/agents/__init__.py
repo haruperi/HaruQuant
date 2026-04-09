@@ -11,6 +11,8 @@ from .runtime import (
     AgentRuntime,
     SessionManager,
     SessionState,
+    WorkflowMemoryBinding,
+    WorkflowMemoryBindings,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "AgentRuntime",
     "SessionManager",
     "SessionState",
+    "WorkflowMemoryBinding",
+    "WorkflowMemoryBindings",
 ]

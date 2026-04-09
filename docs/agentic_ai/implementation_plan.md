@@ -858,7 +858,7 @@ A task is only complete when all are true:
   **Unit tests:** session state lifecycle tests  
   **Commit:** `feat(agent-runtime): add session manager abstraction`
 
-- [ ] Create workflow-memory binding abstraction.  
+  - [x] Create workflow-memory binding abstraction.  
   **Refs:** FR-068, FR-071  
   **Unit tests:** workflow memory isolation tests  
   **Commit:** `feat(agent-runtime): add workflow memory bindings`

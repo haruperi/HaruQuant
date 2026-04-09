@@ -9,6 +9,7 @@ from .runner import (
     AgentExecutionResult,
     AgentRuntime,
 )
+from .memory import WorkflowMemoryBinding, WorkflowMemoryBindings
 from .session_manager import AgentSession, SessionManager, SessionState
 
 __all__ = [
@@ -22,4 +23,6 @@ __all__ = [
     "AgentRuntime",
     "SessionManager",
     "SessionState",
+    "WorkflowMemoryBinding",
+    "WorkflowMemoryBindings",
 ]
