@@ -1490,7 +1490,7 @@ A task is only complete when all are true:
   **Unit tests:** red-team tests  
   **Commit:** `test(security): add prompt injection red-team scenarios`
 
-- [ ] Implement retrieval contamination defense tests.  
+  - [x] Implement retrieval contamination defense tests.  
   **Refs:** FR-053, FR-069, NFR-017  
   **Unit tests:** red-team tests  
   **Commit:** `test(security): add retrieval contamination scenarios`
