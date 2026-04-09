@@ -1188,7 +1188,7 @@ A task is only complete when all are true:
   **Unit tests:** hash manifest tests  
   **Commit:** `feat(replay): implement integrity manifest generation`
 
-- [ ] Implement audit export service by compliance profile.  
+- [x] Implement audit export service by compliance profile.  
   **Refs:** COMP-013, FR-074  
   **Unit tests:** export profile labeling tests  
   **Commit:** `feat(audit): implement compliance-profile-aware audit export`
