@@ -43,6 +43,8 @@ from .runtime import (
     ToolPolicyError,
     SequentialWorkflowRunner,
     SequentialWorkflowStep,
+    RoutingWorkflowBranch,
+    RoutingWorkflowRunner,
     WorkflowMemoryBinding,
     WorkflowMemoryBindings,
 )
@@ -103,6 +105,8 @@ __all__ = [
     "ToolPolicyError",
     "SequentialWorkflowRunner",
     "SequentialWorkflowStep",
+    "RoutingWorkflowBranch",
+    "RoutingWorkflowRunner",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",
 ]

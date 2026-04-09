@@ -976,7 +976,7 @@ A task is only complete when all are true:
   **Unit tests:** ordered phase execution tests  
   **Commit:** `feat(agent-runtime): implement sequential workflow pattern`
 
-- [ ] Implement routing workflow runner.  
+  - [x] Implement routing workflow runner.  
   **Refs:** FR-024  
   **Unit tests:** route-selection tests  
   **Commit:** `feat(agent-runtime): implement routing workflow pattern`

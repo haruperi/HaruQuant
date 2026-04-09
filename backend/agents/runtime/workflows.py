@@ -36,3 +36,33 @@ class SequentialWorkflowRunner:
                 )
             )
         return tuple(results)
+
+
+@dataclass(frozen=True)
+class RoutingWorkflowBranch:
+    """One named branch in a routing workflow pattern."""
+
+    route_key: str
+    runtime_agent: AgentRuntime
+    request: ADKRunRequest
+
+
+class RoutingWorkflowRunner:
+    """Execute the one branch selected by a route key."""
+
+    def __init__(self, runner: ADKRunnerService) -> None:
+        self._runner = runner
+
+    def run(
+        self,
+        *,
+        route_key: str,
+        branches: tuple[RoutingWorkflowBranch, ...],
+    ) -> ADKRunResult:
+        for branch in branches:
+            if branch.route_key == route_key:
+                return self._runner.run(
+                    agent=branch.runtime_agent,
+                    request=branch.request,
+                )
+        raise LookupError(f"workflow route not found: {route_key}")
