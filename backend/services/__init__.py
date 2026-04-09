@@ -50,9 +50,11 @@ from .monitoring import (
     evaluate_tool_health,
 )
 from .portfolio import (
+    AdvisoryPortfolioProposal,
     MarginalRiskContribution,
     PortfolioSnapshotAssemblyInput,
     calculate_marginal_risk_contribution,
+    generate_resize_proposal,
     assemble_portfolio_snapshot,
 )
 from .proposals import (
@@ -143,6 +145,7 @@ __all__ = [
     "ReplayBundleAssembler",
     "ReplayBundleAssemblyResult",
     "AuditExportPackage",
+    "AdvisoryPortfolioProposal",
     "LegalHoldAwareReplayResult",
     "LegalHoldAwareReplayService",
     "build_audit_export_package",
@@ -218,6 +221,7 @@ __all__ = [
     "aggregate_readiness_results",
     "assemble_execution_intent",
     "calculate_marginal_risk_contribution",
+    "generate_resize_proposal",
     "assemble_portfolio_snapshot",
     "generate_execution_idempotency_key",
     "propagate_authority_state",

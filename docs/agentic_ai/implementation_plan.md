@@ -1264,7 +1264,7 @@ A task is only complete when all are true:
   **Unit tests:** marginal contribution tests  
   **Commit:** `feat(portfolio): implement marginal risk contribution`
 
-- [ ] Implement resize proposal generator.  
+- [x] Implement resize proposal generator.  
   **Refs:** FR-049  
   **Unit tests:** resize proposal tests  
   **Commit:** `feat(portfolio): implement resize proposal generation`
