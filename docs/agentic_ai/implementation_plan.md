@@ -796,7 +796,7 @@ A task is only complete when all are true:
   **Unit tests:** retcode-to-normalized-receipt mapping tests  
   **Commit:** `feat(mt5-mcp): normalize broker responses`
 
-- [ ] Implement MT5 tool authorization separation for read-only vs mutating tools.  
+- [x] Implement MT5 tool authorization separation for read-only vs mutating tools.  
   **Refs:** INV-002, NFR-003, NFR-015  
   **Unit tests:** unauthorized mutating tool access tests  
   **Commit:** `feat(mt5-mcp): add role-based tool authorization`

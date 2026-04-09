@@ -10,6 +10,8 @@ from apps.core import FixedClock
 from backend.mcp.mt5_mcp import (
     MT5MutatingTools,
     MT5ReadOnlyTools,
+    MT5ToolAuthorizationError,
+    MT5ToolAuthorizer,
     normalize_broker_response,
     reject_stale_execution_inputs,
 )
@@ -110,3 +112,10 @@ def test_normalize_broker_response_maps_retcode_to_stable_receipt() -> None:
     assert receipt["deal_id"] == 456
     assert receipt["comment"] == "done"
     assert receipt["request_echo"]["symbol"] == "EURUSD"
+
+
+def test_mt5_tool_authorizer_blocks_unauthorized_mutating_tool_access() -> None:
+    authorizer = MT5ToolAuthorizer()
+
+    with pytest.raises(MT5ToolAuthorizationError):
+        authorizer.authorize(tool_name="place_order", role="viewer")
