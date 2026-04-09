@@ -8,6 +8,7 @@ from .comparison import (
     build_local_execution_truth,
     compare_execution_truth,
 )
+from .incidents import ReconciliationIncidentService
 from .persistence import ReconciliationPersistenceService
 from .retry_guard import RetryGuardDecision, evaluate_retry_guard
 from .startup import (
@@ -21,6 +22,7 @@ __all__ = [
     "DEFAULT_IN_FLIGHT_EXECUTION_STATUSES",
     "LocalExecutionTruth",
     "ReconciliationComparison",
+    "ReconciliationIncidentService",
     "ReconciliationPersistenceService",
     "ReconciliationResultState",
     "ReconciliationStartupLoader",

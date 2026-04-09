@@ -33,6 +33,22 @@ class WorkflowRecord:
     terminal_reason: str | None
 
 
+@dataclass(frozen=True)
+class IncidentRecord:
+    """Stored incident state."""
+
+    incident_id: str
+    severity: str
+    state: str
+    alert_type: str
+    source: str
+    summary: str
+    opened_at: str
+    resolved_at: str | None
+    recommended_action: str | None
+    metadata_json: str
+
+
 class WorkflowRepository:
     """Minimal persistence wrapper for workflow state and transitions."""
 
@@ -215,6 +231,59 @@ class WorkflowRepository:
                 ),
             )
             return int(cursor.lastrowid)
+
+    def create_incident(
+        self,
+        *,
+        incident_id: str,
+        severity: str,
+        state: str,
+        alert_type: str,
+        source: str,
+        summary: str,
+        recommended_action: str | None = None,
+        metadata_json: str = "{}",
+    ) -> IncidentRecord:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO core_incidents (
+                    incident_id,
+                    severity,
+                    state,
+                    alert_type,
+                    source,
+                    summary,
+                    recommended_action,
+                    metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    incident_id,
+                    severity,
+                    state,
+                    alert_type,
+                    source,
+                    summary,
+                    recommended_action,
+                    metadata_json,
+                ),
+            )
+
+        record = self.get_incident(incident_id)
+        if record is None:
+            raise LookupError(f"incident not found after create: {incident_id}")
+        return record
+
+    def get_incident(self, incident_id: str) -> IncidentRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM core_incidents WHERE incident_id = ?",
+                (incident_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return IncidentRecord(**dict(row))
 
     @staticmethod
     def _row_to_record(row: sqlite3.Row) -> WorkflowRecord:

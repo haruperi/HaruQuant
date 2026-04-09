@@ -30,6 +30,7 @@ from .risk_repository import (
     RiskRepository,
 )
 from .workflow_repository import WorkflowRecord, WorkflowRepository
+from .workflow_repository import IncidentRecord
 
 __all__ = [
     "ApprovalRecord",
@@ -40,6 +41,7 @@ __all__ = [
     "ExecutionRepository",
     "ExecutionSendAttemptRecord",
     "GovernanceRepository",
+    "IncidentRecord",
     "KillSwitchEventRecord",
     "LegalHoldRecord",
     "PolicyRecord",

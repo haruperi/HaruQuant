@@ -828,7 +828,7 @@ A task is only complete when all are true:
   **Unit tests:** reconciliation run persistence tests  
   **Commit:** `feat(recon): persist reconciliation runs`
 
-- [ ] Implement incident raising on unresolved divergence.  
+  - [x] Implement incident raising on unresolved divergence.  
   **Refs:** FR-076, FR-062  
   **Unit tests:** divergence creates incident tests  
   **Commit:** `feat(recon): raise incidents for unresolved broker conflicts`
