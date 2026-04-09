@@ -907,7 +907,7 @@ A task is only complete when all are true:
   **Unit tests:** hypothesis output schema tests  
   **Commit:** `feat(agents): implement strategy agent`
 
-- [ ] Implement ResearchAgent instructions and wrapper.  
+  - [x] Implement ResearchAgent instructions and wrapper.  
   **Refs:** FR-019, FR-052 to FR-055  
   **Unit tests:** evidence/freshness output tests  
   **Commit:** `feat(agents): implement research agent`
