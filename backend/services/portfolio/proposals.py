@@ -85,8 +85,29 @@ def generate_hedge_proposal(
     )
 
 
+def generate_derisk_proposal(
+    *,
+    affected_symbols: tuple[str, ...],
+    target_reduction_ratio: float,
+) -> AdvisoryPortfolioProposal:
+    """Generate an advisory de-risking proposal for one or more symbols."""
+
+    if not affected_symbols:
+        raise ValueError("affected_symbols must not be empty")
+    if not 0 < target_reduction_ratio <= 1:
+        raise ValueError("target_reduction_ratio must be within (0, 1]")
+
+    return AdvisoryPortfolioProposal(
+        action_type="de_risk",
+        affected_symbols=affected_symbols,
+        target_size={"reduction_ratio": target_reduction_ratio},
+        rationale="reduce portfolio risk exposure across the selected symbols",
+    )
+
+
 __all__ = [
     "AdvisoryPortfolioProposal",
+    "generate_derisk_proposal",
     "generate_hedge_proposal",
     "generate_rebalance_proposal",
     "generate_resize_proposal",

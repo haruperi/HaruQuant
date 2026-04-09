@@ -1279,7 +1279,7 @@ A task is only complete when all are true:
   **Unit tests:** hedge proposal tests  
   **Commit:** `feat(portfolio): implement hedge proposal generation`
 
-- [ ] Implement de-risk proposal generator.  
+- [x] Implement de-risk proposal generator.  
   **Refs:** FR-049  
   **Unit tests:** de-risk proposal tests  
   **Commit:** `feat(portfolio): implement de-risk proposal generation`
