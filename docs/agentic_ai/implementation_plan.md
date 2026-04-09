@@ -1070,7 +1070,7 @@ A task is only complete when all are true:
   **Unit tests:** transform validity tests  
   **Commit:** `feat(proposals): implement hypothesis to proposal transformation`
 
-- [ ] Implement proposal readiness checker.  
+- [x] Implement proposal readiness checker.  
   **Refs:** FR-040, FR-041  
   **Unit tests:** missing validation-data rejection tests  
   **Commit:** `feat(proposals): implement proposal readiness checks`
