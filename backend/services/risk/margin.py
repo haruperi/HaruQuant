@@ -25,6 +25,17 @@ class VolatilityAdjustedSizing:
     adjusted_size: float
 
 
+@dataclass(frozen=True)
+class DrawdownState:
+    """Current drawdown amount, ratio, and coarse state band."""
+
+    peak_equity: float
+    current_equity: float
+    drawdown_amount: float
+    drawdown_ratio: float
+    band: str
+
+
 def calculate_margin_utilization(
     *,
     balance: float,
@@ -69,9 +80,41 @@ def calculate_volatility_adjusted_size(
     )
 
 
+def calculate_drawdown_state(
+    *,
+    peak_equity: float,
+    current_equity: float,
+) -> DrawdownState:
+    """Classify drawdown into simple governance bands."""
+
+    if peak_equity <= 0:
+        raise ValueError("peak_equity must be positive")
+
+    drawdown_amount = max(peak_equity - current_equity, 0.0)
+    drawdown_ratio = drawdown_amount / peak_equity
+    if drawdown_ratio < 0.05:
+        band = "normal"
+    elif drawdown_ratio < 0.1:
+        band = "elevated"
+    elif drawdown_ratio < 0.2:
+        band = "restricted"
+    else:
+        band = "critical"
+
+    return DrawdownState(
+        peak_equity=peak_equity,
+        current_equity=current_equity,
+        drawdown_amount=drawdown_amount,
+        drawdown_ratio=drawdown_ratio,
+        band=band,
+    )
+
+
 __all__ = [
+    "DrawdownState",
     "MarginUtilization",
     "VolatilityAdjustedSizing",
+    "calculate_drawdown_state",
     "calculate_margin_utilization",
     "calculate_volatility_adjusted_size",
 ]

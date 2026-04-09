@@ -650,7 +650,7 @@ A task is only complete when all are true:
   **Unit tests:** pair and portfolio correlation tests  
   **Commit:** `feat(risk): implement correlation concentration checks`
 
-- [ ] Implement drawdown state calculator.  
+- [x] Implement drawdown state calculator.  
   **Refs:** FR-031  
   **Unit tests:** drawdown band classification tests  
   **Commit:** `feat(risk): implement drawdown state calculator`

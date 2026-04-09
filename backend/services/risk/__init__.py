@@ -15,8 +15,10 @@ from .exposure import (
     calculate_symbol_concentration,
 )
 from .margin import (
+    DrawdownState,
     MarginUtilization,
     VolatilityAdjustedSizing,
+    calculate_drawdown_state,
     calculate_margin_utilization,
     calculate_volatility_adjusted_size,
 )
@@ -37,11 +39,13 @@ __all__ = [
     "CorrelationConcentration",
     "CorrelationPair",
     "ConcentrationResult",
+    "DrawdownState",
     "ExposureSummary",
     "MarginUtilization",
     "VolatilityAdjustedSizing",
     "PositionExposure",
     "calculate_correlation_concentration",
+    "calculate_drawdown_state",
     "calculate_margin_utilization",
     "calculate_volatility_adjusted_size",
     "calculate_currency_concentration",

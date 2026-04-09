@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.risk import calculate_margin_utilization, calculate_volatility_adjusted_size
+from backend.services.risk import (
+    calculate_drawdown_state,
+    calculate_margin_utilization,
+    calculate_volatility_adjusted_size,
+)
 
 
 def test_calculate_margin_utilization_returns_free_margin_ratio():
@@ -50,3 +54,14 @@ def test_calculate_volatility_adjusted_size_applies_bounds():
 
     assert result.volatility_ratio == pytest.approx(1.5)
     assert result.adjusted_size == pytest.approx(1.5)
+
+
+def test_calculate_drawdown_state_classifies_restricted_band():
+    result = calculate_drawdown_state(
+        peak_equity=10000.0,
+        current_equity=8300.0,
+    )
+
+    assert result.drawdown_amount == pytest.approx(1700.0)
+    assert result.drawdown_ratio == pytest.approx(0.17)
+    assert result.band == "restricted"
