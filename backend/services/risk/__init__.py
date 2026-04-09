@@ -51,6 +51,10 @@ from .snapshots import (
     PortfolioSnapshot,
     PortfolioSnapshotType,
 )
+from .validity import (
+    RiskDecisionValidity,
+    invalidate_for_material_proposal_change,
+)
 
 __all__ = [
     "ComposedRiskDecision",
@@ -65,10 +69,12 @@ __all__ = [
     "PositionExposure",
     "RestrictionEvaluation",
     "RiskDecisionEnvelopeContext",
+    "RiskDecisionValidity",
     "RiskDecisionPersistenceService",
     "RiskDecisionProvenance",
     "evaluate_compliance_profile_compatibility",
     "compose_risk_decision",
+    "invalidate_for_material_proposal_change",
     "pack_risk_decision_rationale_and_provenance",
     "calculate_correlation_concentration",
     "calculate_drawdown_state",

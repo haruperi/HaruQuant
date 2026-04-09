@@ -695,7 +695,7 @@ A task is only complete when all are true:
   **Unit tests:** decision save and constraint persistence tests  
   **Commit:** `feat(risk): implement risk decision persistence`
 
-- [ ] Implement risk-decision invalidation rules for material proposal change.  
+- [x] Implement risk-decision invalidation rules for material proposal change.  
   **Refs:** FR-029, TTL-011  
   **Unit tests:** changed proposal invalidation tests  
   **Commit:** `feat(risk): implement proposal-change invalidation rules`
