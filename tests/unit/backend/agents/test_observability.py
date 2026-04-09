@@ -4,6 +4,7 @@ from pathlib import Path
 
 from backend.agents import (
     ADKRunRequest,
+    ADKRunResult,
     ADKRunnerConfig,
     ADKRunnerService,
     AgentExecutionResult,
@@ -154,3 +155,43 @@ def test_runtime_trajectory_log_captures_tool_call_hashes_and_latency() -> None:
     assert '"call_hash":"' in log.tool_calls_json
     assert '"latency_ms":12' in log.tool_calls_json
     assert log.latency_ms == 44
+
+
+def test_build_run_trajectory_log_captures_model_prompt_and_verdict_provenance() -> None:
+    request = ADKRunRequest(
+        workflow_id="wf_123",
+        correlation_id="corr_123",
+        agent_name="research_agent",
+        input_payload={"query": "eurusd macro"},
+        prompt_version_id="prompt_002",
+    )
+    result = ADKRunResult(
+        runner_name="agent-runtime",
+        runtime_version="local-adk-wrapper-v1",
+        agent_name="research_agent",
+        workflow_id="wf_123",
+        correlation_id="corr_123",
+        session_id="sess_001",
+        model="gemini-2.5-pro",
+        prompt_version_id="prompt_002",
+        prompt_hash="hash_prompt_002",
+        latency_ms=61,
+        output_payload={"summary": "fresh signal"},
+        final_state="COMPLETED",
+        tool_calls=(),
+        token_usage={"prompt": 12, "completion": 8},
+    )
+
+    log = build_run_trajectory_log(
+        request=request,
+        result=result,
+        phase="research",
+        iteration_no=1,
+        input_schema="WorkflowIntent",
+        output_schema="ObservationEvent",
+    )
+
+    assert log.final_state == "COMPLETED"
+    assert '"model":"gemini-2.5-pro"' in log.token_usage_json
+    assert '"prompt_hash":"hash_prompt_002"' in log.token_usage_json
+    assert '"completion":8' in log.token_usage_json

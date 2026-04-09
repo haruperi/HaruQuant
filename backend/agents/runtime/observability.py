@@ -33,6 +33,9 @@ class RuntimeTrajectoryLog:
     observation_payload_ref: str | None = None
     evaluation_output_ref: str | None = None
     token_usage: dict[str, int] | None = None
+    model: str | None = None
+    prompt_version_id: str | None = None
+    prompt_hash: str | None = None
     signature: str | None = None
     artifact_ref: str | None = None
 
@@ -82,9 +85,23 @@ class RuntimeTrajectoryLog:
 
     @property
     def token_usage_json(self) -> str | None:
-        if self.token_usage is None:
+        if (
+            self.token_usage is None
+            and self.model is None
+            and self.prompt_version_id is None
+            and self.prompt_hash is None
+        ):
             return None
-        return canonical_json_dumps(self.token_usage)
+        payload: dict[str, Any] = {}
+        if self.token_usage is not None:
+            payload.update(self.token_usage)
+        if self.model is not None:
+            payload["model"] = self.model
+        if self.prompt_version_id is not None:
+            payload["prompt_version_id"] = self.prompt_version_id
+        if self.prompt_hash is not None:
+            payload["prompt_hash"] = self.prompt_hash
+        return canonical_json_dumps(payload)
 
 
 class RuntimeTrajectoryLogService:
@@ -151,6 +168,9 @@ def build_run_trajectory_log(
         evaluation_output_ref=evaluation_output_ref,
         latency_ms=result.latency_ms,
         token_usage=None if result.token_usage is None else dict(result.token_usage),
+        model=result.model,
+        prompt_version_id=result.prompt_version_id,
+        prompt_hash=result.prompt_hash,
         final_state=result.final_state,
         signature=signature,
         artifact_ref=artifact_ref,

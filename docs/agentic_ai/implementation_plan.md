@@ -1045,7 +1045,7 @@ A task is only complete when all are true:
   **Unit tests:** tool-call logging tests  
   **Commit:** `feat(obs): capture tool call hashes and latency`
 
-- [ ] Capture model, prompt hash, token usage, and final verdict.  
+- [x] Capture model, prompt hash, token usage, and final verdict.  
   **Refs:** FR-073, NFR-004  
   **Unit tests:** model provenance log tests  
   **Commit:** `feat(obs): log model prompt and token provenance`
