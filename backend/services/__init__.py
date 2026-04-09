@@ -2,6 +2,7 @@
 
 from .execution import (
     ExecutionIntentAssemblyConfig,
+    PreSendValidationRequest,
     ReadinessAggregateResult,
     ReadinessCheckResult,
     SymbolMetadataCache,
@@ -9,6 +10,7 @@ from .execution import (
     aggregate_readiness_results,
     assemble_execution_intent,
     generate_execution_idempotency_key,
+    run_pre_send_validation,
     validate_fill_mode_compatibility,
     validate_market_open,
     validate_price_freshness,
@@ -128,6 +130,7 @@ __all__ = [
     "ReadinessAggregateResult",
     "ReadinessCheckResult",
     "ExecutionIntentAssemblyConfig",
+    "PreSendValidationRequest",
     "LocalExecutionTruth",
     "ReconciliationComparison",
     "ReconciliationIncidentService",
@@ -154,6 +157,7 @@ __all__ = [
     "aggregate_readiness_results",
     "assemble_execution_intent",
     "generate_execution_idempotency_key",
+    "run_pre_send_validation",
     "assemble_risk_assessment_request",
     "build_local_execution_truth",
     "calculate_correlation_concentration",

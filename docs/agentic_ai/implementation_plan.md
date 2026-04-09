@@ -1092,7 +1092,7 @@ A task is only complete when all are true:
   **Unit tests:** stable uniqueness tests  
   **Commit:** `feat(execution): implement idempotency key generation`
 
-- [ ] Implement pre-send validation orchestration.  
+- [x] Implement pre-send validation orchestration.  
   **Refs:** FR-057  
   **Unit tests:** readiness chain failure tests  
   **Commit:** `feat(execution): orchestrate pre-send validation chain`

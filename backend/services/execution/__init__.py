@@ -3,6 +3,7 @@
 from .assembler import ExecutionIntentAssemblyConfig, assemble_execution_intent
 from .idempotency import generate_execution_idempotency_key
 from .metadata_cache import SymbolMetadataCache, SymbolMetadataCacheEntry
+from .pre_send import PreSendValidationRequest, run_pre_send_validation
 from .readiness import (
     ReadinessAggregateResult,
     ReadinessCheckResult,
@@ -20,9 +21,11 @@ __all__ = [
     "ReadinessAggregateResult",
     "ReadinessCheckResult",
     "ExecutionIntentAssemblyConfig",
+    "PreSendValidationRequest",
     "aggregate_readiness_results",
     "assemble_execution_intent",
     "generate_execution_idempotency_key",
+    "run_pre_send_validation",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
     "validate_fill_mode_compatibility",
