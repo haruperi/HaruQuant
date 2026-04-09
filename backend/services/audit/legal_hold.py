@@ -14,6 +14,12 @@ class LegalHoldAwareReplayResult:
     active_holds: tuple[LegalHoldRecord, ...]
 
 
+@dataclass(frozen=True)
+class LegalHoldPurgeDecision:
+    blocked: bool
+    active_holds: tuple[LegalHoldRecord, ...]
+
+
 class LegalHoldAwareReplayService:
     """Protect replay retrieval when active legal holds exist."""
 
@@ -30,6 +36,18 @@ class LegalHoldAwareReplayService:
         replay_bundle = self._repository.get_replay_bundle(replay_bundle_id)
         return LegalHoldAwareReplayResult(
             replay_bundle=replay_bundle,
+            blocked=bool(holds),
+            active_holds=holds,
+        )
+
+    def check_purge_allowed(self, *, target_type: str, target_ref_id: str) -> LegalHoldPurgeDecision:
+        holds = tuple(
+            self._repository.list_active_legal_holds(
+                target_type=target_type,
+                target_ref_id=target_ref_id,
+            )
+        )
+        return LegalHoldPurgeDecision(
             blocked=bool(holds),
             active_holds=holds,
         )

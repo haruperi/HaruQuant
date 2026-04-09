@@ -2,6 +2,7 @@
 
 from .audit import (
     AuditExportPackage,
+    LegalHoldPurgeDecision,
     LegalHoldAwareReplayResult,
     LegalHoldAwareReplayService,
     ReplayComparisonReport,
@@ -213,6 +214,7 @@ __all__ = [
     "seed_uae_enterprise_profile",
     "require_live_execution_profile",
     "build_compliance_profile_labels",
+    "LegalHoldPurgeDecision",
     "EvidenceBundleStorageService",
     "EvidenceArtifact",
     "LifecycleEvidenceBundle",

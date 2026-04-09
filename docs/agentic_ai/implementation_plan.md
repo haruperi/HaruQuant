@@ -1549,7 +1549,7 @@ A task is only complete when all are true:
   **Unit tests:** export metadata tests  
   **Commit:** `feat(compliance): label exports by active compliance profile`
 
-- [ ] Implement legal-hold-aware purge blocker.  
+- [x] Implement legal-hold-aware purge blocker.  
   **Refs:** FR-074, COMP-003  
   **Unit tests:** purge blocked by legal hold tests  
   **Commit:** `feat(compliance): block purge under legal hold`
