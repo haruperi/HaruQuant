@@ -791,7 +791,7 @@ A task is only complete when all are true:
   **Unit tests:** stale request rejection tests  
   **Commit:** `feat(mt5-mcp): reject stale execution-critical inputs`
 
-- [ ] Implement broker response normalization.  
+- [x] Implement broker response normalization.  
   **Refs:** FR-059  
   **Unit tests:** retcode-to-normalized-receipt mapping tests  
   **Commit:** `feat(mt5-mcp): normalize broker responses`

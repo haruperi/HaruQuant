@@ -10,6 +10,7 @@ from apps.core import FixedClock
 from backend.mcp.mt5_mcp import (
     MT5MutatingTools,
     MT5ReadOnlyTools,
+    normalize_broker_response,
     reject_stale_execution_inputs,
 )
 
@@ -91,3 +92,21 @@ def test_reject_stale_execution_inputs_blocks_expired_request() -> None:
             max_age_seconds=5,
             clock=FixedClock(datetime(2026, 4, 9, 10, 0, 6, tzinfo=timezone.utc)),
         )
+
+
+def test_normalize_broker_response_maps_retcode_to_stable_receipt() -> None:
+    receipt = normalize_broker_response(
+        {
+            "retcode": 10009,
+            "order": 123,
+            "deal": 456,
+            "comment": "done",
+            "request": {"symbol": "EURUSD"},
+        }
+    )
+
+    assert receipt["status"] == "accepted"
+    assert receipt["order_id"] == 123
+    assert receipt["deal_id"] == 456
+    assert receipt["comment"] == "done"
+    assert receipt["request_echo"]["symbol"] == "EURUSD"
