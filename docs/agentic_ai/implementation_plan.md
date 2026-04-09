@@ -717,7 +717,7 @@ A task is only complete when all are true:
   **Unit tests:** new-entry blocked when triggered tests  
   **Commit:** `feat(safety): enforce new-entry block under kill switch`
 
-- [ ] Implement hard-trigger recovery dual-authorization rule.  
+- [x] Implement hard-trigger recovery dual-authorization rule.  
   **Refs:** FR-013, COMP-012, Board baseline  
   **Unit tests:** single approver recovery rejection tests  
   **Commit:** `feat(safety): require dual auth for hard trigger recovery`

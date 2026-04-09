@@ -52,8 +52,10 @@ from .safety import (
     KillSwitchService,
     KillSwitchStateMachine,
     KillSwitchTransitionError,
+    RecoveryApproval,
     RecoveryAuthorization,
     evaluate_new_entry_block,
+    require_hard_trigger_recovery_dual_auth,
 )
 
 __all__ = [
@@ -86,8 +88,10 @@ __all__ = [
     "KillSwitchService",
     "KillSwitchStateMachine",
     "KillSwitchTransitionError",
+    "RecoveryApproval",
     "RecoveryAuthorization",
     "evaluate_new_entry_block",
+    "require_hard_trigger_recovery_dual_auth",
     "VolatilityAdjustedSizing",
     "assemble_risk_assessment_request",
     "calculate_correlation_concentration",

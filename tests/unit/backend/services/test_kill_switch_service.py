@@ -4,7 +4,9 @@ from backend.services import (
     KillSwitchService,
     KillSwitchStateMachine,
     KillSwitchTransitionError,
+    RecoveryApproval,
     evaluate_new_entry_block,
+    require_hard_trigger_recovery_dual_auth,
 )
 
 
@@ -54,3 +56,18 @@ def test_evaluate_new_entry_block_blocks_when_kill_switch_triggered() -> None:
     assert result.blocked is True
     assert result.allow_force_exit is True
     assert result.reason_codes == ("kill_switch_blocks_new_entries",)
+
+
+def test_hard_trigger_recovery_requires_dual_authorization() -> None:
+    assert not require_hard_trigger_recovery_dual_auth(
+        (
+            RecoveryApproval(approver_role="risk_manager", approver_id="rm_001"),
+        )
+    )
+
+    assert require_hard_trigger_recovery_dual_auth(
+        (
+            RecoveryApproval(approver_role="risk_manager", approver_id="rm_001"),
+            RecoveryApproval(approver_role="compliance", approver_id="co_001"),
+        )
+    )

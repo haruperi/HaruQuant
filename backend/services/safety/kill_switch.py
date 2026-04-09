@@ -29,6 +29,14 @@ class KillSwitchBlockEvaluation:
 
 
 @dataclass(frozen=True)
+class RecoveryApproval:
+    """Approval attestation used for governed kill-switch recovery."""
+
+    approver_role: RecoveryAuthorization
+    approver_id: str
+
+
+@dataclass(frozen=True)
 class KillSwitchStateMachine:
     """Thin domain wrapper around the kill-switch transition map."""
 
@@ -101,12 +109,26 @@ def evaluate_new_entry_block(current_state: KillSwitchState) -> KillSwitchBlockE
     )
 
 
+def require_hard_trigger_recovery_dual_auth(
+    approvals: tuple[RecoveryApproval, ...],
+) -> bool:
+    """Require distinct Risk Manager and Compliance approvals for hard recovery."""
+
+    distinct_approvers = {approval.approver_id for approval in approvals}
+    distinct_roles = {approval.approver_role for approval in approvals}
+    return len(distinct_approvers) >= 2 and {"risk_manager", "compliance"}.issubset(
+        distinct_roles
+    )
+
+
 __all__ = [
     "KillSwitchBlockEvaluation",
     "KillSwitchAction",
     "KillSwitchService",
     "KillSwitchStateMachine",
     "KillSwitchTransitionError",
+    "RecoveryApproval",
     "RecoveryAuthorization",
     "evaluate_new_entry_block",
+    "require_hard_trigger_recovery_dual_auth",
 ]
