@@ -9,6 +9,7 @@ from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgen
 from .research_agent import RESEARCH_AGENT_INSTRUCTION, ResearchAgentWrapper
 from .regime_agent import REGIME_AGENT_INSTRUCTION, RegimeAgentWrapper
 from .strategy_agent import STRATEGY_AGENT_INSTRUCTION, StrategyAgentWrapper
+from .slippage_agent import SLIPPAGE_AGENT_INSTRUCTION, SlippageAgentWrapper
 from .volatility_agent import VOLATILITY_AGENT_INSTRUCTION, VolatilityAgentWrapper
 from .runtime import (
     ADKRunRequest,
@@ -53,6 +54,7 @@ __all__ = [
     "PORTFOLIO_AGENT_INSTRUCTION",
     "RESEARCH_AGENT_INSTRUCTION",
     "REGIME_AGENT_INSTRUCTION",
+    "SLIPPAGE_AGENT_INSTRUCTION",
     "STRATEGY_AGENT_INSTRUCTION",
     "VOLATILITY_AGENT_INSTRUCTION",
     "AgentSession",
@@ -67,6 +69,7 @@ __all__ = [
     "RiskGovernorAgentAdapter",
     "ResearchAgentWrapper",
     "RegimeAgentWrapper",
+    "SlippageAgentWrapper",
     "StrategyAgentWrapper",
     "VolatilityAgentWrapper",
     "CanonicalOutputValidator",

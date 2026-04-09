@@ -949,7 +949,7 @@ A task is only complete when all are true:
   **Unit tests:** regime output schema tests  
   **Commit:** `feat(agents): implement regime sub-agent`
 
-- [ ] Implement SlippageAgent.  
+  - [x] Implement SlippageAgent.  
   **Refs:** FR-020, FR-031, FR-057  
   **Unit tests:** slippage assessment schema tests  
   **Commit:** `feat(agents): implement slippage sub-agent`
