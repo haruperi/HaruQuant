@@ -1,6 +1,13 @@
 """Risk service primitives for deterministic safety-core slices."""
 
-from .decisions import ComposedRiskDecision, compose_risk_decision
+from .decisions import (
+    ComposedRiskDecision,
+    PackedRiskDecisionArtifacts,
+    RiskDecisionEnvelopeContext,
+    RiskDecisionProvenance,
+    compose_risk_decision,
+    pack_risk_decision_rationale_and_provenance,
+)
 from .correlation import (
     CorrelationConcentration,
     CorrelationPair,
@@ -46,6 +53,7 @@ from .snapshots import (
 
 __all__ = [
     "ComposedRiskDecision",
+    "PackedRiskDecisionArtifacts",
     "CorrelationConcentration",
     "CorrelationPair",
     "ConcentrationResult",
@@ -55,8 +63,11 @@ __all__ = [
     "VolatilityAdjustedSizing",
     "PositionExposure",
     "RestrictionEvaluation",
+    "RiskDecisionEnvelopeContext",
+    "RiskDecisionProvenance",
     "evaluate_compliance_profile_compatibility",
     "compose_risk_decision",
+    "pack_risk_decision_rationale_and_provenance",
     "calculate_correlation_concentration",
     "calculate_drawdown_state",
     "calculate_margin_utilization",

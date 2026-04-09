@@ -685,7 +685,7 @@ A task is only complete when all are true:
   **Unit tests:** decision outcome matrix tests  
   **Commit:** `feat(risk): implement risk decision composer`
 
-- [ ] Implement risk rationale/provenance packer.  
+- [x] Implement risk rationale/provenance packer.  
   **Refs:** FR-034, FR-073  
   **Unit tests:** rationale/provenance completeness tests  
   **Commit:** `feat(risk): persist rationale and provenance fields`
