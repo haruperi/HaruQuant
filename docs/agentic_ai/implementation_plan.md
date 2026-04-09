@@ -1035,7 +1035,7 @@ A task is only complete when all are true:
   **Unit tests:** propagated ID tests  
   **Commit:** `feat(obs): propagate workflow and correlation ids across agent runs`
 
-- [ ] Capture input/output schema names and hashes.  
+- [x] Capture input/output schema names and hashes.  
   **Refs:** FR-073, NFR-004  
   **Unit tests:** schema hash capture tests  
   **Commit:** `feat(obs): log schema names and hashes`

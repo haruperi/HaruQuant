@@ -12,6 +12,7 @@ from backend.agents import (
     build_run_trajectory_log,
 )
 from backend.db import ResearchAuditRepository, apply_pending_migrations
+from backend.agents.runtime.evaluator import hash_schema_name
 
 
 def test_runtime_trajectory_log_service_persists_to_audit_store(tmp_path) -> None:
@@ -93,3 +94,36 @@ def test_build_run_trajectory_log_propagates_workflow_and_correlation_ids() -> N
     assert log.workflow_id == "wf_123"
     assert log.correlation_id == "corr_123"
     assert log.agent_name == "orchestrator_agent"
+
+
+def test_runtime_trajectory_log_captures_schema_names_and_hashes() -> None:
+    log = RuntimeTrajectoryLog(
+        workflow_id="wf_123",
+        correlation_id="corr_123",
+        agent_name="research_agent",
+        phase="research",
+        iteration_no=0,
+        input_schema="WorkflowIntent",
+        input_payload={"query": "eurusd macro"},
+        output_schema="ObservationEvent",
+        output_payload={"summary": "fresh signal"},
+        latency_ms=44,
+        final_state="COMPLETED",
+    )
+    same_payload_different_schema = RuntimeTrajectoryLog(
+        workflow_id="wf_123",
+        correlation_id="corr_123",
+        agent_name="research_agent",
+        phase="research",
+        iteration_no=0,
+        input_schema="TradeProposal",
+        input_payload={"query": "eurusd macro"},
+        output_schema="ObservationEvent",
+        output_payload={"summary": "fresh signal"},
+        latency_ms=44,
+        final_state="COMPLETED",
+    )
+
+    assert log.input_schema_hash == hash_schema_name("WorkflowIntent")
+    assert log.output_schema_hash == hash_schema_name("ObservationEvent")
+    assert log.input_hash != same_payload_different_schema.input_hash

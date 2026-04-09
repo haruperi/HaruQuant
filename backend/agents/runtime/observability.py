@@ -9,6 +9,7 @@ from typing import Any
 from apps.core.ids import generate_prefixed_id
 from backend.contracts.serialization import canonical_json_dumps
 from backend.db import ResearchAuditRepository, TrajectoryLogRecord
+from .evaluator import hash_schema_name
 from .runner import ADKRunRequest, ADKRunResult
 
 
@@ -61,11 +62,19 @@ class RuntimeTrajectoryLog:
 
     @property
     def input_hash(self) -> str:
-        return _hash_payload(self.input_payload)
+        return _hash_schema_payload(self.input_schema, self.input_payload)
 
     @property
     def output_hash(self) -> str:
-        return _hash_payload(self.output_payload)
+        return _hash_schema_payload(self.output_schema, self.output_payload)
+
+    @property
+    def input_schema_hash(self) -> str:
+        return hash_schema_name(self.input_schema)
+
+    @property
+    def output_schema_hash(self) -> str:
+        return hash_schema_name(self.output_schema)
 
     @property
     def tool_calls_json(self) -> str:
@@ -150,3 +159,14 @@ def build_run_trajectory_log(
 
 def _hash_payload(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical_json_dumps(payload).encode("utf-8")).hexdigest()
+
+
+def _hash_schema_payload(schema_name: str, payload: dict[str, Any]) -> str:
+    return hashlib.sha256(
+        canonical_json_dumps(
+            {
+                "schema_name": schema_name,
+                "payload_hash": _hash_payload(payload),
+            }
+        ).encode("utf-8")
+    ).hexdigest()
