@@ -583,7 +583,7 @@ A task is only complete when all are true:
 
 ### 7.1 Freshness and Snapshot Infrastructure
 
-- [ ] Implement market snapshot model with TTL metadata.  
+- [x] Implement market snapshot model with TTL metadata.  
   **Refs:** FR-070, TTL-020  
   **Unit tests:** hot/warm/cool freshness tests  
   **Commit:** `feat(risk): add market snapshot model with ttl metadata`
