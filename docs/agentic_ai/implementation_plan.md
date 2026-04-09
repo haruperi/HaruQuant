@@ -1259,7 +1259,7 @@ A task is only complete when all are true:
   **Unit tests:** snapshot completeness tests  
   **Commit:** `feat(portfolio): implement portfolio snapshot assembler`
 
-- [ ] Implement marginal risk contribution calculator.  
+- [x] Implement marginal risk contribution calculator.  
   **Refs:** FR-048, FR-051  
   **Unit tests:** marginal contribution tests  
   **Commit:** `feat(portfolio): implement marginal risk contribution`

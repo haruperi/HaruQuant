@@ -50,7 +50,9 @@ from .monitoring import (
     evaluate_tool_health,
 )
 from .portfolio import (
+    MarginalRiskContribution,
     PortfolioSnapshotAssemblyInput,
+    calculate_marginal_risk_contribution,
     assemble_portfolio_snapshot,
 )
 from .proposals import (
@@ -158,6 +160,7 @@ __all__ = [
     "ExposureSummary",
     "MARKET_SNAPSHOT_TTL_POLICY",
     "MarginUtilization",
+    "MarginalRiskContribution",
     "MarketSnapshot",
     "MarketSnapshotType",
     "AlertClassification",
@@ -214,6 +217,7 @@ __all__ = [
     "VolatilityAdjustedSizing",
     "aggregate_readiness_results",
     "assemble_execution_intent",
+    "calculate_marginal_risk_contribution",
     "assemble_portfolio_snapshot",
     "generate_execution_idempotency_key",
     "propagate_authority_state",
