@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Activity, ShieldCheck, Workflow, GitPullRequest, AlertTriangle, Search, LineChart } from "lucide-react"
+import { Activity, ShieldCheck, Workflow, GitPullRequest, AlertTriangle, Search, LineChart, FolderArchive } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -17,6 +17,7 @@ const operatorRoutes = [
   { href: "/operator/approvals", label: "Approvals", icon: ShieldCheck },
   { href: "/operator/incidents", label: "Incidents", icon: AlertTriangle },
   { href: "/operator/replay", label: "Replay", icon: Search },
+  { href: "/operator/evidence", label: "Evidence", icon: FolderArchive },
   { href: "/operator/strategies", label: "Strategies", icon: LineChart },
 ]
 

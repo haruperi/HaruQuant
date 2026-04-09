@@ -1358,7 +1358,7 @@ A task is only complete when all are true:
   **Unit tests:** hash integrity tests  
   **Commit:** `feat(evidence): hash and store evidence bundles`
 
-- [ ] Implement evidence bundle review UI.  
+- [x] Implement evidence bundle review UI.  
   **Refs:** FR-065, FR-066  
   **Unit tests:** bundle review rendering tests  
   **Commit:** `feat(ui): add evidence bundle review screens`

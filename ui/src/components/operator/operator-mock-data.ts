@@ -122,3 +122,35 @@ export const operatorReplayBundles = [
     authorityState: "AUTHORITATIVE",
   },
 ] as const
+
+export const operatorEvidenceBundles = [
+  {
+    evidenceBundleId: "evidence_001",
+    strategyId: "strat_001",
+    lifecycleState: "PAPER_APPROVED",
+    bundleType: "paper_report",
+    contentHash: "hash_paper_bundle_001",
+    contentRef: "memory://evidence/evidence_001",
+    freshnessStatus: "fresh",
+    artifactCount: 3,
+    artifacts: [
+      "equity_curve",
+      "paper_summary",
+      "risk_snapshot",
+    ],
+  },
+  {
+    evidenceBundleId: "evidence_002",
+    strategyId: "strat_001",
+    lifecycleState: "LIVE_LIMITED",
+    bundleType: "live_limited_report",
+    contentHash: "hash_live_bundle_002",
+    contentRef: "memory://evidence/evidence_002",
+    freshnessStatus: "fresh",
+    artifactCount: 2,
+    artifacts: [
+      "live_limited_summary",
+      "governance_signoff",
+    ],
+  },
+] as const
