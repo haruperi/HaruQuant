@@ -890,7 +890,7 @@ A task is only complete when all are true:
   **Unit tests:** prompt version lookup tests  
   **Commit:** `feat(prompt-registry): implement prompt version resolution`
 
-- [ ] Implement prompt hash persistence in trajectory/provenance.  
+  - [x] Implement prompt hash persistence in trajectory/provenance.  
   **Refs:** FR-073, NFR-004  
   **Unit tests:** provenance includes prompt hash tests  
   **Commit:** `feat(prompt-registry): persist prompt hashes in provenance`

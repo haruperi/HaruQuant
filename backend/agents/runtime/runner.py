@@ -65,6 +65,8 @@ class ADKRunResult:
     correlation_id: str
     session_id: str | None
     model: str
+    prompt_version_id: str | None
+    prompt_hash: str | None
     latency_ms: int
     output_payload: dict[str, Any]
     final_state: str
@@ -120,6 +122,8 @@ class ADKRunnerService:
             correlation_id=request.correlation_id,
             session_id=request.session_id,
             model=model,
+            prompt_version_id=request.prompt_version_id,
+            prompt_hash=None,
             latency_ms=latency_ms,
             output_payload=dict(result.output_payload),
             final_state=result.final_state,

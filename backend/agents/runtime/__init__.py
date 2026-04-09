@@ -16,6 +16,12 @@ from .output_validation import (
     ContractValidationError,
 )
 from .prompt_registry_service import PromptRegistryService, PromptResolutionError
+from .prompt_provenance import (
+    PromptProvenance,
+    attach_prompt_provenance,
+    attach_prompt_provenance_to_run_result,
+    build_prompt_provenance,
+)
 from .prompts import PromptRegistryRecord, PromptStatus
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
@@ -34,11 +40,15 @@ __all__ = [
     "CanonicalValidationResult",
     "ContractValidationError",
     "ContextRedactionMiddleware",
+    "PromptProvenance",
     "PromptRegistryService",
     "PromptRegistryRecord",
     "PromptResolutionError",
     "PromptStatus",
     "RedactedContext",
+    "attach_prompt_provenance",
+    "attach_prompt_provenance_to_run_result",
+    "build_prompt_provenance",
     "SessionManager",
     "SessionState",
     "ToolAllowlistDecision",

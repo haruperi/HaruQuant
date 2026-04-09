@@ -48,6 +48,8 @@ def test_adk_runner_service_initializes_and_uses_default_model() -> None:
 
     assert service.config.runner_name == "agent-runtime"
     assert result.model == "gemini-2.5-flash"
+    assert result.prompt_version_id == "prompt_001"
+    assert result.prompt_hash is None
     assert result.workflow_id == "wf_001"
     assert result.output_payload["agent"] == "orchestrator_agent"
     assert agent.last_context.allowed_tools == ("market.snapshot",)
@@ -75,5 +77,6 @@ def test_adk_runner_service_allows_request_model_override() -> None:
     )
 
     assert result.model == "gemini-2.5-pro"
+    assert result.prompt_version_id is None
     assert result.session_id is None
     assert result.tool_calls[0]["tool_name"] == "research.lookup"
