@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from apps.core import FixedClock
 from backend.contracts.trade_proposal.model import TradeProposal
-from backend.services.risk import invalidate_for_material_proposal_change
+from backend.services.risk import (
+    enforce_risk_decision_expiry,
+    invalidate_for_material_proposal_change,
+)
 
 
 UTC = timezone.utc
@@ -45,3 +49,13 @@ def test_invalidate_for_material_proposal_change_flags_changed_size():
 
     assert result.valid is False
     assert result.reason_codes == ("material_proposal_change",)
+
+
+def test_enforce_risk_decision_expiry_rejects_expired_decision():
+    result = enforce_risk_decision_expiry(
+        freshness_expiry=datetime(2026, 4, 9, 10, 0, tzinfo=UTC),
+        clock=FixedClock(datetime(2026, 4, 9, 10, 0, 31, tzinfo=UTC)),
+    )
+
+    assert result.valid is False
+    assert result.reason_codes == ("risk_decision_expired",)

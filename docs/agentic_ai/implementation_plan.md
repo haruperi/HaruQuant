@@ -700,7 +700,7 @@ A task is only complete when all are true:
   **Unit tests:** changed proposal invalidation tests  
   **Commit:** `feat(risk): implement proposal-change invalidation rules`
 
-- [ ] Implement risk-decision expiry handling.  
+- [x] Implement risk-decision expiry handling.  
   **Refs:** FR-029, FR-030  
   **Unit tests:** expired decision rejection tests  
   **Commit:** `feat(risk): implement decision expiry enforcement`

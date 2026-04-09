@@ -53,6 +53,7 @@ from .snapshots import (
 )
 from .validity import (
     RiskDecisionValidity,
+    enforce_risk_decision_expiry,
     invalidate_for_material_proposal_change,
 )
 
@@ -73,6 +74,7 @@ __all__ = [
     "RiskDecisionPersistenceService",
     "RiskDecisionProvenance",
     "evaluate_compliance_profile_compatibility",
+    "enforce_risk_decision_expiry",
     "compose_risk_decision",
     "invalidate_for_material_proposal_change",
     "pack_risk_decision_rationale_and_provenance",

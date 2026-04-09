@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from apps.core import Clock, SystemClock
 from backend.contracts.trade_proposal.model import TradeProposal
 
 
@@ -42,7 +43,21 @@ def invalidate_for_material_proposal_change(
     ):
         return RiskDecisionValidity(valid=True)
     return RiskDecisionValidity(valid=False, reason_codes=("material_proposal_change",))
+
+
+def enforce_risk_decision_expiry(
+    *,
+    freshness_expiry: datetime,
+    clock: Clock | None = None,
+) -> RiskDecisionValidity:
+    """Invalidate risk approval when its expiry timestamp has passed."""
+
+    active_clock = clock or SystemClock()
+    if freshness_expiry >= active_clock.now():
+        return RiskDecisionValidity(valid=True)
+    return RiskDecisionValidity(valid=False, reason_codes=("risk_decision_expired",))
 __all__ = [
     "RiskDecisionValidity",
+    "enforce_risk_decision_expiry",
     "invalidate_for_material_proposal_change",
 ]
