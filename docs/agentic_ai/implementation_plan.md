@@ -1710,7 +1710,7 @@ Target:
   **Refs:** performance budgets  
   **Commit:** `test(perf): benchmark risk evaluation latency`
 
-- [ ] Verify execution readiness validation p95 <= 400ms excluding external latency.  
+- [x] Verify execution readiness validation p95 <= 400ms excluding external latency.  
   **Refs:** performance budgets  
   **Commit:** `test(perf): benchmark readiness validation latency`
 
