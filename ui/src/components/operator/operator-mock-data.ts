@@ -32,3 +32,28 @@ export const operatorWorkflows = [
 ] as const
 
 export const selectedWorkflow = operatorWorkflows[0]
+
+export const operatorProposals = [
+  {
+    proposalId: "prop_001",
+    symbol: "EURUSD",
+    direction: "BUY",
+    readiness: "READY_FOR_RISK",
+    state: "APPROVED_WITH_LIMITS",
+    queuePosition: 1,
+    expiryAt: "2026-04-09T10:40:00Z",
+    riskDecision: "APPROVE_WITH_LIMITS",
+    constraints: ["reduced_size", "spread_cap_1.8"],
+  },
+  {
+    proposalId: "prop_002",
+    symbol: "GBPUSD",
+    direction: "SELL",
+    readiness: "READY_FOR_RISK",
+    state: "BLOCKED_BY_POLICY",
+    queuePosition: 2,
+    expiryAt: "2026-04-09T10:52:00Z",
+    riskDecision: "REJECT",
+    constraints: ["session_blackout"],
+  },
+] as const

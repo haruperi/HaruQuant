@@ -1210,7 +1210,7 @@ A task is only complete when all are true:
   **Unit tests:** UI query rendering tests  
   **Commit:** `feat(ui): add workflow list and detail views`
 
-- [ ] Implement proposal queue and risk-decision views.  
+- [x] Implement proposal queue and risk-decision views.  
   **Refs:** FR-064, FR-065  
   **Unit tests:** component data mapping tests  
   **Commit:** `feat(ui): add proposal and risk decision views`
