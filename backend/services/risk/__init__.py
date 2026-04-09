@@ -1,5 +1,10 @@
 """Risk service primitives for deterministic safety-core slices."""
 
+from .correlation import (
+    CorrelationConcentration,
+    CorrelationPair,
+    calculate_correlation_concentration,
+)
 from .exposure import (
     ConcentrationResult,
     ExposureSummary,
@@ -29,11 +34,14 @@ from .snapshots import (
 )
 
 __all__ = [
+    "CorrelationConcentration",
+    "CorrelationPair",
     "ConcentrationResult",
     "ExposureSummary",
     "MarginUtilization",
     "VolatilityAdjustedSizing",
     "PositionExposure",
+    "calculate_correlation_concentration",
     "calculate_margin_utilization",
     "calculate_volatility_adjusted_size",
     "calculate_currency_concentration",

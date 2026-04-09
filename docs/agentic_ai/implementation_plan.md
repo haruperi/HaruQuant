@@ -645,7 +645,7 @@ A task is only complete when all are true:
   **Unit tests:** size normalization tests  
   **Commit:** `feat(risk): implement volatility adjusted sizing`
 
-- [ ] Implement correlation concentration calculator.  
+- [x] Implement correlation concentration calculator.  
   **Refs:** FR-031, FR-048  
   **Unit tests:** pair and portfolio correlation tests  
   **Commit:** `feat(risk): implement correlation concentration checks`
