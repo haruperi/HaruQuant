@@ -10,6 +10,17 @@ from .runner import (
     AgentRuntime,
 )
 from .memory import WorkflowMemoryBinding, WorkflowMemoryBindings
+from .evaluator import (
+    EvaluatorRubric,
+    EvaluatorRubricCriterion,
+    RefinementRecommendation,
+    ResearchAssertionCheck,
+    TrajectoryEvaluation,
+    TrajectoryEvaluationService,
+    detect_unsupported_assertions,
+    generate_refinement_recommendations,
+    hash_schema_name,
+)
 from .output_validation import (
     CanonicalOutputValidator,
     CanonicalValidationResult,
@@ -51,9 +62,18 @@ __all__ = [
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "EvaluatorRubric",
+    "EvaluatorRubricCriterion",
+    "RefinementRecommendation",
+    "ResearchAssertionCheck",
+    "TrajectoryEvaluation",
+    "TrajectoryEvaluationService",
     "CanonicalOutputValidator",
     "CanonicalValidationResult",
     "ContractValidationError",
+    "detect_unsupported_assertions",
+    "generate_refinement_recommendations",
+    "hash_schema_name",
     "ContextRedactionMiddleware",
     "PromptProvenance",
     "PromptRegistryService",

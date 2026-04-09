@@ -1003,22 +1003,22 @@ A task is only complete when all are true:
 
 ### 8.6 Evaluator Infrastructure
 
-- [ ] Implement evaluator rubric model.  
+  - [x] Implement evaluator rubric model.  
   **Refs:** FR-055, FR-072  
   **Unit tests:** rubric parsing tests  
   **Commit:** `feat(evaluator): add rubric models`
 
-- [ ] Implement trajectory evaluation service.  
+  - [x] Implement trajectory evaluation service.  
   **Refs:** NFR-004  
   **Unit tests:** trajectory scoring tests  
   **Commit:** `feat(evaluator): implement trajectory evaluation service`
 
-- [ ] Implement unsupported-assertion checks for research outputs.  
+  - [x] Implement unsupported-assertion checks for research outputs.  
   **Refs:** FR-053, FR-054, FR-069  
   **Unit tests:** unsupported claim detection tests  
   **Commit:** `feat(evaluator): add unsupported assertion checks`
 
-- [ ] Implement refinement recommendation generator.  
+  - [x] Implement refinement recommendation generator.  
   **Refs:** FR-055  
   **Unit tests:** improvement action generation tests  
   **Commit:** `feat(evaluator): generate refinement recommendations`
