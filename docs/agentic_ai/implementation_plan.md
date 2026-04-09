@@ -1600,7 +1600,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): block live entry on stale risk decision`
 
-- [ ] Live entry blocked when workflow attempts unsupported autonomy escalation.  
+- [x] Live entry blocked when workflow attempts unsupported autonomy escalation.  
   **Refs:** FR-003, FR-004  
   **Tests:** scenario  
   **Commit:** `test(scenario): block autonomy self-escalation`
