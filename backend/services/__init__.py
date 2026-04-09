@@ -1,11 +1,13 @@
 """Service-layer skeletons for the agentic backend."""
 
 from .execution import (
+    ExecutionIntentAssemblyConfig,
     ReadinessAggregateResult,
     ReadinessCheckResult,
     SymbolMetadataCache,
     SymbolMetadataCacheEntry,
     aggregate_readiness_results,
+    assemble_execution_intent,
     validate_fill_mode_compatibility,
     validate_market_open,
     validate_price_freshness,
@@ -124,6 +126,7 @@ __all__ = [
     "PackedRiskDecisionArtifacts",
     "ReadinessAggregateResult",
     "ReadinessCheckResult",
+    "ExecutionIntentAssemblyConfig",
     "LocalExecutionTruth",
     "ReconciliationComparison",
     "ReconciliationIncidentService",
@@ -148,6 +151,7 @@ __all__ = [
     "require_hard_trigger_recovery_dual_auth",
     "VolatilityAdjustedSizing",
     "aggregate_readiness_results",
+    "assemble_execution_intent",
     "assemble_risk_assessment_request",
     "build_local_execution_truth",
     "calculate_correlation_concentration",

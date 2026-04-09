@@ -1,5 +1,6 @@
 """Execution service primitives for deterministic validation."""
 
+from .assembler import ExecutionIntentAssemblyConfig, assemble_execution_intent
 from .metadata_cache import SymbolMetadataCache, SymbolMetadataCacheEntry
 from .readiness import (
     ReadinessAggregateResult,
@@ -17,7 +18,9 @@ from .readiness import (
 __all__ = [
     "ReadinessAggregateResult",
     "ReadinessCheckResult",
+    "ExecutionIntentAssemblyConfig",
     "aggregate_readiness_results",
+    "assemble_execution_intent",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
     "validate_fill_mode_compatibility",

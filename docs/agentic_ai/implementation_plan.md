@@ -1082,7 +1082,7 @@ A task is only complete when all are true:
 
 ### 9.2 Execution Service
 
-- [ ] Implement execution intent assembler from approved proposal + risk decision.  
+- [x] Implement execution intent assembler from approved proposal + risk decision.  
   **Refs:** FR-056, FR-059  
   **Unit tests:** intent linkage tests  
   **Commit:** `feat(execution): implement execution intent assembler`
