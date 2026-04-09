@@ -813,7 +813,7 @@ A task is only complete when all are true:
   **Unit tests:** client-order-id lookup tests  
   **Commit:** `feat(recon): fetch broker truth for in-flight intents`
 
-- [ ] Implement local-vs-broker comparison engine.  
+  - [x] Implement local-vs-broker comparison engine.  
   **Refs:** FR-076, FR-077  
   **Unit tests:** confirmed/absent/conflicting classification tests  
   **Commit:** `feat(recon): compare local and broker execution truth`

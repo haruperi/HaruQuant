@@ -332,6 +332,25 @@ class ExecutionRepository:
             return None
         return ExecutionReceiptRecord(**dict(row))
 
+    def get_latest_receipt_for_intent(
+        self,
+        execution_intent_id: str,
+    ) -> ExecutionReceiptRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM core_execution_receipts
+                WHERE execution_intent_id = ?
+                ORDER BY received_at DESC, receipt_id DESC
+                LIMIT 1
+                """,
+                (execution_intent_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return ExecutionReceiptRecord(**dict(row))
+
     def add_reconciliation_run(
         self,
         *,
