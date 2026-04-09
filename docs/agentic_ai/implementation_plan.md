@@ -630,7 +630,7 @@ A task is only complete when all are true:
   **Unit tests:** multi-currency concentration tests  
   **Commit:** `feat(risk): implement per-currency concentration checks`
 
-- [ ] Implement per-strategy-family concentration calculator.  
+- [x] Implement per-strategy-family concentration calculator.  
   **Refs:** FR-031  
   **Unit tests:** family concentration tests  
   **Commit:** `feat(risk): implement strategy family concentration checks`

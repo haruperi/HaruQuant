@@ -18,6 +18,7 @@ from .risk import (
     assemble_risk_assessment_request,
     calculate_currency_concentration,
     calculate_exposure_summary,
+    calculate_strategy_family_concentration,
     calculate_symbol_concentration,
 )
 
@@ -38,6 +39,7 @@ __all__ = [
     "assemble_risk_assessment_request",
     "calculate_currency_concentration",
     "calculate_exposure_summary",
+    "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",

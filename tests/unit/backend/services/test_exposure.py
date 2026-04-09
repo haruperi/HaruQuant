@@ -6,6 +6,7 @@ from backend.services.risk import (
     PositionExposure,
     calculate_currency_concentration,
     calculate_exposure_summary,
+    calculate_strategy_family_concentration,
     calculate_symbol_concentration,
 )
 
@@ -122,3 +123,35 @@ def test_calculate_currency_concentration_supports_multi_currency_thresholds():
     assert result.concentrations["USD"] == pytest.approx(1000.0 / 1500.0)
     assert result.concentrations["JPY"] == pytest.approx(500.0 / 1500.0)
     assert result.breached_keys == ("USD",)
+
+
+def test_calculate_strategy_family_concentration_reports_family_breach():
+    positions = (
+        PositionExposure(
+            symbol="EURUSD",
+            currency="USD",
+            strategy_family="trend",
+            notional_exposure=700.0,
+            direction="buy",
+        ),
+        PositionExposure(
+            symbol="GBPUSD",
+            currency="USD",
+            strategy_family="trend",
+            notional_exposure=200.0,
+            direction="sell",
+        ),
+        PositionExposure(
+            symbol="USDJPY",
+            currency="JPY",
+            strategy_family="carry",
+            notional_exposure=300.0,
+            direction="buy",
+        ),
+    )
+
+    result = calculate_strategy_family_concentration(positions, threshold=0.7)
+
+    assert result.concentrations["trend"] == pytest.approx(900.0 / 1200.0)
+    assert result.concentrations["carry"] == pytest.approx(300.0 / 1200.0)
+    assert result.breached_keys == ("trend",)

@@ -6,6 +6,7 @@ from .exposure import (
     PositionExposure,
     calculate_currency_concentration,
     calculate_exposure_summary,
+    calculate_strategy_family_concentration,
     calculate_symbol_concentration,
 )
 from .request_assembler import RiskRequestAssemblyContext, assemble_risk_assessment_request
@@ -27,6 +28,7 @@ __all__ = [
     "PositionExposure",
     "calculate_currency_concentration",
     "calculate_exposure_summary",
+    "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
     "RiskRequestAssemblyContext",
     "assemble_risk_assessment_request",
