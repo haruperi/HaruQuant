@@ -880,7 +880,7 @@ A task is only complete when all are true:
 
 ### 8.2 Prompt and Version Registry
 
-- [ ] Create prompt registry domain model.  
+  - [x] Create prompt registry domain model.  
   **Refs:** FR-073, NFR-020  
   **Unit tests:** prompt record validation tests  
   **Commit:** `feat(prompt-registry): add prompt registry models`

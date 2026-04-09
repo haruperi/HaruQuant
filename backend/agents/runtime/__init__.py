@@ -15,6 +15,7 @@ from .output_validation import (
     CanonicalValidationResult,
     ContractValidationError,
 )
+from .prompts import PromptRegistryRecord, PromptStatus
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
 from .tool_policy import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
@@ -32,6 +33,8 @@ __all__ = [
     "CanonicalValidationResult",
     "ContractValidationError",
     "ContextRedactionMiddleware",
+    "PromptRegistryRecord",
+    "PromptStatus",
     "RedactedContext",
     "SessionManager",
     "SessionState",
