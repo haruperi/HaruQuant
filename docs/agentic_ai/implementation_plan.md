@@ -835,12 +835,12 @@ A task is only complete when all are true:
 
 ### 7.7 Phase 2 Exit Criteria
 
-- [ ] Risk engine returns fully persisted decisions with constraints and provenance.  
-- [ ] Kill switch technically blocks new live entry.  
-- [ ] Execution readiness validator blocks stale or invalid sends.  
-- [ ] MT5 MCP boundary exists and separates read-only vs mutating access.  
-- [ ] Reconciliation blocks unsafe duplicate retries.  
-- [ ] Unit + integration tests for risk, kill-switch, readiness, MT5, reconciliation green.  
+  - [x] Risk engine returns fully persisted decisions with constraints and provenance.  
+  - [x] Kill switch technically blocks new live entry.  
+  - [x] Execution readiness validator blocks stale or invalid sends.  
+  - [x] MT5 MCP boundary exists and separates read-only vs mutating access.  
+  - [x] Reconciliation blocks unsafe duplicate retries.  
+  - [x] Unit + integration tests for risk, kill-switch, readiness, MT5, reconciliation green.  
 
 ---
 
