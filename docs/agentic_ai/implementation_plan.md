@@ -1470,7 +1470,7 @@ A task is only complete when all are true:
 
 ### 11.5 Security and Red-Team Hardening
 
-- [ ] Implement RBAC policy tests across all operator endpoints.  
+  - [x] Implement RBAC policy tests across all operator endpoints.  
   **Refs:** FR-035, NFR-015  
   **Unit tests:** security tests  
   **Commit:** `test(security): add rbac coverage for operator endpoints`
