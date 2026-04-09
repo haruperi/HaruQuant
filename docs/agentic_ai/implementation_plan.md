@@ -1595,7 +1595,7 @@ A task is only complete when all are true:
 
 ### 12.2 Negative Scenarios
 
-- [ ] Live entry blocked when risk decision stale.  
+- [x] Live entry blocked when risk decision stale.  
   **Refs:** FR-029, FR-030, FR-075  
   **Tests:** scenario  
   **Commit:** `test(scenario): block live entry on stale risk decision`
