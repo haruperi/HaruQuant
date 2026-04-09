@@ -1097,7 +1097,7 @@ A task is only complete when all are true:
   **Unit tests:** readiness chain failure tests  
   **Commit:** `feat(execution): orchestrate pre-send validation chain`
 
-- [ ] Implement execution send service through MT5 MCP.  
+- [x] Implement execution send service through MT5 MCP.  
   **Refs:** FR-056 to FR-060  
   **Unit tests:** send path integration tests with broker simulator  
   **Commit:** `feat(execution): implement broker send service`
