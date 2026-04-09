@@ -1507,7 +1507,7 @@ A task is only complete when all are true:
   **Unit tests:** cache freshness tests  
   **Commit:** `feat(perf): add hot snapshot caching with freshness metadata`
 
-- [ ] Implement async I/O for MCP integration calls.  
+  - [x] Implement async I/O for MCP integration calls.  
   **Refs:** NFR-006 to NFR-011  
   **Unit tests:** async timeout tests  
   **Commit:** `feat(perf): convert mcp integrations to async io`
