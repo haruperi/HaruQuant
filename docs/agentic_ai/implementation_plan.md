@@ -1075,7 +1075,7 @@ A task is only complete when all are true:
   **Unit tests:** missing validation-data rejection tests  
   **Commit:** `feat(proposals): implement proposal readiness checks`
 
-- [ ] Implement proposal state transition service.  
+- [x] Implement proposal state transition service.  
   **Refs:** FR-010  
   **Unit tests:** state transition guard tests  
   **Commit:** `feat(proposals): implement proposal state transition service`

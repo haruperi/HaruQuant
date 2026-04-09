@@ -14,6 +14,14 @@ from .execution import (
     validate_terminal_connectivity,
     validate_symbol_tradability,
 )
+from .proposals import (
+    ProposalReadinessResult,
+    ProposalStateTransitionResult,
+    ProposalStateTransitionService,
+    ProposalTransformationConfig,
+    evaluate_proposal_readiness,
+    transform_hypothesis_to_proposal,
+)
 from .reconciliation import (
     BrokerTruthFetcher,
     BrokerTruthSnapshot,
@@ -108,6 +116,10 @@ __all__ = [
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
     "PositionExposure",
+    "ProposalReadinessResult",
+    "ProposalStateTransitionResult",
+    "ProposalStateTransitionService",
+    "ProposalTransformationConfig",
     "RestrictionEvaluation",
     "PackedRiskDecisionArtifacts",
     "ReadinessAggregateResult",
@@ -154,6 +166,7 @@ __all__ = [
     "pack_risk_decision_rationale_and_provenance",
     "evaluate_compliance_profile_compatibility",
     "evaluate_operating_mode_compatibility",
+    "evaluate_proposal_readiness",
     "evaluate_regime_restriction",
     "evaluate_session_restrictions",
     "evaluate_spread_slippage_precheck",
@@ -166,4 +179,5 @@ __all__ = [
     "validate_stop_and_freeze_levels",
     "validate_terminal_connectivity",
     "validate_symbol_tradability",
+    "transform_hypothesis_to_proposal",
 ]
