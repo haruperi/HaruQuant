@@ -640,7 +640,7 @@ A task is only complete when all are true:
   **Unit tests:** free-margin utilization tests  
   **Commit:** `feat(risk): implement margin utilization calculator`
 
-- [ ] Implement volatility-adjusted sizing calculator.  
+- [x] Implement volatility-adjusted sizing calculator.  
   **Refs:** FR-031  
   **Unit tests:** size normalization tests  
   **Commit:** `feat(risk): implement volatility adjusted sizing`

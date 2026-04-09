@@ -16,6 +16,15 @@ class MarginUtilization:
     utilization_ratio: float
 
 
+@dataclass(frozen=True)
+class VolatilityAdjustedSizing:
+    """Normalized size recommendation after volatility scaling."""
+
+    base_size: float
+    volatility_ratio: float
+    adjusted_size: float
+
+
 def calculate_margin_utilization(
     *,
     balance: float,
@@ -36,7 +45,33 @@ def calculate_margin_utilization(
     )
 
 
+def calculate_volatility_adjusted_size(
+    *,
+    base_size: float,
+    reference_volatility: float,
+    observed_volatility: float,
+    min_scale: float = 0.25,
+    max_scale: float = 2.0,
+) -> VolatilityAdjustedSizing:
+    """Scale proposed size inversely to observed volatility."""
+
+    if reference_volatility <= 0:
+        raise ValueError("reference_volatility must be positive")
+    if observed_volatility <= 0:
+        raise ValueError("observed_volatility must be positive")
+
+    raw_ratio = reference_volatility / observed_volatility
+    bounded_ratio = max(min(raw_ratio, max_scale), min_scale)
+    return VolatilityAdjustedSizing(
+        base_size=base_size,
+        volatility_ratio=bounded_ratio,
+        adjusted_size=base_size * bounded_ratio,
+    )
+
+
 __all__ = [
     "MarginUtilization",
+    "VolatilityAdjustedSizing",
     "calculate_margin_utilization",
+    "calculate_volatility_adjusted_size",
 ]
