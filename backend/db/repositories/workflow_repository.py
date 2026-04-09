@@ -285,6 +285,43 @@ class WorkflowRepository:
             return None
         return IncidentRecord(**dict(row))
 
+    def update_incident_state(
+        self,
+        *,
+        incident_id: str,
+        state: str,
+        resolved_at: str | None = None,
+        recommended_action: str | None = None,
+        metadata_json: str | None = None,
+    ) -> IncidentRecord:
+        current = self.get_incident(incident_id)
+        if current is None:
+            raise LookupError(f"incident not found: {incident_id}")
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE core_incidents
+                SET state = ?,
+                    resolved_at = ?,
+                    recommended_action = ?,
+                    metadata_json = ?
+                WHERE incident_id = ?
+                """,
+                (
+                    state,
+                    resolved_at,
+                    recommended_action if recommended_action is not None else current.recommended_action,
+                    metadata_json if metadata_json is not None else current.metadata_json,
+                    incident_id,
+                ),
+            )
+
+        updated = self.get_incident(incident_id)
+        if updated is None:
+            raise LookupError(f"incident not found after update: {incident_id}")
+        return updated
+
     @staticmethod
     def _row_to_record(row: sqlite3.Row) -> WorkflowRecord:
         payload: dict[str, Any] = dict(row)

@@ -1156,7 +1156,7 @@ A task is only complete when all are true:
   **Unit tests:** warning/incident/critical/kill-switch classification tests  
   **Commit:** `feat(monitoring): implement alert classification`
 
-- [ ] Implement incident creation and lifecycle service.  
+- [x] Implement incident creation and lifecycle service.  
   **Refs:** FR-011  
   **Unit tests:** incident FSM tests  
   **Commit:** `feat(monitoring): implement incident lifecycle service`

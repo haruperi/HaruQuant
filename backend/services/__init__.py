@@ -25,7 +25,13 @@ from .execution import (
     validate_terminal_connectivity,
     validate_symbol_tradability,
 )
-from .monitoring import AlertClassification, ObservationIngestionService, ObservationRecord, classify_alert
+from .monitoring import (
+    AlertClassification,
+    IncidentLifecycleService,
+    ObservationIngestionService,
+    ObservationRecord,
+    classify_alert,
+)
 from .proposals import (
     ProposalReadinessResult,
     ProposalStateTransitionResult,
@@ -125,6 +131,7 @@ __all__ = [
     "MarketSnapshot",
     "MarketSnapshotType",
     "AlertClassification",
+    "IncidentLifecycleService",
     "ObservationIngestionService",
     "ObservationRecord",
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
