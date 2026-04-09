@@ -25,7 +25,7 @@ from .execution import (
     validate_terminal_connectivity,
     validate_symbol_tradability,
 )
-from .monitoring import ObservationIngestionService, ObservationRecord
+from .monitoring import AlertClassification, ObservationIngestionService, ObservationRecord, classify_alert
 from .proposals import (
     ProposalReadinessResult,
     ProposalStateTransitionResult,
@@ -124,6 +124,7 @@ __all__ = [
     "MarginUtilization",
     "MarketSnapshot",
     "MarketSnapshotType",
+    "AlertClassification",
     "ObservationIngestionService",
     "ObservationRecord",
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
@@ -184,6 +185,7 @@ __all__ = [
     "calculate_exposure_summary",
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
+    "classify_alert",
     "compose_risk_decision",
     "compare_execution_truth",
     "evaluate_retry_guard",

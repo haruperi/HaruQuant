@@ -1151,7 +1151,7 @@ A task is only complete when all are true:
   **Unit tests:** observation event ingestion tests  
   **Commit:** `feat(monitoring): implement observation ingestion pipeline`
 
-- [ ] Implement alert classification service.  
+- [x] Implement alert classification service.  
   **Refs:** FR-062  
   **Unit tests:** warning/incident/critical/kill-switch classification tests  
   **Commit:** `feat(monitoring): implement alert classification`
