@@ -1578,7 +1578,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): add advisory proposal workflow scenario`
 
-- [ ] Paper execution workflow completes full loop and stores receipts.  
+- [x] Paper execution workflow completes full loop and stores receipts.  
   **Refs:** MODE-002, FR-017, FR-056 to FR-060  
   **Tests:** scenario  
   **Commit:** `test(scenario): add paper execution workflow scenario`
