@@ -1701,7 +1701,7 @@ Target:
   **Commit:** `test(readiness): verify hard technical live gates`
 
 ### 15.2 Observability
-- [ ] Verify all production workflows emit trajectory logs and runtime assertions.  
+- [x] Verify all production workflows emit trajectory logs and runtime assertions.  
   **Refs:** NFR-004, NFR-005  
   **Commit:** `test(obs): verify production workflow telemetry completeness`
 
