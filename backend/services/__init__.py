@@ -8,6 +8,7 @@ from .execution import (
     validate_market_open,
     validate_price_freshness,
     validate_stop_and_freeze_levels,
+    validate_terminal_connectivity,
     validate_symbol_tradability,
 )
 from .risk import (
@@ -129,5 +130,6 @@ __all__ = [
     "validate_market_open",
     "validate_price_freshness",
     "validate_stop_and_freeze_levels",
+    "validate_terminal_connectivity",
     "validate_symbol_tradability",
 ]

@@ -9,6 +9,7 @@ from backend.services import (
     validate_market_open,
     validate_price_freshness,
     validate_stop_and_freeze_levels,
+    validate_terminal_connectivity,
     validate_symbol_tradability,
 )
 
@@ -76,3 +77,10 @@ def test_validate_fill_mode_compatibility_rejects_unsupported_mode() -> None:
 
     assert result.allowed is False
     assert result.reason_codes == ("unsupported_fill_mode",)
+
+
+def test_validate_terminal_connectivity_rejects_disconnected_terminal() -> None:
+    result = validate_terminal_connectivity(connected=False)
+
+    assert result.allowed is False
+    assert result.reason_codes == ("terminal_disconnected",)

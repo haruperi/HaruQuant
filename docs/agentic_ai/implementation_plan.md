@@ -754,7 +754,7 @@ A task is only complete when all are true:
   **Unit tests:** unsupported fill mode tests  
   **Commit:** `feat(exec): implement fill mode compatibility validation`
 
-- [ ] Implement terminal connectivity validation.  
+- [x] Implement terminal connectivity validation.  
   **Refs:** FR-057, FR-061  
   **Unit tests:** disconnected terminal tests  
   **Commit:** `feat(exec): implement terminal connectivity validation`

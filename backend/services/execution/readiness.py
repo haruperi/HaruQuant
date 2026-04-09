@@ -115,6 +115,17 @@ def validate_fill_mode_compatibility(
     )
 
 
+def validate_terminal_connectivity(*, connected: bool) -> ReadinessCheckResult:
+    """Reject execution when terminal connectivity is unavailable."""
+
+    if connected:
+        return ReadinessCheckResult(allowed=True)
+    return ReadinessCheckResult(
+        allowed=False,
+        reason_codes=("terminal_disconnected",),
+    )
+
+
 __all__ = [
     "ReadinessCheckResult",
     "validate_market_open",
@@ -122,4 +133,5 @@ __all__ = [
     "validate_stop_and_freeze_levels",
     "validate_symbol_tradability",
     "validate_fill_mode_compatibility",
+    "validate_terminal_connectivity",
 ]
