@@ -981,22 +981,22 @@ A task is only complete when all are true:
   **Unit tests:** route-selection tests  
   **Commit:** `feat(agent-runtime): implement routing workflow pattern`
 
-- [ ] Implement parallel workflow runner.  
+  - [x] Implement parallel workflow runner.  
   **Refs:** FR-024  
   **Unit tests:** fan-out/fan-in tests  
   **Commit:** `feat(agent-runtime): implement parallel workflow pattern`
 
-- [ ] Implement evaluator-optimizer workflow runner.  
+  - [x] Implement evaluator-optimizer workflow runner.  
   **Refs:** FR-024, FR-055  
   **Unit tests:** refine-loop termination tests  
   **Commit:** `feat(agent-runtime): implement evaluator optimizer pattern`
 
-- [ ] Implement orchestrator-worker workflow runner.  
+  - [x] Implement orchestrator-worker workflow runner.  
   **Refs:** FR-024  
   **Unit tests:** task graph decomposition tests  
   **Commit:** `feat(agent-runtime): implement orchestrator worker pattern`
 
-- [ ] Implement refine-loop guard against infinite iteration.  
+  - [x] Implement refine-loop guard against infinite iteration.  
   **Refs:** FR-055, FR-076  
   **Unit tests:** max-iteration escalation tests  
   **Commit:** `feat(agent-runtime): add refine-loop guardrails`

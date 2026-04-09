@@ -27,10 +27,19 @@ from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
 from .tool_policy import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
 from .workflows import (
+    EvaluatorOptimizerResult,
+    EvaluatorOptimizerStep,
+    EvaluatorOptimizerWorkflowRunner,
+    OrchestratorWorkerTask,
+    OrchestratorWorkerWorkflowRunner,
+    ParallelWorkflowRunner,
+    ParallelWorkflowTask,
+    RefineLoopGuardDecision,
     RoutingWorkflowBranch,
     RoutingWorkflowRunner,
     SequentialWorkflowRunner,
     SequentialWorkflowStep,
+    enforce_refine_loop_limit,
 )
 
 __all__ = [
@@ -62,8 +71,17 @@ __all__ = [
     "ToolPolicyError",
     "SequentialWorkflowRunner",
     "SequentialWorkflowStep",
+    "ParallelWorkflowRunner",
+    "ParallelWorkflowTask",
     "RoutingWorkflowBranch",
     "RoutingWorkflowRunner",
+    "EvaluatorOptimizerResult",
+    "EvaluatorOptimizerStep",
+    "EvaluatorOptimizerWorkflowRunner",
+    "OrchestratorWorkerTask",
+    "OrchestratorWorkerWorkflowRunner",
+    "RefineLoopGuardDecision",
+    "enforce_refine_loop_limit",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",
 ]
