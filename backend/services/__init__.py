@@ -150,6 +150,7 @@ from .strategy_gov import (
     PROMOTION_EVIDENCE_REQUIREMENTS,
     PromotionEvidenceValidation,
     PromotionEvidenceValidator,
+    StrategyOperatingEnvelope,
     PromotionPersistenceRequest,
     PromotionPersistenceResult,
     STRATEGY_LIFECYCLE_TRANSITIONS,
@@ -160,6 +161,7 @@ from .strategy_gov import (
     StrategyPromotionPersistenceService,
     StrategyRegistryService,
     route_promotion_approval,
+    update_operating_envelope_for_promotion,
 )
 
 __all__ = [
@@ -295,10 +297,12 @@ __all__ = [
     "StrategyLifecycleState",
     "StrategyLifecycleTransition",
     "StrategyLifecycleTransitionValidator",
+    "StrategyOperatingEnvelope",
     "StrategyRegistrationRequest",
     "StrategyPromotionPersistenceService",
     "StrategyRegistryService",
     "route_promotion_approval",
+    "update_operating_envelope_for_promotion",
     "validate_fill_mode_compatibility",
     "validate_market_open",
     "validate_price_freshness",

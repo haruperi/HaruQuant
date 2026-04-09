@@ -1326,7 +1326,7 @@ A task is only complete when all are true:
   **Unit tests:** promotion record persistence tests  
   **Commit:** `feat(strategy-gov): implement promotion persistence`
 
-- [ ] Implement live-envelope update on promotion.  
+- [x] Implement live-envelope update on promotion.  
   **Refs:** FR-047, PROM-012 to PROM-014  
   **Unit tests:** operating envelope update tests  
   **Commit:** `feat(strategy-gov): update operating envelope on promotion`
