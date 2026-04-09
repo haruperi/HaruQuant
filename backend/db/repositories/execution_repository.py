@@ -255,6 +255,22 @@ class ExecutionRepository:
             return None
         return ExecutionSendAttemptRecord(**dict(row))
 
+    def list_send_attempts_for_intent(
+        self,
+        execution_intent_id: str,
+    ) -> list[ExecutionSendAttemptRecord]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM core_execution_send_attempts
+                WHERE execution_intent_id = ?
+                ORDER BY attempt_no ASC, send_attempt_id ASC
+                """,
+                (execution_intent_id,),
+            ).fetchall()
+        return [ExecutionSendAttemptRecord(**dict(row)) for row in rows]
+
     def add_receipt(
         self,
         *,

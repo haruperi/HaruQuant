@@ -2,6 +2,7 @@
 
 from .execution import (
     ExecutionIntentAssemblyConfig,
+    ExecutionAttemptPersistenceService,
     BrokerSendResult,
     ExecutionSendService,
     PreSendValidationRequest,
@@ -132,6 +133,7 @@ __all__ = [
     "ReadinessAggregateResult",
     "ReadinessCheckResult",
     "ExecutionIntentAssemblyConfig",
+    "ExecutionAttemptPersistenceService",
     "BrokerSendResult",
     "ExecutionSendService",
     "PreSendValidationRequest",

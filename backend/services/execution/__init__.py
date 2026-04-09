@@ -1,6 +1,7 @@
 """Execution service primitives for deterministic validation."""
 
 from .assembler import ExecutionIntentAssemblyConfig, assemble_execution_intent
+from .attempts import ExecutionAttemptPersistenceService
 from .idempotency import generate_execution_idempotency_key
 from .metadata_cache import SymbolMetadataCache, SymbolMetadataCacheEntry
 from .pre_send import PreSendValidationRequest, run_pre_send_validation
@@ -22,6 +23,7 @@ __all__ = [
     "ReadinessAggregateResult",
     "ReadinessCheckResult",
     "ExecutionIntentAssemblyConfig",
+    "ExecutionAttemptPersistenceService",
     "BrokerSendResult",
     "ExecutionSendService",
     "PreSendValidationRequest",

@@ -1102,7 +1102,7 @@ A task is only complete when all are true:
   **Unit tests:** send path integration tests with broker simulator  
   **Commit:** `feat(execution): implement broker send service`
 
-- [ ] Implement send-attempt persistence.  
+- [x] Implement send-attempt persistence.  
   **Refs:** FR-059, FR-060  
   **Unit tests:** attempt increment tests  
   **Commit:** `feat(execution): persist execution send attempts`
