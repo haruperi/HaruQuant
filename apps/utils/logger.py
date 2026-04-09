@@ -6,6 +6,7 @@ import sys
 import threading
 import logging
 import inspect
+import importlib
 import os
 import time
 from fnmatch import fnmatch
@@ -16,10 +17,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 try:
-    import structlog  # type: ignore
+    structlog: Any = importlib.import_module("structlog")
     _HAS_STRUCTLOG = True
 except ModuleNotFoundError:  # pragma: no cover - env dependent
-    structlog = None  # type: ignore
+    structlog = None
     _HAS_STRUCTLOG = False
 
 from apps.utils.redaction import redact_mapping, redact_text

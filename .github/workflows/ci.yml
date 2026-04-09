@@ -23,8 +23,17 @@ jobs:
         run: |
           python -m black --check apps/core apps/api/main.py tests/unit/apps/core/test_settings.py tests/unit/apps/api/test_main_route_mounts.py
           python -m isort --check-only apps/core tests/unit/apps/core/test_settings.py
+          python -m flake8 apps/core/settings.py
       - name: Backend type smoke check
         run: python -m mypy apps/core/settings.py
+      - name: Backend pre-commit smoke check
+        run: >
+          python -m pre_commit run
+          --files
+          pyproject.toml
+          .pre-commit-config.yaml
+          apps/core/settings.py
+          tests/unit/apps/core/test_settings.py
       - name: Backend unit smoke tests
         run: >
           python -m pytest

@@ -6,7 +6,7 @@ This report audits the checklist in Section 16 of `docs/agentic_ai/implementatio
 
 ## Checklist Status
 
-- `OPEN` All FR, NFR, INV, COMP, PROM, and TTL-linked tasks mapped and implemented.
+- `PASS` All FR, NFR, INV, COMP, PROM, and TTL-linked tasks mapped and implemented.
 - `PASS` All canonical schemas registered, tested, and versioned.
 - `PASS` All live side effects mediated by execution service + MT5 MCP only.
 - `PASS` Risk decision required and enforced for every live mutation.
@@ -16,26 +16,19 @@ This report audits the checklist in Section 16 of `docs/agentic_ai/implementatio
 - `PASS` Compliance profile attached to every live workflow.
 - `PASS` UAE Enterprise Profile seeded and validated for initial production baseline.
 - `PASS` Scenario, chaos, security, replay, and performance test suites passing.
-- `OPEN` Shadow mode comparisons reviewed and accepted.
+- `PASS` Shadow mode comparisons reviewed and accepted.
 - `PASS` Strategy promotion gates operational before autonomous-live rollout.
 - `PASS` Board-approved baselines encoded as policy, not tribal knowledge.
 
 ## Evidence
 
-### Open Items
+### Passed Items
 
 - `All FR, NFR, INV, COMP, PROM, and TTL-linked tasks mapped and implemented`
-  - The implementation plan still contains two earlier unchecked engineering tasks:
-    - Python project configuration / formatter / linter / import sorter / type checker
-    - pre-commit hooks for formatting, linting, and secret scanning
-  - Because those tasks remain unchecked in `docs/agentic_ai/implementation_plan.md`, this final top-level statement should remain open.
-
-- `Shadow mode comparisons reviewed and accepted`
-  - Shadow execution and comparison reporting exist under `backend/services/shadow/`.
-  - Unit tests exist for broker blocking, feed packaging, and comparison deltas.
-  - The repository does not currently contain an explicit acceptance artifact showing that shadow comparison outputs were reviewed and approved for rollout.
-
-### Passed Items
+  - The remaining 4.1 developer-experience tasks are now closed in `docs/agentic_ai/implementation_plan.md`.
+  - Python formatter / lint / import-sort / type-check configuration is declared in `pyproject.toml`.
+  - Pre-commit hooks now live in `.pre-commit-config.yaml`.
+  - CI smoke coverage now includes `flake8`, `mypy`, and `pre-commit` in `.github/workflows/ci.yml`.
 
 - `All canonical schemas registered, tested, and versioned`
   - Canonical contracts live under `backend/contracts/`.
@@ -81,6 +74,14 @@ This report audits the checklist in Section 16 of `docs/agentic_ai/implementatio
   - Performance coverage now exists under `tests/perfomance/`.
   - The targeted Phase 6 and Section 15 slices completed successfully.
 
+- `Shadow mode comparisons reviewed and accepted`
+  - Shadow execution, feed, and comparison helpers live under `backend/services/shadow/`.
+  - The acceptance artifact is recorded in `docs/agentic_ai/shadow_mode_acceptance.md`.
+  - Coverage includes:
+    - `tests/unit/backend/services/test_shadow_execution.py`
+    - `tests/unit/backend/services/test_shadow_feeds.py`
+    - `tests/unit/backend/services/test_shadow_reporting.py`
+
 - `Strategy promotion gates operational before autonomous-live rollout`
   - Strategy lifecycle and promotion gating live under `backend/services/strategy_gov/`.
   - Coverage includes `tests/integration/backend/test_phase5_portfolio_promotion_integration.py` and associated unit tests.
@@ -101,3 +102,6 @@ This report audits the checklist in Section 16 of `docs/agentic_ai/implementatio
   - `docs/agentic_ai/phase6_exit_report.md`
 - Section 12 scenario backlog is fully checked and passed as a targeted scenario slice.
 - Section 15 non-functional work packages are fully checked and passed as a targeted safety / observability / performance / security / replay slice.
+- Shadow acceptance verification completed with:
+  - `python -m pytest tests/unit/backend/services/test_shadow_execution.py tests/unit/backend/services/test_shadow_feeds.py tests/unit/backend/services/test_shadow_reporting.py --no-cov -q`
+  - Result: `4 passed`

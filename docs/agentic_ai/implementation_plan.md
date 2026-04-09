@@ -90,7 +90,7 @@ A task is only complete when all are true:
   **Unit tests:** none  
   **Commit:** `chore(repo): initialize monorepo structure for agentic system`
 
-- [ ] Add Python project configuration, formatter, linter, import sorter, type checker.  
+- [x] Add Python project configuration, formatter, linter, import sorter, type checker.  
   **Refs:** NFR-010, NFR-011  
   **Unit tests:** CI smoke check for lint/type commands  
   **Commit:** `chore(devx): add formatter lint and type-check configuration`
@@ -100,7 +100,7 @@ A task is only complete when all are true:
   **Unit tests:** frontend typecheck CI  
   **Commit:** `chore(frontend): initialize dashboard workspace and shared typing`
 
-- [ ] Add pre-commit hooks for formatting, linting, and secret scanning.  
+- [x] Add pre-commit hooks for formatting, linting, and secret scanning.  
   **Refs:** NFR-015, NFR-016  
   **Unit tests:** pre-commit smoke test in CI  
   **Commit:** `chore(security): add pre-commit checks and secret scanning`
@@ -1732,7 +1732,7 @@ Target:
 
 ## 16. Final Production Readiness Checklist
 
-- [ ] All FR, NFR, INV, COMP, PROM, and TTL-linked tasks mapped and implemented.
+- [x] All FR, NFR, INV, COMP, PROM, and TTL-linked tasks mapped and implemented.
 - [x] All canonical schemas registered, tested, and versioned.
 - [x] All live side effects mediated by execution service + MT5 MCP only.
 - [x] Risk decision required and enforced for every live mutation.
@@ -1742,7 +1742,7 @@ Target:
 - [x] Compliance profile attached to every live workflow.
 - [x] UAE Enterprise Profile seeded and validated for initial production baseline.
 - [x] Scenario, chaos, security, replay, and performance test suites passing.
-- [ ] Shadow mode comparisons reviewed and accepted.
+- [x] Shadow mode comparisons reviewed and accepted.
 - [x] Strategy promotion gates operational before autonomous-live rollout.
 - [x] Board-approved baselines encoded as policy, not tribal knowledge.
 

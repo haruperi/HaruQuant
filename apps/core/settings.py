@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import os
+from pathlib import Path
 from typing import Any, Dict, Mapping, MutableMapping, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-
 
 SUPPORTED_ENVIRONMENTS = {"dev", "test", "paper", "staging", "prod"}
 DEFAULT_ENVIRONMENT = "dev"
@@ -105,7 +104,9 @@ def load_runtime_settings(
     """Load settings from env template defaults plus environment overrides."""
 
     process_env = environ if environ is not None else os.environ
-    selected_env = (environment or process_env.get(f"{prefix}ENVIRONMENT") or DEFAULT_ENVIRONMENT).lower()
+    selected_env = (
+        environment or process_env.get(f"{prefix}ENVIRONMENT") or DEFAULT_ENVIRONMENT
+    ).lower()
 
     file_values = _parse_env_file(env_dir / f"{selected_env}.env.example")
     merged: Dict[str, Any] = _normalize_mapping(file_values, environment=selected_env)
@@ -120,7 +121,12 @@ def load_runtime_settings(
     merged["extra_config"] = extra
 
     try:
-        return RuntimeSettings.model_validate(merged)
+        validated = RuntimeSettings.model_validate(merged)
+        if not isinstance(validated, RuntimeSettings):
+            raise SettingsError(
+                "validated runtime settings did not produce RuntimeSettings"
+            )
+        return validated
     except ValidationError as exc:
         raise SettingsError(str(exc)) from exc
 
@@ -141,7 +147,12 @@ def load_runtime_settings_from_mapping(
     normalized["extra_config"] = {str(k): str(v) for k, v in extra.items()}
 
     try:
-        return RuntimeSettings.model_validate(normalized)
+        validated = RuntimeSettings.model_validate(normalized)
+        if not isinstance(validated, RuntimeSettings):
+            raise SettingsError(
+                "validated runtime settings did not produce RuntimeSettings"
+            )
+        return validated
     except ValidationError as exc:
         raise SettingsError(str(exc)) from exc
 
@@ -153,4 +164,3 @@ def inject_runtime_settings(
     """Copy validated settings into a mutable container."""
 
     target.update(settings.model_dump())
-

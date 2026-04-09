@@ -75,4 +75,3 @@ def test_inject_runtime_settings_copies_serialized_values():
 
     assert target["environment"] == "test"
     assert target["api_port"] == 9000
-
