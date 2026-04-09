@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
-from typing import Any
+from typing import Any, Iterable
 
 
 @dataclass(frozen=True)
@@ -178,6 +178,25 @@ class ExecutionRepository:
         if row is None:
             return None
         return ExecutionIntentRecord(**dict(row))
+
+    def list_intents_by_statuses(
+        self,
+        statuses: Iterable[str],
+    ) -> list[ExecutionIntentRecord]:
+        status_values = tuple(statuses)
+        if not status_values:
+            return []
+
+        placeholders = ", ".join("?" for _ in status_values)
+        query = f"""
+            SELECT *
+            FROM core_execution_intents
+            WHERE status IN ({placeholders})
+            ORDER BY created_at ASC, execution_intent_id ASC
+        """
+        with self._connect() as connection:
+            rows = connection.execute(query, status_values).fetchall()
+        return [ExecutionIntentRecord(**dict(row)) for row in rows]
 
     def add_send_attempt(
         self,

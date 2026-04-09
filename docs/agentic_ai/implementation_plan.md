@@ -803,7 +803,7 @@ A task is only complete when all are true:
 
 ### 7.6 Reconciliation Engine
 
-- [ ] Implement in-flight execution intent loader on startup.  
+- [x] Implement in-flight execution intent loader on startup.  
   **Refs:** FR-077  
   **Unit tests:** startup loading tests  
   **Commit:** `feat(recon): load in-flight intents on startup`
