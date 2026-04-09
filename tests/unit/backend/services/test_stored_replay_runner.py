@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from backend.db import ResearchAuditRepository, apply_pending_migrations
+from backend.services.audit import ReplayBundleAssembler
+from backend.services.audit.replay_runner import StoredReplayRunner
+
+
+def test_stored_replay_runner_reconstructs_refs_from_persisted_bundle(tmp_path) -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    database_path = tmp_path / "agentic.db"
+
+    apply_pending_migrations(database_path, migrations_dir)
+    repository = ResearchAuditRepository(database_path)
+    with repository._connect() as connection:  # noqa: SLF001
+        connection.execute(
+            "INSERT INTO core_workflows (workflow_id, workflow_type, environment, operating_mode, state, objective, scope_json, initiator_type, initiator_id, timeout_policy_json, stop_conditions_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("wf_001", "trade_review", "paper", "MODE-002", "CREATED", "Replay validation", "{}", "user", "operator_001", "{}", "[]"),
+        )
+    repository.create_evidence_bundle(
+        evidence_bundle_id="evidence_001",
+        workflow_id="wf_001",
+        bundle_type="research_snapshot",
+        summary="Supporting evidence",
+        content_hash="hash_001",
+        freshness_status="fresh",
+    )
+    repository.add_trajectory_log(
+        log_id="log_001",
+        workflow_id="wf_001",
+        correlation_id="corr_001",
+        agent_name="strategy_agent",
+        phase="reason",
+        iteration_no=0,
+        input_schema="WorkflowIntent",
+        input_hash="in_hash",
+        output_schema="WorkflowPlan",
+        output_hash="out_hash",
+        latency_ms=120,
+        final_state="COMPLETED",
+    )
+    bundle = ReplayBundleAssembler(repository).assemble(
+        workflow_id="wf_001",
+        export_profile="audit_export",
+    ).bundle
+
+    result = StoredReplayRunner(repository).run(bundle)
+
+    assert result.workflow_id == "wf_001"
+    assert result.included_refs == ("evidence_001", "log_001")
+    assert result.reconstructed_hash == bundle.payload.integrity_manifest.manifest_hash

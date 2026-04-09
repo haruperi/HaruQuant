@@ -1421,7 +1421,7 @@ A task is only complete when all are true:
 
 ### 11.3 Replay Validation
 
-- [ ] Implement replay runner from stored bundles.  
+  - [x] Implement replay runner from stored bundles.  
   **Refs:** FR-072 to FR-074  
   **Unit tests:** deterministic replay tests  
   **Commit:** `feat(replay): implement stored bundle replay runner`
