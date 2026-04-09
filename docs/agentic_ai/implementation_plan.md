@@ -1198,7 +1198,7 @@ A task is only complete when all are true:
   **Unit tests:** legal-hold protected export tests  
   **Commit:** `feat(audit): add legal-hold aware retrieval`
 
-- [ ] Implement signed audit log or signed manifest emission.  
+- [x] Implement signed audit log or signed manifest emission.  
   **Refs:** NFR-019, COMP profile controls  
   **Unit tests:** signature verification tests  
   **Commit:** `feat(audit): add signed audit evidence generation`

@@ -8,6 +8,8 @@ from .audit import (
     ReplayBundleAssemblyResult,
     build_audit_export_package,
     generate_integrity_manifest,
+    sign_audit_evidence,
+    verify_audit_signature,
 )
 from .execution import (
     ExecutionIntentAssemblyConfig,
@@ -139,6 +141,8 @@ __all__ = [
     "LegalHoldAwareReplayService",
     "build_audit_export_package",
     "generate_integrity_manifest",
+    "sign_audit_evidence",
+    "verify_audit_signature",
     "ComposedRiskDecision",
     "CorrelationConcentration",
     "CorrelationPair",
