@@ -11,6 +11,10 @@ from .audit import (
     sign_audit_evidence,
     verify_audit_signature,
 )
+from .evidence import (
+    EvidenceArtifact,
+    build_evidence_bundle_manifest,
+)
 from .execution import (
     ExecutionIntentAssemblyConfig,
     ExecutionAttemptPersistenceService,
@@ -177,9 +181,11 @@ __all__ = [
     "ReplayBundleAssemblyResult",
     "AuditExportPackage",
     "AdvisoryPortfolioProposal",
+    "EvidenceArtifact",
     "LegalHoldAwareReplayResult",
     "LegalHoldAwareReplayService",
     "build_audit_export_package",
+    "build_evidence_bundle_manifest",
     "generate_integrity_manifest",
     "sign_audit_evidence",
     "verify_audit_signature",

@@ -1343,7 +1343,7 @@ A task is only complete when all are true:
 
 ### 10.3 Evidence Bundle Automation
 
-- [ ] Implement evidence bundle content manifest format.  
+- [x] Implement evidence bundle content manifest format.  
   **Refs:** FR-053, FR-072, PROM-002  
   **Unit tests:** manifest completeness tests  
   **Commit:** `feat(evidence): implement evidence bundle manifest format`
