@@ -729,7 +729,7 @@ A task is only complete when all are true:
 
 ### 7.4 Execution Readiness Validator
 
-- [ ] Implement market open validation.  
+- [x] Implement market open validation.  
   **Refs:** FR-057  
   **Unit tests:** closed market rejection tests  
   **Commit:** `feat(exec): implement market-open validation`
