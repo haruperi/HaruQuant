@@ -7,6 +7,9 @@ from .risk import (
     MARKET_SNAPSHOT_TTL_POLICY,
     MarketSnapshot,
     MarketSnapshotType,
+    PORTFOLIO_SNAPSHOT_TTL_POLICY,
+    PortfolioSnapshot,
+    PortfolioSnapshotType,
 )
 
 __all__ = [
@@ -16,4 +19,7 @@ __all__ = [
     "MARKET_SNAPSHOT_TTL_POLICY",
     "MarketSnapshot",
     "MarketSnapshotType",
+    "PORTFOLIO_SNAPSHOT_TTL_POLICY",
+    "PortfolioSnapshot",
+    "PortfolioSnapshotType",
 ]

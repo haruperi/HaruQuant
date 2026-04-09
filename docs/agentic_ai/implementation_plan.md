@@ -593,7 +593,7 @@ A task is only complete when all are true:
   **Unit tests:** account snapshot expiry tests  
   **Commit:** `feat(risk): add account snapshot freshness model`
 
-- [ ] Implement portfolio snapshot model with TTL metadata.  
+- [x] Implement portfolio snapshot model with TTL metadata.  
   **Refs:** FR-031, FR-048, FR-070  
   **Unit tests:** portfolio snapshot expiry tests  
   **Commit:** `feat(risk): add portfolio snapshot freshness model`
