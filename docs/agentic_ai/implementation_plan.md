@@ -1117,7 +1117,7 @@ A task is only complete when all are true:
   **Unit tests:** state badge mapping tests  
   **Commit:** `feat(execution): propagate authoritative provisional and reconciling states`
 
-- [ ] Implement pending-order, SL/TP modify, partial-close, full-close, cancel handlers.  
+- [x] Implement pending-order, SL/TP modify, partial-close, full-close, cancel handlers.  
   **Refs:** FR-058  
   **Unit tests:** action-type handler tests  
   **Commit:** `feat(execution): support full broker action set`
