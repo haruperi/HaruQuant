@@ -1365,11 +1365,11 @@ A task is only complete when all are true:
 
 ### 10.4 Phase 5 Exit Criteria
 
-- [ ] Portfolio analytics produces advisory proposals with quantified impact.  
-- [ ] Strategy lifecycle registry enforces promotion gates.  
-- [ ] Evidence bundles are automated and reviewable.  
-- [ ] Suspension and retirement logic work.  
-- [ ] Unit + integration + promotion-gate tests green.  
+- [x] Portfolio analytics produces advisory proposals with quantified impact.  
+- [x] Strategy lifecycle registry enforces promotion gates.  
+- [x] Evidence bundles are automated and reviewable.  
+- [x] Suspension and retirement logic work.  
+- [x] Unit + integration + promotion-gate tests green.  
 
 ---
 
