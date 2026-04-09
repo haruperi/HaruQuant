@@ -781,7 +781,7 @@ A task is only complete when all are true:
   **Unit tests:** tool contract tests with fixtures  
   **Commit:** `feat(mt5-mcp): add read-only broker tools`
 
-- [ ] Implement side-effecting MT5 tools for place/modify/partial-close/full-close/cancel.  
+- [x] Implement side-effecting MT5 tools for place/modify/partial-close/full-close/cancel.  
   **Refs:** FR-058  
   **Unit tests:** tool request/response contract tests  
   **Commit:** `feat(mt5-mcp): add side-effecting broker tools`
