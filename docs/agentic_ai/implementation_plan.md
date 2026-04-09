@@ -873,7 +873,7 @@ A task is only complete when all are true:
   **Unit tests:** secret redaction tests  
   **Commit:** `feat(agent-runtime): add context redaction middleware`
 
-- [ ] Create canonical-output validator for all agent results.  
+  - [x] Create canonical-output validator for all agent results.  
   **Refs:** FR-021, INV-003  
   **Unit tests:** invalid output rejection tests  
   **Commit:** `feat(agent-runtime): validate agent outputs against canonical schemas`

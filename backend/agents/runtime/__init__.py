@@ -10,6 +10,11 @@ from .runner import (
     AgentRuntime,
 )
 from .memory import WorkflowMemoryBinding, WorkflowMemoryBindings
+from .output_validation import (
+    CanonicalOutputValidator,
+    CanonicalValidationResult,
+    ContractValidationError,
+)
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
 from .tool_policy import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
@@ -23,6 +28,9 @@ __all__ = [
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "CanonicalOutputValidator",
+    "CanonicalValidationResult",
+    "ContractValidationError",
     "ContextRedactionMiddleware",
     "RedactedContext",
     "SessionManager",
