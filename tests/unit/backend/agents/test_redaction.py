@@ -18,7 +18,7 @@ def test_context_redaction_middleware_redacts_secrets_recursively() -> None:
     )
 
     assert redacted.payload["account"]["password"] == REDACTED
-    assert redacted.payload["account"]["headers"]["Authorization"] == "Bearer ***REDACTED***"
+    assert redacted.payload["account"]["headers"]["Authorization"] == REDACTED
     assert redacted.payload["notes"] == "token=***REDACTED***"
     assert "account.password" in redacted.redacted_paths
     assert "account.headers.Authorization" in redacted.redacted_paths
