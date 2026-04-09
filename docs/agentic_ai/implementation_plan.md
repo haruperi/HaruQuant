@@ -1443,7 +1443,7 @@ A task is only complete when all are true:
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add stale market data chaos scenario`
 
-- [ ] Implement chaos test for stale risk decision.  
+  - [x] Implement chaos test for stale risk decision.  
   **Refs:** FR-076, FR-029  
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add stale risk decision chaos scenario`
