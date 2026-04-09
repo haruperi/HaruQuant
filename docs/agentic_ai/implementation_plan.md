@@ -912,7 +912,7 @@ A task is only complete when all are true:
   **Unit tests:** evidence/freshness output tests  
   **Commit:** `feat(agents): implement research agent`
 
-- [ ] Implement MonitoringAgent instructions and wrapper.  
+  - [x] Implement MonitoringAgent instructions and wrapper.  
   **Refs:** FR-019, FR-061 to FR-063  
   **Unit tests:** alert classification output tests  
   **Commit:** `feat(agents): implement monitoring agent`

@@ -1,5 +1,6 @@
 """Agent runtime scaffolding for the agentic backend."""
 
+from .monitoring_agent import MONITORING_AGENT_INSTRUCTION, MonitoringAgentWrapper
 from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgentWrapper
 from .research_agent import RESEARCH_AGENT_INSTRUCTION, ResearchAgentWrapper
 from .strategy_agent import STRATEGY_AGENT_INSTRUCTION, StrategyAgentWrapper
@@ -39,6 +40,7 @@ __all__ = [
     "ADKRunResult",
     "ADKRunnerConfig",
     "ADKRunnerService",
+    "MONITORING_AGENT_INSTRUCTION",
     "ORCHESTRATOR_AGENT_INSTRUCTION",
     "RESEARCH_AGENT_INSTRUCTION",
     "STRATEGY_AGENT_INSTRUCTION",
@@ -46,6 +48,7 @@ __all__ = [
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "MonitoringAgentWrapper",
     "OrchestratorAgentWrapper",
     "ResearchAgentWrapper",
     "StrategyAgentWrapper",
