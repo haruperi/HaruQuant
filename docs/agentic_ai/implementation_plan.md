@@ -1087,7 +1087,7 @@ A task is only complete when all are true:
   **Unit tests:** intent linkage tests  
   **Commit:** `feat(execution): implement execution intent assembler`
 
-- [ ] Implement execution idempotency-key generator.  
+- [x] Implement execution idempotency-key generator.  
   **Refs:** FR-059, DP-006  
   **Unit tests:** stable uniqueness tests  
   **Commit:** `feat(execution): implement idempotency key generation`
