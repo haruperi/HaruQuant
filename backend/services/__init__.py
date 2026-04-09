@@ -1,5 +1,6 @@
 """Service-layer skeletons for the agentic backend."""
 
+from .execution import SymbolMetadataCache, SymbolMetadataCacheEntry
 from .risk import (
     ACCOUNT_SNAPSHOT_TTL_POLICY,
     AccountSnapshot,
@@ -22,4 +23,6 @@ __all__ = [
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
+    "SymbolMetadataCache",
+    "SymbolMetadataCacheEntry",
 ]

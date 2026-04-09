@@ -598,7 +598,7 @@ A task is only complete when all are true:
   **Unit tests:** portfolio snapshot expiry tests  
   **Commit:** `feat(risk): add portfolio snapshot freshness model`
 
-- [ ] Implement symbol metadata cache model.  
+- [x] Implement symbol metadata cache model.  
   **Refs:** FR-057  
   **Unit tests:** symbol metadata cache retrieval tests  
   **Commit:** `feat(exec): add symbol metadata cache model`
