@@ -885,7 +885,7 @@ A task is only complete when all are true:
   **Unit tests:** prompt record validation tests  
   **Commit:** `feat(prompt-registry): add prompt registry models`
 
-- [ ] Implement prompt version resolution service.  
+  - [x] Implement prompt version resolution service.  
   **Refs:** FR-073  
   **Unit tests:** prompt version lookup tests  
   **Commit:** `feat(prompt-registry): implement prompt version resolution`
