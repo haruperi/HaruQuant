@@ -1052,12 +1052,12 @@ A task is only complete when all are true:
 
 ### 8.8 Phase 3 Exit Criteria
 
-- [ ] ADK runtime operational with allowlists and redaction.  
-- [ ] Core agents produce schema-valid outputs.  
-- [ ] Workflow patterns supported.  
-- [ ] Evaluator infrastructure operational.  
-- [ ] Trajectory logging complete enough for replay provenance.  
-- [ ] Unit + integration tests for runtime, agents, and evaluator green.  
+- [x] ADK runtime operational with allowlists and redaction.  
+- [x] Core agents produce schema-valid outputs.  
+- [x] Workflow patterns supported.  
+- [x] Evaluator infrastructure operational.  
+- [x] Trajectory logging complete enough for replay provenance.  
+- [x] Unit + integration tests for runtime, agents, and evaluator green.  
 
 ---
 
