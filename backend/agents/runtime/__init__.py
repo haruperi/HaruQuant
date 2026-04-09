@@ -35,6 +35,7 @@ from .prompt_provenance import (
     build_prompt_provenance,
 )
 from .prompts import PromptRegistryRecord, PromptStatus
+from .retrieval_guard import RetrievalSafetyReport, evaluate_retrieved_text
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
 from .tool_policy import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
@@ -81,6 +82,7 @@ __all__ = [
     "PromptRegistryRecord",
     "PromptResolutionError",
     "PromptStatus",
+    "RetrievalSafetyReport",
     "RuntimeTrajectoryLog",
     "RuntimeTrajectoryLogService",
     "build_run_trajectory_log",
@@ -88,6 +90,7 @@ __all__ = [
     "attach_prompt_provenance",
     "attach_prompt_provenance_to_run_result",
     "build_prompt_provenance",
+    "evaluate_retrieved_text",
     "SessionManager",
     "SessionState",
     "ToolAllowlistDecision",

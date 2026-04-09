@@ -1485,7 +1485,7 @@ A task is only complete when all are true:
   **Unit tests:** config load redaction tests  
   **Commit:** `feat(security): add secrets isolation and rotation support`
 
-- [ ] Implement prompt-injection defense tests for research retrieval.  
+  - [x] Implement prompt-injection defense tests for research retrieval.  
   **Refs:** FR-052 to FR-055, NFR-017  
   **Unit tests:** red-team tests  
   **Commit:** `test(security): add prompt injection red-team scenarios`
