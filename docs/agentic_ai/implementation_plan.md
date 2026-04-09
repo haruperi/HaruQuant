@@ -1382,7 +1382,7 @@ A task is only complete when all are true:
   **Unit tests:** MCP wrapper contract tests  
   **Commit:** `feat(migration): wrap simulation module as backtest mcp`
 
-- [ ] Wrap existing optimization module as `optimization_mcp`.  
+  - [x] Wrap existing optimization module as `optimization_mcp`.  
   **Refs:** FR-052, FR-048  
   **Unit tests:** MCP wrapper contract tests  
   **Commit:** `feat(migration): wrap optimization module as optimization mcp`
