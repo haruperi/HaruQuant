@@ -25,6 +25,15 @@ class ReadinessCheckResult:
     metadata: dict[str, object] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class ReadinessAggregateResult:
+    """Combined readiness verdict across all pre-send validators."""
+
+    allowed: bool
+    checks: tuple[ReadinessCheckResult, ...]
+    reason_codes: tuple[str, ...]
+
+
 def validate_market_open(metadata: SymbolMetadataCacheEntry) -> ReadinessCheckResult:
     """Reject execution when the market is closed for the target symbol."""
 
@@ -166,8 +175,23 @@ def validate_risk_decision_for_execution(
     )
 
 
+def aggregate_readiness_results(
+    checks: tuple[ReadinessCheckResult, ...],
+) -> ReadinessAggregateResult:
+    """Fail closed when any readiness validator rejects execution."""
+
+    reason_codes = tuple(reason for check in checks for reason in check.reason_codes)
+    return ReadinessAggregateResult(
+        allowed=all(check.allowed for check in checks),
+        checks=checks,
+        reason_codes=reason_codes,
+    )
+
+
 __all__ = [
+    "ReadinessAggregateResult",
     "ReadinessCheckResult",
+    "aggregate_readiness_results",
     "validate_market_open",
     "validate_price_freshness",
     "validate_stop_and_freeze_levels",

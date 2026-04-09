@@ -1,9 +1,11 @@
 """Service-layer skeletons for the agentic backend."""
 
 from .execution import (
+    ReadinessAggregateResult,
     ReadinessCheckResult,
     SymbolMetadataCache,
     SymbolMetadataCacheEntry,
+    aggregate_readiness_results,
     validate_fill_mode_compatibility,
     validate_market_open,
     validate_price_freshness,
@@ -90,6 +92,7 @@ __all__ = [
     "PositionExposure",
     "RestrictionEvaluation",
     "PackedRiskDecisionArtifacts",
+    "ReadinessAggregateResult",
     "ReadinessCheckResult",
     "RiskDecisionEnvelopeContext",
     "RiskDecisionValidity",
@@ -107,6 +110,7 @@ __all__ = [
     "evaluate_new_entry_block",
     "require_hard_trigger_recovery_dual_auth",
     "VolatilityAdjustedSizing",
+    "aggregate_readiness_results",
     "assemble_risk_assessment_request",
     "calculate_correlation_concentration",
     "calculate_drawdown_state",

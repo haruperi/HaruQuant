@@ -2,7 +2,9 @@
 
 from .metadata_cache import SymbolMetadataCache, SymbolMetadataCacheEntry
 from .readiness import (
+    ReadinessAggregateResult,
     ReadinessCheckResult,
+    aggregate_readiness_results,
     validate_fill_mode_compatibility,
     validate_market_open,
     validate_price_freshness,
@@ -13,7 +15,9 @@ from .readiness import (
 )
 
 __all__ = [
+    "ReadinessAggregateResult",
     "ReadinessCheckResult",
+    "aggregate_readiness_results",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
     "validate_fill_mode_compatibility",

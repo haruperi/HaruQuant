@@ -764,7 +764,7 @@ A task is only complete when all are true:
   **Unit tests:** stale or mismatched risk decision tests  
   **Commit:** `feat(exec): validate risk approval freshness and proposal match`
 
-- [ ] Implement readiness validation aggregate result.  
+- [x] Implement readiness validation aggregate result.  
   **Refs:** FR-057, NFR-002  
   **Unit tests:** aggregated failure reason tests  
   **Commit:** `feat(exec): implement execution readiness aggregate validator`

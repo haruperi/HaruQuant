@@ -11,6 +11,7 @@ from backend.contracts.risk_assessment_decision.model import (
 )
 from backend.contracts.trade_proposal.model import TradeProposal
 from backend.services import (
+    aggregate_readiness_results,
     SymbolMetadataCacheEntry,
     validate_fill_mode_compatibility,
     validate_market_open,
@@ -159,3 +160,16 @@ def test_validate_risk_decision_for_execution_rejects_stale_or_mismatched_approv
 
     assert result.allowed is False
     assert result.reason_codes == ("risk_decision_expired", "material_proposal_change")
+
+
+def test_aggregate_readiness_results_collects_all_failure_reasons() -> None:
+    aggregate = aggregate_readiness_results(
+        (
+            validate_market_open(_metadata(market_open=False)),
+            validate_terminal_connectivity(connected=False),
+        )
+    )
+
+    assert aggregate.allowed is False
+    assert aggregate.reason_codes == ("market_closed", "terminal_disconnected")
+    assert len(aggregate.checks) == 2
