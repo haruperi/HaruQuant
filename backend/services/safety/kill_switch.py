@@ -20,6 +20,15 @@ class KillSwitchTransitionError(ValueError):
 
 
 @dataclass(frozen=True)
+class KillSwitchBlockEvaluation:
+    """Whether new live entries are blocked under the current kill-switch state."""
+
+    blocked: bool
+    allow_force_exit: bool
+    reason_codes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class KillSwitchStateMachine:
     """Thin domain wrapper around the kill-switch transition map."""
 
@@ -80,10 +89,24 @@ class KillSwitchService:
         )
 
 
+def evaluate_new_entry_block(current_state: KillSwitchState) -> KillSwitchBlockEvaluation:
+    """Globally block new live entries whenever the kill switch is not fully armed."""
+
+    if current_state == KillSwitchState.ARMED:
+        return KillSwitchBlockEvaluation(blocked=False, allow_force_exit=True)
+    return KillSwitchBlockEvaluation(
+        blocked=True,
+        allow_force_exit=True,
+        reason_codes=("kill_switch_blocks_new_entries",),
+    )
+
+
 __all__ = [
+    "KillSwitchBlockEvaluation",
     "KillSwitchAction",
     "KillSwitchService",
     "KillSwitchStateMachine",
     "KillSwitchTransitionError",
     "RecoveryAuthorization",
+    "evaluate_new_entry_block",
 ]

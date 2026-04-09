@@ -712,7 +712,7 @@ A task is only complete when all are true:
   **Unit tests:** transition authorization tests  
   **Commit:** `feat(safety): add kill switch domain state machine`
 
-- [ ] Implement global new-entry block evaluator.  
+- [x] Implement global new-entry block evaluator.  
   **Refs:** NFR-001, NFR-002  
   **Unit tests:** new-entry blocked when triggered tests  
   **Commit:** `feat(safety): enforce new-entry block under kill switch`

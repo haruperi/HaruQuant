@@ -47,11 +47,13 @@ from .risk import (
     evaluate_spread_slippage_precheck,
 )
 from .safety import (
+    KillSwitchBlockEvaluation,
     KillSwitchAction,
     KillSwitchService,
     KillSwitchStateMachine,
     KillSwitchTransitionError,
     RecoveryAuthorization,
+    evaluate_new_entry_block,
 )
 
 __all__ = [
@@ -79,11 +81,13 @@ __all__ = [
     "RiskDecisionPersistenceService",
     "RiskDecisionProvenance",
     "RiskRequestAssemblyContext",
+    "KillSwitchBlockEvaluation",
     "KillSwitchAction",
     "KillSwitchService",
     "KillSwitchStateMachine",
     "KillSwitchTransitionError",
     "RecoveryAuthorization",
+    "evaluate_new_entry_block",
     "VolatilityAdjustedSizing",
     "assemble_risk_assessment_request",
     "calculate_correlation_concentration",

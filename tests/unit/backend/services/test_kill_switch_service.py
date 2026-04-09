@@ -1,8 +1,10 @@
 from backend.orchestration.workflow import KillSwitchState
 from backend.services import (
+    KillSwitchBlockEvaluation,
     KillSwitchService,
     KillSwitchStateMachine,
     KillSwitchTransitionError,
+    evaluate_new_entry_block,
 )
 
 
@@ -43,3 +45,12 @@ def test_kill_switch_service_maps_action_to_target_state() -> None:
     )
 
     assert result.state == KillSwitchState.RECOVERY_PENDING
+
+
+def test_evaluate_new_entry_block_blocks_when_kill_switch_triggered() -> None:
+    result = evaluate_new_entry_block(KillSwitchState.HARD_TRIGGERED)
+
+    assert isinstance(result, KillSwitchBlockEvaluation)
+    assert result.blocked is True
+    assert result.allow_force_exit is True
+    assert result.reason_codes == ("kill_switch_blocks_new_entries",)
