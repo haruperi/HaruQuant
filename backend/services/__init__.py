@@ -30,7 +30,9 @@ from .monitoring import (
     IncidentLifecycleService,
     ObservationIngestionService,
     ObservationRecord,
+    StaleStateDetection,
     classify_alert,
+    detect_stale_state,
 )
 from .proposals import (
     ProposalReadinessResult,
@@ -134,6 +136,7 @@ __all__ = [
     "IncidentLifecycleService",
     "ObservationIngestionService",
     "ObservationRecord",
+    "StaleStateDetection",
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
@@ -193,6 +196,7 @@ __all__ = [
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
     "classify_alert",
+    "detect_stale_state",
     "compose_risk_decision",
     "compare_execution_truth",
     "evaluate_retry_guard",

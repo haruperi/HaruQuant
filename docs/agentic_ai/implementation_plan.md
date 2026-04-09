@@ -1161,7 +1161,7 @@ A task is only complete when all are true:
   **Unit tests:** incident FSM tests  
   **Commit:** `feat(monitoring): implement incident lifecycle service`
 
-- [ ] Implement stale-state detector.  
+- [x] Implement stale-state detector.  
   **Refs:** FR-061, TTL-021  
   **Unit tests:** stale-state incident tests  
   **Commit:** `feat(monitoring): implement stale-state detector`
