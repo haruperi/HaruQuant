@@ -31,6 +31,7 @@ from .risk import (
     calculate_strategy_family_concentration,
     calculate_symbol_concentration,
     evaluate_regime_restriction,
+    evaluate_session_restrictions,
 )
 
 __all__ = [
@@ -63,6 +64,7 @@ __all__ = [
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
     "evaluate_regime_restriction",
+    "evaluate_session_restrictions",
     "SymbolMetadataCache",
     "SymbolMetadataCacheEntry",
 ]

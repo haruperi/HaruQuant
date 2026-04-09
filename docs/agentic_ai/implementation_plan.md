@@ -660,7 +660,7 @@ A task is only complete when all are true:
   **Unit tests:** regime allow/deny tests  
   **Commit:** `feat(risk): implement regime restriction evaluation`
 
-- [ ] Implement session restriction and blackout evaluator.  
+- [x] Implement session restriction and blackout evaluator.  
   **Refs:** FR-031, FR-066  
   **Unit tests:** session window and blackout tests  
   **Commit:** `feat(risk): implement session and blackout checks`

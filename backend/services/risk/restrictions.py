@@ -36,7 +36,40 @@ def _parse_hhmm(value: str) -> time:
     return time(hour=int(hour), minute=int(minute))
 
 
+def evaluate_session_restrictions(
+    *,
+    current_time: datetime,
+    allowed_window: tuple[str, str],
+    blackout_windows: tuple[tuple[str, str], ...] = (),
+) -> RestrictionEvaluation:
+    """Check session allow window and blackout overlap for the current time."""
+
+    current_clock_time = current_time.time().replace(second=0, microsecond=0)
+    start_time = _parse_hhmm(allowed_window[0])
+    end_time = _parse_hhmm(allowed_window[1])
+    if not (start_time <= current_clock_time <= end_time):
+        return RestrictionEvaluation(
+            allowed=False,
+            reason_codes=("outside_session_window",),
+            metadata={"allowed_window": allowed_window},
+        )
+
+    for blackout_start, blackout_end in blackout_windows:
+        if _parse_hhmm(blackout_start) <= current_clock_time <= _parse_hhmm(blackout_end):
+            return RestrictionEvaluation(
+                allowed=False,
+                reason_codes=("active_blackout_window",),
+                metadata={"blackout_window": (blackout_start, blackout_end)},
+            )
+
+    return RestrictionEvaluation(
+        allowed=True,
+        metadata={"allowed_window": allowed_window, "blackout_windows": blackout_windows},
+    )
+
+
 __all__ = [
     "RestrictionEvaluation",
     "evaluate_regime_restriction",
+    "evaluate_session_restrictions",
 ]
