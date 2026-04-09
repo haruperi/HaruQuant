@@ -49,6 +49,10 @@ from .monitoring import (
     detect_stale_state,
     evaluate_tool_health,
 )
+from .portfolio import (
+    PortfolioSnapshotAssemblyInput,
+    assemble_portfolio_snapshot,
+)
 from .proposals import (
     ProposalReadinessResult,
     ProposalStateTransitionResult,
@@ -160,6 +164,7 @@ __all__ = [
     "IncidentLifecycleService",
     "ObservationIngestionService",
     "ObservationRecord",
+    "PortfolioSnapshotAssemblyInput",
     "StaleStateDetection",
     "ToolHealthResult",
     "WorkflowTimeoutResult",
@@ -209,6 +214,7 @@ __all__ = [
     "VolatilityAdjustedSizing",
     "aggregate_readiness_results",
     "assemble_execution_intent",
+    "assemble_portfolio_snapshot",
     "generate_execution_idempotency_key",
     "propagate_authority_state",
     "run_pre_send_validation",

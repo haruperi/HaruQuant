@@ -1254,7 +1254,7 @@ A task is only complete when all are true:
 
 ### 10.1 Portfolio Analytics Service
 
-- [ ] Implement portfolio snapshot assembler.  
+- [x] Implement portfolio snapshot assembler.  
   **Refs:** FR-048  
   **Unit tests:** snapshot completeness tests  
   **Commit:** `feat(portfolio): implement portfolio snapshot assembler`
