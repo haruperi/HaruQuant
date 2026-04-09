@@ -749,7 +749,7 @@ A task is only complete when all are true:
   **Unit tests:** invalid stop distance tests  
   **Commit:** `feat(exec): implement stop and freeze level validation`
 
-- [ ] Implement fill-mode compatibility validation.  
+- [x] Implement fill-mode compatibility validation.  
   **Refs:** FR-057  
   **Unit tests:** unsupported fill mode tests  
   **Commit:** `feat(exec): implement fill mode compatibility validation`

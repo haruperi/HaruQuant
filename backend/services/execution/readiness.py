@@ -92,10 +92,34 @@ def validate_stop_and_freeze_levels(
     )
 
 
+def validate_fill_mode_compatibility(
+    metadata: SymbolMetadataCacheEntry,
+    *,
+    requested_fill_mode: str,
+) -> ReadinessCheckResult:
+    """Reject execution when the requested fill mode is unsupported for the symbol."""
+
+    if requested_fill_mode in metadata.supported_fill_modes:
+        return ReadinessCheckResult(
+            allowed=True,
+            metadata={"symbol": metadata.symbol, "requested_fill_mode": requested_fill_mode},
+        )
+    return ReadinessCheckResult(
+        allowed=False,
+        reason_codes=("unsupported_fill_mode",),
+        metadata={
+            "symbol": metadata.symbol,
+            "requested_fill_mode": requested_fill_mode,
+            "supported_fill_modes": metadata.supported_fill_modes,
+        },
+    )
+
+
 __all__ = [
     "ReadinessCheckResult",
     "validate_market_open",
     "validate_price_freshness",
     "validate_stop_and_freeze_levels",
     "validate_symbol_tradability",
+    "validate_fill_mode_compatibility",
 ]

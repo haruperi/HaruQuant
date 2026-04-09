@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from apps.core import FixedClock
 from backend.services import (
     SymbolMetadataCacheEntry,
+    validate_fill_mode_compatibility,
     validate_market_open,
     validate_price_freshness,
     validate_stop_and_freeze_levels,
@@ -65,3 +66,13 @@ def test_validate_stop_and_freeze_levels_rejects_too_close_distances() -> None:
 
     assert result.allowed is False
     assert result.reason_codes == ("stop_level_too_close", "freeze_level_too_close")
+
+
+def test_validate_fill_mode_compatibility_rejects_unsupported_mode() -> None:
+    result = validate_fill_mode_compatibility(
+        _metadata(),
+        requested_fill_mode="RETURN",
+    )
+
+    assert result.allowed is False
+    assert result.reason_codes == ("unsupported_fill_mode",)
