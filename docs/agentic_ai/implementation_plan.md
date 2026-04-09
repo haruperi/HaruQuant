@@ -1719,7 +1719,7 @@ Target:
   **Commit:** `test(perf): benchmark dashboard propagation latency`
 
 ### 15.4 Security
-- [ ] Verify secrets never enter model context or front-end payloads.  
+- [x] Verify secrets never enter model context or front-end payloads.  
   **Refs:** NFR-015, NFR-016  
   **Commit:** `test(security): verify secret isolation from model and ui payloads`
 
