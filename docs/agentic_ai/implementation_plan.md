@@ -823,7 +823,7 @@ A task is only complete when all are true:
   **Unit tests:** retry blocked pending reconciliation tests  
   **Commit:** `feat(recon): block blind retries before reconciliation`
 
-- [ ] Implement reconciliation result persistence.  
+  - [x] Implement reconciliation result persistence.  
   **Refs:** FR-077, FR-072  
   **Unit tests:** reconciliation run persistence tests  
   **Commit:** `feat(recon): persist reconciliation runs`
