@@ -153,10 +153,12 @@ from .safety import (
     require_hard_trigger_recovery_dual_auth,
 )
 from .shadow import (
+    ShadowComparisonReport,
     ShadowDataFeed,
     ShadowExecutionDecision,
     ShadowExecutionRequest,
     ShadowExecutionService,
+    build_shadow_comparison_report,
     build_shadow_data_feed,
 )
 from .strategy_gov import (
@@ -334,10 +336,12 @@ __all__ = [
     "evaluate_suspension_triggers",
     "route_promotion_approval",
     "update_operating_envelope_for_promotion",
+    "ShadowComparisonReport",
     "ShadowDataFeed",
     "ShadowExecutionDecision",
     "ShadowExecutionRequest",
     "ShadowExecutionService",
+    "build_shadow_comparison_report",
     "build_shadow_data_feed",
     "validate_fill_mode_compatibility",
     "validate_market_open",

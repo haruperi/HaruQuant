@@ -1414,7 +1414,7 @@ A task is only complete when all are true:
   **Unit tests:** shadow data pipeline tests  
   **Commit:** `feat(shadow): feed production-like data into shadow workflows`
 
-- [ ] Implement expected-vs-realized comparison reporting in shadow mode.  
+  - [x] Implement expected-vs-realized comparison reporting in shadow mode.  
   **Refs:** PROM-013, PROM-014  
   **Unit tests:** shadow comparison metric tests  
   **Commit:** `feat(shadow): compare shadow expectations against realized outcomes`
