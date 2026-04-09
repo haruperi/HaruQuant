@@ -1706,7 +1706,7 @@ Target:
   **Commit:** `test(obs): verify production workflow telemetry completeness`
 
 ### 15.3 Performance
-- [ ] Verify risk eval p95 <= 300ms in controlled benchmark.  
+- [x] Verify risk eval p95 <= 300ms in controlled benchmark.  
   **Refs:** performance budgets  
   **Commit:** `test(perf): benchmark risk evaluation latency`
 
