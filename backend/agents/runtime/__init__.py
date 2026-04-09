@@ -26,7 +26,7 @@ from .output_validation import (
     CanonicalValidationResult,
     ContractValidationError,
 )
-from .observability import RuntimeTrajectoryLog, RuntimeTrajectoryLogService
+from .observability import RuntimeTrajectoryLog, RuntimeTrajectoryLogService, build_run_trajectory_log
 from .prompt_registry_service import PromptRegistryService, PromptResolutionError
 from .prompt_provenance import (
     PromptProvenance,
@@ -83,6 +83,7 @@ __all__ = [
     "PromptStatus",
     "RuntimeTrajectoryLog",
     "RuntimeTrajectoryLogService",
+    "build_run_trajectory_log",
     "RedactedContext",
     "attach_prompt_provenance",
     "attach_prompt_provenance_to_run_result",

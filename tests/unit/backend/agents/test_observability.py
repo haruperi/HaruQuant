@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.agents import RuntimeTrajectoryLog, RuntimeTrajectoryLogService
+from backend.agents import (
+    ADKRunRequest,
+    ADKRunnerConfig,
+    ADKRunnerService,
+    AgentExecutionResult,
+    RuntimeTrajectoryLog,
+    RuntimeTrajectoryLogService,
+    build_run_trajectory_log,
+)
 from backend.db import ResearchAuditRepository, apply_pending_migrations
 
 
@@ -48,3 +56,40 @@ def test_runtime_trajectory_log_service_persists_to_audit_store(tmp_path) -> Non
     assert '"tool_name":"research.lookup"' in record.tool_calls_json
     assert '"prompt":10' in record.token_usage_json
     assert record.artifact_ref == "artifact_001"
+
+
+class _FakeRuntimeAgent:
+    def run(self, *, request, context):  # noqa: ANN001
+        return AgentExecutionResult(
+            output_payload={"route": request.input_payload["route"]},
+            final_state="COMPLETED",
+        )
+
+
+def test_build_run_trajectory_log_propagates_workflow_and_correlation_ids() -> None:
+    runner = ADKRunnerService(
+        ADKRunnerConfig(
+            runner_name="agent-runtime",
+            default_model="gemini-2.5-flash",
+        )
+    )
+    request = ADKRunRequest(
+        workflow_id="wf_123",
+        correlation_id="corr_123",
+        agent_name="orchestrator_agent",
+        input_payload={"route": "research"},
+    )
+
+    result = runner.run(agent=_FakeRuntimeAgent(), request=request)
+    log = build_run_trajectory_log(
+        request=request,
+        result=result,
+        phase="plan",
+        iteration_no=0,
+        input_schema="WorkflowIntent",
+        output_schema="WorkflowPlan",
+    )
+
+    assert log.workflow_id == "wf_123"
+    assert log.correlation_id == "corr_123"
+    assert log.agent_name == "orchestrator_agent"

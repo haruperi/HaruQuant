@@ -9,6 +9,7 @@ from typing import Any
 from apps.core.ids import generate_prefixed_id
 from backend.contracts.serialization import canonical_json_dumps
 from backend.db import ResearchAuditRepository, TrajectoryLogRecord
+from .runner import ADKRunRequest, ADKRunResult
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,47 @@ class RuntimeTrajectoryLogService:
             signature=log.signature,
             artifact_ref=log.artifact_ref,
         )
+
+
+def build_run_trajectory_log(
+    *,
+    request: ADKRunRequest,
+    result: ADKRunResult,
+    phase: str,
+    iteration_no: int,
+    input_schema: str,
+    output_schema: str,
+    observation_payload_ref: str | None = None,
+    evaluation_output_ref: str | None = None,
+    signature: str | None = None,
+    artifact_ref: str | None = None,
+) -> RuntimeTrajectoryLog:
+    """Build a trajectory log from one normalized request/result pair."""
+
+    if request.workflow_id != result.workflow_id:
+        raise ValueError("request and result workflow_id must match")
+    if request.correlation_id != result.correlation_id:
+        raise ValueError("request and result correlation_id must match")
+
+    return RuntimeTrajectoryLog(
+        workflow_id=result.workflow_id,
+        correlation_id=result.correlation_id,
+        agent_name=result.agent_name,
+        phase=phase,
+        iteration_no=iteration_no,
+        input_schema=input_schema,
+        input_payload=dict(request.input_payload),
+        output_schema=output_schema,
+        output_payload=dict(result.output_payload),
+        tool_calls=tuple(result.tool_calls),
+        observation_payload_ref=observation_payload_ref,
+        evaluation_output_ref=evaluation_output_ref,
+        latency_ms=result.latency_ms,
+        token_usage=None if result.token_usage is None else dict(result.token_usage),
+        final_state=result.final_state,
+        signature=signature,
+        artifact_ref=artifact_ref,
+    )
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:

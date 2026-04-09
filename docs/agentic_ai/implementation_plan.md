@@ -1030,7 +1030,7 @@ A task is only complete when all are true:
   **Unit tests:** trajectory insert tests  
   **Commit:** `feat(obs): implement trajectory log persistence`
 
-- [ ] Capture workflow/correlation IDs in every agent run.  
+- [x] Capture workflow/correlation IDs in every agent run.  
   **Refs:** FR-063, NFR-004  
   **Unit tests:** propagated ID tests  
   **Commit:** `feat(obs): propagate workflow and correlation ids across agent runs`
