@@ -1610,7 +1610,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): block entry under kill switch`
 
-- [ ] Duplicate retry blocked until reconciliation completes.  
+- [x] Duplicate retry blocked until reconciliation completes.  
   **Refs:** FR-060, FR-077  
   **Tests:** scenario  
   **Commit:** `test(scenario): block duplicate retry until reconciliation`
