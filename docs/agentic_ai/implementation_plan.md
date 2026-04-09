@@ -1166,7 +1166,7 @@ A task is only complete when all are true:
   **Unit tests:** stale-state incident tests  
   **Commit:** `feat(monitoring): implement stale-state detector`
 
-- [ ] Implement tool-health monitor.  
+- [x] Implement tool-health monitor.  
   **Refs:** FR-061  
   **Unit tests:** downstream health degradation tests  
   **Commit:** `feat(monitoring): implement tool health monitoring`

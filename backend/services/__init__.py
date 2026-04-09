@@ -31,8 +31,10 @@ from .monitoring import (
     ObservationIngestionService,
     ObservationRecord,
     StaleStateDetection,
+    ToolHealthResult,
     classify_alert,
     detect_stale_state,
+    evaluate_tool_health,
 )
 from .proposals import (
     ProposalReadinessResult,
@@ -137,6 +139,7 @@ __all__ = [
     "ObservationIngestionService",
     "ObservationRecord",
     "StaleStateDetection",
+    "ToolHealthResult",
     "PORTFOLIO_SNAPSHOT_TTL_POLICY",
     "PortfolioSnapshot",
     "PortfolioSnapshotType",
@@ -197,6 +200,7 @@ __all__ = [
     "calculate_symbol_concentration",
     "classify_alert",
     "detect_stale_state",
+    "evaluate_tool_health",
     "compose_risk_decision",
     "compare_execution_truth",
     "evaluate_retry_guard",
