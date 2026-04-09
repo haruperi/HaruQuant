@@ -1573,7 +1573,7 @@ A task is only complete when all are true:
   **Tests:** scenario  
   **Commit:** `test(scenario): add research-only workflow scenario`
 
-- [ ] Advisory workflow generates hypothesis and proposal but no live order.  
+  - [x] Advisory workflow generates hypothesis and proposal but no live order.  
   **Refs:** MODE-001, FR-039 to FR-043  
   **Tests:** scenario  
   **Commit:** `test(scenario): add advisory proposal workflow scenario`
