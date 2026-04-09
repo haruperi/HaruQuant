@@ -1438,7 +1438,7 @@ A task is only complete when all are true:
 
 ### 11.4 Chaos and Failure Readiness
 
-- [ ] Implement chaos test for stale market data.  
+  - [x] Implement chaos test for stale market data.  
   **Refs:** FR-076, NFR-002  
   **Unit tests:** n/a, scenario/chaos test  
   **Commit:** `test(chaos): add stale market data chaos scenario`
