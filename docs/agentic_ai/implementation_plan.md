@@ -1336,7 +1336,7 @@ A task is only complete when all are true:
   **Unit tests:** suspension trigger tests  
   **Commit:** `feat(strategy-gov): implement automatic suspension triggers`
 
-- [ ] Implement retirement flow.  
+- [x] Implement retirement flow.  
   **Refs:** FR-044, PROM-022  
   **Unit tests:** retirement preservation tests  
   **Commit:** `feat(strategy-gov): implement strategy retirement flow`

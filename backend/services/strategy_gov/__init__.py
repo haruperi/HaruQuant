@@ -19,6 +19,7 @@ from .persistence import (
     StrategyPromotionPersistenceService,
 )
 from .registry import StrategyRegistrationRequest, StrategyRegistryService
+from .retirement import StrategyRetirementResult, StrategyRetirementService
 from .suspension import (
     SuspensionTriggerDecision,
     SuspensionTriggerRequest,
@@ -41,6 +42,8 @@ __all__ = [
     "StrategyRegistrationRequest",
     "StrategyPromotionPersistenceService",
     "StrategyRegistryService",
+    "StrategyRetirementResult",
+    "StrategyRetirementService",
     "SuspensionTriggerDecision",
     "SuspensionTriggerRequest",
     "evaluate_suspension_triggers",
