@@ -340,20 +340,22 @@ backend/services/market_data/
 
 ### Migration Tasks
 
-- [ ] Wrap Dukascopy fetch as MCP tool.
-- [ ] Move instrument constants/models into market data service.
-- [ ] Normalize returned bars through deterministic market data service.
-- [ ] Add stale/freshness metadata on returned data.
-- [ ] Add error and timeout handling.
-- [ ] Update `apps/utils.data_getters` callers after utility migration.
-- [ ] Delete `apps/dukascopy`.
+- [x] Wrap Dukascopy fetch as MCP tool.
+- [x] Move instrument constants/models into market data service.
+- [x] Normalize returned bars through deterministic market data service.
+- [x] Add stale/freshness metadata on returned data.
+- [x] Add error and timeout handling.
+- [x] Update `apps/utils.data_getters` callers after utility migration.
+- [x] Delete `apps/dukascopy`.
+
+Phase 5 moves the external Dukascopy HTTP adapter into `backend/mcp/market_data_mcp`, with deterministic instrument lookup and normalized bar snapshots in `backend/services/market_data`.
 
 ### Verification
 
-- [ ] Contract tests for market data MCP tool.
-- [ ] Unit tests for normalization.
-- [ ] External fetch failures fail closed or degrade safely.
-- [ ] `rg "apps.dukascopy|from apps.dukascopy|import apps.dukascopy"` has no production matches.
+- [x] Contract tests for market data MCP tool.
+- [x] Unit tests for normalization.
+- [x] External fetch failures fail closed or degrade safely.
+- [x] `rg "apps.dukascopy|from apps.dukascopy|import apps.dukascopy"` has no production matches.
 
 ---
 

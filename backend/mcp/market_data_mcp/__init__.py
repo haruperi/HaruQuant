@@ -1,6 +1,8 @@
-"""Dukascopy API package."""
+"""Market data MCP boundary package."""
 
-from .data import (
+from backend.services.market_data.dukascopy_instruments import get_instrument
+
+from .dukascopy import (
     INTERVAL_DAY_1,
     INTERVAL_HOUR_1,
     INTERVAL_HOUR_4,
@@ -27,7 +29,13 @@ from .data import (
     fetch,
     live_fetch,
 )
-from .instruments import get_instrument
+from .server import MarketDataMCPServer, create_market_data_mcp_server
+from .tools import (
+    MARKET_DATA_TOOL_SPECS,
+    DukascopyGateway,
+    DukascopyMarketDataTools,
+    HistoricalMarketDataGateway,
+)
 
 __all__ = [
     "INTERVAL_DAY_1",
@@ -56,4 +64,10 @@ __all__ = [
     "fetch",
     "live_fetch",
     "get_instrument",
+    "DukascopyGateway",
+    "DukascopyMarketDataTools",
+    "HistoricalMarketDataGateway",
+    "MARKET_DATA_TOOL_SPECS",
+    "MarketDataMCPServer",
+    "create_market_data_mcp_server",
 ]

@@ -45,27 +45,28 @@ finally:
 
 Records returned from `ingest(...)` are canonical normalized dictionaries.
 
-## Dukascopy Historical Adapter
+## Dukascopy Historical Boundary
 
-- Adapter module: `apps/adapters/dukascopy_adapter.py`
+- MCP boundary: `backend/mcp/market_data_mcp`
+- Normalization service: `backend/services/market_data`
 
 Minimal usage:
 
 ```python
 from datetime import datetime
-from apps.adapters.dukascopy_adapter import DukascopyHistoricalAdapter
+from backend.mcp.market_data_mcp import DukascopyGateway, DukascopyMarketDataTools
 
-adapter = DukascopyHistoricalAdapter()
-rows = adapter.fetch_historical(
+tools = DukascopyMarketDataTools(gateway=DukascopyGateway())
+payload = tools.fetch_bars(
     symbol="EURUSD",
     timeframe="M1",
     start=datetime(2026, 2, 1),
     end=datetime(2026, 2, 2),
-    progress_callback=lambda done, total, pct: print(done, total, pct),
+    include_bars=True,
 )
 ```
 
-Each item in `rows` is a canonical bar payload.
+The returned payload includes normalized bars plus freshness metadata.
 
 ## Unified Pipeline Helper
 

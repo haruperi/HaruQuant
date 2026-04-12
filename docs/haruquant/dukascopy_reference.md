@@ -1,10 +1,10 @@
-# Dukascopy API Module
+# Dukascopy Market Data Boundary
 
 A Python client for fetching historical market data from Dukascopy's free data feed, providing access to forex, stocks, indices, commodities, and cryptocurrencies.
 
 ## Overview
 
-The `dukascopy_api` module provides a simple interface to download historical OHLC (Open, High, Low, Close) data from Dukascopy's servers. It supports multiple timeframes from tick data to monthly bars and includes automatic retry logic and data validation.
+The Dukascopy market data boundary provides a governed MCP-facing interface to download historical OHLC (Open, High, Low, Close) data from Dukascopy's servers. It supports multiple timeframes from tick data to monthly bars and includes automatic retry logic, fail-closed error handling, deterministic normalization, and freshness metadata.
 
 ## Key Features
 
@@ -18,9 +18,11 @@ The `dukascopy_api` module provides a simple interface to download historical OH
 
 ## Architecture
 
-The module consists of two main components:
-- **dukascopy.py**: Core API client for data fetching
-- **instruments.py**: Instrument name mappings (4000+ instruments)
+The boundary consists of three main components:
+- `backend/mcp/market_data_mcp/dukascopy.py`: external HTTP client for data fetching
+- `backend/mcp/market_data_mcp/tools.py`: MCP tool facade for governed access
+- `backend/services/market_data/dukascopy_instruments.py`: instrument name mappings
+- `backend/services/market_data/dukascopy.py`: deterministic bar normalization and freshness metadata
 
 ```
 ┌──────────────────┐
@@ -110,7 +112,7 @@ Fetch historical data from Dukascopy for a specified date range.
 
 **Example:**
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID
+from backend.mcp.market_data_mcp import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 
 # Fetch 1-hour EUR/USD bid data for last 30 days
@@ -148,7 +150,7 @@ Fetch live/recent historical data with custom interval values.
 
 **Example:**
 ```python
-from apps.dukascopy_api.dukascopy import live_fetch, TIME_UNIT_MIN, OFFER_SIDE_ASK
+from backend.mcp.market_data_mcp import live_fetch, TIME_UNIT_MIN, OFFER_SIDE_ASK
 from datetime import datetime, timedelta
 
 # Fetch 15-minute EUR/USD ask data
@@ -172,7 +174,7 @@ print(f"Retrieved {len(data)} bars")
 **Basic Usage:**
 
 ```python
-from apps.dukascopy_api.dukascopy import (
+from backend.mcp.market_data_mcp import (
     fetch,
     INTERVAL_DAY_1,
     INTERVAL_HOUR_1,
@@ -201,7 +203,7 @@ print(daily_data.tail())
 **Multiple Timeframes:**
 
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_HOUR_1, INTERVAL_MIN_15, OFFER_SIDE_BID
+from backend.mcp.market_data_mcp import fetch, INTERVAL_HOUR_1, INTERVAL_MIN_15, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 
 end_date = datetime.now()
@@ -232,7 +234,7 @@ print(f"15-min: {len(m15)} bars")
 **Bid vs Ask Data:**
 
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID, OFFER_SIDE_ASK
+from backend.mcp.market_data_mcp import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID, OFFER_SIDE_ASK
 from datetime import datetime, timedelta
 
 end_date = datetime.now()
@@ -263,7 +265,7 @@ print(f"Average spread: {bid_data['spread'].mean():.5f}")
 **Stock Data:**
 
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
+from backend.mcp.market_data_mcp import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 
 # Fetch Apple stock data
@@ -285,7 +287,7 @@ print(f"Latest close: ${aapl_data.iloc[-1]['close']:.2f}")
 **Cryptocurrency Data:**
 
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID
+from backend.mcp.market_data_mcp import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 
 # Fetch Bitcoin data
@@ -307,7 +309,7 @@ print(f"Latest price: ${btc_data.iloc[-1]['close']:,.2f}")
 **Commodity Data:**
 
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
+from backend.mcp.market_data_mcp import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 
 # Fetch Gold data
@@ -440,8 +442,8 @@ def get_instrument_name(friendly_name: str) -> str:
 **Using Instrument Mappings:**
 
 ```python
-from apps.dukascopy_api.instruments import INSTRUMENT_MAP
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
+from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
+from backend.mcp.market_data_mcp import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 
 # Get instrument string
@@ -471,8 +473,8 @@ print(f"Retrieved {len(data)} bars for {eurusd}")
 **Fetching Multiple Instruments:**
 
 ```python
-from apps.dukascopy_api.instruments import INSTRUMENT_MAP
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID
+from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
+from backend.mcp.market_data_mcp import fetch, INTERVAL_HOUR_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 import pandas as pd
 
@@ -509,7 +511,7 @@ print(closes.tail())
 **Searching for Instruments:**
 
 ```python
-from apps.dukascopy_api.instruments import INSTRUMENT_MAP
+from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
 
 # Find all Apple-related instruments
 apple_instruments = {
@@ -539,8 +541,8 @@ for key, value in list(eur_pairs.items())[:10]:
 ### Complete Workflow
 
 ```python
-from apps.dukascopy_api.instruments import INSTRUMENT_MAP
-from apps.dukascopy_api.dukascopy import (
+from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
+from backend.mcp.market_data_mcp import (
     fetch,
     INTERVAL_HOUR_1,
     OFFER_SIDE_BID
@@ -578,8 +580,8 @@ for symbol, data in all_data.items():
 ### Error Handling
 
 ```python
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
-from apps.dukascopy_api.instruments import INSTRUMENT_MAP
+from backend.mcp.market_data_mcp import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
+from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
 from datetime import datetime, timedelta
 
 def safe_fetch(symbol, days=30):
@@ -618,8 +620,8 @@ if data is not None:
 ### Data Analysis
 
 ```python
-from apps.dukascopy_api.instruments import INSTRUMENT_MAP
-from apps.dukascopy_api.dukascopy import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
+from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
+from backend.mcp.market_data_mcp import fetch, INTERVAL_DAY_1, OFFER_SIDE_BID
 from datetime import datetime, timedelta
 import pandas as pd
 

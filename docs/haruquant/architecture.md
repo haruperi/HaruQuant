@@ -1550,9 +1550,9 @@
 
 ## Data Adapters and Normalization Pipeline (IP-09)
 
-- Python adapters:
-  - `apps/adapters/mt5_zmq_adapter.py`
-  - `apps/adapters/dukascopy_adapter.py`
+- Python adapters and boundaries:
+  - MT5 adapter remains under the MT5 migration scope.
+  - Dukascopy external fetches now run through `backend/mcp/market_data_mcp`.
 - Normalization layer:
   - `apps/adapters/normalization.py`
 - Pipeline wrapper:
@@ -1560,7 +1560,7 @@
 - Scope:
   - Subscribe to MQL5 EA `PUB` stream via `SUB` socket.
   - Decode one-frame or two-frame (`topic`, `json`) messages.
-  - Fetch Dukascopy historical bars via adapter abstraction.
+  - Fetch Dukascopy historical bars via the governed market-data MCP boundary.
   - Normalize provider payloads into canonical `tick` and `bar` schemas.
   - Support ingestion progress callbacks `(done, total, percent)`.
 - Topic convention:

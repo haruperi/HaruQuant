@@ -869,7 +869,7 @@ Copyright 2025, HaruQuant
 ## See Also
 
 - `apps/mt5/` - MT5 client for data retrieval
-- `apps/dukascopy_api/` - Dukascopy API client
+- `backend/mcp/market_data_mcp/` - governed Dukascopy market data MCP boundary
 - `backend/db/sqlite/` - Database management
 - `apps/indicator/` - Technical indicators
 - `apps/backtest/` - Backtesting engine

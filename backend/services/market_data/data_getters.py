@@ -59,7 +59,7 @@ def get_data_dir() -> Path:
         >>> data_dir = get_data_dir()
         >>> print(data_dir / "dukascopy")
     """
-    return Path(__file__).resolve().parents[2] / "backend" / "data"
+    return Path(__file__).resolve().parents[3] / "backend" / "data"
 
 
 def load_parquet(file_path: Union[str, Path]) -> pd.DataFrame:
@@ -109,7 +109,8 @@ def load_dukascopy(  # noqa: C901
     Raises:
         FileNotFoundError: If data file not found
     """
-    from apps.dukascopy import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch
+    from backend.mcp.market_data_mcp import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch
+    from backend.services.market_data.dukascopy import normalize_dukascopy_bars
 
     logger.info(f"Attempting to download {symbol} from Dukascopy...")
 
@@ -185,8 +186,12 @@ def load_dukascopy(  # noqa: C901
                 df = df.tail(count)
                 logger.info(f"Trimmed to last {count} bars")
 
-            # Use the dataframe we just downloaded
-            return DataValidator.prepare_data(df)
+            snapshot = normalize_dukascopy_bars(
+                df,
+                symbol=symbol,
+                timeframe=timeframe or "M1",
+            )
+            return snapshot.bars
 
         except Exception as e:
             logger.error(f"Failed to download Dukascopy data: {e}")
