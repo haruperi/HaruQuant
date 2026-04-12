@@ -241,23 +241,23 @@ backend/services/execution/compensation/
 ```
 
 ### Tasks
-- [ ] Create `backend/services/execution/compensation/` directory
-- [ ] Define `CompensationPlan` abstract base class with `execute()`, `validate()`, `log()` methods
-- [ ] Implement `OrderCompensationPlan` (offsetting order, cancel pending)
-- [ ] Implement `PositionCompensationPlan` (close position, adjust size)
-- [ ] Create `CompensationRegistry` mapping action classes (A/B/C/D/E) to compensation plans
-- [ ] Enhance `generate_execution_idempotency_key()` to include action class and idempotency metadata
+- [x] Create `backend/services/execution/compensation/` directory
+- [x] Define `CompensationPlan` abstract base class with `execute()`, `validate()`, `log()` methods
+- [x] Implement `OrderCompensationPlan` (offsetting order, cancel pending)
+- [x] Implement `PositionCompensationPlan` (close position, adjust size)
+- [x] Create `CompensationRegistry` mapping action classes (A/B/C/D/E) to compensation plans
+- [x] Enhance `generate_execution_idempotency_key()` to include action class and idempotency metadata
 - [ ] Add idempotency check middleware before execution dispatch
 - [ ] Add exactly-once vs at-least-once semantics documentation per action class
-- [ ] Add unit tests for each compensation plan
+- [x] Add unit tests for each compensation plan (16/16 pass)
 - [ ] Add integration test for idempotent retry scenario
 
 ### Verification
-- [ ] CompensationPlan executes and logs
-- [ ] CompensationRegistry returns correct plan for action class
-- [ ] Idempotency key is deterministic for same input
+- [x] CompensationPlan executes and logs
+- [x] CompensationRegistry returns correct plan for action class
+- [x] Idempotency key is deterministic for same input
 - [ ] Duplicate request is detected and blocked
-- [ ] Unit tests pass
+- [x] Unit tests pass (16/16)
 
 ---
 
