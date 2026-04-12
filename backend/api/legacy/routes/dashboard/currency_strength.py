@@ -13,9 +13,9 @@ import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from apps.api.auth_utils import verify_token
-from apps.api.routes.dashboard.broker import client as global_mt5_client
-from apps.api.routes.dashboard.broker import get_last_credentials
+from backend.api.legacy.auth_utils import verify_token
+from backend.api.legacy.routes.dashboard.broker import client as global_mt5_client
+from backend.api.legacy.routes.dashboard.broker import get_last_credentials
 from apps.indicator.custom import (
     CURRENCY_PAIRS,
     MAJOR_CURRENCIES,

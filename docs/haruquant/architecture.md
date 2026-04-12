@@ -2403,8 +2403,8 @@
   - short-history
   - DST/session-boundary
 - `tests/conftest.py` isolates those runs from live data by:
-  - patching `apps.api.routes.edge._create_data_source(...)`
-  - patching `apps.api.routes.edge.db_manager`
+  - patching `backend.api.legacy.routes.edge._create_data_source(...)`
+  - patching `backend.api.legacy.routes.edge.db_manager`
   - creating a temp SQLite database per test
 - Edge Lab integration coverage now lives in:
   - `tests/integration/apps/edge/test_edge_lab_automation.py`

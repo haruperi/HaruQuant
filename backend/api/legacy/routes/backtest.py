@@ -11,8 +11,8 @@ import pandas as pd
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
 
-from apps.api.auth_utils import get_user_id_from_token
-from apps.api.websocket import backtest_log_manager
+from backend.api.legacy.auth_utils import get_user_id_from_token
+from backend.api.legacy.websocket import backtest_log_manager
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage

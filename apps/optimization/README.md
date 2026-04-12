@@ -53,7 +53,7 @@ apps/optimization/
 **Backend:**
 ```bash
 cd D:\Trading\Applications\Testing\haruquant
-uvicorn apps.api.main:app --reload
+uvicorn backend.api.legacy.main:app --reload
 ```
 
 **Frontend:**
@@ -469,7 +469,7 @@ Stores results for each parameter combination tested.
 **Quick smoke test:**
 ```bash
 # 1. Start servers
-uvicorn apps.api.main:app --reload
+uvicorn backend.api.legacy.main:app --reload
 cd ui && npm run dev
 
 # 2. Navigate to http://localhost:3000/optimization

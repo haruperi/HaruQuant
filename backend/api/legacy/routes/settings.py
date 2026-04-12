@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter, Header, HTTPException, status
 
-from apps.api.auth_utils import verify_token
-from apps.api.models import UpdateUserSettingsRequest, UserSettingsResponse
+from backend.api.legacy.auth_utils import verify_token
+from backend.api.legacy.models import UpdateUserSettingsRequest, UserSettingsResponse
 from apps.utils.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 

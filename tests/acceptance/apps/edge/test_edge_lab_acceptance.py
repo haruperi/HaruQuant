@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.api.routes.edge import _run_edge_lab_symbol_profile_sync
+from backend.api.legacy.routes.edge import _run_edge_lab_symbol_profile_sync
 
 
 def _run(symbol: str, bars: int = 240):

@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from apps.api.websocket import backtest_log_manager
+from backend.api.legacy.websocket import backtest_log_manager
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.risk.core import PortfolioStateEngine
@@ -39,7 +39,7 @@ from apps.trading import Engine, core
 from apps.utils.data_validator import DataValidator
 from apps.utils.logger import logger
 
-from apps.api.routes.backtest import _generate_ticks_for_backtest, _resolve_modelling
+from backend.api.legacy.routes.backtest import _generate_ticks_for_backtest, _resolve_modelling
 
 mt5 = get_mt5_api()
 FX_CLUSTER_CURRENCIES = {"USD", "EUR", "JPY", "CAD", "AUD", "NZD", "CHF", "GBP"}

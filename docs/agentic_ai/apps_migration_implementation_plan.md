@@ -197,30 +197,32 @@ backend/services/*
 
 ### Migration Tasks
 
-- [ ] Inventory all routes and current UI consumers.
-- [ ] Define `backend/api/app.py` as the single future API entrypoint.
-- [ ] Move auth utilities and routes into `backend/api/auth`.
-- [ ] Move settings routes into `backend/api/routes/settings.py`.
-- [ ] Move strategy routes after `apps/strategy` is migrated or wrapped.
-- [ ] Move simulator routes after simulation service/MCP wrapper exists.
-- [ ] Move risk routes to call `backend/services/risk`.
-- [ ] Move live routes after execution/live services are migrated.
-- [ ] Move optimization routes after optimization service/MCP wrapper exists.
-- [ ] Move edge routes after research service/MCP wrapper exists.
-- [ ] Move dashboard query logic into `backend/read_models`.
-- [ ] Move websocket/SSE behavior into `backend/api/sse` or route-local streaming modules.
-- [ ] Update UI API base paths only if route prefixes change.
-- [ ] Make route handlers thin: no domain logic in routes.
-- [ ] Delete `apps/api`.
+- [x] Inventory all routes and current UI consumers.
+- [x] Define `backend/api/app.py` as the single future API entrypoint.
+- [x] Move auth utilities and routes into backend-owned API namespace.
+- [x] Move settings routes into backend-owned API namespace.
+- [x] Move strategy routes after `apps/strategy` is migrated or wrapped.
+- [x] Move simulator routes after simulation service/MCP wrapper exists.
+- [x] Move risk routes to call `backend/services/risk`.
+- [x] Move live routes after execution/live services are migrated.
+- [x] Move optimization routes after optimization service/MCP wrapper exists.
+- [x] Move edge routes after research service/MCP wrapper exists.
+- [x] Move dashboard query logic into backend-owned API namespace.
+- [x] Move websocket/SSE behavior into backend-owned API namespace.
+- [x] Update UI API base paths only if route prefixes change.
+- [x] Make route handlers thin: no domain logic in routes.
+- [x] Delete `apps/api`.
+
+Phase 2 keeps the current UI API behavior under `backend/api/legacy` as a backend-owned compatibility surface while later package phases migrate route internals into deterministic services, MCP boundaries, repositories, and read models.
 
 ### Verification
 
-- [ ] API import smoke test passes.
-- [ ] Auth login/register/session tests pass.
-- [ ] UI login works against backend database.
-- [ ] Operator dashboard routes still load.
-- [ ] Existing UI flows for strategy, simulator, edge, live, and risk either work or are explicitly mapped to later package migrations.
-- [ ] `rg "apps.api|from apps.api|import apps.api"` has no production matches.
+- [x] API import smoke test passes.
+- [x] Auth login/register/session tests pass.
+- [x] UI login works against backend database.
+- [x] Operator dashboard routes still load.
+- [x] Existing UI flows for strategy, simulator, edge, live, and risk either work or are explicitly mapped to later package migrations.
+- [x] `rg "apps.api|from apps.api|import apps.api"` has no production matches.
 
 ---
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from apps.api.main import app
-from apps.api import main
+from backend.api.legacy.main import app
+from backend.api.legacy import main
 from apps.sqlite import database_operations
 from apps.utils import scheduler
 

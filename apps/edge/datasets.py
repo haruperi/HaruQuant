@@ -417,6 +417,13 @@ def prepare_ohlcvs_dataset(
         schema=schema,
     )
     raw = _synthesize_ohlcvs_columns(raw, canonical)
+    duplicate_rows = 0
+    if raw.index.has_duplicates:
+        duplicate_rows = int(raw.index.duplicated(keep="last").sum())
+        raw = raw.loc[~raw.index.duplicated(keep="last")].sort_index()
+        logger.warning(
+            f"Dropped {duplicate_rows} duplicate timestamp rows for {symbol} {timeframe} before validation"
+        )
 
     report = validate_dataset(raw, schema=canonical, timeframe=timeframe)
     if not report.is_valid:
@@ -446,6 +453,7 @@ def prepare_ohlcvs_dataset(
             "end": str(enriched.index.max()) if len(enriched) else None,
             "session_basis": (enrichment or EnrichmentConfig(symbol=symbol)).session_basis,
             "session_hours": session_hours_payload(),
+            "deduplicated_rows": duplicate_rows,
         }
     )
     return PreparedDataset(data=enriched, report=report, schema=canonical)

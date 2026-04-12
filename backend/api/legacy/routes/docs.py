@@ -9,9 +9,9 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-# Define the root directory for documentation
-# Go up two levels from apps/api/routes to reach apps/api, then up to root, then to docs
-DOCS_ROOT = Path(__file__).parent.parent.parent.parent / "docs"
+# Define the repository documentation root. Keep this independent of package depth
+# while the legacy UI API is migrated into backend/api.
+DOCS_ROOT = Path("docs").resolve()
 CONTENT_PATH_QUERY = Query(..., description="Relative path to the file")
 
 

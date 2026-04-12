@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.api.routes.edge import _run_edge_lab_symbol_profile_sync
+from backend.api.legacy.routes.edge import _run_edge_lab_symbol_profile_sync
 
 
 def test_automation_runner_builds_completed_snapshot(isolated_edge_lab_env):

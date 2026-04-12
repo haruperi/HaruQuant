@@ -7,7 +7,7 @@ from typing import Annotated, Any, List, Optional, Tuple
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from apps.api.auth_utils import get_user_id_from_token
+from backend.api.legacy.auth_utils import get_user_id_from_token
 from apps.backtest.result import (
     BacktestResult,
     CloseType,

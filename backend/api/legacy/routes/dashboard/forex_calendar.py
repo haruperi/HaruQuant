@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 
-from apps.api.services.forex_calendar import fetch_forex_factory_calendar
+from backend.api.legacy.services.forex_calendar import fetch_forex_factory_calendar
 
 router = APIRouter()
 

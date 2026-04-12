@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from apps.api.auth_utils import get_user_id_from_token
+from backend.api.legacy.auth_utils import get_user_id_from_token
 from apps.edge.classifier import classify_symbol
 from apps.edge.config import (
     BootstrapConfig,

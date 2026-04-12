@@ -95,7 +95,7 @@ def _drop_weekends_and_holidays(
     if config.drop_weekends:
         weekend_mask = out.index.dayofweek >= 5
         weekend_count = int(weekend_mask.sum())
-        if weekend_count:
+        if weekend_count and weekend_count < len(out):
             out = out.loc[~weekend_mask]
             report.add_action(
                 CleaningAction("drop_weekends", count=weekend_count)
@@ -107,7 +107,7 @@ def _drop_weekends_and_holidays(
         holiday_mask = out.index.normalize().date
         keep_mask = np.array([d not in holiday_set for d in holiday_mask], dtype=bool)
         removed = int((~keep_mask).sum())
-        if removed:
+        if removed and removed < len(out):
             out = out.loc[keep_mask]
             report.add_action(
                 CleaningAction("drop_holidays", count=removed)

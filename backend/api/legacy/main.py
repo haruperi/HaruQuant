@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.utils.logger import logger
-from apps.api.middleware.security import SecretRedactionMiddleware
+from backend.api.legacy.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
     auth,
