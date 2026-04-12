@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .config import BootstrapConfig, NullModelsConfig, PermutationConfig
 from .features import atr, log_returns

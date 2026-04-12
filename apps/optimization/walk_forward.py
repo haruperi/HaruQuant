@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Type
 
 import numpy as np
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .execution import run_strategy_backtest
 from .methods.grid_search import grid_search

@@ -8,7 +8,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 sys.path.insert(0, PROJECT_ROOT)
 
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.trading import Engine
 
 

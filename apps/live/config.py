@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover
     import tomli as tomllib  # type: ignore[no-redef]
 
 from apps.live.secrets import SecretProviderError, resolve_secret_reference
-from apps.utils.redaction import redact_mapping
+from backend.common.redaction import redact_mapping
 
 
 class ConfigError(Exception):

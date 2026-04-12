@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.optimization.models import (
     MultiEntryRequest,
     MultiEntryResponse,

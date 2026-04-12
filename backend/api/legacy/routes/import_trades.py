@@ -15,7 +15,7 @@ from apps.backtest.result import (
     ExitReason,
     TradeRecord,
 )
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

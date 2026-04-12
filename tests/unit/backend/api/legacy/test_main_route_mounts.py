@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from backend.api.legacy.main import app
 from backend.api.legacy import main
 from apps.sqlite import database_operations
-from apps.utils import scheduler
+from backend.api.legacy import scheduler
 
 
 def test_main_app_includes_simulator_and_backtest_routes():

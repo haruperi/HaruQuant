@@ -245,25 +245,25 @@ backend/mcp/filesystem_mcp/      # only if filesystem operations remain agent-ca
 
 ### Migration Tasks
 
-- [ ] Move logger and redaction helpers into backend common.
-- [ ] Move security helpers into backend common or `backend/services/security`.
-- [ ] Move datetime/path helpers into backend common.
-- [ ] Move data validators into `backend/services/market_data`.
-- [ ] Move data getters into `backend/services/market_data` or MCP where external fetches occur.
-- [ ] Move data manipulation/resampling into `backend/services/market_data`.
-- [ ] Move trade validators into `backend/services/execution`.
-- [ ] Move file renamer into `backend/scripts/tools` or delete if not needed.
-- [ ] Move scheduler into backend API/application lifecycle if still needed.
-- [ ] Update tests and examples.
-- [ ] Delete `apps/utils`.
+- [x] Move logger and redaction helpers into backend common.
+- [x] Move security helpers into backend common or `backend/services/security`.
+- [x] Move datetime/path helpers into backend common.
+- [x] Move data validators into `backend/services/market_data`.
+- [x] Move data getters into `backend/services/market_data` or MCP where external fetches occur.
+- [x] Move data manipulation/resampling into `backend/services/market_data`.
+- [x] Move trade validators into `backend/services/execution`.
+- [x] Move file renamer into `backend/scripts/tools` or delete if not needed.
+- [x] Move scheduler into backend API/application lifecycle if still needed.
+- [x] Update tests and examples.
+- [x] Delete `apps/utils`.
 
 ### Verification
 
-- [ ] Logger tests pass.
-- [ ] Security tests pass.
-- [ ] Data validation/manipulation tests pass.
-- [ ] Examples using logger and market data helpers run.
-- [ ] `rg "apps.utils|from apps.utils|import apps.utils"` has no production matches.
+- [x] Logger tests pass.
+- [x] Security tests pass.
+- [x] Data validation/manipulation tests pass.
+- [x] Examples using logger and market data helpers run.
+- [x] `rg "apps.utils|from apps.utils|import apps.utils"` has no production matches.
 
 ---
 

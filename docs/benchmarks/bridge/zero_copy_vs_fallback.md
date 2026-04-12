@@ -9,7 +9,7 @@ Environment: local Windows Release build (`build/bridge/Release/haruquant.pyd`)
 import timeit
 import numpy as np
 import haruquant
-from apps.utils.bridge_transfer import sum_with_fallback
+from backend.common.bridge_transfer import sum_with_fallback
 
 arr = np.arange(8, dtype=np.float64)
 listv = arr.tolist()

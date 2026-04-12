@@ -25,8 +25,8 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-import apps.utils.logger as logger_mod
-from apps.utils.logger import StructlogAdapter, _Core, _SizeAndTimeRotatingFileSink
+import backend.common.logger as logger_mod
+from backend.common.logger import StructlogAdapter, _Core, _SizeAndTimeRotatingFileSink
 
 
 @dataclass

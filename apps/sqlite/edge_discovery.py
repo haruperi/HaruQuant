@@ -20,7 +20,7 @@ from apps.edge.profile_reporting import (
     snapshot_report_json,
     snapshot_report_markdown,
 )
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .base import DatabaseBase
 

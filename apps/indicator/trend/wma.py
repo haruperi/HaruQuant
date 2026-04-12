@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 def wma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFrame:

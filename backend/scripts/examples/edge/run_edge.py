@@ -60,7 +60,7 @@ from apps.edge.reporting import (  # noqa: E402
     save_markdown,
 )
 from apps.edge.results_schema import EdgeResult  # noqa: E402
-from apps.utils.logger import logger  # noqa: E402
+from backend.common.logger import logger  # noqa: E402
 from apps.sqlite import SQLiteDatabase  # noqa: E402
 from apps.sqlite.edge_discovery import EdgeDiscoveryManager  # noqa: E402
 from apps.sqlite.users import UserManager  # noqa: E402

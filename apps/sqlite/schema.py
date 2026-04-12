@@ -3,7 +3,7 @@
 import os
 import sqlite3
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class SchemaManager:

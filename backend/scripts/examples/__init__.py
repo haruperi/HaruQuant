@@ -21,7 +21,7 @@ if hasattr(os, "add_dll_directory"):
 import haruquant.sim as csim
 import haruquant
 from apps.mt5 import MT5Utils, Trade, get_mt5_api
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5 import MT5Utils, get_mt5_api
 
 # Global Variables

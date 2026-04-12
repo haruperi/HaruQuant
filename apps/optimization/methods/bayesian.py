@@ -8,7 +8,7 @@ More efficient than random search, intelligently explores parameter space.
 import time
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.strategy import BaseStrategy
 
 from ..execution import run_strategy_backtest

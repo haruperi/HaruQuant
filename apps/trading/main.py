@@ -17,7 +17,7 @@ from apps.risk import (
     RiskRegimeDetector,
 )
 from apps.trading.core import RunResult
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.trading import core
 
 try:

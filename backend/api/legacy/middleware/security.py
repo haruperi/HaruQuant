@@ -7,8 +7,8 @@ from typing import Any, Dict
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from apps.utils.logger import logger
-from apps.utils.redaction import redact_mapping
+from backend.common.logger import logger
+from backend.common.redaction import redact_mapping
 
 
 class SecretRedactionMiddleware(BaseHTTPMiddleware):

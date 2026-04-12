@@ -1,4 +1,4 @@
-"""Comprehensive usage examples for apps.utils.logger.
+"""Comprehensive usage examples for backend.common.logger.
 
 Run:
     python backend/scripts/examples/utils/logger_py.py
@@ -17,7 +17,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 LOG_DIR = ROOT_DIR / "backend" / "logs"

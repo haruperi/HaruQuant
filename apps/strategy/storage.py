@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .base import BaseStrategy
 

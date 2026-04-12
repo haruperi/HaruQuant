@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:

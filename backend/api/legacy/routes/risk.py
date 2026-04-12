@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from backend.api.legacy.auth_utils import get_user_id_from_token
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.risk import (
     AllocationPlanner,
     CorrelationPreference,

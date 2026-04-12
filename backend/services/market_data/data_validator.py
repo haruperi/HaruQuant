@@ -14,8 +14,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 import numpy as np
 import pandas as pd
 
-from apps.utils.logger import logger
-from apps.utils.path_utils import ensure_parent_dir
+from backend.common.logger import logger
+from backend.common.path_utils import ensure_parent_dir
 
 
 @dataclass

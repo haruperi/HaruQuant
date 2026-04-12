@@ -13,7 +13,7 @@ import pandas as pd
 from apps.finance import drawdowns, metrics, ratios, returns
 from apps.strategy import BaseStrategy
 from apps.trading import Engine
-from apps.utils.data_manipulator import TicksGenerator
+from backend.services.market_data.data_manipulator import TicksGenerator
 
 
 def load_strategy_from_path(path: str, class_name: str) -> Type[BaseStrategy]:

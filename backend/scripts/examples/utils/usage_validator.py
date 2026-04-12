@@ -14,8 +14,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 sys.path.insert(0, PROJECT_ROOT)
 
 from apps.mt5 import MT5Utils, get_mt5_api
-from apps.utils.logger import logger
-from apps.utils import trade_validators as tv
+from backend.common.logger import logger
+from backend.services.execution import trade_validators as tv
 
 
 class _SymbolInfoAdapter:

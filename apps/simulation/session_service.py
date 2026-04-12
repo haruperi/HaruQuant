@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .route_support import refresh_session_risk_state
 from .session_coordinator import SessionCoordinator

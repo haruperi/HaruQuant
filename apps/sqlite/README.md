@@ -997,17 +997,17 @@ db.delete_database()  # Clean up
 ### With Logger Module
 
 ```python
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.sqlite import SQLiteDatabase
 
 db = SQLiteDatabase()
-# All operations automatically logged via apps.utils.logger
+# All operations automatically logged via backend.common.logger
 ```
 
 ### With Security Module
 
 ```python
-from apps.utils.security import get_encryption_key, hash_password
+from backend.common.security import get_encryption_key, hash_password
 
 # User passwords automatically hashed
 user_id = db.create_user(

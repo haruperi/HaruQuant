@@ -36,7 +36,7 @@ from apps.risk import (
     WhatIfEngine,
 )
 from apps.trading import Engine, Trade, core
-from apps.utils.data_manipulator import TicksGenerator
+from backend.services.market_data.data_manipulator import TicksGenerator
 
 
 TIMEFRAME = "H1"

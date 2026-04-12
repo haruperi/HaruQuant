@@ -23,7 +23,7 @@ except ModuleNotFoundError:  # pragma: no cover - env dependent
     structlog = None
     _HAS_STRUCTLOG = False
 
-from apps.utils.redaction import redact_mapping, redact_text
+from backend.common.redaction import redact_mapping, redact_text
 
 
 _LEVELS: Dict[str, int] = {

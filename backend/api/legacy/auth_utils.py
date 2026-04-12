@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import Header, HTTPException, status
 
 from apps.sqlite.database_operations import DatabaseManager
-from apps.utils.security import verify_password
+from backend.common.security import verify_password
 
 
 def generate_token(user_id: int, db_manager: DatabaseManager) -> str:

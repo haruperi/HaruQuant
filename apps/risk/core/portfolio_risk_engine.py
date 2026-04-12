@@ -11,7 +11,7 @@ from scipy import stats
 from apps.risk.limits import RiskLimits
 from apps.risk.metrics.math import compute_portfolio_var_es, estimate_margin_used
 from apps.risk.models import PortfolioState
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class PortfolioRiskEngine:

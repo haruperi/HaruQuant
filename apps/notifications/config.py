@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .base import NotificationLevel
 from .email import EmailConfig

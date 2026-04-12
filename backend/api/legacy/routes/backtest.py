@@ -17,10 +17,10 @@ from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
 from apps.trading import Engine, core
-from apps.utils.data_getters import load_dukascopy
-from apps.utils.data_manipulator import TicksGenerator
-from apps.utils.data_validator import DataValidator
-from apps.utils.logger import logger
+from backend.services.market_data.data_getters import load_dukascopy
+from backend.services.market_data.data_manipulator import TicksGenerator
+from backend.services.market_data.data_validator import DataValidator
+from backend.common.logger import logger
 
 router = APIRouter()
 db_manager = DatabaseManager()

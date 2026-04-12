@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from apps.features.leakage import dump_masked_research_json
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .results_schema import EdgeResult, EdgeStats
 

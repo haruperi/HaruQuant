@@ -7,7 +7,7 @@ Enforces portfolio-wide rules before allowing trade execution.
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5.client import MT5Client
 from apps.mt5 import get_mt5_api
 from apps.live.mt5_compat import (

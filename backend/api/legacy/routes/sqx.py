@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict, List, Optional, cast
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

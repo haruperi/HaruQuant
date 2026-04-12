@@ -8,7 +8,7 @@ and allows for custom template creation and management.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .base import NotificationError, NotificationMessage
 

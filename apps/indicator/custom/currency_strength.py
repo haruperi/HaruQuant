@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 # Major currency pairs to analyze (28 pairs covering 8 major currencies)
 CURRENCY_PAIRS = [

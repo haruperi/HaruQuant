@@ -20,7 +20,7 @@ if hasattr(os, "add_dll_directory"):
     os.add_dll_directory(BRIDGE_BUILD_DIR)
 
 import haruquant.core as sim
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5 import MT5Utils, get_mt5_api
 from backend.data.strategies.trend_following import TrendFollowingStrategy
 

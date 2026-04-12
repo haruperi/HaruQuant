@@ -21,7 +21,7 @@ from apps.indicator.custom import (
     MAJOR_CURRENCIES,
     currency_strength_indicator,
 )
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

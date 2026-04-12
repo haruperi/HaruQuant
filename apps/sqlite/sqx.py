@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class SQXManager:

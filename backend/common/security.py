@@ -5,7 +5,7 @@ from typing import cast
 from cryptography.fernet import Fernet
 from passlib.context import CryptContext
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 # Password hashing configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

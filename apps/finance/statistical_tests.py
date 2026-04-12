@@ -15,7 +15,7 @@ from scipy import stats
 if TYPE_CHECKING:
     from apps.backtest.result import BacktestResult
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 # ============================================================================
 # DATA MODELS

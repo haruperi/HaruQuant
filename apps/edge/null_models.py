@@ -14,7 +14,7 @@ from typing import Callable, Dict, List, Optional, Tuple, cast
 import numpy as np
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 # =============================================================================
 # BLOCK BOOTSTRAP

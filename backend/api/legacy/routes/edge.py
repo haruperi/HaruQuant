@@ -58,10 +58,10 @@ from apps.edge.market_structure_validation import (
 from apps.edge.results_schema import EdgeResult, EdgeStats
 from apps.edge.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
 from apps.edge.seasonality import SeasonalityFilters, run_seasonality
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5.client import MT5Client
 from apps.sqlite.database_operations import DatabaseManager
-from apps.utils.data_getters import load_dukascopy
+from backend.services.market_data.data_getters import load_dukascopy
 
 router = APIRouter()
 db_manager = DatabaseManager()

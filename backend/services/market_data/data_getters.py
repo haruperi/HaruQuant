@@ -14,8 +14,8 @@ from typing import Callable, Dict, Optional, Union, cast
 
 import pandas as pd
 
-from apps.utils.logger import logger
-from apps.utils.data_validator import DataValidator
+from backend.common.logger import logger
+from backend.services.market_data.data_validator import DataValidator
 
 # Cache for loaded data to avoid repeated reads
 _DATA_CACHE: Dict[str, pd.DataFrame] = {}
@@ -330,7 +330,7 @@ def load_mt5(  # noqa: C901
         )
 
         if timeframe and timeframe.upper() != "M1":
-            from apps.utils.data_manipulator import TimeframeManager
+            from backend.services.market_data.data_manipulator import TimeframeManager
 
             manager = TimeframeManager()
             resampled = manager.resample(

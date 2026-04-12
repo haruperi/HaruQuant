@@ -72,11 +72,11 @@ apps/utils/
 
 ```python
 # Import individual modules
-from apps.utils.security import hash_password, encrypt_data
-from apps.utils.data_getters import load_mt5, load_dukascopy
-from apps.utils.data_validator import DataValidator
-from apps.utils.data_manipulator import TimeframeManager
-from apps.utils.multitasking import task, wait_for_tasks
+from backend.common.security import hash_password, encrypt_data
+from backend.services.market_data.data_getters import load_mt5, load_dukascopy
+from backend.services.market_data.data_validator import DataValidator
+from backend.services.market_data.data_manipulator import TimeframeManager
+from backend.common.multitasking import task, wait_for_tasks
 
 # Ready to use - no initialization needed
 validator = DataValidator()
@@ -102,7 +102,7 @@ tf_manager = TimeframeManager()
 **Usage**:
 
 ```python
-from apps.utils.security import hash_password, verify_password, get_encryption_key, encrypt_data, decrypt_data
+from backend.common.security import hash_password, verify_password, get_encryption_key, encrypt_data, decrypt_data
 
 # Hash password
 hashed = hash_password("my_password")
@@ -137,7 +137,7 @@ For detailed examples, see [`tests/usage/utils/usage_security.py`](../../../test
 **Usage**:
 
 ```python
-from apps.utils.data_getters import load_mt5, load_dukascopy, load_parquet
+from backend.services.market_data.data_getters import load_mt5, load_dukascopy, load_parquet
 
 # Load from MT5 (last 1000 bars)
 data = load_mt5("EURUSD", timeframe="H1", count=1000)
@@ -186,7 +186,7 @@ DataValidator(z_score_threshold: float = 3.0, iqr_multiplier: float = 1.5)
 **Usage**:
 
 ```python
-from apps.utils.data_validator import DataValidator
+from backend.services.market_data.data_validator import DataValidator
 
 validator = DataValidator(z_score_threshold=3.0, iqr_multiplier=1.5)
 
@@ -244,7 +244,7 @@ BarAggregator(target_timeframe: str)
 **Usage**:
 
 ```python
-from apps.utils.data_manipulator import TimeframeManager, BarAggregator
+from backend.services.market_data.data_manipulator import TimeframeManager, BarAggregator
 
 # Resample M1 data to H1
 manager = TimeframeManager()
@@ -284,7 +284,7 @@ For detailed examples, see [`tests/usage/utils/usage_data_manipulator.py`](../..
 **Usage**:
 
 ```python
-from apps.utils.multitasking import task, createPool, wait_for_tasks
+from backend.common.multitasking import task, createPool, wait_for_tasks
 
 # Create pool
 createPool("data_processing", threads=4, engine="thread")
@@ -329,7 +329,7 @@ For detailed examples, see [`tests/usage/utils/usage_multitasking.py`](../../../
 **Usage**:
 
 ```python
-from apps.utils.file_renamer import rename_with_pattern, add_prefix, normalize_filenames
+from backend.scripts.tools.file_renamer import rename_with_pattern, add_prefix, normalize_filenames
 
 # Pattern-based renaming with regex
 renamed = rename_with_pattern(
@@ -374,7 +374,7 @@ For detailed examples, see [`tests/usage/utils/usage_file_renamer.py`](../../../
 **Usage**:
 
 ```python
-from apps.utils.data_comparator import compare_dataframes, compare_ohlcv, align_dataframes_by_datetime
+from backend.services.market_data.data_comparator import compare_dataframes, compare_ohlcv, align_dataframes_by_datetime
 
 # Compare specific columns with tolerance
 is_equal = compare_dataframes(
@@ -419,7 +419,7 @@ For detailed examples, see [`tests/usage/utils/usage_data_comparator.py`](../../
 **Usage**:
 
 ```python
-from apps.utils.error_description import TradeErrorDescriptions
+from backend.common.error_descriptions import TradeErrorDescriptions
 
 error_desc = TradeErrorDescriptions()
 
@@ -478,7 +478,7 @@ TradeValidator(client=None, logger_instance=None, mt5_instance=None)
 **Usage**:
 
 ```python
-from apps.utils.validate import TradeValidator
+from backend.services.execution.trade_validators import TradeValidator
 
 validator = TradeValidator()
 
@@ -547,15 +547,15 @@ The scheduler is configured with the following background jobs:
 
 ```python
 # Direct import (required to avoid circular dependencies)
-from apps.utils.scheduler import start_scheduler, shutdown_scheduler
+from backend.api.legacy.scheduler import start_scheduler, shutdown_scheduler
 
-# NOT from the package: from apps.utils import start_scheduler  # This won't work
+# NOT from the package: from backend.api.legacy import start_scheduler  # This won't work
 ```
 
 **Usage**:
 
 ```python
-from apps.utils.scheduler import start_scheduler, shutdown_scheduler
+from backend.api.legacy.scheduler import start_scheduler, shutdown_scheduler
 
 # Start the scheduler (typically on application startup)
 start_scheduler()
@@ -569,7 +569,7 @@ shutdown_scheduler()
 
 ```python
 from fastapi import FastAPI
-from apps.utils.scheduler import start_scheduler, shutdown_scheduler
+from backend.api.legacy.scheduler import start_scheduler, shutdown_scheduler
 
 app = FastAPI()
 
@@ -674,7 +674,7 @@ CronTrigger(hour='6,12,18', minute=0)
 **Usage**:
 
 ```python
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 logger.info("service started", component="app")
 logger.error("trade rejected", component="risk", order_id=12345)
@@ -692,9 +692,9 @@ For operational details, see [`docs/haruquant/usage/ops/logging.md`](../../../do
 ### Complete Data Pipeline
 
 ```python
-from apps.utils.data_getters import load_mt5
-from apps.utils.data_validator import DataValidator
-from apps.utils.data_manipulator import TimeframeManager
+from backend.services.market_data.data_getters import load_mt5
+from backend.services.market_data.data_validator import DataValidator
+from backend.services.market_data.data_manipulator import TimeframeManager
 
 # 1. Load data
 data = load_mt5("EURUSD", "M1", count=100000)
@@ -717,9 +717,9 @@ d1_data = manager.resample(df_marked, "D1")
 ### Concurrent Data Processing
 
 ```python
-from apps.utils.multitasking import createPool, task, wait_for_tasks
-from apps.utils.data_getters import load_dukascopy
-from apps.utils.data_validator import DataValidator
+from backend.common.multitasking import createPool, task, wait_for_tasks
+from backend.services.market_data.data_getters import load_dukascopy
+from backend.services.market_data.data_validator import DataValidator
 
 createPool("data_download", threads=8, engine="thread")
 
@@ -741,7 +741,7 @@ wait_for_tasks()
 ### Secure Credential Management
 
 ```python
-from apps.utils.security import hash_password, get_encryption_key, encrypt_data, decrypt_data
+from backend.common.security import hash_password, get_encryption_key, encrypt_data, decrypt_data
 
 # Hash password
 hashed_password = hash_password("user_password")
@@ -765,7 +765,7 @@ decrypted_password = decrypt_data(credentials["mt5_password"], encryption_key)
 ### Trade Validation Pipeline
 
 ```python
-from apps.utils.validate import TradeValidator
+from backend.services.execution.trade_validators import TradeValidator
 
 validator = TradeValidator()
 

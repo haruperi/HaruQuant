@@ -12,7 +12,7 @@ from pathlib import Path
 from types import FrameType
 from typing import Any, Callable, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 StateProvider = Callable[[], dict[str, Any]]
 

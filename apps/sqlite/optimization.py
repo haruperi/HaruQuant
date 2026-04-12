@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class OptimizationManager:

@@ -15,7 +15,7 @@ from apps.risk.optimization import RecommendationResult
 from apps.risk.scenarios import ScenarioResult
 from apps.risk.scoring import RiskScorecard, ScoreRow
 from apps.risk.simulation import ReplayFrame, WhatIfComparison
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 EXPORT_DIR = Path(__file__).resolve().parents[2] / "data" / "simulations" / "exports"
 

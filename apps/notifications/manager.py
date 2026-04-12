@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .base import (
     BaseNotifier,

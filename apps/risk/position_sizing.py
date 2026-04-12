@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 if TYPE_CHECKING:
     from apps.backtest.result import BacktestResult

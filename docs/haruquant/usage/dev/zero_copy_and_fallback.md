@@ -33,7 +33,7 @@ print(haruquant.sum_auto(np.asarray([1.0, 2.0, 3.0], dtype=np.float64)))
 ## Explicit serialization fallback
 
 ```python
-from apps.utils.bridge_transfer import sum_with_fallback
+from backend.common.bridge_transfer import sum_with_fallback
 
 print(sum_with_fallback([1.0, 2.0, 3.0], serialization="auto"))
 print(sum_with_fallback([1.0, 2.0, 3.0], serialization="arrow"))     # requires pyarrow

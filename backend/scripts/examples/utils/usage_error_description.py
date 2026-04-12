@@ -20,7 +20,7 @@ VCPKG_BIN_DIR = os.path.join(PROJECT_ROOT, "build", "vcpkg_installed", "x64-wind
 if hasattr(os, "add_dll_directory") and os.path.isdir(VCPKG_BIN_DIR):
     os.add_dll_directory(VCPKG_BIN_DIR)
 
-from apps.utils import error_descriptions
+from backend.common import error_descriptions
 
 def _header(name: str) -> None:
     print()

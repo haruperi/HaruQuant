@@ -17,7 +17,7 @@ from sys import exit as sysexit
 from threading import Semaphore, Thread
 from typing import Any, Callable, Dict, List, Optional, TypedDict, Union
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class PoolConfig(TypedDict):

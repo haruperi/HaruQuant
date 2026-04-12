@@ -8,7 +8,7 @@ from typing import Dict, Optional, Tuple, Union, cast
 
 from apps.live.position_manager import PositionManager
 from apps.live.mt5_compat import symbol_ask, symbol_bid
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.trading.trade import Trade
 

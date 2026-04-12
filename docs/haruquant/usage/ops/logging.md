@@ -26,7 +26,7 @@ Accepted aliases:
 Python usage:
 
 ```python
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 logger.log("warn", "warning example")
 logger.log("fatal", "critical example")
@@ -52,7 +52,7 @@ All records carry these schema fields:
 Python usage:
 
 ```python
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 log = logger.bind(
     correlation_id="corr-001",
@@ -69,7 +69,7 @@ C++ bridge callback records expose the same keys in payload.
 ### Python adapter controls
 
 ```python
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 logger.set_min_level("INFO")
 logger.set_component_level("risk", "ERROR")
@@ -118,7 +118,7 @@ Redacted token:
 Python example:
 
 ```python
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 logger.error(
     "auth failed password=supersecret token=abcd",

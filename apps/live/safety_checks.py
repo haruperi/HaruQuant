@@ -6,7 +6,7 @@ All checks must pass before any trade execution.
 
 from typing import Tuple
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5.client import MT5Client
 from apps.live.mt5_compat import (
     account_balance,

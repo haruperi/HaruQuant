@@ -16,7 +16,7 @@ import dataclasses
 from types import SimpleNamespace
 
 from apps.mt5 import get_mt5_api
-from apps.utils import trade_validators as tv
+from backend.services.execution import trade_validators as tv
 
 mt5 = get_mt5_api()
 

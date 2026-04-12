@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional
 
 import pandas as pd
 
-from apps.utils.redaction import redact_mapping, redact_text
+from backend.common.redaction import redact_mapping, redact_text
 
 
 @dataclass(frozen=True)

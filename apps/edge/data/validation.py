@@ -7,8 +7,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from apps.utils.data_manipulator import TimeframeManager
-from apps.utils.data_validator import DataValidator
+from backend.services.market_data.data_manipulator import TimeframeManager
+from backend.services.market_data.data_validator import DataValidator
 
 from .models import CanonicalOHLCVSSchema, DataQualityReportModel, DatasetIssue
 

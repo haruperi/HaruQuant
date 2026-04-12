@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class NotificationLevel(Enum):

@@ -7,7 +7,7 @@ from typing import Any, Callable
 from fastapi import HTTPException, status
 
 from apps.risk.simulation import HypotheticalOrderAction
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .route_support import (
     build_session_state_response,

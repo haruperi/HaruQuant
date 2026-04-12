@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from apps.live.risk_engine import RiskIntegratedEngine
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 def parse_arguments():

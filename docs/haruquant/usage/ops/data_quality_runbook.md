@@ -18,7 +18,7 @@ Implementation module:
 
 ```python
 import pandas as pd
-from apps.utils.data_validator import DataValidator
+from backend.services.market_data.data_validator import DataValidator
 
 df = pd.read_parquet("your_market_data.parquet")
 validator = DataValidator()

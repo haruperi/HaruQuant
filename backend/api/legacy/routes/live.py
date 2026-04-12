@@ -38,7 +38,7 @@ from backend.api.legacy.auth_utils import get_user_id_from_token
 from backend.api.legacy.routes.dashboard.broker import client as global_mt5_client
 from backend.api.legacy.websocket import live_trading_manager
 from apps.live.session import LiveTradingSession
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.mt5.util import MT5Utils

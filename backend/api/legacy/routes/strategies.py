@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
 

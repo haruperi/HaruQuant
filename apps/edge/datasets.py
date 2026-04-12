@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional, Protocol, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from apps.utils.data_validator import DataValidator
-from apps.utils.logger import logger
+from backend.services.market_data.data_validator import DataValidator
+from backend.common.logger import logger
 
 from .session_config import session_hours_payload, session_label_for_hour
 from .data.cleaning import CleaningConfig, clean_dataset

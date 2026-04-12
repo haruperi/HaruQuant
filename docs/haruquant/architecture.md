@@ -1203,8 +1203,8 @@
 
 ## Python Logging Adapter
 
-- Default Python logger export is `apps.utils.logger.logger` (Structlog adapter).
-- Existing import pattern `from apps.utils.logger import logger` remains unchanged.
+- Default Python logger export is `backend.common.logger.logger` (Structlog adapter).
+- Existing import pattern `from backend.common.logger import logger` remains unchanged.
 - Default file sinks are configured at import time under `logs/`:
   - `backend/logs/app.log` (INFO and above)
   - `backend/logs/debug.log` (DEBUG and above)
@@ -1228,7 +1228,7 @@
   - `trace_id`
 
 - Behavior:
-  - Python adapter (`apps.utils.logger`) injects these keys into every record `extra` payload.
+  - Python adapter (`backend.common.logger`) injects these keys into every record `extra` payload.
   - C++ logger (`hqt::util::LogRecord`) includes these fields explicitly and mirrors them in bridge callback payloads.
   - If not provided by caller context, values default to empty strings to keep schema stable.
 
@@ -1248,7 +1248,7 @@
 - C++ bridge input (`haruquant.set_log_level`, `haruquant.emit_log`) accepts:
   - `debug`, `info`, `warning|warn`, `error`, `critical|fatal`
 
-- Python adapter (`apps.utils.logger`) accepts:
+- Python adapter (`backend.common.logger`) accepts:
   - canonical names above plus aliases `WARN`, `FATAL`
 
 ## Runtime Filtering (FR-UTIL-006)
@@ -1264,7 +1264,7 @@
   - `set_component_log_level(component, level)`
   - `clear_component_log_level(component)`
   - `clear_all_component_log_levels()`
-- Python adapter controls (`apps.utils.logger.StructlogAdapter`):
+- Python adapter controls (`backend.common.logger.StructlogAdapter`):
   - `set_min_level(level)` / `get_min_level()`
   - `set_component_level(component, level)`
   - `clear_component_level(component)`

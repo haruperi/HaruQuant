@@ -9,7 +9,7 @@ from typing import Optional
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5.client import MT5Client
 
 

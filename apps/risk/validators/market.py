@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable
 
-from apps.utils.data_validator import DataValidator
+from backend.services.market_data.data_validator import DataValidator
 
 from apps.risk.models.market_state import MarketState
 from apps.risk.models.position_state import PositionState

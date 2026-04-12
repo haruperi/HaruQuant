@@ -8,11 +8,11 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.sqlite.database_operations import DatabaseManager
 from apps.strategy.storage import StrategyStorage
-from apps.utils.data_getters import load_dukascopy
-from apps.utils.data_validator import DataValidator
+from backend.services.market_data.data_getters import load_dukascopy
+from backend.services.market_data.data_validator import DataValidator
 
 from .methods import (
     bayesian_optimization,

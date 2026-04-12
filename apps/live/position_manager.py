@@ -6,7 +6,7 @@ for trade execution decisions.
 
 from typing import Dict, List, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5.client import MT5Client
 from apps.trading.trade import Trade
 

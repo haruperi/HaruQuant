@@ -8,8 +8,8 @@ from typing import Iterable, Optional
 import numpy as np
 import pandas as pd
 
-from apps.utils.datetime_utils import normalize_timezone_for_series
-from apps.utils.data_manipulator import TimeframeManager
+from backend.common.datetime_utils import normalize_timezone_for_series
+from backend.services.market_data.data_manipulator import TimeframeManager
 
 from .models import CanonicalOHLCVSSchema, CleaningAction, DataQualityReportModel
 

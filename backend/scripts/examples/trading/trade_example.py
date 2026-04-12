@@ -10,10 +10,10 @@ import pandas as pd
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.trading import Engine, core, Trade
 from apps.risk import CorrelationPreference, RiskLimits
-from apps.utils.data_manipulator import TicksGenerator
+from backend.services.market_data.data_manipulator import TicksGenerator
 from apps.sqlite.database_operations import DatabaseManager
 from backend.data.strategies.trend_following import TrendFollowingStrategy
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy

@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 import numpy as np
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.strategy import BaseStrategy
 
 from ..execution import run_strategy_backtest

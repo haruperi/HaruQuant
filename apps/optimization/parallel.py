@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 # =========================================================================
 # Progress Tracking

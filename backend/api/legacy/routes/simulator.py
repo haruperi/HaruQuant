@@ -25,7 +25,7 @@ from apps.simulation.api_models import (
     SimulationUpdateRequest,
     WhatIfRequest,
 )
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.simulation import SessionCoordinator, SimulatorSessionManager
 from apps.simulation.route_guards import get_owned_session_record, get_running_session
 from apps.simulation.session_backend import SQLiteSessionRuntimeStore

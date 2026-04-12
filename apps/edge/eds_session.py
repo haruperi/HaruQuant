@@ -24,7 +24,7 @@ import pandas as pd
 
 from apps.finance.metrics import median_mae_mfe, win_rate_fraction
 from apps.finance.ratios import expectancy, profit_factor
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 from .config import BootstrapConfig, PermutationConfig, SessionConfig, SessionEdgeConfig
 from .datasets import tag_sessions

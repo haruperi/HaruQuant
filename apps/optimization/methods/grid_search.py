@@ -10,7 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from itertools import product
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.strategy import BaseStrategy
 
 from ..execution import run_strategy_backtest, run_strategy_backtest_from_path

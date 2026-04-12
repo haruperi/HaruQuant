@@ -4,7 +4,7 @@ Run:
     python backend/scripts/examples/utils/logger_cpp.py
 
 This script demonstrates:
-- Structlog adapter usage (`apps.utils.logger`)
+- Structlog adapter usage (`backend.common.logger`)
 - C++ spdlog bridge usage (`haruquant`)
 - Unified logging feature patterns across both stacks
 
@@ -25,7 +25,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 @dataclass

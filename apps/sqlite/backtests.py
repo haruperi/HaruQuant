@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class BacktestManager:

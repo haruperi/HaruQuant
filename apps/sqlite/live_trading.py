@@ -4,7 +4,7 @@ import json
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class LiveTradingManager:

@@ -9,8 +9,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch, NonCallableMagicMock
 from datetime import datetime, timezone, timedelta
 
-import apps.utils.logger as logger_mod
-from apps.utils.logger import (
+import backend.common.logger as logger_mod
+from backend.common.logger import (
     StructlogAdapter,
     CompatRecord,
     _SizeAndTimeRotatingFileSink,
@@ -111,7 +111,7 @@ class TestStructlogAdapter:
         return StructlogAdapter(name="test_logger", core=_Core())
 
     def test_init_no_structlog(self):
-        with patch("apps.utils.logger._HAS_STRUCTLOG", False):
+        with patch("backend.common.logger._HAS_STRUCTLOG", False):
             with patch("logging.getLogger") as m:
                 a = StructlogAdapter(name="test_no_sl")
                 m.assert_called_with("test_no_sl")
@@ -179,7 +179,7 @@ class TestStructlogAdapter:
         m.assert_called()
 
     def test_emit_structlog_variants(self, adapter):
-        with patch("apps.utils.logger._HAS_STRUCTLOG", True):
+        with patch("backend.common.logger._HAS_STRUCTLOG", True):
             adapter._logger = MagicMock()
             m = MagicMock()
             adapter.add(m, raw=True, level="TRACE")
@@ -188,7 +188,7 @@ class TestStructlogAdapter:
             adapter.debug("msg")
             adapter.info("msg") 
             
-        with patch("apps.utils.logger._HAS_STRUCTLOG", False):
+        with patch("backend.common.logger._HAS_STRUCTLOG", False):
             adapter._logger = MagicMock()
             adapter.error("msg", exc_info=True)
             adapter.warning("msg")
@@ -222,20 +222,20 @@ class TestStructlogAdapter:
 
     def test_emit_exception_block(self, adapter):
         # Hit line 420-422
-        with patch("apps.utils.logger.redact_mapping", side_effect=Exception("fail")):
+        with patch("backend.common.logger.redact_mapping", side_effect=Exception("fail")):
             adapter.info("msg")
 
     def test_dispatch_pathways(self, adapter):
         # Case 1: Not Callable, has write, No flush (line 449->429)
         m4 = MagicMock(spec=["write"])
-        with patch("apps.utils.logger.callable", return_value=False):
+        with patch("backend.common.logger.callable", return_value=False):
             adapter.add(m4, raw=False)
             adapter.info("msg")
             
         # Case 2: Not Callable, NO write (line 445->429)
         adapter.remove()
         m5 = MagicMock(spec=[])
-        with patch("apps.utils.logger.callable", return_value=False):
+        with patch("backend.common.logger.callable", return_value=False):
             adapter.add(m5, raw=False)
             adapter.info("msg")
 
@@ -315,18 +315,18 @@ class TestStructlogAdapter:
 
     def test_conf_structlog_reentry(self):
         # Hit line 186 (double-checked lock)
-        with patch("apps.utils.logger._STRUCTLOG_CONFIGURED", False):
+        with patch("backend.common.logger._STRUCTLOG_CONFIGURED", False):
             mock_lock = MagicMock()
             def side_effect(*args, **kwargs):
                 logger_mod._STRUCTLOG_CONFIGURED = True
             mock_lock.__enter__.side_effect = side_effect
-            with patch("apps.utils.logger._CONFIG_LOCK", mock_lock):
+            with patch("backend.common.logger._CONFIG_LOCK", mock_lock):
                  _configure_structlog()
 
     def test_conf_def_sinks_idemp(self):
         # Hit line 571
-        with patch("apps.utils.logger._DEFAULT_FILE_SINKS_CONFIGURED", True):
-            with patch("apps.utils.logger.Path") as mp:
+        with patch("backend.common.logger._DEFAULT_FILE_SINKS_CONFIGURED", True):
+            with patch("backend.common.logger.Path") as mp:
                 _configure_default_file_sinks()
                 mp.assert_not_called()
 

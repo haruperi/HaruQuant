@@ -36,8 +36,8 @@ from apps.simulation.serializers import (
 )
 from apps.sqlite.database_operations import DatabaseManager
 from apps.trading import Engine, core
-from apps.utils.data_validator import DataValidator
-from apps.utils.logger import logger
+from backend.services.market_data.data_validator import DataValidator
+from backend.common.logger import logger
 
 from backend.api.legacy.routes.backtest import _generate_ticks_for_backtest, _resolve_modelling
 

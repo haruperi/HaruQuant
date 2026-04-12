@@ -6,7 +6,7 @@ Supports loading credentials from database or direct configuration.
 
 from typing import Dict, List, Optional
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.notifications import (
     NotificationLevel,
     NotificationManager,

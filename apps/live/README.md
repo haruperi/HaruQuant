@@ -406,7 +406,7 @@ Create `backend/data/strategies/my_strategy.py`:
 
 from typing import Any, Dict, Optional
 import pandas as pd
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.strategy import BaseStrategy
 
 

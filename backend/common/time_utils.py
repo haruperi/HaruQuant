@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Mapping, Protocol
 
-from apps.utils.datetime_utils import parse_datetime
+from backend.common.datetime_utils import parse_datetime
 
 
 UTC = timezone.utc

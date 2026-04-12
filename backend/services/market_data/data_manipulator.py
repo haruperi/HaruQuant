@@ -13,7 +13,7 @@ import random
 import numpy as np
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 class TimeframeManager:

@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from apps.utils.logger import logger
+from backend.common.logger import logger
 
 
 def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.DataFrame:

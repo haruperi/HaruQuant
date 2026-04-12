@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from typing import Any, Iterator
 
-from apps.utils.logger import StructlogAdapter, logger as app_logger
+from backend.common.logger import StructlogAdapter, logger as app_logger
 
 
 @dataclass(frozen=True)

@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from apps.live.engine import MultiStrategyEngine, StrategyInstance
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.risk.core import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine
 from apps.risk.limits import CorrelationPreference, RiskLimits
 from apps.risk.optimization import AllocationPlanner

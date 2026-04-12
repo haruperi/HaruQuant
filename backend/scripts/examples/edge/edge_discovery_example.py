@@ -52,7 +52,7 @@ from apps.edge import (  # noqa: E402 # Config; Data; Features; EDS Runners; Rep
     validate_data_quality,
     zscore,
 )
-from apps.utils.logger import logger  # noqa: E402
+from backend.common.logger import logger  # noqa: E402
 
 
 def create_mt5_source():

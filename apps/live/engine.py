@@ -20,7 +20,7 @@ from apps.live.signal_processor import SignalProcessor
 from apps.live.state_manager import StateManager
 from apps.live.trade_executor import TradeExecutor
 from apps.live.mt5_compat import account_balance, account_currency, account_leverage
-from apps.utils.logger import logger
+from backend.common.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.strategy import storage

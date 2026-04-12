@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from apps.utils.redaction import REDACTED
+from backend.common.redaction import REDACTED
 from backend.agents.runtime import ContextRedactionMiddleware
 
 
