@@ -4,7 +4,7 @@ import sqlite3
 
 from fastapi import APIRouter
 
-from backend.api.legacy.models import ResourceUsageResponse, SystemStatusResponse
+from backend.api.main_app.models import ResourceUsageResponse, SystemStatusResponse
 from backend.common.logger import logger
 from backend.db.sqlite.database_operations import DatabaseManager
 

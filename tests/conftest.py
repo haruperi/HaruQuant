@@ -7,7 +7,7 @@ import uuid
 
 import pytest
 
-from backend.api.legacy.routes import edge as edge_routes
+from backend.api.main_app.routes import edge as edge_routes
 from backend.db.sqlite import SQLiteDatabase
 from tests.fixtures.edge_lab_scenarios import ScenarioDataSource, build_edge_lab_scenario_registry
 

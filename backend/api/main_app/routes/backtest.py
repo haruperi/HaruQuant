@@ -1,4 +1,4 @@
-﻿"""Backtest API routes and helpers."""
+"""Backtest API routes and helpers."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ import pandas as pd
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
 
-from backend.api.legacy.auth_utils import get_user_id_from_token
-from backend.api.legacy.websocket import backtest_log_manager
+from backend.api.main_app.auth_utils import get_user_id_from_token
+from backend.api.main_app.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.db.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage

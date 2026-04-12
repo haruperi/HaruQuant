@@ -13,7 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from backend.api.legacy.routes.edge import _run_edge_lab_symbol_profile_sync
+from backend.api.main_app.routes.edge import _run_edge_lab_symbol_profile_sync
 
 
 def main() -> None:

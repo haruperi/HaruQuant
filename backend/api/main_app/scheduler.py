@@ -18,7 +18,7 @@ def _cleanup_old_simulation_sessions() -> None:
 
 def _refresh_edge_lab_universe() -> None:
     try:
-        from backend.api.legacy.routes.edge import run_scheduled_edge_lab_refresh
+        from backend.api.main_app.routes.edge import run_scheduled_edge_lab_refresh
 
         result = run_scheduled_edge_lab_refresh()
         if result.get("status") != "skipped":

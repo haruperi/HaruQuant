@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.api.legacy.main import app
-from backend.api.legacy import main
+from backend.api.main_app.main import app
+from backend.api.main_app import main
 from backend.db.sqlite import database_operations
-from backend.api.legacy import scheduler
+from backend.api.main_app import scheduler
 
 
 def test_main_app_includes_simulator_and_backtest_routes():

@@ -4,8 +4,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Header, HTTPException, status
 
-from backend.api.legacy.auth_utils import authenticate_user, generate_token
-from backend.api.legacy.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
+from backend.api.main_app.auth_utils import authenticate_user, generate_token
+from backend.api.main_app.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
 from backend.common.logger import logger
 from backend.db.sqlite.database_operations import DatabaseManager, UserAlreadyExistsError
 
@@ -184,7 +184,7 @@ async def logout(authorization: Annotated[Optional[str], Header()] = None):
     token = authorization.replace("Bearer ", "")
 
     # Invalidate token in DB
-    from backend.api.legacy.auth_utils import invalidate_token
+    from backend.api.main_app.auth_utils import invalidate_token
 
     invalidate_token(token, db_manager)
 

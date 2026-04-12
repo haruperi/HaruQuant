@@ -669,7 +669,7 @@ for pair in result["strong_pairs"][:3]:  # Top 3 only
 **Solutions:**
 1. Restart API server (code changes require restart):
    ```bash
-   python -m uvicorn backend.api.legacy.main:app --reload --host 0.0.0.0 --port 8000
+   python -m uvicorn backend.api.main_app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 2. Hard refresh browser:
@@ -915,7 +915,7 @@ INFO: 127.0.0.1:51204 - "GET /api/dashboard/currency-strength" 503 Service Unava
 **Test 1: Connection Drop Recovery**
 ```bash
 # 1. Start API with MT5 connected
-python -m uvicorn backend.api.legacy.main:app --reload
+python -m uvicorn backend.api.main_app.main:app --reload
 
 # 2. Load dashboard successfully
 curl http://localhost:8000/api/dashboard/currency-strength?tf1=M1&tf2=M5&tf3=H1

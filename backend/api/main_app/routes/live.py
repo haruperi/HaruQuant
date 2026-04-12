@@ -34,9 +34,9 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 
-from backend.api.legacy.auth_utils import get_user_id_from_token
-from backend.api.legacy.routes.dashboard.broker import client as global_mt5_client
-from backend.api.legacy.websocket import live_trading_manager
+from backend.api.main_app.auth_utils import get_user_id_from_token
+from backend.api.main_app.routes.dashboard.broker import client as global_mt5_client
+from backend.api.main_app.websocket import live_trading_manager
 from backend.services.live_trading.session import LiveTradingSession
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp import get_mt5_api

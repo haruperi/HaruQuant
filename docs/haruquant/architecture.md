@@ -1,4 +1,4 @@
-﻿# HaruQuant Architecture Notes
+# HaruQuant Architecture Notes
 
 <<<<<<< HEAD
 ## Agentic AI Transition Status
@@ -2318,7 +2318,7 @@
   - total open notional per symbol is aggregated across all open positions on that symbol
   - the first `$500,000` notional is margined at `1:1000`
   - any excess notional is margined at `1:500`
-  - the resulting symbol margin is redistributed back across the symbolâ€™s open positions proportionally by notional before account margin totals are recomputed
+  - the resulting symbol margin is redistributed back across the symbol’s open positions proportionally by notional before account margin totals are recomputed
 
 ## Frontend Simulator Trade Notifications
 
@@ -2404,8 +2404,8 @@
   - short-history
   - DST/session-boundary
 - `tests/conftest.py` isolates those runs from live data by:
-  - patching `backend.api.legacy.routes.edge._create_data_source(...)`
-  - patching `backend.api.legacy.routes.edge.db_manager`
+  - patching `backend.api.main_app.routes.edge._create_data_source(...)`
+  - patching `backend.api.main_app.routes.edge.db_manager`
   - creating a temp SQLite database per test
 - Edge Lab integration coverage now lives in:
   - `tests/integration/apps/edge/test_edge_lab_automation.py`

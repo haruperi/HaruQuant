@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from backend.api.legacy.auth_utils import get_user_id_from_token
+from backend.api.main_app.auth_utils import get_user_id_from_token
 from backend.services.simulation.models import (
     AdvanceRequest,
     ManualTradeRequest,

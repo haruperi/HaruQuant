@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.api.legacy.auth_utils import get_user_id_from_token
+from backend.api.main_app.auth_utils import get_user_id_from_token
 from backend.services.research.classifier import classify_symbol
 from backend.services.research.config import (
     BootstrapConfig,
