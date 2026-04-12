@@ -1,0 +1,10 @@
+policy_name: approval_policy
+scope: all_workflows
+owner: compliance_team
+enforcement_layers:
+  - orchestrator
+  - approval_service
+failure_behavior: block_and_notify
+logging_requirement: audit_log_required
+exception_process: compliance_officer_override
+review_cadence: monthly

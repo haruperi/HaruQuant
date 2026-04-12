@@ -1,0 +1,10 @@
+policy_name: tool_use_policy
+scope: agent_workflows
+owner: ai_team
+enforcement_layers:
+  - agent
+  - mcp_server
+failure_behavior: deny_and_escalate
+logging_requirement: audit_log_required
+exception_process: ai_lead_approval
+review_cadence: monthly
