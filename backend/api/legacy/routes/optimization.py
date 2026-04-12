@@ -15,7 +15,7 @@ from fastapi import (
 
 from backend.api.legacy.websocket import optimization_progress_manager
 from backend.common.logger import logger
-from apps.optimization.models import (
+from backend.services.optimization.models import (
     ConsecutiveLosingRequest,
     ConsecutiveLosingResponse,
     ConsecutiveLosingScenario,
@@ -38,7 +38,7 @@ from apps.optimization.models import (
     RobustnessResponse,
     WalkForwardRequest,
 )
-from apps.optimization.monte_carlo import (
+from backend.services.optimization.monte_carlo import (
     ParametricSimulationResult,
     consecutive_losing_simulation,
     parametric_simulation,
@@ -138,7 +138,7 @@ async def start_optimization(
 
         logger.info(f"Created optimization run {optimization_id}")
 
-        from apps.optimization.core import run_optimization_task
+        from backend.services.optimization.core import run_optimization_task
 
         # Add background task
         background_tasks.add_task(
@@ -317,7 +317,7 @@ async def start_walk_forward(
             status="pending",
         )
 
-        from apps.optimization.core import run_walk_forward_task
+        from backend.services.optimization.core import run_walk_forward_task
 
         # Add background task
         background_tasks.add_task(
@@ -360,7 +360,7 @@ async def start_monte_carlo(
             random_seed=request.random_seed,
         )
 
-        from apps.optimization.core import run_monte_carlo_task
+        from backend.services.optimization.core import run_monte_carlo_task
 
         # Add background task
         background_tasks.add_task(
@@ -538,7 +538,7 @@ async def run_random_win_rate(request: RandomWinRateRequest):
 async def run_robustness(request: RobustnessRequest):
     """Run Robustness simulation."""
     try:
-        from apps.optimization.monte_carlo import robustness_simulation
+        from backend.services.optimization.monte_carlo import robustness_simulation
 
         result = robustness_simulation(
             backtest_id=request.backtest_id,
@@ -563,7 +563,7 @@ async def run_robustness(request: RobustnessRequest):
 async def run_multi_entry(request: MultiEntryRequest):
     """Run Multi-Entry simulation."""
     try:
-        from apps.optimization.monte_carlo import multi_entry_simulation
+        from backend.services.optimization.monte_carlo import multi_entry_simulation
 
         result = multi_entry_simulation(request)
         return result

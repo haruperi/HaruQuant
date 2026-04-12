@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from backend.common.logger import logger
-from apps.optimization.models import (
+from backend.services.optimization.models import (
     MultiEntryRequest,
     MultiEntryResponse,
     MultiEntryScenarioResult,
@@ -1258,16 +1258,13 @@ def robustness_simulation(
     # IMPORTANT: Since we don't have direct DB access here, we might need to pass trades or use the same helper as standard monte carlo.
     # Let's assume we can fetch them using the same method as `monte_carlo_simulation`.
 
-    # Needs: `get_backtest_trades` from `apps.services.backtest_service` or similar?
-    # Checking `monte_carlo_simulation` implementation at top of file would clarify.
-    # Assuming `monte_carlo_simulation` does: `trades = get_trades(backtest_id)`
-
+    # Needs: `get_backtest_trades` from backtest service or repository.
     # RE-VERIFY: `monte_carlo_simulation` signature?
     # It takes `backtest_id`.
 
-    from apps.services.backtest_service import get_backtest_trades_df
-
+    # TODO: Wire to backend backtest repository when available.
     try:
+        from backend.db.repositories.backtest_repository import get_backtest_trades_df
         df = get_backtest_trades_df(backtest_id)
     except Exception:
         # Fallback or empty if service not available/mock

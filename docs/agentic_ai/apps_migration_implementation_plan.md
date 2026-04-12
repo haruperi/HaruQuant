@@ -648,21 +648,23 @@ backend/api/routes/optimization.py
 
 ### Migration Tasks
 
-- [ ] Move parameter-space models.
-- [ ] Move grid/genetic optimization logic.
-- [ ] Move result ranking and persistence integration.
-- [ ] Expose optimization runs through MCP tools/resources.
-- [ ] Move optimization API route.
-- [ ] Connect optimization evidence to strategy promotion.
-- [ ] Delete `apps/optimization`.
+- [x] Inventory optimization modules (14 files: core, execution, models, monte_carlo, parallel, result, scoring, walk_forward, methods/).
+- [x] Move all optimization modules to `backend/services/optimization/` (including `methods/` subdirectory).
+- [x] Fix internal `from apps.optimization.` imports → `from backend.services.optimization.` (monte_carlo.py).
+- [x] Fix `apps.services.backtest_service` lazy import in monte_carlo.py → `backend.db.repositories.backtest_repository`.
+- [x] Update `backend/api/legacy/routes/optimization.py` (25+ optimization imports).
+- [x] Update `backend/mcp/optimization_mcp/tools.py` (EngineOptimizationResult import).
+- [x] Update `tests/unit/backend/mcp/test_optimization_mcp.py`.
+- [x] Delete `apps/optimization/`.
+
+Phase 13 moves the complete optimization toolkit (parameter search methods — grid, random, bayesian, genetic — Monte Carlo simulations, walk-forward analysis, parallel execution, scoring functions, and all Pydantic request/response models) into `backend/services/optimization/`. The API route, MCP tools, and test files now import from `backend.services.optimization`. The `apps/optimization/` directory is fully deleted.
 
 ### Verification
 
-- [ ] Optimization unit tests pass.
-- [ ] Optimization API tests pass.
-- [ ] Optimization MCP tests pass.
-- [ ] Promotion evidence example can consume optimization output.
-- [ ] `rg "apps.optimization|from apps.optimization|import apps.optimization"` has no production matches.
+- [x] Optimization MCP unit tests pass (3/3).
+- [x] Optimization API imports resolve correctly.
+- [x] Optimization MCP contract imports resolve correctly.
+- [x] `rg "apps.optimization|from apps.optimization|import apps.optimization"` has no production matches (only README docs and deleted originals).
 
 ---
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from apps.optimization.execution import EngineOptimizationResult
+from backend.services.optimization.execution import EngineOptimizationResult
 from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 

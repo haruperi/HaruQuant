@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from apps.optimization.execution import EngineOptimizationResult
+from backend.services.optimization.execution import EngineOptimizationResult
 from backend.mcp.optimization_mcp import (
     OPTIMIZATION_TOOL_SPECS,
     OptimizationExecutionTools,
