@@ -8,23 +8,23 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.edge.config import (
+from backend.services.research.config import (
     BootstrapConfig,
     MeanReversionConfig,
     PermutationConfig,
     TrendPersistenceConfig,
     MarketStructureConfig,
 )
-from apps.edge.core_metrics.base import MetricValue
-from apps.edge.data.models import DataQualityReportModel, PreparedDataset
-from apps.edge.market_structure_profiles import (
+from backend.services.research.core_metrics.base import MetricValue
+from backend.services.research.data.models import DataQualityReportModel, PreparedDataset
+from backend.services.research.market_structure_profiles import (
     resolve_market_structure_profile,
     resolve_market_structure_profile_overrides,
 )
-from apps.edge.market_structure_strategy_fit import build_strategy_fit
-from apps.edge.eds_mean_reversion import run_eds_mean_reversion
-from apps.edge.eds_trend_persistence import run_eds_trend_persistence
-from apps.edge.features import atr, bb_width, zscore
+from backend.services.research.market_structure_strategy_fit import build_strategy_fit
+from backend.services.research.eds_mean_reversion import run_eds_mean_reversion
+from backend.services.research.eds_trend_persistence import run_eds_trend_persistence
+from backend.services.research.features import atr, bb_width, zscore
 
 
 def _safe_float(value: Any) -> Optional[float]:
@@ -1423,8 +1423,8 @@ def build_market_structure_profile(
         "reversion_confidence_delta": 0.0,
     }
     if cfg.apply_quality_adjustments:
-        from apps.edge.market_structure_robustness import build_market_structure_robustness_report
-        from apps.edge.market_structure_stability import build_market_structure_stability_report
+        from backend.services.research.market_structure_robustness import build_market_structure_robustness_report
+        from backend.services.research.market_structure_stability import build_market_structure_stability_report
 
         nested_cfg = replace(cfg, apply_quality_adjustments=False)
         stability = build_market_structure_stability_report(

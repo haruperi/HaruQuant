@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from apps.edge.config import MarketStructureConfig
-from apps.edge.data.models import CanonicalOHLCVSSchema, DataQualityReportModel, PreparedDataset
-from apps.edge.market_structure_stability import build_market_structure_stability_report
+from backend.services.research.config import MarketStructureConfig
+from backend.services.research.data.models import CanonicalOHLCVSSchema, DataQualityReportModel, PreparedDataset
+from backend.services.research.market_structure_stability import build_market_structure_stability_report
 
 
 def _prepared_df(rows: int = 300) -> PreparedDataset:

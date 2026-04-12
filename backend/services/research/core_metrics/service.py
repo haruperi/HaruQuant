@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.edge.data.models import DataQualityReportModel, PreparedDataset
+from backend.services.research.data.models import DataQualityReportModel, PreparedDataset
 
 from .base import MetricCalculator, MetricContext, MetricValue
 from .registry import MetricRegistry

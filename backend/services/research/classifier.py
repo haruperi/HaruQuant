@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from apps.edge.results_schema import EdgeResult
+from backend.services.research.results_schema import EdgeResult
 
 # ---------------------------------------------------------------------------
 # Configuration

@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from apps.edge import (  # noqa: E402 # Config; Data; Features; EDS Runners; Reporting
+from backend.services.research import (  # noqa: E402 # Config; Data; Features; EDS Runners; Reporting
     BootstrapConfig,
     DataConfig,
     EdgeLabConfig,
@@ -443,7 +443,7 @@ def example_6_exploratory_analysis():
     bars = 5000
 
     # Load data
-    from apps.edge.datasets import compute_session_stats
+    from backend.services.research.datasets import compute_session_stats
 
     df = load_ohlc(source, symbol, timeframe, 0, bars, exclude_last_bar=True)
     df = tag_sessions(df)

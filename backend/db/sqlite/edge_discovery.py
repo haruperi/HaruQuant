@@ -9,10 +9,10 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from apps.edge.core_metrics import CoreMetricProfile
-from apps.edge.market_structure import MarketStructureProfile
-from apps.edge.profile_snapshot import build_edge_profile_snapshot
-from apps.edge.profile_reporting import (
+from backend.services.research.core_metrics import CoreMetricProfile
+from backend.services.research.market_structure import MarketStructureProfile
+from backend.services.research.profile_snapshot import build_edge_profile_snapshot
+from backend.services.research.profile_reporting import (
     build_dashboard_summary,
     comparison_report_markdown,
     save_json_report,

@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from apps.edge.config import MarketStructureConfig
-from apps.edge.data.models import PreparedDataset
-from apps.edge.market_structure import build_market_structure_profile
+from backend.services.research.config import MarketStructureConfig
+from backend.services.research.data.models import PreparedDataset
+from backend.services.research.market_structure import build_market_structure_profile
 
 
 def _robustness_label(verdict_agreement_rate: float, score_std: float) -> str:

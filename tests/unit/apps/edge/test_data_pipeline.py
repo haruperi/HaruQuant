@@ -3,9 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from apps.edge.data.cleaning import CleaningConfig
-from apps.edge.data.enrichment import EnrichmentConfig
-from apps.edge.datasets import prepare_ohlcvs_dataset
+from backend.services.research.data.cleaning import CleaningConfig
+from backend.services.research.data.enrichment import EnrichmentConfig
+from backend.services.research.datasets import prepare_ohlcvs_dataset
 
 
 class DummySource:

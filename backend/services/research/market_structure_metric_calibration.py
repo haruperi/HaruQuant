@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from itertools import product
 from typing import Any, Dict, Iterable, List, Sequence
 
-from apps.edge.config import MarketStructureConfig
+from backend.services.research.config import MarketStructureConfig
 
 
 def _normalize_0_100(value: Any, lo: float, hi: float) -> float:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List
 
-from apps.edge.market_structure_calibration import evaluate_calibration_candidates
-from apps.edge.market_structure_profiles import resolve_market_structure_profile
+from backend.services.research.market_structure_calibration import evaluate_calibration_candidates
+from backend.services.research.market_structure_profiles import resolve_market_structure_profile
 
 
 def evaluate_profile_calibration(

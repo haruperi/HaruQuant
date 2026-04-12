@@ -159,7 +159,7 @@ async def calculate_scores(
         df = pd.DataFrame(strategies)
 
         # 3. Run Scorecard
-        from apps.edge.scorecard import StrategyScorecard
+        from backend.services.research.scorecard import StrategyScorecard
 
         scorer = StrategyScorecard()
         scored_df = scorer.process(df)

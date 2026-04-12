@@ -15,16 +15,16 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.api.legacy.auth_utils import get_user_id_from_token
-from apps.edge.classifier import classify_symbol
-from apps.edge.config import (
+from backend.services.research.classifier import classify_symbol
+from backend.services.research.config import (
     BootstrapConfig,
     DataConfig,
     EdgeLabConfig,
     MarketStructureConfig,
     PermutationConfig,
 )
-from apps.edge.core_metrics import build_core_metric_profile
-from apps.edge.data import (
+from backend.services.research.core_metrics import build_core_metric_profile
+from backend.services.research.data import (
     CanonicalOHLCVSSchema,
     CleaningConfig,
     CleaningAction,
@@ -33,31 +33,31 @@ from apps.edge.data import (
     EnrichmentConfig,
     PreparedDataset,
 )
-from apps.edge.datasets import (
+from backend.services.research.datasets import (
     DataSource,
     load_ohlc,
     normalize_columns,
     prepare_ohlcvs_dataset,
 )
-from apps.edge.eds_mean_reversion import run_eds_mean_reversion
-from apps.edge.eds_null_models import run_eds_null_baseline
-from apps.edge.eds_session import run_eds_session
-from apps.edge.eds_trend_persistence import run_eds_trend_persistence
-from apps.edge.market_structure import build_market_structure_profile
-from apps.edge.market_structure_calibration import evaluate_calibration_candidates
-from apps.edge.market_structure_metric_calibration import evaluate_metric_calibration_candidates
-from apps.edge.market_structure_profile_calibration import evaluate_profile_calibration
-from apps.edge.market_structure_robustness import build_market_structure_robustness_report
-from apps.edge.market_structure_profiles import resolve_market_structure_profile
-from apps.edge.market_structure_stability import build_market_structure_stability_report
-from apps.edge.market_structure_validation import (
+from backend.services.research.eds_mean_reversion import run_eds_mean_reversion
+from backend.services.research.eds_null_models import run_eds_null_baseline
+from backend.services.research.eds_session import run_eds_session
+from backend.services.research.eds_trend_persistence import run_eds_trend_persistence
+from backend.services.research.market_structure import build_market_structure_profile
+from backend.services.research.market_structure_calibration import evaluate_calibration_candidates
+from backend.services.research.market_structure_metric_calibration import evaluate_metric_calibration_candidates
+from backend.services.research.market_structure_profile_calibration import evaluate_profile_calibration
+from backend.services.research.market_structure_robustness import build_market_structure_robustness_report
+from backend.services.research.market_structure_profiles import resolve_market_structure_profile
+from backend.services.research.market_structure_stability import build_market_structure_stability_report
+from backend.services.research.market_structure_validation import (
     build_validation_summary,
     confidence_bucket,
     label_realized_market_behavior,
 )
-from apps.edge.results_schema import EdgeResult, EdgeStats
-from apps.edge.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
-from apps.edge.seasonality import SeasonalityFilters, run_seasonality
+from backend.services.research.results_schema import EdgeResult, EdgeStats
+from backend.services.research.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
+from backend.services.research.seasonality import SeasonalityFilters, run_seasonality
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.db.sqlite.database_operations import DatabaseManager
@@ -2425,7 +2425,7 @@ async def get_scorecard_snapshot_report(snapshot_id: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Scorecard snapshot {snapshot_id} not found.",
         )
-    from apps.edge.profile_reporting import snapshot_report_json
+    from backend.services.research.profile_reporting import snapshot_report_json
 
     return snapshot_report_json(snapshot)
 

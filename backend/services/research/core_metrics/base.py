@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Protocol
 
 import pandas as pd
 
-from apps.edge.data.models import CanonicalOHLCVSSchema, DataQualityReportModel
+from backend.services.research.data.models import CanonicalOHLCVSSchema, DataQualityReportModel
 
 
 @dataclass(frozen=True)

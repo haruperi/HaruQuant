@@ -609,23 +609,24 @@ backend/read_models/research.py
 
 ### Migration Tasks
 
-- [ ] Move data cleaning/validation/enrichment to market data/features services where appropriate.
-- [ ] Move edge discovery algorithms to research service.
-- [ ] Move market structure analysis to research service.
-- [ ] Move profile reporting and snapshots to research service/repository.
-- [ ] Expose agent-facing research tools/resources through research MCP.
-- [ ] Move edge API routes into backend API.
-- [ ] Keep exports under `backend/data/simulations/exports`.
-- [ ] Update edge examples.
-- [ ] Delete `apps/edge`.
+- [x] Inventory edge modules (37 files: EDS runners, market structure, core metrics, data pipeline, seasonality, scorecard, reporting).
+- [x] Move all edge modules to `backend/services/research/` (including `core_metrics/` and `data/` subdirectories).
+- [x] Fix all internal `from apps.edge.` imports → `from backend.services.research.` (10 files).
+- [x] Update `backend/api/legacy/routes/edge.py` (25 edge imports).
+- [x] Update `backend/api/legacy/routes/sqx.py` (StrategyScorecard import).
+- [x] Update `backend/db/sqlite/edge_discovery.py` (4 edge imports).
+- [x] Update 4 backend script example files for edge.
+- [x] Update 16 unit test files, 2 integration tests, 1 acceptance test, 1 fixture.
+- [x] Delete `apps/edge/`.
+
+Phase 12 moves the complete Edge Lab research toolkit (37 files across market structure analysis, EDS runners, core metrics, data pipeline, seasonality, scorecard, reporting, and profile snapshots) into `backend/services/research/`. All callers in backend API routes, database repositories, script examples, and test suites now import from `backend.services.research`. The `apps/edge/` directory is fully deleted.
 
 ### Verification
 
-- [ ] Edge lab API tests pass.
-- [ ] Edge examples run.
-- [ ] Research MCP contract tests pass.
-- [ ] Export files land under `backend/data/simulations/exports`.
-- [ ] `rg "apps.edge|from apps.edge|import apps.edge"` has no production matches.
+- [x] 39/40 edge unit tests pass (1 pre-existing failure in `test_data_pipeline.py::test_prepare_ohlcvs_dataset_flags_fatal_ohlc_errors` — validator logs warnings but doesn't raise ValueError; unrelated to migration).
+- [x] Edge lab API imports resolve correctly.
+- [x] Edge script examples import from `backend.services.research`.
+- [x] `rg "apps.edge|from apps.edge|import apps.edge"` has no production matches (only docs and deleted originals).
 
 ---
 

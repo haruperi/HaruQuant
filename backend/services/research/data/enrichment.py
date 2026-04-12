@@ -8,7 +8,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from apps.edge.session_config import active_sessions_for_hour
+from backend.services.research.session_config import active_sessions_for_hour
 
 from .models import CanonicalOHLCVSSchema
 

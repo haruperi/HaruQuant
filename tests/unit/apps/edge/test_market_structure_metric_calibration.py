@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.edge.market_structure_metric_calibration import (
+from backend.services.research.market_structure_metric_calibration import (
     build_metric_calibration_grid,
     evaluate_metric_calibration_candidates,
 )

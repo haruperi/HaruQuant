@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from apps.edge.market_structure_validation import (
+from backend.services.research.market_structure_validation import (
     build_validation_summary,
     confidence_bucket,
     label_realized_market_behavior,

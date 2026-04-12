@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.edge.session_config import (
+from backend.services.research.session_config import (
     EDGE_SESSION_ORDER,
     session_label_for_hour,
 )

@@ -1,8 +1,8 @@
 import pandas as pd
 
-from apps.edge.datasets import prepare_ohlcvs_dataset, tag_sessions
-from apps.edge.data.enrichment import EnrichmentConfig, enrich_dataset
-from apps.edge.data.models import CanonicalOHLCVSSchema
+from backend.services.research.datasets import prepare_ohlcvs_dataset, tag_sessions
+from backend.services.research.data.enrichment import EnrichmentConfig, enrich_dataset
+from backend.services.research.data.models import CanonicalOHLCVSSchema
 
 
 def test_enrich_dataset_builds_fixed_session_labels_with_overlaps():

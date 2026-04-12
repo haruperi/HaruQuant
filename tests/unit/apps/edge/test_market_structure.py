@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from apps.edge import build_market_structure_profile
-from apps.edge.config import MarketStructureConfig
-from apps.edge.datasets import prepare_ohlcvs_dataset
-from apps.edge.market_structure import _detect_swings
-from apps.edge.market_structure import _weighted_group_score
+from backend.services.research.market_structure import build_market_structure_profile
+from backend.services.research.config import MarketStructureConfig
+from backend.services.research.datasets import prepare_ohlcvs_dataset
+from backend.services.research.market_structure import _detect_swings
+from backend.services.research.market_structure import _weighted_group_score
 from backend.db.sqlite import SQLiteDatabase
 
 
