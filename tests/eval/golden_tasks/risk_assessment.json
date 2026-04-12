@@ -1,0 +1,2 @@
+{"name": "risk_assessment_basic", "input": {"portfolio": {"EURUSD": 1.0}, "var_cap": 0.1}, "expected": {"risk_class": "B"}}
+{"name": "research_query_basic", "input": {"query": "market structure of GBPUSD"}, "expected": {"has_structure": true}}

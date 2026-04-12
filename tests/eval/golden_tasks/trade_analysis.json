@@ -1,0 +1,1 @@
+{"name": "trade_analysis_basic", "input": {"symbol": "EURUSD", "timeframe": "H1", "bars": 100}, "expected": {"decision": "analyze", "confidence_min": 0.5}}

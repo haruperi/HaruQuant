@@ -1,0 +1,84 @@
+# Component ownership assignments (Playbook §23)
+
+agents:
+  trade_analyst:
+    product_owner: quant_lead
+    technical_owner: backend_eng_team
+    operational_owner: platform_ops
+    oncall_owner: trading_oncall
+  risk_governor:
+    product_owner: risk_lead
+    technical_owner: backend_eng_team
+    operational_owner: risk_ops
+    oncall_owner: risk_oncall
+  compliance_agent:
+    product_owner: compliance_lead
+    technical_owner: backend_eng_team
+    operational_owner: compliance_ops
+    oncall_owner: compliance_oncall
+
+workflows:
+  execution_workflow:
+    product_owner: trading_lead
+    technical_owner: backend_eng_team
+    operational_owner: trading_ops
+    oncall_owner: trading_oncall
+  research_workflow:
+    product_owner: research_lead
+    technical_owner: ai_eng_team
+    operational_owner: research_ops
+    oncall_owner: research_oncall
+
+mcp_servers:
+  mt5_mcp:
+    product_owner: trading_lead
+    technical_owner: backend_eng_team
+    operational_owner: trading_ops
+    oncall_owner: trading_oncall
+  market_data_mcp:
+    product_owner: data_lead
+    technical_owner: backend_eng_team
+    operational_owner: data_ops
+    oncall_owner: data_oncall
+  risk_analytics_mcp:
+    product_owner: risk_lead
+    technical_owner: backend_eng_team
+    operational_owner: risk_ops
+    oncall_owner: risk_oncall
+  optimization_mcp:
+    product_owner: quant_lead
+    technical_owner: backend_eng_team
+    operational_owner: quant_ops
+    oncall_owner: quant_oncall
+  backtest_mcp:
+    product_owner: quant_lead
+    technical_owner: backend_eng_team
+    operational_owner: quant_ops
+    oncall_owner: quant_oncall
+  sql_mcp:
+    product_owner: platform_lead
+    technical_owner: backend_eng_team
+    operational_owner: platform_ops
+    oncall_owner: platform_oncall
+
+services:
+  execution:
+    product_owner: trading_lead
+    technical_owner: backend_eng_team
+    operational_owner: trading_ops
+    oncall_owner: trading_oncall
+  risk_engine:
+    product_owner: risk_lead
+    technical_owner: backend_eng_team
+    operational_owner: risk_ops
+    oncall_owner: risk_oncall
+  simulation:
+    product_owner: quant_lead
+    technical_owner: backend_eng_team
+    operational_owner: quant_ops
+    oncall_owner: quant_oncall
+  research:
+    product_owner: research_lead
+    technical_owner: ai_eng_team
+    operational_owner: research_ops
+    oncall_owner: research_oncall

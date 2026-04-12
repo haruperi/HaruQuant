@@ -1,0 +1,26 @@
+# Benchmark promotion criteria (Playbook §15.4)
+# A prompt/model/tool can be promoted only when ALL criteria pass.
+
+regression_pass:
+  description: All regression tests must pass
+  required: true
+
+benchmark_pass:
+  description: Golden tasks must achieve >= 90% success rate
+  required: true
+  min_success_rate: 0.9
+
+security_review:
+  description: Security review completed with no critical findings
+  required: true
+
+rollback_plan:
+  description: Rollback plan documented and tested
+  required: true
+
+owner_signoff:
+  description: Component owner has signed off on promotion
+  required: true
+
+refresh_cadence: monthly
+benchmark_owner: ai_team_lead
