@@ -137,6 +137,39 @@ class TradeTracker:
     mae_pips: float = 0.0
 
 
+class CloseType:
+    """Canonical close type enums for trade records."""
+    SL = type('SL', (), {'value': 'SL'})()
+    TP = type('TP', (), {'value': 'TP'})()
+    TIME_EXIT = type('TIME_EXIT', (), {'value': 'TIME_EXIT'})()
+    SIGNAL_EXIT = type('SIGNAL_EXIT', (), {'value': 'SIGNAL_EXIT'})()
+    BREAKEVEN = type('BREAKEVEN', (), {'value': 'BREAKEVEN'})()
+    TRAILING_STOP = type('TRAILING_STOP', (), {'value': 'TRAILING_STOP'})()
+    MANUAL = type('MANUAL', (), {'value': 'MANUAL'})()
+    UNKNOWN = type('UNKNOWN', (), {'value': 'UNKNOWN'})()
+
+
+class ExitReason:
+    """Exit reason enum for trade records."""
+    STOP_LOSS = type('STOP_LOSS', (), {'value': 'STOP_LOSS'})()
+    TAKE_PROFIT = type('TAKE_PROFIT', (), {'value': 'TAKE_PROFIT'})()
+    SIGNAL = type('SIGNAL', (), {'value': 'SIGNAL'})()
+    TIME = type('TIME', (), {'value': 'TIME'})()
+    MANUAL = type('MANUAL', (), {'value': 'MANUAL'})()
+    ERROR = type('ERROR', (), {'value': 'ERROR'})()
+    UNKNOWN = type('UNKNOWN', (), {'value': 'UNKNOWN'})()
+
+
+@dataclass
+class BacktestResult:
+    """Backtest result container (legacy compatibility)."""
+    trades: list = None
+    equity_curve: list = None
+    params: dict = None
+    score: float = 0.0
+    metrics: dict = None
+
+
 @dataclass
 class EquityPoint:
     """Equity curve point aligned to backtest_equity_curve storage."""

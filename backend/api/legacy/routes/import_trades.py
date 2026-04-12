@@ -8,7 +8,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.api.legacy.auth_utils import get_user_id_from_token
-from apps.backtest.result import (
+from backend.services.execution.core import (
     BacktestResult,
     CloseType,
     EquityPoint,

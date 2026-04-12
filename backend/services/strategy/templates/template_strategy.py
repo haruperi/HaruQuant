@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from apps.logger import logger
+from backend.common.logger import logger
 from backend.services.strategy import BaseStrategy
 from backend.services.strategy.base import SignalDict
 
