@@ -1,0 +1,2 @@
+{"name": "previously_failed_timeout", "input": {"symbol": "EURUSD", "timeout_ms": 100}, "expected": {"handled_gracefully": true}}
+{"name": "previously_failed_parse", "input": {"raw_text": "not valid json"}, "expected": {"handled_gracefully": true}}

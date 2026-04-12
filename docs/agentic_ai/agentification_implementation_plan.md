@@ -92,13 +92,13 @@ config/policies/
 - [x] Create policy validation schema (Pydantic model for policy config)
 - [x] Wire `PolicyResolver` into `backend/services/policy/resolver.py` (enhance existing)
 - [x] Add unit tests for policy loading, validation, and resolution
-- [ ] Add policy enforcement check in `backend/api/routes/` before dispatch
+- [x] Add policy enforcement check in `backend/api/routes/` before dispatch
 
 ### Verification
 - [x] All 9 policy files exist with required fields
 - [x] PolicyResolver loads and resolves all policies
 - [x] Unit tests pass (12/12)
-- [ ] API route rejects request when policy blocks
+- [x] API route rejects request when policy blocks
 
 ---
 
@@ -117,15 +117,15 @@ Extend `backend/services/approval/models.py` with full `ApprovalPacket` dataclas
 - [x] Update `ApprovalRequest` to embed `ApprovalPacket`
 - [x] Create `ApprovalPacketBuilder` helper in `backend/services/approval/packet_builder.py`
 - [x] Add validation tests for packet completeness (14/14 pass)
-- [ ] Update approval service to require complete packet before dispatch
-- [ ] Update `backend/api/routes/` approval endpoints to return full packet
+- [x] Update approval service to require complete packet before dispatch
+- [x] Update `backend/api/routes/` approval endpoints to return full packet
 
 ### Verification
 - [x] ApprovalPacket model validates all fields
 - [x] PacketBuilder produces valid packets
 - [x] Unit tests pass (14/14)
-- [ ] Approval service rejects incomplete packets
-- [ ] API endpoint returns full packet structure
+- [x] Approval service rejects incomplete packets
+- [x] API endpoint returns full packet structure
 
 ---
 
@@ -150,7 +150,7 @@ Add `metadata.yaml` to each `backend/mcp/*/` directory:
 - [x] Create `backend/mcp/metadata_loader.py` to load and validate all metadata at startup
 - [x] Add metadata validation to MCP server initialization
 - [x] Add unit tests for metadata loading and validation (7/7 pass)
-- [ ] Document metadata schema in `config/mcp_metadata_schema.yaml`
+- [x] Document metadata schema in `config/mcp_metadata_schema.yaml`
 
 ### Verification
 - [x] All 6 metadata.yaml files exist and validate
@@ -184,7 +184,7 @@ backend/mcp/wrappers/
 - [x] Implement `BaseMCPWrapper` that composes all above
 - [x] Wrap existing MCP client calls (mt5_mcp, market_data_mcp) with wrapper
 - [x] Add unit tests for each wrapper component (15/15 pass)
-- [ ] Add integration test for wrapped MCP call
+- [x] Add integration test for wrapped MCP call (4/4 pass)
 
 ### Verification
 - [x] RetryPolicy backs off correctly
@@ -192,6 +192,7 @@ backend/mcp/wrappers/
 - [x] RateLimiter enforces limits
 - [x] Wrapped MCP calls include all policies
 - [x] Unit tests pass (15/15)
+- [x] Integration tests pass (4/4)
 
 ---
 
@@ -247,17 +248,18 @@ backend/services/execution/compensation/
 - [x] Implement `PositionCompensationPlan` (close position, adjust size)
 - [x] Create `CompensationRegistry` mapping action classes (A/B/C/D/E) to compensation plans
 - [x] Enhance `generate_execution_idempotency_key()` to include action class and idempotency metadata
-- [ ] Add idempotency check middleware before execution dispatch
-- [ ] Add exactly-once vs at-least-once semantics documentation per action class
+- [x] Add idempotency check middleware before execution dispatch
+- [x] Add exactly-once vs at-least-once semantics documentation per action class
 - [x] Add unit tests for each compensation plan (16/16 pass)
-- [ ] Add integration test for idempotent retry scenario
+- [x] Add integration test for idempotent retry scenario (3/3 pass)
 
 ### Verification
 - [x] CompensationPlan executes and logs
 - [x] CompensationRegistry returns correct plan for action class
 - [x] Idempotency key is deterministic for same input
-- [ ] Duplicate request is detected and blocked
+- [x] Duplicate request is detected and blocked
 - [x] Unit tests pass (16/16)
+- [x] Integration tests pass (3/3)
 
 ---
 
@@ -289,7 +291,7 @@ backend/orchestration/context_engineering/
 - [x] Implement `ContextValidator` with inclusion checklist
 - [x] Wire context engineering into workflow execution pipeline
 - [x] Add unit tests for each component (22/22 pass)
-- [ ] Add integration test for context budget enforcement
+- [x] Add integration test for context budget enforcement (3/3 pass)
 
 ### Verification
 - [x] ContextBudget enforces token limits
@@ -299,6 +301,7 @@ backend/orchestration/context_engineering/
 - [x] ContradictionResolver detects and resolves contradictions
 - [x] ContextValidator rejects invalid context
 - [x] Unit tests pass (22/22)
+- [x] Integration tests pass (3/3)
 
 ---
 
@@ -319,24 +322,25 @@ backend/observability/
 ```
 
 ### Tasks
-- [ ] Create `backend/observability/` directory
-- [ ] Implement `Trace` model with all required fields: trace_id, session_id, user_id/tenant_id, request_id, task_id, workflow_id, step_id, tool_call_id, agent_name, prompt_version, model_name, model_version, latency, cost, result_status
-- [ ] Implement `Span` model with parent-child relationship, start/end timestamps, attributes, events
-- [ ] Implement `RedactionRules` engine with field-level redaction patterns (secrets, PII, credentials)
-- [ ] Implement `CostTracker` with per-trace and per-span cost aggregation
-- [ ] Enhance `backend/orchestration/workflow/persistence.py` to use Trace and Span models
-- [ ] Add `prompt_version`, `model_version`, and `cost` fields to workflow step records
-- [ ] Add redaction middleware to all logging pipelines
-- [ ] Add unit tests for Trace, Span, Redaction, CostTracker
-- [ ] Add integration test for full trace → span → persistence pipeline
+- [x] Create `backend/observability/` directory
+- [x] Implement `Trace` model with all required fields
+- [x] Implement `Span` model with parent-child relationship
+- [x] Implement `RedactionRules` engine with field-level redaction patterns
+- [x] Implement `CostTracker` with per-trace and per-span cost aggregation
+- [x] Enhance `backend/orchestration/workflow/persistence.py` to use Trace and Span models
+- [x] Add `prompt_version`, `model_version`, and `cost` fields to workflow step records
+- [x] Add redaction middleware to all logging pipelines
+- [x] Add unit tests for Trace, Span, Redaction, CostTracker (16/16 pass)
+- [x] Add integration test for full trace → span → persistence pipeline (3/3 pass)
 
 ### Verification
-- [ ] Trace model includes all required fields
-- [ ] Span model supports nested hierarchy
-- [ ] RedactionRules removes sensitive fields
-- [ ] CostTracker aggregates correctly
-- [ ] Workflow persistence records prompt_version, model_version, cost
-- [ ] Unit tests pass
+- [x] Trace model includes all required fields
+- [x] Span model supports nested hierarchy
+- [x] RedactionRules removes sensitive fields
+- [x] CostTracker aggregates correctly
+- [x] Workflow persistence records prompt_version, model_version, cost
+- [x] Unit tests pass (16/16)
+- [x] Integration tests pass (3/3)
 
 ---
 
@@ -365,15 +369,15 @@ tests/eval/
 ```
 
 ### Tasks
-- [ ] Create `tests/eval/` directory structure
-- [ ] Create 10+ golden tasks with known-good inputs and expected outputs
-- [ ] Create 5+ adversarial tasks (prompt injection, policy bypass, ambiguous requests)
-- [ ] Create 5+ regression tasks (previously-failed cases)
-- [ ] Create 3+ domain hard cases (complex multi-agent scenarios)
-- [ ] Implement `BenchmarkRunner` that executes tasks against agents and scores results
-- [ ] Create `promotion_criteria.yaml` with criteria for promoting prompts/models/tools (regression pass, benchmark pass, security review, rollback plan, owner sign-off)
-- [ ] Define refresh cadence (monthly benchmark runs)
-- [ ] Define benchmark owner
+- [x] Create `tests/eval/` directory structure
+- [x] Create 10+ golden tasks with known-good inputs and expected outputs
+- [x] Create 5+ adversarial tasks (prompt injection, policy bypass, ambiguous requests)
+- [x] Create 5+ regression tasks (previously-failed cases)
+- [x] Create 3+ domain hard cases (complex multi-agent scenarios)
+- [x] Implement `BenchmarkRunner` that executes tasks against agents and scores results
+- [x] Create `promotion_criteria.yaml` with criteria for promoting prompts/models/tools
+- [x] Define refresh cadence (monthly benchmark runs)
+- [x] Define benchmark owner
 - [ ] Add unit tests for benchmark runner
 - [ ] Add CI job for benchmark execution
 

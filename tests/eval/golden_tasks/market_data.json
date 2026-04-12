@@ -1,0 +1,4 @@
+{"name": "market_data_fetch", "input": {"symbol": "GBPUSD", "timeframe": "M15"}, "expected": {"has_bars": true}}
+{"name": "portfolio_snapshot", "input": {"symbols": ["EURUSD", "GBPUSD"]}, "expected": {"has_positions": true}}
+{"name": "strategy_signal", "input": {"strategy": "TrendFollowing", "symbol": "USDJPY"}, "expected": {"signal_type": "entry|exit|hold"}}
+{"name": "backtest_run", "input": {"strategy": "MeanReversion", "symbol": "AUDUSD", "bars": 500}, "expected": {"has_trades": true}}

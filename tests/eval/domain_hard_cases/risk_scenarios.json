@@ -1,0 +1,2 @@
+{"name": "multi_correlated_symbols", "input": {"symbols": ["EURUSD", "GBPUSD", "AUDUSD"], "correlation_threshold": 0.8}, "expected": {"detected_correlation": true}}
+{"name": "high_volatility_regime", "input": {"symbol": "EURUSD", "atr_multiplier": 3.0}, "expected": {"regime": "STRESS"}}
