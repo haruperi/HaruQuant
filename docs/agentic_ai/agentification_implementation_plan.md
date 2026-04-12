@@ -280,25 +280,25 @@ backend/orchestration/context_engineering/
 ```
 
 ### Tasks
-- [ ] Create `backend/orchestration/context_engineering/` directory
-- [ ] Implement `ContextBudget` with per-workflow allocation (token budget, context window management)
-- [ ] Implement `ContextEviction` with staleness thresholds (TTL, LRU, priority-based)
-- [ ] Implement `ContextCompression` with summarization rules (sliding window, abstraction levels)
-- [ ] Implement `SourcePrecedence` with trust hierarchy (System Policy > Workflow Policy > Session State > User Input > Resources > Documents > Tool Output)
-- [ ] Implement `ContradictionResolver` with conflict detection and resolution strategy
-- [ ] Implement `ContextValidator` with inclusion checklist (necessary, fresh, trusted, not duplicated, not too verbose, no conflicts)
-- [ ] Wire context engineering into workflow execution pipeline
-- [ ] Add unit tests for each component
+- [x] Create `backend/orchestration/context_engineering/` directory
+- [x] Implement `ContextBudget` with per-workflow allocation (token budget, context window management)
+- [x] Implement `ContextEviction` with staleness thresholds (TTL, LRU, priority-based)
+- [x] Implement `ContextCompression` with summarization rules (sliding window, abstraction levels)
+- [x] Implement `SourcePrecedence` with trust hierarchy
+- [x] Implement `ContradictionResolver` with conflict detection and resolution strategy
+- [x] Implement `ContextValidator` with inclusion checklist
+- [x] Wire context engineering into workflow execution pipeline
+- [x] Add unit tests for each component (22/22 pass)
 - [ ] Add integration test for context budget enforcement
 
 ### Verification
-- [ ] ContextBudget enforces token limits
-- [ ] ContextEviction removes stale entries
-- [ ] ContextCompression reduces token count while preserving meaning
-- [ ] SourcePrecedence resolves conflicts correctly
-- [ ] ContradictionResolver detects and resolves contradictions
-- [ ] ContextValidator rejects invalid context
-- [ ] Unit tests pass
+- [x] ContextBudget enforces token limits
+- [x] ContextEviction removes stale entries
+- [x] ContextCompression reduces token count while preserving meaning
+- [x] SourcePrecedence resolves conflicts correctly
+- [x] ContradictionResolver detects and resolves contradictions
+- [x] ContextValidator rejects invalid context
+- [x] Unit tests pass (22/22)
 
 ---
 
