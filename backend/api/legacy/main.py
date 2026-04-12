@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting HaruQuant API server")
 
-    from apps.sqlite.database_operations import DatabaseManager
+    from backend.db.sqlite.database_operations import DatabaseManager
     from backend.api.legacy.scheduler import start_scheduler
 
     try:

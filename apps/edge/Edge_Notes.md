@@ -18,7 +18,7 @@
 - apps/edge/datasets.py
 - apps/edge/market_structure.py
 - apps/api/routes/edge.py
-- apps/sqlite/edge_discovery.py
+- backend/db/sqlite/edge_discovery.py
 
   ———
 
@@ -304,8 +304,8 @@
   Files:
 
 - apps/edge/market_structure_validation.py
-- apps/sqlite/schema.py
-- apps/sqlite/edge_discovery.py
+- backend/db/sqlite/schema.py
+- backend/db/sqlite/edge_discovery.py
 
   Saved Market Structure runs can now be evaluated later against realized forward behavior. Persisted evaluations include:
 
@@ -419,8 +419,8 @@
 
   Persistence hub:
 
-- apps/sqlite/edge_discovery.py
-- apps/sqlite/schema.py
+- backend/db/sqlite/edge_discovery.py
+- backend/db/sqlite/schema.py
 
   Saved Market Structure runs now persist:
 

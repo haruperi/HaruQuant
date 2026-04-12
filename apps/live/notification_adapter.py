@@ -13,7 +13,7 @@ from apps.notifications import (
     NotificationManagerConfig,
 )
 from apps.notifications.config import NotificationConfig
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 
 class LiveTradingNotifier:

@@ -17,7 +17,7 @@ from backend.api.legacy.models import (
 )
 from backend.common.logger import logger
 from apps.mt5.client import MT5Client
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 db_manager = DatabaseManager()

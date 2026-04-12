@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from backend.api.legacy.models import ResourceUsageResponse, SystemStatusResponse
 from backend.common.logger import logger
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 
 # Try to import psutil, handle if missing
 try:

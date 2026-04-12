@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 
 class RiskRepository:

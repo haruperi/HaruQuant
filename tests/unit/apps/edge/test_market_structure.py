@@ -9,7 +9,7 @@ from apps.edge.config import MarketStructureConfig
 from apps.edge.datasets import prepare_ohlcvs_dataset
 from apps.edge.market_structure import _detect_swings
 from apps.edge.market_structure import _weighted_group_score
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 
 class DummySource:

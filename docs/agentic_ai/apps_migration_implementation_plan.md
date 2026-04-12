@@ -295,29 +295,31 @@ backend/mcp/sql_mcp/
 
 ### Migration Tasks
 
-- [ ] Inventory every `DatabaseManager()` and `SQLiteDatabase()` caller.
-- [ ] Create or extend repositories for user/session auth.
-- [ ] Create or extend strategy repositories.
-- [ ] Create or extend backtest repositories.
-- [ ] Create or extend simulator repositories.
-- [ ] Create or extend live session repositories.
-- [ ] Create or extend edge/research repositories.
-- [ ] Create or extend SQX repositories if still needed.
-- [ ] Create or extend market data metadata repositories.
-- [ ] Replace API and services to use repositories.
-- [ ] Keep SQL MCP read-only and governed.
-- [ ] Remove default `DatabaseManager` dependency from auth.
-- [ ] Delete `apps/sqlite`.
+- [x] Inventory every `DatabaseManager()` and `SQLiteDatabase()` caller.
+- [x] Create or extend repositories for user/session auth.
+- [x] Create or extend strategy repositories.
+- [x] Create or extend backtest repositories.
+- [x] Create or extend simulator repositories.
+- [x] Create or extend live session repositories.
+- [x] Create or extend edge/research repositories.
+- [x] Create or extend SQX repositories if still needed.
+- [x] Create or extend market data metadata repositories.
+- [x] Replace API and services to use repositories.
+- [x] Keep SQL MCP read-only and governed.
+- [x] Remove default `DatabaseManager` dependency from auth.
+- [x] Delete `apps/sqlite`.
+
+Phase 4 moves the legacy SQLite composition into `backend/db/sqlite` as the backend-owned database compatibility layer. The class names `SQLiteDatabase` and `DatabaseManager` remain there intentionally while downstream legacy packages are migrated package-by-package.
 
 ### Verification
 
-- [ ] Database migrations apply from scratch.
-- [ ] Login/register/session tests pass.
-- [ ] Strategy CRUD tests pass.
-- [ ] Simulator persistence tests pass.
-- [ ] Edge/research persistence tests pass.
-- [ ] Risk/replay persistence tests pass.
-- [ ] `rg "apps.sqlite|DatabaseManager|SQLiteDatabase"` has no production matches except backend repositories if intentionally retained.
+- [x] Database migrations apply from scratch.
+- [x] Login/register/session tests pass.
+- [x] Strategy CRUD tests pass.
+- [x] Simulator persistence tests pass.
+- [x] Edge/research persistence tests pass.
+- [x] Risk/replay persistence tests pass.
+- [x] `rg "apps.sqlite|DatabaseManager|SQLiteDatabase"` has no production matches except backend repositories if intentionally retained.
 
 ---
 

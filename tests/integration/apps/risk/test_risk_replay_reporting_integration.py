@@ -10,7 +10,7 @@ from apps.risk import (
 from apps.risk.reports import build_replay_report
 from apps.risk.simulation import ReplayFrame, build_cockpit_state
 from apps.risk.storage import RiskRepository, RiskSnapshotStore
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 
 

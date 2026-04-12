@@ -4,7 +4,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from backend.common.logger import logger
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 
 _scheduler = AsyncIOScheduler()
 

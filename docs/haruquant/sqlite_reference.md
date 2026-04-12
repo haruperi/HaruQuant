@@ -21,7 +21,7 @@ The SQLite module provides a comprehensive database solution for managing all as
 ### Module Structure
 
 ```
-apps/sqlite/
+backend/db/sqlite/
 ├── __init__.py             # Main SQLiteDatabase class
 ├── base.py                 # DatabaseBase - Connection management
 ├── schema.py               # SchemaManager - Schema initialization
@@ -61,7 +61,7 @@ The `SQLiteDatabase` class inherits from all manager mixins, providing a unified
 ### Basic Setup
 
 ```python
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 # Create database instance (uses default path: backend/data/database/haruquant.db)
 db = SQLiteDatabase()
@@ -96,7 +96,7 @@ The directory is automatically created if it doesn't exist.
 
 **Usage**:
 ```python
-from apps.sqlite.base import DatabaseBase, UserAlreadyExistsError
+from backend.db.sqlite.base import DatabaseBase, UserAlreadyExistsError
 
 db = DatabaseBase(db_path="my_database.db")
 # WAL mode automatically enabled if database exists
@@ -646,7 +646,7 @@ print(f"Confirmation Rate: {summary['confirmation_rate']:.1%}")
 print(f"Avg Expectancy: {summary['avg_expectancy_confirmed']:.3f}")
 ```
 
-For detailed examples, see [`tests/usage/sqlite/usage_edge_discovery.py`](../../../tests/usage/sqlite/usage_edge_discovery.py).
+For a runnable edge workflow, see `backend/scripts/examples/edge/run_edge.py`.
 
 ---
 
@@ -664,7 +664,7 @@ For detailed examples, see [`tests/usage/sqlite/usage_edge_discovery.py`](../../
 
 **Merge Features**:
 - **Column Mapping**: Maps CSV columns to canonical database columns
-- **Symbol Canonicalization**: Normalizes symbols (e.g., `EURUSD_dukascopy` → `EURUSD`)
+- **Symbol Canonicalization**: Normalizes symbols (e.g., `EURUSD_dukascopy` -> `EURUSD`)
 - **Win Percent Normalization**: Converts 0-100 scale to 0-1 if needed
 - **Stage-Specific Metrics**: Adds stage prefixes (e.g., `a1_profit_factor`, `a2_net_profit`)
 - **Purge Missing**: Optionally removes strategies not in current import
@@ -727,7 +727,7 @@ score_df = pd.DataFrame({
 db.update_strategy_scores(score_df)
 ```
 
-For detailed examples, see [`tests/usage/sqlite/usage_sqx.py`](../../../tests/usage/sqlite/usage_sqx.py).
+SQX usage is currently exercised through backend API and storage tests while the remaining legacy packages migrate.
 
 ---
 
@@ -830,7 +830,7 @@ trades = db.get_simulation_trades(session_id)
 db.update_session_status(session_id, status="completed")
 ```
 
-For detailed examples, see [`tests/usage/sqlite/usage_simulator.py`](../../../tests/usage/sqlite/usage_simulator.py).
+For simulator-backed usage, see `backend/scripts/examples/trading/trade_example.py`.
 
 ---
 
@@ -890,21 +890,10 @@ settings = db.get_user_settings(user_id)
 
 ## Usage Examples
 
-Comprehensive usage examples are available in `tests/usage/sqlite/`:
-- `usage_init.py`: Main SQLiteDatabase class
-- `usage_base.py`: DatabaseBase
-- `usage_schema.py`: SchemaManager
-- `usage_users.py`: UserManager
-- `usage_strategies.py`: StrategyManager
-- `usage_backtests.py`: BacktestManager
-- `usage_optimization.py`: OptimizationManager
-- `usage_live_trading.py`: LiveTradingManager
-- `usage_market_data.py`: MarketDataManager
-- `usage_edge_discovery.py`: EdgeDiscoveryManager
-- `usage_sqx.py`: SQXManager
-- `usage_simulator.py`: SimulatorManager
-
-See `tests/usage/sqlite/README.md` for detailed documentation.
+Runnable examples live under `backend/scripts/examples/`:
+- `backend/scripts/examples/trading/trade_example.py`: simulator-backed trading flow using `DatabaseManager`.
+- `backend/scripts/examples/edge/run_edge.py`: edge discovery workflow using `SQLiteDatabase`.
+- `backend/scripts/examples/risk/10_storage_and_snapshot_store.py`: risk storage and snapshot persistence.
 
 ## Best Practices
 
@@ -918,7 +907,7 @@ db.initialize_database()  # Creates tables if needed
 ### 2. Error Handling
 
 ```python
-from apps.sqlite import SQLiteDatabase, UserAlreadyExistsError
+from backend.db.sqlite import SQLiteDatabase, UserAlreadyExistsError
 
 try:
     user_id = db.create_user(...)
@@ -998,7 +987,7 @@ db.delete_database()  # Clean up
 
 ```python
 from backend.common.logger import logger
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 db = SQLiteDatabase()
 # All operations automatically logged via backend.common.logger
@@ -1035,7 +1024,7 @@ backtest_id = db.save_backtest_result(result)
 
 ```python
 import unittest
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 class TestUserManager(unittest.TestCase):
     def setUp(self):
@@ -1056,7 +1045,7 @@ class TestUserManager(unittest.TestCase):
 
 ### Integration Tests
 
-See `tests/usage/sqlite/` for integration examples.
+See the backend DB, edge, risk, API, and simulator tests for integration coverage.
 
 ## Migration Guide
 
@@ -1082,7 +1071,7 @@ If upgrading from an older version:
 1. **Delete Database File**:
    - `backend/data/database/haruquant.db`
 2. **Recreate Schema**:
-   - `python backend/scripts/initialize_database.py`
+   - `python backend/scripts/tools/initialize_database.py`
 3. **Reimport SQX Exports**:
    - Import each stage CSV through the SQX Import UI.
 
@@ -1107,7 +1096,7 @@ If upgrading from an older version:
 For detailed API documentation, see:
 - Type hints in source files
 - Docstrings in each method
-- Usage examples in `tests/usage/sqlite/`
+- Usage examples in `backend/scripts/examples/`
 
 ## Contributing
 
@@ -1126,7 +1115,7 @@ Part of the HaruQuant trading platform.
 ## Support
 
 For issues, questions, or contributions:
-- Check usage examples in `tests/usage/sqlite/`
+- Check usage examples in `backend/scripts/examples/`
 - Review source code docstrings
 - Consult main project documentation
 

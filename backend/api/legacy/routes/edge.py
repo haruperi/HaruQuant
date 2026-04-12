@@ -60,7 +60,7 @@ from apps.edge.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard
 from apps.edge.seasonality import SeasonalityFilters, run_seasonality
 from backend.common.logger import logger
 from apps.mt5.client import MT5Client
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 from backend.services.market_data.data_getters import load_dukascopy
 
 router = APIRouter()

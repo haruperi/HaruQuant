@@ -28,7 +28,7 @@ import pandas as pd
 from apps.mt5 import MT5Client, get_mt5_api
 from apps.risk import PositionSizer
 from apps.indicator.volatility.atr import atr
-from apps.sqlite.users import UserManager
+from backend.db.sqlite.users import UserManager
 from apps.trading import Engine
 
 mt5 = get_mt5_api()

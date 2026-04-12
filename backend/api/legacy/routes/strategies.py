@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.common.logger import logger
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
 
 router = APIRouter()

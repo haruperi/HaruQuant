@@ -61,7 +61,7 @@
   - `apps/risk/`
   - `apps/optimization/`
   - `apps/mt5/`
-  - `apps/sqlite/`
+  - `backend/db/sqlite/`
   - `apps/strategy/`
 - The intended migration direction is additive:
   - preserve deterministic engines
@@ -86,7 +86,7 @@
   - this remains process-local in-memory state, but the route layer no longer mutates a naked global dict directly
   - it is now only the local runtime cache, not the source of truth for session identity
 - Simulator session identity and runtime ownership are now separated:
-  - `apps/sqlite/simulator.py` and the `simulation_sessions` table remain the persistent source of truth for session existence and user ownership
+  - `backend/db/sqlite/simulator.py` and the `simulation_sessions` table remain the persistent source of truth for session existence and user ownership
   - `runtime_owner`, `lease_expires_at`, and `last_heartbeat_at` are persisted on `simulation_sessions`
   - `apps/simulation/session_backend.py` owns the metadata/lease abstraction for the current SQLite-backed implementation
   - `apps/simulation/session_coordinator.py` is now the single seam routes and services use for owned-session lookup, active-runtime lease checks, and local runtime attachment/release
@@ -532,10 +532,10 @@
 
 ## Risk Storage Layer
 
-- Phase 10 adds persistence for normalized risk artifacts by extending the existing SQLite infrastructure under `apps/sqlite`.
-- The schema continues to be owned by `apps/sqlite/schema.py`; no second schema manager is introduced.
+- Phase 10 adds persistence for normalized risk artifacts by extending the existing SQLite infrastructure under `backend/db/sqlite`.
+- The schema continues to be owned by `backend/db/sqlite/schema.py`; no second schema manager is introduced.
 - New persistence helpers:
-  - `apps/sqlite/risk_storage.py`
+  - `backend/db/sqlite/risk_storage.py`
   - `apps/risk/storage/repositories.py`
   - `apps/risk/storage/snapshot_store.py`
   - `apps/risk/storage/scenario_store.py`
@@ -827,13 +827,13 @@
   - Market Structure summary
   - Scorecard rows
   - Scorecard strategy-fit rankings
-- `apps/sqlite/schema.py` now includes snapshot persistence tables:
+- `backend/db/sqlite/schema.py` now includes snapshot persistence tables:
   - `edge_profile_snapshots`
   - `edge_profile_snapshot_metrics`
   - `edge_profile_snapshot_scores`
   - `edge_profile_snapshot_strategy_fit`
   - `edge_profile_snapshot_artifacts`
-- `apps/sqlite/edge_discovery.py` now provides the repository layer for:
+- `backend/db/sqlite/edge_discovery.py` now provides the repository layer for:
   - saving snapshots
   - listing snapshots
   - loading one snapshot with normalized detail rows

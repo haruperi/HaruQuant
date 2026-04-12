@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from backend.api.legacy.auth_utils import get_user_id_from_token
 from backend.api.legacy.websocket import backtest_log_manager
 from apps.mt5.client import MT5Client
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 from apps.strategy import storage
 from apps.trading import Engine, core
 from backend.services.market_data.data_getters import load_dukascopy

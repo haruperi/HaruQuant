@@ -7,7 +7,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 from backend.api.legacy.auth_utils import authenticate_user, generate_token
 from backend.api.legacy.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
 from backend.common.logger import logger
-from apps.sqlite.database_operations import DatabaseManager, UserAlreadyExistsError
+from backend.db.sqlite.database_operations import DatabaseManager, UserAlreadyExistsError
 
 router = APIRouter()
 

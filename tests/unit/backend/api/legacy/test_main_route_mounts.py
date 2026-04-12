@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.legacy.main import app
 from backend.api.legacy import main
-from apps.sqlite import database_operations
+from backend.db.sqlite import database_operations
 from backend.api.legacy import scheduler
 
 

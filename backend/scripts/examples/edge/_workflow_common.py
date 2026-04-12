@@ -13,7 +13,7 @@ from apps.edge import CleaningConfig, EnrichmentConfig, build_core_metric_profil
 from apps.edge.scorecard import build_edge_lab_scorecard_report
 from apps.edge.seasonality import SeasonalityFilters, run_seasonality
 from apps.mt5 import MT5Utils
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "edge_lab_outputs" / "examples"

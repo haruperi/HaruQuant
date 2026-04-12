@@ -6,7 +6,7 @@ import pandas as pd
 
 from apps.edge.core_metrics import build_core_metric_profile, build_default_registry
 from apps.edge.datasets import prepare_ohlcvs_dataset
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 
 class DummySource:

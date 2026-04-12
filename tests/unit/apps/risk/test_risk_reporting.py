@@ -11,7 +11,7 @@ from apps.risk.reports import (
     render_scenario_report_markdown,
 )
 from apps.risk.storage import RiskRepository, RiskSnapshotStore
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 from tests.unit.apps.risk.test_risk_storage import _build_state
 from apps.risk import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
 from apps.risk.simulation import ReplayFrame, build_cockpit_state

@@ -68,7 +68,7 @@ For full usage examples, please refer to the `tests/usage/trade` directory.
 
 ```python
 from datetime import datetime
-from apps.sqlite.users import UserManager
+from backend.db.sqlite.users import UserManager
 from backend.common.logger import logger
 from apps.mt5 import MT5Client
 from apps.mt5 import get_mt5_api

@@ -429,7 +429,7 @@ desc = error_desc.error_description(4301)   # "Unknown symbol"
 desc = error_desc.error_description(10013)  # "Invalid request"
 ```
 
-For detailed examples, see [`tests/usage/utils/usage_error_description.py`](../../../tests/usage/utils/usage_error_description.py).
+The old C++ bridge usage example was removed with the retired bridge workflow.
 
 ---
 
@@ -809,7 +809,6 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 - `usage_multitasking.py`: Concurrent task execution
 - `usage_file_renamer.py`: Batch file renaming operations
 - `usage_data_comparator.py`: DataFrame comparison utilities
-- `usage_error_description.py`: MT5 error code lookups
 - `../logger/*`: Logger behavior and sink usage examples
 
 ## Best Practices
@@ -871,7 +870,7 @@ Copyright 2025, HaruQuant
 
 - `apps/mt5/` - MT5 client for data retrieval
 - `apps/dukascopy_api/` - Dukascopy API client
-- `apps/sqlite/` - Database management
+- `backend/db/sqlite/` - Database management
 - `apps/indicator/` - Technical indicators
 - `apps/backtest/` - Backtesting engine
 

@@ -42,7 +42,7 @@ from backend.common.logger import logger
 from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.mt5.util import MT5Utils
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 
 mt5 = get_mt5_api()
 

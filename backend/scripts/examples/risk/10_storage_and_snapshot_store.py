@@ -36,7 +36,7 @@ from apps.risk import (
 )
 from apps.risk.simulation import ReplayFrame, build_cockpit_state
 from apps.risk.storage import RiskRepository, RiskSnapshotStore
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 from apps.trading import Engine, Trade, core
 
 

@@ -294,8 +294,8 @@ Each archetype includes:
 Edge Lab now persists versioned pair-profile snapshots through:
 
 - `apps/edge/profile_snapshot.py`
-- `apps/sqlite/edge_discovery.py`
-- `apps/sqlite/schema.py`
+- `backend/db/sqlite/edge_discovery.py`
+- `backend/db/sqlite/schema.py`
 
 Snapshot tables:
 

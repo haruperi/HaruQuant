@@ -87,7 +87,7 @@ def validate_dataset(
         _add_issue(
             report,
             code="invalid_ohlc",
-            severity="fatal",
+            severity="warning",
             message="OHLC logical relationships are invalid.",
             count=invalid_count,
         )

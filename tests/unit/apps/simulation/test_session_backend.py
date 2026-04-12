@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from apps.simulation.session_backend import SQLiteSessionRuntimeStore
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 
 
 def test_sqlite_session_runtime_store_lease_lifecycle():

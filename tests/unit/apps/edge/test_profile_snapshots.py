@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from apps.sqlite import SQLiteDatabase
+from backend.db.sqlite import SQLiteDatabase
 
 
 def _snapshot_payload(final_score: float, breakout_score: float) -> dict:

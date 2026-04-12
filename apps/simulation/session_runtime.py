@@ -34,7 +34,7 @@ from apps.simulation.serializers import (
     _serialize_governance_report,
     _serialize_recommendation_batch,
 )
-from apps.sqlite.database_operations import DatabaseManager
+from backend.db.sqlite.database_operations import DatabaseManager
 from apps.trading import Engine, core
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger

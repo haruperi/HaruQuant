@@ -39,7 +39,7 @@ cd haruquant
 pip install -r requirements.txt
 
 # Initialize database
-python -m apps.sqlite.init_database
+python backend/scripts/tools/initialize_database.py
 ```
 
 ### Basic Single-Symbol Backtest

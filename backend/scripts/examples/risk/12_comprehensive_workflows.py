@@ -40,7 +40,7 @@ from apps.risk import (
     RiskRegimeDetector,
 )
 from apps.risk.limits import CorrelationPreference
-from apps.sqlite.users import UserManager
+from backend.db.sqlite.users import UserManager
 from apps.trading import Engine
 
 mt5 = get_mt5_api()
