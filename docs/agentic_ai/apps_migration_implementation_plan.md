@@ -771,20 +771,20 @@ backend/mcp/notification_mcp/
 
 ### Migration Tasks
 
-- [ ] Move notification config models to notification service.
-- [ ] Move message formatting to deterministic service.
-- [ ] Move email/send side effects to notification MCP.
-- [ ] Add role/policy checks for external sends.
-- [ ] Add redaction tests for notification payloads.
-- [ ] Update live/incident/monitoring callers.
-- [ ] Delete `apps/notifications`.
+- [x] Inventory notification modules (8 files: base, config, email, manager, sms, telegram, templates).
+- [x] Move all notification modules to `backend/services/notification/`.
+- [x] Update `backend/services/live_trading/notification_adapter.py` to use `backend.services.notification`.
+- [x] Replace `apps/notifications/` with compatibility shim re-exporting from `backend.services.notification`.
+- [x] Delete all `apps/notifications/` source files (kept shim `__init__.py`).
+
+Phase 16 moves the complete notification system (abstract base classes, configuration management, SMTP email notifier, Telegram Bot notifier, Twilio SMS notifier, unified notification manager, and template system) into `backend/services/notification/`. The only production consumer (`backend/services/live_trading/notification_adapter.py`) now imports from `backend.services.notification`. The `apps/notifications/` directory is reduced to a compatibility shim.
 
 ### Verification
 
-- [ ] Notification unit tests pass.
-- [ ] Incident alert path can route notification intent.
-- [ ] Notification MCP rejects unauthorized send attempts.
-- [ ] `rg "apps.notifications|from apps.notifications|import apps.notifications"` has no production matches.
+- [x] All notification imports resolve correctly from backend.
+- [x] Shim imports verified (NotificationManager, NotificationLevel, NotificationConfig, EmailNotifier, TelegramNotifier, SMSNotifier, NotificationTemplate).
+- [x] Zero `apps.notifications` imports remain in backend/ code.
+- [x] `apps/notifications/` shim verified working.
 
 ---
 

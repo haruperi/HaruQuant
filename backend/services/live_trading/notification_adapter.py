@@ -7,12 +7,12 @@ Supports loading credentials from database or direct configuration.
 from typing import Dict, List, Optional
 
 from backend.common.logger import logger
-from apps.notifications import (
+from backend.services.notification import (
     NotificationLevel,
     NotificationManager,
     NotificationManagerConfig,
 )
-from apps.notifications.config import NotificationConfig
+from backend.services.notification.config import NotificationConfig
 from backend.db.sqlite import SQLiteDatabase
 
 
