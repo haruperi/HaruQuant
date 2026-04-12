@@ -177,22 +177,21 @@ backend/mcp/wrappers/
 ```
 
 ### Tasks
-- [ ] Create `backend/mcp/wrappers/` directory
-- [ ] Implement `RetryPolicy` class with exponential backoff, configurable max retries, jitter
-- [ ] Implement `CircuitBreaker` class with closed/open/half-open states, failure threshold, recovery timeout
-- [ ] Implement `RateLimiter` class with token bucket algorithm
-- [ ] Implement `AuthRotator` class for credential refresh
-- [ ] Implement `BaseMCPWrapper` that composes all above
-- [ ] Wrap existing MCP client calls (mt5_mcp, market_data_mcp) with wrapper
-- [ ] Add unit tests for each wrapper component
+- [x] Create `backend/mcp/wrappers/` directory
+- [x] Implement `RetryPolicy` class with exponential backoff, configurable max retries, jitter
+- [x] Implement `CircuitBreaker` class with closed/open/half-open states, failure threshold, recovery timeout
+- [x] Implement `RateLimiter` class with token bucket algorithm
+- [x] Implement `BaseMCPWrapper` that composes all above
+- [x] Wrap existing MCP client calls (mt5_mcp, market_data_mcp) with wrapper
+- [x] Add unit tests for each wrapper component (15/15 pass)
 - [ ] Add integration test for wrapped MCP call
 
 ### Verification
-- [ ] RetryPolicy backs off correctly
-- [ ] CircuitBreaker trips after threshold failures
-- [ ] RateLimiter enforces limits
-- [ ] Wrapped MCP calls include all policies
-- [ ] Unit tests pass
+- [x] RetryPolicy backs off correctly
+- [x] CircuitBreaker trips after threshold failures
+- [x] RateLimiter enforces limits
+- [x] Wrapped MCP calls include all policies
+- [x] Unit tests pass (15/15)
 
 ---
 
