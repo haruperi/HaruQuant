@@ -1,0 +1,20 @@
+metadata_schema_version: "1.0"
+domain: parameter optimization (grid, random, walk-forward, Monte Carlo)
+owner: quant_team
+side_effect_risk: A
+allowed_callers:
+  - optimization_service
+  - research_service
+credentials: []
+audit_requirements: all optimization runs logged with params and top results
+failure_modes:
+  - timeout → return partial results from completed iterations
+  - out_of_memory → reduce search space, retry
+rate_limits:
+  concurrent_runs: 3
+timeout_budget:
+  grid_search: 600s
+  monte_carlo: 300s
+escalation_owner: quant_oncall
+contract_version: 1.0.0
+deprecation_notes: null

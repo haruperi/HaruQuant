@@ -1,0 +1,23 @@
+metadata_schema_version: "1.0"
+domain: market data (Dukascopy + MT5)
+owner: data_team
+side_effect_risk: A
+allowed_callers:
+  - research_service
+  - simulation_engine
+  - backtest_service
+credentials:
+  - DUKASCOPY_BASE_URL
+audit_requirements: all data fetches logged with symbol and timeframe
+failure_modes:
+  - rate_limited → fallback to cached data if fresh
+  - network_error → retry with backoff, max 3 attempts
+rate_limits:
+  historical: 30/minute
+  live: 60/minute
+timeout_budget:
+  fetch_bars: 15s
+  fetch_ticks: 10s
+escalation_owner: data_oncall
+contract_version: 1.0.0
+deprecation_notes: null

@@ -1,0 +1,18 @@
+metadata_schema_version: "1.0"
+domain: read-only SQL data access
+owner: platform_team
+side_effect_risk: A
+allowed_callers:
+  - all_services
+credentials: []
+audit_requirements: all queries logged with allowlist validation
+failure_modes:
+  - query_not_allowed → return deny reason from allowlist
+  - db_locked → retry with backoff
+rate_limits:
+  queries: 300/minute
+timeout_budget:
+  read_query: 5s
+escalation_owner: platform_oncall
+contract_version: 1.0.0
+deprecation_notes: null

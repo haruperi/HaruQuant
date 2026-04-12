@@ -145,17 +145,17 @@ Add `metadata.yaml` to each `backend/mcp/*/` directory:
 - `sql_mcp/metadata.yaml`
 
 ### Tasks
-- [ ] Create metadata schema (Pydantic model: domain, owner, side_effect_risk, allowed_callers, credentials, audit_requirements, failure_modes, rate_limits, timeout_budget, escalation_owner, contract_version, deprecation_notes)
-- [ ] Create metadata.yaml for each of 6 MCP servers
-- [ ] Create `backend/mcp/metadata_loader.py` to load and validate all metadata at startup
-- [ ] Add metadata validation to MCP server initialization
-- [ ] Add unit tests for metadata loading and validation
+- [x] Create metadata schema (Pydantic model: domain, owner, side_effect_risk, allowed_callers, credentials, audit_requirements, failure_modes, rate_limits, timeout_budget, escalation_owner, contract_version, deprecation_notes)
+- [x] Create metadata.yaml for each of 6 MCP servers
+- [x] Create `backend/mcp/metadata_loader.py` to load and validate all metadata at startup
+- [x] Add metadata validation to MCP server initialization
+- [x] Add unit tests for metadata loading and validation (7/7 pass)
 - [ ] Document metadata schema in `config/mcp_metadata_schema.yaml`
 
 ### Verification
-- [ ] All 6 metadata.yaml files exist and validate
-- [ ] Metadata loader reads all 6 without error
-- [ ] Unit tests pass
+- [x] All 6 metadata.yaml files exist and validate
+- [x] Metadata loader reads all 6 without error
+- [x] Unit tests pass (7/7)
 
 ---
 

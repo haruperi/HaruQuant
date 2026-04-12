@@ -1,0 +1,28 @@
+metadata_schema_version: "1.0"
+domain: mt5 terminal access
+owner: trading_ops_team
+side_effect_risk: C
+allowed_callers:
+  - execution_service
+  - live_trading_engine
+  - simulation_engine
+credentials:
+  - MT5_LOGIN
+  - MT5_PASSWORD
+  - MT5_SERVER
+audit_requirements: all mutating tool calls logged with execution receipt
+failure_modes:
+  - terminal_unavailable → retry with exponential backoff, escalate after 3 failures
+  - auth_expired → refresh credentials, retry once
+  - symbol_not_found → return structured error, do not retry
+rate_limits:
+  bars: 60/minute
+  ticks: 120/minute
+  orders: 30/minute
+timeout_budget:
+  get_bars: 10s
+  place_order: 5s
+  account_info: 3s
+escalation_owner: trading_ops_oncall
+contract_version: 1.0.0
+deprecation_notes: null
