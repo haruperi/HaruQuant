@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.core import Clock
+from backend.common import Clock
 from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
 from backend.contracts.trade_proposal.model import TradeProposal
 

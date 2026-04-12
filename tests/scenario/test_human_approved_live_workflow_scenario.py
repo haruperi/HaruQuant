@@ -5,8 +5,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from apps.core import FixedClock
-from apps.core.settings import load_runtime_settings_from_mapping
+from backend.common import FixedClock
+from backend.common.settings import load_runtime_settings_from_mapping
 from backend.api import build_operator_api_dependencies, create_app
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (

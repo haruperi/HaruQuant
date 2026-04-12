@@ -14,8 +14,8 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.core import FixedClock, generate_prefixed_id  # noqa: E402
-from apps.core.time_utils import evaluate_board_baseline_freshness  # noqa: E402
+from backend.common import FixedClock, generate_prefixed_id  # noqa: E402
+from backend.common.time_utils import evaluate_board_baseline_freshness  # noqa: E402
 from apps.mt5 import get_mt5_api  # noqa: E402
 from apps.trading import Engine, Trade  # noqa: E402
 from backend.contracts.common import Originator  # noqa: E402

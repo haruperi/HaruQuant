@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.core import ValidationError
+from backend.common import ValidationError
 from backend.services.policy import ApprovalPolicy, ComplianceProfile, RetentionPolicy
 
 

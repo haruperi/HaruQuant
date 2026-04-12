@@ -7,7 +7,7 @@ from pathlib import Path
 import sqlite3
 from typing import Any
 
-from apps.core import StaleVersionError, apply_version_update
+from backend.common import StaleVersionError, apply_version_update
 
 
 @dataclass(frozen=True)

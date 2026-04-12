@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.core import generate_id
+from backend.common import generate_id
 from backend.db import GovernanceRepository, StrategyPromotionRecord, StrategyRecord
 
 from .models import StrategyLifecycleState

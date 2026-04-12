@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from apps.core import Clock, SystemClock
-from apps.core.time_utils import evaluate_freshness
+from backend.common import Clock, SystemClock
+from backend.common.time_utils import evaluate_freshness
 
 
 @dataclass(frozen=True)

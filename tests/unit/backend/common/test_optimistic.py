@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from apps.core.optimistic import (
+from backend.common.optimistic import (
     ConcurrencyState,
     StaleVersionError,
     apply_version_update,

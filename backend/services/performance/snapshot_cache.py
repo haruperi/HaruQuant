@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from apps.core import Clock, FreshnessWindow, SystemClock
-from apps.core.time_utils import evaluate_freshness
+from backend.common import Clock, FreshnessWindow, SystemClock
+from backend.common.time_utils import evaluate_freshness
 
 
 SnapshotT = TypeVar("SnapshotT")

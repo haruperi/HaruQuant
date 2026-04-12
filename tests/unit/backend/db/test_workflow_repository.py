@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from apps.core import StaleVersionError
+from backend.common import StaleVersionError
 from backend.db import apply_pending_migrations
 from backend.db.repositories import WorkflowRepository
 

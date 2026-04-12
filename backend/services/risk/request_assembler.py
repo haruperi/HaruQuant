@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.core import generate_prefixed_id
+from backend.common import generate_prefixed_id
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_request.model import (
     ActivePolicyBundle,

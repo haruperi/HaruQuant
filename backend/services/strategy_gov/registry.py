@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.core import ValidationError
+from backend.common import ValidationError
 from backend.db import GovernanceRepository, StrategyRecord
 
 from .models import StrategyLifecycleState

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from apps.core import generate_id
+from backend.common import generate_id
 from backend.db import IncidentRecord, WorkflowRepository
 
 from .comparison import ReconciliationComparison, ReconciliationResultState

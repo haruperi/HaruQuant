@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from apps.core.time_utils import (
+from backend.common.time_utils import (
     BOARD_BASELINE_TTL_POLICY,
     FixedClock,
     SystemClock,

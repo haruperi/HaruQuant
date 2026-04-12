@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.core.ids import generate_id
+from backend.common.ids import generate_id
 from backend.db import IncidentRecord, WorkflowRepository
 
 

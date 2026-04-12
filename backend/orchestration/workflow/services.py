@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 
-from apps.core import ValidationError, generate_id
+from backend.common import ValidationError, generate_id
 from backend.db import WorkflowRecord, WorkflowRepository
 
 from .states import WorkflowState

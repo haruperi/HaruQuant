@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.core.telemetry import InMemoryTelemetry
+from backend.common.telemetry import InMemoryTelemetry
 
 
 def test_emit_event_records_attributes():

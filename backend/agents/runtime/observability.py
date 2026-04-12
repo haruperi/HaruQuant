@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import hashlib
 from typing import Any
 
-from apps.core.ids import generate_prefixed_id
+from backend.common.ids import generate_prefixed_id
 from backend.contracts.serialization import canonical_json_dumps
 from backend.db import ResearchAuditRepository, TrajectoryLogRecord
 from .evaluator import hash_schema_name

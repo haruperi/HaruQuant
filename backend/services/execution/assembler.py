@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
-from apps.core import Clock, SystemClock
-from apps.core.ids import generate_id
+from backend.common import Clock, SystemClock
+from backend.common.ids import generate_id
 from backend.contracts.execution_intent.model import ExecutionIntent, ExecutionIntentPayload
 from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
 from backend.contracts.trade_proposal.model import TradeProposal

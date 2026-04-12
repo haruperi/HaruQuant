@@ -6,8 +6,8 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from apps.core import Clock
-from apps.core.time_utils import evaluate_freshness
+from backend.common import Clock
+from backend.common.time_utils import evaluate_freshness
 from apps.mt5 import MT5Client
 
 from .models import MCPToolSpec

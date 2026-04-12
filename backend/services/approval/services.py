@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import sqlite3
 
-from apps.core import ValidationError, generate_id
+from backend.common import ValidationError, generate_id
 from backend.db import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
 
 from .models import ApprovalState

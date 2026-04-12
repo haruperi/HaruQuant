@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.core.logging import WorkflowLogContext, bind_log_context, get_service_logger
+from backend.common.logging import WorkflowLogContext, bind_log_context, get_service_logger
 
 
 def test_workflow_log_context_serializes_non_empty_fields():

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from statistics import quantiles
 from time import perf_counter
 
-from apps.core import FixedClock
+from backend.common import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,

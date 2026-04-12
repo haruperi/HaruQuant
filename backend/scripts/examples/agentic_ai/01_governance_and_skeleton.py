@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.core import (  # noqa: E402
+from backend.common import (  # noqa: E402
     FixedClock,
     SecretRef,
     SecretRotationPolicy,
@@ -25,7 +25,7 @@ from apps.core import (  # noqa: E402
     redact_secret_mapping,
     select_active_secret_version,
 )
-from apps.core.settings import inject_runtime_settings, load_runtime_settings_from_mapping  # noqa: E402
+from backend.common.settings import inject_runtime_settings, load_runtime_settings_from_mapping  # noqa: E402
 from backend.api import build_operator_api_dependencies, create_app  # noqa: E402
 from backend.contracts import (  # noqa: E402
     SchemaRegistryService,

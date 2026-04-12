@@ -8,7 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 import sqlite3
 
-from apps.core import InfrastructureError
+from backend.common import InfrastructureError
 
 
 @dataclass(frozen=True)

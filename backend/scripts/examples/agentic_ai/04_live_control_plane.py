@@ -24,7 +24,7 @@ from _phase4_common import (
 
 from fastapi.testclient import TestClient
 
-from apps.core import FixedClock
+from backend.common import FixedClock
 from backend.api import build_operator_api_dependencies, create_app
 from backend.contracts.common import Originator
 from backend.contracts.observation_event.model import ObservationEvent, ObservationEventPayload

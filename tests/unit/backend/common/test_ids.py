@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from apps.core.ids import generate_id, generate_prefixed_id
+from backend.common.ids import generate_id, generate_prefixed_id
 
 
 def test_generate_prefixed_id_uses_prefix_format():

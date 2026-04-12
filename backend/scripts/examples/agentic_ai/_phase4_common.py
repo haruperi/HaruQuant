@@ -14,7 +14,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from apps.core.settings import load_runtime_settings_from_mapping  # noqa: E402
+from backend.common.settings import load_runtime_settings_from_mapping  # noqa: E402
 from apps.mt5 import get_mt5_api  # noqa: E402
 from apps.trading import Engine  # noqa: E402
 from backend.contracts.common import Originator  # noqa: E402

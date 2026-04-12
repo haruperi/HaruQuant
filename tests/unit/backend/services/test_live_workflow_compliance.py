@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from apps.core import ValidationError
+from backend.common import ValidationError
 from backend.services.compliance_rollout import require_live_execution_profile
 
 

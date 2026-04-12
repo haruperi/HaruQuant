@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.core import PolicyError
+from backend.common import PolicyError
 
 from .states import WorkflowState
 from .transitions import is_allowed_workflow_transition

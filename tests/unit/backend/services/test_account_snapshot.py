@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from apps.core.time_utils import FixedClock
+from backend.common.time_utils import FixedClock
 from backend.services.risk import AccountSnapshot
 
 

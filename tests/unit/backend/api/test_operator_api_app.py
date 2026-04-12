@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from apps.core.settings import load_runtime_settings_from_mapping
+from backend.common.settings import load_runtime_settings_from_mapping
 from backend.api import build_operator_api_dependencies, create_app
 
 

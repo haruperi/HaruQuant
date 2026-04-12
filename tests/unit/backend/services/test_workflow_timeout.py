@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from apps.core import FixedClock
+from backend.common import FixedClock
 from backend.db import WorkflowRepository, apply_pending_migrations
 from backend.services.monitoring.workflow_timeout import WorkflowTimeoutService
 

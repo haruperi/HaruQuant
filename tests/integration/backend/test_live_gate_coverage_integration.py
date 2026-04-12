@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from apps.core import FixedClock, ValidationError
+from backend.common import FixedClock, ValidationError
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,

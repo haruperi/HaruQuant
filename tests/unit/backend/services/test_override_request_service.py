@@ -1,4 +1,4 @@
-from apps.core import ValidationError
+from backend.common import ValidationError
 from backend.services.approval import OverrideRequestDraft, OverrideRequestService
 
 

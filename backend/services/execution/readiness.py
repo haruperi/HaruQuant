@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from apps.core import Clock
-from apps.core.time_utils import evaluate_freshness
+from backend.common import Clock
+from backend.common.time_utils import evaluate_freshness
 from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
 from backend.contracts.trade_proposal.model import TradeProposal
 from backend.services.risk import (

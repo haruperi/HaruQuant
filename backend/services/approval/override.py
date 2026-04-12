@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from apps.core import ValidationError
+from backend.common import ValidationError
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from apps.core import Clock, SystemClock
+from backend.common import Clock, SystemClock
 from backend.contracts.trade_proposal.model import TradeProposal
 
 

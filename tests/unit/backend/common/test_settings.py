@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from apps.core.settings import (
+from backend.common.settings import (
     DEFAULT_ENVIRONMENT,
     RuntimeSettings,
     SettingsError,

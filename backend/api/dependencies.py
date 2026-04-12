@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from apps.core.settings import RuntimeSettings, load_runtime_settings
+from backend.common.settings import RuntimeSettings, load_runtime_settings
 from backend.contracts import SchemaRegistryService, load_initial_schema_registry_seeds
 from backend.db import GovernanceRepository, apply_pending_migrations
 from backend.services.policy import PolicyResolver

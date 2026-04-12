@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 
-from apps.core import Clock, SystemClock
+from backend.common import Clock, SystemClock
 from backend.db import WorkflowRecord, WorkflowRepository
 
 

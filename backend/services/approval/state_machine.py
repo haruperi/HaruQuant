@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.core import PolicyError
+from backend.common import PolicyError
 
 from .models import ApprovalState
 

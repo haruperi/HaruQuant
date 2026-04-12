@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from apps.core import FixedClock
+from backend.common import FixedClock
 from backend.contracts.trade_proposal.model import TradeProposal
 from backend.services.risk import (
     enforce_risk_decision_expiry,

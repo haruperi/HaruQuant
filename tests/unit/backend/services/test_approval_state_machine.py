@@ -1,4 +1,4 @@
-from apps.core import PolicyError
+from backend.common import PolicyError
 from backend.services.approval import ApprovalState, ApprovalStateMachine
 
 

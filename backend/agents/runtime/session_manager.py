@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from apps.core import generate_id
+from backend.common import generate_id
 
 
 class SessionState(StrEnum):

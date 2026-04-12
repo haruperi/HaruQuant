@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 
-from apps.core.ids import generate_id
+from backend.common.ids import generate_id
 from backend.contracts.common import Originator
 from backend.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
 from backend.contracts.serialization import canonical_json_dumps

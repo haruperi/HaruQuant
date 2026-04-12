@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from apps.core import FixedClock
+from backend.common import FixedClock
 from backend.services.execution import SymbolMetadataCacheEntry, validate_price_freshness
 
 
