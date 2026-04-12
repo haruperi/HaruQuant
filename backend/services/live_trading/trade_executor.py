@@ -6,11 +6,11 @@ Executes trades based on strategy signals with retry logic and error handling.
 import time
 from typing import Dict, Optional, Tuple, Union, cast
 
-from apps.live.position_manager import PositionManager
-from apps.live.mt5_compat import symbol_ask, symbol_bid
+from backend.services.live_trading.position_manager import PositionManager
+from backend.services.live_trading.mt5_compat import symbol_ask, symbol_bid
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp import get_mt5_api
-from apps.trading.trade import Trade
+from backend.services.execution.trade import Trade
 
 
 class TradeExecutor:

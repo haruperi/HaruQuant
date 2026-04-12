@@ -8,7 +8,7 @@ from typing import Tuple
 
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
-from apps.live.mt5_compat import (
+from backend.services.live_trading.mt5_compat import (
     account_balance,
     account_margin_level,
     account_trade_allowed,

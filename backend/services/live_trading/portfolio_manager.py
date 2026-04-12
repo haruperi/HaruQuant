@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.mcp.mt5_mcp import get_mt5_api
-from apps.live.mt5_compat import (
+from backend.services.live_trading.mt5_compat import (
     account_balance,
     account_equity,
     account_free_margin,

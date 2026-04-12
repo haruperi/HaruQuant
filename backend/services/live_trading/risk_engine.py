@@ -12,13 +12,13 @@ from typing import Any, Dict, List, Optional, cast
 import numpy as np
 import pandas as pd
 
-from apps.live.engine import MultiStrategyEngine, StrategyInstance
+from backend.services.live_trading.engine import MultiStrategyEngine, StrategyInstance
 from backend.common.logger import logger
-from apps.risk.core import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine
-from apps.risk.limits import CorrelationPreference, RiskLimits
-from apps.risk.optimization import AllocationPlanner
-from apps.risk.position_sizing import PositionSizer
-from apps.risk.regimes import RegimeState, RiskRegimeDetector
+from backend.services.risk_engine.core import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine
+from backend.services.risk_engine.limits import CorrelationPreference, RiskLimits
+from backend.services.risk_engine.optimization import AllocationPlanner
+from backend.services.risk_engine.position_sizing import PositionSizer
+from backend.services.risk_engine.regimes import RegimeState, RiskRegimeDetector
 
 
 class RiskIntegratedEngine(MultiStrategyEngine):

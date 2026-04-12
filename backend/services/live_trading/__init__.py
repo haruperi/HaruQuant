@@ -1,6 +1,20 @@
 """Live Trading Module.
 
-Compatibility shim: re-exports from backend.services.live_trading.
+This module provides automated live trading capabilities with signal detection,
+trade execution, safety checks, and monitoring.
+
+Unified engine supporting single or multiple strategies with portfolio management:
+- MultiStrategyEngine: Unified engine for one or more strategies
+  - Supports dynamic strategy type loading (TrendFollowing, CloseBreakout, custom)
+  - Portfolio-level risk management
+  - Correlation checks
+  - Dashboard monitoring
+- RiskIntegratedEngine: Advanced engine with institutional-grade risk management
+  - Dynamic position sizing (fixed_risk, Kelly, volatility, etc.)
+  - Regime detection (NORMAL vs STRESS)
+  - Risk budget allocation (risk parity)
+  - Hard risk constraints (VaR, ES, margin, concentration)
+  - Cluster limits per asset class
 """
 
 __all__ = [
@@ -16,7 +30,6 @@ __all__ = [
     "PortfolioManager",
     "MultiStrategyEngine",
     "RiskIntegratedEngine",
-    "LiveTradingSession",
 ]
 
 
@@ -66,8 +79,4 @@ def __getattr__(name: str):
         from backend.services.live_trading.risk_engine import RiskIntegratedEngine
 
         return RiskIntegratedEngine
-    if name == "LiveTradingSession":
-        from backend.services.live_trading.session import LiveTradingSession
-
-        return LiveTradingSession
     raise AttributeError(f"module 'apps.live' has no attribute '{name}'")

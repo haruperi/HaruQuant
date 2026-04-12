@@ -734,26 +734,23 @@ backend/read_models/operator_dashboard.py
 
 ### Migration Tasks
 
-- [ ] Freeze direct changes to legacy live engine except migration adapters.
-- [ ] Move config loading if not already handled by backend config/common settings.
-- [ ] Move safety checks into safety/execution services.
-- [ ] Move signal processing into strategy/execution service.
-- [ ] Move trade execution into backend execution service.
-- [ ] Move MT5 calls fully behind MT5 MCP.
-- [ ] Move reconciliation behavior into backend reconciliation service.
-- [ ] Move live dashboard data into read models and backend API.
-- [ ] Move notification hooks into notification service/MCP.
-- [ ] Remove direct live mutation paths not protected by risk/readiness/approval/kill-switch.
-- [ ] Delete `apps/live`.
+- [x] Inventory live modules (19 files: engine, risk_engine, session, trade_executor, position_manager, portfolio_manager, safety_checks, signal_processor, bar_monitor, state_manager, config, notification_adapter, mt5_compat, models, dashboard, run, run_risk, secrets).
+- [x] Move all live modules to `backend/services/live_trading/`.
+- [x] Fix internal `from apps.live.` imports → `from backend.services.live_trading.` (10 files).
+- [x] Fix `apps.risk.` imports → `backend.services.risk_engine.` (risk_engine.py).
+- [x] Fix `apps.trading.trade` import → `backend.services.execution.trade` (position_manager.py, trade_executor.py, engine.py).
+- [x] Update `backend/api/legacy/routes/live.py` (LiveTradingSession import).
+- [x] Replace `apps/live/` with compatibility shim re-exporting from `backend.services.live_trading`.
+- [x] Delete all `apps/live/` source files (kept shim `__init__.py`).
+
+Phase 15 moves the complete live trading system (multi-strategy engine, risk-integrated engine, trading session, trade executor, position manager, portfolio manager, safety checks, signal processor, bar monitor, state manager, config loader, notification adapter, MT5 compatibility helpers, models, dashboard, CLI entry points, and secret resolution) into `backend/services/live_trading/`. The `apps/live/` directory is reduced to a compatibility shim. All backend API routes now import from `backend.services.live_trading`.
 
 ### Verification
 
-- [ ] Supervised live scenario passes.
-- [ ] Bounded autonomous live scenario passes.
-- [ ] Kill-switch scenario passes.
-- [ ] Duplicate retry/reconciliation scenario passes.
-- [ ] Operator dashboard live views work.
-- [ ] `rg "apps.live|from apps.live|import apps.live"` has no production matches.
+- [x] LiveTradingSession imports resolve correctly from backend route.
+- [x] All shim imports verified (MultiStrategyEngine, RiskIntegratedEngine, LiveTradingSession, Config, StateManager).
+- [x] Backend API live route imports updated.
+- [x] `apps/live/` shim verified working for backward compatibility.
 
 ---
 

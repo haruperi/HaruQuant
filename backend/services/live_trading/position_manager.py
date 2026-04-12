@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
-from apps.trading.trade import Trade
+from backend.services.execution.trade import Trade
 
 
 class PositionManager:

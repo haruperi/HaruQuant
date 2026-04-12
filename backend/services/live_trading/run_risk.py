@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from apps.live.risk_engine import RiskIntegratedEngine
+from backend.services.live_trading.risk_engine import RiskIntegratedEngine
 from backend.common.logger import logger
 
 

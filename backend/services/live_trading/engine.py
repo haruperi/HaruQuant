@@ -1,4 +1,4 @@
-﻿"""Multi-Strategy Live Trading Engine.
+"""Multi-Strategy Live Trading Engine.
 
 Runs multiple strategies on different symbols simultaneously with portfolio-level risk management.
 Uses a single MT5 connection shared across all strategies.
@@ -10,21 +10,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from apps.live.bar_monitor import BarMonitor
-from apps.live.config import load_config_mapping
-from apps.live.notification_adapter import LiveTradingNotifier
-from apps.live.portfolio_manager import PortfolioManager
-from apps.live.position_manager import PositionManager
-from apps.live.safety_checks import SafetyChecker
-from apps.live.signal_processor import SignalProcessor
-from apps.live.state_manager import StateManager
-from apps.live.trade_executor import TradeExecutor
-from apps.live.mt5_compat import account_balance, account_currency, account_leverage
+from backend.services.live_trading.bar_monitor import BarMonitor
+from backend.services.live_trading.config import load_config_mapping
+from backend.services.live_trading.notification_adapter import LiveTradingNotifier
+from backend.services.live_trading.portfolio_manager import PortfolioManager
+from backend.services.live_trading.position_manager import PositionManager
+from backend.services.live_trading.safety_checks import SafetyChecker
+from backend.services.live_trading.signal_processor import SignalProcessor
+from backend.services.live_trading.state_manager import StateManager
+from backend.services.live_trading.trade_executor import TradeExecutor
+from backend.services.live_trading.mt5_compat import account_balance, account_currency, account_leverage
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp import get_mt5_api
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.services.strategy import storage
-from apps.trading.trade import Trade
+from backend.services.execution.trade import Trade
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 from backend.data.strategies.mean_reversion import MeanReversionStrategy
 from backend.data.strategies.trend_following import TrendFollowingStrategy

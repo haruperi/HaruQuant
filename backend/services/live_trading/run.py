@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from apps.live.engine import MultiStrategyEngine
+from backend.services.live_trading.engine import MultiStrategyEngine
 from backend.common.logger import logger
 
 
