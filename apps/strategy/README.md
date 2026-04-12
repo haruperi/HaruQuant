@@ -51,7 +51,7 @@ For a complete runnable example, see [`tests/usage/strategy/demo.py`](../../test
 ```python
 from typing import Optional, Dict, Any
 import pandas as pd
-from apps.indicator import ema
+from backend.services.indicators import ema
 from apps.logger import logger
 from apps.strategy import BaseStrategy
 

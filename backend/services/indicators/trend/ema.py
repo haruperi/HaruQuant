@@ -3,6 +3,11 @@
 import pandas as pd
 
 from backend.common.logger import logger
+from backend.services.indicators.validation import (
+    require_columns,
+    require_dataframe,
+    require_positive_int,
+)
 
 
 def ema(
@@ -16,13 +21,9 @@ def ema(
     support/resistance references. The resulting column is appended as
     ``ema_{span}`` and the input DataFrame is left unchanged.
     """
-    if span <= 0:
-        logger.error("EMA span must be positive")
-        raise ValueError("Span must be positive")
-
-    if price_col not in data.columns:
-        logger.error("EMA price column missing")
-        raise ValueError(f"Price column '{price_col}' is required")
+    require_dataframe(data)
+    require_positive_int(span, name="span")
+    require_columns(data, (price_col,))
 
     logger.debug(f"Calculating EMA with span={span} on column '{price_col}'")
     result = data.copy()

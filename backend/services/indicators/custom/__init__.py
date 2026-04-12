@@ -1,6 +1,6 @@
 """Custom indicators module."""
 
-from apps.indicator.custom.currency_strength import (
+from backend.services.indicators.custom.currency_strength import (
     CURRENCY_PAIRS,
     MAJOR_CURRENCIES,
     calculate_currency_strength,

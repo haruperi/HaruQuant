@@ -3,6 +3,11 @@
 import pandas as pd
 
 from backend.common.logger import logger
+from backend.services.indicators.validation import (
+    require_columns,
+    require_dataframe,
+    require_positive_int,
+)
 
 
 def sma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFrame:
@@ -14,13 +19,9 @@ def sma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFra
     other moving averages. The result is appended as ``sma_{window}`` without
     mutating the input.
     """
-    if window <= 0:
-        logger.error("SMA window must be positive")
-        raise ValueError("Window must be positive")
-
-    if price_col not in data.columns:
-        logger.error("SMA price column missing")
-        raise ValueError(f"Price column '{price_col}' is required")
+    require_dataframe(data)
+    require_positive_int(window, name="window")
+    require_columns(data, (price_col,))
 
     logger.debug(f"Calculating SMA with window={window} on column '{price_col}'")
     result = data.copy()

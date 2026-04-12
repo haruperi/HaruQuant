@@ -18,7 +18,7 @@ from apps.strategy import BaseStrategy
 from apps.strategy.base import SignalDict
 
 # Import indicators as needed
-# from apps.indicator import atr, ema, rsi, sma
+# from backend.services.indicators import atr, ema, rsi, sma
 
 
 class TemplateStrategy(BaseStrategy):

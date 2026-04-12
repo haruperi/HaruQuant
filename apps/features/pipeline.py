@@ -8,13 +8,13 @@ from typing import Any, Dict, Iterable, List, Mapping
 
 import pandas as pd
 
-from apps.indicator.momentum.rsi import rsi as compute_rsi
-from apps.indicator.trend.ema import ema as compute_ema
-from apps.indicator.trend.sma import sma as compute_sma
-from apps.indicator.trend.wma import wma as compute_wma
-from apps.indicator.volatility.atr import atr as compute_atr
-from apps.indicator.volatility.bbands import bbands as compute_bbands
-from apps.indicator.volume.accumulation_distribution import (
+from backend.services.indicators.momentum.rsi import rsi as compute_rsi
+from backend.services.indicators.trend.ema import ema as compute_ema
+from backend.services.indicators.trend.sma import sma as compute_sma
+from backend.services.indicators.trend.wma import wma as compute_wma
+from backend.services.indicators.volatility.atr import atr as compute_atr
+from backend.services.indicators.volatility.bbands import bbands as compute_bbands
+from backend.services.indicators.volume.accumulation_distribution import (
     accumulation_distribution as compute_adl,
 )
 

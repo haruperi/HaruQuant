@@ -295,7 +295,7 @@ GET /api/dashboard/currency-strength
 Main function for complete currency strength analysis.
 
 ```python
-from apps.indicator.custom import currency_strength_indicator
+from backend.services.indicators.custom import currency_strength_indicator
 
 result = currency_strength_indicator(
     pair_data=pair_data,              # Dict[str, pd.DataFrame]
@@ -322,7 +322,7 @@ result = currency_strength_indicator(
 Calculate individual currency strength from multiple pairs.
 
 ```python
-from apps.indicator.custom import calculate_currency_strength
+from backend.services.indicators.custom import calculate_currency_strength
 
 strength_df = calculate_currency_strength(
     pair_data=pair_data,              # Dict[str, pd.DataFrame]
@@ -336,7 +336,7 @@ strength_df = calculate_currency_strength(
 Calculate strength for a single currency pair with timeframe alignment.
 
 ```python
-from apps.indicator.custom import calculate_pair_strength
+from backend.services.indicators.custom import calculate_pair_strength
 
 pair_strength = calculate_pair_strength(
     data=eurusd_data,                 # pd.DataFrame with MultiIndex (time, timeframe)
@@ -353,7 +353,7 @@ pair_strength = calculate_pair_strength(
 
 ```python
 from backend.mcp.mt5_mcp.client import MT5Client
-from apps.indicator.custom import currency_strength_indicator, CURRENCY_PAIRS
+from backend.services.indicators.custom import currency_strength_indicator, CURRENCY_PAIRS
 import pandas as pd
 
 # Fetch multi-timeframe data for short-term trading

@@ -3,6 +3,7 @@
 import pandas as pd
 
 from backend.common.logger import logger
+from backend.services.indicators.validation import require_columns, require_dataframe
 
 
 def accumulation_distribution(data: pd.DataFrame) -> pd.DataFrame:
@@ -24,11 +25,8 @@ def accumulation_distribution(data: pd.DataFrame) -> pd.DataFrame:
     Raises:
         ValueError: If required columns are missing or lengths mismatch.
     """
-    required = {"high", "low", "close", "volume"}
-    if not required.issubset(set(data.columns)):
-        logger.error("Accumulation/Distribution requires high, low, close, volume")
-        missing = required - set(data.columns)
-        raise ValueError(f"Missing required columns: {missing}")
+    require_dataframe(data)
+    require_columns(data, ("high", "low", "close", "volume"))
 
     logger.debug("Calculating Accumulation/Distribution Line")
     price_range = (data["high"] - data["low"]).replace(0, pd.NA)

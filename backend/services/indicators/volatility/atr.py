@@ -3,6 +3,11 @@
 import pandas as pd
 
 from backend.common.logger import logger
+from backend.services.indicators.validation import (
+    require_columns,
+    require_dataframe,
+    require_positive_int,
+)
 
 
 def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:
@@ -27,15 +32,9 @@ def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     Raises:
         ValueError: If period is not positive or required columns are missing.
     """
-    required = {"high", "low", "close"}
-    if period <= 0:
-        logger.error("ATR period must be positive")
-        raise ValueError("Period must be positive")
-
-    if not required.issubset(set(data.columns)):
-        logger.error("ATR requires high, low, and close columns")
-        missing = required - set(data.columns)
-        raise ValueError(f"Missing required columns: {missing}")
+    require_dataframe(data)
+    require_positive_int(period, name="period")
+    require_columns(data, ("high", "low", "close"))
 
     logger.debug(f"Calculating ATR with period={period}")
     prev_close = data["close"].shift(1)

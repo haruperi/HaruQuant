@@ -574,7 +574,7 @@ class PositionSizer:
             return None
 
         # Calculate ATR
-        from apps.indicator.volatility.atr import atr
+        from backend.services.indicators.volatility.atr import atr
 
         data_with_atr = atr(atr_data, period=self.atr_period)
         atr_col = f"atr_{self.atr_period}"

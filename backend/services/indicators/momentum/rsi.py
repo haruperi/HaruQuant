@@ -3,6 +3,11 @@
 import pandas as pd
 
 from backend.common.logger import logger
+from backend.services.indicators.validation import (
+    require_columns,
+    require_dataframe,
+    require_positive_int,
+)
 
 
 def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.DataFrame:
@@ -34,13 +39,9 @@ def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.Da
     Raises:
         ValueError: If period is not positive or price column missing.
     """
-    if period <= 0:
-        logger.error("RSI period must be positive")
-        raise ValueError("Period must be positive")
-
-    if price_col not in data.columns:
-        logger.error("RSI price column missing")
-        raise ValueError(f"Price column '{price_col}' is required")
+    require_dataframe(data)
+    require_positive_int(period, name="period")
+    require_columns(data, (price_col,))
 
     logger.debug(f"Calculating RSI with period={period} on column '{price_col}'")
     close = data[price_col]

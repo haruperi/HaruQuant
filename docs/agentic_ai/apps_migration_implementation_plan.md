@@ -411,18 +411,20 @@ backend/services/indicators/
 
 ### Migration Tasks
 
-- [ ] Inventory indicator modules.
-- [ ] Move pure indicator functions into `backend/services/indicators`.
-- [ ] Keep custom indicator loading bounded and validated.
-- [ ] Add schema validation for indicator inputs.
-- [ ] Update strategy and feature callers.
-- [ ] Delete `apps/indicator`.
+- [x] Inventory indicator modules.
+- [x] Move pure indicator functions into `backend/services/indicators`.
+- [x] Keep custom indicator loading bounded and validated.
+- [x] Add schema validation for indicator inputs.
+- [x] Update strategy and feature callers.
+- [x] Delete `apps/indicator`.
+
+Phase 7 moves trend, momentum, volatility, volume, and bounded custom indicators into `backend/services/indicators`, with shared input validation for deterministic indicator computations.
 
 ### Verification
 
-- [ ] Indicator unit tests pass.
-- [ ] Strategy examples using indicators still run.
-- [ ] `rg "apps.indicator|from apps.indicator|import apps.indicator"` has no production matches.
+- [x] Indicator unit tests pass.
+- [x] Strategy examples using indicators still run.
+- [x] `rg "apps.indicator|from apps.indicator|import apps.indicator"` has no production matches.
 
 ---
 

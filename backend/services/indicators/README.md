@@ -66,7 +66,7 @@ SMA smooths price data by averaging the last `window` observations with equal we
 
 **Example:**
 ```python
-from apps.indicator import sma
+from backend.services.indicators import sma
 import pandas as pd
 
 # Sample data
@@ -106,7 +106,7 @@ EMA smooths price data using exponentially decaying weights so recent values inf
 
 **Example:**
 ```python
-from apps.indicator import ema
+from backend.services.indicators import ema
 import pandas as pd
 
 # Sample data
@@ -145,7 +145,7 @@ WMA assigns linearly increasing weights to recent prices, giving more importance
 
 **Example:**
 ```python
-from apps.indicator import wma
+from backend.services.indicators import wma
 import pandas as pd
 
 # Sample data
@@ -163,7 +163,7 @@ print(result[['close', 'wma_10']])
 **Complete Trend Analysis:**
 
 ```python
-from apps.indicator import sma, ema, wma
+from backend.services.indicators import sma, ema, wma
 import pandas as pd
 
 # Load your data
@@ -224,7 +224,7 @@ RSI compares the magnitude of recent gains to recent losses over a fixed lookbac
 
 **Example:**
 ```python
-from apps.indicator import rsi
+from backend.services.indicators import rsi
 import pandas as pd
 
 # Sample data
@@ -246,7 +246,7 @@ print(result[['close', 'rsi_14', 'overbought', 'oversold']])
 **RSI Trading Signals:**
 
 ```python
-from apps.indicator import rsi
+from backend.services.indicators import rsi
 import pandas as pd
 
 # Load your data
@@ -306,7 +306,7 @@ Those true range values are then exponentially smoothed over `period` bars. High
 
 **Example:**
 ```python
-from apps.indicator import atr
+from backend.services.indicators import atr
 import pandas as pd
 
 # Sample data
@@ -327,7 +327,7 @@ result['position_size'] = 1000 / result['atr_14']  # Risk-based sizing
 **ATR for Stop Loss:**
 
 ```python
-from apps.indicator import atr
+from backend.services.indicators import atr
 import pandas as pd
 
 # Load your data
@@ -374,7 +374,7 @@ Bollinger Bands consist of a middle band (SMA) and two outer bands set at a spec
 
 **Example:**
 ```python
-from apps.indicator.volatility import bbands
+from backend.services.indicators.volatility import bbands
 import pandas as pd
 
 # Sample data
@@ -426,7 +426,7 @@ The Accumulation/Distribution line is a volume-based indicator that measures the
 
 **Example:**
 ```python
-from apps.indicator import accumulation_distribution
+from backend.services.indicators import accumulation_distribution
 import pandas as pd
 
 # Sample data
@@ -454,7 +454,7 @@ result['divergence'] = result['price_trend'] != result['ad_trend']
 ### Complete Technical Analysis
 
 ```python
-from apps.indicator import sma, ema, rsi, atr, accumulation_distribution
+from backend.services.indicators import sma, ema, rsi, atr, accumulation_distribution
 import pandas as pd
 
 # Load your data
@@ -486,7 +486,7 @@ print(result[['close', 'ema_12', 'ema_26', 'rsi_14', 'buy_signal', 'sell_signal'
 ### Strategy Development
 
 ```python
-from apps.indicator import sma, rsi
+from backend.services.indicators import sma, rsi
 import pandas as pd
 
 def moving_average_crossover(data, fast=12, slow=26):
@@ -526,7 +526,7 @@ rsi_strategy = rsi_mean_reversion(data)
 ### Combining Multiple Indicators
 
 ```python
-from apps.indicator import sma, ema, rsi, atr
+from backend.services.indicators import sma, ema, rsi, atr
 import pandas as pd
 
 def multi_indicator_filter(data):
