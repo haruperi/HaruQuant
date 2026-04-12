@@ -75,7 +75,7 @@ class PolicyResolver:
 
     def __init__(self, policy_dir: Optional[Path] = None) -> None:
         if policy_dir is None:
-            policy_dir = Path(__file__).resolve().parent.parent.parent / "config" / "policies"
+            policy_dir = Path(__file__).resolve().parent
         self._policy_dir = policy_dir
         self._policies: Dict[str, PolicyConfig] = {}
         self._scope_index: Dict[str, List[str]] = {}
