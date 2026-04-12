@@ -1,7 +1,8 @@
 """Approval service skeleton modules."""
 
-from .models import ApprovalRequest, ApprovalState
+from .models import ApprovalPacket, ApprovalRequest, ApprovalState, RiskClass
 from .override import OverrideRequestDraft, OverrideRequestService
+from .packet_builder import ApprovalPacketBuilder
 from .services import (
     ApprovalCreateRequest,
     ApprovalCreationService,
@@ -14,6 +15,8 @@ __all__ = [
     "APPROVAL_TRANSITIONS",
     "ApprovalCreateRequest",
     "ApprovalCreationService",
+    "ApprovalPacket",
+    "ApprovalPacketBuilder",
     "ApprovalRequest",
     "ApprovalState",
     "ApprovalStateMachine",
@@ -21,4 +24,5 @@ __all__ = [
     "ApprovalVoteService",
     "OverrideRequestDraft",
     "OverrideRequestService",
+    "RiskClass",
 ]

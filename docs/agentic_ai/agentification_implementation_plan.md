@@ -112,27 +112,18 @@ Approval Packet (Playbook §11.2, §11.3) — model exists but missing evidence,
 Extend `backend/services/approval/models.py` with full `ApprovalPacket` dataclass.
 
 ### Tasks
-- [ ] Create `ApprovalPacket` dataclass with:
-  - `action: str`
-  - `reason: str`
-  - `evidence: list[dict]` (cited evidence sources and summaries)
-  - `confidence: float`
-  - `uncertainty: dict` (what is unknown)
-  - `policy_checks_passed: list[str]`
-  - `risk_class: str` (A/B/C/D/E)
-  - `alternatives_considered: list[str]`
-  - `expected_impact: dict` (financial, operational, risk)
-  - `rollback_plan: str` (compensation action)
-  - `escalation_triggers: list[str]` (policy conflict, missing evidence, repeated failures, security anomaly)
-- [ ] Update `ApprovalRequest` to embed `ApprovalPacket`
-- [ ] Create `ApprovalPacketBuilder` helper in `backend/services/approval/packet_builder.py`
-- [ ] Add validation tests for packet completeness
+- [x] Create `ApprovalPacket` dataclass with all required fields
+- [x] Create `RiskClass` enum (A/B/C/D/E)
+- [x] Update `ApprovalRequest` to embed `ApprovalPacket`
+- [x] Create `ApprovalPacketBuilder` helper in `backend/services/approval/packet_builder.py`
+- [x] Add validation tests for packet completeness (14/14 pass)
 - [ ] Update approval service to require complete packet before dispatch
 - [ ] Update `backend/api/routes/` approval endpoints to return full packet
 
 ### Verification
-- [ ] ApprovalPacket model validates all fields
-- [ ] PacketBuilder produces valid packets
+- [x] ApprovalPacket model validates all fields
+- [x] PacketBuilder produces valid packets
+- [x] Unit tests pass (14/14)
 - [ ] Approval service rejects incomplete packets
 - [ ] API endpoint returns full packet structure
 
