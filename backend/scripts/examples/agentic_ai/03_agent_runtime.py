@@ -78,7 +78,7 @@ from backend.contracts.trade_hypothesis.model import (  # noqa: E402
     TradeHypothesisPayload,
 )
 from backend.contracts.workflow_plan.model import WorkflowPlan, WorkflowPlanPayload  # noqa: E402
-from backend.db import ResearchAuditRepository, WorkflowRepository, apply_pending_migrations  # noqa: E402
+from backend.data.database import ResearchAuditRepository, WorkflowRepository, apply_pending_migrations  # noqa: E402
 
 
 UTC = timezone.utc

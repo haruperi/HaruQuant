@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import WorkflowRepository, apply_pending_migrations
+from backend.data.database import WorkflowRepository, apply_pending_migrations
 from backend.orchestration.workflow import WorkflowStepRecorder, WorkflowStepRequest
 
 

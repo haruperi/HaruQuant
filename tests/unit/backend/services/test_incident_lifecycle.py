@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.db import WorkflowRepository, apply_pending_migrations
+from backend.data.database import WorkflowRepository, apply_pending_migrations
 from backend.services.monitoring.incidents import IncidentLifecycleService
 
 

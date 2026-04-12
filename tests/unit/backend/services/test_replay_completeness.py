@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from backend.contracts.common import Originator
 from backend.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
-from backend.db import ResearchAuditRepository
+from backend.data.database import ResearchAuditRepository
 from backend.services.audit.replay_completeness import ReplayCompletenessChecker
 
 

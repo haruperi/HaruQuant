@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.db import ReplayBundleRecord
+from backend.data.database import ReplayBundleRecord
 from backend.services.audit import build_audit_export_package
 
 

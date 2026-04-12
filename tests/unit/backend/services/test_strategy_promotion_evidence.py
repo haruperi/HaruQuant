@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.db import EvidenceBundleRecord
+from backend.data.database import EvidenceBundleRecord
 from backend.services import (
     PromotionEvidenceValidator,
     StrategyLifecycleState,

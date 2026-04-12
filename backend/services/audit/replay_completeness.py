@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.contracts.replay_bundle.model import ReplayBundle
-from backend.db import ResearchAuditRepository
+from backend.data.database import ResearchAuditRepository
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@ from pathlib import Path
 from statistics import quantiles
 from time import perf_counter
 
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 from backend.read_models.operator_dashboard import build_operator_dashboard_read_model
 
 

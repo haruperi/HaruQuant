@@ -1,4 +1,4 @@
-﻿"""Strategy routes for managing trading strategies."""
+"""Strategy routes for managing trading strategies."""
 
 import os
 import tempfile
@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.common.logger import logger
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
 
 router = APIRouter()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 
 
 def test_risk_decisions_migration_enforces_decision_enum_and_unique_token(tmp_path) -> None:

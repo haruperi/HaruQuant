@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from backend.common.ids import generate_id
-from backend.db import ExecutionReceiptRecord, ExecutionRepository
+from backend.data.database import ExecutionReceiptRecord, ExecutionRepository
 from backend.mcp.mt5_mcp import normalize_broker_response
 
 

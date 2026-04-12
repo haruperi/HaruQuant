@@ -8,7 +8,7 @@ sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 )
 
-from backend.db.sqlite.database_operations import DatabaseManager  # noqa: E402
+from backend.data.database.sqlite.database_operations import DatabaseManager  # noqa: E402
 
 
 def main():

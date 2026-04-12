@@ -16,7 +16,7 @@ from backend.services.execution import core
 from backend.services.execution.trade import Trade
 from backend.services.risk_engine import CorrelationPreference, RiskLimits
 from backend.services.market_data.data_manipulator import TicksGenerator
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.data.strategies.trend_following import TrendFollowingStrategy
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 

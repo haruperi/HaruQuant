@@ -16,7 +16,7 @@ from backend.services.execution.core import (
     TradeRecord,
 )
 from backend.common.logger import logger
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 db_manager = DatabaseManager()

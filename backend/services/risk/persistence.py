@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.db import RiskRepository
+from backend.data.database import RiskRepository
 
 from .decisions import PackedRiskDecisionArtifacts
 

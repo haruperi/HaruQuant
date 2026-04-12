@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 
 from backend.contracts.serialization import canonical_json_dumps
-from backend.db import ExecutionRepository, ExecutionSendAttemptRecord
+from backend.data.database import ExecutionRepository, ExecutionSendAttemptRecord
 
 
 class ExecutionAttemptPersistenceService:

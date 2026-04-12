@@ -6,7 +6,7 @@ from pathlib import Path
 from backend.common import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
-from backend.db import ExecutionRepository, WorkflowRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations
 from backend.services.proposals import (
     ProposalTransformationConfig,
     evaluate_proposal_readiness,

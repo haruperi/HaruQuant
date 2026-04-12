@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from backend.api.auth_utils import get_user_id_from_token
 from backend.api.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp.client import MT5Client
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
 from backend.services.simulation.engine import Engine
 from backend.services.execution import core

@@ -10,7 +10,7 @@ from backend.services.risk_engine import (
 from backend.services.risk_engine.reports import build_replay_report
 from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
 from backend.services.risk_engine.storage import RiskRepository, RiskSnapshotStore
-from backend.db.sqlite import SQLiteDatabase
+from backend.data.database.sqlite import SQLiteDatabase
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 
 

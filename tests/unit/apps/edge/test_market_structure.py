@@ -9,7 +9,7 @@ from backend.services.research.config import MarketStructureConfig
 from backend.services.research.datasets import prepare_ohlcvs_dataset
 from backend.services.research.market_structure import _detect_swings
 from backend.services.research.market_structure import _weighted_group_score
-from backend.db.sqlite import SQLiteDatabase
+from backend.data.database.sqlite import SQLiteDatabase
 
 
 class DummySource:

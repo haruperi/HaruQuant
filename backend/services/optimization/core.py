@@ -1,4 +1,4 @@
-﻿"""
+"""
 Optimization Core.
 
 Background task execution for optimization, walk-forward analysis, and Monte Carlo simulation.
@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from backend.common.logger import logger
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy.storage import StrategyStorage
 from backend.services.market_data.data_getters import load_dukascopy
 from backend.services.market_data.data_validator import DataValidator
@@ -138,7 +138,7 @@ async def run_optimization_task(  # noqa: C901
         if data_source in ["metatrader5", "mt5"]:
             try:
                 from backend.mcp.mt5_mcp.client import MT5Client
-                from backend.db.sqlite.users import UserManager
+                from backend.data.database.sqlite.users import UserManager
 
                 creds = UserManager().get_mt5_credentials(user_id) or {}
                 login = int(creds.get("login") or 0)
@@ -517,7 +517,7 @@ async def run_walk_forward_task(  # noqa: C901
         if data_source in ["metatrader5", "mt5"]:
             try:
                 from backend.mcp.mt5_mcp.client import MT5Client
-                from backend.db.sqlite.users import UserManager
+                from backend.data.database.sqlite.users import UserManager
 
                 creds = UserManager().get_mt5_credentials(user_id) or {}
                 login = int(creds.get("login") or 0)

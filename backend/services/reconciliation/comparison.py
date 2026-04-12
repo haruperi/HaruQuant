@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from enum import StrEnum
 
-from backend.db import ExecutionIntentRecord, ExecutionReceiptRecord
+from backend.data.database import ExecutionIntentRecord, ExecutionReceiptRecord
 
 from .broker_truth import BrokerTruthSnapshot
 

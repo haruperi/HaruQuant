@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.common import ValidationError
-from backend.db import EvidenceBundleRecord
+from backend.data.database import EvidenceBundleRecord
 
 from .models import StrategyLifecycleState
 

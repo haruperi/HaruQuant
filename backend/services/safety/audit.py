@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from backend.db import GovernanceRepository, KillSwitchEventRecord
+from backend.data.database import GovernanceRepository, KillSwitchEventRecord
 from backend.orchestration.workflow import KillSwitchState
 
 

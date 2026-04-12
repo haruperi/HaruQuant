@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 from backend.read_models import build_operator_dashboard_read_model
 
 

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import json
 
 from backend.common import Clock, SystemClock
-from backend.db import WorkflowRecord, WorkflowRepository
+from backend.data.database import WorkflowRecord, WorkflowRepository
 
 
 TERMINAL_WORKFLOW_STATES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}

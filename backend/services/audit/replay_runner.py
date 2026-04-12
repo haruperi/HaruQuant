@@ -7,7 +7,7 @@ import hashlib
 
 from backend.contracts.replay_bundle.model import ReplayBundle
 from backend.contracts.serialization import canonical_json_dumps
-from backend.db import ResearchAuditRepository
+from backend.data.database import ResearchAuditRepository
 
 
 @dataclass(frozen=True)

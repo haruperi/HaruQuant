@@ -16,7 +16,7 @@ from backend.contracts.risk_assessment_decision.model import (
 )
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.db import (
+from backend.data.database import (
     ExecutionRepository,
     GovernanceRepository,
     apply_pending_migrations,

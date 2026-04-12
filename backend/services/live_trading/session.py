@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 
 from backend.services.live_trading.engine import MultiStrategyEngine
 from backend.mcp.mt5_mcp.client import MT5Client
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

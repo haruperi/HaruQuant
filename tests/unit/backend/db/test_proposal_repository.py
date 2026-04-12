@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import ProposalRepository, apply_pending_migrations
+from backend.data.database import ProposalRepository, apply_pending_migrations
 
 
 def test_proposal_repository_persists_state_transitions(tmp_path) -> None:

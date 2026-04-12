@@ -14,7 +14,7 @@ from backend.services.risk_engine import (
 from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
 from backend.services.risk_engine.storage import RiskRepository, RiskScenarioStore, RiskSnapshotStore
 from backend.services.risk_engine.scenarios import ScenarioResult
-from backend.db.sqlite import SQLiteDatabase
+from backend.data.database.sqlite import SQLiteDatabase
 
 
 def _bars(periods: int = 160, start: str = "2024-01-01", scale: float = 1.0) -> pd.DataFrame:

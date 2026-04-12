@@ -5,7 +5,7 @@ from pathlib import Path
 
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import LimitConstraint
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 from backend.services.risk import (
     RiskDecisionEnvelopeContext,
     RiskDecisionPersistenceService,

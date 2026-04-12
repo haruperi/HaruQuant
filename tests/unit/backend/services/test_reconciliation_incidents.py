@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 from backend.services.reconciliation import (
     BrokerTruthSnapshot,
     LocalExecutionTruth,

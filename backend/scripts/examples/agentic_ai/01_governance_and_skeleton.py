@@ -35,7 +35,7 @@ from backend.contracts import (  # noqa: E402
 )
 from backend.contracts.workflow_intent.model import WorkflowIntent, WorkflowIntentPayload  # noqa: E402
 from backend.contracts.workflow_plan.model import WorkflowPlan, WorkflowPlanPayload  # noqa: E402
-from backend.db import (  # noqa: E402
+from backend.data.database import (  # noqa: E402
     GovernanceRepository,
     ResearchAuditRepository,
     WorkflowRepository,

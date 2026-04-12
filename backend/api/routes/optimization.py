@@ -46,7 +46,7 @@ from backend.services.optimization.monte_carlo import (
     profit_target_simulation,
     random_win_rate_simulation,
 )
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 db_manager = DatabaseManager()

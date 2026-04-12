@@ -16,7 +16,7 @@ import pandas as pd
 
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import get_mt5_api
-from backend.db.sqlite.users import UserManager
+from backend.data.database.sqlite.users import UserManager
 
 mt5 = get_mt5_api()
 

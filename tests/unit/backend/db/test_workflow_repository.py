@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.common import StaleVersionError
-from backend.db import apply_pending_migrations
-from backend.db.repositories import WorkflowRepository
+from backend.data.database import apply_pending_migrations
+from backend.data.database.repositories import WorkflowRepository
 
 
 def test_workflow_repository_crud_and_optimistic_lock(tmp_path) -> None:

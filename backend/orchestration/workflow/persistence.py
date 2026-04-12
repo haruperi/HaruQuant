@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
 
-from backend.db import WorkflowRepository
+from backend.data.database import WorkflowRepository
 
 from .states import WorkflowState
 

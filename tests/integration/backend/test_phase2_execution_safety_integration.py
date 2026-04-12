@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.common import FixedClock
-from backend.db import ExecutionRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, apply_pending_migrations
 from backend.mcp.mt5_mcp import MT5ReadOnlyTools
 from backend.orchestration.workflow import KillSwitchState
 from backend.services import (

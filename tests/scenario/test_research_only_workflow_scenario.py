@@ -10,7 +10,7 @@ from backend.agents import (
     CanonicalOutputValidator,
     ResearchAgentWrapper,
 )
-from backend.db import ExecutionRepository, WorkflowRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations
 
 
 class _ScenarioResearchRuntime:

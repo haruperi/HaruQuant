@@ -13,7 +13,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 sys.path.insert(0, PROJECT_ROOT)
 
 from backend.common import generate_prefixed_id  # noqa: E402
-from backend.db import GovernanceRepository, ResearchAuditRepository, apply_pending_migrations  # noqa: E402
+from backend.data.database import GovernanceRepository, ResearchAuditRepository, apply_pending_migrations  # noqa: E402
 from backend.services.evidence import (  # noqa: E402
     EvidenceArtifact,
     EvidenceBundleStorageService,

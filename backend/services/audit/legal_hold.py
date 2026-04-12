@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.db import LegalHoldRecord, ReplayBundleRecord, ResearchAuditRepository
+from backend.data.database import LegalHoldRecord, ReplayBundleRecord, ResearchAuditRepository
 
 
 @dataclass(frozen=True)

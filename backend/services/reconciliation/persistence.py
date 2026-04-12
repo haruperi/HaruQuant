@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.db import ExecutionRepository, ReconciliationRunRecord
+from backend.data.database import ExecutionRepository, ReconciliationRunRecord
 
 from .comparison import ReconciliationComparison
 

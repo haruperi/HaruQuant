@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 from backend.api.auth_utils import verify_token
 from backend.api.models import UpdateUserSettingsRequest, UserSettingsResponse
 from backend.common.logger import logger
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 

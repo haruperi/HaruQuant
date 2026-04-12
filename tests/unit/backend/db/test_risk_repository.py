@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import RiskRepository, apply_pending_migrations
+from backend.data.database import RiskRepository, apply_pending_migrations
 
 
 def test_risk_repository_supports_fetch_by_token_and_expiry(tmp_path) -> None:

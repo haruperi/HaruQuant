@@ -61,9 +61,9 @@ from backend.services.research.reporting import (  # noqa: E402
 )
 from backend.services.research.results_schema import EdgeResult  # noqa: E402
 from backend.common.logger import logger  # noqa: E402
-from backend.db.sqlite import SQLiteDatabase  # noqa: E402
-from backend.db.sqlite.edge_discovery import EdgeDiscoveryManager  # noqa: E402
-from backend.db.sqlite.users import UserManager  # noqa: E402
+from backend.data.database.sqlite import SQLiteDatabase  # noqa: E402
+from backend.data.database.sqlite.edge_discovery import EdgeDiscoveryManager  # noqa: E402
+from backend.data.database.sqlite.users import UserManager  # noqa: E402
 
 
 class DummyMT5Client:

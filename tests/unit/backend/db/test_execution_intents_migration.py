@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 
 
 def test_execution_intents_migration_enforces_idempotency_uniqueness(tmp_path) -> None:

@@ -29,7 +29,7 @@ from backend.contracts.trade_hypothesis.model import (  # noqa: E402
     TradeHypothesisPayload,
 )
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload  # noqa: E402
-from backend.db import (  # noqa: E402
+from backend.data.database import (  # noqa: E402
     ExecutionRepository,
     ResearchAuditRepository,
     WorkflowRepository,

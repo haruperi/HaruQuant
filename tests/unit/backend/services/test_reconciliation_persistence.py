@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import ExecutionRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, apply_pending_migrations
 from backend.services.reconciliation import (
     BrokerTruthSnapshot,
     LocalExecutionTruth,

@@ -8,7 +8,7 @@ from typing import Any
 
 from backend.common.ids import generate_prefixed_id
 from backend.contracts.serialization import canonical_json_dumps
-from backend.db import ResearchAuditRepository, TrajectoryLogRecord
+from backend.data.database import ResearchAuditRepository, TrajectoryLogRecord
 from .evaluator import hash_schema_name
 from .runner import ADKRunRequest, ADKRunResult
 

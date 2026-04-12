@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from backend.db import ExecutionIntentRecord, ExecutionRepository
+from backend.data.database import ExecutionIntentRecord, ExecutionRepository
 from backend.orchestration.workflow import ProposalState
 
 DEFAULT_IN_FLIGHT_EXECUTION_STATUSES: tuple[str, ...] = (

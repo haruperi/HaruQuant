@@ -12,7 +12,7 @@ from backend.contracts.risk_assessment_decision.model import (
 )
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.db import ExecutionRepository, ResearchAuditRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, ResearchAuditRepository, apply_pending_migrations
 from backend.services.audit import ReplayBundleAssembler, build_audit_export_package
 from backend.services.execution import (
     ExecutionAttemptPersistenceService,

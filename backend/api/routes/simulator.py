@@ -53,7 +53,7 @@ from backend.services.simulation.trade_service import (
     place_pending_order as place_pending_order_runtime,
     preview_trade as preview_trade_runtime,
 )
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
 db_manager = DatabaseManager()

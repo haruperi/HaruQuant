@@ -40,7 +40,7 @@ from backend.services.risk_engine import (
     RiskRegimeDetector,
 )
 from backend.services.risk_engine.limits import CorrelationPreference
-from backend.db.sqlite.users import UserManager
+from backend.data.database.sqlite.users import UserManager
 from backend.services.simulation.engine import Engine
 
 mt5 = get_mt5_api()

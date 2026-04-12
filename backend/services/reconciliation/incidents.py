@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from backend.common import generate_id
-from backend.db import IncidentRecord, WorkflowRepository
+from backend.data.database import IncidentRecord, WorkflowRepository
 
 from .comparison import ReconciliationComparison, ReconciliationResultState
 

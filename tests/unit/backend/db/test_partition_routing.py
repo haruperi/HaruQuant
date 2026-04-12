@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.db import resolve_partition_target
+from backend.data.database import resolve_partition_target
 
 
 def test_resolve_partition_target_routes_high_volume_tables_by_month() -> None:

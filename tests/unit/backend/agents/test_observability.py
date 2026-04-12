@@ -12,7 +12,7 @@ from backend.agents import (
     RuntimeTrajectoryLogService,
     build_run_trajectory_log,
 )
-from backend.db import ResearchAuditRepository, apply_pending_migrations
+from backend.data.database import ResearchAuditRepository, apply_pending_migrations
 from backend.agents.runtime.evaluator import hash_schema_name
 
 

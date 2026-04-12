@@ -25,7 +25,7 @@ from backend.contracts.execution_intent.model import (  # noqa: E402
 )
 from backend.contracts.risk_assessment_decision.model import LimitConstraint  # noqa: E402
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload  # noqa: E402
-from backend.db import (  # noqa: E402
+from backend.data.database import (  # noqa: E402
     ExecutionRepository,
     ProposalRepository,
     RiskRepository,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import ResearchAuditRepository, apply_pending_migrations
+from backend.data.database import ResearchAuditRepository, apply_pending_migrations
 from backend.services.audit import ReplayBundleAssembler
 from backend.services.audit.replay_runner import StoredReplayRunner
 

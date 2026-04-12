@@ -10,7 +10,7 @@ from backend.common.ids import generate_id
 from backend.contracts.common import Originator
 from backend.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
 from backend.contracts.serialization import canonical_json_dumps
-from backend.db import ReplayBundleRecord, ResearchAuditRepository
+from backend.data.database import ReplayBundleRecord, ResearchAuditRepository
 
 
 @dataclass(frozen=True)

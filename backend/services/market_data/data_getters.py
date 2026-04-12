@@ -235,7 +235,7 @@ def load_mt5(  # noqa: C901
     """
     try:
         from apps.mt5.client import MT5Client
-        from backend.db.sqlite.users import UserManager
+        from backend.data.database.sqlite.users import UserManager
 
         # Convert string dates to datetime objects if needed
         if isinstance(start_date, str):

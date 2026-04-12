@@ -19,7 +19,7 @@ from backend.agents import (
     attach_prompt_provenance_to_run_result,
     build_run_trajectory_log,
 )
-from backend.db import ResearchAuditRepository, apply_pending_migrations
+from backend.data.database import ResearchAuditRepository, apply_pending_migrations
 
 
 class _FakeProdOrchestratorRuntime:

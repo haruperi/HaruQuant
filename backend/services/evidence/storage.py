@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from backend.common import generate_id
 from backend.contracts.serialization import canonical_json_dumps
-from backend.db import EvidenceBundleRecord, ResearchAuditRepository
+from backend.data.database import EvidenceBundleRecord, ResearchAuditRepository
 
 from .assembler import LifecycleEvidenceBundle
 

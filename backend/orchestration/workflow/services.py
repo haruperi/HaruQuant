@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import json
 
 from backend.common import ValidationError, generate_id
-from backend.db import WorkflowRecord, WorkflowRepository
+from backend.data.database import WorkflowRecord, WorkflowRepository
 
 from .states import WorkflowState
 

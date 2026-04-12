@@ -4,7 +4,7 @@ from pathlib import Path
 
 from backend.contracts.common import Originator
 from backend.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 from backend.services.monitoring import ObservationIngestionService
 
 

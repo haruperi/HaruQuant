@@ -36,7 +36,7 @@ from backend.services.risk_engine import (
 )
 from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
 from backend.services.risk_engine.storage import RiskRepository, RiskSnapshotStore
-from backend.db.sqlite import SQLiteDatabase
+from backend.data.database.sqlite import SQLiteDatabase
 from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
 
 

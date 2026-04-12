@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.db import apply_pending_migrations
+from backend.data.database import apply_pending_migrations
 from backend.orchestration.workflow import KillSwitchState
 from backend.services import KillSwitchAuditService
 

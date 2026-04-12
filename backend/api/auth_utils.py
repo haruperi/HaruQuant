@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import Header, HTTPException, status
 
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.common.security import verify_password
 
 

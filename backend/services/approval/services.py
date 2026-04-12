@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import sqlite3
 
 from backend.common import ValidationError, generate_id
-from backend.db import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
+from backend.data.database import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
 
 from .models import ApprovalState
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.common import ValidationError
-from backend.db import GovernanceRepository, apply_pending_migrations
+from backend.data.database import GovernanceRepository, apply_pending_migrations
 from backend.services.approval import ApprovalCreateRequest, ApprovalCreationService
 
 

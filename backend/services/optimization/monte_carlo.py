@@ -1264,7 +1264,7 @@ def robustness_simulation(
 
     # TODO: Wire to backend backtest repository when available.
     try:
-        from backend.db.repositories.backtest_repository import get_backtest_trades_df
+        from backend.data.database.repositories.backtest_repository import get_backtest_trades_df
         df = get_backtest_trades_df(backtest_id)
     except Exception:
         # Fallback or empty if service not available/mock

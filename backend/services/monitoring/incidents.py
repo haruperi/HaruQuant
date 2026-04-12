@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.common.ids import generate_id
-from backend.db import IncidentRecord, WorkflowRepository
+from backend.data.database import IncidentRecord, WorkflowRepository
 
 
 INCIDENT_STATE_TRANSITIONS: dict[str, frozenset[str]] = {

@@ -60,7 +60,7 @@ from backend.services.research.scorecard import SCORECARD_SPEC_VERSION, build_ed
 from backend.services.research.seasonality import SeasonalityFilters, run_seasonality
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
-from backend.db.sqlite.database_operations import DatabaseManager
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.market_data.data_getters import load_dukascopy
 
 router = APIRouter()
