@@ -28,14 +28,15 @@ from apps.risk.models import PortfolioState, PositionState
 from apps.risk.scoring import RiskScorecard
 from apps.risk.simulation import HypotheticalOrderAction, ReplayFrame, WhatIfEngine
 from apps.risk.storage import RiskRepository, RiskSnapshotStore
-from apps.simulation.serializers import (
+from backend.services.simulation.serializers import (
     _apply_leverage_override_to_state,
     _estimate_state_margin_used,
     _serialize_governance_report,
     _serialize_recommendation_batch,
 )
 from backend.db.sqlite.database_operations import DatabaseManager
-from apps.trading import Engine, core
+from backend.services.simulation.engine import Engine
+from backend.services.execution import core  # migrated from apps.trading
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger
 
@@ -106,7 +107,7 @@ class _EngineSimulatorFacade:
     def __init__(self, engine: Engine):
         self._simulator = engine
         self.engine = engine
-        from apps.trading.trade import Trade
+        from backend.services.execution.trade import Trade
         self.trade_api = Trade(api=self.engine)
 
     @property
@@ -239,7 +240,7 @@ class SimulatorSession:
         self.db = db
         self.engine = Engine(backend="sim")
         self.simulator = _EngineSimulatorFacade(self.engine)
-        from apps.trading.trade import Trade
+        from backend.services.execution.trade import Trade
         self.trade_api = Trade(api=self.engine)
         self.symbols = [
             s.strip().upper()

@@ -37,7 +37,7 @@ from apps.risk import (
 from apps.risk.simulation import ReplayFrame, build_cockpit_state
 from apps.risk.storage import RiskRepository, RiskSnapshotStore
 from backend.db.sqlite import SQLiteDatabase
-from apps.trading import Engine, Trade, core
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
 
 
 TIMEFRAME = "H1"

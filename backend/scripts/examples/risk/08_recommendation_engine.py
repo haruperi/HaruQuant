@@ -40,7 +40,7 @@ from apps.risk import (
     RiskSnapshotEngine,
 )
 from apps.risk.optimization import AllocationOptimizer, HedgeOptimizer, RebalanceSuggestionEngine
-from apps.trading import Engine, Trade, core
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
 
 
 TIMEFRAME = "H1"

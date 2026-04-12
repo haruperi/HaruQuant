@@ -1,9 +1,7 @@
 """
 Simulator package for HaruQuant.
+Compatibility shim: re-export from backend services.
 """
-from .main import Engine
-from .core import *
-from .trade import Trade
-
-
-
+from backend.services.simulation.engine import Engine
+from backend.services.execution.core import *
+from backend.services.execution.trade import Trade

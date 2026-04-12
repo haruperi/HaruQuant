@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.trading import Engine, trade
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
 
 def _seed_tester_deals(now: datetime, engine_instance: Engine) -> None:
     d1 = trade.DealInfo()

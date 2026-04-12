@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from apps.simulation.session_backend import SQLiteSessionRuntimeStore
+from backend.services.simulation.session_backend import SQLiteSessionRuntimeStore
 from backend.db.sqlite.database_operations import DatabaseManager
 
 

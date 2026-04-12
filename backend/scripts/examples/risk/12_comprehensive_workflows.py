@@ -41,7 +41,7 @@ from apps.risk import (
 )
 from apps.risk.limits import CorrelationPreference
 from backend.db.sqlite.users import UserManager
-from apps.trading import Engine
+from backend.services.simulation.engine import Engine
 
 mt5 = get_mt5_api()
 

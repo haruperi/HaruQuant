@@ -29,7 +29,7 @@ from backend.mcp.mt5_mcp import MT5Client, get_mt5_api
 from apps.risk import PositionSizer
 from backend.services.indicators.volatility.atr import atr
 from backend.db.sqlite.users import UserManager
-from apps.trading import Engine
+from backend.services.simulation.engine import Engine
 
 mt5 = get_mt5_api()
 

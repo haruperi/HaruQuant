@@ -9,7 +9,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 
 from backend.common.logger import logger
-from apps.trading import Engine
+from backend.services.simulation.engine import Engine
 
 
 def main():

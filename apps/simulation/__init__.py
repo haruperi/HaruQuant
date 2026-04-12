@@ -1,6 +1,8 @@
-"""Simulation support utilities."""
+"""Simulation support utilities.
+Compatibility shim: re-export from backend services.
+"""
 
-from .session_coordinator import SessionCoordinator
-from .session_manager import SimulatorSessionManager
+from backend.services.simulation.session_coordinator import SessionCoordinator
+from backend.services.simulation.session_manager import SimulatorSessionManager
 
 __all__ = ["SessionCoordinator", "SimulatorSessionManager"]

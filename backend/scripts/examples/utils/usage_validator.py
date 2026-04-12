@@ -278,7 +278,8 @@ if backend == "mt5":
     simulator = mt5
     print("Using: MT5 backend")
 else:
-    from apps.trading.main import Engine, AccountInfo
+    from backend.services.simulation.engine import Engine
+    from backend.services.execution.core import AccountInfo
     account = AccountInfo(mt5_account)
     simulator = Engine(account)
     # Simulator initialization might need custom seeding which isn't standard here anymore without C++, skipping

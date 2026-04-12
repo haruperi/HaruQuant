@@ -12,7 +12,7 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.trading import Engine, Trade  # noqa: E402
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade  # noqa: E402
 from backend.agents import (  # noqa: E402
     ADKRunRequest,
     ADKRunnerConfig,

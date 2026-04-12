@@ -9,7 +9,7 @@ import argparse
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.trading import Engine, trade
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
 
 def _sym_value(symbol, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(symbol, attr_name):

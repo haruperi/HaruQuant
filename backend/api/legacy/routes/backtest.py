@@ -16,7 +16,8 @@ from backend.api.legacy.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.db.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
-from apps.trading import Engine, core
+from backend.services.simulation.engine import Engine
+from backend.services.execution import core
 from backend.services.market_data.data_getters import load_dukascopy
 from backend.services.market_data.data_manipulator import TicksGenerator
 from backend.services.market_data.data_validator import DataValidator

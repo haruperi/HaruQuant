@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import HTTPException
 
-from apps.simulation.session_backend import SessionMetadata
-from apps.simulation.session_coordinator import SessionCoordinator
-from apps.simulation.session_manager import SimulatorSessionManager
+from backend.services.simulation.session_backend import SessionMetadata
+from backend.services.simulation.session_coordinator import SessionCoordinator
+from backend.services.simulation.session_manager import SimulatorSessionManager
 
 
 @dataclass

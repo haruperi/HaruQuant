@@ -10,7 +10,7 @@ from datetime import datetime
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from apps.trading import Engine, trade
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
 def _order_value(order, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(order, attr_name):
         return getattr(order, attr_name)

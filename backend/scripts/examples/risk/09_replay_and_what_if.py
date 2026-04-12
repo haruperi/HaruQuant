@@ -35,7 +35,7 @@ from apps.risk import (
     TimelineReconstructor,
     WhatIfEngine,
 )
-from apps.trading import Engine, Trade, core
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
 from backend.services.market_data.data_manipulator import TicksGenerator
 
 

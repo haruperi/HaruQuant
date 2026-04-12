@@ -12,7 +12,8 @@ import pandas as pd
 
 # Avoid circular imports
 if TYPE_CHECKING:
-    from apps.trading import AccountInfo, OrderInfo, PositionInfo, SymbolInfo, Trade
+    from backend.services.execution.trade import Trade
+    from backend.services.execution.core import AccountInfo, OrderInfo, PositionInfo, SymbolInfo
 
 
 class SignalDict(TypedDict, total=False):

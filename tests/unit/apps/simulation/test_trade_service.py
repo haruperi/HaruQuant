@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from apps.simulation import trade_service
+from backend.services.simulation import trade_service
 
 
 class DummyActive:

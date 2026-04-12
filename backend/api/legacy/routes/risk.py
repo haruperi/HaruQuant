@@ -22,7 +22,7 @@ from apps.risk import (
 )
 from apps.risk.models import AccountState, MarketState, PortfolioState, PositionState, SymbolState
 from apps.risk.regimes import CrisisRegimeDetector, RegimeEngine
-from apps.trading import Engine
+from backend.services.simulation.engine import Engine
 
 router = APIRouter()
 AUTH_HEADER = Header(None)

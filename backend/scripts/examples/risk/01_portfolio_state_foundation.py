@@ -27,7 +27,7 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from apps.risk import PortfolioStateEngine, RiskLimits
-from apps.trading import Engine, Trade, core
+from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
 
 
 TIMEFRAME = "H1"

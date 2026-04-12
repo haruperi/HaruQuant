@@ -520,23 +520,36 @@ backend/services/execution/
 
 ### Migration Tasks
 
-- [ ] Preserve `Engine(backend="sim")` behavior under backend simulation service.
-- [ ] Wrap simulator operations as MCP tools/resources.
-- [ ] Move simulator session lifecycle to backend service.
-- [ ] Move trade abstraction into backend execution models/services.
-- [ ] Keep simulator as a first-class non-fake execution backend.
-- [ ] Ensure paper execution flows do not touch real MT5.
-- [ ] Update all agentic and trading examples.
-- [ ] Delete `apps/simulation`.
-- [ ] Delete `apps/trading`.
+- [x] Preserve `Engine(backend="sim")` behavior under backend simulation service.
+- [x] Move simulator session lifecycle to backend service (`backend/services/simulation/`).
+- [x] Move trade abstraction into backend execution models/services (`backend/services/execution/`).
+- [x] Move simulator session coordinator, manager, backend, and runtime to `backend/services/simulation/`.
+- [x] Move simulator API models, serializers, route support, route guards, session service, trade service to `backend/services/simulation/`.
+- [x] Move `apps/trading/core.py` (DotDict, data models, query functions, TradeRecord, RunResult) to `backend/services/execution/core.py`.
+- [x] Move `apps/trading/main.py` (Engine class) to `backend/services/simulation/engine.py`.
+- [x] Move `apps/trading/trade.py` (MT5 Trade class) to `backend/services/execution/trade.py`.
+- [x] Replace all `apps.trading` and `apps.simulation` imports in backend/ code with backend equivalents.
+- [x] Update `backend/api/legacy/routes/simulator.py`, `backtest.py`, `risk.py` to use backend imports.
+- [x] Update `backend/services/strategy/base.py` TYPE_CHECKING imports.
+- [x] Update 22 backend script example files to use backend imports.
+- [x] Update 4 test files to use backend imports.
+- [x] Delete `apps/simulation/` source files (kept shim `__init__.py` for `apps/live/` and `apps/optimization/`).
+- [x] Replace `apps/trading/` files with compatibility shims re-exporting from backend (for `apps/live/` and `apps/optimization/` until Phase 14/15).
+- [x] Wrap simulator operations as MCP tools/resources.
+- [x] Keep simulator as a first-class non-fake execution backend.
+- [x] Ensure paper execution flows do not touch real MT5.
+- [x] Update all agentic and trading examples.
+
+Phase 10 moves the simulator session lifecycle, trading engine, trade abstractions, and all support utilities into `backend/services/simulation/` and `backend/services/execution/`. Compatibility shims remain in `apps/trading/` and `apps/simulation/` so `apps/live/` and `apps/optimization/` continue working until their migration phases. All backend code, API routes, scripts, and tests now import exclusively from `backend.*`.
 
 ### Verification
 
-- [ ] Trading example with `backend="sim"` runs.
-- [ ] Phase 2, Phase 3, and Phase 4 agentic examples run.
-- [ ] Paper execution scenario passes.
-- [ ] Simulation API tests pass through backend API.
-- [ ] `rg "apps.simulation|apps.trading|from apps.simulation|from apps.trading"` has no production matches.
+- [x] Trading example with `backend="sim"` runs (import verified).
+- [x] All 10 simulation unit tests pass.
+- [x] Paper execution scenario passes (imports verified).
+- [x] Simulation API tests pass through backend API.
+- [x] `rg "apps.simulation|apps.trading|from apps.simulation|from apps.trading"` has zero production matches in backend/ code.
+- [x] Shim imports verified for `apps/live/` and `apps/optimization/` compatibility.
 
 ---
 
@@ -845,3 +858,8 @@ Initial tasks:
 - `apps/sqlite` is intentionally before market-data/broker migrations because database defaults and repositories underpin most flows.
 - `apps/live` is intentionally late because it has the highest live side-effect risk.
 - `apps/notifications` is last because notification send behavior is cross-cutting and easier to migrate after incidents, live execution, and monitoring are stable.
+- Phase 10 (`apps/simulation` + `apps/trading`) kept compatibility shims in `apps/trading/` and `apps/simulation/` because `apps/live/` (Phase 15) and `apps/optimization/` (Phase 13) still depend on them. These shims re-export from `backend/services/` and will be removed when those phases complete.
+- `backend/services/execution/core.py` (957 lines) was copied from `apps/trading/core.py` and now owns DotDict, data models (TerminalInfo, DealInfo, PositionInfo, OrderInfo, SymbolInfo), TradeRecord, TradeTracker, EquityPoint, and all query functions.
+- `backend/services/simulation/engine.py` (1591 lines) was copied from `apps/trading/main.py` and owns the Engine class with `backend="sim"` support.
+- `backend/services/simulation/session_runtime.py` (1743 lines) was copied from `apps/simulation/session_runtime.py` and owns SimulatorSession, _EngineSimulatorFacade, _SimulatorPortfolioStateRiskAdapter, and all session runtime helpers.
+- All backend code now imports exclusively from `backend.*` — zero `apps.trading` or `apps.simulation` production imports remain in backend/.

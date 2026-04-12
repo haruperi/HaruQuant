@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from apps.risk.core.portfolio_risk_engine import PortfolioRiskEngine
 from apps.risk.models import PortfolioState
 
+
 def _serialize_limit_events(events: Optional[List[Any]]) -> list[dict]:
     def _json_safe_number(value: Any) -> Any:
         if isinstance(value, (int, float)):
@@ -202,6 +203,9 @@ def _estimate_state_margin_used(state: PortfolioState) -> float:
     }
     if not positions:
         return 0.0
+    # NOTE: This requires apps.risk still being available.
+    # Once apps.risk is migrated to backend/services/risk, update this import.
+    from backend.services.simulation.session_runtime import _SimulatorPortfolioStateRiskAdapter
     risk_engine = PortfolioRiskEngine(
         mt5_client=_SimulatorPortfolioStateRiskAdapter(state),
         timeframe=str(state.metadata.get("timeframe", "H1")),
@@ -368,4 +372,3 @@ def _serialize_what_if_comparison(comparison: Any) -> dict:
             ),
         },
     }
-
