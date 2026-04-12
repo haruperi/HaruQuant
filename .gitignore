@@ -742,3 +742,4 @@ mt5_exports/
 !ui/app/data/
 !ui/components/data/
 !ui/lib/
+.benchmarks/  
