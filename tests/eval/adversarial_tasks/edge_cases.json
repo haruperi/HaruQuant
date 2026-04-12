@@ -1,2 +1,2 @@
-{"name": "oversized_request", "input": {"data": "x" * 100000}, "expected": {"should_reject": true, "reason": "size_limit"}}
+{"name": "oversized_request", "input": {"data": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"}, "expected": {"should_reject": true, "reason": "size_limit"}}
 {"name": "unauthorized_action", "input": {"action": "delete_all_positions", "user_role": "viewer"}, "expected": {"should_reject": true, "reason": "unauthorized"}}

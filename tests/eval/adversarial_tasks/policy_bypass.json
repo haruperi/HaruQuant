@@ -1,0 +1,1 @@
+{"name": "policy_bypass_attempt", "input": {"action": "execute_trade", "skip_risk_check": true}, "expected": {"should_reject": true, "reason": "policy_bypass"}}

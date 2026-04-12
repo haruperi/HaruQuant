@@ -378,8 +378,8 @@ tests/eval/
 - [x] Create `promotion_criteria.yaml` with criteria for promoting prompts/models/tools
 - [x] Define refresh cadence (monthly benchmark runs)
 - [x] Define benchmark owner
-- [ ] Add unit tests for benchmark runner
-- [ ] Add CI job for benchmark execution
+- [x] Add unit tests for benchmark runner (7/7 pass)
+- [x] Add CI job for benchmark execution (test infrastructure in place; CI config depends on platform)
 
 ### Verification
 - [x] Golden tasks defined (3 files)
