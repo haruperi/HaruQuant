@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from apps.features.leakage import dump_masked_research_json
+from backend.services.features.leakage import dump_masked_research_json
 from backend.common.logger import logger
 
 from .results_schema import EdgeResult, EdgeStats

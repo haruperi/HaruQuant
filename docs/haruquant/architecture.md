@@ -1643,9 +1643,10 @@
 ## Feature Pipeline (IP-13)
 
 - Core module:
-  - `apps/features/pipeline.py`
+  - `backend/services/features/pipeline.py`
 - Capabilities:
   - versioned feature pipeline metadata (`pipeline_version`)
+  - deterministic feature pipeline fingerprint/provenance metadata
   - batch feature computation (`compute_batch`)
   - incremental streaming feature updates (`compute_incremental`)
   - inspectable feature dependency graph (`inspect_graph`)
@@ -1663,13 +1664,13 @@
 ## Leakage Prevention and Split Enforcement (IP-14)
 
 - Core module:
-  - `apps/features/leakage.py`
+  - `backend/services/features/leakage.py`
 - Capabilities:
   - point-in-time/no-lookahead validation for computed features
   - chronological train/validation/test split enforcement with optional purge gap
   - sensitive-field masking helper for research artifacts
 - Integration:
-  - `apps/edge/reporting.py::save_json` now masks artifact payloads before writing JSON reports
+  - `apps/edge/reporting.py::save_json` uses `backend.services.features.leakage` to mask artifact payloads before writing JSON reports
 - Evidence:
   - `tests/contracts/test_no_lookahead.py`
   - `tests/integration/test_split_enforcement.py`

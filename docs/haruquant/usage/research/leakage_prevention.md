@@ -3,7 +3,7 @@
 ## Scope
 
 Implemented in:
-- `apps/features/leakage.py`
+- `backend/services/features/leakage.py`
 
 Provides:
 - point-in-time (PIT) no-lookahead feature validation

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Mapping
@@ -44,17 +46,30 @@ class FeaturePipeline:
 
     def describe(self) -> Dict[str, Any]:
         """Return pipeline metadata for run manifests/inspection."""
-        return {
+        payload = {
             "pipeline_version": self.pipeline_version,
             "max_buffer_bars": self.max_buffer_bars,
             "features": [asdict(spec) for spec in self._features],
         }
+        payload["pipeline_fingerprint"] = self.fingerprint()
+        return payload
+
+    def fingerprint(self) -> str:
+        """Return a deterministic sha256 fingerprint for this pipeline definition."""
+        payload = {
+            "pipeline_version": self.pipeline_version,
+            "max_buffer_bars": self.max_buffer_bars,
+            "features": [asdict(spec) for spec in self._features],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        return f"sha256:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
 
     def compute_batch(self, data: pd.DataFrame) -> pd.DataFrame:
         """Compute all configured features on a batch DataFrame."""
         result = data.copy()
         for spec in self._features:
             result = self._apply_feature(result, spec)
+        result.attrs["feature_provenance"] = self._build_provenance(data)
         return result
 
     def compute_incremental(
@@ -100,6 +115,8 @@ class FeaturePipeline:
         latest = enriched.iloc[-1].to_dict()
         latest["timestamp"] = enriched.index[-1]
         latest["symbol"] = symbol
+        latest["feature_provenance"] = self._build_provenance(merged)
+        latest["feature_pipeline_fingerprint"] = self.fingerprint()
         return latest
 
     def inspect_graph(self) -> Dict[str, Any]:
@@ -159,6 +176,18 @@ class FeaturePipeline:
             return compute_adl(data)
 
         raise ValueError(f"unsupported feature: {spec.name}")
+
+    def _build_provenance(self, source: pd.DataFrame) -> Dict[str, Any]:
+        index = source.index if isinstance(source.index, pd.DatetimeIndex) else None
+        return {
+            "pipeline_version": self.pipeline_version,
+            "pipeline_fingerprint": self.fingerprint(),
+            "features": [asdict(spec) for spec in self._features],
+            "source_rows": int(len(source)),
+            "source_columns": [str(col) for col in source.columns],
+            "source_start": index.min().isoformat() if index is not None and len(index) else None,
+            "source_end": index.max().isoformat() if index is not None and len(index) else None,
+        }
 
     @staticmethod
     def _normalize_timestamp(value: Any) -> datetime:

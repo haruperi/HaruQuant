@@ -3,7 +3,7 @@
 Date: 2026-02-17
 
 Configuration:
-- Python feature pipeline: `apps/features/pipeline.py`
+- Python feature pipeline: `backend/services/features/pipeline.py`
 - Features: `sma(20), ema(20), rsi(14), atr(14), bbands(20,2.0), adl`
 - Dataset: 1,000 synthetic 1-minute bars
 - Machine: local dev environment

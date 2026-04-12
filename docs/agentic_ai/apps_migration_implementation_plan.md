@@ -444,18 +444,20 @@ backend/services/features/
 
 ### Migration Tasks
 
-- [ ] Move leakage utilities.
-- [ ] Move feature pipeline models.
-- [ ] Add deterministic feature pipeline tests.
-- [ ] Ensure feature outputs include provenance/fingerprint metadata.
-- [ ] Integrate with research and simulation services.
-- [ ] Delete `apps/features`.
+- [x] Move leakage utilities.
+- [x] Move feature pipeline models.
+- [x] Add deterministic feature pipeline tests.
+- [x] Ensure feature outputs include provenance/fingerprint metadata.
+- [x] Integrate with research and simulation services.
+- [x] Delete `apps/features`.
+
+Phase 8 moves feature engineering and leakage controls into `backend/services/features`. Batch and streaming feature outputs now expose deterministic pipeline fingerprints and provenance metadata for research/replay traceability.
 
 ### Verification
 
-- [ ] Feature unit tests pass.
-- [ ] Research/edge tests using features pass.
-- [ ] `rg "apps.features|from apps.features|import apps.features"` has no production matches.
+- [x] Feature unit tests pass.
+- [x] Research/edge tests using features pass.
+- [x] `rg "apps.features|from apps.features|import apps.features"` has no production matches.
 
 ---
 

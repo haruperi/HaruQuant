@@ -3,10 +3,11 @@
 ## Scope
 
 Implemented in:
-- `apps/features/pipeline.py`
+- `backend/services/features/pipeline.py`
 
 Provides:
 - versioned feature pipeline metadata
+- deterministic feature pipeline fingerprint metadata
 - batch feature computation over historical bars
 - incremental (streaming) feature computation with per-symbol buffers
 - inspectable feature dependency graph
