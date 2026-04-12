@@ -208,24 +208,19 @@ backend/agents/intent_router.py    # ADK router agent
 ```
 
 ### Tasks
-- [ ] Create `backend/api/router.py` with:
-  - `IntentClassifier` (rule-based + optional ML model)
-  - Intent categories: `market_data`, `research`, `execution`, `optimization`, `backtest`, `risk`, `live_trading`, `settings`
-  - Routing metadata standard: `intent`, `priority`, `session_id`, `user_id`
-  - Fallback routing for unknown intents
-  - First-pass policy check before dispatch
-- [ ] Create `backend/agents/intent_router.py` ADK router agent
-- [ ] Wire router into `backend/api/main.py` before route dispatch
-- [ ] Add routing metadata to all API request contexts
-- [ ] Add unit tests for intent classification (happy path + edge cases)
-- [ ] Add fallback routing test
+- [x] Create `backend/api/router.py` with IntentClassifier, Intent enum, RoutingMetadata
+- [x] Create `backend/agents/intent_router.py` ADK router agent
+- [x] Wire router into `backend/api/main.py` before route dispatch
+- [x] Add routing metadata to all API request contexts
+- [x] Add unit tests for intent classification (happy path + edge cases) (17/17 pass)
+- [x] Add fallback routing test
 
 ### Verification
-- [ ] IntentClassifier correctly classifies 10+ sample requests
-- [ ] Unknown intent falls back to default handler
-- [ ] Policy check blocks unauthorized intents
-- [ ] Router agent dispatches to correct workflow
-- [ ] Unit tests pass
+- [x] IntentClassifier correctly classifies 10+ sample requests
+- [x] Unknown intent falls back to default handler
+- [x] Policy check blocks unauthorized intents
+- [x] Router agent dispatches to correct workflow
+- [x] Unit tests pass (17/17)
 
 ---
 
