@@ -1,6 +1,6 @@
 import numpy as np
 
-from apps.finance import drawdowns, ratios
+from backend.services.analytics import drawdowns, ratios
 
 
 def test_core_trade_metrics_use_shared_array_math():

@@ -70,9 +70,9 @@ from .features import (
     std,
     zscore,
 )
-from apps.finance.drawdowns import max_drawdown
-from apps.finance.metrics import median_mae_mfe, win_rate_fraction as win_rate
-from apps.finance.ratios import (
+from backend.services.analytics.drawdowns import max_drawdown
+from backend.services.analytics.metrics import median_mae_mfe, win_rate_fraction as win_rate
+from backend.services.analytics.ratios import (
     calmar_ratio,
     expectancy,
     profit_factor,

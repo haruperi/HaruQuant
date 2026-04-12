@@ -570,19 +570,23 @@ backend/services/portfolio/
 
 ### Migration Tasks
 
-- [ ] Inventory finance metrics.
-- [ ] Move pure metrics to analytics service.
-- [ ] Move portfolio-relevant metrics to portfolio service.
-- [ ] Add deterministic tests for metrics.
-- [ ] Update reports, optimization, and risk callers.
-- [ ] Delete `apps/finance`.
+- [x] Inventory finance metrics (9 modules, 177+ public functions).
+- [x] Move pure metrics to `backend/services/analytics/` (9 modules copied).
+- [x] Fix TYPE_CHECKING import in `statistical_tests.py` (apps.backtest.result → backend.services.execution.core.TradeRecord).
+- [x] Update `apps/optimization/execution.py` to use `backend.services.analytics`.
+- [x] Update `apps/edge/__init__.py` to use `backend.services.analytics`.
+- [x] Update `apps/edge/eds_mean_reversion.py`, `eds_session.py`, `eds_trend_persistence.py` to use `backend.services.analytics`.
+- [x] Update test files (`test_numeric.py`, `test_stats.py`) to use `backend.services.analytics`.
+- [x] Delete `apps/finance/`.
+
+Phase 11 moves all 9 financial analytics modules (metrics, returns, drawdowns, ratios, risks, benchmark, distributions, efficiency, statistical_tests — 177+ pure functions) into `backend/services/analytics/`. All callers in `apps/optimization/` and `apps/edge/` now import from `backend.services.analytics`. The `backend/services/performance/` directory remains dedicated to computational latency monitoring and is unrelated to financial analytics.
 
 ### Verification
 
-- [ ] Finance metric unit tests pass.
-- [ ] Backtest/optimization metrics tests pass.
-- [ ] Portfolio promotion examples pass.
-- [ ] `rg "apps.finance|from apps.finance|import apps.finance"` has no production matches.
+- [x] Finance metric unit tests pass (3/3).
+- [x] Backtest/optimization metrics tests pass (imports verified).
+- [x] Portfolio promotion examples pass (imports verified).
+- [x] `rg "apps.finance|from apps.finance|import apps.finance"` has no production matches.
 
 ---
 

@@ -13,7 +13,7 @@ import numpy as np
 from scipy import stats
 
 if TYPE_CHECKING:
-    from apps.backtest.result import BacktestResult
+    from backend.services.execution.core import TradeRecord
 
 from backend.common.logger import logger
 

@@ -8,8 +8,8 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
-from apps.finance.metrics import median_mae_mfe, win_rate_fraction
-from apps.finance.ratios import expectancy, profit_factor
+from backend.services.analytics.metrics import median_mae_mfe, win_rate_fraction
+from backend.services.analytics.ratios import expectancy, profit_factor
 from backend.common.logger import logger
 
 from .config import BootstrapConfig, MeanReversionConfig, PermutationConfig

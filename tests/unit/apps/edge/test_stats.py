@@ -1,6 +1,6 @@
 import numpy as np
 
-from apps.finance import metrics
+from backend.services.analytics import metrics
 
 
 def test_edge_stats_compute_trade_metrics():

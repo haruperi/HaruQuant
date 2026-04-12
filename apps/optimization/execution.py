@@ -10,9 +10,9 @@ from typing import Any, Dict, Type, cast
 
 import pandas as pd
 
-from apps.finance import drawdowns, metrics, ratios, returns
+from backend.services.analytics import drawdowns, metrics, ratios, returns
 from backend.services.strategy import BaseStrategy
-from apps.trading import Engine
+from backend.services.simulation.engine import Engine
 from backend.services.market_data.data_manipulator import TicksGenerator
 
 
