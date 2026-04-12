@@ -137,7 +137,7 @@ async def run_optimization_task(  # noqa: C901
 
         if data_source in ["metatrader5", "mt5"]:
             try:
-                from apps.mt5.client import MT5Client
+                from backend.mcp.mt5_mcp.client import MT5Client
                 from backend.db.sqlite.users import UserManager
 
                 creds = UserManager().get_mt5_credentials(user_id) or {}
@@ -516,7 +516,7 @@ async def run_walk_forward_task(  # noqa: C901
 
         if data_source in ["metatrader5", "mt5"]:
             try:
-                from apps.mt5.client import MT5Client
+                from backend.mcp.mt5_mcp.client import MT5Client
                 from backend.db.sqlite.users import UserManager
 
                 creds = UserManager().get_mt5_credentials(user_id) or {}

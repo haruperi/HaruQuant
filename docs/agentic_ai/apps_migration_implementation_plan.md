@@ -375,21 +375,23 @@ backend/mcp/mt5_mcp/
 
 ### Migration Tasks
 
-- [ ] Inventory all direct MT5 client imports.
-- [ ] Move read-only account/symbol/position/order/tick operations into MT5 MCP resources/tools.
-- [ ] Move side-effecting order operations into MT5 MCP mutating tools.
-- [ ] Enforce auth roles for mutating tools.
-- [ ] Enforce stale-input rejection for execution-critical calls.
-- [ ] Ensure execution service is the only caller of mutating MT5 tools.
-- [ ] Update live/trading/simulation examples.
-- [ ] Delete `apps/mt5`.
+- [x] Inventory all direct MT5 client imports.
+- [x] Move read-only account/symbol/position/order/tick operations into MT5 MCP resources/tools.
+- [x] Move side-effecting order operations into MT5 MCP mutating tools.
+- [x] Enforce auth roles for mutating tools.
+- [x] Enforce stale-input rejection for execution-critical calls.
+- [x] Ensure execution service is the only caller of mutating MT5 tools.
+- [x] Update live/trading/simulation examples.
+- [x] Delete `apps/mt5`.
+
+Phase 6 moves the MT5 terminal transport, shared MT5 API wrapper, utility helpers, and version metadata into `backend/mcp/mt5_mcp`. Downstream legacy packages now import MT5 access through the backend MCP boundary while remaining package migrations continue.
 
 ### Verification
 
-- [ ] MT5 MCP unit tests pass.
-- [ ] Execution readiness and reconciliation tests pass.
-- [ ] No direct MT5 mutation import outside `backend/mcp/mt5_mcp`.
-- [ ] `rg "apps.mt5|from apps.mt5|import apps.mt5"` has no production matches.
+- [x] MT5 MCP unit tests pass.
+- [x] Execution readiness and reconciliation tests pass.
+- [x] No direct MT5 mutation import outside `backend/mcp/mt5_mcp`.
+- [x] `rg "apps.mt5|from apps.mt5|import apps.mt5"` has no production matches.
 
 ---
 

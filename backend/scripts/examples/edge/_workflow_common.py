@@ -12,7 +12,7 @@ if str(ROOT_DIR) not in sys.path:
 from apps.edge import CleaningConfig, EnrichmentConfig, build_core_metric_profile, build_market_structure_profile, prepare_ohlcvs_dataset
 from apps.edge.scorecard import build_edge_lab_scorecard_report
 from apps.edge.seasonality import SeasonalityFilters, run_seasonality
-from apps.mt5 import MT5Utils
+from backend.mcp.mt5_mcp import MT5Utils
 from backend.db.sqlite import SQLiteDatabase
 
 

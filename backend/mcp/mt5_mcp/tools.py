@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 from backend.common import Clock
 from backend.common.time_utils import evaluate_freshness
-from apps.mt5 import MT5Client
+from backend.mcp.mt5_mcp.client import MT5Client
 
 from .models import MCPToolSpec
 

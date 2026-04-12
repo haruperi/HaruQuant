@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.mt5 import MT5Client
+from backend.mcp.mt5_mcp.client import MT5Client
 
 from .models import MCPToolSpec
 from .tools import MUTATING_TOOL_SPECS, READ_ONLY_TOOL_SPECS

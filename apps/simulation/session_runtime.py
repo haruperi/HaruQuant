@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from backend.api.legacy.websocket import backtest_log_manager
-from apps.mt5 import get_mt5_api
-from apps.mt5.client import MT5Client
+from backend.mcp.mt5_mcp import get_mt5_api
+from backend.mcp.mt5_mcp.client import MT5Client
 from apps.risk.core import PortfolioStateEngine
 from apps.risk.core.governance_engine import GovernanceEngine
 from apps.risk.core.portfolio_risk_engine import PortfolioRiskEngine

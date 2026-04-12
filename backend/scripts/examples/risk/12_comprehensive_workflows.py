@@ -30,7 +30,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.mt5 import MT5Client, get_mt5_api
+from backend.mcp.mt5_mcp import MT5Client, get_mt5_api
 from apps.risk import (
     AllocationPlanner,
     GovernanceEngine,

@@ -60,7 +60,7 @@
   - `apps/simulation/`
   - `apps/risk/`
   - `apps/optimization/`
-  - `apps/mt5/`
+  - `backend/mcp/mt5_mcp/`
   - `backend/db/sqlite/`
   - `apps/strategy/`
 - The intended migration direction is additive:
@@ -1178,7 +1178,7 @@
 - C++ simulator execution path:
   - `haruquant.sim.CTrade` (for simulation/backtest)
 - Live MT5 execution path:
-  - `apps.mt5.Trade` (Python MT5 transport)
+  - `backend.mcp.mt5_mcp` (governed Python MT5 MCP transport)
 - Usage split:
   - `tests/usage/trade/trade_cpp_example.py` -> C++ simulator execution
   - `tests/usage/trade/trade_example.py` -> live MT5 execution

@@ -701,7 +701,7 @@ Then update the code to check for override first.
 
 **Solution**:
 
-1. **Reduced Log Verbosity** (`apps/mt5/client.py`):
+1. **Reduced Log Verbosity** (`backend/mcp/mt5_mcp/client.py`):
    - Changed routine operations from INFO to DEBUG
    - Account/terminal/symbol info fetches now only logged at DEBUG level
 

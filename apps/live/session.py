@@ -8,7 +8,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from apps.live.engine import MultiStrategyEngine
-from apps.mt5.client import MT5Client
+from backend.mcp.mt5_mcp.client import MT5Client
 from backend.db.sqlite.database_operations import DatabaseManager
 
 logger = logging.getLogger(__name__)

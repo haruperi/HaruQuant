@@ -58,7 +58,7 @@ from backend.common.logger import logger  # noqa: E402
 def create_mt5_source():
     """Create MT5 data source with connection handling."""
     try:
-        from apps.mt5.client import MT5Client
+        from backend.mcp.mt5_mcp.client import MT5Client
 
         client = MT5Client()
         if client.is_connected():

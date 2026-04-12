@@ -293,7 +293,7 @@ print(f"Best Sharpe Ratio: {results['best_score']:.2f}")
 Connect to MetaTrader 5 for automated trading.
 
 ```python
-from apps.mt5.client import MT5Client
+from backend.mcp.mt5_mcp.client import MT5Client
 from apps.live.portfolio_manager import PortfolioManager
 
 # Connect to MT5

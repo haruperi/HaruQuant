@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 import pandas as pd
 
 from backend.common.logger import logger
-from apps.mt5 import get_mt5_api
+from backend.mcp.mt5_mcp.client import get_mt5_api
 from backend.db.sqlite.users import UserManager
 
 mt5 = get_mt5_api()
@@ -53,7 +53,7 @@ class MT5Utils:
     
     def get_connected_client():
         """Create a connected MT5 client."""
-        from .client import MT5Client
+        from backend.mcp.mt5_mcp.client import MT5Client
         creds = MT5Utils.get_mt5_credentials()
         client = MT5Client()
 

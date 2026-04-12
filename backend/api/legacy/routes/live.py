@@ -39,9 +39,9 @@ from backend.api.legacy.routes.dashboard.broker import client as global_mt5_clie
 from backend.api.legacy.websocket import live_trading_manager
 from apps.live.session import LiveTradingSession
 from backend.common.logger import logger
-from apps.mt5 import get_mt5_api
-from apps.mt5.client import MT5Client
-from apps.mt5.util import MT5Utils
+from backend.mcp.mt5_mcp import get_mt5_api
+from backend.mcp.mt5_mcp.client import MT5Client
+from backend.mcp.mt5_mcp.util import MT5Utils
 from backend.db.sqlite.database_operations import DatabaseManager
 
 mt5 = get_mt5_api()

@@ -10,7 +10,7 @@ from typing import Optional
 import pandas as pd
 
 from backend.common.logger import logger
-from apps.mt5.client import MT5Client
+from backend.mcp.mt5_mcp.client import MT5Client
 
 
 class BarMonitor:

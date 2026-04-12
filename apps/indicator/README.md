@@ -629,4 +629,4 @@ Copyright 2025, HaruQuant
 
 - `apps/strategy/` - Strategy framework for backtesting
 - `apps/trading/` - Trading execution module
-- `apps/mt5/` - MT5 data integration
+- `backend/mcp/mt5_mcp/` - MT5 data integration

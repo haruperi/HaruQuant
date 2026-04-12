@@ -8,8 +8,8 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 
 from backend.common.logger import logger
-from apps.mt5.client import MT5Client
-from apps.mt5 import get_mt5_api
+from backend.mcp.mt5_mcp.client import MT5Client
+from backend.mcp.mt5_mcp import get_mt5_api
 from apps.live.mt5_compat import (
     account_balance,
     account_equity,

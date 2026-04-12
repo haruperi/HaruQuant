@@ -696,6 +696,6 @@ Copyright 2025, HaruQuant
 
 ## See Also
 
-- `apps/mt5/` - MT5 client for live trading data
+- `backend/mcp/mt5_mcp/` - MT5 client for live trading data
 - `apps/utils/data_getters.py` - Unified data retrieval interface
 - Dukascopy website: https://www.dukascopy.com/

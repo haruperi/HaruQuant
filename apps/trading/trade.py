@@ -15,7 +15,7 @@ from typing import Any, Optional
 import dataclasses
 from types import SimpleNamespace
 
-from apps.mt5 import get_mt5_api
+from backend.mcp.mt5_mcp import get_mt5_api
 from backend.services.execution import trade_validators as tv
 
 mt5 = get_mt5_api()

@@ -352,7 +352,7 @@ pair_strength = calculate_pair_strength(
 ### Example 1: Basic Usage with Short-Term Preset
 
 ```python
-from apps.mt5.client import MT5Client
+from backend.mcp.mt5_mcp.client import MT5Client
 from apps.indicator.custom import currency_strength_indicator, CURRENCY_PAIRS
 import pandas as pd
 
@@ -687,7 +687,7 @@ for pair in result["strong_pairs"][:3]:  # Top 3 only
 **Solutions:**
 1. Check MT5 terminal connection:
    ```python
-   from apps.mt5.client import MT5Client
+   from backend.mcp.mt5_mcp.client import MT5Client
    with MT5Client() as client:
        print(f"Connected: {client.is_connected()}")
    ```

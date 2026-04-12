@@ -21,8 +21,8 @@ from apps.live.state_manager import StateManager
 from apps.live.trade_executor import TradeExecutor
 from apps.live.mt5_compat import account_balance, account_currency, account_leverage
 from backend.common.logger import logger
-from apps.mt5 import get_mt5_api
-from apps.mt5.client import MT5Client
+from backend.mcp.mt5_mcp import get_mt5_api
+from backend.mcp.mt5_mcp.client import MT5Client
 from apps.strategy import storage
 from apps.trading.trade import Trade
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy

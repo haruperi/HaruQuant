@@ -1,4 +1,4 @@
-"""Comprehensive MT5 client usage examples for apps.mt5.client.
+"""Comprehensive MT5 client usage examples for backend.mcp.mt5_mcp.client.
 
 Run:
     python backend/scripts/examples/mt5/usage_client.py
@@ -25,7 +25,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from apps.mt5 import MT5Client, MT5Utils
+from backend.mcp.mt5_mcp import MT5Client, MT5Utils
 
 
 def _header(title: str) -> None:

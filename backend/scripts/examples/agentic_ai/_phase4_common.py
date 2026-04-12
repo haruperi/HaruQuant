@@ -15,7 +15,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from backend.common.settings import load_runtime_settings_from_mapping  # noqa: E402
-from apps.mt5 import get_mt5_api  # noqa: E402
+from backend.mcp.mt5_mcp import get_mt5_api  # noqa: E402
 from apps.trading import Engine  # noqa: E402
 from backend.contracts.common import Originator  # noqa: E402
 from backend.contracts.risk_assessment_decision.model import (  # noqa: E402

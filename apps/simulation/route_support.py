@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from apps.mt5 import get_mt5_api
+from backend.mcp.mt5_mcp import get_mt5_api
 
 from .session_runtime import SimulatorSession
 

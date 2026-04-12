@@ -139,7 +139,7 @@ def get_mt5_client():
 
     This follows the pattern from tests/usage/backtest for proper MT5 connection.
     """
-    from apps.mt5.client import MT5Client
+    from backend.mcp.mt5_mcp.client import MT5Client
 
     # Get credentials from database
     creds = UserManager().get_mt5_credentials()

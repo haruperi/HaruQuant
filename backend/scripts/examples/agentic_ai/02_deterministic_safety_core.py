@@ -16,7 +16,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from backend.common import FixedClock, generate_prefixed_id  # noqa: E402
 from backend.common.time_utils import evaluate_board_baseline_freshness  # noqa: E402
-from apps.mt5 import get_mt5_api  # noqa: E402
+from backend.mcp.mt5_mcp import get_mt5_api  # noqa: E402
 from apps.trading import Engine, Trade  # noqa: E402
 from backend.contracts.common import Originator  # noqa: E402
 from backend.contracts.execution_intent.model import (  # noqa: E402
