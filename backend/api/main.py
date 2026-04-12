@@ -3,11 +3,14 @@
 from contextlib import asynccontextmanager
 import importlib
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.common.logger import logger
 from backend.api.middleware.security import SecretRedactionMiddleware
+from backend.api.router import intent_classifier
+from backend.agents.intent_router import intent_router_agent
 
 from .routes import (
     auth,
@@ -82,6 +85,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SecretRedactionMiddleware)
+
+
+# Intent classification middleware — attaches routing metadata to every request
+class IntentClassificationMiddleware(BaseHTTPMiddleware):
+    """Classify request intent and attach routing metadata."""
+
+    async def dispatch(self, request: Request, call_next):
+        metadata = intent_classifier.classify_and_metadata(
+            request.url.path,
+            session_id=request.headers.get("X-Session-ID"),
+        )
+        request.state.intent = metadata.intent
+        request.state.priority = metadata.priority
+        request.state.session_id = metadata.session_id
+        request.state.user_id = metadata.user_id
+        return await call_next(request)
+
+
+app.add_middleware(IntentClassificationMiddleware)
+
 
 def _include_optional_router(app: FastAPI, module, prefix: str, tags: list[str]) -> None:
     if module is not None:

@@ -3,7 +3,7 @@
 | Field | Detail |
 |---|---|
 | Document ID | HQT-AGENTIC-AGENTIFICATION-PLAN |
-| Status | Draft |
+| Status | Complete |
 | Scope | Close remaining 17 gaps between current backend/ and Agentic_AI_Playbook.md |
 | Source | Audit of playbook sections vs current codebase |
 | Pre-requisite | apps/ migration complete (all 16 phases done) |
@@ -396,6 +396,8 @@ tests/eval/
 - [x] Routing policy YAML created (model tiers, max costs, early exit, caching, downgrade)
 - [x] Global limits documented (per-workflow, per-session)
 - [x] Fallback and caching policy defined
+- [x] Cost enforcement service implemented (CostEnforcer with budget checks)
+- [x] Cost enforcer tests pass (5/5)
 
 ---
 

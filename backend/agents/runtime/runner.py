@@ -6,13 +6,15 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, Protocol
 
+from backend.config.agent_model import AGENT_MODEL, get_model_for_tier
+
 
 @dataclass(frozen=True)
 class ADKRunnerConfig:
     """Static runtime identity and defaults for an agent runner."""
 
     runner_name: str
-    default_model: str
+    default_model: str = AGENT_MODEL
     runtime_version: str = "local-adk-wrapper-v1"
 
 
