@@ -26,7 +26,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_simulator_state.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - New test `SimulatorStateTest.DefaultConstruction` passes.
 
 ---
@@ -41,7 +41,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_data.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests validate default values and `_asdict`-equivalent serialization mapping.
 
 ---
@@ -57,7 +57,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_simulator_client_getters.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests cover filters by `ticket` and `symbol` and empty-container behavior.
 
 ---
@@ -73,7 +73,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_calculators.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify all supported `trade_calc_mode` branches and buy/sell symmetry.
 
 ---
@@ -90,7 +90,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_order_send_market.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify successful buy/sell open and invalid request retcodes.
 
 ---
@@ -106,7 +106,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_pending_orders.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify:
   - pending order creation fields
   - modify/delete behavior
@@ -125,7 +125,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_backtest_single_symbol.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify deterministic event order and open/close sequencing from synthetic signals.
 
 ---
@@ -142,7 +142,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_position_monitor.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify equity/margin updates and SL/TP close reasons.
 
 ---
@@ -156,7 +156,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_pending_trigger_monitor.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify trigger conditions and expirations by timestamp.
 
 ---
@@ -175,7 +175,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_tick_models.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify generated sequence length/order and deterministic output.
 
 ---
@@ -191,7 +191,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_trade_record.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify MAE/MFE, time-in-trade, bars-in-trade, and r-multiple.
 
 ---
@@ -207,7 +207,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_portfolio_engine.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify multi-symbol trade execution and allocation application.
 
 ---
@@ -222,7 +222,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `cpp/tests/test_sim_result_metrics.cpp` (new)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - Tests verify total return, win rate, drawdown, profit factor, sharpe.
 
 ---
@@ -237,8 +237,7 @@ Replace `apps/simulation` runtime hot-path with a C++ engine while preserving Py
 - `bridge/CMakeLists.txt` (update)
 
 **Acceptance tests**
-- `python scripts/build_cpp.py --test`
-- `python scripts/build_cpp.py --install`
+- Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 - New Python smoke test imports `haruquant` and opens/runs a basic sim.
 
 ---

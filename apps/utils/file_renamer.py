@@ -450,14 +450,14 @@ def batch_rename_from_mapping(
 
 
 if __name__ == "__main__":
-    # Rename files in data/raw/D1 directory
+    # Rename files in backend/data/raw/M1 directory
     # From: AUDCAD_dukascopy-D1-No Session.csv
     # To: AUDCAD_D1.csv
 
     # Get the project root directory (2 levels up from this file)
     current_file = Path(__file__)
     project_root = current_file.parent.parent.parent
-    data_dir = project_root / "data" / "raw" / "M1"
+    data_dir = project_root / "backend" / "data" / "raw" / "M1"
 
     logger.info(f"Starting file rename process in: {data_dir}")
 

@@ -122,41 +122,9 @@ python -c "import nanobind; print(nanobind.cmake_dir())"
 
 ## 5. Building the C++ Engine
 
-### Using the Build Script (Recommended)
+### Legacy Build Script Note
 
-```bash
-# Default: configure + build Release
-python scripts/build_cpp.py
-
-# Build in Debug mode
-python scripts/build_cpp.py --debug
-
-# Configure only (no build)
-python scripts/build_cpp.py --configure
-
-# Build only (skip configure, use after --configure)
-python scripts/build_cpp.py --build
-
-# Build + run all C++ tests
-python scripts/build_cpp.py --test
-
-# Build + copy haruquant module to project root
-python scripts/build_cpp.py --install
-
-# Remove build directory
-python scripts/build_cpp.py --clean
-```
-
-### Linux Build Script
-
-```bash
-chmod +x scripts/build_cpp.sh
-./scripts/build_cpp.sh          # Configure + build Release
-./scripts/build_cpp.sh --test   # Build + run tests
-./scripts/build_cpp.sh --debug  # Build in Debug mode
-```
-
-The Linux script auto-detects vcpkg from `$VCPKG_ROOT`, `~/vcpkg`, or `/opt/vcpkg`.
+Legacy repo-local helpers `backend/scripts/build_cpp.py` and `backend/scripts/build_cpp.sh` were removed during cleanup.
 
 ### Manual CMake Commands
 
@@ -243,7 +211,7 @@ python -m pytest tests/unit/test_hqt_engine.py -v --no-cov
 
 ```bash
 # Verify the full pipeline in one command
-python scripts/build_cpp.py --test
+Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 
 # Verify Python can import the C++ module
 python -c "import sys; sys.path.insert(0, 'build/bridge/Release'); import haruquant; print(haruquant.hello())"
@@ -286,7 +254,7 @@ HaruQuant/
 │   └── build_cpp.sh            # Linux/macOS build script
 ├── config/                     # Configuration files
 ├── docs/                       # Documentation
-├── data/                       # Data storage
+├── backend/data/               # Data storage
 └── venv/                       # Python virtual environment
 ```
 
@@ -319,11 +287,11 @@ Could not find a package configuration file provided by "Python"
 ```bash
 # Windows
 venv\Scripts\activate
-python scripts/build_cpp.py
+Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 
 # Linux
 source venv/bin/activate
-python scripts/build_cpp.py
+Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 ```
 
 ### nanobind not found
@@ -374,3 +342,4 @@ target_link_libraries(hqt_core PRIVATE stdc++fs)
 ---
 
 *End of Document — DEV-HQTBS-001 v1.0.0*
+

@@ -2376,7 +2376,7 @@ Returns current log level and log file locations configured in `app/logger`.
 {
   "level": "INFO",
   "log_dir": "logs",
-  "files": ["logs/app.log", "logs/error.log"]
+  "files": ["backend/logs/app.log", "backend/logs/error.log"]
 }
 ```
 
@@ -2967,3 +2967,4 @@ For questions, issues, or feature requests, please contact the development team 
 
 **API Version:** 1.0.0
 **Documentation Updated:** November 23, 2025
+

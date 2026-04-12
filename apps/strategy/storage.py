@@ -25,7 +25,7 @@ class StrategyStorage:
     Manages file storage for trading strategies.
 
     Directory structure:
-        data/strategies/
+        backend/data/strategies/
             john_doe/
                 trend_following/
                     v1.0.0/
@@ -41,15 +41,15 @@ class StrategyStorage:
         Initialize strategy storage.
 
         Args:
-            base_dir: Base directory for strategies (default: data/strategies)
+            base_dir: Base directory for strategies (default: backend/data/strategies)
         """
         if base_dir:
             self.base_dir = Path(base_dir)
         else:
-            # Get project root and create data/strategies directory
+            # Get project root and create backend/data/strategies directory
             current_dir = Path(__file__).parent
             project_root = current_dir.parent.parent
-            self.base_dir = project_root / "data" / "strategies"
+            self.base_dir = project_root / "backend" / "data" / "strategies"
 
         # Ensure base directory exists
         self.base_dir.mkdir(parents=True, exist_ok=True)

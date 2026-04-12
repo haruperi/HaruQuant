@@ -24,6 +24,8 @@ from apps.utils.logger import logger
 
 from .base import DatabaseBase
 
+EXPORT_DIR = Path(__file__).resolve().parents[2] / "data" / "simulations" / "exports"
+
 
 class EdgeDiscoveryManager(DatabaseBase):
     """Edge Discovery database operations."""
@@ -488,7 +490,7 @@ class EdgeDiscoveryManager(DatabaseBase):
         for row in metrics:
             wide[f"{row['section']}.{row['metric_key']}"] = row.get("value")
 
-        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir = EXPORT_DIR
         os.makedirs(export_dir, exist_ok=True)
         file_path = export_dir / f"edge_profile_snapshot_{snapshot_id}.parquet"
         pd.DataFrame([wide]).to_parquet(file_path, index=False)
@@ -508,7 +510,7 @@ class EdgeDiscoveryManager(DatabaseBase):
         if snapshot is None:
             return None
 
-        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir = EXPORT_DIR
         os.makedirs(export_dir, exist_ok=True)
 
         markdown_path = export_dir / f"edge_profile_snapshot_{snapshot_id}.md"
@@ -547,7 +549,7 @@ class EdgeDiscoveryManager(DatabaseBase):
         if not comparison:
             return None
 
-        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir = EXPORT_DIR
         os.makedirs(export_dir, exist_ok=True)
         path = export_dir / f"edge_profile_comparison_{left_snapshot_id}_{right_snapshot_id}.md"
         save_markdown_report(comparison_report_markdown(comparison), path)

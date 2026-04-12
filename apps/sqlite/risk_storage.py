@@ -17,6 +17,8 @@ from apps.risk.scoring import RiskScorecard, ScoreRow
 from apps.risk.simulation import ReplayFrame, WhatIfComparison
 from apps.utils.logger import logger
 
+EXPORT_DIR = Path(__file__).resolve().parents[2] / "data" / "simulations" / "exports"
+
 
 class RiskStorageManager:
     """Persist normalized risk artifacts on top of the shared SQLite database."""
@@ -364,7 +366,7 @@ class RiskStorageManager:
         risk_report = build_risk_snapshot_report(bundle, run=run)
         scenario_report = build_scenario_report(bundle, run=run)
 
-        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir = EXPORT_DIR
         export_dir.mkdir(parents=True, exist_ok=True)
 
         risk_json = export_dir / f"risk_snapshot_{snapshot_id}.json"
@@ -401,7 +403,7 @@ class RiskStorageManager:
         frames = self.get_risk_replay_frames(run_id)
         replay_report = build_replay_report(frames, run=run)
 
-        export_dir = Path(self.db_path).resolve().parent / "exports"
+        export_dir = EXPORT_DIR
         export_dir.mkdir(parents=True, exist_ok=True)
         replay_json = export_dir / f"risk_replay_{run_id}.json"
         replay_md = export_dir / f"risk_replay_{run_id}.md"

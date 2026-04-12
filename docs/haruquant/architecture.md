@@ -267,14 +267,14 @@
   - `07` governance feasibility checks
   - `08` final ranked recommendation batch
   - these sections are serialized from the existing `apps/risk/core/recommendation_engine.py` pipeline; the engine logic itself is unchanged
-- `examples/risk/03_governance_limits_engine.py` is now scenario-driven rather than task-driven:
+- `backend/scripts/examples/risk/03_governance_limits_engine.py` is now scenario-driven rather than task-driven:
   - first trade from empty portfolio
   - second trade within limits
   - VaR / delta VaR / ES / single-RC / cluster cap breaches
   - regime tightening comparison
   - position reduction / netting path
-- The live risk workflow examples under `examples/risk/` are now consolidated into one entry point:
-  - `examples/risk/comprehensive_workflows.py`
+- The live risk workflow examples under `backend/scripts/examples/risk/` are now consolidated into one entry point:
+  - `backend/scripts/examples/risk/comprehensive_workflows.py`
   - it replaces the older fragmented files:
     - `demo.py`
     - `full_scenarios.py`
@@ -1029,7 +1029,7 @@
   - each symbol strategy prepares its own final signalized bars first
   - those bars are converted to ticks
   - merged ticks are then executed by the engine with optional portfolio risk gating
-- `examples/trading/trade_example.py -> example_14_portfolio_backtest_with_risk()` demonstrates this risk-enabled merged portfolio flow.
+- `backend/scripts/examples/trading/trade_example.py -> example_14_portfolio_backtest_with_risk()` demonstrates this risk-enabled merged portfolio flow.
 
 ## BacktestState Deal Model (Refactor)
 
@@ -1206,10 +1206,10 @@
 - Default Python logger export is `apps.utils.logger.logger` (Structlog adapter).
 - Existing import pattern `from apps.utils.logger import logger` remains unchanged.
 - Default file sinks are configured at import time under `logs/`:
-  - `logs/app.log` (INFO and above)
-  - `logs/debug.log` (DEBUG and above)
-  - `logs/errors.log` (ERROR and above)
-  - `logs/access.log` (records tagged as access/http style events)
+  - `backend/logs/app.log` (INFO and above)
+  - `backend/logs/debug.log` (DEBUG and above)
+  - `backend/logs/errors.log` (ERROR and above)
+  - `backend/logs/access.log` (records tagged as access/http style events)
 - Rotation policy for default Python file sinks:
   - rotate at UTC midnight or at 50 MB, whichever comes first
   - retain 30 rotated files per log stream
@@ -1352,10 +1352,7 @@
 - File-level coverage thresholds are configured in `cpp/coverage_thresholds.json`.
 - Current enforced gate:
   - `cpp/src/util/validators.cpp` must remain at or above `80%` line coverage.
-- Local coverage gate entry point:
-  - `scripts/check_cpp_coverage.py`
-  - Linux/macOS convenience path: `scripts/build_cpp.sh --coverage`
-  - Windows convenience path: `python scripts/build_cpp.py --coverage`
+- Local coverage helper scripts were removed during cleanup.
 - Note:
   - MSVC toolchain does not emit gcov artifacts. Coverage mode on Windows uses Clang/Ninja.
 - CI coverage gate workflow:
@@ -2203,7 +2200,7 @@
   - `RunResult.to_dict()`
   - datetime fields are converted to ISO 8601 strings so the payload is JSON-safe for API responses
 - Example usage:
-  - `examples/trading/trade_example.py::example_14_trade_results_report()`
+  - `backend/scripts/examples/trading/trade_example.py::example_14_trade_results_report()`
 
 ## Python Trading Engine Multi-Symbol Portfolio V1
 
@@ -2222,7 +2219,7 @@
   - one account/equity/margin pool
   - global schedules for position, pending, account, portfolio, and risk checks
 - Reference example:
-  - `examples/trading/trade_example.py::example_13_simple_portfolion_backtest()`
+  - `backend/scripts/examples/trading/trade_example.py::example_13_simple_portfolion_backtest()`
 
 ## Python Trading Engine Multi-Timeframe Phase 2 Direction
 
@@ -2429,4 +2426,5 @@
   - missing-data scenario
   - short-history scenario
   - DST/session-boundary scenario
+
 

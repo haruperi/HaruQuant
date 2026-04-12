@@ -194,7 +194,7 @@ async def get_strategy_template(template_name: str) -> Dict[str, str]:
         # Map template names to files
         template_map = {
             "empty": "template_strategy.py",
-            "trend_following": "../../examples/strategy/trend_following.py",
+            "trend_following": "../../../backend/data/strategies/trend_following.py",
         }
 
         if template_name not in template_map:

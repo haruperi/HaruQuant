@@ -339,7 +339,7 @@ HaruQuant/
 │   ├── live/               # Live trading
 │   ├── sqlite/             # Database operations
 │   └── api/                # REST API
-├── data/
+├── backend/data/
 │   ├── database/           # SQLite databases
 │   └── strategies/         # Strategy implementations
 ├── tests/
@@ -505,3 +505,4 @@ Contributions are welcome! Please:
 ---
 
 For detailed documentation, see the `docs/` directory or visit the [documentation site](https://your-docs-site.com).
+

@@ -64,7 +64,7 @@ schema_version = "1.0.0"
 profile = "dev"
 
 [logging]
-dir = "logs"
+dir = "backend/logs"
 level = "INFO"
 
 [profiles.dev.logging]
@@ -87,10 +87,11 @@ set HQT_TRADING__VOLUME=0.25
 ```python
 from apps.live.config import Config
 
-cfg = Config("config/live.toml", profile="paper")
+cfg = Config("backend/config/live_trading_config.toml", profile="paper")
 cfg.set_runtime_override("logging.level", "DEBUG")
 cfg.set_runtime_override("safety.max_positions", 3)
 
 changed = cfg.reload_non_critical()
 print(changed)
 ```
+

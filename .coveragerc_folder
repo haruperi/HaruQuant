@@ -18,6 +18,6 @@ omit =
     apps/strategy/*
     apps/trade/*
     apps/utils/*
-    data/*
+    backend/data/*
     scripts/*
     tests/*

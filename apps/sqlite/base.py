@@ -39,7 +39,7 @@ class DatabaseBase:
         # Get project root (assuming apps/sqlite structure)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, "../../"))
-        db_dir = os.path.join(project_root, "data", "database")
+        db_dir = os.path.join(project_root, "backend", "data", "database")
         # Ensure directory exists
         os.makedirs(db_dir, exist_ok=True)
         return os.path.join(db_dir, "haruquant.db")

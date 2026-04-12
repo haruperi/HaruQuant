@@ -149,7 +149,7 @@ data = load_mt5("EURUSD", "H1", start_date="2024-01-01", end_date="2024-12-31")
 data = load_dukascopy("EURUSD", "H1", "2024-01-01", "2024-12-31")
 
 # Load from Parquet file (with caching)
-data = load_parquet("data/eurusd_h1.parquet")
+data = load_parquet("backend/data/raw/eurusd_h1.parquet")
 ```
 
 For detailed examples, see [`tests/usage/utils/usage_data_getters.py`](../../../tests/usage/utils/usage_data_getters.py).
@@ -333,7 +333,7 @@ from apps.utils.file_renamer import rename_with_pattern, add_prefix, normalize_f
 
 # Pattern-based renaming with regex
 renamed = rename_with_pattern(
-    directory="data/raw/",
+    directory="backend/data/raw/",
     pattern=r"(.+)_dukascopy-H1-No Session\.csv",
     replacement=r"\1_H1.csv",
     regex=True,
@@ -341,10 +341,10 @@ renamed = rename_with_pattern(
 )
 
 # Add prefix to all CSV files
-renamed = add_prefix("data/processed/", "backtest_", extensions=[".csv"])
+renamed = add_prefix("backend/data/raw/processed/", "backtest_", extensions=[".csv"])
 
 # Normalize filenames (lowercase, replace spaces, remove special chars)
-renamed = normalize_filenames("data/", lowercase=True, replace_spaces="_")
+renamed = normalize_filenames("backend/data/", lowercase=True, replace_spaces="_")
 ```
 
 For detailed examples, see [`tests/usage/utils/usage_file_renamer.py`](../../../tests/usage/utils/usage_file_renamer.py).
@@ -652,7 +652,7 @@ CronTrigger(hour='6,12,18', minute=0)
 **Default Outputs**:
 
 - Terminal output via `stderr`
-- File outputs under `logs/`:
+- File outputs under `backend/logs/`:
   - `app.log` (`INFO` and above)
   - `debug.log` (`DEBUG` and above)
   - `errors.log` (`ERROR` and above)
@@ -853,15 +853,15 @@ Comprehensive usage examples are available in `tests/usage/utils/`:
 Run individual usage examples:
 
 ```bash
-python examples/usage_security.py
-python examples/utils/usage_data_getters.py
-python examples/utils/usage_data_validator.py
+python backend/scripts/examples/usage_security.py
+python backend/scripts/examples/utils/usage_data_getters.py
+python backend/scripts/examples/utils/usage_data_validator.py
 # ... etc
 ```
 
 ### Integration Testing
 
-See `examples/utils/` for comprehensive integration examples.
+See `backend/scripts/examples/utils/` for comprehensive integration examples.
 
 ## License
 
@@ -874,4 +874,5 @@ Copyright 2025, HaruQuant
 - `apps/sqlite/` - Database management
 - `apps/indicator/` - Technical indicators
 - `apps/backtest/` - Backtesting engine
+
 

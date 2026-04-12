@@ -88,7 +88,7 @@ export SMTP_PASSWORD="your_app_password"
 
 #### Single Strategy Example
 
-1. **Configure** `config/single_strategy_config.json`:
+1. **Configure** `backend/config/single_strategy_config.json`:
 ```json
 {
   "mt5": {
@@ -122,12 +122,12 @@ export SMTP_PASSWORD="your_app_password"
 
 2. **Run**:
 ```bash
-python -m apps.live.run --config config/single_strategy_config.json
+python -m apps.live.run --config backend/config/single_strategy_config.json
 ```
 
 #### Multiple Strategies Example
 
-1. **Configure** `config/multi_strategy_config.json`:
+1. **Configure** `backend/config/multi_strategy_config.json`:
 ```json
 {
   "mt5": {
@@ -170,7 +170,7 @@ python -m apps.live.run --config config/single_strategy_config.json
 
 2. **Run Engine** (Terminal 1):
 ```bash
-python -m apps.live.run --config config/multi_strategy_config.json
+python -m apps.live.run --config backend/config/multi_strategy_config.json
 ```
 
 3. **Open Dashboard** (Terminal 2):
@@ -267,7 +267,7 @@ Each strategy in the `strategies` array has these fields:
 
 ```json
 "logging": {
-  "dir": "logs/live_trading",     // Log directory
+  "dir": "backend/logs/live_trading",     // Log directory
   "level": "INFO"                 // INFO (production) or DEBUG (development)
 }
 ```
@@ -364,7 +364,7 @@ EURUSD_Trend     EURUSD    M1    3        3       0       -
 
 ### Adding Strategies to Multi-Engine
 
-Edit `config/multi_strategy_config.json` and add to `strategies` array:
+Edit `backend/config/multi_strategy_config.json` and add to `strategies` array:
 
 ```json
 {
@@ -399,7 +399,7 @@ Current built-in strategies:
 
 #### Step 1: Create Strategy File
 
-Create `data/strategies/my_strategy.py`:
+Create `backend/data/strategies/my_strategy.py`:
 
 ```python
 """My Custom Strategy"""
@@ -484,7 +484,7 @@ Edit `apps/live/engine.py`:
 
 ```python
 # Add import at top (around line 30)
-from data.strategies.my_strategy import MyStrategy
+from backend.data.strategies.my_strategy import MyStrategy
 
 # Update strategy_classes dictionary in _initialize_strategy method (around line 320)
 strategy_classes = {
@@ -496,7 +496,7 @@ strategy_classes = {
 
 #### Step 3: Add to Configuration
 
-Edit `config/multi_strategy_config.json`:
+Edit `backend/config/multi_strategy_config.json`:
 
 ```json
 {
@@ -516,7 +516,7 @@ Edit `config/multi_strategy_config.json`:
 #### Step 4: Test
 
 ```bash
-python -m apps.live.run --config config/multi_strategy_config.json
+python -m apps.live.run --config backend/config/multi_strategy_config.json
 ```
 
 ### Signal Format Requirements
@@ -792,7 +792,7 @@ Currently, all strategies in multi-engine are controlled together. For individua
 
 ### Log Directory
 
-Directory: `logs/multi_strategy/` (or `logs/live_trading/` if configured differently)
+Directory: `backend/logs/multi_strategy/` (or `backend/logs/live_trading/` if configured differently)
 
 - **multi_strategy.log**: All system events from all strategies
   - Strategy name in brackets: `[XAUUSD_Trend]`
@@ -806,12 +806,12 @@ Directory: `logs/multi_strategy/` (or `logs/live_trading/` if configured differe
 
 **Windows PowerShell**:
 ```powershell
-Get-Content logs/live_trading/live_trading.log -Wait
+Get-Content backend/logs/live_trading/live_trading.log -Wait
 ```
 
 **Linux/Mac**:
 ```bash
-tail -f logs/live_trading/live_trading.log
+tail -f backend/logs/live_trading/live_trading.log
 ```
 
 ## Troubleshooting
@@ -993,18 +993,18 @@ Use a naming scheme:
 ```bash
 # Using screen
 screen -S live_trading
-python -m apps.live.run --config config/multi_strategy_config.json
+python -m apps.live.run --config backend/config/multi_strategy_config.json
 # Press Ctrl+A, then D to detach
 # Reattach: screen -r live_trading
 
 # Using nohup
-nohup python -m apps.live.run --config config/multi_strategy_config.json > live.out 2>&1 &
+nohup python -m apps.live.run --config backend/config/multi_strategy_config.json > live.out 2>&1 &
 ```
 
 ## Support
 
 For issues or questions:
-1. Check logs in `logs/live_trading/` or `logs/multi_strategy/`
+1. Check logs in `backend/logs/live_trading/` or `backend/logs/multi_strategy/`
 2. Review configuration file for errors
 3. Verify MT5 connection manually
 4. Test components individually
@@ -1031,7 +1031,9 @@ You now have a production-ready unified trading system with:
 - 3 symbols (XAUUSD, EURUSD, GBPUSD)
 - Portfolio management across all
 - Single MT5 connection
-- One command: `python -m apps.live.run --config config/multi_strategy_config.json`
+- One command: `python -m apps.live.run --config backend/config/multi_strategy_config.json`
 
 Happy trading! 🚀
+
+
 

@@ -10,9 +10,7 @@ Benchmark evidence for deterministic event/time engine changes:
 
 ## Build and Test Command
 
-```powershell
-python scripts/build_cpp.py --test
-```
+Legacy `backend/scripts/build_cpp.py` helper removed during cleanup.
 
 ## Result Snapshot
 

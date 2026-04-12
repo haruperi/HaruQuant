@@ -20,7 +20,7 @@ manifest = build_run_manifest(
     config_hash=cfg_hash,
     code_version="git:abcdef1",
     seed=42,
-    strategy_artifacts={"path": "data/strategies/alice/trend_following/v1.3.0/strategy.py"},
+    strategy_artifacts={"path": "backend/data/strategies/alice/trend_following/v1.3.0/strategy.py"},
     model_artifacts={"model_version": "none"},
 )
 

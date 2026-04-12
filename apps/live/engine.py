@@ -25,9 +25,9 @@ from apps.mt5 import get_mt5_api
 from apps.mt5.client import MT5Client
 from apps.strategy import storage
 from apps.trading.trade import Trade
-from data.strategies.close_breakout import CloseBreakoutStrategy
-from data.strategies.mean_reversion import MeanReversionStrategy
-from data.strategies.trend_following import TrendFollowingStrategy
+from backend.data.strategies.close_breakout import CloseBreakoutStrategy
+from backend.data.strategies.mean_reversion import MeanReversionStrategy
+from backend.data.strategies.trend_following import TrendFollowingStrategy
 
 mt5 = get_mt5_api()
 
@@ -318,7 +318,7 @@ class MultiStrategyEngine:
                 )
                 self.notifier = LiveTradingNotifier.from_database(
                     user_id=user_id,
-                    db_path=self.config.get("db_path", "data/database/haruquant.db"),
+                    db_path=self.config.get("db_path", "backend/data/database/haruquant.db"),
                 )
             else:
                 # Fallback to config-based notifications (backward compatibility)

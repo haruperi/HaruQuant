@@ -128,7 +128,7 @@ If examples or integration code still reference them, that code is stale.
 
 ## Examples
 
-The current example set lives under [examples/risk](../../examples/risk).
+The current example set lives under [backend/scripts/examples/risk](../../backend/scripts/examples/risk).
 
 Fixture-based deterministic example:
 - `13_fixture_portfolio_state_demo.py`
@@ -152,9 +152,9 @@ Workflow demo:
 Run examples from the repo root, for example:
 
 ```bash
-python examples/risk/13_fixture_portfolio_state_demo.py
-python examples/risk/01_portfolio_state_foundation.py
-python examples/risk/07_scorecard_engine.py
+python backend/scripts/examples/risk/13_fixture_portfolio_state_demo.py
+python backend/scripts/examples/risk/01_portfolio_state_foundation.py
+python backend/scripts/examples/risk/07_scorecard_engine.py
 ```
 
 ## Focused Test Commands

@@ -3,7 +3,7 @@
 Command-line entry point for the risk-integrated live trading system.
 
 Usage:
-    python -m apps.live.run_risk --config config/risk_enabled_multi_strategy.json
+    python -m apps.live.run_risk --config backend/config/risk_enabled_multi_strategy.json
 """
 
 import argparse
@@ -24,7 +24,7 @@ def parse_arguments():
         epilog="""
 Examples:
     # Risk-enabled multi-strategy trading
-    python -m apps.live.run_risk --config config/risk_enabled_multi_strategy.json
+    python -m apps.live.run_risk --config backend/config/risk_enabled_multi_strategy.json
 
 Risk Management Features:
     - Dynamic position sizing (fixed_risk, Kelly, volatility, etc.)

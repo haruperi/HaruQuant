@@ -14,34 +14,15 @@ This happens when the shell is not initialized for MSVC toolchain usage.
 
 ## Standard workflow (recommended)
 
-Use the dedicated script:
-
-```powershell
-python scripts/build_cpp_bridge.py
-```
-
-What it does:
-- Configures CMake in: `build/`
-- Uses Visual Studio generator by default
-- Builds only target `haruquant`
-- Ensures built module is available in `build/bridge/Release/` so Python usage scripts can import it
+The legacy repo-local helper `backend/scripts/build_cpp_bridge.py` was removed during cleanup.
 
 ## Build + run C++ logging usage example
 
-```powershell
-python scripts/build_cpp_bridge.py --run-usage
-```
-
-This runs:
-- `tests/usage/utils/usage_cpp_logger.py`
+This guide is retained as historical context only.
 
 ## Optional flags
 
-```powershell
-python scripts/build_cpp_bridge.py --config Debug
-python scripts/build_cpp_bridge.py --build-dir build_custom
-python scripts/build_cpp_bridge.py --generator "Visual Studio 18 2026" --arch x64
-```
+Legacy helper command examples removed.
 
 ## Troubleshooting
 
@@ -50,9 +31,7 @@ python scripts/build_cpp_bridge.py --generator "Visual Studio 18 2026" --arch x6
 Do not reuse the conflicted build directory.  
 Use a clean directory:
 
-```powershell
-python scripts/build_cpp_bridge.py --build-dir build
-```
+Legacy helper command removed.
 
 ### Error: cannot open file `kernel32.lib`
 

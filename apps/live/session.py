@@ -228,10 +228,10 @@ class LiveTradingSession:
             },
             "notifications": {"enable_email": False},
             "logging": {
-                "dir": "logs/live_session_" + str(self.session_id),
+                "dir": "backend/logs/live_session_" + str(self.session_id),
                 "level": "INFO",
             },
-            "state": {"file": f"data/states/session_{self.session_id}_state.json"},
+            "state": {"file": f"backend/data/states/session_{self.session_id}_state.json"},
             "user_id": session_data["user_id"],
         }
 

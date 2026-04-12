@@ -1,0 +1,121 @@
+{
+  "user_id": 1,
+  "db_path": "backend/data/database/haruquant.db",
+  "mt5": {
+    "login": 61450707,
+    "password": "qmotWcgh3$",
+    "server": "Pepperstone-Demo",
+    "path": "C:\\Program Files\\Pepperstone MetaTrader 5\\terminal64.exe"
+  },
+  "portfolio": {
+    "max_total_positions": 100,
+    "max_positions_per_symbol": 3,
+    "max_portfolio_risk_percent": 10.0,
+    "max_correlated_positions": 5
+  },
+  "strategies": [
+    {
+      "name": "XAUUSD_Trend",
+      "strategy_type": "TrendFollowing",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "magic_number": 100001,
+      "volume": 0.01,
+      "params": {
+        "fast_period": 20,
+        "slow_period": 50,
+        "filter_period": 200
+      },
+      "initial_bars": 250,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999
+    },
+    {
+      "name": "XAUUSD_Breakout",
+      "strategy_type": "CloseBreakout",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "magic_number": 100002,
+      "volume": 0.01,
+      "params": {},
+      "initial_bars": 10,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999
+    },
+    {
+      "name": "EURUSD_Trend",
+      "strategy_type": "TrendFollowing",
+      "symbol": "EURUSD",
+      "timeframe": "M1",
+      "magic_number": 100003,
+      "volume": 0.01,
+      "params": {
+        "fast_period": 20,
+        "slow_period": 50,
+        "filter_period": 200
+      },
+      "initial_bars": 250,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999
+    },
+    {
+      "name": "EURUSD_Breakout",
+      "strategy_type": "CloseBreakout",
+      "symbol": "EURUSD",
+      "timeframe": "M1",
+      "magic_number": 100004,
+      "volume": 0.01,
+      "params": {},
+      "initial_bars": 10,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999
+    },
+    {
+      "name": "GBPUSD_Trend",
+      "strategy_type": "TrendFollowing",
+      "symbol": "GBPUSD",
+      "timeframe": "M1",
+      "magic_number": 100005,
+      "volume": 0.01,
+      "params": {
+        "fast_period": 20,
+        "slow_period": 50,
+        "filter_period": 200
+      },
+      "initial_bars": 250,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999
+    },
+    {
+      "name": "GBPUSD_Breakout",
+      "strategy_type": "CloseBreakout",
+      "symbol": "GBPUSD",
+      "timeframe": "M1",
+      "magic_number": 100006,
+      "volume": 0.01,
+      "params": {},
+      "initial_bars": 10,
+      "min_balance": 100.0,
+      "min_margin_level": 200.0,
+      "max_positions": 5,
+      "max_daily_trades": 99999
+    }
+  ],
+  "logging": {
+    "dir": "backend/logs/multi_strategy",
+    "level": "INFO"
+  },
+  "state": {
+    "file": "multi_strategy_state.json"
+  }
+}

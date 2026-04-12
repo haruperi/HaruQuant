@@ -191,7 +191,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-logs/
+backend/logs/
 *.log
 *.log.*
 log_*.txt
@@ -200,7 +200,7 @@ log_*.txt
 # Data Files (market data, exports, results)
 # ============================================================================
 # Market data directories
-/data/
+/backend/data/
 !app/data/
 datasets/
 market_data/
@@ -224,8 +224,8 @@ cache/
 *.arrow
 
 # Exclude example/seed data if needed (uncomment to allow)
-# !data/examples/*.csv
-# !data/seed/*.csv
+# !backend/data/examples/*.csv
+# !backend/data/seed/*.csv
 
 # ============================================================================
 # IDE & Editor Files
@@ -290,9 +290,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-config/local.json
-config/development.json
-config/production.json
+backend/config/local.json
+backend/config/development.json
+backend/config/production.json
 *.local.json
 
 # User-specific settings
@@ -387,7 +387,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-logs/
+backend/logs/
 *.log
 *.log.*
 log_*.txt
@@ -396,7 +396,7 @@ log_*.txt
 # Data Files (market data, exports, results)
 # ============================================================================
 # Market data directories
-data/
+backend/data/
 datasets/
 market_data/
 historical_data/
@@ -419,8 +419,8 @@ cache/
 *.arrow
 
 # Exclude example/seed data if needed (uncomment to allow)
-# !data/examples/*.csv
-# !data/seed/*.csv
+# !backend/data/examples/*.csv
+# !backend/data/seed/*.csv
 
 # ============================================================================
 # IDE & Editor Files
@@ -486,9 +486,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-config/local.json
-config/development.json
-config/production.json
+backend/config/local.json
+backend/config/development.json
+backend/config/production.json
 *.local.json
 
 # User-specific settings
@@ -582,7 +582,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-logs/
+backend/logs/
 *.log
 *.log.*
 log_*.txt
@@ -591,7 +591,7 @@ log_*.txt
 # Data Files (market data, exports, results)
 # ============================================================================
 # Market data directories
-data/
+backend/data/
 datasets/
 market_data/
 historical_data/
@@ -614,8 +614,8 @@ cache/
 *.arrow
 
 # Exclude example/seed data if needed (uncomment to allow)
-# !data/examples/*.csv
-# !data/seed/*.csv
+# !backend/data/examples/*.csv
+# !backend/data/seed/*.csv
 
 # ============================================================================
 # IDE & Editor Files
@@ -681,9 +681,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-config/local.json
-config/development.json
-config/production.json
+backend/config/local.json
+backend/config/development.json
+backend/config/production.json
 *.local.json
 
 # User-specific settings

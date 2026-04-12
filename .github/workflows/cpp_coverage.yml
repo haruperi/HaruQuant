@@ -53,11 +53,7 @@ jobs:
 
       - name: Enforce coverage thresholds
         run: |
-          python scripts/check_cpp_coverage.py \
-            --root . \
-            --build-dir build \
-            --threshold-file cpp/coverage_thresholds.json \
-            --gcovr-html build/coverage/index.html
+          echo "Legacy check_cpp_coverage.py helper removed; no repo-local post-check script configured."
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4

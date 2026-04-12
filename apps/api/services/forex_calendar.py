@@ -16,7 +16,7 @@ FOREX_FACTORY_WEEKLY_EXPORT_URL = "https://nfs.faireconomy.media/ff_calendar_thi
 FOREX_FACTORY_WEEKLY_EXPORT_CSV_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.csv"
 REQUEST_TIMEOUT_SECONDS = 20
 CACHE_TTL_SECONDS = 300
-CACHE_PATH = Path("data/cache/forex_factory_calendar_thisweek.json")
+CACHE_PATH = Path("backend/data/cache/forex_factory_calendar_thisweek.json")
 
 RangeKey = str
 

@@ -3,7 +3,7 @@
 Command-line entry point for the live trading system.
 
 Usage:
-    python -m apps.live.run --config config/live_trading_config.json
+    python -m apps.live.run --config backend/config/live_trading_config.json
 """
 
 import argparse
@@ -24,10 +24,10 @@ def parse_arguments():
         epilog="""
 Examples:
     # Single strategy
-    python -m apps.live.run --config config/live_trading_config.json
+    python -m apps.live.run --config backend/config/live_trading_config.json
 
     # Multiple strategies
-    python -m apps.live.run --config config/multi_strategy_config.json
+    python -m apps.live.run --config backend/config/multi_strategy_config.json
 
 The configuration file should define:
     - MT5 connection (single shared connection)

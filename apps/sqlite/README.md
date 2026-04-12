@@ -63,7 +63,7 @@ The `SQLiteDatabase` class inherits from all manager mixins, providing a unified
 ```python
 from apps.sqlite import SQLiteDatabase
 
-# Create database instance (uses default path: data/database/haruquant.db)
+# Create database instance (uses default path: backend/data/database/haruquant.db)
 db = SQLiteDatabase()
 
 # Or specify custom path
@@ -77,7 +77,7 @@ db.initialize_database()
 
 By default, the database is created at:
 ```
-<project_root>/data/database/haruquant.db
+<project_root>/backend/data/database/haruquant.db
 ```
 
 The directory is automatically created if it doesn't exist.
@@ -560,7 +560,7 @@ data_id = db.save_market_data_metadata({
         "duplicates": 0,
         "quality_score": 100.0
     },
-    "file_path": "data/market/EURUSD_H1_2023.csv"
+    "file_path": "backend/data/market_data/EURUSD_H1_2023.csv"
 })
 
 # Get all market data
@@ -1073,16 +1073,16 @@ If upgrading from an older version:
 
 1. **Backup Database**: Always backup before migration.
 2. **Run Migration Script**:
-   - `python scripts/migrate_sqx_strategy_edge.py`
+   - `python backend/scripts/migrate_sqx_strategy_edge.py`
 3. **Verify Data**:
    - Confirm stage-prefixed columns are present (e.g., `a1_profit_factor`).
 
 ### Reinitialize Database (Clean Rebuild)
 
 1. **Delete Database File**:
-   - `data/database/haruquant.db`
+   - `backend/data/database/haruquant.db`
 2. **Recreate Schema**:
-   - `python scripts/initialize_database.py`
+   - `python backend/scripts/initialize_database.py`
 3. **Reimport SQX Exports**:
    - Import each stage CSV through the SQX Import UI.
 

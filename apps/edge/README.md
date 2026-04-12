@@ -405,12 +405,12 @@ and can run universe refreshes when `EDGE_LAB_BATCH_SYMBOLS` is configured.
 
 The current progressive Edge Lab workflow also has non-UI example scripts under:
 
-- `examples/edge/01_prepare_dataset.py`
-- `examples/edge/02_core_metric.py`
-- `examples/edge/03_seasonality.py`
-- `examples/edge/04_market_structure.py`
-- `examples/edge/05_scorecard_snapshot.py`
-- `examples/edge/06_automation_run.py`
+- `backend/scripts/examples/edge/01_prepare_dataset.py`
+- `backend/scripts/examples/edge/02_core_metric.py`
+- `backend/scripts/examples/edge/03_seasonality.py`
+- `backend/scripts/examples/edge/04_market_structure.py`
+- `backend/scripts/examples/edge/05_scorecard_snapshot.py`
+- `backend/scripts/examples/edge/06_automation_run.py`
 
 These examples use real MT5 data and mirror the main progressive flow:
 
@@ -423,7 +423,7 @@ These examples use real MT5 data and mirror the main progressive flow:
 
 Shared helper code for the examples lives in:
 
-- `examples/edge/_workflow_common.py`
+- `backend/scripts/examples/edge/_workflow_common.py`
 
 The examples are intentionally simple and are useful for:
 

@@ -53,13 +53,13 @@ def get_data_dir() -> Path:
     """Get path to data directory.
 
     Returns:
-        Path to data directory (project_root/data)
+        Path to data directory (project_root/backend/data)
 
     Example:
         >>> data_dir = get_data_dir()
         >>> print(data_dir / "dukascopy")
     """
-    return Path(__file__).resolve().parents[2] / "data"
+    return Path(__file__).resolve().parents[2] / "backend" / "data"
 
 
 def load_parquet(file_path: Union[str, Path]) -> pd.DataFrame:
@@ -343,7 +343,7 @@ def load_mt5(  # noqa: C901
 
 def main() -> None:
     """Run example testing script."""
-    # df = load_parquet("data/dukascopy/AUDJPY.parquet")
+    # df = load_parquet("backend/data/raw/AUDJPY.parquet")
     df = load_mt5(
         "GBPUSD",
         timeframe="M1",
