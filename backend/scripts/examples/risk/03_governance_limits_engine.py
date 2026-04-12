@@ -30,8 +30,8 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine, RiskLimits
-from apps.risk.regimes import RegimeState
+from backend.services.risk_engine import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine, RiskLimits
+from backend.services.risk_engine.regimes import RegimeState
 from backend.services.simulation.engine import Engine`nfrom backend.services.execution import core
 
 

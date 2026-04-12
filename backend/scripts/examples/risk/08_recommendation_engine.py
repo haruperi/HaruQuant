@@ -29,7 +29,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from apps.risk import (
+from backend.services.risk_engine import (
     CapitalEfficiencyRanker,
     MarginalRiskEvaluator,
     PortfolioStateEngine,
@@ -39,7 +39,7 @@ from apps.risk import (
     RiskScorecardEngine,
     RiskSnapshotEngine,
 )
-from apps.risk.optimization import AllocationOptimizer, HedgeOptimizer, RebalanceSuggestionEngine
+from backend.services.risk_engine.optimization import AllocationOptimizer, HedgeOptimizer, RebalanceSuggestionEngine
 from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
 
 

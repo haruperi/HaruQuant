@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from apps.risk import (
+from backend.services.risk_engine import (
     HypotheticalOrderAction,
     RecommendationEngine,
     RiskScorecardEngine,
     RiskSnapshotEngine,
     WhatIfEngine,
 )
-from apps.risk.reports import build_replay_report
-from apps.risk.simulation import ReplayFrame, build_cockpit_state
-from apps.risk.storage import RiskRepository, RiskSnapshotStore
+from backend.services.risk_engine.reports import build_replay_report
+from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
+from backend.services.risk_engine.storage import RiskRepository, RiskSnapshotStore
 from backend.db.sqlite import SQLiteDatabase
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 

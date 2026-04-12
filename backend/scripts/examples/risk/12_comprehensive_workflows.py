@@ -31,7 +31,7 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from backend.mcp.mt5_mcp import MT5Client, get_mt5_api
-from apps.risk import (
+from backend.services.risk_engine import (
     AllocationPlanner,
     GovernanceEngine,
     PortfolioRiskEngine,
@@ -39,7 +39,7 @@ from apps.risk import (
     RiskLimits,
     RiskRegimeDetector,
 )
-from apps.risk.limits import CorrelationPreference
+from backend.services.risk_engine.limits import CorrelationPreference
 from backend.db.sqlite.users import UserManager
 from backend.services.simulation.engine import Engine
 

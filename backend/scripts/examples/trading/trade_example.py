@@ -14,7 +14,7 @@ from backend.common.logger import logger
 from backend.services.simulation.engine import Engine
 from backend.services.execution import core
 from backend.services.execution.trade import Trade
-from apps.risk import CorrelationPreference, RiskLimits
+from backend.services.risk_engine import CorrelationPreference, RiskLimits
 from backend.services.market_data.data_manipulator import TicksGenerator
 from backend.db.sqlite.database_operations import DatabaseManager
 from backend.data.strategies.trend_following import TrendFollowingStrategy

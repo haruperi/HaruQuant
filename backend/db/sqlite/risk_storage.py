@@ -9,12 +9,12 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from apps.risk.limits import LimitEvent
-from apps.risk.metrics import MetricRow, RiskSnapshot
-from apps.risk.optimization import RecommendationResult
-from apps.risk.scenarios import ScenarioResult
-from apps.risk.scoring import RiskScorecard, ScoreRow
-from apps.risk.simulation import ReplayFrame, WhatIfComparison
+from backend.services.risk_engine.limits import LimitEvent
+from backend.services.risk_engine.metrics import MetricRow, RiskSnapshot
+from backend.services.risk_engine.optimization import RecommendationResult
+from backend.services.risk_engine.scenarios import ScenarioResult
+from backend.services.risk_engine.scoring import RiskScorecard, ScoreRow
+from backend.services.risk_engine.simulation import ReplayFrame, WhatIfComparison
 from backend.common.logger import logger
 
 EXPORT_DIR = Path(__file__).resolve().parents[2] / "data" / "simulations" / "exports"
@@ -352,7 +352,7 @@ class RiskStorageManager:
 
     def export_risk_snapshot_reports(self, snapshot_id: int) -> dict[str, Any]:
         """Export stored risk snapshot reports as JSON and Markdown."""
-        from apps.risk.reports import (
+        from backend.services.risk_engine.reports import (
             build_risk_snapshot_report,
             build_scenario_report,
             render_risk_report_markdown,
@@ -392,7 +392,7 @@ class RiskStorageManager:
 
     def export_risk_replay_report(self, run_id: int) -> dict[str, Any]:
         """Export a compact replay report as JSON and Markdown."""
-        from apps.risk.reports import (
+        from backend.services.risk_engine.reports import (
             build_replay_report,
             render_replay_report_markdown,
             save_json_report,

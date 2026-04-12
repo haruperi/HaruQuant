@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from apps.risk import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
-from apps.risk.limits import LimitEvent
-from apps.risk.limits import PolicyEngine
+from backend.services.risk_engine import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from backend.services.risk_engine.limits import LimitEvent
+from backend.services.risk_engine.limits import PolicyEngine
 
 
 def _bars(periods: int = 80, start: str = "2024-01-01") -> pd.DataFrame:

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from apps.risk.core.portfolio_risk_engine import PortfolioRiskEngine
-from apps.risk.limits import RiskLimits
-from apps.risk.metrics import math as risk_math
+from backend.services.risk_engine.core.portfolio_risk_engine import PortfolioRiskEngine
+from backend.services.risk_engine.limits import RiskLimits
+from backend.services.risk_engine.metrics import math as risk_math
 
 
 def test_core_engine_preserves_observed_correlations_in_standard_mode():

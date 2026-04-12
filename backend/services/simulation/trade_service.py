@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from fastapi import HTTPException, status
 
-from apps.risk.simulation import HypotheticalOrderAction
+from backend.services.risk_engine.simulation import HypotheticalOrderAction
 from backend.common.logger import logger
 
 from .route_support import (

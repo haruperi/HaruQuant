@@ -6,7 +6,7 @@ import time
 import pandas as pd
 
 from backend.mcp.mt5_mcp import MT5Utils, get_mt5_api
-from apps.risk import (
+from backend.services.risk_engine import (
     AllocationPlanner,
     CorrelationPreference,
     GovernanceEngine,

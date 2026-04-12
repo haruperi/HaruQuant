@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from apps.risk import (
+from backend.services.risk_engine import (
     HypotheticalOrderAction,
     ReplayClock,
     ReplayEngine,

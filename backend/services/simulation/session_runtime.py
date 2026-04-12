@@ -14,20 +14,20 @@ import pandas as pd
 from backend.api.legacy.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp import get_mt5_api
 from backend.mcp.mt5_mcp.client import MT5Client
-from apps.risk.core import PortfolioStateEngine
-from apps.risk.core.governance_engine import GovernanceEngine
-from apps.risk.core.portfolio_risk_engine import PortfolioRiskEngine
-from apps.risk.core.recommendation_engine import RecommendationEngine
-from apps.risk.core.risk_scorecard_engine import RiskScorecardEngine
-from apps.risk.core.risk_snapshot_engine import RiskSnapshotEngine
-from apps.risk.core.timeline_reconstructor import TimelineReconstructor
-from apps.risk.limits import RiskLimits
-from apps.risk.metrics import RiskSnapshot
-from apps.risk.metrics.math import extract_currency_exposure
-from apps.risk.models import PortfolioState, PositionState
-from apps.risk.scoring import RiskScorecard
-from apps.risk.simulation import HypotheticalOrderAction, ReplayFrame, WhatIfEngine
-from apps.risk.storage import RiskRepository, RiskSnapshotStore
+from backend.services.risk_engine.core import PortfolioStateEngine
+from backend.services.risk_engine.core.governance_engine import GovernanceEngine
+from backend.services.risk_engine.core.portfolio_risk_engine import PortfolioRiskEngine
+from backend.services.risk_engine.core.recommendation_engine import RecommendationEngine
+from backend.services.risk_engine.core.risk_scorecard_engine import RiskScorecardEngine
+from backend.services.risk_engine.core.risk_snapshot_engine import RiskSnapshotEngine
+from backend.services.risk_engine.core.timeline_reconstructor import TimelineReconstructor
+from backend.services.risk_engine.limits import RiskLimits
+from backend.services.risk_engine.metrics import RiskSnapshot
+from backend.services.risk_engine.metrics.math import extract_currency_exposure
+from backend.services.risk_engine.models import PortfolioState, PositionState
+from backend.services.risk_engine.scoring import RiskScorecard
+from backend.services.risk_engine.simulation import HypotheticalOrderAction, ReplayFrame, WhatIfEngine
+from backend.services.risk_engine.storage import RiskRepository, RiskSnapshotStore
 from backend.services.simulation.serializers import (
     _apply_leverage_override_to_state,
     _estimate_state_margin_used,

@@ -6,8 +6,8 @@ from dataclasses import replace
 import math
 from typing import Any, Dict, List, Optional
 
-from apps.risk.core.portfolio_risk_engine import PortfolioRiskEngine
-from apps.risk.models import PortfolioState
+from backend.services.risk_engine.core.portfolio_risk_engine import PortfolioRiskEngine
+from backend.services.risk_engine.models import PortfolioState
 
 
 def _serialize_limit_events(events: Optional[List[Any]]) -> list[dict]:
@@ -203,8 +203,7 @@ def _estimate_state_margin_used(state: PortfolioState) -> float:
     }
     if not positions:
         return 0.0
-    # NOTE: This requires apps.risk still being available.
-    # Once apps.risk is migrated to backend/services/risk, update this import.
+    # Uses the migrated risk engine from backend.services.risk_engine.
     from backend.services.simulation.session_runtime import _SimulatorPortfolioStateRiskAdapter
     risk_engine = PortfolioRiskEngine(
         mt5_client=_SimulatorPortfolioStateRiskAdapter(state),

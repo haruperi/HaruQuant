@@ -1,27 +1,19 @@
-"""HaruQuant Risk Engine package.
-
-Portfolio-First Risk Governance for Algorithmic Trading.
-
-This package provides institutional-grade risk management with:
-- GovernanceEngine: Hard constraints (VaR, ES, margin, concentration)
-- AllocationPlanner: Risk parity allocation planning
-- RiskRegimeDetector / RegimeEngine: Market regime detection and state-aware risk context
-- PositionSizer: Dynamic position sizing (multiple methods)
-- RiskLimits: Configuration for risk parameters
+"""Risk engine compatibility shim.
+Re-exports from backend.services.risk_engine for apps/live/ until Phase 15.
 """
 
-from apps.risk.core import (
+from backend.services.risk_engine import (
+    # core
     GovernanceEngine,
     GovernanceReport,
     PortfolioRiskEngine,
-    RiskScorecardEngine,
     PortfolioStateEngine,
     RecommendationEngine,
+    RiskScorecardEngine,
     RiskSnapshotEngine,
-    TimelinePoint,
     TimelineReconstructor,
-)
-from apps.risk.limits import (
+    TimelinePoint,
+    # limits
     BudgetUtilization,
     CircuitBreakerState,
     CorrelationPreference,
@@ -32,22 +24,19 @@ from apps.risk.limits import (
     PolicyEngine,
     RiskLimits,
     RiskPolicy,
-)
-from apps.risk.models import (
+    # models
     AccountState,
     MarketState,
     PortfolioState,
     PositionState,
     SymbolState,
-)
-from apps.risk.position_sizing import (
+    # position_sizing
     PositionSizer,
     estimate_kelly_parameters,
     validate_position_size,
-)
-from apps.risk.optimization import (
-    AllocationPlanner,
+    # optimization
     AllocationOptimizer,
+    AllocationPlanner,
     CapitalEfficiencyRanker,
     HedgeOptimizer,
     MarginalRiskEvaluator,
@@ -56,8 +45,8 @@ from apps.risk.optimization import (
     RecommendationResult,
     RecommendationScore,
     RebalanceSuggestionEngine,
-)
-from apps.risk.regimes import (
+    clone_state_with_delta,
+    # regimes
     CrisisRegimeDetector,
     LiquidityRegimeDetector,
     MarketRegimeDetector,
@@ -66,110 +55,101 @@ from apps.risk.regimes import (
     RegimeSignal,
     RegimeState,
     RegimeTransition,
+    RegimeTransitionReport,
     RiskRegimeDetector,
     VolatilityRegimeDetector,
     build_regime_transition,
-)
-from apps.risk.reports import (
-    build_replay_report,
-    build_risk_snapshot_report,
-    build_scenario_report,
-    render_replay_report_markdown,
-    render_risk_report_markdown,
-    render_scenario_report_markdown,
-    save_json_report,
-    save_markdown_report,
-)
-from apps.risk.scenarios import (
+    # scenarios
     ScenarioRegistry,
     ScenarioResult,
     StressScenario,
     build_default_scenario_registry,
     evaluate_scenarios,
-)
-from apps.risk.simulation import (
+    # scoring
+    RiskScorecard,
+    ScoreContext,
+    ScoreFamily,
+    ScoreRegistry,
+    ScoreRow,
+    build_default_score_registry,
+    # simulation
     CockpitStatePayload,
     HypotheticalOrderAction,
     ReplayClock,
-    ReplayEngine,
     ReplayFrame,
     ReplayRun,
     WhatIfComparison,
     WhatIfEngine,
     apply_hypothetical_actions,
     build_cockpit_state,
+    # storage
+    RiskRepository,
+    RiskScenarioStore,
+    RiskSnapshotStore,
+    # metrics
+    MetricContext,
+    MetricFamily,
+    MetricRegistry,
+    MetricRow,
+    RiskSnapshot,
+    build_default_metric_registry,
+    build_returns_df,
+    compute_portfolio_var_es,
+    extract_currency_exposure,
+    estimate_margin_used,
+    symbol_notional_value,
+    # validators
+    ValidationIssue,
+    ValidationSummary,
+    validate_account_state,
+    validate_market_states,
+    validate_position_states,
+    validate_risk_limits,
+    validate_symbol_states,
 )
 
 __all__ = [
-    "PolicyEngine",
-    "PolicyDecision",
-    "LimitEvent",
-    "GovernanceState",
-    "OverrideRecord",
-    "BudgetUtilization",
-    "CircuitBreakerState",
-    "GovernanceEngine",
-    "GovernanceReport",
-    "PortfolioRiskEngine",
-    "AllocationPlanner",
-    "PortfolioStateEngine",
-    "RecommendationEngine",
-    "RiskScorecardEngine",
-    "RiskSnapshotEngine",
-    "RegimeEngine",
-    "RegimeReport",
-    "RiskRegimeDetector",
-    "RegimeState",
-    "RegimeSignal",
-    "RegimeTransition",
-    "CrisisRegimeDetector",
-    "MarketRegimeDetector",
-    "VolatilityRegimeDetector",
-    "LiquidityRegimeDetector",
-    "build_regime_transition",
-    "build_risk_snapshot_report",
-    "build_scenario_report",
-    "build_replay_report",
-    "render_risk_report_markdown",
-    "render_scenario_report_markdown",
-    "render_replay_report_markdown",
-    "save_json_report",
-    "save_markdown_report",
-    "PositionSizer",
-    "RecommendationAction",
-    "RecommendationBatch",
-    "RecommendationResult",
-    "RecommendationScore",
-    "MarginalRiskEvaluator",
-    "RebalanceSuggestionEngine",
-    "CapitalEfficiencyRanker",
-    "AllocationOptimizer",
-    "HedgeOptimizer",
-    "RiskPolicy",
-    "RiskLimits",
-    "CorrelationPreference",
-    "AccountState",
-    "PositionState",
-    "SymbolState",
-    "MarketState",
-    "PortfolioState",
-    "TimelinePoint",
-    "TimelineReconstructor",
-    "ReplayClock",
-    "ReplayFrame",
-    "ReplayRun",
-    "ReplayEngine",
-    "HypotheticalOrderAction",
-    "WhatIfComparison",
-    "WhatIfEngine",
-    "CockpitStatePayload",
-    "apply_hypothetical_actions",
-    "build_cockpit_state",
-    "ScenarioRegistry",
-    "ScenarioResult",
-    "StressScenario",
-    "build_default_scenario_registry",
-    "evaluate_scenarios",
-    "validate_position_size",
-    "estimate_kelly_parameters",
+    # core
+    "GovernanceEngine", "GovernanceReport", "PortfolioRiskEngine",
+    "PortfolioStateEngine", "RecommendationEngine", "RiskScorecardEngine",
+    "RiskSnapshotEngine", "TimelineReconstructor", "TimelinePoint",
+    # limits
+    "BudgetUtilization", "CircuitBreakerState", "CorrelationPreference",
+    "GovernanceState", "LimitEvent", "OverrideRecord", "PolicyDecision",
+    "PolicyEngine", "RiskLimits", "RiskPolicy",
+    # models
+    "AccountState", "MarketState", "PortfolioState", "PositionState", "SymbolState",
+    # position_sizing
+    "PositionSizer", "estimate_kelly_parameters", "validate_position_size",
+    # optimization
+    "AllocationOptimizer", "AllocationPlanner", "CapitalEfficiencyRanker",
+    "HedgeOptimizer", "MarginalRiskEvaluator", "RecommendationAction",
+    "RecommendationBatch", "RecommendationResult", "RecommendationScore",
+    "RebalanceSuggestionEngine", "clone_state_with_delta",
+    # regimes
+    "CrisisRegimeDetector", "LiquidityRegimeDetector", "MarketRegimeDetector",
+    "RegimeEngine", "RegimeReport", "RegimeSignal", "RegimeState",
+    "RegimeTransition", "RegimeTransitionReport", "RiskRegimeDetector",
+    "VolatilityRegimeDetector", "build_regime_transition",
+    # scenarios
+    "ScenarioRegistry", "ScenarioResult", "StressScenario",
+    "build_default_scenario_registry", "evaluate_scenarios",
+    # scoring
+    "RiskScorecard", "ScoreContext", "ScoreFamily", "ScoreRegistry", "ScoreRow",
+    "build_default_score_registry",
+    # simulation
+    "CockpitStatePayload", "HypotheticalOrderAction", "ReplayClock",
+    "ReplayFrame", "ReplayRun", "WhatIfComparison", "WhatIfEngine",
+    "apply_hypothetical_actions", "build_cockpit_state",
+    # storage
+    "RiskRepository", "RiskScenarioStore", "RiskSnapshotStore",
+    # metrics
+    "MetricContext", "MetricFamily", "MetricRegistry", "MetricRow",
+    "RiskSnapshot", "build_default_metric_registry", "build_returns_df",
+    "compute_portfolio_var_es", "extract_currency_exposure",
+    "estimate_margin_used", "symbol_notional_value",
+    # validators
+    "ValidationIssue", "ValidationSummary", "validate_account_state",
+    "validate_market_states", "validate_position_states", "validate_risk_limits",
+    "validate_symbol_states",
 ]

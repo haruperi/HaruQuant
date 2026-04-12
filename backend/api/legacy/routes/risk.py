@@ -10,7 +10,7 @@ import pandas as pd
 
 from backend.api.legacy.auth_utils import get_user_id_from_token
 from backend.common.logger import logger
-from apps.risk import (
+from backend.services.risk_engine import (
     AllocationPlanner,
     CorrelationPreference,
     GovernanceEngine,
@@ -20,8 +20,8 @@ from apps.risk import (
     RegimeState,
     RiskLimits,
 )
-from apps.risk.models import AccountState, MarketState, PortfolioState, PositionState, SymbolState
-from apps.risk.regimes import CrisisRegimeDetector, RegimeEngine
+from backend.services.risk_engine.models import AccountState, MarketState, PortfolioState, PositionState, SymbolState
+from backend.services.risk_engine.regimes import CrisisRegimeDetector, RegimeEngine
 from backend.services.simulation.engine import Engine
 
 router = APIRouter()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from apps.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from backend.services.risk_engine import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
 
 
 def _bars(
