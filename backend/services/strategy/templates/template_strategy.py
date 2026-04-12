@@ -1,4 +1,4 @@
-"""
+﻿"""
 Template Strategy.
 
 A clean starting point for creating new strategies.
@@ -14,8 +14,8 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from apps.logger import logger
-from apps.strategy import BaseStrategy
-from apps.strategy.base import SignalDict
+from backend.services.strategy import BaseStrategy
+from backend.services.strategy.base import SignalDict
 
 # Import indicators as needed
 # from backend.services.indicators import atr, ema, rsi, sma

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Optimization Core.
 
 Background task execution for optimization, walk-forward analysis, and Monte Carlo simulation.
@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from backend.common.logger import logger
 from backend.db.sqlite.database_operations import DatabaseManager
-from apps.strategy.storage import StrategyStorage
+from backend.services.strategy.storage import StrategyStorage
 from backend.services.market_data.data_getters import load_dukascopy
 from backend.services.market_data.data_validator import DataValidator
 

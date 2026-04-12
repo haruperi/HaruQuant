@@ -1,4 +1,4 @@
-# HaruQuant
+﻿# HaruQuant
 
 A comprehensive quantitative trading platform for backtesting, optimization, and live trading with MetaTrader 5.
 
@@ -47,7 +47,7 @@ python backend/scripts/tools/initialize_database.py
 ```python
 from apps.simulation.simulator import TradeSimulator
 from apps.simulation.data import SymbolInfoSimulator, AccountInfoSimulator
-from apps.strategy.base import BaseStrategy
+from backend.services.strategy.base import BaseStrategy
 import pandas as pd
 
 # Load data
@@ -205,7 +205,7 @@ See [Portfolio Backtesting Guide](docs/portfolio_backtesting.md) for complete do
 ### Creating a Strategy
 
 ```python
-from apps.strategy.base import BaseStrategy
+from backend.services.strategy.base import BaseStrategy
 import pandas as pd
 
 class MyCustomStrategy(BaseStrategy):
@@ -326,29 +326,29 @@ portfolio_manager.start()
 
 ```
 HaruQuant/
-├── apps/
-│   ├── simulation/         # Backtesting engine
-│   │   ├── simulator.py    # TradeSimulator
-│   │   ├── engine.py       # SimulationEngine
-│   │   ├── portfolio.py    # PortfolioEngine, PortfolioStrategy
-│   │   ├── synchronizer.py # DataSynchronizer
-│   │   └── data.py         # SymbolInfoSimulator, AccountInfoSimulator
-│   ├── strategy/           # Strategy framework
-│   ├── optimization/       # Parameter optimization
-│   ├── mt5/                # MetaTrader 5 integration
-│   ├── live/               # Live trading
-│   ├── sqlite/             # Database operations
-│   └── api/                # REST API
-├── backend/data/
-│   ├── database/           # SQLite databases
-│   └── strategies/         # Strategy implementations
-├── tests/
-│   ├── unit/               # Unit tests
-│   ├── integration/        # Integration tests
-│   ├── performance/        # Performance benchmarks
-│   └── usage/              # Example scripts
-├── docs/                   # Documentation
-└── README.md
+â”œâ”€â”€ apps/
+â”‚   â”œâ”€â”€ simulation/         # Backtesting engine
+â”‚   â”‚   â”œâ”€â”€ simulator.py    # TradeSimulator
+â”‚   â”‚   â”œâ”€â”€ engine.py       # SimulationEngine
+â”‚   â”‚   â”œâ”€â”€ portfolio.py    # PortfolioEngine, PortfolioStrategy
+â”‚   â”‚   â”œâ”€â”€ synchronizer.py # DataSynchronizer
+â”‚   â”‚   â””â”€â”€ data.py         # SymbolInfoSimulator, AccountInfoSimulator
+â”‚   â”œâ”€â”€ strategy/           # Strategy framework
+â”‚   â”œâ”€â”€ optimization/       # Parameter optimization
+â”‚   â”œâ”€â”€ mt5/                # MetaTrader 5 integration
+â”‚   â”œâ”€â”€ live/               # Live trading
+â”‚   â”œâ”€â”€ sqlite/             # Database operations
+â”‚   â””â”€â”€ api/                # REST API
+â”œâ”€â”€ backend/data/
+â”‚   â”œâ”€â”€ database/           # SQLite databases
+â”‚   â””â”€â”€ strategies/         # Strategy implementations
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ unit/               # Unit tests
+â”‚   â”œâ”€â”€ integration/        # Integration tests
+â”‚   â”œâ”€â”€ performance/        # Performance benchmarks
+â”‚   â””â”€â”€ usage/              # Example scripts
+â”œâ”€â”€ docs/                   # Documentation
+â””â”€â”€ README.md
 ```
 
 ---

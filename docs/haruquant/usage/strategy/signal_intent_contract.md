@@ -1,11 +1,11 @@
-# Signal Intent Contract (IP-23)
+﻿# Signal Intent Contract (IP-23)
 
 This usage note shows `StrategyAdapter` + `SignalRouter` with canonical `SignalIntent`.
 
 ```python
 import pandas as pd
 
-from apps.strategy import StrategyAdapter, SignalRouter
+from backend.services.strategy import StrategyAdapter, SignalRouter
 from my_strategy import MyStrategy
 
 strategy = MyStrategy({"symbol": "EURUSD", "strategy_id": "trend-1"})

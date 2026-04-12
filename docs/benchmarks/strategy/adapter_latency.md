@@ -1,4 +1,4 @@
-# Strategy Adapter Latency (IP-23)
+﻿# Strategy Adapter Latency (IP-23)
 
 Date: 2026-02-18
 Environment: local Python runtime
@@ -8,7 +8,7 @@ Environment: local Python runtime
 ```python
 import timeit
 import pandas as pd
-from apps.strategy.adapter import StrategyAdapter
+from backend.services.strategy.adapter import StrategyAdapter
 from my_strategy import MyStrategy
 
 strategy = MyStrategy({"symbol": "EURUSD", "strategy_id": "bench-1"})

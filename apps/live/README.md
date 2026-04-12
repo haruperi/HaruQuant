@@ -1,4 +1,4 @@
-# Live Trading Module
+﻿# Live Trading Module
 
 Automated live trading system with support for single and multi-strategy execution, portfolio-level risk management, and comprehensive safety checks.
 
@@ -299,8 +299,8 @@ max_positions_per_symbol: 3  # Per symbol across ALL strategies
 
 **Example**:
 - Strategy A: 2 EURUSD positions
-- Strategy B wants to open 1 EURUSD → ✓ Allowed (total = 3)
-- Strategy C wants to open 1 EURUSD → ✗ Blocked (exceeds 3)
+- Strategy B wants to open 1 EURUSD â†’ âœ“ Allowed (total = 3)
+- Strategy C wants to open 1 EURUSD â†’ âœ— Blocked (exceeds 3)
 
 #### 3. Correlation Exposure
 ```python
@@ -407,7 +407,7 @@ Create `backend/data/strategies/my_strategy.py`:
 from typing import Any, Dict, Optional
 import pandas as pd
 from backend.common.logger import logger
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 
 
 class MyStrategy(BaseStrategy):
@@ -523,8 +523,8 @@ python -m apps.live.run --config backend/config/multi_strategy_config.json
 
 **Critical Rules**:
 1. Signal types must be **lowercase with spaces**:
-   - ✅ `"buy"`, `"sell"`, `"close buy"`, `"close sell"`
-   - ❌ `"Buy"`, `"SELL"`, `"Exit Buy"`, `"EXIT_SELL"`
+   - âœ… `"buy"`, `"sell"`, `"close buy"`, `"close sell"`
+   - âŒ `"Buy"`, `"SELL"`, `"Exit Buy"`, `"EXIT_SELL"`
 
 2. Always shift indicators by 1 to avoid look-ahead bias:
 ```python
@@ -712,7 +712,7 @@ Then update the code to check for override first.
 **Results**:
 - **Before**: ~30 account info logs per minute
 - **After**: Clean logs showing only important events
-- **Log file size**: 90% reduction (50 MB/hour → 5 MB/hour)
+- **Log file size**: 90% reduction (50 MB/hour â†’ 5 MB/hour)
 
 ### Log Levels
 
@@ -747,7 +747,7 @@ Then update the code to check for override first.
 - After: ~60-80ms per cycle (40% improvement)
 
 **API Call Reduction**:
-- Account queries: 60% reduction (30/min → 12/min)
+- Account queries: 60% reduction (30/min â†’ 12/min)
 - Position queries: Unchanged (needed for decisions)
 
 ## Control Commands
@@ -821,7 +821,7 @@ tail -f backend/logs/live_trading/live_trading.log
 **Solutions**:
 - Verify MT5 terminal is running
 - Check login/password/server in config
-- Enable automated trading: Tools → Options → Expert Advisors → "Allow automated trading"
+- Enable automated trading: Tools â†’ Options â†’ Expert Advisors â†’ "Allow automated trading"
 
 ### "Failed to fetch historical data"
 
@@ -892,20 +892,20 @@ If bars detected but no signals:
 
 ```
 apps/live/
-├── __init__.py              # Package exports
-├── config.py                # Configuration loader with env var substitution
-├── state_manager.py         # State persistence (pause/resume)
-├── bar_monitor.py           # Bar detection and fetching (checks CLOSED bars)
-├── signal_processor.py      # Strategy signal detection
-├── position_manager.py      # Position tracking by magic number
-├── portfolio_manager.py     # Portfolio-level risk management
-├── safety_checks.py         # Pre-trade validation (8 checks)
-├── trade_executor.py        # Trade execution with retry logic
-├── notifications.py         # Email notifications
-├── engine.py                # Unified trading engine (MultiStrategyEngine)
-├── dashboard.py             # Real-time monitoring dashboard
-├── run.py                   # Entry point
-└── README.md                # This file
+â”œâ”€â”€ __init__.py              # Package exports
+â”œâ”€â”€ config.py                # Configuration loader with env var substitution
+â”œâ”€â”€ state_manager.py         # State persistence (pause/resume)
+â”œâ”€â”€ bar_monitor.py           # Bar detection and fetching (checks CLOSED bars)
+â”œâ”€â”€ signal_processor.py      # Strategy signal detection
+â”œâ”€â”€ position_manager.py      # Position tracking by magic number
+â”œâ”€â”€ portfolio_manager.py     # Portfolio-level risk management
+â”œâ”€â”€ safety_checks.py         # Pre-trade validation (8 checks)
+â”œâ”€â”€ trade_executor.py        # Trade execution with retry logic
+â”œâ”€â”€ notifications.py         # Email notifications
+â”œâ”€â”€ engine.py                # Unified trading engine (MultiStrategyEngine)
+â”œâ”€â”€ dashboard.py             # Real-time monitoring dashboard
+â”œâ”€â”€ run.py                   # Entry point
+â””â”€â”€ README.md                # This file
 ```
 
 ### Signal Types
@@ -1014,16 +1014,16 @@ For issues or questions:
 
 You now have a production-ready unified trading system with:
 
-- ✅ **Unified Engine**: Run 1 or 100+ strategies in one instance
-- ✅ **Dynamic Strategy Loading**: TrendFollowing, CloseBreakout, and custom strategies
-- ✅ **Automatic Filling Mode Detection**: Per-symbol FOK/IOC/RETURN
-- ✅ **Portfolio-Level Risk Management**: Across all strategies
-- ✅ **Real-time Monitoring Dashboard**: All strategies in one view
-- ✅ **Comprehensive Safety Checks**: 8 pre-trade validations
-- ✅ **Clean, Optimized Logging**: 90% smaller log files
-- ✅ **Easy Strategy Addition**: 3-step process
-- ✅ **Email Notifications**: All critical events
-- ✅ **Pause/Resume Control**: File-based state management
+- âœ… **Unified Engine**: Run 1 or 100+ strategies in one instance
+- âœ… **Dynamic Strategy Loading**: TrendFollowing, CloseBreakout, and custom strategies
+- âœ… **Automatic Filling Mode Detection**: Per-symbol FOK/IOC/RETURN
+- âœ… **Portfolio-Level Risk Management**: Across all strategies
+- âœ… **Real-time Monitoring Dashboard**: All strategies in one view
+- âœ… **Comprehensive Safety Checks**: 8 pre-trade validations
+- âœ… **Clean, Optimized Logging**: 90% smaller log files
+- âœ… **Easy Strategy Addition**: 3-step process
+- âœ… **Email Notifications**: All critical events
+- âœ… **Pause/Resume Control**: File-based state management
 
 **Example Multi-Strategy Setup**:
 - 6 strategies running
@@ -1033,7 +1033,7 @@ You now have a production-ready unified trading system with:
 - Single MT5 connection
 - One command: `python -m apps.live.run --config backend/config/multi_strategy_config.json`
 
-Happy trading! 🚀
+Happy trading! ðŸš€
 
 
 

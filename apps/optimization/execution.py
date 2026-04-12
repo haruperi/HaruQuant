@@ -1,4 +1,4 @@
-"""
+﻿"""
 Optimization execution helpers built on the trading engine.
 """
 
@@ -11,7 +11,7 @@ from typing import Any, Dict, Type, cast
 import pandas as pd
 
 from apps.finance import drawdowns, metrics, ratios, returns
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 from apps.trading import Engine
 from backend.services.market_data.data_manipulator import TicksGenerator
 

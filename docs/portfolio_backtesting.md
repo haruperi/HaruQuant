@@ -1,4 +1,4 @@
-# Portfolio Backtesting Guide
+﻿# Portfolio Backtesting Guide
 
 ## Table of Contents
 - [Overview](#overview)
@@ -35,48 +35,48 @@ The portfolio backtesting system allows you to backtest multiple instruments sim
 ### System Design
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        User Application                         │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                       PortfolioEngine                           │
-│  - Orchestrates multi-symbol backtest                           │
-│  - Creates TradeSimulator with multiple symbols                 │
-│  - Packages results into PortfolioBacktestResult                │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-            ┌────────────────────┼────────────────────┐
-            ↓                    ↓                    ↓
-  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐
-  │PortfolioStrategy│  │ DataSynchronizer │  │ TradeSimulator  │
-  │                 │  │                  │  │                 │
-  │ - Strategies    │  │ - Align data     │  │ - Positions     │
-  │ - Symbol specs  │  │ - Handle gaps    │  │ - Trade records │
-  │ - Data          │  │ - ffill/drop     │  │ - Account       │
-  │ - Allocations   │  │                  │  │ - Execution     │
-  └─────────────────┘  └──────────────────┘  └─────────────────┘
-            │                    │                    │
-            └────────────────────┴────────────────────┘
-                                 │
-                                 ↓
-            ┌──────────────────────────────────────┐
-            │      SimulationEngine._run_portfolio │
-            │  - Bar-by-bar loop across ALL symbols│
-            │  - Update ticks for all symbols      │
-            │  - Process signals for each symbol   │
-            │  - Update unified equity curve       │
-            └──────────────────────────────────────┘
-                                 │
-                                 ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                   PortfolioBacktestResult                       │
-│  - Portfolio summary (Sharpe, drawdown, total return)           │
-│  - Asset results (per-symbol metrics)                           │
-│  - Correlation matrix                                           │
-│  - Asset contributions                                          │
-└─────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                        User Application                         â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                 â”‚
+                                 â†“
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                       PortfolioEngine                           â”‚
+â”‚  - Orchestrates multi-symbol backtest                           â”‚
+â”‚  - Creates TradeSimulator with multiple symbols                 â”‚
+â”‚  - Packages results into PortfolioBacktestResult                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                 â”‚
+            â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+            â†“                    â†“                    â†“
+  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+  â”‚PortfolioStrategyâ”‚  â”‚ DataSynchronizer â”‚  â”‚ TradeSimulator  â”‚
+  â”‚                 â”‚  â”‚                  â”‚  â”‚                 â”‚
+  â”‚ - Strategies    â”‚  â”‚ - Align data     â”‚  â”‚ - Positions     â”‚
+  â”‚ - Symbol specs  â”‚  â”‚ - Handle gaps    â”‚  â”‚ - Trade records â”‚
+  â”‚ - Data          â”‚  â”‚ - ffill/drop     â”‚  â”‚ - Account       â”‚
+  â”‚ - Allocations   â”‚  â”‚                  â”‚  â”‚ - Execution     â”‚
+  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+            â”‚                    â”‚                    â”‚
+            â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                 â”‚
+                                 â†“
+            â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+            â”‚      SimulationEngine._run_portfolio â”‚
+            â”‚  - Bar-by-bar loop across ALL symbolsâ”‚
+            â”‚  - Update ticks for all symbols      â”‚
+            â”‚  - Process signals for each symbol   â”‚
+            â”‚  - Update unified equity curve       â”‚
+            â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                 â”‚
+                                 â†“
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                   PortfolioBacktestResult                       â”‚
+â”‚  - Portfolio summary (Sharpe, drawdown, total return)           â”‚
+â”‚  - Asset results (per-symbol metrics)                           â”‚
+â”‚  - Correlation matrix                                           â”‚
+â”‚  - Asset contributions                                          â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Key Components
@@ -118,7 +118,7 @@ The portfolio backtesting system allows you to backtest multiple instruments sim
 ```python
 from apps.simulation.portfolio import PortfolioStrategy, PortfolioEngine
 from apps.simulation.data import SymbolInfoSimulator
-from apps.strategy.base import BaseStrategy
+from backend.services.strategy.base import BaseStrategy
 import pandas as pd
 
 # 1. Load data for multiple symbols
@@ -199,9 +199,9 @@ PortfolioStrategy(
 ```
 
 **Parameters:**
-- `strategies`: Dictionary mapping symbol → strategy instance
-- `symbol_specs`: Dictionary mapping symbol → SymbolInfoSimulator
-- `data`: Dictionary mapping symbol → DataFrame (OHLCV data with DatetimeIndex)
+- `strategies`: Dictionary mapping symbol â†’ strategy instance
+- `symbol_specs`: Dictionary mapping symbol â†’ SymbolInfoSimulator
+- `data`: Dictionary mapping symbol â†’ DataFrame (OHLCV data with DatetimeIndex)
 - `max_total_exposure`: Maximum total portfolio exposure (default 1.0 = 100%)
 - `max_correlated_exposure`: Maximum exposure to correlated assets (default 0.6 = 60%)
 - `allocation_method`: Position sizing method ('equal_weight' or 'risk_parity')
@@ -221,7 +221,7 @@ Validates portfolio configuration. Checks that symbol sets match across strategi
 Calculates position size allocations for each symbol based on allocation_method.
 
 **Returns:**
-- Dictionary mapping symbol → allocation weight (0.0 to 1.0)
+- Dictionary mapping symbol â†’ allocation weight (0.0 to 1.0)
 
 **Example:**
 ```python
@@ -403,7 +403,7 @@ Utility class for synchronizing multi-symbol data.
 Synchronizes data across multiple symbols to a common timeline.
 
 **Parameters:**
-- `data_dict`: Dictionary mapping symbol → DataFrame
+- `data_dict`: Dictionary mapping symbol â†’ DataFrame
 - `method`: Method for handling missing bars within the period
   - `'ffill'`: Forward-fill (use last known value)
   - `'drop'`: Drop bars with any missing data
@@ -560,7 +560,7 @@ result = engine.run(synchronize_data=True, sync_method='ffill')
 ```
 EURUSD:  [1.10, 1.11, NaN,  1.12]
 GBPUSD:  [1.30, NaN,  1.31, 1.32]
-         ↓ (after ffill)
+         â†“ (after ffill)
 EURUSD:  [1.10, 1.11, 1.11, 1.12]  # NaN filled with 1.11
 GBPUSD:  [1.30, 1.30, 1.31, 1.32]  # NaN filled with 1.30
 ```
@@ -584,7 +584,7 @@ result = engine.run(synchronize_data=True, sync_method='drop')
 ```
 EURUSD:  [1.10, 1.11, NaN,  1.12]
 GBPUSD:  [1.30, NaN,  1.31, 1.32]
-         ↓ (after drop)
+         â†“ (after drop)
 EURUSD:  [1.10,            1.12]  # Bars 1-2 dropped (GBPUSD/EURUSD had NaN)
 GBPUSD:  [1.30,            1.32]
 ```
@@ -607,7 +607,7 @@ result = engine.run(synchronize_data=True, sync_method='interpolate')
 **Example:**
 ```
 EURUSD:  [1.10, 1.11, NaN,  1.13]
-         ↓ (after interpolate)
+         â†“ (after interpolate)
 EURUSD:  [1.10, 1.11, 1.12, 1.13]  # NaN interpolated as (1.11 + 1.13) / 2
 ```
 
@@ -638,7 +638,7 @@ synced_data = DataSynchronizer.synchronize(
 ### Speed
 
 **Expected Performance:**
-- **N symbols ≈ N× time** (linear scaling)
+- **N symbols â‰ˆ NÃ— time** (linear scaling)
 - 1 symbol, 5000 bars: ~30s
 - 3 symbols, 5000 bars: ~90s
 - 5 symbols, 5000 bars: ~150s
@@ -661,7 +661,7 @@ synced_data = DataSynchronizer.synchronize(
 - Scales linearly with number of symbols
 - ~10-50 MB per symbol for 5000 bars
 
-**For 10 symbols × 10000 bars:**
+**For 10 symbols Ã— 10000 bars:**
 - Expected: ~300-500 MB total
 - Memory overhead: 30-50 MB per symbol
 
@@ -676,12 +676,12 @@ synced_data = DataSynchronizer.synchronize(
 
 ### 1. Symbol Selection
 
-✅ **Do:**
+âœ… **Do:**
 - Choose low-correlated instruments (correlation < 0.5)
 - Mix different asset classes (forex, indices, commodities)
 - Verify sufficient liquidity for all symbols
 
-❌ **Don't:**
+âŒ **Don't:**
 - Trade highly correlated pairs (EURUSD + GBPUSD have ~0.7-0.9 correlation)
 - Mix symbols with vastly different volatilities without risk parity
 - Use too many symbols (5-10 is optimal)
@@ -699,7 +699,7 @@ print(corr_matrix)
 
 ### 2. Data Quality
 
-✅ **Do:**
+âœ… **Do:**
 - Verify data completeness before backtesting
 - Use consistent timeframes across symbols
 - Check for gaps and handle appropriately
@@ -719,7 +719,7 @@ for symbol, df in data.items():
 
 ### 3. Capital Allocation
 
-✅ **Do:**
+âœ… **Do:**
 - Start with equal_weight for similar instruments
 - Use risk_parity for mixed volatility profiles
 - Set max_total_exposure < 1.0 to reserve capital
@@ -739,7 +739,7 @@ portfolio_strategy = PortfolioStrategy(
 
 ### 4. Risk Management
 
-✅ **Do:**
+âœ… **Do:**
 - Monitor portfolio-level drawdown
 - Set stop-losses at strategy level
 - Review correlation matrix regularly
@@ -764,7 +764,7 @@ if summary['max_drawdown_pct'] > 20:
 
 ### 5. Testing
 
-✅ **Do:**
+âœ… **Do:**
 - Run integration tests on portfolio code
 - Benchmark performance (speed and memory)
 - Test with real MT5 data
@@ -791,7 +791,7 @@ assert len(eurusd_trades_from_portfolio) == len(eurusd_only_result.trades)
 ```python
 from apps.simulation.portfolio import PortfolioStrategy, PortfolioEngine
 from apps.simulation.data import SymbolInfoSimulator
-from apps.strategy.base import BaseStrategy
+from backend.services.strategy.base import BaseStrategy
 
 # Load data
 data = {
@@ -873,11 +873,11 @@ avg_corr = corr_matrix.values[mask].mean()
 
 print(f"\nAverage Correlation: {avg_corr:.3f}")
 if avg_corr < 0.3:
-    print("✓ Good diversification")
+    print("âœ“ Good diversification")
 elif avg_corr < 0.6:
-    print("⚠ Moderate diversification")
+    print("âš  Moderate diversification")
 else:
-    print("✗ Poor diversification")
+    print("âœ— Poor diversification")
 ```
 
 ---

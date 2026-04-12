@@ -1,4 +1,4 @@
-"""Session lifecycle helpers for simulator routes."""
+﻿"""Session lifecycle helpers for simulator routes."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any, Optional
 from fastapi import HTTPException, status
 
 from backend.db.sqlite.database_operations import DatabaseManager
-from apps.strategy import storage
+from backend.services.strategy import storage
 from backend.common.logger import logger
 
 from .route_support import refresh_session_risk_state

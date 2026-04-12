@@ -1,4 +1,4 @@
-# Strategy Module
+﻿# Strategy Module
 
 This module provides the framework for developing, managing, and executing trading strategies.
 
@@ -53,7 +53,7 @@ from typing import Optional, Dict, Any
 import pandas as pd
 from backend.services.indicators import ema
 from apps.logger import logger
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 
 
 class TrendFollowingStrategy(BaseStrategy):

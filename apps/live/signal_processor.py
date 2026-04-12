@@ -1,4 +1,4 @@
-"""Signal Processor.
+﻿"""Signal Processor.
 
 Maintains rolling window of bars and runs strategy to detect trading signals.
 Handles strategy initialization and real-time signal detection.
@@ -9,7 +9,7 @@ from typing import Optional
 import pandas as pd
 
 from backend.common.logger import logger
-from apps.strategy.base import BaseStrategy, SignalDict
+from backend.services.strategy.base import BaseStrategy, SignalDict
 
 
 class SignalProcessor:

@@ -1,4 +1,4 @@
-# Apps To Backend Migration Implementation Plan
+﻿# Apps To Backend Migration Implementation Plan
 
 | Field | Detail |
 |---|---|
@@ -201,7 +201,7 @@ backend/services/*
 - [x] Define `backend/api/app.py` as the single future API entrypoint.
 - [x] Move auth utilities and routes into backend-owned API namespace.
 - [x] Move settings routes into backend-owned API namespace.
-- [x] Move strategy routes after `apps/strategy` is migrated or wrapped.
+- [x] Move strategy routes after `backend/services/strategy` is migrated or wrapped.
 - [x] Move simulator routes after simulation service/MCP wrapper exists.
 - [x] Move risk routes to call `backend/services/risk`.
 - [x] Move live routes after execution/live services are migrated.
@@ -479,22 +479,24 @@ backend/api/routes/strategies.py
 
 ### Migration Tasks
 
-- [ ] Move base strategy abstractions into backend strategy service or strategy SDK package.
-- [ ] Move strategy storage to backend service using `backend/data/strategies`.
-- [ ] Move templates under backend data or backend scripts templates.
-- [ ] Move reproducibility/run manifest helpers.
-- [ ] Integrate with strategy governance and promotion services.
-- [ ] Update strategy API routes.
-- [ ] Update trading/backtest examples.
-- [ ] Delete `apps/strategy`.
+- [x] Move base strategy abstractions into backend strategy service or strategy SDK package.
+- [x] Move strategy storage to backend service using `backend/data/strategies`.
+- [x] Move templates under backend data or backend scripts templates.
+- [x] Move reproducibility/run manifest helpers.
+- [x] Integrate with strategy governance and promotion services.
+- [x] Update strategy API routes.
+- [x] Update trading/backtest examples.
+- [x] Delete `apps/strategy`.
+
+Phase 9 moves the strategy SDK, storage, template, signal adapter/router, and reproducible run manifest helpers into `backend/services/strategy`. Runtime strategy source remains in ignored `backend/data/strategies`, with imports updated locally to the backend service namespace.
 
 ### Verification
 
-- [ ] Strategy CRUD tests pass.
-- [ ] Strategy creation/editing from UI works.
-- [ ] Reproducible strategy run tests pass.
-- [ ] Promotion examples pass.
-- [ ] `rg "apps.strategy|from apps.strategy|import apps.strategy"` has no production matches.
+- [x] Strategy CRUD tests pass.
+- [x] Strategy creation/editing from UI works.
+- [x] Reproducible strategy run tests pass.
+- [x] Promotion examples pass.
+- [x] `rg "apps.strategy|from apps.strategy|import apps.strategy"` has no production matches.
 
 ---
 

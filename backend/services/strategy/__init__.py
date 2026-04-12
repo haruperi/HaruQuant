@@ -16,7 +16,14 @@ Key Components:
 Strategies work across all engines (vectorized, event-driven, live) without modification.
 """
 
-from .base import BaseStrategy
+from .adapter import SignalRouter, StrategyAdapter
+from .base import BaseStrategy, SignalDict, SignalIntent, StrategyEvent
+from .repro import (
+    attach_stability_metadata,
+    build_run_manifest,
+    compute_config_hash,
+    validate_manifest_payload,
+)
 from .storage import StrategyStorage, storage
 
 __version__ = "2.0.0"
@@ -24,6 +31,15 @@ __version__ = "2.0.0"
 __all__ = [
     # Core classes
     "BaseStrategy",
+    "SignalIntent",
+    "SignalDict",
+    "SignalRouter",
+    "StrategyAdapter",
+    "StrategyEvent",
     "StrategyStorage",
+    "attach_stability_metadata",
+    "build_run_manifest",
+    "compute_config_hash",
     "storage",
+    "validate_manifest_payload",
 ]

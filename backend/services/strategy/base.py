@@ -6,7 +6,7 @@ Simplified API with signal-based approach.
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, TypedDict
 
 import pandas as pd
 
@@ -48,6 +48,39 @@ class SignalDict(TypedDict, total=False):
     time: Any
 
 
+class StrategyEvent(TypedDict, total=False):
+    """Canonical strategy lifecycle/event payload."""
+
+    event_id: str
+    event_type: str
+    symbol: str
+    strategy_id: str
+    event_ts: Any
+    recv_ts: Any
+    payload: Dict[str, Any]
+    run_id: str
+    trace_id: str
+    correlation_id: str
+
+
+class SignalIntent(TypedDict, total=False):
+    """Canonical strategy signal intent passed to routing/execution boundaries."""
+
+    action: Literal["BUY", "SELL", "EXIT", "REDUCE", "HOLD"]
+    qty: Optional[float]
+    order_type: Literal["MARKET", "LIMIT", "STOP", "STOP_LIMIT"]
+    price: Optional[float]
+    time_in_force: Literal["GTC", "IOC", "FOK", "DAY"]
+    strategy_id: str
+    symbol: str
+    reason: Optional[str]
+    features: Dict[str, Any]
+    confidence: Optional[float]
+    tags: List[str]
+    metadata: Dict[str, Any]
+    timestamp: Any
+
+
 class BaseStrategy(ABC):
     """
     Abstract base class for all trading strategies.
@@ -84,6 +117,8 @@ class BaseStrategy(ABC):
 
         # Extract symbol from params (required for backtest engines)
         self.symbol = self.params["symbol"]
+        self.strategy_id = str(self.params.get("strategy_id", self.__class__.__name__))
+        self.state: Dict[str, Any] = {}
 
         # Optional trading objects (injected by engines for live/backtest)
         self.trade: Optional["Trade"] = None
@@ -127,6 +162,18 @@ class BaseStrategy(ABC):
             Not all engines support tick processing.
         """
         return data
+
+    def on_trade(self, event: StrategyEvent) -> None:
+        """Handle trade lifecycle events when an engine provides them."""
+
+    def on_order_update(self, event: StrategyEvent) -> None:
+        """Handle order lifecycle events when an engine provides them."""
+
+    def on_timer(self, event: StrategyEvent) -> None:
+        """Handle timer events when an engine provides them."""
+
+    def on_shutdown(self, event: Optional[StrategyEvent] = None) -> None:
+        """Handle strategy shutdown when an engine provides a shutdown event."""
 
     @abstractmethod
     def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:

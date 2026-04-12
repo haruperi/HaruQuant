@@ -1,4 +1,4 @@
-# Indicator Module
+﻿# Indicator Module
 
 A comprehensive library of technical indicators for financial market analysis, providing trend, momentum, volatility, and volume indicators with a clean, consistent API.
 
@@ -21,15 +21,15 @@ The `indicator` module provides a collection of commonly used technical indicato
 The module is organized into four categories of technical indicators:
 
 ```
-┌──────────────────┐
-│   Trend          │  ← SMA, EMA, WMA
-├──────────────────┤
-│   Momentum       │  ← RSI
-├──────────────────┤
-│   Volatility     │  ← ATR, Bollinger Bands
-├──────────────────┤
-│   Volume         │  ← Accumulation/Distribution
-└──────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚   Trend          â”‚  â† SMA, EMA, WMA
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚   Momentum       â”‚  â† RSI
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚   Volatility     â”‚  â† ATR, Bollinger Bands
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚   Volume         â”‚  â† Accumulation/Distribution
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
@@ -421,7 +421,7 @@ The Accumulation/Distribution line is a volume-based indicator that measures the
 
 **Calculation:**
 1. Money Flow Multiplier = ((Close - Low) - (High - Close)) / (High - Low)
-2. Money Flow Volume = Money Flow Multiplier × Volume
+2. Money Flow Volume = Money Flow Multiplier Ã— Volume
 3. A/D Line = Cumulative sum of Money Flow Volume
 
 **Example:**
@@ -627,6 +627,6 @@ Copyright 2025, HaruQuant
 
 ## See Also
 
-- `apps/strategy/` - Strategy framework for backtesting
+- `backend/services/strategy/` - Strategy framework for backtesting
 - `apps/trading/` - Trading execution module
 - `backend/mcp/mt5_mcp/` - MT5 data integration

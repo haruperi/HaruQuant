@@ -1,4 +1,4 @@
-"""Strategy routes for managing trading strategies."""
+﻿"""Strategy routes for managing trading strategies."""
 
 import os
 import tempfile
@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from backend.common.logger import logger
 from backend.db.sqlite.database_operations import DatabaseManager
-from apps.strategy import storage
+from backend.services.strategy import storage
 
 router = APIRouter()
 db_manager = DatabaseManager()

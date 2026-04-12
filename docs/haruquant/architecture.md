@@ -1,4 +1,4 @@
-# HaruQuant Architecture Notes
+﻿# HaruQuant Architecture Notes
 
 <<<<<<< HEAD
 ## Agentic AI Transition Status
@@ -62,7 +62,7 @@
   - `apps/optimization/`
   - `backend/mcp/mt5_mcp/`
   - `backend/db/sqlite/`
-  - `apps/strategy/`
+  - `backend/services/strategy/`
 - The intended migration direction is additive:
   - preserve deterministic engines
   - add governed orchestration around them
@@ -1830,31 +1830,31 @@
 ## Strategy SDK Lifecycle + Event Contract (IP-22)
 
 - Strategy base type:
-  - `apps/strategy/base.py::BaseStrategy`
+  - `backend/services/strategy/base.py::BaseStrategy`
 - Canonical lifecycle hooks:
   - required: `on_init()`, `on_bar(data)`
   - optional: `on_tick(data)`, `on_trade(event)`, `on_order_update(event)`, `on_timer(event)`, `on_shutdown(event=None)`
 - Canonical strategy event shape:
-  - `apps/strategy/base.py::StrategyEvent`
+  - `backend/services/strategy/base.py::StrategyEvent`
   - event keys: `event_id`, `event_type`, `symbol`, `strategy_id`, `event_ts`, `recv_ts`, `payload`, `run_id`, `trace_id`, `correlation_id`
 - Strategy isolation:
   - each strategy instance has its own `strategy_id` and mutable `state` container (`dict`) for per-strategy runtime state.
 - Evidence:
-  - `tests/unit/apps/strategy/test_base.py`
+  - `tests/unit/backend/services/strategy/test_base.py`
   - `tests/contracts/test_strategy_event_contract.py`
   - `docs/haruquant/usage/strategy/create_strategy.md`
 
 ## Strategy Adapter and Signal Router (IP-23)
 
 - Canonical contracts:
-  - `apps/strategy/base.py::SignalIntent`
+  - `backend/services/strategy/base.py::SignalIntent`
   - includes explainability metadata fields (`reason`, `features`, `confidence`, `tags`, `metadata`)
 - Adapter:
-  - `apps/strategy/adapter.py::StrategyAdapter`
+  - `backend/services/strategy/adapter.py::StrategyAdapter`
   - normalizes strategy output from `get_signal(...)` into canonical `SignalIntent`
   - emits `StrategyEvent` payload for downstream audit/routing contexts
 - Router:
-  - `apps/strategy/adapter.py::SignalRouter`
+  - `backend/services/strategy/adapter.py::SignalRouter`
   - validates canonical intent fields and forwards to provided handler
 - Evidence:
   - `tests/integration/test_strategy_adapter_flow.py`
@@ -1864,7 +1864,7 @@
 ## Strategy Reproducibility Metadata (IP-24)
 
 - Binder helpers:
-  - `apps/strategy/repro.py`
+  - `backend/services/strategy/repro.py`
   - `compute_config_hash(config)` for deterministic config fingerprinting
   - `build_run_manifest(...)` for strategy version + artifact binding
   - `attach_stability_metadata(...)` for stability/sensitivity payloads
@@ -1874,7 +1874,7 @@
   - artifact bindings: `strategy_artifacts`, `model_artifacts`
   - stability section: `stability_score`, `sensitivity`, `notes`
 - Evidence:
-  - `tests/unit/apps/strategy/test_strategy_version_binding.py`
+  - `tests/unit/backend/services/strategy/test_strategy_version_binding.py`
   - `docs/haruquant/usage/research/reproducible_strategy_runs.md`
   - `tests/usage/strategy/02_reproducible_manifest.py`
   - `artifacts/logs/repro/sample_manifest.json`
@@ -2318,7 +2318,7 @@
   - total open notional per symbol is aggregated across all open positions on that symbol
   - the first `$500,000` notional is margined at `1:1000`
   - any excess notional is margined at `1:500`
-  - the resulting symbol margin is redistributed back across the symbol’s open positions proportionally by notional before account margin totals are recomputed
+  - the resulting symbol margin is redistributed back across the symbolâ€™s open positions proportionally by notional before account margin totals are recomputed
 
 ## Frontend Simulator Trade Notifications
 

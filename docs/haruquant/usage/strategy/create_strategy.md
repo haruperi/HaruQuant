@@ -1,11 +1,11 @@
-# Create Strategy (IP-22)
+﻿# Create Strategy (IP-22)
 
 Use `BaseStrategy` and implement `on_init()` + `on_bar()`.
 Optional lifecycle hooks are available for runtime events.
 
 ```python
 import pandas as pd
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 
 
 class SimpleStrategy(BaseStrategy):

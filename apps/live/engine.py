@@ -1,4 +1,4 @@
-"""Multi-Strategy Live Trading Engine.
+﻿"""Multi-Strategy Live Trading Engine.
 
 Runs multiple strategies on different symbols simultaneously with portfolio-level risk management.
 Uses a single MT5 connection shared across all strategies.
@@ -23,7 +23,7 @@ from apps.live.mt5_compat import account_balance, account_currency, account_leve
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp import get_mt5_api
 from backend.mcp.mt5_mcp.client import MT5Client
-from apps.strategy import storage
+from backend.services.strategy import storage
 from apps.trading.trade import Trade
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 from backend.data.strategies.mean_reversion import MeanReversionStrategy

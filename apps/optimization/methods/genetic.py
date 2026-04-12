@@ -1,4 +1,4 @@
-"""
+﻿"""
 Genetic Algorithm Optimization.
 
 Evolves a population of parameter sets over multiple generations.
@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 import numpy as np
 
 from backend.common.logger import logger
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 
 from ..execution import run_strategy_backtest
 from ..result import OptimizationResult, OptimizationSummary

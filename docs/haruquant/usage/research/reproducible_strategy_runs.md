@@ -1,11 +1,11 @@
-# Reproducible Strategy Runs (IP-24)
+﻿# Reproducible Strategy Runs (IP-24)
 
 Use strategy reproducibility helpers to build and validate a run manifest.
 
 ## Build manifest with version + artifact binding
 
 ```python
-from apps.strategy import build_run_manifest, compute_config_hash, validate_manifest_payload
+from backend.services.strategy import build_run_manifest, compute_config_hash, validate_manifest_payload
 
 config = {"ema_fast": 20, "ema_slow": 50, "risk_per_trade": 0.01}
 cfg_hash = compute_config_hash(config)
@@ -31,7 +31,7 @@ print(ok, msg)
 ## Attach stability/sensitivity metadata
 
 ```python
-from apps.strategy import attach_stability_metadata
+from backend.services.strategy import attach_stability_metadata
 
 manifest = attach_stability_metadata(
     manifest,

@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Type
 
 from backend.common.logger import logger
 
-from .base import BaseStrategy
+from backend.services.strategy.base import BaseStrategy
 
 
 class StrategyStorage:
@@ -46,10 +46,9 @@ class StrategyStorage:
         if base_dir:
             self.base_dir = Path(base_dir)
         else:
-            # Get project root and create backend/data/strategies directory
-            current_dir = Path(__file__).parent
-            project_root = current_dir.parent.parent
-            self.base_dir = project_root / "backend" / "data" / "strategies"
+            # backend/services/strategy/storage.py -> backend/data/strategies
+            backend_dir = Path(__file__).resolve().parents[2]
+            self.base_dir = backend_dir / "data" / "strategies"
 
         # Ensure base directory exists
         self.base_dir.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Bayesian Optimization.
 
 Uses Gaussian Process-based optimization with Expected Improvement acquisition.
@@ -9,7 +9,7 @@ import time
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 
 from backend.common.logger import logger
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 
 from ..execution import run_strategy_backtest
 from ..result import OptimizationResult, OptimizationSummary

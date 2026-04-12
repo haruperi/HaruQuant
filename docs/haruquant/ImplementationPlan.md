@@ -551,7 +551,7 @@
 * **SDD refs:** Â§5.3.2, Â§6, Â§7
 * **Dependencies:** IP-12, IP-18
 * **Completion evidence**
-  * Tests: `tests/unit/apps/strategy/test_base.py`, `tests/contracts/test_strategy_event_contract.py`
+  * Tests: `tests/unit/backend/services/strategy/test_base.py`, `tests/contracts/test_strategy_event_contract.py`
   * Usage: `docs/haruquant/usage/strategy/create_strategy.md`
   * Bench/log: N/A
   * Commit: `TBD`
@@ -585,7 +585,7 @@
 * **SDD refs:** Â§5.3.2, Â§8, Â§10.4
 * **Dependencies:** IP-17, IP-23
 * **Completion evidence**
-  * Tests: `tests/unit/apps/strategy/test_strategy_version_binding.py`
+  * Tests: `tests/unit/backend/services/strategy/test_strategy_version_binding.py`
   * Usage: `docs/haruquant/usage/research/reproducible_strategy_runs.md`, `tests/usage/strategy/02_reproducible_manifest.py`
   * Bench/log: `artifacts/logs/repro/sample_manifest.json`
   * Commit: `TBD`

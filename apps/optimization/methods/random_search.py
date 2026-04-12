@@ -1,4 +1,4 @@
-"""
+﻿"""
 Random Search Optimization.
 
 Randomly samples parameter combinations.
@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Type
 import numpy as np
 
 from backend.common.logger import logger
-from apps.strategy import BaseStrategy
+from backend.services.strategy import BaseStrategy
 
 from ..execution import run_strategy_backtest, run_strategy_backtest_from_path
 from ..result import OptimizationResult, OptimizationSummary
