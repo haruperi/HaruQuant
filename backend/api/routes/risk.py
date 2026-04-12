@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 import numpy as np
 import pandas as pd
 
-from backend.api.main_app.auth_utils import get_user_id_from_token
+from backend.api.auth_utils import get_user_id_from_token
 from backend.common.logger import logger
 from backend.services.risk_engine import (
     AllocationPlanner,

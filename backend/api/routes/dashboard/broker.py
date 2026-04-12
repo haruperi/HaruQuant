@@ -6,8 +6,8 @@ from typing import Annotated, Any, Dict, Optional, Union, cast
 
 from fastapi import APIRouter, Header
 
-from backend.api.main_app.auth_utils import verify_token
-from backend.api.main_app.models import (
+from backend.api.auth_utils import verify_token
+from backend.api.models import (
     DashboardActiveStrategyItem,
     BrokerStatusResponse,
     DashboardDailyPnlPoint,

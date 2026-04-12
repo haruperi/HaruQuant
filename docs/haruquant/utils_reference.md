@@ -547,15 +547,15 @@ The scheduler is configured with the following background jobs:
 
 ```python
 # Direct import (required to avoid circular dependencies)
-from backend.api.main_app.scheduler import start_scheduler, shutdown_scheduler
+from backend.api.scheduler import start_scheduler, shutdown_scheduler
 
-# NOT from the package: from backend.api.main_app import start_scheduler  # This won't work
+# NOT from the package: from backend.api import start_scheduler  # This won't work
 ```
 
 **Usage**:
 
 ```python
-from backend.api.main_app.scheduler import start_scheduler, shutdown_scheduler
+from backend.api.scheduler import start_scheduler, shutdown_scheduler
 
 # Start the scheduler (typically on application startup)
 start_scheduler()
@@ -569,7 +569,7 @@ shutdown_scheduler()
 
 ```python
 from fastapi import FastAPI
-from backend.api.main_app.scheduler import start_scheduler, shutdown_scheduler
+from backend.api.scheduler import start_scheduler, shutdown_scheduler
 
 app = FastAPI()
 

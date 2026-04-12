@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.common.logger import logger
-from backend.api.main_app.middleware.security import SecretRedactionMiddleware
+from backend.api.middleware.security import SecretRedactionMiddleware
 
 from .routes import (
     auth,
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting HaruQuant API server")
 
     from backend.db.sqlite.database_operations import DatabaseManager
-    from backend.api.main_app.scheduler import start_scheduler
+    from backend.api.scheduler import start_scheduler
 
     try:
         db = DatabaseManager()
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down HaruQuant API server")
-    from backend.api.main_app.scheduler import shutdown_scheduler
+    from backend.api.scheduler import shutdown_scheduler
 
     shutdown_scheduler()
 

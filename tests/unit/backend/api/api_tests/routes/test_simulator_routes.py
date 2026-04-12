@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.main_app.routes import simulator
+from backend.api.routes import simulator
 
 
 class DummyDb:

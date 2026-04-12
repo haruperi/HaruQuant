@@ -5,7 +5,7 @@ from typing import List, Optional, TypedDict
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter
 
-from backend.api.main_app.models import MarketHoursResponse, MarketStatus
+from backend.api.models import MarketHoursResponse, MarketStatus
 
 router = APIRouter()
 

@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from backend.api.main_app.websocket import optimization_progress_manager
+from backend.api.websocket import optimization_progress_manager
 from backend.common.logger import logger
 from backend.services.optimization.models import (
     ConsecutiveLosingRequest,
