@@ -16,7 +16,7 @@ from backend.mcp.mt5_mcp import MT5Utils
 from backend.data.database.sqlite import SQLiteDatabase
 
 
-DEFAULT_OUTPUT_DIR = ROOT_DIR / "edge_lab_outputs" / "examples"
+DEFAULT_OUTPUT_DIR = ROOT_DIR / "backend" / "data" / "edge_lab_outputs" / "examples"
 
 
 def _json_safe(value: Any) -> Any:

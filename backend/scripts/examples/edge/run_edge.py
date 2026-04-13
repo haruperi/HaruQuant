@@ -355,8 +355,8 @@ def main():
     ap.add_argument(
         "--outdir",
         type=str,
-        default="edge_lab_outputs",
-        help="Output directory (default: edge_lab_outputs)",
+        default="backend/data/edge_lab_outputs",
+        help="Output directory (default: backend/data/edge_lab_outputs)",
     )
     ap.add_argument(
         "--end_pos",
