@@ -1,0 +1,59 @@
+name: classification_optimization
+version: 0.1.0
+pattern: sequential
+description: >
+  Build, tune, calibrate, evaluate, and report a classification model for
+  trading signals with robustness and drift-readiness checks.
+steps:
+  - name: build_labeled_dataset
+    agent: research_agent
+    expected_output: ObservationEvent
+    validate: true
+    input:
+      stage: build_labeled_dataset
+      mode: research
+
+  - name: tune_classifier
+    agent: strategy_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - build_labeled_dataset
+    input:
+      stage: tune_classifier
+
+  - name: calibrate_and_threshold
+    agent: strategy_agent
+    expected_output: TradeHypothesis
+    validate: true
+    depends_on:
+      - tune_classifier
+    input:
+      stage: calibrate_and_threshold
+
+  - name: run_robustness_and_drift_baseline
+    agent: risk_governor_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - calibrate_and_threshold
+    input:
+      stage: run_robustness_and_drift_baseline
+
+  - name: build_strategy_card
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - run_robustness_and_drift_baseline
+    input:
+      stage: build_strategy_card
+
+  - name: assemble_evidence
+    agent: monitoring_agent
+    expected_output: ReplayBundle
+    validate: true
+    depends_on:
+      - build_strategy_card
+    input:
+      stage: assemble_evidence

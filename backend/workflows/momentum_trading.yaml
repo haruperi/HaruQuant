@@ -1,0 +1,61 @@
+name: momentum_trading
+version: 0.1.0
+pattern: sequential
+description: >
+  Build a momentum strategy from features through ranking, scenario
+  simulation, backtesting, optimization, risk overlays, strategy card, and
+  evidence assembly.
+steps:
+  - name: build_momentum_features
+    agent: research_agent
+    expected_output: ObservationEvent
+    validate: true
+    input:
+      stage: build_momentum_features
+      mode: research
+
+  - name: construct_momentum_model
+    agent: strategy_agent
+    expected_output: TradeHypothesis
+    validate: true
+    depends_on:
+      - build_momentum_features
+    input:
+      stage: construct_momentum_model
+
+  - name: run_scenarios_and_backtest
+    agent: portfolio_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - construct_momentum_model
+    input:
+      stage: run_scenarios_and_backtest
+
+  - name: apply_risk_overlays
+    agent: risk_governor_agent
+    expected_output: RiskAssessmentDecision
+    validate: true
+    depends_on:
+      - run_scenarios_and_backtest
+    input:
+      stage: apply_risk_overlays
+      side_effects_allowed: false
+
+  - name: build_strategy_card
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - apply_risk_overlays
+    input:
+      stage: build_strategy_card
+
+  - name: assemble_evidence
+    agent: monitoring_agent
+    expected_output: ReplayBundle
+    validate: true
+    depends_on:
+      - build_strategy_card
+    input:
+      stage: assemble_evidence
