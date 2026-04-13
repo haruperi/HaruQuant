@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import dataclass, replace
+from typing import Any, Callable, Dict, Optional
 
 from .runner import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime
 
@@ -18,7 +18,11 @@ class SequentialWorkflowStep:
 
 
 class SequentialWorkflowRunner:
-    """Execute workflow steps strictly in declaration order."""
+    """Execute workflow steps strictly in declaration order.
+
+    Builds a context_chain where each step's output becomes available
+    to subsequent steps via request.metadata["prior_steps"].
+    """
 
     def __init__(self, runner: ADKRunnerService) -> None:
         self._runner = runner
@@ -29,13 +33,22 @@ class SequentialWorkflowRunner:
         steps: tuple[SequentialWorkflowStep, ...],
     ) -> tuple[ADKRunResult, ...]:
         results: list[ADKRunResult] = []
+        context_chain: Dict[str, Any] = {}
         for step in steps:
-            results.append(
-                self._runner.run(
-                    agent=step.runtime_agent,
-                    request=step.request,
-                )
+            # Inject prior step results as context
+            augmented_request = replace(step.request, metadata={
+                **step.request.metadata,
+                "prior_steps": dict(context_chain),
+            })
+            result = self._runner.run(
+                agent=step.runtime_agent,
+                request=augmented_request,
             )
+            context_chain[step.step_name] = {
+                "output": result.output_payload,
+                "state": result.final_state,
+            }
+            results.append(result)
         return tuple(results)
 
 
@@ -79,7 +92,11 @@ class ParallelWorkflowTask:
 
 
 class ParallelWorkflowRunner:
-    """Execute independent tasks and return a keyed fan-in result map."""
+    """Execute independent tasks and return a keyed fan-in result map.
+
+    Each task receives peer_tasks metadata containing the names of all
+    other parallel tasks, so results can reference each other's outputs.
+    """
 
     def __init__(self, runner: ADKRunnerService) -> None:
         self._runner = runner
@@ -90,10 +107,15 @@ class ParallelWorkflowRunner:
         tasks: tuple[ParallelWorkflowTask, ...],
     ) -> dict[str, ADKRunResult]:
         results: dict[str, ADKRunResult] = {}
+        peer_task_names = tuple(t.task_name for t in tasks)
         for task in tasks:
+            augmented_request = replace(task.request, metadata={
+                **task.request.metadata,
+                "peer_tasks": peer_task_names,
+            })
             results[task.task_name] = self._runner.run(
                 agent=task.runtime_agent,
-                request=task.request,
+                request=augmented_request,
             )
         return results
 
@@ -117,7 +139,12 @@ class EvaluatorOptimizerResult:
 
 
 class EvaluatorOptimizerWorkflowRunner:
-    """Run generation/evaluation loops until accepted or max iterations hit."""
+    """Run generation/evaluation loops until accepted or max iterations hit.
+
+    On each iteration, the generator receives refinement feedback
+    (previous score, improvement actions, focus areas) to guide
+    improved outputs.
+    """
 
     def __init__(self, runner: ADKRunnerService) -> None:
         self._runner = runner
@@ -137,16 +164,27 @@ class EvaluatorOptimizerWorkflowRunner:
         if max_iterations <= 0:
             raise ValueError("max_iterations must be at least 1")
 
-        for _ in range(max_iterations):
+        current_request = generator_step.request
+        for iteration in range(max_iterations):
             final_result = self._runner.run(
                 agent=generator_step.runtime_agent,
-                request=generator_step.request,
+                request=current_request,
             )
             score = evaluator(final_result)
             scores.append(score)
             if score >= acceptance_threshold:
                 terminated_by = "accepted"
                 break
+
+            # Build refinement context for next iteration
+            if iteration + 1 < max_iterations:
+                current_request = replace(current_request, metadata={
+                    **current_request.metadata,
+                    "refinement_iteration": iteration + 1,
+                    "previous_score": score,
+                    "improvement_actions": ["Improve output quality to meet acceptance threshold"],
+                    "focus_areas": ["output_quality"],
+                })
 
         return EvaluatorOptimizerResult(
             final_result=final_result,
