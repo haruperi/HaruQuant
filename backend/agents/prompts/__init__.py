@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+# Separator to cleanly divide reasoning (CoT) from final answer in LLM responses
+CoT_SEPARATOR = "\n\n---FINAL ANSWER---\n\n"
+
 
 @dataclass(frozen=True)
 class PromptContext:
