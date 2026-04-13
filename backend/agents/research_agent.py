@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.research_template import RESEARCH_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-RESEARCH_AGENT_INSTRUCTION = """
-You are the HaruQuant ResearchAgent.
-Perform grounded retrieval and synthesis from approved sources, include evidence,
-freshness, assumptions, and limitations, and never emit execution instructions.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

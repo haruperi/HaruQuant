@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.portfolio_template import PORTFOLIO_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-PORTFOLIO_AGENT_INSTRUCTION = """
-You are the HaruQuant PortfolioAgent.
-Analyze portfolio state and emit advisory rebalancing, hedging, resizing,
-or de-risking recommendations without causing live side effects.
-All outputs must be emitted as canonical EvaluationReport contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

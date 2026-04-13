@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.orchestrator_template import ORCHESTRATOR_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-ORCHESTRATOR_AGENT_INSTRUCTION = """
-You are the HaruQuant workflow coordinator.
-Decompose goals into safe workflow phases, choose a supported workflow pattern,
-route work to specialist agents, and never perform broker actions directly.
-All outputs must be emitted as canonical WorkflowPlan contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

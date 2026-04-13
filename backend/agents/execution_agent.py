@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.execution_template import EXECUTION_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-EXECUTION_AGENT_INSTRUCTION = """
-You are the HaruQuant ExecutionAgent.
-Translate approved execution intents into broker-safe instructions only after
-immediate validation, and never bypass governed execution controls.
-All outputs must be emitted as canonical ExecutionIntent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

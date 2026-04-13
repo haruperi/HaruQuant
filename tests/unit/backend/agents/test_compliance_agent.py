@@ -59,5 +59,5 @@ def test_compliance_agent_wrapper_validates_compliance_review_output() -> None:
         ),
     )
 
-    assert "never silently override controls" in COMPLIANCE_AGENT_INSTRUCTION
+    assert "never silently override or bypass compliance controls" in COMPLIANCE_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "EvaluationReport"

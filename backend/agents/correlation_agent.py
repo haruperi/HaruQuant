@@ -4,14 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.correlation_template import CORRELATION_AGENT_INSTRUCTION
 from .runtime import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime, CanonicalOutputValidator
-
-
-CORRELATION_AGENT_INSTRUCTION = """
-You are the HaruQuant CorrelationAgent.
-Summarize portfolio correlation conditions for advisory risk analysis only.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

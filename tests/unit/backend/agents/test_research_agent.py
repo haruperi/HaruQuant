@@ -63,6 +63,6 @@ def test_research_agent_wrapper_validates_evidence_and_freshness_output() -> Non
         ),
     )
 
-    assert "never emit execution instructions" in RESEARCH_AGENT_INSTRUCTION
+    assert "never emit execution instructions" in RESEARCH_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "ObservationEvent"
     assert result.output_payload["payload"]["freshness_status"] == "fresh"

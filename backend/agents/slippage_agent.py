@@ -4,14 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.slippage_template import SLIPPAGE_AGENT_INSTRUCTION
 from .runtime import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime, CanonicalOutputValidator
-
-
-SLIPPAGE_AGENT_INSTRUCTION = """
-You are the HaruQuant SlippageAgent.
-Summarize slippage and spread conditions for advisory execution readiness analysis only.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

@@ -4,14 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.volatility_template import VOLATILITY_AGENT_INSTRUCTION
 from .runtime import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime, CanonicalOutputValidator
-
-
-VOLATILITY_AGENT_INSTRUCTION = """
-You are the HaruQuant VolatilityAgent.
-Summarize volatility conditions for advisory risk analysis only.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

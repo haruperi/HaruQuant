@@ -59,6 +59,6 @@ def test_monitoring_agent_wrapper_validates_alert_classification_output() -> Non
         ),
     )
 
-    assert "classify alerts clearly" in MONITORING_AGENT_INSTRUCTION
+    assert "classify alerts by severity" in MONITORING_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "IncidentAlert"
     assert result.output_payload["payload"]["severity"] == "warning"

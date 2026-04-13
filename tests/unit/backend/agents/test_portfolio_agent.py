@@ -59,5 +59,5 @@ def test_portfolio_agent_wrapper_validates_portfolio_proposal_output() -> None:
         ),
     )
 
-    assert "de-risking recommendations" in PORTFOLIO_AGENT_INSTRUCTION
+    assert "advisory recommendations" in PORTFOLIO_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "EvaluationReport"

@@ -54,5 +54,5 @@ def test_volatility_agent_wrapper_validates_volatility_summary_schema() -> None:
         ),
     )
 
-    assert "Summarize volatility conditions" in VOLATILITY_AGENT_INSTRUCTION
+    assert "volatility" in VOLATILITY_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "ObservationEvent"

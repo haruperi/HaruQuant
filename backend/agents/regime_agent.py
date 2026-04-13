@@ -4,14 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.regime_template import REGIME_AGENT_INSTRUCTION
 from .runtime import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime, CanonicalOutputValidator
-
-
-REGIME_AGENT_INSTRUCTION = """
-You are the HaruQuant RegimeAgent.
-Summarize current market regime conditions for advisory risk analysis only.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

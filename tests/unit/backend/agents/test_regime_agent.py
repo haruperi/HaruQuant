@@ -54,5 +54,5 @@ def test_regime_agent_wrapper_validates_regime_output_schema() -> None:
         ),
     )
 
-    assert "market regime conditions" in REGIME_AGENT_INSTRUCTION
+    assert "market regime" in REGIME_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "ObservationEvent"

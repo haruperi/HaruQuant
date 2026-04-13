@@ -61,5 +61,5 @@ def test_execution_agent_wrapper_validates_intent_translation_output() -> None:
         ),
     )
 
-    assert "never bypass governed execution controls" in EXECUTION_AGENT_INSTRUCTION
+    assert "never bypass governed execution controls" in EXECUTION_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "ExecutionIntent"

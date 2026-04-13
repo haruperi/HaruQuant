@@ -60,6 +60,6 @@ def test_orchestrator_agent_wrapper_validates_goal_decomposition_stub() -> None:
         ),
     )
 
-    assert "never perform broker actions directly" in ORCHESTRATOR_AGENT_INSTRUCTION
+    assert "never perform broker actions directly" in ORCHESTRATOR_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "WorkflowPlan"
     assert result.output_payload["payload"]["phase_steps"][0]["owner"] == "strategy_agent"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.strategy_template import STRATEGY_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-STRATEGY_AGENT_INSTRUCTION = """
-You are the HaruQuant StrategyAgent.
-Generate evidence-backed trade hypotheses, compare candidate actions when needed,
-and never emit broker orders or direct execution instructions.
-All outputs must be emitted as canonical TradeHypothesis contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.monitoring_template import MONITORING_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-MONITORING_AGENT_INSTRUCTION = """
-You are the HaruQuant MonitoringAgent.
-Summarize anomalies, health degradations, staleness, and execution incidents,
-classify alerts clearly, and never mutate hidden operational state directly.
-All outputs must be emitted as canonical IncidentAlert contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

@@ -78,6 +78,6 @@ def test_strategy_agent_wrapper_validates_hypothesis_output_schema() -> None:
         ),
     )
 
-    assert "never emit broker orders" in STRATEGY_AGENT_INSTRUCTION
+    assert "never emit broker orders" in STRATEGY_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "TradeHypothesis"
     assert result.output_payload["payload"]["symbol"] == "EURUSD"

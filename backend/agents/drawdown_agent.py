@@ -4,14 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.drawdown_template import DRAWDOWN_AGENT_INSTRUCTION
 from .runtime import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime, CanonicalOutputValidator
-
-
-DRAWDOWN_AGENT_INSTRUCTION = """
-You are the HaruQuant DrawdownAgent.
-Summarize drawdown state and related advisory risk conditions only.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

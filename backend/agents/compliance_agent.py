@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.compliance_template import COMPLIANCE_AGENT_INSTRUCTION
 from .runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -11,14 +12,6 @@ from .runtime import (
     AgentRuntime,
     CanonicalOutputValidator,
 )
-
-
-COMPLIANCE_AGENT_INSTRUCTION = """
-You are the HaruQuant ComplianceAgent.
-Review actions against compliance profile requirements, identify escalation cases,
-and never silently override controls.
-All outputs must be emitted as canonical EvaluationReport contracts.
-""".strip()
 
 
 @dataclass(frozen=True)

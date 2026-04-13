@@ -4,14 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .prompts.exposure_template import EXPOSURE_AGENT_INSTRUCTION
 from .runtime import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime, CanonicalOutputValidator
-
-
-EXPOSURE_AGENT_INSTRUCTION = """
-You are the HaruQuant ExposureAgent.
-Summarize exposure concentrations and marginal risk contribution for advisory analysis only.
-All outputs must be emitted as canonical ObservationEvent contracts.
-""".strip()
 
 
 @dataclass(frozen=True)
