@@ -74,6 +74,8 @@ class ADKRunResult:
     final_state: str
     tool_calls: tuple[dict[str, Any], ...]
     token_usage: dict[str, int] | None
+    repair_attempted: bool = False
+    repair_succeeded: bool = False
 
 
 class AgentRuntime(Protocol):
@@ -87,11 +89,22 @@ class AgentRuntime(Protocol):
     ) -> AgentExecutionResult: ...
 
 
-class ADKRunnerService:
-    """Thin execution wrapper around a runtime agent implementation."""
+from .output_validation import CanonicalOutputValidator, RepairAttempt
 
-    def __init__(self, config: ADKRunnerConfig) -> None:
+
+class ADKRunnerService:
+    """Thin execution wrapper around a runtime agent implementation.
+
+    Optionally validates outputs and retries with repair on failure.
+    """
+
+    def __init__(
+        self,
+        config: ADKRunnerConfig,
+        output_validator: CanonicalOutputValidator | None = None,
+    ) -> None:
         self._config = config
+        self._output_validator = output_validator
 
     @property
     def config(self) -> ADKRunnerConfig:
@@ -116,6 +129,28 @@ class ADKRunnerService:
         started = perf_counter()
         result = agent.run(request=request, context=context)
         latency_ms = int((perf_counter() - started) * 1000)
+
+        # Optional validation with retry/repair
+        repair_attempted = False
+        repair_succeeded = False
+        output_payload = dict(result.output_payload)
+
+        if self._output_validator is not None:
+            try:
+                validation_result, repair_attempts = self._output_validator.validate_with_retry(output_payload)
+                repair_attempted = len(repair_attempts) > 0
+                repair_succeeded = any(a.succeeded for a in repair_attempts) if repair_attempted else False
+                # If repair succeeded, use the repaired payload
+                if repair_succeeded and repair_attempts:
+                    last_success = [a for a in repair_attempts if a.succeeded][-1]
+                    output_payload = last_success.repaired_payload
+            except ContractValidationError:
+                # Validation failed after retries — keep the original payload
+                pass
+            except Exception:
+                # If retry mechanism itself fails, still continue with original
+                pass
+
         return ADKRunResult(
             runner_name=self._config.runner_name,
             runtime_version=self._config.runtime_version,
@@ -127,8 +162,10 @@ class ADKRunnerService:
             prompt_version_id=request.prompt_version_id,
             prompt_hash=None,
             latency_ms=latency_ms,
-            output_payload=dict(result.output_payload),
+            output_payload=output_payload,
             final_state=result.final_state,
             tool_calls=tuple(result.tool_calls),
             token_usage=None if result.token_usage is None else dict(result.token_usage),
+            repair_attempted=repair_attempted,
+            repair_succeeded=repair_succeeded,
         )
