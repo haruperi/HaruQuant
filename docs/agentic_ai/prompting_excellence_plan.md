@@ -3,8 +3,8 @@
 | Field | Detail |
 |---|---|
 | Document ID | HQT-PROMPTING-EXCELLENCE-PLAN |
-| Status | Draft |
-| Current Score | 6/10 |
+| Status | ALL PHASES COMPLETE |
+| Current Score | 10/10 |
 | Target Score | 10/10 |
 | Source | Agentic AI Code Review — "Prompting for Effective LLM Reasoning and Planning" |
 
@@ -73,12 +73,12 @@ Each agent prompt has 9 sections:
 9. **Failure Behavior** — what to do when uncertain, confidence scoring, uncertainty reporting
 
 ### Tasks
-- [ ] Create `backend/agents/prompts/` directory with Jinja2-style template system
-- [ ] Create `PromptComposer` class that assembles prompt sections from config
-- [ ] Expand all 13 agent instructions to 9-section format
-- [ ] Add few-shot examples to orchestrator, strategy, compliance, and execution agents
-- [ ] Add confidence/uncertainty reporting to all prompts
-- [ ] Keep backward compatibility: `instruction` attribute still exists as assembled string
+- [x] Create `backend/agents/prompts/` directory with Jinja2-style template system
+- [x] Create `PromptComposer` class that assembles prompt sections from config
+- [x] Expand all 13 agent instructions to 9-section format
+- [x] Add few-shot examples to orchestrator, strategy, compliance, and execution agents
+- [x] Add confidence/uncertainty reporting to all prompts
+- [x] Keep backward compatibility: `instruction` attribute still exists as assembled string
 
 ### Target Files
 ```
@@ -101,10 +101,10 @@ backend/agents/prompts/
 ```
 
 ### Verification
-- [ ] All 13 agent instructions are ≥15 lines each with all 9 sections
-- [ ] At least 4 agents include few-shot examples
-- [ ] `PromptComposer.assemble(agent_name, context, tools)` produces well-structured prompts
-- [ ] Existing agent wrappers still work (backward compatible)
+- [x] All 13 agent instructions are ≥15 lines each with all 9 sections
+- [x] At least 4 agents include few-shot examples
+- [x] `PromptComposer.assemble(agent_name, context, tools)` produces well-structured prompts
+- [x] Existing agent wrappers still work (backward compatible)
 
 ---
 
@@ -129,15 +129,15 @@ A `GeminiAgentRuntime` class that:
 5. Returns `AgentExecutionResult` with output payload, token usage, and tool calls
 
 ### Tasks
-- [ ] Add `google-genai` or `google-generativeai` to requirements
-- [ ] Create `backend/agents/runtime/gemini_runtime.py` with `GeminiAgentRuntime` class
-- [ ] Configure API key from `GOOGLE_API_KEY` env var (falls back to `backend/config/environments/.env`)
-- [ ] Use `AGENT_MODEL` from `backend/config/agent_model.py` as the model name
-- [ ] Enforce JSON output mode via `generation_config.response_mime_type = "application/json"`
-- [ ] Map Gemini response to `AgentExecutionResult` with token usage
-- [ ] Add timeout handling (configurable, default 60s)
-- [ ] Add error handling (API errors, rate limits, content safety blocks)
-- [ ] Add structured logging of prompt length, response length, latency, token usage
+- [x] Add `google-genai` or `google-generativeai` to requirements
+- [x] Create `backend/agents/runtime/gemini_runtime.py` with `GeminiAgentRuntime` class
+- [x] Configure API key from `GOOGLE_API_KEY` env var (falls back to `backend/config/environments/.env`)
+- [x] Use `AGENT_MODEL` from `backend/config/agent_model.py` as the model name
+- [x] Enforce JSON output mode via `generation_config.response_mime_type = "application/json"`
+- [x] Map Gemini response to `AgentExecutionResult` with token usage
+- [x] Add timeout handling (configurable, default 60s)
+- [x] Add error handling (API errors, rate limits, content safety blocks)
+- [x] Add structured logging of prompt length, response length, latency, token usage
 
 ### Target Files
 ```
@@ -146,12 +146,12 @@ tests/unit/backend/agents/test_gemini_runtime.py  # Unit tests with mocked Gemin
 ```
 
 ### Verification
-- [ ] `GeminiAgentRuntime` implements `AgentRuntime` protocol
-- [ ] Calling `.run()` with a valid request returns `AgentExecutionResult`
-- [ ] Token usage is reported in the result
-- [ ] API errors are caught and re-raised as `AgentRuntimeError`
-- [ ] Timeout errors fail closed with `final_state = "ERROR"`
-- [ ] Unit tests pass with mocked Gemini API
+- [x] `GeminiAgentRuntime` implements `AgentRuntime` protocol
+- [x] Calling `.run()` with a valid request returns `AgentExecutionResult`
+- [x] Token usage is reported in the result
+- [x] API errors are caught and re-raised as `AgentRuntimeError`
+- [x] Timeout errors fail closed with `final_state = "ERROR"`
+- [x] Unit tests pass with mocked Gemini API
 
 ---
 
@@ -179,16 +179,16 @@ If any step reveals a constraint violation or escalation condition, stop and rep
 ```
 
 ### Tasks
-- [ ] Add CoT reasoning process section to all 13 agent prompt templates
-- [ ] For evaluator-optimizer workflows, the CoT section must include self-evaluation criteria
-- [ ] For orchestrator agent, CoT must include workflow pattern selection reasoning
-- [ ] Add `CoT_SEPARATOR` constant to cleanly separate reasoning from final answer in response parsing
-- [ ] Ensure output validation strips CoT text from the final JSON payload
+- [x] Add CoT reasoning process section to all 13 agent prompt templates
+- [x] For evaluator-optimizer workflows, the CoT section must include self-evaluation criteria
+- [x] For orchestrator agent, CoT must include workflow pattern selection reasoning
+- [x] Add `CoT_SEPARATOR` constant to cleanly separate reasoning from final answer in response parsing
+- [x] Ensure output validation strips CoT text from the final JSON payload
 
 ### Verification
-- [ ] All 13 prompt templates contain a REASONING PROCESS section
-- [ ] Output validator confirms CoT was performed (presence of reasoning markers)
-- [ ] CoT text is stripped from the final validated payload
+- [x] All 13 prompt templates contain a REASONING PROCESS section
+- [x] Output validator confirms CoT was performed (presence of reasoning markers)
+- [x] CoT text is stripped from the final validated payload
 
 ---
 
@@ -210,8 +210,8 @@ A `ReActAgentRuntime` class that:
 6. Produces Final Answer
 
 ### Tasks
-- [ ] Create `backend/agents/react/` directory
-- [ ] Create `react_prompt.py` with ReAct instruction template:
+- [x] Create `backend/agents/react/` directory
+- [x] Create `react_prompt.py` with ReAct instruction template:
   ```
   You are solving a task using tools. On each step, you must output:
   Thought: <what you need to do or figure out next>
@@ -221,13 +221,13 @@ A `ReActAgentRuntime` class that:
   If you choose Final, your answer must be a valid JSON matching the output schema.
   Maximum 10 steps. If you exceed this, stop and output your best answer.
   ```
-- [ ] Create `react_agent.py` with `ReActAgentRuntime` implementing the loop
-- [ ] Integrate with MCP tool registry to discover available tools
-- [ ] Implement step counter with max 10 iterations (enforced by `RefineLoopGuard`)
-- [ ] Parse Thought/Action/Observation/Final from LLM output
-- [ ] Handle tool execution errors as Observation text
-- [ ] Add timeout per step (default 30s)
-- [ ] Add unit tests with mocked LLM and mocked tool calls
+- [x] Create `react_agent.py` with `ReActAgentRuntime` implementing the loop
+- [x] Integrate with MCP tool registry to discover available tools
+- [x] Implement step counter with max 10 iterations (enforced by `RefineLoopGuard`)
+- [x] Parse Thought/Action/Observation/Final from LLM output
+- [x] Handle tool execution errors as Observation text
+- [x] Add timeout per step (default 30s)
+- [x] Add unit tests with mocked LLM and mocked tool calls
 
 ### Target Files
 ```
@@ -239,11 +239,11 @@ backend/agents/react/
 ```
 
 ### Verification
-- [ ] `ReActAgentRuntime` completes a full Thought → Action → Observation → Final cycle
-- [ ] Max step limit enforced (10 steps → best-effort final)
-- [ ] Tool errors are reported as Observations, not crashes
-- [ ] Final answer matches the expected contract schema
-- [ ] Unit tests pass with mocked tools
+- [x] `ReActAgentRuntime` completes a full Thought → Action → Observation → Final cycle
+- [x] Max step limit enforced (10 steps → best-effort final)
+- [x] Tool errors are reported as Observations, not crashes
+- [x] Final answer matches the expected contract schema
+- [x] Unit tests pass with mocked tools
 
 ---
 
@@ -277,16 +277,16 @@ class SequentialWorkflowRunner:
 ```
 
 ### Tasks
-- [ ] Modify `SequentialWorkflowRunner.run()` to build a `context_chain` dict
-- [ ] Inject `prior_steps` into each step's `request.metadata`
-- [ ] Add `context_summary` field to limit context size (summarize if > 4000 tokens)
-- [ ] Modify `EvaluatorOptimizerWorkflowRunner.run()` to include evaluation scores and refinement recommendations in each retry request
-- [ ] Modify `ParallelWorkflowRunner.run()` to include `peer_tasks` context so parallel results can reference each other's outputs
+- [x] Modify `SequentialWorkflowRunner.run()` to build a `context_chain` dict
+- [x] Inject `prior_steps` into each step's `request.metadata`
+- [x] Add `context_summary` field to limit context size (summarize if > 4000 tokens)
+- [x] Modify `EvaluatorOptimizerWorkflowRunner.run()` to include evaluation scores and refinement recommendations in each retry request
+- [x] Modify `ParallelWorkflowRunner.run()` to include `peer_tasks` context so parallel results can reference each other's outputs
 
 ### Verification
-- [ ] Step 2's agent receives step 1's output in `request.metadata["prior_steps"]`
-- [ ] Evaluator-optimizer loop includes evaluation scores in retry request
-- [ ] Context chain does not exceed 4000 tokens (summary applied if needed)
+- [x] Step 2's agent receives step 1's output in `request.metadata["prior_steps"]`
+- [x] Evaluator-optimizer loop includes evaluation scores in retry request
+- [x] Context chain does not exceed 4000 tokens (summary applied if needed)
 
 ---
 
@@ -323,16 +323,16 @@ for iteration in range(max_iterations):
 ```
 
 ### Tasks
-- [ ] Modify `EvaluatorOptimizerWorkflowRunner.run()` to build refinement context
-- [ ] Use `generate_refinement_recommendations()` from `evaluator.py`
-- [ ] Include `refinement_iteration` counter in request metadata
-- [ ] Add agent prompt instruction to use refinement context: "If you receive refinement feedback, address each improvement action before resubmitting"
-- [ ] Add unit test verifying refinement context is passed between iterations
+- [x] Modify `EvaluatorOptimizerWorkflowRunner.run()` to build refinement context
+- [x] Use `generate_refinement_recommendations()` from `evaluator.py`
+- [x] Include `refinement_iteration` counter in request metadata
+- [x] Add agent prompt instruction to use refinement context: "If you receive refinement feedback, address each improvement action before resubmitting"
+- [x] Add unit test verifying refinement context is passed between iterations
 
 ### Verification
-- [ ] Generator receives `improvement_actions` and `focus_areas` on retry
-- [ ] `refinement_iteration` counter increments correctly
-- [ ] Unit test confirms context is modified between iterations
+- [x] Generator receives `improvement_actions` and `focus_areas` on retry
+- [x] `refinement_iteration` counter increments correctly
+- [x] Unit test confirms context is modified between iterations
 
 ---
 
@@ -377,18 +377,18 @@ class PromptComposer:
 ```
 
 ### Tasks
-- [ ] Create `PromptComposer` class in `backend/agents/prompts/__init__.py`
-- [ ] Create `PromptContext` dataclass with all 6 layers
-- [ ] Add section delimiters with trust level annotations
-- [ ] Modify `GeminiAgentRuntime` to use `PromptComposer.compose()` before calling LLM
-- [ ] Add `RetrievalSafetyReport` check before injecting retrieved content
-- [ ] Update all agent wrappers to use `PromptComposer` instead of raw instruction strings
+- [x] Create `PromptComposer` class in `backend/agents/prompts/__init__.py`
+- [x] Create `PromptContext` dataclass with all 6 layers
+- [x] Add section delimiters with trust level annotations
+- [x] Modify `GeminiAgentRuntime` to use `PromptComposer.compose()` before calling LLM
+- [x] Add `RetrievalSafetyReport` check before injecting retrieved content
+- [x] Update all agent wrappers to use `PromptComposer` instead of raw instruction strings
 
 ### Verification
-- [ ] Composed prompt contains all present layers in correct order
-- [ ] Retrieved content is wrapped with `[RETRIEVED CONTEXT — UNVERIFIED]` delimiter
-- [ ] User input is wrapped with `[USER REQUEST]` delimiter
-- [ ] System policy section is present and marked as non-overrideable
+- [x] Composed prompt contains all present layers in correct order
+- [x] Retrieved content is wrapped with `[RETRIEVED CONTEXT — UNVERIFIED]` delimiter
+- [x] User input is wrapped with `[USER REQUEST]` delimiter
+- [x] System policy section is present and marked as non-overrideable
 
 ---
 
@@ -448,18 +448,18 @@ _PROMPT_INJECTION_MARKERS = (
 ```
 
 ### Tasks
-- [ ] Expand `_PROMPT_INJECTION_MARKERS` to 25+ patterns
-- [ ] Add `_INDIRECT_INJECTION_MARKERS` for multi-step attack patterns
-- [ ] Add `_ENCODING_INJECTION_MARKERS` for Unicode/Base64/ROT13 tricks
-- [ ] Add `evaluate_retrieval_text(text)` that returns `RetrievalSafetyReport` with severity level (low/medium/high)
-- [ ] Add logging of detected markers for audit trail
-- [ ] Add unit tests for each marker category
+- [x] Expand `_PROMPT_INJECTION_MARKERS` to 25+ patterns
+- [x] Add `_INDIRECT_INJECTION_MARKERS` for multi-step attack patterns
+- [x] Add `_ENCODING_INJECTION_MARKERS` for Unicode/Base64/ROT13 tricks
+- [x] Add `evaluate_retrieval_text(text)` that returns `RetrievalSafetyReport` with severity level (low/medium/high)
+- [x] Add logging of detected markers for audit trail
+- [x] Add unit tests for each marker category
 
 ### Verification
-- [ ] All 25+ markers are detected in sample text
-- [ ] Severity classification works (direct override = high, encoding = medium)
-- [ ] Unit tests cover all marker categories
-- [ ] No false positives on legitimate text
+- [x] All 25+ markers are detected in sample text
+- [x] Severity classification works (direct override = high, encoding = medium)
+- [x] Unit tests cover all marker categories
+- [x] No false positives on legitimate text
 
 ---
 
@@ -495,18 +495,18 @@ def test_strategy_agent_produces_valid_trade_hypothesis(mocked_gemini):
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/prompts/test_prompts.py`
-- [ ] Add one test per agent: verifies output matches contract schema
-- [ ] Mock `GeminiAgentRuntime` to return predefined JSON responses
-- [ ] Add tests for failure cases: malformed LLM response, API timeout, content safety block
-- [ ] Add integration test: full sequential workflow with 3+ steps, verifying context chaining
-- [ ] Add ReAct unit tests: verify Thought → Action → Observation → Final cycle with mocked tools
+- [x] Create `backend/agents/prompts/test_prompts.py`
+- [x] Add one test per agent: verifies output matches contract schema
+- [x] Mock `GeminiAgentRuntime` to return predefined JSON responses
+- [x] Add tests for failure cases: malformed LLM response, API timeout, content safety block
+- [x] Add integration test: full sequential workflow with 3+ steps, verifying context chaining
+- [x] Add ReAct unit tests: verify Thought → Action → Observation → Final cycle with mocked tools
 
 ### Verification
-- [ ] 13 agent prompt tests pass (one per agent)
-- [ ] 5 failure scenario tests pass
-- [ ] 1 context chaining integration test passes
-- [ ] 2 ReAct unit tests pass
+- [x] 13 agent prompt tests pass (one per agent)
+- [x] 5 failure scenario tests pass
+- [x] 1 context chaining integration test passes
+- [x] 2 ReAct unit tests pass
 
 ---
 
@@ -547,18 +547,18 @@ class CanonicalOutputValidator:
 ```
 
 ### Tasks
-- [ ] Add `validate_with_retry()` method to `CanonicalOutputValidator`
-- [ ] Implement `_request_repair()` that calls the LLM with error feedback
-- [ ] Update `ADKRunnerService.run()` to use `validate_with_retry` with `max_retries=1`
-- [ ] Add `repair_attempted` field to `ADKRunResult`
-- [ ] Log repair attempts with original error and repaired output
-- [ ] Add unit tests: validation failure → repair → success, and validation failure → repair → still fails
+- [x] Add `validate_with_retry()` method to `CanonicalOutputValidator`
+- [x] Implement `_request_repair()` that calls the LLM with error feedback
+- [x] Update `ADKRunnerService.run()` to use `validate_with_retry` with `max_retries=1`
+- [x] Add `repair_attempted` field to `ADKRunResult`
+- [x] Log repair attempts with original error and repaired output
+- [x] Add unit tests: validation failure → repair → success, and validation failure → repair → still fails
 
 ### Verification
-- [ ] `validate_with_retry` succeeds on repairable error
-- [ ] `validate_with_retry` raises after max_retries exhausted
-- [ ] `repair_attempted` field is True when repair was attempted
-- [ ] Unit tests pass for both success and failure paths
+- [x] `validate_with_retry` succeeds on repairable error
+- [x] `validate_with_retry` raises after max_retries exhausted
+- [x] `repair_attempted` field is True when repair was attempted
+- [x] Unit tests pass for both success and failure paths
 
 ---
 
