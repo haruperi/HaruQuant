@@ -55,8 +55,16 @@ from .workflows import (
     enforce_refine_loop_limit,
 )
 from .llm_runtime import LLMRuntime, LLMRuntimeError
+from .litellm_runtime import LiteLLMRuntime
 from .llm_registry import create_llm_runtime, get_provider, register_provider
 from .prompt_composer_middleware import PromptComposingMiddleware
+from .prompt_eval import (
+    PromptEvalCase,
+    PromptEvalCaseResult,
+    PromptEvalHarness,
+    PromptEvalReport,
+    load_prompt_eval_cases,
+)
 
 __all__ = [
     "ADKRunRequest",
@@ -117,9 +125,15 @@ __all__ = [
     # LLM runtime
     "LLMRuntime",
     "LLMRuntimeError",
+    "LiteLLMRuntime",
     "create_llm_runtime",
     "get_provider",
     "register_provider",
     # Prompt composition middleware
     "PromptComposingMiddleware",
+    "PromptEvalCase",
+    "PromptEvalCaseResult",
+    "PromptEvalHarness",
+    "PromptEvalReport",
+    "load_prompt_eval_cases",
 ]

@@ -14,6 +14,7 @@ from backend.agents.runtime.runner import (
     AgentExecutionContext,
     AgentExecutionResult,
 )
+from backend.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
 from backend.common.logger import logger
 
 
@@ -105,11 +106,13 @@ class ReActAgentRuntime:
         tools: Optional[Dict[str, ToolCallable]] = None,
         max_steps: int = 10,
         step_timeout_seconds: float = 30.0,
+        tool_policy: ToolAllowlistMiddleware | None = None,
     ) -> None:
         self._llm = llm_runtime
         self._tools = tools or {}
         self._max_steps = max(max_steps, 1)
         self._step_timeout = step_timeout_seconds
+        self._tool_policy = tool_policy or ToolAllowlistMiddleware()
         self._step_log: List[ReActStep] = []
 
     @property
@@ -228,7 +231,7 @@ class ReActAgentRuntime:
                 )
 
             # Execute action
-            observation = self._execute_action(step)
+            observation = self._execute_action(step, allowed_tools=context.allowed_tools)
             self._step_log[-1] = replace(self._step_log[-1], observation=observation)
 
             # Append observation to conversation for next LLM call
@@ -282,10 +285,19 @@ class ReActAgentRuntime:
             lines.append(f"- {name}: {doc.strip()}")
         return "\n".join(lines)
 
-    def _execute_action(self, step: ReActStep) -> str:
+    def _execute_action(self, step: ReActStep, *, allowed_tools: tuple[str, ...] = ()) -> str:
         """Execute a tool action and return the observation."""
         if not step.action_name:
             return "Error: No action specified."
+
+        if allowed_tools:
+            try:
+                self._tool_policy.enforce(
+                    allowed_tools=allowed_tools,
+                    requested_tools=(step.action_name,),
+                )
+            except ToolPolicyError as exc:
+                return f"Error: Tool policy violation: {exc}"
 
         tool = self._tools.get(step.action_name)
         if tool is None:

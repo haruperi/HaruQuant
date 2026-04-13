@@ -18,7 +18,7 @@ from backend.agents.runtime.evaluator import hash_schema_name
 
 def test_runtime_trajectory_log_service_persists_to_audit_store(tmp_path) -> None:
     repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = repo_root / "backend" / "data" / "database" / "migrations"
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

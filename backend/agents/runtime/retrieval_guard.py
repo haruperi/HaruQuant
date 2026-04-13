@@ -61,7 +61,6 @@ _XML_TAG_INJECTION_MARKERS = (
     "<user>",
     "</user>",
     "<function>",
-    '\n',
 )
 
 # Severity: MEDIUM - encoding tricks
@@ -146,6 +145,10 @@ def evaluate_retrieved_text(text: str) -> RetrievalSafetyReport:
                 elif severity == "medium" and max_severity != "high":
                     max_severity = "medium"
                 reason_codes.append(f"{severity}_severity_marker_detected")
+                if severity == "high":
+                    reason_codes.append("prompt_injection_marker_detected")
+                if marker in _INDIRECT_INJECTION_MARKERS:
+                    reason_codes.append("retrieval_contamination_marker_detected")
                 matched.append(marker)
 
     if reason_codes:

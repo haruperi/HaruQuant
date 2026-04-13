@@ -1,4 +1,10 @@
-"""LLM provider registry — auto-selects provider from model name or env var."""
+"""LLM provider registry — auto-selects provider from model name or env var.
+
+Supports:
+  - litellm: Universal proxy for ALL providers (Gemini, OpenAI, Ollama, etc.)
+  - openai: Direct OpenAI SDK or any OpenAI-compatible endpoint (Ollama, vLLM)
+  - google-adk: Google Gemini via ADK SDK
+"""
 
 from __future__ import annotations
 
@@ -15,7 +21,7 @@ _PROVIDERS: Dict[str, Type[LLMRuntime]] = {}
 def register_provider(name: str, runtime_class: Type[LLMRuntime]) -> None:
     """Register an LLM provider by name."""
     _PROVIDERS[name.lower()] = runtime_class
-    logger.info(f"LLMRegistry: registered provider '{name}' → {runtime_class.__name__}")
+    logger.info(f"LLMRegistry: registered provider '{name}' -> {runtime_class.__name__}")
 
 
 def get_provider(model: Optional[str] = None, provider: Optional[str] = None) -> Type[LLMRuntime]:
@@ -49,34 +55,32 @@ def get_provider(model: Optional[str] = None, provider: Optional[str] = None) ->
         )
 
     # 3. Auto-detect from model name
+    # litellm is the universal proxy — prefer it for ALL models when registered
     if model:
         model_lower = model.lower()
-        if "gemini" in model_lower:
-            cls = _PROVIDERS.get("gemini")
-            if cls:
-                return cls
-        if any(x in model_lower for x in ("gpt-", "o1", "o3", "claude")):
+        # If litellm is registered, use it for everything (it handles routing internally)
+        litellm_cls = _PROVIDERS.get("litellm")
+        if litellm_cls:
+            return litellm_cls
+        # Fallback: try openai for gpt/claude models
+        if any(x in model_lower for x in ("gpt-", "o1", "o3", "claude", "gpt-5")):
             cls = _PROVIDERS.get("openai")
             if cls:
                 return cls
-        # Ollama models: llama3, qwen, mistral, etc.
-        if any(x in model_lower for x in ("llama", "qwen", "mistral", "phi", "deepseek")):
-            cls = _PROVIDERS.get("openai")  # Ollama uses OpenAI-compatible API
+        # Ollama models via openai-compatible API
+        if any(x in model_lower for x in ("llama", "qwen", "mistral", "phi", "deepseek", "gemma", ":")):
+            cls = _PROVIDERS.get("openai")
             if cls:
                 return cls
 
     # 4. Fallback to first registered provider
     if _PROVIDERS:
         first_name = next(iter(_PROVIDERS))
-        logger.warning(
-            f"LLMRegistry: no provider matched for model='{model}', "
-            f"falling back to '{first_name}'"
-        )
         return _PROVIDERS[first_name]
 
     raise RuntimeError(
-        "No LLM providers registered. Install and import a provider: "
-        "pip install google-genai openai"
+        "No LLM providers registered. Install at least one of: "
+        "litellm, openai, google-adk"
     )
 
 
@@ -89,8 +93,8 @@ def create_llm_runtime(
     """Create an LLM runtime instance with auto-detected provider.
 
     Args:
-        model: Model name (e.g., 'gemini-3.1-flash-lite-preview', 'gpt-4o-mini', 'llama3.1:70b')
-        provider: Explicit provider name ('gemini', 'openai')
+        model: Model name (e.g., gemini-3.1-flash-lite-preview, gpt-5.4, llama3.2)
+        provider: Explicit provider name (litellm, openai, google-adk)
         **kwargs: Additional runtime config (timeout, temperature, etc.)
 
     Returns:
@@ -103,20 +107,29 @@ def create_llm_runtime(
     return provider_class(model=resolved_model, **kwargs)
 
 
-# Register providers at module import time
 def _register_builtin_providers() -> None:
-    """Register built-in LLM providers."""
+    """Register built-in LLM providers based on installed packages."""
+    # Priority 1: litellm (universal proxy for ALL providers)
     try:
-        from backend.agents.runtime.gemini_runtime import GeminiRuntime, HAS_GENAI
-        if HAS_GENAI:
-            register_provider("gemini", GeminiRuntime)
+        import litellm  # noqa: F401
+        from backend.agents.runtime.litellm_runtime import LiteLLMRuntime
+        register_provider("litellm", LiteLLMRuntime)
     except ImportError:
         pass
 
+    # Priority 2: openai (direct or Ollama-compatible)
     try:
-        from backend.agents.runtime.openai_runtime import OpenAIRuntime, HAS_OPENAI
-        if HAS_OPENAI:
-            register_provider("openai", OpenAIRuntime)
+        import openai  # noqa: F401
+        from backend.agents.runtime.openai_runtime import OpenAIRuntime
+        register_provider("openai", OpenAIRuntime)
+    except ImportError:
+        pass
+
+    # Priority 3: google-adk (Gemini via ADK SDK)
+    try:
+        import google_adk  # noqa: F401
+        from backend.agents.runtime.google_adk_runtime import GoogleADKRuntime
+        register_provider("google-adk", GoogleADKRuntime)
     except ImportError:
         pass
 

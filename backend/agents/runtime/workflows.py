@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Callable, Dict, Optional, Union
 
 from .runner import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime
+from .output_validation import CanonicalOutputValidator, ContractValidationError
 from .evaluator import (
     EvaluatorRubric,
     TrajectoryEvaluation,
@@ -21,6 +22,9 @@ class SequentialWorkflowStep:
     step_name: str
     runtime_agent: AgentRuntime
     request: ADKRunRequest
+    input_contract_type: str | None = None
+    expected_output_contract_type: str | None = None
+    validate_before_next: bool = True
 
 
 class SequentialWorkflowRunner:
@@ -30,8 +34,13 @@ class SequentialWorkflowRunner:
     to subsequent steps via request.metadata["prior_steps"].
     """
 
-    def __init__(self, runner: ADKRunnerService) -> None:
+    def __init__(
+        self,
+        runner: ADKRunnerService,
+        output_validator: CanonicalOutputValidator | None = None,
+    ) -> None:
         self._runner = runner
+        self._output_validator = output_validator
 
     def run(
         self,
@@ -50,12 +59,33 @@ class SequentialWorkflowRunner:
                 agent=step.runtime_agent,
                 request=augmented_request,
             )
+            if step.validate_before_next and not self._step_output_is_valid(step, result):
+                results.append(result)
+                break
             context_chain[step.step_name] = {
                 "output": result.output_payload,
                 "state": result.final_state,
             }
             results.append(result)
         return tuple(results)
+
+    def _step_output_is_valid(
+        self,
+        step: SequentialWorkflowStep,
+        result: ADKRunResult,
+    ) -> bool:
+        if result.final_state != "COMPLETED":
+            return False
+        if step.expected_output_contract_type is not None:
+            if result.output_payload.get("contract_type") != step.expected_output_contract_type:
+                return False
+        if self._output_validator is None:
+            return True
+        try:
+            self._output_validator.validate(result.output_payload)
+        except ContractValidationError:
+            return False
+        return True
 
 
 @dataclass(frozen=True)
@@ -65,6 +95,8 @@ class RoutingWorkflowBranch:
     route_key: str
     runtime_agent: AgentRuntime
     request: ADKRunRequest
+    input_contract_type: str | None = None
+    expected_output_contract_type: str | None = None
 
 
 class RoutingWorkflowRunner:
@@ -95,6 +127,8 @@ class ParallelWorkflowTask:
     task_name: str
     runtime_agent: AgentRuntime
     request: ADKRunRequest
+    input_contract_type: str | None = None
+    expected_output_contract_type: str | None = None
 
 
 class ParallelWorkflowRunner:
@@ -260,6 +294,8 @@ class OrchestratorWorkerTask:
     worker_name: str
     runtime_agent: AgentRuntime
     request: ADKRunRequest
+    input_contract_type: str | None = None
+    expected_output_contract_type: str | None = None
 
 
 class OrchestratorWorkerWorkflowRunner:

@@ -54,7 +54,7 @@ class _FakeOrchestratorRuntime:
 
 def test_phase3_runtime_path_validates_and_persists_trajectory_log(tmp_path) -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = repo_root / "backend" / "data" / "database" / "migrations"
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)
@@ -100,6 +100,7 @@ def test_phase3_runtime_path_validates_and_persists_trajectory_log(tmp_path) -> 
         agent_name="orchestrator_agent",
         input_payload={"goal": "Review EURUSD setup"},
         prompt_version_id=prompt_record.prompt_version_id,
+        allowed_tools=("research.lookup",),
     )
 
     result = wrapper.execute(runtime_agent=_FakeOrchestratorRuntime(), request=request)

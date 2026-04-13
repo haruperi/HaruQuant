@@ -175,6 +175,31 @@ def test_react_handles_unknown_tool() -> None:
     assert "Unknown tool" in react.step_log[0].observation
 
 
+def test_react_blocks_disallowed_tool_even_when_registered() -> None:
+    """ReAct should respect context.allowed_tools before executing a tool."""
+    llm = MockLLMRuntime([
+        'Thought: I will use the registered tool.\nAction: place_order({"symbol": "EURUSD"})',
+        'Thought: Tool policy blocked it.\nFinal: {"error": "blocked"}',
+    ])
+    tools = {"place_order": lambda symbol: {"placed": True, "symbol": symbol}}
+    react = ReActAgentRuntime(llm, tools=tools, max_steps=5)
+    request, context = _make_request()
+    context = AgentExecutionContext(
+        workflow_id=context.workflow_id,
+        correlation_id=context.correlation_id,
+        session_id=context.session_id,
+        model=context.model,
+        allowed_tools=("get_price",),
+        prompt_version_id=context.prompt_version_id,
+        metadata=context.metadata,
+    )
+
+    result = react.run(request=request, context=context)
+
+    assert result.final_state == "COMPLETED"
+    assert "Tool policy violation" in react.step_log[0].observation
+
+
 def test_react_handles_llm_error() -> None:
     """ReAct loop fails closed when LLM call fails."""
     class FailingLLMRuntime(LLMRuntime):

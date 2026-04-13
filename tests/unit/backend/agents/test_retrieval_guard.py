@@ -1,4 +1,4 @@
-"""Unit tests for expanded retrieval guard with 54 injection markers."""
+"""Unit tests for expanded retrieval guard injection markers."""
 
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ from backend.agents.runtime.retrieval_guard import (
 # ──────────────────────────────────────────────────────────────
 
 def test_total_marker_count_exceeds_25() -> None:
-    """Total unique markers should exceed 25 per the plan."""
+    """Total unique markers should exceed the plan threshold."""
     assert get_marker_count() >= 25
-    assert get_marker_count() == 54
+    assert get_marker_count() == 53
 
 
 def test_marker_categories_have_expected_severity_distribution() -> None:
@@ -46,6 +46,14 @@ def test_safe_market_data_passes() -> None:
 
 def test_safe_news_report_passes() -> None:
     report = evaluate_retrieved_text("ECB maintains interest rates at 4.50 percent.")
+    assert report.safe is True
+
+
+def test_safe_multiline_research_context_passes() -> None:
+    report = evaluate_retrieved_text(
+        "EURUSD liquidity remains concentrated near London open.\n"
+        "Volume increased after the ECB statement."
+    )
     assert report.safe is True
 
 

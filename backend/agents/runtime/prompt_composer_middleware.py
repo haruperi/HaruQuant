@@ -1,51 +1,25 @@
-"""Prompt composing middleware — injects trust-layered prompts into agent execution."""
+"""Prompt composing middleware for trust-layered model input."""
 
 from __future__ import annotations
 
-import time
 from dataclasses import replace
 from typing import Any, Dict, Optional
 
 from backend.agents.prompts import PromptComposer, PromptContext
-from backend.agents.runtime.retrieval_guard import (
-    RetrievalSafetyReport,
-    evaluate_retrieved_text,
-)
+from backend.agents.runtime.redaction import ContextRedactionMiddleware
+from backend.agents.runtime.retrieval_guard import RetrievalSafetyReport, evaluate_retrieved_text
 from backend.agents.runtime.runner import (
     ADKRunRequest,
-    ADKRunResult,
-    ADKRunnerService,
     AgentExecutionContext,
     AgentExecutionResult,
     AgentRuntime,
 )
 from backend.common.logger import logger
+from backend.orchestration.context_engineering.budget import ContextBudget
 
 
 class PromptComposingMiddleware:
-    """Wraps an agent runtime to compose prompts with strict trust hierarchy.
-
-    Before calling the underlying LLM, this middleware:
-    1. Retrieves the agent's instruction string
-    2. Checks retrieved content for prompt injection
-    3. Composes the full prompt with trust-layered sections:
-       [SYSTEM POLICY] → [WORKFLOW POLICY] → [AGENT INSTRUCTION] →
-       [USER REQUEST] → [RETRIEVED CONTEXT] → [TOOL OUTPUT]
-    4. Logs the composed prompt (truncated for safety)
-
-    Usage:
-        middleware = PromptComposingMiddleware(
-            system_policy="NEVER emit execution instructions.",
-        )
-        result = middleware.run(
-            agent=actual_agent_runtime,
-            instruction=agent_instruction,
-            request=request,
-            context=context,
-            user_input="What's the best trade?",
-            retrieved_content="Market data from API...",
-        )
-    """
+    """Wrap an agent runtime with redaction and trust-layered prompt assembly."""
 
     def __init__(
         self,
@@ -53,11 +27,15 @@ class PromptComposingMiddleware:
         workflow_policy: Optional[str] = None,
         max_retrieved_length: int = 8000,
         max_tool_output_length: int = 12000,
+        context_budget: ContextBudget | None = None,
+        redactor: ContextRedactionMiddleware | None = None,
     ) -> None:
         self._system_policy = system_policy
         self._workflow_policy = workflow_policy
         self._max_retrieved_length = max_retrieved_length
         self._max_tool_output_length = max_tool_output_length
+        self._context_budget = context_budget
+        self._redactor = redactor or ContextRedactionMiddleware()
 
     def run(
         self,
@@ -70,72 +48,82 @@ class PromptComposingMiddleware:
         retrieved_content: Optional[str] = None,
         tool_output: Optional[str] = None,
     ) -> AgentExecutionResult:
-        """Compose the trust-layered prompt and execute the agent."""
-        # Step 1: Evaluate retrieved content safety
+        """Compose a redacted trust-layered prompt and execute the agent."""
+        redacted_payload = self._redactor.redact(request.input_payload)
+        redacted_metadata = self._redactor.redact(dict(request.metadata))
+        redacted_user_input = self._redact_text(user_input)
+        redacted_retrieved = self._redact_text(retrieved_content)
+        redacted_tool_output = self._redact_text(tool_output)
+
         safety_report: Optional[RetrievalSafetyReport] = None
-        if retrieved_content:
-            safety_report = evaluate_retrieved_text(retrieved_content)
+        if redacted_retrieved:
+            safety_report = evaluate_retrieved_text(redacted_retrieved)
             if not safety_report.safe:
                 logger.warning(
-                    f"PromptComposingMiddleware: Retrieved content flagged as unsafe. "
-                    f"Reasons: {', '.join(safety_report.reason_codes)}"
+                    "PromptComposingMiddleware: unsafe retrieved content, "
+                    "severity=%s reasons=%s",
+                    safety_report.severity,
+                    ",".join(safety_report.reason_codes),
                 )
-                # Still include but mark as unsafe
-                retrieved_content = (
-                    f"[SAFETY WARNING: This content was flagged as potentially unsafe. "
+                if self._should_block_retrieved_context(request.agent_name, safety_report):
+                    return AgentExecutionResult(
+                        output_payload={
+                            "error": "Retrieved context blocked by prompt-injection guard",
+                            "severity": safety_report.severity,
+                            "reason_codes": list(safety_report.reason_codes),
+                            "contract_type": request.input_payload.get("contract_type", "unknown"),
+                            "schema_version": request.input_payload.get("schema_version", "1.0.0"),
+                        },
+                        final_state="RETRIEVAL_BLOCKED",
+                    )
+                redacted_retrieved = (
+                    "[SAFETY WARNING: This content was flagged as potentially unsafe. "
                     f"Reasons: {', '.join(safety_report.reason_codes)}]\n\n"
-                    f"{retrieved_content}"
+                    f"{redacted_retrieved}"
                 )
-            # Truncate to configured max length
-            if len(retrieved_content) > self._max_retrieved_length:
-                retrieved_content = retrieved_content[:self._max_retrieved_length] + "\n\n... [truncated]"
+            if len(redacted_retrieved) > self._max_retrieved_length:
+                redacted_retrieved = redacted_retrieved[: self._max_retrieved_length] + "\n\n... [truncated]"
 
-        # Truncate tool output
-        if tool_output and len(tool_output) > self._max_tool_output_length:
-            tool_output = tool_output[:self._max_tool_output_length] + "\n\n... [truncated]"
+        if redacted_tool_output and len(redacted_tool_output) > self._max_tool_output_length:
+            redacted_tool_output = redacted_tool_output[: self._max_tool_output_length] + "\n\n... [truncated]"
 
-        # Step 2: Build prompt context
         prompt_context = PromptContext(
             system_policy=self._system_policy,
             workflow_policy=self._workflow_policy,
-            user_input=user_input,
-            retrieved_content=retrieved_content,
-            tool_output=tool_output,
-            prior_steps=request.metadata.get("prior_steps"),
-            refinement_feedback=self._extract_refinement_feedback(request.metadata),
+            user_input=redacted_user_input,
+            retrieved_content=redacted_retrieved,
+            tool_output=redacted_tool_output,
+            prior_steps=redacted_metadata.payload.get("prior_steps"),
+            refinement_feedback=self._extract_refinement_feedback(redacted_metadata.payload),
         )
-
-        # Step 3: Compose the full prompt
-        composed_prompt = PromptComposer.compose(instruction, prompt_context)
-
-        # Step 4: Log composed prompt (truncated for safety)
-        log_preview = composed_prompt[:500]
-        if len(composed_prompt) > 500:
-            log_preview += "... [truncated]"
+        composed_prompt = PromptComposer.compose(
+            instruction,
+            prompt_context,
+            context_budget=self._context_budget,
+        )
         logger.debug(
-            f"PromptComposingMiddleware: Composed prompt ({len(composed_prompt)} chars). "
-            f"Preview: {log_preview}"
+            "PromptComposingMiddleware: composed prompt chars=%s preview=%s",
+            len(composed_prompt),
+            composed_prompt[:500],
         )
 
-        # Step 5: Inject composed prompt into request
-        augmented_request = replace(request, input_payload={
-            **request.input_payload,
-            "_system_prompt": composed_prompt,
-        })
+        augmented_request = replace(
+            request,
+            input_payload={
+                **redacted_payload.payload,
+                "_system_prompt": composed_prompt,
+            },
+            metadata=redacted_metadata.payload,
+        )
+        return agent.run(request=augmented_request, context=context)
 
-        # Step 6: Execute agent with composed prompt
-        result = agent.run(request=augmented_request, context=context)
-
-        # Step 7: Attach safety report to result metadata if available
-        if safety_report:
-            # Safety info is logged; result stands as-is
-            pass
-
-        return result
+    def _redact_text(self, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return self._redactor.redact({"value": value}).payload.get("value")
 
     @staticmethod
     def _extract_refinement_feedback(metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Extract refinement feedback from request metadata if present."""
         if "refinement_iteration" not in metadata:
             return None
         return {
@@ -144,3 +132,16 @@ class PromptComposingMiddleware:
             "improvement_actions": metadata.get("improvement_actions", []),
             "focus_areas": metadata.get("focus_areas", []),
         }
+
+    @staticmethod
+    def _should_block_retrieved_context(
+        agent_name: str,
+        report: RetrievalSafetyReport,
+    ) -> bool:
+        high_risk_agents = {
+            "execution_agent",
+            "risk_governor_agent",
+            "compliance_agent",
+            "orchestrator_agent",
+        }
+        return agent_name in high_risk_agents

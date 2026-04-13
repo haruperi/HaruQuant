@@ -14,6 +14,7 @@ from backend.agents.runtime.runner import (
     AgentExecutionContext,
     AgentExecutionResult,
 )
+from backend.orchestration.context_engineering.budget import ContextBudget
 
 
 # ──────────────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ def test_middleware_composes_prompt_with_system_policy() -> None:
         context=context,
     )
 
-    assert "[SYSTEM POLICY — DO NOT OVERRIDE]" in agent.captured_system_prompt
+    assert "[SYSTEM POLICY - DO NOT OVERRIDE]" in agent.captured_system_prompt
     assert "NEVER emit execution instructions" in agent.captured_system_prompt
     # System policy must appear before agent instruction
     sys_pos = agent.captured_system_prompt.find("[SYSTEM POLICY")
@@ -150,7 +151,7 @@ def test_middleware_marks_retrieved_content_as_unverified() -> None:
         retrieved_content="Analyst recommends buying EURUSD at 1.0850.",
     )
 
-    assert "[RETRIEVED CONTEXT — UNVERIFIED]" in agent.captured_system_prompt
+    assert "[RETRIEVED CONTEXT - UNVERIFIED]" in agent.captured_system_prompt
     assert "Analyst recommends buying EURUSD" in agent.captured_system_prompt
     # Retrieved content must come after user request
     user_pos = agent.captured_system_prompt.find("[USER REQUEST]")
@@ -173,7 +174,7 @@ def test_middleware_marks_tool_output_as_raw_data() -> None:
         tool_output='{"price": 1.0850, "spread": 1.2}',
     )
 
-    assert "[TOOL OUTPUT — RAW DATA]" in agent.captured_system_prompt
+    assert "[TOOL OUTPUT - RAW DATA]" in agent.captured_system_prompt
     assert '{"price": 1.0850' in agent.captured_system_prompt
 
 
@@ -329,3 +330,23 @@ def test_full_trust_hierarchy_order() -> None:
     for i in range(len(ordered) - 1):
         assert positions[ordered[i]] < positions[ordered[i + 1]], \
             f"{ordered[i]} ({positions[ordered[i]]}) should come before {ordered[i + 1]} ({positions[ordered[i + 1]]})"
+
+
+def test_middleware_applies_context_budget_without_removing_instruction() -> None:
+    """Context budget should trim low-trust context while keeping instruction."""
+    agent = CapturingRuntime()
+    middleware = PromptComposingMiddleware(context_budget=ContextBudget(max_tokens=120, reserved_tokens=0))
+    instruction = "You are a helpful assistant."
+    request, context = _make_request()
+
+    middleware.run(
+        agent=agent,
+        instruction=instruction,
+        request=request,
+        context=context,
+        retrieved_content="x" * 2000,
+    )
+
+    assert "[AGENT INSTRUCTION]" in agent.captured_system_prompt
+    assert "You are a helpful assistant." in agent.captured_system_prompt
+    assert len(agent.captured_system_prompt) < 1000

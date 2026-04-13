@@ -217,26 +217,65 @@ def example_02_llm_runtime() -> None:
     """Demonstrate provider-agnostic LLM runtime with auto-detection."""
     print_example_header("Example 02: Brand-Independent LLM Runtime")
 
-    # Show available providers
-    print_section("Registered providers:", ", ".join(_PROVIDERS.keys()) or "(none — install google-genai or openai)")
+    # Show available providers (depends on installed packages)
+    registered = ", ".join(_PROVIDERS.keys()) or "(none)"
+    print_section("Registered providers:", registered)
 
-    # Show model name → provider detection
+    # Show model routing logic with your actual available models
+    print("\n  Model routing (your available models via LiteLLM):")
+    print("  Online models:")
+    print("    Google Gemini:")
+    print("      gemini-3.1-pro-preview         -> LiteLLMRuntime (uses GOOGLE_API_KEY)")
+    print("      gemini-3.1-flash-lite-preview  -> LiteLLMRuntime (uses GOOGLE_API_KEY)")
+    print("    OpenAI:")
+    print("      gpt-5.4                        -> LiteLLMRuntime (uses OPENAI_API_KEY)")
+    print("      gpt-5.4-mini                   -> LiteLLMRuntime (uses OPENAI_API_KEY)")
+    print("      gpt-5.4-nano                   -> LiteLLMRuntime (uses OPENAI_API_KEY)")
+    print("  Offline models (via Ollama, base_url=localhost:11434):")
+    print("      qwen2.5-coder:1.5b             -> LiteLLMRuntime")
+    print("      qwen2.5-coder:7b               -> LiteLLMRuntime")
+    print("      gemma4:latest                  -> LiteLLMRuntime")
+    print("      qwen3.5:latest                 -> LiteLLMRuntime")
+    print("      phi4-mini-reasoning:latest     -> LiteLLMRuntime")
+    print("      llama3.2:latest                -> LiteLLMRuntime")
+
+    # Test actual routing with your models
+    print("\n  Provider auto-detection results:")
     test_models = [
-        ("gemini-3.1-flash-lite-preview", "GeminiRuntime"),
-        ("gemini-3.1-pro", "GeminiRuntime"),
-        ("gpt-4o-mini", "OpenAIRuntime"),
-        ("gpt-4o", "OpenAIRuntime"),
-        ("llama3.1:70b", "OpenAIRuntime (via Ollama)"),
-        ("qwen2.5-coder:32b", "OpenAIRuntime (via Ollama)"),
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3.1-pro-preview",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        "gpt-5.4-nano",
+        "qwen2.5-coder:7b",
+        "llama3.2:latest",
+        "gemma4:latest",
+        "qwen3.5:latest",
+        "phi4-mini-reasoning:latest",
     ]
 
-    for model_name, expected in test_models:
+    for model_name in test_models:
         try:
             provider_cls = get_provider(model=model_name)
-            status = "✓" if provider_cls.__name__ == expected.split()[0] else "?"
-            print_section(f"{model_name}", f"→ {provider_cls.__name__} {status}")
+            # Show which rule matched
+            if "gemini" in model_name.lower():
+                rule = "name contains 'gemini'"
+            elif any(x in model_name.lower() for x in ("gpt-", "gpt")):
+                rule = "name contains 'gpt-'"
+            else:
+                rule = "name matches Ollama model pattern"
+            print_section(f"{model_name:<35s}", f"-> {provider_cls.__name__} ({rule})")
         except (ValueError, RuntimeError) as exc:
-            print_section(f"{model_name}", f"→ (no provider: {exc})")
+            print_section(f"{model_name:<35s}", f"-> (no provider: {exc})")
+
+    print("\n  Usage:")
+    print("    # Auto-detect from AGENT_MODEL config")
+    print("    runtime = create_llm_runtime()")
+    print("    # Explicit LiteLLM provider (handles ALL models)")
+    print("    runtime = create_llm_runtime(provider='litellm')")
+    print("    # Local Ollama model")
+    print("    # Set OLLAMA_BASE_URL=http://localhost:11434/v1")
+    print("    runtime = create_llm_runtime(model='llama3.2', provider='litellm')")
 
 
 # ────────────────────────────────────────────────────────────────────────

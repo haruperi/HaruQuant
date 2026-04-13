@@ -58,7 +58,7 @@ def test_production_workflows_emit_trajectory_logs_and_runtime_assertions(
     operating_mode: str,
 ) -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = repo_root / "backend" / "data" / "database" / "migrations"
     database_path = tmp_path / f"agentic-{operating_mode}.db"
 
     apply_pending_migrations(database_path, migrations_dir)
@@ -103,6 +103,7 @@ def test_production_workflows_emit_trajectory_logs_and_runtime_assertions(
         agent_name="orchestrator_agent",
         input_payload={"goal": "Review live EURUSD setup"},
         prompt_version_id=prompt_record.prompt_version_id,
+        allowed_tools=("research.lookup",),
     )
 
     result = wrapper.execute(
@@ -128,4 +129,3 @@ def test_production_workflows_emit_trajectory_logs_and_runtime_assertions(
     assert persisted.tool_calls_json is not None and "call_hash" in persisted.tool_calls_json
     assert persisted.token_usage_json is not None and '"model":"gemini-2.5-flash"' in persisted.token_usage_json
     assert f'"prompt_hash":"{prompt_record.content_hash}"' in persisted.token_usage_json
-
