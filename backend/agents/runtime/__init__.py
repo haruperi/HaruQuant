@@ -54,6 +54,8 @@ from .workflows import (
     SequentialWorkflowStep,
     enforce_refine_loop_limit,
 )
+from .llm_runtime import LLMRuntime, LLMRuntimeError
+from .llm_registry import create_llm_runtime, get_provider, register_provider
 
 __all__ = [
     "ADKRunRequest",
@@ -111,4 +113,10 @@ __all__ = [
     "enforce_refine_loop_limit",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",
+    # LLM runtime
+    "LLMRuntime",
+    "LLMRuntimeError",
+    "create_llm_runtime",
+    "get_provider",
+    "register_provider",
 ]
