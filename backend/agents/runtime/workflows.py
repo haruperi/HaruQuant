@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 from .runner import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime
+from .evaluator import (
+    EvaluatorRubric,
+    TrajectoryEvaluation,
+    TrajectoryEvaluationService,
+    generate_refinement_recommendations,
+)
 
 
 @dataclass(frozen=True)
@@ -141,23 +147,34 @@ class EvaluatorOptimizerResult:
 class EvaluatorOptimizerWorkflowRunner:
     """Run generation/evaluation loops until accepted or max iterations hit.
 
-    On each iteration, the generator receives refinement feedback
-    (previous score, improvement actions, focus areas) to guide
-    improved outputs.
+    Supports two evaluator modes:
+    1. Simple float evaluator: evaluator(result) → float (backward compatible)
+    2. Rubric-based evaluator: evaluator(result) → TrajectoryEvaluation
+
+    When a rubric is provided, the generator receives specific refinement
+    feedback based on which criteria failed (improvement_actions and
+    focus_areas derived from the actual evaluation findings).
     """
 
-    def __init__(self, runner: ADKRunnerService) -> None:
+    def __init__(
+        self,
+        runner: ADKRunnerService,
+        rubric: Optional[EvaluatorRubric] = None,
+    ) -> None:
         self._runner = runner
+        self._rubric = rubric
+        self._eval_service = TrajectoryEvaluationService() if rubric else None
 
     def run(
         self,
         *,
         generator_step: EvaluatorOptimizerStep,
-        evaluator: Callable[[ADKRunResult], float],
+        evaluator: Callable[[ADKRunResult], Union[float, TrajectoryEvaluation]],
         acceptance_threshold: float,
         max_iterations: int,
     ) -> EvaluatorOptimizerResult:
         scores: list[float] = []
+        evaluations: list[Union[float, TrajectoryEvaluation]] = []
         final_result: ADKRunResult | None = None
         terminated_by = "max_iterations"
 
@@ -170,20 +187,30 @@ class EvaluatorOptimizerWorkflowRunner:
                 agent=generator_step.runtime_agent,
                 request=current_request,
             )
-            score = evaluator(final_result)
+            eval_result = evaluator(final_result)
+            evaluations.append(eval_result)
+
+            # Extract score from either float or TrajectoryEvaluation
+            if isinstance(eval_result, TrajectoryEvaluation):
+                score = eval_result.overall_score
+            else:
+                score = float(eval_result)
             scores.append(score)
+
             if score >= acceptance_threshold:
                 terminated_by = "accepted"
                 break
 
-            # Build refinement context for next iteration
+            # Build refinement context for next iteration using actual findings
             if iteration + 1 < max_iterations:
+                refinement = self._build_refinement_context(
+                    eval_result=eval_result,
+                    iteration=iteration,
+                    score=score,
+                )
                 current_request = replace(current_request, metadata={
                     **current_request.metadata,
-                    "refinement_iteration": iteration + 1,
-                    "previous_score": score,
-                    "improvement_actions": ["Improve output quality to meet acceptance threshold"],
-                    "focus_areas": ["output_quality"],
+                    **refinement,
                 })
 
         return EvaluatorOptimizerResult(
@@ -192,6 +219,38 @@ class EvaluatorOptimizerWorkflowRunner:
             iterations=len(scores),
             terminated_by=terminated_by,
         )
+
+    def _build_refinement_context(
+        self,
+        eval_result: Union[float, TrajectoryEvaluation],
+        iteration: int,
+        score: float,
+    ) -> Dict[str, Any]:
+        """Build refinement metadata based on actual evaluation findings."""
+        if isinstance(eval_result, TrajectoryEvaluation):
+            # Rubric-based: generate specific recommendations from criteria
+            recommendations = generate_refinement_recommendations(
+                evaluation=eval_result,
+                unsupported_assertions=None,
+            )
+            return {
+                "refinement_iteration": iteration + 1,
+                "previous_score": score,
+                "previous_verdict": eval_result.verdict,
+                "improvement_actions": recommendations.improvement_actions,
+                "focus_areas": recommendations.focus_areas,
+            }
+        else:
+            # Simple float: generic improvement guidance
+            return {
+                "refinement_iteration": iteration + 1,
+                "previous_score": score,
+                "improvement_actions": [
+                    f"Improve output quality (current score {score:.2f} "
+                    f"below threshold)"
+                ],
+                "focus_areas": ["output_quality"],
+            }
 
 
 @dataclass(frozen=True)
