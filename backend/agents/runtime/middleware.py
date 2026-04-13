@@ -22,6 +22,7 @@ from .prompt_registry_service import PromptRegistryService, PromptResolutionErro
 from .prompts import PromptRegistryRecord
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .retrieval_guard import RetrievalSafetyReport, evaluate_retrieved_text
+from .tool_validation import ToolValidator, ToolValidationError, register_mcp_schemas
 from .runner import (
     ADKRunRequest,
     ADKRunResult,
@@ -314,14 +315,58 @@ class PromptCompositionMiddleware(MiddlewareProtocol):
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Tool Policy Middleware
+# Tool Validation Middleware (pre-execution)
+# ─────────────────────────────────────────────────────────────────────
+
+class ToolValidationMiddleware(MiddlewareProtocol):
+    """Validates tool call parameters BEFORE execution.
+
+    Catches missing required parameters and type mismatches
+    before any tool is actually invoked.
+    """
+
+    def __init__(self, validator: ToolValidator | None = None) -> None:
+        self._validator = validator or ToolValidator()
+        register_mcp_schemas(self._validator)
+
+    def process(self, ctx: MiddlewareContext, next_fn: NextMiddleware) -> ADKRunResult:
+        # Extract tool calls from the request (if any are pre-specified)
+        tool_calls = ctx.request.metadata.get("tool_calls", [])
+        for tc in tool_calls:
+            try:
+                self._validator.validate(tc)
+            except ToolValidationError as exc:
+                return _error_result(
+                    ctx=ctx,
+                    model=ctx.request.model or ctx.config.default_model,
+                    latency_ms=0,
+                    final_state="TOOL_VALIDATION_FAILED",
+                    output_payload={
+                        "error": f"Pre-execution tool validation failed: {exc}",
+                        "contract_type": ctx.request.input_payload.get("contract_type", "unknown"),
+                        "schema_version": ctx.request.input_payload.get("schema_version", "1.0.0"),
+                    },
+                    redacted_paths=ctx.redacted_paths,
+                    retrieval_report=ctx.retrieval_report,
+                )
+
+        return next_fn(ctx)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Tool Policy Middleware (post-execution)
 # ─────────────────────────────────────────────────────────────────────
 
 class ToolPolicyMiddleware(MiddlewareProtocol):
-    """Enforces tool allowlist policy on agent tool calls."""
+    """Enforces tool allowlist policy and output size limits on agent tool calls."""
 
-    def __init__(self, tool_policy: ToolAllowlistMiddleware | None = None) -> None:
+    def __init__(
+        self,
+        tool_policy: ToolAllowlistMiddleware | None = None,
+        max_output_tokens: int = 4096,
+    ) -> None:
         self._tool_policy = tool_policy or ToolAllowlistMiddleware()
+        self._max_output_tokens = max_output_tokens
 
     def process(self, ctx: MiddlewareContext, next_fn: NextMiddleware) -> ADKRunResult:
         result = next_fn(ctx)
@@ -361,7 +406,35 @@ class ToolPolicyMiddleware(MiddlewareProtocol):
                 retrieval_report=ctx.retrieval_report,
             )
 
+        # Truncate oversized tool outputs in the result payload
+        truncated_payload = self._truncate_tool_outputs(result.output_payload)
+        if truncated_payload is not result.output_payload:
+            return _replace_result_output(result, truncated_payload)
+
         return result
+
+    def _truncate_tool_outputs(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Recursively truncate string values that exceed token budget."""
+        return _truncate_strings_in_dict(payload, self._max_output_tokens * 4)
+
+
+def _truncate_strings_in_dict(d: dict[str, Any], max_chars: int) -> dict[str, Any]:
+    """Truncate all string values in a dict to max_chars."""
+    result: dict[str, Any] = {}
+    for key, value in d.items():
+        if isinstance(value, str) and len(value) > max_chars:
+            result[key] = value[:max_chars] + "\n...[tool output truncated]"
+        elif isinstance(value, dict):
+            result[key] = _truncate_strings_in_dict(value, max_chars)
+        elif isinstance(value, list):
+            result[key] = [
+                _truncate_strings_in_dict(item, max_chars) if isinstance(item, dict)
+                else (item[:max_chars] + "\n...[truncated]" if isinstance(item, str) and len(item) > max_chars else item)
+                for item in value
+            ]
+        else:
+            result[key] = value
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -455,6 +528,7 @@ class ADKRunnerService:
         self._pipeline.add(ContextRedactionMiddlewareComponent(redactor))
         self._pipeline.add(RetrievalGuardMiddleware())
         self._pipeline.add(PromptCompositionMiddleware(prompt_registry))
+        self._pipeline.add(ToolValidationMiddleware())
         self._pipeline.add(ToolPolicyMiddleware(tool_policy))
         self._pipeline.add(OutputValidationMiddleware(output_validator))
 
@@ -674,6 +748,12 @@ def _hash_payload(payload: dict[str, Any]) -> str:
     return hashlib.sha256(
         _json_module.dumps(payload, sort_keys=True, default=str).encode("utf-8")
     ).hexdigest()
+
+
+def _replace_result_output(result: ADKRunResult, new_payload: dict[str, Any]) -> ADKRunResult:
+    """Create a new ADKRunResult with a replaced output_payload."""
+    from dataclasses import replace
+    return replace(result, output_payload=new_payload)
 
 
 def _hash_payload_str(prompt: str) -> str:
