@@ -274,8 +274,8 @@ backend/mcp/filesystem_mcp/      # only if filesystem operations remain agent-ca
 Replace monolithic SQLite manager usage with:
 
 ```text
-backend/db/migrations/
-backend/db/repositories/
+backend/data/database/migrations/
+backend/data/database/repositories/
 backend/mcp/sql_mcp/
 ```
 

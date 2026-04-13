@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from backend.agents.intent_router import IntentRouterAgent, IntentRouterError
+from backend.agents.route_decision import RouteDecisionService
 from backend.api.router import Intent, IntentClassifier, RoutingMetadata
 
 
@@ -67,6 +68,29 @@ class TestIntentClassifier:
         intents = c.allowed_intents()
         assert Intent.RISK in intents
         assert Intent.BACKTEST in intents
+
+    def test_route_map_is_copy(self) -> None:
+        c = IntentClassifier()
+        route_map = c.route_map
+        route_map["/api/changed"] = Intent.RISK
+        assert c.classify("/api/changed") == Intent.UNKNOWN
+
+
+class TestRouteDecisionService:
+    def test_decide_known_route_with_policy_checks(self) -> None:
+        decision = RouteDecisionService().decide("/api/live/sessions")
+
+        assert decision.intent == Intent.LIVE_TRADING
+        assert decision.confidence == 1.0
+        assert "risk_governance" in decision.required_policy_checks
+
+    def test_decide_unknown_route_uses_fallback(self) -> None:
+        decision = RouteDecisionService().decide("/api/nonexistent")
+
+        assert decision.intent == Intent.UNKNOWN
+        assert decision.fallback_route == Intent.UNKNOWN
+        assert decision.ambiguous is True
+        assert decision.ambiguity_reason == "no_route_match"
 
 
 class TestIntentRouterAgent:

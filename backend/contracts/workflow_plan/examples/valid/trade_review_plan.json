@@ -13,17 +13,29 @@
   "operating_mode": "MODE-001",
   "payload": {
     "plan_id": "plan_01",
-    "selected_pattern": "sequential_review",
+    "selected_pattern": "sequential",
     "phase_steps": [
       {
+        "step_id": "step_reason",
         "phase": "reason",
-        "owner": "strategy_agent",
-        "goal": "review trade setup"
+        "owner_agent": "strategy_agent",
+        "goal": "review trade setup",
+        "input_contract_type": "WorkflowIntent",
+        "expected_output_contract_type": "TradeHypothesis",
+        "depends_on": [],
+        "allowed_tools": ["market_data_mcp", "sql_mcp"],
+        "timeout_seconds": 60
       },
       {
+        "step_id": "step_verify",
         "phase": "verify",
-        "owner": "risk_governor_agent",
-        "goal": "validate constraints"
+        "owner_agent": "risk_governor_agent",
+        "goal": "validate constraints",
+        "input_contract_type": "TradeHypothesis",
+        "expected_output_contract_type": "RiskAssessmentDecision",
+        "depends_on": ["step_reason"],
+        "allowed_tools": ["risk_analytics_mcp", "sql_mcp"],
+        "timeout_seconds": 30
       }
     ],
     "assigned_agents": [

@@ -4,13 +4,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.common import FixedClock
-from backend.data.database import WorkflowRepository, apply_pending_migrations
+from backend.data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
 from backend.services.monitoring.workflow_timeout import WorkflowTimeoutService
 
 
 def test_workflow_timeout_service_transitions_expired_workflow(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)
@@ -45,8 +44,7 @@ def test_workflow_timeout_service_transitions_expired_workflow(tmp_path) -> None
 
 
 def test_workflow_timeout_service_leaves_active_workflow_unchanged(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

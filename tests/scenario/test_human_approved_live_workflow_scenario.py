@@ -20,6 +20,7 @@ from backend.data.database import (
     ExecutionRepository,
     GovernanceRepository,
     apply_pending_migrations,
+    default_migrations_dir,
 )
 from backend.services import require_live_execution_profile
 from backend.services.execution import (
@@ -220,8 +221,7 @@ def _live_decision() -> RiskAssessmentDecision:
 
 
 def test_human_approved_live_workflow_requires_risk_approval_and_operator_approval(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)
@@ -359,4 +359,3 @@ def test_human_approved_live_workflow_requires_risk_approval_and_operator_approv
     assert readiness.allowed is True
     assert attempt.attempt_no == 1
     assert receipt.record.receipt_status == "ACCEPTED"
-

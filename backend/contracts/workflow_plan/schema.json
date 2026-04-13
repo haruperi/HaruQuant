@@ -77,13 +77,77 @@
         },
         "selected_pattern": {
           "type": "string",
-          "minLength": 1
+          "enum": [
+            "sequential",
+            "routing",
+            "parallel",
+            "evaluator_optimizer",
+            "orchestrator_workers"
+          ]
         },
         "phase_steps": {
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "object"
+            "type": "object",
+            "required": [
+              "phase",
+              "owner_agent",
+              "expected_output_contract_type"
+            ],
+            "properties": {
+              "step_id": {
+                "type": "string"
+              },
+              "phase": {
+                "type": "string",
+                "minLength": 1
+              },
+              "owner_agent": {
+                "type": "string",
+                "minLength": 1
+              },
+              "goal": {
+                "type": "string",
+                "minLength": 1
+              },
+              "input_contract_type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expected_output_contract_type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "depends_on": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "allowed_tools": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "failure_policy": {
+                "type": "object",
+                "properties": {
+                  "retry_count": {"type": "integer", "minimum": 0},
+                  "timeout_seconds": {"type": "integer", "minimum": 1},
+                  "fallback_agent": {"type": "string", "minLength": 1},
+                  "compensation_action": {"type": "string", "minLength": 1},
+                  "escalation_condition": {"type": "string", "minLength": 1},
+                  "critical": {"type": "boolean"}
+                },
+                "additionalProperties": false
+              },
+              "metadata": {
+                "type": "object"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "assigned_agents": {

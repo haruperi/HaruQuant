@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import ProposalRepository, apply_pending_migrations
+from backend.data.database import ProposalRepository, apply_pending_migrations, default_migrations_dir
 
 
 def test_proposal_repository_persists_state_transitions(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

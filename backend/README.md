@@ -556,7 +556,7 @@ If you are trying to understand:
 - contracts and message families
   - open [`backend/contracts`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\contracts)
 - persistence and schema
-  - open [`backend/db/migrations`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\db\migrations) and [`backend/db/repositories`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\db\repositories)
+  - open [`backend/data/database/migrations`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\data\database\migrations) and [`backend/data/database/repositories`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\data\database\repositories)
 - workflow law
   - open [`backend/orchestration/workflow`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\orchestration\workflow)
 - live safety

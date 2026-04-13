@@ -4,7 +4,7 @@ from pathlib import Path
 from statistics import quantiles
 from time import perf_counter
 
-from backend.data.database import apply_pending_migrations
+from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.read_models.operator_dashboard import build_operator_dashboard_read_model
 
 
@@ -39,8 +39,7 @@ def _seed_dashboard_tables(database_path: Path) -> None:
 
 
 def test_dashboard_propagation_p95_under_500ms(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "dashboard-benchmark.db"
 
     apply_pending_migrations(database_path, migrations_dir)

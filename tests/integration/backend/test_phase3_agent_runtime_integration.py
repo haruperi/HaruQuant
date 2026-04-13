@@ -35,12 +35,15 @@ class _FakeOrchestratorRuntime:
                 "schema_version": "1.0.0",
                 "payload": {
                     "plan_id": "plan_001",
-                    "selected_pattern": "sequential_review",
+                    "selected_pattern": "sequential",
                     "phase_steps": [
                         {
+                            "step_id": "collect_evidence",
                             "phase": "reason",
-                            "owner": "strategy_agent",
+                            "owner_agent": "strategy_agent",
                             "goal": "collect evidence",
+                            "input_contract_type": "WorkflowIntent",
+                            "expected_output_contract_type": "TradeHypothesis",
                         }
                     ],
                 },

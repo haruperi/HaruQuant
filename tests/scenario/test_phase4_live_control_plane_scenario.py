@@ -12,7 +12,7 @@ from backend.contracts.risk_assessment_decision.model import (
 )
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.data.database import ExecutionRepository, ResearchAuditRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
 from backend.services.audit import ReplayBundleAssembler, build_audit_export_package
 from backend.services.execution import (
     ExecutionAttemptPersistenceService,
@@ -174,8 +174,7 @@ def _seed_workflow(database_path: Path) -> None:
 
 
 def test_phase4_scenario_supervised_paper_execution_creates_full_replay_trail(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

@@ -35,6 +35,7 @@ from .prompt_provenance import (
     build_prompt_provenance,
 )
 from .prompts import PromptRegistryRecord, PromptStatus
+from .pattern_registry import WorkflowPatternRegistration, WorkflowPatternRegistry
 from .retrieval_guard import RetrievalSafetyReport, evaluate_retrieved_text
 from .redaction import ContextRedactionMiddleware, RedactedContext
 from .session_manager import AgentSession, SessionManager, SessionState
@@ -47,11 +48,13 @@ from .workflows import (
     OrchestratorWorkerWorkflowRunner,
     ParallelWorkflowRunner,
     ParallelWorkflowTask,
+    ParallelAggregateResult,
     RefineLoopGuardDecision,
     RoutingWorkflowBranch,
     RoutingWorkflowRunner,
     SequentialWorkflowRunner,
     SequentialWorkflowStep,
+    WorkerGroupResult,
     enforce_refine_loop_limit,
 )
 from .llm_runtime import LLMRuntime, LLMRuntimeError
@@ -93,6 +96,8 @@ __all__ = [
     "PromptRegistryRecord",
     "PromptResolutionError",
     "PromptStatus",
+    "WorkflowPatternRegistration",
+    "WorkflowPatternRegistry",
     "RetrievalSafetyReport",
     "RuntimeTrajectoryLog",
     "RuntimeTrajectoryLogService",
@@ -111,6 +116,7 @@ __all__ = [
     "SequentialWorkflowStep",
     "ParallelWorkflowRunner",
     "ParallelWorkflowTask",
+    "ParallelAggregateResult",
     "RoutingWorkflowBranch",
     "RoutingWorkflowRunner",
     "EvaluatorOptimizerResult",
@@ -118,6 +124,7 @@ __all__ = [
     "EvaluatorOptimizerWorkflowRunner",
     "OrchestratorWorkerTask",
     "OrchestratorWorkerWorkflowRunner",
+    "WorkerGroupResult",
     "RefineLoopGuardDecision",
     "enforce_refine_loop_limit",
     "WorkflowMemoryBinding",

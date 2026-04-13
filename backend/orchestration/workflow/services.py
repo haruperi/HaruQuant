@@ -8,6 +8,7 @@ import json
 from backend.common import ValidationError, generate_id
 from backend.data.database import WorkflowRecord, WorkflowRepository
 
+from .executor import WorkflowExecutionResult, WorkflowPlanExecutor
 from .states import WorkflowState
 
 
@@ -98,3 +99,34 @@ class WorkflowCreationService:
                 "workflow_evaluation_criteria_required",
                 "Workflow creation requires evaluation criteria.",
             )
+
+
+class WorkflowRuntimeService:
+    """Create workflow records and execute validated workflow plans."""
+
+    def __init__(
+        self,
+        creation_service: WorkflowCreationService,
+        executor: WorkflowPlanExecutor,
+    ) -> None:
+        self.creation_service = creation_service
+        self.executor = executor
+
+    def create_and_execute(
+        self,
+        *,
+        request: WorkflowCreateRequest,
+        plan_factory,
+    ) -> WorkflowExecutionResult:
+        workflow = self.creation_service.create_workflow(request)
+        plan = plan_factory(workflow)
+        if plan.workflow_id != workflow.workflow_id:
+            raise ValidationError(
+                "workflow_plan_id_mismatch",
+                "Workflow plan must target the created workflow.",
+                details={
+                    "workflow_id": workflow.workflow_id,
+                    "plan_workflow_id": plan.workflow_id,
+                },
+            )
+        return self.executor.execute(plan)

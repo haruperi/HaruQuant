@@ -17,21 +17,24 @@ def test_canonical_output_validator_accepts_registered_contract_payload() -> Non
             "originator": {"type": "service", "id": "agent-runtime"},
             "environment": "dev",
             "operating_mode": "MODE-002",
-                "contract_type": "WorkflowPlan",
-                "schema_version": "1.0.0",
-                "payload": {
-                    "plan_id": "plan_001",
-                    "selected_pattern": "sequential_review",
-                    "phase_steps": [
-                        {
-                            "phase": "reason",
-                            "owner": "strategy_agent",
-                            "goal": "collect evidence",
-                        }
-                    ],
-                },
+            "contract_type": "WorkflowPlan",
+            "schema_version": "1.0.0",
+            "payload": {
+                "plan_id": "plan_001",
+                "selected_pattern": "sequential",
+                "phase_steps": [
+                    {
+                        "step_id": "collect_evidence",
+                        "phase": "reason",
+                        "owner_agent": "strategy_agent",
+                        "goal": "collect evidence",
+                        "input_contract_type": "WorkflowIntent",
+                        "expected_output_contract_type": "TradeHypothesis",
+                    }
+                ],
             }
-        )
+        }
+    )
 
     assert result.contract_type == "WorkflowPlan"
     assert result.schema_version == "1.0.0"

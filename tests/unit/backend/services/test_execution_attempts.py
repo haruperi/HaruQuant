@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import ExecutionRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 from backend.services.execution.attempts import ExecutionAttemptPersistenceService
 
 
 def test_execution_attempt_persistence_increments_attempt_numbers(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

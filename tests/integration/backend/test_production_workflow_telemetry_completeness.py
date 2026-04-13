@@ -40,10 +40,24 @@ class _FakeProdOrchestratorRuntime:
                 "schema_version": "1.0.0",
                 "payload": {
                     "plan_id": "plan_prod_001",
-                    "selected_pattern": "sequential_review",
+                    "selected_pattern": "sequential",
                     "phase_steps": [
-                        {"phase": "reason", "owner": "strategy_agent", "goal": "collect evidence"},
-                        {"phase": "risk", "owner": "risk_governor_agent", "goal": "apply deterministic checks"},
+                        {
+                            "step_id": "collect_evidence",
+                            "phase": "reason",
+                            "owner_agent": "strategy_agent",
+                            "goal": "collect evidence",
+                            "input_contract_type": "WorkflowIntent",
+                            "expected_output_contract_type": "TradeHypothesis",
+                        },
+                        {
+                            "step_id": "risk_gate",
+                            "phase": "risk",
+                            "owner_agent": "risk_governor_agent",
+                            "goal": "apply deterministic checks",
+                            "input_contract_type": "TradeHypothesis",
+                            "expected_output_contract_type": "RiskAssessmentDecision",
+                        },
                     ],
                 },
             },

@@ -7,6 +7,7 @@ from .execution_agent import EXECUTION_AGENT_INSTRUCTION, ExecutionAgentWrapper
 from .exposure_agent import EXPOSURE_AGENT_INSTRUCTION, ExposureAgentWrapper
 from .portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
 from .risk_governor_agent import RiskGovernorAgentAdapter
+from .route_decision import RouteDecision, RouteDecisionService
 from .monitoring_agent import MONITORING_AGENT_INSTRUCTION, MonitoringAgentWrapper
 from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgentWrapper
 from .research_agent import RESEARCH_AGENT_INSTRUCTION, ResearchAgentWrapper
@@ -45,6 +46,8 @@ from .runtime import (
     PromptEvalCaseResult,
     PromptEvalHarness,
     PromptEvalReport,
+    WorkflowPatternRegistration,
+    WorkflowPatternRegistry,
     load_prompt_eval_cases,
     RuntimeTrajectoryLog,
     RuntimeTrajectoryLogService,
@@ -63,6 +66,7 @@ from .runtime import (
     EvaluatorOptimizerWorkflowRunner,
     OrchestratorWorkerTask,
     OrchestratorWorkerWorkflowRunner,
+    ParallelAggregateResult,
     ParallelWorkflowRunner,
     ParallelWorkflowTask,
     RefineLoopGuardDecision,
@@ -70,6 +74,7 @@ from .runtime import (
     SequentialWorkflowStep,
     RoutingWorkflowBranch,
     RoutingWorkflowRunner,
+    WorkerGroupResult,
     enforce_refine_loop_limit,
     WorkflowMemoryBinding,
     WorkflowMemoryBindings,
@@ -106,6 +111,8 @@ __all__ = [
     "OrchestratorAgentWrapper",
     "PortfolioAgentWrapper",
     "RiskGovernorAgentAdapter",
+    "RouteDecision",
+    "RouteDecisionService",
     "ResearchAgentWrapper",
     "RegimeAgentWrapper",
     "SlippageAgentWrapper",
@@ -133,6 +140,8 @@ __all__ = [
     "PromptEvalCaseResult",
     "PromptEvalHarness",
     "PromptEvalReport",
+    "WorkflowPatternRegistration",
+    "WorkflowPatternRegistry",
     "load_prompt_eval_cases",
     "RuntimeTrajectoryLog",
     "RuntimeTrajectoryLogService",
@@ -151,6 +160,7 @@ __all__ = [
     "EvaluatorOptimizerWorkflowRunner",
     "OrchestratorWorkerTask",
     "OrchestratorWorkerWorkflowRunner",
+    "ParallelAggregateResult",
     "ParallelWorkflowRunner",
     "ParallelWorkflowTask",
     "RefineLoopGuardDecision",
@@ -158,6 +168,7 @@ __all__ = [
     "SequentialWorkflowStep",
     "RoutingWorkflowBranch",
     "RoutingWorkflowRunner",
+    "WorkerGroupResult",
     "enforce_refine_loop_limit",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",

@@ -250,8 +250,7 @@ def _seed_execution_graph(database_path: Path) -> None:
 
 
 def test_phase4_supervised_live_control_plane_path_creates_execution_and_audit_artifacts(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

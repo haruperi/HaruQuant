@@ -26,12 +26,15 @@ class FakeOrchestratorRuntime:
                 "schema_version": "1.0.0",
                 "payload": {
                     "plan_id": "plan_001",
-                    "selected_pattern": "sequential_review",
+                    "selected_pattern": "sequential",
                     "phase_steps": [
                         {
+                            "step_id": "collect_evidence",
                             "phase": "reason",
-                            "owner": "strategy_agent",
+                            "owner_agent": "strategy_agent",
                             "goal": "collect evidence",
+                            "input_contract_type": "WorkflowIntent",
+                            "expected_output_contract_type": "TradeHypothesis",
                         }
                     ],
                 },
@@ -62,4 +65,4 @@ def test_orchestrator_agent_wrapper_validates_goal_decomposition_stub() -> None:
 
     assert "never perform broker actions directly" in ORCHESTRATOR_AGENT_INSTRUCTION.lower()
     assert result.output_payload["contract_type"] == "WorkflowPlan"
-    assert result.output_payload["payload"]["phase_steps"][0]["owner"] == "strategy_agent"
+    assert result.output_payload["payload"]["phase_steps"][0]["owner_agent"] == "strategy_agent"

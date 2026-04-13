@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import ResearchAuditRepository, apply_pending_migrations
+from backend.data.database import ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
 from backend.services.audit.legal_hold import LegalHoldAwareReplayService
 
 
 def test_legal_hold_aware_purge_blocker_rejects_protected_targets(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)
@@ -31,8 +30,7 @@ def test_legal_hold_aware_purge_blocker_rejects_protected_targets(tmp_path) -> N
 
 
 def test_legal_hold_aware_purge_blocker_allows_unprotected_targets(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

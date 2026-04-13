@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.data.database import GovernanceRepository, apply_pending_migrations
+from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.services import (
     StrategyLifecycleState,
     StrategyRegistrationRequest,
@@ -13,8 +13,7 @@ from backend.services import (
 
 
 def test_strategy_registry_service_persists_strategy_lifecycle_entry(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)
@@ -40,8 +39,7 @@ def test_strategy_registry_service_persists_strategy_lifecycle_entry(tmp_path) -
 
 
 def test_strategy_registry_service_requires_identity_fields(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

@@ -100,6 +100,12 @@ class IntentClassifier:
         """Return all known intents from route map."""
         return list(set(self._route_map.values()))
 
+    @property
+    def route_map(self) -> Dict[str, Intent]:
+        """Return a copy of the current route-prefix mapping."""
+
+        return dict(self._route_map)
+
 
 # Singleton instance for middleware use
 intent_classifier = IntentClassifier()

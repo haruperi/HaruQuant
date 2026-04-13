@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 from backend.api.router import Intent, IntentClassifier, RoutingMetadata
 from backend.common.logger import logger
+from backend.agents.route_decision import RouteDecisionService
 
 
 class IntentRouterAgent:
@@ -14,6 +15,7 @@ class IntentRouterAgent:
 
     def __init__(self, classifier: Optional[IntentClassifier] = None) -> None:
         self._classifier = classifier or IntentClassifier()
+        self._route_decisions = RouteDecisionService(self._classifier)
         self._handlers: Dict[Intent, Any] = {}
 
     def register_handler(self, intent: Intent, handler: Any) -> None:
@@ -30,14 +32,18 @@ class IntentRouterAgent:
         payload: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """Classify intent and dispatch to the registered handler."""
-        metadata = self._classifier.classify_and_metadata(
-            path, priority=priority, session_id=session_id, user_id=user_id,
+        decision = self._route_decisions.decide(path)
+        metadata = RoutingMetadata(
+            intent=decision.intent,
+            priority=priority,
+            session_id=session_id,
+            user_id=user_id,
         )
 
         if metadata.intent == Intent.UNKNOWN:
             logger.warning(
                 f"IntentRouterAgent: unknown intent for '{path}', "
-                f"falling back to default handler"
+                f"reason={decision.ambiguity_reason}, falling back to default handler"
             )
             handler = self._handlers.get(Intent.UNKNOWN)
             if handler is None:

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from backend.common import FixedClock
-from backend.data.database import ExecutionRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 from backend.mcp.mt5_mcp import MT5ReadOnlyTools
 from backend.orchestration.workflow import KillSwitchState
 from backend.services import (
@@ -144,8 +144,7 @@ def _seed_execution_graph(repository: ExecutionRepository) -> None:
 
 
 def test_phase2_integration_reconciliation_uses_mt5_boundary_and_blocks_uncertain_retry(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

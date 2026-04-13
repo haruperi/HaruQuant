@@ -10,7 +10,7 @@ from backend.agents import (
     CanonicalOutputValidator,
     ResearchAgentWrapper,
 )
-from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations, default_migrations_dir
 
 
 class _ScenarioResearchRuntime:
@@ -44,8 +44,7 @@ class _ScenarioResearchRuntime:
 
 
 def test_research_only_workflow_runs_without_executable_intent_creation(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

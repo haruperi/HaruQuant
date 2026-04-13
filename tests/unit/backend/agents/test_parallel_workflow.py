@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from backend.agents import (
     ADKRunRequest,
     ADKRunnerConfig,
@@ -98,7 +100,49 @@ def test_parallel_workflow_injects_peer_tasks_metadata() -> None:
         )
     )
 
-    # Both tasks should have received peer_tasks metadata
-    for meta in capturer.captured_metadata:
-        assert "peer_tasks" in meta
-        assert set(meta["peer_tasks"]) == {"fetch_data", "check_risk"}
+    # Each task should see only other peer task names.
+    peer_sets = [set(meta["peer_tasks"]) for meta in capturer.captured_metadata]
+    assert {"check_risk"} in peer_sets
+    assert {"fetch_data"} in peer_sets
+
+
+def test_parallel_workflow_executes_tasks_concurrently() -> None:
+    runner = ParallelWorkflowRunner(
+        ADKRunnerService(
+            ADKRunnerConfig(runner_name="agent-runtime", default_model="gemini-2.5-flash")
+        )
+    )
+
+    class SlowRuntime:
+        def run(self, *, request, context):  # noqa: ANN001
+            time.sleep(0.1)
+            return AgentExecutionResult(output_payload={"ok": True})
+
+    started = time.perf_counter()
+    result = runner.run(
+        tasks=(
+            ParallelWorkflowTask(
+                task_name="one",
+                runtime_agent=SlowRuntime(),
+                request=ADKRunRequest(
+                    workflow_id="wf-parallel",
+                    correlation_id="corr-parallel",
+                    agent_name="agent_one",
+                    input_payload={},
+                ),
+            ),
+            ParallelWorkflowTask(
+                task_name="two",
+                runtime_agent=SlowRuntime(),
+                request=ADKRunRequest(
+                    workflow_id="wf-parallel",
+                    correlation_id="corr-parallel",
+                    agent_name="agent_two",
+                    input_payload={},
+                ),
+            ),
+        )
+    )
+
+    assert time.perf_counter() - started < 0.18
+    assert sorted(result.successful_tasks) == ["one", "two"]

@@ -12,7 +12,7 @@ from backend.contracts.risk_assessment_decision.model import (
 )
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.data.database import ExecutionRepository, GovernanceRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.services import (
     StrategyLifecycleState,
     evaluate_compliance_profile_compatibility,
@@ -218,8 +218,7 @@ def _autonomous_decision() -> RiskAssessmentDecision:
 
 
 def test_bounded_autonomous_live_workflow_only_executes_inside_approved_envelope(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

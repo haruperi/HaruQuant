@@ -6,7 +6,7 @@ from pathlib import Path
 from backend.common import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
-from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations
+from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations, default_migrations_dir
 from backend.services.proposals import (
     ProposalTransformationConfig,
     evaluate_proposal_readiness,
@@ -44,8 +44,7 @@ def _hypothesis() -> TradeHypothesis:
 
 
 def test_advisory_workflow_generates_hypothesis_and_proposal_but_no_live_order(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[2]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

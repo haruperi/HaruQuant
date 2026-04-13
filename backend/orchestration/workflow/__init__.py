@@ -19,7 +19,7 @@ from .states import (
     WorkflowState,
 )
 from .transitions import WORKFLOW_TRANSITIONS, is_allowed_workflow_transition
-from .services import WorkflowCreateRequest, WorkflowCreationService
+from .services import WorkflowCreateRequest, WorkflowCreationService, WorkflowRuntimeService
 from .persistence import (
     WorkflowStepRecord,
     WorkflowStepRecorder,
@@ -31,6 +31,11 @@ from .validator import (
     WorkflowStateValidationError,
     WorkflowStateValidator,
     WorkflowValidationContext,
+)
+from .executor import (
+    StepExecutionResult,
+    WorkflowExecutionResult,
+    WorkflowPlanExecutor,
 )
 
 __all__ = [
@@ -44,6 +49,7 @@ __all__ = [
     "WorkflowState",
     "WorkflowCreateRequest",
     "WorkflowCreationService",
+    "WorkflowRuntimeService",
     "WorkflowStepRecord",
     "WorkflowStepRecorder",
     "WorkflowStepRequest",
@@ -56,4 +62,7 @@ __all__ = [
     "WorkflowStateValidationError",
     "WorkflowStateValidator",
     "WorkflowValidationContext",
+    "StepExecutionResult",
+    "WorkflowExecutionResult",
+    "WorkflowPlanExecutor",
 ]

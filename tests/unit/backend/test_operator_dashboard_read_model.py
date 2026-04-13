@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import apply_pending_migrations
+from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.read_models import build_operator_dashboard_read_model
 
 
 def test_operator_dashboard_read_model_aggregates_hot_counts(tmp_path) -> None:
-    repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "db" / "migrations"
+    migrations_dir = default_migrations_dir()
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

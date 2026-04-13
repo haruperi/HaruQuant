@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
+from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -129,6 +131,34 @@ class ParallelWorkflowTask:
     request: ADKRunRequest
     input_contract_type: str | None = None
     expected_output_contract_type: str | None = None
+    timeout_seconds: float | None = None
+    critical: bool = True
+
+
+@dataclass(frozen=True)
+class ParallelAggregateResult(Mapping[str, ADKRunResult]):
+    """Fan-in result for a parallel workflow run."""
+
+    results: dict[str, ADKRunResult]
+    timed_out_tasks: tuple[str, ...] = ()
+    failed_tasks: tuple[str, ...] = ()
+
+    def __getitem__(self, key: str) -> ADKRunResult:
+        return self.results[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.results)
+
+    def __len__(self) -> int:
+        return len(self.results)
+
+    @property
+    def successful_tasks(self) -> tuple[str, ...]:
+        return tuple(
+            task_name
+            for task_name, result in self.results.items()
+            if result.final_state == "COMPLETED"
+        )
 
 
 class ParallelWorkflowRunner:
@@ -145,19 +175,104 @@ class ParallelWorkflowRunner:
         self,
         *,
         tasks: tuple[ParallelWorkflowTask, ...],
-    ) -> dict[str, ADKRunResult]:
+    ) -> ParallelAggregateResult:
         results: dict[str, ADKRunResult] = {}
         peer_task_names = tuple(t.task_name for t in tasks)
-        for task in tasks:
-            augmented_request = replace(task.request, metadata={
-                **task.request.metadata,
-                "peer_tasks": peer_task_names,
-            })
-            results[task.task_name] = self._runner.run(
-                agent=task.runtime_agent,
-                request=augmented_request,
-            )
-        return results
+        if not tasks:
+            return ParallelAggregateResult(results={})
+
+        with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+            futures = {}
+            for task in tasks:
+                augmented_request = replace(
+                    task.request,
+                    metadata={
+                        **task.request.metadata,
+                        "peer_tasks": tuple(
+                            name for name in peer_task_names if name != task.task_name
+                        ),
+                    },
+                )
+                futures[
+                    executor.submit(
+                        self._runner.run,
+                        agent=task.runtime_agent,
+                        request=augmented_request,
+                    )
+                ] = (task, augmented_request)
+
+            max_timeout = _max_timeout_seconds(tasks)
+            done, not_done = wait(futures.keys(), timeout=max_timeout)
+
+            failed_tasks: list[str] = []
+            for future in done:
+                task, augmented_request = futures[future]
+                try:
+                    result = future.result()
+                except Exception as exc:  # pragma: no cover - defensive runtime guard
+                    failed_tasks.append(task.task_name)
+                    result = _synthetic_result(
+                        runner=self._runner,
+                        request=augmented_request,
+                        final_state="FAILED",
+                        error=str(exc),
+                    )
+                if result.final_state != "COMPLETED":
+                    failed_tasks.append(task.task_name)
+                results[task.task_name] = result
+
+            timed_out_tasks: list[str] = []
+            for future in not_done:
+                task, augmented_request = futures[future]
+                future.cancel()
+                timed_out_tasks.append(task.task_name)
+                results[task.task_name] = _synthetic_result(
+                    runner=self._runner,
+                    request=augmented_request,
+                    final_state="TIMED_OUT",
+                    error="parallel task timed out",
+                )
+
+        return ParallelAggregateResult(
+            results=results,
+            timed_out_tasks=tuple(timed_out_tasks),
+            failed_tasks=tuple(dict.fromkeys(failed_tasks)),
+        )
+
+
+def _max_timeout_seconds(tasks: tuple[ParallelWorkflowTask, ...]) -> float | None:
+    timeouts = tuple(task.timeout_seconds for task in tasks if task.timeout_seconds)
+    return max(timeouts) if timeouts else None
+
+
+def _synthetic_result(
+    *,
+    runner: ADKRunnerService,
+    request: ADKRunRequest,
+    final_state: str,
+    error: str,
+) -> ADKRunResult:
+    model = request.model or runner.config.default_model
+    return ADKRunResult(
+        runner_name=runner.config.runner_name,
+        runtime_version=runner.config.runtime_version,
+        agent_name=request.agent_name,
+        workflow_id=request.workflow_id,
+        correlation_id=request.correlation_id,
+        session_id=request.session_id,
+        model=model,
+        prompt_version_id=request.prompt_version_id,
+        prompt_hash=None,
+        latency_ms=0,
+        output_payload={
+            "error": error,
+            "contract_type": request.input_payload.get("contract_type", "unknown"),
+            "schema_version": request.input_payload.get("schema_version", "1.0.0"),
+        },
+        final_state=final_state,
+        tool_calls=(),
+        token_usage=None,
+    )
 
 
 @dataclass(frozen=True)
@@ -176,6 +291,7 @@ class EvaluatorOptimizerResult:
     evaluation_scores: tuple[float, ...]
     iterations: int
     terminated_by: str
+    evaluations: tuple[Union[float, TrajectoryEvaluation], ...] = ()
 
 
 class EvaluatorOptimizerWorkflowRunner:
@@ -252,6 +368,7 @@ class EvaluatorOptimizerWorkflowRunner:
             evaluation_scores=tuple(scores),
             iterations=len(scores),
             terminated_by=terminated_by,
+            evaluations=tuple(evaluations),
         )
 
     def _build_refinement_context(
@@ -296,6 +413,28 @@ class OrchestratorWorkerTask:
     request: ADKRunRequest
     input_contract_type: str | None = None
     expected_output_contract_type: str | None = None
+    timeout_seconds: float | None = None
+    critical: bool = True
+
+
+@dataclass(frozen=True)
+class WorkerGroupResult(Mapping[str, ADKRunResult]):
+    """Fan-in result for orchestrator-worker dispatch."""
+
+    results: dict[str, ADKRunResult]
+    timed_out_workers: tuple[str, ...] = ()
+    failed_workers: tuple[str, ...] = ()
+    synthesized_output: dict[str, Any] | None = None
+    conflicts: tuple[str, ...] = ()
+
+    def __getitem__(self, key: str) -> ADKRunResult:
+        return self.results[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.results)
+
+    def __len__(self) -> int:
+        return len(self.results)
 
 
 class OrchestratorWorkerWorkflowRunner:
@@ -308,14 +447,47 @@ class OrchestratorWorkerWorkflowRunner:
         self,
         *,
         tasks: tuple[OrchestratorWorkerTask, ...],
-    ) -> dict[str, ADKRunResult]:
-        results: dict[str, ADKRunResult] = {}
-        for task in tasks:
-            results[task.worker_name] = self._runner.run(
-                agent=task.runtime_agent,
+    ) -> WorkerGroupResult:
+        parallel_tasks = tuple(
+            ParallelWorkflowTask(
+                task_name=task.worker_name,
+                runtime_agent=task.runtime_agent,
                 request=task.request,
+                input_contract_type=task.input_contract_type,
+                expected_output_contract_type=task.expected_output_contract_type,
+                timeout_seconds=task.timeout_seconds,
+                critical=task.critical,
             )
-        return results
+            for task in tasks
+        )
+        aggregate = ParallelWorkflowRunner(self._runner).run(tasks=parallel_tasks)
+        synthesized = {
+            worker_name: result.output_payload
+            for worker_name, result in aggregate.results.items()
+            if result.final_state == "COMPLETED"
+        }
+        conflicts = _detect_worker_conflicts(synthesized)
+        return WorkerGroupResult(
+            results=aggregate.results,
+            timed_out_workers=aggregate.timed_out_tasks,
+            failed_workers=aggregate.failed_tasks,
+            synthesized_output=synthesized,
+            conflicts=conflicts,
+        )
+
+
+def _detect_worker_conflicts(worker_outputs: dict[str, dict[str, Any]]) -> tuple[str, ...]:
+    seen: dict[str, Any] = {}
+    conflicts: list[str] = []
+    for worker_name, payload in worker_outputs.items():
+        for key, value in payload.items():
+            if key in {"contract_type", "schema_version"}:
+                continue
+            if key in seen and seen[key] != value:
+                conflicts.append(f"{key}:{worker_name}")
+            else:
+                seen[key] = value
+    return tuple(conflicts)
 
 
 @dataclass(frozen=True)
