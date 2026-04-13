@@ -102,10 +102,19 @@ class RoutingWorkflowBranch:
 
 
 class RoutingWorkflowRunner:
-    """Execute the one branch selected by a route key."""
+    """Execute the one branch selected by a route key.
 
-    def __init__(self, runner: ADKRunnerService) -> None:
+    If no branch matches and a default_branch is configured, the default
+    branch is executed instead of raising LookupError.
+    """
+
+    def __init__(
+        self,
+        runner: ADKRunnerService,
+        default_branch: RoutingWorkflowBranch | None = None,
+    ) -> None:
         self._runner = runner
+        self._default_branch = default_branch
 
     def run(
         self,
@@ -119,6 +128,11 @@ class RoutingWorkflowRunner:
                     agent=branch.runtime_agent,
                     request=branch.request,
                 )
+        if self._default_branch is not None:
+            return self._runner.run(
+                agent=self._default_branch.runtime_agent,
+                request=self._default_branch.request,
+            )
         raise LookupError(f"workflow route not found: {route_key}")
 
 

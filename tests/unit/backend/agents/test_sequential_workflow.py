@@ -115,3 +115,68 @@ def test_sequential_workflow_injects_prior_steps_context() -> None:
     assert "fetch_data" in prior
     assert prior["fetch_data"]["output"]["result"] == "done_1"
     assert prior["fetch_data"]["state"] == "COMPLETED"
+
+
+def test_sequential_workflow_stops_on_invalid_step_output() -> None:
+    """When step output fails validation and validate_before_next is True, chain stops."""
+    from backend.agents.runtime.output_validation import CanonicalOutputValidator
+
+    class FailingRuntime:
+        """Produces wrong contract_type to trigger validation failure."""
+        def __init__(self) -> None:
+            self.call_count = 0
+
+        def run(self, *, request, context):
+            self.call_count += 1
+            return AgentExecutionResult(
+                output_payload={
+                    "contract_type": "WrongType",
+                    "schema_version": "1.0.0",
+                    "payload": {"data": f"step_{self.call_count}"},
+                },
+                final_state="COMPLETED",
+                tool_calls=(),
+                token_usage={"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+            )
+
+    validator = CanonicalOutputValidator()
+    runner = SequentialWorkflowRunner(
+        ADKRunnerService(
+            ADKRunnerConfig(runner_name="agent-runtime", default_model="gemini-2.5-flash")
+        ),
+        output_validator=validator,
+    )
+
+    failing_rt = FailingRuntime()
+    results = runner.run(
+        steps=(
+            SequentialWorkflowStep(
+                step_name="step_one",
+                runtime_agent=failing_rt,
+                request=ADKRunRequest(
+                    workflow_id="wf-val",
+                    correlation_id="corr-val",
+                    agent_name="strategy_agent",
+                    input_payload={},
+                ),
+                expected_output_contract_type="TradeHypothesis",
+                validate_before_next=True,
+            ),
+            SequentialWorkflowStep(
+                step_name="step_two",
+                runtime_agent=failing_rt,
+                request=ADKRunRequest(
+                    workflow_id="wf-val",
+                    correlation_id="corr-val",
+                    agent_name="strategy_agent",
+                    input_payload={},
+                ),
+                expected_output_contract_type="TradeHypothesis",
+                validate_before_next=True,
+            ),
+        )
+    )
+
+    # Only first step should run — validation fails, chain stops
+    assert len(results) == 1
+    assert failing_rt.call_count == 1  # Second step was never called
