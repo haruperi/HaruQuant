@@ -56,6 +56,7 @@ from .workflows import (
 )
 from .llm_runtime import LLMRuntime, LLMRuntimeError
 from .llm_registry import create_llm_runtime, get_provider, register_provider
+from .prompt_composer_middleware import PromptComposingMiddleware
 
 __all__ = [
     "ADKRunRequest",
@@ -119,4 +120,6 @@ __all__ = [
     "create_llm_runtime",
     "get_provider",
     "register_provider",
+    # Prompt composition middleware
+    "PromptComposingMiddleware",
 ]

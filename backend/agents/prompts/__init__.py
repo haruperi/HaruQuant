@@ -47,7 +47,7 @@ class PromptComposer:
         if context is None:
             return agent_instruction
 
-        sections: List[str] = [agent_instruction]
+        sections: List[str] = [f"[AGENT INSTRUCTION]\n{agent_instruction}"]
 
         # Layer 1: System policy (highest trust, non-overrideable)
         if context.system_policy:
