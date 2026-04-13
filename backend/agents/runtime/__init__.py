@@ -57,6 +57,11 @@ from .workflows import (
     WorkerGroupResult,
     enforce_refine_loop_limit,
 )
+from .workflow_log import (
+    WorkflowExecutionLog,
+    WorkflowLogCollector,
+    WorkflowStepRecord,
+)
 from .llm_runtime import LLMRuntime, LLMRuntimeError
 from .litellm_runtime import LiteLLMRuntime
 from .llm_registry import create_llm_runtime, get_provider, register_provider

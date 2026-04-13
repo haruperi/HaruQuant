@@ -60,6 +60,11 @@ from backend.agents.runtime.workflows import (
     SequentialWorkflowStep,
     enforce_refine_loop_limit,
 )
+from backend.agents.runtime.workflow_log import (
+    WorkflowExecutionLog,
+    WorkflowLogCollector,
+    WorkflowStepRecord,
+)
 from backend.api.router import Intent
 from backend.common.logger import logger
 from backend.contracts.common import Originator
@@ -664,6 +669,56 @@ def example_09_approval_and_compensation() -> None:
     print_section("Rollback plan", request.packet.rollback_plan)
 
 
+def example_10_workflow_execution_log() -> None:
+    """Show workflow execution tracing for observability and debugging."""
+
+    print_example_header("Example 10: Workflow Execution Log")
+
+    # Build an execution log manually to demonstrate the API
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    collector = WorkflowLogCollector(
+        workflow_id=WORKFLOW_ID,
+        correlation_id=CORRELATION_ID,
+        pattern="sequential",
+    )
+
+    # Simulate step executions
+    for step_name, agent, latency in [
+        ("research_context", "research_agent", 120),
+        ("strategy_hypothesis", "strategy_agent", 85),
+        ("compliance_review", "compliance_agent", 65),
+    ]:
+        collector.record_step(
+            step_name=step_name,
+            agent_name=agent,
+            started_at=now,
+            completed_at=now,
+            input_payload={"symbol": "EURUSD"},
+            output_payload={"decision": f"{agent} completed", "confidence": 0.75},
+            final_state="COMPLETED",
+            latency_ms=latency,
+            token_usage={"prompt_tokens": 800, "completion_tokens": 300, "total_tokens": 1100},
+        )
+
+    log = collector.finalize("COMPLETED")
+
+    print_section("Workflow ID", log.workflow_id)
+    print_section("Pattern", log.pattern)
+    print_section("Total steps", len(log.steps))
+    print_section("Total latency", f"{log.total_latency_ms}ms")
+    print_section("Total tokens", log.total_tokens)
+    print_section("Failed steps", len(log.failed_steps))
+
+    print("\n  Step details:")
+    for step in log.steps:
+        print(f"    {step.step_name:<25s} {step.agent_name:<20s} {step.latency_ms:>4d}ms")
+
+    # Show the log as JSON
+    print_json("Full log (JSON)", log.to_dict())
+
+
 def main() -> None:
     print()
     print("#" * 78)
@@ -686,6 +741,7 @@ def main() -> None:
         example_07_observability_and_safety,
         example_08_context_and_cost_governance,
         example_09_approval_and_compensation,
+        example_10_workflow_execution_log,
     ]
 
     for example_fn in examples:
