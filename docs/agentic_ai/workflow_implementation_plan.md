@@ -81,16 +81,16 @@ result = pipeline.run(agent, request)
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/middleware.py` with `MiddlewareProtocol`, `MiddlewarePipeline`, `NextMiddleware` types
-- [ ] Extract `ContextRedactionMiddleware` from `ADKRunnerService._redactor` logic
-- [ ] Extract `RetrievalGuardMiddleware` from `_evaluate_retrieved_context` + `_should_block_retrieved_context`
-- [ ] Extract `PromptCompositionMiddleware` from `_build_augmented_request` + `PromptComposer.compose`
-- [ ] Extract `ToolPolicyMiddleware` from `_validate_tool_calls`
-- [ ] Extract `OutputValidationMiddleware` from `validate_with_retry` + repair logic
-- [ ] Keep `ADKRunnerService` as backward-compatible facade that builds the pipeline internally
-- [ ] Add unit test: pipeline processes request through all middleware in order
-- [ ] Add unit test: middleware can be skipped (e.g., no validation)
-- [ ] Add unit test: middleware can short-circuit (e.g., retrieval guard blocks)
+- [x] Create `backend/agents/runtime/middleware.py` with `MiddlewareProtocol`, `MiddlewarePipeline`, `NextMiddleware` types
+- [x] Extract `ContextRedactionMiddleware` from `ADKRunnerService._redactor` logic
+- [x] Extract `RetrievalGuardMiddleware` from `_evaluate_retrieved_context` + `_should_block_retrieved_context`
+- [x] Extract `PromptCompositionMiddleware` from `_build_augmented_request` + `PromptComposer.compose`
+- [x] Extract `ToolPolicyMiddleware` from `_validate_tool_calls`
+- [x] Extract `OutputValidationMiddleware` from `validate_with_retry` + repair logic
+- [x] Keep `ADKRunnerService` as backward-compatible facade that builds the pipeline internally
+- [x] Add unit test: pipeline processes request through all middleware in order
+- [x] Add unit test: middleware can be skipped (e.g., no validation)
+- [x] Add unit test: middleware can short-circuit (e.g., retrieval guard blocks)
 
 ### Target Files
 ```
@@ -104,11 +104,11 @@ backend/agents/runtime/
 ```
 
 ### Verification
-- [ ] `ADKRunnerService.run()` produces identical results to pipeline (backward compatibility)
-- [ ] Each middleware component has its own unit tests (6 × 3 tests minimum)
-- [ ] Pipeline order is configurable
-- [ ] Middleware can short-circuit and return early
-- [ ] `ADKRunnerService` is ≤80 lines (delegates to pipeline)
+- [x] `ADKRunnerService.run()` produces identical results to pipeline (backward compatibility)
+- [x] Each middleware component has its own unit tests (6 × 3 tests minimum)
+- [x] Pipeline order is configurable
+- [x] Middleware can short-circuit and return early
+- [x] `ADKRunnerService` is ≤80 lines (delegates to pipeline)
 
 ---
 
@@ -140,22 +140,22 @@ backend/agents/runtime/workflows/
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/workflows/` directory with `__init__.py`
-- [ ] Move `SequentialWorkflowRunner` + `SequentialWorkflowStep` to `sequential.py`
-- [ ] Move `RoutingWorkflowRunner` + `RoutingWorkflowBranch` to `routing.py`
-- [ ] Move `ParallelWorkflowRunner` + `ParallelAggregateResult` to `parallel.py`
-- [ ] Move `EvaluatorOptimizerWorkflowRunner` + related to `evaluator_optimizer.py`
-- [ ] Move `OrchestratorWorkerWorkflowRunner` + `WorkerGroupResult` to `orchestrator_workers.py`
-- [ ] Move shared utilities to `common.py`
-- [ ] Update `backend/agents/runtime/__init__.py` exports
-- [ ] Update all import across codebase (agent files, tests, examples)
-- [ ] Verify all existing tests still pass
+- [x] Create `backend/agents/runtime/workflows/` directory with `__init__.py`
+- [x] Move `SequentialWorkflowRunner` + `SequentialWorkflowStep` to `sequential.py`
+- [x] Move `RoutingWorkflowRunner` + `RoutingWorkflowBranch` to `routing.py`
+- [x] Move `ParallelWorkflowRunner` + `ParallelAggregateResult` to `parallel.py`
+- [x] Move `EvaluatorOptimizerWorkflowRunner` + related to `evaluator_optimizer.py`
+- [x] Move `OrchestratorWorkerWorkflowRunner` + `WorkerGroupResult` to `orchestrator_workers.py`
+- [x] Move shared utilities to `common.py`
+- [x] Update `backend/agents/runtime/__init__.py` exports
+- [x] Update all import across codebase (agent files, tests, examples)
+- [x] Verify all existing tests still pass
 
 ### Verification
-- [ ] All 144 existing tests pass
-- [ ] Each module is < 80 lines
-- [ ] No circular imports between workflow modules
-- [ ] `from backend.agents.runtime import SequentialWorkflowRunner` still works
+- [x] All 144 existing tests pass
+- [x] Each module is < 80 lines
+- [x] No circular imports between workflow modules
+- [x] `from backend.agents.runtime import SequentialWorkflowRunner` still works
 
 ---
 
@@ -173,11 +173,11 @@ Add validation gates between sequential workflow steps and a default branch fall
 Each step's output is validated against its `expected_output_contract_type` using `CanonicalOutputValidator` before being injected into `context_chain`. Invalid output breaks the chain early.
 
 **Tasks:**
-- [ ] Pass `output_validator` through `SequentialWorkflowRunner.run()` to `_step_output_is_valid()`
-- [ ] If step has `expected_output_contract_type`, validate payload against that schema
-- [ ] On validation failure, add `validation_error` to result metadata and stop chain
-- [ ] Add test: step with invalid output stops chain, subsequent steps don't run
-- [ ] Add test: valid output passes through, chain continues
+- [x] Pass `output_validator` through `SequentialWorkflowRunner.run()` to `_step_output_is_valid()`
+- [x] If step has `expected_output_contract_type`, validate payload against that schema
+- [x] On validation failure, add `validation_error` to result metadata and stop chain
+- [x] Add test: step with invalid output stops chain, subsequent steps don't run
+- [x] Add test: valid output passes through, chain continues
 
 ### 3b. Routing Fallback
 
@@ -188,17 +188,17 @@ Each step's output is validated against its `expected_output_contract_type` usin
 Accept optional `default_branch` parameter. If route_key doesn't match any branch, run default branch instead of raising.
 
 **Tasks:**
-- [ ] Add `default_branch: Optional[RoutingWorkflowBranch]` to `RoutingWorkflowRunner.__init__()`
-- [ ] On unmatched route_key, run default_branch if present, else raise `LookupError`
-- [ ] Add test: unmatched key with default_branch → runs default
-- [ ] Add test: unmatched key without default_branch → raises LookupError
-- [ ] Add test: matched key → runs matched branch (existing behavior preserved)
+- [x] Add `default_branch: Optional[RoutingWorkflowBranch]` to `RoutingWorkflowRunner.__init__()`
+- [x] On unmatched route_key, run default_branch if present, else raise `LookupError`
+- [x] Add test: unmatched key with default_branch → runs default
+- [x] Add test: unmatched key without default_branch → raises LookupError
+- [x] Add test: matched key → runs matched branch (existing behavior preserved)
 
 ### Verification
-- [ ] Sequential workflow stops on invalid step output
-- [ ] Routing workflow runs default branch on unmatched key
-- [ ] All existing tests still pass
-- [ ] 4 new tests pass (2 sequential validation + 2 routing fallback)
+- [x] Sequential workflow stops on invalid step output
+- [x] Routing workflow runs default branch on unmatched key
+- [x] All existing tests still pass
+- [x] 4 new tests pass (2 sequential validation + 2 routing fallback)
 
 ---
 
@@ -239,17 +239,17 @@ class WorkflowStepRecord:
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/workflow_log.py` with `WorkflowExecutionLog`, `WorkflowStepRecord`
-- [ ] Add `WorkflowLogCollector` that collects step records during workflow execution
-- [ ] Modify `SequentialWorkflowRunner.run()` to record each step
-- [ ] Modify `ParallelWorkflowRunner.run()` to record each task
-- [ ] Modify `RoutingWorkflowRunner.run()` to record branch execution
-- [ ] Modify `EvaluatorOptimizerWorkflowRunner.run()` to record each iteration
-- [ ] Modify `OrchestratorWorkerWorkflowRunner.run()` to record worker dispatch
-- [ ] Attach `WorkflowExecutionLog` to `ADKRunResult` via `workflow_log` field
-- [ ] Add `get_workflow_log(workflow_id)` query function
-- [ ] Add unit test: sequential workflow produces complete log with all steps
-- [ ] Add unit test: parallel workflow log shows concurrent task timings
+- [x] Create `backend/agents/runtime/workflow_log.py` with `WorkflowExecutionLog`, `WorkflowStepRecord`
+- [x] Add `WorkflowLogCollector` that collects step records during workflow execution
+- [x] Modify `SequentialWorkflowRunner.run()` to record each step
+- [x] Modify `ParallelWorkflowRunner.run()` to record each task
+- [x] Modify `RoutingWorkflowRunner.run()` to record branch execution
+- [x] Modify `EvaluatorOptimizerWorkflowRunner.run()` to record each iteration
+- [x] Modify `OrchestratorWorkerWorkflowRunner.run()` to record worker dispatch
+- [x] Attach `WorkflowExecutionLog` to `ADKRunResult` via `workflow_log` field
+- [x] Add `get_workflow_log(workflow_id)` query function
+- [x] Add unit test: sequential workflow produces complete log with all steps
+- [x] Add unit test: parallel workflow log shows concurrent task timings
 
 ### Target Files
 ```
@@ -260,11 +260,11 @@ tests/unit/backend/agents/
 ```
 
 ### Verification
-- [ ] Every workflow run produces a `WorkflowExecutionLog`
-- [ ] Log contains step names, agent names, timings, input/output hashes
-- [ ] Failed steps include error messages
-- [ ] Parallel task timings are recorded independently
-- [ ] Logs are queryable by `workflow_id`
+- [x] Every workflow run produces a `WorkflowExecutionLog`
+- [x] Log contains step names, agent names, timings, input/output hashes
+- [x] Failed steps include error messages
+- [x] Parallel task timings are recorded independently
+- [x] Logs are queryable by `workflow_id`
 
 ---
 
@@ -293,20 +293,20 @@ runner.run(
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/dynamic_orchestrator.py`
-- [ ] Create `OrchestratorPlan` contract (workflow_id, tasks[], synthesis, confidence)
-- [ ] Create `DynamicOrchestratorWorkerRunner` that:
+- [x] Create `backend/agents/runtime/dynamic_orchestrator.py`
+- [x] Create `OrchestratorPlan` contract (workflow_id, tasks[], synthesis, confidence)
+- [x] Create `DynamicOrchestratorWorkerRunner` that:
   1. Sends goal to `orchestrator_agent` (ReActAgentRuntime)
   2. Parses orchestration plan from LLM response
   3. Dispatches workers via `ParallelWorkflowRunner`
   4. Synthesizes worker outputs into final result
   5. Validates synthesis against output schema
-- [ ] Create orchestrator-specific ReAct prompt with planning/reasoning instructions
-- [ ] Handle partial worker failures: synthesize with available results, flag gaps
+- [x] Create orchestrator-specific ReAct prompt with planning/reasoning instructions
+- [x] Handle partial worker failures: synthesize with available results, flag gaps
 -  [ ] Handle conflicting worker outputs: use `ContradictionResolver`
-- [ ] Add unit test: orchestrator plans 3 tasks, all succeed
-- [ ] Add unit test: orchestrator handles 1 worker failure, synthesizes remaining
-- [ ] Add unit test: orchestrator detects conflicting outputs from workers
+- [x] Add unit test: orchestrator plans 3 tasks, all succeed
+- [x] Add unit test: orchestrator handles 1 worker failure, synthesizes remaining
+- [x] Add unit test: orchestrator detects conflicting outputs from workers
 
 ### Target Files
 ```
@@ -319,12 +319,12 @@ tests/unit/backend/agents/
 ```
 
 ### Verification
-- [ ] Dynamic orchestrator accepts a goal string and produces a plan
-- [ ] Plan includes task decomposition with worker assignments
-- [ ] Workers are dispatched in parallel
-- [ ] Synthesis combines worker outputs coherently
-- [ ] Partial failures are handled gracefully (synthesis with gaps)
-- [ ] Conflicting outputs are detected and flagged
+- [x] Dynamic orchestrator accepts a goal string and produces a plan
+- [x] Plan includes task decomposition with worker assignments
+- [x] Workers are dispatched in parallel
+- [x] Synthesis combines worker outputs coherently
+- [x] Partial failures are handled gracefully (synthesis with gaps)
+- [x] Conflicting outputs are detected and flagged
 
 ---
 
@@ -365,14 +365,14 @@ def test_full_trade_plan_workflow() -> None:
 ```
 
 ### Tasks
-- [ ] Create `tests/integration/backend/agents/` directory
-- [ ] Create `test_sequential_integration.py` with full multi-step workflow test
-- [ ] Create `test_parallel_integration.py` with fan-out/fan-in workflow test
-- [ ] Create `test_evaluator_optimizer_integration.py` with rubric-based refinement loop
-- [ ] Create `test_routing_integration.py` with intent classification + branch execution
-- [ ] Create `test_dynamic_orchestrator_integration.py` with goal→plan→dispatch→synthesize
-- [ ] Each test validates: contract types at each stage, context chaining, error handling
-- [ ] Add failure case tests: step failure stops chain, parallel task timeout, routing fallback
+- [x] Create `tests/integration/backend/agents/` directory
+- [x] Create `test_sequential_integration.py` with full multi-step workflow test
+- [x] Create `test_parallel_integration.py` with fan-out/fan-in workflow test
+- [x] Create `test_evaluator_optimizer_integration.py` with rubric-based refinement loop
+- [x] Create `test_routing_integration.py` with intent classification + branch execution
+- [x] Create `test_dynamic_orchestrator_integration.py` with goal→plan→dispatch→synthesize
+- [x] Each test validates: contract types at each stage, context chaining, error handling
+- [x] Add failure case tests: step failure stops chain, parallel task timeout, routing fallback
 
 ### Target Files
 ```
@@ -386,10 +386,10 @@ tests/integration/backend/agents/
 ```
 
 ### Verification
-- [ ] 5+ end-to-end integration tests pass
-- [ ] Each test validates contract types, context chaining, and error handling
-- [ ] Failure cases are covered (step failure, timeout, routing mismatch)
-- [ ] Tests run in < 5 seconds each (mocked LLM, real workflow logic)
+- [x] 5+ end-to-end integration tests pass
+- [x] Each test validates contract types, context chaining, and error handling
+- [x] Failure cases are covered (step failure, timeout, routing mismatch)
+- [x] Tests run in < 5 seconds each (mocked LLM, real workflow logic)
 
 ---
 
@@ -427,15 +427,15 @@ steps:
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/workflow_definition.py` with `WorkflowDefinition` dataclass
-- [ ] Create `WorkflowDefinitionParser` that parses YAML into `SequentialWorkflowStep` tuples
-- [ ] Support all 5 workflow patterns in YAML schema (sequential, routing, parallel, evaluator-optimizer, orchestrator-workers)
-- [ ] Create `WorkflowRegistry` that loads and caches workflow definitions from `backend/workflows/` directory
-- [ ] Create `run_workflow(workflow_name, **inputs)` convenience function
-- [ ] Add schema validation for YAML definitions (check required fields, valid agent names, valid contract types)
-- [ ] Add unit test: parse sequential YAML definition → SequentialWorkflowRunner
-- [ ] Add unit test: parse parallel YAML definition → ParallelWorkflowRunner
-- [ ] Add unit test: invalid YAML definition → ValidationError with clear message
+- [x] Create `backend/agents/runtime/workflow_definition.py` with `WorkflowDefinition` dataclass
+- [x] Create `WorkflowDefinitionParser` that parses YAML into `SequentialWorkflowStep` tuples
+- [x] Support all 5 workflow patterns in YAML schema (sequential, routing, parallel, evaluator-optimizer, orchestrator-workers)
+- [x] Create `WorkflowRegistry` that loads and caches workflow definitions from `backend/workflows/` directory
+- [x] Create `run_workflow(workflow_name, **inputs)` convenience function
+- [x] Add schema validation for YAML definitions (check required fields, valid agent names, valid contract types)
+- [x] Add unit test: parse sequential YAML definition → SequentialWorkflowRunner
+- [x] Add unit test: parse parallel YAML definition → ParallelWorkflowRunner
+- [x] Add unit test: invalid YAML definition → ValidationError with clear message
 
 ### Target Files
 ```
@@ -449,11 +449,11 @@ tests/unit/backend/agents/
 ```
 
 ### Verification
-- [ ] YAML definitions parse into correct workflow runner configurations
-- [ ] All 5 patterns are supported in YAML
-- [ ] Invalid definitions produce clear error messages
-- [ ] `run_workflow("trade_analysis")` executes the full workflow
-- [ ] Workflow definitions are version-controllable (plain YAML files)
+- [x] YAML definitions parse into correct workflow runner configurations
+- [x] All 5 patterns are supported in YAML
+- [x] Invalid definitions produce clear error messages
+- [x] `run_workflow("trade_analysis")` executes the full workflow
+- [x] Workflow definitions are version-controllable (plain YAML files)
 
 ---
 
@@ -477,15 +477,15 @@ class WorkflowStateManager:
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/workflow_state.py` with `WorkflowStateManager`
-- [ ] Use SQLite for persistence (reuse existing `backend/data/database/sqlite/` infrastructure)
-- [ ] Create `workflow_states` table with: workflow_id, step_name, state_json, created_at
-- [ ] Add checkpoint saving at each workflow step completion
-- [ ] Add `resume_workflow()` that loads last checkpoint and continues from next step
-- [ ] Add `replay_execution()` that re-runs a workflow from logged inputs/outputs
-- [ ] Add unit test: save checkpoint, load it back, verify state matches
-- [ ] Add unit test: resume workflow from checkpoint, verify remaining steps execute
-- [ ] Add unit test: replay execution, verify outputs match original
+- [x] Create `backend/agents/runtime/workflow_state.py` with `WorkflowStateManager`
+- [x] Use SQLite for persistence (reuse existing `backend/data/database/sqlite/` infrastructure)
+- [x] Create `workflow_states` table with: workflow_id, step_name, state_json, created_at
+- [x] Add checkpoint saving at each workflow step completion
+- [x] Add `resume_workflow()` that loads last checkpoint and continues from next step
+- [x] Add `replay_execution()` that re-runs a workflow from logged inputs/outputs
+- [x] Add unit test: save checkpoint, load it back, verify state matches
+- [x] Add unit test: resume workflow from checkpoint, verify remaining steps execute
+- [x] Add unit test: replay execution, verify outputs match original
 
 ### Target Files
 ```
@@ -498,11 +498,11 @@ tests/unit/backend/agents/
 ```
 
 ### Verification
-- [ ] Checkpoints are saved after each step
-- [ ] Checkpoints can be loaded back with identical state
-- [ ] `resume_workflow()` skips completed steps and continues from last checkpoint
-- [ ] `replay_execution()` reproduces original outputs from logged inputs
-- [ ] State database is cleanly created on first use
+- [x] Checkpoints are saved after each step
+- [x] Checkpoints can be loaded back with identical state
+- [x] `resume_workflow()` skips completed steps and continues from last checkpoint
+- [x] `replay_execution()` reproduces original outputs from logged inputs
+- [x] State database is cleanly created on first use
 
 ---
 
@@ -530,16 +530,16 @@ class AgentCircuitBreaker:
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/circuit_breaker.py` with `AgentCircuitBreaker`
-- [ ] Implement 3-state machine: CLOSED → OPEN → HALF_OPEN → CLOSED
-- [ ] Track failure counts per agent_name with sliding window
-- [ ] Implement exponential backoff for recovery attempts
-- [ ] Integrate circuit breaker into `ADKRunnerService.run()` (or middleware pipeline from Phase 1)
-- [ ] Add `CircuitOpenError` with agent name, last failure, retry-after time
-- [ ] Add unit test: CLOSED → OPEN after threshold failures
-- [ ] Add unit test: OPEN → HALF_OPEN after recovery_timeout
-- [ ] Add unit test: HALF_OPEN → CLOSED on success, HALF_OPEN → OPEN on failure
-- [ ] Add unit test: exponential backoff doubles recovery timeout each cycle
+- [x] Create `backend/agents/runtime/circuit_breaker.py` with `AgentCircuitBreaker`
+- [x] Implement 3-state machine: CLOSED → OPEN → HALF_OPEN → CLOSED
+- [x] Track failure counts per agent_name with sliding window
+- [x] Implement exponential backoff for recovery attempts
+- [x] Integrate circuit breaker into `ADKRunnerService.run()` (or middleware pipeline from Phase 1)
+- [x] Add `CircuitOpenError` with agent name, last failure, retry-after time
+- [x] Add unit test: CLOSED → OPEN after threshold failures
+- [x] Add unit test: OPEN → HALF_OPEN after recovery_timeout
+- [x] Add unit test: HALF_OPEN → CLOSED on success, HALF_OPEN → OPEN on failure
+- [x] Add unit test: exponential backoff doubles recovery timeout each cycle
 
 ### Target Files
 ```
@@ -550,11 +550,11 @@ tests/unit/backend/agents/
 ```
 
 ### Verification
-- [ ] Circuit opens after N consecutive failures
-- [ ] Circuit transitions to HALF_OPEN after recovery_timeout
-- [ ] Successful call in HALF_OPEN closes circuit
-- [ ] Failed call in HALF_OPEN re-opens circuit with doubled timeout
-- [ ] Integration test: failing agent causes circuit open, workflow handles gracefully
+- [x] Circuit opens after N consecutive failures
+- [x] Circuit transitions to HALF_OPEN after recovery_timeout
+- [x] Successful call in HALF_OPEN closes circuit
+- [x] Failed call in HALF_OPEN re-opens circuit with doubled timeout
+- [x] Integration test: failing agent causes circuit open, workflow handles gracefully
 
 ---
 
@@ -576,15 +576,15 @@ class AsyncParallelWorkflowRunner:
 ```
 
 ### Tasks
-- [ ] Create `backend/agents/runtime/async_workflows.py` with async versions of all 5 workflow runners
-- [ ] Implement `AsyncSequentialWorkflowRunner` with `async for` step execution
-- [ ] Implement `AsyncParallelWorkflowRunner` with `asyncio.gather()` for true concurrency
-- [ ] Implement `AsyncEvaluatorOptimizerWorkflowRunner` with async evaluation
-- [ ] Implement `AsyncDynamicOrchestratorWorkerRunner` with async planning + dispatch
-- [ ] Create async versions of `ADKRunnerService` (`AsyncADKRunnerService`)
-- [ ] Create async versions of middleware pipeline (`AsyncMiddlewarePipeline`)
-- [ ] Add unit tests for each async runner (mirror Phase 6 integration tests)
-- [ ] Benchmark: compare ThreadPoolExecutor vs asyncio.gather() for 5 concurrent LLM calls
+- [x] Create `backend/agents/runtime/async_workflows.py` with async versions of all 5 workflow runners
+- [x] Implement `AsyncSequentialWorkflowRunner` with `async for` step execution
+- [x] Implement `AsyncParallelWorkflowRunner` with `asyncio.gather()` for true concurrency
+- [x] Implement `AsyncEvaluatorOptimizerWorkflowRunner` with async evaluation
+- [x] Implement `AsyncDynamicOrchestratorWorkerRunner` with async planning + dispatch
+- [x] Create async versions of `ADKRunnerService` (`AsyncADKRunnerService`)
+- [x] Create async versions of middleware pipeline (`AsyncMiddlewarePipeline`)
+- [x] Add unit tests for each async runner (mirror Phase 6 integration tests)
+- [x] Benchmark: compare ThreadPoolExecutor vs asyncio.gather() for 5 concurrent LLM calls
 
 ### Target Files
 ```
@@ -597,11 +597,11 @@ tests/unit/backend/agents/
 ```
 
 ### Verification
-- [ ] All async runners produce same results as sync runners
-- [ ] `asyncio.gather()` achieves better throughput than `ThreadPoolExecutor` for 5+ concurrent LLM calls
-- [ ] Async runners handle task failures gracefully (no cascade)
-- [ ] Async runners respect per-task timeouts
-- [ ] Benchmark shows ≥30% improvement in wall-clock time for parallel workflows
+- [x] All async runners produce same results as sync runners
+- [x] `asyncio.gather()` achieves better throughput than `ThreadPoolExecutor` for 5+ concurrent LLM calls
+- [x] Async runners handle task failures gracefully (no cascade)
+- [x] Async runners respect per-task timeouts
+- [x] Benchmark shows ≥30% improvement in wall-clock time for parallel workflows
 
 ---
 
