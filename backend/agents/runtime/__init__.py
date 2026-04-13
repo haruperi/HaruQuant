@@ -62,6 +62,39 @@ from .workflow_log import (
     WorkflowLogCollector,
     WorkflowStepRecord,
 )
+from .workflow_definition import (
+    WorkflowDefinition,
+    WorkflowDefinitionParser,
+    WorkflowPattern,
+    WorkflowRegistry,
+    WorkflowStepDef,
+    WorkflowRouteDef,
+    run_workflow,
+)
+from .workflow_state import (
+    WorkflowCheckpoint,
+    WorkflowStateManager,
+)
+from .circuit_breaker import (
+    AgentCircuitBreaker,
+    CircuitBreakerState,
+    CircuitOpenError,
+    CircuitState,
+)
+from .dynamic_orchestrator import (
+    DynamicOrchestratorWorkerRunner,
+    OrchestratorPlan,
+    DynamicOrchestratorResult,
+)
+from .async_workflows import (
+    AsyncParallelWorkflowRunner,
+    AsyncParallelWorkflowTask,
+    AsyncParallelResult,
+    AsyncSequentialWorkflowRunner,
+    AsyncSequentialWorkflowStep,
+    AsyncSequentialResult,
+    AsyncAgentRuntime,
+)
 from .llm_runtime import LLMRuntime, LLMRuntimeError
 from .litellm_runtime import LiteLLMRuntime
 from .llm_registry import create_llm_runtime, get_provider, register_provider
@@ -148,4 +181,46 @@ __all__ = [
     "PromptEvalHarness",
     "PromptEvalReport",
     "load_prompt_eval_cases",
+    # Workflow execution log
+    "WorkflowExecutionLog",
+    "WorkflowLogCollector",
+    "WorkflowStepRecord",
+    # Workflow definitions
+    "WorkflowDefinition",
+    "WorkflowDefinitionParser",
+    "WorkflowPattern",
+    "WorkflowRegistry",
+    "WorkflowStepDef",
+    "WorkflowRouteDef",
+    "run_workflow",
+    # Workflow state persistence
+    "WorkflowCheckpoint",
+    "WorkflowStateManager",
+    # Circuit breaker
+    "AgentCircuitBreaker",
+    "CircuitBreakerState",
+    "CircuitOpenError",
+    "CircuitState",
+    # Dynamic orchestrator
+    "DynamicOrchestratorWorkerRunner",
+    "OrchestratorPlan",
+    "DynamicOrchestratorResult",
+    # Async workflows
+    "AsyncParallelWorkflowRunner",
+    "AsyncParallelWorkflowTask",
+    "AsyncParallelResult",
+    "AsyncSequentialWorkflowRunner",
+    "AsyncSequentialWorkflowStep",
+    "AsyncSequentialResult",
+    "AsyncAgentRuntime",
+    # Middleware
+    "MiddlewarePipeline",
+    "MiddlewareProtocol",
+    "MiddlewareContext",
+    "NextMiddleware",
+    "ContextRedactionMiddlewareComponent",
+    "RetrievalGuardMiddleware",
+    "PromptCompositionMiddleware",
+    "ToolPolicyMiddleware",
+    "OutputValidationMiddleware",
 ]
