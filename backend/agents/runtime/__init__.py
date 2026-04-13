@@ -57,6 +57,9 @@ from .workflows import (
     WorkerGroupResult,
     enforce_refine_loop_limit,
 )
+from .tool_call import ToolCall, ToolResult
+from .tool_executor import ToolExecutor, _estimate_tokens
+from .tool_validation import ToolValidator, ToolValidationError, register_mcp_schemas
 from .workflow_log import (
     WorkflowExecutionLog,
     WorkflowLogCollector,
@@ -223,4 +226,12 @@ __all__ = [
     "PromptCompositionMiddleware",
     "ToolPolicyMiddleware",
     "OutputValidationMiddleware",
+    # Tool calling
+    "ToolCall",
+    "ToolResult",
+    "ToolExecutor",
+    "_estimate_tokens",
+    "ToolValidator",
+    "ToolValidationError",
+    "register_mcp_schemas",
 ]

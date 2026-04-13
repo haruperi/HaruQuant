@@ -1,0 +1,1 @@
+{"agent_name": "research_agent", "input": {"query": "What is the current EURUSD outlook on H1?", "context": {"symbol": "EURUSD", "timeframe": "H1"}}, "expected_contract_type": "ObservationEvent", "expected_fields": ["observation_id", "agent_name", "event_type", "evidence"], "expected_min_evidence_count": 1, "notes": "Agent should identify trend direction and supporting evidence"}

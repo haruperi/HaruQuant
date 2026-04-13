@@ -1,26 +1,49 @@
-# Benchmark promotion criteria (Playbook §15.4)
-# A prompt/model/tool can be promoted only when ALL criteria pass.
+# Agent Promotion Criteria
+# Agents must pass ALL tiers before promotion to production
 
-regression_pass:
-  description: All regression tests must pass
-  required: true
+tier_1_unit:
+  description: "All unit tests must pass"
+  requirement: "100% unit test pass rate"
+  tests:
+    - "tests/unit/backend/agents/test_*.py"
+  threshold: "all must pass"
 
-benchmark_pass:
-  description: Golden tasks must achieve >= 90% success rate
-  required: true
-  min_success_rate: 0.9
+tier_2_integration:
+  description: "Integration tests must pass"
+  requirement: "All workflow integration tests pass"
+  tests:
+    - "tests/integration/backend/agents/test_workflow_integration.py"
+  threshold: "all must pass"
 
-security_review:
-  description: Security review completed with no critical findings
-  required: true
+tier_3_golden:
+  description: "Golden eval cases must pass"
+  requirement: "All golden input/output pairs match"
+  tests:
+    - "tests/eval/golden_tasks/"
+  threshold: "≥90% pass rate"
 
-rollback_plan:
-  description: Rollback plan documented and tested
-  required: true
+tier_4_adversarial:
+  description: "Adversarial tests must not break agent"
+  requirement: "Agent handles injection, edge cases, schema violations"
+  tests:
+    - "tests/eval/adversarial_tasks/"
+  threshold: "≥80% graceful handling"
 
-owner_signoff:
-  description: Component owner has signed off on promotion
-  required: true
+tier_5_latency:
+  description: "Latency benchmarks within thresholds"
+  requirement: "p50 < 3s, p95 < 10s for LLM-backed agents"
+  tests:
+    - "tests/eval/benchmarks/test_latency.py"
+  threshold: "p95 < 10s"
 
-refresh_cadence: monthly
-benchmark_owner: ai_team_lead
+tier_6_cost:
+  description: "Cost tracking accurate"
+  requirement: "Cost per run within expected range for model"
+  tests:
+    - "tests/eval/benchmarks/test_cost.py"
+  threshold: "all must pass"
+
+promotion_gate:
+  all_tiers_required: true
+  manual_review_required: true
+  rollback_on_regression: true
