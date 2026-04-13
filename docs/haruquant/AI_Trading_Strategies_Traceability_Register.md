@@ -14,19 +14,19 @@
 
 ## Lesson Register
 
-- [ ] **C1.L1 - Program Foundation and Traceability**
+- [x] **C1.L1 - Program Foundation and Traceability**
   - **Status:** implemented
   - **Target modules:** `docs/haruquant/`, `backend/workflows/`
   - **Workflow:** all project workflow skeletons
   - **Tests:** workflow registry smoke validation for all five skeletons
   - **Artifacts:** traceability register, final coverage checklist, project workflow skeletons
 
-- [ ] **C2.L1 - Introduction to AI Workflows in Trading**
-  - **Status:** not_started
+- [x] **C2.L1 - Introduction to AI Workflows in Trading**
+  - **Status:** implemented
   - **Target modules:** `backend/workflows/`, `backend/services/strategy/baselines/`
   - **Workflow:** `classification_optimization.yaml`, `dynamic_strategy.yaml`, `momentum_trading.yaml`
-  - **Tests:** baseline strategy tests, dry-run workflow integration tests
-  - **Artifacts:** baseline strategy cards
+  - **Tests:** `tests/unit/backend/services/test_baseline_strategies.py`, `tests/integration/backend/test_ai_trading_workflow_definitions.py`
+  - **Artifacts:** RSI, EMA crossover, and naive momentum baseline modules; workflow skeletons
 
 - [ ] **C2.L2 - Unsupervised Learning**
   - **Status:** not_started

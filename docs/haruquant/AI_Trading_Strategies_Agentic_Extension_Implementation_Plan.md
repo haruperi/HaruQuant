@@ -95,7 +95,7 @@ Use these existing systems as the base for every item:
 
 ### C2.L1 - Introduction to AI Workflows in Trading
 
-- [ ] **Integrate AI trading experiments with HaruQuant workflows**
+- [x] **Integrate AI trading experiments with HaruQuant workflows**
   - **Task:** Make trading strategy experiments execute as workflow stages instead of notebook-only or script-only flows.
   - **Target:** `backend/workflows/*.yaml`, with helpers under `backend/services/modeling/`
   - **Existing foundation:** Sequential, parallel, routing, evaluator-optimizer, dynamic orchestrator, workflow logs, workflow state.
@@ -110,7 +110,7 @@ Use these existing systems as the base for every item:
     result = workflow.run(inputs={"symbol": "EURUSD", "timeframe": "H1"})
     ```
 
-- [ ] **Add RSI baseline strategy**
+- [x] **Add RSI baseline strategy**
   - **Task:** Implement deterministic RSI signal generation that emits HaruQuant strategy outputs.
   - **Target:** `backend/services/strategy/baselines/rsi.py`
   - **Existing foundation:** `backend/services/strategy/base.py`, `adapter.py`, indicator modules, `TradeHypothesis`, `EvaluationReport`.
@@ -122,7 +122,7 @@ Use these existing systems as the base for every item:
     signal = strategy.generate_signal(bars)
     ```
 
-- [ ] **Add EMA crossover baseline strategy**
+- [x] **Add EMA crossover baseline strategy**
   - **Task:** Implement fast/slow EMA crossover as a deterministic baseline.
   - **Target:** `backend/services/strategy/baselines/ema_cross.py`
   - **Existing foundation:** `backend/services/indicators/trend/ema.py`, strategy adapter, simulation service.
@@ -134,7 +134,7 @@ Use these existing systems as the base for every item:
     hypothesis = strategy.to_trade_hypothesis(symbol="EURUSD", bars=bars)
     ```
 
-- [ ] **Add naive momentum baseline strategy**
+- [x] **Add naive momentum baseline strategy**
   - **Task:** Implement an N-period momentum baseline for comparison with advanced momentum work.
   - **Target:** `backend/services/strategy/baselines/naive_momentum.py`
   - **Existing foundation:** Research trend-persistence modules, analytics returns, strategy adapter.

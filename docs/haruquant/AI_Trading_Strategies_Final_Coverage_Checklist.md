@@ -44,8 +44,8 @@
 
 ## Lesson Signoff
 
-- [ ] C1.L1 - Program foundation and traceability
-- [ ] C2.L1 - AI workflows in trading
+- [x] C1.L1 - Program foundation and traceability
+- [x] C2.L1 - AI workflows in trading
 - [ ] C2.L2 - Unsupervised learning
 - [ ] C2.L3 - Supervised learning: regression
 - [ ] C2.L4 - Supervised learning: classification
