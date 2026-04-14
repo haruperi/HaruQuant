@@ -1,0 +1,120 @@
+name: proposal
+version: 0.1.0
+pattern: sequential
+description: >
+  Trade proposal lifecycle: draft → evidence → risk review → approval →
+  execution → fill → close. Governs every trade intent from creation to
+  completion.
+
+steps:
+  - name: draft_proposal
+    agent: strategy_agent
+    expected_output: TradeHypothesis
+    validate: true
+    input:
+      workflow_step: 1
+      stage: draft_proposal
+      proposal_types:
+        - new_position
+        - add_to_position
+        - reduce_position
+        - close_position
+        - cancel_order
+
+  - name: attach_evidence
+    agent: research_agent
+    expected_output: ObservationEvent
+    validate: true
+    depends_on:
+      - draft_proposal
+    input:
+      workflow_step: 2
+      stage: attach_evidence
+      evidence_types:
+        - backtest_results
+        - out_of_sample_results
+        - walk_forward_analysis
+        - monte_carlo_results
+        - live_shadow_comparison
+
+  - name: risk_review
+    agent: risk_governor_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - attach_evidence
+    input:
+      workflow_step: 3
+      stage: risk_review
+      risk_checks:
+        - pre_trade_var
+        - position_concentration
+        - correlation_impact
+        - margin_utilization
+        - drawdown_proximity
+
+  - name: approval_decision
+    agent: compliance_agent
+    expected_output: TradeProposal
+    validate: true
+    depends_on:
+      - risk_review
+    input:
+      workflow_step: 4
+      stage: approval_decision
+      outcomes:
+        - approved
+        - approved_with_limits
+        - rejected
+      limit_types:
+        - max_position_size
+        - max_notional
+        - time_limit
+
+  - name: execute_proposal
+    agent: execution_agent
+    expected_output: ExecutionReceipt
+    validate: true
+    depends_on:
+      - approval_decision
+    input:
+      workflow_step: 5
+      stage: execute_proposal
+      execution_modes:
+        - market_order
+        - limit_order
+        - algorithmic_execution
+      execution_controls:
+        - pre_send_validation: true
+        - idempotency_key: true
+        - receipt_persistence: true
+
+  - name: monitor_fill
+    agent: monitoring_agent
+    expected_output: ObservationEvent
+    validate: true
+    depends_on:
+      - execute_proposal
+    input:
+      workflow_step: 6
+      stage: monitor_fill
+      fill_states:
+        - acknowledged
+        - partially_filled
+        - filled
+        - execution_failed
+
+  - name: close_proposal
+    agent: compliance_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - monitor_fill
+    input:
+      workflow_step: 7
+      stage: close_proposal
+      close_types:
+        - normal_completion
+        - execution_failure
+        - cancellation
+        - expiry

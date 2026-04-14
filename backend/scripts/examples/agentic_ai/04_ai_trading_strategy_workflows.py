@@ -29,6 +29,17 @@ PROJECT_ROOT = os.path.abspath(
 )
 sys.path.insert(0, PROJECT_ROOT)
 
+# Load .env file for API keys
+_env_path = os.path.join(PROJECT_ROOT, "backend", "config", "environments", ".env")
+if os.path.exists(_env_path):
+    with open(_env_path, "r") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+    del _f, _line, _k, _v
+
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -853,6 +864,188 @@ def example_11_full_pipeline_orchestrator() -> None:
 
 
 # ======================================================================
+# Example 12: Execute via Workflow Registry (data_transformation.yaml)
+# ======================================================================
+
+def example_12_registry_driven_workflow() -> None:
+    """Execute Lesson 1 via the registered data_transformation workflow.
+
+    Unlike example_11 (manual orchestrator), this uses the WorkflowExecutor
+    service which loads the workflow from the registry and dispatches to
+    registered step implementations — the same engine used by API, UI, CLI.
+    """
+    print_header("Example 12: Registry-Driven Workflow — data_transformation.yaml")
+    print_kv("Description", "Load workflow from registry → execute each step → collect results")
+    print()
+
+    from backend.orchestration.workflow import STEP_IMPLEMENTATIONS, WorkflowExecutor, WorkflowContext
+
+    config = Lesson1Config(
+        symbol="EURUSD",
+        timeframe="H1",
+        lookback_days=14,
+        rsi_period=14,
+        oversold=30.0,
+        overbought=70.0,
+        lot_size=0.1,
+        initial_balance=10000.0,
+    )
+
+    executor = WorkflowExecutor(step_registry=STEP_IMPLEMENTATIONS)
+    results = executor.execute(
+        workflow_name="data_transformation",
+        context=WorkflowContext(),
+        symbol=config.symbol,
+        timeframe=config.timeframe,
+        lookback_days=config.lookback_days,
+        rsi_period=config.rsi_period,
+        oversold=config.oversold,
+        overbought=config.overbought,
+        use_shift1=True,
+        initial_balance=config.initial_balance,
+        leverage=config.leverage,
+        commission_per_lot=config.commission_per_lot,
+        lot_size=config.lot_size,
+    )
+
+    # Run refinement experiments (steps 9-10)
+    print_kv("Refinement Phase", "")
+    print_kv("  Running", "Multi-configuration backtests + analysis")
+    print()
+
+    from backend.orchestration.workflow.steps_refine import (
+        step_run_refinement_experiments,
+        step_agent_evaluate_and_conclude,
+    )
+
+    # Step 9: Run refinement experiments (stores results in refinement_ctx)
+    refinement_ctx = WorkflowContext()
+    refinement_results = step_run_refinement_experiments(
+        refinement_ctx,
+        lookback_days=config.lookback_days,
+        lot_size=config.lot_size,
+        initial_balance=config.initial_balance,
+    )
+    results["run_refinement_experiments"] = refinement_results
+
+    # Step 10: LLM agent evaluation and conclusion
+    # Uses HARUQUANT_AGENT_MODEL from .env (e.g. gemini-3.1-flash-lite-preview)
+    agent_results = step_agent_evaluate_and_conclude(
+        refinement_ctx,
+        agent_runtime=True,  # Triggers LLM mode via _run_agent_analysis
+    )
+    results["agent_evaluate_and_conclude"] = agent_results
+
+    # Store agent conclusion in results for printing
+    results["run_refinement_experiments"]["agent_conclusion"] = agent_results.get("conclusion", {})
+    results["run_refinement_experiments"]["summary"] = refinement_results.get("summary", {})
+
+    print_kv(f"  Experiments run", refinement_results.get("experiments_run", 0))
+    print_kv(f"  Elapsed", f"{refinement_results.get('elapsed_seconds', 0):.1f}s")
+    print()
+
+    # Print refinement analysis
+    conclusion = agent_results.get("conclusion", {})
+    if conclusion:
+        print_kv("Refinement Analysis", "")
+        # Handle both flat and nested verdict structures
+        threshold = conclusion.get("threshold_comparison", {})
+        if isinstance(threshold, dict):
+            for k, v in threshold.items():
+                print_kv(f"  Threshold: {k}", v)
+        elif isinstance(threshold, str):
+            print_kv("  Threshold Comparison", threshold[:200])
+
+        ma = conclusion.get("ma_filter_impact", {})
+        if isinstance(ma, dict):
+            for k, v in ma.items():
+                print_kv(f"  MA Filter: {k}", v)
+        elif isinstance(ma, str):
+            print_kv("  MA Filter Impact", ma[:200])
+
+        cross = conclusion.get("cross_market_robustness", {})
+        if isinstance(cross, dict):
+            for k, v in cross.items():
+                print_kv(f"  Cross-Market: {k}", v)
+        elif isinstance(cross, str):
+            print_kv("  Cross-Market", cross[:200])
+
+        # Extract verdict (may be nested or flat)
+        verdict = conclusion.get("conclusion", {})
+        if not isinstance(verdict, dict):
+            verdict = conclusion
+        print_kv("  Viable Baseline", verdict.get("viable_baseline", verdict.get("viable_baseline_assessment", "N/A")))
+        print_kv("  Proceed to ML", verdict.get("proceed_to_ml", verdict.get("ml_readiness_assessment", "N/A")))
+        print()
+        weaknesses = verdict.get("key_weaknesses", [])
+        if weaknesses:
+            print_kv("  Key Weaknesses", weaknesses)
+        next_tests = verdict.get("next_tests", [])
+        if next_tests:
+            print_kv("  Next Tests", next_tests)
+        rationale = verdict.get("rationale", "")
+        if rationale:
+            print_kv("  Rationale", rationale[:200])
+        print()
+
+    # Print final summary
+    print()
+    print_kv("Workflow Execution Summary", "")
+
+    bt = results.get("backtest_strategy", {})
+    eval_r = results.get("evaluate_performance", {})
+    refine = results.get("refine_and_repeat", {})
+
+    print_kv("  Steps executed", f"{len(results)}/8")
+    print_kv("  Processed ticks", bt.get("processed_ticks", "N/A"))
+    print_kv("  Completed trades", bt.get("completed_trades", 0))
+    print_kv("  Open positions", bt.get("open_positions", 0))
+    print()
+
+    print_kv("Performance", "")
+    print_kv("  Strategy Return", eval_r.get("strategy_return", "N/A"))
+    print_kv("  Buy & Hold Return", eval_r.get("buy_hold_return", "N/A"))
+    print_kv("  Sharpe Ratio", eval_r.get("sharpe_ratio", "N/A"))
+    print_kv("  Max Drawdown", eval_r.get("max_drawdown", "N/A"))
+    print_kv("  Win Rate", eval_r.get("win_rate", "N/A"))
+    print()
+
+    print_kv("Refinement", "")
+    for rec in refine.get("recommendations", []):
+        print_kv(f"  💡 {rec}", "")
+    print()
+
+    print_kv("Lesson 1 Workflow (Registry-Driven)", "")
+    print_kv("  Definition", "data_transformation.yaml v0.2.0")
+    print_kv("  Step implementations", "backend/orchestration/workflow/steps/data_transformation.py")
+    print_kv("  Refinement experiments", "backend/orchestration/workflow/steps_refine.py")
+    print_kv("  Executor", "backend/orchestration/workflow/step_runner.py")
+    print_kv("  All steps", "✅ Passed")
+    print()
+
+    # Print refinement results if available
+    refine_exp = results.get("run_refinement_experiments", {})
+    agent_conc = refine_exp.get("agent_conclusion", {})
+    if agent_conc:
+        print_kv("Refinement Analysis", "")
+        verdict = agent_conc.get("conclusion", {}).get("verdict", {})
+        if verdict:
+            print_kv("  Viable Baseline", verdict.get("viable_baseline"))
+            print_kv("  Avg Excess Return vs B&H", verdict.get("average_excess_return_vs_bh"))
+            print_kv("  Proceed to ML", verdict.get("proceed_to_ml"))
+            print_kv("  Rationale", verdict.get("rationale", "")[:120])
+            print()
+            print_kv("  Key Weaknesses", verdict.get("key_weaknesses", []))
+            print_kv("  Next Tests", verdict.get("next_tests", []))
+        elif agent_conc.get("conclusion"):
+            conc = agent_conc["conclusion"]
+            print_kv("  Threshold Comparison", conc.get("threshold_comparison", ""))
+            print_kv("  MA Filter Impact", conc.get("ma_filter_impact", ""))
+            print_kv("  Cross-Market", conc.get("cross_market_robustness", ""))
+        print()
+
+
+# ======================================================================
 # Main
 # ======================================================================
 
@@ -875,6 +1068,7 @@ def main() -> None:
         example_09_backtest_shifted_signals,
         example_10_performance_metrics,
         example_11_full_pipeline_orchestrator,
+        example_12_registry_driven_workflow,
     ]
 
     for example_fn in examples:

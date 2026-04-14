@@ -1,0 +1,95 @@
+name: incident
+version: 0.1.0
+pattern: sequential
+description: >
+  Incident lifecycle management: detect → triage → contain → resolve →
+  postmortem → close.
+
+steps:
+  - name: detect_incident
+    agent: monitoring_agent
+    expected_output: ObservationEvent
+    validate: true
+    input:
+      workflow_step: 1
+      stage: detect_incident
+      sources:
+        - market_anomaly
+        - execution_error
+        - risk_breach
+        - system_failure
+        - compliance_violation
+
+  - name: triage_incident
+    agent: compliance_agent
+    expected_output: IncidentAlert
+    validate: true
+    depends_on:
+      - detect_incident
+    input:
+      workflow_step: 2
+      stage: triage_incident
+      priority_levels:
+        - critical
+        - high
+        - medium
+        - low
+      escalation_thresholds:
+        drawdown_pct: 5.0
+        execution_failures: 3
+        risk_score: 80
+
+  - name: contain_incident
+    agent: risk_governor_agent
+    expected_output: TradeProposal
+    validate: true
+    depends_on:
+      - triage_incident
+    input:
+      workflow_step: 3
+      stage: contain_incident
+      actions:
+        - halt_new_positions
+        - reduce_exposure
+        - freeze_strategy
+        - notify_operators
+
+  - name: resolve_incident
+    agent: execution_agent
+    expected_output: ExecutionReceipt
+    validate: true
+    depends_on:
+      - contain_incident
+    input:
+      workflow_step: 4
+      stage: resolve_incident
+      resolution_types:
+        - manual_override
+        - auto_recovery
+        - position_close
+
+  - name: postmortem
+    agent: monitoring_agent
+    expected_output: ReplayBundle
+    validate: true
+    depends_on:
+      - resolve_incident
+    input:
+      workflow_step: 5
+      stage: postmortem
+      outputs:
+        - timeline
+        - root_cause
+        - corrective_actions
+        - policy_updates
+
+  - name: close_incident
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - postmortem
+    input:
+      workflow_step: 6
+      stage: close_incident
+      require_operator_approval: true

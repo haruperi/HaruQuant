@@ -1,10 +1,11 @@
 name: data_transformation
-version: 0.1.0
+version: 0.2.0
 pattern: sequential
 description: >
-  Baseline AI trading workflow template. Turns raw market data into
+  AI trading workflow with refinement. Turns raw market data into
   model-ready features, strategy signals, backtest evidence, evaluation
-  metrics, and refinement recommendations.
+  metrics, multi-configuration refinement experiments, and agent-driven
+  conclusions about strategy viability.
 steps:
   - name: collect_market_data
     agent: research_agent
@@ -150,3 +151,60 @@ steps:
         - signal_manifest
         - backtest_metrics
         - replay_bundle
+
+  - name: run_refinement_experiments
+    agent: research_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - refine_and_repeat
+    input:
+      workflow_step: 9
+      stage: run_refinement_experiments
+      experiments:
+        - name: tighter_rsi_thresholds
+          description: Change RSI thresholds from 30/70 to 20/80
+          params:
+            oversold: 20
+            overbought: 80
+        - name: ma_trend_filter
+          description: Add SMA(50) trend filter to RSI signals
+          params:
+            ma_period: 50
+            use_ma_filter: true
+        - name: cross_symbol_test
+          description: Test RSI baseline on GBPUSD
+          params:
+            symbol: GBPUSD
+        - name: cross_timeframe_test
+          description: Test RSI baseline on D1 timeframe
+          params:
+            timeframe: D1
+      comparisons:
+        - rsi_30_70_vs_20_80
+        - with_vs_without_ma_filter
+        - strategy_vs_buy_and_hold
+        - cross_symbol_robustness
+        - cross_timeframe_robustness
+
+  - name: agent_evaluate_and_conclude
+    agent: refine_agent
+    expected_output: RefinementReport
+    validate: true
+    depends_on:
+      - run_refinement_experiments
+    input:
+      workflow_step: 10
+      stage: agent_evaluate_and_conclude
+      evaluation_criteria:
+        - threshold_comparison
+        - ma_filter_impact
+        - strategy_vs_buy_and_hold
+        - cross_market_robustness
+        - overall_viability
+      output_contract: RefinementReport
+      conclusion_requirements:
+        - viable_baseline_assessment
+        - key_weaknesses_identified
+        - next_test_recommendations
+        - ml_readiness_assessment

@@ -1,5 +1,6 @@
 """Strategy routes for managing trading strategies."""
 
+import inspect
 import os
 import tempfile
 from typing import Any, Dict, List, Optional
@@ -11,9 +12,35 @@ from pydantic import BaseModel
 from backend.common.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
+from backend.services.strategy.baselines import (
+    EmaCrossBaselineStrategy,
+    NaiveMomentumStrategy,
+    RsiBaselineStrategy,
+)
 
 router = APIRouter()
 db_manager = DatabaseManager()
+
+# Map known baseline strategy names to their classes for source-code fallback
+_BASELINE_STRATEGIES: Dict[str, type] = {
+    "ema_cross": EmaCrossBaselineStrategy,
+    "ema_cross_baseline_strategy": EmaCrossBaselineStrategy,
+    "naive_momentum": NaiveMomentumStrategy,
+    "naive_momentum_strategy": NaiveMomentumStrategy,
+    "rsi": RsiBaselineStrategy,
+    "rsi_baseline_strategy": RsiBaselineStrategy,
+}
+
+
+def _get_baseline_source_code(strategy_name: str) -> Optional[str]:
+    """Return the Python source code for a built-in baseline strategy."""
+    cls = _BASELINE_STRATEGIES.get(strategy_name.lower().strip())
+    if cls is None:
+        return None
+    try:
+        return inspect.getsource(cls)
+    except (OSError, TypeError):
+        return None
 
 IMPORT_FILE = File(...)
 
@@ -514,16 +541,30 @@ async def get_version_code(
         user = db_manager.get_user(user_id=user_id)
         username = user.get("username", "") if user else ""
 
-        # Load code and metadata from file
-        code = storage.load_strategy_code(
-            user_id, strategy_id, version["version"], username, strategy_name
-        )
-        metadata = (
-            storage.load_strategy_metadata(
+        # Try loading from user file first, fall back to baseline module source
+        code: Optional[str] = None
+        metadata: Dict[str, Any] = {}
+        try:
+            code = storage.load_strategy_code(
                 user_id, strategy_id, version["version"], username, strategy_name
             )
-            or {}
-        )
+            metadata = (
+                storage.load_strategy_metadata(
+                    user_id, strategy_id, version["version"], username, strategy_name
+                )
+                or {}
+            )
+        except FileNotFoundError:
+            logger.info(
+                f"Strategy file not found on disk, falling back to baseline: "
+                f"user={user_id}, strategy={strategy_id}, name={strategy_name}"
+            )
+            code = _get_baseline_source_code(strategy_name)
+            if code is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Strategy code not found: neither user file nor baseline for '{strategy_name}'",
+                )
 
         return {
             "version_id": version_id,

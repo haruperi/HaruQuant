@@ -1,5 +1,6 @@
 import { Activity, AlertTriangle, ShieldCheck, Workflow } from "lucide-react"
 
+import { OperatorAgenticBlueprint } from "@/components/operator/operator-agentic-blueprint"
 import { OperatorLiveEvents } from "@/components/operator/operator-live-events"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,26 +9,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const statusCards = [
   {
     title: "Workflow Bus",
-    value: "Scaffolded",
-    description: "Creation, transition logging, and step recording are wired for migration-era workflows.",
+    value: "Agentic",
+    description: "Workflow intents, plans, phase steps, transitions, and trajectory logs are now first-class backend artifacts.",
     icon: Workflow,
   },
   {
     title: "Risk Gate",
     value: "Deterministic",
-    description: "Policy resolution and approval skeletons are in place ahead of live execution work.",
+    description: "Agents can explain risk posture, but backend services own policy, freshness, and execution decisions.",
     icon: ShieldCheck,
   },
   {
     title: "Incident State",
-    value: "Ready",
-    description: "Incident state transitions are available for the next control-plane slices.",
+    value: "Governed",
+    description: "Monitoring, stale-state detection, reconciliation, and kill-switch recovery belong in the operator plane.",
     icon: AlertTriangle,
   },
   {
     title: "Operator API",
-    value: "Online",
-    description: "The migration-era FastAPI shell is running with auth and health endpoint scaffolding.",
+    value: "Partially Wired",
+    description: "Health, approvals, and SSE exist; read-model endpoints are the next connection layer for the UI.",
     icon: Activity,
   },
 ]
@@ -57,30 +58,32 @@ export default function OperatorOverviewPage() {
 
       <Card className="border-dashed">
         <CardHeader>
-          <CardTitle>Live Status Layout</CardTitle>
+          <CardTitle>Frontend migration target</CardTitle>
           <CardDescription>
-            This operator workspace is intentionally read-only for now. The next slices will hang workflows, proposals,
-            risk, approvals, incidents, replay, and strategy lifecycle views off this layout.
+            The frontend should pivot from legacy feature pages to one governed artifact chain:
+            intent, plan, proposal, risk decision, approval, execution, reconciliation, evidence, and replay.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border bg-muted/20 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Operating Mode</p>
-            <p className="mt-2 text-xl font-semibold">Paper</p>
-            <p className="mt-1 text-sm text-muted-foreground">No live execution is exposed through this workspace.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Primary Surface</p>
+            <p className="mt-2 text-xl font-semibold">Command Center</p>
+            <p className="mt-1 text-sm text-muted-foreground">Operators start from live workflow state and pending human work.</p>
           </div>
           <div className="rounded-lg border bg-muted/20 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Approval Path</p>
-            <p className="mt-2 text-xl font-semibold">Distinct Reviewers</p>
-            <p className="mt-1 text-sm text-muted-foreground">Approval state machine and voting rules are already in place.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Safety Model</p>
+            <p className="mt-2 text-xl font-semibold">Backend-owned Gates</p>
+            <p className="mt-1 text-sm text-muted-foreground">The client renders allowed actions; it does not infer execution permission.</p>
           </div>
           <div className="rounded-lg border bg-muted/20 p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Audit Basis</p>
-            <p className="mt-2 text-xl font-semibold">Replay-Ready</p>
-            <p className="mt-1 text-sm text-muted-foreground">Contracts, repositories, and workflow history now have a common home.</p>
+            <p className="mt-2 text-xl font-semibold">Every Row Has Provenance</p>
+            <p className="mt-1 text-sm text-muted-foreground">Contract refs, authority state, freshness, and replay coverage stay visible.</p>
           </div>
         </CardContent>
       </Card>
+
+      <OperatorAgenticBlueprint />
 
       <OperatorLiveEvents />
     </div>

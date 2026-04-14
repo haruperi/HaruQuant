@@ -35,6 +35,151 @@ export const operatorWorkflows = [
 
 export const selectedWorkflow = operatorWorkflows[0]
 
+export const operatorControlLoop = [
+  {
+    stage: "Intent",
+    owner: "intent_router_agent",
+    contract: "WorkflowIntent",
+    backend: "backend/contracts/workflow_intent",
+    status: "Schema gated",
+  },
+  {
+    stage: "Plan",
+    owner: "orchestrator_agent",
+    contract: "WorkflowPlan",
+    backend: "backend/orchestration/workflow",
+    status: "FSM tracked",
+  },
+  {
+    stage: "Propose",
+    owner: "strategy_agent",
+    contract: "TradeProposal",
+    backend: "backend/services/proposals",
+    status: "Readiness checked",
+  },
+  {
+    stage: "Risk",
+    owner: "risk_governor_agent",
+    contract: "RiskAssessmentDecision",
+    backend: "backend/services/risk",
+    status: "Deterministic gate",
+  },
+  {
+    stage: "Approve",
+    owner: "operator",
+    contract: "ApprovalDecision",
+    backend: "backend/services/approval",
+    status: "Role gated",
+  },
+  {
+    stage: "Execute",
+    owner: "execution_agent",
+    contract: "ExecutionReceipt",
+    backend: "backend/services/execution",
+    status: "MCP bounded",
+  },
+  {
+    stage: "Audit",
+    owner: "monitoring_agent",
+    contract: "ReplayBundle",
+    backend: "backend/services/audit",
+    status: "Replay ready",
+  },
+] as const
+
+export const operatorAgentMesh = [
+  {
+    agent: "orchestrator_agent",
+    role: "Plans typed workflow phases and dispatches specialist agents.",
+    pattern: "orchestrator-workers",
+    tools: ["all MCP servers by policy"],
+    authority: "plans only",
+  },
+  {
+    agent: "research_agent",
+    role: "Collects market context and edge evidence for hypotheses.",
+    pattern: "sequential",
+    tools: ["market_data_mcp", "retrieval"],
+    authority: "read only",
+  },
+  {
+    agent: "risk_governor_agent",
+    role: "Explains risk posture while deterministic services decide.",
+    pattern: "gate",
+    tools: ["risk_engine", "policy_service"],
+    authority: "advisory plus escalation",
+  },
+  {
+    agent: "execution_agent",
+    role: "Coordinates execution readiness and receipt interpretation.",
+    pattern: "sequential plus compensation",
+    tools: ["execution_service", "mt5_mcp"],
+    authority: "approval required",
+  },
+] as const
+
+export const operatorAgentRuns = [
+  {
+    runId: "run_orch_001",
+    workflowId: "wf_trade_review_001",
+    agent: "orchestrator_agent",
+    phase: "planning",
+    promptVersion: "orchestrator_template:v1",
+    outputSchema: "WorkflowPlan",
+    validation: "passed",
+    latencyMs: 412,
+    costState: "within_policy",
+    artifactRef: "artifact://workflow_plan/wf_trade_review_001",
+  },
+  {
+    runId: "run_risk_001",
+    workflowId: "wf_trade_review_001",
+    agent: "risk_governor_agent",
+    phase: "evaluate",
+    promptVersion: "risk_governor_template:v1",
+    outputSchema: "RiskAssessmentDecision",
+    validation: "passed",
+    latencyMs: 238,
+    costState: "within_policy",
+    artifactRef: "artifact://risk_decision/rd_001",
+  },
+  {
+    runId: "run_exec_001",
+    workflowId: "wf_trade_review_001",
+    agent: "execution_agent",
+    phase: "act",
+    promptVersion: "execution_template:v1",
+    outputSchema: "ExecutionIntent",
+    validation: "repaired",
+    latencyMs: 529,
+    costState: "review",
+    artifactRef: "artifact://execution_intent/exec_001",
+  },
+] as const
+
+export const operatorApiBacklog = [
+  {
+    route: "GET /api/operator/dashboard",
+    purpose: "Counts, health, authority posture, and pending operator work.",
+    source: "backend/read_models/operator_dashboard.py",
+  },
+  {
+    route: "GET /api/operator/workflows/{workflow_id}",
+    purpose: "Workflow detail with steps, trajectory logs, and evaluations.",
+    source: "backend/read_models/operator_dashboard.py",
+  },
+  {
+    route: "GET /api/operator/agents/runs",
+    purpose: "Agent execution history, prompt provenance, validation, cost, and latency.",
+    source: "backend/agents/runtime + backend/observability",
+  },
+  {
+    route: "GET /api/operator/execution-receipts",
+    purpose: "Execution attempts, broker receipts, compensation, and reconciliation state.",
+    source: "backend/services/execution + backend/services/reconciliation",
+  },
+] as const
+
 export const operatorProposals = [
   {
     proposalId: "prop_001",

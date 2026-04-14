@@ -24,6 +24,7 @@ INITIAL_SCHEMA_SEEDS: tuple[tuple[str, str], ...] = (
     ("OverrideRequest", "backend.contracts.override_request.model.OverrideRequest"),
     ("OverrideDecision", "backend.contracts.override_decision.model.OverrideDecision"),
     ("ReplayBundle", "backend.contracts.replay_bundle.model.ReplayBundle"),
+    ("RefinementReport", "backend.contracts.refinement_report.model.RefinementReport"),
 )
 
 
