@@ -106,7 +106,7 @@ class ValidationContext:
     symbol_tick: Optional[SymbolTickData] = None
 
 
-# These payload dataclasses mirror the C++ usage.
+# These payload dataclasses represent canonical trade request shapes.
 # Replace/extend them to match your real API objects.
 @dataclass
 class TradeRequestPayload:
@@ -365,7 +365,7 @@ def _count_open_pending_orders(state: Optional[BacktestState]) -> int:
 
 
 def _symbol_open_volume(state: Optional[BacktestState], symbol: str) -> float:
-    # NOTE: Your provided C++ variant iterates trading_deals and checks entry == "0"
+    # NOTE: Iterates trading_deals and checks entry type to find open positions.
     if state is None or not symbol:
         return 0.0
     target = _to_upper(symbol)

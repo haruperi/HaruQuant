@@ -182,7 +182,12 @@ class WorkflowRegistry:
 
     def __init__(self, workflow_dir: Optional[str] = None) -> None:
         self._parser = WorkflowDefinitionParser()
-        self._workflow_dir = workflow_dir or os.path.join("backend", "workflows")
+        self._workflow_dir = workflow_dir or os.path.join(
+            "backend",
+            "orchestration",
+            "workflow",
+            "definitions",
+        )
         self._cache: Dict[str, WorkflowDefinition] = {}
 
     def load(self, workflow_name: str) -> WorkflowDefinition:

@@ -16,24 +16,24 @@
 
 - [x] **C1.L1 - Program Foundation and Traceability**
   - **Status:** implemented
-  - **Target modules:** `docs/haruquant/`, `backend/workflows/`
+  - **Target modules:** `docs/haruquant/`, `backend/orchestration/workflow/definitions/`
   - **Workflow:** all project workflow skeletons
   - **Tests:** workflow registry smoke validation for all five skeletons
   - **Artifacts:** traceability register, final coverage checklist, project workflow skeletons
 
 - [x] **C2.L1 - Introduction to AI Workflows in Trading**
   - **Status:** implemented
-  - **Target modules:** `backend/workflows/`, `backend/services/strategy/baselines/`
+  - **Target modules:** `backend/orchestration/workflow/definitions/`, `backend/services/strategy/baselines/`
   - **Workflow:** `classification_optimization.yaml`, `dynamic_strategy.yaml`, `momentum_trading.yaml`
   - **Tests:** `tests/unit/backend/services/test_baseline_strategies.py`, `tests/integration/backend/test_ai_trading_workflow_definitions.py`
   - **Artifacts:** RSI, EMA crossover, and naive momentum baseline modules; workflow skeletons
 
-- [ ] **C2.L2 - Unsupervised Learning**
-  - **Status:** not_started
-  - **Target modules:** `backend/services/modeling/unsupervised.py`
+- [x] **C2.L2 - Unsupervised Learning**
+  - **Status:** implemented
+  - **Target modules:** `backend/services/modeling/unsupervised.py`, `backend/services/modeling/unsupervised_insights.py`
   - **Workflow:** `data_transformation.yaml`
-  - **Tests:** clustering/PCA deterministic tests
-  - **Artifacts:** regime/factor label manifest
+  - **Tests:** `tests/unit/backend/services/test_unsupervised_modeling.py`, `tests/unit/backend/services/test_unsupervised_insights.py`
+  - **Artifacts:** PCA metadata, K-Means cluster metadata, attachable regime labels, EDA summary, PCA risk factors, cluster outperformance report, cluster-adapted signal metadata
 
 - [ ] **C2.L3 - Supervised Learning: Regression**
   - **Status:** not_started

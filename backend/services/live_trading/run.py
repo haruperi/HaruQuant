@@ -3,7 +3,7 @@
 Command-line entry point for the live trading system.
 
 Usage:
-    python -m apps.live.run --config backend/config/live_trading_config.json
+    python -m backend.services.live_trading.run --config backend/config/live_trading_config.json
 """
 
 import argparse
@@ -24,10 +24,10 @@ def parse_arguments():
         epilog="""
 Examples:
     # Single strategy
-    python -m apps.live.run --config backend/config/live_trading_config.json
+    python -m backend.services.live_trading.run --config backend/config/live_trading_config.json
 
     # Multiple strategies
-    python -m apps.live.run --config backend/config/multi_strategy_config.json
+    python -m backend.services.live_trading.run --config backend/config/multi_strategy_config.json
 
 The configuration file should define:
     - MT5 connection (single shared connection)
@@ -45,7 +45,7 @@ Benefits:
     - Dynamic strategy type loading
 
 For monitoring, run the dashboard in a separate terminal:
-    python -m apps.live.dashboard
+    python -m backend.services.live_trading.dashboard
 
 For more information, see the documentation.
         """,
@@ -149,7 +149,7 @@ def print_startup_info(engine: MultiStrategyEngine):
         logger.info(f"  - {instance.name} ({instance.symbol} {instance.timeframe})")
     logger.info("=" * 80)
     logger.info("\nTo monitor in real-time, open another terminal and run:")
-    logger.info("  python -m apps.live.dashboard")
+    logger.info("  python -m backend.services.live_trading.dashboard")
     logger.info("=" * 80)
 
 
@@ -187,4 +187,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

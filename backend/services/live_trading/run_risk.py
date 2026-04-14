@@ -3,7 +3,7 @@
 Command-line entry point for the risk-integrated live trading system.
 
 Usage:
-    python -m apps.live.run_risk --config backend/config/risk_enabled_multi_strategy.json
+    python -m backend.services.live_trading.run_risk --config backend/config/risk_enabled_multi_strategy.json
 """
 
 import argparse
@@ -24,7 +24,7 @@ def parse_arguments():
         epilog="""
 Examples:
     # Risk-enabled multi-strategy trading
-    python -m apps.live.run_risk --config backend/config/risk_enabled_multi_strategy.json
+    python -m backend.services.live_trading.run_risk --config backend/config/risk_enabled_multi_strategy.json
 
 Risk Management Features:
     - Dynamic position sizing (fixed_risk, Kelly, volatility, etc.)
@@ -41,9 +41,9 @@ The configuration file must include:
     - risk_budget per strategy
 
 For monitoring, run the dashboard in a separate terminal:
-    python -m apps.live.dashboard
+    python -m backend.services.live_trading.dashboard
 
-For more information, see apps/risk/README.md
+For more information, see the risk documentation under docs/.
         """,
     )
 
@@ -161,7 +161,7 @@ def print_startup_info(engine: RiskIntegratedEngine):
         logger.info("  Status: DISABLED (using legacy mode)")
     logger.info("=" * 80)
     logger.info("\nTo monitor in real-time, open another terminal and run:")
-    logger.info("  python -m apps.live.dashboard")
+    logger.info("  python -m backend.services.live_trading.dashboard")
     logger.info("=" * 80)
 
 
@@ -199,4 +199,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

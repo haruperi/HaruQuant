@@ -12,31 +12,31 @@
 
 ## Project Workflows
 
-- [ ] `backend/workflows/data_transformation.yaml`
+- [ ] `backend/orchestration/workflow/definitions/data_transformation.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces dataset, EDA, feature, leakage, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend/workflows/dynamic_strategy.yaml`
+- [ ] `backend/orchestration/workflow/definitions/dynamic_strategy.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces returns, risk, walk-forward, cost, strategy card, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend/workflows/rl_trading.yaml`
+- [ ] `backend/orchestration/workflow/definitions/rl_trading.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces checkpoint, OOS evaluation, action diagnostics, strategy card, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend/workflows/classification_optimization.yaml`
+- [ ] `backend/orchestration/workflow/definitions/classification_optimization.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces calibrated classifier, tuning, overfit, robustness, drift, strategy card, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend/workflows/momentum_trading.yaml`
+- [ ] `backend/orchestration/workflow/definitions/momentum_trading.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces momentum features, model, scenario, backtest, risk overlay, strategy card, and evidence artifacts.
@@ -46,7 +46,7 @@
 
 - [x] C1.L1 - Program foundation and traceability
 - [x] C2.L1 - AI workflows in trading
-- [ ] C2.L2 - Unsupervised learning
+- [x] C2.L2 - Unsupervised learning
 - [ ] C2.L3 - Supervised learning: regression
 - [ ] C2.L4 - Supervised learning: classification
 - [ ] C2.L5 - Reinforcement learning introduction

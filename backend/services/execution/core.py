@@ -1137,8 +1137,7 @@ def order_send(
     verbose: bool = False,
 ) -> DotDict:
     """
-    Python port of C++ BacktestSimulator::order_send().
-    Processes a TradeRequest and updates the SimulatorState.
+    Process a TradeRequest and update the SimulatorState.
     """
     req_get = request.get if isinstance(request, dict) else lambda k, d=None: getattr(request, k, d)
 

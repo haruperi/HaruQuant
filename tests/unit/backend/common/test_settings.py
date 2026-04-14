@@ -38,6 +38,12 @@ def test_load_runtime_settings_uses_environment_template(tmp_path: Path):
     assert settings.allow_live_mutations is False
 
 
+def test_runtime_settings_default_database_url_uses_database_directory():
+    settings = RuntimeSettings()
+
+    assert settings.database_url == "sqlite:///backend/data/database/haruquant.db"
+
+
 def test_load_runtime_settings_prefers_prefixed_environment_values(tmp_path: Path):
     env_dir = tmp_path / "env"
     env_dir.mkdir()

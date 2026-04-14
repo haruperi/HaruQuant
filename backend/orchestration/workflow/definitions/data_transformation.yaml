@@ -1,0 +1,152 @@
+name: data_transformation
+version: 0.1.0
+pattern: sequential
+description: >
+  Baseline AI trading workflow template. Turns raw market data into
+  model-ready features, strategy signals, backtest evidence, evaluation
+  metrics, and refinement recommendations.
+steps:
+  - name: collect_market_data
+    agent: research_agent
+    expected_output: ObservationEvent
+    validate: true
+    input:
+      workflow_step: 1
+      stage: collect_market_data
+      mode: research
+      sources:
+        - ohlcv
+        - tick
+        - fundamentals
+        - macro
+        - sentiment
+
+  - name: clean_and_prepare_data
+    agent: compliance_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - collect_market_data
+    input:
+      workflow_step: 2
+      stage: clean_and_prepare_data
+      checks:
+        - sort_by_time
+        - remove_duplicate_timestamps
+        - validate_ohlcv_types
+        - handle_missing_values
+        - normalize_timezone
+        - resample_if_needed
+
+  - name: create_features
+    agent: research_agent
+    expected_output: ObservationEvent
+    validate: true
+    depends_on:
+      - clean_and_prepare_data
+    input:
+      workflow_step: 3
+      stage: create_features
+      feature_sets:
+        - returns
+        - log_returns
+        - rolling_mean
+        - rolling_volatility
+        - rsi
+        - moving_averages
+        - momentum
+        - regime_labels
+
+  - name: define_strategy_or_model
+    agent: strategy_agent
+    expected_output: TradeHypothesis
+    validate: true
+    depends_on:
+      - create_features
+    input:
+      workflow_step: 4
+      stage: define_strategy_or_model
+      baseline:
+        strategy: rsi
+        oversold: 30
+        overbought: 70
+      later_extensions:
+        - supervised_direction_model
+        - unsupervised_regime_filter
+        - reinforcement_learning_policy
+
+  - name: generate_signals
+    agent: strategy_agent
+    expected_output: TradeProposal
+    validate: true
+    depends_on:
+      - define_strategy_or_model
+    input:
+      workflow_step: 5
+      stage: generate_signals
+      output_contract: SignalIntent
+      safeguards:
+        - no_lookahead_bias
+        - timestamp_aligned_features
+        - explicit_position_state
+
+  - name: backtest_strategy
+    agent: research_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - generate_signals
+    input:
+      workflow_step: 6
+      stage: backtest_strategy
+      simulation:
+        capital: 100000
+        transaction_cost: 0.0005
+        slippage_model: fixed_bps
+        position_lag: 1
+      outputs:
+        - strategy_returns
+        - buy_hold_equity
+        - strategy_equity
+        - trade_count
+
+  - name: evaluate_performance
+    agent: research_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - backtest_strategy
+    input:
+      workflow_step: 7
+      stage: evaluate_performance
+      metrics:
+        - cumulative_return
+        - buy_hold_return
+        - annualized_return
+        - annualized_volatility
+        - sharpe_ratio
+        - max_drawdown
+        - win_rate
+        - profit_factor
+
+  - name: refine_and_repeat
+    agent: monitoring_agent
+    expected_output: ReplayBundle
+    validate: true
+    depends_on:
+      - evaluate_performance
+    input:
+      workflow_step: 8
+      stage: refine_and_repeat
+      refinement_options:
+        - adjust_rsi_thresholds
+        - add_moving_average_filter
+        - improve_feature_set
+        - improve_validation_split
+        - stress_cost_assumptions
+      evidence:
+        - data_hash
+        - feature_manifest
+        - signal_manifest
+        - backtest_metrics
+        - replay_bundle

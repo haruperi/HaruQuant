@@ -79,4 +79,6 @@ def __getattr__(name: str):
         from backend.services.live_trading.risk_engine import RiskIntegratedEngine
 
         return RiskIntegratedEngine
-    raise AttributeError(f"module 'apps.live' has no attribute '{name}'")
+    raise AttributeError(
+        f"module 'backend.services.live_trading' has no attribute '{name}'"
+    )

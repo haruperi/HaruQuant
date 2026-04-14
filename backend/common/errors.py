@@ -1,131 +1,135 @@
-"""Shared domain error hierarchy for migration-era services."""
+"""Shared error taxonomy and typed exceptions for trade validation."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Optional
+from dataclasses import dataclass
+from typing import Any, Mapping
+
+
+@dataclass(frozen=True)
+class ErrorDescriptor:
+    """Normalized error payload for trade validation."""
+
+    code: int
+    name: str
+    message: str
+    domain: str = "trade"
+    retryable: bool = False
+
+
+class HaruError(Exception):
+    """Base app error."""
+
+    def __init__(self, descriptor: ErrorDescriptor, detail: str | None = None) -> None:
+        self.descriptor = descriptor
+        self.detail = detail
+        text = detail or descriptor.message
+        super().__init__(f"[{descriptor.name}] {text} (code={descriptor.code})")
+
+
+class TradeError(HaruError):
+    """Base trade error."""
+
+
+class InvalidRequestError(TradeError):
+    """Invalid request."""
+
+
+class InvalidVolumeError(TradeError):
+    """Invalid volume."""
+
+
+class InvalidPriceError(TradeError):
+    """Invalid price."""
+
+
+class InvalidStopsError(TradeError):
+    """Invalid stops."""
+
+
+class TradeDisabledError(TradeError):
+    """Trade disabled."""
+
+
+class MarketClosedError(TradeError):
+    """Market closed."""
+
+
+class NoMoneyError(TradeError):
+    """Insufficient margin/money."""
+
+
+class NoQuotesError(TradeError):
+    """No quotes available."""
+
+
+_DEFAULT = ErrorDescriptor(
+    code=-1,
+    name="UNKNOWN",
+    message="Unknown error",
+    domain="trade",
+    retryable=False,
+)
+
+_CODE_TO_EXCEPTION: dict[int, type[TradeError]] = {
+    10013: InvalidRequestError,
+    10014: InvalidVolumeError,
+    10015: InvalidPriceError,
+    10016: InvalidStopsError,
+    10017: TradeDisabledError,
+    10018: MarketClosedError,
+    10019: NoMoneyError,
+    10021: NoQuotesError,
+}
+
+
+def descriptor_from_payload(payload: Mapping[str, Any] | None, *, fallback_code: int = -1) -> ErrorDescriptor:
+    """Build an ErrorDescriptor from broker/error payload."""
+    if payload is None:
+        return ErrorDescriptor(
+            code=fallback_code,
+            name=_DEFAULT.name,
+            message=_DEFAULT.message,
+            domain=_DEFAULT.domain,
+            retryable=_DEFAULT.retryable,
+        )
+    return ErrorDescriptor(
+        code=int(payload.get("code", fallback_code)),
+        name=str(payload.get("name", _DEFAULT.name)),
+        message=str(payload.get("message", _DEFAULT.message)),
+        domain=str(payload.get("domain", _DEFAULT.domain)),
+        retryable=bool(payload.get("retryable", _DEFAULT.retryable)),
+    )
+
+
+def trade_exception_from_descriptor(descriptor: ErrorDescriptor, detail: str | None = None) -> TradeError:
+    """Return typed trade exception for taxonomy descriptor."""
+    exc_type = _CODE_TO_EXCEPTION.get(descriptor.code, TradeError)
+    return exc_type(descriptor=descriptor, detail=detail)
+
+
+# ── Backward-compatible aliases ───────────────────────────────────────
+# These names are imported by service modules throughout the codebase.
+
+ValidationError = InvalidRequestError
+PolicyError = InvalidRequestError
+InfrastructureError = InvalidRequestError
+DomainError = InvalidRequestError
+
+
+class BrokerError(TradeError):
+    """Legacy alias for broker-side errors."""
 
 
 @dataclass(frozen=True)
 class ErrorContext:
-    """Normalized context attached to an application error."""
-
-    workflow_id: str = ""
-    correlation_id: str = ""
-    causation_id: str = ""
-    environment: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    """Lightweight error context container."""
+    code: str = "unknown"
+    detail: str = ""
 
 
 @dataclass(frozen=True)
 class ErrorEnvelope:
-    """Serializable error payload used across internal boundaries."""
-
-    code: str
-    category: str
-    message: str
-    retryable: bool = False
-    details: Dict[str, Any] = field(default_factory=dict)
-    context: ErrorContext = field(default_factory=ErrorContext)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "code": self.code,
-            "category": self.category,
-            "message": self.message,
-            "retryable": self.retryable,
-            "details": dict(self.details),
-            "context": {
-                "workflow_id": self.context.workflow_id,
-                "correlation_id": self.context.correlation_id,
-                "causation_id": self.context.causation_id,
-                "environment": self.context.environment,
-                "metadata": dict(self.context.metadata),
-            },
-        }
-
-
-class HaruCoreError(Exception):
-    """Base shared application error for new migration components."""
-
-    category = "core"
-
-    def __init__(
-        self,
-        code: str,
-        message: str,
-        *,
-        retryable: bool = False,
-        details: Optional[Mapping[str, Any]] = None,
-        context: Optional[ErrorContext] = None,
-    ) -> None:
-        self.envelope = ErrorEnvelope(
-            code=code,
-            category=self.category,
-            message=message,
-            retryable=retryable,
-            details=dict(details or {}),
-            context=context or ErrorContext(),
-        )
-        super().__init__(f"[{self.category}:{code}] {message}")
-
-    @property
-    def code(self) -> str:
-        return self.envelope.code
-
-    @property
-    def retryable(self) -> bool:
-        return self.envelope.retryable
-
-    def to_dict(self) -> Dict[str, Any]:
-        return self.envelope.to_dict()
-
-
-class DomainError(HaruCoreError):
-    """Business/domain rule failure."""
-
-    category = "domain"
-
-
-class ValidationError(HaruCoreError):
-    """Input or contract validation failure."""
-
-    category = "validation"
-
-
-class PolicyError(HaruCoreError):
-    """Policy or governance enforcement failure."""
-
-    category = "policy"
-
-
-class BrokerError(HaruCoreError):
-    """Broker- or execution-bound integration failure."""
-
-    category = "broker"
-
-
-class InfrastructureError(HaruCoreError):
-    """Infrastructure, storage, or dependency failure."""
-
-    category = "infrastructure"
-
-
-def envelope_from_mapping(payload: Mapping[str, Any]) -> ErrorEnvelope:
-    """Rebuild an error envelope from a plain mapping."""
-
-    context_payload = payload.get("context", {}) or {}
-    return ErrorEnvelope(
-        code=str(payload["code"]),
-        category=str(payload["category"]),
-        message=str(payload["message"]),
-        retryable=bool(payload.get("retryable", False)),
-        details=dict(payload.get("details", {}) or {}),
-        context=ErrorContext(
-            workflow_id=str(context_payload.get("workflow_id", "")),
-            correlation_id=str(context_payload.get("correlation_id", "")),
-            causation_id=str(context_payload.get("causation_id", "")),
-            environment=str(context_payload.get("environment", "")),
-            metadata=dict(context_payload.get("metadata", {}) or {}),
-        ),
-    )
+    """Envelope wrapping an error descriptor with optional context."""
+    descriptor: ErrorDescriptor
+    context: ErrorContext | None = None

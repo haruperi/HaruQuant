@@ -76,11 +76,11 @@ Use these existing systems as the base for every item:
 - [x] **Create five project workflow skeletons**
   - **Task:** Add declarative workflow skeletons for the five project-grade workflows.
   - **Target:**
-    - `backend/workflows/data_transformation.yaml`
-    - `backend/workflows/dynamic_strategy.yaml`
-    - `backend/workflows/rl_trading.yaml`
-    - `backend/workflows/classification_optimization.yaml`
-    - `backend/workflows/momentum_trading.yaml`
+    - `backend/orchestration/workflow/definitions/data_transformation.yaml`
+    - `backend/orchestration/workflow/definitions/dynamic_strategy.yaml`
+    - `backend/orchestration/workflow/definitions/rl_trading.yaml`
+    - `backend/orchestration/workflow/definitions/classification_optimization.yaml`
+    - `backend/orchestration/workflow/definitions/momentum_trading.yaml`
   - **Existing foundation:** `backend/agents/runtime/workflow_definition.py`, workflow registry, workflow runners.
   - **Acceptance:** Each workflow parses, names required stages, declares contract outputs, and can run in dry-run/mock mode.
   - **Tests:** Workflow definition parser tests under `tests/unit/backend/agents/` or `tests/integration/backend/`.
@@ -97,7 +97,7 @@ Use these existing systems as the base for every item:
 
 - [x] **Integrate AI trading experiments with HaruQuant workflows**
   - **Task:** Make trading strategy experiments execute as workflow stages instead of notebook-only or script-only flows.
-  - **Target:** `backend/workflows/*.yaml`, with helpers under `backend/services/modeling/`
+  - **Target:** `backend/orchestration/workflow/definitions/*.yaml`, with helpers under `backend/services/modeling/`
   - **Existing foundation:** Sequential, parallel, routing, evaluator-optimizer, dynamic orchestrator, workflow logs, workflow state.
   - **Acceptance:** One workflow can run data prep, feature build, model fit, backtest, evaluation, evidence, and report assembly.
   - **Tests:** Integration test for at least one dry-run strategy workflow with mocked model training and mocked market data.
@@ -105,7 +105,7 @@ Use these existing systems as the base for every item:
     ```python
     from backend.agents.runtime.workflow_definition import WorkflowRegistry
 
-    registry = WorkflowRegistry.from_directory("backend/workflows")
+    registry = WorkflowRegistry()
     workflow = registry.get("classification_optimization")
     result = workflow.run(inputs={"symbol": "EURUSD", "timeframe": "H1"})
     ```
@@ -148,7 +148,7 @@ Use these existing systems as the base for every item:
 
 ### C2.L2 - Unsupervised Learning
 
-- [ ] **Add PCA and clustering model service**
+- [x] **Add PCA and clustering model service**
   - **Task:** Implement PCA and clustering for regimes, factors, asset grouping, and feature-space partitioning.
   - **Target:** `backend/services/modeling/unsupervised.py`
   - **Existing foundation:** `backend/agents/regime_agent.py`, `backend/services/research/market_structure*.py`, feature pipeline.
@@ -156,8 +156,25 @@ Use these existing systems as the base for every item:
   - **Tests:** Unit tests for deterministic labels with fixed seeds; integration test adding regime labels to a dataset.
   - **Usage example:**
     ```python
-    labels = cluster_market_regimes(feature_frame, n_clusters=4, random_state=42)
-    dataset = dataset.assign(regime_label=labels)
+    result = cluster_feature_space(feature_frame, n_clusters=4, random_state=42)
+    dataset = attach_cluster_labels(dataset, result, column_name="regime_label")
+    ```
+
+- [x] **Add unsupervised investment insight report**
+  - **Task:** Explore investment data, summarize key stats, interpret PCA loadings as risk factors, score K-Means regimes by forward-return outperformance, and adapt strategy entry signals by cluster quality.
+  - **Target:** `backend/services/modeling/unsupervised_insights.py`
+  - **Existing foundation:** PCA/K-Means helpers, strategy baselines, workflow skeletons, strategy adapter, feature pipeline patterns.
+  - **Acceptance:** A workflow stage can produce a single report containing EDA summary, PCA metadata, K-Means metadata, risk-factor loadings, cluster outperformance, and adapted signal metadata before supervised learning is introduced.
+  - **Tests:** `tests/unit/backend/services/test_unsupervised_insights.py`
+  - **Usage example:**
+    ```python
+    report = build_unsupervised_insight_report(
+        feature_frame,
+        feature_columns=["return_1", "return_3", "rolling_volatility", "range_pct"],
+        signal_frame=signals,
+        label_column="regime_label",
+    )
+    adapted = report.signal_adaptation.adapted_signals
     ```
 
 ### C2.L3 - Supervised Learning: Regression
@@ -247,7 +264,7 @@ Use these existing systems as the base for every item:
 
 - [ ] **Add RL workflow bridge**
   - **Task:** Allow RL experiments to launch from the same workflow surface as supervised and baseline strategies.
-  - **Target:** `backend/services/rl/base.py`, `backend/workflows/rl_trading.yaml`
+  - **Target:** `backend/services/rl/base.py`, `backend/orchestration/workflow/definitions/rl_trading.yaml`
   - **Existing foundation:** `backend/agents/react/`, workflow state, dynamic orchestrator, simulation service.
   - **Acceptance:** RL can run in research mode without live side effects and emit an `EvaluationReport`.
   - **Tests:** Integration test for mock RL trainer -> evaluator -> report.
@@ -351,7 +368,7 @@ Use these existing systems as the base for every item:
 
 - [ ] **Implement the data transformation workflow**
   - **Task:** Build ingest -> validate -> preprocess -> feature -> EDA -> transformed export -> evidence.
-  - **Target:** `backend/workflows/data_transformation.yaml`
+  - **Target:** `backend/orchestration/workflow/definitions/data_transformation.yaml`
   - **Existing foundation:** Market data service, research data validation, feature leakage checks, evidence storage.
   - **Acceptance:** Workflow produces a transformed dataset, EDA report, feature manifest, and evidence manifest.
   - **Tests:** Integration test with fixture data and deterministic output hashes.
@@ -453,7 +470,7 @@ Use these existing systems as the base for every item:
 
 - [ ] **Implement dynamic strategy workflow**
   - **Task:** Build a full dynamic allocation workflow with measured risk, walk-forward validation, cost assumptions, report, and promotion verdict.
-  - **Target:** `backend/workflows/dynamic_strategy.yaml`
+  - **Target:** `backend/orchestration/workflow/definitions/dynamic_strategy.yaml`
   - **Existing foundation:** Optimization, analytics, portfolio agent, risk engine, evidence service.
   - **Acceptance:** Workflow produces a strategy card and is eligible only for shadow review unless governance gates pass.
   - **Tests:** Integration test for dynamic strategy workflow; acceptance test for strategy card/evidence output.
@@ -569,7 +586,7 @@ Use these existing systems as the base for every item:
 
 - [ ] **Implement RL project workflow**
   - **Task:** Build train -> OOS evaluate -> backtest -> evidence -> strategy card workflow.
-  - **Target:** `backend/workflows/rl_trading.yaml`
+  - **Target:** `backend/orchestration/workflow/definitions/rl_trading.yaml`
   - **Existing foundation:** RL service, simulation, analytics, evidence, workflow runtime.
   - **Acceptance:** Workflow produces checkpoints, curves, OOS metrics, action diagnostics, and a shadow-only promotion verdict.
   - **Tests:** Integration test with a small fixture dataset and deterministic seed.
@@ -695,7 +712,7 @@ Use these existing systems as the base for every item:
 
 - [ ] **Implement classification optimization workflow**
   - **Task:** Build preprocessing -> feature selection -> tuning -> calibration -> evaluation -> robustness -> report -> verdict.
-  - **Target:** `backend/workflows/classification_optimization.yaml`
+  - **Target:** `backend/orchestration/workflow/definitions/classification_optimization.yaml`
   - **Existing foundation:** Modeling service, optimization service, analytics, evidence, reporting.
   - **Acceptance:** Workflow produces a calibrated classifier, metrics, overfit diagnostics, robustness report, and strategy card.
   - **Tests:** Integration test using a fixture dataset and bounded search space.
@@ -819,7 +836,7 @@ Use these existing systems as the base for every item:
 
 - [ ] **Implement momentum project workflow**
   - **Task:** Build features -> ranking model -> scenarios -> backtest -> optimization -> risk overlays -> report -> verdict.
-  - **Target:** `backend/workflows/momentum_trading.yaml`
+  - **Target:** `backend/orchestration/workflow/definitions/momentum_trading.yaml`
   - **Existing foundation:** Momentum service, optimization, analytics, evidence, reporting, strategy governance.
   - **Acceptance:** Workflow produces a momentum strategy card with equity and FX-compatible assumptions where possible.
   - **Tests:** Integration test with deterministic fixture data; acceptance test for strategy card/evidence.
@@ -894,35 +911,35 @@ Use these existing systems as the base for every item:
 ## 9. Five Project Workflow Checklist
 
 - [ ] **Project 1: Data Transformation for Trading Models**
-  - **Workflow:** `backend/workflows/data_transformation.yaml`
+  - **Workflow:** `backend/orchestration/workflow/definitions/data_transformation.yaml`
   - **Covers:** `C3.L1`, `C3.L2`, `C3.L3`, `C3.L4`, `C3.L5`
   - **Outputs:** Clean dataset, EDA report, feature manifest, leakage report, evidence manifest.
   - **Tests:** `tests/integration/backend/test_data_transformation_workflow.py`
   - **Usage example:** Run data transformation on fixture EURUSD H1 bars and verify deterministic output hash.
 
 - [ ] **Project 2: Evaluating and Backtesting a Dynamic Investment Strategy**
-  - **Workflow:** `backend/workflows/dynamic_strategy.yaml`
+  - **Workflow:** `backend/orchestration/workflow/definitions/dynamic_strategy.yaml`
   - **Covers:** `C4.L1`, `C4.L2`, `C4.L3`, `C4.L4`, `C4.L5`
   - **Outputs:** Backtest result, walk-forward report, cost report, risk report, strategy card, evidence manifest.
   - **Tests:** `tests/integration/backend/test_dynamic_strategy_workflow.py`
   - **Usage example:** Run a multi-symbol dynamic allocation strategy through walk-forward validation.
 
 - [ ] **Project 3: Building a Reinforcement Learning Trading Model**
-  - **Workflow:** `backend/workflows/rl_trading.yaml`
+  - **Workflow:** `backend/orchestration/workflow/definitions/rl_trading.yaml`
   - **Covers:** `C5.L1`, `C5.L2`, `C5.L3`, `C5.L4`, `C5.L5`
   - **Outputs:** RL checkpoint, training curves, OOS evaluation, action diagnostics, strategy card.
   - **Tests:** `tests/integration/backend/test_rl_trading_workflow.py`
   - **Usage example:** Train a Q-learning agent on a small fixture dataset and evaluate OOS with fixed seeds.
 
 - [ ] **Project 4: Building and Optimizing a Classification Model for Trading**
-  - **Workflow:** `backend/workflows/classification_optimization.yaml`
+  - **Workflow:** `backend/orchestration/workflow/definitions/classification_optimization.yaml`
   - **Covers:** `C2.L4`, `C6.L1`, `C6.L2`, `C6.L3`, `C6.L4`, `C6.L5`, `C6.L6`
   - **Outputs:** Calibrated classifier, tuning result, overfit diagnostics, robustness report, drift baseline, strategy card.
   - **Tests:** `tests/integration/backend/test_classification_optimization_workflow.py`
   - **Usage example:** Optimize a direction classifier with walk-forward splits and threshold calibration.
 
 - [ ] **Project 5: Build a Momentum-Based Algorithmic Trading Program**
-  - **Workflow:** `backend/workflows/momentum_trading.yaml`
+  - **Workflow:** `backend/orchestration/workflow/definitions/momentum_trading.yaml`
   - **Covers:** `C7.L1`, `C7.L2`, `C7.L3`, `C7.L4`, `C7.L5`
   - **Outputs:** Momentum feature set, ranking model, scenario simulation, backtest report, risk overlays, strategy card.
   - **Tests:** `tests/integration/backend/test_momentum_trading_workflow.py`
@@ -935,7 +952,7 @@ Use these existing systems as the base for every item:
 Every checklist item is complete only when:
 
 - [ ] **Implementation exists**
-  - Code is in the relevant `backend/services/*`, `backend/agents/*`, `backend/contracts/*`, `backend/workflows/*`, or UI namespace.
+  - Code is in the relevant `backend/services/*`, `backend/agents/*`, `backend/contracts/*`, `backend/orchestration/workflow/definitions/*`, or UI namespace.
 - [ ] **Workflow or API entrypoint exists**
   - The capability can run through a declarative workflow or explicit service API.
 - [ ] **Contracts are respected**

@@ -6,7 +6,6 @@ Functions to score backtest results for optimization.
 
 from typing import Any
 
-# from apps.backtest.result import BacktestResult
 BacktestResult = Any
 
 

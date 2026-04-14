@@ -25,7 +25,6 @@ from .monte_carlo import monte_carlo_analysis
 from .scoring import calmar_score, profit_factor_score, sharpe_score, sortino_score
 
 
-# from apps.backtest.persistence import BacktestDatabase
 class BacktestDatabase:
     """Dummy class when module missing."""
 

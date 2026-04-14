@@ -4,11 +4,11 @@ from backend.agents.runtime.workflow_definition import WorkflowRegistry
 
 
 def test_ai_trading_project_workflows_parse() -> None:
-    registry = WorkflowRegistry("backend/workflows")
+    registry = WorkflowRegistry()
 
     expected_steps = {
         "classification_optimization": 6,
-        "data_transformation": 5,
+        "data_transformation": 8,
         "dynamic_strategy": 5,
         "momentum_trading": 6,
         "rl_trading": 5,
@@ -23,3 +23,20 @@ def test_ai_trading_project_workflows_parse() -> None:
         assert all(step.name for step in definition.steps)
         assert all(step.agent for step in definition.steps)
         assert all(step.expected_output for step in definition.steps)
+
+
+def test_data_transformation_workflow_matches_ai_trading_sequence() -> None:
+    registry = WorkflowRegistry()
+    definition = registry.load("data_transformation")
+
+    assert [step.name for step in definition.steps] == [
+        "collect_market_data",
+        "clean_and_prepare_data",
+        "create_features",
+        "define_strategy_or_model",
+        "generate_signals",
+        "backtest_strategy",
+        "evaluate_performance",
+        "refine_and_repeat",
+    ]
+    assert [step.input["workflow_step"] for step in definition.steps] == list(range(1, 9))

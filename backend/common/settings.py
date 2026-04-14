@@ -27,7 +27,7 @@ class RuntimeSettings(BaseModel):
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     ui_origin: str = "http://localhost:3000"
-    database_url: str = "sqlite:///backend/data/haruquant.db"
+    database_url: str = "sqlite:///backend/data/database/haruquant.db"
     event_backend: str = "inmemory"
     log_level: str = "INFO"
     allow_live_mutations: bool = False

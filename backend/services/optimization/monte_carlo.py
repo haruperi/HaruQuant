@@ -17,7 +17,6 @@ from backend.services.optimization.models import (
     MultiEntryScenarioResult,
 )
 
-# from apps.backtest.result import BacktestResult
 BacktestResult = Any
 
 # =========================================================================

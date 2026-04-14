@@ -1,13 +1,25 @@
 """Shared core primitives for the agentic migration foundation."""
 
 from .errors import (
-    BrokerError,
-    DomainError,
+    ErrorDescriptor,
     ErrorContext,
     ErrorEnvelope,
-    InfrastructureError,
-    PolicyError,
+    HaruError,
+    TradeError,
+    InvalidRequestError,
+    InvalidVolumeError,
+    InvalidPriceError,
+    InvalidStopsError,
+    TradeDisabledError,
+    MarketClosedError,
+    NoMoneyError,
+    NoQuotesError,
+    # Legacy aliases used by service modules
     ValidationError,
+    PolicyError,
+    InfrastructureError,
+    DomainError,
+    BrokerError,
 )
 from .logging import WorkflowLogContext, bind_log_context, get_service_logger
 from .optimistic import ConcurrencyState, StaleVersionError, apply_version_update, ensure_version
@@ -33,13 +45,24 @@ from .time_utils import (
 from .ids import generate_id, generate_prefixed_id
 
 __all__ = [
-    "BrokerError",
-    "DomainError",
+    "ErrorDescriptor",
     "ErrorContext",
     "ErrorEnvelope",
-    "InfrastructureError",
-    "PolicyError",
+    "HaruError",
+    "TradeError",
+    "InvalidRequestError",
+    "InvalidVolumeError",
+    "InvalidPriceError",
+    "InvalidStopsError",
+    "TradeDisabledError",
+    "MarketClosedError",
+    "NoMoneyError",
+    "NoQuotesError",
     "ValidationError",
+    "PolicyError",
+    "InfrastructureError",
+    "DomainError",
+    "BrokerError",
     "WorkflowLogContext",
     "bind_log_context",
     "get_service_logger",

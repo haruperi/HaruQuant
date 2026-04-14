@@ -36,7 +36,7 @@ from backend.services.simulation.serializers import (
 )
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.simulation.engine import Engine
-from backend.services.execution import core  # migrated from apps.trading
+from backend.services.execution import core
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger
 

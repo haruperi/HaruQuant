@@ -175,7 +175,7 @@ def parallel_grid_search(
             strategy = MyStrategy(params)
             # Use the trading engine helper path (strategy -> signals -> TicksGenerator -> Engine.run)
             result = run_strategy_backtest(...)
-            # helper internally executes through apps.trading.Engine
+            # helper internally executes through the migrated execution engine
             return result
 
         results = parallel_grid_search(
@@ -369,7 +369,7 @@ def parallel_walk_forward(
             strategy = MyStrategy(params)
             # Use the trading engine helper path (strategy -> signals -> TicksGenerator -> Engine.run)
             result = run_strategy_backtest(...)
-            # helper internally executes through apps.trading.Engine
+            # helper internally executes through the migrated execution engine
             result.metadata['is_train'] = is_train
             return result
 
