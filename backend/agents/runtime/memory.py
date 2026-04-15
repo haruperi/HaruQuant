@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from backend.common.logger import logger
 
 @dataclass(frozen=True)
 class WorkflowMemoryBinding:

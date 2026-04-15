@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.common.logger import logger
 from backend.services.approval import (
     ApprovalCreateRequest,
     ApprovalCreationService,

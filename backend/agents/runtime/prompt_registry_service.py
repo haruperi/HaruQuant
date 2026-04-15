@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Iterable
 
+from backend.common.logger import logger
 from .prompts import PromptRegistryRecord, PromptStatus
 
 

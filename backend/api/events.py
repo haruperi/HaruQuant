@@ -7,6 +7,7 @@ import json
 from fastapi import APIRouter
 from starlette.responses import StreamingResponse
 
+from backend.common.logger import logger
 
 router = APIRouter(prefix="/api/operator/events", tags=["events"])
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from backend.common.logger import logger
 from backend.services.risk import (
     PortfolioSnapshot,
     PositionExposure,

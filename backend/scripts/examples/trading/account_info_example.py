@@ -7,8 +7,6 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-
-from backend.common.logger import logger
 from backend.services.simulation.engine import Engine
 
 
@@ -20,7 +18,7 @@ def main():
 
     try:
 
-        backend = "mt5"  # set to: "mt5" or "sim"
+        backend = "sim"  # set to: "mt5" or "sim"
         engine_instance = Engine(backend=backend)
         api = engine_instance.api
         account = api.account_info()

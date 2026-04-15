@@ -6,6 +6,7 @@ paused, resumed, and replayed after failures.
 
 from __future__ import annotations
 
+from backend.common.logger import logger
 import json
 import os
 import sqlite3

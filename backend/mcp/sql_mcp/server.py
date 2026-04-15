@@ -6,6 +6,7 @@ from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 from .tools import SQL_TOOL_SPECS
 
+from backend.common.logger import logger
 
 class SQLMCPServer:
     """Thin MCP server shell for governed SQL access."""

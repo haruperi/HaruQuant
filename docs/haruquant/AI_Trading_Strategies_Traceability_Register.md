@@ -31,9 +31,10 @@
 - [x] **C2.L2 - Unsupervised Learning**
   - **Status:** implemented
   - **Target modules:** `backend/services/modeling/unsupervised.py`, `backend/services/modeling/unsupervised_insights.py`
-  - **Workflow:** `data_transformation.yaml`
-  - **Tests:** `tests/unit/backend/services/test_unsupervised_modeling.py`, `tests/unit/backend/services/test_unsupervised_insights.py`
-  - **Artifacts:** PCA metadata, K-Means cluster metadata, attachable regime labels, EDA summary, PCA risk factors, cluster outperformance report, cluster-adapted signal metadata
+  - **Workflow:** `data_transformation.yaml` step `run_unsupervised_research`
+  - **Example:** `backend/scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py` examples 13-17
+  - **Tests:** `tests/unit/backend/services/test_unsupervised_modeling.py`, `tests/unit/backend/services/test_unsupervised_insights.py`, `tests/integration/backend/test_data_transformation_workflow.py`
+  - **Artifacts:** unsupervised data summary, PCA metadata, K-Means cluster metadata, attachable regime labels, PCA risk factors, cluster outperformance report, cluster-adapted signal metadata
 
 - [ ] **C2.L3 - Supervised Learning: Regression**
   - **Status:** not_started

@@ -22,13 +22,13 @@ from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 
 
 # Global Variables
-test_symbol = "NZDCAD"
+test_symbol = "GBPUSD"
 audusd = "AUDUSD"
 eurgbp = "EURGBP"
-usdjpy = "USDJPY"
+nzdchf = "NZDCHF"
 timeframe = "H1"
-warmup_start_date = datetime(2024, 10, 1)  # 3 months of warmup data
-start_date = datetime(2025, 1, 1)
+warmup_start_date = datetime(2025, 10, 1)  # 3 months of warmup data
+start_date = datetime(2025, 11, 1)
 end_date = datetime(2025, 12, 31)
 stoploss = 10
 
@@ -54,11 +54,11 @@ if backend == "sim":
     mt5_test_symbol_info = engine_instance.client.symbol_info(test_symbol)
     mt5_audusd_symbol_info = engine_instance.client.symbol_info(audusd)
     mt5_eurgbp_symbol_info = engine_instance.client.symbol_info(eurgbp)
-    mt5_usdjpy_symbol_info = engine_instance.client.symbol_info(usdjpy)
+    mt5_nzdchf_symbol_info = engine_instance.client.symbol_info(nzdchf)
     engine_instance.state.trading_symbols.append(mt5_test_symbol_info)
     engine_instance.state.trading_symbols.append(mt5_audusd_symbol_info)
     engine_instance.state.trading_symbols.append(mt5_eurgbp_symbol_info)
-    engine_instance.state.trading_symbols.append(mt5_usdjpy_symbol_info)
+    engine_instance.state.trading_symbols.append(mt5_nzdchf_symbol_info)
     print("Using: Tester backend")
 
 else:
@@ -250,7 +250,7 @@ def example_02_calculate_profit_margin():
 
 def example_03_modify_position():
     print_example_header("Example 03: Modify Position (SL/TP)")
-    info = get_mutable_sim_symbol(test_symbol)
+    info = api.symbol_info(test_symbol)
     if info is None:
         print(f"{test_symbol}: symbol info unavailable, skipped")
         return
@@ -284,6 +284,7 @@ def example_03_modify_position():
             )
 
 def example_04_close_partial_position():
+    trade.PositionClose(symbol=test_symbol)
     print_example_header("Example 04: Close Partial Position")
     info = api.symbol_info(test_symbol)
     if info is None:
@@ -294,12 +295,14 @@ def example_04_close_partial_position():
     open_result = trade.PositionOpen(
         symbol=test_symbol,
         order_type="BUY",
-        volume=0.02,
+        volume=0.04,
         price=open_price,
         sl=0.0,
         tp=0.0,
         comment="Example partial close seed",
     )
+
+    time.sleep(2)
 
     if not open_result or int(open_result.retcode) not in (10008, 10009):
         print(f"{test_symbol}: seed position failed, partial close skipped")
@@ -434,7 +437,7 @@ def example_09_monitoring_functions():
         )
         return
 
-    info = api.symbol_info(test_symbol)
+    info = get_mutable_sim_symbol(test_symbol)
     if info is None:
         print(f"{test_symbol}: symbol info unavailable, skipped")
         return
@@ -825,9 +828,23 @@ def build_symbol_ticks_for_backtest(
 
     symbol_info = engine_instance.client.symbol_info(symbol_name)
     point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
+    
+    m1_data = None
+    if tick_model in ["m1_ticks", "synthetic_ticks"]:
+        m1_data = client.get_bars(
+            symbol=symbol_name,
+            timeframe="M1",
+            date_from=warmup_start_date,
+            date_to=end_date,
+        )
+        if m1_data is None or m1_data.empty:
+            logger.error(f"No M1 data retrieved for {symbol_name}, but tick_model requires it.")
+            return None
+
     ticks_generator = TicksGenerator(
         model=tick_model,
         trading_timeframe=timeframe,
+        m1_data=m1_data,
         point_value=point_value,
         spread_model=spread_model,
     )
@@ -1065,6 +1082,7 @@ def example_15_complete_backtests():
     the inputs to match here and in the UI
     """
 
+    start_time = time.time()
     # UI Inputs in order from top to bottom
     # Strategy & Data
     # Select the strategy and historical data parameters.
@@ -1076,7 +1094,7 @@ def example_15_complete_backtests():
     trading_timeframe = timeframe
 
     # 3. Pick a symbol or symbols
-    symbols = [test_symbol, audusd, eurgbp]
+    symbols = [audusd, eurgbp, nzdchf]
 
     # 4. Pick a data source Metatrader5 or Dukascopy API
     data_source = "metatrader"
@@ -1137,7 +1155,7 @@ def example_15_complete_backtests():
     # everything is event-driven via loop
 
     # 7. Data resolution
-    tick_model = "timeframe_ticks" # "real_ticks", "synthetic_ticks", "timeframe_ticks", "m1_ticks"
+    tick_model = "m1_ticks" # "real_ticks", "synthetic_ticks", "timeframe_ticks", "m1_ticks"
 
     # 8. Account details
     account_balance = 10000 
@@ -1198,6 +1216,9 @@ def example_15_complete_backtests():
     ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
     print(f"merged {len(ticks_data)} ticks across {len(per_symbol_counts)} symbols")
 
+    data_end_time = time.time()
+    print(f"Data loading and preparation completed in {data_end_time - start_time} seconds")
+    run_start_time = time.time()
     engine_instance.configure_run_schedule(
         positions_every=1,
         pending_orders_every=1,
@@ -1206,6 +1227,7 @@ def example_15_complete_backtests():
         risk_every=4,
     )
 
+    
     processed = engine_instance.run(
         ticks_data,
         position_size=0.01,
@@ -1227,26 +1249,42 @@ def example_15_complete_backtests():
     for symbol_name in symbols:
         print(f"completed_trades[{symbol_name}]={trade_counts.get(symbol_name, 0)}")
 
-
+    run_end_time = time.time()
+    print(f"Run completed in {run_end_time - run_start_time} seconds")
+    print(f"Total completed in {run_end_time - start_time} seconds")
 
 
 
 if __name__ == "__main__":
     # example_01_open_position()
     # example_02_calculate_profit_margin()
+    # time.sleep(2)
     # example_03_modify_position()
+    # time.sleep(2)
     # example_04_close_partial_position()
+    # time.sleep(2)
     # example_05_close_position()
+    # time.sleep(2)
     # example_06_pending_orders()
+    # time.sleep(2)
     # example_07_modify_pending_orders()
+    # time.sleep(2)
     # example_08_delete_pending_orders()
+    # time.sleep(2)
     # example_09_monitoring_functions()
+    # time.sleep(2)
     # example_10_simple_backtest()
+    # time.sleep(2)
     # example_11_simple_backtest_pending()
+    # time.sleep(2)
     # example_12_trade_results_partial_close()
+    # time.sleep(2)
     # example_13_simple_portfolion_backtest()
+    # time.sleep(2)
     # example_14_portfolio_backtest_with_risk()
+    
     example_15_complete_backtests()
+
  
 
     

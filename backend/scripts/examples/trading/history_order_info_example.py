@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
+from backend.services.simulation.engine import Engine
+from backend.services.execution.core import HistoryOrderInfo
 
 
 def _hist_value(order, attr_name: str, method_name: str | None = None, default=None):
@@ -20,7 +21,7 @@ def _hist_value(order, attr_name: str, method_name: str | None = None, default=N
 
 
 def _seed_tester_history_orders(now: datetime, engine_instance: Engine) -> None:
-    o1 = trade.HistoryOrderInfo()
+    o1 = HistoryOrderInfo()
     o1.ticket = 1001
     o1.symbol = "EURUSD"
     o1.type = 0
@@ -34,7 +35,7 @@ def _seed_tester_history_orders(now: datetime, engine_instance: Engine) -> None:
     o1.time_done_msc = int(now.timestamp()) - 60
     engine_instance.state.trading_history_orders.append(o1)
 
-    o2 = trade.HistoryOrderInfo()
+    o2 = HistoryOrderInfo()
     o2.ticket = 1002
     o2.symbol = "GBPUSD"
     o2.type = 1

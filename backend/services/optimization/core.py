@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from backend.common.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy.storage import StrategyStorage
+from backend.services.strategy.permissions import assert_strategy_allowed
 from backend.services.market_data.data_getters import load_dukascopy
 from backend.services.market_data.data_validator import DataValidator
 
@@ -82,6 +83,7 @@ async def run_optimization_task(  # noqa: C901
     try:
         # Update status to running
         db_manager.update_optimization_status(optimization_id, "running")
+        assert_strategy_allowed(strategy_id, "optimization", db_manager=db_manager)
 
         logger.info(
             f"Starting optimization {optimization_id} (method: {request.method})"
@@ -465,6 +467,7 @@ async def run_walk_forward_task(  # noqa: C901
     try:
         # Update status
         db_manager.update_optimization_status(optimization_id, "running")
+        assert_strategy_allowed(strategy_id, "optimization", db_manager=db_manager)
 
         logger.info(f"Starting walk-forward analysis {optimization_id}")
 

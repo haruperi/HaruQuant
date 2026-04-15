@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from backend.common.logger import logger
 from backend.common.settings import RuntimeSettings, load_runtime_settings
 from backend.contracts import SchemaRegistryService, load_initial_schema_registry_seeds
 from backend.data.database import (

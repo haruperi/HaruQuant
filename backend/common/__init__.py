@@ -21,7 +21,7 @@ from .errors import (
     DomainError,
     BrokerError,
 )
-from .logging import WorkflowLogContext, bind_log_context, get_service_logger
+
 from .optimistic import ConcurrencyState, StaleVersionError, apply_version_update, ensure_version
 from .secrets import SecretRef, SecretRotationPolicy, redact_secret_mapping, select_active_secret_version
 from .telemetry import (
@@ -63,9 +63,7 @@ __all__ = [
     "InfrastructureError",
     "DomainError",
     "BrokerError",
-    "WorkflowLogContext",
-    "bind_log_context",
-    "get_service_logger",
+
     "CounterMetric",
     "InMemoryTelemetry",
     "SpanRecord",

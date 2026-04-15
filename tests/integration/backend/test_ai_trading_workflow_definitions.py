@@ -8,7 +8,7 @@ def test_ai_trading_project_workflows_parse() -> None:
 
     expected_steps = {
         "classification_optimization": 6,
-        "data_transformation": 8,
+        "data_transformation": 11,
         "dynamic_strategy": 5,
         "momentum_trading": 6,
         "rl_trading": 5,
@@ -35,8 +35,11 @@ def test_data_transformation_workflow_matches_ai_trading_sequence() -> None:
         "create_features",
         "define_strategy_or_model",
         "generate_signals",
+        "run_unsupervised_research",
         "backtest_strategy",
         "evaluate_performance",
         "refine_and_repeat",
+        "run_refinement_experiments",
+        "agent_evaluate_and_conclude",
     ]
-    assert [step.input["workflow_step"] for step in definition.steps] == list(range(1, 9))
+    assert [step.input["workflow_step"] for step in definition.steps] == list(range(1, 12))

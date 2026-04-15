@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
+from backend.services.strategy.permissions import assert_strategy_allowed
 from backend.common.logger import logger
 
 from .route_support import refresh_session_risk_state
@@ -22,6 +23,7 @@ def load_strategy_class(
     strategy_id: int,
     version_id: int,
 ):
+    assert_strategy_allowed(strategy_id, "backtest", db_manager=db_manager)
     version = db_manager.get_strategy_version(version_id)
     strategy = db_manager.get_strategy(strategy_id)
     if version is None:

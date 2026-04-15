@@ -9,10 +9,11 @@ from datetime import datetime, timedelta
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
+from backend.services.simulation.engine import Engine
+from backend.services.execution.core import DealInfo
 
 def _seed_tester_deals(now: datetime, engine_instance: Engine) -> None:
-    d1 = trade.DealInfo()
+    d1 = DealInfo()
     d1.ticket = 2001
     d1.order = 1001
     d1.position_id = 1001
@@ -29,7 +30,7 @@ def _seed_tester_deals(now: datetime, engine_instance: Engine) -> None:
     d1.comment = "Entry deal"
     engine_instance.state.trading_history_deals.append(d1)
 
-    d2 = trade.DealInfo()
+    d2 = DealInfo()
     d2.ticket = 2002
     d2.order = 1002
     d2.position_id = 1001

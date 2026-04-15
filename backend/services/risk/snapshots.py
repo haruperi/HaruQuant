@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from backend.common.logger import logger
 from backend.common.time_utils import Clock, FreshnessWindow, SystemClock, evaluate_freshness
 from backend.contracts.risk_assessment_request.model import FreshnessClass
 

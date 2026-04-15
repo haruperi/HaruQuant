@@ -84,6 +84,44 @@ class StoredDemoStrategy(BaseStrategy):
     assert storage.load_strategy_class(1, 7, "1.0.0", "Test User", "Stored Demo").__name__ == "StoredDemoStrategy"
 
 
+def test_strategy_storage_loads_legacy_apps_imports(tmp_path: Path) -> None:
+    storage = StrategyStorage(base_dir=str(tmp_path / "strategies"))
+    code = """
+from apps.indicator import sma
+from apps.strategy import BaseStrategy
+from apps.strategy.base import SignalDict
+from apps.trading import PositionType
+from apps.utils.logger import logger
+
+
+class LegacyImportStrategy(BaseStrategy):
+    def on_init(self):
+        logger.info("legacy strategy initialized")
+
+    def on_bar(self, data):
+        assert PositionType.BUY == 0
+        return sma(data, window=2, price_col="close")
+
+    def get_signal(self, data, index) -> SignalDict:
+        return {"entry_signal": 0}
+"""
+    storage.save_strategy(
+        user_id=1,
+        strategy_id=8,
+        version="1.0.0",
+        code=code,
+        username="Test User",
+        strategy_name="Legacy Imports",
+    )
+
+    strategy_class = storage.load_strategy_class(1, 8, "1.0.0", "Test User", "Legacy Imports")
+    strategy = strategy_class({"symbol": "EURUSD"})
+    enriched = strategy.on_bar(pd.DataFrame({"close": [1.1, 1.2]}))
+
+    assert strategy_class.__name__ == "LegacyImportStrategy"
+    assert "sma_2" in enriched.columns
+
+
 def test_strategy_storage_export_import_roundtrip(tmp_path: Path) -> None:
     storage = StrategyStorage(base_dir=str(tmp_path / "src"))
     code = """

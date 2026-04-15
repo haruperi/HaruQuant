@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from backend.services.risk import MarginUtilization, calculate_margin_utilization
 
+from backend.common.logger import logger
 
 @dataclass(frozen=True)
 class ProjectedVarEsImpact:

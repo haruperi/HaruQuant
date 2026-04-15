@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from backend.services.risk import PositionExposure
 
+from backend.common.logger import logger
 
 @dataclass(frozen=True)
 class AdvisoryPortfolioProposal:

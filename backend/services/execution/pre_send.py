@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.common import Clock
+from backend.common.logger import logger
 from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
 from backend.contracts.trade_proposal.model import TradeProposal
 
@@ -43,9 +44,23 @@ def run_pre_send_validation(
 ) -> ReadinessAggregateResult:
     """Run the full fail-closed readiness chain before broker send."""
 
-    metadata = metadata_cache.get(request.current_proposal.payload.symbol)
+    symbol = request.current_proposal.payload.symbol
+    metadata = metadata_cache.get(symbol)
     if metadata is None:
-        raise LookupError(f"symbol metadata not found: {request.current_proposal.payload.symbol}")
+        logger.error(
+            "Symbol metadata not found — blocking pre-send",
+            component="execution.pre_send",
+            symbol=symbol,
+        )
+        raise LookupError(f"symbol metadata not found: {symbol}")
+
+    logger.debug(
+        "Running pre-send readiness validation",
+        component="execution.pre_send",
+        symbol=symbol,
+        fill_mode=request.requested_fill_mode,
+        terminal_connected=request.terminal_connected,
+    )
 
     checks = (
         validate_market_open(metadata),
@@ -68,4 +83,21 @@ def run_pre_send_validation(
             clock=clock,
         ),
     )
-    return aggregate_readiness_results(checks)
+    result = aggregate_readiness_results(checks)
+
+    if not result.allowed:
+        logger.warning(
+            "Pre-send validation blocked execution",
+            component="execution.pre_send",
+            symbol=symbol,
+            reason_codes=result.reason_codes,
+        )
+    else:
+        logger.debug(
+            "Pre-send validation passed",
+            component="execution.pre_send",
+            symbol=symbol,
+        )
+
+    return result
+

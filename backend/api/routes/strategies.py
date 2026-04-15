@@ -12,6 +12,11 @@ from pydantic import BaseModel
 from backend.common.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
+from backend.services.strategy.catalog import (
+    StrategyCatalogCreateRequest,
+    StrategyCatalogService,
+    StrategyCatalogUpdateRequest,
+)
 from backend.services.strategy.baselines import (
     EmaCrossBaselineStrategy,
     NaiveMomentumStrategy,
@@ -20,6 +25,7 @@ from backend.services.strategy.baselines import (
 
 router = APIRouter()
 db_manager = DatabaseManager()
+catalog_service = StrategyCatalogService(db_manager=db_manager)
 
 # Map known baseline strategy names to their classes for source-code fallback
 _BASELINE_STRATEGIES: Dict[str, type] = {
@@ -94,6 +100,12 @@ class StrategyResponse(BaseModel):
     is_public: bool
     active_version: Optional[str]
     active_version_id: Optional[int]
+    governance_strategy_id: Optional[str] = None
+    lifecycle_state: Optional[str] = None
+    code_hash: Optional[str] = None
+    parameter_hash: Optional[str] = None
+    artifact_root: Optional[str] = None
+    strategy_family: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -221,7 +233,7 @@ async def get_strategy_template(template_name: str) -> Dict[str, str]:
         # Map template names to files
         template_map = {
             "empty": "template_strategy.py",
-            "trend_following": "../../../backend/data/strategies/trend_following.py",
+            "trend_following": "template_strategy.py",
         }
 
         if template_name not in template_map:
@@ -234,7 +246,12 @@ async def get_strategy_template(template_name: str) -> Dict[str, str]:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(current_dir, "../../.."))
         template_file = os.path.join(
-            project_root, "apps", "strategy", "templates", template_map[template_name]
+            project_root,
+            "backend",
+            "services",
+            "strategy",
+            "templates",
+            template_map[template_name],
         )
 
         # Read template content
@@ -278,64 +295,24 @@ async def create_strategy(
     """
     try:
         logger.info(f"Creating strategy: {request.name} for user {user_id}")
-
-        # Create strategy in database
-        strategy_id = db_manager.create_strategy(
+        strategy = catalog_service.create_strategy(
+            StrategyCatalogCreateRequest(
+                name=request.name,
+                description=request.description,
+                category=request.category,
+                code=request.code,
+                parameters=request.parameters,
+                parameter_types=request.parameterTypes,
+                symbol=request.symbol,
+                timeframe=request.timeframe,
+                strategy_type=request.type,
+                money_management=request.moneyManagement,
+                variables=request.variables,
+                variable_types=request.variableTypes,
+            ),
             user_id=user_id,
-            name=request.name,
-            description=request.description,
-            category=request.category,
-            status="inactive",
-            is_public=False,
         )
-
-        # Get username for descriptive folder naming
-        user = db_manager.get_user(user_id=user_id)
-        username = user.get("username", "") if user else ""
-
-        # Save strategy code to file (version 1.0.0)
-        version = "1.0.0"
-        file_path = storage.save_strategy(
-            user_id=user_id,
-            strategy_id=strategy_id,
-            version=version,
-            code=request.code,
-            parameters=request.parameters,
-            username=username,
-            strategy_name=request.name,
-            metadata={
-                "name": request.name,
-                "description": request.description,
-                "symbol": request.symbol,
-                "timeframe": request.timeframe,
-                "type": request.type,
-                "parameterTypes": request.parameterTypes,
-                "moneyManagement": request.moneyManagement,
-                "variables": request.variables,
-                "variableTypes": request.variableTypes,
-            },
-        )
-
-        # Create version record
-        _ = db_manager.create_strategy_version(
-            strategy_id=strategy_id,
-            version=version,
-            file_path=file_path,
-            parameters=request.parameters,
-            changelog="Initial version",
-            created_by=user_id,
-        )
-
-        # Get created strategy
-        strategy = db_manager.get_strategy(strategy_id)
-        if strategy is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to load created strategy",
-            )
-
-        logger.info(f"Strategy created successfully: ID={strategy_id}")
-
+        logger.info(f"Strategy created successfully: ID={strategy['id']}")
         return StrategyResponse(**strategy)
 
     except Exception as e:
@@ -355,7 +332,7 @@ async def list_strategies(
 ) -> List[StrategyResponse]:
     """List all strategies for a user."""
     try:
-        strategies = db_manager.get_user_strategies(
+        strategies = catalog_service.list_strategies(
             user_id=user_id,
             status=strategy_status,
             category=category,
@@ -376,17 +353,16 @@ async def list_strategies(
 async def get_strategy(strategy_id: int) -> StrategyResponse:
     """Get a specific strategy."""
     try:
-        strategy = db_manager.get_strategy(strategy_id)
-
-        if not strategy:
-            logger.warning(f"Strategy {strategy_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Strategy {strategy_id} not found",
-            )
+        strategy = catalog_service.get_strategy(strategy_id)
 
         return StrategyResponse(**strategy)
 
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -407,44 +383,41 @@ async def update_strategy(
     If code is provided, creates a new version.
     """
     try:
-        # Get current strategy
-        strategy = db_manager.get_strategy(strategy_id)
-        if not strategy:
-            logger.warning(f"Strategy {strategy_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Strategy {strategy_id} not found",
-            )
-
-        update_fields = _build_strategy_update_fields(request)
-        if update_fields:
-            db_manager.update_strategy(strategy_id, **update_fields)
-
-        if request.code:
-            user = db_manager.get_user(user_id=user_id)
-            username = user.get("username", "") if user else ""
-            strategy_name = request.name or strategy["name"]
-            new_version = _create_strategy_version(
-                strategy_id=strategy_id,
-                request=request,
-                user_id=user_id,
-                username=username,
-                strategy_name=strategy_name,
-            )
-            logger.info(
-                f"New version created: {new_version} for strategy {strategy_id}"
-            )
-
-        # Get updated strategy
-        updated_strategy = db_manager.get_strategy(strategy_id)
-        if updated_strategy is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to load updated strategy",
-            )
+        updated_strategy = catalog_service.update_strategy(
+            strategy_id,
+            StrategyCatalogUpdateRequest(
+                name=request.name,
+                description=request.description,
+                status=request.status,
+                category=request.category,
+                code=request.code,
+                parameters=request.parameters,
+                parameter_types=request.parameterTypes,
+                symbol=request.symbol,
+                timeframe=request.timeframe,
+                strategy_type=request.type,
+                money_management=request.moneyManagement,
+                variables=request.variables,
+                variable_types=request.variableTypes,
+                changelog=request.changelog,
+            ),
+            user_id=user_id,
+        )
 
         return StrategyResponse(**updated_strategy)
 
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except PermissionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -459,38 +432,22 @@ async def update_strategy(
 async def delete_strategy(strategy_id: int, user_id: int = 1) -> None:
     """Delete a strategy and all its versions."""
     try:
-        # Get strategy info before deleting from database
-        strategy = db_manager.get_strategy(strategy_id)
-
-        if not strategy:
-            logger.warning(f"Strategy {strategy_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Strategy {strategy_id} not found",
-            )
-
-        # Get username for folder path
-        user = db_manager.get_user(user_id=user_id)
-        username = user.get("username", "") if user else ""
-        strategy_name = strategy.get("name", "") if strategy else ""
-
-        # Delete from database
-        success = db_manager.delete_strategy(strategy_id)
-
-        if not success:
-            logger.warning(f"Failed to delete strategy {strategy_id} from database")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete strategy {strategy_id}",
-            )
-
-        # Delete files with username and strategy name for new folder structure
-        storage.delete_strategy(
-            user_id, strategy_id, username=username, strategy_name=strategy_name
-        )
+        catalog_service.delete_strategy(strategy_id, user_id=user_id)
 
         logger.info(f"Strategy {strategy_id} deleted successfully")
 
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except PermissionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -506,7 +463,7 @@ async def delete_strategy(strategy_id: int, user_id: int = 1) -> None:
 async def list_versions(strategy_id: int) -> List[VersionResponse]:
     """List all versions of a strategy."""
     try:
-        versions = db_manager.get_strategy_versions(strategy_id)
+        versions = catalog_service.list_versions(strategy_id)
         return [VersionResponse(**v) for v in versions]
 
     except Exception as e:
@@ -523,63 +480,31 @@ async def get_version_code(
 ) -> Dict[str, Any]:
     """Get the code for a specific version."""
     try:
-        # Get version info
-        version = db_manager.get_strategy_version(version_id)
+        return catalog_service.get_version_code(
+            strategy_id=strategy_id,
+            version_id=version_id,
+            user_id=user_id,
+            baseline_source_lookup=_get_baseline_source_code,
+        )
 
-        if not version:
-            logger.warning(f"Version {version_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Version {version_id} not found",
-            )
-
-        # Get strategy info for name
-        strategy = db_manager.get_strategy(strategy_id)
-        strategy_name = strategy.get("name", "") if strategy else ""
-
-        # Get user info for username
-        user = db_manager.get_user(user_id=user_id)
-        username = user.get("username", "") if user else ""
-
-        # Try loading from user file first, fall back to baseline module source
-        code: Optional[str] = None
-        metadata: Dict[str, Any] = {}
-        try:
-            code = storage.load_strategy_code(
-                user_id, strategy_id, version["version"], username, strategy_name
-            )
-            metadata = (
-                storage.load_strategy_metadata(
-                    user_id, strategy_id, version["version"], username, strategy_name
-                )
-                or {}
-            )
-        except FileNotFoundError:
-            logger.info(
-                f"Strategy file not found on disk, falling back to baseline: "
-                f"user={user_id}, strategy={strategy_id}, name={strategy_name}"
-            )
-            code = _get_baseline_source_code(strategy_name)
-            if code is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Strategy code not found: neither user file nor baseline for '{strategy_name}'",
-                )
-
-        return {
-            "version_id": version_id,
-            "version": version["version"],
-            "code": code,
-            "parameters": version.get("parameters") or {},
-            "symbol": metadata.get("symbol"),
-            "timeframe": metadata.get("timeframe"),
-            "type": metadata.get("type"),
-            "parameterTypes": metadata.get("parameterTypes"),
-            "moneyManagement": metadata.get("moneyManagement"),
-            "variables": metadata.get("variables"),
-            "variableTypes": metadata.get("variableTypes"),
-        }
-
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except FileNotFoundError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except PermissionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -591,16 +516,33 @@ async def get_version_code(
 
 
 @router.post("/{strategy_id}/versions/{version_id}/rollback")
-async def rollback_version(strategy_id: int, version_id: int) -> Dict[str, str]:
+async def rollback_version(
+    strategy_id: int, version_id: int, user_id: int = 1
+) -> Dict[str, str]:
     """Rollback to a specific version (make it the active version)."""
     try:
-        # Update strategy's active version
-        db_manager.update_strategy(strategy_id, active_version_id=version_id)
+        catalog_service.rollback_version(
+            strategy_id=strategy_id,
+            version_id=version_id,
+            user_id=user_id,
+        )
 
         logger.info(f"Strategy {strategy_id} rolled back to version {version_id}")
 
         return {"message": "Version rolled back successfully"}
 
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except PermissionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except Exception as e:
         logger.error(f"Error rolling back version: {e}")
         raise HTTPException(
@@ -614,42 +556,23 @@ async def rollback_version(strategy_id: int, version_id: int) -> Dict[str, str]:
 async def export_strategy(strategy_id: int, user_id: int = 1) -> FileResponse:
     """Export strategy as a zip file."""
     try:
-        strategy = db_manager.get_strategy(strategy_id)
-
-        if not strategy or not strategy["active_version"]:
-            logger.warning(f"Strategy {strategy_id} or active version not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Strategy {strategy_id} or active version not found",
-            )
-
-        # Create temp file for export
-        temp_dir = tempfile.gettempdir()
-        export_path = os.path.join(
-            temp_dir, f"strategy_{strategy_id}_v{strategy['active_version']}.zip"
-        )
-        logger.debug(
-            f"Exporting strategy {strategy_id} v{strategy['active_version']} to {export_path}"
-        )
-
-        # Get username for folder path
-        user = db_manager.get_user(user_id=user_id)
-        username = user.get("username", "") if user else ""
-
-        # Export strategy
-        zip_path = storage.export_strategy(
-            user_id=user_id,
-            strategy_id=strategy_id,
-            version=strategy["active_version"],
-            export_path=export_path,
-            username=username,
-            strategy_name=strategy["name"],
-        )
-
+        zip_path = catalog_service.export_strategy(strategy_id=strategy_id, user_id=user_id)
         return FileResponse(
             zip_path, media_type="application/zip", filename=os.path.basename(zip_path)
         )
 
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except PermissionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -674,60 +597,11 @@ async def import_strategy(
             content = await file.read()
             f.write(content)
 
-        # Get strategy info for name
-        strategy = db_manager.get_strategy(strategy_id)
-        if not strategy:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Strategy {strategy_id} not found",
-            )
-        strategy_name = strategy.get("name", "")
-
-        # Get user info for username
-        user = db_manager.get_user(user_id=user_id)
-        username = user.get("username", "") if user else ""
-
-        # Determine next version
-        versions = storage.list_versions(username=username, strategy_name=strategy_name)
-
-        if versions:
-            last_version = versions[0]
-            major = int(last_version.split(".")[0])
-            new_version = f"{major + 1}.0.0"  # Major version bump for imports
-            logger.debug(
-                f"Importing as new version {new_version} (previous: {last_version})"
-            )
-        else:
-            new_version = "1.0.0"
-            logger.debug(f"Importing as initial version {new_version}")
-
-        # Import strategy
-        file_path = storage.import_strategy(
-            user_id=user_id,
+        new_version = catalog_service.import_strategy(
             strategy_id=strategy_id,
-            version=new_version,
             import_path=import_path,
-            username=username,
-            strategy_name=strategy_name,
-        )
-
-        # Load metadata if exists
-        metadata = storage.load_strategy_metadata(
-            user_id,
-            strategy_id,
-            new_version,
-            username=username,
-            strategy_name=strategy_name,
-        )
-
-        # Create version record
-        db_manager.create_strategy_version(
-            strategy_id=strategy_id,
-            version=new_version,
-            file_path=file_path,
-            parameters=metadata.get("parameters", {}),
-            changelog=f"Imported from {file.filename}",
-            created_by=user_id,
+            original_filename=file.filename or "unknown.zip",
+            user_id=user_id,
         )
         logger.info(f"Strategy version created from import: {file.filename}")
 
@@ -738,6 +612,18 @@ async def import_strategy(
 
         return {"message": "Strategy imported successfully", "version": new_version}
 
+    except LookupError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except PermissionError as e:
+        logger.warning(str(e))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except HTTPException:
         raise
     except Exception as e:

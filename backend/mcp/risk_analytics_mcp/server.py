@@ -6,6 +6,7 @@ from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 from .tools import RISK_ANALYTICS_TOOL_SPECS
 
+from backend.common.logger import logger
 
 class RiskAnalyticsMCPServer:
     """Thin MCP server shell for the legacy risk analytics boundary."""

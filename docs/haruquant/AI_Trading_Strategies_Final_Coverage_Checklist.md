@@ -16,7 +16,7 @@
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces dataset, EDA, feature, leakage, and evidence artifacts.
-  - [ ] Has integration test coverage.
+  - [x] Has integration test coverage.
 
 - [ ] `backend/orchestration/workflow/definitions/dynamic_strategy.yaml`
   - [x] Parses through the workflow definition parser.

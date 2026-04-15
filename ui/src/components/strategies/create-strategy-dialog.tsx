@@ -25,40 +25,37 @@ interface CreateStrategyDialogProps {
   onSuccess?: () => void
 }
 
-const EMPTY_STRATEGY_CODE = `from apps.strategy import Strategy
-from apps.indicator import sma, ema, rsi
+const EMPTY_STRATEGY_CODE = `from typing import Any, Dict, Optional
 
-class MyStrategy(Strategy):
+import pandas as pd
+
+from backend.services.strategy import BaseStrategy
+from backend.services.strategy.base import SignalDict
+
+
+class MyStrategy(BaseStrategy):
     """
     Custom trading strategy.
 
-    Example: Simple MA Crossover
+    Example: empty signal template.
     """
 
-    def setup_indicators(self):
-        """Calculate indicators before backtest starts."""
-        # Access parameters from Settings panel
-        fast_period = self.params.get('fast_period', 20)
-        slow_period = self.params.get('slow_period', 50)
+    def __init__(self, params: Optional[Dict[str, Any]] = None):
+        super().__init__(params)
 
-        # Calculate indicators - they create columns: sma_{window}, ema_{window}, rsi_{window}
-        self.data = sma(self.data, window=fast_period, price_col='Close')
-        self.data = sma(self.data, window=slow_period, price_col='Close')
+    def on_init(self) -> None:
+        pass
 
-    def next(self):
-        """Execute on each new bar."""
-        # Get current indicator values
-        fast_period = self.params.get('fast_period', 20)
-        slow_period = self.params.get('slow_period', 50)
+    def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:
+        data["entry_signal"] = 0
+        data["exit_signal"] = 0
+        data["pending_signal"] = 0
+        data["cancel_pending_signal"] = 0
+        data["price"] = float("nan")
+        return data
 
-        sma_fast = self.current(f'sma_{fast_period}')
-        sma_slow = self.current(f'sma_{slow_period}')
-
-        # Trading logic
-        if sma_fast > sma_slow and self.position.is_flat:
-            self.buy()
-        elif sma_fast < sma_slow and self.position.is_long:
-            self.sell()
+    def get_signal(self, data: pd.DataFrame, index: int) -> Optional[SignalDict]:
+        return None
 `
 
 export function CreateStrategyDialog({ onSuccess }: CreateStrategyDialogProps) {

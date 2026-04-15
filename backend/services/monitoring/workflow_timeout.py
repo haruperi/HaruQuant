@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 
+from backend.common.logger import logger
 from backend.common import Clock, SystemClock
 from backend.data.database import WorkflowRecord, WorkflowRepository
 

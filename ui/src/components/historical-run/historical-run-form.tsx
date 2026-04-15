@@ -71,12 +71,9 @@ export function HistoricalRunForm({
   onBacktestStart,
 }: HistoricalRunFormProps) {
   const today = useMemo(() => new Date(), [])
-  const defaultEndDate = useMemo(() => formatLocalDate(today), [today])
-  const defaultStartDate = useMemo(() => formatLocalDate(shiftDate(today, { years: -1 })), [today])
-  const defaultWarmupStartDate = useMemo(
-    () => formatLocalDate(shiftDate(shiftDate(today, { years: -1 }), { months: -1 })),
-    [today]
-  )
+  const defaultEndDate = useMemo(() => "2025-12-31", [])
+  const defaultStartDate = useMemo(() => "2025-01-01", [])
+  const defaultWarmupStartDate = useMemo(() => "2024-12-01", [])
   const { strategies, loading: loadingStrategies } = useStrategies()
   const { backtests, loading: loadingBacktests } = useAllBacktests(200)
 
@@ -84,9 +81,9 @@ export function HistoricalRunForm({
   const [mode, setMode] = useState<"manual" | "strategy" | "replay">(initialSource)
   const [runName, setRunName] = useState("")
   const [description, setDescription] = useState("")
-  const [symbol, setSymbol] = useState("EURUSD")
+  const [symbol, setSymbol] = useState("AUDUSD, EURGBP, NZDCHF")
   const [timeframe, setTimeframe] = useState("H1")
-  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("bars")
+  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("dates")
   const [startDate, setStartDate] = useState(defaultStartDate)
   const [endDate, setEndDate] = useState(defaultEndDate)
   const [numberOfBars, setNumberOfBars] = useState(500)
@@ -432,8 +429,8 @@ export function HistoricalRunForm({
       }
       const plan = historicalRunConfigToBacktestPayload(config)
       const result = plan.isPortfolio
-        ? await backtestApi.runPortfolio(plan.strategyId, plan.payload)
-        : await backtestApi.run(plan.strategyId, plan.payload)
+        ? await backtestApi.runPortfolio(plan.strategyId, plan.payload as any)
+        : await backtestApi.run(plan.strategyId, plan.payload as any)
       toast.success("Batch backtest started", { description: `Backtest ${result.backtest_id}` })
       onBacktestStart(result.backtest_id, plan.strategyId, config)
     } catch (error) {

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from backend.common.logger import logger
 from backend.data.database import RiskRepository
 
 from .decisions import PackedRiskDecisionArtifacts
@@ -15,9 +16,23 @@ class RiskDecisionPersistenceService:
 
     def __init__(self, db_path: str | Path) -> None:
         self.repository = RiskRepository(db_path)
+        logger.debug(
+            "RiskDecisionPersistenceService initialized",
+            component="risk.persistence",
+            db_path=str(db_path),
+        )
 
     def save(self, *, risk_request_id: str, packed: PackedRiskDecisionArtifacts):
         """Persist the main decision row and any attached constraints."""
+
+        logger.info(
+            "Saving risk decision",
+            component="risk.persistence",
+            risk_decision_id=packed.contract.payload.risk_decision_id,
+            proposal_id=packed.contract.payload.proposal_id,
+            decision=packed.contract.payload.decision,
+            risk_request_id=risk_request_id,
+        )
 
         decision = self.repository.create_decision(
             risk_decision_id=packed.contract.payload.risk_decision_id,
@@ -49,7 +64,15 @@ class RiskDecisionPersistenceService:
             )
             for constraint in packed.contract.payload.limit_constraints
         )
+
+        logger.debug(
+            "Risk decision saved",
+            component="risk.persistence",
+            risk_decision_id=decision.risk_decision_id,
+            constraint_count=len(constraints),
+        )
         return decision, constraints
 
 
 __all__ = ["RiskDecisionPersistenceService"]
+

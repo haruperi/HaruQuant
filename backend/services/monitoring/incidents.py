@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from backend.common.ids import generate_id
 from backend.data.database import IncidentRecord, WorkflowRepository
 
+from backend.common.logger import logger
 
 INCIDENT_STATE_TRANSITIONS: dict[str, frozenset[str]] = {
     "OPEN": frozenset({"ACKNOWLEDGED", "RESOLVED", "CLOSED"}),

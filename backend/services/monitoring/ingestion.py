@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
 
+from backend.common.logger import logger
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.observation_event.model import ObservationEvent
 

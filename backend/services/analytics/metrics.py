@@ -1,6 +1,7 @@
 """
 Trade-based statistics & system-quality metrics.
 
+from backend.common.logger import logger
 Focus: trades, sequences, expectancy, system edge
 """
 

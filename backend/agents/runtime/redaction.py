@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from backend.common.logger import logger
 from backend.common.redaction import REDACTED, is_sensitive_key, redact_mapping, redact_text
 
 

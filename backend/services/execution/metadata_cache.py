@@ -6,6 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.common.logger import logger
 
 class SymbolMetadataCacheEntry(BaseModel):
     """Cached symbol metadata required by execution readiness checks."""

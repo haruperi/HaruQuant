@@ -1,6 +1,7 @@
 """
 Strategy vs benchmark comparison.
 
+from backend.common.logger import logger
 Focus: relative performance
 """
 

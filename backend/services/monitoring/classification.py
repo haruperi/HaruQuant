@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from backend.contracts.observation_event.model import ObservationEvent
 
+from backend.common.logger import logger
 
 @dataclass(frozen=True)
 class AlertClassification:

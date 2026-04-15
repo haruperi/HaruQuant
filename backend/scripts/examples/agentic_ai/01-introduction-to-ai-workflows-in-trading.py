@@ -1,15 +1,3 @@
-"""AI Trading Strategy Workflows — Data Loading & Preprocessing.
-
-Demonstrates the Course 2, Lesson 1 workflow foundation:
-**Collect → Clean → Prepare → Feature-engineer → Signal → Backtest → Evaluate.**
-
-All examples share helper functions so no RSI, analytics, or backtest logic
-is duplicated across examples.
-
-Usage:
-    python backend/scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py
-"""
-
 from __future__ import annotations
 
 import json
@@ -77,13 +65,17 @@ def print_kv(label: str, value: Any, indent: int = 2) -> None:
 def _load_market_data(
     symbol: str = "EURUSD",
     timeframe: str = "H1",
-    lookback_days: int = 14,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    lookback_days: int = 370,
 ) -> Optional[pd.DataFrame]:
-    """Load OHLCV from MT5 (falls back to Dukascopy).  Used by examples 01-11."""
+    """Load OHLCV from MT5 (falls back to Dukascopy)."""
     from backend.services.market_data.data_getters import load_mt5
 
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=lookback_days)
+    if start_date is None:
+        end_date = end_date or datetime.now()
+        start_date = end_date - timedelta(days=lookback_days)
+
     df = load_mt5(
         symbol=symbol, timeframe=timeframe,
         start_date=start_date, end_date=end_date,
@@ -104,33 +96,38 @@ def _prepare_lower_df(raw_df: pd.DataFrame) -> pd.DataFrame:
 
 def _add_features(
     lower_df: pd.DataFrame,
-    rsi_period: int = 14,
+    fast_period: int = 20,
+    slow_period: int = 50,
+    bias_period: int = 200,
 ) -> pd.DataFrame:
-    """Compute RSI via FeaturePipeline and return enriched DataFrame."""
+    """Compute various features (RSI, SMA, EMA, ATR, Bollinger Bands) for strategy."""
     from backend.services.features.pipeline import FeaturePipeline, FeatureSpec
 
-    pipeline = FeaturePipeline([
-        FeatureSpec(name="rsi", params={"period": rsi_period, "price_col": "close"}),
-    ])
+    features = [
+        FeatureSpec(name="ema", params={"window": 20, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"window": 50, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"window": 200, "price_col": "close"}),
+    ]
+    pipeline = FeaturePipeline(features)
     return pipeline.compute_batch(lower_df)
 
 
 def _generate_signals(
     featured_df: pd.DataFrame,
     symbol: str = "EURUSD",
-    rsi_period: int = 14,
-    oversold: float = 30.0,
-    overbought: float = 70.0,
+    fast_period: int = 20,
+    slow_period: int = 50,
+    bias_period: int = 200,
 ) -> pd.DataFrame:
-    """Run RSI baseline strategy and return DataFrame with signal columns."""
-    from backend.services.strategy.baselines import RsiBaselineStrategy
+    """Run EMA crossover strategy and return DataFrame with signal columns."""
+    from backend.services.strategy.baselines import EmaCrossBaselineStrategy
 
-    strategy = RsiBaselineStrategy({
+    strategy = EmaCrossBaselineStrategy({
         "symbol": symbol,
-        "strategy_id": f"rsi-{rsi_period}",
-        "period": rsi_period,
-        "oversold": oversold,
-        "overbought": overbought,
+        "strategy_id": f"ema-cross-{fast_period}-{slow_period}-{bias_period}",
+        "fast_period": fast_period,
+        "slow_period": slow_period,
+        "bias_period": bias_period,
     })
     strategy.on_init()
     return strategy.on_bar(featured_df)
@@ -176,10 +173,86 @@ def _build_tick_df(
         "price": price.values.astype("float64"),
     }, index=signaled.index)
 
+# ======================================================================
+# Example 01: Feature engineering
+# ======================================================================
+
+def example_01_feature_engineering() -> None:
+    """Add RSI, SMA, EMA, ATR, Bollinger Bands via FeaturePipeline."""
+    print_header("Example 01: Feature Engineering — FeaturePipeline")
+    from backend.services.features.pipeline import FeaturePipeline, FeatureSpec
+    from backend.services.research.datasets import normalize_columns
+
+    symbol, timeframe = "EURUSD", "H1"
+    print_kv("Source", "MT5 → preprocess → FeaturePipeline")
+    print_kv("Symbol", symbol)
+    print_kv("Timeframe", timeframe)
+    print()
+
+    raw_df = _load_market_data(symbol=symbol, timeframe=timeframe)
+    if raw_df is None:
+        print("  ⚠️  No data returned.")
+        return
+
+    lower_df = _prepare_lower_df(raw_df)
+    print(f"  ✅ Step 1: {len(lower_df)} cleaned bars ready\n")
+
+    features = [
+        FeatureSpec(name="ema", params={"window": 20, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"window": 50, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"window": 200, "price_col": "close"}),
+    ]
+    pipeline = FeaturePipeline(features, pipeline_version="lesson-1-v1")
+    print_kv("Pipeline config", "")
+    print_kv("  version", pipeline.pipeline_version)
+    print_kv("  feature count", len(features))
+    print()
+
+    enriched = pipeline.compute_batch(lower_df)
+    new_cols = [c for c in enriched.columns if c not in lower_df.columns]
+    print(f"  ✅ Step 2: {len(new_cols)} new columns added: {', '.join(new_cols)}\n")
+    print_kv("Feature summary", "")
+    stats = enriched[[c for c in new_cols if c in enriched.columns]].describe().loc[["mean", "std", "min", "max"]]
+    print(stats.round(4).to_string())
+    print()
+
 
 # ======================================================================
-# Shared Engine / backtest helpers
+# Example 02: Signal generation
 # ======================================================================
+
+def example_02_signal_generation() -> None:
+    """Generate buy/sell signals via EMA baseline strategy."""
+    print_header("Example 02: Signal Generation — EMA Baseline Strategy")
+
+    raw_df = _load_market_data()
+    if raw_df is None:
+        print("  ⚠️  No data returned.")
+        return
+
+    featured = _add_features(_prepare_lower_df(raw_df))
+    signaled = _generate_signals(featured)
+    n_signals = int((signaled["entry_signal"] != 0).sum())
+    print(f"  ✅ {len(signaled)} bars, {n_signals} signal entries\n")
+
+    buy = int((signaled["entry_signal"] > 0).sum())
+    sell = int((signaled["entry_signal"] < 0).sum())
+    print_kv("Signal summary", "")
+    print_kv("  buy signals", buy)
+    print_kv("  sell signals", sell)
+    print_kv("  signal rate", f"{n_signals}/{len(signaled)} bars = {n_signals/len(signaled)*100:.1f}%")
+    print()
+
+    sig_rows = signaled[signaled["entry_signal"] != 0]
+    if len(sig_rows):
+        print_kv("First 5 signals", "")
+        for idx, row in sig_rows.head(5).iterrows():
+            print_kv(
+                f"  [{idx}] {'BUY' if row['entry_signal'] > 0 else 'SELL'}",
+                f"price={row.get('price', 0)}, reason={str(row.get('signal_reason', ''))[:50]}",
+            )
+        print()
+
 
 def _make_engine(
     symbol: str = "EURUSD",
@@ -252,18 +325,46 @@ def _compute_metrics(
     """Compute standard performance metrics from Engine results."""
     from backend.services.analytics.ratios import sharpe_ratio
     from backend.services.analytics.drawdowns import max_drawdown
-    from backend.services.analytics.metrics import win_rate
 
     acc = bt_result["account"]
     final_balance = float(acc.get("balance", initial_balance))
     total_return = (final_balance / initial_balance) - 1.0
 
+    trades = bt_result.get("trades", [])
+    
+    # If no completed trades or trades don't have profit_loss, return zeros
+    has_profit_loss = False
+    if trades:
+        if isinstance(trades[0], dict):
+            has_profit_loss = "profit_loss" in trades[0]
+        else:
+            has_profit_loss = hasattr(trades[0], "profit_loss")
+    
+    if not trades or not has_profit_loss:
+        first_close = float(signaled["close"].iloc[0])
+        last_close = float(signaled["close"].iloc[-1])
+        bh_return = (last_close / first_close) - 1.0 if first_close > 0 else 0.0
+
+        return {
+            "total_strategy_return": total_return,
+            "total_buy_hold_return": bh_return,
+            "sharpe_ratio": 0.0,
+            "max_drawdown": 0.0,
+            "win_rate": 0.0,
+            "profit_factor": float("inf"),
+            "wins": 0,
+            "losses": 0,
+            "total_pnl": 0.0,
+            "avg_win": 0.0,
+            "avg_loss": 0.0,
+        }
+
     trade_pnls = [
-        float(getattr(t, "profit_loss", 0) or 0) for t in bt_result["trades"]
+        float(getattr(t, "profit_loss", 0) or 0) for t in trades
     ]
     trade_returns = pd.Series(
         [p / initial_balance for p in trade_pnls]
-    ) if trade_pnls else pd.Series(dtype=float)
+    )
 
     first_close = float(signaled["close"].iloc[0])
     last_close = float(signaled["close"].iloc[-1])
@@ -275,13 +376,14 @@ def _compute_metrics(
     avg_win = float(np.mean([p for p in trade_pnls if p > 0])) if wins > 0 else 0.0
     avg_loss = abs(float(np.mean([p for p in trade_pnls if p < 0]))) if losses > 0 else 0.0
     pf = abs(avg_win * wins / (avg_loss * losses)) if losses > 0 and avg_loss > 0 else float("inf")
+    win_rate_val = wins / len(trade_pnls) if trade_pnls else 0.0
 
     return {
         "total_strategy_return": total_return,
         "total_buy_hold_return": bh_return,
         "sharpe_ratio": sharpe_ratio(trade_returns, annualize=False) if len(trade_returns) > 1 else 0.0,
         "max_drawdown": max_drawdown(pd.Series([1.0 + r for r in trade_returns])) if len(trade_returns) > 0 else 0.0,
-        "win_rate": win_rate(trade_returns) if len(trade_returns) > 0 else 0.0,
+        "win_rate": win_rate_val,
         "profit_factor": pf,
         "wins": wins,
         "losses": losses,
@@ -337,283 +439,15 @@ def _print_bt_summary(bt_result: dict) -> None:
         print_kv("  Unrealized P&L", f"${total_upnl:,.2f}")
 
 
-# ======================================================================
-# Shared sample data for file-based examples
-# ======================================================================
-
-_EXAMPLE_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "market_data"
-_EXAMPLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _build_sample_ohlcv(n_bars: int = 200) -> pd.DataFrame:
-    closes = [1.1000 + i * 0.0003 + (0.0005 if i % 7 == 0 else 0) for i in range(n_bars)]
-    idx = pd.date_range("2025-01-02", periods=n_bars, freq="h", tz="UTC")
-    return pd.DataFrame({
-        "open": closes,
-        "high": [c + 0.0010 for c in closes],
-        "low": [c - 0.0010 for c in closes],
-        "close": closes,
-        "volume": [100 + i * 2 for i in range(n_bars)],
-    }, index=idx)
-
-
-def _ensure_sample_csv() -> Path:
-    filepath = _EXAMPLE_DATA_DIR / "eurusd_sample.csv"
-    if not filepath.exists():
-        df = _build_sample_ohlcv()
-        df.reset_index().rename(columns={"index": "timestamp"}).to_csv(filepath, index=False)
-    return filepath
-
-
-def _ensure_sample_parquet() -> Path:
-    filepath = _EXAMPLE_DATA_DIR / "eurusd_sample.parquet"
-    if not filepath.exists():
-        _build_sample_ohlcv().to_parquet(filepath)
-    return filepath
 
 
 # ======================================================================
-# Example 01 – 04: Data loading (each uses its own source)
+# Example 03: Backtest + metrics (share all helpers)
 # ======================================================================
 
-def example_01_load_mt5() -> None:
-    """Load OHLCV data from MetaTrader 5 (falls back to Dukascopy)."""
-    print_header("Example 01: Load Market Data — MT5")
-    from backend.services.market_data.data_getters import load_mt5
-
-    symbol, timeframe = "XAUUSD", "H1"
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=7)
-    print_kv("Source", "MetaTrader 5")
-    print_kv("Symbol", symbol)
-    print_kv("Timeframe", timeframe)
-    print_kv("Date range", f"{start_date.date()} → {end_date.date()}")
-    print()
-
-    try:
-        df = load_mt5(symbol=symbol, timeframe=timeframe, start_date=start_date, end_date=end_date)
-        if df is None:
-            from backend.services.market_data.data_getters import load_dukascopy
-            df = load_dukascopy(
-                symbol=symbol, timeframe=timeframe,
-                start_date=start_date.strftime("%Y-%m-%d"),
-                end_date=end_date.strftime("%Y-%m-%d"),
-            )
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        if isinstance(df.index, pd.DatetimeIndex) and len(df):
-            print_kv("Date range", f"{df.index[0]} → {df.index[-1]}")
-        print_kv("Columns", list(df.columns))
-        print()
-        print(df.head(5).to_string())
-        print()
-    except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
-
-
-def example_02_load_dukascopy() -> None:
-    """Load OHLCV data from Dukascopy HTTP API."""
-    print_header("Example 02: Load Market Data — Dukascopy")
-    from backend.services.market_data.data_getters import load_dukascopy
-
-    print_kv("Source", "Dukascopy HTTP API")
-    print_kv("Symbol", "EURUSD")
-    print_kv("Date range", "2025-06-01 → 2025-06-08")
-    print()
-    try:
-        df = load_dukascopy(symbol="EURUSD", timeframe="H1", start_date="2025-06-01", end_date="2025-06-08")
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        print(df.head(5).to_string())
-        print()
-    except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
-
-
-def example_03_load_parquet() -> None:
-    """Load OHLCV data from a local Parquet file."""
-    print_header("Example 03: Load Market Data — Parquet")
-    from backend.services.market_data.data_getters import load_parquet
-
-    filepath = _ensure_sample_parquet()
-    print_kv("File", str(filepath))
-    print()
-    try:
-        df = load_parquet(filepath)
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        print(df.head(5).to_string())
-        print()
-    except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
-
-
-def example_04_load_csv() -> None:
-    """Load OHLCV data from CSV via CSVDataSource."""
-    print_header("Example 04: Load Market Data — CSV (CSVDataSource)")
-    from backend.services.market_data.data_getters import CSVDataSource
-
-    filepath = _ensure_sample_csv()
-    print_kv("File", str(filepath))
-    print()
-    try:
-        source = CSVDataSource(filepath)
-        df = source.fetch_data(symbol="EURUSD", timeframe="H1", start_pos=0, end_pos=50)
-        if df is None:
-            print("  ❌ No data returned.")
-            return
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        print(df.head(5).to_string())
-        print()
-    except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
-
-
-# ======================================================================
-# Example 05: Full data-preprocess pipeline (MT5 → validate → clean → enrich)
-# ======================================================================
-
-def example_05_data_preprocess() -> None:
-    """Load from MT5 and run through validate → clean → enrich pipeline."""
-    print_header("Example 05: Data Preprocessing — Full Pipeline")
-    from backend.services.research.datasets import normalize_columns, prepare_ohlcvs_dataset
-
-    symbol, timeframe = "EURUSD", "H1"
-    print_kv("Source", "MT5 → validate → clean → enrich")
-    print_kv("Symbol", symbol)
-    print_kv("Timeframe", timeframe)
-    print()
-
-    raw_df = _load_market_data(symbol=symbol, timeframe=timeframe)
-    if raw_df is None:
-        print("  ⚠️  No data returned.")
-        return
-
-    print(f"  ✅ Step 1: Loaded {len(raw_df)} raw bars from MT5\n")
-
-    class _InMemoryDataSource:
-        def __init__(self, df):
-            self._df = df
-        def fetch_data(self, symbol, timeframe, start_pos, end_pos):
-            if start_pos < 0 or end_pos > len(self._df) or start_pos >= end_pos:
-                return None
-            return self._df.iloc[start_pos:end_pos].copy()
-
-    normalized = normalize_columns(raw_df)
-    source = _InMemoryDataSource(normalized)
-
-    try:
-        dataset = prepare_ohlcvs_dataset(
-            source=source, symbol=symbol, timeframe=timeframe,
-            start_pos=0, end_pos=min(500, len(normalized)),
-        )
-        print("  ✅ Step 3: Full pipeline completed\n")
-        print_kv("Dataset summary", "")
-        print_kv("  rows", len(dataset.data))
-        print_kv("  columns", list(dataset.data.columns))
-        print_kv("  is_valid", dataset.report.is_valid)
-        print_kv("  warnings", len(dataset.report.warnings))
-        print_kv("  fatal errors", len(dataset.report.fatal_errors))
-        print()
-        print(dataset.data.head(3).to_string())
-        print()
-    except ValueError as exc:
-        print(f"  ⚠️  Validation failed: {exc}")
-
-
-# ======================================================================
-# Example 06: Feature engineering
-# ======================================================================
-
-def example_06_feature_engineering() -> None:
-    """Add RSI, SMA, EMA, ATR, Bollinger Bands via FeaturePipeline."""
-    print_header("Example 06: Feature Engineering — FeaturePipeline")
-    from backend.services.features.pipeline import FeaturePipeline, FeatureSpec
-    from backend.services.research.datasets import normalize_columns
-
-    symbol, timeframe = "EURUSD", "H1"
-    print_kv("Source", "MT5 → preprocess → FeaturePipeline")
-    print_kv("Symbol", symbol)
-    print_kv("Timeframe", timeframe)
-    print()
-
-    raw_df = _load_market_data(symbol=symbol, timeframe=timeframe)
-    if raw_df is None:
-        print("  ⚠️  No data returned.")
-        return
-
-    lower_df = _prepare_lower_df(raw_df)
-    print(f"  ✅ Step 1: {len(lower_df)} cleaned bars ready\n")
-
-    features = [
-        FeatureSpec(name="rsi", params={"period": 14, "price_col": "close"}),
-        FeatureSpec(name="sma", params={"window": 20, "price_col": "close"}),
-        FeatureSpec(name="sma", params={"window": 50, "price_col": "close"}),
-        FeatureSpec(name="ema", params={"span": 12, "price_col": "close"}),
-        FeatureSpec(name="ema", params={"span": 26, "price_col": "close"}),
-        FeatureSpec(name="atr", params={"period": 14}),
-        FeatureSpec(name="bbands", params={"period": 20, "std_dev": 2.0, "price_col": "close"}),
-    ]
-    pipeline = FeaturePipeline(features, pipeline_version="lesson-1-v1")
-    print_kv("Pipeline config", "")
-    print_kv("  version", pipeline.pipeline_version)
-    print_kv("  feature count", len(features))
-    print()
-
-    enriched = pipeline.compute_batch(lower_df)
-    new_cols = [c for c in enriched.columns if c not in lower_df.columns]
-    print(f"  ✅ Step 2: {len(new_cols)} new columns added: {', '.join(new_cols)}\n")
-    print_kv("Feature summary", "")
-    stats = enriched[[c for c in new_cols if c in enriched.columns]].describe().loc[["mean", "std", "min", "max"]]
-    print(stats.round(4).to_string())
-    print()
-
-
-# ======================================================================
-# Example 07: Signal generation
-# ======================================================================
-
-def example_07_signal_generation() -> None:
-    """Generate buy/sell signals via RSI baseline strategy."""
-    print_header("Example 07: Signal Generation — RSI Baseline Strategy")
-
-    raw_df = _load_market_data()
-    if raw_df is None:
-        print("  ⚠️  No data returned.")
-        return
-
-    featured = _add_features(_prepare_lower_df(raw_df))
-    signaled = _generate_signals(featured)
-    n_signals = int((signaled["entry_signal"] != 0).sum())
-    print(f"  ✅ {len(signaled)} bars, {n_signals} signal entries\n")
-
-    buy = int((signaled["entry_signal"] > 0).sum())
-    sell = int((signaled["entry_signal"] < 0).sum())
-    print_kv("Signal summary", "")
-    print_kv("  buy signals", buy)
-    print_kv("  sell signals", sell)
-    print_kv("  signal rate", f"{n_signals}/{len(signaled)} bars = {n_signals/len(signaled)*100:.1f}%")
-    print()
-
-    sig_rows = signaled[signaled["entry_signal"] != 0]
-    if len(sig_rows):
-        print_kv("First 5 signals", "")
-        for idx, row in sig_rows.head(5).iterrows():
-            print_kv(
-                f"  [{idx}] {'BUY' if row['entry_signal'] > 0 else 'SELL'}",
-                f"price={row.get('price', 0)}, reason={str(row.get('signal_reason', ''))[:50]}",
-            )
-        print()
-
-
-# ======================================================================
-# Example 08 – 10: Backtest + metrics (share all helpers)
-# ======================================================================
-
-def example_08_simulation_backtest() -> None:
+def example_03_simulation_backtest() -> None:
     """Run a simulation backtest with the real Engine."""
-    print_header("Example 08: Simulation Backtest — Engine")
+    print_header("Example 03: Simulation Backtest — Engine")
 
     raw_df = _load_market_data()
     if raw_df is None:
@@ -635,9 +469,10 @@ def example_08_simulation_backtest() -> None:
     print()
 
 
-def example_09_backtest_shifted_signals() -> None:
+
+def example_04_backtest_shifted_signals() -> None:
     """Backtest with shift(1) lookahead-bias prevention."""
-    print_header("Example 09: Backtest — shift(1) Lookahead-Bias Prevention")
+    print_header("Example 04: Backtest — shift(1) Lookahead-Bias Prevention")
 
     raw_df = _load_market_data()
     if raw_df is None:
@@ -663,9 +498,10 @@ def example_09_backtest_shifted_signals() -> None:
     print()
 
 
-def example_10_performance_metrics() -> None:
+
+def example_05_performance_metrics() -> None:
     """Evaluate backtest with Sharpe, drawdown, win rate, profit factor."""
-    print_header("Example 10: Performance Metrics Evaluation")
+    print_header("Example 05: Performance Metrics Evaluation")
 
     raw_df = _load_market_data()
     if raw_df is None:
@@ -687,8 +523,11 @@ def example_10_performance_metrics() -> None:
     print()
 
 
+
+
+
 # ======================================================================
-# Example 11: Full pipeline orchestrator
+# Example 06: Full pipeline orchestrator
 # ======================================================================
 
 @dataclass(frozen=True)
@@ -697,10 +536,11 @@ class Lesson1Config:
 
     symbol: str = "EURUSD"
     timeframe: str = "H1"
-    lookback_days: int = 14
-    rsi_period: int = 14
-    oversold: float = 30.0
-    overbought: float = 70.0
+    start_date: datetime = field(default_factory=lambda: datetime(2025, 1, 1))
+    end_date: datetime = field(default_factory=lambda: datetime(2025, 12, 31))
+    fast_period: int = 20
+    slow_period: int = 50
+    bias_period: int = 200
     lot_size: float = 0.1
     initial_balance: float = 10000.0
     leverage: int = 400
@@ -742,7 +582,7 @@ def run_lesson1_workflow(config: Optional[Lesson1Config] = None) -> Lesson1Resul
     # Steps 1+2: Collect + Clean
     raw_df = _load_market_data(
         symbol=config.symbol, timeframe=config.timeframe,
-        lookback_days=config.lookback_days,
+        start_date=config.start_date, end_date=config.end_date,
     )
     if raw_df is None:
         raise ValueError(f"No data returned for {config.symbol} {config.timeframe}")
@@ -775,14 +615,20 @@ def run_lesson1_workflow(config: Optional[Lesson1Config] = None) -> Lesson1Resul
         result.bars_after_clean = len(lower_df)
 
     # Step 3: Features
-    featured = _add_features(lower_df, rsi_period=config.rsi_period)
+    featured = _add_features(
+        lower_df,
+        fast_period=config.fast_period,
+        slow_period=config.slow_period,
+        bias_period=config.bias_period,
+    )
     result.features_added = len([c for c in featured.columns if c not in lower_df.columns])
 
     # Steps 4+5: Strategy + Signals
     signaled = _generate_signals(
         featured, symbol=config.symbol,
-        rsi_period=config.rsi_period,
-        oversold=config.oversold, overbought=config.overbought,
+        fast_period=config.fast_period,
+        slow_period=config.slow_period,
+        bias_period=config.bias_period,
     )
     entry, exit_s, price = _shift_signals(signaled, use_shift1=config.use_shift1)
     result.signals_generated = int((entry != 0).sum())
@@ -811,9 +657,9 @@ def run_lesson1_workflow(config: Optional[Lesson1Config] = None) -> Lesson1Resul
     return result
 
 
-def example_11_full_pipeline_orchestrator() -> None:
+def example_06_full_pipeline_orchestrator() -> None:
     """One call: load → clean → features → signals → backtest → evaluate."""
-    print_header("Example 11: Full Pipeline Orchestrator")
+    print_header("Example 06: Full Pipeline Orchestrator")
     print_kv("Description", "Single call: load → clean → features → signals → backtest → evaluate")
     print()
 
@@ -821,12 +667,10 @@ def example_11_full_pipeline_orchestrator() -> None:
     print_kv("Configuration", "")
     print_kv("  symbol", config.symbol)
     print_kv("  timeframe", config.timeframe)
-    print_kv("  lookback_days", config.lookback_days)
-    print_kv("  rsi_period", config.rsi_period)
-    print_kv("  oversold / overbought", f"{config.oversold} / {config.overbought}")
+    print_kv("  date range", f"{config.start_date.date()} → {config.end_date.date()}")
+    print_kv("  EMAs", f"{config.fast_period}/{config.slow_period}/{config.bias_period}")
     print_kv("  lot_size", config.lot_size)
     print_kv("  initial_balance", f"${config.initial_balance:,.2f}")
-    print_kv("  use_shift1", config.use_shift1)
     print()
 
     result = run_lesson1_workflow(config)
@@ -834,7 +678,7 @@ def example_11_full_pipeline_orchestrator() -> None:
     print_kv("Pipeline Diagnostics", "")
     print_kv("  Bars loaded", result.bars_loaded)
     print_kv("  Bars after clean", result.bars_after_clean)
-    print_kv("  Features added", f"{result.features_added} (rsi_{config.rsi_period})")
+    print_kv("  Features added", f"{result.features_added} (ema_{config.fast_period}/{config.slow_period}/{config.bias_period})")
     print_kv("  Shifted signals (bar N+1)", result.signals_generated)
     print_kv("  Processed ticks", result.processed_ticks)
     print()
@@ -864,32 +708,32 @@ def example_11_full_pipeline_orchestrator() -> None:
 
 
 # ======================================================================
-# Example 12: Execute via Workflow Registry (data_transformation.yaml)
+# Example 07: Execute via Workflow Registry (data_transformation.yaml)
 # ======================================================================
 
-def example_12_registry_driven_workflow() -> None:
+def example_07_registry_driven_workflow() -> None:
     """Execute Lesson 1 via the registered data_transformation workflow.
 
     Unlike example_11 (manual orchestrator), this uses the WorkflowExecutor
     service which loads the workflow from the registry and dispatches to
     registered step implementations — the same engine used by API, UI, CLI.
     """
-    print_header("Example 12: Registry-Driven Workflow — data_transformation.yaml")
+    print_header("Example 07: Registry-Driven Workflow — data_transformation.yaml")
     print_kv("Description", "Load workflow from registry → execute each step → collect results")
     print()
 
     from backend.orchestration.workflow import STEP_IMPLEMENTATIONS, WorkflowExecutor, WorkflowContext
 
-    config = Lesson1Config(
-        symbol="EURUSD",
-        timeframe="H1",
-        lookback_days=14,
-        rsi_period=14,
-        oversold=30.0,
-        overbought=70.0,
-        lot_size=0.1,
-        initial_balance=10000.0,
-    )
+    config = Lesson1Config()
+
+    print_kv("Configuration", "")
+    print_kv("  symbol", config.symbol)
+    print_kv("  timeframe", config.timeframe)
+    print_kv("  date range", f"{config.start_date.date()} → {config.end_date.date()}")
+    print_kv("  EMAs", f"{config.fast_period}/{config.slow_period}/{config.bias_period}")
+    print_kv("  lot_size", config.lot_size)
+    print_kv("  initial_balance", f"${config.initial_balance:,.2f}")
+    print()
 
     executor = WorkflowExecutor(step_registry=STEP_IMPLEMENTATIONS)
     results = executor.execute(
@@ -897,10 +741,11 @@ def example_12_registry_driven_workflow() -> None:
         context=WorkflowContext(),
         symbol=config.symbol,
         timeframe=config.timeframe,
-        lookback_days=config.lookback_days,
-        rsi_period=config.rsi_period,
-        oversold=config.oversold,
-        overbought=config.overbought,
+        start_date=config.start_date,
+        end_date=config.end_date,
+        fast_period=config.fast_period,
+        slow_period=config.slow_period,
+        bias_period=config.bias_period,
         use_shift1=True,
         initial_balance=config.initial_balance,
         leverage=config.leverage,
@@ -922,7 +767,10 @@ def example_12_registry_driven_workflow() -> None:
     refinement_ctx = WorkflowContext()
     refinement_results = step_run_refinement_experiments(
         refinement_ctx,
-        lookback_days=config.lookback_days,
+        symbol=config.symbol,
+        timeframe=config.timeframe,
+        start_date=config.start_date,
+        end_date=config.end_date,
         lot_size=config.lot_size,
         initial_balance=config.initial_balance,
     )
@@ -944,30 +792,35 @@ def example_12_registry_driven_workflow() -> None:
     print_kv(f"  Elapsed", f"{refinement_results.get('elapsed_seconds', 0):.1f}s")
     print()
 
+    # Print experiment details
+    summary = refinement_results.get("summary", {})
+    if summary:
+        print_kv("Refinement Experiments", "")
+        for name, exp in summary.items():
+            print_kv(f"  [{name}]", "")
+            print_kv(f"    Symbol/Timeframe", f"{exp.get('symbol')} {exp.get('timeframe')}")
+            print_kv(f"    Config", exp.get('config'))
+            print_kv(f"    Trades", exp.get('trades'))
+            print_kv(f"    Strategy Return", exp.get('strategy_return'))
+            print_kv(f"    Buy & Hold", exp.get('buy_hold_return'))
+            print_kv(f"    Excess Return", exp.get('excess_return'))
+        print()
+
     # Print refinement analysis
     conclusion = agent_results.get("conclusion", {})
     if conclusion:
         print_kv("Refinement Analysis", "")
         # Handle both flat and nested verdict structures
-        threshold = conclusion.get("threshold_comparison", {})
-        if isinstance(threshold, dict):
-            for k, v in threshold.items():
-                print_kv(f"  Threshold: {k}", v)
-        elif isinstance(threshold, str):
-            print_kv("  Threshold Comparison", threshold[:200])
+        ema_config = conclusion.get("ema_config_comparison", {})
+        if isinstance(ema_config, str):
+            print_kv("  EMA Config Comparison", ema_config[:200])
 
-        ma = conclusion.get("ma_filter_impact", {})
-        if isinstance(ma, dict):
-            for k, v in ma.items():
-                print_kv(f"  MA Filter: {k}", v)
-        elif isinstance(ma, str):
-            print_kv("  MA Filter Impact", ma[:200])
+        no_bias = conclusion.get("no_bias_filter_impact", {})
+        if isinstance(no_bias, str):
+            print_kv("  No Bias Filter Impact", no_bias[:200])
 
         cross = conclusion.get("cross_market_robustness", {})
-        if isinstance(cross, dict):
-            for k, v in cross.items():
-                print_kv(f"  Cross-Market: {k}", v)
-        elif isinstance(cross, str):
+        if isinstance(cross, str):
             print_kv("  Cross-Market", cross[:200])
 
         # Extract verdict (may be nested or flat)
@@ -995,8 +848,9 @@ def example_12_registry_driven_workflow() -> None:
     bt = results.get("backtest_strategy", {})
     eval_r = results.get("evaluate_performance", {})
     refine = results.get("refine_and_repeat", {})
+    unsup = results.get("run_unsupervised_research", {})
 
-    print_kv("  Steps executed", f"{len(results)}/8")
+    print_kv("  Steps executed", len(results))
     print_kv("  Processed ticks", bt.get("processed_ticks", "N/A"))
     print_kv("  Completed trades", bt.get("completed_trades", 0))
     print_kv("  Open positions", bt.get("open_positions", 0))
@@ -1009,6 +863,19 @@ def example_12_registry_driven_workflow() -> None:
     print_kv("  Max Drawdown", eval_r.get("max_drawdown", "N/A"))
     print_kv("  Win Rate", eval_r.get("win_rate", "N/A"))
     print()
+
+    if unsup:
+        print_kv("Unsupervised Research", "")
+        print_kv("  Status", unsup.get("status", "N/A"))
+        print_kv("  Rows analyzed", unsup.get("rows_analyzed", "N/A"))
+        print_kv("  Feature columns", unsup.get("feature_columns", []))
+        pca_meta = unsup.get("pca", {})
+        if pca_meta:
+            print_kv("  PCA variance", pca_meta.get("explained_variance_ratio", []))
+        adaptation = unsup.get("signal_adaptation")
+        if adaptation:
+            print_kv("  Signal adaptation", adaptation)
+        print()
 
     print_kv("Refinement", "")
     for rec in refine.get("recommendations", []):
@@ -1045,46 +912,11 @@ def example_12_registry_driven_workflow() -> None:
         print()
 
 
-# ======================================================================
-# Main
-# ======================================================================
-
-def main() -> None:
-    print()
-    print("#" * 78)
-    print("#  AI Trading Strategy Workflows — Data Loading & Preprocessing")
-    print("#  Lesson 1: Collect → Clean → Prepare → Features → Signals → Backtest → Evaluate")
-    print("#" * 78)
-
-    examples = [
-        example_01_load_mt5,
-        example_02_load_dukascopy,
-        example_03_load_parquet,
-        example_04_load_csv,
-        example_05_data_preprocess,
-        example_06_feature_engineering,
-        example_07_signal_generation,
-        example_08_simulation_backtest,
-        example_09_backtest_shifted_signals,
-        example_10_performance_metrics,
-        example_11_full_pipeline_orchestrator,
-        example_12_registry_driven_workflow,
-    ]
-
-    for example_fn in examples:
-        try:
-            example_fn()
-        except Exception as exc:
-            import traceback
-            print(f"\n  ERROR in {example_fn.__name__}: {exc}")
-            traceback.print_exc()
-
-    print()
-    print("#" * 78)
-    print("#  All examples complete!")
-    print("#" * 78)
-    print()
-
-
 if __name__ == "__main__":
-    main()
+    example_01_feature_engineering()
+    example_02_signal_generation()
+    example_03_simulation_backtest()
+    example_04_backtest_shifted_signals()
+    example_05_performance_metrics()
+    example_06_full_pipeline_orchestrator()
+    example_07_registry_driven_workflow()

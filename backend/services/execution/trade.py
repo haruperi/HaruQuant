@@ -18,6 +18,7 @@ from types import SimpleNamespace
 from backend.mcp.mt5_mcp import get_mt5_api
 from backend.services.execution import trade_validators as tv
 
+from backend.common.logger import logger
 mt5 = get_mt5_api()
 
 
@@ -1229,8 +1230,8 @@ class Trade:
 
     def PrintRequest(self) -> None:
         """Print the last request parameters into journal."""
-        print(self.FormatRequest())
+        logger.debug(self.FormatRequest(), component="execution.trade")
 
     def PrintResult(self) -> None:
         """Print the results of the last request into journal."""
-        print(self.FormatRequestResult())
+        logger.debug(self.FormatRequestResult(), component="execution.trade")

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -20,8 +21,12 @@ from backend.common.logger import logger
 # Configuration for refinement experiments
 # ======================================================================
 
-RSI_THRESHOLDS_BASELINE = {"oversold": 30.0, "overbought": 70.0}
-RSI_THRESHOLDS_TIGHTER = {"oversold": 20.0, "overbought": 80.0}
+EMA_CONFIGS = {
+    "baseline": {"fast_period": 20, "slow_period": 50, "bias_period": 200},
+    "faster": {"fast_period": 12, "slow_period": 50, "bias_period": 200},
+    "slower": {"fast_period": 25, "slow_period": 60, "bias_period": 200},
+    "no_bias": {"fast_period": 20, "slow_period": 50, "bias_period": None},
+}
 
 SYMBOLS_TO_TEST = ["EURUSD", "GBPUSD"]
 TIMEFRAMES_TO_TEST = ["H1", "D1"]
@@ -34,25 +39,21 @@ TIMEFRAMES_TO_TEST = ["H1", "D1"]
 def _run_single_backtest(
     symbol: str,
     timeframe: str,
-    lookback_days: int,
-    oversold: float,
-    overbought: float,
-    use_ma_filter: bool = False,
-    ma_period: int = 50,
+    start_date: datetime,
+    end_date: datetime,
+    fast_period: int = 20,
+    slow_period: int = 50,
+    bias_period: Optional[int] = 200,
     lot_size: float = 0.1,
     initial_balance: float = 10000.0,
 ) -> Dict[str, Any]:
     """Run a single backtest and return metrics."""
-    from datetime import datetime, timedelta
     from backend.services.market_data.data_getters import load_mt5
     from backend.services.research.datasets import normalize_columns
     from backend.services.features.pipeline import FeaturePipeline, FeatureSpec
-    from backend.services.strategy.baselines import RsiBaselineStrategy
+    from backend.services.strategy.baselines import EmaCrossBaselineStrategy
     from backend.services.execution.core import SymbolInfo
     from backend.services.simulation.engine import Engine
-
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=lookback_days)
 
     raw_df = load_mt5(
         symbol=symbol, timeframe=timeframe,
@@ -67,40 +68,32 @@ def _run_single_backtest(
         "Close": "close", "Volume": "volume", "Spread": "spread",
     })
 
-    # Features: RSI + optional MA
+    # Features: EMA cross
     features = [
-        FeatureSpec(name="rsi", params={"period": 14, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"span": fast_period, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"span": slow_period, "price_col": "close"}),
     ]
-    if use_ma_filter:
+    if bias_period:
         features.append(
-            FeatureSpec(name="sma", params={"window": ma_period, "price_col": "close"}),
+            FeatureSpec(name="ema", params={"span": bias_period, "price_col": "close"}),
         )
 
     pipeline = FeaturePipeline(features)
     featured = pipeline.compute_batch(lower_df)
 
     # Strategy
-    strategy = RsiBaselineStrategy({
+    strategy_params = {
         "symbol": symbol,
-        "strategy_id": f"rsi-{oversold}-{overbought}",
-        "period": 14,
-        "oversold": oversold,
-        "overbought": overbought,
-    })
+        "strategy_id": f"ema-{fast_period}-{slow_period}",
+        "fast_period": fast_period,
+        "slow_period": slow_period,
+    }
+    if bias_period:
+        strategy_params["bias_period"] = bias_period
+
+    strategy = EmaCrossBaselineStrategy(strategy_params)
     strategy.on_init()
     signaled = strategy.on_bar(featured)
-
-    # Apply MA trend filter if enabled
-    if use_ma_filter:
-        ma_col = f"sma_{ma_period}"
-        if ma_col in signaled.columns:
-            # Only allow longs when price > MA, shorts when price < MA
-            above_ma = signaled["close"] > signaled[ma_col]
-            below_ma = signaled["close"] < signaled[ma_col]
-            # Block buy signals below MA
-            signaled.loc[~above_ma & (signaled["entry_signal"] == 1), "entry_signal"] = 0
-            # Block sell signals above MA
-            signaled.loc[~below_ma & (signaled["entry_signal"] == -1), "entry_signal"] = 0
 
     # Shift signals to prevent lookahead bias
     default = pd.Series(0.0, index=signaled.index)
@@ -165,16 +158,19 @@ def _run_single_backtest(
     last_close = float(signaled["close"].iloc[-1])
     bh_return = (last_close / first_close) - 1.0 if first_close > 0 else 0.0
 
+    trades = engine.get_completed_trades()
     n_signals = int((entry != 0).sum())
+    n_trades = len(trades)
 
     return {
         "symbol": symbol,
         "timeframe": timeframe,
-        "oversold": oversold,
-        "overbought": overbought,
-        "use_ma_filter": use_ma_filter,
+        "fast_period": fast_period,
+        "slow_period": slow_period,
+        "bias_period": bias_period,
         "bars": len(signaled),
         "signals": n_signals,
+        "trades": n_trades,
         "final_balance": final_balance,
         "strategy_return": strategy_return,
         "buy_hold_return": bh_return,
@@ -189,63 +185,80 @@ def _run_single_backtest(
 def step_run_refinement_experiments(
     ctx: dict,
     *,
-    lookback_days: int = 14,
+    symbol: str = "EURUSD",
+    timeframe: str = "H1",
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
     lot_size: float = 0.1,
     initial_balance: float = 10000.0,
 ) -> Dict[str, Any]:
-    """Run multiple backtests with different configurations.
+    """Run multiple backtests with different EMA configurations.
 
     Tests:
-    1. Baseline RSI (30/70) on EURUSD H1
-    2. Tighter RSI (20/80) on EURUSD H1
-    3. Baseline RSI + MA filter on EURUSD H1
-    4. Buy-and-hold comparison (already in each result)
-    5. Cross-symbol test (GBPUSD H1)
-    6. Cross-timeframe test (EURUSD D1)
+    1. Baseline EMA(20/50/200)
+    2. Faster EMA(12/50/200)
+    3. Slower EMA(25/60/200)
+    4. No bias filter EMA(20/50)
+    5. Cross-symbol test (GBPUSD)
+    6. Cross-timeframe test (D1)
     """
     logger.info("Refinement: running multi-configuration backtests")
     t0 = time.time()
 
+    # Default to 2025 full year if not specified
+    if start_date is None:
+        start_date = datetime(2025, 1, 1)
+    if end_date is None:
+        end_date = datetime(2025, 12, 31)
+
     results = {}
 
-    # 1. Baseline (30/70) EURUSD H1
-    results["baseline_30_70"] = _run_single_backtest(
-        symbol="EURUSD", timeframe="H1",
-        lookback_days=lookback_days,
-        oversold=30.0, overbought=70.0,
+    # 1. Baseline (20/50/200)
+    results["baseline_20_50_200"] = _run_single_backtest(
+        symbol=symbol, timeframe=timeframe,
+        start_date=start_date, end_date=end_date,
+        fast_period=20, slow_period=50, bias_period=200,
         lot_size=lot_size, initial_balance=initial_balance,
     )
 
-    # 2. Tighter thresholds (20/80) EURUSD H1
-    results["tighter_20_80"] = _run_single_backtest(
-        symbol="EURUSD", timeframe="H1",
-        lookback_days=lookback_days,
-        oversold=20.0, overbought=80.0,
+    # 2. Faster (12/50/200)
+    results["faster_12_50_200"] = _run_single_backtest(
+        symbol=symbol, timeframe=timeframe,
+        start_date=start_date, end_date=end_date,
+        fast_period=12, slow_period=50, bias_period=200,
         lot_size=lot_size, initial_balance=initial_balance,
     )
 
-    # 3. Baseline + MA filter EURUSD H1
-    results["baseline_ma_filter"] = _run_single_backtest(
-        symbol="EURUSD", timeframe="H1",
-        lookback_days=lookback_days,
-        oversold=30.0, overbought=70.0,
-        use_ma_filter=True, ma_period=50,
+    # 3. Slower (25/60/200)
+    results["slower_25_60_200"] = _run_single_backtest(
+        symbol=symbol, timeframe=timeframe,
+        start_date=start_date, end_date=end_date,
+        fast_period=25, slow_period=60, bias_period=200,
         lot_size=lot_size, initial_balance=initial_balance,
     )
 
-    # 4. Cross-symbol: GBPUSD H1 baseline
+    # 4. No bias filter (20/50)
+    results["no_bias_20_50"] = _run_single_backtest(
+        symbol=symbol, timeframe=timeframe,
+        start_date=start_date, end_date=end_date,
+        fast_period=20, slow_period=50, bias_period=None,
+        lot_size=lot_size, initial_balance=initial_balance,
+    )
+
+    # 5. Cross-symbol: GBPUSD baseline
     results["cross_symbol_gbpusd"] = _run_single_backtest(
-        symbol="GBPUSD", timeframe="H1",
-        lookback_days=lookback_days,
-        oversold=30.0, overbought=70.0,
+        symbol="GBPUSD", timeframe=timeframe,
+        start_date=start_date, end_date=end_date,
+        fast_period=20, slow_period=50, bias_period=200,
         lot_size=lot_size, initial_balance=initial_balance,
     )
 
-    # 5. Cross-timeframe: EURUSD D1 baseline
+    # 6. Cross-timeframe: D1 baseline (needs more days)
+    d1_start = start_date - timedelta(days=365)
     results["cross_timeframe_d1"] = _run_single_backtest(
-        symbol="EURUSD", timeframe="D1",
-        lookback_days=lookback_days * 5,  # D1 needs more days for same bar count
-        oversold=30.0, overbought=70.0,
+        symbol=symbol, timeframe="D1",
+        start_date=d1_start, end_date=end_date,
+        fast_period=20, slow_period=50, bias_period=200,
         lot_size=lot_size, initial_balance=initial_balance,
     )
 
@@ -261,7 +274,8 @@ def step_run_refinement_experiments(
             k: {
                 "symbol": v.get("symbol"),
                 "timeframe": v.get("timeframe"),
-                "signals": v.get("signals"),
+                "config": f"EMA({v.get('fast_period')}/{v.get('slow_period')}/{v.get('bias_period')})",
+                "trades": v.get("trades"),
                 "strategy_return": f"{v.get('strategy_return', 0)*100:.2f}%",
                 "buy_hold_return": f"{v.get('buy_hold_return', 0)*100:.2f}%",
                 "excess_return": f"{v.get('excess_return', 0)*100:.2f}%",
@@ -415,40 +429,32 @@ def _deterministic_analysis(
             "reason": "No valid refinement results to analyze",
         }
 
-    # Threshold comparison
-    baseline = valid_results.get("baseline_30_70", {})
-    tighter = valid_results.get("tighter_20_80", {})
+    # EMA config comparison
+    baseline = valid_results.get("baseline_20_50_200", {})
+    faster = valid_results.get("faster_12_50_200", {})
+    slower = valid_results.get("slower_25_60_200", {})
+    no_bias = valid_results.get("no_bias_20_50", {})
 
-    threshold_conclusion = "No threshold comparison available"
-    if baseline and tighter:
-        b_ret = baseline.get("strategy_return", 0)
-        t_ret = tighter.get("strategy_return", 0)
-        b_sig = baseline.get("signals", 0)
-        t_sig = tighter.get("signals", 0)
-        if t_ret > b_ret:
-            threshold_conclusion = (
-                f"Tighter thresholds (20/80) outperformed baseline: "
-                f"{t_ret*100:.2f}% vs {b_ret*100:.2f}%. "
-                f"Signal count: {t_sig} vs {b_sig}."
-            )
-        else:
-            threshold_conclusion = (
-                f"Baseline (30/70) outperformed tighter: "
-                f"{b_ret*100:.2f}% vs {t_ret*100:.2f}%. "
-                f"Signal count: {b_sig} vs {t_sig}."
-            )
+    # Find best config
+    configs = [("baseline", baseline), ("faster", faster), ("slower", slower), ("no_bias", no_bias)]
+    best_config = max(
+        [(name, r.get("strategy_return", -999)) for name, r in configs if r],
+        key=lambda x: x[1],
+        default=("unknown", 0),
+    )
 
-    # MA filter impact
-    ma_result = valid_results.get("baseline_ma_filter", {})
-    ma_conclusion = "No MA filter comparison available"
-    if baseline and ma_result:
+    config_conclusion = f"Best config: {best_config[0]} with {best_config[1]*100:.2f}% return"
+
+    # No bias filter impact
+    no_bias_conclusion = "No bias filter comparison available"
+    if baseline and no_bias:
         b_ret = baseline.get("strategy_return", 0)
-        m_ret = ma_result.get("strategy_return", 0)
-        b_sig = baseline.get("signals", 0)
-        m_sig = ma_result.get("signals", 0)
-        ma_conclusion = (
-            f"MA filter result: {m_ret*100:.2f}% vs baseline {b_ret*100:.2f}%. "
-            f"Signals: {m_sig} vs {b_sig}."
+        nb_ret = no_bias.get("strategy_return", 0)
+        b_trades = baseline.get("trades", 0)
+        nb_trades = no_bias.get("trades", 0)
+        no_bias_conclusion = (
+            f"No bias filter: {nb_ret*100:.2f}% vs baseline {b_ret*100:.2f}%. "
+            f"Trades: {nb_trades} vs {b_trades}."
         )
 
     # Cross-market
@@ -459,9 +465,9 @@ def _deterministic_analysis(
     if gbp or d1:
         parts = []
         if gbp:
-            parts.append(f"GBPUSD H1: {gbp.get('strategy_return', 0)*100:.2f}%")
+            parts.append(f"GBPUSD: {gbp.get('strategy_return', 0)*100:.2f}%")
         if d1:
-            parts.append(f"EURUSD D1: {d1.get('strategy_return', 0)*100:.2f}%")
+            parts.append(f"D1: {d1.get('strategy_return', 0)*100:.2f}%")
         cross_conclusion = " ".join(parts)
 
     # Overall verdict
@@ -470,33 +476,35 @@ def _deterministic_analysis(
     ]
     avg_excess = np.mean(excess_returns) if excess_returns else 0
 
-    viable = avg_excess > 0
-    proceed_to_ml = any(v.get("strategy_return", 0) > 0 for v in valid_results.values())
+    viable = any(r.get("strategy_return", 0) > 0 for r in [baseline, faster, slower, no_bias])
+    proceed_to_ml = viable and avg_excess > -0.05
 
     conclusion = {
-        "threshold_comparison": threshold_conclusion,
-        "ma_filter_impact": ma_conclusion,
+        "ema_config_comparison": config_conclusion,
+        "no_bias_filter_impact": no_bias_conclusion,
         "cross_market_robustness": cross_conclusion,
         "verdict": {
             "viable_baseline": viable,
             "average_excess_return_vs_bh": f"{avg_excess*100:.2f}%",
             "key_weaknesses": [
-                "RSI mean-reversion struggles in trending markets",
+                "EMA crossover struggles in ranging/choppy markets",
+                "200-period bias filter causes late entries in strong trends",
                 "No stop-loss or take-profit logic",
                 "Single indicator — no regime awareness",
             ],
             "next_tests": [
                 "Add ATR-based stop-loss and take-profit",
-                "Test RSI + ADX trend strength filter",
-                "Walk-forward optimization of thresholds",
+                "Test EMA + ADX trend strength filter",
+                "Optimize EMA periods via walk-forward analysis",
                 "Add position sizing based on volatility",
+                "Test without 200-period bias filter",
             ],
             "proceed_to_ml": proceed_to_ml,
             "rationale": (
                 f"Average excess return vs buy-and-hold: {avg_excess*100:.2f}%. "
-                f"{'Positive excess returns suggest the workflow produces actionable signals. ' if viable else 'Negative excess returns suggest the baseline needs improvement. '}"
-                "ML models should replace the fixed RSI rule with learned thresholds "
-                "and multi-feature signal generation."
+                f"{'Positive or near-neutral excess returns suggest the workflow produces actionable signals. ' if viable else 'Negative excess returns suggest the baseline needs improvement. '}"
+                "ML models should replace fixed EMA crossover rules with learned thresholds "
+                "and multi-feature signal generation to outperform buy-and-hold."
             ),
         },
     }

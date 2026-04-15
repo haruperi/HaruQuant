@@ -1,6 +1,7 @@
 """
 Return calculations & period-based analysis.
 
+from backend.common.logger import logger
 Focus: equity growth, compounding, time normalization
 """
 

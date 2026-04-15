@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, time
 
+from backend.common.logger import logger
+
 
 @dataclass(frozen=True)
 class RestrictionEvaluation:

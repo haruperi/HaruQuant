@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger("haruquant")
+from backend.common.logger import logger
 
 # ─────────────────────────────────────────────────────────────────────
 # Model Pricing Table (per 1M tokens, USD)

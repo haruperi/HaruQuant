@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .proposals import AdvisoryPortfolioProposal
 
+from backend.common.logger import logger
 
 def enforce_portfolio_advisory_only(
     proposal: AdvisoryPortfolioProposal,

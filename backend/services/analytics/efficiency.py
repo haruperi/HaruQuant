@@ -1,6 +1,7 @@
 """
 Capital and time efficiency metrics.
 
+from backend.common.logger import logger
 How efficiently the strategy converts risk → return
 """
 

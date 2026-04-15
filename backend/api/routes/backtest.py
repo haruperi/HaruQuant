@@ -16,6 +16,7 @@ from backend.api.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.strategy import storage
+from backend.services.strategy.permissions import assert_strategy_allowed
 from backend.services.simulation.engine import Engine
 from backend.services.execution import core
 from backend.services.market_data.data_getters import load_dukascopy
@@ -385,6 +386,7 @@ def _load_data(  # noqa: C901
 
 
 def _load_strategy_class(user_id: int, strategy_id: int, version_id: int):
+    assert_strategy_allowed(strategy_id, "backtest", db_manager=db_manager)
     version = db_manager.get_strategy_version(version_id)
     strategy = db_manager.get_strategy(strategy_id)
     if version is None:

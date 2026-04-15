@@ -27,6 +27,7 @@ from typing import Dict, Optional, Any
 import math
 import time
 
+from backend.common.logger import logger
 
 # =============================================================================
 # Minimal shared types (adjust to match your actual domain models)

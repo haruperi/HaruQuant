@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import hashlib
 from typing import Any
 
+from backend.common.logger import logger
 from backend.common.ids import generate_prefixed_id
 from backend.contracts.serialization import canonical_json_dumps
 from backend.data.database import ResearchAuditRepository, TrajectoryLogRecord

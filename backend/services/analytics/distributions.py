@@ -1,6 +1,7 @@
 """
 Statistical structure of returns & trades.
 
+from backend.common.logger import logger
 Used heavily in Monte Carlo & ML
 """
 

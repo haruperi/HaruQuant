@@ -5,6 +5,7 @@ from __future__ import annotations
 from .embeddings import EmbeddingService
 from .models import DocumentChunk, TextChunk
 
+from backend.common.logger import logger
 
 class DocumentIngester:
     """Splits documents into chunks, embeds them, and prepares for storage."""

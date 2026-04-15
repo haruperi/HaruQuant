@@ -6,6 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping, Optional
 
+from backend.common.logger import logger
 import pandas as pd
 
 from backend.common.redaction import redact_mapping, redact_text

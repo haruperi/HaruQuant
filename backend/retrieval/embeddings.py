@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from backend.common.logger import logger
 
 class EmbeddingService:
     """Generates text embeddings using sentence-transformers."""

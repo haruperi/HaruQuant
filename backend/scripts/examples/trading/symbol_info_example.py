@@ -9,7 +9,8 @@ import argparse
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
+from backend.services.simulation.engine import Engine
+from backend.services.execution.core import SymbolInfo
 
 def _sym_value(symbol, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(symbol, attr_name):
@@ -22,7 +23,7 @@ def _sym_value(symbol, attr_name: str, method_name: str | None = None, default=N
 def _seed_tester_symbols(symbols: list[str]) -> list:
     out = []
     for idx, name in enumerate(symbols, start=1):
-        s = trade.SymbolInfo()
+        s = SymbolInfo()
         s.name = name
         s.description = f"{name} synthetic tester symbol"
         s.digits = 5 if "JPY" not in name else 3

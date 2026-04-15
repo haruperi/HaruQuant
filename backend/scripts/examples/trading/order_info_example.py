@@ -10,7 +10,9 @@ from datetime import datetime
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
+from backend.services.simulation.engine import Engine
+from backend.services.execution.core import OrderInfo
+
 def _order_value(order, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(order, attr_name):
         return getattr(order, attr_name)
@@ -20,7 +22,7 @@ def _order_value(order, attr_name: str, method_name: str | None = None, default=
 
 
 def _seed_tester_orders(now: datetime, engine_instance: Engine) -> None:
-    o1 = trade.OrderInfo()
+    o1 = OrderInfo()
     o1.ticket = 5001
     o1.symbol = "EURUSD"
     o1.type = 2
@@ -32,7 +34,7 @@ def _seed_tester_orders(now: datetime, engine_instance: Engine) -> None:
     o1.time_setup_msc = int(now.timestamp())
     engine_instance.state.trading_orders.append(o1)
 
-    o2 = trade.OrderInfo()
+    o2 = OrderInfo()
     o2.ticket = 5002
     o2.symbol = "GBPUSD"
     o2.type = 3

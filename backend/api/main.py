@@ -11,6 +11,7 @@ from backend.common.logger import logger
 from backend.api.middleware.security import SecretRedactionMiddleware
 from backend.api.router import intent_classifier
 from backend.agents.intent_router import intent_router_agent
+from backend.services.strategy.legacy_compat import install_legacy_apps_modules
 
 from .routes import (
     auth,
@@ -21,7 +22,10 @@ from .routes import (
     simulator,
     sqx,
     strategies,
+    operator_strategies,
 )
+
+install_legacy_apps_modules()
 
 def _optional_import(module_path: str, label: str):
     try:
@@ -48,11 +52,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting HaruQuant API server")
 
     from backend.data.database.sqlite.database_operations import DatabaseManager
+    from backend.data.database import apply_pending_migrations, default_migrations_dir
     from backend.api.scheduler import start_scheduler
 
     try:
         db = DatabaseManager()
         db.initialize_database()
+        apply_pending_migrations(db.db_path, default_migrations_dir())
         simulator.cleanup_stale_simulation_leases()
         logger.info("Database initialized successfully on startup.")
         start_scheduler()
@@ -116,6 +122,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
+app.include_router(operator_strategies.router, prefix="/api/operator", tags=["operator-strategies"])
 app.include_router(sqx.router, prefix="/api/sqx", tags=["sqx"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
 app.include_router(simulator.router, prefix="/api/simulator", tags=["simulator"])

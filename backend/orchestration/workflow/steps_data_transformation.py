@@ -19,6 +19,64 @@ class WorkflowContext(dict):
     pass
 
 
+def _shift_signals_from_frame(
+    signaled: pd.DataFrame,
+    *,
+    use_shift1: bool = True,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Return entry, exit, and price series with optional one-bar lag."""
+    default = pd.Series(0.0, index=signaled.index)
+    if use_shift1:
+        entry = signaled.get("entry_signal", default).shift(1).fillna(0)
+        exit_s = signaled.get("exit_signal", default).shift(1).fillna(0)
+        price = signaled.get("price", default).shift(1).fillna(0.0)
+    else:
+        entry = signaled.get("entry_signal", default)
+        exit_s = signaled.get("exit_signal", default)
+        price = signaled.get("price", default)
+
+    entry = pd.to_numeric(entry, errors="coerce").fillna(0.0)
+    exit_s = pd.to_numeric(exit_s, errors="coerce").fillna(0.0)
+    price = pd.to_numeric(price, errors="coerce").fillna(0.0)
+    return entry, exit_s, price
+
+
+def _build_unsupervised_feature_frame(
+    data: pd.DataFrame,
+    *,
+    fast_period: int = 20,
+    slow_period: int = 50,
+) -> tuple[pd.DataFrame, list[str]]:
+    """Build timestamp-aligned features for PCA/K-Means research."""
+    frame = data.copy()
+    close = pd.to_numeric(frame["close"], errors="coerce")
+    high = pd.to_numeric(frame.get("high", close), errors="coerce")
+    low = pd.to_numeric(frame.get("low", close), errors="coerce")
+
+    frame["return_1"] = close.pct_change()
+    frame["rolling_volatility"] = frame["return_1"].rolling(
+        window=20, min_periods=3
+    ).std()
+    frame["momentum"] = close.pct_change(periods=5)
+    frame["range_pct"] = (high - low) / close.replace(0, pd.NA)
+
+    feature_columns = ["return_1", "rolling_volatility", "momentum", "range_pct"]
+    fast_col = f"ema_{fast_period}"
+    slow_col = f"ema_{slow_period}"
+    if fast_col in frame.columns and slow_col in frame.columns:
+        frame["ema_spread"] = (
+            pd.to_numeric(frame[fast_col], errors="coerce")
+            - pd.to_numeric(frame[slow_col], errors="coerce")
+        ) / close.replace(0, pd.NA)
+        feature_columns.append("ema_spread")
+
+    research_columns = ["open", "high", "low", "close", *feature_columns]
+    available_columns = [column for column in research_columns if column in frame.columns]
+    feature_frame = frame.loc[:, available_columns].replace([pd.NA], float("nan"))
+    feature_frame = feature_frame.dropna(subset=feature_columns)
+    return feature_frame, feature_columns
+
+
 # ── Step 1: collect_market_data ────────────────────────────────────────
 
 def step_collect_market_data(
@@ -26,13 +84,17 @@ def step_collect_market_data(
     *,
     symbol: str = "EURUSD",
     timeframe: str = "H1",
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     lookback_days: int = 14,
 ) -> dict[str, Any]:
     """Collect OHLCV market data from MT5 (with Dukascopy fallback)."""
     from backend.services.market_data.data_getters import load_mt5
 
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=lookback_days)
+    if start_date is None:
+        end_date = end_date or datetime.now()
+        start_date = end_date - timedelta(days=lookback_days)
+
     raw_df = load_mt5(
         symbol=symbol, timeframe=timeframe,
         start_date=start_date, end_date=end_date,
@@ -75,14 +137,18 @@ def step_clean_and_prepare_data(
 def step_create_features(
     ctx: WorkflowContext,
     *,
-    rsi_period: int = 14,
+    fast_period: int = 20,
+    slow_period: int = 50,
+    bias_period: int = 200,
 ) -> dict[str, Any]:
-    """Compute technical indicators via FeaturePipeline."""
+    """Compute EMA features for trend-following strategy."""
     from backend.services.features.pipeline import FeaturePipeline, FeatureSpec
 
     lower_df = ctx["lower_df"]
     pipeline = FeaturePipeline([
-        FeatureSpec(name="rsi", params={"period": rsi_period, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"span": fast_period, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"span": slow_period, "price_col": "close"}),
+        FeatureSpec(name="ema", params={"span": bias_period, "price_col": "close"}),
     ])
     featured = pipeline.compute_batch(lower_df)
     new_cols = [c for c in featured.columns if c not in lower_df.columns]
@@ -98,17 +164,17 @@ def step_create_features(
 def step_define_strategy_or_model(
     ctx: WorkflowContext,
     *,
-    strategy: str = "rsi",
-    oversold: float = 30.0,
-    overbought: float = 70.0,
-    period: int = 14,
+    strategy: str = "ema_cross",
+    fast_period: int = 20,
+    slow_period: int = 50,
+    bias_period: int = 200,
 ) -> dict[str, Any]:
     """Declare the strategy configuration."""
     ctx["strategy_config"] = {
         "strategy": strategy,
-        "period": period,
-        "oversold": oversold,
-        "overbought": overbought,
+        "fast_period": fast_period,
+        "slow_period": slow_period,
+        "bias_period": bias_period,
     }
     return {
         "status": "COMPLETED",
@@ -125,41 +191,29 @@ def step_generate_signals(
     symbol: str = "EURUSD",
     use_shift1: bool = True,
 ) -> dict[str, Any]:
-    """Run the strategy and generate entry/exit signals with lookahead prevention."""
-    from backend.services.strategy.baselines import RsiBaselineStrategy
+    """Run the EMA crossover strategy and generate entry/exit signals."""
+    from backend.services.strategy.baselines import EmaCrossBaselineStrategy
 
     featured = ctx["featured"]
     cfg = ctx["strategy_config"]
 
-    strategy = RsiBaselineStrategy({
+    strategy = EmaCrossBaselineStrategy({
         "symbol": symbol,
-        "strategy_id": f"{cfg['strategy']}-{cfg['period']}",
-        "period": cfg["period"],
-        "oversold": cfg["oversold"],
-        "overbought": cfg["overbought"],
+        "strategy_id": f"{cfg['strategy']}-{cfg['fast_period']}-{cfg['slow_period']}-{cfg['bias_period']}",
+        "fast_period": cfg["fast_period"],
+        "slow_period": cfg["slow_period"],
+        "bias_period": cfg["bias_period"],
     })
     strategy.on_init()
     signaled = strategy.on_bar(featured)
 
-    # shift(1) prevents lookahead bias
-    default = pd.Series(0.0, index=signaled.index)
-    if use_shift1:
-        entry = signaled.get("entry_signal", default).shift(1).fillna(0)
-        exit_s = signaled.get("exit_signal", default).shift(1).fillna(0)
-        price = signaled.get("price", default).shift(1).fillna(0.0)
-    else:
-        entry = signaled.get("entry_signal", default)
-        exit_s = signaled.get("exit_signal", default)
-        price = signaled.get("price", default)
-
-    entry = pd.to_numeric(entry, errors="coerce").fillna(0.0)
-    exit_s = pd.to_numeric(exit_s, errors="coerce").fillna(0.0)
-    price = pd.to_numeric(price, errors="coerce").fillna(0.0)
+    entry, exit_s, price = _shift_signals_from_frame(signaled, use_shift1=use_shift1)
 
     ctx["signaled"] = signaled
     ctx["entry"] = entry
     ctx["exit_s"] = exit_s
     ctx["price"] = price
+    ctx["use_shift1"] = use_shift1
 
     return {
         "status": "COMPLETED",
@@ -170,6 +224,86 @@ def step_generate_signals(
 
 # ── Step 6: backtest_strategy ───────────────────────────────────────────
 
+def step_run_unsupervised_research(
+    ctx: WorkflowContext,
+    *,
+    fast_period: int = 20,
+    slow_period: int = 50,
+    n_components: int = 2,
+    n_clusters: int = 3,
+    random_state: int = 42,
+    forward_return_horizon: int = 1,
+    label_column: str = "cluster_label",
+) -> dict[str, Any]:
+    """Run Lesson 2 PCA/K-Means research and signal adaptation."""
+    from backend.services.modeling.unsupervised_insights import (
+        build_unsupervised_insight_report,
+    )
+
+    source = ctx.get("signaled", ctx.get("featured"))
+    if source is None or source.empty:
+        return {
+            "status": "SKIPPED",
+            "reason": "no signaled or featured data available",
+        }
+
+    feature_frame, feature_columns = _build_unsupervised_feature_frame(
+        source,
+        fast_period=fast_period,
+        slow_period=slow_period,
+    )
+    min_rows = max(n_components, n_clusters)
+    if len(feature_frame) < min_rows or len(feature_columns) < n_components:
+        ctx["unsupervised_status"] = "SKIPPED"
+        return {
+            "status": "SKIPPED",
+            "reason": "insufficient rows or feature columns for PCA/K-Means",
+            "rows_available": int(len(feature_frame)),
+            "required_rows": int(min_rows),
+            "feature_columns": feature_columns,
+        }
+
+    signaled = ctx.get("signaled")
+    aligned_signals = signaled.reindex(feature_frame.index).copy() if signaled is not None else None
+
+    report = build_unsupervised_insight_report(
+        feature_frame,
+        feature_columns=feature_columns,
+        price_column="close",
+        n_components=n_components,
+        n_clusters=n_clusters,
+        random_state=random_state,
+        forward_return_horizon=forward_return_horizon,
+        label_column=label_column,
+        signal_frame=aligned_signals,
+        signal_column="entry_signal",
+    )
+
+    ctx["unsupervised_status"] = "COMPLETED"
+    ctx["unsupervised_feature_frame"] = feature_frame
+    ctx["unsupervised_report"] = report
+    ctx["labeled_feature_frame"] = report.labeled_data
+    ctx["cluster_labels"] = report.clusters.labels
+    if report.signal_adaptation is not None and signaled is not None:
+        adapted = signaled.copy()
+        adapted_update = report.signal_adaptation.adapted_signals
+        adapted.loc[adapted_update.index, "entry_signal"] = adapted_update["entry_signal"]
+        ctx["adapted_signaled"] = adapted
+
+    metadata = report.to_metadata()
+    return {
+        "status": "COMPLETED",
+        "rows_analyzed": int(len(feature_frame)),
+        "feature_columns": feature_columns,
+        "data_summary": metadata["data_summary"],
+        "pca": metadata["pca"],
+        "clusters": metadata["clusters"],
+        "risk_factors": metadata["risk_factors"],
+        "cluster_outperformance": metadata["cluster_outperformance"],
+        "signal_adaptation": metadata["signal_adaptation"],
+    }
+
+
 def step_backtest_strategy(
     ctx: WorkflowContext,
     *,
@@ -178,15 +312,30 @@ def step_backtest_strategy(
     leverage: int = 400,
     commission_per_lot: float = 7.0,
     lot_size: float = 0.1,
+    use_shift1: bool = True,
+    use_unsupervised_signal_filter: bool = False,
 ) -> dict[str, Any]:
     """Run simulation backtest with the generated signals."""
     from backend.services.execution.core import SymbolInfo
     from backend.services.simulation.engine import Engine
 
-    signaled = ctx["signaled"]
-    entry = ctx["entry"]
-    exit_s = ctx["exit_s"]
-    price = ctx["price"]
+    if use_unsupervised_signal_filter and "adapted_signaled" in ctx:
+        signaled = ctx["adapted_signaled"]
+        entry, exit_s, price = _shift_signals_from_frame(
+            signaled,
+            use_shift1=use_shift1,
+        )
+        ctx["signaled"] = signaled
+        ctx["entry"] = entry
+        ctx["exit_s"] = exit_s
+        ctx["price"] = price
+        signal_source = "unsupervised_cluster_filter"
+    else:
+        signaled = ctx["signaled"]
+        entry = ctx["entry"]
+        exit_s = ctx["exit_s"]
+        price = ctx["price"]
+        signal_source = "baseline"
 
     tick_df = pd.DataFrame({
         "bid": signaled["close"].values.astype("float64"),
@@ -242,6 +391,7 @@ def step_backtest_strategy(
     }
     return {
         "status": "COMPLETED",
+        "signal_source": signal_source,
         "processed_ticks": processed,
         "completed_trades": len(trades),
         "open_positions": len(open_positions),
@@ -257,8 +407,6 @@ def step_evaluate_performance(
 ) -> dict[str, Any]:
     """Compute performance metrics from backtest results."""
     from backend.services.analytics.drawdowns import max_drawdown
-    from backend.services.analytics.metrics import win_rate
-    from backend.services.analytics.ratios import sharpe_ratio
 
     bt_result = ctx["bt_result"]
     signaled = ctx["signaled"]
@@ -266,29 +414,51 @@ def step_evaluate_performance(
     final_balance = float(acc.get("balance", initial_balance))
     total_return = (final_balance / initial_balance) - 1.0
 
-    trade_pnls = [
-        float(getattr(t, "profit_loss", 0) or 0) for t in bt_result["trades"]
-    ]
-    trade_returns = pd.Series(
-        [p / initial_balance for p in trade_pnls]
-    ) if trade_pnls else pd.Series(dtype=float)
-
+    # Calculate buy-and-hold return
     first_close = float(signaled["close"].iloc[0])
     last_close = float(signaled["close"].iloc[-1])
     bh_return = (last_close / first_close) - 1.0 if first_close > 0 else 0.0
 
-    wins = sum(1 for p in trade_pnls if p > 0)
-    losses = sum(1 for p in trade_pnls if p <= 0)
+    # If no completed trades, return zeros
+    trades = bt_result.get("trades", [])
+    has_profit_loss = False
+    if trades:
+        if isinstance(trades[0], dict):
+            has_profit_loss = "profit_loss" in trades[0]
+        else:
+            has_profit_loss = hasattr(trades[0], "profit_loss")
+    
+    if not trades or not has_profit_loss:
+        metrics = {
+            "total_strategy_return": total_return,
+            "total_buy_hold_return": bh_return,
+            "sharpe_ratio": 0.0,
+            "max_drawdown": 0.0,
+            "win_rate": 0.0,
+            "wins": 0,
+            "losses": 0,
+        }
+    else:
+        from backend.services.analytics.ratios import sharpe_ratio
+        from backend.services.analytics.drawdowns import max_drawdown
 
-    metrics = {
-        "total_strategy_return": total_return,
-        "total_buy_hold_return": bh_return,
-        "sharpe_ratio": sharpe_ratio(trade_returns, annualize=False) if len(trade_returns) > 1 else 0.0,
-        "max_drawdown": max_drawdown(pd.Series([1.0 + r for r in trade_returns])) if len(trade_returns) > 0 else 0.0,
-        "win_rate": win_rate(trade_returns) if len(trade_returns) > 0 else 0.0,
-        "wins": wins,
-        "losses": losses,
-    }
+        trade_pnls = [float(getattr(t, "profit_loss", 0) or 0) for t in trades]
+        trade_returns = pd.Series([p / initial_balance for p in trade_pnls])
+
+        wins = sum(1 for p in trade_pnls if p > 0)
+        losses = sum(1 for p in trade_pnls if p <= 0)
+        win_rate_val = wins / len(trade_pnls) if trade_pnls else 0.0
+
+        metrics = {
+            "total_strategy_return": total_return,
+            "total_buy_hold_return": bh_return,
+            "sharpe_ratio": sharpe_ratio(trade_returns, annualize=False) if len(trade_returns) > 1 else 0.0,
+            "max_drawdown": max_drawdown(pd.Series([1.0 + r for r in trade_returns])) if len(trade_returns) > 0 else 0.0,
+            "win_rate": win_rate_val,
+            "wins": wins,
+            "losses": losses,
+        }
+    
     ctx["metrics"] = metrics
 
     return {
@@ -340,6 +510,7 @@ STEP_IMPLEMENTATIONS: dict[str, Any] = {
     "create_features": step_create_features,
     "define_strategy_or_model": step_define_strategy_or_model,
     "generate_signals": step_generate_signals,
+    "run_unsupervised_research": step_run_unsupervised_research,
     "backtest_strategy": step_backtest_strategy,
     "evaluate_performance": step_evaluate_performance,
     "refine_and_repeat": step_refine_and_repeat,

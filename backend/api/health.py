@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 
+from backend.common.logger import logger
 from .dependencies import OperatorApiDependencies
 
 

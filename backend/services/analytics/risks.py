@@ -1,6 +1,7 @@
 """
 Volatility, tail risk, and capital risk.
 
+from backend.common.logger import logger
 Focus: worst-case scenarios
 """
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from backend.common.logger import logger
 from backend.contracts.execution_intent.model import ExecutionIntent
 
 
@@ -35,6 +36,7 @@ class ExecutionSendService:
 
     def __init__(self, gateway: BrokerSendGateway) -> None:
         self._gateway = gateway
+        logger.debug("ExecutionSendService initialized", component="execution.send_service")
 
     def send(self, intent: ExecutionIntent) -> BrokerSendResult:
         request_payload = {
@@ -47,7 +49,21 @@ class ExecutionSendService:
             "sl_tp_params": dict(intent.payload.sl_tp_params),
             "idempotency_key": intent.payload.idempotency_key,
         }
+        logger.info(
+            "Dispatching broker action",
+            component="execution.send_service",
+            action=intent.payload.broker_action_type,
+            symbol=intent.payload.symbol,
+            side=intent.payload.side,
+            idempotency_key=intent.payload.idempotency_key,
+        )
         broker_response = _dispatch_broker_action(self._gateway, request_payload)
+        logger.debug(
+            "Broker action dispatched",
+            component="execution.send_service",
+            action=intent.payload.broker_action_type,
+            symbol=intent.payload.symbol,
+        )
         return BrokerSendResult(
             request_payload=request_payload,
             broker_response=broker_response,
@@ -67,4 +83,9 @@ def _dispatch_broker_action(gateway: BrokerSendGateway, request_payload: dict[st
         if close_fraction is not None and 0 < float(close_fraction) < 1:
             return gateway.partial_close(request_payload)
         return gateway.full_close(request_payload)
+    logger.error(
+        "Unsupported broker_action_type",
+        component="execution.send_service",
+        action=action,
+    )
     raise ValueError("unsupported broker_action_type for send service")

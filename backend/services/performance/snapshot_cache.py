@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
+from backend.common.logger import logger
 from backend.common import Clock, FreshnessWindow, SystemClock
 from backend.common.time_utils import evaluate_freshness
 

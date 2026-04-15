@@ -98,6 +98,12 @@ _STRUCTLOG_CONFIGURED = False
 _CONFIG_LOCK = threading.Lock()
 _DEFAULT_FILE_SINKS_CONFIGURED = False
 
+# --- Multiprocess support ---
+# Set to a multiprocessing.Queue in worker processes via init_worker_logger().
+_WORKER_LOG_QUEUE: Optional[Any] = None
+_QUEUE_LISTENER_RUNNING = False
+_QUEUE_LISTENER_LOCK = threading.Lock()
+
 
 class _SizeAndTimeRotatingFileSink:
     """Simple file sink that rotates on max size or UTC day boundary."""
@@ -176,6 +182,62 @@ class _SizeAndTimeRotatingFileSink:
         return next_midnight.timestamp()
 
 
+def _make_clean_console_renderer(colors: bool = True) -> Callable:
+    """Return a structlog renderer producing a clean, readable single-line format.
+
+    Output: ``timestamp | LEVEL | file:func:line | message [| key=value ...]``
+    Extras are only appended when non-empty; empty correlation/run/trace IDs
+    are suppressed to keep routine lines noise-free.
+    """
+    _EMPTY_OK_KEYS = frozenset({"correlation_id", "run_id", "trace_id", "causation_id"})
+    _COLOR_MAP: Dict[str, str] = {
+        "trace":    "\033[36m",
+        "debug":    "\033[34m",
+        "info":     "\033[32m",
+        "success":  "\033[92m",
+        "warning":  "\033[33m",
+        "error":    "\033[31m",
+        "critical": "\033[91m",
+    }
+    _RESET = "\033[0m"
+
+    def _renderer(_logger: Any, _method: str, event_dict: Dict[str, Any]) -> str:
+        ts      = event_dict.get("timestamp", "")
+        level   = str(event_dict.get("log_level") or event_dict.get("level", "info")).lower()
+        message = str(event_dict.get("event", ""))
+        file_   = event_dict.get("file", "")
+        func    = event_dict.get("function", "")
+        line    = event_dict.get("line", "")
+
+        location = f"{file_}:{func}:{line}" if file_ else ""
+
+        if colors:
+            color      = _COLOR_MAP.get(level, "")
+            level_disp = f"{color}{level.upper()}{_RESET}" if color else level.upper()
+        else:
+            level_disp = level.upper()
+
+        # Pull meaningful extras from the nested `extra` dict; suppress empty context IDs
+        extras: Dict[str, Any] = {}
+        for k, v in (event_dict.get("extra") or {}).items():
+            if k in _EMPTY_OK_KEYS and not v:
+                continue
+            extras[k] = v
+
+        # Surface exception/stack info added by structlog processors
+        for k in ("exception", "stack_info"):
+            if event_dict.get(k):
+                extras[k] = event_dict[k]
+
+        parts = [ts, level_disp, location, message]
+        if extras:
+            parts.append("  ".join(f"{k}={v}" for k, v in extras.items()))
+
+        return " | ".join(p for p in parts if p)
+
+    return _renderer
+
+
 def _configure_structlog() -> None:
     global _STRUCTLOG_CONFIGURED
     if not _HAS_STRUCTLOG:
@@ -185,11 +247,12 @@ def _configure_structlog() -> None:
     with _CONFIG_LOCK:
         if _STRUCTLOG_CONFIGURED:
             return
-        renderer = os.environ.get("HQT_LOG_RENDER", "console").strip().lower()
+        render_mode = os.environ.get("HQT_LOG_RENDER", "console").strip().lower()
+        use_colors  = getattr(sys.stderr, "isatty", lambda: False)()
         final_renderer = (
             structlog.processors.JSONRenderer()
-            if renderer == "json"
-            else structlog.dev.ConsoleRenderer(colors=True)
+            if render_mode == "json"
+            else _make_clean_console_renderer(colors=use_colors)
         )
 
         structlog.configure(
@@ -417,7 +480,15 @@ class StructlogAdapter:
                 trace_id=safe_extra["trace_id"],
                 extra=safe_extra,
             )
-            self._dispatch_to_sinks(record)
+            # In a worker process: route through the shared queue so that only
+            # the main-process listener thread ever writes to log files.
+            if _WORKER_LOG_QUEUE is not None:
+                try:
+                    _WORKER_LOG_QUEUE.put_nowait(record)
+                except Exception:
+                    pass
+            else:
+                self._dispatch_to_sinks(record)
         except Exception:
             # Logging failures must not break execution flow.
             pass
@@ -514,8 +585,12 @@ class StructlogAdapter:
                 frame = frame.f_back
             if frame is None:
                 return {"file": "<unknown>", "function": "<unknown>", "line": 0}
+            module = (
+                frame.f_globals.get("__name__")
+                or Path(frame.f_code.co_filename).stem
+            )
             return {
-                "file": Path(frame.f_code.co_filename).name,
+                "file": module,
                 "function": frame.f_code.co_name,
                 "line": int(frame.f_lineno),
             }
@@ -599,11 +674,80 @@ def _configure_default_file_sinks() -> None:
 _configure_default_file_sinks()
 Logger = StructlogAdapter
 
+
+def init_worker_logger(queue: Any) -> None:
+    """Initializer for ``ProcessPoolExecutor`` / ``multiprocessing.Pool`` workers.
+
+    Routes all file-sink log records through *queue* so that only the main
+    process listener ever writes to log files, eliminating cross-process file
+    corruption and rotation races.
+
+    Usage::
+
+        import multiprocessing
+        from concurrent.futures import ProcessPoolExecutor
+        from backend.common.logger import init_worker_logger, configure_multiprocess_listener
+
+        if __name__ == "__main__":
+            log_queue = multiprocessing.Queue()
+            configure_multiprocess_listener(log_queue)
+
+            with ProcessPoolExecutor(
+                max_workers=8,
+                initializer=init_worker_logger,
+                initargs=(log_queue,),
+            ) as pool:
+                results = list(pool.map(run_backtest, param_grid))
+    """
+    global _WORKER_LOG_QUEUE
+    _WORKER_LOG_QUEUE = queue
+
+
+def configure_multiprocess_listener(
+    queue: Any,
+    log_instance: Optional["StructlogAdapter"] = None,
+) -> None:
+    """Start a daemon listener thread in the **main** process that drains *queue*
+    and writes records through the shared file sinks.
+
+    Must be called once from the main process **before** spawning workers.
+    Subsequent calls are no-ops (idempotent).
+    """
+    global _QUEUE_LISTENER_RUNNING
+
+    with _QUEUE_LISTENER_LOCK:
+        if _QUEUE_LISTENER_RUNNING:
+            return
+
+        _sink_owner = log_instance or logger
+
+        def _listener_loop() -> None:
+            while True:
+                try:
+                    record = queue.get(timeout=0.5)
+                    if record is None:  # None is the stop sentinel
+                        break
+                    _sink_owner._dispatch_to_sinks(record)
+                except Exception:
+                    # queue.Empty on timeout — keep spinning.
+                    # Any other error must not kill the listener.
+                    pass
+
+        t = threading.Thread(
+            target=_listener_loop,
+            name="log-queue-listener",
+            daemon=True,  # dies automatically when the main process exits
+        )
+        t.start()
+        _QUEUE_LISTENER_RUNNING = True
+
 __all__ = [
     "StructlogAdapter",
     "Logger",
     "CompatRecord",
     "logger",
+    "init_worker_logger",
+    "configure_multiprocess_listener",
     "TRACE",
     "DEBUG",
     "INFO",

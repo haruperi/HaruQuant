@@ -91,7 +91,7 @@ steps:
         - timestamp_aligned_features
         - explicit_position_state
 
-  - name: backtest_strategy
+  - name: run_unsupervised_research
     agent: research_agent
     expected_output: EvaluationReport
     validate: true
@@ -99,6 +99,40 @@ steps:
       - generate_signals
     input:
       workflow_step: 6
+      stage: run_unsupervised_research
+      lesson: unsupervised_learning
+      methods:
+        - investment_data_summary
+        - pca_risk_factor_analysis
+        - kmeans_regime_clustering
+        - cluster_outperformance
+        - cluster_signal_adaptation
+      parameters:
+        n_components: 2
+        n_clusters: 3
+        random_state: 42
+        forward_return_horizon: 1
+      safeguards:
+        - standardize_features
+        - no_forward_returns_in_features
+        - no_raw_price_clustering
+        - adapted_signals_remain_shifted_before_backtest
+      outputs:
+        - unsupervised_data_summary
+        - pca_metadata
+        - kmeans_cluster_metadata
+        - pca_risk_factors
+        - cluster_outperformance
+        - cluster_signal_adaptation
+
+  - name: backtest_strategy
+    agent: research_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - run_unsupervised_research
+    input:
+      workflow_step: 7
       stage: backtest_strategy
       simulation:
         capital: 100000
@@ -118,7 +152,7 @@ steps:
     depends_on:
       - backtest_strategy
     input:
-      workflow_step: 7
+      workflow_step: 8
       stage: evaluate_performance
       metrics:
         - cumulative_return
@@ -137,7 +171,7 @@ steps:
     depends_on:
       - evaluate_performance
     input:
-      workflow_step: 8
+      workflow_step: 9
       stage: refine_and_repeat
       refinement_options:
         - adjust_rsi_thresholds
@@ -159,7 +193,7 @@ steps:
     depends_on:
       - refine_and_repeat
     input:
-      workflow_step: 9
+      workflow_step: 10
       stage: run_refinement_experiments
       experiments:
         - name: tighter_rsi_thresholds
@@ -194,7 +228,7 @@ steps:
     depends_on:
       - run_refinement_experiments
     input:
-      workflow_step: 10
+      workflow_step: 11
       stage: agent_evaluate_and_conclude
       evaluation_criteria:
         - threshold_comparison

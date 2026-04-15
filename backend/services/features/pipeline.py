@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Mapping
 
+from backend.common.logger import logger
 import pandas as pd
 
 from backend.services.indicators.momentum.rsi import rsi as compute_rsi

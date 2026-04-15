@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from backend.common.logger import logger
 from backend.common import generate_id
 
 

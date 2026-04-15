@@ -27,6 +27,7 @@ from backend.agents.runtime import (
     build_run_trajectory_log,
 )
 from backend.common.ids import generate_prefixed_id
+from backend.common.logger import logger
 from backend.contracts.workflow_plan.model import (
     WorkflowPattern,
     WorkflowPhaseStep,
@@ -95,6 +96,7 @@ class WorkflowPlanExecutor:
     )
 
     def __post_init__(self) -> None:
+        logger.debug("WorkflowPlanExecutor initialized", component="orchestration.executor")
         if self.pattern_registry is None:
             registry = WorkflowPatternRegistry()
             registry.register(
@@ -126,9 +128,22 @@ class WorkflowPlanExecutor:
 
         workflow = self.workflow_repository.get_workflow(plan.workflow_id)
         if workflow is None:
+            logger.error(
+                "Workflow not found — cannot execute plan",
+                component="orchestration.executor",
+                workflow_id=plan.workflow_id,
+            )
             raise LookupError(f"workflow not found: {plan.workflow_id}")
 
         pattern = plan.payload.selected_pattern
+        logger.info(
+            "Starting workflow plan execution",
+            component="orchestration.executor",
+            workflow_id=plan.workflow_id,
+            pattern=pattern.value,
+            correlation_id=plan.correlation_id,
+            step_count=len(plan.payload.phase_steps),
+        )
         self.pattern_registry.get(pattern)
         trace = Trace(
             trace_id=plan.trace_id or generate_prefixed_id("trace"),
@@ -154,6 +169,23 @@ class WorkflowPlanExecutor:
         )
         trace.result_status = final_state
         trace.end()
+
+        if failed_steps:
+            logger.warning(
+                "Workflow completed with failed steps",
+                component="orchestration.executor",
+                workflow_id=plan.workflow_id,
+                final_state=final_state,
+                failed_steps=failed_steps,
+            )
+        else:
+            logger.info(
+                "Workflow execution completed",
+                component="orchestration.executor",
+                workflow_id=plan.workflow_id,
+                final_state=final_state,
+                step_count=len(step_results),
+            )
 
         return WorkflowExecutionResult(
             workflow_id=plan.workflow_id,
@@ -410,12 +442,29 @@ class WorkflowPlanExecutor:
         if target_state is None or current_state is target_state:
             return
         if not is_allowed_workflow_transition(current_state, target_state):
+            logger.warning(
+                "Workflow state transition not allowed — skipping",
+                component="orchestration.executor",
+                workflow_id=plan.workflow_id,
+                from_state=current_state.value,
+                to_state=target_state.value,
+                phase=step.phase,
+            )
             return
 
         WorkflowStateValidator().validate_transition(
             from_state=current_state,
             to_state=target_state,
             context=WorkflowValidationContext(),
+        )
+        logger.debug(
+            "Workflow state transition",
+            component="orchestration.executor",
+            workflow_id=plan.workflow_id,
+            from_state=current_state.value,
+            to_state=target_state.value,
+            phase=step.phase,
+            agent=step.owner_agent,
         )
         self.workflow_repository.update_workflow_state(
             workflow_id=plan.workflow_id,
@@ -480,6 +529,12 @@ class WorkflowPlanExecutor:
         try:
             return self.runtime_agents[agent_name]
         except KeyError as exc:
+            logger.error(
+                "Runtime agent not registered",
+                component="orchestration.executor",
+                agent_name=agent_name,
+                registered_agents=list(self.runtime_agents.keys()),
+            )
             raise LookupError(f"runtime agent not registered: {agent_name}") from exc
 
     def _request(self, plan: WorkflowPlan, step: WorkflowPhaseStep) -> ADKRunRequest:

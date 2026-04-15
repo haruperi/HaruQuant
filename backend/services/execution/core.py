@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from typing import Any, Optional
 
+from backend.common.logger import logger
+
 
 class DotDict(dict):
     """Dictionary that supports dot notation access to attributes."""
@@ -758,13 +760,15 @@ def monitor_positions(
 
         if verbose:
             side_name = "BUY" if is_buy else "SELL"
-            print(
-                f"[monitor_positions] {side_name} "
-                f"ticket={int(getattr(position, 'ticket', 0) or 0)} "
-                f"symbol={symbol_name} "
-                f"entry={float(entry_price):.5f} "
-                f"current={float(exit_price):.5f} "
-                f"profit={float(profit):.2f}"
+            logger.debug(
+                "[monitor_positions]",
+                component="execution.core",
+                side=side_name,
+                ticket=int(getattr(position, 'ticket', 0) or 0),
+                symbol=symbol_name,
+                entry=float(entry_price),
+                current=float(exit_price),
+                profit=float(profit),
             )
 
         sl = float(getattr(position, "sl", 0.0) or 0.0)
@@ -790,9 +794,11 @@ def monitor_positions(
         if should_close and allow_auto_close:
             to_close.append((position, exit_price, profit, close_reason))
         elif should_close and verbose:
-            print(
-                f"[monitor_positions] Close condition met (dry-run) "
-                f"ticket={int(getattr(position, 'ticket', 0) or 0)} reason={close_reason}"
+            logger.debug(
+                "[monitor_positions] Close condition met (dry-run)",
+                component="execution.core",
+                ticket=int(getattr(position, 'ticket', 0) or 0),
+                reason=close_reason,
             )
 
     for position, close_price, profit, close_reason in to_close:

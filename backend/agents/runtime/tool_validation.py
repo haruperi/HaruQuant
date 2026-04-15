@@ -6,6 +6,7 @@ tool execution, preventing dangerous or malformed tool invocations.
 
 from __future__ import annotations
 
+from backend.common.logger import logger
 from dataclasses import dataclass, field
 from typing import Any
 

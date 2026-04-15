@@ -6,6 +6,7 @@ import json
 import time
 from typing import Any, Callable
 
+from backend.common.logger import logger
 from .tool_call import ToolCall, ToolResult
 
 

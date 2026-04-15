@@ -86,7 +86,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
   const { backtests, loading: loadingBacktests } = useAllBacktests(200)
 
   const [sessionName, setSessionName] = useState("")
-  const [symbol, setSymbol] = useState("EURUSD")
+  const [symbol, setSymbol] = useState("AUDUSD, EURGBP, NZDCHF")
   const [timeframe, setTimeframe] = useState("H1")
   const [speed, setSpeed] = useState("1")
   const [engineSettings, setEngineSettings] = useState<EngineSettingsValues>({
@@ -119,9 +119,10 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     limitsEnforced: true,
   })
 
-  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("bars")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const [rangeBy, setRangeBy] = useState<"dates" | "bars">("dates")
+  const [startDate, setStartDate] = useState("2025-01-01")
+  const [endDate, setEndDate] = useState("2025-12-31")
+  const [warmupStartDate, setWarmupStartDate] = useState("2024-12-01")
   const [numberOfBars, setNumberOfBars] = useState(500)
 
   const [mode, setMode] = useState<SimulationMode>("manual")
@@ -285,6 +286,10 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     if (rangeBy === "dates") {
       config.start_time = startDate
       config.end_time = endDate
+      if (warmupStartDate) {
+        config.warmup_by = "date"
+        config.warmup_start_date = warmupStartDate
+      }
     } else {
       config.number_of_bars = numberOfBars
     }
@@ -529,7 +534,16 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
           </div>
 
           {rangeBy === "dates" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="warmupStartDate">Warmup Start</Label>
+                <Input
+                  id="warmupStartDate"
+                  type="date"
+                  value={warmupStartDate}
+                  onChange={(e) => setWarmupStartDate(e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input

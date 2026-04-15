@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Type
 from backend.common.logger import logger
 
 from backend.services.strategy.base import BaseStrategy
+from backend.services.strategy.legacy_compat import install_legacy_apps_modules
 
 
 class StrategyStorage:
@@ -27,7 +28,7 @@ class StrategyStorage:
     Directory structure:
         backend/data/strategies/
             john_doe/
-                trend_following/
+                strategy_42_trend_following/
                     v1.0.0/
                         strategy.py
                         metadata.json
@@ -84,7 +85,7 @@ class StrategyStorage:
         """
         try:
             # Create version directory
-            version_dir = self._get_version_dir(version, username, strategy_name)
+            version_dir = self._get_version_dir(version, username, strategy_name, strategy_id)
             version_dir.mkdir(parents=True, exist_ok=True)
 
             # Save strategy code
@@ -138,7 +139,7 @@ class StrategyStorage:
             Strategy Python code
         """
         try:
-            strategy_file = self._get_strategy_file(version, username, strategy_name)
+            strategy_file = self._get_strategy_file(version, username, strategy_name, strategy_id)
 
             if not strategy_file.exists():
                 raise FileNotFoundError(f"Strategy file not found: {strategy_file}")
@@ -174,7 +175,7 @@ class StrategyStorage:
             Metadata dictionary
         """
         try:
-            metadata_file = self._get_metadata_file(version, username, strategy_name)
+            metadata_file = self._get_metadata_file(version, username, strategy_name, strategy_id)
 
             if not metadata_file.exists():
                 return {}
@@ -210,7 +211,7 @@ class StrategyStorage:
             Strategy class
         """
         try:
-            strategy_file = self._get_strategy_file(version, username, strategy_name)
+            strategy_file = self._get_strategy_file(version, username, strategy_name, strategy_id)
 
             if not strategy_file.exists():
                 raise FileNotFoundError(f"Strategy file not found: {strategy_file}")
@@ -222,6 +223,7 @@ class StrategyStorage:
             if spec is None or spec.loader is None:
                 raise ImportError(f"Could not load module spec for {strategy_file}")
             module = importlib.util.module_from_spec(spec)
+            install_legacy_apps_modules()
             spec.loader.exec_module(module)
 
             # Find Strategy subclass in module
@@ -263,13 +265,17 @@ class StrategyStorage:
             strategy_name: Optional strategy name for new folder structure
         """
         try:
-            strategy_dir = self._get_strategy_dir(username, strategy_name)
-
-            if strategy_dir.exists():
-                shutil.rmtree(strategy_dir)
-                logger.info(f"Strategy deleted: {strategy_dir}")
-            else:
-                logger.warning(f"Strategy directory not found: {strategy_dir}")
+            removed = False
+            for strategy_dir in self._candidate_strategy_dirs(username, strategy_name, strategy_id):
+                if strategy_dir.exists():
+                    shutil.rmtree(strategy_dir)
+                    removed = True
+                    logger.info(f"Strategy deleted: {strategy_dir}")
+            if not removed:
+                logger.warning(
+                    "Strategy directory not found: "
+                    f"user={user_id}, strategy={strategy_id}, name={strategy_name}"
+                )
 
         except Exception as e:
             logger.error(f"Error deleting strategy: {e}")
@@ -294,7 +300,7 @@ class StrategyStorage:
             strategy_name: Strategy name for folder naming
         """
         try:
-            version_dir = self._get_version_dir(version, username, strategy_name)
+            version_dir = self._get_version_dir(version, username, strategy_name, strategy_id)
 
             if version_dir.exists():
                 shutil.rmtree(version_dir)
@@ -333,7 +339,7 @@ class StrategyStorage:
             Path to exported zip file
         """
         try:
-            version_dir = self._get_version_dir(version, username, strategy_name)
+            version_dir = self._get_version_dir(version, username, strategy_name, strategy_id)
 
             if not version_dir.exists():
                 raise FileNotFoundError(f"Strategy version not found: {version_dir}")
@@ -381,7 +387,7 @@ class StrategyStorage:
                 raise FileNotFoundError(f"Import file not found: {import_path}")
 
             # Create version directory
-            version_dir = self._get_version_dir(version, username, strategy_name)
+            version_dir = self._get_version_dir(version, username, strategy_name, strategy_id)
             version_dir.mkdir(parents=True, exist_ok=True)
 
             # Extract zip archive
@@ -420,17 +426,20 @@ class StrategyStorage:
             List of version strings
         """
         try:
-            strategy_dir = self._get_strategy_dir(username, strategy_name)
-
-            if not strategy_dir.exists():
-                return []
+            user_dir = self._get_user_dir(username)
+            sanitized_strategy = self._sanitize_name(strategy_name)
+            candidate_dirs = list(user_dir.glob(f"strategy_*_{sanitized_strategy}"))
+            candidate_dirs.append(self._get_legacy_strategy_dir(username, strategy_name))
 
             versions = []
-            for item in strategy_dir.iterdir():
-                if item.is_dir() and item.name.startswith("v"):
-                    versions.append(item.name[1:])  # Remove 'v' prefix
+            for strategy_dir in candidate_dirs:
+                if not strategy_dir.exists():
+                    continue
+                for item in strategy_dir.iterdir():
+                    if item.is_dir() and item.name.startswith("v"):
+                        versions.append(item.name[1:])  # Remove 'v' prefix
 
-            return sorted(versions, reverse=True)
+            return sorted(set(versions), reverse=True)
 
         except Exception as e:
             logger.error(f"Error listing versions: {e}")
@@ -475,7 +484,21 @@ class StrategyStorage:
 
         return self.base_dir / sanitized_username
 
-    def _get_strategy_dir(
+    def _get_stable_strategy_dir(
+        self,
+        username: str,
+        strategy_name: str,
+        strategy_id: int,
+    ) -> Path:
+        user_dir = self._get_user_dir(username)
+        sanitized_strategy = self._sanitize_name(strategy_name)
+
+        if not sanitized_strategy:
+            raise ValueError("Strategy name cannot be empty")
+
+        return user_dir / f"strategy_{strategy_id}_{sanitized_strategy}"
+
+    def _get_legacy_strategy_dir(
         self,
         username: str,
         strategy_name: str,
@@ -498,11 +521,51 @@ class StrategyStorage:
 
         return user_dir / sanitized_strategy
 
+    def _candidate_strategy_dirs(
+        self,
+        username: str,
+        strategy_name: str,
+        strategy_id: int | None = None,
+    ) -> List[Path]:
+        dirs: List[Path] = []
+        user_dir = self._get_user_dir(username)
+        if strategy_id is not None:
+            dirs.append(self._get_stable_strategy_dir(username, strategy_name, strategy_id))
+            dirs.extend(sorted(user_dir.glob(f"strategy_{strategy_id}_*")))
+        dirs.append(self._get_legacy_strategy_dir(username, strategy_name))
+        unique_dirs: List[Path] = []
+        seen: set[str] = set()
+        for directory in dirs:
+            key = str(directory)
+            if key not in seen:
+                unique_dirs.append(directory)
+                seen.add(key)
+        return unique_dirs
+
+    def _get_strategy_dir(
+        self,
+        username: str,
+        strategy_name: str,
+        strategy_id: int | None = None,
+    ) -> Path:
+        """
+        Get the preferred strategy directory path.
+
+        Existing files are resolved from stable then legacy locations. New writes
+        prefer the stable directory when strategy_id is available.
+        """
+        candidates = self._candidate_strategy_dirs(username, strategy_name, strategy_id)
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
+
     def _get_version_dir(
         self,
         version: str,
         username: str,
         strategy_name: str,
+        strategy_id: int | None = None,
     ) -> Path:
         """
         Get version directory path.
@@ -515,7 +578,7 @@ class StrategyStorage:
         Returns:
             Path to version directory
         """
-        return self._get_strategy_dir(username, strategy_name) / f"v{version}"
+        return self._get_strategy_dir(username, strategy_name, strategy_id) / f"v{version}"
 
     def get_strategy_path(
         self,
@@ -538,13 +601,14 @@ class StrategyStorage:
         Returns:
             Absolute path to strategy.py file
         """
-        return str(self._get_strategy_file(version, username, strategy_name).absolute())
+        return str(self._get_strategy_file(version, username, strategy_name, strategy_id).absolute())
 
     def _get_strategy_file(
         self,
         version: str,
         username: str,
         strategy_name: str,
+        strategy_id: int | None = None,
     ) -> Path:
         """
         Get strategy file path.
@@ -557,13 +621,31 @@ class StrategyStorage:
         Returns:
             Path to strategy.py file
         """
-        return self._get_version_dir(version, username, strategy_name) / "strategy.py"
+        for strategy_dir in self._candidate_strategy_dirs(username, strategy_name, strategy_id):
+            strategy_file = strategy_dir / f"v{version}" / "strategy.py"
+            if strategy_file.exists():
+                return strategy_file
+        user_dir = self._get_user_dir(username)
+        if strategy_id is not None and user_dir.exists():
+            for strategy_dir in user_dir.iterdir():
+                metadata_file = strategy_dir / f"v{version}" / "metadata.json"
+                strategy_file = strategy_dir / f"v{version}" / "strategy.py"
+                if not metadata_file.exists() or not strategy_file.exists():
+                    continue
+                try:
+                    metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    continue
+                if int(metadata.get("strategy_id", -1)) == int(strategy_id):
+                    return strategy_file
+        return self._get_version_dir(version, username, strategy_name, strategy_id) / "strategy.py"
 
     def _get_metadata_file(
         self,
         version: str,
         username: str,
         strategy_name: str,
+        strategy_id: int | None = None,
     ) -> Path:
         """
         Get metadata file path.
@@ -576,7 +658,33 @@ class StrategyStorage:
         Returns:
             Path to metadata.json file
         """
-        return self._get_version_dir(version, username, strategy_name) / "metadata.json"
+        for strategy_dir in self._candidate_strategy_dirs(username, strategy_name, strategy_id):
+            metadata_file = strategy_dir / f"v{version}" / "metadata.json"
+            if metadata_file.exists():
+                return metadata_file
+        user_dir = self._get_user_dir(username)
+        if strategy_id is not None and user_dir.exists():
+            for strategy_dir in user_dir.iterdir():
+                metadata_file = strategy_dir / f"v{version}" / "metadata.json"
+                if not metadata_file.exists():
+                    continue
+                try:
+                    metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    continue
+                if int(metadata.get("strategy_id", -1)) == int(strategy_id):
+                    return metadata_file
+        return self._get_version_dir(version, username, strategy_name, strategy_id) / "metadata.json"
+
+    def get_strategy_artifact_root(
+        self,
+        user_id: int,
+        strategy_id: int,
+        username: str = "",
+        strategy_name: str = "",
+    ) -> str:
+        """Return the preferred artifact root for a strategy."""
+        return str(self._get_strategy_dir(username, strategy_name, strategy_id).absolute())
 
 
 # Global instance

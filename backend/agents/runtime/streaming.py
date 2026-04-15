@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Protocol
 
+from backend.common.logger import logger
 
 class StreamChunkHandler(Protocol):
     """Protocol for handling streaming chunks."""

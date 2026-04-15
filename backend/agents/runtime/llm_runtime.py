@@ -6,6 +6,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from backend.common.logger import logger
 from backend.agents.runtime.runner import (
     AgentExecutionContext,
     AgentExecutionResult,

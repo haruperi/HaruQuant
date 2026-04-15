@@ -6,6 +6,7 @@ import os
 
 import chromadb
 
+from backend.common.logger import logger
 from .embeddings import EmbeddingService
 from .models import DocumentChunk, RetrievalResult
 

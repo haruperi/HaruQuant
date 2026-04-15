@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.common import PolicyError
+from backend.common.logger import logger
 
 from .states import WorkflowState
 from .transitions import is_allowed_workflow_transition

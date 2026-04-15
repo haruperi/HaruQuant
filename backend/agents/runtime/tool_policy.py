@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from backend.common.logger import logger
 
 class ToolPolicyError(ValueError):
     """Raised when an agent requests a disallowed tool."""

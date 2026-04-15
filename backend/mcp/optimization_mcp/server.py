@@ -6,6 +6,7 @@ from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 from .tools import OPTIMIZATION_TOOL_SPECS
 
+from backend.common.logger import logger
 
 class OptimizationMCPServer:
     """Thin MCP server shell for the legacy optimization boundary."""

@@ -10,7 +10,9 @@ from datetime import datetime
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade
+from backend.services.simulation.engine import Engine
+from backend.services.execution.core import PositionInfo
+
 def _pos_value(pos, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(pos, attr_name):
         return getattr(pos, attr_name)
@@ -20,7 +22,7 @@ def _pos_value(pos, attr_name: str, method_name: str | None = None, default=None
 
 
 def _seed_tester_positions(now: datetime, engine_instance: Engine) -> None:
-    p1 = trade.PositionInfo()
+    p1 = PositionInfo()
     p1.symbol = "EURUSD"
     p1.ticket = 3001
     p1.identifier = 3001
@@ -33,7 +35,7 @@ def _seed_tester_positions(now: datetime, engine_instance: Engine) -> None:
     p1.profit = 10.0
     engine_instance.state.trading_deals.append(p1)
 
-    p2 = trade.PositionInfo()
+    p2 = PositionInfo()
     p2.symbol = "USDJPY"
     p2.ticket = 3002
     p2.identifier = 3002

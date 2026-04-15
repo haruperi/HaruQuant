@@ -9,6 +9,7 @@ from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
 from backend.contracts.trade_proposal.model import TradeProposal
 
+from backend.common.logger import logger
 
 def generate_execution_idempotency_key(
     *,

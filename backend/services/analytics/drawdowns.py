@@ -1,6 +1,7 @@
 """
 Drawdown depth, duration, and recovery.
 
+from backend.common.logger import logger
 Focus: capital pain & recovery behavior
 """
 

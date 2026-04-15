@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from backend.common.logger import logger
 from .prompts import PromptRegistryRecord
 from .runner import ADKRunResult
 

@@ -43,6 +43,7 @@ from backend.mcp.mt5_mcp import get_mt5_api
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.mcp.mt5_mcp.util import MT5Utils
 from backend.data.database.sqlite.database_operations import DatabaseManager
+from backend.services.strategy.permissions import StrategyPermissionError, assert_strategy_allowed
 
 mt5 = get_mt5_api()
 
@@ -2233,6 +2234,18 @@ async def add_strategy_to_session(
 
         session_label = session.get("session_name") or f"id={session_id}"
 
+        version = db_manager.get_strategy_version(request.strategy_version_id)
+        if not version:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Strategy version {request.strategy_version_id} not found",
+            )
+        assert_strategy_allowed(
+            int(version["strategy_id"]),
+            "live",
+            db_manager=db_manager,
+        )
+
         logger.info(
             f"Adding strategy {strategy_label}{version_suffix} to session {session_label}"
         )
@@ -2270,6 +2283,13 @@ async def add_strategy_to_session(
     except HTTPException:
 
         raise
+
+    except StrategyPermissionError as e:
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
 
     except Exception as e:
 

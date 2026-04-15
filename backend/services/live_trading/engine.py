@@ -24,7 +24,9 @@ from backend.common.logger import logger
 from backend.mcp.mt5_mcp import get_mt5_api
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.services.strategy import storage
+from backend.services.strategy.permissions import assert_strategy_allowed
 from backend.services.execution.trade import Trade
+from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 from backend.data.strategies.mean_reversion import MeanReversionStrategy
 from backend.data.strategies.trend_following import TrendFollowingStrategy
@@ -475,6 +477,14 @@ class MultiStrategyEngine:
             return None
 
         try:
+            db_manager = DatabaseManager(
+                db_path=self.config.get("db_path", "backend/data/database/haruquant.db")
+            )
+            assert_strategy_allowed(
+                int(strategy_id),
+                "live",
+                db_manager=db_manager,
+            )
             return storage.load_strategy_class(
                 user_id=self.config.get("user_id", 0),
                 strategy_id=int(strategy_id),
@@ -920,5 +930,4 @@ class MultiStrategyEngine:
             f"MultiStrategyEngine(strategies={len(self.strategies)}, "
             f"initialized={self._initialized}, running={self._running})"
         )
-
 

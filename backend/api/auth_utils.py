@@ -1,6 +1,7 @@
 """Authentication utility functions."""
 
 from datetime import datetime
+from backend.common.logger import logger
 from typing import Optional
 
 from fastapi import Header, HTTPException, status

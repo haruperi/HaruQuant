@@ -165,7 +165,7 @@ Use these existing systems as the base for every item:
   - **Target:** `backend/services/modeling/unsupervised_insights.py`
   - **Existing foundation:** PCA/K-Means helpers, strategy baselines, workflow skeletons, strategy adapter, feature pipeline patterns.
   - **Acceptance:** A workflow stage can produce a single report containing EDA summary, PCA metadata, K-Means metadata, risk-factor loadings, cluster outperformance, and adapted signal metadata before supervised learning is introduced.
-  - **Tests:** `tests/unit/backend/services/test_unsupervised_insights.py`
+  - **Tests:** `tests/unit/backend/services/test_unsupervised_insights.py`, `tests/integration/backend/test_data_transformation_workflow.py`
   - **Usage example:**
     ```python
     report = build_unsupervised_insight_report(
