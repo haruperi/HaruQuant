@@ -246,9 +246,52 @@ def example_05_data_preprocess() -> None:
         print(f"  ⚠️  Validation failed: {exc}")
 
 
+# =======================================================================
+# Example 06: Environment variables
+# =======================================================================
+
+def example_06_env_vars():
+    print_header("Example 06: Environment Variables")
+    from backend.config.env import load_env, get_env
+
+    load_env()
+    print_kv("Environment", get_env("ENVIRONMENT"))
+    print_kv("API Host", get_env("API_HOST"))
+    print_kv("API Port", get_env("API_PORT"))
+    print_kv("UI Origin", get_env("UI_ORIGIN"))
+    print_kv("Log Level", get_env("LOG_LEVEL"))
+    print_kv("Database URL", get_env("DATABASE_URL"))
+    print_kv("MT5 Enabled", get_env("MT5_ENABLED"))
+    print_kv("MT5 Login", get_env("MT5_LOGIN"))
+    print_kv("MT5 Password", get_env("MT5_PASSWORD"))
+    print_kv("MT5 Server", get_env("MT5_SERVER"))
+    print_kv("Google GenAI Use VertexAI", get_env("GOOGLE_GENAI_USE_VERTEXAI"))
+    print_kv("Google API Key", get_env("GOOGLE_API_KEY"))
+    print_kv("HaruQuant Agent Model", get_env("HARUQUANT_AGENT_MODEL"))
+    print_kv("HaruQuant Fast Model", get_env("HARUQUANT_FAST_MODEL"))
+    print_kv("HaruQuant Premium Model", get_env("HARUQUANT_PREMIUM_MODEL"))
+    print_kv("HaruQuant Fallback Model", get_env("HARUQUANT_FALLBACK_MODEL"))
+    print_kv("OpenAI API Key", get_env("OPENAI_API_KEY"))
+    print_kv("Ollama Base URL", get_env("OLLAMA_BASE_URL"))
+    print_kv("SMTP Host", get_env("SMTP_HOST"))
+    print_kv("SMTP Port", get_env("SMTP_PORT"))
+    print_kv("SMTP Username", get_env("SMTP_USERNAME"))
+    print_kv("SMTP Password", get_env("SMTP_PASSWORD"))
+    print_kv("Telegram Bot Token", get_env("TELEGRAM_BOT_TOKEN"))
+    print_kv("Telegram Chat ID", get_env("TELEGRAM_CHAT_ID"))
+    print_kv("Twilio Account SID", get_env("TWILIO_ACCOUNT_SID"))
+    print_kv("Twilio Auth Token", get_env("TWILIO_AUTH_TOKEN"))
+    print_kv("Twilio From Phone", get_env("TWILIO_FROM_PHONE"))
+    print_kv("JWT Secret Key", get_env("JWT_SECRET_KEY"))
+    print_kv("JWT Algorithm", get_env("JWT_ALGORITHM"))
+    print_kv("Data Encryption Key", get_env("DATA_ENCRYPTION_KEY"))
+    print_kv("Cost Governance", get_env("COST_GOVERNANCE"))
+    print_kv("LangChain API Key", get_env("LANGCHAIN_API_KEY"))
+
 if __name__ == "__main__":
-    example_01_load_mt5()
-    example_02_load_dukascopy()
-    example_03_load_parquet()
-    example_04_load_csv()
-    example_05_data_preprocess()
+    # example_01_load_mt5()
+    # example_02_load_dukascopy()
+    # example_03_load_parquet()
+    # example_04_load_csv()
+    # example_05_data_preprocess()
+    example_06_env_vars()

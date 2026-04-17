@@ -56,11 +56,9 @@ mypy
 bandit
 bandit[toml]
 
-# C++ Build System
-cmake
-
-# Python/C++ Bridge
-nanobind
+# Python/C++
+#cpython
+setuptools
 
 # Structured Logging
 structlog
@@ -81,6 +79,7 @@ vertexai
 mcp
 google-genai
 google.generativeai
+aider-install
 
 # === Web Framework + API ===
 fastapi
@@ -103,11 +102,14 @@ duckdb
 matplotlib
 pandas
 seaborn
+sqlparse
 tabulate
 tinydb
 
 # === Machine Learning / NLP (Optional Enhancements) ===
+chromadb
 jinja2
 psycopg2-binary
 scikit-learn
+sentence_transformers
 Wikipedia

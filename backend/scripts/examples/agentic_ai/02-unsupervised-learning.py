@@ -45,6 +45,10 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
+_EXAMPLE_DATA_DIR = Path(__file__).resolve().parent / "data"
+_EXAMPLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
 # ======================================================================
 # Display helpers
 # ======================================================================
@@ -108,7 +112,7 @@ def _load_market_data(
     lookback_days: int = 14,
 ) -> Optional[pd.DataFrame]:
     """Load OHLCV from MT5 (falls back to Dukascopy)."""
-    from backend.services.market_data.data_getters import load_mt5
+    from backend.services.market_data.data_getters import load_mt5, load_dukascopy
 
     if start_date is None:
         end_date = end_date or datetime.now()
@@ -118,6 +122,18 @@ def _load_market_data(
         symbol=symbol, timeframe=timeframe,
         start_date=start_date, end_date=end_date,
     )
+    if df is not None and not df.empty:
+        return df
+
+    try:
+        df = load_dukascopy(
+            symbol=symbol,
+            timeframe=timeframe,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except Exception:
+        df = None
     return df if df is not None and not df.empty else None
 
 
@@ -416,15 +432,36 @@ def _print_bt_summary(bt_result: dict) -> None:
 
 def _prepare_lesson2_sample_inputs() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
     """Build deterministic sample features/signals for Lesson 2 examples."""
-    from backend.orchestration.workflow.steps_data_transformation import (
-        _build_unsupervised_feature_frame,
-    )
+    from backend.services.modeling import build_market_regime_feature_frame
 
     sample = _build_sample_ohlcv(n_bars=260)
     featured = _add_features(_prepare_lower_df(sample))
     signaled = _generate_signals(featured)
-    feature_frame, feature_columns = _build_unsupervised_feature_frame(signaled)
+    feature_set = build_market_regime_feature_frame(signaled)
+    feature_frame = feature_set.frame
+    feature_columns = list(feature_set.feature_columns)
     return feature_frame, signaled.reindex(feature_frame.index), feature_columns
+
+
+def _prepare_lesson2_real_world_inputs(
+    symbol: str = "EURUSD",
+    timeframe: str = "H1",
+    lookback_days: int = 90,
+) -> tuple[pd.DataFrame, pd.DataFrame, list[str], str]:
+    """Load real market data when available, otherwise fall back to sample data."""
+    from backend.services.modeling import build_market_regime_feature_frame
+
+    raw_df = _load_market_data(symbol=symbol, timeframe=timeframe, lookback_days=lookback_days)
+    source_label = f"live_market_data:{symbol}:{timeframe}"
+    if raw_df is None or raw_df.empty:
+        raw_df = _build_sample_ohlcv(n_bars=360)
+        source_label = "sample_fallback"
+
+    featured = _add_features(_prepare_lower_df(raw_df))
+    signaled = _generate_signals(featured, symbol=symbol)
+    feature_set = build_market_regime_feature_frame(signaled)
+    feature_frame = feature_set.frame
+    return feature_frame, signaled.reindex(feature_frame.index), list(feature_set.feature_columns), source_label
 
 
 # ======================================================================
@@ -444,9 +481,15 @@ def example_13_unsupervised_data_summary() -> None:
     print_kv("Feature columns", feature_columns)
     print_kv("Duplicate timestamps", summary.duplicate_index_count)
     print()
-    print_kv("Return stats", "")
+    print_kv("Return stats (incl. skew/kurtosis)", "")
     for key, value in summary.return_stats.items():
         print_kv(f"  {key}", f"{value:+.6f}")
+    print()
+    print_kv("Correlation Matrix (Top 3 features)", "")
+    cols = list(summary.correlation_matrix.keys())[:3]
+    for col in cols:
+        corrs = {k: f"{v:+.3f}" for k, v in list(summary.correlation_matrix[col].items())[:3]}
+        print_kv(f"  {col}", corrs)
     print()
 
 
@@ -462,11 +505,11 @@ def example_14_pca_risk_factor_analysis() -> None:
 
     print_kv("PCA metadata", pca.to_metadata())
     print()
-    print_kv("Dominant risk-factor loadings", "")
+    print_kv("Dominant risk-factor loadings with Interpretation", "")
     for factor in risk_factors:
         print_kv(
             f"  {factor.component} / {factor.feature}",
-            f"loading={factor.loading:+.4f}, variance={factor.explained_variance_ratio:.4f}",
+            f"{factor.interpretation} (loading={factor.loading:+.4f})",
         )
     print()
 
@@ -513,13 +556,13 @@ def example_16_cluster_outperformance_and_signal_filter() -> None:
         signal_frame=signaled,
     )
 
-    print_kv("Cluster outperformance", "")
+    print_kv("Cluster outperformance and Semantic Regime Names", "")
     for item in report.cluster_outperformance:
         print_kv(
-            f"  Cluster {item.cluster_label}",
+            f"  Cluster {item.cluster_label} ({item.regime_name})",
             (
-                f"n={item.observations}, forward={item.mean_forward_return:+.6f}, "
-                f"hit_rate={item.hit_rate:.2f}, excess={item.outperformance_vs_overall:+.6f}"
+                f"chars={item.characteristics}, forward={item.mean_forward_return:+.6f}, "
+                f"excess={item.outperformance_vs_overall:+.6f}"
             ),
         )
     print()
@@ -553,6 +596,78 @@ def example_17_registry_driven_unsupervised_workflow() -> None:
     print()
 
 
+def example_18_real_world_unsupervised_workflow() -> None:
+    """Run the reusable service on real market data and compare adapted signals."""
+    print_header("Example 18: Real-World Unsupervised Workflow")
+    from backend.services.modeling import (
+        UnsupervisedResearchConfig,
+        UnsupervisedResearchService,
+    )
+
+    _, signaled, feature_columns, source_label = _prepare_lesson2_real_world_inputs()
+    service = UnsupervisedResearchService()
+    result = service.analyze_frame(
+        signaled,
+        signal_frame=signaled,
+        config=UnsupervisedResearchConfig(
+            enable_signal_adaptation=True,
+            n_components=2,
+            n_clusters=3,
+            min_rows=40,
+        ),
+    )
+
+    print_kv("Data source", source_label)
+    print_kv("Status", result.status)
+    print_kv("Feature columns", feature_columns)
+    print_kv("Guardrails", list(result.guardrails))
+    if result.report is None:
+        print_kv("Reason", result.reason or "analysis skipped")
+        print()
+        return
+
+    report = result.report
+    print_kv("Strategy context", result.strategy_context)
+    print_kv("Risk context", result.risk_context)
+    print()
+    print_kv("Cluster outperformance", "")
+    for item in report.cluster_outperformance:
+        print_kv(
+            f"  Cluster {item.cluster_label}",
+            (
+                f"n={item.observations}, forward={item.mean_forward_return:+.6f}, "
+                f"hit_rate={item.hit_rate:.2f}, excess={item.outperformance_vs_overall:+.6f}"
+            ),
+        )
+
+    baseline_entry, baseline_exit, baseline_price = _shift_signals(signaled)
+    baseline_bt = _run_engine(_make_engine(), _build_tick_df(signaled, baseline_entry, baseline_exit, baseline_price))
+    baseline_metrics = _compute_metrics(baseline_bt, signaled)
+    print()
+    print_kv("Baseline backtest", "")
+    print_kv("  Strategy return", f"{baseline_metrics['total_strategy_return']:+.4f}")
+    print_kv("  Sharpe", f"{baseline_metrics['sharpe_ratio']:.4f}")
+    print_kv("  Win rate", f"{baseline_metrics['win_rate']:.2%}")
+
+    if report.signal_adaptation is not None:
+        adapted_signaled = signaled.copy()
+        adapted_update = report.signal_adaptation.adapted_signals
+        adapted_signaled.loc[adapted_update.index, "entry_signal"] = adapted_update["entry_signal"]
+        adapted_signaled.attrs["cluster_metadata"] = report.clusters.to_metadata()
+        adapted_signaled.attrs["signal_adaptation"] = report.signal_adaptation.to_metadata()
+
+        adapted_entry, adapted_exit, adapted_price = _shift_signals(adapted_signaled)
+        adapted_bt = _run_engine(_make_engine(), _build_tick_df(adapted_signaled, adapted_entry, adapted_exit, adapted_price))
+        adapted_metrics = _compute_metrics(adapted_bt, adapted_signaled)
+        print()
+        print_kv("Adapted backtest", "")
+        print_kv("  Allowed clusters", list(report.signal_adaptation.allowed_clusters))
+        print_kv("  Strategy return", f"{adapted_metrics['total_strategy_return']:+.4f}")
+        print_kv("  Sharpe", f"{adapted_metrics['sharpe_ratio']:.4f}")
+        print_kv("  Win rate", f"{adapted_metrics['win_rate']:.2%}")
+    print()
+
+
 # ======================================================================
 # Main
 # ======================================================================
@@ -570,6 +685,7 @@ def main() -> None:
         example_15_kmeans_regime_clustering,
         example_16_cluster_outperformance_and_signal_filter,
         example_17_registry_driven_unsupervised_workflow,
+        example_18_real_world_unsupervised_workflow,
     ]
 
     for example_fn in examples:

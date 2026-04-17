@@ -27,6 +27,8 @@ from backend.services.optimization.models import (
     OptimizationResponse,
     OptimizationResultItem,
     OptimizationRunDetails,
+    UnsupervisedAnalysisRequest,
+    UnsupervisedRunSummary,
     ParametricMonteCarloRequest,
     PositionSizingRequest,
     ProfitTargetRequest,
@@ -46,6 +48,12 @@ from backend.services.optimization.monte_carlo import (
     profit_target_simulation,
     random_win_rate_simulation,
 )
+from backend.services.market_data.data_getters import load_dukascopy
+from backend.services.market_data.data_validator import DataValidator
+from backend.services.modeling import (
+    UnsupervisedResearchConfig,
+    UnsupervisedResearchService,
+)
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -60,6 +68,80 @@ def _parse_request_date(value: Optional[str]) -> Optional[datetime]:
     if isinstance(value, str):
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     raise ValueError(f"Unsupported date value: {value!r}")
+
+
+def _normalize_unsupervised_config(request: OptimizationRequest | WalkForwardRequest) -> Optional[dict[str, Any]]:
+    config = getattr(request, "unsupervised", None)
+    if config is None:
+        return None
+    payload = config.model_dump()
+    return payload if payload.get("enabled") else None
+
+
+def _build_unsupervised_service_config(payload: dict[str, Any]) -> UnsupervisedResearchConfig:
+    return UnsupervisedResearchConfig(
+        fast_period=int(payload.get("fast_period", 20)),
+        slow_period=int(payload.get("slow_period", 50)),
+        volatility_window=int(payload.get("volatility_window", 20)),
+        momentum_window=int(payload.get("momentum_window", 5)),
+        min_feature_periods=int(payload.get("min_feature_periods", 3)),
+        include_ema_spread=bool(payload.get("include_ema_spread", True)),
+        n_components=int(payload.get("n_components", 2)),
+        n_clusters=int(payload.get("n_clusters", 3)),
+        random_state=int(payload.get("random_state", 42)),
+        forward_return_horizon=int(payload.get("forward_return_horizon", 1)),
+        label_column=str(payload.get("label_column", "cluster_label")),
+        price_column=str(payload.get("price_column", "close")),
+        min_rows=int(payload.get("min_rows", 25)),
+        min_cluster_observations=int(payload.get("min_cluster_observations", 3)),
+        scale_features=bool(payload.get("scale_features", True)),
+        enable_signal_adaptation=bool(payload.get("enable_signal_adaptation", False)),
+    )
+
+
+def _load_analysis_data(
+    *,
+    user_id: int,
+    symbol: str,
+    timeframe: str,
+    start_date: str,
+    end_date: str,
+    data_source: str,
+):
+    normalized_source = data_source.lower()
+    if normalized_source in ["metatrader5", "mt5"]:
+        from backend.mcp.mt5_mcp.client import MT5Client
+        from backend.data.database.sqlite.users import UserManager
+
+        creds = UserManager().get_mt5_credentials(user_id) or {}
+        login = int(creds.get("login") or 0)
+        password = creds.get("password") or ""
+        server = creds.get("server") or ""
+        path = creds.get("path") or ""
+        if not (login and password and server):
+            raise ValueError("Missing MT5 credentials")
+
+        client = MT5Client()
+        if not client.connect(path=path, login=login, password=password, server=server):
+            raise ValueError("Failed to initialize MT5")
+
+        data = client.get_bars(
+            symbol=symbol,
+            timeframe=timeframe,
+            date_from=_parse_request_date(start_date),
+            date_to=_parse_request_date(end_date),
+        )
+        client.shutdown()
+        if data is not None and not data.empty:
+            data = DataValidator.prepare_data(data)
+        return data
+
+    return load_dukascopy(
+        symbol=symbol,
+        timeframe=timeframe,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 @router.post(
@@ -131,6 +213,7 @@ async def start_optimization(
             timeframes=[request.timeframe],
             parameter_space=param_space,
             objective_function=request.objective,
+            unsupervised_config=_normalize_unsupervised_config(request),
             total_combinations=total_combinations,
             n_jobs=request.n_jobs,
             status="pending",
@@ -221,6 +304,7 @@ async def get_optimization_results(
                     total_trades=result.get("total_trades", 0),
                     win_rate=result.get("win_rate", 0.0),
                     profit_factor=result.get("profit_factor", 0.0),
+                    unsupervised_report=result.get("unsupervised_report"),
                 )
             )
 
@@ -312,6 +396,7 @@ async def start_walk_forward(
             timeframes=[request.timeframe],
             parameter_space=param_space,
             objective_function=request.objective,
+            unsupervised_config=_normalize_unsupervised_config(request),
             total_combinations=0,  # Will be calculated during execution
             n_jobs=request.n_jobs,
             status="pending",
@@ -342,6 +427,80 @@ async def start_walk_forward(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
+
+@router.post(
+    "/unsupervised-analysis",
+    response_model=UnsupervisedRunSummary,
+    status_code=status.HTTP_200_OK,
+)
+async def run_unsupervised_analysis(
+    request: UnsupervisedAnalysisRequest,
+    user_id: int = 1,
+):
+    """Run standalone unsupervised analysis over market data."""
+    try:
+        payload = request.unsupervised.model_dump()
+        payload["enabled"] = True
+        data = _load_analysis_data(
+            user_id=user_id,
+            symbol=request.symbol,
+            timeframe=request.timeframe,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            data_source=request.data_source,
+        )
+        if data is None or data.empty:
+            raise ValueError("No data loaded for unsupervised analysis")
+
+        service = UnsupervisedResearchService()
+        result = service.analyze_frame(
+            data,
+            config=_build_unsupervised_service_config(payload),
+        )
+        return UnsupervisedRunSummary(**result.to_metadata())
+    except Exception as e:
+        logger.error(f"Error running unsupervised analysis: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to run unsupervised analysis: {str(e)}",
+        ) from None
+
+
+@router.get(
+    "/runs/{optimization_id}/unsupervised-report",
+    response_model=UnsupervisedRunSummary,
+)
+async def get_unsupervised_report(optimization_id: int):
+    """Fetch the persisted unsupervised report for one optimization run."""
+    try:
+        result = db_manager.get_optimization_unsupervised_report(optimization_id)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Unsupervised report for optimization run {optimization_id} not found",
+            )
+        report = result.get("report") or {}
+        payload = {
+            "status": result.get("status") or "unknown",
+            "config": result.get("config") or {},
+            "report": report,
+            "feature_columns": report.get("feature_columns", []),
+            "feature_metadata": report.get("feature_metadata", {}),
+            "strategy_context": ((result.get("context") or {}).get("strategy_context") or {}),
+            "risk_context": ((result.get("context") or {}).get("risk_context") or {}),
+            "guardrails": report.get("guardrails", []),
+            "reason": report.get("reason"),
+        }
+        return UnsupervisedRunSummary(**payload)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting unsupervised report: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from None
 
 
 @router.post("/monte-carlo", response_model=dict, status_code=status.HTTP_201_CREATED)

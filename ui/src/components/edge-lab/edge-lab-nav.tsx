@@ -11,7 +11,8 @@ const navItems = [
   { label: "Core Metric", href: "/edge-lab/core-metric", prerequisite: "dataset" },
   { label: "Seasonality", href: "/edge-lab/seasonality", prerequisite: "core_metric" },
   { label: "Market Structure", href: "/edge-lab/market-structure", prerequisite: "seasonality" },
-  { label: "Scorecard", href: "/edge-lab/scorecard", prerequisite: "market_structure" },
+  { label: "Unsupervised", href: "/edge-lab/unsupervised-structure", prerequisite: "market_structure" },
+  { label: "Scorecard", href: "/edge-lab/scorecard", prerequisite: "unsupervised_structure" },
   { label: "Automation", href: "/edge-lab/automation", prerequisite: "always" },
   { label: "Discovery", href: "/edge-lab/discovery", prerequisite: "dataset" },
   { label: "SQX Import", href: "/edge-lab/sqx-import" },
@@ -20,7 +21,7 @@ const navItems = [
 
 export function EdgeLabNav() {
   const pathname = usePathname()
-  const { dataset, coreMetricProfile, seasonalityResult, marketStructureProfile } = useEdgeLabData()
+  const { dataset, coreMetricProfile, seasonalityResult, marketStructureProfile, unsupervisedResult } = useEdgeLabData()
 
   const isEnabled = (prerequisite?: string) => {
     if (!prerequisite || prerequisite === "always") return true
@@ -28,6 +29,7 @@ export function EdgeLabNav() {
     if (prerequisite === "core_metric") return Boolean(coreMetricProfile)
     if (prerequisite === "seasonality") return Boolean(seasonalityResult)
     if (prerequisite === "market_structure") return Boolean(marketStructureProfile)
+    if (prerequisite === "unsupervised_structure") return Boolean(unsupervisedResult)
     return true
   }
 

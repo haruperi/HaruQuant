@@ -1,12 +1,58 @@
-"""
-Pydantic Models for Optimization API.
-
-Request and response models for the optimization endpoints.
-"""
+"""Pydantic models for optimization and unsupervised-analysis APIs."""
 
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+class UnsupervisedConfigRequest(BaseModel):
+    """Optional unsupervised-analysis configuration for optimization runs."""
+
+    enabled: bool = Field(False, description="Enable unsupervised market-structure analysis")
+    fast_period: int = Field(20, ge=2)
+    slow_period: int = Field(50, ge=3)
+    volatility_window: int = Field(20, ge=2)
+    momentum_window: int = Field(5, ge=1)
+    min_feature_periods: int = Field(3, ge=1)
+    include_ema_spread: bool = Field(True)
+    n_components: int = Field(2, ge=1)
+    n_clusters: int = Field(3, ge=2)
+    random_state: int = Field(42, ge=0)
+    forward_return_horizon: int = Field(1, ge=1)
+    label_column: str = Field("cluster_label")
+    price_column: str = Field("close")
+    min_rows: int = Field(25, ge=3)
+    min_cluster_observations: int = Field(3, ge=1)
+    scale_features: bool = Field(True)
+    enable_signal_adaptation: bool = Field(False)
+
+
+class UnsupervisedRunSummary(BaseModel):
+    """Serialized unsupervised-analysis payload exposed via API."""
+
+    status: str
+    config: Dict[str, Any]
+    feature_columns: List[str] = Field(default_factory=list)
+    feature_metadata: Dict[str, Any] = Field(default_factory=dict)
+    strategy_context: Dict[str, Any] = Field(default_factory=dict)
+    risk_context: Dict[str, Any] = Field(default_factory=dict)
+    guardrails: List[str] = Field(default_factory=list)
+    reason: Optional[str] = None
+    report: Optional[Dict[str, Any]] = None
+
+
+class UnsupervisedAnalysisRequest(BaseModel):
+    """Run a standalone unsupervised analysis on market data."""
+
+    symbol: str = Field(..., description="Trading symbol (e.g., EURUSD)")
+    timeframe: str = Field(..., description="Timeframe (e.g., H1, D1)")
+    start_date: str = Field(..., description="Start date (YYYY-MM-DD)")
+    end_date: str = Field(..., description="End date (YYYY-MM-DD)")
+    data_source: str = Field("mt5", description="Data source (mt5 or dukascopy)")
+    unsupervised: UnsupervisedConfigRequest = Field(
+        default_factory=lambda: UnsupervisedConfigRequest(enabled=True),
+        description="Unsupervised-analysis configuration",
+    )
 
 
 class ParameterRange(BaseModel):
@@ -64,6 +110,10 @@ class OptimizationRequest(BaseModel):
     engine_type: Literal["event_driven", "vectorised"] = Field(
         "vectorised", description="Backtest engine type"
     )
+    unsupervised: Optional[UnsupervisedConfigRequest] = Field(
+        default=None,
+        description="Optional unsupervised-analysis configuration",
+    )
 
 
 class PositionSizingRequest(BaseModel):
@@ -111,6 +161,9 @@ class OptimizationRunDetails(BaseModel):
     best_backtest_id: Optional[int]
     best_score: Optional[float]
     best_parameters: Optional[Dict[str, Any]]
+    unsupervised_status: Optional[str] = None
+    unsupervised_config: Optional[Dict[str, Any]] = None
+    unsupervised_report: Optional[Dict[str, Any]] = None
     created_at: str
     completed_at: Optional[str]
 
@@ -128,6 +181,7 @@ class OptimizationResultItem(BaseModel):
     total_trades: int
     win_rate: float
     profit_factor: float
+    unsupervised_report: Optional[Dict[str, Any]] = None
 
 
 class WalkForwardRequest(BaseModel):
@@ -156,6 +210,10 @@ class WalkForwardRequest(BaseModel):
 
     # Execution
     n_jobs: int = Field(-1, description="Number of parallel jobs")
+    unsupervised: Optional[UnsupervisedConfigRequest] = Field(
+        default=None,
+        description="Optional unsupervised-analysis configuration",
+    )
 
 
 class WalkForwardWindow(BaseModel):

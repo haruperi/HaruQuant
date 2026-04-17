@@ -700,6 +700,113 @@ A good HaruQuant module structure for this lesson would be:
 
 ---
 
+# 16A. HaruQuant backend implementation
+
+The lesson is no longer just conceptual. In the backend, the unsupervised layer now has a reusable service boundary and stable contracts.
+
+## Reusable backend service
+
+Primary entry point:
+
+* `backend/services/modeling/service.py`
+
+Core contracts:
+
+* `UnsupervisedResearchConfig`
+* `UnsupervisedResearchRequest`
+* `UnsupervisedResearchResult`
+
+Reusable feature builder:
+
+* `backend/services/modeling/feature_sets.py`
+
+This means PCA, K-Means, outperformance analysis, and signal adaptation no longer live only inside the workflow step implementation.
+
+## What the backend now produces
+
+The unsupervised service produces:
+
+* investment data summary
+* PCA metadata and explained variance
+* interpreted PCA risk factors
+* K-Means cluster metadata
+* cluster outperformance tables
+* optional signal-adaptation decisions
+* strategy context
+* risk context
+* guardrail metadata
+
+## How workflows use it
+
+The workflow step `run_unsupervised_research` now calls the reusable service rather than building the whole report inline.
+
+That keeps:
+
+* feature construction consistent
+* outputs stable
+* downstream integration easier
+
+## How optimization uses it
+
+Optimization runs can now persist:
+
+* unsupervised config
+* unsupervised status
+* serialized unsupervised report
+* derived strategy context
+* derived risk context
+
+So optimization is no longer just parameter search. It can now carry regime-discovery evidence alongside the run.
+
+## How strategy components use it
+
+Strategy-adjacent consumers should treat unsupervised outputs as advisory context, for example:
+
+* allow or suppress entries by cluster quality
+* reduce exposure in weak clusters
+* switch parameter sets only when backtests justify it
+
+The strategy adapter propagates cluster labels and adaptation metadata when they are present on the signal frame.
+
+## How risk components use it
+
+Risk consumers should use unsupervised outputs as contextual signals, not direct execution authority.
+
+Current integration starts with:
+
+* regime name
+* regime confidence
+* strongest / weakest cluster context
+* top PCA factor context
+
+This is enough to inform regime alignment scoring while keeping the unsupervised layer advisory.
+
+## Guardrails in the backend
+
+The service reports guardrails around:
+
+* minimum sample size
+* no forward-return leakage into the feature space
+* standardization before PCA and clustering
+* no direct raw-price clustering
+* advisory-only signal adaptation
+
+These are important because unsupervised research is easy to misuse if it is not tightly constrained.
+
+## Practical consequence
+
+In HaruQuant, unsupervised learning is now best understood as a **research and adaptation layer**:
+
+* data -> feature set
+* feature set -> PCA / clustering
+* clustering -> outperformance comparison
+* outperformance -> strategy adaptation context
+* PCA / clustering -> risk context
+
+That is the correct place for it in a trading system.
+
+---
+
 # 17. Practical uses in trading
 
 Here are strong real-world uses of unsupervised learning in finance:

@@ -31,6 +31,7 @@ export default function EdgeLabScorecardPage() {
     coreMetricProfile,
     seasonalityResult,
     marketStructureProfile,
+    unsupervisedResult,
     marketStructureStability,
     marketStructureRobustness,
   } = useEdgeLabData()
@@ -101,14 +102,14 @@ export default function EdgeLabScorecardPage() {
     }
   }, [leftSnapshotId, rightSnapshotId])
 
-  if (!marketStructureProfile) {
+  if (!unsupervisedResult) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <EdgeLabPrerequisiteState
-          title="Scorecard Requires Market Structure"
-          description="Run Market Structure first. The Scorecard tab is the final progressive step and aggregates outputs from Data, Core Metric, Seasonality, and Market Structure."
-          actionHref="/edge-lab/market-structure"
-          actionLabel="Go To Market Structure"
+          title="Scorecard Requires Unsupervised Structure"
+          description="Run Unsupervised Structure first. The Scorecard tab is the final progressive step and the saved snapshot now carries the unsupervised regime summary alongside the earlier Edge Lab tabs."
+          actionHref="/edge-lab/unsupervised-structure"
+          actionLabel="Go To Unsupervised Structure"
         />
       </div>
     )
@@ -124,6 +125,7 @@ export default function EdgeLabScorecardPage() {
         core_metric_profile: coreMetricProfile,
         seasonality_result: seasonalityResult,
         market_structure_profile: marketStructureProfile,
+        unsupervised_result: unsupervisedResult,
         market_structure_stability: marketStructureStability,
         market_structure_robustness: marketStructureRobustness,
         scorecard_report: report as Record<string, unknown>,

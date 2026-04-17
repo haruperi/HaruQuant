@@ -63,6 +63,7 @@ def build_edge_profile_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     core_metric_profile = dict(payload.get("core_metric_profile") or {})
     seasonality_result = dict(payload.get("seasonality_result") or {})
     market_structure_profile = dict(payload.get("market_structure_profile") or {})
+    unsupervised_result = dict(payload.get("unsupervised_result") or {})
     stability = dict(payload.get("market_structure_stability") or {})
     robustness = dict(payload.get("market_structure_robustness") or {})
     scorecard_report = dict(payload.get("scorecard_report") or {})
@@ -73,6 +74,8 @@ def build_edge_profile_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     core_summary = dict(core_metric_profile.get("summary") or {})
     seasonality_meta = dict(seasonality_result.get("meta") or {})
     market_summary = dict(market_structure_profile.get("summary") or {})
+    unsupervised_summary = dict(unsupervised_result.get("summary") or {})
+    unsupervised_report = dict(unsupervised_result.get("report") or {})
 
     scorecard_summary = {
         "final_score": scorecard_report.get("finalScore"),
@@ -88,6 +91,7 @@ def build_edge_profile_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     _add_scalar_metrics(metrics, section="dataset", values=dataset_meta)
     _add_scalar_metrics(metrics, section="core_summary", values=core_summary)
     _add_scalar_metrics(metrics, section="seasonality_meta", values=seasonality_meta)
+    _add_scalar_metrics(metrics, section="unsupervised_summary", values=unsupervised_summary)
 
     for value in core_metric_profile.get("values") or []:
         metric_key = f"{value.get('family')}.{value.get('metric_key')}"
@@ -155,6 +159,29 @@ def build_edge_profile_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
             )
         )
 
+    for row in unsupervised_report.get("cluster_outperformance") or []:
+        cluster_label = row.get("cluster_label")
+        for key in ("observations", "mean_forward_return", "hit_rate", "outperformance_vs_overall"):
+            metrics.append(
+                _metric_row(
+                    section="unsupervised_cluster",
+                    metric_key=f"cluster_{cluster_label}.{key}",
+                    value=row.get(key),
+                )
+            )
+
+    for row in unsupervised_report.get("risk_factors") or []:
+        component = str(row.get("component") or "unknown")
+        feature = str(row.get("feature") or "feature")
+        for key in ("loading", "abs_loading", "direction", "explained_variance_ratio"):
+            metrics.append(
+                _metric_row(
+                    section="unsupervised_pca_factor",
+                    metric_key=f"{component}.{feature}.{key}",
+                    value=row.get(key),
+                )
+            )
+
     if stability:
         _add_scalar_metrics(metrics, section="stability", values=stability)
     if robustness:
@@ -206,6 +233,12 @@ def build_edge_profile_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "market_structure_summary": {
             "summary": market_summary,
             "calibration_metadata": market_summary.get("calibration_metadata") or market_structure_profile.get("calibration_metadata") or {},
+        },
+        "unsupervised_summary": {
+            "summary": unsupervised_summary,
+            "report": unsupervised_report,
+            "strategy_context": dict(unsupervised_result.get("strategy_context") or {}),
+            "risk_context": dict(unsupervised_result.get("risk_context") or {}),
         },
         "scorecard_summary": scorecard_summary,
         "automation_metadata": automation_metadata,

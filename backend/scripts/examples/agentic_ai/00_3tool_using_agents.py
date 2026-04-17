@@ -23,7 +23,7 @@ import os
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict
 
 PROJECT_ROOT = os.path.abspath(
@@ -567,6 +567,7 @@ def example_10_react_migration_path() -> None:
     print("    ✅ Output size limits prevent context overflow")
 
 
+
 # ────────────────────────────────────────────────────────────────────────
 # Main
 # ────────────────────────────────────────────────────────────────────────
@@ -578,26 +579,18 @@ def main() -> None:
     print("#  Replaces regex-based ReAct with structured ToolCall/ToolResult")
     print("#" * 78)
 
-    examples = [
-        example_01_tool_call_models,
-        example_02_tool_executor,
-        example_03_pre_execution_validation,
-        example_04_tool_output_limits,
-        example_05_sql_tool_with_validation,
-        example_06_retrieval_as_tool,
-        example_07_token_estimation,
-        example_08_cost_aware_tool_usage,
-        example_09_tool_call_audit,
-        example_10_react_migration_path,
-    ]
+    example_01_tool_call_models()
+    example_02_tool_executor()
+    example_03_pre_execution_validation()
+    example_04_tool_output_limits()
+    example_05_sql_tool_with_validation()
+    example_06_retrieval_as_tool()
+    example_07_token_estimation()
+    example_08_cost_aware_tool_usage()
+    example_09_tool_call_audit()
+    example_10_react_migration_path()
 
-    for example_fn in examples:
-        try:
-            example_fn()
-        except Exception as exc:
-            import traceback
-            print(f"\n  ERROR in {example_fn.__name__}: {exc}")
-            traceback.print_exc()
+
 
     print()
     print("#" * 78)

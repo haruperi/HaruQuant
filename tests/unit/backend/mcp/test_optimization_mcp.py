@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
+from backend.services.modeling import UnsupervisedResearchService
 from backend.services.optimization.execution import EngineOptimizationResult
 from backend.mcp.optimization_mcp import (
     OPTIMIZATION_TOOL_SPECS,
     OptimizationExecutionTools,
     OptimizationMCPServer,
+    OptimizationResearchTools,
     create_optimization_mcp_server,
 )
 
@@ -64,3 +66,27 @@ def test_optimization_execution_tools_return_stable_summary_shape() -> None:
     assert result["trade_count"] == 4
     assert result["processed_ticks"] == 250
     assert result["summary"]["final_balance"] == 10150.0
+
+
+def test_optimization_research_tools_return_unsupervised_metadata() -> None:
+    index = pd.date_range("2025-01-01", periods=48, freq="h", tz="UTC")
+    closes = pd.Series([1.10 + 0.0005 * idx for idx in range(48)], index=index)
+    data = pd.DataFrame(
+        {
+            "open": closes.values,
+            "high": (closes + 0.001).values,
+            "low": (closes - 0.001).values,
+            "close": closes.values,
+            "volume": [100 + idx for idx in range(48)],
+            "ema_20": closes.ewm(span=20, adjust=False).mean().values,
+            "ema_50": closes.ewm(span=50, adjust=False).mean().values,
+        },
+        index=index,
+    )
+    tools = OptimizationResearchTools(service=UnsupervisedResearchService())
+
+    result = tools.analyze_unsupervised_market_structure(data=data)
+
+    assert result["status"] == "COMPLETED"
+    assert result["report"]["pca"]["model"] == "pca"
+    assert "cluster_count" in result["strategy_context"]

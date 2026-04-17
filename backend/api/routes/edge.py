@@ -58,6 +58,11 @@ from backend.services.research.market_structure_validation import (
 from backend.services.research.results_schema import EdgeResult, EdgeStats
 from backend.services.research.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
 from backend.services.research.seasonality import SeasonalityFilters, run_seasonality
+from backend.services.features import FeaturePipeline, FeatureSpec
+from backend.services.modeling import (
+    UnsupervisedResearchConfig,
+    UnsupervisedResearchService,
+)
 from backend.common.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
@@ -171,10 +176,33 @@ class EdgeProfileSnapshotRequest(BaseModel):
     core_metric_profile: Dict[str, Any]
     seasonality_result: Dict[str, Any]
     market_structure_profile: Dict[str, Any]
+    unsupervised_result: Optional[Dict[str, Any]] = None
     market_structure_stability: Optional[Dict[str, Any]] = None
     market_structure_robustness: Optional[Dict[str, Any]] = None
     scorecard_report: Dict[str, Any]
     artifacts: Optional[List[Dict[str, Any]]] = None
+
+
+class EdgeUnsupervisedStructureRequest(BaseModel):
+    """Request model for unsupervised PCA/K-Means structure analysis."""
+
+    symbol: Optional[str] = None
+    timeframe: str = "M15"
+    data_source: str = "mt5"
+    range_by: str = "dates"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    number_of_bars: Optional[int] = None
+    prepared_dataset: Optional[Dict[str, Any]] = None
+    save_db: bool = False
+    fast_period: int = 20
+    slow_period: int = 50
+    n_components: int = 2
+    n_clusters: int = 3
+    random_state: int = 42
+    forward_return_horizon: int = 1
+    min_rows: int = 40
+    scale_features: bool = True
 
 
 class EdgeLabAutomationRequest(BaseModel):
@@ -823,7 +851,13 @@ def _default_session_hours() -> Dict[str, List[int]]:
     }
 
 
-EDGE_AUTOMATION_FAMILIES = ("core_metric", "seasonality", "market_structure", "scorecard")
+EDGE_AUTOMATION_FAMILIES = (
+    "core_metric",
+    "seasonality",
+    "market_structure",
+    "unsupervised_structure",
+    "scorecard",
+)
 
 
 def _expand_metric_families(metric_families: Optional[List[str]]) -> List[str]:
@@ -833,9 +867,11 @@ def _expand_metric_families(metric_families: Optional[List[str]]) -> List[str]:
 
     expanded: List[str] = []
     if "scorecard" in requested:
-        requested.extend(["market_structure", "seasonality", "core_metric"])
+        requested.extend(["market_structure", "unsupervised_structure", "seasonality", "core_metric"])
     if "market_structure" in requested:
         requested.extend(["seasonality", "core_metric"])
+    if "unsupervised_structure" in requested:
+        requested.extend(["core_metric"])
     if "seasonality" in requested:
         requested.extend(["core_metric"])
 
@@ -843,6 +879,77 @@ def _expand_metric_families(metric_families: Optional[List[str]]) -> List[str]:
         if family in requested and family not in expanded:
             expanded.append(family)
     return expanded
+
+
+def _build_unsupervised_edge_payload(
+    prepared: PreparedDataset,
+    *,
+    symbol: str,
+    timeframe: str,
+    data_source: str,
+    range_by: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    number_of_bars: Optional[int],
+    config: Optional[UnsupervisedResearchConfig] = None,
+) -> Dict[str, Any]:
+    service = UnsupervisedResearchService()
+    schema = prepared.schema
+    frame = prepared.data.copy()
+    normalized = pd.DataFrame(index=frame.index)
+    for canonical_name, source_column in {
+        "open": schema.open,
+        "high": schema.high,
+        "low": schema.low,
+        "close": schema.close,
+        "volume": schema.volume,
+        "spread": schema.spread,
+    }.items():
+        if source_column in frame.columns:
+            normalized[canonical_name] = pd.to_numeric(frame[source_column], errors="coerce")
+
+    active_config = config or UnsupervisedResearchConfig()
+    feature_pipeline = FeaturePipeline(
+        [
+            FeatureSpec(name="ema", params={"span": active_config.fast_period, "price_col": "close"}),
+            FeatureSpec(name="ema", params={"span": active_config.slow_period, "price_col": "close"}),
+        ],
+        pipeline_version="edge_unsupervised_structure_v1",
+    )
+    enriched = feature_pipeline.compute_batch(normalized)
+    result = service.analyze_frame(enriched, config=active_config)
+
+    payload = result.to_metadata()
+    payload.update(
+        {
+            "family": "unsupervised_structure",
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "data_source": data_source,
+            "range_by": range_by,
+            "start_date": start_date,
+            "end_date": end_date,
+            "number_of_bars": number_of_bars,
+        }
+    )
+
+    report = dict(payload.get("report") or {})
+    risk_context = dict(payload.get("risk_context") or {})
+    summary = {
+        "status": result.status,
+        "model_version": "unsupervised_structure_v1",
+        "feature_columns": list(result.feature_columns),
+        "feature_set": str(payload.get("feature_metadata", {}).get("name") or active_config.feature_set),
+        "cluster_count": int((report.get("clusters") or {}).get("n_clusters") or active_config.n_clusters),
+        "pca_explained_variance_ratio": list((report.get("pca") or {}).get("explained_variance_ratio") or []),
+        "top_risk_factors": list(report.get("risk_factors") or [])[:5],
+        "top_outperforming_cluster": risk_context.get("top_outperforming_cluster"),
+        "weakest_cluster": risk_context.get("weakest_cluster"),
+        "guardrails": list(result.guardrails),
+        "reason": result.reason,
+    }
+    payload["summary"] = json.loads(json.dumps(summary, default=str))
+    return json.loads(json.dumps(payload, default=str))
 
 
 def _dataset_request_meta(
@@ -936,7 +1043,7 @@ def _run_edge_lab_symbol_profile_sync(
     )
     expanded_families = _expand_metric_families(metric_families)
     cache_policy = "reuse_latest_matching_snapshot"
-    dependency_policy = "scorecard->market_structure->seasonality->core_metric"
+    dependency_policy = "scorecard->market_structure+unsupervised_structure->seasonality->core_metric"
     stage_timings: Dict[str, float] = {}
 
     dataset_started = perf_counter()
@@ -1119,6 +1226,28 @@ def _run_edge_lab_symbol_profile_sync(
     else:
         raise HTTPException(status_code=400, detail="Partial recompute requested without a reusable prior market structure snapshot.")
 
+    unsupervised_result: Dict[str, Any]
+    if "unsupervised_structure" in expanded_families:
+        stage_started = perf_counter()
+        unsupervised_result = _build_unsupervised_edge_payload(
+            prepared,
+            symbol=symbol,
+            timeframe=timeframe,
+            data_source=data_source.lower(),
+            range_by=range_by,
+            start_date=start_date,
+            end_date=end_date,
+            number_of_bars=validated_bars,
+            config=UnsupervisedResearchConfig(),
+        )
+        recomputed.append("unsupervised_structure")
+        stage_timings["unsupervised_structure_seconds"] = round(perf_counter() - stage_started, 6)
+    elif previous_snapshot:
+        unsupervised_result = dict(previous_snapshot.get("unsupervised_summary") or {})
+        reused.append("unsupervised_structure")
+    else:
+        raise HTTPException(status_code=400, detail="Partial recompute requested without a reusable prior unsupervised snapshot.")
+
     scorecard_report: Optional[Dict[str, Any]] = None
     if "scorecard" in expanded_families:
         stage_started = perf_counter()
@@ -1159,6 +1288,7 @@ def _run_edge_lab_symbol_profile_sync(
             "core_metric_profile": core_metric_profile,
             "seasonality_result": seasonality_result,
             "market_structure_profile": market_structure_profile,
+            "unsupervised_result": unsupervised_result,
             "market_structure_stability": None,
             "market_structure_robustness": None,
             "scorecard_report": scorecard_report,
@@ -1182,6 +1312,7 @@ def _run_edge_lab_symbol_profile_sync(
         "core_metric_summary": core_metric_profile.get("summary") or {},
         "seasonality_meta": seasonality_result.get("meta") or {},
         "market_structure_summary": market_structure_profile.get("summary") or {},
+        "unsupervised_summary": dict(unsupervised_result.get("summary") or {}),
         "scorecard_summary": {
             "final_score": scorecard_report.get("finalScore") if scorecard_report else None,
             "final_label": scorecard_report.get("finalLabel") if scorecard_report else None,
@@ -1954,6 +2085,79 @@ async def run_market_structure(
 
     payload = profile.to_dict()
     payload["run_id"] = saved_run_id
+    return payload
+
+
+@router.post("/unsupervised-structure/run", response_model=Dict[str, Any])
+async def run_unsupervised_structure(
+    request: EdgeUnsupervisedStructureRequest,
+    authorization: str = AUTH_HEADER,
+):
+    """Run PCA/K-Means unsupervised structure analysis for one symbol."""
+    try:
+        user_id = get_user_id_from_token(authorization)
+    except Exception:
+        user_id = 1
+
+    prepared = _resolve_prepared_dataset_from_payload(request.prepared_dataset)
+    range_by = request.range_by.lower()
+    number_of_bars = request.number_of_bars
+    symbol = request.symbol or ""
+    timeframe = request.timeframe
+    data_source = request.data_source.lower()
+
+    if prepared is None:
+        range_by, start_date, end_date, number_of_bars = _validate_range_params(
+            request.range_by,
+            request.start_date,
+            request.end_date,
+            request.number_of_bars,
+        )
+        source = _create_data_source(
+            request.data_source.lower(),
+            user_id,
+            start_date,
+            end_date,
+            number_of_bars,
+            (request.start_date, request.end_date),
+        )
+        prepared = prepare_ohlcvs_dataset(
+            source=source,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_pos=0,
+            end_pos=number_of_bars or 5000,
+            cleaning=CleaningConfig(timeframe=timeframe),
+            enrichment=EnrichmentConfig(symbol=symbol),
+        )
+    else:
+        meta = prepared.report.metadata
+        symbol = str(meta.get("symbol") or symbol)
+        timeframe = str(meta.get("timeframe") or timeframe)
+        data_source = str((request.prepared_dataset or {}).get("request", {}).get("data_source") or data_source)
+        range_by = str((request.prepared_dataset or {}).get("request", {}).get("range_by") or range_by)
+
+    payload = _build_unsupervised_edge_payload(
+        prepared,
+        symbol=symbol,
+        timeframe=timeframe,
+        data_source=data_source,
+        range_by=range_by,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        number_of_bars=number_of_bars,
+        config=UnsupervisedResearchConfig(
+            fast_period=request.fast_period,
+            slow_period=request.slow_period,
+            n_components=request.n_components,
+            n_clusters=request.n_clusters,
+            random_state=request.random_state,
+            forward_return_horizon=request.forward_return_horizon,
+            min_rows=request.min_rows,
+            scale_features=request.scale_features,
+        ),
+    )
+    payload["run_id"] = None
     return payload
 
 

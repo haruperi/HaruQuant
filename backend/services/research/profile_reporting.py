@@ -20,6 +20,8 @@ def build_profile_summary(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     """Build a concise dashboard-ready summary from one snapshot."""
     scorecard_summary = dict(snapshot.get("scorecard_summary") or {})
     market_summary = dict((snapshot.get("market_structure_summary") or {}).get("summary") or {})
+    unsupervised_summary = dict((snapshot.get("unsupervised_summary") or {}).get("summary") or {})
+    unsupervised_risk = dict((snapshot.get("unsupervised_summary") or {}).get("risk_context") or {})
     seasonality_summary = dict(snapshot.get("seasonality_summary") or {})
     best_sessions = list((seasonality_summary.get("opportunity_windows") or {}).get("best_sessions") or [])
     strategy_fit = list(snapshot.get("strategy_fit") or [])
@@ -44,6 +46,10 @@ def build_profile_summary(snapshot: Dict[str, Any]) -> Dict[str, Any]:
         "decision_confidence_score": market_summary.get("decision_confidence_score"),
         "best_session": best_sessions[0] if best_sessions else None,
         "primary_strategy_fit": strategy_fit[0] if strategy_fit else None,
+        "unsupervised_status": unsupervised_summary.get("status"),
+        "unsupervised_cluster_count": unsupervised_summary.get("cluster_count"),
+        "unsupervised_top_cluster": unsupervised_risk.get("top_outperforming_cluster"),
+        "unsupervised_weakest_cluster": unsupervised_risk.get("weakest_cluster"),
     }
 
 
@@ -86,6 +92,7 @@ def snapshot_report_markdown(snapshot: Dict[str, Any]) -> str:
     scores = list(snapshot.get("scores") or [])
     strategy_fit = list(snapshot.get("strategy_fit") or [])
     market_summary = dict((snapshot.get("market_structure_summary") or {}).get("summary") or {})
+    unsupervised_summary = dict((snapshot.get("unsupervised_summary") or {}).get("summary") or {})
     seasonality_summary = dict(snapshot.get("seasonality_summary") or {})
     best_session = summary.get("best_session") or {}
 
@@ -134,6 +141,20 @@ def snapshot_report_markdown(snapshot: Dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"- Best Session: {_fmt(best_session.get('session'))}")
     lines.append(f"- Best Session Opportunity: {_fmt(best_session.get('opportunity_score'), 1)}")
+    lines.append("")
+    lines.append("## Unsupervised Structure")
+    lines.append("")
+    lines.append(f"- Status: {_fmt(summary.get('unsupervised_status'))}")
+    lines.append(f"- Cluster Count: {_fmt(summary.get('unsupervised_cluster_count'))}")
+    top_cluster = summary.get("unsupervised_top_cluster") or {}
+    weakest_cluster = summary.get("unsupervised_weakest_cluster") or {}
+    lines.append(f"- Top Cluster: {_fmt(top_cluster.get('cluster_label'))}")
+    lines.append(f"- Top Cluster Outperformance: {_fmt(top_cluster.get('outperformance_vs_overall'), 4)}")
+    lines.append(f"- Weakest Cluster: {_fmt(weakest_cluster.get('cluster_label'))}")
+    if unsupervised_summary.get("pca_explained_variance_ratio"):
+        lines.append(
+            f"- PCA Variance Ratio: {', '.join(_fmt(value, 4) for value in unsupervised_summary.get('pca_explained_variance_ratio') or [])}"
+        )
     lines.append("")
     lines.append("## Market Structure Notes")
     lines.append("")

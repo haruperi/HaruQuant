@@ -13,6 +13,12 @@ from typing import Any
 
 import pandas as pd
 
+from backend.services.modeling import (
+    UnsupervisedResearchConfig,
+    UnsupervisedResearchService,
+    build_market_regime_feature_frame,
+)
+
 
 class WorkflowContext(dict):
     """Mutable context shared across workflow steps."""
@@ -47,34 +53,13 @@ def _build_unsupervised_feature_frame(
     fast_period: int = 20,
     slow_period: int = 50,
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Build timestamp-aligned features for PCA/K-Means research."""
-    frame = data.copy()
-    close = pd.to_numeric(frame["close"], errors="coerce")
-    high = pd.to_numeric(frame.get("high", close), errors="coerce")
-    low = pd.to_numeric(frame.get("low", close), errors="coerce")
-
-    frame["return_1"] = close.pct_change()
-    frame["rolling_volatility"] = frame["return_1"].rolling(
-        window=20, min_periods=3
-    ).std()
-    frame["momentum"] = close.pct_change(periods=5)
-    frame["range_pct"] = (high - low) / close.replace(0, pd.NA)
-
-    feature_columns = ["return_1", "rolling_volatility", "momentum", "range_pct"]
-    fast_col = f"ema_{fast_period}"
-    slow_col = f"ema_{slow_period}"
-    if fast_col in frame.columns and slow_col in frame.columns:
-        frame["ema_spread"] = (
-            pd.to_numeric(frame[fast_col], errors="coerce")
-            - pd.to_numeric(frame[slow_col], errors="coerce")
-        ) / close.replace(0, pd.NA)
-        feature_columns.append("ema_spread")
-
-    research_columns = ["open", "high", "low", "close", *feature_columns]
-    available_columns = [column for column in research_columns if column in frame.columns]
-    feature_frame = frame.loc[:, available_columns].replace([pd.NA], float("nan"))
-    feature_frame = feature_frame.dropna(subset=feature_columns)
-    return feature_frame, feature_columns
+    """Backward-compatible wrapper over the reusable feature-set builder."""
+    result = build_market_regime_feature_frame(
+        data,
+        fast_period=fast_period,
+        slow_period=slow_period,
+    )
+    return result.frame, list(result.feature_columns)
 
 
 # ── Step 1: collect_market_data ────────────────────────────────────────
@@ -236,10 +221,6 @@ def step_run_unsupervised_research(
     label_column: str = "cluster_label",
 ) -> dict[str, Any]:
     """Run Lesson 2 PCA/K-Means research and signal adaptation."""
-    from backend.services.modeling.unsupervised_insights import (
-        build_unsupervised_insight_report,
-    )
-
     source = ctx.get("signaled", ctx.get("featured"))
     if source is None or source.empty:
         return {
@@ -247,60 +228,67 @@ def step_run_unsupervised_research(
             "reason": "no signaled or featured data available",
         }
 
-    feature_frame, feature_columns = _build_unsupervised_feature_frame(
-        source,
+    config = UnsupervisedResearchConfig(
         fast_period=fast_period,
         slow_period=slow_period,
-    )
-    min_rows = max(n_components, n_clusters)
-    if len(feature_frame) < min_rows or len(feature_columns) < n_components:
-        ctx["unsupervised_status"] = "SKIPPED"
-        return {
-            "status": "SKIPPED",
-            "reason": "insufficient rows or feature columns for PCA/K-Means",
-            "rows_available": int(len(feature_frame)),
-            "required_rows": int(min_rows),
-            "feature_columns": feature_columns,
-        }
-
-    signaled = ctx.get("signaled")
-    aligned_signals = signaled.reindex(feature_frame.index).copy() if signaled is not None else None
-
-    report = build_unsupervised_insight_report(
-        feature_frame,
-        feature_columns=feature_columns,
-        price_column="close",
         n_components=n_components,
         n_clusters=n_clusters,
         random_state=random_state,
         forward_return_horizon=forward_return_horizon,
         label_column=label_column,
-        signal_frame=aligned_signals,
-        signal_column="entry_signal",
+        enable_signal_adaptation=True,
     )
+    service = UnsupervisedResearchService()
+    result = service.analyze_frame(
+        source,
+        signal_frame=ctx.get("signaled"),
+        config=config,
+    )
+    ctx["unsupervised_status"] = result.status
+    ctx["unsupervised_feature_frame"] = result.feature_frame
+    ctx["unsupervised_feature_columns"] = list(result.feature_columns)
+    ctx["unsupervised_feature_metadata"] = result.feature_metadata
+    ctx["unsupervised_strategy_context"] = result.strategy_context
+    ctx["unsupervised_risk_context"] = result.risk_context
+    ctx["unsupervised_guardrails"] = list(result.guardrails)
 
-    ctx["unsupervised_status"] = "COMPLETED"
-    ctx["unsupervised_feature_frame"] = feature_frame
+    if result.status != "COMPLETED" or result.report is None:
+        ctx["unsupervised_status"] = "SKIPPED"
+        return {
+            "status": "SKIPPED",
+            "reason": result.reason or "insufficient rows or feature columns for PCA/K-Means",
+            "rows_available": int(len(result.feature_frame) if result.feature_frame is not None else 0),
+            "required_rows": int(max(config.min_rows, n_components, n_clusters)),
+            "feature_columns": list(result.feature_columns),
+            "guardrails": list(result.guardrails),
+        }
+
+    report = result.report
     ctx["unsupervised_report"] = report
     ctx["labeled_feature_frame"] = report.labeled_data
     ctx["cluster_labels"] = report.clusters.labels
+    signaled = ctx.get("signaled")
     if report.signal_adaptation is not None and signaled is not None:
         adapted = signaled.copy()
         adapted_update = report.signal_adaptation.adapted_signals
         adapted.loc[adapted_update.index, "entry_signal"] = adapted_update["entry_signal"]
         ctx["adapted_signaled"] = adapted
 
-    metadata = report.to_metadata()
+    metadata = result.to_metadata()
     return {
         "status": "COMPLETED",
-        "rows_analyzed": int(len(feature_frame)),
-        "feature_columns": feature_columns,
-        "data_summary": metadata["data_summary"],
-        "pca": metadata["pca"],
-        "clusters": metadata["clusters"],
-        "risk_factors": metadata["risk_factors"],
-        "cluster_outperformance": metadata["cluster_outperformance"],
-        "signal_adaptation": metadata["signal_adaptation"],
+        "rows_analyzed": int(len(result.feature_frame) if result.feature_frame is not None else 0),
+        "feature_columns": list(result.feature_columns),
+        "feature_metadata": result.feature_metadata,
+        "data_summary": metadata["report"]["data_summary"],
+        "pca": metadata["report"]["pca"],
+        "clusters": metadata["report"]["clusters"],
+        "risk_factors": metadata["report"]["risk_factors"],
+        "cluster_outperformance": metadata["report"]["cluster_outperformance"],
+        "signal_adaptation": metadata["report"]["signal_adaptation"],
+        "strategy_context": result.strategy_context,
+        "risk_context": result.risk_context,
+        "guardrails": list(result.guardrails),
     }
 
 

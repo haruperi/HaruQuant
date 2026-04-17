@@ -13,16 +13,32 @@ class RegimeAlignmentScore:
 
     def compute(self, context: ScoreContext) -> List[ScoreRow]:
         summary = context.snapshot.summary
-        regime_name = str(summary.get("regime_name", "UNKNOWN") or "UNKNOWN")
-        confidence_value = float(summary.get("regime_confidence", 0.0) or 0.0)
+        regime_name = str(
+            summary.get("regime_name")
+            or summary.get("unsupervised_regime_name")
+            or "UNKNOWN"
+        )
+        confidence_value = float(
+            summary.get("regime_confidence")
+            or summary.get("unsupervised_regime_confidence")
+            or 0.0
+        )
         governance_decision = str(summary.get("governance_decision", "") or "")
         base_score = 100.0
         if regime_name == "STRESS":
             base_score -= 35.0
+        if regime_name == "UNFAVORABLE":
+            base_score -= 20.0
         if governance_decision == "REJECT":
             base_score -= 15.0
         if str(summary.get("liquidity_regime", "")) == "STRESSED":
             base_score -= 10.0
+        weakest_cluster = summary.get("weakest_cluster") or {}
+        weakest_cluster_outperformance = float(
+            weakest_cluster.get("outperformance_vs_overall", 0.0) or 0.0
+        )
+        if weakest_cluster_outperformance < 0:
+            base_score -= min(abs(weakest_cluster_outperformance) * 1000.0, 10.0)
         score = clamp_score(base_score * (0.7 + 0.3 * confidence_value))
         confidence = confidence_from_inputs(2)
         return [
@@ -38,6 +54,7 @@ class RegimeAlignmentScore:
                     "regime_confidence": confidence_value,
                     "governance_decision": governance_decision,
                     "liquidity_regime": summary.get("liquidity_regime"),
+                    "weakest_cluster": weakest_cluster,
                 },
             )
         ]

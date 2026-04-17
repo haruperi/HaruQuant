@@ -148,6 +148,74 @@ def _snapshot_payload(final_score: float, breakout_score: float) -> dict:
                 }
             ],
         },
+        "unsupervised_result": {
+            "status": "COMPLETED",
+            "summary": {
+                "status": "COMPLETED",
+                "model_version": "unsupervised_structure_v1",
+                "feature_columns": ["return_1", "rolling_volatility", "momentum", "range_pct", "ema_spread"],
+                "cluster_count": 3,
+                "pca_explained_variance_ratio": [0.56, 0.24],
+                "top_outperforming_cluster": {
+                    "cluster_label": 2,
+                    "outperformance_vs_overall": 0.0018,
+                    "observations": 28,
+                },
+                "weakest_cluster": {
+                    "cluster_label": 1,
+                    "outperformance_vs_overall": -0.0011,
+                    "observations": 19,
+                },
+                "top_risk_factors": [
+                    {
+                        "component": "PC1",
+                        "feature": "momentum",
+                        "loading": 0.78,
+                        "abs_loading": 0.78,
+                        "direction": "positive",
+                        "explained_variance_ratio": 0.56,
+                    }
+                ],
+            },
+            "report": {
+                "cluster_outperformance": [
+                    {
+                        "cluster_label": 2,
+                        "observations": 28,
+                        "mean_forward_return": 0.0024,
+                        "hit_rate": 0.61,
+                        "outperformance_vs_overall": 0.0018,
+                    }
+                ],
+                "risk_factors": [
+                    {
+                        "component": "PC1",
+                        "feature": "momentum",
+                        "loading": 0.78,
+                        "abs_loading": 0.78,
+                        "direction": "positive",
+                        "explained_variance_ratio": 0.56,
+                    }
+                ],
+            },
+            "risk_context": {
+                "top_outperforming_cluster": {
+                    "cluster_label": 2,
+                    "outperformance_vs_overall": 0.0018,
+                    "observations": 28,
+                },
+                "weakest_cluster": {
+                    "cluster_label": 1,
+                    "outperformance_vs_overall": -0.0011,
+                    "observations": 19,
+                },
+            },
+            "strategy_context": {
+                "cluster_count": 3,
+                "allowed_clusters": [2],
+                "blocked_clusters": [1],
+            },
+        },
         "market_structure_stability": {
             "agreement_rate": 0.72,
             "direction_agreement_rate": 0.8,
@@ -228,8 +296,10 @@ def test_profile_snapshot_persists_and_compares():
     assert stored is not None
     assert stored["scorecard_summary"]["final_score"] == 72.0
     assert any(row["section"] == "seasonality_session" for row in stored["metrics"])
+    assert any(row["section"] == "unsupervised_cluster" for row in stored["metrics"])
     assert any(row["score_key"] == "trendability" for row in stored["scores"])
     assert stored["strategy_fit"][0]["archetype"] == "Trend Breakout"
+    assert stored["unsupervised_summary"]["summary"]["cluster_count"] == 3
 
     comparison = db.compare_profile_snapshots(left_id, right_id)
     assert comparison["left_snapshot"]["snapshot_id"] == left_id

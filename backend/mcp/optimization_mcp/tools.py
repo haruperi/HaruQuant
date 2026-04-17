@@ -1,4 +1,4 @@
-"""Optimization MCP tool adapters over legacy execution helpers."""
+"""Optimization MCP tool adapters over legacy execution and research helpers."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from backend.common.logger import logger
+from backend.services.modeling import UnsupervisedResearchService
 from backend.services.optimization.execution import EngineOptimizationResult
 from backend.mcp.mt5_mcp.models import MCPToolSpec
 
@@ -64,12 +65,39 @@ class OptimizationExecutionTools:
         }
 
 
+@dataclass(frozen=True)
+class OptimizationResearchTools:
+    """MCP-facing adapter for reusable unsupervised analysis."""
+
+    service: UnsupervisedResearchService
+
+    def analyze_unsupervised_market_structure(
+        self,
+        *,
+        data: Any,
+        config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if config is None:
+            result = self.service.analyze_frame(data)
+        else:
+            from backend.services.modeling import UnsupervisedResearchConfig
+
+            clean_config = {key: value for key, value in config.items() if key != "enabled"}
+            result = self.service.analyze_frame(
+                data,
+                config=UnsupervisedResearchConfig(**clean_config),
+            )
+        return result.to_metadata()
+
+
 OPTIMIZATION_TOOL_SPECS: tuple[MCPToolSpec, ...] = (
     MCPToolSpec("run_backtest_candidate", "read", "Run one legacy optimization candidate through the backtest engine."),
+    MCPToolSpec("analyze_unsupervised_market_structure", "read", "Run reusable unsupervised market-structure analysis over feature-ready market data."),
 )
 
 
 __all__ = [
     "OPTIMIZATION_TOOL_SPECS",
     "OptimizationExecutionTools",
+    "OptimizationResearchTools",
 ]

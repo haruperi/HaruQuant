@@ -17,8 +17,16 @@ import edgeLabApi, {
   type EdgeLabAutomationResult,
 } from "@/lib/api/edge"
 
+const AVAILABLE_FAMILIES = [
+  "core_metric",
+  "seasonality",
+  "market_structure",
+  "unsupervised_structure",
+  "scorecard",
+] as const
+
 function fmt(value: number | null | undefined, digits = 1) {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "—"
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-"
   return value.toFixed(digits)
 }
 
@@ -49,7 +57,9 @@ export default function EdgeLabAutomationPage() {
       familiesText
         .split(",")
         .map((item) => item.trim())
-        .filter(Boolean) as Array<"core_metric" | "seasonality" | "market_structure" | "scorecard">,
+        .filter((item): item is (typeof AVAILABLE_FAMILIES)[number] =>
+          AVAILABLE_FAMILIES.includes(item as (typeof AVAILABLE_FAMILIES)[number])
+        ),
     [familiesText]
   )
 
@@ -207,8 +217,15 @@ export default function EdgeLabAutomationPage() {
               <Input
                 value={familiesText}
                 onChange={(e) => setFamiliesText(e.target.value)}
-                placeholder="Leave blank for full run, or core_metric,seasonality"
+                placeholder="Leave blank for full run, or core_metric,unsupervised_structure"
               />
+              <div className="flex flex-wrap gap-2 pt-1">
+                {AVAILABLE_FAMILIES.map((family) => (
+                  <Badge key={family} variant="secondary" className="font-mono text-[11px]">
+                    {family}
+                  </Badge>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Trigger Type</Label>
@@ -266,7 +283,7 @@ export default function EdgeLabAutomationPage() {
             </div>
             <div className="rounded-lg border p-4">
               <div className="text-sm text-muted-foreground">Final Label</div>
-              <div className="mt-2 text-lg font-semibold">{singleResult.scorecard_summary?.final_label ?? "—"}</div>
+              <div className="mt-2 text-lg font-semibold">{singleResult.scorecard_summary?.final_label ?? "-"}</div>
             </div>
             <div className="rounded-lg border p-4">
               <div className="text-sm text-muted-foreground">Snapshot</div>
@@ -274,6 +291,25 @@ export default function EdgeLabAutomationPage() {
                 {singleResult.snapshot_saved && singleResult.snapshot?.snapshot_id
                   ? `#${singleResult.snapshot.snapshot_id}`
                   : "Not saved"}
+              </div>
+            </div>
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground">Unsupervised Status</div>
+              <div className="mt-2 text-lg font-semibold">{singleResult.unsupervised_summary?.status ?? "-"}</div>
+            </div>
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground">Cluster Count</div>
+              <div className="mt-2 font-mono text-2xl">{fmt(singleResult.unsupervised_summary?.cluster_count ?? null, 0)}</div>
+            </div>
+            <div className="rounded-lg border p-4 md:col-span-2">
+              <div className="text-sm text-muted-foreground">Top Cluster</div>
+              <div className="mt-2 text-lg font-semibold">
+                {singleResult.unsupervised_summary?.top_outperforming_cluster?.cluster_label !== undefined
+                  ? `Cluster ${singleResult.unsupervised_summary.top_outperforming_cluster.cluster_label}`
+                  : "-"}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Outperformance {fmt(singleResult.unsupervised_summary?.top_outperforming_cluster?.outperformance_vs_overall ?? null, 4)}
               </div>
             </div>
           </CardContent>
@@ -289,7 +325,7 @@ export default function EdgeLabAutomationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg overflow-hidden border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -297,6 +333,7 @@ export default function EdgeLabAutomationPage() {
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Final Score</TableHead>
                     <TableHead>Final Label</TableHead>
+                    <TableHead className="text-right">Clusters</TableHead>
                     <TableHead>Snapshot</TableHead>
                     <TableHead>Cache</TableHead>
                   </TableRow>
@@ -313,13 +350,12 @@ export default function EdgeLabAutomationPage() {
                       <TableCell className="text-right font-mono">
                         {fmt(row.scorecard_summary?.final_score ?? null, 1)}
                       </TableCell>
-                      <TableCell>{row.scorecard_summary?.final_label ?? "—"}</TableCell>
-                      <TableCell>
-                        {row.snapshot?.snapshot_id ? `#${row.snapshot.snapshot_id}` : "—"}
+                      <TableCell>{row.scorecard_summary?.final_label ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {fmt(row.unsupervised_summary?.cluster_count ?? null, 0)}
                       </TableCell>
-                      <TableCell>
-                        {row.automation_metadata?.cache_hit ? "Hit" : "Miss"}
-                      </TableCell>
+                      <TableCell>{row.snapshot?.snapshot_id ? `#${row.snapshot.snapshot_id}` : "-"}</TableCell>
+                      <TableCell>{row.automation_metadata?.cache_hit ? "Hit" : "Miss"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

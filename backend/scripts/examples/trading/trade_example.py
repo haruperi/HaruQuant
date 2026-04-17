@@ -1220,11 +1220,11 @@ def example_15_complete_backtests():
     print(f"Data loading and preparation completed in {data_end_time - start_time} seconds")
     run_start_time = time.time()
     engine_instance.configure_run_schedule(
-        positions_every=1,
-        pending_orders_every=1,
-        account_every=4,
-        portfolio_every=4,
-        risk_every=4,
+        positions_every=60, # monitor positions every 15 mins (4 ticks per bar * 15)
+        pending_orders_every=60,
+        account_every=240, # every 1 hour
+        portfolio_every=240,
+        risk_every=240,
     )
 
     

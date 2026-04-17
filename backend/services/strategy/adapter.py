@@ -47,6 +47,15 @@ class StrategyAdapter:
             return None
 
         action = self._action_from_signal(signal)
+        merged_features = dict(features or {})
+        merged_metadata = dict(metadata or {})
+        row = data.iloc[index]
+        if "cluster_label" in data.columns and pd.notna(row.get("cluster_label")):
+            merged_features.setdefault("cluster_label", int(row.get("cluster_label")))
+        if "cluster_metadata" in data.attrs:
+            merged_metadata.setdefault("cluster_metadata", data.attrs["cluster_metadata"])
+        if "signal_adaptation" in data.attrs:
+            merged_metadata.setdefault("signal_adaptation", data.attrs["signal_adaptation"])
         return {
             "action": action,
             "qty": self.default_qty,
@@ -56,10 +65,10 @@ class StrategyAdapter:
             "strategy_id": self.strategy.strategy_id,
             "symbol": self.strategy.symbol,
             "reason": signal.get("reason"),
-            "features": dict(features or {}),
+            "features": merged_features,
             "confidence": None,
             "tags": list(tags or ()),
-            "metadata": dict(metadata or {}),
+            "metadata": merged_metadata,
             "timestamp": signal.get("time"),
         }
 

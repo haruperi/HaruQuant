@@ -11,6 +11,7 @@ import {
   type EdgeMarketStructureProfile,
   type EdgeMarketStructureRobustnessReport,
   type EdgeMarketStructureStabilityReport,
+  type EdgeUnsupervisedResult,
 } from "@/lib/api/edge"
 
 interface EdgeLabDataContextValue {
@@ -18,6 +19,7 @@ interface EdgeLabDataContextValue {
   coreMetricProfile: EdgeCoreMetricProfile | null
   seasonalityResult: EdgeLabSeasonalityResponse | null
   marketStructureProfile: EdgeMarketStructureProfile | null
+  unsupervisedResult: EdgeUnsupervisedResult | null
   marketStructureStability: EdgeMarketStructureStabilityReport | null
   marketStructureRobustness: EdgeMarketStructureRobustnessReport | null
   loading: boolean
@@ -26,6 +28,7 @@ interface EdgeLabDataContextValue {
   setCoreMetricProfile: (profile: EdgeCoreMetricProfile | null) => void
   setSeasonalityResult: (result: EdgeLabSeasonalityResponse | null) => void
   setMarketStructureProfile: (profile: EdgeMarketStructureProfile | null) => void
+  setUnsupervisedResult: (result: EdgeUnsupervisedResult | null) => void
   setMarketStructureStability: (report: EdgeMarketStructureStabilityReport | null) => void
   setMarketStructureRobustness: (report: EdgeMarketStructureRobustnessReport | null) => void
   clearAnalysis: () => void
@@ -36,6 +39,7 @@ const STORAGE_KEY = "edge_lab_prepared_dataset"
 const CORE_METRIC_STORAGE_KEY = "edge_lab_core_metric_profile"
 const SEASONALITY_STORAGE_KEY = "edge_lab_seasonality_result"
 const MARKET_STRUCTURE_STORAGE_KEY = "edge_lab_market_structure_profile"
+const UNSUPERVISED_STORAGE_KEY = "edge_lab_unsupervised_result"
 const MARKET_STRUCTURE_STABILITY_STORAGE_KEY = "edge_lab_market_structure_stability"
 const MARKET_STRUCTURE_ROBUSTNESS_STORAGE_KEY = "edge_lab_market_structure_robustness"
 
@@ -73,6 +77,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
   const [coreMetricProfile, setStoredCoreMetricProfile] = useState<EdgeCoreMetricProfile | null>(null)
   const [seasonalityResult, setStoredSeasonalityResult] = useState<EdgeLabSeasonalityResponse | null>(null)
   const [marketStructureProfile, setStoredMarketStructureProfile] = useState<EdgeMarketStructureProfile | null>(null)
+  const [unsupervisedResult, setStoredUnsupervisedResult] = useState<EdgeUnsupervisedResult | null>(null)
   const [marketStructureStability, setStoredMarketStructureStability] = useState<EdgeMarketStructureStabilityReport | null>(null)
   const [marketStructureRobustness, setStoredMarketStructureRobustness] = useState<EdgeMarketStructureRobustnessReport | null>(null)
   const [loading, setLoading] = useState(false)
@@ -93,6 +98,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
     hydrate<EdgeCoreMetricProfile>(CORE_METRIC_STORAGE_KEY, setStoredCoreMetricProfile)
     hydrate<EdgeLabSeasonalityResponse>(SEASONALITY_STORAGE_KEY, setStoredSeasonalityResult)
     hydrate<EdgeMarketStructureProfile>(MARKET_STRUCTURE_STORAGE_KEY, setStoredMarketStructureProfile)
+    hydrate<EdgeUnsupervisedResult>(UNSUPERVISED_STORAGE_KEY, setStoredUnsupervisedResult)
     hydrate<EdgeMarketStructureStabilityReport>(MARKET_STRUCTURE_STABILITY_STORAGE_KEY, setStoredMarketStructureStability)
     hydrate<EdgeMarketStructureRobustnessReport>(MARKET_STRUCTURE_ROBUSTNESS_STORAGE_KEY, setStoredMarketStructureRobustness)
   }, [])
@@ -118,6 +124,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
     persist(CORE_METRIC_STORAGE_KEY, coreMetricProfile)
     persist(SEASONALITY_STORAGE_KEY, compactSeasonalityResult(seasonalityResult))
     persist(MARKET_STRUCTURE_STORAGE_KEY, compactMarketStructureProfile(marketStructureProfile))
+    persist(UNSUPERVISED_STORAGE_KEY, unsupervisedResult)
     persist(MARKET_STRUCTURE_STABILITY_STORAGE_KEY, marketStructureStability)
     persist(MARKET_STRUCTURE_ROBUSTNESS_STORAGE_KEY, marketStructureRobustness)
   }, [
@@ -125,6 +132,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
     coreMetricProfile,
     seasonalityResult,
     marketStructureProfile,
+    unsupervisedResult,
     marketStructureStability,
     marketStructureRobustness,
   ])
@@ -135,6 +143,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
       coreMetricProfile,
       seasonalityResult,
       marketStructureProfile,
+      unsupervisedResult,
       marketStructureStability,
       marketStructureRobustness,
       loading,
@@ -148,6 +157,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
           setStoredCoreMetricProfile(null)
           setStoredSeasonalityResult(null)
           setStoredMarketStructureProfile(null)
+          setStoredUnsupervisedResult(null)
           setStoredMarketStructureStability(null)
           setStoredMarketStructureRobustness(null)
           return response
@@ -165,13 +175,16 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
         setStoredMarketStructureProfile(profile)
         setStoredMarketStructureStability(null)
         setStoredMarketStructureRobustness(null)
+        setStoredUnsupervisedResult(null)
       },
+      setUnsupervisedResult: setStoredUnsupervisedResult,
       setMarketStructureStability: setStoredMarketStructureStability,
       setMarketStructureRobustness: setStoredMarketStructureRobustness,
       clearAnalysis() {
         setStoredCoreMetricProfile(null)
         setStoredSeasonalityResult(null)
         setStoredMarketStructureProfile(null)
+        setStoredUnsupervisedResult(null)
         setStoredMarketStructureStability(null)
         setStoredMarketStructureRobustness(null)
       },
@@ -180,6 +193,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
         setStoredCoreMetricProfile(null)
         setStoredSeasonalityResult(null)
         setStoredMarketStructureProfile(null)
+        setStoredUnsupervisedResult(null)
         setStoredMarketStructureStability(null)
         setStoredMarketStructureRobustness(null)
         setError(null)
@@ -190,6 +204,7 @@ export function EdgeLabDataProvider({ children }: { children: React.ReactNode })
       coreMetricProfile,
       seasonalityResult,
       marketStructureProfile,
+      unsupervisedResult,
       marketStructureStability,
       marketStructureRobustness,
       error,

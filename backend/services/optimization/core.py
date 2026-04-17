@@ -14,6 +14,10 @@ from backend.services.strategy.storage import StrategyStorage
 from backend.services.strategy.permissions import assert_strategy_allowed
 from backend.services.market_data.data_getters import load_dukascopy
 from backend.services.market_data.data_validator import DataValidator
+from backend.services.modeling import (
+    UnsupervisedResearchConfig,
+    UnsupervisedResearchService,
+)
 
 from .methods import (
     bayesian_optimization,
@@ -47,6 +51,61 @@ OBJECTIVE_FUNCTIONS = {
 }
 
 
+def _unsupervised_config_payload(config: Any) -> Optional[Dict[str, Any]]:
+    if config is None:
+        return None
+    if hasattr(config, "model_dump"):
+        payload = config.model_dump()
+    elif isinstance(config, dict):
+        payload = dict(config)
+    else:
+        return None
+    if not payload.get("enabled"):
+        return None
+    return payload
+
+
+def _build_unsupervised_config(config_payload: Optional[Dict[str, Any]]) -> Optional[UnsupervisedResearchConfig]:
+    if not config_payload:
+        return None
+    return UnsupervisedResearchConfig(
+        fast_period=int(config_payload.get("fast_period", 20)),
+        slow_period=int(config_payload.get("slow_period", 50)),
+        volatility_window=int(config_payload.get("volatility_window", 20)),
+        momentum_window=int(config_payload.get("momentum_window", 5)),
+        min_feature_periods=int(config_payload.get("min_feature_periods", 3)),
+        include_ema_spread=bool(config_payload.get("include_ema_spread", True)),
+        n_components=int(config_payload.get("n_components", 2)),
+        n_clusters=int(config_payload.get("n_clusters", 3)),
+        random_state=int(config_payload.get("random_state", 42)),
+        forward_return_horizon=int(config_payload.get("forward_return_horizon", 1)),
+        label_column=str(config_payload.get("label_column", "cluster_label")),
+        price_column=str(config_payload.get("price_column", "close")),
+        min_rows=int(config_payload.get("min_rows", 25)),
+        min_cluster_observations=int(config_payload.get("min_cluster_observations", 3)),
+        scale_features=bool(config_payload.get("scale_features", True)),
+        enable_signal_adaptation=bool(config_payload.get("enable_signal_adaptation", False)),
+    )
+
+
+def _run_unsupervised_analysis(
+    data: Any,
+    config_payload: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    config = _build_unsupervised_config(config_payload)
+    if config is None:
+        return None
+    if data is None or getattr(data, "empty", True):
+        return {
+            "status": "SKIPPED",
+            "config": config.to_dict(),
+            "reason": "no market data available for unsupervised analysis",
+        }
+    service = UnsupervisedResearchService()
+    result = service.analyze_frame(data, config=config)
+    return result.to_metadata()
+
+
 def _parse_request_date(value: Any) -> Optional[datetime]:
     if value is None:
         return None
@@ -77,12 +136,17 @@ async def run_optimization_task(  # noqa: C901
     db_manager = DatabaseManager()
     backtest_db = BacktestDatabase()
     storage = StrategyStorage()
+    unsupervised_config = _unsupervised_config_payload(getattr(request, "unsupervised", None))
 
     loop = asyncio.get_event_loop()
 
     try:
         # Update status to running
-        db_manager.update_optimization_status(optimization_id, "running")
+        db_manager.update_optimization_status(
+            optimization_id,
+            "running",
+            unsupervised_status="pending" if unsupervised_config else None,
+        )
         assert_strategy_allowed(strategy_id, "optimization", db_manager=db_manager)
 
         logger.info(
@@ -185,6 +249,19 @@ async def run_optimization_task(  # noqa: C901
         if data is None or data.empty:
             raise ValueError(
                 f"No data loaded for {request.symbol} {request.timeframe} from {data_source}"
+            )
+
+        unsupervised_report = _run_unsupervised_analysis(data, unsupervised_config)
+        if unsupervised_report is not None:
+            db_manager.update_optimization_status(
+                optimization_id,
+                "running",
+                unsupervised_status=str(unsupervised_report.get("status", "completed")).lower(),
+                unsupervised_report=unsupervised_report,
+                unsupervised_context={
+                    "strategy_context": unsupervised_report.get("strategy_context", {}),
+                    "risk_context": unsupervised_report.get("risk_context", {}),
+                },
             )
 
         # Get scoring function
@@ -417,6 +494,7 @@ async def run_optimization_task(  # noqa: C901
                     "max_drawdown": opt_result.result.max_drawdown_pct,
                     "is_best": i == 0,
                     "is_top_10": i < 10,
+                    "unsupervised_report": unsupervised_report,
                 }
             )
 
@@ -431,6 +509,20 @@ async def run_optimization_task(  # noqa: C901
             best_backtest_id=best_backtest_id,
             best_score=summary.best_score,
             best_parameters=summary.best_params,
+            unsupervised_status=(
+                str(unsupervised_report.get("status", "completed")).lower()
+                if unsupervised_report is not None
+                else None
+            ),
+            unsupervised_report=unsupervised_report,
+            unsupervised_context=(
+                {
+                    "strategy_context": unsupervised_report.get("strategy_context", {}),
+                    "risk_context": unsupervised_report.get("risk_context", {}),
+                }
+                if unsupervised_report is not None
+                else None
+            ),
             completed_at=datetime.now(),
         )
 
@@ -439,7 +531,10 @@ async def run_optimization_task(  # noqa: C901
     except Exception as e:
         logger.error(f"Optimization {optimization_id} failed: {e}")
         db_manager.update_optimization_status(
-            optimization_id, "failed", completed_at=datetime.now()
+            optimization_id,
+            "failed",
+            unsupervised_status="failed" if unsupervised_config else None,
+            completed_at=datetime.now(),
         )
         raise
 
@@ -463,10 +558,15 @@ async def run_walk_forward_task(  # noqa: C901
     """
     db_manager = DatabaseManager()
     storage = StrategyStorage()
+    unsupervised_config = _unsupervised_config_payload(getattr(request, "unsupervised", None))
 
     try:
         # Update status
-        db_manager.update_optimization_status(optimization_id, "running")
+        db_manager.update_optimization_status(
+            optimization_id,
+            "running",
+            unsupervised_status="pending" if unsupervised_config else None,
+        )
         assert_strategy_allowed(strategy_id, "optimization", db_manager=db_manager)
 
         logger.info(f"Starting walk-forward analysis {optimization_id}")
@@ -567,6 +667,19 @@ async def run_walk_forward_task(  # noqa: C901
                 f"No data loaded for {request.symbol} {request.timeframe} from {data_source}"
             )
 
+        unsupervised_report = _run_unsupervised_analysis(data, unsupervised_config)
+        if unsupervised_report is not None:
+            db_manager.update_optimization_status(
+                optimization_id,
+                "running",
+                unsupervised_status=str(unsupervised_report.get("status", "completed")).lower(),
+                unsupervised_report=unsupervised_report,
+                unsupervised_context={
+                    "strategy_context": unsupervised_report.get("strategy_context", {}),
+                    "risk_context": unsupervised_report.get("risk_context", {}),
+                },
+            )
+
         # Build parameter grid
         param_grid: Dict[str, List[Any]] = {}
         for param in request.parameters:
@@ -614,14 +727,34 @@ async def run_walk_forward_task(  # noqa: C901
 
         # Update status
         db_manager.update_optimization_status(
-            optimization_id, "completed", completed_at=datetime.now()
+            optimization_id,
+            "completed",
+            unsupervised_status=(
+                str(unsupervised_report.get("status", "completed")).lower()
+                if unsupervised_report is not None
+                else None
+            ),
+            unsupervised_report=unsupervised_report,
+            unsupervised_context=(
+                {
+                    "strategy_context": unsupervised_report.get("strategy_context", {}),
+                    "risk_context": unsupervised_report.get("risk_context", {}),
+                }
+                if unsupervised_report is not None
+                else None
+            ),
+            completed_at=datetime.now(),
         )
 
         logger.success(f"Walk-forward analysis {optimization_id} completed")
 
     except Exception as e:
         logger.error(f"Walk-forward {optimization_id} failed: {e}")
-        db_manager.update_optimization_status(optimization_id, "failed")
+        db_manager.update_optimization_status(
+            optimization_id,
+            "failed",
+            unsupervised_status="failed" if unsupervised_config else None,
+        )
         raise
 
 
