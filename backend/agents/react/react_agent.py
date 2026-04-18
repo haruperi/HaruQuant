@@ -80,6 +80,23 @@ def parse_react_output(text: str) -> ReActStep:
             action_args=action_args,
         )
 
+    # NEW: Fallback for missing prefixes but presence of JSON
+    # If the text contains something that looks like JSON, try to treat it as Final
+    if "{" in text and "}" in text:
+        try:
+            # Find outermost JSON-like object
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            json_str = text[start:end]
+            json.loads(json_str) # Validate it
+            return ReActStep(
+                thought=text[:start].strip() or thought or "Detected JSON in output",
+                is_final=True,
+                final_json=json_str
+            )
+        except json.JSONDecodeError:
+            pass
+
     # Fallback: treat entire text as thought
     return ReActStep(thought=text)
 
