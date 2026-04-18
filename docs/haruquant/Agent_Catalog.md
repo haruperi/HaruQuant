@@ -1,25 +1,73 @@
-# Agent Catalog (Playbook §6.3)
+# Agent Catalog
 
-| Agent | Purpose | Input Schema | Output Schema | Persona | Model | Tools/Resources | Memory | State Transitions | Policy Profile | Approval Profile | Owner | Benchmark Tasks | Failure Modes |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| compliance_agent | Policy compliance check | ComplianceCheckRequest | ComplianceDecision | Compliance Officer | AGENT_MODEL | policy_engine, tool_policy | session | IDLE→CHECKING→PASS/FAIL | Must enforce all policies | Class C/D require approval | risk_team | Pass 10 policy scenarios | Weak policy config |
-| correlation_agent | Portfolio correlation analysis | CorrelationRequest | CorrelationResult | Quant Analyst | AGENT_MODEL | risk_analytics_mcp | session | IDLE→ANALYZING→DONE | Read-only data access | Auto-allowed (Class A) | quant_team | Detect correlation > 0.8 | Insufficient data |
-| drawdown_agent | Drawdown monitoring | DrawdownRequest | DrawdownResult | Risk Monitor | AGENT_MODEL | risk_analytics_mcp, sql_mcp | session | IDLE→MONITORING→ALERT | Alert on threshold breach | Escalate Class D | risk_team | Detect max DD within 5% | Stale data |
-| execution_agent | Trade execution | ExecutionIntent | ExecutionReceipt | Execution Trader | AGENT_MODEL | mt5_mcp, execution_service | session+workflow | IDLE→VALIDATING→EXECUTING→RECEIPT | Require risk decision first | Class C/D require approval | trading_team | Execute order within 5s | MT5 unavailable |
-| exposure_agent | Exposure analysis | ExposureRequest | ExposureSummary | Risk Analyst | AGENT_MODEL | risk_analytics_mcp | session | IDLE→CALCULATING→DONE | Read-only | Auto-allowed | risk_team | Calculate exposure within 1% | Missing position data |
-| monitoring_agent | Workflow/system monitoring | MonitoringQuery | MonitoringResult | System Operator | AGENT_MODEL | sql_mcp, observability | session | IDLE→QUERYING→REPORTING | Read-only access | Auto-allowed | platform_team | Detect stale workflow | Observability gap |
-| orchestrator_agent | Task decomposition & routing | OrchestratorRequest | OrchestratorResult | Orchestrator | AGENT_MODEL | All MCP servers | workflow | IDLE→PLANNING→DISPATCHING→SYNTHESIZING→DONE | Route to correct specialists | Approve task graph | ai_team | Correctly decompose 10 tasks | Ambiguous request |
-| portfolio_agent | Portfolio analysis | PortfolioRequest | PortfolioSummary | Portfolio Manager | AGENT_MODEL | risk_analytics_mcp, sql_mcp | session+long-term | IDLE→ANALYZING→REPORTING | Read portfolio state | Auto-allowed | quant_team | Calculate VaR within 5% | Incomplete positions |
-| regime_agent | Market regime detection | RegimeRequest | RegimeResult | Macro Analyst | AGENT_MODEL | risk_analytics_mcp, market_data_mcp | session | IDLE→DETECTING→CLASSIFIED | Read market data | Auto-allowed | quant_team | Correct regime 80%+ | Volatile transitions |
-| research_agent | Symbol research & edge discovery | ResearchRequest | ResearchResult | Research Analyst | AGENT_MODEL | research_mcp, market_data_mcp | session+long-term | IDLE→RESEARCHING→SYNTHESIZING→DONE | Read-only research | Auto-allowed | research_team | Identify tradeable symbol | Insufficient history |
-| risk_governor_agent | Risk governance gate | RiskAssessmentRequest | RiskAssessmentDecision | Risk Governor | AGENT_MODEL | risk_engine, policy_service | session | IDLE→ASSESSING→APPROVE/REJECT/ESCALATE | Enforce all risk policies | Class D → human approval | risk_team | Block 100% of risky trades | Policy misconfig |
-| slippage_agent | Slippage analysis | SlippageRequest | SlippageResult | Execution Analyst | AGENT_MODEL | mt5_mcp, sql_mcp | session | IDLE→ANALYZING→REPORTING | Read execution data | Auto-allowed | trading_team | Measure slippage < 1 pip | Missing fill data |
-| strategy_agent | Strategy signal generation | StrategyRequest | Signal | Strategy Developer | AGENT_MODEL | strategy_service, market_data_mcp | session+long-term | IDLE→LOADING→SIGNALING→DONE | Load validated strategy only | Auto-allowed | quant_team | Generate correct signal | Strategy error |
-| volatility_agent | Volatility analysis | VolatilityRequest | VolatilityResult | Volatility Analyst | AGENT_MODEL | risk_analytics_mcp | session | IDLE→CALCULATING→DONE | Read market data | Auto-allowed | quant_team | Calculate ATR within 5% | Insufficient bars |
-| intent_router_agent | Intent classification & dispatch | Request path | RoutingMetadata | Router | AGENT_MODEL | PolicyResolver | none | IDLE→CLASSIFYING→DISPATCHING→DONE | Policy check before dispatch | Block unauthorized | ai_team | Classify 10 intents correctly | Unknown intent |
+This catalog now reflects the implemented agent layer exactly as exposed by
+[backend/agents/__init__.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\__init__.py).
+
+## Exported Agents
+
+| Agent Name | Public Symbol | Module | Kind | Instruction Source | Enforced Output |
+|---|---|---|---|---|---|
+| `compliance_agent` | `ComplianceAgentWrapper` | `backend/agents/compliance_agent.py` | LLM wrapper | `COMPLIANCE_AGENT_INSTRUCTION` | `EvaluationReport` |
+| `correlation_agent` | `CorrelationAgentWrapper` | `backend/agents/correlation_agent.py` | LLM wrapper | `CORRELATION_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `drawdown_agent` | `DrawdownAgentWrapper` | `backend/agents/drawdown_agent.py` | LLM wrapper | `DRAWDOWN_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `execution_agent` | `ExecutionAgentWrapper` | `backend/agents/execution_agent.py` | LLM wrapper | `EXECUTION_AGENT_INSTRUCTION` | `ExecutionIntent` |
+| `exposure_agent` | `ExposureAgentWrapper` | `backend/agents/exposure_agent.py` | LLM wrapper | `EXPOSURE_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `intent_router_agent` | `IntentRouterAgent`, `intent_router_agent` | `backend/agents/intent_router.py` | Router/service | classifier + `RouteDecisionService` | dispatches handler output, no canonical output validator |
+| `monitoring_agent` | `MonitoringAgentWrapper` | `backend/agents/monitoring_agent.py` | LLM wrapper | `MONITORING_AGENT_INSTRUCTION` | `IncidentAlert` |
+| `orchestrator_agent` | `OrchestratorAgentWrapper` | `backend/agents/orchestrator_agent.py` | LLM wrapper | `ORCHESTRATOR_AGENT_INSTRUCTION` | `WorkflowPlan` |
+| `portfolio_agent` | `PortfolioAgentWrapper` | `backend/agents/portfolio_agent.py` | LLM wrapper | `PORTFOLIO_AGENT_INSTRUCTION` | `EvaluationReport` |
+| `refine_agent` | `RefineAgentWrapper` | `backend/agents/refine_agent.py` | LLM wrapper | `REFINE_AGENT_INSTRUCTION` | `RefinementReport` |
+| `regime_agent` | `RegimeAgentWrapper` | `backend/agents/regime_agent.py` | LLM wrapper | `REGIME_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `research_agent` | `ResearchAgentWrapper` | `backend/agents/research_agent.py` | LLM wrapper | `RESEARCH_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `risk_governor_agent` | `RiskGovernorAgentAdapter` | `backend/agents/risk_governor_agent.py` | deterministic adapter | no LLM instruction; delegates to `DeterministicRiskService` | `RiskAssessmentDecision` |
+| `slippage_agent` | `SlippageAgentWrapper` | `backend/agents/slippage_agent.py` | LLM wrapper | `SLIPPAGE_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `strategy_agent` | `StrategyAgentWrapper` | `backend/agents/strategy_agent.py` | LLM wrapper | `STRATEGY_AGENT_INSTRUCTION` | `TradeHypothesis` |
+| `volatility_agent` | `VolatilityAgentWrapper` | `backend/agents/volatility_agent.py` | LLM wrapper | `VOLATILITY_AGENT_INSTRUCTION` | `ObservationEvent` |
+
+## Notes
+
+- All LLM wrappers are thin adapters over `ADKRunnerService` plus
+  `CanonicalOutputValidator`.
+- The wrapper input surface is `ADKRunRequest`; the table above records the
+  contract each wrapper explicitly validates on output.
+- `risk_governor_agent` is not an LLM agent in code. It is a deterministic
+  adapter that forwards to a risk service and verifies the returned contract.
+- `intent_router_agent` is not an LLM wrapper either. It classifies request
+  intent and dispatches to registered handlers.
+
+## Prompt Modules
+
+Prompt-backed agents resolve their instruction strings from
+[backend/agents/prompts](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\prompts):
+
+- `compliance_template.py`
+- `correlation_template.py`
+- `drawdown_template.py`
+- `execution_template.py`
+- `exposure_template.py`
+- `monitoring_template.py`
+- `orchestrator_template.py`
+- `portfolio_template.py`
+- `refine_template.py`
+- `regime_template.py`
+- `research_template.py`
+- `slippage_template.py`
+- `strategy_template.py`
+- `volatility_template.py`
+
+The deterministic risk governor metadata lives in
+[risk_governor_template.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\prompts\risk_governor_template.py).
 
 ## Model Configuration
 
-All agents use `AGENT_MODEL = "gemini-3.1-flash-lite-preview"` by default.
-To change the model for ALL agents, edit `backend/config/agent_model.py`.
-Environment variable `HARUQUANT_AGENT_MODEL` overrides at runtime.
+Shared agent model settings are defined in
+[backend/config/agent_model.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\config\agent_model.py).
+
+- Default model: `gemini-3.1-flash-lite-preview`
+- Override env var: `HARUQUANT_AGENT_MODEL`
+
+## Related Runtime Docs
+
+- [Workflow_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\Workflow_Catalog.md)
+- [Tool_Resource_Prompt_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\Tool_Resource_Prompt_Catalog.md)
+- [backend/agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\runtime)

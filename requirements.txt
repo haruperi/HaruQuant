@@ -1,3 +1,14 @@
+# --- Pinning for compatibility with google-adk ---
+opentelemetry-api==1.38.0
+opentelemetry-sdk==1.38.0
+opentelemetry-proto==1.38.0
+opentelemetry-exporter-otlp-proto-common==1.38.0
+opentelemetry-exporter-otlp-proto-http==1.38.0
+opentelemetry-exporter-gcp-logging==1.11.0a0
+
+# Structured Logging
+structlog
+
 # Data Science & Analysis
 numpy
 pandas
@@ -5,10 +16,34 @@ scipy
 fastparquet
 pyarrow
 tqdm
+sqlparse
 
-# Optimization & High Performance
-scikit-optimize
-numba
+
+# Development Tools & Linters
+pre-commit
+black
+isort
+flake8
+pylint
+mypy
+bandit
+bandit[toml]
+setuptools
+
+# === Web Framework + API ===
+fastapi
+pydantic
+pydantic[email]
+python-dotenv
+python-multipart
+requests
+sqlalchemy
+uvicorn
+
+# HTTP Networking
+requests
+httpx
+websockets
 
 # Visualization & Reporting
 matplotlib
@@ -17,16 +52,9 @@ plotly
 bokeh
 rich
 
-# Web Framework & API
-fastapi
-uvicorn[standard]
-python-multipart
-websockets
-pydantic[email]
-
-# HTTP Networking
-requests
-httpx
+# Optimization & High Performance
+scikit-optimize
+numba
 
 # Trading & Finance Interface
 MetaTrader5
@@ -46,65 +74,11 @@ pytest
 pytest-cov
 pytest-benchmark
 
-# Development Tools & Linters
-pre-commit
-black
-isort
-flake8
-pylint
-mypy
-bandit
-bandit[toml]
-
-# Python/C++
-#cpython
-setuptools
-
-# Structured Logging
-structlog
-
-# === Agent + LLM Tools ===
-aisuite
-google-adk
-litellm
-anthropic
-docstring-parser
-markdown
-mistralai
-openai
-qrcode
-tavily-python>=0.7.12
-textstat
-vertexai
-mcp
-google-genai
-google.generativeai
-aider-install
-
-# === Web Framework + API ===
-fastapi
-pydantic
-pydantic[email]
-python-dotenv
-python-multipart
-requests
-sqlalchemy
-uvicorn
-
 # === Notebook Experience ===
 ipywidgets
 jupyter_server
 nbclassic
 notebook
-
-# === Data Analysis / Display (Optional Enhancements) ===
-duckdb
-matplotlib
-pandas
-seaborn
-sqlparse
-tabulate
-tinydb
 
 # === Machine Learning / NLP (Optional Enhancements) ===
 chromadb
@@ -113,3 +87,17 @@ psycopg2-binary
 scikit-learn
 sentence_transformers
 Wikipedia
+
+# === Agent + LLM Tools ===
+google-adk
+litellm
+anthropic
+docstring-parser
+markdown
+openai
+qrcode
+vertexai
+mcp
+google-genai
+google.generativeai
+aider-install

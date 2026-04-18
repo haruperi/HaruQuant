@@ -5,7 +5,9 @@ from .correlation_agent import CORRELATION_AGENT_INSTRUCTION, CorrelationAgentWr
 from .drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION, DrawdownAgentWrapper
 from .execution_agent import EXECUTION_AGENT_INSTRUCTION, ExecutionAgentWrapper
 from .exposure_agent import EXPOSURE_AGENT_INSTRUCTION, ExposureAgentWrapper
+from .intent_router import IntentRouterAgent, IntentRouterError, intent_router_agent
 from .portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
+from .refine_agent import REFINE_AGENT_INSTRUCTION, RefineAgentWrapper
 from .risk_governor_agent import RiskGovernorAgentAdapter
 from .route_decision import RouteDecision, RouteDecisionService
 from .monitoring_agent import MONITORING_AGENT_INSTRUCTION, MonitoringAgentWrapper
@@ -90,6 +92,7 @@ __all__ = [
     "DRAWDOWN_AGENT_INSTRUCTION",
     "EXECUTION_AGENT_INSTRUCTION",
     "EXPOSURE_AGENT_INSTRUCTION",
+    "REFINE_AGENT_INSTRUCTION",
     "MONITORING_AGENT_INSTRUCTION",
     "ORCHESTRATOR_AGENT_INSTRUCTION",
     "PORTFOLIO_AGENT_INSTRUCTION",
@@ -107,9 +110,12 @@ __all__ = [
     "DrawdownAgentWrapper",
     "ExecutionAgentWrapper",
     "ExposureAgentWrapper",
+    "IntentRouterAgent",
+    "IntentRouterError",
     "MonitoringAgentWrapper",
     "OrchestratorAgentWrapper",
     "PortfolioAgentWrapper",
+    "RefineAgentWrapper",
     "RiskGovernorAgentAdapter",
     "RouteDecision",
     "RouteDecisionService",
@@ -169,6 +175,7 @@ __all__ = [
     "RoutingWorkflowBranch",
     "RoutingWorkflowRunner",
     "WorkerGroupResult",
+    "intent_router_agent",
     "enforce_refine_loop_limit",
     "WorkflowMemoryBinding",
     "WorkflowMemoryBindings",
