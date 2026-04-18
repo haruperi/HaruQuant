@@ -3,24 +3,26 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
-import numpy as np
 import pandas as pd
+import yaml
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
-_EXAMPLE_DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "market_data"
-_EXAMPLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# ======================================================================
-# Display helpers
-# ======================================================================
+EXAMPLE_ROOT = Path(__file__).resolve().parent
+CONTRACTS_ROOT = Path(PROJECT_ROOT) / "backend" / "contracts"
+WORKFLOW_DEFINITIONS_ROOT = Path(PROJECT_ROOT) / "backend" / "orchestration" / "workflow" / "definitions"
+EXAMPLE_DATA_DIR = Path(PROJECT_ROOT) / "backend" / "data" / "market_data"
+EXAMPLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def print_header(title: str) -> None:
     print()
@@ -33,8 +35,8 @@ def print_kv(label: str, value: Any, indent: int = 2) -> None:
     prefix = " " * indent
     if isinstance(value, dict):
         print(f"{prefix}{label}")
-        for k, v in value.items():
-            print(f"{prefix}  {k:<28s} {v}")
+        for key, item in value.items():
+            print(f"{prefix}  {key:<28s} {item}")
     elif isinstance(value, list):
         print(f"{prefix}{label}")
         for item in value:
@@ -43,36 +45,73 @@ def print_kv(label: str, value: Any, indent: int = 2) -> None:
         print(f"{prefix}{label:<30s} {value}")
 
 
-# ======================================================================
-# Shared sample data for file-based examples
-# ======================================================================
+def load_workflow_definition(name: str) -> dict[str, Any]:
+    path = WORKFLOW_DEFINITIONS_ROOT / f"{name}.yaml"
+    with path.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"workflow definition {name!r} did not load as a mapping")
+    return payload
+
+
+def load_contract_example(contract_name: str, sample_name: str) -> dict[str, Any]:
+    path = CONTRACTS_ROOT / contract_name / "examples" / "valid" / f"{sample_name}.json"
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"contract example {contract_name}/{sample_name} did not load as a mapping")
+    return payload
+
+
+def summarize_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    body = payload.get("payload", {})
+    return {
+        "contract_type": payload.get("contract_type"),
+        "schema_version": payload.get("schema_version"),
+        "environment": payload.get("environment"),
+        "originator": payload.get("originator", {}).get("id"),
+        "payload_keys": sorted(body.keys()),
+    }
+
+
+def summarize_workflow(definition: dict[str, Any]) -> list[str]:
+    summary: list[str] = []
+    for step in definition.get("steps", []):
+        depends_on = ", ".join(step.get("depends_on", [])) or "none"
+        summary.append(
+            f"{step['name']}: agent={step['agent']}, output={step['expected_output']}, depends_on={depends_on}"
+        )
+    return summary
 
 
 def _build_sample_ohlcv(n_bars: int = 200) -> pd.DataFrame:
-    closes = [1.1000 + i * 0.0003 + (0.0005 if i % 7 == 0 else 0) for i in range(n_bars)]
-    idx = pd.date_range("2025-01-02", periods=n_bars, freq="h", tz="UTC")
-    return pd.DataFrame({
-        "open": closes,
-        "high": [c + 0.0010 for c in closes],
-        "low": [c - 0.0010 for c in closes],
-        "close": closes,
-        "volume": [100 + i * 2 for i in range(n_bars)],
-    }, index=idx)
+    closes = [1.1000 + i * 0.0003 + (0.0005 if i % 7 == 0 else 0.0) for i in range(n_bars)]
+    index = pd.date_range("2025-01-02", periods=n_bars, freq="h", tz="UTC")
+    return pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + 0.0010 for c in closes],
+            "low": [c - 0.0010 for c in closes],
+            "close": closes,
+            "volume": [100 + i * 2 for i in range(n_bars)],
+        },
+        index=index,
+    )
 
 
 def _ensure_sample_csv() -> Path:
-    filepath = _EXAMPLE_DATA_DIR / "eurusd_sample.csv"
-    if not filepath.exists():
-        df = _build_sample_ohlcv()
-        df.reset_index().rename(columns={"index": "timestamp"}).to_csv(filepath, index=False)
-    return filepath
+    path = EXAMPLE_DATA_DIR / "eurusd_sample.csv"
+    if not path.exists():
+        frame = _build_sample_ohlcv()
+        frame.reset_index().rename(columns={"index": "timestamp"}).to_csv(path, index=False)
+    return path
 
 
 def _ensure_sample_parquet() -> Path:
-    filepath = _EXAMPLE_DATA_DIR / "eurusd_sample.parquet"
-    if not filepath.exists():
-        _build_sample_ohlcv().to_parquet(filepath)
-    return filepath
+    path = EXAMPLE_DATA_DIR / "eurusd_sample.parquet"
+    if not path.exists():
+        _build_sample_ohlcv().to_parquet(path)
+    return path
 
 
 def _load_market_data(
@@ -82,216 +121,199 @@ def _load_market_data(
     end_date: Optional[datetime] = None,
     lookback_days: int = 14,
 ) -> Optional[pd.DataFrame]:
-    """Load OHLCV from MT5 (falls back to Dukascopy)."""
     from backend.services.market_data.data_getters import load_mt5
 
     if start_date is None:
         end_date = end_date or datetime.now()
         start_date = end_date - timedelta(days=lookback_days)
 
-    df = load_mt5(
-        symbol=symbol, timeframe=timeframe,
-        start_date=start_date, end_date=end_date,
+    frame = load_mt5(
+        symbol=symbol,
+        timeframe=timeframe,
+        start_date=start_date,
+        end_date=end_date,
     )
-    return df if df is not None and not df.empty else None
+    return frame if frame is not None and not frame.empty else None
 
 
-# ======================================================================
-# Example 01 – 04: Data loading (each uses its own source)
-# ======================================================================
+def _redacted_env_status(key: str) -> str:
+    env_path = Path(PROJECT_ROOT) / "backend" / "config" / "environments" / ".env"
+    value = os.environ.get(key)
+    if value is None and env_path.exists():
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            env_key, _, env_value = line.partition("=")
+            if env_key.strip() == key:
+                value = env_value.strip().strip('"').strip("'")
+                break
+    if not value:
+        return "missing"
+    if len(value) <= 4:
+        return "set"
+    return f"set ({value[:2]}***{value[-2:]})"
+
 
 def example_01_load_mt5() -> None:
-    """Load OHLCV data from MetaTrader 5 (falls back to Dukascopy)."""
-    print_header("Example 01: Load Market Data — MT5")
-    from backend.services.market_data.data_getters import load_mt5
+    print_header("Example 01: Load Market Data - MT5")
+    from backend.services.market_data.data_getters import load_mt5, load_dukascopy
 
-    symbol, timeframe = "XAUUSD", "H1"
+    symbol = "XAUUSD"
+    timeframe = "H1"
     end_date = datetime.now()
     start_date = end_date - timedelta(days=7)
-    print_kv("Source", "MetaTrader 5")
+
+    print_kv("Source", "MetaTrader 5 with Dukascopy fallback")
     print_kv("Symbol", symbol)
     print_kv("Timeframe", timeframe)
-    print_kv("Date range", f"{start_date.date()} → {end_date.date()}")
+    print_kv("Date range", f"{start_date.date()} -> {end_date.date()}")
     print()
 
     try:
-        df = load_mt5(symbol=symbol, timeframe=timeframe, start_date=start_date, end_date=end_date)
-        if df is None:
-            from backend.services.market_data.data_getters import load_dukascopy
-            df = load_dukascopy(
-                symbol=symbol, timeframe=timeframe,
+        frame = load_mt5(symbol=symbol, timeframe=timeframe, start_date=start_date, end_date=end_date)
+        if frame is None:
+            frame = load_dukascopy(
+                symbol=symbol,
+                timeframe=timeframe,
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
             )
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        if isinstance(df.index, pd.DatetimeIndex) and len(df):
-            print_kv("Date range", f"{df.index[0]} → {df.index[-1]}")
-        print_kv("Columns", list(df.columns))
-        print()
-        print(df.head(5).to_string())
-        print()
+        print("  OK loaded market data")
+        print_kv("Rows", len(frame))
+        print_kv("Columns", list(frame.columns))
+        print(frame.head(5).to_string())
     except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
+        print(f"  FAILED: {exc}")
 
 
 def example_02_load_dukascopy() -> None:
-    """Load OHLCV data from Dukascopy HTTP API."""
-    print_header("Example 02: Load Market Data — Dukascopy")
+    print_header("Example 02: Load Market Data - Dukascopy")
     from backend.services.market_data.data_getters import load_dukascopy
 
-    print_kv("Source", "Dukascopy HTTP API")
-    print_kv("Symbol", "EURUSD")
-    print_kv("Date range", "2025-06-01 → 2025-06-08")
-    print()
     try:
-        df = load_dukascopy(symbol="EURUSD", timeframe="H1", start_date="2025-06-01", end_date="2025-06-08")
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        print(df.head(5).to_string())
-        print()
+        frame = load_dukascopy(symbol="EURUSD", timeframe="H1", start_date="2025-06-01", end_date="2025-06-08")
+        print("  OK loaded market data")
+        print_kv("Rows", len(frame))
+        print(frame.head(5).to_string())
     except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
+        print(f"  FAILED: {exc}")
 
 
 def example_03_load_parquet() -> None:
-    """Load OHLCV data from a local Parquet file."""
-    print_header("Example 03: Load Market Data — Parquet")
+    print_header("Example 03: Load Market Data - Parquet")
     from backend.services.market_data.data_getters import load_parquet
 
-    filepath = _ensure_sample_parquet()
-    print_kv("File", str(filepath))
-    print()
+    path = _ensure_sample_parquet()
     try:
-        df = load_parquet(filepath)
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        print(df.head(5).to_string())
-        print()
+        frame = load_parquet(path)
+        print("  OK loaded parquet sample")
+        print_kv("File", str(path))
+        print_kv("Rows", len(frame))
+        print(frame.head(5).to_string())
     except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
+        print(f"  FAILED: {exc}")
 
 
 def example_04_load_csv() -> None:
-    """Load OHLCV data from CSV via CSVDataSource."""
-    print_header("Example 04: Load Market Data — CSV (CSVDataSource)")
+    print_header("Example 04: Load Market Data - CSVDataSource")
     from backend.services.market_data.data_getters import CSVDataSource
 
-    filepath = _ensure_sample_csv()
-    print_kv("File", str(filepath))
-    print()
+    path = _ensure_sample_csv()
     try:
-        source = CSVDataSource(filepath)
-        df = source.fetch_data(symbol="EURUSD", timeframe="H1", start_pos=0, end_pos=50)
-        if df is None:
-            print("  ❌ No data returned.")
+        source = CSVDataSource(path)
+        frame = source.fetch_data(symbol="EURUSD", timeframe="H1", start_pos=0, end_pos=50)
+        if frame is None:
+            print("  FAILED: no data returned")
             return
-        print("  ✅ Data loaded successfully\n")
-        print_kv("Shape", f"{len(df)} rows × {len(df.columns)} cols")
-        print(df.head(5).to_string())
-        print()
+        print("  OK loaded csv sample")
+        print_kv("File", str(path))
+        print_kv("Rows", len(frame))
+        print(frame.head(5).to_string())
     except Exception as exc:
-        print(f"  ❌ Failed: {exc}")
+        print(f"  FAILED: {exc}")
 
-
-# ======================================================================
-# Example 05: Full data-preprocess pipeline (MT5 → validate → clean → enrich)
-# ======================================================================
 
 def example_05_data_preprocess() -> None:
-    """Load from MT5 and run through validate → clean → enrich pipeline."""
-    print_header("Example 05: Data Preprocessing — Full Pipeline")
+    print_header("Example 05: HaruQuant Dataset Pipeline")
     from backend.services.research.datasets import normalize_columns, prepare_ohlcvs_dataset
 
-    symbol, timeframe = "EURUSD", "H1"
-    print_kv("Source", "MT5 → validate → clean → enrich")
-    print_kv("Symbol", symbol)
-    print_kv("Timeframe", timeframe)
-    print()
-
-    raw_df = _load_market_data(symbol=symbol, timeframe=timeframe)
-    if raw_df is None:
-        print("  ⚠️  No data returned.")
+    raw_frame = _load_market_data(symbol="EURUSD", timeframe="H1")
+    if raw_frame is None:
+        print("  FAILED: no market data returned from MT5 loader")
         return
 
-    print(f"  ✅ Step 1: Loaded {len(raw_df)} raw bars from MT5\n")
+    class InMemoryDataSource:
+        def __init__(self, frame: pd.DataFrame) -> None:
+            self._frame = frame
 
-    class _InMemoryDataSource:
-        def __init__(self, df):
-            self._df = df
-        def fetch_data(self, symbol, timeframe, start_pos, end_pos):
-            if start_pos < 0 or end_pos > len(self._df) or start_pos >= end_pos:
+        def fetch_data(self, symbol: str, timeframe: str, start_pos: int, end_pos: int) -> Optional[pd.DataFrame]:
+            if start_pos < 0 or end_pos > len(self._frame) or start_pos >= end_pos:
                 return None
-            return self._df.iloc[start_pos:end_pos].copy()
+            return self._frame.iloc[start_pos:end_pos].copy()
 
-    normalized = normalize_columns(raw_df)
-    source = _InMemoryDataSource(normalized)
+    normalized = normalize_columns(raw_frame)
+    dataset = prepare_ohlcvs_dataset(
+        source=InMemoryDataSource(normalized),
+        symbol="EURUSD",
+        timeframe="H1",
+        start_pos=0,
+        end_pos=min(500, len(normalized)),
+    )
 
-    try:
-        dataset = prepare_ohlcvs_dataset(
-            source=source, symbol=symbol, timeframe=timeframe,
-            start_pos=0, end_pos=min(500, len(normalized)),
-        )
-        print("  ✅ Step 3: Full pipeline completed\n")
-        print_kv("Dataset summary", "")
-        print_kv("  rows", len(dataset.data))
-        print_kv("  columns", list(dataset.data.columns))
-        print_kv("  is_valid", dataset.report.is_valid)
-        print_kv("  warnings", len(dataset.report.warnings))
-        print_kv("  fatal errors", len(dataset.report.fatal_errors))
+    print("  OK prepared research dataset")
+    print_kv("Rows", len(dataset.data))
+    print_kv("Columns", list(dataset.data.columns))
+    print_kv("Warnings", len(dataset.report.warnings))
+    print_kv("Fatal errors", len(dataset.report.fatal_errors))
+
+
+def example_06_env_healthcheck() -> None:
+    print_header("Example 06: Environment Health Check")
+
+    required = [
+        "ENVIRONMENT",
+        "API_HOST",
+        "API_PORT",
+        "HARUQUANT_AGENT_MODEL",
+        "HARUQUANT_FAST_MODEL",
+        "MT5_ENABLED",
+        "MT5_LOGIN",
+        "MT5_PASSWORD",
+        "MT5_SERVER",
+        "OPENAI_API_KEY",
+        "JWT_SECRET_KEY",
+        "DATA_ENCRYPTION_KEY",
+    ]
+    for key in required:
+        print_kv(key, _redacted_env_status(key))
+
+
+def example_07_contract_samples() -> None:
+    print_header("Example 07: HaruQuant Contract Samples")
+    samples = [
+        ("trade_hypothesis", "eurusd_buy"),
+        ("trade_proposal", "eurusd_ready_for_risk"),
+        ("risk_assessment_decision", "approve_with_limits"),
+        ("evaluation_report", "workflow_pass"),
+        ("execution_receipt", "filled_limit_order"),
+    ]
+    for contract_name, sample_name in samples:
+        summary = summarize_contract(load_contract_example(contract_name, sample_name))
+        print_kv(f"{contract_name}/{sample_name}", summary)
+
+
+def example_08_workflow_definitions() -> None:
+    print_header("Example 08: HaruQuant Workflow Definitions")
+    for workflow_name in ("proposal", "momentum_trading"):
+        definition = load_workflow_definition(workflow_name)
+        print_kv("Workflow", workflow_name)
+        print_kv("Pattern", definition.get("pattern"))
+        print_kv("Steps", summarize_workflow(definition))
         print()
-        print(dataset.data.head(3).to_string())
-        print()
-    except ValueError as exc:
-        print(f"  ⚠️  Validation failed: {exc}")
 
-
-# =======================================================================
-# Example 06: Environment variables
-# =======================================================================
-
-def example_06_env_vars():
-    print_header("Example 06: Environment Variables")
-    from backend.config.env import load_env, get_env
-
-    load_env()
-    print_kv("Environment", get_env("ENVIRONMENT"))
-    print_kv("API Host", get_env("API_HOST"))
-    print_kv("API Port", get_env("API_PORT"))
-    print_kv("UI Origin", get_env("UI_ORIGIN"))
-    print_kv("Log Level", get_env("LOG_LEVEL"))
-    print_kv("Database URL", get_env("DATABASE_URL"))
-    print_kv("MT5 Enabled", get_env("MT5_ENABLED"))
-    print_kv("MT5 Login", get_env("MT5_LOGIN"))
-    print_kv("MT5 Password", get_env("MT5_PASSWORD"))
-    print_kv("MT5 Server", get_env("MT5_SERVER"))
-    print_kv("Google GenAI Use VertexAI", get_env("GOOGLE_GENAI_USE_VERTEXAI"))
-    print_kv("Google API Key", get_env("GOOGLE_API_KEY"))
-    print_kv("HaruQuant Agent Model", get_env("HARUQUANT_AGENT_MODEL"))
-    print_kv("HaruQuant Fast Model", get_env("HARUQUANT_FAST_MODEL"))
-    print_kv("HaruQuant Premium Model", get_env("HARUQUANT_PREMIUM_MODEL"))
-    print_kv("HaruQuant Fallback Model", get_env("HARUQUANT_FALLBACK_MODEL"))
-    print_kv("OpenAI API Key", get_env("OPENAI_API_KEY"))
-    print_kv("Ollama Base URL", get_env("OLLAMA_BASE_URL"))
-    print_kv("SMTP Host", get_env("SMTP_HOST"))
-    print_kv("SMTP Port", get_env("SMTP_PORT"))
-    print_kv("SMTP Username", get_env("SMTP_USERNAME"))
-    print_kv("SMTP Password", get_env("SMTP_PASSWORD"))
-    print_kv("Telegram Bot Token", get_env("TELEGRAM_BOT_TOKEN"))
-    print_kv("Telegram Chat ID", get_env("TELEGRAM_CHAT_ID"))
-    print_kv("Twilio Account SID", get_env("TWILIO_ACCOUNT_SID"))
-    print_kv("Twilio Auth Token", get_env("TWILIO_AUTH_TOKEN"))
-    print_kv("Twilio From Phone", get_env("TWILIO_FROM_PHONE"))
-    print_kv("JWT Secret Key", get_env("JWT_SECRET_KEY"))
-    print_kv("JWT Algorithm", get_env("JWT_ALGORITHM"))
-    print_kv("Data Encryption Key", get_env("DATA_ENCRYPTION_KEY"))
-    print_kv("Cost Governance", get_env("COST_GOVERNANCE"))
-    print_kv("LangChain API Key", get_env("LANGCHAIN_API_KEY"))
 
 if __name__ == "__main__":
-    # example_01_load_mt5()
-    # example_02_load_dukascopy()
-    # example_03_load_parquet()
-    # example_04_load_csv()
-    # example_05_data_preprocess()
-    example_06_env_vars()
+    example_06_env_healthcheck()
+    example_07_contract_samples()
+    example_08_workflow_definitions()

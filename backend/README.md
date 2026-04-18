@@ -541,11 +541,11 @@ python -m pytest tests/scenario tests/chaos tests/security tests/replay --no-cov
 
 Phase-based examples live under [`backend/scripts/examples/agentic_ai`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai):
 
-- [`01_governance_and_skeleton.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\01_governance_and_skeleton.py)
-- [`02_deterministic_safety_core.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\02_deterministic_safety_core.py)
-- [`03_agent_runtime.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\03_agent_runtime.py)
-- [`04_live_control_plane.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\04_live_control_plane.py)
-- [`05_portfolio_and_promotion.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\05_portfolio_and_promotion.py)
+- [`00_utilities.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\00_utilities.py)
+- [`01_prompting.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\01_prompting.py)
+- [`02_agentic_workflows.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\02_agentic_workflows.py)
+- [`03_building_agents.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\03_building_agents.py)
+- [`04_multi_agent_systems.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\04_multi_agent_systems.py)
 
 These are the best practical orientation points if you want to see the backend used as a system rather than as isolated modules.
 
