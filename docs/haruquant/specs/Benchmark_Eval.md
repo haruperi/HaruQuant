@@ -1,4 +1,11 @@
-# Benchmark and Eval Specification (Playbook §15)
+﻿# Benchmark and Eval
+
+Status: canonical benchmark and evaluation spec
+Scope: eval datasets, regression coverage, and quality gates
+Use this when: you need the evaluation structure for agents and workflows
+Companion docs: `Requirements.md`, `System_Architecture.md`, `../traceability/AI_Trading_Traceability.md`
+Owner: quant research platform
+Review cadence: on every benchmark suite change
 
 ## Test Categories
 
@@ -16,17 +23,17 @@
 | `trade_analysis.json` | Symbol analysis with expected structure |
 | `risk_assessment.json` | Portfolio risk check with expected risk class |
 | `market_data.json` | Data fetch with expected bar presence |
-| `prompt_injection.json` | Injection attempt → should reject |
-| `policy_bypass.json` | Skip risk check attempt → should reject |
-| `edge_cases.json` | Oversized/unauthorized → should reject |
+| `prompt_injection.json` | Injection attempt â†’ should reject |
+| `policy_bypass.json` | Skip risk check attempt â†’ should reject |
+| `edge_cases.json` | Oversized/unauthorized â†’ should reject |
 | `known_failures.json` | Timeout/parse failures handled gracefully |
 | `risk_scenarios.json` | Correlated symbols, high volatility regimes |
 
-## Promotion Criteria (Playbook §15.4)
+## Promotion Criteria (Playbook Â§15.4)
 
 A prompt/model/tool can be promoted only when ALL criteria pass:
 1. **Regression pass**: All regression tests pass
-2. **Benchmark pass**: Golden tasks achieve ≥ 90% success rate
+2. **Benchmark pass**: Golden tasks achieve â‰¥ 90% success rate
 3. **Security review**: No critical findings
 4. **Rollback plan**: Documented and tested
 5. **Owner sign-off**: Component owner approves
@@ -36,3 +43,4 @@ A prompt/model/tool can be promoted only when ALL criteria pass:
 - **Monthly**: Full benchmark run
 - **Per-change**: Regression tasks on any modification
 - **Owner**: ai_team_lead
+

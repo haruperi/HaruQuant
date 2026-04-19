@@ -1,4 +1,11 @@
-# Agentic AI Systems Documentation Playbook
+# Playbook
+
+Status: canonical playbook
+Scope: general design, governance, and implementation guidance
+Use this when: you need the broad operating model, not project-specific status
+Companion docs: `docs/haruquant/README.md`, folder catalogs, specs, plans, and traceability docs
+Owner: platform architecture
+Review cadence: quarterly or when architecture/governance changes materially
 
 > **Version:** 1.1.3 Final  
 > **Editing Principle:** Re-write and re-orient when helpful, but never strip out important information  
@@ -9,6 +16,15 @@
 ---
 
 # 1. Why This Playbook Exists
+
+This playbook is the broad guidance layer.
+
+Project-specific truth lives in the companion docs:
+
+* catalogs under `docs/haruquant/agents/`, `workflows/`, and `tools/`
+* implementation plans under `docs/haruquant/plans/`
+* system specs under `docs/haruquant/specs/`
+* live status and signoff under `docs/haruquant/traceability/`
 
 Use this playbook whenever you want to:
 
@@ -1972,18 +1988,18 @@ This becomes your documentation backbone.
 
 For serious systems, split supporting artifacts into companion docs:
 
-* `SRS.md`
-* `Design.md`
-* `Agent_Catalog.md`
-* `Workflow_Catalog.md`
-* `Tool_Resource_Prompt_Catalog.md`
-* `Policy_Map.md`
-* `Approval_and_Escalation_Standard.md`
-* `Observability_and_Audit_Spec.md`
-* `Security_Architecture.md`
-* `Benchmark_and_Eval_Spec.md`
-* `Operations_Runbook.md`
-* `ADR_Index.md`
+* `docs/haruquant/specs/Requirements.md`
+* `docs/haruquant/specs/System_Architecture.md`
+* `docs/haruquant/agents/Catalog.md`
+* `docs/haruquant/workflows/Catalog.md`
+* `docs/haruquant/tools/Tool_Catalog.md`
+* `docs/haruquant/governance/Policy_Map.md`
+* `docs/haruquant/governance/Approval_Standard.md`
+* `docs/haruquant/specs/Observability_Audit.md`
+* `docs/haruquant/specs/Security.md`
+* `docs/haruquant/specs/Benchmark_Eval.md`
+* `docs/haruquant/operations/Operations_Runbook.md`
+* `docs/haruquant/architecture/ADR_Index.md`
 
 ---
 

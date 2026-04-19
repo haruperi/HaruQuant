@@ -1,5 +1,12 @@
 # AI Trading Strategies Traceability Register
 
+Status: canonical live status register
+Scope: lesson coverage, workflow signoff, and global acceptance gates
+Use this when: you need current implementation status or completion evidence
+Companion docs: `../plans/ND881_Implementation_Plan.md`
+Owner: program delivery
+Review cadence: update with every implementation milestone or verification event
+
 **Purpose:** Track course coverage from the source AI Trading Strategies plan to HaruQuant modules, workflows, tests, reports, and governance artifacts.
 
 **Status key:** `not_started`, `in_progress`, `implemented`, `verified`, `accepted`

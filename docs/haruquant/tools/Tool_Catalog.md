@@ -1,4 +1,11 @@
-# Tool, Resource & Prompt Catalog (Playbook §5.2)
+﻿# Tool Catalog
+
+Status: canonical tool and resource catalog
+Scope: MCP tools, resources, prompts, and risk-class mapping
+Use this when: you need to know what runtime capabilities agents can call
+Companion docs: `../Playbook.md`, `../agents/Catalog.md`, `../workflows/Catalog.md`
+Owner: backend platform
+Review cadence: on every tool/resource/prompt contract change
 
 ## MCP Server: mt5_mcp
 | Type | Name | Purpose | Risk Class |
@@ -47,3 +54,4 @@
 | Type | Name | Purpose | Risk Class |
 |---|---|---|---|
 | Tool | read_query | Execute read-only SQL | A |
+

@@ -1,4 +1,11 @@
-# Security Architecture (Playbook §18)
+﻿# Security
+
+Status: canonical security spec
+Scope: identity, authorization, secrets, and least-privilege controls
+Use this when: you need security boundaries and enforcement expectations
+Companion docs: `Requirements.md`, `System_Architecture.md`, `Observability_Audit.md`
+Owner: security and platform
+Review cadence: quarterly or when security controls change
 
 ## Identity Model
 - User identity: JWT-based authentication via `backend/api/auth_utils.py`
@@ -17,7 +24,7 @@
 
 ## Least Privilege Model
 - Read-only MCP servers cannot execute mutating tools
-- Execution requires approval packet (Playbook §11)
+- Execution requires approval packet (Playbook Â§11)
 - Kill switch can revoke all execution permissions instantly
 
 ## Network Boundaries
@@ -38,3 +45,4 @@
 - Audit logs retained per `retention_policy.yaml`
 - Personal data redacted before logging
 - Legal hold overrides all retention rules
+

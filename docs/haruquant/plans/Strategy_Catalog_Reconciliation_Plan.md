@@ -1,5 +1,12 @@
 # Strategy Catalog Agentic Reconciliation Implementation Plan
 
+Status: canonical reconciliation plan
+Scope: legacy strategy workflow alignment with governed agentic architecture
+Use this when: you need the migration and coexistence plan for strategy artifacts
+Companion docs: `ND881_Implementation_Plan.md`, `../agents/Catalog.md`, `../workflows/Catalog.md`
+Owner: backend platform
+Review cadence: during active migration work
+
 **Purpose:** Reconcile the legacy user-created strategy workflow with the agentic service architecture. The legacy UI and SQLite-backed strategy catalog should continue to work, while strategy lifecycle, evidence, and promotion controls become first-class agentic governance concepts.
 
 **Decision:** User-created strategies remain artifacts under `backend/data/strategies/{username}/{strategy_slug}/v{version}/`. The package `backend/services/strategy/` remains application/service code: base classes, adapters, storage, validation, built-in baselines, and catalog orchestration. Do not move user strategy source files into `backend/services/strategy/`.
@@ -546,4 +553,3 @@ The reconciliation is complete when:
 - Live/paper execution can be blocked by lifecycle policy.
 - Existing legacy strategies remain loadable.
 - No user strategy source files are stored under `backend/services/strategy/`.
-

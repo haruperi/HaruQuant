@@ -1,5 +1,12 @@
 # HaruQuant Implementation Plan Mapped to Udacity AI Trading Strategies (ND881)
 
+Status: canonical implementation plan
+Scope: ND881 implementation scope, workstreams, milestones, and delivery order
+Use this when: you need planning and sequencing
+Companion docs: `../traceability/AI_Trading_Traceability.md`
+Owner: program delivery
+Review cadence: biweekly during active delivery
+
 This is the canonical ND881 implementation plan for HaruQuant.
 
 It supersedes earlier overlapping ND881 planning drafts and agentic extension
@@ -16,7 +23,7 @@ Use this document for:
 Use the traceability register for live status, lesson signoff, workflow signoff,
 and final completion gates:
 
-- `docs/haruquant/traceability/AI_Trading_Strategies_Traceability_Register.md`
+- `docs/haruquant/traceability/AI_Trading_Traceability.md`
 
 **Purpose:**  
 This document translates Udacity’s **AI Trading Strategies Nanodegree (ND881)** into a **comprehensive HaruQuant implementation plan**. Every major implementation item is explicitly associated with the corresponding **course and lesson** from the nanodegree so coverage can be audited and nothing is missed.

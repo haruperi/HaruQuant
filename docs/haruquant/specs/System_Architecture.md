@@ -1,6 +1,13 @@
 # Design Specification / System Architecture: HaruQuant Agentic AI System
 
-**Document Version:** 1.1.0  
+Status: canonical architecture spec
+Scope: implementation-ready system architecture
+Use this when: you need runtime architecture, boundaries, topology, and system structure
+Companion docs: `Requirements.md`, `Security.md`, `Observability_Audit.md`
+Owner: platform architecture
+Review cadence: quarterly or when system topology changes
+
+**Document Version:** 1.1.1  
 **Companion To:** SRS v3.1.1 (Board Approval Version)  
 **Supersedes:** v1.0.0  
 **System:** HaruQuant Autonomous Trading Platform  

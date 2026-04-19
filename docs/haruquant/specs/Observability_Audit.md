@@ -1,4 +1,11 @@
-# Observability and Audit Specification (Playbook §16)
+﻿# Observability and Audit
+
+Status: canonical observability spec
+Scope: traces, spans, redaction, retention, and audit evidence
+Use this when: you need telemetry and audit requirements for workflows and agents
+Companion docs: `Requirements.md`, `System_Architecture.md`, `Security.md`
+Owner: platform observability
+Review cadence: quarterly or when telemetry model changes
 
 ## Trace Model
 
@@ -45,3 +52,4 @@ Per-trace and per-span cost aggregation via `CostTracker`:
 - Audit logs retained per `retention_policy.yaml`
 - Legal hold overrides all retention rules
 - Personal data redacted before logging
+

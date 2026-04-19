@@ -1,5 +1,12 @@
 # Agent Catalog
 
+Status: canonical agent catalog
+Scope: implemented agents, contracts, and operational ownership
+Use this when: you need to know what agents exist and what each one emits
+Companion docs: `../Playbook.md`, `../workflows/Catalog.md`, `../tools/Tool_Catalog.md`
+Owner: backend platform
+Review cadence: on every agent add/remove/change
+
 This catalog now reflects the implemented agent layer exactly as exposed by
 [backend/agents/__init__.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\__init__.py).
 
@@ -70,7 +77,7 @@ Shared agent model settings are defined in
 
 ## Related Runtime Docs
 
-- [Workflow_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Workflow_Catalog.md)
-- [Tool_Resource_Prompt_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Resource_Prompt_Catalog.md)
+- [Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Catalog.md)
+- [Tool_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Catalog.md)
 - [agents/Hypothesis_Designer_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Hypothesis_Designer_Agent.md)
 - [backend/agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\runtime)

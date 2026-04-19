@@ -1,4 +1,11 @@
-# Workflow Catalog (Playbook Section 8.6)
+# Workflow Catalog
+
+Status: canonical workflow catalog
+Scope: workflow inventory, triggers, contracts, controls, and ownership
+Use this when: you need to see how HaruQuant workflows are wired end to end
+Companion docs: `../Playbook.md`, `../agents/Catalog.md`, `../tools/Tool_Catalog.md`
+Owner: backend platform
+Review cadence: on every workflow add/remove/change
 
 | Workflow | Goal | Trigger | Input Schema | Output Schema | Pattern | Agents | Tools/Resources | Policy Checks | Approval Checks | Compensation Design | Observability | Owner | Failure Modes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -9,4 +16,3 @@
 | `strategy_optimization` | Optimize strategy parameters | Optimization request | `OptimizationRequest` | `OptimizationResult` | Evaluator-Optimizer | orchestrator_agent | optimization_mcp, backtest_mcp | Resource limits | Auto-allowed | Abort run | Trace + cost | quant_team | Timeout, OOM |
 | `risk_governance` | Gate trade on risk | Trade proposal | `RiskAssessmentRequest` | `RiskAssessmentDecision` | Sequential | risk_governor_agent | risk_engine, policy_service | All risk policies | Class D to human approval | Reject trade | Trace + audit | risk_team | Policy misconfig |
 | `market_monitor` | Monitor market conditions | Scheduled | `MonitoringQuery` | `MonitoringResult` | Parallel | monitoring_agent, regime_agent | sql_mcp, market_data_mcp | Read-only | Auto-allowed | N/A | Trace | platform_team | Data gap |
-

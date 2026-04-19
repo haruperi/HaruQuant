@@ -78,7 +78,7 @@ Remaining follow-up outside this workflow refactor:
 
 The codebase has strong foundations:
 
-- agent catalog and workflow catalog in `docs/haruquant/agents/Agent_Catalog.md` and `docs/haruquant/workflows/Workflow_Catalog.md`
+- agent catalog and workflow catalog in `docs/haruquant/agents/Catalog.md` and `docs/haruquant/workflows/Catalog.md`
 - workflow pattern runner scaffolds in `backend/agents/runtime/workflows.py`
 - runtime enforcement in `backend/agents/runtime/runner.py`
 - canonical output validation in `backend/agents/runtime/output_validation.py`

@@ -1,16 +1,24 @@
 # HaruQuant Docs
 
+Status: canonical index
+Scope: directory entry point and navigation
+Use this when: you need to find the right document quickly
+Owner: platform architecture
+Review cadence: on every docs structure change
+
 This directory is the organized documentation root for HaruQuant's agentic and
 governed backend.
 
 Use this file as the entry point instead of browsing the directory tree blind.
 
+Validation script: `python backend/scripts/tools/validate_haruquant_docs.py`
+
 ## Start Here
 
-- [Agentic_AI_Playbook.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\Agentic_AI_Playbook.md)
-- [agents/Agent_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Agent_Catalog.md)
-- [workflows/Workflow_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Workflow_Catalog.md)
-- [tools/Tool_Resource_Prompt_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Resource_Prompt_Catalog.md)
+- [Playbook.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\Playbook.md)
+- [agents/Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Catalog.md)
+- [workflows/Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Catalog.md)
+- [tools/Tool_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Catalog.md)
 
 ## Folders
 
@@ -24,20 +32,20 @@ Agent-level documentation.
 
 Current key files:
 
-- [agents/Agent_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Agent_Catalog.md)
+- [agents/Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Catalog.md)
 - [agents/Hypothesis_Designer_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Hypothesis_Designer_Agent.md)
 
 ### `workflows/`
 
 Workflow catalog and workflow-facing operating docs.
 
-- [workflows/Workflow_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Workflow_Catalog.md)
+- [workflows/Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Catalog.md)
 
 ### `tools/`
 
 Tool, MCP resource, and prompt catalogs.
 
-- [tools/Tool_Resource_Prompt_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Resource_Prompt_Catalog.md)
+- [tools/Tool_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Catalog.md)
 
 ### `architecture/`
 
@@ -49,17 +57,17 @@ High-level architecture and ADR indexing.
 
 Formal design and system specifications.
 
-- [specs/Design_Specification_System_Architecture.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Design_Specification_System_Architecture.md)
-- [specs/Software_Requirements_Specification.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Software_Requirements_Specification.md)
-- [specs/Security_Architecture.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Security_Architecture.md)
-- [specs/Observability_and_Audit_Spec.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Observability_and_Audit_Spec.md)
-- [specs/Benchmark_and_Eval_Spec.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Benchmark_and_Eval_Spec.md)
+- [specs/System_Architecture.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\System_Architecture.md)
+- [specs/Requirements.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Requirements.md)
+- [specs/Security.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Security.md)
+- [specs/Observability_Audit.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Observability_Audit.md)
+- [specs/Benchmark_Eval.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Benchmark_Eval.md)
 
 ### `governance/`
 
 Approval, escalation, and policy documents.
 
-- [governance/Approval_and_Escalation_Standard.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\Approval_and_Escalation_Standard.md)
+- [governance/Approval_Standard.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\Approval_Standard.md)
 - [governance/Policy_Map.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\Policy_Map.md)
 
 ### `operations/`
@@ -67,28 +75,108 @@ Approval, escalation, and policy documents.
 Runbooks and operational acceptance docs.
 
 - [operations/Operations_Runbook.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\Operations_Runbook.md)
-- [operations/shadow_mode_acceptance.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\shadow_mode_acceptance.md)
-- [operations/runbooks/incident_response.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\runbooks\incident_response.md)
-- [operations/runbooks/postmortem_template.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\runbooks\postmortem_template.md)
+- [operations/Shadow_Mode_Acceptance.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\Shadow_Mode_Acceptance.md)
+- [operations/runbooks/Incident_Response.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\runbooks\Incident_Response.md)
+- [operations/runbooks/Postmortem_Template.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\operations\runbooks\Postmortem_Template.md)
 
 ### `plans/`
 
 Implementation plans, migration plans, and project-level planning documents.
 
-- [plans/HaruQuant_ND881_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\HaruQuant_ND881_Implementation_Plan.md)
-- [plans/Lesson_2_Unsupervised_Learning_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Lesson_2_Unsupervised_Learning_Implementation_Plan.md)
-- [plans/Strategy_Catalog_Agentic_Reconciliation_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Strategy_Catalog_Agentic_Reconciliation_Implementation_Plan.md)
+- [plans/ND881_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\ND881_Implementation_Plan.md)
+- [plans/Lesson_2_Unsupervised_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Lesson_2_Unsupervised_Plan.md)
+- [plans/Strategy_Catalog_Reconciliation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Strategy_Catalog_Reconciliation_Plan.md)
 
 ### `traceability/`
 
 Coverage, checklist, and traceability documents.
 
-- [traceability/AI_Trading_Strategies_Traceability_Register.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\traceability\AI_Trading_Strategies_Traceability_Register.md)
+- [traceability/AI_Trading_Traceability.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\traceability\AI_Trading_Traceability.md)
 
 ## Notes
 
-- `Agentic_AI_Playbook.md` remains at the root because it is the broadest
+- `Playbook.md` remains at the root because it is the broadest
   top-level guide in this documentation set.
 - New agent docs should go under `docs/haruquant/agents/`.
 - New workflow docs should go under `docs/haruquant/workflows/`.
 - New tool and MCP catalogs should go under `docs/haruquant/tools/`.
+
+## How To Document A New Feature
+
+When a new feature is added to HaruQuant, do not create isolated notes first.
+Start by updating the canonical docs that describe how the system now works.
+
+### Documentation rule
+
+Every feature should be documented across three layers:
+
+1. **What changed in the system**
+   Update the canonical catalog or spec that now owns the feature.
+2. **How the feature works in detail**
+   Add or update a focused feature document only if the feature has enough
+   implementation, governance, or operational detail to justify it.
+3. **How the feature is tracked and operated**
+   Update planning, traceability, governance, or runbook docs if the feature
+   changes delivery status, approval paths, or operations.
+
+### Required workflow for every new feature
+
+1. Decide the feature type:
+   - agent
+   - workflow
+   - tool or MCP resource
+   - platform capability
+   - governance or operational capability
+2. Update the relevant canonical catalog first:
+   - agent -> `docs/haruquant/agents/Catalog.md`
+   - workflow -> `docs/haruquant/workflows/Catalog.md`
+   - tool/resource/prompt -> `docs/haruquant/tools/Tool_Catalog.md`
+   - architecture/spec behavior -> `docs/haruquant/specs/`
+   - governance behavior -> `docs/haruquant/governance/`
+   - operational behavior -> `docs/haruquant/operations/`
+3. Add a focused feature doc when needed:
+   - create a new file in the owning folder if the feature has its own rulebook,
+     contracts, lifecycle, failure modes, examples, or usage guidance
+   - use a concise canonical filename in `Title_Case.md`
+4. Update cross-cutting docs if the feature affects them:
+   - implementation status -> `docs/haruquant/traceability/AI_Trading_Traceability.md`
+   - delivery sequencing or migration -> `docs/haruquant/plans/`
+   - approval or policy boundaries -> `docs/haruquant/governance/`
+   - runtime and incident handling -> `docs/haruquant/operations/`
+   - architecture or requirements -> `docs/haruquant/specs/`
+5. Add the new document to this README if it becomes a key entry point.
+6. Run `python backend/scripts/tools/validate_haruquant_docs.py`.
+
+### Minimum content standard for a new feature document
+
+If a feature gets its own document, include these fields near the top:
+
+- `Status:`
+- `Scope:`
+- `Use this when:`
+- `Companion docs:`
+- `Owner:`
+- `Review cadence:`
+
+Then document, as relevant:
+
+- purpose
+- inputs and outputs
+- dependencies
+- workflow placement
+- tools/resources/contracts used
+- persistence or artifacts created
+- governance and approval constraints
+- observability and audit expectations
+- failure modes
+- examples or operator usage
+
+### Consistency rules
+
+- Prefer updating an existing canonical document over creating a duplicate.
+- One feature should have one obvious home document.
+- Catalogs describe inventory; feature docs describe implementation detail.
+- Plans describe intended work; traceability describes current status.
+- Runbooks describe operation and recovery, not feature design.
+- If a document becomes the new canonical source for a feature, link it from
+  this README and the appropriate catalog.

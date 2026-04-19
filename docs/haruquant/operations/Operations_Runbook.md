@@ -36,4 +36,4 @@
 ## Postmortem
 
 Complete postmortem template within 48 hours of any Sev 1-2 incident.
-Template: `docs/agentic_ai/runbooks/postmortem_template.md`
+Template: `docs/haruquant/operations/runbooks/Postmortem_Template.md`

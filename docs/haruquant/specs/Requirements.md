@@ -1,5 +1,12 @@
 # Software Requirements Specification: HaruQuant Agentic AI System
 
+Status: canonical requirements spec
+Scope: system requirements and execution law
+Use this when: you need normative requirements, scope, and system obligations
+Companion docs: `System_Architecture.md`, `Security.md`, `Observability_Audit.md`
+Owner: product and platform architecture
+Review cadence: quarterly or when requirements change
+
 **Document Version:** 3.1.1 (Board Approval Version)  
 **System:** HaruQuant Autonomous Trading Platform  
 **Framework Target:** Google Agent Development Kit (ADK) v2.0+  
@@ -886,4 +893,3 @@ Exact quantitative thresholds remain policy-controlled, but no strategy may ente
 This Board Approval Version 3.1.1 includes the core specification and Appendices A through G as a single merged governing document for HaruQuant’s agentic system requirements.
 
 Any implementation, design, or operational policy that conflicts with this document shall require formal revision of this specification or an explicitly versioned exception approved under the active governance process.
-

@@ -574,7 +574,7 @@ class CanonicalOutputValidator:
 - Environment variable overrides for all prompt parameters
 
 ### Documentation
-- Update `docs/agentic_ai/Agent_Catalog.md` with expanded prompt descriptions
+- Update `docs/agentic_ai/Catalog.md` with expanded prompt descriptions
 - Update `backend/agents/README.md` with prompt architecture diagram
 
 ---

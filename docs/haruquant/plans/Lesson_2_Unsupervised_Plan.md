@@ -1,5 +1,12 @@
 # Lesson 2 Unsupervised Learning Implementation Plan
 
+Status: canonical lesson workstream plan
+Scope: lesson 2 implementation tasks, sequencing, and expected outputs
+Use this when: you need the detailed plan for unsupervised learning integration
+Companion docs: `ND881_Implementation_Plan.md`, `../traceability/AI_Trading_Traceability.md`
+Owner: quant research platform
+Review cadence: during active lesson implementation
+
 **Source lesson:** `docs/ai-trading-strategies/02-unsupervised-learning.md`
 **Baseline expansion point:** `backend/scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py`
 **Prior lesson foundation:** `docs/ai-trading-strategies/01-introduction-to-ai-workflows-in-trading.md`
@@ -222,8 +229,8 @@ Update docs once the workflow step is implemented.
 
 Targets:
 
-- `docs/haruquant/traceability/AI_Trading_Strategies_Traceability_Register.md`
-- `docs/haruquant/plans/HaruQuant_ND881_Implementation_Plan.md`
+- `docs/haruquant/traceability/AI_Trading_Traceability.md`
+- `docs/haruquant/plans/ND881_Implementation_Plan.md`
 
 Implementation:
 
