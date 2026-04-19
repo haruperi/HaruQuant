@@ -4,6 +4,9 @@ This folder contains formal technical specifications.
 
 Current files:
 
+- [AI_Chatbot_Architecture.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\AI_Chatbot_Architecture.md)
+- [AI_Chatbot_Context_Contract.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\AI_Chatbot_Context_Contract.md)
+- [AI_Chatbot_Event_Schema.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\AI_Chatbot_Event_Schema.md)
 - [Benchmark_Eval.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Benchmark_Eval.md)
 - [System_Architecture.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\System_Architecture.md)
 - [Observability_Audit.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Observability_Audit.md)

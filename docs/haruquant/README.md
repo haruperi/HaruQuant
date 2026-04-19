@@ -62,6 +62,9 @@ Formal design and system specifications.
 - [specs/Security.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Security.md)
 - [specs/Observability_Audit.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Observability_Audit.md)
 - [specs/Benchmark_Eval.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\Benchmark_Eval.md)
+- [specs/AI_Chatbot_Architecture.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\AI_Chatbot_Architecture.md)
+- [specs/AI_Chatbot_Context_Contract.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\AI_Chatbot_Context_Contract.md)
+- [specs/AI_Chatbot_Event_Schema.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\specs\AI_Chatbot_Event_Schema.md)
 
 ### `governance/`
 
@@ -69,6 +72,8 @@ Approval, escalation, and policy documents.
 
 - [governance/Approval_Standard.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\Approval_Standard.md)
 - [governance/Policy_Map.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\Policy_Map.md)
+- [governance/AI_Chatbot_Execution_Safety.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\AI_Chatbot_Execution_Safety.md)
+- [governance/AI_Chatbot_RBAC_Matrix.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\governance\AI_Chatbot_RBAC_Matrix.md)
 
 ### `operations/`
 
@@ -86,6 +91,7 @@ Implementation plans, migration plans, and project-level planning documents.
 - [plans/ND881_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\ND881_Implementation_Plan.md)
 - [plans/Lesson_2_Unsupervised_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Lesson_2_Unsupervised_Plan.md)
 - [plans/Strategy_Catalog_Reconciliation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Strategy_Catalog_Reconciliation_Plan.md)
+- [plans/AI_Chatbot_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\AI_Chatbot_Implementation_Plan.md)
 
 ### `traceability/`
 
