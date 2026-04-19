@@ -13,6 +13,7 @@ interface ChatPanelProps {
   isInitializing: boolean
   isOnline: boolean
   isRestoring: boolean
+  isStreaming: boolean
   threadTitle: string
   error: string | null
   draft: string
@@ -23,6 +24,7 @@ interface ChatPanelProps {
     createdAt: string
     status?: "ready" | "pending"
   }[]
+  onCancel: () => void
   onClose: () => void
   onDraftChange: (value: string) => void
   onSubmit: () => void
@@ -46,10 +48,12 @@ export function ChatPanel({
   isInitializing,
   isOnline,
   isRestoring,
+  isStreaming,
   threadTitle,
   error,
   draft,
   messages,
+  onCancel,
   onClose,
   onDraftChange,
   onSubmit,
@@ -135,7 +139,9 @@ export function ChatPanel({
       <ChatInput
         draft={draft}
         disabled={!isOnline || !isHydrated}
+        isStreaming={isStreaming}
         textareaRef={textareaRef}
+        onCancel={onCancel}
         onDraftChange={onDraftChange}
         onSubmit={onSubmit}
       />

@@ -42,17 +42,17 @@ paper automation capability is considered.
 
 ## Suggested Ownership Model
 
-| Role | Responsibility |
-|---|---|
-| Product Owner | Scope, prioritization, rollout decisions |
-| AI Platform Lead | LLM gateway, orchestration, prompts, model routing |
-| Frontend Lead | Widget, state management, streaming UI, context provider |
-| Backend Lead | API endpoints, conversation service, persistence, context service |
-| Quant / Risk Lead | Signal semantics, risk checks, governor rules, trading constraints |
-| MCP / Tooling Lead | Tool contracts, adapters, read/write boundary enforcement |
-| DevOps / SRE | Infrastructure, deployment, monitoring, scaling, secrets |
-| QA Lead | Test plans, regression coverage, acceptance certification |
-| Security / Compliance Owner | RBAC, audit, retention, prompt injection and misuse review |
+| Role                        | Responsibility                                                     |
+| --------------------------- | ------------------------------------------------------------------ |
+| Product Owner               | Scope, prioritization, rollout decisions                           |
+| AI Platform Lead            | LLM gateway, orchestration, prompts, model routing                 |
+| Frontend Lead               | Widget, state management, streaming UI, context provider           |
+| Backend Lead                | API endpoints, conversation service, persistence, context service  |
+| Quant / Risk Lead           | Signal semantics, risk checks, governor rules, trading constraints |
+| MCP / Tooling Lead          | Tool contracts, adapters, read/write boundary enforcement          |
+| DevOps / SRE                | Infrastructure, deployment, monitoring, scaling, secrets           |
+| QA Lead                     | Test plans, regression coverage, acceptance certification          |
+| Security / Compliance Owner | RBAC, audit, retention, prompt injection and misuse review         |
 
 ## Workstreams
 
@@ -70,22 +70,22 @@ paper automation capability is considered.
 
 ## Phase Summary
 
-| Phase | Name | Outcome |
-|---|---|---|
-| 0 | Architecture Alignment and Contract Freeze | Approved architecture, schemas, governance boundaries |
-| 1 | Global Widget Foundation | Global expandable chat widget on all authenticated pages |
-| 2 | Persistent Conversations and Memory | Durable threads and session continuity |
-| 3 | Page Context Injection | Route-aware, entity-aware assistant context |
-| 4 | AI Gateway and Streaming Orchestration | Real-time model responses with structured orchestration |
-| 5 | Read-Only HaruQuant Tool Integration | Grounded answers using platform state |
-| 6 | UX Maturity and Conversation Management | Search, delete, regenerate, export, polished interaction |
-| 7 | Trading Intelligence Copilot | Strategy, backtest, and risk-aware domain intelligence |
-| 8 | Signal Assistant Mode | Structured signal proposals with zero execution authority |
-| 9 | Supervised Action Layer | Drafts and operator-approved actions |
-| 10 | Execution Governance and Paper Automation | Governed, auditable paper execution |
-| 11 | Retrieval and Internal Knowledge Grounding | Answers from docs, reports, and internal artifacts |
-| 12 | Observability, Latency, Cost, and Scale | Production telemetry and cost-managed serving |
-| 13 | Certification, Rollout, and Operationalization | Safe release, rollback, and steady-state ops |
+| Phase | Name                                           | Outcome                                                   |
+| ----- | ---------------------------------------------- | --------------------------------------------------------- |
+| 0     | Architecture Alignment and Contract Freeze     | Approved architecture, schemas, governance boundaries     |
+| 1     | Global Widget Foundation                       | Global expandable chat widget on all authenticated pages  |
+| 2     | Persistent Conversations and Memory            | Durable threads and session continuity                    |
+| 3     | Page Context Injection                         | Route-aware, entity-aware assistant context               |
+| 4     | AI Gateway and Streaming Orchestration         | Real-time model responses with structured orchestration   |
+| 5     | Read-Only HaruQuant Tool Integration           | Grounded answers using platform state                     |
+| 6     | UX Maturity and Conversation Management        | Search, delete, regenerate, export, polished interaction  |
+| 7     | Trading Intelligence Copilot                   | Strategy, backtest, and risk-aware domain intelligence    |
+| 8     | Signal Assistant Mode                          | Structured signal proposals with zero execution authority |
+| 9     | Supervised Action Layer                        | Drafts and operator-approved actions                      |
+| 10    | Execution Governance and Paper Automation      | Governed, auditable paper execution                       |
+| 11    | Retrieval and Internal Knowledge Grounding     | Answers from docs, reports, and internal artifacts        |
+| 12    | Observability, Latency, Cost, and Scale        | Production telemetry and cost-managed serving             |
+| 13    | Certification, Rollout, and Operationalization | Safe release, rollback, and steady-state ops              |
 
 ## Phase Details
 
@@ -750,13 +750,13 @@ operating procedures.
 
 ## Milestones
 
-| Milestone | Included Phases | Target Outcome |
-|---|---|---|
-| A | 0-2 | Global persistent assistant |
-| B | 3-5 | Context-aware copilot grounded in HaruQuant data |
-| C | 6-7 | Production-usable AI copilot for research, backtests, and risk analysis |
-| D | 8-9 | Structured proposals and human-approved operational workflows |
-| E | 10-13 | Paper automation, retrieval, observability, and safe rollout |
+| Milestone | Included Phases | Target Outcome                                                          |
+| --------- | --------------- | ----------------------------------------------------------------------- |
+| A         | 0-2             | Global persistent assistant                                             |
+| B         | 3-5             | Context-aware copilot grounded in HaruQuant data                        |
+| C         | 6-7             | Production-usable AI copilot for research, backtests, and risk analysis |
+| D         | 8-9             | Structured proposals and human-approved operational workflows           |
+| E         | 10-13           | Paper automation, retrieval, observability, and safe rollout            |
 
 ## Recommended Execution Order
 

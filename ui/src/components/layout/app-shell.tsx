@@ -18,7 +18,9 @@ function GlobalChatWidget() {
     isOnline,
     isOpen,
     isRestoring,
+    isStreaming,
     messages,
+    cancelStream,
     open,
     setDraft,
     submitDraft,
@@ -34,10 +36,12 @@ function GlobalChatWidget() {
         isInitializing={isInitializing}
         isOnline={isOnline}
         isRestoring={isRestoring}
+        isStreaming={isStreaming}
         threadTitle={threadTitle}
         error={error}
         draft={draft}
         messages={messages}
+        onCancel={cancelStream}
         onClose={close}
         onDraftChange={setDraft}
         onSubmit={submitDraft}

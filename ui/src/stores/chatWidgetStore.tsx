@@ -3,10 +3,10 @@
 import * as React from "react"
 
 import {
-  createAiChatMessage,
   createAiChatThread,
   getAiChatThread,
   listAiChatThreads,
+  streamAiChatResponse,
   updateAiChatThreadContext,
 } from "@/lib/api/ai-chat"
 import type { AiChatMessage, AiChatThreadDetail } from "@/lib/ai-chat/contracts"
@@ -29,6 +29,7 @@ interface ChatWidgetStoreValue {
   isInitializing: boolean
   isOnline: boolean
   isRestoring: boolean
+  isStreaming: boolean
   draft: string
   messages: ChatMessage[]
   threadId: string | null
@@ -39,6 +40,7 @@ interface ChatWidgetStoreValue {
   toggle: () => void
   setDraft: (value: string) => void
   submitDraft: () => Promise<void>
+  cancelStream: () => void
 }
 
 const STORAGE_KEYS = {
@@ -49,15 +51,6 @@ const STORAGE_KEYS = {
 
 const DEFAULT_THREAD_TITLE = "New conversation"
 const ChatWidgetStoreContext = React.createContext<ChatWidgetStoreValue | null>(null)
-
-function buildAssistantReply(userMessage: string): string {
-  return [
-    "Phase 2 persistence is active.",
-    "This thread now survives refresh, route changes, and widget reopen events.",
-    `Captured prompt: "${userMessage.trim()}".`,
-    "Context injection and model streaming connect in later phases.",
-  ].join(" ")
-}
 
 function mapApiMessage(message: AiChatMessage): ChatMessage {
   return {
@@ -93,9 +86,11 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const [hasOpenedOnce, setHasOpenedOnce] = React.useState(false)
   const [isOnline, setIsOnline] = React.useState(true)
   const [isRestoring, setIsRestoring] = React.useState(false)
+  const [isStreaming, setIsStreaming] = React.useState(false)
   const [threadId, setThreadId] = React.useState<string | null>(null)
   const [threadTitle, setThreadTitle] = React.useState(DEFAULT_THREAD_TITLE)
   const [error, setError] = React.useState<string | null>(null)
+  const abortControllerRef = React.useRef<AbortController | null>(null)
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -272,14 +267,20 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     setDraftState(value)
   }, [])
 
+  const cancelStream = React.useCallback(() => {
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    setIsStreaming(false)
+  }, [])
+
   const submitDraft = React.useCallback(async () => {
     const trimmed = draft.trim()
-    if (!trimmed || !isOnline || !isAuthenticated) {
+    if (!trimmed || !isOnline || !isAuthenticated || isStreaming) {
       return
     }
 
     setError(null)
-    const pendingAssistant = makePendingAssistant()
+    const pendingAssistantId = makePendingAssistant().id
     setMessages((current) => [
       ...current,
       {
@@ -289,9 +290,18 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         createdAt: new Date().toISOString(),
         status: "ready",
       },
-      pendingAssistant,
+      {
+        id: pendingAssistantId,
+        role: "assistant",
+        content: "",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      },
     ])
     setDraftState("")
+    setIsStreaming(true)
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
     try {
       const activeThread = await ensureThread()
@@ -299,35 +309,54 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         throw new Error("No active thread available")
       }
 
-      const persistedUser = await createAiChatMessage(authenticatedFetch, activeThread.thread_id, {
-        role: "user",
-        content: trimmed,
-        context_revision: activeThread.active_context_revision ?? undefined,
-      })
-      const assistantText = buildAssistantReply(trimmed)
-      const persistedAssistant = await createAiChatMessage(authenticatedFetch, activeThread.thread_id, {
-        role: "assistant",
-        content: assistantText,
-        context_revision: activeThread.active_context_revision ?? undefined,
-      })
-      const refreshed = await getAiChatThread(authenticatedFetch, activeThread.thread_id)
-      syncThread({
-        ...refreshed,
-        messages: refreshed.messages.map((message) => {
-          if (message.message_id === persistedUser.message_id || message.message_id === persistedAssistant.message_id) {
-            return message
-          }
-          return message
-        }),
-      })
+      await streamAiChatResponse(
+        authenticatedFetch,
+        activeThread.thread_id,
+        {
+          prompt: trimmed,
+        },
+        {
+          onToken: (delta) => {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === pendingAssistantId
+                  ? {
+                      ...message,
+                      content: `${message.content}${delta}`,
+                    }
+                  : message,
+              ),
+            )
+          },
+          onDone: async () => {
+            const refreshed = await getAiChatThread(authenticatedFetch, activeThread.thread_id)
+            syncThread(refreshed)
+          },
+          onError: (message) => {
+            setError(message)
+          },
+        },
+        controller.signal,
+      )
     } catch (submitError) {
-      console.error("Failed to persist AI chat message:", submitError)
-      setError("Message persistence failed. Draft was not lost.")
+      if (submitError instanceof DOMException && submitError.name === "AbortError") {
+        setError("Response stopped.")
+      } else {
+        console.error("Failed to stream AI chat response:", submitError)
+        setError("AI response failed. Draft was restored.")
+      }
       setDraftState(trimmed)
-      setMessages((current) => current.filter((message) => message.id !== pendingAssistant.id))
+      setMessages((current) => current.filter((message) => message.id !== pendingAssistantId))
       return
+    } finally {
+      abortControllerRef.current = null
+      setIsStreaming(false)
     }
-  }, [authenticatedFetch, draft, ensureThread, isAuthenticated, isOnline, syncThread])
+  }, [authenticatedFetch, draft, ensureThread, isAuthenticated, isOnline, isStreaming, syncThread])
+
+  React.useEffect(() => () => {
+    abortControllerRef.current?.abort()
+  }, [])
 
   const value = React.useMemo<ChatWidgetStoreValue>(
     () => ({
@@ -336,6 +365,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       isInitializing,
       isOnline,
       isRestoring,
+      isStreaming,
       draft,
       messages,
       threadId,
@@ -346,8 +376,10 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       toggle,
       setDraft,
       submitDraft,
+      cancelStream,
     }),
     [
+      cancelStream,
       close,
       draft,
       error,
@@ -356,6 +388,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       isOnline,
       isOpen,
       isRestoring,
+      isStreaming,
       messages,
       open,
       setDraft,

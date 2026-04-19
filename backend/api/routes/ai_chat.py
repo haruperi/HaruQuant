@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.api.auth_utils import get_user_id_from_token
@@ -12,7 +13,10 @@ from backend.data.database.repositories.ai_chat_repository import AiChatReposito
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.ai_chat import (
     ALLOWED_TIERS_BY_AUTHORITY_BAND,
+    AIGatewayService,
     AuthorityBand,
+    ChatStreamManager,
+    ChatStreamRequest,
     ConversationService,
     PageContextAssembler,
 )
@@ -63,6 +67,14 @@ class UpsertPinnedFactRequest(BaseModel):
     source: str = Field(min_length=1)
 
 
+class StreamChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(min_length=1)
+    request_id: str | None = None
+    include_debug: bool = False
+
+
 def get_conversation_service() -> ConversationService:
     db_manager = DatabaseManager()
     return ConversationService(AiChatRepository(db_manager.db_path))
@@ -70,6 +82,16 @@ def get_conversation_service() -> ConversationService:
 
 def get_page_context_assembler() -> PageContextAssembler:
     return PageContextAssembler(db_manager=DatabaseManager())
+
+
+def get_ai_gateway(
+    conversation_service: Annotated[ConversationService, Depends(get_conversation_service)],
+    context_assembler: Annotated[PageContextAssembler, Depends(get_page_context_assembler)],
+) -> AIGatewayService:
+    return AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=context_assembler,
+    )
 
 
 @router.get("/phase0/contracts")
@@ -243,3 +265,43 @@ def upsert_pinned_fact(
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return fact.model_dump(mode="json")
+
+
+@router.post("/threads/{thread_id}/responses/stream")
+def stream_thread_response(
+    thread_id: str,
+    payload: StreamChatRequest,
+    user_id: AUTHENTICATED_USER_ID,
+    gateway: Annotated[AIGatewayService, Depends(get_ai_gateway)],
+) -> StreamingResponse:
+    stream_manager = ChatStreamManager()
+
+    def event_stream():
+        try:
+            metadata, chunks, message_id = gateway.stream_response(
+                ChatStreamRequest(
+                    user_id=user_id,
+                    thread_id=thread_id,
+                    prompt=payload.prompt,
+                    request_id=payload.request_id,
+                    include_debug=payload.include_debug,
+                )
+            )
+            yield stream_manager.meta_event(metadata)
+            full_text = ""
+            for chunk in chunks:
+                full_text += chunk
+                yield from stream_manager.token_events([chunk])
+            yield stream_manager.done_event(
+                {
+                    "message_id": message_id,
+                    "content": full_text,
+                    **metadata,
+                }
+            )
+        except LookupError as exc:
+            yield stream_manager.error_event(str(exc))
+        except Exception as exc:  # pragma: no cover - defensive path
+            yield stream_manager.error_event(f"AI gateway failed: {exc}")
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
