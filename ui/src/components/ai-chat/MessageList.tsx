@@ -11,9 +11,10 @@ interface MessageListProps {
   messages: ChatMessage[]
   isInitializing: boolean
   isOnline: boolean
+  error: string | null
 }
 
-export function MessageList({ messages, isInitializing, isOnline }: MessageListProps) {
+export function MessageList({ messages, isInitializing, isOnline, error }: MessageListProps) {
   return (
     <ScrollArea className="h-full">
       <div className="flex min-h-full flex-col gap-3 p-4">
@@ -39,9 +40,14 @@ export function MessageList({ messages, isInitializing, isOnline }: MessageListP
               </p>
               <p className="max-w-xs text-xs text-muted-foreground">
                 {isOnline
-                  ? "This Phase 1 shell keeps the widget mounted, remembers the draft, and is ready for later backend wiring."
+                  ? "This Phase 2 widget restores durable threads and keeps the active conversation available across navigation."
                   : "Draft text is still preserved locally, but replies are disabled until connectivity returns."}
               </p>
+              {error ? (
+                <p className="max-w-xs text-xs text-destructive">
+                  {error}
+                </p>
+              ) : null}
             </div>
           </div>
         ) : (

@@ -1,0 +1,241 @@
+"""Phase 2 durable conversation service for AI chat threads and memory."""
+
+from __future__ import annotations
+
+import json
+from uuid import uuid4
+
+from backend.data.database.repositories.ai_chat_repository import AiChatRepository
+
+from .models import ConversationMessageRecord, ConversationThreadRecord, MemorySummary, PinnedFact
+
+
+DEFAULT_THREAD_TITLE = "New conversation"
+SUMMARY_REFRESH_THRESHOLD = 6
+SUMMARY_WINDOW = 8
+
+
+class ConversationService:
+    """Application service for Phase 2 conversation storage and restoration."""
+
+    def __init__(self, repository: AiChatRepository) -> None:
+        self.repository = repository
+
+    def create_thread(
+        self,
+        *,
+        user_id: int | str,
+        title: str | None = None,
+        current_route: str | None = None,
+        current_page_type: str | None = None,
+        active_context_revision: str | None = None,
+    ) -> ConversationThreadRecord:
+        thread = self.repository.create_thread(
+            thread_id=self._generate_identifier("thread"),
+            user_id=str(user_id),
+            title=(title or DEFAULT_THREAD_TITLE).strip() or DEFAULT_THREAD_TITLE,
+            current_route=current_route,
+            current_page_type=current_page_type,
+            active_context_revision=active_context_revision,
+        )
+        return self._build_thread_record(thread_id=thread.thread_id, user_id=str(user_id))
+
+    def list_threads(self, *, user_id: int | str, limit: int = 50) -> list[ConversationThreadRecord]:
+        return [
+            self._thread_row_to_record(row)
+            for row in self.repository.list_threads(user_id=str(user_id), limit=limit)
+        ]
+
+    def get_thread(self, *, user_id: int | str, thread_id: str) -> ConversationThreadRecord:
+        return self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
+
+    def delete_thread(self, *, user_id: int | str, thread_id: str) -> bool:
+        return self.repository.soft_delete_thread(thread_id=thread_id, user_id=str(user_id))
+
+    def update_thread_context(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str,
+        current_route: str | None,
+        current_page_type: str | None,
+        active_context_revision: str | None,
+    ) -> ConversationThreadRecord:
+        self.repository.update_thread_context(
+            thread_id=thread_id,
+            user_id=str(user_id),
+            current_route=current_route,
+            current_page_type=current_page_type,
+            active_context_revision=active_context_revision,
+        )
+        return self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
+
+    def add_message(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str,
+        role: str,
+        content: str,
+        request_id: str | None = None,
+        context_revision: str | None = None,
+        tool_calls: list[str] | None = None,
+    ) -> ConversationMessageRecord:
+        user_key = str(user_id)
+        normalized_content = content.strip()
+        message = self.repository.add_message(
+            message_id=self._generate_identifier("msg"),
+            thread_id=thread_id,
+            user_id=user_key,
+            role=role,
+            content=normalized_content,
+            request_id=request_id,
+            context_revision=context_revision,
+            tool_calls_json=json.dumps(tool_calls or []),
+        )
+        self._promote_title_if_needed(
+            user_id=user_key,
+            thread_id=thread_id,
+            role=role,
+            content=normalized_content,
+        )
+        self._refresh_memory_summary_if_needed(user_id=user_key, thread_id=thread_id)
+        return self._message_row_to_record(message)
+
+    def refresh_memory_summary(self, *, user_id: int | str, thread_id: str) -> MemorySummary:
+        messages = self.repository.list_messages(thread_id=thread_id, user_id=str(user_id), limit=100)
+        if not messages:
+            raise LookupError(f"thread has no messages: {thread_id}")
+
+        selected = messages[-SUMMARY_WINDOW:]
+        lines = [
+            f"{message.role.title()}: {self._truncate_text(message.content, 180)}"
+            for message in selected
+        ]
+        summary = self.repository.create_memory_summary(
+            summary_id=self._generate_identifier("summary"),
+            thread_id=thread_id,
+            user_id=str(user_id),
+            summary_text="\n".join(lines),
+            source_message_count=len(messages),
+        )
+        return MemorySummary(
+            summary_text=summary.summary_text,
+            generated_at=summary.created_at,
+            source_message_count=summary.source_message_count,
+        )
+
+    def upsert_pinned_fact(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str,
+        key: str,
+        value: str,
+        source: str,
+    ) -> PinnedFact:
+        fact = self.repository.upsert_pinned_fact(
+            thread_id=thread_id,
+            user_id=str(user_id),
+            fact_key=key,
+            fact_value=value,
+            source=source,
+        )
+        return PinnedFact(key=fact.fact_key, value=fact.fact_value, source=fact.source)
+
+    def _build_thread_record(self, *, thread_id: str, user_id: str) -> ConversationThreadRecord:
+        thread = self.repository.get_thread(thread_id, user_id=user_id)
+        if thread is None:
+            raise LookupError(f"thread not found: {thread_id}")
+        latest_summary = self.repository.get_latest_memory_summary(thread_id=thread_id, user_id=user_id)
+        pinned_facts = self.repository.list_pinned_facts(thread_id=thread_id, user_id=user_id)
+        messages = self.repository.list_messages(thread_id=thread_id, user_id=user_id, limit=200)
+        thread_payload = self._thread_row_to_record(thread).model_dump(
+            exclude={"memory_summary", "pinned_facts", "messages"},
+        )
+        return ConversationThreadRecord(
+            **thread_payload,
+            memory_summary=(
+                MemorySummary(
+                    summary_text=latest_summary.summary_text,
+                    generated_at=latest_summary.created_at,
+                    source_message_count=latest_summary.source_message_count,
+                )
+                if latest_summary is not None
+                else None
+            ),
+            pinned_facts=[
+                PinnedFact(key=fact.fact_key, value=fact.fact_value, source=fact.source)
+                for fact in pinned_facts
+            ],
+            messages=[self._message_row_to_record(message) for message in messages],
+        )
+
+    def _thread_row_to_record(self, row: object) -> ConversationThreadRecord:
+        return ConversationThreadRecord(
+            thread_id=row.thread_id,
+            user_id=row.user_id,
+            title=row.title,
+            status=row.status,
+            retention_class=row.retention_class,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            last_message_at=row.last_message_at,
+            active_context_revision=row.active_context_revision,
+            current_route=row.current_route,
+            current_page_type=row.current_page_type,
+        )
+
+    def _message_row_to_record(self, row: object) -> ConversationMessageRecord:
+        return ConversationMessageRecord(
+            message_id=row.message_id,
+            thread_id=row.thread_id,
+            role=row.role,
+            content=row.content,
+            created_at=row.created_at,
+            request_id=row.request_id,
+            tool_calls=json.loads(row.tool_calls_json),
+            context_revision=row.context_revision,
+        )
+
+    def _promote_title_if_needed(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        role: str,
+        content: str,
+    ) -> None:
+        if role != "user":
+            return
+        thread = self.repository.get_thread(thread_id, user_id=user_id)
+        if thread is None or thread.title != DEFAULT_THREAD_TITLE:
+            return
+        self.repository.update_thread_title(
+            thread_id=thread_id,
+            user_id=user_id,
+            title=self._make_title_from_prompt(content),
+        )
+
+    def _refresh_memory_summary_if_needed(self, *, user_id: str, thread_id: str) -> None:
+        messages = self.repository.list_messages(thread_id=thread_id, user_id=user_id, limit=100)
+        if len(messages) < SUMMARY_REFRESH_THRESHOLD:
+            return
+        self.refresh_memory_summary(user_id=user_id, thread_id=thread_id)
+
+    @staticmethod
+    def _generate_identifier(prefix: str) -> str:
+        return f"{prefix}_{uuid4().hex}"
+
+    @staticmethod
+    def _truncate_text(value: str, limit: int) -> str:
+        trimmed = " ".join(value.split())
+        if len(trimmed) <= limit:
+            return trimmed
+        return f"{trimmed[: limit - 3].rstrip()}..."
+
+    def _make_title_from_prompt(self, content: str) -> str:
+        single_line = " ".join(content.split())
+        if not single_line:
+            return DEFAULT_THREAD_TITLE
+        return self._truncate_text(single_line, 64)

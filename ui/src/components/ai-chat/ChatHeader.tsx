@@ -9,10 +9,12 @@ import { getRouteAwareChatLabel } from "@/components/ai-chat/route-label"
 
 interface ChatHeaderProps {
   isOnline: boolean
+  isRestoring: boolean
+  threadTitle: string
   onClose: () => void
 }
 
-export function ChatHeader({ isOnline, onClose }: ChatHeaderProps) {
+export function ChatHeader({ isOnline, isRestoring, threadTitle, onClose }: ChatHeaderProps) {
   const pathname = usePathname()
   const label = getRouteAwareChatLabel(pathname)
 
@@ -36,7 +38,7 @@ export function ChatHeader({ isOnline, onClose }: ChatHeaderProps) {
           </Badge>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Global widget shell active. Context and persistence expand in later phases.
+          {isRestoring ? "Restoring durable thread state..." : `${threadTitle} · durable thread memory active.`}
         </p>
       </div>
       <Button

@@ -54,6 +54,7 @@ class ConversationThreadRecord(BaseModel):
     current_page_type: PageType | None = None
     memory_summary: MemorySummary | None = None
     pinned_facts: list[PinnedFact] = Field(default_factory=list)
+    messages: list["ConversationMessageRecord"] = Field(default_factory=list)
 
     @field_validator("created_at", "updated_at", "last_message_at")
     @classmethod

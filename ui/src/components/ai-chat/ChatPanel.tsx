@@ -12,6 +12,9 @@ interface ChatPanelProps {
   isHydrated: boolean
   isInitializing: boolean
   isOnline: boolean
+  isRestoring: boolean
+  threadTitle: string
+  error: string | null
   draft: string
   messages: {
     id: string
@@ -42,6 +45,9 @@ export function ChatPanel({
   isHydrated,
   isInitializing,
   isOnline,
+  isRestoring,
+  threadTitle,
+  error,
   draft,
   messages,
   onClose,
@@ -112,12 +118,18 @@ export function ChatPanel({
           : "pointer-events-none translate-y-4 opacity-0 md:translate-y-2",
       )}
     >
-      <ChatHeader isOnline={isOnline} onClose={onClose} />
+      <ChatHeader
+        isOnline={isOnline}
+        isRestoring={isRestoring}
+        threadTitle={threadTitle}
+        onClose={onClose}
+      />
       <div className="min-h-0 flex-1">
         <MessageList
           messages={messages}
-          isInitializing={!isHydrated || isInitializing}
+          isInitializing={!isHydrated || isInitializing || isRestoring}
           isOnline={isOnline}
+          error={error}
         />
       </div>
       <ChatInput

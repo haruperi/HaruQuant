@@ -1,5 +1,6 @@
 """Phase 0 AI chatbot contracts and service scaffolds."""
 
+from .conversation_service import ConversationService
 from .context_service import (
     DEFAULT_ROUTE_CONTEXT_REGISTRY,
     PageContextAssembler,
@@ -22,6 +23,7 @@ __all__ = [
     "ALLOWED_TIERS_BY_AUTHORITY_BAND",
     "AuthorityBand",
     "ChatResponseMode",
+    "ConversationService",
     "ConversationMessageRecord",
     "ConversationThreadRecord",
     "DEFAULT_ROUTE_CONTEXT_REGISTRY",

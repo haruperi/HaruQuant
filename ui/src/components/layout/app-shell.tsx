@@ -11,14 +11,17 @@ function GlobalChatWidget() {
   const {
     close,
     draft,
+    error,
     isHydrated,
     isInitializing,
     isOnline,
     isOpen,
+    isRestoring,
     messages,
     open,
     setDraft,
     submitDraft,
+    threadTitle,
   } = useChatWidgetStore()
 
   return (
@@ -29,6 +32,9 @@ function GlobalChatWidget() {
         isHydrated={isHydrated}
         isInitializing={isInitializing}
         isOnline={isOnline}
+        isRestoring={isRestoring}
+        threadTitle={threadTitle}
+        error={error}
         draft={draft}
         messages={messages}
         onClose={close}
