@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "ChatLifecycleEvent",
+  "workflow_id": "chat_request",
+  "correlation_id": "corr_evt_001",
+  "causation_id": "evt_001",
+  "timestamp_utc": "2026-04-19T12:00:00Z",
+  "originator": {
+    "type": "service",
+    "id": "ai_gateway"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "event_type": "chat.magic.happened",
+    "event_version": "1.0.0",
+    "request_id": "req_001",
+    "thread_id": "thread_001",
+    "message_id": "msg_001",
+    "user_id": "user_001",
+    "session_id": "sess_001",
+    "route": "/strategies/alpha",
+    "page_type": "strategy_detail",
+    "details": {}
+  }
+}

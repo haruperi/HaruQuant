@@ -25,6 +25,8 @@ Contract contents are implemented in later tasks.
 - `override_request`
 - `override_decision`
 - `replay_bundle`
+- `page_context_packet`
+- `chat_lifecycle_event`
 
 ## Standard Package Layout
 

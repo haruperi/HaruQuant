@@ -1,0 +1,29 @@
+{
+  "title": "ChatLifecycleEvent",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_type",
+    "workflow_id",
+    "correlation_id",
+    "causation_id",
+    "timestamp_utc",
+    "originator",
+    "environment",
+    "operating_mode",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "contract_type": { "const": "ChatLifecycleEvent" },
+    "workflow_id": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "causation_id": { "type": "string" },
+    "timestamp_utc": { "type": "string", "format": "date-time" },
+    "originator": { "type": "object" },
+    "environment": { "type": "string" },
+    "operating_mode": { "type": "string" },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}

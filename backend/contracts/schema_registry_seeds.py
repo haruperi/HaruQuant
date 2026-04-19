@@ -26,6 +26,8 @@ INITIAL_SCHEMA_SEEDS: tuple[tuple[str, str], ...] = (
     ("OverrideDecision", "backend.contracts.override_decision.model.OverrideDecision"),
     ("ReplayBundle", "backend.contracts.replay_bundle.model.ReplayBundle"),
     ("RefinementReport", "backend.contracts.refinement_report.model.RefinementReport"),
+    ("PageContextPacket", "backend.contracts.page_context_packet.model.PageContextPacket"),
+    ("ChatLifecycleEvent", "backend.contracts.chat_lifecycle_event.model.ChatLifecycleEvent"),
 )
 
 

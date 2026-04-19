@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "PageContextPacket",
+  "workflow_id": "chat_request",
+  "correlation_id": "corr_ctx_001",
+  "causation_id": "evt_ctx_001",
+  "timestamp_utc": "2026-04-19T12:00:00Z",
+  "originator": {
+    "type": "service",
+    "id": "context_service"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "route": "/strategies/alpha",
+    "page_type": "strategy_detail",
+    "page_title": "Strategy Detail",
+    "entity_refs": [
+      {
+        "type": "strategy",
+        "id": "strategy_alpha",
+        "label": "Mean Reversion Alpha"
+      }
+    ],
+    "context_revision": "ctx_2026_04_19_001",
+    "generated_at": "2026-04-19T12:00:00Z",
+    "freshness": {
+      "observed_at": "2026-04-19T11:59:58Z",
+      "staleness_seconds": 2
+    },
+    "authority": {
+      "source": "backend/services/ai_chat/context_service.py",
+      "trust_level": "system_state"
+    },
+    "summary": {
+      "headline": "Strategy detail context is available",
+      "bullets": [
+        "Latest backtest is available",
+        "Optimization results are present"
+      ]
+    },
+    "payload": {
+      "strategy_id": "strategy_alpha",
+      "last_backtest_id": "bt_1042"
+    }
+  }
+}

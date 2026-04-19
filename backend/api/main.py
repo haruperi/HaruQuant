@@ -14,6 +14,7 @@ from backend.agents.intent_router import intent_router_agent
 from backend.services.strategy.legacy_compat import install_legacy_apps_modules
 
 from .routes import (
+    ai_chat,
     auth,
     backtest,
     docs,
@@ -120,6 +121,7 @@ def _include_optional_router(app: FastAPI, module, prefix: str, tags: list[str])
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
+app.include_router(ai_chat.router, prefix="/api/ai-chat", tags=["ai-chat"])
 
 app.include_router(strategies.router, prefix="/api/strategies", tags=["strategies"])
 app.include_router(operator_strategies.router, prefix="/api/operator", tags=["operator-strategies"])

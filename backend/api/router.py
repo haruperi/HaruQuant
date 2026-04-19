@@ -48,6 +48,7 @@ class RoutingMetadata:
 
 # Route prefix → Intent mapping table
 _ROUTE_INTENT_MAP: Dict[str, Intent] = {
+    "/api/ai-chat": Intent.RESEARCH,
     "/api/strategies": Intent.RESEARCH,
     "/api/backtest": Intent.BACKTEST,
     "/api/simulator": Intent.BACKTEST,
