@@ -1,5 +1,23 @@
 # HaruQuant Implementation Plan Mapped to Udacity AI Trading Strategies (ND881)
 
+This is the canonical ND881 implementation plan for HaruQuant.
+
+It supersedes earlier overlapping ND881 planning drafts and agentic extension
+checklists that were consolidated into this document.
+
+Use this document for:
+
+- overall implementation scope
+- workstreams
+- phase delivery planning
+- milestone planning
+- implementation order
+
+Use the traceability register for live status, lesson signoff, workflow signoff,
+and final completion gates:
+
+- `docs/haruquant/traceability/AI_Trading_Strategies_Traceability_Register.md`
+
 **Purpose:**  
 This document translates Udacity’s **AI Trading Strategies Nanodegree (ND881)** into a **comprehensive HaruQuant implementation plan**. Every major implementation item is explicitly associated with the corresponding **course and lesson** from the nanodegree so coverage can be audited and nothing is missed.
 
@@ -13,6 +31,33 @@ Udacity currently lists ND881 as **8 courses, 34 lessons, and 5 projects**, upda
 - Momentum-Based Trading
 
 ---
+
+## 0. Current Coverage Snapshot
+
+The plan is additive and assumes HaruQuant already has substantial reusable
+infrastructure in place.
+
+Current high-level coverage snapshot:
+
+| ND881 Area | Existing HaruQuant Coverage | Status |
+|---|---|---|
+| C2: AI workflows | 5 workflow patterns, dynamic orchestrator, async workflows | complete |
+| C3.L1: ML pipeline overview | middleware pipeline, workflow logs, workflow state | complete |
+| C3.L3: feature engineering | context engineering, existing feature helpers | complete |
+| C6.L5: deployment considerations | circuit breaker, approvals, risk governor, cost controls | complete |
+| C6.L1: model optimization | edge lab optimization, Optuna, Monte Carlo | partial |
+| C8: closeout foundations | strong workflow/docs/test base already in repo | complete |
+
+Primary remaining build areas:
+
+- data acquisition and preprocessing
+- EDA and transformation workflows
+- finance analytics and backtesting
+- supervised ML training modules
+- RL subsystem
+- optimization hardening
+- momentum subsystem
+- unified reporting
 
 ## 1. Reference Key
 

@@ -70,7 +70,7 @@ Shared agent model settings are defined in
 
 ## Related Runtime Docs
 
-- [Workflow_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\Workflow_Catalog.md)
-- [Tool_Resource_Prompt_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\Tool_Resource_Prompt_Catalog.md)
+- [Workflow_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Workflow_Catalog.md)
+- [Tool_Resource_Prompt_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Resource_Prompt_Catalog.md)
 - [agents/Hypothesis_Designer_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Hypothesis_Designer_Agent.md)
 - [backend/agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\runtime)

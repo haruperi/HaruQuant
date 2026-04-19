@@ -222,9 +222,8 @@ Update docs once the workflow step is implemented.
 
 Targets:
 
-- `docs/haruquant/AI_Trading_Strategies_Traceability_Register.md`
-- `docs/haruquant/AI_Trading_Strategies_Agentic_Extension_Implementation_Plan.md`
-- `docs/haruquant/AI_Trading_Strategies_Final_Coverage_Checklist.md`
+- `docs/haruquant/traceability/AI_Trading_Strategies_Traceability_Register.md`
+- `docs/haruquant/plans/HaruQuant_ND881_Implementation_Plan.md`
 
 Implementation:
 

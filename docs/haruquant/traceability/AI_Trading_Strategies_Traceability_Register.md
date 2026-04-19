@@ -4,6 +4,12 @@
 
 **Status key:** `not_started`, `in_progress`, `implemented`, `verified`, `accepted`
 
+This is the canonical live status and signoff document for AI Trading
+Strategies coverage in HaruQuant.
+
+It supersedes earlier overlapping checklist and signoff documents that were
+consolidated into this register.
+
 ## Foundation Status
 
 - [x] Agent runtime foundation available in `backend/agents/runtime/`
@@ -11,6 +17,38 @@
 - [x] Domain service foundation available under `backend/services/`
 - [x] Operator and edge lab UI foundation available under `ui/src/app/(dashboard)/`
 - [x] Test layers available under `tests/`
+
+## Project Workflow Signoff
+
+- [ ] `backend/orchestration/workflow/definitions/data_transformation.yaml`
+  - [x] Parses through the workflow definition parser.
+  - [ ] Runs in dry-run/mock mode.
+  - [ ] Produces dataset, EDA, feature, leakage, and evidence artifacts.
+  - [x] Has integration test coverage.
+
+- [ ] `backend/orchestration/workflow/definitions/dynamic_strategy.yaml`
+  - [x] Parses through the workflow definition parser.
+  - [ ] Runs in dry-run/mock mode.
+  - [ ] Produces returns, risk, walk-forward, cost, strategy card, and evidence artifacts.
+  - [ ] Has integration test coverage.
+
+- [ ] `backend/orchestration/workflow/definitions/rl_trading.yaml`
+  - [x] Parses through the workflow definition parser.
+  - [ ] Runs in dry-run/mock mode.
+  - [ ] Produces checkpoint, OOS evaluation, action diagnostics, strategy card, and evidence artifacts.
+  - [ ] Has integration test coverage.
+
+- [ ] `backend/orchestration/workflow/definitions/classification_optimization.yaml`
+  - [x] Parses through the workflow definition parser.
+  - [ ] Runs in dry-run/mock mode.
+  - [ ] Produces calibrated classifier, tuning, overfit, robustness, drift, strategy card, and evidence artifacts.
+  - [ ] Has integration test coverage.
+
+- [ ] `backend/orchestration/workflow/definitions/momentum_trading.yaml`
+  - [x] Parses through the workflow definition parser.
+  - [ ] Runs in dry-run/mock mode.
+  - [ ] Produces momentum features, model, scenario, backtest, risk overlay, strategy card, and evidence artifacts.
+  - [ ] Has integration test coverage.
 
 ## Lesson Register
 
@@ -245,3 +283,12 @@
   - **Workflow:** all project workflows
   - **Tests:** targeted unit, integration, acceptance, eval, failure, and performance tests
   - **Artifacts:** final checklist and readiness evidence
+
+## Global Acceptance Gates
+
+- [ ] All implemented lessons have unit tests.
+- [ ] All project workflows have integration tests.
+- [ ] User-visible surfaces have acceptance tests where applicable.
+- [ ] Promotion-bound strategies have risk, evidence, approval, shadow, and governance checks.
+- [ ] Strategy cards are generated for baseline, supervised, RL, and momentum strategy classes.
+- [ ] Operator UI can display workflow progress, evidence, approvals, incidents, and replay references.
