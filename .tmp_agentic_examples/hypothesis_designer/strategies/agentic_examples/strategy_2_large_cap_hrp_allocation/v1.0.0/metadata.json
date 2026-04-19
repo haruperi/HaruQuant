@@ -1,0 +1,133 @@
+{
+  "user_id": 1,
+  "strategy_id": 2,
+  "version": "1.0.0",
+  "parameters": {
+    "assets": [
+      "NVDA",
+      "MSFT",
+      "AAPL",
+      "AMZN",
+      "GOOG",
+      "AVGO",
+      "META",
+      "TSLA",
+      "JPM",
+      "LLY",
+      "WMT",
+      "ORCL",
+      "V",
+      "MA",
+      "XOM",
+      "NFLX",
+      "JNJ",
+      "PLTR",
+      "COST"
+    ],
+    "timeframe": "1D",
+    "data_granularity": "1D",
+    "entry_logic": [
+      "Rebalance into the current HRP weight vector at the scheduled rebalance date."
+    ],
+    "exit_logic": [
+      "Exit and recompute weights on the next rebalance date.",
+      "Exit positions if the portfolio-level drawdown rule triggers."
+    ],
+    "stop_loss": "7% portfolio-level drawdown stop or per-asset 7% stop-loss.",
+    "take_profit": "10% per-asset take-profit or rebalance-driven profit capture.",
+    "ignore_stop_loss_take_profit": false,
+    "position_sizing": "Allocate capital equally across selected assets.",
+    "leverage": 1.0,
+    "portfolio_construction": {
+      "method": "HRP",
+      "rebalance_frequency": "Weekly",
+      "objective": "Risk-balanced diversified allocation"
+    }
+  },
+  "saved_at": "2026-04-19T02:06:46.186965",
+  "name": "Large Cap HRP Allocation",
+  "description": "Build an HRP portfolio over large-cap tech and rebalance weekly.",
+  "symbol": null,
+  "timeframe": "1D",
+  "type": "portfolio",
+  "parameterTypes": {
+    "assets": "list[str]",
+    "timeframe": "str",
+    "data_granularity": "str",
+    "entry_logic": "list[str]",
+    "exit_logic": "list[str]",
+    "stop_loss": "str|None",
+    "take_profit": "str|None",
+    "ignore_stop_loss_take_profit": "bool",
+    "position_sizing": "str",
+    "leverage": "float",
+    "portfolio_construction": "dict"
+  },
+  "moneyManagement": {
+    "stop_loss": "7% portfolio-level drawdown stop or per-asset 7% stop-loss.",
+    "take_profit": "10% per-asset take-profit or rebalance-driven profit capture.",
+    "additional_rules": [
+      "Cap portfolio drawdown at 12 percent."
+    ],
+    "position_sizing": "Allocate capital equally across selected assets.",
+    "leverage": 1.0
+  },
+  "variables": {
+    "strategy_id": "large-cap-hrp-allocation",
+    "render_target": "template_strategy",
+    "backtest_readiness": "ready",
+    "portfolio_method": "HRP",
+    "rebalance_frequency": "Weekly"
+  },
+  "variableTypes": {
+    "strategy_id": "str",
+    "render_target": "str",
+    "backtest_readiness": "str",
+    "portfolio_method": "str",
+    "rebalance_frequency": "str"
+  },
+  "blueprintArtifactPath": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\.tmp_agentic_examples\\hypothesis_designer\\strategies\\agentic_examples\\strategy_2_large_cap_hrp_allocation\\v1.0.0\\strategy_blueprint.json",
+  "blueprintSummary": {
+    "strategy_name": "Large Cap HRP Allocation",
+    "strategy_type": "portfolio",
+    "assets": [
+      "NVDA",
+      "MSFT",
+      "AAPL",
+      "AMZN",
+      "GOOG",
+      "AVGO",
+      "META",
+      "TSLA",
+      "JPM",
+      "LLY",
+      "WMT",
+      "ORCL",
+      "V",
+      "MA",
+      "XOM",
+      "NFLX",
+      "JNJ",
+      "PLTR",
+      "COST"
+    ],
+    "timeframe": "1D",
+    "backtest_readiness": "ready"
+  },
+  "backtestReadiness": "ready",
+  "assumptionsApplied": [
+    "Assets defaulted for portfolio strategy.",
+    "Timeframe defaulted to Daily (1D).",
+    "Portfolio position sizing defaulted to equal weight.",
+    "Portfolio position sizing defaulted to equal weight."
+  ],
+  "assumptionDefaultsUsed": [
+    "strategy_id=slugified_strategy_name",
+    "assets=NVDA,MSFT,AAPL",
+    "timeframe=1D",
+    "risk_default=7pct_stop_loss",
+    "risk_default=10pct_take_profit",
+    "position_sizing=equal_weight",
+    "position_sizing=equal_weight"
+  ]
+}

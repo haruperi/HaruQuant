@@ -10,6 +10,7 @@ def test_ai_trading_project_workflows_parse() -> None:
         "classification_optimization": 6,
         "data_transformation": 11,
         "dynamic_strategy": 5,
+        "hypothesis_design": 6,
         "momentum_trading": 6,
         "rl_trading": 5,
     }

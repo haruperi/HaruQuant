@@ -13,6 +13,7 @@ Contract contents are implemented in later tasks.
 - `workflow_intent`
 - `workflow_plan`
 - `trade_hypothesis`
+- `strategy_blueprint`
 - `trade_proposal`
 - `risk_assessment_request`
 - `risk_assessment_decision`

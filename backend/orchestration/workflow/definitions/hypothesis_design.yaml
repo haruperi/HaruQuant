@@ -1,0 +1,61 @@
+name: hypothesis_design
+version: 0.1.0
+pattern: sequential
+description: >
+  Convert a rough human trading idea into a complete, rulebook-driven
+  StrategyBlueprint, materialize a renderable strategy scaffold, register the
+  strategy in the catalog and governance registry, and review backtest
+  readiness.
+steps:
+  - name: define_strategy_blueprint
+    agent: hypothesis_designer_agent
+    expected_output: StrategyBlueprint
+    validate: true
+    input:
+      stage: define_strategy_blueprint
+      mode: research
+
+  - name: validate_strategy_blueprint
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - define_strategy_blueprint
+    input:
+      stage: validate_strategy_blueprint
+
+  - name: render_strategy_scaffold
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - validate_strategy_blueprint
+    input:
+      stage: render_strategy_scaffold
+
+  - name: register_strategy_catalog_entry
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - render_strategy_scaffold
+    input:
+      stage: register_strategy_catalog_entry
+
+  - name: register_governance_strategy
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - register_strategy_catalog_entry
+    input:
+      stage: register_governance_strategy
+
+  - name: review_backtest_readiness
+    agent: monitoring_agent
+    expected_output: EvaluationReport
+    validate: true
+    depends_on:
+      - register_governance_strategy
+    input:
+      stage: review_backtest_readiness

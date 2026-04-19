@@ -5,6 +5,10 @@ from .correlation_agent import CORRELATION_AGENT_INSTRUCTION, CorrelationAgentWr
 from .drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION, DrawdownAgentWrapper
 from .execution_agent import EXECUTION_AGENT_INSTRUCTION, ExecutionAgentWrapper
 from .exposure_agent import EXPOSURE_AGENT_INSTRUCTION, ExposureAgentWrapper
+from .hypothesis_designer_agent import (
+    HYPOTHESIS_DESIGNER_AGENT_INSTRUCTION,
+    HypothesisDesignerAgentWrapper,
+)
 from .intent_router import IntentRouterAgent, IntentRouterError, intent_router_agent
 from .portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
 from .refine_agent import REFINE_AGENT_INSTRUCTION, RefineAgentWrapper
@@ -92,6 +96,7 @@ __all__ = [
     "DRAWDOWN_AGENT_INSTRUCTION",
     "EXECUTION_AGENT_INSTRUCTION",
     "EXPOSURE_AGENT_INSTRUCTION",
+    "HYPOTHESIS_DESIGNER_AGENT_INSTRUCTION",
     "REFINE_AGENT_INSTRUCTION",
     "MONITORING_AGENT_INSTRUCTION",
     "ORCHESTRATOR_AGENT_INSTRUCTION",
@@ -110,6 +115,7 @@ __all__ = [
     "DrawdownAgentWrapper",
     "ExecutionAgentWrapper",
     "ExposureAgentWrapper",
+    "HypothesisDesignerAgentWrapper",
     "IntentRouterAgent",
     "IntentRouterError",
     "MonitoringAgentWrapper",

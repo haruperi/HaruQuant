@@ -13,6 +13,7 @@ INITIAL_SCHEMA_SEEDS: tuple[tuple[str, str], ...] = (
     ("WorkflowIntent", "backend.contracts.workflow_intent.model.WorkflowIntent"),
     ("WorkflowPlan", "backend.contracts.workflow_plan.model.WorkflowPlan"),
     ("TradeHypothesis", "backend.contracts.trade_hypothesis.model.TradeHypothesis"),
+    ("StrategyBlueprint", "backend.contracts.strategy_blueprint.model.StrategyBlueprint"),
     ("TradeProposal", "backend.contracts.trade_proposal.model.TradeProposal"),
     ("RiskAssessmentRequest", "backend.contracts.risk_assessment_request.model.RiskAssessmentRequest"),
     ("RiskAssessmentDecision", "backend.contracts.risk_assessment_decision.model.RiskAssessmentDecision"),

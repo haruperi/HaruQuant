@@ -546,6 +546,7 @@ Phase-based examples live under [`backend/scripts/examples/agentic_ai`](C:\Users
 - [`02_agentic_workflows.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\02_agentic_workflows.py)
 - [`03_building_agents.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\03_building_agents.py)
 - [`04_multi_agent_systems.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\04_multi_agent_systems.py)
+- [`05_agents_systems.py`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\scripts\examples\agentic_ai\05_agents_systems.py)
 
 These are the best practical orientation points if you want to see the backend used as a system rather than as isolated modules.
 
