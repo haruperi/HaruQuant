@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
 
 import {
   createAiChatMessage,
@@ -12,6 +11,7 @@ import {
 } from "@/lib/api/ai-chat"
 import type { AiChatMessage, AiChatThreadDetail } from "@/lib/ai-chat/contracts"
 import { useAuth } from "@/lib/auth-context"
+import { usePageContext } from "@/hooks/usePageContext"
 
 type ChatRole = "user" | "assistant"
 
@@ -82,37 +82,9 @@ function makePendingAssistant(): ChatMessage {
   }
 }
 
-function inferPageType(pathname: string): string {
-  if (pathname.startsWith("/strategies/")) {
-    return "strategy_detail"
-  }
-  if (pathname.startsWith("/backtests/")) {
-    return "backtest_detail"
-  }
-  if (pathname.startsWith("/optimization")) {
-    return "optimization_detail"
-  }
-  if (pathname.startsWith("/portfolio") || pathname.startsWith("/risk")) {
-    return "portfolio_risk"
-  }
-  if (pathname.startsWith("/trading") || pathname.startsWith("/live")) {
-    return "live_trading"
-  }
-  if (pathname.startsWith("/data")) {
-    return "data_workspace"
-  }
-  if (pathname.startsWith("/operator") || pathname.startsWith("/workflows")) {
-    return "operator_workflow"
-  }
-  if (pathname === "/" || pathname.startsWith("/dashboard")) {
-    return "dashboard"
-  }
-  return "generic"
-}
-
 export function ChatWidgetStoreProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
   const { authenticatedFetch, isAuthenticated, isLoading } = useAuth()
+  const { pageContext } = usePageContext()
   const [isOpen, setIsOpen] = React.useState(false)
   const [draft, setDraftState] = React.useState("")
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
@@ -210,12 +182,13 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
 
     const created = await createAiChatThread(authenticatedFetch, {
-      current_route: pathname,
-      current_page_type: inferPageType(pathname),
+      current_route: pageContext?.route,
+      current_page_type: pageContext?.page_type,
+      active_context_revision: pageContext?.context_revision,
     })
     syncThread(created)
     return created
-  }, [authenticatedFetch, isAuthenticated, pathname, syncThread, threadId])
+  }, [authenticatedFetch, isAuthenticated, pageContext?.context_revision, pageContext?.page_type, pageContext?.route, syncThread, threadId])
 
   React.useEffect(() => {
     if (!isHydrated || isLoading || !isAuthenticated) {
@@ -233,8 +206,9 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
           return
         }
         await updateAiChatThreadContext(authenticatedFetch, restored.thread_id, {
-          current_route: pathname,
-          current_page_type: inferPageType(pathname),
+          current_route: pageContext?.route,
+          current_page_type: pageContext?.page_type,
+          active_context_revision: pageContext?.context_revision,
         })
       } catch (restoreError) {
         console.error("Failed to restore AI chat thread:", restoreError)
@@ -253,7 +227,16 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     return () => {
       isMounted = false
     }
-  }, [authenticatedFetch, ensureThread, isAuthenticated, isHydrated, isLoading, pathname])
+  }, [
+    authenticatedFetch,
+    ensureThread,
+    isAuthenticated,
+    isHydrated,
+    isLoading,
+    pageContext?.context_revision,
+    pageContext?.page_type,
+    pageContext?.route,
+  ])
 
   const beginInitialization = React.useCallback(() => {
     if (hasOpenedOnce) {

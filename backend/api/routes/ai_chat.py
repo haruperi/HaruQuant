@@ -68,6 +68,10 @@ def get_conversation_service() -> ConversationService:
     return ConversationService(AiChatRepository(db_manager.db_path))
 
 
+def get_page_context_assembler() -> PageContextAssembler:
+    return PageContextAssembler(db_manager=DatabaseManager())
+
+
 @router.get("/phase0/contracts")
 def get_ai_chat_phase0_contracts() -> dict:
     """Expose frozen Phase 0 contract metadata for implementation alignment."""
@@ -103,6 +107,17 @@ def get_ai_chat_route_contexts() -> list[dict[str, str]]:
         }
         for descriptor in assembler.registry
     ]
+
+
+@router.get("/context")
+def get_page_context(
+    route: str,
+    page_title: str | None = None,
+    user_id: AUTHENTICATED_USER_ID = None,
+    assembler: Annotated[PageContextAssembler, Depends(get_page_context_assembler)] = None,
+) -> dict:
+    packet = assembler.assemble_context(route=route, user_id=user_id, page_title=page_title)
+    return packet.model_dump(mode="json")
 
 
 @router.get("/threads")
