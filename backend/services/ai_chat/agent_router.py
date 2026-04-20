@@ -24,11 +24,36 @@ class ChatAgentRouter:
 
     def route(self, prompt: str) -> ChatRouteDecision:
         normalized = prompt.lower()
+        if (
+            (
+                "backtest" in normalized
+                and any(keyword in normalized for keyword in ("launch", "run", "start"))
+            )
+            or (
+                any(keyword in normalized for keyword in ("optimization", "optimisation", "optimize"))
+                and any(keyword in normalized for keyword in ("launch", "run", "start"))
+            )
+            or "export" in normalized
+            or "simulate" in normalized
+            or "simulation" in normalized
+            or "draft order" in normalized
+            or "create order" in normalized
+            or "place order" in normalized
+        ):
+            spec = resolve_domain_prompt_spec("action_draft")
+            return ChatRouteDecision(
+                response_mode=ChatResponseMode.ACTION_DRAFT,
+                task_class="action_draft",
+                model_tier="standard",
+                rationale="Prompt requests a supervised operational draft.",
+                response_style=spec.response_style,
+                domain_focus=spec.domain_focus,
+            )
         if any(keyword in normalized for keyword in ("buy", "sell", "signal", "entry", "setup")):
-            spec = resolve_domain_prompt_spec("recommendation")
+            spec = resolve_domain_prompt_spec("signal_proposal")
             return ChatRouteDecision(
                 response_mode=ChatResponseMode.SIGNAL_PROPOSAL,
-                task_class="recommendation",
+                task_class="signal_proposal",
                 model_tier="standard",
                 rationale="Prompt looks like signal or trade analysis.",
                 response_style=spec.response_style,

@@ -10,10 +10,12 @@ from .context_service import (
 )
 from .prompt_builder import BuiltPrompt, ChatPromptBuilder
 from .models import (
+    ActionDraftRecord,
     ConversationMessageRecord,
     ConversationThreadRecord,
     MemorySummary,
     PinnedFact,
+    SignalProposalRecord,
 )
 from .policy import (
     ALLOWED_TIERS_BY_AUTHORITY_BAND,
@@ -25,6 +27,7 @@ from .stream_manager import ChatStreamManager
 
 __all__ = [
     "ALLOWED_TIERS_BY_AUTHORITY_BAND",
+    "ActionDraftRecord",
     "AIGatewayService",
     "AuthorityBand",
     "BuiltPrompt",
@@ -42,5 +45,6 @@ __all__ = [
     "PageContextAssembler",
     "PinnedFact",
     "RouteContextDescriptor",
+    "SignalProposalRecord",
     "ToolPermissionTier",
 ]

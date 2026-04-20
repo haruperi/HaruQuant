@@ -15,6 +15,28 @@ class DomainPromptSpec:
 
 
 DOMAIN_PROMPT_SPECS: dict[str, DomainPromptSpec] = {
+    "action_draft": DomainPromptSpec(
+        domain_focus="supervised_action_draft",
+        response_style="recommendation",
+        prompt_goal="Convert user requests for operational actions into supervised, non-executed action drafts that require explicit human approval and risk review.",
+        quantitative_rules=(
+            "State the requested action, required approval status, and side-effect status explicitly.",
+            "Include risk precheck findings and block execution when prerequisites are missing.",
+            "Treat the output as a draft only; no live or paper execution is permitted in chat.",
+        ),
+        section_headers=("Action Draft", "Approval Requirements", "Risk Precheck"),
+    ),
+    "signal_proposal": DomainPromptSpec(
+        domain_focus="signal_proposal",
+        response_style="recommendation",
+        prompt_goal="Convert trade setup requests into structured, non-executed signal proposals with clear risk notes and operator review guidance.",
+        quantitative_rules=(
+            "State entry logic, exit logic, confidence, and risk note explicitly.",
+            "Label the proposal as non-executed and unsuitable for direct broker action.",
+            "If price or timeframe is missing, use conservative HaruQuant defaults and say so in the rationale.",
+        ),
+        section_headers=("Signal Thesis", "Signal Structure", "Risk Controls"),
+    ),
     "performance_summary": DomainPromptSpec(
         domain_focus="performance_summary",
         response_style="summary",

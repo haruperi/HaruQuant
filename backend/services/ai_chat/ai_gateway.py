@@ -72,6 +72,26 @@ class AIGatewayService:
             context=tool_context,
             authority_band=AuthorityBand.READ_ONLY,
         )
+        signal_proposal = None
+        action_draft = None
+        if decision.response_mode.value == "signal_proposal":
+            signal_proposal = self._build_signal_proposal(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+                request_id=request_id,
+                prompt=request.prompt,
+                context=tool_context,
+                tool_results=tool_results,
+            )
+        elif decision.response_mode.value == "action_draft":
+            action_draft = self._build_action_draft(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+                request_id=request_id,
+                prompt=request.prompt,
+                context=tool_context,
+                tool_results=tool_results,
+            )
         built_prompt = self.prompt_builder.build(
             thread=thread,
             page_context=page_context,
@@ -81,9 +101,13 @@ class AIGatewayService:
                 denied_tools=denied_tools,
             ),
             response_mode=(
-                decision.response_mode.value
-                if tool_results
-                else decision.response_mode.value
+                "signal_proposal"
+                if signal_proposal is not None
+                else (
+                    "action_draft"
+                    if action_draft is not None
+                    else ("tool_assisted" if tool_results else decision.response_mode.value)
+                )
             ),
             task_class=decision.task_class,
         )
@@ -103,10 +127,20 @@ class AIGatewayService:
             user_prompt=built_prompt.user_prompt,
             model=get_model_for_tier(decision.model_tier),
             page_context=page_context,
-            response_mode="tool_assisted" if tool_results else decision.response_mode.value,
+            response_mode=(
+                "signal_proposal"
+                if signal_proposal is not None
+                else (
+                    "action_draft"
+                    if action_draft is not None
+                    else ("tool_assisted" if tool_results else decision.response_mode.value)
+                )
+            ),
             tool_results=tool_results,
             task_class=decision.task_class,
             response_style=decision.response_style,
+            signal_proposal=signal_proposal,
+            action_draft=action_draft,
         )
         self.conversation_service.add_message(
             user_id=request.user_id,
@@ -116,6 +150,8 @@ class AIGatewayService:
             request_id=request_id,
             context_revision=page_context.payload.context_revision,
             tool_calls=[result.tool_name for result in tool_results if result.success],
+            signal_proposal_id=signal_proposal.proposal_id if signal_proposal is not None else None,
+            action_draft_id=action_draft.draft_id if action_draft is not None else None,
         )
         refreshed_thread = self.conversation_service.get_thread(
             user_id=request.user_id,
@@ -124,7 +160,15 @@ class AIGatewayService:
         metadata = {
             "request_id": request_id,
             "thread_id": request.thread_id,
-            "response_mode": "tool_assisted" if tool_results else decision.response_mode.value,
+            "response_mode": (
+                "signal_proposal"
+                if signal_proposal is not None
+                else (
+                    "action_draft"
+                    if action_draft is not None
+                    else ("tool_assisted" if tool_results else decision.response_mode.value)
+                )
+            ),
             "task_class": decision.task_class,
             "response_style": decision.response_style,
             "domain_focus": decision.domain_focus,
@@ -133,6 +177,12 @@ class AIGatewayService:
             "tools_used": [result.tool_name for result in tool_results if result.success],
             "tools_denied": list(denied_tools),
         }
+        if signal_proposal is not None:
+            metadata["signal_proposal"] = signal_proposal.model_dump(mode="json")
+            metadata["signal_proposal_id"] = signal_proposal.proposal_id
+        if action_draft is not None:
+            metadata["action_draft"] = action_draft.model_dump(mode="json")
+            metadata["action_draft_id"] = action_draft.draft_id
         if request.include_debug:
             metadata["debug"] = {
                 "router_rationale": decision.rationale,
@@ -151,6 +201,8 @@ class AIGatewayService:
         tool_results: list[ToolExecutionResult],
         task_class: str,
         response_style: str,
+        signal_proposal=None,
+        action_draft=None,
     ) -> str:
         if self._can_use_openai():
             streamed = self._generate_openai_text(
@@ -167,6 +219,8 @@ class AIGatewayService:
             tool_results=tool_results,
             task_class=task_class,
             response_style=response_style,
+            signal_proposal=signal_proposal,
+            action_draft=action_draft,
         )
 
     def _can_use_openai(self) -> bool:
@@ -202,8 +256,51 @@ class AIGatewayService:
         tool_results: list[ToolExecutionResult],
         task_class: str,
         response_style: str,
+        signal_proposal=None,
+        action_draft=None,
     ) -> str:
         prompt_spec = resolve_domain_prompt_spec(task_class)
+        if signal_proposal is not None:
+            return "\n".join(
+                [
+                    f"{signal_proposal.title}",
+                    "Signal Thesis:",
+                    f"- Hypothesis: {signal_proposal.hypothesis}",
+                    f"- Symbol: {signal_proposal.symbol} {signal_proposal.direction} {signal_proposal.timeframe}",
+                    "Signal Structure:",
+                    f"- Entry logic: {signal_proposal.entry_logic}",
+                    f"- Exit logic: {signal_proposal.exit_logic}",
+                    f"- Confidence: {signal_proposal.confidence}",
+                    "Risk Controls:",
+                    f"- Risk note: {signal_proposal.risk_note}",
+                    f"- Rationale: {signal_proposal.rationale}",
+                    f"- Status: {signal_proposal.status}",
+                    f"- Label: {signal_proposal.non_executed_label}",
+                ]
+            )
+        if action_draft is not None:
+            payload_lines = [
+                f"- {key}: {value}"
+                for key, value in list(action_draft.payload.items())[:6]
+            ]
+            return "\n".join(
+                [
+                    f"{action_draft.title}",
+                    "Action Draft:",
+                    f"- Type: {action_draft.draft_type}",
+                    f"- Description: {action_draft.description}",
+                    *(payload_lines or ["- Payload: no structured payload"]),
+                    "Approval Requirements:",
+                    f"- Requires human approval: {action_draft.requires_human_approval}",
+                    f"- Status: {action_draft.status}",
+                    f"- Approval ID: {action_draft.approval_id or 'not_requested'}",
+                    "Risk Precheck:",
+                    f"- Risk status: {action_draft.risk_precheck_status}",
+                    f"- Risk notes: {action_draft.risk_precheck_notes}",
+                    f"- Side effect status: {action_draft.side_effect_status}",
+                    "- Execution: not executed from chat",
+                ]
+            )
         bullets = page_context.payload.summary.bullets[:3]
         lead = page_context.payload.summary.headline
         response_lines = [f"{lead}", f"Mode: {response_mode}.", f"Style: {response_style}."]
@@ -263,6 +360,127 @@ class AIGatewayService:
         if any(result.tool_name == "optimization_results" for result in tool_results):
             return "Review the top optimization candidates against robustness and drawdown, not score alone."
         return "Use current system metrics as the baseline for any further research decision."
+
+    def _build_signal_proposal(
+        self,
+        *,
+        user_id: int,
+        thread_id: str,
+        request_id: str,
+        prompt: str,
+        context: dict[str, object],
+        tool_results: list[ToolExecutionResult],
+    ):
+        symbol = str(context.get("symbol") or "SPY")
+        timeframe = "1D"
+        direction = "long" if any(keyword in prompt.lower() for keyword in ("buy", "long")) else "short" if any(keyword in prompt.lower() for keyword in ("sell", "short")) else "neutral"
+        tool_summary = "; ".join(
+            f"{result.tool_name}: {self._summarize_tool_payload(result.payload)}"
+            for result in tool_results
+            if result.success
+        ) or "No supporting tool metrics were available."
+        confidence = 72 if tool_results else 58
+        return self.conversation_service.create_signal_proposal(
+            user_id=user_id,
+            thread_id=thread_id,
+            request_id=request_id,
+            title=f"{symbol} signal proposal",
+            hypothesis=prompt.strip(),
+            symbol=symbol,
+            timeframe=timeframe,
+            direction=direction,
+            entry_logic="Enter only after the stated setup condition is confirmed on the current timeframe.",
+            exit_logic="Exit on invalidation of the setup, opposing signal confirmation, or predefined review threshold.",
+            confidence=confidence,
+            rationale=f"Generated from the user prompt and current HaruQuant page context. Supporting evidence: {tool_summary}",
+            risk_note="Non-executed AI signal proposal. Requires watchlist or review-queue handling before any supervised action.",
+        )
+
+    def _build_action_draft(
+        self,
+        *,
+        user_id: int,
+        thread_id: str,
+        request_id: str,
+        prompt: str,
+        context: dict[str, object],
+        tool_results: list[ToolExecutionResult],
+    ):
+        normalized = prompt.lower()
+        draft_type = self._infer_action_draft_type(normalized)
+        tool_summary = "; ".join(
+            f"{result.tool_name}: {self._summarize_tool_payload(result.payload)}"
+            for result in tool_results
+            if result.success
+        ) or "No supporting tool metrics were available."
+        risk_status = "passed"
+        risk_notes = "Draft remains non-executed and must be approved before any downstream action."
+        if draft_type == "order_draft":
+            risk_status = "blocked"
+            risk_notes = "Order drafts cannot proceed from free-form chat without reviewed signal context, entitlement checks, and governor validation."
+        payload = {
+            "prompt": prompt.strip(),
+            "route": context.get("route"),
+            "page_type": context.get("page_type"),
+            "strategy_id": context.get("strategy_id"),
+            "backtest_id": context.get("backtest_id"),
+            "optimization_id": context.get("optimization_id"),
+            "session_id": context.get("session_id"),
+            "symbol": context.get("symbol"),
+            "tool_summary": tool_summary,
+        }
+        return self.conversation_service.create_action_draft(
+            user_id=user_id,
+            thread_id=thread_id,
+            request_id=request_id,
+            draft_type=draft_type,
+            title=self._make_action_draft_title(draft_type=draft_type, context=context),
+            description=self._make_action_draft_description(draft_type=draft_type, prompt=prompt),
+            payload=payload,
+            risk_precheck_status=risk_status,
+            risk_precheck_notes=risk_notes,
+            requires_human_approval=True,
+            side_effect_status="not_executed",
+        )
+
+    @staticmethod
+    def _infer_action_draft_type(normalized_prompt: str) -> str:
+        if "backtest" in normalized_prompt:
+            return "backtest_launch"
+        if "optimization" in normalized_prompt or "optimisation" in normalized_prompt or "optimize" in normalized_prompt:
+            return "optimization_launch"
+        if "export" in normalized_prompt:
+            return "export_request"
+        if "simulate" in normalized_prompt or "simulation" in normalized_prompt:
+            return "simulation_request"
+        return "order_draft"
+
+    @staticmethod
+    def _make_action_draft_title(*, draft_type: str, context: dict[str, object]) -> str:
+        suffix = ""
+        if context.get("strategy_id"):
+            suffix = f" for {context['strategy_id']}"
+        elif context.get("symbol"):
+            suffix = f" for {context['symbol']}"
+        titles = {
+            "backtest_launch": "Backtest launch draft",
+            "optimization_launch": "Optimization launch draft",
+            "export_request": "Export request draft",
+            "simulation_request": "Simulation request draft",
+            "order_draft": "Order draft",
+        }
+        return f"{titles.get(draft_type, 'Action draft')}{suffix}"
+
+    @staticmethod
+    def _make_action_draft_description(*, draft_type: str, prompt: str) -> str:
+        prefixes = {
+            "backtest_launch": "Prepared a supervised backtest request",
+            "optimization_launch": "Prepared a supervised optimization request",
+            "export_request": "Prepared a supervised export request",
+            "simulation_request": "Prepared a supervised simulation request",
+            "order_draft": "Prepared a supervised order draft request",
+        }
+        return f"{prefixes.get(draft_type, 'Prepared a supervised action draft')} from prompt: {prompt.strip()}"
 
     def _select_tools(
         self,

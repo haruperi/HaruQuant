@@ -7,16 +7,23 @@ import {
   deleteAiChatThread,
   exportAiChatThread,
   getAiChatThread,
+  listAiChatActionDrafts,
   listAiChatThreads,
+  listAiChatSignalProposals,
+  queueAiChatSignalProposalForReview,
   regenerateAiChatResponse,
   renameAiChatThread,
+  requestAiChatActionDraftApproval,
+  saveAiChatSignalProposalToWatchlist,
   searchAiChatThreads,
   streamAiChatResponse,
   updateAiChatThreadContext,
 } from "@/lib/api/ai-chat"
 import type {
+  AiChatActionDraft,
   AiChatMessage,
   AiChatResponseMetadata,
+  AiChatSignalProposal,
   AiChatThreadDetail,
   AiChatThreadSummary,
 } from "@/lib/ai-chat/contracts"
@@ -32,6 +39,10 @@ export interface ChatMessage {
   createdAt: string
   toolCalls?: string[]
   requestId?: string | null
+  signalProposalId?: string | null
+  signalProposal?: AiChatSignalProposal
+  actionDraftId?: string | null
+  actionDraft?: AiChatActionDraft
   responseStyle?: string
   taskClass?: string
   domainFocus?: string
@@ -71,6 +82,9 @@ interface ChatWidgetStoreValue {
   renameThread: (value: string) => Promise<void>
   deleteThread: () => Promise<void>
   exportThread: () => Promise<void>
+  saveSignalProposalToWatchlist: (proposalId: string) => Promise<void>
+  queueSignalProposalForReview: (proposalId: string) => Promise<void>
+  requestActionDraftApproval: (draftId: string) => Promise<void>
   submitDraft: () => Promise<void>
   regenerateLastResponse: () => Promise<void>
   cancelStream: () => void
@@ -97,6 +111,10 @@ function mapApiMessage(
     createdAt: message.created_at,
     toolCalls: message.tool_calls,
     requestId: message.request_id,
+    signalProposalId: message.signal_proposal_id,
+    actionDraftId: message.action_draft_id,
+    signalProposal: message.signal_proposal_id ? responseMetadata?.signal_proposal : undefined,
+    actionDraft: message.action_draft_id ? responseMetadata?.action_draft : undefined,
     responseStyle: responseMetadata?.response_style,
     taskClass: responseMetadata?.task_class,
     domainFocus: responseMetadata?.domain_focus,
@@ -138,6 +156,16 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
     task_class: typeof payload.task_class === "string" ? payload.task_class : undefined,
     domain_focus: typeof payload.domain_focus === "string" ? payload.domain_focus : undefined,
     tools_used: Array.isArray(payload.tools_used) ? payload.tools_used.filter((value): value is string => typeof value === "string") : undefined,
+    signal_proposal_id: typeof payload.signal_proposal_id === "string" ? payload.signal_proposal_id : undefined,
+    action_draft_id: typeof payload.action_draft_id === "string" ? payload.action_draft_id : undefined,
+    signal_proposal:
+      payload.signal_proposal && typeof payload.signal_proposal === "object"
+        ? payload.signal_proposal as AiChatSignalProposal
+        : undefined,
+    action_draft:
+      payload.action_draft && typeof payload.action_draft === "object"
+        ? payload.action_draft as AiChatActionDraft
+        : undefined,
   }
 }
 
@@ -162,6 +190,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const [error, setError] = React.useState<string | null>(null)
   const abortControllerRef = React.useRef<AbortController | null>(null)
   const responseMetadataRef = React.useRef<Record<string, AiChatResponseMetadata>>({})
+  const signalProposalMapRef = React.useRef<Record<string, AiChatSignalProposal>>({})
+  const actionDraftMapRef = React.useRef<Record<string, AiChatActionDraft>>({})
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -223,7 +253,22 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     setMessages(
       thread.messages
         .filter((message) => message.role === "user" || message.role === "assistant")
-        .map((message) => mapApiMessage(message, responseMetadataRef.current)),
+        .map((message) => {
+          const metadata = message.request_id ? responseMetadataRef.current[message.request_id] : undefined
+          const signalProposal =
+            message.signal_proposal_id
+              ? signalProposalMapRef.current[message.signal_proposal_id] ?? metadata?.signal_proposal
+              : undefined
+          const actionDraft =
+            message.action_draft_id
+              ? actionDraftMapRef.current[message.action_draft_id] ?? metadata?.action_draft
+              : undefined
+          return {
+            ...mapApiMessage(message, responseMetadataRef.current),
+            signalProposal: signalProposal,
+            actionDraft: actionDraft,
+          }
+        }),
     )
   }, [])
 
@@ -233,7 +278,33 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       return
     }
     responseMetadataRef.current[metadata.request_id] = metadata
+    if (metadata.signal_proposal?.proposal_id) {
+      signalProposalMapRef.current[metadata.signal_proposal.proposal_id] = metadata.signal_proposal
+    }
+    if (metadata.action_draft?.draft_id) {
+      actionDraftMapRef.current[metadata.action_draft.draft_id] = metadata.action_draft
+    }
   }, [])
+
+  const refreshSignalProposals = React.useCallback(async (activeThreadId: string) => {
+    if (!isAuthenticated) {
+      return
+    }
+    const proposals = await listAiChatSignalProposals(authenticatedFetch, activeThreadId)
+    signalProposalMapRef.current = Object.fromEntries(
+      proposals.map((proposal) => [proposal.proposal_id, proposal]),
+    )
+  }, [authenticatedFetch, isAuthenticated])
+
+  const refreshActionDrafts = React.useCallback(async (activeThreadId: string) => {
+    if (!isAuthenticated) {
+      return
+    }
+    const drafts = await listAiChatActionDrafts(authenticatedFetch, activeThreadId)
+    actionDraftMapRef.current = Object.fromEntries(
+      drafts.map((draft) => [draft.draft_id, draft]),
+    )
+  }, [authenticatedFetch, isAuthenticated])
 
   const refreshThreadList = React.useCallback(async (query?: string) => {
     if (!isAuthenticated) {
@@ -253,6 +324,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
 
     if (threadId) {
       const existing = await getAiChatThread(authenticatedFetch, threadId)
+      await refreshSignalProposals(threadId)
+      await refreshActionDrafts(threadId)
       syncThread(existing)
       return existing
     }
@@ -263,6 +336,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
 
     if (selected) {
       const existing = await getAiChatThread(authenticatedFetch, selected.thread_id)
+      await refreshSignalProposals(selected.thread_id)
+      await refreshActionDrafts(selected.thread_id)
       syncThread(existing)
       return existing
     }
@@ -272,6 +347,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       current_page_type: pageContext?.page_type,
       active_context_revision: pageContext?.context_revision,
     })
+    signalProposalMapRef.current = {}
     syncThread(created)
     await refreshThreadList()
     return created
@@ -282,6 +358,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     pageContext?.page_type,
     pageContext?.route,
     refreshThreadList,
+    refreshActionDrafts,
+    refreshSignalProposals,
     syncThread,
     threadId,
   ])
@@ -401,6 +479,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         current_page_type: pageContext?.page_type,
         active_context_revision: pageContext?.context_revision,
       })
+      signalProposalMapRef.current = {}
+      actionDraftMapRef.current = {}
       syncThread(created)
       setMessages([])
       setDraftState("")
@@ -431,6 +511,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     setError(null)
     try {
       const selected = await getAiChatThread(authenticatedFetch, value)
+      await refreshSignalProposals(value)
+      await refreshActionDrafts(value)
       syncThread(selected)
       await updateAiChatThreadContext(authenticatedFetch, value, {
         current_route: pageContext?.route,
@@ -451,6 +533,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     pageContext?.page_type,
     pageContext?.route,
     syncThread,
+    refreshSignalProposals,
+    refreshActionDrafts,
   ])
 
   const renameThread = React.useCallback(async (value: string) => {
@@ -482,6 +566,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       setThreadId(null)
       setThreadTitle(DEFAULT_THREAD_TITLE)
       setMessages([])
+      signalProposalMapRef.current = {}
+      actionDraftMapRef.current = {}
       await refreshThreadList(threadSearch)
       const listed = threadSearch.trim().length > 0
         ? await searchAiChatThreads(authenticatedFetch, threadSearch.trim())
@@ -489,6 +575,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       const fallback = listed[0]
       if (fallback) {
         const selected = await getAiChatThread(authenticatedFetch, fallback.thread_id)
+        await refreshSignalProposals(fallback.thread_id)
+        await refreshActionDrafts(fallback.thread_id)
         syncThread(selected)
       }
     } catch (threadError) {
@@ -502,10 +590,63 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isAuthenticated,
     isStreaming,
     refreshThreadList,
+    refreshSignalProposals,
+    refreshActionDrafts,
     syncThread,
     threadId,
     threadSearch,
   ])
+
+  const saveSignalProposalToWatchlist = React.useCallback(async (proposalId: string) => {
+    if (!threadId || !isAuthenticated) {
+      return
+    }
+    setError(null)
+    try {
+      const updated = await saveAiChatSignalProposalToWatchlist(authenticatedFetch, threadId, proposalId)
+      signalProposalMapRef.current[proposalId] = updated
+      const refreshed = await getAiChatThread(authenticatedFetch, threadId)
+      syncThread(refreshed)
+      setActiveResponseStatus(`Saved ${updated.symbol} signal proposal to watchlist.`)
+    } catch (proposalError) {
+      console.error("Failed to save signal proposal to watchlist:", proposalError)
+      setError("Unable to save signal proposal to watchlist.")
+    }
+  }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
+
+  const queueSignalProposalForReview = React.useCallback(async (proposalId: string) => {
+    if (!threadId || !isAuthenticated) {
+      return
+    }
+    setError(null)
+    try {
+      const updated = await queueAiChatSignalProposalForReview(authenticatedFetch, threadId, proposalId)
+      signalProposalMapRef.current[proposalId] = updated
+      const refreshed = await getAiChatThread(authenticatedFetch, threadId)
+      syncThread(refreshed)
+      setActiveResponseStatus(`Queued ${updated.symbol} signal proposal for review.`)
+    } catch (proposalError) {
+      console.error("Failed to queue signal proposal for review:", proposalError)
+      setError("Unable to queue signal proposal for review.")
+    }
+  }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
+
+  const requestActionDraftApproval = React.useCallback(async (draftId: string) => {
+    if (!threadId || !isAuthenticated) {
+      return
+    }
+    setError(null)
+    try {
+      const updated = await requestAiChatActionDraftApproval(authenticatedFetch, threadId, draftId)
+      actionDraftMapRef.current[draftId] = updated
+      const refreshed = await getAiChatThread(authenticatedFetch, threadId)
+      syncThread(refreshed)
+      setActiveResponseStatus(`Requested approval for ${updated.title}.`)
+    } catch (draftError) {
+      console.error("Failed to request action draft approval:", draftError)
+      setError("Unable to request approval for action draft.")
+    }
+  }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
 
   const exportThread = React.useCallback(async () => {
     if (!threadId || !isAuthenticated) {
@@ -594,6 +735,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
           },
           onDone: async () => {
             const refreshed = await getAiChatThread(authenticatedFetch, activeThread.thread_id)
+            await refreshSignalProposals(activeThread.thread_id)
+            await refreshActionDrafts(activeThread.thread_id)
             syncThread(refreshed)
             await refreshThreadList(threadSearch)
             setActiveResponseStatus("Response complete.")
@@ -627,6 +770,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isOnline,
     isStreaming,
     refreshThreadList,
+    refreshSignalProposals,
+    refreshActionDrafts,
     rememberResponseMetadata,
     syncThread,
     threadSearch,
@@ -683,6 +828,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
           },
           onDone: async () => {
             const refreshed = await getAiChatThread(authenticatedFetch, threadId)
+            await refreshSignalProposals(threadId)
+            await refreshActionDrafts(threadId)
             syncThread(refreshed)
             await refreshThreadList(threadSearch)
             setActiveResponseStatus("Regenerated response complete.")
@@ -710,6 +857,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isOnline,
     isStreaming,
     refreshThreadList,
+    refreshSignalProposals,
+    refreshActionDrafts,
     rememberResponseMetadata,
     syncThread,
     threadId,
@@ -747,6 +896,9 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       renameThread,
       deleteThread,
       exportThread,
+      saveSignalProposalToWatchlist,
+      queueSignalProposalForReview,
+      requestActionDraftApproval,
       submitDraft,
       regenerateLastResponse,
       cancelStream,
@@ -769,8 +921,11 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       isStreaming,
       messages,
       open,
+      queueSignalProposalForReview,
       regenerateLastResponse,
       renameThread,
+      requestActionDraftApproval,
+      saveSignalProposalToWatchlist,
       setDraft,
       setThreadSearch,
       selectThread,

@@ -57,6 +57,8 @@ class AddMessageRequest(BaseModel):
     request_id: str | None = None
     context_revision: str | None = None
     tool_calls: list[str] = Field(default_factory=list)
+    signal_proposal_id: str | None = None
+    action_draft_id: str | None = None
 
 
 class RefreshSummaryRequest(BaseModel):
@@ -88,6 +90,18 @@ class ExportThreadResponse(BaseModel):
     title: str
     format: str
     content: object
+
+
+class ListSignalProposalsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    proposals: list[dict]
+
+
+class RequestActionDraftApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    actor_type: str = Field(default="user", min_length=1)
 
 
 def get_conversation_service() -> ConversationService:
@@ -281,6 +295,8 @@ def add_message(
             request_id=payload.request_id,
             context_revision=payload.context_revision,
             tool_calls=payload.tool_calls,
+            signal_proposal_id=payload.signal_proposal_id,
+            action_draft_id=payload.action_draft_id,
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -319,6 +335,83 @@ def upsert_pinned_fact(
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return fact.model_dump(mode="json")
+
+
+@router.get("/threads/{thread_id}/signal-proposals")
+def list_signal_proposals(
+    thread_id: str,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+    status: str | None = Query(default=None, pattern="^(draft|watchlist|review_queue)$"),
+) -> list[dict]:
+    return [
+        proposal.model_dump(mode="json")
+        for proposal in service.list_signal_proposals(user_id=user_id, thread_id=thread_id, status=status)
+    ]
+
+
+@router.post("/threads/{thread_id}/signal-proposals/{proposal_id}/watchlist")
+def save_signal_proposal_to_watchlist(
+    thread_id: str,
+    proposal_id: str,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> dict:
+    _ = service.get_thread(user_id=user_id, thread_id=thread_id)
+    existing = service.get_signal_proposal(user_id=user_id, proposal_id=proposal_id)
+    if existing.thread_id != thread_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"signal proposal not found in thread: {proposal_id}")
+    proposal = service.save_signal_proposal_to_watchlist(user_id=user_id, proposal_id=proposal_id)
+    return proposal.model_dump(mode="json")
+
+
+@router.post("/threads/{thread_id}/signal-proposals/{proposal_id}/review-queue")
+def queue_signal_proposal_for_review(
+    thread_id: str,
+    proposal_id: str,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> dict:
+    _ = service.get_thread(user_id=user_id, thread_id=thread_id)
+    existing = service.get_signal_proposal(user_id=user_id, proposal_id=proposal_id)
+    if existing.thread_id != thread_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"signal proposal not found in thread: {proposal_id}")
+    proposal = service.queue_signal_proposal_for_review(user_id=user_id, proposal_id=proposal_id)
+    return proposal.model_dump(mode="json")
+
+
+@router.get("/threads/{thread_id}/action-drafts")
+def list_action_drafts(
+    thread_id: str,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+    status: str | None = Query(default=None, pattern="^(draft|approval_requested|approved|rejected|cancelled)$"),
+) -> list[dict]:
+    _ = service.get_thread(user_id=user_id, thread_id=thread_id)
+    return [
+        draft.model_dump(mode="json")
+        for draft in service.list_action_drafts(user_id=user_id, thread_id=thread_id, status=status)
+    ]
+
+
+@router.post("/threads/{thread_id}/action-drafts/{draft_id}/request-approval")
+def request_action_draft_approval(
+    thread_id: str,
+    draft_id: str,
+    payload: RequestActionDraftApprovalRequest,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> dict:
+    _ = service.get_thread(user_id=user_id, thread_id=thread_id)
+    existing = service.get_action_draft(user_id=user_id, draft_id=draft_id)
+    if existing.thread_id != thread_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"action draft not found in thread: {draft_id}")
+    draft = service.request_action_draft_approval(
+        user_id=user_id,
+        draft_id=draft_id,
+        actor_type=payload.actor_type,
+    )
+    return draft.model_dump(mode="json")
 
 
 @router.post("/threads/{thread_id}/responses/stream")

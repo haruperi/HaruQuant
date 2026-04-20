@@ -1,13 +1,23 @@
-"""Phase 2 durable conversation service for AI chat threads and memory."""
+"""Durable conversation service for AI chat threads, memory, and signal proposals."""
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import json
 from uuid import uuid4
 
+from backend.common.ids import generate_prefixed_id
 from backend.data.database.repositories.ai_chat_repository import AiChatRepository
+from backend.data.database.repositories.governance_repository import GovernanceRepository
 
-from .models import ConversationMessageRecord, ConversationThreadRecord, MemorySummary, PinnedFact
+from .models import (
+    ActionDraftRecord,
+    ConversationMessageRecord,
+    ConversationThreadRecord,
+    MemorySummary,
+    PinnedFact,
+    SignalProposalRecord,
+)
 
 
 DEFAULT_THREAD_TITLE = "New conversation"
@@ -16,7 +26,7 @@ SUMMARY_WINDOW = 8
 
 
 class ConversationService:
-    """Application service for Phase 2 conversation storage and restoration."""
+    """Application service for AI chat storage and restoration."""
 
     def __init__(self, repository: AiChatRepository) -> None:
         self.repository = repository
@@ -113,6 +123,8 @@ class ConversationService:
         request_id: str | None = None,
         context_revision: str | None = None,
         tool_calls: list[str] | None = None,
+        signal_proposal_id: str | None = None,
+        action_draft_id: str | None = None,
     ) -> ConversationMessageRecord:
         user_key = str(user_id)
         normalized_content = content.strip()
@@ -125,6 +137,8 @@ class ConversationService:
             request_id=request_id,
             context_revision=context_revision,
             tool_calls_json=json.dumps(tool_calls or []),
+            signal_proposal_id=signal_proposal_id,
+            action_draft_id=action_draft_id,
         )
         self._promote_title_if_needed(
             user_id=user_key,
@@ -176,6 +190,183 @@ class ConversationService:
         )
         return PinnedFact(key=fact.fact_key, value=fact.fact_value, source=fact.source)
 
+    def create_signal_proposal(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str,
+        request_id: str | None,
+        title: str,
+        hypothesis: str,
+        symbol: str,
+        timeframe: str,
+        direction: str,
+        entry_logic: str,
+        exit_logic: str,
+        confidence: int,
+        rationale: str,
+        risk_note: str,
+    ) -> SignalProposalRecord:
+        proposal = self.repository.create_signal_proposal(
+            proposal_id=generate_prefixed_id("sig"),
+            thread_id=thread_id,
+            user_id=str(user_id),
+            request_id=request_id,
+            title=title,
+            hypothesis=hypothesis,
+            symbol=symbol,
+            timeframe=timeframe,
+            direction=direction,
+            entry_logic=entry_logic,
+            exit_logic=exit_logic,
+            confidence=confidence,
+            rationale=rationale,
+            risk_note=risk_note,
+        )
+        return self._signal_proposal_row_to_record(proposal)
+
+    def get_signal_proposal(self, *, user_id: int | str, proposal_id: str) -> SignalProposalRecord:
+        proposal = self.repository.get_signal_proposal(proposal_id=proposal_id, user_id=str(user_id))
+        if proposal is None:
+            raise LookupError(f"signal proposal not found: {proposal_id}")
+        return self._signal_proposal_row_to_record(proposal)
+
+    def create_action_draft(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str,
+        request_id: str | None,
+        draft_type: str,
+        title: str,
+        description: str,
+        payload: dict,
+        risk_precheck_status: str,
+        risk_precheck_notes: str,
+        requires_human_approval: bool = True,
+        side_effect_status: str = "not_executed",
+    ) -> ActionDraftRecord:
+        draft = self.repository.create_action_draft(
+            draft_id=generate_prefixed_id("draft"),
+            thread_id=thread_id,
+            user_id=str(user_id),
+            request_id=request_id,
+            draft_type=draft_type,
+            title=title,
+            description=description,
+            payload_json=json.dumps(payload),
+            risk_precheck_status=risk_precheck_status,
+            risk_precheck_notes=risk_precheck_notes,
+            requires_human_approval=requires_human_approval,
+            side_effect_status=side_effect_status,
+        )
+        return self._action_draft_row_to_record(draft)
+
+    def get_action_draft(self, *, user_id: int | str, draft_id: str) -> ActionDraftRecord:
+        draft = self.repository.get_action_draft(draft_id=draft_id, user_id=str(user_id))
+        if draft is None:
+            raise LookupError(f"action draft not found: {draft_id}")
+        return self._action_draft_row_to_record(draft)
+
+    def list_action_drafts(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str | None = None,
+        status: str | None = None,
+    ) -> list[ActionDraftRecord]:
+        return [
+            self._action_draft_row_to_record(row)
+            for row in self.repository.list_action_drafts(
+                user_id=str(user_id),
+                thread_id=thread_id,
+                status=status,
+            )
+        ]
+
+    def request_action_draft_approval(
+        self,
+        *,
+        user_id: int | str,
+        draft_id: str,
+        actor_type: str = "user",
+    ) -> ActionDraftRecord:
+        draft = self.get_action_draft(user_id=user_id, draft_id=draft_id)
+        if draft.approval_id:
+            return draft
+        governance = GovernanceRepository(self.repository.db_path)
+        expiry = datetime.now(timezone.utc) + timedelta(days=1)
+        approval = governance.create_approval(
+            approval_id=generate_prefixed_id("approval"),
+            action_type=f"ai_chat.{draft.draft_type}",
+            target_ref_type="ai_chat_action_draft",
+            target_ref_id=draft.draft_id,
+            required_count=1,
+            state="PENDING",
+            created_by_actor_type=actor_type,
+            created_by_actor_id=str(user_id),
+            expires_at=expiry.isoformat(),
+            metadata_json=json.dumps(
+                {
+                    "thread_id": draft.thread_id,
+                    "draft_type": draft.draft_type,
+                    "risk_precheck_status": draft.risk_precheck_status,
+                    "side_effect_status": draft.side_effect_status,
+                }
+            ),
+        )
+        updated = self.repository.update_action_draft(
+            draft_id=draft_id,
+            user_id=str(user_id),
+            approval_id=approval.approval_id,
+            status="approval_requested",
+        )
+        return self._action_draft_row_to_record(updated)
+
+    def list_signal_proposals(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str | None = None,
+        status: str | None = None,
+    ) -> list[SignalProposalRecord]:
+        return [
+            self._signal_proposal_row_to_record(row)
+            for row in self.repository.list_signal_proposals(
+                user_id=str(user_id),
+                thread_id=thread_id,
+                status=status,
+            )
+        ]
+
+    def save_signal_proposal_to_watchlist(
+        self,
+        *,
+        user_id: int | str,
+        proposal_id: str,
+    ) -> SignalProposalRecord:
+        proposal = self.repository.update_signal_proposal_state(
+            proposal_id=proposal_id,
+            user_id=str(user_id),
+            status="watchlist",
+            watchlist_saved=True,
+        )
+        return self._signal_proposal_row_to_record(proposal)
+
+    def queue_signal_proposal_for_review(
+        self,
+        *,
+        user_id: int | str,
+        proposal_id: str,
+    ) -> SignalProposalRecord:
+        proposal = self.repository.update_signal_proposal_state(
+            proposal_id=proposal_id,
+            user_id=str(user_id),
+            status="review_queue",
+            review_queue_saved=True,
+        )
+        return self._signal_proposal_row_to_record(proposal)
+
     def get_last_user_prompt(self, *, user_id: int | str, thread_id: str) -> ConversationMessageRecord:
         thread = self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
         for message in reversed(thread.messages):
@@ -213,6 +404,28 @@ class ConversationService:
                     "",
                 ]
             )
+        signal_proposals = self.list_signal_proposals(user_id=user_id, thread_id=thread_id)
+        action_drafts = self.list_action_drafts(user_id=user_id, thread_id=thread_id)
+        if signal_proposals:
+            lines.extend(["## Signal Proposals", ""])
+            for proposal in signal_proposals:
+                lines.extend(
+                    [
+                        f"- {proposal.title} [{proposal.status}] {proposal.symbol} {proposal.direction} {proposal.timeframe}",
+                        f"  confidence={proposal.confidence} risk_note={proposal.risk_note}",
+                    ]
+                )
+            lines.append("")
+        if action_drafts:
+            lines.extend(["## Action Drafts", ""])
+            for draft in action_drafts:
+                lines.extend(
+                    [
+                        f"- {draft.title} [{draft.status}] {draft.draft_type}",
+                        f"  risk_precheck={draft.risk_precheck_status} approval_id={draft.approval_id or 'pending'} side_effect_status={draft.side_effect_status}",
+                    ]
+                )
+            lines.append("")
         for message in thread.messages:
             lines.extend(
                 [
@@ -226,6 +439,20 @@ class ConversationService:
                 lines.extend(
                     [
                         f"Tools used: {', '.join(message.tool_calls)}",
+                        "",
+                    ]
+                )
+            if message.signal_proposal_id:
+                lines.extend(
+                    [
+                        f"Signal proposal: {message.signal_proposal_id}",
+                        "",
+                    ]
+                )
+            if message.action_draft_id:
+                lines.extend(
+                    [
+                        f"Action draft: {message.action_draft_id}",
                         "",
                     ]
                 )
@@ -288,7 +515,55 @@ class ConversationService:
             created_at=row.created_at,
             request_id=row.request_id,
             tool_calls=json.loads(row.tool_calls_json),
+            signal_proposal_id=row.signal_proposal_id,
+            action_draft_id=row.action_draft_id,
             context_revision=row.context_revision,
+        )
+
+    @staticmethod
+    def _signal_proposal_row_to_record(row: object) -> SignalProposalRecord:
+        return SignalProposalRecord(
+            proposal_id=row.proposal_id,
+            thread_id=row.thread_id,
+            user_id=row.user_id,
+            request_id=row.request_id,
+            title=row.title,
+            hypothesis=row.hypothesis,
+            symbol=row.symbol,
+            timeframe=row.timeframe,
+            direction=row.direction,
+            entry_logic=row.entry_logic,
+            exit_logic=row.exit_logic,
+            confidence=row.confidence,
+            rationale=row.rationale,
+            risk_note=row.risk_note,
+            status=row.status,
+            watchlist_saved=bool(row.watchlist_saved),
+            review_queue_saved=bool(row.review_queue_saved),
+            non_executed_label=row.non_executed_label,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    @staticmethod
+    def _action_draft_row_to_record(row: object) -> ActionDraftRecord:
+        return ActionDraftRecord(
+            draft_id=row.draft_id,
+            thread_id=row.thread_id,
+            user_id=row.user_id,
+            request_id=row.request_id,
+            draft_type=row.draft_type,
+            title=row.title,
+            description=row.description,
+            payload=json.loads(row.payload_json),
+            risk_precheck_status=row.risk_precheck_status,
+            risk_precheck_notes=row.risk_precheck_notes,
+            approval_id=row.approval_id,
+            status=row.status,
+            requires_human_approval=bool(row.requires_human_approval),
+            side_effect_status=row.side_effect_status,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
 
     def _promote_title_if_needed(

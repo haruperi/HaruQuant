@@ -48,3 +48,78 @@ def test_ai_gateway_stream_response_persists_user_and_assistant_messages(tmp_pat
     assert refreshed.messages[-1].tool_calls == ["portfolio_summary", "risk_snapshot"]
     assert "dashboard" in content.lower()
     assert "Observed State:" in content
+
+
+def test_ai_gateway_stream_response_creates_signal_proposal(tmp_path) -> None:
+    database_path = tmp_path / "agentic_signal_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="signal@example.com", username="signal_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/dashboard",
+        current_page_type="dashboard",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    metadata, chunks, _message_id = gateway.stream_response(
+        ChatStreamRequest(
+            user_id=1,
+            thread_id=thread.thread_id,
+            prompt="Generate a EURUSD buy signal setup for me.",
+        )
+    )
+    content = "".join(chunks)
+    refreshed = conversation_service.get_thread(user_id=1, thread_id=thread.thread_id)
+    proposals = conversation_service.list_signal_proposals(user_id=1, thread_id=thread.thread_id)
+
+    assert metadata["response_mode"] == "signal_proposal"
+    assert metadata["task_class"] == "signal_proposal"
+    assert metadata["signal_proposal_id"] == proposals[0].proposal_id
+    assert refreshed.messages[-1].signal_proposal_id == proposals[0].proposal_id
+    assert proposals[0].non_executed_label == "non_executed_signal_proposal"
+    assert "Signal Thesis:" in content
+
+
+def test_ai_gateway_stream_response_creates_action_draft(tmp_path) -> None:
+    database_path = tmp_path / "agentic_action_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="action@example.com", username="action_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/strategy/lab",
+        current_page_type="strategy_detail",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    metadata, chunks, _message_id = gateway.stream_response(
+        ChatStreamRequest(
+            user_id=1,
+            thread_id=thread.thread_id,
+            prompt="Launch a backtest for this strategy.",
+        )
+    )
+    content = "".join(chunks)
+    refreshed = conversation_service.get_thread(user_id=1, thread_id=thread.thread_id)
+    drafts = conversation_service.list_action_drafts(user_id=1, thread_id=thread.thread_id)
+
+    assert metadata["response_mode"] == "action_draft"
+    assert metadata["task_class"] == "action_draft"
+    assert metadata["action_draft_id"] == drafts[0].draft_id
+    assert refreshed.messages[-1].action_draft_id == drafts[0].draft_id
+    assert drafts[0].draft_type == "backtest_launch"
+    assert drafts[0].side_effect_status == "not_executed"
+    assert "Approval Requirements:" in content

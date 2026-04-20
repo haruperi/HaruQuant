@@ -26,9 +26,12 @@ function GlobalChatWidget() {
     isStreaming,
     messages,
     regenerateLastResponse,
+    queueSignalProposalForReview,
+    requestActionDraftApproval,
     cancelStream,
     open,
     renameThread,
+    saveSignalProposalToWatchlist,
     setDraft,
     setThreadSearch,
     selectThread,
@@ -64,8 +67,11 @@ function GlobalChatWidget() {
         onDeleteThread={deleteThread}
         onDraftChange={setDraft}
         onExportThread={exportThread}
+        onQueueSignalProposalForReview={queueSignalProposalForReview}
+        onRequestActionDraftApproval={requestActionDraftApproval}
         onRegenerate={regenerateLastResponse}
         onRenameThread={renameThread}
+        onSaveSignalProposalToWatchlist={saveSignalProposalToWatchlist}
         onSelectThread={selectThread}
         onThreadSearchChange={setThreadSearch}
         onSubmit={submitDraft}

@@ -120,3 +120,106 @@ def test_ai_chat_phase6_thread_management_routes(tmp_path) -> None:
     assert deleted.json()["deleted"] is True
 
     app.dependency_overrides.clear()
+
+
+def test_ai_chat_phase8_signal_proposal_routes(tmp_path) -> None:
+    database_path = tmp_path / "agentic_phase8.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="phase8@example.com", username="phase8_user", password="password")
+    service = ConversationService(AiChatRepository(database_path))
+    context_assembler = PageContextAssembler(db_manager=db)
+    gateway = AIGatewayService(
+        conversation_service=service,
+        context_assembler=context_assembler,
+    )
+
+    app.dependency_overrides[get_conversation_service] = lambda: service
+    app.dependency_overrides[get_page_context_assembler] = lambda: context_assembler
+    app.dependency_overrides[get_ai_gateway] = lambda: gateway
+    app.dependency_overrides[get_user_id_from_token] = lambda: 1
+    client = TestClient(app)
+
+    created = client.post(
+        "/api/ai-chat/threads",
+        json={"current_route": "/dashboard", "current_page_type": "dashboard"},
+    )
+    thread = created.json()
+
+    streamed = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/responses/stream",
+        json={"prompt": "Generate a EURUSD buy signal setup for me."},
+    )
+    assert streamed.status_code == 200
+    assert "signal_proposal" in streamed.text
+
+    proposals = client.get(f"/api/ai-chat/threads/{thread['thread_id']}/signal-proposals")
+    assert proposals.status_code == 200
+    proposal = proposals.json()[0]
+    assert proposal["status"] == "draft"
+    assert proposal["non_executed_label"] == "non_executed_signal_proposal"
+
+    watchlisted = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/signal-proposals/{proposal['proposal_id']}/watchlist"
+    )
+    assert watchlisted.status_code == 200
+    assert watchlisted.json()["watchlist_saved"] is True
+
+    review_queued = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/signal-proposals/{proposal['proposal_id']}/review-queue"
+    )
+    assert review_queued.status_code == 200
+    assert review_queued.json()["review_queue_saved"] is True
+    assert review_queued.json()["status"] == "review_queue"
+
+    app.dependency_overrides.clear()
+
+
+def test_ai_chat_phase9_action_draft_routes(tmp_path) -> None:
+    database_path = tmp_path / "agentic_phase9.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="phase9@example.com", username="phase9_user", password="password")
+    service = ConversationService(AiChatRepository(database_path))
+    context_assembler = PageContextAssembler(db_manager=db)
+    gateway = AIGatewayService(
+        conversation_service=service,
+        context_assembler=context_assembler,
+    )
+
+    app.dependency_overrides[get_conversation_service] = lambda: service
+    app.dependency_overrides[get_page_context_assembler] = lambda: context_assembler
+    app.dependency_overrides[get_ai_gateway] = lambda: gateway
+    app.dependency_overrides[get_user_id_from_token] = lambda: 1
+    client = TestClient(app)
+
+    created = client.post(
+        "/api/ai-chat/threads",
+        json={"current_route": "/strategy/lab", "current_page_type": "strategy_detail"},
+    )
+    thread = created.json()
+
+    streamed = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/responses/stream",
+        json={"prompt": "Launch a backtest for this strategy."},
+    )
+    assert streamed.status_code == 200
+    assert "action_draft" in streamed.text
+
+    drafts = client.get(f"/api/ai-chat/threads/{thread['thread_id']}/action-drafts")
+    assert drafts.status_code == 200
+    draft = drafts.json()[0]
+    assert draft["status"] == "draft"
+    assert draft["side_effect_status"] == "not_executed"
+
+    requested = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/action-drafts/{draft['draft_id']}/request-approval",
+        json={"actor_type": "user"},
+    )
+    assert requested.status_code == 200
+    assert requested.json()["approval_id"] is not None
+    assert requested.json()["status"] == "approval_requested"
+
+    app.dependency_overrides.clear()

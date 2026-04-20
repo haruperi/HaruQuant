@@ -12,6 +12,9 @@ interface MessageListProps {
   isInitializing: boolean
   isOnline: boolean
   error: string | null
+  onQueueSignalProposalForReview?: (proposalId: string) => void
+  onRequestActionDraftApproval?: (draftId: string) => void
+  onSaveSignalProposalToWatchlist?: (proposalId: string) => void
 }
 
 function formatTimestamp(value: string): string {
@@ -80,7 +83,15 @@ function renderMessageContent(content: string) {
   })
 }
 
-export function MessageList({ messages, isInitializing, isOnline, error }: MessageListProps) {
+export function MessageList({
+  messages,
+  isInitializing,
+  isOnline,
+  error,
+  onQueueSignalProposalForReview,
+  onRequestActionDraftApproval,
+  onSaveSignalProposalToWatchlist,
+}: MessageListProps) {
   return (
     <ScrollArea className="h-full">
       <div className="flex min-h-full flex-col gap-3 p-4">
@@ -177,6 +188,56 @@ export function MessageList({ messages, isInitializing, isOnline, error }: Messa
                       <p className="mt-1 text-[10px] text-muted-foreground">
                         Task: {message.taskClass}{message.domainFocus ? ` · ${message.domainFocus}` : ""}
                       </p>
+                    ) : null}
+                    {message.signalProposal ? (
+                      <div className="mt-3 rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                        <p className="font-medium text-foreground">{message.signalProposal.symbol} {message.signalProposal.direction} {message.signalProposal.timeframe}</p>
+                        <p className="mt-1">Confidence: {message.signalProposal.confidence}</p>
+                        <p>Status: {message.signalProposal.status}</p>
+                        <p className="mt-1">{message.signalProposal.non_executed_label}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-md border px-2 py-1 text-[11px] text-foreground disabled:opacity-50"
+                            disabled={message.signalProposal.watchlist_saved}
+                            onClick={() => onSaveSignalProposalToWatchlist?.(message.signalProposal!.proposal_id)}
+                          >
+                            {message.signalProposal.watchlist_saved ? "Saved to watchlist" : "Save to watchlist"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border px-2 py-1 text-[11px] text-foreground disabled:opacity-50"
+                            disabled={message.signalProposal.review_queue_saved}
+                            onClick={() => onQueueSignalProposalForReview?.(message.signalProposal!.proposal_id)}
+                          >
+                            {message.signalProposal.review_queue_saved ? "Queued for review" : "Queue for review"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {message.actionDraft ? (
+                      <div className="mt-3 rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                        <p className="font-medium text-foreground">{message.actionDraft.title}</p>
+                        <p className="mt-1">Type: {message.actionDraft.draft_type}</p>
+                        <p>Status: {message.actionDraft.status}</p>
+                        <p>Risk precheck: {message.actionDraft.risk_precheck_status}</p>
+                        <p className="mt-1">{message.actionDraft.risk_precheck_notes}</p>
+                        <p className="mt-1">Execution: {message.actionDraft.side_effect_status}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="rounded-md border px-2 py-1 text-[11px] text-foreground disabled:opacity-50"
+                            disabled={
+                              !!message.actionDraft.approval_id
+                              || message.actionDraft.status !== "draft"
+                              || !message.actionDraft.requires_human_approval
+                            }
+                            onClick={() => onRequestActionDraftApproval?.(message.actionDraft!.draft_id)}
+                          >
+                            {message.actionDraft.approval_id ? "Approval requested" : "Request approval"}
+                          </button>
+                        </div>
+                      </div>
                     ) : null}
                     {message.requestId ? (
                       <p className="mt-1 text-[10px] text-muted-foreground">

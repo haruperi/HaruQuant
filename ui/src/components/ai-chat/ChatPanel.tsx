@@ -38,8 +38,11 @@ interface ChatPanelProps {
   onDeleteThread: () => void
   onDraftChange: (value: string) => void
   onExportThread: () => void
+  onQueueSignalProposalForReview: (proposalId: string) => void
+  onRequestActionDraftApproval: (draftId: string) => void
   onRegenerate: () => void
   onRenameThread: (value: string) => void
+  onSaveSignalProposalToWatchlist: (proposalId: string) => void
   onSelectThread: (value: string) => void
   onThreadSearchChange: (value: string) => void
   onSubmit: () => void
@@ -84,8 +87,11 @@ export function ChatPanel({
   onDeleteThread,
   onDraftChange,
   onExportThread,
+  onQueueSignalProposalForReview,
+  onRequestActionDraftApproval,
   onRegenerate,
   onRenameThread,
+  onSaveSignalProposalToWatchlist,
   onSelectThread,
   onThreadSearchChange,
   onSubmit,
@@ -229,6 +235,9 @@ export function ChatPanel({
               isInitializing={!isHydrated || isInitializing || isRestoring}
               isOnline={isOnline}
               error={error}
+              onQueueSignalProposalForReview={onQueueSignalProposalForReview}
+              onRequestActionDraftApproval={onRequestActionDraftApproval}
+              onSaveSignalProposalToWatchlist={onSaveSignalProposalToWatchlist}
             />
           </div>
           <ChatInput
