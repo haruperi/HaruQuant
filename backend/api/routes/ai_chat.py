@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.api.auth_utils import get_user_id_from_token
@@ -43,6 +43,12 @@ class UpdateThreadContextRequest(BaseModel):
     active_context_revision: str | None = None
 
 
+class RenameThreadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=128)
+
+
 class AddMessageRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -73,6 +79,15 @@ class StreamChatRequest(BaseModel):
     prompt: str = Field(min_length=1)
     request_id: str | None = None
     include_debug: bool = False
+
+
+class ExportThreadResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str
+    title: str
+    format: str
+    content: object
 
 
 def get_conversation_service() -> ConversationService:
@@ -146,8 +161,9 @@ def get_page_context(
 def list_threads(
     user_id: AUTHENTICATED_USER_ID,
     service: Annotated[ConversationService, Depends(get_conversation_service)],
+    q: str | None = Query(default=None, max_length=128),
 ) -> list[dict]:
-    return [thread.model_dump(mode="json") for thread in service.list_threads(user_id=user_id)]
+    return [thread.model_dump(mode="json") for thread in service.list_threads(user_id=user_id, query=q)]
 
 
 @router.post("/threads", status_code=status.HTTP_201_CREATED)
@@ -199,6 +215,26 @@ def update_thread_context(
     return thread.model_dump(mode="json")
 
 
+@router.patch("/threads/{thread_id}")
+def rename_thread(
+    thread_id: str,
+    payload: RenameThreadRequest,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> dict:
+    try:
+        thread = service.rename_thread(
+            user_id=user_id,
+            thread_id=thread_id,
+            title=payload.title,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return thread.model_dump(mode="json")
+
+
 @router.delete("/threads/{thread_id}")
 def delete_thread(
     thread_id: str,
@@ -209,6 +245,24 @@ def delete_thread(
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"thread not found: {thread_id}")
     return {"deleted": True, "thread_id": thread_id}
+
+
+@router.get("/threads/{thread_id}/export")
+def export_thread(
+    thread_id: str,
+    format: str = Query(default="markdown", pattern="^(markdown|json)$"),
+    user_id: AUTHENTICATED_USER_ID = None,
+    service: Annotated[ConversationService, Depends(get_conversation_service)] = None,
+):
+    try:
+        exported = service.export_thread(user_id=user_id, thread_id=thread_id, format=format)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if format == "json":
+        return JSONResponse(exported)
+    return PlainTextResponse(str(exported["content"]))
 
 
 @router.post("/threads/{thread_id}/messages", status_code=status.HTTP_201_CREATED)
@@ -296,6 +350,50 @@ def stream_thread_response(
                 {
                     "message_id": message_id,
                     "content": full_text,
+                    **metadata,
+                }
+            )
+        except LookupError as exc:
+            yield stream_manager.error_event(str(exc))
+        except Exception as exc:  # pragma: no cover - defensive path
+            yield stream_manager.error_event(f"AI gateway failed: {exc}")
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/threads/{thread_id}/responses/regenerate")
+def regenerate_thread_response(
+    thread_id: str,
+    payload: StreamChatRequest,
+    user_id: AUTHENTICATED_USER_ID,
+    gateway: Annotated[AIGatewayService, Depends(get_ai_gateway)],
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+) -> StreamingResponse:
+    stream_manager = ChatStreamManager()
+
+    def event_stream():
+        try:
+            last_prompt = service.get_last_user_prompt(user_id=user_id, thread_id=thread_id)
+            metadata, chunks, message_id = gateway.stream_response(
+                ChatStreamRequest(
+                    user_id=user_id,
+                    thread_id=thread_id,
+                    prompt=last_prompt.content,
+                    request_id=payload.request_id,
+                    include_debug=payload.include_debug,
+                    persist_user_message=False,
+                )
+            )
+            yield stream_manager.meta_event({**metadata, "regenerated_from_message_id": last_prompt.message_id})
+            full_text = ""
+            for chunk in chunks:
+                full_text += chunk
+                yield from stream_manager.token_events([chunk])
+            yield stream_manager.done_event(
+                {
+                    "message_id": message_id,
+                    "content": full_text,
+                    "regenerated_from_message_id": last_prompt.message_id,
                     **metadata,
                 }
             )

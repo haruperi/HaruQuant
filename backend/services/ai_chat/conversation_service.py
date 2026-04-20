@@ -40,13 +40,46 @@ class ConversationService:
         )
         return self._build_thread_record(thread_id=thread.thread_id, user_id=str(user_id))
 
-    def list_threads(self, *, user_id: int | str, limit: int = 50) -> list[ConversationThreadRecord]:
-        return [
+    def list_threads(
+        self,
+        *,
+        user_id: int | str,
+        limit: int = 50,
+        query: str | None = None,
+    ) -> list[ConversationThreadRecord]:
+        records = [
             self._thread_row_to_record(row)
             for row in self.repository.list_threads(user_id=str(user_id), limit=limit)
         ]
+        normalized_query = (query or "").strip().lower()
+        if not normalized_query:
+            return records
+        return [
+            record
+            for record in records
+            if normalized_query in record.title.lower()
+            or normalized_query in (record.current_route or "").lower()
+            or normalized_query in (record.current_page_type or "").lower()
+        ]
 
     def get_thread(self, *, user_id: int | str, thread_id: str) -> ConversationThreadRecord:
+        return self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
+
+    def rename_thread(
+        self,
+        *,
+        user_id: int | str,
+        thread_id: str,
+        title: str,
+    ) -> ConversationThreadRecord:
+        normalized_title = " ".join(title.split()).strip()
+        if not normalized_title:
+            raise ValueError("thread title cannot be empty")
+        self.repository.update_thread_title(
+            thread_id=thread_id,
+            user_id=str(user_id),
+            title=self._truncate_text(normalized_title, 128),
+        )
         return self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
 
     def delete_thread(self, *, user_id: int | str, thread_id: str) -> bool:
@@ -142,6 +175,66 @@ class ConversationService:
             source=source,
         )
         return PinnedFact(key=fact.fact_key, value=fact.fact_value, source=fact.source)
+
+    def get_last_user_prompt(self, *, user_id: int | str, thread_id: str) -> ConversationMessageRecord:
+        thread = self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
+        for message in reversed(thread.messages):
+            if message.role == "user":
+                return message
+        raise LookupError(f"thread has no user message to regenerate: {thread_id}")
+
+    def export_thread(self, *, user_id: int | str, thread_id: str, format: str = "markdown") -> dict[str, object]:
+        thread = self._build_thread_record(thread_id=thread_id, user_id=str(user_id))
+        payload = thread.model_dump(mode="json")
+        if format == "json":
+            return {
+                "thread_id": thread.thread_id,
+                "title": thread.title,
+                "format": "json",
+                "content": payload,
+            }
+        if format != "markdown":
+            raise ValueError(f"unsupported export format: {format}")
+        lines = [
+            f"# {thread.title}",
+            "",
+            f"- Thread ID: `{thread.thread_id}`",
+            f"- Route: `{thread.current_route or 'unknown'}`",
+            f"- Page Type: `{thread.current_page_type or 'generic'}`",
+            f"- Updated: `{thread.updated_at.isoformat()}`",
+            "",
+        ]
+        if thread.memory_summary is not None:
+            lines.extend(
+                [
+                    "## Memory Summary",
+                    "",
+                    thread.memory_summary.summary_text,
+                    "",
+                ]
+            )
+        for message in thread.messages:
+            lines.extend(
+                [
+                    f"## {message.role.title()}",
+                    "",
+                    message.content,
+                    "",
+                ]
+            )
+            if message.tool_calls:
+                lines.extend(
+                    [
+                        f"Tools used: {', '.join(message.tool_calls)}",
+                        "",
+                    ]
+                )
+        return {
+            "thread_id": thread.thread_id,
+            "title": thread.title,
+            "format": "markdown",
+            "content": "\n".join(lines).strip(),
+        }
 
     def _build_thread_record(self, *, thread_id: str, user_id: str) -> ConversationThreadRecord:
         thread = self.repository.get_thread(thread_id, user_id=user_id)

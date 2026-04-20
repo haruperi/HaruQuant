@@ -30,6 +30,7 @@ class ChatStreamRequest:
     prompt: str
     request_id: str | None = None
     include_debug: bool = False
+    persist_user_message: bool = True
 
 
 class AIGatewayService:
@@ -85,14 +86,15 @@ class AIGatewayService:
             ),
         )
 
-        self.conversation_service.add_message(
-            user_id=request.user_id,
-            thread_id=request.thread_id,
-            role="user",
-            content=request.prompt,
-            request_id=request_id,
-            context_revision=page_context.payload.context_revision,
-        )
+        if request.persist_user_message:
+            self.conversation_service.add_message(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+                role="user",
+                content=request.prompt,
+                request_id=request_id,
+                context_revision=page_context.payload.context_revision,
+            )
 
         full_text = self._generate_text(
             system_prompt=built_prompt.system_prompt,

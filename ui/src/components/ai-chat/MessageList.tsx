@@ -14,6 +14,11 @@ interface MessageListProps {
   error: string | null
 }
 
+function formatTimestamp(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString()
+}
+
 export function MessageList({ messages, isInitializing, isOnline, error }: MessageListProps) {
   return (
     <ScrollArea className="h-full">
@@ -40,7 +45,7 @@ export function MessageList({ messages, isInitializing, isOnline, error }: Messa
               </p>
               <p className="max-w-xs text-xs text-muted-foreground">
                 {isOnline
-                  ? "This Phase 2 widget restores durable threads and keeps the active conversation available across navigation."
+                  ? "Persistent threads, search, regenerate, export, and page-aware grounding are ready."
                   : "Draft text is still preserved locally, but replies are disabled until connectivity returns."}
               </p>
               {error ? (
@@ -85,6 +90,7 @@ export function MessageList({ messages, isInitializing, isOnline, error }: Messa
                         HaruQuant AI
                       </>
                     )}
+                    <span>{formatTimestamp(message.createdAt)}</span>
                     {message.status === "pending" && (
                       <>
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -92,10 +98,15 @@ export function MessageList({ messages, isInitializing, isOnline, error }: Messa
                       </>
                     )}
                   </div>
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  <p className="whitespace-pre-wrap break-words">{message.content || "..."}</p>
                   {message.role === "assistant" && message.toolCalls && message.toolCalls.length > 0 ? (
                     <p className="mt-2 text-[11px] text-muted-foreground">
                       Tools used: {message.toolCalls.join(", ")}
+                    </p>
+                  ) : null}
+                  {message.requestId ? (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Request ID: {message.requestId}
                     </p>
                   ) : null}
                 </div>

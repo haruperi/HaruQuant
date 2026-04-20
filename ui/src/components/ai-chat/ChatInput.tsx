@@ -43,7 +43,7 @@ export function ChatInput({
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about the current page, strategy, or workflow…"
+          placeholder="Ask about the current page, strategy, or workflow..."
           aria-label="Chat input"
           disabled={disabled || isStreaming}
           className="min-h-20 resize-none rounded-md"

@@ -11,20 +11,32 @@ import { PageContextProvider } from "@/providers/PageContextProvider"
 function GlobalChatWidget() {
   const {
     close,
+    createNewThread,
+    deleteThread,
     draft,
     error,
+    exportThread,
+    activeResponseStatus,
     isHydrated,
     isInitializing,
+    isManagingThreads,
     isOnline,
     isOpen,
     isRestoring,
     isStreaming,
     messages,
+    regenerateLastResponse,
     cancelStream,
     open,
+    renameThread,
     setDraft,
+    setThreadSearch,
+    selectThread,
     submitDraft,
+    threadId,
+    threadSearch,
     threadTitle,
+    threads,
   } = useChatWidgetStore()
 
   return (
@@ -37,13 +49,25 @@ function GlobalChatWidget() {
         isOnline={isOnline}
         isRestoring={isRestoring}
         isStreaming={isStreaming}
+        isManagingThreads={isManagingThreads}
         threadTitle={threadTitle}
+        threadId={threadId}
+        threadSearch={threadSearch}
+        activeResponseStatus={activeResponseStatus}
         error={error}
         draft={draft}
+        threads={threads}
         messages={messages}
         onCancel={cancelStream}
         onClose={close}
+        onCreateThread={createNewThread}
+        onDeleteThread={deleteThread}
         onDraftChange={setDraft}
+        onExportThread={exportThread}
+        onRegenerate={regenerateLastResponse}
+        onRenameThread={renameThread}
+        onSelectThread={selectThread}
+        onThreadSearchChange={setThreadSearch}
         onSubmit={submitDraft}
       />
     </>
