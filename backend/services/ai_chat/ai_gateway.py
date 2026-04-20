@@ -12,6 +12,7 @@ from backend.config.agent_model import get_model_for_tier
 from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
+from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
 from backend.services.ai_chat.prompt_builder import ChatPromptBuilder
 from backend.services.ai_chat.policy import AuthorityBand
 from backend.services.tool_executor import ToolExecutionResult, ToolExecutor
@@ -84,6 +85,7 @@ class AIGatewayService:
                 if tool_results
                 else decision.response_mode.value
             ),
+            task_class=decision.task_class,
         )
 
         if request.persist_user_message:
@@ -103,6 +105,8 @@ class AIGatewayService:
             page_context=page_context,
             response_mode="tool_assisted" if tool_results else decision.response_mode.value,
             tool_results=tool_results,
+            task_class=decision.task_class,
+            response_style=decision.response_style,
         )
         self.conversation_service.add_message(
             user_id=request.user_id,
@@ -122,6 +126,8 @@ class AIGatewayService:
             "thread_id": request.thread_id,
             "response_mode": "tool_assisted" if tool_results else decision.response_mode.value,
             "task_class": decision.task_class,
+            "response_style": decision.response_style,
+            "domain_focus": decision.domain_focus,
             "model": get_model_for_tier(decision.model_tier),
             "context_revision": page_context.payload.context_revision,
             "tools_used": [result.tool_name for result in tool_results if result.success],
@@ -143,6 +149,8 @@ class AIGatewayService:
         page_context,
         response_mode: str,
         tool_results: list[ToolExecutionResult],
+        task_class: str,
+        response_style: str,
     ) -> str:
         if self._can_use_openai():
             streamed = self._generate_openai_text(
@@ -157,6 +165,8 @@ class AIGatewayService:
             page_context=page_context,
             response_mode=response_mode,
             tool_results=tool_results,
+            task_class=task_class,
+            response_style=response_style,
         )
 
     def _can_use_openai(self) -> bool:
@@ -190,31 +200,69 @@ class AIGatewayService:
         page_context,
         response_mode: str,
         tool_results: list[ToolExecutionResult],
+        task_class: str,
+        response_style: str,
     ) -> str:
+        prompt_spec = resolve_domain_prompt_spec(task_class)
         bullets = page_context.payload.summary.bullets[:3]
         lead = page_context.payload.summary.headline
-        response_lines = [
-            lead,
-            f"Mode: {response_mode}.",
+        response_lines = [f"{lead}", f"Mode: {response_mode}.", f"Style: {response_style}."]
+        facts = [
+            f"- {result.tool_name}: {self._summarize_tool_payload(result.payload)}"
+            for result in tool_results
+            if result.success
         ]
+        inference_line = self._build_inference_line(task_class=task_class, tool_results=tool_results, page_context=page_context)
+        recommendation_line = self._build_recommendation_line(task_class=task_class, tool_results=tool_results)
+        sections: dict[str, list[str]] = {
+            prompt_spec.section_headers[0]: facts or [f"- {lead}"],
+            prompt_spec.section_headers[1]: [
+                f"- Page type: {page_context.payload.page_type}",
+                f"- Context revision: {page_context.payload.context_revision}",
+                *(f"- {bullet}" for bullet in bullets[:2]),
+            ],
+            prompt_spec.section_headers[2]: [f"- {inference_line}", f"- {recommendation_line}"],
+        }
         if tool_results:
             response_lines.append("Grounded tools used:")
-            response_lines.extend(
-                f"- {result.tool_name}: {self._summarize_tool_payload(result.payload)}"
-                for result in tool_results
-                if result.success
-            )
-        if bullets:
-            response_lines.append("Current context:")
-            response_lines.extend(f"- {bullet}" for bullet in bullets)
-        response_lines.append("Working answer:")
-        response_lines.append(
-            "Based on the current HaruQuant page context, start from the latest system state, validate the relevant strategy or session entities, and only then compare against recent conversation history."
-        )
-        response_lines.append(
-            f"User request received: {user_prompt.splitlines()[-1]}"
-        )
+            response_lines.extend(facts)
+        for header in prompt_spec.section_headers:
+            response_lines.append(f"{header}:")
+            response_lines.extend(sections[header])
+        response_lines.append("Quantitative grounding:")
+        response_lines.extend(f"- {rule}" for rule in prompt_spec.quantitative_rules)
+        response_lines.append(f"User request received: {user_prompt.splitlines()[-1]}")
         return "\n".join(response_lines)
+
+    def _build_inference_line(self, *, task_class: str, tool_results: list[ToolExecutionResult], page_context) -> str:
+        summary_text = "; ".join(
+            self._summarize_tool_payload(result.payload)
+            for result in tool_results
+            if result.success
+        )
+        if task_class == "diagnostic":
+            return f"Observed state suggests the issue should be traced through drawdown, PnL, and exposure drivers. Evidence: {summary_text or page_context.payload.summary.headline}"
+        if task_class == "comparison":
+            return f"Comparison should be anchored on score, Sharpe, drawdown, or exposure metrics. Evidence: {summary_text or page_context.payload.summary.headline}"
+        if task_class == "risk_explanation":
+            return f"Current risk is best explained by live exposure concentration and floating PnL. Evidence: {summary_text or page_context.payload.summary.headline}"
+        if task_class == "recommendation":
+            return f"Next research steps should follow from the strongest and weakest observed metrics. Evidence: {summary_text or page_context.payload.summary.headline}"
+        return f"Current performance should be summarized from the latest HaruQuant metrics. Evidence: {summary_text or page_context.payload.summary.headline}"
+
+    @staticmethod
+    def _build_recommendation_line(*, task_class: str, tool_results: list[ToolExecutionResult]) -> str:
+        if task_class == "diagnostic":
+            return "Check the latest backtest, strategy parameters, and live-risk state before changing the hypothesis."
+        if task_class == "comparison":
+            return "Rank the alternatives by return quality and drawdown efficiency before promoting a candidate."
+        if task_class == "risk_explanation":
+            return "Review concentration by symbol and session exposure before considering any supervised action."
+        if task_class == "recommendation":
+            return "Run the next research step as a backtest, optimization, or risk review rather than a live action."
+        if any(result.tool_name == "optimization_results" for result in tool_results):
+            return "Review the top optimization candidates against robustness and drawdown, not score alone."
+        return "Use current system metrics as the baseline for any further research decision."
 
     def _select_tools(
         self,
@@ -288,6 +336,9 @@ class AIGatewayService:
 
     @staticmethod
     def _summarize_tool_payload(payload: dict[str, object]) -> str:
+        headline_metrics = payload.get("headline_metrics")
+        if isinstance(headline_metrics, dict) and headline_metrics:
+            return ", ".join(f"{key}={value}" for key, value in list(headline_metrics.items())[:5])
         for preferred_key in (
             "aggregate_open_profit",
             "open_position_count",

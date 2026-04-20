@@ -1,0 +1,47 @@
+[
+  {
+    "name": "diagnostic_dashboard_flatness",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "Why is my dashboard flat and underperforming this week?",
+    "expected_task_class": "diagnostic",
+    "expected_response_style": "diagnostic",
+    "expected_headers": ["Observed State:", "Likely Drivers:", "Next Checks:"]
+  },
+  {
+    "name": "comparison_optimization_runs",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "Compare optimization run A versus run B and explain the tradeoffs.",
+    "expected_task_class": "comparison",
+    "expected_response_style": "compare",
+    "expected_headers": ["Comparison:", "Tradeoffs:", "Recommendation:"]
+  },
+  {
+    "name": "risk_portfolio_explanation",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "Explain the current portfolio risk and exposure concentration.",
+    "expected_task_class": "risk_explanation",
+    "expected_response_style": "warning",
+    "expected_headers": ["Risk State:", "Primary Exposures:", "Operator Warning:"]
+  },
+  {
+    "name": "research_recommendation",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "What next research step should I take for this strategy?",
+    "expected_task_class": "recommendation",
+    "expected_response_style": "recommendation",
+    "expected_headers": ["Assessment:", "Recommendation:", "Evidence Needed:"]
+  },
+  {
+    "name": "performance_summary_default",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "Summarize the current HaruQuant dashboard state.",
+    "expected_task_class": "performance_summary",
+    "expected_response_style": "summary",
+    "expected_headers": ["Summary:", "Metrics:", "Implications:"]
+  }
+]

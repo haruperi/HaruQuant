@@ -7,6 +7,29 @@ from typing import Any
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 
+def _summarize_top_results(results: list[dict[str, Any]]) -> dict[str, float | int]:
+    if not results:
+        return {}
+    best = results[0]
+    summary: dict[str, float | int] = {}
+    for source_key, target_key in (
+        ("score", "best_score"),
+        ("sharpe_ratio", "best_sharpe_ratio"),
+        ("profit_factor", "best_profit_factor"),
+        ("max_drawdown", "best_max_drawdown"),
+    ):
+        value = best.get(source_key)
+        if isinstance(value, (int, float)):
+            summary[target_key] = value
+    if len(results) > 1:
+        runner_up = results[1]
+        best_score = best.get("score")
+        runner_up_score = runner_up.get("score")
+        if isinstance(best_score, (int, float)) and isinstance(runner_up_score, (int, float)):
+            summary["score_gap_to_runner_up"] = round(best_score - runner_up_score, 6)
+    return summary
+
+
 class OptimizationResultsTool:
     name = "optimization_results"
 
@@ -21,6 +44,16 @@ class OptimizationResultsTool:
         if not run:
             return {"optimization_found": False}
         results = self.db.get_optimization_results(int(optimization_id), limit=5)
+        top_results = [
+            {
+                "rank": row.get("rank"),
+                "score": row.get("score"),
+                "sharpe_ratio": row.get("sharpe_ratio"),
+                "profit_factor": row.get("profit_factor"),
+                "max_drawdown": row.get("max_drawdown"),
+            }
+            for row in results
+        ]
         return {
             "optimization_found": True,
             "optimization_id": int(optimization_id),
@@ -28,14 +61,6 @@ class OptimizationResultsTool:
             "strategy_id": run.get("strategy_id"),
             "best_score": run.get("best_score"),
             "best_parameters": run.get("best_parameters"),
-            "top_results": [
-                {
-                    "rank": row.get("rank"),
-                    "score": row.get("score"),
-                    "sharpe_ratio": row.get("sharpe_ratio"),
-                    "profit_factor": row.get("profit_factor"),
-                    "max_drawdown": row.get("max_drawdown"),
-                }
-                for row in results
-            ],
+            "headline_metrics": _summarize_top_results(top_results),
+            "top_results": top_results,
         }

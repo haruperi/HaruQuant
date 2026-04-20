@@ -8,6 +8,7 @@ import { MessageList } from "@/components/ai-chat/MessageList"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import type { ChatMessage } from "@/stores/chatWidgetStore"
 import { cn } from "@/lib/utils"
 
 interface ChatPanelProps {
@@ -30,15 +31,7 @@ interface ChatPanelProps {
     updatedAt: string
     pageType?: string | null
   }[]
-  messages: {
-    id: string
-    role: "user" | "assistant"
-    content: string
-    createdAt: string
-    toolCalls?: string[]
-    requestId?: string | null
-    status?: "ready" | "pending"
-  }[]
+  messages: ChatMessage[]
   onCancel: () => void
   onClose: () => void
   onCreateThread: () => void

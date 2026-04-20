@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.contracts.page_context_packet.model import PageContextPacket
+from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
 from backend.services.ai_chat.models import ConversationThreadRecord
 
 
@@ -25,7 +26,9 @@ class ChatPromptBuilder:
         page_context: PageContextPacket,
         user_prompt: str,
         response_mode: str,
+        task_class: str = "performance_summary",
     ) -> BuiltPrompt:
+        prompt_spec = resolve_domain_prompt_spec(task_class)
         recent_messages = thread.messages[-6:]
         memory_summary = thread.memory_summary.summary_text if thread.memory_summary else "No memory summary yet."
         pinned_facts = [
@@ -39,11 +42,17 @@ class ChatPromptBuilder:
                 "Prioritize current validated HaruQuant state over earlier chat assumptions.",
                 "Stay within read-only assistance. Do not claim any action was executed.",
                 f"Response mode: {response_mode}",
+                f"Task class: {task_class}",
+                f"Domain focus: {prompt_spec.domain_focus}",
+                f"Response style: {prompt_spec.response_style}",
+                f"Prompt goal: {prompt_spec.prompt_goal}",
                 f"Current page type: {page_context.payload.page_type}",
                 f"Current page headline: {page_context.payload.summary.headline}",
                 f"Context authority: {page_context.payload.authority.trust_level}",
                 f"Memory summary: {memory_summary}",
                 f"Pinned facts: {'; '.join(pinned_facts)}",
+                f"Required sections: {'; '.join(prompt_spec.section_headers)}",
+                f"Quantitative rules: {'; '.join(prompt_spec.quantitative_rules)}",
             ]
         )
 
@@ -65,6 +74,7 @@ class ChatPromptBuilder:
                 f"Page bullets: {'; '.join(page_bullets)}",
                 "Recent conversation:",
                 *transcript_lines,
+                f"Expected response sections: {'; '.join(prompt_spec.section_headers)}",
                 "User request:",
                 user_prompt.strip(),
             ]
@@ -77,6 +87,8 @@ class ChatPromptBuilder:
                 "page_type": page_context.payload.page_type,
                 "context_revision": page_context.payload.context_revision,
                 "response_mode": response_mode,
+                "task_class": task_class,
+                "response_style": prompt_spec.response_style,
                 "recent_message_count": len(recent_messages),
             },
         )

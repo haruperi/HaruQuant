@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/ai-chat"
 import type {
   AiChatMessage,
+  AiChatResponseMetadata,
   AiChatThreadDetail,
   AiChatThreadSummary,
 } from "@/lib/ai-chat/contracts"
@@ -31,6 +32,9 @@ export interface ChatMessage {
   createdAt: string
   toolCalls?: string[]
   requestId?: string | null
+  responseStyle?: string
+  taskClass?: string
+  domainFocus?: string
   status?: "ready" | "pending"
 }
 
@@ -81,7 +85,11 @@ const STORAGE_KEYS = {
 const DEFAULT_THREAD_TITLE = "New conversation"
 const ChatWidgetStoreContext = React.createContext<ChatWidgetStoreValue | null>(null)
 
-function mapApiMessage(message: AiChatMessage): ChatMessage {
+function mapApiMessage(
+  message: AiChatMessage,
+  metadataByRequestId: Record<string, AiChatResponseMetadata>,
+): ChatMessage {
+  const responseMetadata = message.request_id ? metadataByRequestId[message.request_id] : undefined
   return {
     id: message.message_id,
     role: message.role === "assistant" ? "assistant" : "user",
@@ -89,6 +97,9 @@ function mapApiMessage(message: AiChatMessage): ChatMessage {
     createdAt: message.created_at,
     toolCalls: message.tool_calls,
     requestId: message.request_id,
+    responseStyle: responseMetadata?.response_style,
+    taskClass: responseMetadata?.task_class,
+    domainFocus: responseMetadata?.domain_focus,
     status: "ready",
   }
 }
@@ -115,6 +126,21 @@ function makePendingAssistant(): ChatMessage {
   }
 }
 
+function extractResponseMetadata(payload: Record<string, unknown>): AiChatResponseMetadata | null {
+  const requestId = typeof payload.request_id === "string" ? payload.request_id : undefined
+  if (!requestId) {
+    return null
+  }
+  return {
+    request_id: requestId,
+    response_mode: typeof payload.response_mode === "string" ? payload.response_mode as AiChatResponseMetadata["response_mode"] : undefined,
+    response_style: typeof payload.response_style === "string" ? payload.response_style : undefined,
+    task_class: typeof payload.task_class === "string" ? payload.task_class : undefined,
+    domain_focus: typeof payload.domain_focus === "string" ? payload.domain_focus : undefined,
+    tools_used: Array.isArray(payload.tools_used) ? payload.tools_used.filter((value): value is string => typeof value === "string") : undefined,
+  }
+}
+
 export function ChatWidgetStoreProvider({ children }: { children: React.ReactNode }) {
   const { authenticatedFetch, isAuthenticated, isLoading } = useAuth()
   const { pageContext } = usePageContext()
@@ -135,6 +161,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const [activeResponseStatus, setActiveResponseStatus] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const abortControllerRef = React.useRef<AbortController | null>(null)
+  const responseMetadataRef = React.useRef<Record<string, AiChatResponseMetadata>>({})
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -196,8 +223,16 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     setMessages(
       thread.messages
         .filter((message) => message.role === "user" || message.role === "assistant")
-        .map(mapApiMessage),
+        .map((message) => mapApiMessage(message, responseMetadataRef.current)),
     )
+  }, [])
+
+  const rememberResponseMetadata = React.useCallback((payload: Record<string, unknown>) => {
+    const metadata = extractResponseMetadata(payload)
+    if (!metadata?.request_id) {
+      return
+    }
+    responseMetadataRef.current[metadata.request_id] = metadata
   }, [])
 
   const refreshThreadList = React.useCallback(async (query?: string) => {
@@ -527,8 +562,23 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
           prompt: trimmed,
         },
         {
-          onMeta: () => {
-            setActiveResponseStatus("Assistant is grounded on current HaruQuant state.")
+          onMeta: (payload) => {
+            rememberResponseMetadata(payload)
+            const metadata = extractResponseMetadata(payload)
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === pendingAssistant.id
+                  ? {
+                      ...message,
+                      responseStyle: metadata?.response_style,
+                      taskClass: metadata?.task_class,
+                      domainFocus: metadata?.domain_focus,
+                    }
+                  : message,
+              ),
+            )
+            const responseStyle = metadata?.response_style ?? "summary"
+            setActiveResponseStatus(`Assistant is grounded on current HaruQuant state (${responseStyle}).`)
           },
           onToken: (delta) => {
             setMessages((current) =>
@@ -577,6 +627,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isOnline,
     isStreaming,
     refreshThreadList,
+    rememberResponseMetadata,
     syncThread,
     threadSearch,
   ])
@@ -600,8 +651,23 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         threadId,
         {},
         {
-          onMeta: () => {
-            setActiveResponseStatus("Regenerated response in progress.")
+          onMeta: (payload) => {
+            rememberResponseMetadata(payload)
+            const metadata = extractResponseMetadata(payload)
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === pendingAssistant.id
+                  ? {
+                      ...message,
+                      responseStyle: metadata?.response_style,
+                      taskClass: metadata?.task_class,
+                      domainFocus: metadata?.domain_focus,
+                    }
+                  : message,
+              ),
+            )
+            const responseStyle = metadata?.response_style ?? "summary"
+            setActiveResponseStatus(`Regenerated ${responseStyle} response in progress.`)
           },
           onToken: (delta) => {
             setMessages((current) =>
@@ -644,6 +710,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isOnline,
     isStreaming,
     refreshThreadList,
+    rememberResponseMetadata,
     syncThread,
     threadId,
     threadSearch,
