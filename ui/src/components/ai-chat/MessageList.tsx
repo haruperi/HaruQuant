@@ -93,6 +93,11 @@ export function MessageList({ messages, isInitializing, isOnline, error }: Messa
                     )}
                   </div>
                   <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  {message.role === "assistant" && message.toolCalls && message.toolCalls.length > 0 ? (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Tools used: {message.toolCalls.join(", ")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ))}

@@ -20,6 +20,7 @@ export interface ChatMessage {
   role: ChatRole
   content: string
   createdAt: string
+  toolCalls?: string[]
   status?: "ready" | "pending"
 }
 
@@ -58,6 +59,7 @@ function mapApiMessage(message: AiChatMessage): ChatMessage {
     role: message.role === "assistant" ? "assistant" : "user",
     content: message.content,
     createdAt: message.created_at,
+    toolCalls: message.tool_calls,
     status: "ready",
   }
 }

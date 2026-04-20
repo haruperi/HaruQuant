@@ -46,5 +46,7 @@ def test_ai_chat_stream_endpoint_returns_sse_events(tmp_path) -> None:
     assert "event: meta" in payload
     assert "event: token" in payload
     assert "event: done" in payload
+    assert "portfolio_summary" in payload
+    assert "risk_snapshot" in payload
 
     app.dependency_overrides.clear()

@@ -38,8 +38,10 @@ def test_ai_gateway_stream_response_persists_user_and_assistant_messages(tmp_pat
     content = "".join(chunks)
     refreshed = conversation_service.get_thread(user_id=1, thread_id=thread.thread_id)
 
-    assert metadata["response_mode"] == "answer"
+    assert metadata["response_mode"] == "tool_assisted"
+    assert metadata["tools_used"] == ["portfolio_summary", "risk_snapshot"]
     assert message_id == refreshed.messages[-1].message_id
     assert refreshed.messages[-2].role == "user"
     assert refreshed.messages[-1].role == "assistant"
+    assert refreshed.messages[-1].tool_calls == ["portfolio_summary", "risk_snapshot"]
     assert "dashboard" in content.lower()
