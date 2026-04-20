@@ -266,6 +266,7 @@ class ConversationService:
         draft = self.repository.get_action_draft(draft_id=draft_id, user_id=str(user_id))
         if draft is None:
             raise LookupError(f"action draft not found: {draft_id}")
+        draft = self._refresh_action_draft_approval_state(user_id=str(user_id), row=draft)
         return self._action_draft_row_to_record(draft)
 
     def list_action_drafts(
@@ -277,10 +278,13 @@ class ConversationService:
     ) -> list[ActionDraftRecord]:
         return [
             self._action_draft_row_to_record(row)
-            for row in self.repository.list_action_drafts(
-                user_id=str(user_id),
-                thread_id=thread_id,
-                status=status,
+            for row in (
+                self._refresh_action_draft_approval_state(user_id=str(user_id), row=row)
+                for row in self.repository.list_action_drafts(
+                    user_id=str(user_id),
+                    thread_id=thread_id,
+                    status=status,
+                )
             )
         ]
 
@@ -562,8 +566,33 @@ class ConversationService:
             status=row.status,
             requires_human_approval=bool(row.requires_human_approval),
             side_effect_status=row.side_effect_status,
+            governed_workflow_id=row.governed_workflow_id,
+            execution_intent_id=row.execution_intent_id,
+            execution_receipt_id=row.execution_receipt_id,
             created_at=row.created_at,
             updated_at=row.updated_at,
+        )
+
+    def _refresh_action_draft_approval_state(self, *, user_id: str, row: object):
+        if not row.approval_id:
+            return row
+        governance = GovernanceRepository(self.repository.db_path)
+        approval = governance.get_approval(row.approval_id)
+        if approval is None:
+            return row
+        mapped_status = row.status
+        if approval.state == "APPROVED":
+            mapped_status = "approved"
+        elif approval.state == "REJECTED":
+            mapped_status = "rejected"
+        elif approval.state in {"PENDING", "PARTIALLY_APPROVED"}:
+            mapped_status = "approval_requested"
+        if mapped_status == row.status:
+            return row
+        return self.repository.update_action_draft(
+            draft_id=row.draft_id,
+            user_id=user_id,
+            status=mapped_status,
         )
 
     def _promote_title_if_needed(

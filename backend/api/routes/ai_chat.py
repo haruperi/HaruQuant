@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.api.auth_utils import get_user_id_from_token
 from backend.data.database.repositories.ai_chat_repository import AiChatRepository
 from backend.data.database.sqlite.database_operations import DatabaseManager
+from backend.services.trade_action_governor import TradeActionGovernor
 from backend.services.ai_chat import (
     ALLOWED_TIERS_BY_AUTHORITY_BAND,
     AIGatewayService,
@@ -104,6 +105,12 @@ class RequestActionDraftApprovalRequest(BaseModel):
     actor_type: str = Field(default="user", min_length=1)
 
 
+class ExecutePaperActionDraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    terminal_connected: bool = True
+
+
 def get_conversation_service() -> ConversationService:
     db_manager = DatabaseManager()
     return ConversationService(AiChatRepository(db_manager.db_path))
@@ -111,6 +118,11 @@ def get_conversation_service() -> ConversationService:
 
 def get_page_context_assembler() -> PageContextAssembler:
     return PageContextAssembler(db_manager=DatabaseManager())
+
+
+def get_trade_action_governor() -> TradeActionGovernor:
+    db_manager = DatabaseManager()
+    return TradeActionGovernor(db_manager.db_path)
 
 
 def get_ai_gateway(
@@ -412,6 +424,47 @@ def request_action_draft_approval(
         actor_type=payload.actor_type,
     )
     return draft.model_dump(mode="json")
+
+
+@router.post("/threads/{thread_id}/action-drafts/{draft_id}/paper-execute")
+def execute_paper_action_draft(
+    thread_id: str,
+    draft_id: str,
+    payload: ExecutePaperActionDraftRequest,
+    user_id: AUTHENTICATED_USER_ID,
+    service: Annotated[ConversationService, Depends(get_conversation_service)],
+    governor: Annotated[TradeActionGovernor, Depends(get_trade_action_governor)],
+) -> dict:
+    _ = service.get_thread(user_id=user_id, thread_id=thread_id)
+    existing = service.get_action_draft(user_id=user_id, draft_id=draft_id)
+    if existing.thread_id != thread_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"action draft not found in thread: {draft_id}")
+    try:
+        result = governor.execute_paper_action_draft(
+            user_id=user_id,
+            draft_id=draft_id,
+            terminal_connected=payload.terminal_connected,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {
+        "workflow_id": result.workflow_id,
+        "execution_intent_id": result.execution_intent_id,
+        "receipt_id": result.receipt_id,
+        "authority_state": result.authority_state,
+        "approval_state": {
+            "approval_id": result.approval_state.approval_id,
+            "state": result.approval_state.state,
+            "approve_count": result.approval_state.approve_count,
+            "reject_count": result.approval_state.reject_count,
+            "required_count": result.approval_state.required_count,
+            "eligible": result.approval_state.eligible,
+            "reason_codes": list(result.approval_state.reason_codes),
+        },
+        "action_draft": result.action_draft.model_dump(mode="json"),
+    }
 
 
 @router.post("/threads/{thread_id}/responses/stream")

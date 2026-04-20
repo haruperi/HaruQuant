@@ -413,11 +413,12 @@ class AIGatewayService:
             for result in tool_results
             if result.success
         ) or "No supporting tool metrics were available."
+        direction = "buy" if any(keyword in normalized for keyword in ("buy", "long")) else "sell" if any(keyword in normalized for keyword in ("sell", "short")) else "buy"
         risk_status = "passed"
         risk_notes = "Draft remains non-executed and must be approved before any downstream action."
-        if draft_type == "order_draft":
+        if draft_type == "order_draft" and context.get("symbol") is None:
             risk_status = "blocked"
-            risk_notes = "Order drafts cannot proceed from free-form chat without reviewed signal context, entitlement checks, and governor validation."
+            risk_notes = "Order drafts require an explicit symbol before paper execution can be considered."
         payload = {
             "prompt": prompt.strip(),
             "route": context.get("route"),
@@ -427,6 +428,11 @@ class AIGatewayService:
             "optimization_id": context.get("optimization_id"),
             "session_id": context.get("session_id"),
             "symbol": context.get("symbol"),
+            "direction": direction,
+            "size": {"units": 1000},
+            "entry_price": None,
+            "stop_loss_logic": {"type": "fixed_percent", "value": 0.01},
+            "take_profit_logic": {"type": "fixed_percent", "value": 0.02},
             "tool_summary": tool_summary,
         }
         return self.conversation_service.create_action_draft(

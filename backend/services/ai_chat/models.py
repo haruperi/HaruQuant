@@ -98,6 +98,9 @@ class ActionDraftRecord(BaseModel):
     status: ActionDraftStatus = "draft"
     requires_human_approval: bool = True
     side_effect_status: str = Field(min_length=1, default="not_executed")
+    governed_workflow_id: str | None = None
+    execution_intent_id: str | None = None
+    execution_receipt_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

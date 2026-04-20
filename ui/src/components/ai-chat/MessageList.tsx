@@ -14,6 +14,7 @@ interface MessageListProps {
   error: string | null
   onQueueSignalProposalForReview?: (proposalId: string) => void
   onRequestActionDraftApproval?: (draftId: string) => void
+  onExecutePaperActionDraft?: (draftId: string) => void
   onSaveSignalProposalToWatchlist?: (proposalId: string) => void
 }
 
@@ -90,6 +91,7 @@ export function MessageList({
   error,
   onQueueSignalProposalForReview,
   onRequestActionDraftApproval,
+  onExecutePaperActionDraft,
   onSaveSignalProposalToWatchlist,
 }: MessageListProps) {
   return (
@@ -235,6 +237,18 @@ export function MessageList({
                             onClick={() => onRequestActionDraftApproval?.(message.actionDraft!.draft_id)}
                           >
                             {message.actionDraft.approval_id ? "Approval requested" : "Request approval"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border px-2 py-1 text-[11px] text-foreground disabled:opacity-50"
+                            disabled={
+                              message.actionDraft.draft_type !== "order_draft"
+                              || message.actionDraft.status !== "approved"
+                              || message.actionDraft.side_effect_status !== "not_executed"
+                            }
+                            onClick={() => onExecutePaperActionDraft?.(message.actionDraft!.draft_id)}
+                          >
+                            {message.actionDraft.execution_receipt_id ? "Paper executed" : "Run paper execution"}
                           </button>
                         </div>
                       </div>

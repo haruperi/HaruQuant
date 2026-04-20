@@ -6,6 +6,7 @@ import {
   createAiChatThread,
   deleteAiChatThread,
   exportAiChatThread,
+  executeAiChatPaperActionDraft,
   getAiChatThread,
   listAiChatActionDrafts,
   listAiChatThreads,
@@ -85,6 +86,7 @@ interface ChatWidgetStoreValue {
   saveSignalProposalToWatchlist: (proposalId: string) => Promise<void>
   queueSignalProposalForReview: (proposalId: string) => Promise<void>
   requestActionDraftApproval: (draftId: string) => Promise<void>
+  executePaperActionDraft: (draftId: string) => Promise<void>
   submitDraft: () => Promise<void>
   regenerateLastResponse: () => Promise<void>
   cancelStream: () => void
@@ -648,6 +650,23 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
 
+  const executePaperActionDraft = React.useCallback(async (draftId: string) => {
+    if (!threadId || !isAuthenticated) {
+      return
+    }
+    setError(null)
+    try {
+      const result = await executeAiChatPaperActionDraft(authenticatedFetch, threadId, draftId)
+      actionDraftMapRef.current[draftId] = result.action_draft
+      const refreshed = await getAiChatThread(authenticatedFetch, threadId)
+      syncThread(refreshed)
+      setActiveResponseStatus(`Paper execution completed for ${result.action_draft.title}.`)
+    } catch (draftError) {
+      console.error("Failed to execute paper action draft:", draftError)
+      setError(draftError instanceof Error ? draftError.message : "Unable to execute paper action draft.")
+    }
+  }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
+
   const exportThread = React.useCallback(async () => {
     if (!threadId || !isAuthenticated) {
       return
@@ -899,6 +918,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       saveSignalProposalToWatchlist,
       queueSignalProposalForReview,
       requestActionDraftApproval,
+      executePaperActionDraft,
       submitDraft,
       regenerateLastResponse,
       cancelStream,
@@ -924,6 +944,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       queueSignalProposalForReview,
       regenerateLastResponse,
       renameThread,
+      executePaperActionDraft,
       requestActionDraftApproval,
       saveSignalProposalToWatchlist,
       setDraft,

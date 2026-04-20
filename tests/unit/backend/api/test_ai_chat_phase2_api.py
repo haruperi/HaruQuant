@@ -4,10 +4,12 @@ from fastapi.testclient import TestClient
 
 from backend.api.auth_utils import get_user_id_from_token
 from backend.api.main import app
-from backend.api.routes.ai_chat import get_ai_gateway, get_conversation_service, get_page_context_assembler
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from backend.api.routes.ai_chat import get_ai_gateway, get_conversation_service, get_page_context_assembler, get_trade_action_governor
+from backend.data.database import AiChatRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.ai_chat import AIGatewayService, ConversationService, PageContextAssembler
+from backend.services.approval import ApprovalVoteRequest, ApprovalVoteService
+from backend.services.trade_action_governor import TradeActionGovernor
 
 
 def test_ai_chat_phase2_thread_and_message_flow(tmp_path) -> None:
@@ -221,5 +223,68 @@ def test_ai_chat_phase9_action_draft_routes(tmp_path) -> None:
     assert requested.status_code == 200
     assert requested.json()["approval_id"] is not None
     assert requested.json()["status"] == "approval_requested"
+
+    app.dependency_overrides.clear()
+
+
+def test_ai_chat_phase10_paper_execution_route(tmp_path) -> None:
+    database_path = tmp_path / "agentic_phase10.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="phase10@example.com", username="phase10_user", password="password")
+    service = ConversationService(AiChatRepository(database_path))
+    context_assembler = PageContextAssembler(db_manager=db)
+    gateway = AIGatewayService(
+        conversation_service=service,
+        context_assembler=context_assembler,
+    )
+    governor = TradeActionGovernor(str(database_path))
+
+    app.dependency_overrides[get_conversation_service] = lambda: service
+    app.dependency_overrides[get_page_context_assembler] = lambda: context_assembler
+    app.dependency_overrides[get_ai_gateway] = lambda: gateway
+    app.dependency_overrides[get_trade_action_governor] = lambda: governor
+    app.dependency_overrides[get_user_id_from_token] = lambda: 1
+    client = TestClient(app)
+
+    created = client.post(
+        "/api/ai-chat/threads",
+        json={"current_route": "/live", "current_page_type": "live_trading"},
+    )
+    thread = created.json()
+
+    streamed = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/responses/stream",
+        json={"prompt": "Create order to buy EURUSD now."},
+    )
+    assert streamed.status_code == 200
+
+    drafts = client.get(f"/api/ai-chat/threads/{thread['thread_id']}/action-drafts")
+    draft = drafts.json()[0]
+    approval_requested = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/action-drafts/{draft['draft_id']}/request-approval",
+        json={"actor_type": "user"},
+    )
+    approval_id = approval_requested.json()["approval_id"]
+    ApprovalVoteService(GovernanceRepository(database_path)).vote(
+        ApprovalVoteRequest(
+            approval_id=approval_id,
+            approver_role="approver",
+            approver_id="approver_001",
+            decision="APPROVE",
+            rationale="Approved for paper execution.",
+        )
+    )
+
+    executed = client.post(
+        f"/api/ai-chat/threads/{thread['thread_id']}/action-drafts/{draft['draft_id']}/paper-execute",
+        json={"terminal_connected": True},
+    )
+    assert executed.status_code == 200
+    payload = executed.json()
+    assert payload["execution_intent_id"].startswith("exec_")
+    assert payload["receipt_id"].startswith("rcpt_")
+    assert payload["action_draft"]["side_effect_status"] == "paper_execution_acknowledged"
 
     app.dependency_overrides.clear()

@@ -3,12 +3,35 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import sqlite3
 
-from backend.common import ValidationError, generate_id
+from backend.common import ErrorDescriptor, ValidationError, generate_id
 from backend.data.database import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
 
 from .models import ApprovalState
+
+
+_APPROVAL_REQUIRED_COUNT_INVALID = ErrorDescriptor(
+    code=4001,
+    name="APPROVAL_REQUIRED_COUNT_INVALID",
+    message="Approval creation requires a positive required_count.",
+)
+_APPROVAL_EXPIRY_REQUIRED = ErrorDescriptor(
+    code=4002,
+    name="APPROVAL_EXPIRY_REQUIRED",
+    message="Approval creation requires an expiry timestamp.",
+)
+_APPROVAL_DUPLICATE_VOTER = ErrorDescriptor(
+    code=4003,
+    name="APPROVAL_DUPLICATE_VOTER",
+    message="An approver may vote only once per approval.",
+)
+_APPROVAL_NOT_FOUND = ErrorDescriptor(
+    code=4004,
+    name="APPROVAL_NOT_FOUND",
+    message="Approval request not found.",
+)
 
 
 @dataclass(frozen=True)
@@ -33,13 +56,11 @@ class ApprovalCreationService:
     def create(self, request: ApprovalCreateRequest) -> ApprovalRecord:
         if request.required_count <= 0:
             raise ValidationError(
-                "approval_required_count_invalid",
-                "Approval creation requires a positive required_count.",
+                _APPROVAL_REQUIRED_COUNT_INVALID,
             )
         if request.expires_at is None:
             raise ValidationError(
-                "approval_expiry_required",
-                "Approval creation requires an expiry timestamp.",
+                _APPROVAL_EXPIRY_REQUIRED,
             )
 
         return self.repository.create_approval(
@@ -85,12 +106,11 @@ class ApprovalVoteService:
             ).fetchone()
         if existing is not None:
             raise ValidationError(
-                "approval_duplicate_voter",
-                "An approver may vote only once per approval.",
+                _APPROVAL_DUPLICATE_VOTER,
             )
 
         try:
-            return self.repository.add_vote(
+            vote = self.repository.add_vote(
                 approval_id=request.approval_id,
                 approver_role=request.approver_role,
                 approver_id=request.approver_id,
@@ -98,8 +118,34 @@ class ApprovalVoteService:
                 reason_code=request.reason_code,
                 rationale=request.rationale,
             )
+            self._refresh_approval_state(request.approval_id)
+            return vote
         except sqlite3.IntegrityError as exc:
             raise ValidationError(
-                "approval_duplicate_voter",
-                "An approver may vote only once per approval.",
+                _APPROVAL_DUPLICATE_VOTER,
             ) from exc
+
+    def _refresh_approval_state(self, approval_id: str) -> None:
+        approval = self.repository.get_approval(approval_id)
+        if approval is None:
+            raise ValidationError(_APPROVAL_NOT_FOUND)
+        votes = self.repository.list_votes(approval_id)
+        decisions = [vote.decision.strip().lower() for vote in votes]
+        approve_count = sum(1 for decision in decisions if decision == "approve")
+        has_reject = any(decision == "reject" for decision in decisions)
+        next_state = ApprovalState.PENDING.value
+        decided_at = None
+        if has_reject:
+            next_state = ApprovalState.REJECTED.value
+            decided_at = datetime.now(timezone.utc).isoformat()
+        elif approve_count >= approval.required_count:
+            next_state = ApprovalState.APPROVED.value
+            decided_at = datetime.now(timezone.utc).isoformat()
+        elif approve_count > 0:
+            next_state = ApprovalState.PARTIALLY_APPROVED.value
+        if next_state != approval.state or decided_at != approval.decided_at:
+            self.repository.update_approval_state(
+                approval_id=approval_id,
+                state=next_state,
+                decided_at=decided_at,
+            )

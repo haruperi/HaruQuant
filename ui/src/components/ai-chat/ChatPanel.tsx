@@ -40,6 +40,7 @@ interface ChatPanelProps {
   onExportThread: () => void
   onQueueSignalProposalForReview: (proposalId: string) => void
   onRequestActionDraftApproval: (draftId: string) => void
+  onExecutePaperActionDraft: (draftId: string) => void
   onRegenerate: () => void
   onRenameThread: (value: string) => void
   onSaveSignalProposalToWatchlist: (proposalId: string) => void
@@ -89,6 +90,7 @@ export function ChatPanel({
   onExportThread,
   onQueueSignalProposalForReview,
   onRequestActionDraftApproval,
+  onExecutePaperActionDraft,
   onRegenerate,
   onRenameThread,
   onSaveSignalProposalToWatchlist,
@@ -237,6 +239,7 @@ export function ChatPanel({
               error={error}
               onQueueSignalProposalForReview={onQueueSignalProposalForReview}
               onRequestActionDraftApproval={onRequestActionDraftApproval}
+              onExecutePaperActionDraft={onExecutePaperActionDraft}
               onSaveSignalProposalToWatchlist={onSaveSignalProposalToWatchlist}
             />
           </div>

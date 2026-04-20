@@ -62,6 +62,40 @@ def test_approval_vote_service_rejects_duplicate_voter(tmp_path) -> None:
             )
         )
     except ValidationError as exc:
-        duplicate_failed = exc.code == "approval_duplicate_voter"
+        duplicate_failed = exc.descriptor.name == "APPROVAL_DUPLICATE_VOTER"
 
     assert duplicate_failed is True
+
+
+def test_approval_vote_service_updates_state_to_approved_when_quorum_met(tmp_path) -> None:
+    migrations_dir = default_migrations_dir()
+    database_path = tmp_path / "agentic_approval_state.db"
+
+    apply_pending_migrations(database_path, migrations_dir)
+    repository = GovernanceRepository(database_path)
+    approval = repository.create_approval(
+        approval_id="appr_001",
+        action_type="live_execution",
+        target_ref_type="execution_intent",
+        target_ref_id="exec_001",
+        required_count=1,
+        state="PENDING",
+        created_by_actor_type="user",
+        created_by_actor_id="operator_001",
+        expires_at="2026-04-09T12:00:00Z",
+    )
+    service = ApprovalVoteService(repository)
+
+    service.vote(
+        ApprovalVoteRequest(
+            approval_id=approval.approval_id,
+            approver_role="APPROVER",
+            approver_id="approver_001",
+            decision="APPROVE",
+            rationale="Approved for paper execution.",
+        )
+    )
+    refreshed = repository.get_approval(approval.approval_id)
+
+    assert refreshed is not None
+    assert refreshed.state == "APPROVED"
