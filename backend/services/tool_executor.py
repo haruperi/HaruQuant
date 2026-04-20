@@ -19,6 +19,7 @@ from backend.tools.read_only import (
     RiskSnapshotTool,
     StrategyParametersTool,
     SymbolStatsTool,
+    InternalKnowledgeTool,
 )
 
 
@@ -51,6 +52,7 @@ class ToolExecutor:
             "risk_snapshot": RiskSnapshotTool(self.db),
             "alert_history": AlertHistoryTool(self.db),
             "symbol_stats": SymbolStatsTool(self.db),
+            "internal_knowledge": InternalKnowledgeTool(),
         }
 
     def execute(

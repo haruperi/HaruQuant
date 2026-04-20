@@ -24,6 +24,7 @@ class ToolPolicy:
         "risk_snapshot",
         "alert_history",
         "symbol_stats",
+        "internal_knowledge",
     )
 
     def allow_tools(

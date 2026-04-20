@@ -6,6 +6,7 @@ from .market import SymbolStatsTool
 from .optimization import OptimizationResultsTool
 from .portfolio import OpenPositionsTool, PortfolioSummaryTool, RiskSnapshotTool
 from .strategy import StrategyParametersTool
+from .knowledge import InternalKnowledgeTool
 
 __all__ = [
     "AlertHistoryTool",
@@ -16,4 +17,5 @@ __all__ = [
     "RiskSnapshotTool",
     "StrategyParametersTool",
     "SymbolStatsTool",
+    "InternalKnowledgeTool",
 ]
