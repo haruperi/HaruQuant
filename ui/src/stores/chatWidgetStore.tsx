@@ -47,6 +47,9 @@ export interface ChatMessage {
   responseStyle?: string
   taskClass?: string
   domainFocus?: string
+  generationSource?: string
+  providerName?: string | null
+  model?: string
   status?: "ready" | "pending"
 }
 
@@ -120,6 +123,9 @@ function mapApiMessage(
     responseStyle: responseMetadata?.response_style,
     taskClass: responseMetadata?.task_class,
     domainFocus: responseMetadata?.domain_focus,
+    generationSource: responseMetadata?.generation_source,
+    providerName: responseMetadata?.provider_name,
+    model: responseMetadata?.model,
     status: "ready",
   }
 }
@@ -157,6 +163,9 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
     response_style: typeof payload.response_style === "string" ? payload.response_style : undefined,
     task_class: typeof payload.task_class === "string" ? payload.task_class : undefined,
     domain_focus: typeof payload.domain_focus === "string" ? payload.domain_focus : undefined,
+    generation_source: typeof payload.generation_source === "string" ? payload.generation_source : undefined,
+    provider_name: typeof payload.provider_name === "string" ? payload.provider_name : undefined,
+    model: typeof payload.model === "string" ? payload.model : undefined,
     tools_used: Array.isArray(payload.tools_used) ? payload.tools_used.filter((value): value is string => typeof value === "string") : undefined,
     signal_proposal_id: typeof payload.signal_proposal_id === "string" ? payload.signal_proposal_id : undefined,
     action_draft_id: typeof payload.action_draft_id === "string" ? payload.action_draft_id : undefined,
@@ -728,17 +737,23 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
             setMessages((current) =>
               current.map((message) =>
                 message.id === pendingAssistant.id
-                  ? {
-                      ...message,
+                    ? {
+                        ...message,
                       responseStyle: metadata?.response_style,
                       taskClass: metadata?.task_class,
                       domainFocus: metadata?.domain_focus,
+                      generationSource: metadata?.generation_source,
+                      providerName: metadata?.provider_name,
+                      model: metadata?.model,
                     }
                   : message,
               ),
             )
             const responseStyle = metadata?.response_style ?? "summary"
-            setActiveResponseStatus(`Assistant is grounded on current HaruQuant state (${responseStyle}).`)
+            const sourceLabel = metadata?.generation_source === "llm_runtime"
+              ? `${metadata.provider_name ?? "runtime"} model`
+              : "fallback mode"
+            setActiveResponseStatus(`Assistant is responding with ${sourceLabel} (${responseStyle}).`)
           },
           onToken: (delta) => {
             setMessages((current) =>
@@ -821,17 +836,23 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
             setMessages((current) =>
               current.map((message) =>
                 message.id === pendingAssistant.id
-                  ? {
-                      ...message,
+                    ? {
+                        ...message,
                       responseStyle: metadata?.response_style,
                       taskClass: metadata?.task_class,
                       domainFocus: metadata?.domain_focus,
+                      generationSource: metadata?.generation_source,
+                      providerName: metadata?.provider_name,
+                      model: metadata?.model,
                     }
                   : message,
               ),
             )
             const responseStyle = metadata?.response_style ?? "summary"
-            setActiveResponseStatus(`Regenerated ${responseStyle} response in progress.`)
+            const sourceLabel = metadata?.generation_source === "llm_runtime"
+              ? `${metadata.provider_name ?? "runtime"} model`
+              : "fallback mode"
+            setActiveResponseStatus(`Regenerated ${responseStyle} response in progress with ${sourceLabel}.`)
           },
           onToken: (delta) => {
             setMessages((current) =>

@@ -14,7 +14,24 @@ Examples:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Dict
+
+
+def _load_project_env_defaults() -> None:
+    """Load backend/config/environments/.env into process defaults once."""
+    env_path = Path(__file__).resolve().parent / "environments" / ".env"
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_project_env_defaults()
 
 # ──────────────────────────────────────────────────────────────
 # PRIMARY MODEL — change this ONE variable to switch all agents

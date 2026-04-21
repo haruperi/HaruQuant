@@ -22,6 +22,20 @@ def test_page_context_assembler_builds_dashboard_context(tmp_path) -> None:
     assert "active strategies" in packet.payload.summary.headline.lower()
 
 
+def test_page_context_assembler_treats_root_route_as_dashboard(tmp_path) -> None:
+    database_path = tmp_path / "agentic_root.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="root@example.com", username="root_user", password="password")
+
+    assembler = PageContextAssembler(db_manager=db)
+    packet = assembler.assemble_context(route="/", user_id=1)
+
+    assert packet.payload.page_type == "dashboard"
+    assert packet.payload.authority.trust_level == "system_state"
+
+
 def test_page_context_assembler_builds_strategy_detail_context(tmp_path) -> None:
     database_path = tmp_path / "agentic.db"
     db = DatabaseManager(db_path=str(database_path))

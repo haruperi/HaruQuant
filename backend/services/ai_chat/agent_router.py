@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
 from backend.services.ai_chat.policy import ChatResponseMode
@@ -24,18 +25,25 @@ class ChatAgentRouter:
 
     def route(self, prompt: str) -> ChatRouteDecision:
         normalized = prompt.lower()
+        if any(keyword in normalized for keyword in ("compare", "versus", "vs", "better than")):
+            spec = resolve_domain_prompt_spec("comparison")
+            return ChatRouteDecision(
+                response_mode=ChatResponseMode.ANSWER,
+                task_class="comparison",
+                model_tier="premium",
+                rationale="Prompt requests comparative reasoning.",
+                response_style=spec.response_style,
+                domain_focus=spec.domain_focus,
+            )
         if (
-            (
-                "backtest" in normalized
-                and any(keyword in normalized for keyword in ("launch", "run", "start"))
-            )
-            or (
-                any(keyword in normalized for keyword in ("optimization", "optimisation", "optimize"))
-                and any(keyword in normalized for keyword in ("launch", "run", "start"))
-            )
-            or "export" in normalized
-            or "simulate" in normalized
-            or "simulation" in normalized
+            self._contains_action_phrase(normalized, noun="backtest")
+            or self._contains_action_phrase(normalized, noun="optimization")
+            or self._contains_action_phrase(normalized, noun="optimisation")
+            or "optimize this" in normalized
+            or "optimise this" in normalized
+            or "export this" in normalized
+            or "export the" in normalized
+            or self._contains_action_phrase(normalized, noun="simulation")
             or "draft order" in normalized
             or "create order" in normalized
             or "place order" in normalized
@@ -56,16 +64,6 @@ class ChatAgentRouter:
                 task_class="signal_proposal",
                 model_tier="standard",
                 rationale="Prompt looks like signal or trade analysis.",
-                response_style=spec.response_style,
-                domain_focus=spec.domain_focus,
-            )
-        if any(keyword in normalized for keyword in ("compare", "versus", "vs", "better than")):
-            spec = resolve_domain_prompt_spec("comparison")
-            return ChatRouteDecision(
-                response_mode=ChatResponseMode.ANSWER,
-                task_class="comparison",
-                model_tier="premium",
-                rationale="Prompt requests comparative reasoning.",
                 response_style=spec.response_style,
                 domain_focus=spec.domain_focus,
             )
@@ -108,3 +106,8 @@ class ChatAgentRouter:
             response_style=spec.response_style,
             domain_focus=spec.domain_focus,
         )
+
+    @staticmethod
+    def _contains_action_phrase(normalized_prompt: str, *, noun: str) -> bool:
+        pattern = rf"\b(?:launch|run|start)\s+(?:an?\s+|the\s+|this\s+)?{re.escape(noun)}\b"
+        return re.search(pattern, normalized_prompt) is not None

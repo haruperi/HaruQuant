@@ -92,6 +92,7 @@ Implementation plans, migration plans, and project-level planning documents.
 - [plans/Lesson_2_Unsupervised_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Lesson_2_Unsupervised_Plan.md)
 - [plans/Strategy_Catalog_Reconciliation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\Strategy_Catalog_Reconciliation_Plan.md)
 - [plans/AI_Chatbot_Implementation_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\AI_Chatbot_Implementation_Plan.md)
+- [plans/AI_Chatbot_Conversational_Multi_Agent_Plan.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\plans\AI_Chatbot_Conversational_Multi_Agent_Plan.md)
 
 ### `traceability/`
 

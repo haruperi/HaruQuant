@@ -23,6 +23,22 @@ function formatTimestamp(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString()
 }
 
+function formatGenerationMeta(message: ChatMessage): string | null {
+  if (message.role !== "assistant") {
+    return null
+  }
+  const source = message.generationSource === "llm_runtime"
+    ? "live"
+    : message.generationSource === "fallback"
+      ? "fallback"
+      : null
+  if (!source && !message.providerName && !message.model) {
+    return null
+  }
+  const parts = [source, message.providerName, message.model].filter(Boolean)
+  return parts.length > 0 ? parts.join(" · ") : null
+}
+
 function getResponseStyleConfig(responseStyle?: string) {
   switch (responseStyle) {
     case "diagnostic":
@@ -134,6 +150,7 @@ export function MessageList({
             {messages.map((message) => {
               const styleConfig = getResponseStyleConfig(message.responseStyle)
               const StyleIcon = styleConfig.icon
+              const generationMeta = formatGenerationMeta(message)
               return (
                 <div
                   key={message.id}
@@ -168,6 +185,11 @@ export function MessageList({
                         </>
                       )}
                       <span>{formatTimestamp(message.createdAt)}</span>
+                      {generationMeta ? (
+                        <span className="rounded-sm border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {generationMeta}
+                        </span>
+                      ) : null}
                       {message.role === "assistant" ? (
                         <span className={cn("inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-medium", styleConfig.badgeClassName)}>
                           {styleConfig.label}
@@ -184,11 +206,6 @@ export function MessageList({
                     {message.role === "assistant" && message.toolCalls && message.toolCalls.length > 0 ? (
                       <p className="mt-2 text-[11px] text-muted-foreground">
                         Tools used: {message.toolCalls.join(", ")}
-                      </p>
-                    ) : null}
-                    {message.taskClass ? (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        Task: {message.taskClass}{message.domainFocus ? ` · ${message.domainFocus}` : ""}
                       </p>
                     ) : null}
                     {message.signalProposal ? (
@@ -252,11 +269,6 @@ export function MessageList({
                           </button>
                         </div>
                       </div>
-                    ) : null}
-                    {message.requestId ? (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        Request ID: {message.requestId}
-                      </p>
                     ) : null}
                   </div>
                 </div>

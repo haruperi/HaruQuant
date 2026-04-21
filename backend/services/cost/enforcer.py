@@ -95,10 +95,13 @@ class CostEnforcer:
 
     def get_fallback_model(self) -> str:
         """Get the fallback model name from policy."""
-        return self._policy.get("global_limits", {}).get(
+        configured = self._policy.get("global_limits", {}).get(
             "fallback_model",
             get_model_for_tier("fallback"),
         )
+        if configured in {"lower_cost_model", "fallback_model", "fast_model"}:
+            return get_model_for_tier("fallback")
+        return str(configured)
 
     @property
     def tracker(self) -> CostTracker:

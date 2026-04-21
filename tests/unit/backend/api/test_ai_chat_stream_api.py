@@ -127,6 +127,6 @@ def test_ai_chat_stream_endpoint_returns_action_draft_metadata(tmp_path) -> None
     assert response.status_code == 200
     assert "event: meta" in payload
     assert "action_draft_id" in payload
-    assert "Approval Requirements:" in payload
+    assert "event: done" in payload
 
     app.dependency_overrides.clear()

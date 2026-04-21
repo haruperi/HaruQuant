@@ -3,7 +3,6 @@ import pytest
 from unittest.mock import MagicMock, patch, ANY
 from backend.services.ai_chat.ai_gateway import AIGatewayService, ChatStreamRequest, GenerationResult
 from backend.services.ai_chat.models import ConversationThreadRecord, ConversationMessageRecord
-from backend.services.ai_chat.policy import AuthorityBand
 
 @pytest.fixture
 def mock_services():
@@ -73,6 +72,7 @@ def test_ai_gateway_collects_telemetry(mock_services) -> None:
             metadata, chunks, msg_id = gateway.stream_response(request)
             
             assert "telemetry" in metadata
+            assert metadata["generation_source"] == "fallback"
             telemetry = metadata["telemetry"]
             assert telemetry["latency_ms"] == 500
             assert telemetry["prompt_tokens"] == 100
@@ -102,7 +102,61 @@ def test_ai_gateway_collects_telemetry(mock_services) -> None:
 
 def test_calculate_cost_handling() -> None:
     # Test different models
-    assert AIGatewayService._calculate_cost(model="gpt-4o", prompt_tokens=1000000, completion_tokens=1000000) == 20.0
+    assert AIGatewayService._calculate_cost(model="gpt-4o", prompt_tokens=1000000, completion_tokens=1000000) == 12.5
     assert AIGatewayService._calculate_cost(model="gpt-4o-mini", prompt_tokens=1000000, completion_tokens=1000000) == 0.75
-    assert AIGatewayService._calculate_cost(model="gemini-1.5-pro", prompt_tokens=1000000, completion_tokens=1000000) == 14.0
-    assert AIGatewayService._calculate_cost(model="unknown", prompt_tokens=1000000, completion_tokens=1000000) == 0.375 # default to flash
+    assert AIGatewayService._calculate_cost(model="gemini-3.1-flash-lite-preview", prompt_tokens=1000000, completion_tokens=1000000) == 0.375
+    assert AIGatewayService._calculate_cost(model="unknown", prompt_tokens=1000000, completion_tokens=1000000) == 0.0
+
+def test_ai_gateway_uses_fallback_model_when_request_budget_exceeded(mock_services) -> None:
+    cost_enforcer = MagicMock()
+    cost_enforcer.check_request_budget.side_effect = [False, True]
+    cost_enforcer.get_fallback_model.return_value = "gemini-3.1-flash-lite-preview"
+    cost_enforcer.get_current_cost.return_value = 0.02
+    cost_enforcer.check_workflow_budget.return_value = True
+
+    gateway = AIGatewayService(
+        conversation_service=mock_services["conv_service"],
+        context_assembler=mock_services["context_assembler"],
+        prompt_builder=mock_services["prompt_builder"],
+        agent_router=mock_services["agent_router"],
+        tool_executor=mock_services["tool_executor"],
+        cost_enforcer=cost_enforcer,
+    )
+
+    gen_result = GenerationResult(text="Hello world", prompt_tokens=100, completion_tokens=50, total_tokens=150)
+
+    with patch.object(gateway, "_generate_text", return_value=gen_result) as generate_mock:
+        metadata, _chunks, _msg_id = gateway.stream_response(
+            ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
+        )
+
+    assert generate_mock.call_args.kwargs["model"] == "gemini-3.1-flash-lite-preview"
+    assert metadata["cost_policy"]["budget_downgraded"] is True
+
+
+def test_ai_gateway_reports_runtime_generation_source(mock_services) -> None:
+    gateway = AIGatewayService(
+        conversation_service=mock_services["conv_service"],
+        context_assembler=mock_services["context_assembler"],
+        prompt_builder=mock_services["prompt_builder"],
+        agent_router=mock_services["agent_router"],
+        tool_executor=mock_services["tool_executor"],
+    )
+
+    runtime = MagicMock()
+    runtime.provider_name = "litellm"
+    runtime._call_llm.return_value = {
+        "content": "Live model reply",
+        "prompt_tokens": 12,
+        "completion_tokens": 8,
+        "total_tokens": 20,
+    }
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
+        metadata, chunks, _msg_id = gateway.stream_response(
+            ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
+        )
+
+    assert metadata["generation_source"] == "llm_runtime"
+    assert metadata["provider_name"] == "litellm"
+    assert "".join(chunks) == "Live model reply"

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import os
 import re
 import time
 from typing import Iterable
 from uuid import uuid4
 
+from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
 from backend.config.agent_model import get_model_for_tier
+from backend.observability.cost_tracker import calculate_cost
 from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
@@ -17,13 +18,8 @@ from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_s
 from backend.services.ai_chat.prompt_builder import ChatPromptBuilder, ContextCompactor
 from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
+from backend.services.cost import CostEnforcer
 from backend.services.tool_executor import ToolExecutionResult, ToolExecutor
-
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:  # pragma: no cover - optional dependency
-    HAS_OPENAI = False
 
 
 @dataclass(frozen=True)
@@ -32,6 +28,8 @@ class GenerationResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    generation_source: str = "fallback"
+    provider_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -61,6 +59,7 @@ class AIGatewayService:
         tool_executor: ToolExecutor | None = None,
         rate_limiter: ChatRateLimiter | None = None,
         compactor: ContextCompactor | None = None,
+        cost_enforcer: CostEnforcer | None = None,
     ) -> None:
         self.conversation_service = conversation_service
         self.context_assembler = context_assembler
@@ -69,6 +68,7 @@ class AIGatewayService:
         self.tool_executor = tool_executor or ToolExecutor(db_manager=context_assembler.db_manager)
         self.rate_limiter = rate_limiter or ChatRateLimiter()
         self.compactor = compactor or ContextCompactor()
+        self.cost_enforcer = cost_enforcer or CostEnforcer()
 
     def stream_response(self, request: ChatStreamRequest) -> tuple[dict[str, object], Iterable[str], str]:
         if not self.rate_limiter.acquire(request.user_id, wait=True, timeout=15.0):
@@ -146,6 +146,43 @@ class AIGatewayService:
                 )
 
             model = get_model_for_tier(decision.model_tier)
+            estimated_cost = self._estimate_request_cost(
+                model=model,
+                system_prompt=built_prompt.system_prompt,
+                user_prompt=built_prompt.user_prompt,
+                response_mode=(
+                    "signal_proposal"
+                    if signal_proposal is not None
+                    else (
+                        "action_draft"
+                        if action_draft is not None
+                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                    )
+                ),
+            )
+            request_budget_key = self._cost_budget_key_for_tier(decision.model_tier)
+            budget_downgraded = False
+            if not self.cost_enforcer.check_request_budget(request_budget_key, estimated_cost):
+                fallback_model = self.cost_enforcer.get_fallback_model()
+                fallback_estimated_cost = self._estimate_request_cost(
+                    model=fallback_model,
+                    system_prompt=built_prompt.system_prompt,
+                    user_prompt=built_prompt.user_prompt,
+                    response_mode=(
+                        "signal_proposal"
+                        if signal_proposal is not None
+                        else (
+                            "action_draft"
+                            if action_draft is not None
+                            else ("tool_assisted" if tool_results else decision.response_mode.value)
+                        )
+                    ),
+                )
+                if not self.cost_enforcer.check_request_budget(request_budget_key, fallback_estimated_cost):
+                    raise ChatRateLimitError("Estimated request cost exceeds configured budget.")
+                model = fallback_model
+                estimated_cost = fallback_estimated_cost
+                budget_downgraded = True
             gen_result = self._generate_text(
                 system_prompt=built_prompt.system_prompt,
                 user_prompt=built_prompt.user_prompt,
@@ -172,6 +209,16 @@ class AIGatewayService:
                 prompt_tokens=gen_result.prompt_tokens,
                 completion_tokens=gen_result.completion_tokens,
             )
+            if gen_result.prompt_tokens is not None or gen_result.completion_tokens is not None:
+                self.cost_enforcer.record_cost(
+                    trace_id=request.thread_id,
+                    span_id=request_id,
+                    model=model,
+                    input_tokens=gen_result.prompt_tokens or 0,
+                    output_tokens=gen_result.completion_tokens or 0,
+                )
+            cumulative_workflow_cost = self.cost_enforcer.get_current_cost(request.thread_id)
+            within_workflow_budget = self.cost_enforcer.check_workflow_budget(cumulative_workflow_cost)
 
             self.conversation_service.add_message(
                 user_id=request.user_id,
@@ -209,6 +256,8 @@ class AIGatewayService:
                 "response_style": decision.response_style,
                 "domain_focus": decision.domain_focus,
                 "model": model,
+                "generation_source": gen_result.generation_source,
+                "provider_name": gen_result.provider_name,
                 "context_revision": page_context.payload.context_revision,
                 "tools_used": [result.tool_name for result in tool_results if result.success],
                 "tools_denied": list(denied_tools),
@@ -218,6 +267,13 @@ class AIGatewayService:
                     "completion_tokens": gen_result.completion_tokens,
                     "total_tokens": gen_result.total_tokens,
                     "cost_usd": cost,
+                },
+                "cost_policy": {
+                    "request_budget_key": request_budget_key,
+                    "estimated_cost_usd": estimated_cost,
+                    "budget_downgraded": budget_downgraded,
+                    "workflow_cost_usd": cumulative_workflow_cost,
+                    "within_workflow_budget": within_workflow_budget,
                 },
             }
             if signal_proposal is not None:
@@ -249,34 +305,38 @@ class AIGatewayService:
     def _calculate_cost(*, model: str, prompt_tokens: int | None, completion_tokens: int | None) -> float | None:
         if prompt_tokens is None or completion_tokens is None:
             return None
+        normalized_model = model.split("/", 1)[-1]
+        return round(calculate_cost(normalized_model, prompt_tokens, completion_tokens), 6)
 
-        # Normalized model names for matching
-        normalized_model = model.lower()
-        
-        # Define costs per 1M tokens
-        costs = {
-            "gpt-4o": {"input": 5.0, "output": 15.0},
-            "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-            "gemini-1.5-flash": {"input": 0.075, "output": 0.3},
-            "gemini-1.5-pro": {"input": 3.5, "output": 10.5},
-            "gemini-2.0-flash": {"input": 0.1, "output": 0.4},
-        }
-        
-        selected_cost = None
-        # Sort keys by length descending to match most specific first (e.g. gpt-4o-mini before gpt-4o)
-        for key in sorted(costs.keys(), key=len, reverse=True):
-            if key in normalized_model:
-                selected_cost = costs[key]
-                break
-        
-        if selected_cost is None:
-            # Default to a reasonable standard (e.g. flash-tier)
-            selected_cost = costs["gemini-1.5-flash"]
-            
-        input_cost = (prompt_tokens / 1_000_000) * selected_cost["input"]
-        output_cost = (completion_tokens / 1_000_000) * selected_cost["output"]
-        
-        return round(input_cost + output_cost, 6)
+    @classmethod
+    def _estimate_request_cost(
+        cls,
+        *,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        response_mode: str,
+    ) -> float:
+        estimated_prompt_tokens = max(1, (len(system_prompt) + len(user_prompt)) // 4)
+        estimated_completion_tokens = {
+            "action_draft": 700,
+            "signal_proposal": 650,
+            "tool_assisted": 550,
+        }.get(response_mode, 450)
+        estimated = cls._calculate_cost(
+            model=model,
+            prompt_tokens=estimated_prompt_tokens,
+            completion_tokens=estimated_completion_tokens,
+        )
+        return float(estimated or 0.0)
+
+    @staticmethod
+    def _cost_budget_key_for_tier(model_tier: str) -> str:
+        return {
+            "fast": "simple_classification",
+            "standard": "structured_extraction",
+            "premium": "complex_planning",
+        }.get(model_tier, "complex_planning")
 
     def _generate_text(
         self,
@@ -292,14 +352,28 @@ class AIGatewayService:
         signal_proposal=None,
         action_draft=None,
     ) -> GenerationResult:
-        if self._can_use_openai():
-            result = self._generate_openai_text(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
+        try:
+            runtime = create_llm_runtime(
                 model=model,
+                temperature=0.2,
+                max_output_tokens=2048,
+                json_mode=False,
             )
-            if result.text.strip():
-                return result
+            result = runtime._call_llm(system_prompt, user_prompt)
+            text = str(result.get("content") or "").strip()
+            if text:
+                return GenerationResult(
+                    text=text,
+                    prompt_tokens=result.get("prompt_tokens"),
+                    completion_tokens=result.get("completion_tokens"),
+                    total_tokens=result.get("total_tokens"),
+                    generation_source="llm_runtime",
+                    provider_name=runtime.provider_name,
+                )
+        except LLMRuntimeError:
+            pass
+        except Exception:
+            pass
         fallback_text = self._generate_fallback_text(
             user_prompt=user_prompt,
             page_context=page_context,
@@ -310,46 +384,7 @@ class AIGatewayService:
             signal_proposal=signal_proposal,
             action_draft=action_draft,
         )
-        return GenerationResult(text=fallback_text)
-
-    def _can_use_openai(self) -> bool:
-        return HAS_OPENAI and bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAI_BASE_URL"))
-
-    def _generate_openai_text(self, *, system_prompt: str, user_prompt: str, model: str) -> GenerationResult:
-        client_kwargs = {"api_key": os.environ.get("OPENAI_API_KEY", "ollama")}
-        if os.environ.get("OPENAI_BASE_URL"):
-            client_kwargs["base_url"] = os.environ["OPENAI_BASE_URL"]
-        client = OpenAI(**client_kwargs)
-        stream = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
-        parts: list[str] = []
-        prompt_tokens = None
-        completion_tokens = None
-        total_tokens = None
-        for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    parts.append(delta)
-            if hasattr(chunk, "usage") and chunk.usage:
-                prompt_tokens = chunk.usage.prompt_tokens
-                completion_tokens = chunk.usage.completion_tokens
-                total_tokens = chunk.usage.total_tokens
-
-        return GenerationResult(
-            text="".join(parts),
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-        )
+        return GenerationResult(text=fallback_text, generation_source="fallback", provider_name=None)
 
     def _generate_fallback_text(
         self,
@@ -407,7 +442,7 @@ class AIGatewayService:
             )
         bullets = page_context.payload.summary.bullets[:3]
         lead = page_context.payload.summary.headline
-        response_lines = [f"{lead}", f"Mode: {response_mode}.", f"Style: {response_style}."]
+        response_lines = [f"{lead}"]
         facts = [
             f"- {result.tool_name}: {self._summarize_tool_payload(result.payload)}"
             for result in tool_results
@@ -415,24 +450,23 @@ class AIGatewayService:
         ]
         inference_line = self._build_inference_line(task_class=task_class, tool_results=tool_results, page_context=page_context)
         recommendation_line = self._build_recommendation_line(task_class=task_class, tool_results=tool_results)
+        if page_context.payload.page_type == "generic" and not tool_results:
+            return "\n".join(
+                [
+                    "I only have generic context for this page right now, so I can't summarize HaruQuant-specific metrics yet.",
+                    "Open a dashboard, strategy, backtest, optimization, portfolio, or live-trading page and I can answer against that page state.",
+                ]
+            )
         sections: dict[str, list[str]] = {
             prompt_spec.section_headers[0]: facts or [f"- {lead}"],
             prompt_spec.section_headers[1]: [
-                f"- Page type: {page_context.payload.page_type}",
-                f"- Context revision: {page_context.payload.context_revision}",
                 *(f"- {bullet}" for bullet in bullets[:2]),
             ],
             prompt_spec.section_headers[2]: [f"- {inference_line}", f"- {recommendation_line}"],
         }
-        if tool_results:
-            response_lines.append("Grounded tools used:")
-            response_lines.extend(facts)
         for header in prompt_spec.section_headers:
             response_lines.append(f"{header}:")
             response_lines.extend(sections[header])
-        response_lines.append("Quantitative grounding:")
-        response_lines.extend(f"- {rule}" for rule in prompt_spec.quantitative_rules)
-        response_lines.append(f"User request received: {user_prompt.splitlines()[-1]}")
         return "\n".join(response_lines)
 
     def _build_inference_line(self, *, task_class: str, tool_results: list[ToolExecutionResult], page_context) -> str:
@@ -615,6 +649,26 @@ class AIGatewayService:
             selected.append("optimization_results")
         if context.get("symbol") is not None or any(word in normalized for word in ("symbol", "dataset", "timeframe")):
             selected.append("symbol_stats")
+        if any(
+            phrase in normalized
+            for phrase in (
+                "doc",
+                "docs",
+                "documentation",
+                "architecture",
+                "runbook",
+                "policy",
+                "rbac",
+                "implementation plan",
+                "rollout",
+                "support sop",
+                "knowledge base",
+                "internal knowledge",
+                "what does haruquant",
+                "how does haruquant",
+            )
+        ):
+            selected.append("internal_knowledge")
         return tuple(dict.fromkeys(selected))
 
     def _build_tool_context(self, *, page_context, prompt: str) -> dict[str, object]:
@@ -638,6 +692,7 @@ class AIGatewayService:
             "backtest_id": backtest_id,
             "optimization_id": optimization_id,
             "symbol": symbol,
+            "query": prompt.strip(),
         }
 
     @staticmethod

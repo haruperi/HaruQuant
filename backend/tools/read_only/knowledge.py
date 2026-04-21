@@ -15,12 +15,18 @@ class InternalKnowledgeTool:
 
     def __init__(self, db_dir: str = "backend/data/knowledge_db") -> None:
         self._db_dir = db_dir
-        self._embeddings = EmbeddingService()
-        self._retrieval = RetrievalService(
-            embeddings=self._embeddings,
-            persist_dir=self._db_dir,
-            collection_name="haruquant_knowledge",
-        )
+        self._embeddings: EmbeddingService | None = None
+        self._retrieval: RetrievalService | None = None
+
+    def _get_retrieval(self) -> RetrievalService:
+        if self._retrieval is None:
+            self._embeddings = EmbeddingService()
+            self._retrieval = RetrievalService(
+                embeddings=self._embeddings,
+                persist_dir=self._db_dir,
+                collection_name="haruquant_knowledge",
+            )
+        return self._retrieval
 
     def run(self, *, user_id: int, context: dict[str, Any]) -> dict[str, Any]:
         """Execute knowledge retrieval.
@@ -38,7 +44,7 @@ class InternalKnowledgeTool:
             return {"error": "A 'query' string is required in the context to search internal knowledge."}
 
         # Retrieve top 5 most relevant chunks
-        results = self._retrieval.search(query=query, top_k=5)
+        results = self._get_retrieval().search(query=query, top_k=5)
 
         if not results:
             return {

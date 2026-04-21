@@ -89,8 +89,11 @@ class BaseContextBuilder:
             page_title=page_title,
             entity_refs=[],
             summary=ContextSummary(
-                headline="Generic chat context applied",
-                bullets=[f"route={route}", f"builder={self.builder_name}"],
+                headline="This page does not have a specialized chat context yet",
+                bullets=[
+                    "No dashboard, strategy, backtest, optimization, portfolio, or live session was detected from the current route.",
+                    "Open a more specific HaruQuant workspace page for grounded metrics and entity-aware answers.",
+                ],
             ),
             payload={"route": route},
             trust_level="fallback",
@@ -439,6 +442,8 @@ class PageContextAssembler:
 
     def resolve_page_type(self, route: str) -> PageType:
         normalized = route.lower()
+        if normalized == "/":
+            return "dashboard"
         for descriptor in self._registry:
             if descriptor.route_pattern in normalized:
                 return descriptor.page_type
