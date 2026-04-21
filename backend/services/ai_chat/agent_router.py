@@ -25,6 +25,16 @@ class ChatAgentRouter:
 
     def route(self, prompt: str) -> ChatRouteDecision:
         normalized = prompt.lower()
+        if self._looks_like_knowledge_dialogue(normalized):
+            spec = resolve_domain_prompt_spec("knowledge_dialogue")
+            return ChatRouteDecision(
+                response_mode=ChatResponseMode.ANSWER,
+                task_class="knowledge_dialogue",
+                model_tier="standard",
+                rationale="Prompt requests internal documentation or workflow knowledge.",
+                response_style=spec.response_style,
+                domain_focus=spec.domain_focus,
+            )
         if any(keyword in normalized for keyword in ("compare", "versus", "vs", "better than")):
             spec = resolve_domain_prompt_spec("comparison")
             return ChatRouteDecision(
@@ -111,3 +121,24 @@ class ChatAgentRouter:
     def _contains_action_phrase(normalized_prompt: str, *, noun: str) -> bool:
         pattern = rf"\b(?:launch|run|start)\s+(?:an?\s+|the\s+|this\s+)?{re.escape(noun)}\b"
         return re.search(pattern, normalized_prompt) is not None
+
+    @staticmethod
+    def _looks_like_knowledge_dialogue(normalized_prompt: str) -> bool:
+        knowledge_keywords = (
+            "docs",
+            "documentation",
+            "runbook",
+            "runbooks",
+            "playbook",
+            "policy",
+            "policies",
+            "architecture",
+            "implementation plan",
+            "rollout",
+            "rbac",
+            "support sop",
+            "knowledge base",
+            "what does haruquant",
+            "how does haruquant",
+        )
+        return any(keyword in normalized_prompt for keyword in knowledge_keywords)

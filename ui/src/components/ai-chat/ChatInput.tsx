@@ -43,7 +43,7 @@ export function ChatInput({
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about the current page, strategy, or workflow..."
+          placeholder={isStreaming ? "Assistant is responding..." : "Ask about the current page, strategy, or workflow..."}
           aria-label="Chat input"
           disabled={disabled || isStreaming}
           className="min-h-20 resize-none rounded-md"
@@ -60,7 +60,7 @@ export function ChatInput({
         </Button>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">
-        {isStreaming ? "Streaming response. Use stop to cancel." : "Enter sends. Shift+Enter inserts a new line."}
+        {isStreaming ? "Streaming response. Stop interrupts the current turn." : "Enter sends. Shift+Enter inserts a new line."}
       </p>
     </div>
   )

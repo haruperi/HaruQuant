@@ -19,6 +19,7 @@ from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
 from backend.services.ai_chat.models import ConversationPlan, SpecialistAgentArtifact
 from backend.services.ai_chat.prompt_builder import ChatPromptBuilder, ContextCompactor
+from backend.services.ai_chat.response_composer import ResponseComposer
 from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
 from backend.services.cost import CostEnforcer
@@ -63,6 +64,7 @@ class AIGatewayService:
         conversation_state_service: ConversationStateService | None = None,
         agent_consultation_service: AgentConsultationService | None = None,
         tool_executor: ToolExecutor | None = None,
+        response_composer: ResponseComposer | None = None,
         rate_limiter: ChatRateLimiter | None = None,
         compactor: ContextCompactor | None = None,
         cost_enforcer: CostEnforcer | None = None,
@@ -77,6 +79,7 @@ class AIGatewayService:
         self.conversation_state_service = conversation_state_service or ConversationStateService()
         self.agent_consultation_service = agent_consultation_service or AgentConsultationService()
         self.tool_executor = tool_executor or ToolExecutor(db_manager=context_assembler.db_manager)
+        self.response_composer = response_composer or ResponseComposer()
         self.rate_limiter = rate_limiter or ChatRateLimiter()
         self.compactor = compactor or ContextCompactor()
         self.cost_enforcer = cost_enforcer or CostEnforcer()
@@ -603,6 +606,16 @@ class AIGatewayService:
         response_style: str,
         specialist_artifacts: list[SpecialistAgentArtifact],
     ) -> str:
+        if task_class == "knowledge_dialogue" or any(
+            result.tool_name == "internal_knowledge" and result.success
+            for result in tool_results
+        ):
+            return self.response_composer.compose_knowledge_dialogue(
+                user_prompt=user_prompt,
+                page_context=page_context,
+                tool_results=tool_results,
+                specialist_artifacts=specialist_artifacts,
+            )
         default_text = self._build_default_conversational_fallback(
             user_prompt=user_prompt,
             page_context=page_context,
@@ -720,6 +733,8 @@ class AIGatewayService:
             return f"current risk is best explained by live exposure concentration and floating PnL, with {summary_text or page_context.payload.summary.headline} carrying the main signal"
         if task_class == "recommendation":
             return f"the next research step should follow from the strongest and weakest observed metrics, especially {summary_text or page_context.payload.summary.headline}"
+        if task_class == "knowledge_dialogue":
+            return f"the answer should be anchored on the retrieved internal documents, while keeping {page_context.payload.page_type} page context separate from document guidance"
         return f"the current performance summary should come from the latest HaruQuant metrics, especially {summary_text or page_context.payload.summary.headline}"
 
     @staticmethod
@@ -732,6 +747,8 @@ class AIGatewayService:
             return "Review concentration by symbol and session exposure before considering any supervised action."
         if task_class == "recommendation":
             return "Run the next research step as a backtest, optimization, or risk review rather than a live action."
+        if task_class == "knowledge_dialogue":
+            return "Name the relevant document and keep any page metrics grounded in live HaruQuant state."
         if any(result.tool_name == "optimization_results" for result in tool_results):
             return "Review the top optimization candidates against robustness and drawdown, not score alone."
         return "Use current system metrics as the baseline for any further research decision."

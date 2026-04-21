@@ -78,6 +78,7 @@ class ChatPromptBuilder:
             f"{artifact.agent_name}: {artifact.summary}"
             for artifact in artifacts[:4]
         ] or ["none"]
+        required_sections = "; ".join(prompt_spec.section_headers) if prompt_spec.section_headers else "Natural conversational answer"
 
         system_prompt = "\n".join(
             [
@@ -98,7 +99,7 @@ class ChatPromptBuilder:
                 f"Resolved references: {'; '.join(resolved_references)}",
                 f"User preferences: {'; '.join(user_preferences)}",
                 f"Specialist agent context: {'; '.join(specialist_summaries)}",
-                f"Required sections: {'; '.join(prompt_spec.section_headers)}",
+                f"Required sections: {required_sections}",
                 f"Quantitative rules: {'; '.join(prompt_spec.quantitative_rules)}",
             ]
         )
@@ -124,7 +125,7 @@ class ChatPromptBuilder:
                 f"Specialist summaries: {'; '.join(specialist_summaries)}",
                 "Recent conversation:",
                 *transcript_lines,
-                f"Expected response sections: {'; '.join(prompt_spec.section_headers)}",
+                f"Expected response sections: {required_sections}",
                 "User request:",
                 user_prompt.strip(),
             ]

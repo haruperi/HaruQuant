@@ -1,0 +1,14 @@
+[
+  {
+    "prompt": "Explain the chatbot rollout plan.",
+    "task_class": "knowledge_dialogue",
+    "expected_sources": ["AI_Chatbot_Implementation_Plan.md"],
+    "expected_concepts": ["rollout", "phase", "rollback", "release"]
+  },
+  {
+    "prompt": "What does the support SOP require when the chatbot gives a weak grounded answer?",
+    "task_class": "knowledge_dialogue",
+    "expected_sources": ["AI_Chatbot_Support_SOP.md"],
+    "expected_concepts": ["triage", "grounded", "tool", "verification"]
+  }
+]

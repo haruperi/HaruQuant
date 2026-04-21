@@ -22,9 +22,13 @@ import {
 } from "@/lib/api/ai-chat"
 import type {
   AiChatActionDraft,
+  AiChatCostPolicyMetadata,
   AiChatMessage,
   AiChatResponseMetadata,
+  AiChatResponseStyle,
   AiChatSignalProposal,
+  AiChatSpecialistArtifact,
+  AiChatTelemetryMetadata,
   AiChatThreadDetail,
   AiChatThreadSummary,
 } from "@/lib/ai-chat/contracts"
@@ -44,12 +48,21 @@ export interface ChatMessage {
   signalProposal?: AiChatSignalProposal
   actionDraftId?: string | null
   actionDraft?: AiChatActionDraft
+  responseMode?: string
   responseStyle?: string
   taskClass?: string
   domainFocus?: string
+  answerMode?: string
   generationSource?: string
   providerName?: string | null
   model?: string
+  conversationPlanId?: string
+  clarificationRequired?: boolean
+  activeTopic?: string | null
+  specialistAgentsUsed?: string[]
+  specialistArtifacts?: AiChatSpecialistArtifact[]
+  telemetry?: AiChatTelemetryMetadata
+  costPolicy?: AiChatCostPolicyMetadata
   status?: "ready" | "pending"
 }
 
@@ -103,6 +116,14 @@ const STORAGE_KEYS = {
 
 const DEFAULT_THREAD_TITLE = "New conversation"
 const ChatWidgetStoreContext = React.createContext<ChatWidgetStoreValue | null>(null)
+const AI_CHAT_RESPONSE_STYLES: ReadonlySet<AiChatResponseStyle> = new Set([
+  "summary",
+  "compare",
+  "warning",
+  "recommendation",
+  "diagnostic",
+  "clarification",
+])
 
 function mapApiMessage(
   message: AiChatMessage,
@@ -120,12 +141,21 @@ function mapApiMessage(
     actionDraftId: message.action_draft_id,
     signalProposal: message.signal_proposal_id ? responseMetadata?.signal_proposal : undefined,
     actionDraft: message.action_draft_id ? responseMetadata?.action_draft : undefined,
+    responseMode: responseMetadata?.response_mode,
     responseStyle: responseMetadata?.response_style,
     taskClass: responseMetadata?.task_class,
     domainFocus: responseMetadata?.domain_focus,
+    answerMode: responseMetadata?.answer_mode,
     generationSource: responseMetadata?.generation_source,
     providerName: responseMetadata?.provider_name,
     model: responseMetadata?.model,
+    conversationPlanId: responseMetadata?.conversation_plan_id,
+    clarificationRequired: responseMetadata?.clarification_required,
+    activeTopic: responseMetadata?.active_topic,
+    specialistAgentsUsed: responseMetadata?.specialist_agents_used,
+    specialistArtifacts: responseMetadata?.specialist_artifacts,
+    telemetry: responseMetadata?.telemetry,
+    costPolicy: responseMetadata?.cost_policy,
     status: "ready",
   }
 }
@@ -160,13 +190,34 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
   return {
     request_id: requestId,
     response_mode: typeof payload.response_mode === "string" ? payload.response_mode as AiChatResponseMetadata["response_mode"] : undefined,
-    response_style: typeof payload.response_style === "string" ? payload.response_style : undefined,
+    response_style:
+      typeof payload.response_style === "string" && AI_CHAT_RESPONSE_STYLES.has(payload.response_style as AiChatResponseStyle)
+        ? payload.response_style as AiChatResponseStyle
+        : undefined,
     task_class: typeof payload.task_class === "string" ? payload.task_class : undefined,
     domain_focus: typeof payload.domain_focus === "string" ? payload.domain_focus : undefined,
+    answer_mode: typeof payload.answer_mode === "string" ? payload.answer_mode : undefined,
     generation_source: typeof payload.generation_source === "string" ? payload.generation_source : undefined,
     provider_name: typeof payload.provider_name === "string" ? payload.provider_name : undefined,
     model: typeof payload.model === "string" ? payload.model : undefined,
     tools_used: Array.isArray(payload.tools_used) ? payload.tools_used.filter((value): value is string => typeof value === "string") : undefined,
+    conversation_plan_id: typeof payload.conversation_plan_id === "string" ? payload.conversation_plan_id : undefined,
+    clarification_required: typeof payload.clarification_required === "boolean" ? payload.clarification_required : undefined,
+    active_topic: typeof payload.active_topic === "string" ? payload.active_topic : undefined,
+    specialist_agents_used: Array.isArray(payload.specialist_agents_used)
+      ? payload.specialist_agents_used.filter((value): value is string => typeof value === "string")
+      : undefined,
+    specialist_artifacts: Array.isArray(payload.specialist_artifacts)
+      ? payload.specialist_artifacts.filter((value): value is AiChatSpecialistArtifact => !!value && typeof value === "object") as AiChatSpecialistArtifact[]
+      : undefined,
+    telemetry:
+      payload.telemetry && typeof payload.telemetry === "object"
+        ? payload.telemetry as AiChatTelemetryMetadata
+        : undefined,
+    cost_policy:
+      payload.cost_policy && typeof payload.cost_policy === "object"
+        ? payload.cost_policy as AiChatCostPolicyMetadata
+        : undefined,
     signal_proposal_id: typeof payload.signal_proposal_id === "string" ? payload.signal_proposal_id : undefined,
     action_draft_id: typeof payload.action_draft_id === "string" ? payload.action_draft_id : undefined,
     signal_proposal:
@@ -739,12 +790,21 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                 message.id === pendingAssistant.id
                     ? {
                         ...message,
+                      responseMode: metadata?.response_mode,
                       responseStyle: metadata?.response_style,
                       taskClass: metadata?.task_class,
                       domainFocus: metadata?.domain_focus,
+                      answerMode: metadata?.answer_mode,
                       generationSource: metadata?.generation_source,
                       providerName: metadata?.provider_name,
                       model: metadata?.model,
+                      conversationPlanId: metadata?.conversation_plan_id,
+                      clarificationRequired: metadata?.clarification_required,
+                      activeTopic: metadata?.active_topic,
+                      specialistAgentsUsed: metadata?.specialist_agents_used,
+                      specialistArtifacts: metadata?.specialist_artifacts,
+                      telemetry: metadata?.telemetry,
+                      costPolicy: metadata?.cost_policy,
                     }
                   : message,
               ),
@@ -838,12 +898,21 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                 message.id === pendingAssistant.id
                     ? {
                         ...message,
+                      responseMode: metadata?.response_mode,
                       responseStyle: metadata?.response_style,
                       taskClass: metadata?.task_class,
                       domainFocus: metadata?.domain_focus,
+                      answerMode: metadata?.answer_mode,
                       generationSource: metadata?.generation_source,
                       providerName: metadata?.provider_name,
                       model: metadata?.model,
+                      conversationPlanId: metadata?.conversation_plan_id,
+                      clarificationRequired: metadata?.clarification_required,
+                      activeTopic: metadata?.active_topic,
+                      specialistAgentsUsed: metadata?.specialist_agents_used,
+                      specialistArtifacts: metadata?.specialist_artifacts,
+                      telemetry: metadata?.telemetry,
+                      costPolicy: metadata?.cost_policy,
                     }
                   : message,
               ),

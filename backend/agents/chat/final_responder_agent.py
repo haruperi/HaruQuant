@@ -29,9 +29,24 @@ class FinalResponderAgent:
         for artifact in specialist_artifacts:
             evidence.extend(artifact.evidence[:2])
         evidence_text = "; ".join(evidence[:3])
+        sources = []
+        for artifact in specialist_artifacts:
+            sources.extend(artifact.sources[:2])
+        source_text = ", ".join(dict.fromkeys(sources))
         recommendations = [artifact.recommendation for artifact in specialist_artifacts if artifact.recommendation]
         recommendation = recommendations[0] if recommendations else None
 
+        if task_class == "knowledge_dialogue":
+            return " ".join(
+                part for part in (
+                    summaries,
+                    findings and f"The most relevant documentation says {findings}",
+                    source_text and f"Relevant sources: {source_text}.",
+                    recommendation,
+                    default_text,
+                )
+                if part
+            )
         if task_class == "comparison":
             return " ".join(
                 part for part in (

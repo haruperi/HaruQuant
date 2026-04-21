@@ -44,6 +44,35 @@ class ClarificationPolicy:
         "describe this page",
     )
 
+    _KNOWLEDGE_BROAD_PHRASES = (
+        "docs",
+        "documentation",
+        "show docs",
+        "show me the docs",
+        "explain the docs",
+        "runbooks",
+        "policies",
+        "architecture docs",
+    )
+
+    _KNOWLEDGE_SPECIFICITY_MARKERS = (
+        "chatbot",
+        "rollout",
+        "runbook",
+        "policy",
+        "architecture",
+        "rbac",
+        "support",
+        "implementation plan",
+        "execution safety",
+        "strategy",
+        "agent",
+        "workflow",
+        "backtest",
+        "optimization",
+        "risk",
+    )
+
     def evaluate(
         self,
         *,
@@ -77,6 +106,13 @@ class ClarificationPolicy:
                 needs_clarification=True,
                 question=self._build_reference_question(route_decision=route_decision),
                 rationale="Prompt relies on unresolved references and current context does not identify the target entity.",
+            )
+
+        if self._needs_knowledge_clarification(normalized=normalized, route_decision=route_decision):
+            return ClarificationDecision(
+                needs_clarification=True,
+                question="Which document area do you want: architecture, rollout, runbooks, governance, or strategy workflows?",
+                rationale="Prompt asks for internal documentation, but the requested document area is too broad.",
             )
 
         return ClarificationDecision(needs_clarification=False)
@@ -167,3 +203,13 @@ class ClarificationPolicy:
         if route_decision.task_class == "risk_explanation":
             return "Which portfolio, strategy, or live session should I explain the risk for?"
         return "Which strategy, run, or page state are you referring to?"
+
+    def _needs_knowledge_clarification(self, *, normalized: str, route_decision: ChatRouteDecision) -> bool:
+        if route_decision.task_class != "knowledge_dialogue":
+            return False
+        if any(marker in normalized for marker in self._KNOWLEDGE_SPECIFICITY_MARKERS):
+            return False
+        return normalized in self._KNOWLEDGE_BROAD_PHRASES or any(
+            normalized.startswith(phrase)
+            for phrase in ("show me the docs", "explain the docs", "documentation for", "docs for")
+        )

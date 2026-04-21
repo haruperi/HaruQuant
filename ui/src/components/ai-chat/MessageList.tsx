@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { AlertTriangle, Loader2, Scale, Sparkles, TrendingUp, TriangleAlert, User2 } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -16,6 +17,7 @@ interface MessageListProps {
   onRequestActionDraftApproval?: (draftId: string) => void
   onExecutePaperActionDraft?: (draftId: string) => void
   onSaveSignalProposalToWatchlist?: (proposalId: string) => void
+  showDebug?: boolean
 }
 
 function formatTimestamp(value: string): string {
@@ -31,16 +33,25 @@ function formatGenerationMeta(message: ChatMessage): string | null {
     ? "live"
     : message.generationSource === "fallback"
       ? "fallback"
-      : null
+      : message.generationSource === "clarification_policy"
+        ? "policy"
+        : null
   if (!source && !message.providerName && !message.model) {
     return null
   }
   const parts = [source, message.providerName, message.model].filter(Boolean)
-  return parts.length > 0 ? parts.join(" · ") : null
+  return parts.length > 0 ? parts.join(" | ") : null
 }
 
 function getResponseStyleConfig(responseStyle?: string) {
   switch (responseStyle) {
+    case "clarification":
+      return {
+        label: "Clarification",
+        icon: Sparkles,
+        bubbleClassName: "border-orange-500/40 bg-orange-500/5",
+        badgeClassName: "border border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+      }
     case "diagnostic":
       return {
         label: "Diagnostic",
@@ -100,6 +111,18 @@ function renderMessageContent(content: string) {
   })
 }
 
+function renderListItems(items: string[]) {
+  return (
+    <ul className="space-y-1">
+      {items.map((item, index) => (
+        <li key={`${item}_${index}`} className="break-words">
+          - {item}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function MessageList({
   messages,
   isInitializing,
@@ -109,7 +132,14 @@ export function MessageList({
   onRequestActionDraftApproval,
   onExecutePaperActionDraft,
   onSaveSignalProposalToWatchlist,
+  showDebug = false,
 }: MessageListProps) {
+  const endRef = React.useRef<HTMLDivElement | null>(null)
+
+  React.useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [isInitializing, messages.length])
+
   return (
     <ScrollArea className="h-full">
       <div className="flex min-h-full flex-col gap-3 p-4">
@@ -135,7 +165,7 @@ export function MessageList({
               </p>
               <p className="max-w-xs text-xs text-muted-foreground">
                 {isOnline
-                  ? "Persistent threads, styled copilot responses, and page-aware grounding are ready."
+                  ? "Persistent threads, page-aware grounding, and conversational specialist support are ready."
                   : "Draft text is still preserved locally, but replies are disabled until connectivity returns."}
               </p>
               {error ? (
@@ -151,6 +181,15 @@ export function MessageList({
               const styleConfig = getResponseStyleConfig(message.responseStyle)
               const StyleIcon = styleConfig.icon
               const generationMeta = formatGenerationMeta(message)
+              const isClarification = message.role === "assistant" && message.responseStyle === "clarification"
+              const toolItems = message.toolCalls ?? []
+              const sourceItems = (message.specialistArtifacts ?? [])
+                .flatMap((artifact) => artifact.sources ?? [])
+                .filter((value, index, values) => values.indexOf(value) === index)
+              const specialistItems = (message.specialistArtifacts ?? []).map(
+                (artifact) => `${artifact.agent_name}: ${artifact.summary}`,
+              )
+
               return (
                 <div
                   key={message.id}
@@ -195,18 +234,64 @@ export function MessageList({
                           {styleConfig.label}
                         </span>
                       ) : null}
-                      {message.status === "pending" && (
+                      {message.status === "pending" ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin" />
-                          Thinking
+                          Responding
                         </>
-                      )}
+                      ) : null}
                     </div>
-                    <div className="space-y-1">{renderMessageContent(message.content || "...")}</div>
-                    {message.role === "assistant" && message.toolCalls && message.toolCalls.length > 0 ? (
-                      <p className="mt-2 text-[11px] text-muted-foreground">
-                        Tools used: {message.toolCalls.join(", ")}
+                    {isClarification ? (
+                      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        I need one detail before I answer.
                       </p>
+                    ) : null}
+                    <div className="space-y-1">{renderMessageContent(message.content || "...")}</div>
+                    {message.role === "assistant" && (toolItems.length > 0 || sourceItems.length > 0 || specialistItems.length > 0) ? (
+                      <div className="mt-3 space-y-2">
+                        {toolItems.length > 0 ? (
+                          <details className="rounded-md border bg-muted/30 px-2 py-1.5 text-[11px] text-muted-foreground">
+                            <summary className="cursor-pointer font-medium text-foreground">Tools used</summary>
+                            <div className="mt-2">{renderListItems(toolItems)}</div>
+                          </details>
+                        ) : null}
+                        {sourceItems.length > 0 ? (
+                          <details className="rounded-md border bg-muted/30 px-2 py-1.5 text-[11px] text-muted-foreground">
+                            <summary className="cursor-pointer font-medium text-foreground">Sources used</summary>
+                            <div className="mt-2">{renderListItems(sourceItems)}</div>
+                          </details>
+                        ) : null}
+                        {specialistItems.length > 0 ? (
+                          <details className="rounded-md border bg-muted/30 px-2 py-1.5 text-[11px] text-muted-foreground">
+                            <summary className="cursor-pointer font-medium text-foreground">Specialists consulted</summary>
+                            <div className="mt-2">{renderListItems(specialistItems)}</div>
+                          </details>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {message.role === "assistant" && showDebug ? (
+                      <details className="mt-3 rounded-md border bg-muted/30 px-2 py-1.5 text-[11px] text-muted-foreground">
+                        <summary className="cursor-pointer font-medium text-foreground">Debug</summary>
+                        <div className="mt-2 space-y-2">
+                          {renderListItems(
+                            [
+                              message.responseMode ? `response mode: ${message.responseMode}` : null,
+                              message.answerMode ? `answer mode: ${message.answerMode}` : null,
+                              message.taskClass ? `task class: ${message.taskClass}` : null,
+                              message.domainFocus ? `domain focus: ${message.domainFocus}` : null,
+                              message.activeTopic ? `active topic: ${message.activeTopic}` : null,
+                              message.conversationPlanId ? `plan id: ${message.conversationPlanId}` : null,
+                              typeof message.clarificationRequired === "boolean"
+                                ? `clarification required: ${message.clarificationRequired}`
+                                : null,
+                              message.telemetry?.latency_ms != null ? `latency: ${message.telemetry.latency_ms} ms` : null,
+                              message.telemetry?.total_tokens != null ? `tokens: ${message.telemetry.total_tokens}` : null,
+                              message.costPolicy?.budget_downgraded ? "cost policy downgraded model for budget" : null,
+                              message.costPolicy?.within_workflow_budget === false ? "workflow budget exceeded" : null,
+                            ].filter((value): value is string => Boolean(value)),
+                          )}
+                        </div>
+                      </details>
                     ) : null}
                     {message.signalProposal ? (
                       <div className="mt-3 rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground">
@@ -274,6 +359,7 @@ export function MessageList({
                 </div>
               )
             })}
+            <div ref={endRef} />
           </div>
         )}
       </div>

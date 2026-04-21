@@ -1,0 +1,25 @@
+{
+  "initialized": true,
+  "running": true,
+  "state": {
+    "enabled": true,
+    "paused": false,
+    "last_run": "2026-04-21T14:26:50.053199",
+    "trade_count_today": 0,
+    "last_reset_date": "2026-04-21"
+  },
+  "portfolio": {
+    "total_positions": 0,
+    "buy_positions": 0,
+    "sell_positions": 0,
+    "balance": 50040.63,
+    "equity": 50040.63,
+    "margin": 0.0,
+    "free_margin": 50040.63,
+    "margin_level": 0.0,
+    "profit": 0.0,
+    "top_symbols": [],
+    "currency_exposure": {}
+  },
+  "strategies": []
+}

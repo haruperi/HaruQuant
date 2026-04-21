@@ -13,6 +13,7 @@ from .context_service import (
     RouteContextDescriptor,
 )
 from .prompt_builder import BuiltPrompt, ChatPromptBuilder
+from .response_composer import ResponseComposer
 from .models import (
     ActionDraftRecord,
     ConversationPlan,
@@ -60,6 +61,7 @@ __all__ = [
     "PageContextAssembler",
     "PinnedFact",
     "RouteContextDescriptor",
+    "ResponseComposer",
     "SignalProposalRecord",
     "ToolPermissionTier",
 ]

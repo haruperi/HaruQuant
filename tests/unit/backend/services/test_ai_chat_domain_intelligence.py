@@ -19,6 +19,7 @@ def test_agent_router_returns_domain_specific_styles() -> None:
     diagnostic = router.route("Why is this strategy underperforming with higher drawdown?")
     comparison = router.route("Compare optimization run A versus run B")
     risk = router.route("Explain the current portfolio risk and exposure")
+    knowledge = router.route("Explain the chatbot rollout runbook documentation")
 
     assert diagnostic.task_class == "diagnostic"
     assert diagnostic.response_style == "diagnostic"
@@ -26,6 +27,8 @@ def test_agent_router_returns_domain_specific_styles() -> None:
     assert comparison.response_style == "compare"
     assert risk.task_class == "risk_explanation"
     assert risk.response_style == "warning"
+    assert knowledge.task_class == "knowledge_dialogue"
+    assert knowledge.domain_focus == "knowledge_dialogue"
 
 
 def test_prompt_builder_includes_domain_sections(tmp_path) -> None:
@@ -61,6 +64,39 @@ def test_prompt_builder_includes_domain_sections(tmp_path) -> None:
     assert "Expected response sections: Observed State; Likely Drivers; Next Checks" in built.user_prompt
     assert "Conversation resolved references:" in built.user_prompt
     assert built.debug["response_style"] == "diagnostic"
+
+
+def test_prompt_builder_uses_conversational_shape_for_knowledge_dialogue(tmp_path) -> None:
+    database_path = tmp_path / "agentic_phase7_prompt_knowledge.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1)
+    page_context = PageContextAssembler(db_manager=db).assemble_context(
+        route="/dashboard",
+        user_id=1,
+    )
+    conversation_state = ConversationStateService().build_state(
+        thread=thread,
+        page_context=page_context,
+        latest_prompt="Explain the chatbot rollout runbook",
+    )
+
+    built = ChatPromptBuilder().build(
+        thread=thread,
+        page_context=page_context,
+        conversation_state=conversation_state,
+        specialist_artifacts=[],
+        user_prompt="Explain the chatbot rollout runbook",
+        response_mode="tool_assisted",
+        task_class="knowledge_dialogue",
+    )
+
+    assert "Task class: knowledge_dialogue" in built.system_prompt
+    assert "Required sections: Natural conversational answer" in built.system_prompt
+    assert "Expected response sections: Natural conversational answer" in built.user_prompt
+    assert built.debug["task_class"] == "knowledge_dialogue"
 
 
 def test_ai_gateway_phase7_returns_structured_domain_metadata(tmp_path) -> None:

@@ -8,8 +8,8 @@ import { MessageList } from "@/components/ai-chat/MessageList"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { ChatMessage } from "@/stores/chatWidgetStore"
 import { cn } from "@/lib/utils"
+import type { ChatMessage } from "@/stores/chatWidgetStore"
 
 interface ChatPanelProps {
   isOpen: boolean
@@ -66,6 +66,28 @@ function formatUpdatedAt(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
+function formatRuntimeMeta(message: ChatMessage | undefined): string | null {
+  if (!message || message.role !== "assistant") {
+    return null
+  }
+
+  const source = message.generationSource === "llm_runtime"
+    ? "Runtime"
+    : message.generationSource === "fallback"
+      ? "Fallback"
+      : message.generationSource === "clarification_policy"
+        ? "Clarification policy"
+        : message.generationSource
+
+  const parts = [
+    source ? `source: ${source}` : null,
+    message.providerName ? `provider: ${message.providerName}` : null,
+    message.model ? `model: ${message.model}` : null,
+  ].filter((value): value is string => Boolean(value))
+
+  return parts.length > 0 ? parts.join(" | ") : null
+}
+
 export function ChatPanel({
   isOpen,
   isHydrated,
@@ -100,6 +122,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const panelRef = React.useRef<HTMLDivElement | null>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const [showDebug, setShowDebug] = React.useState(false)
 
   React.useEffect(() => {
     if (!isOpen || !isHydrated) {
@@ -156,6 +179,15 @@ export function ChatPanel({
     }
   }, [onRenameThread, threadTitle])
 
+  const latestAssistantMessage = React.useMemo(
+    () => [...messages].reverse().find((message) => message.role === "assistant"),
+    [messages],
+  )
+  const runtimeMeta = React.useMemo(
+    () => formatRuntimeMeta(latestAssistantMessage),
+    [latestAssistantMessage],
+  )
+
   return (
     <aside
       aria-hidden={!isOpen}
@@ -173,6 +205,7 @@ export function ChatPanel({
         isOnline={isOnline}
         isRestoring={isRestoring}
         threadTitle={threadTitle}
+        runtimeMeta={runtimeMeta}
         onClose={onClose}
       />
       <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[16rem_minmax(0,1fr)]">
@@ -214,7 +247,7 @@ export function ChatPanel({
                 >
                   <div className="truncate font-medium">{thread.title}</div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
-                    {thread.pageType ?? "generic"} · {formatUpdatedAt(thread.updatedAt)}
+                    {thread.pageType ?? "generic"} | {formatUpdatedAt(thread.updatedAt)}
                   </div>
                 </button>
               ))}
@@ -227,9 +260,20 @@ export function ChatPanel({
         <div className="flex min-h-0 flex-col">
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2 text-[11px] text-muted-foreground">
             <span>{activeResponseStatus ?? "Durable thread memory active."}</span>
-            <Button type="button" variant="ghost" size="sm" onClick={onRegenerate} disabled={!threadId || isStreaming || messages.length === 0}>
-              Regenerate
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDebug((current) => !current)}
+                disabled={messages.length === 0}
+              >
+                {showDebug ? "Hide debug" : "Show debug"}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={onRegenerate} disabled={!threadId || isStreaming || messages.length === 0}>
+                Regenerate
+              </Button>
+            </div>
           </div>
           <div className="min-h-0 flex-1">
             <MessageList
@@ -241,6 +285,7 @@ export function ChatPanel({
               onRequestActionDraftApproval={onRequestActionDraftApproval}
               onExecutePaperActionDraft={onExecutePaperActionDraft}
               onSaveSignalProposalToWatchlist={onSaveSignalProposalToWatchlist}
+              showDebug={showDebug}
             />
           </div>
           <ChatInput

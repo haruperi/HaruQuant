@@ -15,6 +15,17 @@ class DomainPromptSpec:
 
 
 DOMAIN_PROMPT_SPECS: dict[str, DomainPromptSpec] = {
+    "knowledge_dialogue": DomainPromptSpec(
+        domain_focus="knowledge_dialogue",
+        response_style="summary",
+        prompt_goal="Answer internal HaruQuant documentation and workflow questions in a conversational way using retrieved documents plus current page and thread context.",
+        quantitative_rules=(
+            "Answer directly before listing evidence.",
+            "Name the most relevant document or file when available.",
+            "Do not present retrieved text as current live system state.",
+        ),
+        section_headers=(),
+    ),
     "action_draft": DomainPromptSpec(
         domain_focus="supervised_action_draft",
         response_style="recommendation",

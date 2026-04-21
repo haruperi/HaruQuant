@@ -3,18 +3,19 @@
 import { usePathname } from "next/navigation"
 import { Wifi, WifiOff, X } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { getRouteAwareChatLabel } from "@/components/ai-chat/route-label"
 
 interface ChatHeaderProps {
   isOnline: boolean
   isRestoring: boolean
   threadTitle: string
+  runtimeMeta?: string | null
   onClose: () => void
 }
 
-export function ChatHeader({ isOnline, isRestoring, threadTitle, onClose }: ChatHeaderProps) {
+export function ChatHeader({ isOnline, isRestoring, threadTitle, runtimeMeta, onClose }: ChatHeaderProps) {
   const pathname = usePathname()
   const label = getRouteAwareChatLabel(pathname)
 
@@ -38,8 +39,13 @@ export function ChatHeader({ isOnline, isRestoring, threadTitle, onClose }: Chat
           </Badge>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {isRestoring ? "Restoring durable thread state..." : `${threadTitle} · durable thread memory active.`}
+          {isRestoring ? "Restoring durable thread state..." : `${threadTitle} | durable thread memory active.`}
         </p>
+        {runtimeMeta ? (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {runtimeMeta}
+          </p>
+        ) : null}
       </div>
       <Button
         type="button"

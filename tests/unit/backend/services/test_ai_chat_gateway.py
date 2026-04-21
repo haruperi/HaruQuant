@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.ai_chat import (
@@ -8,6 +10,41 @@ from backend.services.ai_chat import (
     ConversationService,
     PageContextAssembler,
 )
+from backend.services.tool_executor import ToolExecutionResult
+
+
+class _KnowledgeToolExecutor:
+    def execute(self, *, user_id, requested_tools, context, authority_band="read_only", permission_tier="T1_READ_ONLY"):
+        return (
+            [
+                ToolExecutionResult(
+                    tool_name="internal_knowledge",
+                    payload={
+                        "query": context.get("query"),
+                        "matches": [
+                            {
+                                "content": "The rollout plan defines phased release rings, rollback checks, and operator sign-off before promotion.",
+                                "relevance_score": 0.94,
+                                "citation": "AI_Chatbot_Implementation_Plan.md",
+                                "chunk": "chunk_01",
+                                "filename": "AI_Chatbot_Implementation_Plan.md",
+                            },
+                            {
+                                "content": "The support SOP requires incident triage, escalation, and verification of grounded tool behavior before closing the case.",
+                                "relevance_score": 0.88,
+                                "citation": "AI_Chatbot_Support_SOP.md",
+                                "chunk": "chunk_02",
+                                "filename": "AI_Chatbot_Support_SOP.md",
+                            },
+                        ],
+                        "message": "Found 2 relevant excerpts from internal knowledge.",
+                    },
+                    latency_ms=12,
+                    success=True,
+                )
+            ],
+            tuple(),
+        )
 
 
 def test_ai_gateway_stream_response_persists_user_and_assistant_messages(tmp_path) -> None:
@@ -189,6 +226,38 @@ def test_ai_gateway_returns_clarification_question_for_unresolved_reference(tmp_
     assert "which two runs or strategies" in content.lower()
 
 
+def test_ai_gateway_returns_clarification_for_broad_docs_request(tmp_path) -> None:
+    database_path = tmp_path / "agentic_docs_clarification_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="broad_docs@example.com", username="broad_docs_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/dashboard",
+        current_page_type="dashboard",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    metadata, chunks, _message_id = gateway.stream_response(
+        ChatStreamRequest(
+            user_id=1,
+            thread_id=thread.thread_id,
+            prompt="docs",
+        )
+    )
+    content = "".join(chunks)
+
+    assert metadata["answer_mode"] == "clarification"
+    assert metadata["clarification_required"] is True
+    assert "which document area" in content.lower()
+
+
 def test_ai_gateway_resolves_previous_run_from_thread_state(tmp_path) -> None:
     database_path = tmp_path / "agentic_reference_gateway.db"
     db = DatabaseManager(db_path=str(database_path))
@@ -227,3 +296,42 @@ def test_ai_gateway_resolves_previous_run_from_thread_state(tmp_path) -> None:
     assert "optimization_comparison_agent" in metadata["specialist_agents_used"]
     assert "backtest_summary" in metadata["tools_used"]
     assert "comparison" in content.lower()
+
+
+def test_ai_gateway_uses_conversational_retrieval_fallback_for_docs_queries(tmp_path) -> None:
+    database_path = tmp_path / "agentic_docs_dialogue_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="knowledge@example.com", username="knowledge_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/dashboard",
+        current_page_type="dashboard",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+        tool_executor=_KnowledgeToolExecutor(),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="Explain the chatbot rollout runbook and support SOP.",
+            )
+        )
+
+    content = "".join(chunks)
+
+    assert metadata["task_class"] == "knowledge_dialogue"
+    assert metadata["generation_source"] == "fallback"
+    assert metadata["tools_used"] == ["internal_knowledge"]
+    assert metadata["specialist_agents_used"] == ["knowledge_retrieval_agent"]
+    assert "AI_Chatbot_Implementation_Plan.md" in content
+    assert "AI_Chatbot_Support_SOP.md" in content
+    assert "rollout plan defines phased release rings" in content.lower()

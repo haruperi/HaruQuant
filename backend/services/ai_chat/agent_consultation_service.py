@@ -5,6 +5,7 @@ from __future__ import annotations
 from backend.agents.chat import (
     BacktestExplainerAgent,
     FinalResponderAgent,
+    KnowledgeRetrievalAgent,
     OptimizationComparisonAgent,
     PortfolioRiskAgent,
 )
@@ -21,11 +22,13 @@ class AgentConsultationService:
         backtest_explainer_agent: BacktestExplainerAgent | None = None,
         portfolio_risk_agent: PortfolioRiskAgent | None = None,
         optimization_comparison_agent: OptimizationComparisonAgent | None = None,
+        knowledge_retrieval_agent: KnowledgeRetrievalAgent | None = None,
         final_responder_agent: FinalResponderAgent | None = None,
     ) -> None:
         self.backtest_explainer_agent = backtest_explainer_agent or BacktestExplainerAgent()
         self.portfolio_risk_agent = portfolio_risk_agent or PortfolioRiskAgent()
         self.optimization_comparison_agent = optimization_comparison_agent or OptimizationComparisonAgent()
+        self.knowledge_retrieval_agent = knowledge_retrieval_agent or KnowledgeRetrievalAgent()
         self.final_responder_agent = final_responder_agent or FinalResponderAgent()
 
     def consult(
@@ -84,6 +87,18 @@ class AgentConsultationService:
             )
             if supplemental is not None:
                 artifacts.append(supplemental)
+        elif plan.task_class == "knowledge_dialogue" or any(
+            result.tool_name == "internal_knowledge" and result.success
+            for result in tool_results
+        ):
+            artifact = self.knowledge_retrieval_agent.analyze(
+                task_class=plan.task_class,
+                tool_results=tool_results,
+                page_context=page_context,
+                tool_context=tool_context,
+            )
+            if artifact is not None:
+                artifacts.append(artifact)
         return artifacts
 
     def compose_final_response(

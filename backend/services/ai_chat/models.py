@@ -159,6 +159,7 @@ class SpecialistAgentArtifact(BaseModel):
     summary: str = Field(min_length=1)
     findings: list[str] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
     recommendation: str | None = None
     confidence: int = Field(ge=0, le=100, default=60)
 
