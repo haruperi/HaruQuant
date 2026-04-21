@@ -12,11 +12,12 @@ from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
 from backend.config.agent_model import get_model_for_tier
 from backend.observability.cost_tracker import calculate_cost
 from backend.services.ai_chat.agent_router import ChatAgentRouter
+from backend.services.ai_chat.agent_consultation_service import AgentConsultationService
 from backend.services.ai_chat.conversation_orchestrator import ConversationOrchestrator
 from backend.services.ai_chat.conversation_state_service import ConversationStateService
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
-from backend.services.ai_chat.models import ConversationPlan
+from backend.services.ai_chat.models import ConversationPlan, SpecialistAgentArtifact
 from backend.services.ai_chat.prompt_builder import ChatPromptBuilder, ContextCompactor
 from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
@@ -60,6 +61,7 @@ class AIGatewayService:
         agent_router: ChatAgentRouter | None = None,
         conversation_orchestrator: ConversationOrchestrator | None = None,
         conversation_state_service: ConversationStateService | None = None,
+        agent_consultation_service: AgentConsultationService | None = None,
         tool_executor: ToolExecutor | None = None,
         rate_limiter: ChatRateLimiter | None = None,
         compactor: ContextCompactor | None = None,
@@ -73,6 +75,7 @@ class AIGatewayService:
             agent_router=self.agent_router,
         )
         self.conversation_state_service = conversation_state_service or ConversationStateService()
+        self.agent_consultation_service = agent_consultation_service or AgentConsultationService()
         self.tool_executor = tool_executor or ToolExecutor(db_manager=context_assembler.db_manager)
         self.rate_limiter = rate_limiter or ChatRateLimiter()
         self.compactor = compactor or ContextCompactor()
@@ -126,6 +129,14 @@ class AIGatewayService:
                 context=tool_context,
                 authority_band=AuthorityBand.READ_ONLY,
             )
+            specialist_artifacts = self.agent_consultation_service.consult(
+                plan=plan,
+                page_context=page_context,
+                conversation_state=conversation_state,
+                tool_context=tool_context,
+                tool_results=tool_results,
+            )
+            plan.agents_to_consult = [artifact.agent_name for artifact in specialist_artifacts]
             signal_proposal = None
             action_draft = None
             if plan.response_mode == "signal_proposal":
@@ -150,6 +161,7 @@ class AIGatewayService:
                 thread=thread,
                 page_context=page_context,
                 conversation_state=conversation_state,
+                specialist_artifacts=specialist_artifacts,
                 user_prompt=self._compose_grounded_user_prompt(
                     prompt=request.prompt,
                     tool_results=tool_results,
@@ -234,6 +246,7 @@ class AIGatewayService:
                 response_style=plan.response_style,
                 signal_proposal=signal_proposal,
                 action_draft=action_draft,
+                specialist_artifacts=specialist_artifacts,
             )
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             cost = self._calculate_cost(
@@ -297,6 +310,8 @@ class AIGatewayService:
                 "tools_used": [result.tool_name for result in tool_results if result.success],
                 "tools_denied": list(denied_tools),
                 "active_topic": conversation_state.active_topic,
+                "specialist_agents_used": [artifact.agent_name for artifact in specialist_artifacts],
+                "specialist_artifacts": [artifact.model_dump(mode="json") for artifact in specialist_artifacts],
                 "telemetry": {
                     "latency_ms": latency_ms,
                     "prompt_tokens": gen_result.prompt_tokens,
@@ -323,6 +338,7 @@ class AIGatewayService:
                     "router_rationale": plan.rationale,
                     "conversation_plan": plan.model_dump(mode="json"),
                     "conversation_state": conversation_state.model_dump(mode="json"),
+                    "specialist_artifacts": [artifact.model_dump(mode="json") for artifact in specialist_artifacts],
                     "prompt": built_prompt.debug,
                 }
             
@@ -396,6 +412,8 @@ class AIGatewayService:
             "context_revision": page_context.payload.context_revision,
             "tools_used": [],
             "tools_denied": [],
+            "specialist_agents_used": [],
+            "specialist_artifacts": [],
             "telemetry": {
                 "latency_ms": 0,
                 "prompt_tokens": None,
@@ -468,6 +486,7 @@ class AIGatewayService:
         response_style: str,
         signal_proposal=None,
         action_draft=None,
+        specialist_artifacts: list[SpecialistAgentArtifact] | None = None,
     ) -> GenerationResult:
         try:
             runtime = create_llm_runtime(
@@ -500,6 +519,7 @@ class AIGatewayService:
             response_style=response_style,
             signal_proposal=signal_proposal,
             action_draft=action_draft,
+            specialist_artifacts=specialist_artifacts or [],
         )
         return GenerationResult(text=fallback_text, generation_source="fallback", provider_name=None)
 
@@ -514,6 +534,7 @@ class AIGatewayService:
         response_style: str,
         signal_proposal=None,
         action_draft=None,
+        specialist_artifacts: list[SpecialistAgentArtifact],
     ) -> str:
         if signal_proposal is not None:
             return "\n".join(
@@ -569,9 +590,36 @@ class AIGatewayService:
             tool_results=tool_results,
             task_class=task_class,
             response_style=response_style,
+            specialist_artifacts=specialist_artifacts,
         )
 
     def _build_conversational_fallback(
+        self,
+        *,
+        user_prompt: str,
+        page_context,
+        tool_results: list[ToolExecutionResult],
+        task_class: str,
+        response_style: str,
+        specialist_artifacts: list[SpecialistAgentArtifact],
+    ) -> str:
+        default_text = self._build_default_conversational_fallback(
+            user_prompt=user_prompt,
+            page_context=page_context,
+            tool_results=tool_results,
+            task_class=task_class,
+            response_style=response_style,
+        )
+        return self.agent_consultation_service.compose_final_response(
+            user_prompt=user_prompt,
+            task_class=task_class,
+            page_context=page_context,
+            tool_results=tool_results,
+            specialist_artifacts=specialist_artifacts,
+            default_text=default_text,
+        )
+
+    def _build_default_conversational_fallback(
         self,
         *,
         user_prompt: str,

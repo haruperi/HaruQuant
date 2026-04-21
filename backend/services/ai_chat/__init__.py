@@ -1,6 +1,7 @@
 """Phase 0 AI chatbot contracts and service scaffolds."""
 
 from .agent_router import ChatAgentRouter, ChatRouteDecision
+from .agent_consultation_service import AgentConsultationService
 from .ai_gateway import AIGatewayService, ChatStreamRequest
 from .clarification_policy import ClarificationDecision, ClarificationPolicy
 from .conversation_orchestrator import ConversationOrchestrator
@@ -34,6 +35,7 @@ from .stream_manager import ChatStreamManager
 __all__ = [
     "ALLOWED_TIERS_BY_AUTHORITY_BAND",
     "ActionDraftRecord",
+    "AgentConsultationService",
     "AIGatewayService",
     "AuthorityBand",
     "BuiltPrompt",

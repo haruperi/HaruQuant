@@ -151,6 +151,18 @@ class ConversationState(BaseModel):
     source_message_count: int = Field(ge=0, default=0)
 
 
+class SpecialistAgentArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_name: str = Field(min_length=1)
+    task_class: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    findings: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    recommendation: str | None = None
+    confidence: int = Field(ge=0, le=100, default=60)
+
+
 class ConversationThreadRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -223,5 +235,6 @@ __all__ = [
     "RetentionClass",
     "SignalProposalRecord",
     "SignalProposalStatus",
+    "SpecialistAgentArtifact",
     "ThreadStatus",
 ]

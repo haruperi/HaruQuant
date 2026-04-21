@@ -42,6 +42,7 @@ def test_ai_gateway_stream_response_persists_user_and_assistant_messages(tmp_pat
     assert metadata["task_class"] == "diagnostic"
     assert metadata["response_style"] == "diagnostic"
     assert metadata["tools_used"] == ["portfolio_summary", "risk_snapshot"]
+    assert metadata["specialist_agents_used"] == ["portfolio_risk_agent"]
     assert message_id == refreshed.messages[-1].message_id
     assert refreshed.messages[-2].role == "user"
     assert refreshed.messages[-1].role == "assistant"
@@ -223,5 +224,6 @@ def test_ai_gateway_resolves_previous_run_from_thread_state(tmp_path) -> None:
 
     assert metadata["answer_mode"] == "direct_answer"
     assert metadata["clarification_required"] is False
+    assert "optimization_comparison_agent" in metadata["specialist_agents_used"]
     assert "backtest_summary" in metadata["tools_used"]
     assert "comparison" in content.lower()

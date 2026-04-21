@@ -49,6 +49,7 @@ def test_prompt_builder_includes_domain_sections(tmp_path) -> None:
         thread=thread,
         page_context=page_context,
         conversation_state=conversation_state,
+        specialist_artifacts=[],
         user_prompt="Diagnose the current equity curve weakness",
         response_mode="tool_assisted",
         task_class="diagnostic",
@@ -92,5 +93,6 @@ def test_ai_gateway_phase7_returns_structured_domain_metadata(tmp_path) -> None:
     assert metadata["task_class"] == "diagnostic"
     assert metadata["response_style"] == "diagnostic"
     assert metadata["domain_focus"] == "drawdown_diagnosis"
+    assert metadata["specialist_agents_used"] == ["portfolio_risk_agent"]
     assert "drawdown" in content.lower()
-    assert "check the latest backtest" in content.lower()
+    assert "diagnostic signal" in content.lower()
