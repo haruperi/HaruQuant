@@ -13,6 +13,7 @@ from backend.config.agent_model import get_model_for_tier
 from backend.observability.cost_tracker import calculate_cost
 from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.conversation_orchestrator import ConversationOrchestrator
+from backend.services.ai_chat.conversation_state_service import ConversationStateService
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
 from backend.services.ai_chat.models import ConversationPlan
@@ -58,6 +59,7 @@ class AIGatewayService:
         prompt_builder: ChatPromptBuilder | None = None,
         agent_router: ChatAgentRouter | None = None,
         conversation_orchestrator: ConversationOrchestrator | None = None,
+        conversation_state_service: ConversationStateService | None = None,
         tool_executor: ToolExecutor | None = None,
         rate_limiter: ChatRateLimiter | None = None,
         compactor: ContextCompactor | None = None,
@@ -70,6 +72,7 @@ class AIGatewayService:
         self.conversation_orchestrator = conversation_orchestrator or ConversationOrchestrator(
             agent_router=self.agent_router,
         )
+        self.conversation_state_service = conversation_state_service or ConversationStateService()
         self.tool_executor = tool_executor or ToolExecutor(db_manager=context_assembler.db_manager)
         self.rate_limiter = rate_limiter or ChatRateLimiter()
         self.compactor = compactor or ContextCompactor()
@@ -87,11 +90,22 @@ class AIGatewayService:
                 route=thread.current_route or "/dashboard",
                 user_id=request.user_id,
             )
+            conversation_state = self.conversation_state_service.build_state(
+                thread=thread,
+                page_context=page_context,
+                latest_prompt=request.prompt,
+            )
             tool_context = self._build_tool_context(page_context=page_context, prompt=request.prompt)
+            tool_context = self.conversation_state_service.enrich_tool_context(
+                context=tool_context,
+                prompt=request.prompt,
+                state=conversation_state,
+            )
             plan = self.conversation_orchestrator.build_plan(
                 prompt=request.prompt,
                 thread=thread,
                 page_context=page_context,
+                conversation_state=conversation_state,
                 tool_context=tool_context,
             )
             if plan.needs_clarification:
@@ -135,6 +149,7 @@ class AIGatewayService:
             built_prompt = self.prompt_builder.build(
                 thread=thread,
                 page_context=page_context,
+                conversation_state=conversation_state,
                 user_prompt=self._compose_grounded_user_prompt(
                     prompt=request.prompt,
                     tool_results=tool_results,
@@ -281,6 +296,7 @@ class AIGatewayService:
                 "context_revision": page_context.payload.context_revision,
                 "tools_used": [result.tool_name for result in tool_results if result.success],
                 "tools_denied": list(denied_tools),
+                "active_topic": conversation_state.active_topic,
                 "telemetry": {
                     "latency_ms": latency_ms,
                     "prompt_tokens": gen_result.prompt_tokens,
@@ -306,6 +322,7 @@ class AIGatewayService:
                 metadata["debug"] = {
                     "router_rationale": plan.rationale,
                     "conversation_plan": plan.model_dump(mode="json"),
+                    "conversation_state": conversation_state.model_dump(mode="json"),
                     "prompt": built_prompt.debug,
                 }
             

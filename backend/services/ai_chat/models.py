@@ -131,6 +131,26 @@ class ConversationPlan(BaseModel):
     agents_to_consult: list[str] = Field(default_factory=list)
 
 
+class ConversationEntityState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: str = Field(min_length=1)
+    id: str = Field(min_length=1)
+    label: str | None = None
+    source: str = Field(min_length=1)
+
+
+class ConversationState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    active_topic: str = Field(min_length=1)
+    active_entities: list[ConversationEntityState] = Field(default_factory=list)
+    resolved_references: dict[str, str] = Field(default_factory=dict)
+    unresolved_references: list[str] = Field(default_factory=list)
+    user_preferences: dict[str, str] = Field(default_factory=dict)
+    source_message_count: int = Field(ge=0, default=0)
+
+
 class ConversationThreadRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -191,9 +211,11 @@ __all__ = [
     "ActionDraftStatus",
     "ActionDraftType",
     "ConversationAnswerMode",
+    "ConversationEntityState",
     "ConversationMessageRecord",
     "ConversationPlan",
     "ConversationRole",
+    "ConversationState",
     "ConversationThreadRecord",
     "MemorySummary",
     "PinnedFact",

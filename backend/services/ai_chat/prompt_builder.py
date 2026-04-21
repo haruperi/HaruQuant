@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from backend.contracts.page_context_packet.model import PageContextPacket
 from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
-from backend.services.ai_chat.models import ConversationThreadRecord
+from backend.services.ai_chat.models import ConversationState, ConversationThreadRecord
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,7 @@ class ChatPromptBuilder:
         *,
         thread: ConversationThreadRecord,
         page_context: PageContextPacket,
+        conversation_state: ConversationState | None,
         user_prompt: str,
         response_mode: str,
         task_class: str = "performance_summary",
@@ -53,6 +54,19 @@ class ChatPromptBuilder:
         pinned_facts = [
             f"{fact.key}={fact.value} ({fact.source})"
             for fact in thread.pinned_facts[:6]
+        ] or ["none"]
+        state = conversation_state or ConversationState(active_topic="unknown")
+        active_entities = [
+            f"{entity.type}:{entity.id}:{entity.label or ''}".rstrip(":")
+            for entity in state.active_entities[:6]
+        ] or ["none"]
+        resolved_references = [
+            f"{key}={value}"
+            for key, value in list(state.resolved_references.items())[:8]
+        ] or ["none"]
+        user_preferences = [
+            f"{key}={value}"
+            for key, value in list(state.user_preferences.items())[:6]
         ] or ["none"]
 
         system_prompt = "\n".join(
@@ -70,6 +84,9 @@ class ChatPromptBuilder:
                 f"Context authority: {page_context.payload.authority.trust_level}",
                 f"Memory summary: {memory_summary}",
                 f"Pinned facts: {'; '.join(pinned_facts)}",
+                f"Conversation topic: {state.active_topic}",
+                f"Resolved references: {'; '.join(resolved_references)}",
+                f"User preferences: {'; '.join(user_preferences)}",
                 f"Required sections: {'; '.join(prompt_spec.section_headers)}",
                 f"Quantitative rules: {'; '.join(prompt_spec.quantitative_rules)}",
             ]
@@ -91,6 +108,8 @@ class ChatPromptBuilder:
                 f"Context revision: {page_context.payload.context_revision}",
                 f"Page entities: {'; '.join(entity_refs)}",
                 f"Page bullets: {'; '.join(page_bullets)}",
+                f"Conversation state entities: {'; '.join(active_entities)}",
+                f"Conversation resolved references: {'; '.join(resolved_references)}",
                 "Recent conversation:",
                 *transcript_lines,
                 f"Expected response sections: {'; '.join(prompt_spec.section_headers)}",
@@ -108,6 +127,8 @@ class ChatPromptBuilder:
                 "response_mode": response_mode,
                 "task_class": task_class,
                 "response_style": prompt_spec.response_style,
+                "active_topic": state.active_topic,
+                "resolved_reference_count": len(state.resolved_references),
                 "recent_message_count": len(recent_messages),
             },
         )

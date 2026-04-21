@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from backend.contracts.page_context_packet.model import PageContextPacket
 from backend.services.ai_chat.agent_router import ChatRouteDecision
-from backend.services.ai_chat.models import ConversationThreadRecord
+from backend.services.ai_chat.models import ConversationState, ConversationThreadRecord
 
 
 @dataclass(frozen=True)
@@ -50,6 +50,7 @@ class ClarificationPolicy:
         prompt: str,
         thread: ConversationThreadRecord,
         page_context: PageContextPacket,
+        conversation_state: ConversationState | None,
         tool_context: dict[str, object],
         route_decision: ChatRouteDecision,
     ) -> ClarificationDecision:
@@ -68,6 +69,7 @@ class ClarificationPolicy:
             normalized=normalized,
             thread=thread,
             page_context=page_context,
+            conversation_state=conversation_state,
             tool_context=tool_context,
             route_decision=route_decision,
         ):
@@ -85,12 +87,18 @@ class ClarificationPolicy:
         normalized: str,
         thread: ConversationThreadRecord,
         page_context: PageContextPacket,
+        conversation_state: ConversationState | None,
         tool_context: dict[str, object],
         route_decision: ChatRouteDecision,
     ) -> bool:
         if not any(phrase in normalized for phrase in self._REFERENCE_PHRASES):
             return False
-        if self._has_anchor(page_context=page_context, tool_context=tool_context):
+        if self._has_anchor(
+            page_context=page_context,
+            conversation_state=conversation_state,
+            tool_context=tool_context,
+            normalized=normalized,
+        ):
             return False
         if self._recent_messages_contain_anchor(thread):
             return False
@@ -103,12 +111,31 @@ class ClarificationPolicy:
         }
 
     @staticmethod
-    def _has_anchor(*, page_context: PageContextPacket, tool_context: dict[str, object]) -> bool:
+    def _has_anchor(
+        *,
+        page_context: PageContextPacket,
+        conversation_state: ConversationState | None,
+        tool_context: dict[str, object],
+        normalized: str,
+    ) -> bool:
         if any(
             tool_context.get(key)
             for key in ("strategy_id", "backtest_id", "optimization_id", "session_id", "symbol")
         ):
             return True
+        if conversation_state is not None:
+            resolved = conversation_state.resolved_references
+            if any(
+                phrase in normalized
+                for phrase in ("previous run", "previous one")
+            ):
+                if any(key in resolved for key in ("previous_backtest_id", "previous_optimization_id")):
+                    return True
+            if any(
+                key in resolved
+                for key in ("strategy_id", "backtest_id", "optimization_id", "session_id", "symbol")
+            ):
+                return True
         if page_context.payload.page_type != "generic":
             return True
         return bool(page_context.payload.entity_refs)

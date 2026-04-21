@@ -7,7 +7,7 @@ from uuid import uuid4
 from backend.contracts.page_context_packet.model import PageContextPacket
 from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.clarification_policy import ClarificationPolicy
-from backend.services.ai_chat.models import ConversationPlan, ConversationThreadRecord
+from backend.services.ai_chat.models import ConversationPlan, ConversationState, ConversationThreadRecord
 
 
 class ConversationOrchestrator:
@@ -28,6 +28,7 @@ class ConversationOrchestrator:
         prompt: str,
         thread: ConversationThreadRecord,
         page_context: PageContextPacket,
+        conversation_state: ConversationState | None,
         tool_context: dict[str, object],
     ) -> ConversationPlan:
         route_decision = self.agent_router.route(prompt)
@@ -35,6 +36,7 @@ class ConversationOrchestrator:
             prompt=prompt,
             thread=thread,
             page_context=page_context,
+            conversation_state=conversation_state,
             tool_context=tool_context,
             route_decision=route_decision,
         )

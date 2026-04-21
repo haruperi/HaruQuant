@@ -7,6 +7,7 @@ from backend.services.ai_chat import (
     ChatAgentRouter,
     ChatPromptBuilder,
     ChatStreamRequest,
+    ConversationStateService,
     ConversationService,
     PageContextAssembler,
 )
@@ -38,10 +39,16 @@ def test_prompt_builder_includes_domain_sections(tmp_path) -> None:
         route="/dashboard",
         user_id=1,
     )
+    conversation_state = ConversationStateService().build_state(
+        thread=thread,
+        page_context=page_context,
+        latest_prompt="Diagnose the current equity curve weakness",
+    )
 
     built = ChatPromptBuilder().build(
         thread=thread,
         page_context=page_context,
+        conversation_state=conversation_state,
         user_prompt="Diagnose the current equity curve weakness",
         response_mode="tool_assisted",
         task_class="diagnostic",
@@ -49,7 +56,9 @@ def test_prompt_builder_includes_domain_sections(tmp_path) -> None:
 
     assert "Task class: diagnostic" in built.system_prompt
     assert "Required sections: Observed State; Likely Drivers; Next Checks" in built.system_prompt
+    assert "Conversation topic: diagnostic" in built.system_prompt
     assert "Expected response sections: Observed State; Likely Drivers; Next Checks" in built.user_prompt
+    assert "Conversation resolved references:" in built.user_prompt
     assert built.debug["response_style"] == "diagnostic"
 
 

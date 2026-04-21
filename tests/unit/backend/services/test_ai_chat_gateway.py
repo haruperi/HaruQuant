@@ -186,3 +186,42 @@ def test_ai_gateway_returns_clarification_question_for_unresolved_reference(tmp_
     assert metadata["clarification_required"] is True
     assert metadata["generation_source"] == "clarification_policy"
     assert "which two runs or strategies" in content.lower()
+
+
+def test_ai_gateway_resolves_previous_run_from_thread_state(tmp_path) -> None:
+    database_path = tmp_path / "agentic_reference_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="stateful@example.com", username="stateful_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/unknown",
+        current_page_type="generic",
+    )
+    conversation_service.add_message(
+        user_id=1,
+        thread_id=thread.thread_id,
+        role="user",
+        content="Backtest 41 underperformed after the EURUSD setup. Backtest 42 is the newer run.",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    metadata, chunks, _message_id = gateway.stream_response(
+        ChatStreamRequest(
+            user_id=1,
+            thread_id=thread.thread_id,
+            prompt="Compare this run to the previous one",
+        )
+    )
+    content = "".join(chunks)
+
+    assert metadata["answer_mode"] == "direct_answer"
+    assert metadata["clarification_required"] is False
+    assert "backtest_summary" in metadata["tools_used"]
+    assert "comparison" in content.lower()
