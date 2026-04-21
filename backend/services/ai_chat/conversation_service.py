@@ -125,6 +125,11 @@ class ConversationService:
         tool_calls: list[str] | None = None,
         signal_proposal_id: str | None = None,
         action_draft_id: str | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        total_tokens: int | None = None,
+        cost: float | None = None,
+        latency_ms: int | None = None,
     ) -> ConversationMessageRecord:
         user_key = str(user_id)
         normalized_content = content.strip()
@@ -139,6 +144,11 @@ class ConversationService:
             tool_calls_json=json.dumps(tool_calls or []),
             signal_proposal_id=signal_proposal_id,
             action_draft_id=action_draft_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            cost=cost,
+            latency_ms=latency_ms,
         )
         self._promote_title_if_needed(
             user_id=user_key,
@@ -522,6 +532,11 @@ class ConversationService:
             signal_proposal_id=row.signal_proposal_id,
             action_draft_id=row.action_draft_id,
             context_revision=row.context_revision,
+            prompt_tokens=row.prompt_tokens,
+            completion_tokens=row.completion_tokens,
+            total_tokens=row.total_tokens,
+            cost=row.cost,
+            latency_ms=row.latency_ms,
         )
 
     @staticmethod

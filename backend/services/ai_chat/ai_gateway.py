@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 import re
+import time
 from typing import Iterable
 from uuid import uuid4
 
@@ -13,7 +14,8 @@ from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
 from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
-from backend.services.ai_chat.prompt_builder import ChatPromptBuilder
+from backend.services.ai_chat.prompt_builder import ChatPromptBuilder, ContextCompactor
+from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
 from backend.services.tool_executor import ToolExecutionResult, ToolExecutor
 
@@ -25,6 +27,14 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 @dataclass(frozen=True)
+class GenerationResult:
+    text: str
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+@dataclass(frozen=True)
 class ChatStreamRequest:
     user_id: int
     thread_id: str
@@ -32,6 +42,10 @@ class ChatStreamRequest:
     request_id: str | None = None
     include_debug: bool = False
     persist_user_message: bool = True
+
+
+class ChatRateLimitError(Exception):
+    """Raised when a chat request is rate-limited or exceeds concurrency."""
 
 
 class AIGatewayService:
@@ -45,150 +59,224 @@ class AIGatewayService:
         prompt_builder: ChatPromptBuilder | None = None,
         agent_router: ChatAgentRouter | None = None,
         tool_executor: ToolExecutor | None = None,
+        rate_limiter: ChatRateLimiter | None = None,
+        compactor: ContextCompactor | None = None,
     ) -> None:
         self.conversation_service = conversation_service
         self.context_assembler = context_assembler
         self.prompt_builder = prompt_builder or ChatPromptBuilder()
         self.agent_router = agent_router or ChatAgentRouter()
         self.tool_executor = tool_executor or ToolExecutor(db_manager=context_assembler.db_manager)
+        self.rate_limiter = rate_limiter or ChatRateLimiter()
+        self.compactor = compactor or ContextCompactor()
 
     def stream_response(self, request: ChatStreamRequest) -> tuple[dict[str, object], Iterable[str], str]:
-        request_id = request.request_id or f"chatreq_{uuid4().hex}"
-        thread = self.conversation_service.get_thread(user_id=request.user_id, thread_id=request.thread_id)
-        page_context = self.context_assembler.assemble_context(
-            route=thread.current_route or "/dashboard",
-            user_id=request.user_id,
-        )
-        decision = self.agent_router.route(request.prompt)
-        tool_context = self._build_tool_context(page_context=page_context, prompt=request.prompt)
-        requested_tools = self._select_tools(
-            prompt=request.prompt,
-            page_type=page_context.payload.page_type,
-            context=tool_context,
-        )
-        tool_results, denied_tools = self.tool_executor.execute(
-            user_id=request.user_id,
-            requested_tools=requested_tools,
-            context=tool_context,
-            authority_band=AuthorityBand.READ_ONLY,
-        )
-        signal_proposal = None
-        action_draft = None
-        if decision.response_mode.value == "signal_proposal":
-            signal_proposal = self._build_signal_proposal(
-                user_id=request.user_id,
-                thread_id=request.thread_id,
-                request_id=request_id,
-                prompt=request.prompt,
-                context=tool_context,
-                tool_results=tool_results,
-            )
-        elif decision.response_mode.value == "action_draft":
-            action_draft = self._build_action_draft(
-                user_id=request.user_id,
-                thread_id=request.thread_id,
-                request_id=request_id,
-                prompt=request.prompt,
-                context=tool_context,
-                tool_results=tool_results,
-            )
-        built_prompt = self.prompt_builder.build(
-            thread=thread,
-            page_context=page_context,
-            user_prompt=self._compose_grounded_user_prompt(
-                prompt=request.prompt,
-                tool_results=tool_results,
-                denied_tools=denied_tools,
-            ),
-            response_mode=(
-                "signal_proposal"
-                if signal_proposal is not None
-                else (
-                    "action_draft"
-                    if action_draft is not None
-                    else ("tool_assisted" if tool_results else decision.response_mode.value)
-                )
-            ),
-            task_class=decision.task_class,
-        )
+        if not self.rate_limiter.acquire(request.user_id, wait=True, timeout=15.0):
+            raise ChatRateLimitError(f"Rate limit or concurrency limit exceeded for user {request.user_id}")
 
-        if request.persist_user_message:
+        try:
+            start_time = time.perf_counter()
+            request_id = request.request_id or f"chatreq_{uuid4().hex}"
+            thread = self.conversation_service.get_thread(user_id=request.user_id, thread_id=request.thread_id)
+            page_context = self.context_assembler.assemble_context(
+                route=thread.current_route or "/dashboard",
+                user_id=request.user_id,
+            )
+            decision = self.agent_router.route(request.prompt)
+            tool_context = self._build_tool_context(page_context=page_context, prompt=request.prompt)
+            requested_tools = self._select_tools(
+                prompt=request.prompt,
+                page_type=page_context.payload.page_type,
+                context=tool_context,
+            )
+            tool_results, denied_tools = self.tool_executor.execute(
+                user_id=request.user_id,
+                requested_tools=requested_tools,
+                context=tool_context,
+                authority_band=AuthorityBand.READ_ONLY,
+            )
+            signal_proposal = None
+            action_draft = None
+            if decision.response_mode.value == "signal_proposal":
+                signal_proposal = self._build_signal_proposal(
+                    user_id=request.user_id,
+                    thread_id=request.thread_id,
+                    request_id=request_id,
+                    prompt=request.prompt,
+                    context=tool_context,
+                    tool_results=tool_results,
+                )
+            elif decision.response_mode.value == "action_draft":
+                action_draft = self._build_action_draft(
+                    user_id=request.user_id,
+                    thread_id=request.thread_id,
+                    request_id=request_id,
+                    prompt=request.prompt,
+                    context=tool_context,
+                    tool_results=tool_results,
+                )
+            built_prompt = self.prompt_builder.build(
+                thread=thread,
+                page_context=page_context,
+                user_prompt=self._compose_grounded_user_prompt(
+                    prompt=request.prompt,
+                    tool_results=tool_results,
+                    denied_tools=denied_tools,
+                ),
+                response_mode=(
+                    "signal_proposal"
+                    if signal_proposal is not None
+                    else (
+                        "action_draft"
+                        if action_draft is not None
+                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                    )
+                ),
+                task_class=decision.task_class,
+            )
+
+            if request.persist_user_message:
+                self.conversation_service.add_message(
+                    user_id=request.user_id,
+                    thread_id=request.thread_id,
+                    role="user",
+                    content=request.prompt,
+                    request_id=request_id,
+                    context_revision=page_context.payload.context_revision,
+                )
+
+            model = get_model_for_tier(decision.model_tier)
+            gen_result = self._generate_text(
+                system_prompt=built_prompt.system_prompt,
+                user_prompt=built_prompt.user_prompt,
+                model=model,
+                page_context=page_context,
+                response_mode=(
+                    "signal_proposal"
+                    if signal_proposal is not None
+                    else (
+                        "action_draft"
+                        if action_draft is not None
+                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                    )
+                ),
+                tool_results=tool_results,
+                task_class=decision.task_class,
+                response_style=decision.response_style,
+                signal_proposal=signal_proposal,
+                action_draft=action_draft,
+            )
+            latency_ms = int((time.perf_counter() - start_time) * 1000)
+            cost = self._calculate_cost(
+                model=model,
+                prompt_tokens=gen_result.prompt_tokens,
+                completion_tokens=gen_result.completion_tokens,
+            )
+
             self.conversation_service.add_message(
                 user_id=request.user_id,
                 thread_id=request.thread_id,
-                role="user",
-                content=request.prompt,
+                role="assistant",
+                content=gen_result.text,
                 request_id=request_id,
                 context_revision=page_context.payload.context_revision,
+                tool_calls=[result.tool_name for result in tool_results if result.success],
+                signal_proposal_id=signal_proposal.proposal_id if signal_proposal is not None else None,
+                action_draft_id=action_draft.draft_id if action_draft is not None else None,
+                prompt_tokens=gen_result.prompt_tokens,
+                completion_tokens=gen_result.completion_tokens,
+                total_tokens=gen_result.total_tokens,
+                cost=cost,
+                latency_ms=latency_ms,
             )
-
-        full_text = self._generate_text(
-            system_prompt=built_prompt.system_prompt,
-            user_prompt=built_prompt.user_prompt,
-            model=get_model_for_tier(decision.model_tier),
-            page_context=page_context,
-            response_mode=(
-                "signal_proposal"
-                if signal_proposal is not None
-                else (
-                    "action_draft"
-                    if action_draft is not None
-                    else ("tool_assisted" if tool_results else decision.response_mode.value)
-                )
-            ),
-            tool_results=tool_results,
-            task_class=decision.task_class,
-            response_style=decision.response_style,
-            signal_proposal=signal_proposal,
-            action_draft=action_draft,
-        )
-        self.conversation_service.add_message(
-            user_id=request.user_id,
-            thread_id=request.thread_id,
-            role="assistant",
-            content=full_text,
-            request_id=request_id,
-            context_revision=page_context.payload.context_revision,
-            tool_calls=[result.tool_name for result in tool_results if result.success],
-            signal_proposal_id=signal_proposal.proposal_id if signal_proposal is not None else None,
-            action_draft_id=action_draft.draft_id if action_draft is not None else None,
-        )
-        refreshed_thread = self.conversation_service.get_thread(
-            user_id=request.user_id,
-            thread_id=request.thread_id,
-        )
-        metadata = {
-            "request_id": request_id,
-            "thread_id": request.thread_id,
-            "response_mode": (
-                "signal_proposal"
-                if signal_proposal is not None
-                else (
-                    "action_draft"
-                    if action_draft is not None
-                    else ("tool_assisted" if tool_results else decision.response_mode.value)
-                )
-            ),
-            "task_class": decision.task_class,
-            "response_style": decision.response_style,
-            "domain_focus": decision.domain_focus,
-            "model": get_model_for_tier(decision.model_tier),
-            "context_revision": page_context.payload.context_revision,
-            "tools_used": [result.tool_name for result in tool_results if result.success],
-            "tools_denied": list(denied_tools),
-        }
-        if signal_proposal is not None:
-            metadata["signal_proposal"] = signal_proposal.model_dump(mode="json")
-            metadata["signal_proposal_id"] = signal_proposal.proposal_id
-        if action_draft is not None:
-            metadata["action_draft"] = action_draft.model_dump(mode="json")
-            metadata["action_draft_id"] = action_draft.draft_id
-        if request.include_debug:
-            metadata["debug"] = {
-                "router_rationale": decision.rationale,
-                "prompt": built_prompt.debug,
+            refreshed_thread = self.conversation_service.get_thread(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+            )
+            metadata = {
+                "request_id": request_id,
+                "thread_id": request.thread_id,
+                "response_mode": (
+                    "signal_proposal"
+                    if signal_proposal is not None
+                    else (
+                        "action_draft"
+                        if action_draft is not None
+                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                    )
+                ),
+                "task_class": decision.task_class,
+                "response_style": decision.response_style,
+                "domain_focus": decision.domain_focus,
+                "model": model,
+                "context_revision": page_context.payload.context_revision,
+                "tools_used": [result.tool_name for result in tool_results if result.success],
+                "tools_denied": list(denied_tools),
+                "telemetry": {
+                    "latency_ms": latency_ms,
+                    "prompt_tokens": gen_result.prompt_tokens,
+                    "completion_tokens": gen_result.completion_tokens,
+                    "total_tokens": gen_result.total_tokens,
+                    "cost_usd": cost,
+                },
             }
-        return metadata, self._chunk_text(full_text), refreshed_thread.messages[-1].message_id
+            if signal_proposal is not None:
+                metadata["signal_proposal"] = signal_proposal.model_dump(mode="json")
+                metadata["signal_proposal_id"] = signal_proposal.proposal_id
+            if action_draft is not None:
+                metadata["action_draft"] = action_draft.model_dump(mode="json")
+                metadata["action_draft_id"] = action_draft.draft_id
+            if request.include_debug:
+                metadata["debug"] = {
+                    "router_rationale": decision.rationale,
+                    "prompt": built_prompt.debug,
+                }
+            
+            # Wrap chunks to release slot on completion
+            def chunk_generator():
+                try:
+                    for chunk in self._chunk_text(gen_result.text):
+                        yield chunk
+                finally:
+                    self.rate_limiter.release(request.user_id)
+
+            return metadata, chunk_generator(), refreshed_thread.messages[-1].message_id
+        except Exception:
+            self.rate_limiter.release(request.user_id)
+            raise
+
+    @staticmethod
+    def _calculate_cost(*, model: str, prompt_tokens: int | None, completion_tokens: int | None) -> float | None:
+        if prompt_tokens is None or completion_tokens is None:
+            return None
+
+        # Normalized model names for matching
+        normalized_model = model.lower()
+        
+        # Define costs per 1M tokens
+        costs = {
+            "gpt-4o": {"input": 5.0, "output": 15.0},
+            "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+            "gemini-1.5-flash": {"input": 0.075, "output": 0.3},
+            "gemini-1.5-pro": {"input": 3.5, "output": 10.5},
+            "gemini-2.0-flash": {"input": 0.1, "output": 0.4},
+        }
+        
+        selected_cost = None
+        # Sort keys by length descending to match most specific first (e.g. gpt-4o-mini before gpt-4o)
+        for key in sorted(costs.keys(), key=len, reverse=True):
+            if key in normalized_model:
+                selected_cost = costs[key]
+                break
+        
+        if selected_cost is None:
+            # Default to a reasonable standard (e.g. flash-tier)
+            selected_cost = costs["gemini-1.5-flash"]
+            
+        input_cost = (prompt_tokens / 1_000_000) * selected_cost["input"]
+        output_cost = (completion_tokens / 1_000_000) * selected_cost["output"]
+        
+        return round(input_cost + output_cost, 6)
 
     def _generate_text(
         self,
@@ -203,16 +291,16 @@ class AIGatewayService:
         response_style: str,
         signal_proposal=None,
         action_draft=None,
-    ) -> str:
+    ) -> GenerationResult:
         if self._can_use_openai():
-            streamed = self._generate_openai_text(
+            result = self._generate_openai_text(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 model=model,
             )
-            if streamed.strip():
-                return streamed
-        return self._generate_fallback_text(
+            if result.text.strip():
+                return result
+        fallback_text = self._generate_fallback_text(
             user_prompt=user_prompt,
             page_context=page_context,
             response_mode=response_mode,
@@ -222,11 +310,12 @@ class AIGatewayService:
             signal_proposal=signal_proposal,
             action_draft=action_draft,
         )
+        return GenerationResult(text=fallback_text)
 
     def _can_use_openai(self) -> bool:
         return HAS_OPENAI and bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENAI_BASE_URL"))
 
-    def _generate_openai_text(self, *, system_prompt: str, user_prompt: str, model: str) -> str:
+    def _generate_openai_text(self, *, system_prompt: str, user_prompt: str, model: str) -> GenerationResult:
         client_kwargs = {"api_key": os.environ.get("OPENAI_API_KEY", "ollama")}
         if os.environ.get("OPENAI_BASE_URL"):
             client_kwargs["base_url"] = os.environ["OPENAI_BASE_URL"]
@@ -239,13 +328,28 @@ class AIGatewayService:
             ],
             temperature=0.2,
             stream=True,
+            stream_options={"include_usage": True},
         )
         parts: list[str] = []
+        prompt_tokens = None
+        completion_tokens = None
+        total_tokens = None
         for chunk in stream:
-            delta = chunk.choices[0].delta.content if chunk.choices and chunk.choices[0].delta else None
-            if delta:
-                parts.append(delta)
-        return "".join(parts)
+            if chunk.choices and chunk.choices[0].delta:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    parts.append(delta)
+            if hasattr(chunk, "usage") and chunk.usage:
+                prompt_tokens = chunk.usage.prompt_tokens
+                completion_tokens = chunk.usage.completion_tokens
+                total_tokens = chunk.usage.total_tokens
+
+        return GenerationResult(
+            text="".join(parts),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
 
     def _generate_fallback_text(
         self,
@@ -541,8 +645,8 @@ class AIGatewayService:
         match = re.search(r"\b([A-Z]{2,6})\b", prompt)
         return match.group(1) if match else None
 
-    @staticmethod
     def _compose_grounded_user_prompt(
+        self,
         *,
         prompt: str,
         tool_results: list[ToolExecutionResult],
@@ -553,7 +657,9 @@ class AIGatewayService:
             lines.append("Tool grounding:")
             for result in tool_results:
                 status = "ok" if result.success else f"error={result.error}"
-                lines.append(f"- {result.tool_name} ({status}): {result.payload}")
+                # Use compactor for payload truncation
+                truncated_payload = self.compactor.truncate_json(str(result.payload), 1500)
+                lines.append(f"- {result.tool_name} ({status}): {truncated_payload}")
         if denied_tools:
             lines.append(f"Denied tools: {', '.join(denied_tools)}")
         return "\n".join(lines)

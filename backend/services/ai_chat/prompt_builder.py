@@ -16,8 +16,27 @@ class BuiltPrompt:
     debug: dict[str, object]
 
 
+class ContextCompactor:
+    """Helper to ensure prompt content stays within token/character budget."""
+
+    @staticmethod
+    def truncate_text(text: str, max_chars: int = 1000) -> str:
+        if len(text) <= max_chars:
+            return text
+        return f"{text[:max_chars]}... [truncated {len(text) - max_chars} characters]"
+
+    @staticmethod
+    def truncate_json(data: str, max_chars: int = 2000) -> str:
+        if len(data) <= max_chars:
+            return data
+        return f"{data[:max_chars]}... [large JSON truncated]"
+
+
 class ChatPromptBuilder:
     """Compose layered prompts from context, memory, and recent conversation."""
+
+    def __init__(self, compactor: ContextCompactor | None = None) -> None:
+        self.compactor = compactor or ContextCompactor()
 
     def build(
         self,
@@ -57,7 +76,7 @@ class ChatPromptBuilder:
         )
 
         transcript_lines = [
-            f"{message.role.upper()}: {message.content}"
+            f"{message.role.upper()}: {self.compactor.truncate_text(message.content, 500)}"
             for message in recent_messages
         ] or ["No recent messages."]
         page_bullets = page_context.payload.summary.bullets or ["none"]

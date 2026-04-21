@@ -153,6 +153,11 @@ class ConversationMessageRecord(BaseModel):
     signal_proposal_id: str | None = None
     action_draft_id: str | None = None
     context_revision: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    cost: float | None = None
+    latency_ms: int | None = None
 
     @field_validator("created_at")
     @classmethod

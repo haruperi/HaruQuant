@@ -19,7 +19,21 @@ from backend.contracts.page_context_packet.model import (
     PageType,
 )
 from backend.data.database.sqlite.database_operations import DatabaseManager
+from backend.services.performance.snapshot_cache import HotSnapshotCache, SnapshotCacheEntry
 from backend.services.strategy.catalog import StrategyCatalogService
+
+# Define TTLs for different page types
+PAGE_CONTEXT_TTL: dict[PageType, int] = {
+    "dashboard": 30,
+    "strategy_detail": 300,
+    "backtest_detail": 300,
+    "optimization_detail": 300,
+    "portfolio_risk": 60,
+    "live_trading": 15,
+    "data_workspace": 600,
+    "operator_workflow": 60,
+    "generic": 60,
+}
 
 
 @dataclass(frozen=True)
@@ -401,10 +415,12 @@ class PageContextAssembler:
         db_manager: DatabaseManager | None = None,
         strategy_catalog: StrategyCatalogService | None = None,
         registry: tuple[RouteContextDescriptor, ...] | None = None,
+        cache: HotSnapshotCache[BuiltContext] | None = None,
     ) -> None:
         self.db_manager = db_manager or DatabaseManager()
         self.strategy_catalog = strategy_catalog or StrategyCatalogService(db_manager=self.db_manager)
         self._registry = registry or DEFAULT_ROUTE_CONTEXT_REGISTRY
+        self._cache = cache or HotSnapshotCache()
         self._builders: dict[PageType, ContextBuilder] = {
             "dashboard": DashboardContextBuilder(self.db_manager, self.strategy_catalog),
             "strategy_detail": StrategyDetailContextBuilder(self.db_manager, self.strategy_catalog),
@@ -484,8 +500,26 @@ class PageContextAssembler:
     ) -> PageContextPacket:
         now = datetime.now(timezone.utc)
         page_type = self.resolve_page_type(route)
-        builder = self._builders[page_type]
-        built = builder.build(route=route, user_id=user_id, page_title=page_title)
+        
+        # Try cache first
+        cache_key = f"ctx:{user_id}:{route}"
+        cached = self._cache.get(cache_key)
+        if cached:
+            built = cached.snapshot
+        else:
+            builder = self._builders[page_type]
+            built = builder.build(route=route, user_id=user_id, page_title=page_title)
+            # Store in cache
+            ttl = PAGE_CONTEXT_TTL.get(page_type, 60)
+            self._cache.put(
+                SnapshotCacheEntry(
+                    key=cache_key,
+                    snapshot=built,
+                    observed_at=now,
+                    max_age_seconds=ttl,
+                )
+            )
+
         return PageContextPacket(
             workflow_id=f"context_{uuid4().hex}",
             correlation_id=f"corr_{uuid4().hex}",
