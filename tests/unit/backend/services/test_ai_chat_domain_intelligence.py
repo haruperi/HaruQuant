@@ -83,6 +83,5 @@ def test_ai_gateway_phase7_returns_structured_domain_metadata(tmp_path) -> None:
     assert metadata["task_class"] == "diagnostic"
     assert metadata["response_style"] == "diagnostic"
     assert metadata["domain_focus"] == "drawdown_diagnosis"
-    assert "Observed State:" in content
-    assert "Likely Drivers:" in content
-    assert "Next Checks:" in content
+    assert "drawdown" in content.lower()
+    assert "check the latest backtest" in content.lower()

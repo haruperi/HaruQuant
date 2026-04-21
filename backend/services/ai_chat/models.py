@@ -15,6 +15,7 @@ ThreadStatus = Literal["active", "archived", "deleted"]
 RetentionClass = Literal["standard", "ephemeral", "legal_hold"]
 SignalProposalStatus = Literal["draft", "watchlist", "review_queue"]
 SignalDirection = Literal["long", "short", "neutral"]
+ConversationAnswerMode = Literal["direct_answer", "clarification", "governed_artifact"]
 ActionDraftType = Literal[
     "order_draft",
     "backtest_launch",
@@ -112,6 +113,24 @@ class ActionDraftRecord(BaseModel):
         return value.astimezone(timezone.utc)
 
 
+class ConversationPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    conversation_plan_id: str = Field(min_length=1)
+    user_goal: str = Field(min_length=1)
+    answer_mode: ConversationAnswerMode = "direct_answer"
+    response_mode: str = Field(min_length=1)
+    task_class: str = Field(min_length=1)
+    model_tier: str = Field(min_length=1)
+    response_style: str = Field(min_length=1)
+    domain_focus: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+    needs_clarification: bool = False
+    clarification_question: str | None = None
+    tools_to_run: list[str] = Field(default_factory=list)
+    agents_to_consult: list[str] = Field(default_factory=list)
+
+
 class ConversationThreadRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -171,7 +190,9 @@ __all__ = [
     "ActionDraftRecord",
     "ActionDraftStatus",
     "ActionDraftType",
+    "ConversationAnswerMode",
     "ConversationMessageRecord",
+    "ConversationPlan",
     "ConversationRole",
     "ConversationThreadRecord",
     "MemorySummary",

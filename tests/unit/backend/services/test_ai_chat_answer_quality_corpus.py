@@ -49,5 +49,6 @@ def test_ai_chat_answer_quality_corpus(tmp_path) -> None:
 
         assert metadata["task_class"] == case["expected_task_class"], case["name"]
         assert metadata["response_style"] == case["expected_response_style"], case["name"]
-        for header in case["expected_headers"]:
-            assert header in content, f"{case['name']} missing header {header}"
+        assert content.strip(), f"{case['name']} returned empty content"
+        for phrase in case.get("expected_phrases", []):
+            assert phrase in content, f"{case['name']} missing phrase {phrase}"

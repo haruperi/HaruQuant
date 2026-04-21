@@ -6,7 +6,7 @@
     "prompt": "Why is my dashboard flat and underperforming this week?",
     "expected_task_class": "diagnostic",
     "expected_response_style": "diagnostic",
-    "expected_headers": ["Observed State:", "Likely Drivers:", "Next Checks:"]
+    "expected_phrases": ["My best read is", "drawdown"]
   },
   {
     "name": "comparison_optimization_runs",
@@ -15,7 +15,7 @@
     "prompt": "Compare optimization run A versus run B and explain the tradeoffs.",
     "expected_task_class": "comparison",
     "expected_response_style": "compare",
-    "expected_headers": ["Comparison:", "Tradeoffs:", "Recommendation:"]
+    "expected_phrases": ["I can ground the comparison", "score"]
   },
   {
     "name": "risk_portfolio_explanation",
@@ -24,7 +24,7 @@
     "prompt": "Explain the current portfolio risk and exposure concentration.",
     "expected_task_class": "risk_explanation",
     "expected_response_style": "warning",
-    "expected_headers": ["Risk State:", "Primary Exposures:", "Operator Warning:"]
+    "expected_phrases": ["strongest current risk evidence", "concentration"]
   },
   {
     "name": "research_recommendation",
@@ -33,7 +33,7 @@
     "prompt": "What next research step should I take for this strategy?",
     "expected_task_class": "recommendation",
     "expected_response_style": "recommendation",
-    "expected_headers": ["Assessment:", "Recommendation:", "Evidence Needed:"]
+    "expected_phrases": ["current page context suggests", "next research step"]
   },
   {
     "name": "performance_summary_default",
@@ -42,6 +42,6 @@
     "prompt": "Summarize the current HaruQuant dashboard state.",
     "expected_task_class": "performance_summary",
     "expected_response_style": "summary",
-    "expected_headers": ["Summary:", "Metrics:", "Implications:"]
+    "expected_phrases": ["I'm grounding this on", "Use current system metrics as the baseline"]
   }
 ]

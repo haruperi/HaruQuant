@@ -2,6 +2,8 @@
 
 from .agent_router import ChatAgentRouter, ChatRouteDecision
 from .ai_gateway import AIGatewayService, ChatStreamRequest
+from .clarification_policy import ClarificationDecision, ClarificationPolicy
+from .conversation_orchestrator import ConversationOrchestrator
 from .conversation_service import ConversationService
 from .context_service import (
     DEFAULT_ROUTE_CONTEXT_REGISTRY,
@@ -11,6 +13,7 @@ from .context_service import (
 from .prompt_builder import BuiltPrompt, ChatPromptBuilder
 from .models import (
     ActionDraftRecord,
+    ConversationPlan,
     ConversationMessageRecord,
     ConversationThreadRecord,
     MemorySummary,
@@ -37,6 +40,10 @@ __all__ = [
     "ChatRouteDecision",
     "ChatStreamManager",
     "ChatStreamRequest",
+    "ClarificationDecision",
+    "ClarificationPolicy",
+    "ConversationOrchestrator",
+    "ConversationPlan",
     "ConversationService",
     "ConversationMessageRecord",
     "ConversationThreadRecord",

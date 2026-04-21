@@ -47,7 +47,10 @@ def test_ai_gateway_stream_response_persists_user_and_assistant_messages(tmp_pat
     assert refreshed.messages[-1].role == "assistant"
     assert refreshed.messages[-1].tool_calls == ["portfolio_summary", "risk_snapshot"]
     assert "dashboard" in content.lower()
-    assert "Observed State:" in content
+    assert "drawdown" in content.lower()
+    assert metadata["answer_mode"] == "direct_answer"
+    assert metadata["clarification_required"] is False
+    assert metadata["conversation_plan_id"].startswith("convplan_")
 
 
 def test_ai_gateway_stream_response_creates_signal_proposal(tmp_path) -> None:
@@ -150,3 +153,36 @@ def test_ai_gateway_selects_internal_knowledge_for_docs_queries(tmp_path) -> Non
     )
 
     assert "internal_knowledge" in selected
+
+
+def test_ai_gateway_returns_clarification_question_for_unresolved_reference(tmp_path) -> None:
+    database_path = tmp_path / "agentic_clarification_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="clarify@example.com", username="clarify_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/unknown",
+        current_page_type="generic",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    metadata, chunks, _message_id = gateway.stream_response(
+        ChatStreamRequest(
+            user_id=1,
+            thread_id=thread.thread_id,
+            prompt="Compare this run to the previous one",
+        )
+    )
+    content = "".join(chunks)
+
+    assert metadata["answer_mode"] == "clarification"
+    assert metadata["clarification_required"] is True
+    assert metadata["generation_source"] == "clarification_policy"
+    assert "which two runs or strategies" in content.lower()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import re
 import time
 from typing import Iterable
@@ -12,9 +12,10 @@ from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
 from backend.config.agent_model import get_model_for_tier
 from backend.observability.cost_tracker import calculate_cost
 from backend.services.ai_chat.agent_router import ChatAgentRouter
+from backend.services.ai_chat.conversation_orchestrator import ConversationOrchestrator
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
-from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
+from backend.services.ai_chat.models import ConversationPlan
 from backend.services.ai_chat.prompt_builder import ChatPromptBuilder, ContextCompactor
 from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
@@ -56,6 +57,7 @@ class AIGatewayService:
         context_assembler: PageContextAssembler,
         prompt_builder: ChatPromptBuilder | None = None,
         agent_router: ChatAgentRouter | None = None,
+        conversation_orchestrator: ConversationOrchestrator | None = None,
         tool_executor: ToolExecutor | None = None,
         rate_limiter: ChatRateLimiter | None = None,
         compactor: ContextCompactor | None = None,
@@ -65,6 +67,9 @@ class AIGatewayService:
         self.context_assembler = context_assembler
         self.prompt_builder = prompt_builder or ChatPromptBuilder()
         self.agent_router = agent_router or ChatAgentRouter()
+        self.conversation_orchestrator = conversation_orchestrator or ConversationOrchestrator(
+            agent_router=self.agent_router,
+        )
         self.tool_executor = tool_executor or ToolExecutor(db_manager=context_assembler.db_manager)
         self.rate_limiter = rate_limiter or ChatRateLimiter()
         self.compactor = compactor or ContextCompactor()
@@ -82,8 +87,20 @@ class AIGatewayService:
                 route=thread.current_route or "/dashboard",
                 user_id=request.user_id,
             )
-            decision = self.agent_router.route(request.prompt)
             tool_context = self._build_tool_context(page_context=page_context, prompt=request.prompt)
+            plan = self.conversation_orchestrator.build_plan(
+                prompt=request.prompt,
+                thread=thread,
+                page_context=page_context,
+                tool_context=tool_context,
+            )
+            if plan.needs_clarification:
+                return self._stream_clarification_response(
+                    request=request,
+                    request_id=request_id,
+                    page_context=page_context,
+                    plan=plan,
+                )
             requested_tools = self._select_tools(
                 prompt=request.prompt,
                 page_type=page_context.payload.page_type,
@@ -97,7 +114,7 @@ class AIGatewayService:
             )
             signal_proposal = None
             action_draft = None
-            if decision.response_mode.value == "signal_proposal":
+            if plan.response_mode == "signal_proposal":
                 signal_proposal = self._build_signal_proposal(
                     user_id=request.user_id,
                     thread_id=request.thread_id,
@@ -106,7 +123,7 @@ class AIGatewayService:
                     context=tool_context,
                     tool_results=tool_results,
                 )
-            elif decision.response_mode.value == "action_draft":
+            elif plan.response_mode == "action_draft":
                 action_draft = self._build_action_draft(
                     user_id=request.user_id,
                     thread_id=request.thread_id,
@@ -127,12 +144,12 @@ class AIGatewayService:
                     "signal_proposal"
                     if signal_proposal is not None
                     else (
-                        "action_draft"
+                    "action_draft"
                         if action_draft is not None
-                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                        else ("tool_assisted" if tool_results else plan.response_mode)
                     )
                 ),
-                task_class=decision.task_class,
+                task_class=plan.task_class,
             )
 
             if request.persist_user_message:
@@ -145,7 +162,7 @@ class AIGatewayService:
                     context_revision=page_context.payload.context_revision,
                 )
 
-            model = get_model_for_tier(decision.model_tier)
+            model = get_model_for_tier(plan.model_tier)
             estimated_cost = self._estimate_request_cost(
                 model=model,
                 system_prompt=built_prompt.system_prompt,
@@ -156,11 +173,11 @@ class AIGatewayService:
                     else (
                         "action_draft"
                         if action_draft is not None
-                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                        else ("tool_assisted" if tool_results else plan.response_mode)
                     )
                 ),
             )
-            request_budget_key = self._cost_budget_key_for_tier(decision.model_tier)
+            request_budget_key = self._cost_budget_key_for_tier(plan.model_tier)
             budget_downgraded = False
             if not self.cost_enforcer.check_request_budget(request_budget_key, estimated_cost):
                 fallback_model = self.cost_enforcer.get_fallback_model()
@@ -174,7 +191,7 @@ class AIGatewayService:
                         else (
                             "action_draft"
                             if action_draft is not None
-                            else ("tool_assisted" if tool_results else decision.response_mode.value)
+                            else ("tool_assisted" if tool_results else plan.response_mode)
                         )
                     ),
                 )
@@ -194,12 +211,12 @@ class AIGatewayService:
                     else (
                         "action_draft"
                         if action_draft is not None
-                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                        else ("tool_assisted" if tool_results else plan.response_mode)
                     )
                 ),
                 tool_results=tool_results,
-                task_class=decision.task_class,
-                response_style=decision.response_style,
+                task_class=plan.task_class,
+                response_style=plan.response_style,
                 signal_proposal=signal_proposal,
                 action_draft=action_draft,
             )
@@ -249,12 +266,15 @@ class AIGatewayService:
                     else (
                         "action_draft"
                         if action_draft is not None
-                        else ("tool_assisted" if tool_results else decision.response_mode.value)
+                        else ("tool_assisted" if tool_results else plan.response_mode)
                     )
                 ),
-                "task_class": decision.task_class,
-                "response_style": decision.response_style,
-                "domain_focus": decision.domain_focus,
+                "task_class": plan.task_class,
+                "response_style": plan.response_style,
+                "domain_focus": plan.domain_focus,
+                "answer_mode": plan.answer_mode,
+                "conversation_plan_id": plan.conversation_plan_id,
+                "clarification_required": plan.needs_clarification,
                 "model": model,
                 "generation_source": gen_result.generation_source,
                 "provider_name": gen_result.provider_name,
@@ -284,7 +304,8 @@ class AIGatewayService:
                 metadata["action_draft_id"] = action_draft.draft_id
             if request.include_debug:
                 metadata["debug"] = {
-                    "router_rationale": decision.rationale,
+                    "router_rationale": plan.rationale,
+                    "conversation_plan": plan.model_dump(mode="json"),
                     "prompt": built_prompt.debug,
                 }
             
@@ -307,6 +328,85 @@ class AIGatewayService:
             return None
         normalized_model = model.split("/", 1)[-1]
         return round(calculate_cost(normalized_model, prompt_tokens, completion_tokens), 6)
+
+    def _stream_clarification_response(
+        self,
+        *,
+        request: ChatStreamRequest,
+        request_id: str,
+        page_context,
+        plan: ConversationPlan,
+    ) -> tuple[dict[str, object], Iterable[str], str]:
+        text = plan.clarification_question or "What do you want me to focus on?"
+
+        if request.persist_user_message:
+            self.conversation_service.add_message(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+                role="user",
+                content=request.prompt,
+                request_id=request_id,
+                context_revision=page_context.payload.context_revision,
+            )
+
+        assistant_message = self.conversation_service.add_message(
+            user_id=request.user_id,
+            thread_id=request.thread_id,
+            role="assistant",
+            content=text,
+            request_id=request_id,
+            context_revision=page_context.payload.context_revision,
+            tool_calls=[],
+            prompt_tokens=None,
+            completion_tokens=None,
+            total_tokens=None,
+            cost=None,
+            latency_ms=0,
+        )
+        metadata = {
+            "request_id": request_id,
+            "thread_id": request.thread_id,
+            "response_mode": "answer",
+            "task_class": plan.task_class,
+            "response_style": "clarification",
+            "domain_focus": plan.domain_focus,
+            "answer_mode": plan.answer_mode,
+            "conversation_plan_id": plan.conversation_plan_id,
+            "clarification_required": True,
+            "model": None,
+            "generation_source": "clarification_policy",
+            "provider_name": None,
+            "context_revision": page_context.payload.context_revision,
+            "tools_used": [],
+            "tools_denied": [],
+            "telemetry": {
+                "latency_ms": 0,
+                "prompt_tokens": None,
+                "completion_tokens": None,
+                "total_tokens": None,
+                "cost_usd": None,
+            },
+            "cost_policy": {
+                "request_budget_key": None,
+                "estimated_cost_usd": 0.0,
+                "budget_downgraded": False,
+                "workflow_cost_usd": self.cost_enforcer.get_current_cost(request.thread_id),
+                "within_workflow_budget": self.cost_enforcer.check_workflow_budget(
+                    self.cost_enforcer.get_current_cost(request.thread_id)
+                ),
+            },
+        }
+        if request.include_debug:
+            metadata["debug"] = {"conversation_plan": plan.model_dump(mode="json")}
+
+        def chunk_generator():
+            try:
+                for chunk in self._chunk_text(text):
+                    yield chunk
+            finally:
+                self.rate_limiter.release(request.user_id)
+
+        return metadata, chunk_generator(), assistant_message.message_id
 
     @classmethod
     def _estimate_request_cost(
@@ -398,7 +498,6 @@ class AIGatewayService:
         signal_proposal=None,
         action_draft=None,
     ) -> str:
-        prompt_spec = resolve_domain_prompt_spec(task_class)
         if signal_proposal is not None:
             return "\n".join(
                 [
@@ -440,16 +539,6 @@ class AIGatewayService:
                     "- Execution: not executed from chat",
                 ]
             )
-        bullets = page_context.payload.summary.bullets[:3]
-        lead = page_context.payload.summary.headline
-        response_lines = [f"{lead}"]
-        facts = [
-            f"- {result.tool_name}: {self._summarize_tool_payload(result.payload)}"
-            for result in tool_results
-            if result.success
-        ]
-        inference_line = self._build_inference_line(task_class=task_class, tool_results=tool_results, page_context=page_context)
-        recommendation_line = self._build_recommendation_line(task_class=task_class, tool_results=tool_results)
         if page_context.payload.page_type == "generic" and not tool_results:
             return "\n".join(
                 [
@@ -457,17 +546,100 @@ class AIGatewayService:
                     "Open a dashboard, strategy, backtest, optimization, portfolio, or live-trading page and I can answer against that page state.",
                 ]
             )
-        sections: dict[str, list[str]] = {
-            prompt_spec.section_headers[0]: facts or [f"- {lead}"],
-            prompt_spec.section_headers[1]: [
-                *(f"- {bullet}" for bullet in bullets[:2]),
-            ],
-            prompt_spec.section_headers[2]: [f"- {inference_line}", f"- {recommendation_line}"],
-        }
-        for header in prompt_spec.section_headers:
-            response_lines.append(f"{header}:")
-            response_lines.extend(sections[header])
-        return "\n".join(response_lines)
+        return self._build_conversational_fallback(
+            user_prompt=user_prompt,
+            page_context=page_context,
+            tool_results=tool_results,
+            task_class=task_class,
+            response_style=response_style,
+        )
+
+    def _build_conversational_fallback(
+        self,
+        *,
+        user_prompt: str,
+        page_context,
+        tool_results: list[ToolExecutionResult],
+        task_class: str,
+        response_style: str,
+    ) -> str:
+        lead = page_context.payload.summary.headline.rstrip(".")
+        bullet_text = " ".join(page_context.payload.summary.bullets[:2]).strip()
+        facts = [
+            f"{result.tool_name} reports {self._summarize_tool_payload(result.payload)}"
+            for result in tool_results
+            if result.success
+        ]
+        fact_sentence = " ".join(facts[:2]).strip()
+        inference_line = self._build_inference_line(
+            task_class=task_class,
+            tool_results=tool_results,
+            page_context=page_context,
+        )
+        recommendation_line = self._build_recommendation_line(
+            task_class=task_class,
+            tool_results=tool_results,
+        )
+
+        if task_class == "diagnostic":
+            return " ".join(
+                part for part in (
+                    f"{lead}.",
+                    fact_sentence and f"From the current HaruQuant state, {fact_sentence}.",
+                    f"My best read is that {inference_line.lower()}",
+                    recommendation_line,
+                )
+                if part
+            )
+        if task_class == "comparison":
+            return " ".join(
+                part for part in (
+                    f"{lead}.",
+                    fact_sentence and f"I can ground the comparison on the current data: {fact_sentence}.",
+                    f"{inference_line}",
+                    recommendation_line,
+                )
+                if part
+            )
+        if task_class == "risk_explanation":
+            return " ".join(
+                part for part in (
+                    f"{lead}.",
+                    fact_sentence and f"The strongest current risk evidence is {fact_sentence}.",
+                    f"{inference_line}",
+                    recommendation_line,
+                )
+                if part
+            )
+        if task_class == "recommendation":
+            return " ".join(
+                part for part in (
+                    f"{lead}.",
+                    bullet_text and f"The current page context suggests {bullet_text}.",
+                    f"{inference_line}",
+                    recommendation_line,
+                )
+                if part
+            )
+        if "what does this page do" in user_prompt.lower():
+            page_name = page_context.payload.page_type.replace("_", " ")
+            return " ".join(
+                part for part in (
+                    f"This page is the HaruQuant {page_name} view.",
+                    f"{lead}.",
+                    bullet_text,
+                )
+                if part
+            )
+        return " ".join(
+            part for part in (
+                f"{lead}.",
+                fact_sentence and f"I'm grounding this on {fact_sentence}.",
+                bullet_text,
+                recommendation_line if response_style != "clarification" else None,
+            )
+            if part
+        )
 
     def _build_inference_line(self, *, task_class: str, tool_results: list[ToolExecutionResult], page_context) -> str:
         summary_text = "; ".join(
@@ -476,14 +648,14 @@ class AIGatewayService:
             if result.success
         )
         if task_class == "diagnostic":
-            return f"Observed state suggests the issue should be traced through drawdown, PnL, and exposure drivers. Evidence: {summary_text or page_context.payload.summary.headline}"
+            return f"the issue is most likely tied to drawdown, PnL, or exposure drivers based on {summary_text or page_context.payload.summary.headline}"
         if task_class == "comparison":
-            return f"Comparison should be anchored on score, Sharpe, drawdown, or exposure metrics. Evidence: {summary_text or page_context.payload.summary.headline}"
+            return f"the comparison should be anchored on score, Sharpe, drawdown, or exposure metrics, using {summary_text or page_context.payload.summary.headline} as the evidence base"
         if task_class == "risk_explanation":
-            return f"Current risk is best explained by live exposure concentration and floating PnL. Evidence: {summary_text or page_context.payload.summary.headline}"
+            return f"current risk is best explained by live exposure concentration and floating PnL, with {summary_text or page_context.payload.summary.headline} carrying the main signal"
         if task_class == "recommendation":
-            return f"Next research steps should follow from the strongest and weakest observed metrics. Evidence: {summary_text or page_context.payload.summary.headline}"
-        return f"Current performance should be summarized from the latest HaruQuant metrics. Evidence: {summary_text or page_context.payload.summary.headline}"
+            return f"the next research step should follow from the strongest and weakest observed metrics, especially {summary_text or page_context.payload.summary.headline}"
+        return f"the current performance summary should come from the latest HaruQuant metrics, especially {summary_text or page_context.payload.summary.headline}"
 
     @staticmethod
     def _build_recommendation_line(*, task_class: str, tool_results: list[ToolExecutionResult]) -> str:
