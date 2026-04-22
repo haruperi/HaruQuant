@@ -31,6 +31,205 @@ except Exception:  # pragma: no cover - optional dependency fallback
     tqdm = None
 
 
+import numpy as np
+
+# Turbo Mode Constants
+# Position Table Columns: [ticket, symbol_id, type (0=buy, 1=sell), open_price, volume, sl, tp, open_tick_idx, status (1=active, 0=empty)]
+POS_TICKET = 0
+POS_SYMBOL_ID = 1
+POS_TYPE = 2
+POS_OPEN_PRICE = 3
+POS_VOLUME = 4
+POS_SL = 5
+POS_TP = 6
+POS_OPEN_IDX = 7
+POS_STATUS = 8
+POS_COLS = 9
+
+# Trade Record (Output) Columns: [ticket, symbol_id, type, open_price, close_price, volume, sl, tp, open_idx, close_idx, profit, close_reason (1=SL, 2=TP, 3=Signal)]
+REC_TICKET = 0
+REC_SYMBOL_ID = 1
+REC_TYPE = 2
+REC_OPEN_PRICE = 3
+REC_CLOSE_PRICE = 4
+REC_VOLUME = 5
+REC_SL = 6
+REC_TP = 7
+REC_OPEN_IDX = 8
+REC_CLOSE_IDX = 9
+REC_PROFIT = 10
+REC_REASON = 11
+REC_COLS = 12
+
+if njit is not None:
+    @njit(cache=True)
+    def _run_turbo_sim_numba(
+        bid_arr,
+        ask_arr,
+        symbol_id_arr,
+        is_bar_close_arr,
+        event_indices,
+        entry_signals,
+        exit_signals,
+        sl_arr,
+        tp_arr,
+        initial_balance,
+        contract_size,
+        max_positions=100,
+    ):
+        # State
+        balance = initial_balance
+        active_positions = np.zeros((max_positions, POS_COLS), dtype=np.float64)
+        completed_trades = np.zeros((len(event_indices) * max_positions, REC_COLS), dtype=np.float64)
+        completed_count = 0
+        
+        # Pre-allocate equity curve (recorded at every bar close)
+        # For simplicity in this first version, we'll return equity points only at bar closes
+        bar_close_indices = np.where(is_bar_close_arr)[0]
+        equity_curve = np.zeros((len(bar_close_indices), 2), dtype=np.float64) # [tick_idx, equity]
+        equity_ptr = 0
+        
+        next_ticket = 1
+        
+        # Main Event Loop
+        for event_ptr in range(len(event_indices)):
+            idx = event_indices[event_ptr]
+            bid = bid_arr[idx]
+            ask = ask_arr[idx]
+            symbol_id = symbol_id_arr[idx]
+            
+            # 1. Monitor existing positions for SL/TP (Vectorized check within Numba)
+            for i in range(max_positions):
+                if active_positions[i, POS_STATUS] == 0:
+                    continue
+                
+                pos_symbol_id = int(active_positions[i, POS_SYMBOL_ID])
+                # Note: In multi-symbol, we need the price for THAT symbol.
+                # If the event tick is NOT for this position's symbol, we skip SL/TP check for this tick 
+                # (unless we want to pass a full price matrix, which is memory-heavy).
+                # For now, we only check SL/TP when a tick for that symbol arrives.
+                if pos_symbol_id != symbol_id:
+                    continue
+                    
+                p_type = active_positions[i, POS_TYPE]
+                p_sl = active_positions[i, POS_SL]
+                p_tp = active_positions[i, POS_TP]
+                p_vol = active_positions[i, POS_VOLUME]
+                p_open = active_positions[i, POS_OPEN_PRICE]
+                
+                close_price = -1.0
+                reason = 0.0
+                
+                if p_type == 0: # BUY
+                    if p_sl > 0 and bid <= p_sl:
+                        close_price = bid
+                        reason = 1.0 # SL
+                    elif p_tp > 0 and bid >= p_tp:
+                        close_price = bid
+                        reason = 2.0 # TP
+                else: # SELL
+                    if p_sl > 0 and ask >= p_sl:
+                        close_price = ask
+                        reason = 1.0 # SL
+                    elif p_tp > 0 and ask <= p_tp:
+                        close_price = ask
+                        reason = 2.0 # TP
+                        
+                if close_price > 0:
+                    # Close position
+                    pnl = (close_price - p_open) * p_vol * contract_size if p_type == 0 else (p_open - close_price) * p_vol * contract_size
+                    balance += pnl
+                    
+                    # Record
+                    completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
+                    completed_trades[completed_count, REC_SYMBOL_ID] = pos_symbol_id
+                    completed_trades[completed_count, REC_TYPE] = p_type
+                    completed_trades[completed_count, REC_OPEN_PRICE] = p_open
+                    completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
+                    completed_trades[completed_count, REC_VOLUME] = p_vol
+                    completed_trades[completed_count, REC_SL] = p_sl
+                    completed_trades[completed_count, REC_TP] = p_tp
+                    completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
+                    completed_trades[completed_count, REC_CLOSE_IDX] = idx
+                    completed_trades[completed_count, REC_PROFIT] = pnl
+                    completed_trades[completed_count, REC_REASON] = reason
+                    completed_count += 1
+                    
+                    active_positions[i, POS_STATUS] = 0 # Free slot
+            
+            # 2. Process Signal Exits
+            exit_sig = exit_signals[idx]
+            if exit_sig != 0:
+                target_type = 0 if exit_sig == 1 else 1 # 1=Exit Buy (target buy pos), -1=Exit Sell
+                for i in range(max_positions):
+                    if active_positions[i, POS_STATUS] == 1 and active_positions[i, POS_SYMBOL_ID] == symbol_id and active_positions[i, POS_TYPE] == target_type:
+                        p_vol = active_positions[i, POS_VOLUME]
+                        p_open = active_positions[i, POS_OPEN_PRICE]
+                        close_price = bid if target_type == 0 else ask
+                        pnl = (close_price - p_open) * p_vol * contract_size if target_type == 0 else (p_open - close_price) * p_vol * contract_size
+                        balance += pnl
+                        
+                        completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
+                        completed_trades[completed_count, REC_SYMBOL_ID] = symbol_id
+                        completed_trades[completed_count, REC_TYPE] = target_type
+                        completed_trades[completed_count, REC_OPEN_PRICE] = p_open
+                        completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
+                        completed_trades[completed_count, REC_VOLUME] = p_vol
+                        completed_trades[completed_count, REC_SL] = active_positions[i, POS_SL]
+                        completed_trades[completed_count, REC_TP] = active_positions[i, POS_TP]
+                        completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
+                        completed_trades[completed_count, REC_CLOSE_IDX] = idx
+                        completed_trades[completed_count, REC_PROFIT] = pnl
+                        completed_trades[completed_count, REC_REASON] = 3.0 # Signal
+                        completed_count += 1
+                        active_positions[i, POS_STATUS] = 0
+
+            # 3. Process Signal Entries
+            entry_sig = entry_signals[idx]
+            if entry_sig != 0:
+                # Find free slot
+                slot = -1
+                for i in range(max_positions):
+                    if active_positions[i, POS_STATUS] == 0:
+                        slot = i
+                        break
+                
+                if slot != -1:
+                    e_type = 0 if entry_sig == 1 else 1
+                    e_price = ask if e_type == 0 else bid
+                    active_positions[slot, POS_TICKET] = next_ticket
+                    active_positions[slot, POS_SYMBOL_ID] = symbol_id
+                    active_positions[slot, POS_TYPE] = e_type
+                    active_positions[slot, POS_OPEN_PRICE] = e_price
+                    active_positions[slot, POS_VOLUME] = 0.01 # Default volume for now
+                    active_positions[slot, POS_SL] = sl_arr[idx]
+                    active_positions[slot, POS_TP] = tp_arr[idx]
+                    active_positions[slot, POS_OPEN_IDX] = idx
+                    active_positions[slot, POS_STATUS] = 1
+                    next_ticket += 1
+
+            # 4. Record Equity at Bar Close
+            if is_bar_close_arr[idx]:
+                unrealized = 0.0
+                for i in range(max_positions):
+                    if active_positions[i, POS_STATUS] == 1:
+                        # For equity calculation, we need current bid/ask for each symbol
+                        # In the event loop, we only have it for the CURRENT symbol.
+                        # Simplification: use the most recent price if available.
+                        # For now, just use current bid/ask if it's the same symbol.
+                        if active_positions[i, POS_SYMBOL_ID] == symbol_id:
+                            p_type = active_positions[i, POS_TYPE]
+                            p_open = active_positions[i, POS_OPEN_PRICE]
+                            p_vol = active_positions[i, POS_VOLUME]
+                            p_price = bid if p_type == 0 else ask
+                            unrealized += (p_price - p_open) * p_vol * contract_size if p_type == 0 else (p_open - p_price) * p_vol * contract_size
+                
+                equity_curve[equity_ptr, 0] = idx
+                equity_curve[equity_ptr, 1] = balance + unrealized
+                equity_ptr += 1
+
+        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
+
 if njit is not None:
     @njit(cache=True)
     def _process_ticks_numba(bid_values, ask_values):
@@ -176,6 +375,183 @@ class Engine:
         self._risk_equity_history = []
 
         logger.info(f"successfully initialised trading engine {self.backend}")
+
+    def _prepare_turbo_data(self, data):
+        """Prepare contiguous numpy arrays for Turbo Mode."""
+        col_name_map = {}
+        for col in data.columns:
+            col_name_map[str(col).lower()] = col
+
+        # 1. Price and Metadata Arrays
+        bid_arr = data[col_name_map["bid"]].to_numpy(dtype="float64", copy=False)
+        ask_arr = data[col_name_map["ask"]].to_numpy(dtype="float64", copy=False)
+        is_bar_close_arr = data[col_name_map["is_bar_close"]].to_numpy(dtype="bool", copy=False)
+
+        # 2. Symbol Mapping (Strings -> IDs)
+        symbol_series = data[col_name_map["symbol"]].astype(str)
+        unique_symbols = symbol_series.unique()
+        symbol_to_id = {name: i for i, name in enumerate(unique_symbols)}
+        id_to_symbol = {i: name for name, i in symbol_to_id.items()}
+        symbol_id_arr = symbol_series.map(symbol_to_id).to_numpy(dtype="int64")
+
+        # 3. Signal Arrays
+        entry_signals = self._signal_to_float_array(data, col_name_map, ["entry_signal"])
+        if entry_signals is None: entry_signals = np.zeros(len(data))
+        
+        exit_signals = self._signal_to_float_array(data, col_name_map, ["exit_signal"])
+        if exit_signals is None: exit_signals = np.zeros(len(data))
+
+        sl_arr = self._signal_to_float_array(data, col_name_map, ["sl", "stop_loss"])
+        if sl_arr is None: sl_arr = np.zeros(len(data))
+
+        tp_arr = self._signal_to_float_array(data, col_name_map, ["tp", "take_profit"])
+        if tp_arr is None: tp_arr = np.zeros(len(data))
+
+        # 4. Event Teleportation: Find indices where SOMETHING happens
+        # Events: Signals OR Bar Closes (for equity recording)
+        event_mask = (entry_signals != 0) | (exit_signals != 0) | (is_bar_close_arr)
+        event_indices = np.where(event_mask)[0]
+
+        return {
+            "bid_arr": bid_arr,
+            "ask_arr": ask_arr,
+            "symbol_id_arr": symbol_id_arr,
+            "is_bar_close_arr": is_bar_close_arr,
+            "event_indices": event_indices,
+            "entry_signals": entry_signals,
+            "exit_signals": exit_signals,
+            "sl_arr": sl_arr,
+            "tp_arr": tp_arr,
+            "id_to_symbol": id_to_symbol,
+            "timestamps": data.index.to_pydatetime() if isinstance(data.index, pd.DatetimeIndex) else None
+        }
+
+    def run_vectorized(self, data, initial_balance=10000.0, contract_size=100000.0):
+        """High-speed simulation runner using Numba JIT and vectorized events."""
+        if njit is None:
+            logger.warning("Numba not available. Falling back to run_event_driven().")
+            return self.run_event_driven(data)
+
+        start_time = time.time()
+        
+        # Phase 1: Prepare Arrays
+        prep = self._prepare_turbo_data(data)
+        
+        # Phase 2: Run Compiled Simulation
+        trades_arr, equity_arr, final_balance = _run_turbo_sim_numba(
+            prep["bid_arr"],
+            prep["ask_arr"],
+            prep["symbol_id_arr"],
+            prep["is_bar_close_arr"],
+            prep["event_indices"],
+            prep["entry_signals"],
+            prep["exit_signals"],
+            prep["sl_arr"],
+            prep["tp_arr"],
+            float(initial_balance),
+            float(contract_size)
+        )
+        
+        # Phase 3: Reconstruct Objects
+        # 1. Reconstruct TradeRecords
+        id_to_symbol = prep["id_to_symbol"]
+        timestamps = prep["timestamps"]
+        bid_arr = prep["bid_arr"]
+        ask_arr = prep["ask_arr"]
+        
+        reconstructed_trades = []
+        for i in range(len(trades_arr)):
+            row = trades_arr[i]
+            symbol_name = id_to_symbol[int(row[REC_SYMBOL_ID])]
+            open_idx = int(row[REC_OPEN_IDX])
+            close_idx = int(row[REC_CLOSE_IDX])
+            is_buy = (row[REC_TYPE] == 0)
+            
+            # --- Vectorized MFE/MAE Calculation ---
+            # Slice the price array for the duration of the trade
+            # Note: We use bid for buy positions and ask for sell positions 
+            # to determine the extremes reached by the opposite side (execution price).
+            # Long (Buy): MFE is Max Bid, MAE is Min Bid
+            # Short (Sell): MFE is Min Ask (lowest point reached), MAE is Max Ask
+            price_slice = bid_arr[open_idx:close_idx+1] if is_buy else ask_arr[open_idx:close_idx+1]
+            
+            mfe_usd = 0.0
+            mae_usd = 0.0
+            
+            if len(price_slice) > 0:
+                p_open = row[REC_OPEN_PRICE]
+                p_vol = row[REC_VOLUME]
+                
+                if is_buy:
+                    max_reached = np.max(price_slice)
+                    min_reached = np.min(price_slice)
+                    mfe_usd = (max_reached - p_open) * p_vol * contract_size
+                    mae_usd = (min_reached - p_open) * p_vol * contract_size
+                else:
+                    min_reached = np.min(price_slice) # Lowest ask is best for sell
+                    max_reached = np.max(price_slice) # Highest ask is worst for sell
+                    mfe_usd = (p_open - min_reached) * p_vol * contract_size
+                    mae_usd = (p_open - max_reached) * p_vol * contract_size
+
+            reason_map = {1.0: "stop_loss", 2.0: "take_profit", 3.0: "signal"}
+            reason_str = reason_map.get(row[REC_REASON], "manual")
+
+            record = core.TradeRecord(
+                ticket=int(row[REC_TICKET]),
+                symbol=symbol_name,
+                type="buy" if is_buy else "sell",
+                open_price=row[REC_OPEN_PRICE],
+                close_price=row[REC_CLOSE_PRICE],
+                size=row[REC_VOLUME],
+                stop_loss_price=row[REC_SL],
+                profit_target_price=row[REC_TP],
+                open_time=timestamps[open_idx] if timestamps is not None else None,
+                close_time=timestamps[close_idx] if timestamps is not None else None,
+                profit_loss=row[REC_PROFIT],
+                mfe_usd=mfe_usd,
+                mae_usd=mae_usd,
+                exit_reason=reason_str,
+                close_type=reason_str.upper()
+            )
+            reconstructed_trades.append(record)
+            
+        # 2. Reconstruct Equity Curve
+        reconstructed_equity = []
+        for i in range(len(equity_arr)):
+            tick_idx = int(equity_arr[i, 0])
+            val = equity_arr[i, 1]
+            reconstructed_equity.append(core.EquityPoint(
+                timestamp=timestamps[tick_idx] if timestamps is not None else None,
+                balance=val, # Simplification
+                equity=val
+            ))
+            
+        # 3. Update Engine State to match final simulation state
+        self.state.completed_trade_records = reconstructed_trades
+        self.state.completed_equity_curve = reconstructed_equity
+        self.state.trading_account.balance = final_balance
+        self.state.trading_account.equity = final_balance
+        
+        logger.info(f"Turbo run completed in {time.time() - start_time:.4f}s")
+        return len(data) # Return processed ticks count
+
+    def run(self, data, engine_type="vectorized", **kwargs):
+        """
+        Unified simulation entry point.
+        
+        Args:
+            data: Tick DataFrame
+            engine_type (str): "vectorized" (fast, default) or "event_driven" (tick-perfect)
+            **kwargs: Arguments passed to the underlying engine
+        """
+        if engine_type == "vectorized":
+            # Map keyword arguments to run_vectorized signature
+            initial_balance = kwargs.get("initial_balance", 10000.0)
+            contract_size = kwargs.get("contract_size", 100000.0)
+            return self.run_vectorized(data, initial_balance=initial_balance, contract_size=contract_size)
+        
+        # Fallback to event driven
+        return self.run_event_driven(data, **kwargs)
 
     def _strict_order_calc_profit(self, order_type, symbol, volume, price_open, price_close):
         if self.client is None or not hasattr(self.client, "order_calc_profit"):
@@ -1286,7 +1662,7 @@ class Engine:
             return bool(self.state.trading_orders)
         return True
 
-    def run(
+    def run_event_driven(
         self,
         data,
         position_size=None,

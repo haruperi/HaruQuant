@@ -588,180 +588,6 @@ class BarAggregator:
         return completed_bar
 
 
-def create_signal_mapping(
-    trading_tf_data: pd.DataFrame,
-    m1_data: pd.DataFrame,
-) -> Dict[pd.Timestamp, Dict[str, float]]:
-    """
-    Create mapping from M1 timestamps to trading timeframe signals.
-
-    This function maps each M1 bar to the signals from its corresponding
-    trading timeframe bar (e.g., H1, H4, D1). Maintains the "shift by 1 bar"
-    behavior where signals from bar T execute at bar T+1.
-
-    Args:
-        trading_tf_data: DataFrame with signals on trading timeframe (e.g., H1)
-                        Must have columns: entry_signal, exit_signal
-                        Optional columns: pending_signal, cancel_pending_signal, pending_signal_2, cancel_pending_signal_2, price, price_2, sl, tp
-        m1_data: DataFrame with M1 bars
-
-    Returns:
-        Dictionary mapping M1 timestamps to signal dictionaries:
-        {
-            m1_timestamp: {
-                "entry_signal": float,
-                "exit_signal": float,
-                "pending_signal": float,
-                "cancel_pending_signal": float,
-                "pending_signal_2": float,
-                "cancel_pending_signal_2": float,
-                "price": float,
-                "price_2": float,
-                "sl": float,
-                "tp": float
-            }
-        }
-
-    Example:
-        >>> # H1 signal at 10:00 executes at 11:00 H1 bar
-        >>> # In M1 mode, executes at first M1 bar of 11:00 (11:00:00)
-        >>> signal_map = create_signal_mapping(h1_data, m1_data)
-        >>> # M1 bars from 11:00:00 to 11:59:00 all map to the same H1 signals
-    """
-    signal_map: Dict[pd.Timestamp, Dict[str, float]] = {}
-
-    # Ensure both DataFrames have DatetimeIndex
-    if not isinstance(trading_tf_data.index, pd.DatetimeIndex):
-        raise ValueError("trading_tf_data must have DatetimeIndex")
-    if not isinstance(m1_data.index, pd.DatetimeIndex):
-        raise ValueError("m1_data must have DatetimeIndex")
-
-    # Get required signal columns
-    required_cols = ["entry_signal", "exit_signal"]
-    for col in required_cols:
-        if col not in trading_tf_data.columns:
-            raise ValueError(f"trading_tf_data missing required column: {col}")
-
-    # Check for optional columns
-    has_pending_signal = "pending_signal" in trading_tf_data.columns
-    has_cancel_pending_signal = "cancel_pending_signal" in trading_tf_data.columns
-    has_pending_signal_2 = "pending_signal_2" in trading_tf_data.columns
-    has_cancel_pending_signal_2 = "cancel_pending_signal_2" in trading_tf_data.columns
-    has_price = "price" in trading_tf_data.columns
-    has_price_2 = "price_2" in trading_tf_data.columns
-    has_sl = "sl" in trading_tf_data.columns
-    has_tp = "tp" in trading_tf_data.columns
-
-    logger.debug(
-        f"Creating signal mapping: {len(trading_tf_data)} trading TF bars -> "
-        f"{len(m1_data)} M1 bars"
-    )
-
-    # Infer trading timeframe from data frequency
-    # Calculate median time delta between bars
-    if len(trading_tf_data) > 1:
-        time_deltas = trading_tf_data.index.to_series().diff().dropna()
-        median_delta = time_deltas.median()
-        tf_minutes = int(median_delta.total_seconds() / 60)
-    else:
-        # Default to H1 if can't infer
-        tf_minutes = 60
-        logger.warning("Cannot infer trading timeframe, assuming H1 (60 minutes)")
-
-    logger.debug(f"Inferred trading timeframe: {tf_minutes} minutes")
-
-    # Create mapping for each M1 bar
-    for m1_timestamp in m1_data.index:
-        # Find the trading TF bar that this M1 bar belongs to
-        # Floor to the trading timeframe interval
-        trading_tf_timestamp = m1_timestamp.floor(f"{tf_minutes}min")
-
-        # Look up signals from the trading TF bar
-        if trading_tf_timestamp in trading_tf_data.index:
-            signal_map[m1_timestamp] = {
-                "entry_signal": float(
-                    cast(Any, trading_tf_data.loc[trading_tf_timestamp, "entry_signal"])
-                ),
-                "exit_signal": float(
-                    cast(Any, trading_tf_data.loc[trading_tf_timestamp, "exit_signal"])
-                ),
-                "pending_signal": (
-                    float(
-                        cast(
-                            Any,
-                            trading_tf_data.loc[
-                                trading_tf_timestamp, "pending_signal"
-                            ],
-                        )
-                    )
-                    if has_pending_signal
-                    else 0.0
-                ),
-                "cancel_pending_signal": (
-                    float(
-                        cast(
-                            Any,
-                            trading_tf_data.loc[
-                                trading_tf_timestamp, "cancel_pending_signal"
-                            ],
-                        )
-                    )
-                    if has_cancel_pending_signal
-                    else 0.0
-                ),
-                "pending_signal_2": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "pending_signal_2"]))
-                    if has_pending_signal_2
-                    else 0.0
-                ),
-                "cancel_pending_signal_2": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "cancel_pending_signal_2"]))
-                    if has_cancel_pending_signal_2
-                    else 0.0
-                ),
-                "price": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "price"]))
-                    if has_price
-                    else 0.0
-                ),
-                "price_2": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "price_2"]))
-                    if has_price_2
-                    else 0.0
-                ),
-                "sl": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "sl"]))
-                    if has_sl
-                    else 0.0
-                ),
-                "tp": (
-                    float(cast(Any, trading_tf_data.loc[trading_tf_timestamp, "tp"]))
-                    if has_tp
-                    else 0.0
-                ),
-            }
-        else:
-            # No trading TF bar for this M1 bar (shouldn't happen if data is aligned)
-            signal_map[m1_timestamp] = {
-                "entry_signal": 0.0,
-                "exit_signal": 0.0,
-                "pending_signal": 0.0,
-                "cancel_pending_signal": 0.0,
-                "pending_signal_2": 0.0,
-                "cancel_pending_signal_2": 0.0,
-                "price": 0.0,
-                "price_2": 0.0,
-                "sl": 0.0,
-                "tp": 0.0,
-            }
-
-    logger.success(
-        f"Signal mapping created: {len(signal_map)} M1 bars mapped to trading TF signals"
-    )
-
-    return signal_map
-
-
 class TicksGenerator:
     """Generate tick DataFrames from different source models.
     Source used for synthetic_ticks: https://www.mql5.com/en/articles/75.
@@ -1083,38 +909,37 @@ class TicksGenerator:
         if not isinstance(m1.index, pd.DatetimeIndex):
             m1 = manager._ensure_datetime_index(m1)
 
+        # 1. Isolate and normalize signal columns
+        expected_cols = (
+            "entry_signal", "exit_signal", "pending_signal", "cancel_pending_signal",
+            "pending_signal_2", "cancel_pending_signal_2", "price", "price_2", "sl", "tp"
+        )
         trading_tf = self._ensure_signal_columns(trading_tf)
-        signal_map = create_signal_mapping(trading_tf, m1)
+        tf_signals = trading_tf[list(expected_cols)].copy()
 
-        m1 = self._ensure_signal_columns(m1)
-        m1["entry_signal"] = 0.0
-        m1["exit_signal"] = 0.0
-        m1["pending_signal"] = 0.0
-        m1["cancel_pending_signal"] = 0.0
-        m1["pending_signal_2"] = 0.0
-        m1["cancel_pending_signal_2"] = 0.0
-        m1["price"] = 0.0
-        m1["price_2"] = 0.0
-        m1["sl"] = 0.0
-        m1["tp"] = 0.0
-        for ts in m1.index:
-            mapped = signal_map.get(ts)
-            if mapped is None:
-                continue
-            m1.at[ts, "entry_signal"] = float(mapped.get("entry_signal", 0.0) or 0.0)
-            m1.at[ts, "exit_signal"] = float(mapped.get("exit_signal", 0.0) or 0.0)
-            m1.at[ts, "pending_signal"] = float(
-                mapped.get("pending_signal", 0.0) or 0.0
-            )
-            m1.at[ts, "cancel_pending_signal"] = float(
-                mapped.get("cancel_pending_signal", 0.0) or 0.0
-            )
-            m1.at[ts, "pending_signal_2"] = float(mapped.get("pending_signal_2", 0.0) or 0.0)
-            m1.at[ts, "cancel_pending_signal_2"] = float(mapped.get("cancel_pending_signal_2", 0.0) or 0.0)
-            m1.at[ts, "price"] = float(mapped.get("price", 0.0) or 0.0)
-            m1.at[ts, "price_2"] = float(mapped.get("price_2", 0.0) or 0.0)
-            m1.at[ts, "sl"] = float(mapped.get("sl", 0.0) or 0.0)
-            m1.at[ts, "tp"] = float(mapped.get("tp", 0.0) or 0.0)
+        # 2. Vectorized Mapping:
+        # Infer timeframe of trading signals to know the 'floor' boundary
+        tf_seconds = self._infer_bar_seconds(trading_tf.index)
+        
+        # Floor M1 index to the boundary of the trading timeframe
+        # e.g. 10:23:00 -> 10:00:00 for H1
+        floored_index = m1.index.floor(f"{max(1, tf_seconds)}s")
+        
+        # Ensure tf_signals index is also floored for perfect alignment
+        tf_signals.index = tf_signals.index.floor(f"{max(1, tf_seconds)}s")
+        
+        # Broadcast signals to M1 bars instantly using reindex
+        # This replaces the O(N*M) dictionary lookup and O(N) .at loop
+        mapped_signals = tf_signals.reindex(floored_index).fillna(0.0)
+        
+        # Restore precise M1 timestamps
+        mapped_signals.index = m1.index
+        
+        # Assign all mapped columns to m1 in one go
+        for col in expected_cols:
+            m1[col] = mapped_signals[col]
+
+        logger.success(f"Vectorized signal mapping complete: {len(m1)} bars mapped.")
         return m1
 
     def _generate_m1_ticks(self, trading_tf_data: pd.DataFrame) -> pd.DataFrame:

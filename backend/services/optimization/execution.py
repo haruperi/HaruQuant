@@ -229,6 +229,7 @@ def run_strategy_backtest(
         )
         processed = engine.run(
             ticks,
+            engine_type="event_driven",
             position_size=float(position_size),
             monitor_verbose=False,
             show_progress=False,

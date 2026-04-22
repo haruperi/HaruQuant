@@ -145,7 +145,9 @@ def _run_single_backtest(
         account_every=4, portfolio_every=4, risk_every=4,
     )
     processed = engine.run(
-        tick_df, position_size=lot_size,
+        tick_df,
+        engine_type="event_driven",
+        position_size=lot_size,
         monitor_verbose=False, show_progress=False,
     )
 

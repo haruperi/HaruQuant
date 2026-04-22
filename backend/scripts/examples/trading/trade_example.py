@@ -612,6 +612,7 @@ def example_10_simple_backtest():
 
     processed = engine_instance.run(
         ticks_data,
+        engine_type="event_driven",
         position_size=0.01,
         monitor_verbose=True,
         show_progress=True,
@@ -725,6 +726,7 @@ def example_11_simple_backtest_pending():
 
     processed = engine_instance.run(
         ticks_data,
+        engine_type="event_driven",
         position_size=0.01,
         monitor_verbose=True,
         show_progress=True,
@@ -912,6 +914,7 @@ def example_13_simple_portfolion_backtest():
     start_time = time.time()
     processed = engine_instance.run(
         ticks_data,
+        engine_type="event_driven",
         position_size=0.01,
         monitor_verbose=False,
         show_progress=True,
@@ -1041,6 +1044,7 @@ def example_14_portfolio_backtest_with_risk():
     start_time = time.time()
     processed = engine_instance.run(
         ticks_data,
+        engine_type="event_driven",
         position_size=0.01,
         monitor_verbose=True,
         show_progress=True,
@@ -1230,7 +1234,8 @@ def example_15_complete_backtests():
 
     processed = engine_instance.run(
         ticks_data,
-        position_size=0.01,
+        engine_type="vectorized",
+        position_size=0.1,
         monitor_verbose=False,
         show_progress=True,
         progress_desc="Portfolio Tester Progress",
@@ -1260,36 +1265,66 @@ def example_15_complete_backtests():
     print(f"Total completed in {run_end_time - start_time} seconds")
 
 
+def example_16_turbo_backtest():
+    print_example_header("Example 16: Turbo Mode Backtest (High Speed)")
+    """
+    Demonstrates the new Numba-accelerated Turbo Mode.
+    Expect 100x+ speedup compared to standard run().
+    """
+    start_time = time.time()
+
+    # 1. Setup
+    symbols = [audusd, eurgbp, nzdchf]
+    tick_model = "m1_ticks" 
+    spread_model = "native_spread"
+    account_balance = 10000 
+
+    if backend == "sim":
+        reset_sim_runtime_state(account_balance)
+
+    # 2. Data Preparation
+    logger.info("Loading and preparing data...")
+    merged_ticks = []
+    for symbol in symbols:
+        ticks_data = build_symbol_ticks_for_backtest(symbol, tick_model=tick_model, spread_model=spread_model)
+        if ticks_data is not None:
+            merged_ticks.append(ticks_data)
+
+    ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
+    print(f"Testing with {len(ticks_data)} ticks across {len(symbols)} symbols")
+
+    data_prep_end_time = time.time()
+    print(f"Data preparation completed in {data_prep_end_time - start_time} seconds")
+
+    # 3. Run Turbo Backtest
+    print("\nStarting Turbo Run...")
+    run_start_time = time.time()
+    
+
+    # We use unified run method with engine_type="vectorized"
+    processed = engine_instance.run(
+        ticks_data, 
+        engine_type="vectorized",
+        initial_balance=account_balance,
+        contract_size=100000.0
+    )
+
+    run_end_time = time.time()
+    duration = run_end_time - run_start_time
+
+    # 4. Results
+    run_result = engine_instance.get_run_result(processed_ticks=processed)
+    print(f"\nTurbo Backtest completed in {duration:.4f} seconds")
+    print(f"Speed: {processed / duration:,.0f} ticks/second")
+    print_run_result_summary(run_result)
+    print_portfolio_symbol_summary(run_result.trades, symbols)
+
 
 if __name__ == "__main__":
     # example_01_open_position()
-    # example_02_calculate_profit_margin()
-    # time.sleep(2)
-    # example_03_modify_position()
-    # time.sleep(2)
-    # example_04_close_partial_position()
-    # time.sleep(2)
-    # example_05_close_position()
-    # time.sleep(2)
-    # example_06_pending_orders()
-    # time.sleep(2)
-    # example_07_modify_pending_orders()
-    # time.sleep(2)
-    # example_08_delete_pending_orders()
-    # time.sleep(2)
-    # example_09_monitoring_functions()
-    # time.sleep(2)
-    # example_10_simple_backtest()
-    # time.sleep(2)
-    # example_11_simple_backtest_pending()
-    # time.sleep(2)
-    # example_12_trade_results_partial_close()
-    # time.sleep(2)
-    # example_13_simple_portfolion_backtest()
-    # time.sleep(2)
-    # example_14_portfolio_backtest_with_risk()
-    
+    # ...
     example_15_complete_backtests()
+    #example_16_turbo_backtest()
 
  
 

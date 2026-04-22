@@ -106,7 +106,7 @@ class ReplayEngine:
             frames.append(frame)
 
         try:
-            engine.run(data, frame_observer=_observer, **dict(run_kwargs or {}))
+            engine.run(data, engine_type="event_driven", frame_observer=_observer, **dict(run_kwargs or {}))
         finally:
             if hasattr(engine, "configure_run_schedule"):
                 engine.configure_run_schedule(

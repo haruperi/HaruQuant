@@ -669,6 +669,7 @@ async def _run_backtest_task(
         )
         processed = engine.run(
             ticks_data,
+            engine_type="event_driven",
             position_size=float(request.lot_size),
             monitor_verbose=False,
             show_progress=False,
@@ -1243,6 +1244,7 @@ async def _run_portfolio_backtest_task(
         )
         processed = engine.run(
             portfolio_ticks,
+            engine_type="event_driven",
             position_size=float(request.lot_size),
             monitor_verbose=False,
             show_progress=False,
