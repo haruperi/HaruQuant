@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useMemo, useState, useEffect } from "react"
 import {
   BarChart,
@@ -233,6 +234,44 @@ export default function PerformanceByDayPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+      <CustomChartSemanticSnapshot
+        id={`performance-by-day:${selectedBacktest.backtest_id}:${displayMode}:${dateSetting}:${daysShown}`}
+        title="Performance By Day"
+        summary="Daily return distribution grouped by entry or exit date with best, worst, and average day metrics."
+        keywords={["performance by day", "daily pnl", "best day", "worst day", displayMode, dateSetting]}
+        metrics={[
+          { label: "Display Mode", value: displayMode },
+          { label: "Date Setting", value: dateSetting },
+          { label: "Days Shown", value: String(daysShown) },
+          { label: "Winning Days", value: stats ? String(stats.winningDaysCount) : "0" },
+          { label: "Losing Days", value: stats ? String(stats.losingDaysCount) : "0" },
+          {
+            label: "Average Winning Day",
+            value: stats ? formatCurrency(stats.avgWinningDay) : formatCurrency(0),
+          },
+          {
+            label: "Average Losing Day",
+            value: stats ? formatCurrency(stats.avgLosingDay) : formatCurrency(0),
+          },
+          {
+            label: "Biggest Winning Day",
+            value: stats ? formatCurrency(stats.biggestWinningDay) : formatCurrency(0),
+          },
+          {
+            label: "Biggest Losing Day",
+            value: stats ? formatCurrency(stats.biggestLosingDay) : formatCurrency(0),
+          },
+        ]}
+        series={[
+          {
+            label: displayMode === "dollar" ? "Daily Return" : displayMode === "percent" ? "Daily Return Percent" : "Daily Return R",
+            points: chartData.slice(-240).map((point) => ({
+              x: point.name,
+              y: String(point.value),
+            })),
+          },
+        ]}
+      />
       {/* Header Controls */}
       <div className="flex items-center gap-6 shrink-0">
          <div className="w-[180px]">

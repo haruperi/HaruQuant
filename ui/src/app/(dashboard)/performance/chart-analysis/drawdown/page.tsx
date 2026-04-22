@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import {
   Area,
   AreaChart,
@@ -36,7 +37,12 @@ interface Trade {
     commission: number
     swap: number
     close_time: string
-    [key: string]: any
+    net_profit?: number | string
+    profit?: number | string
+    pnl?: number | string
+    r_multiple?: number | string
+    commissions?: number | string
+    [key: string]: string | number | undefined
 }
 
 function formatCurrency(value: number) {
@@ -58,10 +64,19 @@ function formatR(value: number) {
     return `${value.toFixed(2)}R`
 }
 
-const safelyParseFloat = (value: any): number => {
+const safelyParseFloat = (value: string | number | null | undefined): number => {
     if (value === undefined || value === null || value === "") return 0
     const parsed = parseFloat(value)
     return isNaN(parsed) ? 0 : parsed
+}
+
+function formatCloseTime(value: string | null | undefined) {
+    if (!value) return "unknown_time"
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) {
+        return value
+    }
+    return parsed.toISOString()
 }
 
 export default function DrawdownPage() {
@@ -215,7 +230,8 @@ export default function DrawdownPage() {
             currentDrawdown,
             topToBottom,
             bottomToTop,
-            returnToDrawdown
+            returnToDrawdown,
+            worstDrawdownIndex: maxDDIndex >= 0 ? maxDDIndex : null
         }
     }
   }, [trades, initialBalance, displayMode]) // Depends on trades state
@@ -259,8 +275,88 @@ export default function DrawdownPage() {
       return <div className="flex items-center justify-center p-12 text-muted-foreground">Loading drawdown data...</div>
   }
 
+  const worstDrawdownPoint =
+    stats && stats.worstDrawdownIndex !== null && stats.worstDrawdownIndex >= 0
+      ? chartData[stats.worstDrawdownIndex]
+      : null
+
   return (
     <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+      <CustomChartSemanticSnapshot
+        id={`drawdown-analysis:${selectedBacktest.backtest_id}:${displayMode}`}
+        title="Drawdown Analysis"
+        summary="Trade-by-trade drawdown chart with extrema, recovery span, and current drawdown state."
+        keywords={[
+          "drawdown",
+          "highest drawdown",
+          "worst drawdown",
+          "trade drawdown",
+          "max drawdown",
+          "recovery",
+          displayMode,
+        ]}
+        metrics={[
+          {
+            label: "Worst Drawdown",
+            value: stats
+              ? (
+                  displayMode === "dollar"
+                    ? formatCurrency(stats.worstDrawdown)
+                    : displayMode === "percent"
+                      ? formatPercent(stats.worstDrawdown)
+                      : formatR(stats.worstDrawdown)
+                )
+              : "N/A",
+          },
+          {
+            label: "Worst Drawdown Trade",
+            value: worstDrawdownPoint ? String(worstDrawdownPoint.tradeNumber) : "N/A",
+          },
+          {
+            label: "Worst Drawdown Time",
+            value: worstDrawdownPoint ? formatCloseTime(worstDrawdownPoint.closeTime) : "N/A",
+          },
+          {
+            label: "Current Drawdown",
+            value: stats
+              ? (
+                  displayMode === "dollar"
+                    ? formatCurrency(stats.currentDrawdown)
+                    : displayMode === "percent"
+                      ? formatPercent(stats.currentDrawdown)
+                      : formatR(stats.currentDrawdown)
+                )
+              : "N/A",
+          },
+          { label: "Top to Bottom", value: stats ? String(stats.topToBottom) : "N/A" },
+          { label: "Bottom to Top", value: stats ? String(stats.bottomToTop) : "N/A" },
+        ]}
+        series={[
+          {
+            label: "Drawdown",
+            points: chartData.slice(-240).map((point) => ({
+              x: `Trade ${point.tradeNumber} @ ${formatCloseTime(point.closeTime)}`,
+              y: String(
+                displayMode === "dollar"
+                  ? point.drawdownDollar
+                  : displayMode === "percent"
+                    ? point.drawdownPercent
+                    : point.drawdownR,
+              ),
+            })),
+          },
+          {
+            label: "Trade PnL",
+            points: chartData
+              .filter((point) => typeof point.pl === "number")
+              .slice(-240)
+              .map((point) => ({
+                x: `Trade ${point.tradeNumber} @ ${formatCloseTime(point.closeTime)}`,
+                y: String(point.pl),
+              })),
+          },
+        ]}
+      />
       {/* Header Controls */}
       <div className="flex items-center justify-between shrink-0">
          <div className="w-[200px]">

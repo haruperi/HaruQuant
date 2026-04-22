@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useMemo, useState, useEffect } from "react"
 import {
   BarChart,
@@ -243,6 +244,44 @@ export default function PerformanceBySetupPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+      <CustomChartSemanticSnapshot
+        id={`performance-by-setup:${selectedBacktest.backtest_id}:${displayMode}:${sortMode}`}
+        title="Performance By Setup"
+        summary="Setup-level performance ranking with total gain, average P&L, and win-rate comparisons."
+        keywords={["performance by setup", "strategy setup", "best setup", "worst setup", displayMode, sortMode]}
+        metrics={[
+          { label: "Display Mode", value: displayMode },
+          { label: "Sort Mode", value: sortMode },
+          { label: "Setup Count", value: summaryStats ? String(summaryStats.count) : "0" },
+          { label: "Best Setup Sum", value: summaryStats ? formatCurrency(summaryStats.bestSum) : formatCurrency(0) },
+          { label: "Worst Setup Sum", value: summaryStats ? formatCurrency(summaryStats.worstSum) : formatCurrency(0) },
+          { label: "Best Setup Avg", value: summaryStats ? formatCurrency(summaryStats.bestAvg) : formatCurrency(0) },
+          { label: "Worst Setup Avg", value: summaryStats ? formatCurrency(summaryStats.worstAvg) : formatCurrency(0) },
+        ]}
+        series={[
+          {
+            label: displayMode === "dollar" ? "Setup Return" : displayMode === "percent" ? "Setup Return Percent" : "Setup Return R",
+            points: chartData.slice(0, 240).map((point) => ({
+              x: point.name,
+              y: String(point.value),
+            })),
+          },
+          {
+            label: "Setup Trades",
+            points: tableData.slice(0, 240).map((item) => ({
+              x: item.name,
+              y: String(item.trades),
+            })),
+          },
+          {
+            label: "Setup Win Rate",
+            points: tableData.slice(0, 240).map((item) => ({
+              x: item.name,
+              y: String(item.winRate),
+            })),
+          },
+        ]}
+      />
       {/* Header Controls */}
       <div className="flex items-center gap-4 shrink-0">
          <div className="w-[200px]">

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 
 import {
   Tooltip,
@@ -20,16 +21,16 @@ import {
 export type MetricConfig = {
   label: string
   accessor: string // key in the data object
-  format?: (value: any) => string
+  format?: (value: string | number | null | undefined) => string
   unit?: string
   notes?: string
   description?: string
 }
 
 export type MetricData = {
-  all: Record<string, any>
-  long: Record<string, any>
-  short: Record<string, any>
+  all: Record<string, string | number | null | undefined>
+  long: Record<string, string | number | null | undefined>
+  short: Record<string, string | number | null | undefined>
 }
 
 interface MetricGrid3WayProps {
@@ -39,7 +40,7 @@ interface MetricGrid3WayProps {
   className?: string
 }
 
-const defaultFormatter = (val: any) => {
+const defaultFormatter = (val: string | number | null | undefined) => {
   if (typeof val === "number") {
     // Check if it's an integer
     if (Number.isInteger(val)) return val.toString()
@@ -55,7 +56,10 @@ export function MetricGrid3Way({
   data,
   className,
 }: MetricGrid3WayProps) {
-  const resolveMetric = (obj: Record<string, any>, accessor: string) => {
+  const resolveMetric = (
+    obj: Record<string, string | number | null | undefined>,
+    accessor: string,
+  ) => {
     if (obj && obj[accessor] !== undefined) {
       return obj[accessor]
     }
@@ -68,6 +72,28 @@ export function MetricGrid3Way({
 
   return (
     <Card className={cn("w-full", className)}>
+      <SemanticSnapshotScript
+        block={{
+          id: `metric-grid:${title || "metrics"}`,
+          blockType: "metric_table",
+          title: title || "Performance metrics",
+          summary: "Three-way metric comparison table for all, long, and short trades.",
+          keywords: metrics.map((metric) => metric.label).slice(0, 24),
+          headers: ["Metric", "All Trades", "Long", "Short"],
+          rows: metrics.slice(0, 48).map((metric) => {
+            const formatter = metric.format || defaultFormatter
+            const valAll = resolveMetric(data.all, metric.accessor)
+            const valLong = resolveMetric(data.long, metric.accessor)
+            const valShort = resolveMetric(data.short, metric.accessor)
+            return [
+              metric.label,
+              valAll === null || valAll === undefined ? "-" : formatter(valAll),
+              valLong === null || valLong === undefined ? "-" : formatter(valLong),
+              valShort === null || valShort === undefined ? "-" : formatter(valShort),
+            ]
+          }),
+        }}
+      />
       {title && (
         <CardHeader className="pb-2">
           <CardTitle className="text-xl font-bold">{title}</CardTitle>
@@ -91,7 +117,10 @@ export function MetricGrid3Way({
                 const valLong = resolveMetric(data.long, metric.accessor)
                 const valShort = resolveMetric(data.short, metric.accessor)
 
-                const renderCell = (val: any, defaultColor: string) => {
+                const renderCell = (
+                  val: string | number | null | undefined,
+                  defaultColor: string,
+                ) => {
                   if (val === null || val === undefined) {
                     return (
                       <TableCell className={cn("text-right font-mono", defaultColor)}>

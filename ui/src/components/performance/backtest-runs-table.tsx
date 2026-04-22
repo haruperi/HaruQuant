@@ -32,6 +32,7 @@ import backtestApi, { Backtest } from "@/lib/api/backtest"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 
 export function BacktestRunsTable() {
   const { backtests, loading, error, refetch } = useAllBacktests(100, true)
@@ -190,6 +191,36 @@ export function BacktestRunsTable() {
   return (
     <>
       <Card>
+        <SemanticSnapshotScript
+          block={{
+            id: "backtest-runs-table",
+            blockType: "table",
+            title: "Backtest Runs",
+            summary: "Backtest run inventory with strategy, market, engine, and status columns.",
+            keywords: ["backtests", "runs", "strategy", "symbol", "timeframe", "status"],
+            metrics: [
+              { label: "Backtest Count", value: String(backtests.length) },
+              { label: "Selected Backtests", value: selectedBacktest ? "1" : "0" },
+            ],
+            headers: ["Alias", "Strategy", "Symbol", "Timeframe", "Date Range", "Engine", "Resolution", "# of Trades", "Created", "Status"],
+            rows: backtests.slice(0, 24).map((backtest) => [
+              backtest.alias || "-",
+              backtest.strategy_name || "-",
+              backtest.symbol || "N/A",
+              backtest.timeframe || "N/A",
+              backtest.start_date && backtest.end_date
+                ? `${formatDate(backtest.start_date)} to ${formatDate(backtest.end_date)}`
+                : "N/A",
+              backtest.engine_type || "N/A",
+              backtest.data_resolution || "N/A",
+              backtest.total_trades !== null && backtest.total_trades !== undefined
+                ? backtest.total_trades.toLocaleString()
+                : "-",
+              formatDateTime(backtest.created_at),
+              backtest.status,
+            ]),
+          }}
+        />
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div className="flex flex-col space-y-1">
             <div className="flex items-center space-x-2">

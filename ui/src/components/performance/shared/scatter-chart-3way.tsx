@@ -13,11 +13,19 @@ import {
   Cell,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { cn } from "@/lib/utils"
+
+interface ScatterPoint {
+    x: number
+    y: number
+    z?: number
+    r_multiple?: number
+}
 
 interface ScatterChart3WayProps {
     title: string
-    data: any[]
+    data: ScatterPoint[]
     className?: string
     xAxisLabel?: string
     yAxisLabel?: string
@@ -32,7 +40,7 @@ export function ScatterChart3Way({
 }: ScatterChart3WayProps) {
 
     // Simple tooltip
-    const CustomTooltip = ({ active, payload }: any) => {
+    const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ScatterPoint }> }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
             return (
@@ -61,6 +69,35 @@ export function ScatterChart3Way({
 
     return (
         <Card className={cn("w-full flex flex-col", className)}>
+            <SemanticSnapshotScript
+                block={{
+                    id: `scatter:${title}`,
+                    blockType: "chart",
+                    title,
+                    summary: "Scatter chart of size versus P/L with trade-level points.",
+                    keywords: [title, "scatter", "size", "p/l", "r-multiple"],
+                    metrics: [
+                        { label: "Point Count", value: String(data.length) },
+                        {
+                            label: "Winning Points",
+                            value: String(data.filter((point) => point.y >= 0).length),
+                        },
+                        {
+                            label: "Losing Points",
+                            value: String(data.filter((point) => point.y < 0).length),
+                        },
+                    ],
+                    series: [
+                        {
+                            label: "Scatter points",
+                            points: data.slice(0, 160).map((point, index) => ({
+                                x: `trade_${index}_x=${point.x}`,
+                                y: `y=${point.y}${point.r_multiple !== undefined ? ` r=${point.r_multiple}` : ""}`,
+                            })),
+                        },
+                    ],
+                }}
+            />
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg font-medium">{title}</CardTitle>
             </CardHeader>

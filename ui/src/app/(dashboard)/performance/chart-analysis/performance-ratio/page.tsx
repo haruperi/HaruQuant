@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useEffect, useState, useMemo } from "react"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { strategyApi } from "@/lib/api/strategies"
@@ -157,6 +158,37 @@ export default function PerformanceRatioPage() {
 
     return (
         <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+            <CustomChartSemanticSnapshot
+                id={`performance-ratio:${selectedBacktest.backtest_id}:${selectedMetric}`}
+                title="Performance Ratio"
+                summary="Rolling performance ratio chart across trades with current value and ratio-specific summary metrics."
+                keywords={["performance ratio", "winrate", "sharpe", "sortino", "profit factor", selectedMetric]}
+                metrics={[
+                    { label: "Selected Metric", value: selectedMetric },
+                    { label: "Current Value", value: formatNumber(lastValue, 2) },
+                    { label: "Trade Count", value: String(data.length) },
+                    { label: "Winners", value: String(tradeStats.winners) },
+                    { label: "Losers", value: String(tradeStats.losers) },
+                    { label: "Break Evens", value: String(tradeStats.breakeven) },
+                    {
+                        label: "Max Value",
+                        value: data.length > 0 ? formatNumber(Math.max(...data.map((item) => item.value)), 2) : "0.00",
+                    },
+                    {
+                        label: "Min Value",
+                        value: data.length > 0 ? formatNumber(Math.min(...data.map((item) => item.value)), 2) : "0.00",
+                    },
+                ]}
+                series={[
+                    {
+                        label: selectedMetric,
+                        points: data.slice(-240).map((point) => ({
+                            x: `Trade ${point.index}`,
+                            y: String(point.value),
+                        })),
+                    },
+                ]}
+            />
             {/* Header Controls */}
             <div className="flex items-center gap-4 shrink-0">
                 <div className="w-64">

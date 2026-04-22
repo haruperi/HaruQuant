@@ -47,6 +47,34 @@ class _KnowledgeToolExecutor:
         )
 
 
+class _LatestCandleToolExecutor:
+    def execute(self, *, user_id, requested_tools, context, authority_band="read_only", permission_tier="T1_READ_ONLY"):
+        results = []
+        if "latest_candle" in requested_tools:
+            results.append(
+                ToolExecutionResult(
+                    tool_name="latest_candle",
+                    payload={
+                        "candle_available": True,
+                        "session_id": context.get("session_id"),
+                        "symbol": context.get("symbol"),
+                        "timeframe": context.get("timeframe"),
+                        "last_candle_direction": "bullish",
+                        "last_candle": {
+                            "time": "2026-04-21T15:15:00+00:00",
+                            "open": 3312.1,
+                            "high": 3318.4,
+                            "low": 3310.7,
+                            "close": 3316.8,
+                        },
+                    },
+                    latency_ms=8,
+                    success=True,
+                )
+            )
+        return results, tuple()
+
+
 def test_ai_gateway_stream_response_persists_user_and_assistant_messages(tmp_path) -> None:
     database_path = tmp_path / "agentic.db"
     db = DatabaseManager(db_path=str(database_path))
@@ -335,3 +363,346 @@ def test_ai_gateway_uses_conversational_retrieval_fallback_for_docs_queries(tmp_
     assert "AI_Chatbot_Implementation_Plan.md" in content
     assert "AI_Chatbot_Support_SOP.md" in content
     assert "rollout plan defines phased release rings" in content.lower()
+
+
+def test_ai_gateway_selects_latest_candle_for_live_chart_question(tmp_path) -> None:
+    database_path = tmp_path / "agentic_live_candle_tools.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="live_tools@example.com", username="live_tools_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/live",
+        current_page_type="live_trading",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    selected = gateway._select_tools(
+        prompt="Is the last candle bullish or bearish?",
+        page_type="live_trading",
+        context={"route": "/live", "page_type": "live_trading", "session_id": 3, "symbol": "XAUUSD", "timeframe": "M15"},
+    )
+
+    assert "latest_candle" in selected
+    assert "portfolio_summary" not in selected
+    assert "risk_snapshot" not in selected
+
+
+def test_ai_gateway_returns_chart_clarification_when_live_chart_anchor_missing(tmp_path) -> None:
+    database_path = tmp_path / "agentic_live_candle_clarify.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="live_clarify@example.com", username="live_clarify_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/live",
+        current_page_type="live_trading",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    metadata, chunks, _message_id = gateway.stream_response(
+        ChatStreamRequest(
+            user_id=1,
+            thread_id=thread.thread_id,
+            prompt="Is the last candle bullish or bearish?",
+            context_route="/live",
+        )
+    )
+    content = "".join(chunks)
+
+    assert metadata["clarification_required"] is True
+    assert "which live session and chart should i inspect" in content.lower()
+
+
+def test_ai_gateway_uses_latest_candle_fallback_for_live_chart_question(tmp_path) -> None:
+    database_path = tmp_path / "agentic_live_candle_fallback.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="live_fallback@example.com", username="live_fallback_user", password="password")
+    session_id = db.create_live_session(user_id=1, session_name="NY Session", mode="paper")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/live",
+        current_page_type="live_trading",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+        tool_executor=_LatestCandleToolExecutor(),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="Is the last candle bullish or bearish?",
+                context_route="/live",
+                context_session_id=session_id,
+                context_symbol="XAUUSD",
+                context_timeframe="M15",
+            )
+        )
+
+    content = "".join(chunks)
+
+    assert metadata["generation_source"] == "fallback"
+    assert metadata["tools_used"] == ["latest_candle"]
+    assert "latest completed xauusd m15 candle is bullish" in content.lower()
+
+
+def test_ai_gateway_uses_dom_snapshot_for_generic_page_summary(tmp_path) -> None:
+    database_path = tmp_path / "agentic_dom_snapshot_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="domsnapshot@example.com", username="domsnapshot_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/performance/overview",
+        current_page_type="generic",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="Summarise these results on current page",
+                context_route="/performance/overview",
+                context_page_title="Overview",
+                context_dom={
+                    "title": "Overview",
+                    "headings": ["Performance Report", "Overview"],
+                    "text_excerpt": "Net Profit Total Return CAGR Max Drawdown Profit Factor",
+                    "tables": [
+                        {
+                            "headers": ["Metric", "All Trades", "Long", "Short"],
+                            "rows": [
+                                ["Net Profit", "$340.75", "$623.48", "($282.73)"],
+                                ["Total Return", "3.41%", "6.23%", "(2.83%)"],
+                                ["CAGR", "3.38%", "6.19%", "(2.96%)"],
+                            ],
+                        }
+                    ],
+                    "semantic_blocks": [
+                        {
+                            "id": "metric-grid:overview",
+                            "blockType": "metric_table",
+                            "title": "Overview metrics",
+                            "summary": "Performance metrics for all, long, and short trades.",
+                            "headers": ["Metric", "All Trades", "Long", "Short"],
+                            "rows": [
+                                ["Net Profit", "$340.75", "$623.48", "($282.73)"],
+                                ["Total Return", "3.41%", "6.23%", "(2.83%)"],
+                                ["CAGR", "3.38%", "6.19%", "(2.96%)"],
+                            ],
+                        }
+                    ],
+                },
+            )
+        )
+
+    content = "".join(chunks)
+
+    assert metadata["generation_source"] == "fallback"
+    assert metadata["tools_used"] == []
+    assert "net profit" in content.lower()
+
+
+def test_ai_gateway_answers_date_of_extreme_from_page_chunks(tmp_path) -> None:
+    database_path = tmp_path / "agentic_page_chunk_date_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="pagechunkdate@example.com", username="pagechunkdate_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/performance/chart-analysis/drawdown",
+        current_page_type="generic",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="What date was the max drawdown?",
+                context_route="/performance/chart-analysis/drawdown",
+                context_page_title="Drawdown",
+                context_dom={
+                    "title": "Drawdown",
+                    "headings": ["Performance Report", "Drawdown"],
+                    "semantic_blocks": [
+                        {
+                            "id": "chart:drawdown",
+                            "blockType": "chart",
+                            "title": "Drawdown curve",
+                            "summary": "Drawdown over time.",
+                            "series": [
+                                {
+                                    "label": "Drawdown",
+                                    "points": [
+                                        {"x": "2026-02-01", "y": "-0.42"},
+                                        {"x": "2026-02-03", "y": "-2.77"},
+                                        {"x": "2026-02-04", "y": "-1.10"},
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+        )
+
+    content = "".join(chunks)
+
+    assert metadata["generation_source"] == "fallback"
+    assert "2026-02-03" in content
+    assert "-2.77" in content
+
+
+def test_ai_gateway_answers_current_vs_previous_from_page_chunks(tmp_path) -> None:
+    database_path = tmp_path / "agentic_page_chunk_compare_gateway.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="pagechunkcompare@example.com", username="pagechunkcompare_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/analysis/equity",
+        current_page_type="generic",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="Compare current equity to the previous point",
+                context_route="/analysis/equity",
+                context_page_title="Equity Curve",
+                context_dom={
+                    "title": "Equity Curve",
+                    "headings": ["Dashboard", "Equity Curve"],
+                    "semantic_blocks": [
+                        {
+                            "id": "chart:equity",
+                            "blockType": "chart",
+                            "title": "Equity curve",
+                            "summary": "Equity over time.",
+                            "series": [
+                                {
+                                    "label": "Equity",
+                                    "points": [
+                                        {"x": "2026-02-01", "y": "10100"},
+                                        {"x": "2026-02-02", "y": "10250"},
+                                        {"x": "2026-02-03", "y": "10340"},
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+        )
+
+    content = "".join(chunks)
+
+    assert metadata["generation_source"] == "fallback"
+    assert "2026-02-02=10250.0" in content
+    assert "2026-02-03=10340.0" in content
+    assert "change=90.0" in content
+
+
+def test_ai_gateway_prioritizes_page_evidence_over_dashboard_tools(tmp_path) -> None:
+    database_path = tmp_path / "agentic_page_priority_dashboard.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="pagepriority@example.com", username="pagepriority_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/dashboard",
+        current_page_type="dashboard",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageContextAssembler(db_manager=db),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="Compare current equity to the previous point on this page",
+                context_route="/dashboard",
+                context_page_title="Equity Curve",
+                context_dom={
+                    "title": "Equity Curve",
+                    "headings": ["Dashboard", "Equity Curve"],
+                    "semantic_blocks": [
+                        {
+                            "id": "chart:equity",
+                            "blockType": "chart",
+                            "title": "Equity curve",
+                            "summary": "Equity over time.",
+                            "series": [
+                                {
+                                    "label": "Equity",
+                                    "points": [
+                                        {"x": "2026-02-01", "y": "10100"},
+                                        {"x": "2026-02-02", "y": "10250"},
+                                        {"x": "2026-02-03", "y": "10340"},
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+        )
+
+    content = "".join(chunks)
+
+    assert metadata["generation_source"] == "fallback"
+    assert metadata["page_evidence_prioritized"] is True
+    assert metadata["tools_used"] == []
+    assert "2026-02-03=10340.0" in content
+    assert "change=90.0" in content

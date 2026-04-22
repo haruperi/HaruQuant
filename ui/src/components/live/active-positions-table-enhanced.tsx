@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { XCircle, Edit2, Loader2, AlertCircle, TrendingUp, TrendingDown } from "lucide-react"
 import { LiveTradingAPI } from "@/lib/api/live"
 import { useLiveWebSocket } from "@/lib/hooks/use-live-websocket"
@@ -177,6 +178,33 @@ export function ActivePositionsTableEnhanced({ sessionId }: ActivePositionsTable
   if (isLoading) {
     return (
       <Card>
+        <SemanticSnapshotScript
+          block={{
+            id: `live-positions:${sessionId}`,
+            blockType: "table",
+            title: "Active Positions",
+            summary: `Open positions for live session ${sessionId}.`,
+            keywords: ["positions", "open positions", "pnl", "stop loss", "take profit"],
+            metrics: [
+              { label: "Open Position Count", value: String(positions.length) },
+              {
+                label: "Aggregate Floating PnL",
+                value: positions.reduce((sum, position) => sum + (position.current_profit || 0), 0).toFixed(2),
+              },
+            ],
+            headers: ["Symbol", "Type", "Size", "Open", "Current", "SL", "TP", "PnL"],
+            rows: positions.slice(0, 24).map((pos) => [
+              pos.symbol,
+              pos.type.toUpperCase(),
+              pos.position_size.toFixed(2),
+              formatPrice(pos.open_price, pos.symbol),
+              formatPrice(pos.current_price, pos.symbol),
+              formatPrice(pos.current_stop_loss, pos.symbol),
+              formatPrice(pos.current_take_profit, pos.symbol),
+              `${(pos.current_profit || 0).toFixed(2)} (${(pos.current_profit_pct || 0).toFixed(2)}%)`,
+            ]),
+          }}
+        />
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="flex items-center space-x-2">
             <CardTitle className="text-sm font-medium">Active Positions</CardTitle>

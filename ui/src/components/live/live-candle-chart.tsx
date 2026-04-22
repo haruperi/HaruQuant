@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { createChart, ColorType, CandlestickSeries, Time } from "lightweight-charts"
+import { createChart, ColorType, CandlestickSeries, Time, IChartApi, ISeriesApi } from "lightweight-charts"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { LiveTradingAPI } from "@/lib/api/live"
 
 interface LiveCandleChartProps {
@@ -30,10 +31,11 @@ export const LiveCandleChart = ({
   timeframe = "M5"
 }: LiveCandleChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<any>(null)
-  const candlestickSeriesRef = useRef<any>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [latestCandles, setLatestCandles] = useState<Candle[]>([])
   const isMountedRef = useRef(true)
 
   // Fetch market data from API
@@ -43,7 +45,7 @@ export const LiveCandleChart = ({
     }
 
     try {
-      const data = await LiveTradingAPI.getMarketData(sessionId, symbol, timeframe, 500)
+      const data = await LiveTradingAPI.getMarketData(sessionId, symbol, timeframe, 500) as MarketDataResponse
       return data
     } catch (err) {
       console.error("[Chart] Error fetching market data:", err)
@@ -65,7 +67,7 @@ export const LiveCandleChart = ({
   useEffect(() => {
     if (!chartContainerRef.current || !sessionId) return
 
-    let chart: any = null
+    let chart: IChartApi | null = null
     let resizeObserver: ResizeObserver | null = null
     let updateTimeout: NodeJS.Timeout | null = null
     let isCancelled = false
@@ -132,6 +134,8 @@ export const LiveCandleChart = ({
         if (isCancelled) return
 
         if (data && data.candles && data.candles.length > 0) {
+          const sortedCandles = [...data.candles].sort((a, b) => (a.time as number) - (b.time as number))
+          setLatestCandles(sortedCandles)
           if (candlestickSeriesRef.current) {
                candlestickSeriesRef.current.applyOptions({
                   priceFormat: {
@@ -140,8 +144,6 @@ export const LiveCandleChart = ({
                       minMove: 1 / Math.pow(10, data.digits),
                   },
               })
-
-              const sortedCandles = [...data.candles].sort((a, b) => (a.time as number) - (b.time as number))
 
               candlestickSeriesRef.current.setData(sortedCandles.map(c => ({
                 time: c.time as Time,
@@ -185,6 +187,7 @@ export const LiveCandleChart = ({
 
             if (data && data.candles && data.candles.length > 0) {
                const sortedCandles = [...data.candles].sort((a, b) => (a.time as number) - (b.time as number))
+               setLatestCandles(sortedCandles)
                const latestCandle = sortedCandles[sortedCandles.length - 1]
 
                if (candlestickSeriesRef.current) {
@@ -234,8 +237,38 @@ export const LiveCandleChart = ({
     )
   }
 
+  const latestCandleSummary = latestCandles.length > 0
+    ? (() => {
+        const candle = latestCandles[latestCandles.length - 1]
+        return `O=${candle.open} H=${candle.high} L=${candle.low} C=${candle.close}`
+      })()
+    : "N/A"
+
   return (
       <div className="w-full h-full relative group" style={{ minHeight: '400px' }}>
+        <SemanticSnapshotScript
+            block={{
+                id: `live-candle:${sessionId || "none"}:${symbol}:${timeframe}`,
+                blockType: "chart",
+                title: `${symbol} ${timeframe} Live Candle Chart`,
+                summary: `Live candlestick chart for ${symbol} on ${timeframe}.`,
+                keywords: [symbol, timeframe, "live chart", "candles", "ohlc", "latest candle"],
+                metrics: [
+                    { label: "Session ID", value: sessionId ? String(sessionId) : "N/A" },
+                    { label: "Loaded Candle Count", value: String(latestCandles.length) },
+                    { label: "Latest Candle", value: latestCandleSummary },
+                ],
+                series: [
+                    {
+                        label: "OHLC",
+                        points: latestCandles.slice(-160).map((candle) => ({
+                            x: String(candle.time),
+                            y: `O=${candle.open} H=${candle.high} L=${candle.low} C=${candle.close} V=${candle.volume}`,
+                        })),
+                    },
+                ],
+            }}
+        />
         {error && (
             <div className="absolute inset-0 flex items-center justify-center flex-col bg-background/80 z-20 backdrop-blur-sm rounded-lg">
                 <p className="text-destructive font-semibold">Error Loading Chart</p>

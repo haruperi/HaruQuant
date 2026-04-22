@@ -14,13 +14,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 
 interface DataPoint {
   date: string | number
   all?: number | null
   long?: number | null
   short?: number | null
-  [key: string]: any
+  [key: string]: string | number | null | undefined
 }
 
 interface SeriesChart3WayProps {
@@ -57,6 +58,43 @@ export function SeriesChart3Way({
 
   return (
     <Card className={cn("w-full flex flex-col", className)}>
+      <SemanticSnapshotScript
+        block={{
+          id: `series-chart:${title}`,
+          blockType: "chart",
+          title,
+          summary: "Time-series chart with all, long, and short trade views.",
+          keywords: [title, "chart", "series", ...visibleModes].slice(0, 12),
+          metrics: [
+            { label: "Current (All)", value: getLastValue("all") },
+            { label: "Current (Long)", value: getLastValue("long") },
+            { label: "Current (Short)", value: getLastValue("short") },
+          ],
+          series: [
+            {
+              label: "All Trades",
+              points: data
+                .filter((point) => point.all !== undefined && point.all !== null)
+                .slice(-160)
+                .map((point) => ({ x: String(point.date), y: String(point.all) })),
+            },
+            {
+              label: "Long Trades",
+              points: data
+                .filter((point) => point.long !== undefined && point.long !== null)
+                .slice(-160)
+                .map((point) => ({ x: String(point.date), y: String(point.long) })),
+            },
+            {
+              label: "Short Trades",
+              points: data
+                .filter((point) => point.short !== undefined && point.short !== null)
+                .slice(-160)
+                .map((point) => ({ x: String(point.date), y: String(point.short) })),
+            },
+          ],
+        }}
+      />
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg font-medium">{title}</CardTitle>
         <ToggleGroup

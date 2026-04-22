@@ -24,6 +24,7 @@ import type {
   AiChatActionDraft,
   AiChatCostPolicyMetadata,
   AiChatMessage,
+  AiChatPageContextPayload,
   AiChatResponseMetadata,
   AiChatResponseStyle,
   AiChatSignalProposal,
@@ -182,6 +183,18 @@ function makePendingAssistant(): ChatMessage {
   }
 }
 
+function buildRuntimeContextPayload(pageContext: AiChatPageContextPayload | null) {
+  const payload = pageContext?.payload as Record<string, unknown> | undefined
+  return {
+    context_route: pageContext?.route,
+    context_page_title: pageContext?.page_title ?? undefined,
+    context_session_id: typeof payload?.session_id === "number" ? payload.session_id : undefined,
+    context_symbol: typeof payload?.symbol === "string" ? payload.symbol : undefined,
+    context_timeframe: typeof payload?.timeframe === "string" ? payload.timeframe : undefined,
+    context_dom: payload?.dom && typeof payload.dom === "object" ? payload.dom as Record<string, unknown> : undefined,
+  }
+}
+
 function extractResponseMetadata(payload: Record<string, unknown>): AiChatResponseMetadata | null {
   const requestId = typeof payload.request_id === "string" ? payload.request_id : undefined
   if (!requestId) {
@@ -254,6 +267,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const responseMetadataRef = React.useRef<Record<string, AiChatResponseMetadata>>({})
   const signalProposalMapRef = React.useRef<Record<string, AiChatSignalProposal>>({})
   const actionDraftMapRef = React.useRef<Record<string, AiChatActionDraft>>({})
+  const lastSyncedContextRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -442,11 +456,6 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
           return
         }
         await refreshThreadList(threadSearch)
-        await updateAiChatThreadContext(authenticatedFetch, restored.thread_id, {
-          current_route: pageContext?.route,
-          current_page_type: pageContext?.page_type,
-          active_context_revision: pageContext?.context_revision,
-        })
       } catch (restoreError) {
         console.error("Failed to restore AI chat thread:", restoreError)
         if (isMounted) {
@@ -470,11 +479,55 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isAuthenticated,
     isHydrated,
     isLoading,
+    refreshThreadList,
+    threadSearch,
+  ])
+
+  React.useEffect(() => {
+    if (!isHydrated || isLoading || !isAuthenticated || !threadId) {
+      return
+    }
+
+    const nextSignature = JSON.stringify({
+      threadId,
+      route: pageContext?.route ?? null,
+      pageType: pageContext?.page_type ?? null,
+      contextRevision: pageContext?.context_revision ?? null,
+    })
+
+    if (lastSyncedContextRef.current === nextSignature) {
+      return
+    }
+
+    let isCancelled = false
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        await updateAiChatThreadContext(authenticatedFetch, threadId, {
+          current_route: pageContext?.route,
+          current_page_type: pageContext?.page_type,
+          active_context_revision: pageContext?.context_revision,
+        })
+        if (!isCancelled) {
+          lastSyncedContextRef.current = nextSignature
+        }
+      } catch (contextError) {
+        console.error("Failed to sync AI chat thread context:", contextError)
+      }
+    }, 300)
+
+    return () => {
+      isCancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [
+    authenticatedFetch,
+    isAuthenticated,
+    isHydrated,
+    isLoading,
     pageContext?.context_revision,
     pageContext?.page_type,
     pageContext?.route,
-    refreshThreadList,
-    threadSearch,
+    threadId,
   ])
 
   React.useEffect(() => {
@@ -780,6 +833,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         activeThread.thread_id,
         {
           prompt: trimmed,
+          ...buildRuntimeContextPayload(pageContext),
         },
         {
           onMeta: (payload) => {
@@ -863,6 +917,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isAuthenticated,
     isOnline,
     isStreaming,
+    pageContext,
     refreshThreadList,
     refreshSignalProposals,
     refreshActionDrafts,
@@ -888,7 +943,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       await regenerateAiChatResponse(
         authenticatedFetch,
         threadId,
-        {},
+        buildRuntimeContextPayload(pageContext),
         {
           onMeta: (payload) => {
             rememberResponseMetadata(payload)
@@ -965,6 +1020,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isAuthenticated,
     isOnline,
     isStreaming,
+    pageContext,
     refreshThreadList,
     refreshSignalProposals,
     refreshActionDrafts,

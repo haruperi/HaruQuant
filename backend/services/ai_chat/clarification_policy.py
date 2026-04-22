@@ -73,6 +73,16 @@ class ClarificationPolicy:
         "risk",
     )
 
+    _LIVE_CHART_PHRASES = (
+        "last candle",
+        "latest candle",
+        "current candle",
+        "bullish",
+        "bearish",
+        "ohlc",
+        "candlestick",
+    )
+
     def evaluate(
         self,
         *,
@@ -93,6 +103,17 @@ class ClarificationPolicy:
 
         if any(phrase in normalized for phrase in self._PAGE_QUESTION_PHRASES):
             return ClarificationDecision(needs_clarification=False)
+
+        if self._needs_live_chart_clarification(
+            normalized=normalized,
+            page_context=page_context,
+            tool_context=tool_context,
+        ):
+            return ClarificationDecision(
+                needs_clarification=True,
+                question="Which live session and chart should I inspect? Select a session on the page or tell me the symbol and timeframe.",
+                rationale="Prompt asks for chart-specific live data, but the current live context is missing a session, symbol, or timeframe anchor.",
+            )
 
         if self._needs_reference_clarification(
             normalized=normalized,
@@ -116,6 +137,20 @@ class ClarificationPolicy:
             )
 
         return ClarificationDecision(needs_clarification=False)
+
+    def _needs_live_chart_clarification(
+        self,
+        *,
+        normalized: str,
+        page_context: PageContextPacket,
+        tool_context: dict[str, object],
+    ) -> bool:
+        if page_context.payload.page_type != "live_trading":
+            return False
+        if not any(phrase in normalized for phrase in self._LIVE_CHART_PHRASES):
+            return False
+        required_keys = ("session_id", "symbol", "timeframe")
+        return not all(tool_context.get(key) for key in required_keys)
 
     def _needs_reference_clarification(
         self,

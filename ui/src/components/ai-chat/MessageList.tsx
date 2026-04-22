@@ -82,7 +82,7 @@ function getResponseStyleConfig(responseStyle?: string) {
       }
     default:
       return {
-        label: "Summary",
+        label: "Answer",
         icon: Sparkles,
         bubbleClassName: "border-violet-500/30 bg-violet-500/5",
         badgeClassName: "border border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300",

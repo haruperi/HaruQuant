@@ -82,6 +82,21 @@ class StreamChatRequest(BaseModel):
     prompt: str = Field(min_length=1)
     request_id: str | None = None
     include_debug: bool = False
+    context_route: str | None = None
+    context_page_title: str | None = None
+    context_session_id: int | None = None
+    context_symbol: str | None = None
+    context_timeframe: str | None = None
+    context_dom: dict[str, object] | None = None
+
+
+class ResolvePageContextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    route: str = Field(min_length=1)
+    page_title: str | None = None
+    page_state: dict[str, object] = Field(default_factory=dict)
+    dom: dict[str, object] = Field(default_factory=dict)
 
 
 class ExportThreadResponse(BaseModel):
@@ -176,10 +191,41 @@ def get_ai_chat_route_contexts() -> list[dict[str, str]]:
 def get_page_context(
     route: str,
     page_title: str | None = None,
+    session_id: int | None = None,
+    symbol: str | None = None,
+    timeframe: str | None = None,
     user_id: AUTHENTICATED_USER_ID = None,
     assembler: Annotated[PageContextAssembler, Depends(get_page_context_assembler)] = None,
 ) -> dict:
-    packet = assembler.assemble_context(route=route, user_id=user_id, page_title=page_title)
+    page_state = {
+        "session_id": session_id,
+        "symbol": symbol,
+        "timeframe": timeframe,
+    }
+    packet = assembler.assemble_context(
+        route=route,
+        user_id=user_id,
+        page_title=page_title,
+        page_state=page_state,
+    )
+    return packet.model_dump(mode="json")
+
+
+@router.post("/context/resolve")
+def resolve_page_context(
+    payload: ResolvePageContextRequest,
+    user_id: AUTHENTICATED_USER_ID = None,
+    assembler: Annotated[PageContextAssembler, Depends(get_page_context_assembler)] = None,
+) -> dict:
+    page_state = dict(payload.page_state)
+    if payload.dom:
+        page_state["dom"] = payload.dom
+    packet = assembler.assemble_context(
+        route=payload.route,
+        user_id=user_id,
+        page_title=payload.page_title,
+        page_state=page_state,
+    )
     return packet.model_dump(mode="json")
 
 
@@ -485,6 +531,12 @@ def stream_thread_response(
                     prompt=payload.prompt,
                     request_id=payload.request_id,
                     include_debug=payload.include_debug,
+                    context_route=payload.context_route,
+                    context_page_title=payload.context_page_title,
+                    context_session_id=payload.context_session_id,
+                    context_symbol=payload.context_symbol,
+                    context_timeframe=payload.context_timeframe,
+                    context_dom=payload.context_dom,
                 )
             )
             yield stream_manager.meta_event(metadata)
@@ -528,6 +580,12 @@ def regenerate_thread_response(
                     request_id=payload.request_id,
                     include_debug=payload.include_debug,
                     persist_user_message=False,
+                    context_route=payload.context_route,
+                    context_page_title=payload.context_page_title,
+                    context_session_id=payload.context_session_id,
+                    context_symbol=payload.context_symbol,
+                    context_timeframe=payload.context_timeframe,
+                    context_dom=payload.context_dom,
                 )
             )
             yield stream_manager.meta_event({**metadata, "regenerated_from_message_id": last_prompt.message_id})

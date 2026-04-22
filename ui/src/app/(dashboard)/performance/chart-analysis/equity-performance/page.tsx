@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useMemo } from "react"
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { strategyApi } from "@/lib/api/strategies"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,6 +51,19 @@ interface MetricCardProps {
   color?: string
 }
 
+interface EquityPerformanceTrade {
+  profit_loss?: number | string
+  net_profit?: number | string
+  pl?: number | string
+  pnl?: number | string
+  profit?: number | string
+  side?: string
+  direction?: string
+  close_time?: string
+  exit_time?: string
+  time?: string
+}
+
 function MetricCard({ title, value, tooltip, color }: MetricCardProps) {
   // Determine color based on value: Red if negative, Green otherwise
   const isNegative = typeof value === 'number'
@@ -86,7 +100,7 @@ function MetricCard({ title, value, tooltip, color }: MetricCardProps) {
 
 export default function EquityPerformancePage() {
     const { selectedBacktest } = useSelectedBacktest()
-    const [trades, setTrades] = useState<any[]>([])
+    const [trades, setTrades] = useState<EquityPerformanceTrade[]>([])
     const [loading, setLoading] = useState(true)
     const [displayMode, setDisplayMode] = useState("Return ($)")
     const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null)
@@ -362,6 +376,44 @@ export default function EquityPerformancePage() {
 
     return (
         <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+            <CustomChartSemanticSnapshot
+                id={`equity-performance:${selectedBacktest.backtest_id}:${displayMode}:${filter}:${drawdownMode}`}
+                title="Equity Performance"
+                summary="Custom performance chart showing equity progression, drawdown overlay, and aggregate trade metrics."
+                keywords={[
+                    "equity performance",
+                    "equity curve",
+                    "drawdown",
+                    "backtest",
+                    "return",
+                    filter,
+                    drawdownMode,
+                ]}
+                metrics={[
+                    { label: "Trades", value: String(metrics.total_trades) },
+                    { label: "Winning Trades", value: String(metrics.winning_trades) },
+                    { label: "Losing Trades", value: String(metrics.losing_trades) },
+                    { label: "Win Rate", value: formatNumber(metrics.win_rate, 2) },
+                    { label: "Return", value: formatDynamicMetric(metrics.total_net_profit) },
+                    { label: "Max Drawdown", value: formatDynamicMetric(metrics.max_drawdown) },
+                ]}
+                series={[
+                    {
+                        label: "Equity",
+                        points: chartData.slice(-240).map((point) => ({
+                            x: `Trade ${point.index}`,
+                            y: String(point.value),
+                        })),
+                    },
+                    {
+                        label: "Drawdown",
+                        points: chartData.slice(-240).map((point) => ({
+                            x: `Trade ${point.index}`,
+                            y: String(drawdownMode === 'percent' ? point.drawdownPct : point.drawdown),
+                        })),
+                    },
+                ]}
+            />
             {/* Header Controls */}
             <div className="flex items-center justify-between shrink-0">
                 <div className="flex gap-4">

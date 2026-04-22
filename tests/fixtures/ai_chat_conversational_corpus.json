@@ -1,0 +1,86 @@
+[
+  {
+    "name": "clarification_for_unresolved_comparison_reference",
+    "route": "/unknown",
+    "page_type": "generic",
+    "prompt": "Compare this run to the previous one",
+    "expected_task_class": "comparison",
+    "expected_response_style": "clarification",
+    "expected_answer_mode": "clarification",
+    "expected_generation_source": "clarification_policy",
+    "expected_tools_used": [],
+    "expected_specialists_used": [],
+    "expected_phrases": ["Which two runs or strategies"],
+    "forbidden_phrases": ["executed", "live trade"]
+  },
+  {
+    "name": "stateful_comparison_resolves_previous_run",
+    "route": "/unknown",
+    "page_type": "generic",
+    "history": [
+      "Backtest 41 is the baseline. Backtest 42 is the new run."
+    ],
+    "prompt": "Compare this run to the previous one",
+    "expected_task_class": "comparison",
+    "expected_response_style": "compare",
+    "expected_answer_mode": "direct_answer",
+    "expected_tools_used": [],
+    "expected_specialists_used": [],
+    "expected_phrases": ["I only have generic context for this page right now"],
+    "forbidden_phrases": ["Which two runs or strategies"]
+  },
+  {
+    "name": "broad_docs_prompt_clarifies_scope",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "docs",
+    "expected_task_class": "knowledge_dialogue",
+    "expected_response_style": "clarification",
+    "expected_answer_mode": "clarification",
+    "expected_generation_source": "clarification_policy",
+    "expected_tools_used": [],
+    "expected_specialists_used": [],
+    "expected_phrases": ["Which document area do you want"],
+    "forbidden_phrases": ["Found 2 relevant excerpts"]
+  },
+  {
+    "name": "knowledge_dialogue_uses_internal_docs",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "Explain the chatbot rollout runbook and support SOP.",
+    "expected_task_class": "knowledge_dialogue",
+    "expected_response_style": "summary",
+    "expected_answer_mode": "direct_answer",
+    "expected_generation_source": "fallback",
+    "expected_tools_used": ["internal_knowledge"],
+    "expected_specialists_used": ["knowledge_retrieval_agent"],
+    "expected_phrases": ["AI_Chatbot_Implementation_Plan.md", "AI_Chatbot_Support_SOP.md"],
+    "forbidden_phrases": ["Prompt goal:", "Required sections:"]
+  },
+  {
+    "name": "diagnostic_routes_to_risk_specialist",
+    "route": "/dashboard",
+    "page_type": "dashboard",
+    "prompt": "Why is my dashboard flat and underperforming this week?",
+    "expected_task_class": "diagnostic",
+    "expected_response_style": "diagnostic",
+    "expected_answer_mode": "direct_answer",
+    "expected_tools_used": [],
+    "expected_specialists_used": [],
+    "expected_phrases": ["drawdown", "dashboard"],
+    "forbidden_phrases": ["Which strategy, run, or page state are you referring to?"]
+  },
+  {
+    "name": "action_request_stays_governed",
+    "route": "/strategy/lab",
+    "page_type": "strategy_detail",
+    "prompt": "Place order now and execute it immediately.",
+    "expected_task_class": "action_draft",
+    "expected_response_style": "recommendation",
+    "expected_answer_mode": "governed_artifact",
+    "expected_tools_used": [],
+    "expected_specialists_used": [],
+    "expected_phrases": ["Action Draft:", "not executed from chat"],
+    "forbidden_phrases": ["order placed", "live execution"]
+  }
+]

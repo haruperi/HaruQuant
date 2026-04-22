@@ -22,6 +22,7 @@ from backend.services.ai_chat.prompt_builder import ChatPromptBuilder, ContextCo
 from backend.services.ai_chat.response_composer import ResponseComposer
 from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
+from backend.services.ai_chat.page_retrieval import PageSemanticRetrievalService, RetrievedPageChunk
 from backend.services.cost import CostEnforcer
 from backend.services.tool_executor import ToolExecutionResult, ToolExecutor
 
@@ -44,6 +45,12 @@ class ChatStreamRequest:
     request_id: str | None = None
     include_debug: bool = False
     persist_user_message: bool = True
+    context_route: str | None = None
+    context_page_title: str | None = None
+    context_session_id: int | None = None
+    context_symbol: str | None = None
+    context_timeframe: str | None = None
+    context_dom: dict[str, object] | None = None
 
 
 class ChatRateLimitError(Exception):
@@ -68,6 +75,7 @@ class AIGatewayService:
         rate_limiter: ChatRateLimiter | None = None,
         compactor: ContextCompactor | None = None,
         cost_enforcer: CostEnforcer | None = None,
+        page_retrieval_service: PageSemanticRetrievalService | None = None,
     ) -> None:
         self.conversation_service = conversation_service
         self.context_assembler = context_assembler
@@ -83,6 +91,7 @@ class AIGatewayService:
         self.rate_limiter = rate_limiter or ChatRateLimiter()
         self.compactor = compactor or ContextCompactor()
         self.cost_enforcer = cost_enforcer or CostEnforcer()
+        self.page_retrieval_service = page_retrieval_service or PageSemanticRetrievalService()
 
     def stream_response(self, request: ChatStreamRequest) -> tuple[dict[str, object], Iterable[str], str]:
         if not self.rate_limiter.acquire(request.user_id, wait=True, timeout=15.0):
@@ -92,14 +101,34 @@ class AIGatewayService:
             start_time = time.perf_counter()
             request_id = request.request_id or f"chatreq_{uuid4().hex}"
             thread = self.conversation_service.get_thread(user_id=request.user_id, thread_id=request.thread_id)
+            context_route = request.context_route or thread.current_route or "/dashboard"
             page_context = self.context_assembler.assemble_context(
-                route=thread.current_route or "/dashboard",
+                route=context_route,
                 user_id=request.user_id,
+                page_title=request.context_page_title,
+                page_state={
+                    "session_id": request.context_session_id,
+                    "symbol": request.context_symbol,
+                    "timeframe": request.context_timeframe,
+                    "dom": request.context_dom,
+                },
             )
+            if isinstance(request.context_dom, dict):
+                payload = page_context.payload.payload
+                if not isinstance(payload.get("dom"), dict):
+                    payload["dom"] = request.context_dom
             conversation_state = self.conversation_state_service.build_state(
                 thread=thread,
                 page_context=page_context,
                 latest_prompt=request.prompt,
+            )
+            page_chunks = self.page_retrieval_service.retrieve(
+                dom_snapshot=page_context.payload.payload.get("dom") if isinstance(page_context.payload.payload.get("dom"), dict) else None,
+                query=request.prompt,
+            )
+            prioritize_page_evidence = self._should_prioritize_page_evidence(
+                prompt=request.prompt,
+                page_chunks=page_chunks,
             )
             tool_context = self._build_tool_context(page_context=page_context, prompt=request.prompt)
             tool_context = self.conversation_state_service.enrich_tool_context(
@@ -125,6 +154,7 @@ class AIGatewayService:
                 prompt=request.prompt,
                 page_type=page_context.payload.page_type,
                 context=tool_context,
+                prioritize_page_evidence=prioritize_page_evidence,
             )
             tool_results, denied_tools = self.tool_executor.execute(
                 user_id=request.user_id,
@@ -165,6 +195,7 @@ class AIGatewayService:
                 page_context=page_context,
                 conversation_state=conversation_state,
                 specialist_artifacts=specialist_artifacts,
+                page_chunks=page_chunks,
                 user_prompt=self._compose_grounded_user_prompt(
                     prompt=request.prompt,
                     tool_results=tool_results,
@@ -247,6 +278,8 @@ class AIGatewayService:
                 tool_results=tool_results,
                 task_class=plan.task_class,
                 response_style=plan.response_style,
+                page_chunks=page_chunks,
+                prioritize_page_evidence=prioritize_page_evidence,
                 signal_proposal=signal_proposal,
                 action_draft=action_draft,
                 specialist_artifacts=specialist_artifacts,
@@ -312,6 +345,7 @@ class AIGatewayService:
                 "context_revision": page_context.payload.context_revision,
                 "tools_used": [result.tool_name for result in tool_results if result.success],
                 "tools_denied": list(denied_tools),
+                "page_evidence_prioritized": prioritize_page_evidence,
                 "active_topic": conversation_state.active_topic,
                 "specialist_agents_used": [artifact.agent_name for artifact in specialist_artifacts],
                 "specialist_artifacts": [artifact.model_dump(mode="json") for artifact in specialist_artifacts],
@@ -342,6 +376,7 @@ class AIGatewayService:
                     "conversation_plan": plan.model_dump(mode="json"),
                     "conversation_state": conversation_state.model_dump(mode="json"),
                     "specialist_artifacts": [artifact.model_dump(mode="json") for artifact in specialist_artifacts],
+                    "page_chunks": [chunk.__dict__ for chunk in page_chunks],
                     "prompt": built_prompt.debug,
                 }
             
@@ -487,6 +522,8 @@ class AIGatewayService:
         tool_results: list[ToolExecutionResult],
         task_class: str,
         response_style: str,
+        page_chunks: list[RetrievedPageChunk],
+        prioritize_page_evidence: bool,
         signal_proposal=None,
         action_draft=None,
         specialist_artifacts: list[SpecialistAgentArtifact] | None = None,
@@ -501,6 +538,11 @@ class AIGatewayService:
             result = runtime._call_llm(system_prompt, user_prompt)
             text = str(result.get("content") or "").strip()
             if text:
+                text = self._polish_runtime_text(
+                    text=text,
+                    response_mode=response_mode,
+                    task_class=task_class,
+                )
                 return GenerationResult(
                     text=text,
                     prompt_tokens=result.get("prompt_tokens"),
@@ -520,11 +562,71 @@ class AIGatewayService:
             tool_results=tool_results,
             task_class=task_class,
             response_style=response_style,
+            page_chunks=page_chunks,
+            prioritize_page_evidence=prioritize_page_evidence,
             signal_proposal=signal_proposal,
             action_draft=action_draft,
             specialist_artifacts=specialist_artifacts or [],
         )
         return GenerationResult(text=fallback_text, generation_source="fallback", provider_name=None)
+
+    @staticmethod
+    def _polish_runtime_text(*, text: str, response_mode: str, task_class: str) -> str:
+        if response_mode in {"signal_proposal", "action_draft"} or task_class in {"signal_proposal", "action_draft"}:
+            return text.strip()
+
+        lines = [line.rstrip() for line in text.splitlines()]
+        filtered_lines: list[str] = []
+        skip_prefixes = (
+            "mode:",
+            "style:",
+            "task:",
+            "task class:",
+            "request id:",
+            "user request received:",
+            "context revision:",
+            "response mode:",
+            "answer mode:",
+            "generation source:",
+        )
+
+        for line in lines:
+            normalized = line.strip().lower()
+            if normalized.startswith(skip_prefixes):
+                continue
+            if re.match(
+                r"^\s{0,3}#{1,6}\s*(summary|metrics|implications|observed state|likely drivers|next checks|comparison|tradeoffs|recommendation|risk state|primary exposures|operator warning|assessment|evidence needed)\s*:?\s*$",
+                normalized,
+            ):
+                continue
+            if normalized in {
+                "summary:",
+                "metrics:",
+                "implications:",
+                "observed state:",
+                "likely drivers:",
+                "next checks:",
+                "comparison:",
+                "tradeoffs:",
+                "recommendation:",
+                "risk state:",
+                "primary exposures:",
+                "operator warning:",
+                "assessment:",
+                "evidence needed:",
+            }:
+                continue
+            filtered_lines.append(line)
+
+        cleaned = "\n".join(filtered_lines).strip()
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+
+        if cleaned.lower().startswith("summary\n"):
+            cleaned = cleaned[8:].lstrip()
+        elif cleaned.lower().startswith("summary:"):
+            cleaned = cleaned[8:].lstrip()
+
+        return cleaned or text.strip()
 
     def _generate_fallback_text(
         self,
@@ -535,6 +637,8 @@ class AIGatewayService:
         tool_results: list[ToolExecutionResult],
         task_class: str,
         response_style: str,
+        page_chunks: list[RetrievedPageChunk],
+        prioritize_page_evidence: bool,
         signal_proposal=None,
         action_draft=None,
         specialist_artifacts: list[SpecialistAgentArtifact],
@@ -580,13 +684,30 @@ class AIGatewayService:
                     "- Execution: not executed from chat",
                 ]
             )
+        if prioritize_page_evidence and page_chunks:
+            return self._build_page_chunk_fallback(prompt=user_prompt, page_chunks=page_chunks)
         if page_context.payload.page_type == "generic" and not tool_results:
+            dom_snapshot = page_context.payload.payload.get("dom")
+            if page_chunks:
+                return self._build_page_chunk_fallback(prompt=user_prompt, page_chunks=page_chunks)
+            if isinstance(dom_snapshot, dict) and self._has_visible_table(dom_snapshot):
+                return self._build_dom_page_summary(prompt=user_prompt, dom_snapshot=dom_snapshot)
             return "\n".join(
                 [
                     "I only have generic context for this page right now, so I can't summarize HaruQuant-specific metrics yet.",
                     "Open a dashboard, strategy, backtest, optimization, portfolio, or live-trading page and I can answer against that page state.",
                 ]
             )
+        latest_candle_result = next(
+            (result for result in tool_results if result.tool_name == "latest_candle" and result.success),
+            None,
+        )
+        normalized_prompt = user_prompt.lower()
+        if latest_candle_result is not None and any(
+            phrase in normalized_prompt
+            for phrase in ("last candle", "latest candle", "current candle", "bullish", "bearish", "ohlc", "candlestick", "chart")
+        ):
+            return self._build_latest_candle_fallback(prompt=user_prompt, payload=latest_candle_result.payload)
         return self._build_conversational_fallback(
             user_prompt=user_prompt,
             page_context=page_context,
@@ -718,6 +839,190 @@ class AIGatewayService:
             )
             if part
         )
+
+    @staticmethod
+    def _build_page_chunk_fallback(*, prompt: str, page_chunks: list[RetrievedPageChunk]) -> str:
+        lead = "I can read structured content from the current page."
+        normalized = prompt.lower()
+        top_chunks = page_chunks[:3]
+        for chunk in top_chunks:
+            direct_answer = AIGatewayService._answer_from_page_chunk(prompt=normalized, chunk=chunk)
+            if direct_answer:
+                return direct_answer
+        if any(term in normalized for term in ("summary", "summarise", "summarize", "current page", "results")):
+            lines = [lead, "Most relevant visible page evidence:"]
+            for chunk in top_chunks:
+                lines.append(f"- {chunk.title}: {chunk.content}")
+            return "\n".join(lines)
+        best = top_chunks[0]
+        return f"{lead} The strongest matching page evidence is from {best.title}: {best.content}"
+
+    @staticmethod
+    def _answer_from_page_chunk(*, prompt: str, chunk: RetrievedPageChunk) -> str | None:
+        metadata = chunk.metadata if isinstance(chunk.metadata, dict) else {}
+        series_metadata = metadata.get("series") if isinstance(metadata.get("series"), dict) else {}
+        row_map = metadata.get("row_map") if isinstance(metadata.get("row_map"), dict) else {}
+
+        if any(term in prompt for term in ("date", "when")) and series_metadata:
+            selected = AIGatewayService._select_series_for_prompt(prompt=prompt, series_metadata=series_metadata, title=chunk.title)
+            if selected:
+                label, values = selected
+                if "drawdown" in prompt and isinstance(values.get("min_x"), str):
+                    return (
+                        f"On {chunk.title}, the most severe {label} point appears at {values.get('min_x')} "
+                        f"with a value of {values.get('min_numeric')}."
+                    )
+                if any(term in prompt for term in ("max", "highest", "peak")) and isinstance(values.get("max_x"), str):
+                    return (
+                        f"On {chunk.title}, the peak {label} point appears at {values.get('max_x')} "
+                        f"with a value of {values.get('max_numeric')}."
+                    )
+                if any(term in prompt for term in ("min", "lowest", "worst")) and isinstance(values.get("min_x"), str):
+                    return (
+                        f"On {chunk.title}, the lowest {label} point appears at {values.get('min_x')} "
+                        f"with a value of {values.get('min_numeric')}."
+                    )
+                if isinstance(values.get("latest_x"), str):
+                    return (
+                        f"On {chunk.title}, the latest {label} point is at {values.get('latest_x')} "
+                        f"with a value of {values.get('latest_numeric', values.get('latest_y'))}."
+                    )
+
+        if any(term in prompt for term in ("compare", "previous")) and series_metadata:
+            selected = AIGatewayService._select_series_for_prompt(prompt=prompt, series_metadata=series_metadata, title=chunk.title)
+            if selected:
+                label, values = selected
+                latest_x = values.get("latest_x")
+                previous_x = values.get("previous_x")
+                latest_numeric = values.get("latest_numeric")
+                previous_numeric = values.get("previous_numeric")
+                delta_numeric = values.get("delta_numeric")
+                if (
+                    isinstance(latest_x, str)
+                    and isinstance(previous_x, str)
+                    and isinstance(latest_numeric, (int, float))
+                    and isinstance(previous_numeric, (int, float))
+                    and isinstance(delta_numeric, (int, float))
+                ):
+                    direction = "up" if delta_numeric > 0 else "down" if delta_numeric < 0 else "flat"
+                    return (
+                        f"On {chunk.title}, {label} is {direction} versus the previous point: "
+                        f"{previous_x}={previous_numeric}, {latest_x}={latest_numeric}, change={delta_numeric}."
+                    )
+
+        if any(term in prompt for term in ("net profit", "total return", "cagr", "profit factor", "win rate", "expectancy", "drawdown", "sharpe", "sortino", "calmar")) and row_map:
+            for row_label, values in row_map.items():
+                if row_label in prompt:
+                    visible_values = " | ".join(str(value) for value in values[:4] if str(value).strip())
+                    if visible_values:
+                        return f"On {chunk.title}, {row_label.title()} is shown as {visible_values}."
+
+        return None
+
+    @staticmethod
+    def _select_series_for_prompt(*, prompt: str, series_metadata: dict[str, object], title: str) -> tuple[str, dict[str, object]] | None:
+        if not series_metadata:
+            return None
+        prompt_terms = set(re.findall(r"[a-z0-9%]+", prompt.lower()))
+        best_label = None
+        best_score = -1
+        best_values: dict[str, object] | None = None
+        for label, values in series_metadata.items():
+            if not isinstance(values, dict):
+                continue
+            score = 0
+            label_terms = set(re.findall(r"[a-z0-9%]+", str(label).lower()))
+            score += len(prompt_terms & label_terms) * 5
+            if label in prompt.lower():
+                score += 6
+            if "drawdown" in prompt.lower() and "drawdown" in f"{title} {label}".lower():
+                score += 8
+            if "equity" in prompt.lower() and "equity" in f"{title} {label}".lower():
+                score += 8
+            if score > best_score:
+                best_score = score
+                best_label = str(label)
+                best_values = values
+        if best_label is None or best_values is None:
+            first_label = next(iter(series_metadata.items()))
+            label, values = first_label
+            if isinstance(values, dict):
+                return str(label), values
+            return None
+        return best_label, best_values
+
+    @staticmethod
+    def _build_latest_candle_fallback(*, prompt: str, payload: dict[str, object]) -> str:
+        symbol = str(payload.get("symbol") or "the selected symbol")
+        timeframe = str(payload.get("timeframe") or "the selected timeframe")
+        if not payload.get("candle_available"):
+            reason = str(payload.get("reason") or "market data was unavailable")
+            return f"I can't inspect the latest {symbol} {timeframe} candle right now because {reason}."
+
+        last_candle = payload.get("last_candle") if isinstance(payload.get("last_candle"), dict) else {}
+        direction = str(payload.get("last_candle_direction") or "neutral")
+        timestamp = str(last_candle.get("time") or payload.get("last_candle_time") or "unknown time")
+        open_price = last_candle.get("open")
+        close_price = last_candle.get("close")
+        high_price = last_candle.get("high")
+        low_price = last_candle.get("low")
+
+        if any(word in prompt.lower() for word in ("bullish", "bearish")):
+            return (
+                f"The latest completed {symbol} {timeframe} candle is {direction}. "
+                f"It opened at {open_price}, closed at {close_price}, ranged from {low_price} to {high_price}, "
+                f"and closed at {timestamp}."
+            )
+        return (
+            f"The latest completed {symbol} {timeframe} candle closed {direction}. "
+            f"Open {open_price}, high {high_price}, low {low_price}, close {close_price}, time {timestamp}."
+        )
+
+    @staticmethod
+    def _has_visible_table(dom_snapshot: dict[str, object]) -> bool:
+        tables = dom_snapshot.get("tables")
+        return isinstance(tables, list) and any(isinstance(table, dict) for table in tables)
+
+    @staticmethod
+    def _build_dom_page_summary(*, prompt: str, dom_snapshot: dict[str, object]) -> str:
+        title = str(dom_snapshot.get("title") or "this page").strip()
+        headings = dom_snapshot.get("headings") if isinstance(dom_snapshot.get("headings"), list) else []
+        tables = dom_snapshot.get("tables") if isinstance(dom_snapshot.get("tables"), list) else []
+        excerpt = str(dom_snapshot.get("text_excerpt") or "").strip()
+        first_table = tables[0] if tables and isinstance(tables[0], dict) else {}
+        headers = first_table.get("headers") if isinstance(first_table.get("headers"), list) else []
+        rows = first_table.get("rows") if isinstance(first_table.get("rows"), list) else []
+
+        lead = f"The current page is {title}"
+        if headings:
+            heading_text = ", ".join(str(item) for item in headings[:3])
+            lead = f"The current page is {title}, focused on {heading_text}"
+
+        metric_lines: list[str] = []
+        for row in rows[:8]:
+            if not isinstance(row, list) or len(row) < 2:
+                continue
+            label = str(row[0]).strip()
+            values = [str(value).strip() for value in row[1:4] if str(value).strip()]
+            if label and values:
+                metric_lines.append(f"{label}: {' | '.join(values)}")
+
+        if metric_lines:
+            summary_lines = [f"{lead}.", "Visible results on the page include:"]
+            summary_lines.extend(f"- {line}" for line in metric_lines[:6])
+            if any(word in prompt.lower() for word in ("summary", "summarise", "summarize", "results", "current page")):
+                return "\n".join(summary_lines)
+
+        if headers and rows:
+            first_row = rows[0] if isinstance(rows[0], list) else []
+            return (
+                f"{lead}. The visible table uses columns {', '.join(str(item) for item in headers[:4])}. "
+                f"The first visible row is {', '.join(str(item) for item in first_row[:4])}."
+            )
+
+        if excerpt:
+            return f"{lead}. Visible page content indicates: {excerpt[:280]}"
+        return f"{lead}."
 
     def _build_inference_line(self, *, task_class: str, tool_results: list[ToolExecutionResult], page_context) -> str:
         summary_text = "; ".join(
@@ -886,12 +1191,42 @@ class AIGatewayService:
         prompt: str,
         page_type: str,
         context: dict[str, object],
+        prioritize_page_evidence: bool = False,
     ) -> tuple[str, ...]:
         selected: list[str] = []
         normalized = prompt.lower()
-        if page_type in {"dashboard", "portfolio_risk", "live_trading"}:
+        chart_keywords = (
+            "last candle",
+            "latest candle",
+            "current candle",
+            "bullish",
+            "bearish",
+            "ohlc",
+            "candlestick",
+            "chart",
+        )
+        live_summary_keywords = (
+            "summarize this page",
+            "summarise this page",
+            "summary current page",
+            "summaries current page",
+            "current page",
+            "this page",
+        )
+        is_chart_question = any(word in normalized for word in chart_keywords)
+        is_live_page_summary = page_type == "live_trading" and any(word in normalized for word in live_summary_keywords)
+        if page_type in {"dashboard", "portfolio_risk"} and not prioritize_page_evidence:
             selected.extend(["portfolio_summary", "risk_snapshot"])
             if context.get("session_id") is not None or "position" in normalized:
+                selected.append("open_positions")
+            if any(word in normalized for word in ("alert", "warning", "error", "incident", "log")):
+                selected.append("alert_history")
+        elif page_type == "live_trading":
+            if is_chart_question or is_live_page_summary:
+                selected.append("latest_candle")
+            if not is_chart_question and not prioritize_page_evidence:
+                selected.extend(["portfolio_summary", "risk_snapshot"])
+            if (context.get("session_id") is not None or "position" in normalized) and not prioritize_page_evidence:
                 selected.append("open_positions")
             if any(word in normalized for word in ("alert", "warning", "error", "incident", "log")):
                 selected.append("alert_history")
@@ -932,7 +1267,12 @@ class AIGatewayService:
         strategy_id = payload.get("strategy_id")
         backtest_id = payload.get("backtest_id")
         optimization_id = payload.get("optimization_id")
-        symbol = self._extract_symbol(prompt)
+        symbol = payload.get("symbol")
+        timeframe = payload.get("timeframe")
+        if not isinstance(symbol, str) or not symbol.strip():
+            symbol = self._extract_symbol(prompt)
+        if not isinstance(timeframe, str) or not timeframe.strip():
+            timeframe = self._extract_timeframe(prompt)
         if symbol is None:
             for entity in page_context.payload.entity_refs:
                 if entity.type.lower() in {"symbol", "asset"}:
@@ -946,12 +1286,55 @@ class AIGatewayService:
             "backtest_id": backtest_id,
             "optimization_id": optimization_id,
             "symbol": symbol,
+            "timeframe": timeframe,
             "query": prompt.strip(),
         }
 
     @staticmethod
+    def _should_prioritize_page_evidence(*, prompt: str, page_chunks: list[RetrievedPageChunk]) -> bool:
+        if not page_chunks:
+            return False
+        normalized = prompt.lower()
+        explicit_page_phrases = (
+            "this page",
+            "current page",
+            "these results",
+            "visible",
+            "shown here",
+            "on this chart",
+            "on this table",
+        )
+        page_metric_phrases = (
+            "what date",
+            "when was",
+            "previous point",
+            "compare current",
+            "latest point",
+            "max drawdown",
+            "net profit",
+            "total return",
+            "cagr",
+            "profit factor",
+            "win rate",
+            "expectancy",
+            "sharpe",
+            "sortino",
+            "calmar",
+            "last candle",
+            "latest candle",
+            "bullish",
+            "bearish",
+        )
+        return any(phrase in normalized for phrase in (*explicit_page_phrases, *page_metric_phrases))
+
+    @staticmethod
     def _extract_symbol(prompt: str) -> str | None:
         match = re.search(r"\b([A-Z]{2,6})\b", prompt)
+        return match.group(1) if match else None
+
+    @staticmethod
+    def _extract_timeframe(prompt: str) -> str | None:
+        match = re.search(r"\b(M1|M5|M15|M30|H1|H4|D1|W1|MN1)\b", prompt.upper())
         return match.group(1) if match else None
 
     def _compose_grounded_user_prompt(
@@ -985,6 +1368,7 @@ class AIGatewayService:
             "active_version",
             "alert_count",
             "dataset_count",
+            "last_candle_direction",
             "status",
         ):
             if preferred_key in payload:

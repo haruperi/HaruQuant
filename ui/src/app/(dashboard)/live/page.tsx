@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, LayoutDashboard, Terminal, Activity, TrendingUp } from "lucide-react"
+import { AlertCircle, Activity, TrendingUp } from "lucide-react"
 
 import { LiveStatusCardEnhanced } from "@/components/live/live-status-card-enhanced"
 import { StrategyRunnerEnhanced } from "@/components/live/strategy-runner-enhanced"
@@ -17,6 +17,7 @@ import { OpenOrdersTable } from "@/components/live/open-orders-table"
 import { ManualOrderControls } from "@/components/live/manual-order-controls"
 import { LiveLogViewer } from "@/components/live/live-log-viewer"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRegisterPageContext } from "@/hooks/usePageContext"
 
 export default function LivePage() {
   const [sessionId, setSessionId] = useState<number | undefined>(undefined)
@@ -31,6 +32,18 @@ export default function LivePage() {
     setSessionId(newSessionId)
     setRefreshTrigger(prev => prev + 1)
   }
+
+  useRegisterPageContext(useMemo(
+    () => ({
+      pageTitle: "Live Command Center",
+      sessionId: sessionId ?? null,
+      symbol: selectedSymbol,
+      timeframe: selectedTimeframe,
+      activeTab: "live",
+      entityRefs: sessionId ? [{ type: "live_session", id: String(sessionId), label: `Session ${sessionId}` }] : [],
+    }),
+    [selectedSymbol, selectedTimeframe, sessionId],
+  ))
 
   return (
     <div className="space-y-6 p-1 h-full flex flex-col">

@@ -59,9 +59,9 @@ def test_prompt_builder_includes_domain_sections(tmp_path) -> None:
     )
 
     assert "Task class: diagnostic" in built.system_prompt
-    assert "Required sections: Observed State; Likely Drivers; Next Checks" in built.system_prompt
     assert "Conversation topic: diagnostic" in built.system_prompt
-    assert "Expected response sections: Observed State; Likely Drivers; Next Checks" in built.user_prompt
+    assert "Required sections:" not in built.system_prompt
+    assert "Expected response sections:" not in built.user_prompt
     assert "Conversation resolved references:" in built.user_prompt
     assert built.debug["response_style"] == "diagnostic"
 
@@ -94,9 +94,41 @@ def test_prompt_builder_uses_conversational_shape_for_knowledge_dialogue(tmp_pat
     )
 
     assert "Task class: knowledge_dialogue" in built.system_prompt
-    assert "Required sections: Natural conversational answer" in built.system_prompt
-    assert "Expected response sections: Natural conversational answer" in built.user_prompt
+    assert "Required sections:" not in built.system_prompt
+    assert "Expected response sections:" not in built.user_prompt
     assert built.debug["task_class"] == "knowledge_dialogue"
+
+
+def test_prompt_builder_includes_live_runtime_quality_instructions(tmp_path) -> None:
+    database_path = tmp_path / "agentic_phase7_prompt_quality.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1)
+    page_context = PageContextAssembler(db_manager=db).assemble_context(
+        route="/dashboard",
+        user_id=1,
+    )
+    conversation_state = ConversationStateService().build_state(
+        thread=thread,
+        page_context=page_context,
+        latest_prompt="Summarize the dashboard",
+    )
+
+    built = ChatPromptBuilder().build(
+        thread=thread,
+        page_context=page_context,
+        conversation_state=conversation_state,
+        specialist_artifacts=[],
+        user_prompt="Summarize the dashboard",
+        response_mode="answer",
+        task_class="performance_summary",
+    )
+
+    assert "Default to a natural conversational answer." in built.system_prompt
+    assert "Do not echo internal metadata" in built.system_prompt
+    assert "If you need a clarification, ask one short direct question and stop there." in built.system_prompt
 
 
 def test_ai_gateway_phase7_returns_structured_domain_metadata(tmp_path) -> None:

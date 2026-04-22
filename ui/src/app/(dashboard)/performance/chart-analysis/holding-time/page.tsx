@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useMemo, useState, useEffect } from "react"
 import {
   ScatterChart,
@@ -227,6 +228,32 @@ export default function HoldingTimePage() {
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+      <CustomChartSemanticSnapshot
+        id={`holding-time:${selectedBacktest.backtest_id}:${displayMode}:${timeUnit}`}
+        title="Holding Time Analysis"
+        summary="Trade holding-time scatterplot relating duration to outcome, with average and extreme hold-time statistics."
+        keywords={["holding time", "trade duration", "winners", "losers", displayMode, timeUnit]}
+        metrics={[
+          { label: "Display Mode", value: displayMode },
+          { label: "Time Unit", value: timeUnit },
+          { label: "Trade Count", value: String(chartData.length) },
+          { label: "Winners Average Holding Time", value: formattedStats?.winnersAvg ?? "0.00" },
+          { label: "Losers Average Holding Time", value: formattedStats?.losersAvg ?? "0.00" },
+          { label: "Winners Holding Time Sum", value: formattedStats?.winnersSum ?? "0.00" },
+          { label: "Losers Holding Time Sum", value: formattedStats?.losersSum ?? "0.00" },
+          { label: "Biggest Winner Holding Time", value: formattedStats?.biggestWinner ?? "0.00" },
+          { label: "Biggest Loser Holding Time", value: formattedStats?.biggestLoser ?? "0.00" },
+        ]}
+        series={[
+          {
+            label: "Trade Holding Time vs Return",
+            points: chartData.slice(-240).map((point) => ({
+              x: `Trade ${point.tradeNumber} (${point.x.toFixed(2)} ${timeUnit})`,
+              y: String(point.y),
+            })),
+          },
+        ]}
+      />
       {/* Header Controls */}
       <div className="flex items-center gap-4 shrink-0">
          <div className="w-[200px]">

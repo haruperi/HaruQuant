@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import {
   CandlestickSeries,
   ColorType,
@@ -311,6 +312,53 @@ export function SimulationChart({
 
   return (
     <div className="w-full space-y-3">
+      <SemanticSnapshotScript
+        block={{
+          id: `simulation-chart:${symbol}:${timeframe || "unknown"}`,
+          blockType: "chart",
+          title: `${symbol} Chart`,
+          summary: `Simulation candlestick chart for ${symbol}${timeframe ? ` on ${timeframe}` : ""}.`,
+          keywords: [symbol, timeframe || "timeframe", "simulation", "candles", "ohlc"],
+          metrics: [
+            { label: "Bar Count", value: String(bars.length) },
+            { label: "Indicator Points", value: String(indicators.length) },
+            {
+              label: "Latest Close",
+              value: bars.length > 0 ? bars[bars.length - 1].close.toFixed(digits) : "N/A",
+            },
+          ],
+          series: [
+            {
+              label: "OHLC",
+              points: bars.slice(-160).map((bar) => ({
+                x: String(bar.time),
+                y: `O=${bar.open.toFixed(digits)} H=${bar.high.toFixed(digits)} L=${bar.low.toFixed(digits)} C=${bar.close.toFixed(digits)}`,
+              })),
+            },
+            {
+              label: "SMA",
+              points: indicators
+                .filter((indicator) => typeof indicator.sma === "number")
+                .slice(-160)
+                .map((indicator) => ({ x: String(indicator.time || ""), y: String(indicator.sma) })),
+            },
+            {
+              label: "EMA",
+              points: indicators
+                .filter((indicator) => typeof indicator.ema === "number")
+                .slice(-160)
+                .map((indicator) => ({ x: String(indicator.time || ""), y: String(indicator.ema) })),
+            },
+            {
+              label: "RSI",
+              points: indicators
+                .filter((indicator) => typeof indicator.rsi === "number")
+                .slice(-160)
+                .map((indicator) => ({ x: String(indicator.time || ""), y: String(indicator.rsi) })),
+            },
+          ],
+        }}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm font-medium text-muted-foreground">{symbol} Chart</div>
       </div>

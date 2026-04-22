@@ -13,6 +13,7 @@ from backend.services.strategy.catalog import StrategyCatalogService
 from backend.tools.read_only import (
     AlertHistoryTool,
     BacktestSummaryTool,
+    LatestCandleTool,
     OpenPositionsTool,
     OptimizationResultsTool,
     PortfolioSummaryTool,
@@ -52,6 +53,7 @@ class ToolExecutor:
             "risk_snapshot": RiskSnapshotTool(self.db),
             "alert_history": AlertHistoryTool(self.db),
             "symbol_stats": SymbolStatsTool(self.db),
+            "latest_candle": LatestCandleTool(self.db),
             "internal_knowledge": InternalKnowledgeTool(),
         }
 

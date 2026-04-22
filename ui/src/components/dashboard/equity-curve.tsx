@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { useAuth } from "@/lib/auth-context"
 import { formatCurrency } from "@/lib/utils"
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
@@ -144,6 +145,26 @@ export function EquityCurve() {
 
   return (
     <Card className="col-span-4">
+      <SemanticSnapshotScript
+        block={{
+          id: "dashboard-equity-curve",
+          blockType: "chart",
+          title: "Equity Curve",
+          summary: description,
+          keywords: ["equity curve", "account value", "trade history", "equity"],
+          metrics: [
+            { label: "Point Count", value: String(data.length) },
+            { label: "Latest Equity", value: data.length > 0 ? formatCurrency(data[data.length - 1].total) : "N/A" },
+            { label: "Starting Equity", value: data.length > 0 ? formatCurrency(data[0].total) : "N/A" },
+          ],
+          series: [
+            {
+              label: "Equity",
+              points: data.slice(-160).map((point) => ({ x: point.label, y: String(point.total) })),
+            },
+          ],
+        }}
+      />
       <CardHeader>
         <CardTitle>Equity Curve</CardTitle>
         <CardDescription>{description}</CardDescription>

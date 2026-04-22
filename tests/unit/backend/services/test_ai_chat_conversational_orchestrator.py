@@ -144,3 +144,46 @@ def test_conversation_orchestrator_uses_conversation_state_to_resolve_previous_r
     assert plan.needs_clarification is False
     assert tool_context["backtest_id"] == "42"
     assert tool_context["comparison_backtest_id"] == "41"
+
+
+def test_clarification_policy_requests_scope_for_broad_docs_prompt(tmp_path) -> None:
+    database_path = tmp_path / "agentic_conversation_policy_docs.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(
+        user_id=1,
+        current_route="/dashboard",
+        current_page_type="dashboard",
+    )
+    assembler = PageContextAssembler(db_manager=db)
+    page_context = assembler.assemble_context(route="/dashboard", user_id=1)
+    route_decision = ConversationOrchestrator().agent_router.route("docs")
+    conversation_state = ConversationStateService().build_state(
+        thread=thread,
+        page_context=page_context,
+        latest_prompt="docs",
+    )
+
+    result = ClarificationPolicy().evaluate(
+        prompt="docs",
+        thread=thread,
+        page_context=page_context,
+        conversation_state=conversation_state,
+        tool_context={
+            "route": "/dashboard",
+            "page_type": "dashboard",
+            "session_id": None,
+            "strategy_id": None,
+            "backtest_id": None,
+            "optimization_id": None,
+            "symbol": None,
+            "query": "docs",
+        },
+        route_decision=route_decision,
+    )
+
+    assert result.needs_clarification is True
+    assert "document area" in (result.question or "").lower()

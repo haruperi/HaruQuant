@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { strategyApi } from "@/lib/api/strategies"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -156,6 +157,39 @@ export default function SimulatorPage() {
 
     return (
         <div className="flex h-full w-full bg-slate-950 text-slate-200 overflow-hidden">
+            <CustomChartSemanticSnapshot
+                id={`simulator:${selectedBacktest?.backtest_id ?? "none"}:${config.numSimulations}:${config.numTrades}:${useKPI ? "kpi" : "manual"}`}
+                title="Simulation"
+                summary="Monte Carlo style trade-path simulator using configured win rate, gain, loss, and starting balance inputs."
+                keywords={["simulation", "monte carlo", "equity paths", useKPI ? "kpi" : "manual"]}
+                metrics={[
+                    { label: "Number of Simulations", value: String(config.numSimulations) },
+                    { label: "Number of Trades", value: String(config.numTrades) },
+                    { label: "Win Rate", value: String(config.winRate) },
+                    { label: "Average Gain", value: String(config.avgGain) },
+                    { label: "Average Loss", value: String(config.avgLoss) },
+                    { label: "Start Balance", value: String(config.startBalance) },
+                    { label: "Average R Multiple", value: String(avgRMultiple) },
+                    { label: "Simulation Paths Rendered", value: String(simulations.length) },
+                ]}
+                series={[
+                    {
+                        label: "Simulation Average Equity",
+                        points: chartData.slice(0, 240).map((point) => {
+                            const values = Array.from({ length: simulations.length })
+                                .map((_, index) => point[`sim${index}`])
+                                .filter((value): value is number => typeof value === "number")
+                            const average = values.length > 0
+                                ? values.reduce((sum, value) => sum + value, 0) / values.length
+                                : config.startBalance
+                            return {
+                                x: `Trade ${point.index}`,
+                                y: String(average),
+                            }
+                        }),
+                    },
+                ]}
+            />
             {/* Sidebar */}
             <div className="w-[300px] flex flex-col gap-6 p-6 border-r border-slate-800 bg-black/20 overflow-y-auto">
                 <div>

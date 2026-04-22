@@ -18,6 +18,7 @@
 
 import * as React from "react"
 import { useEffect, useRef } from "react"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import {
   createChart,
   ColorType,
@@ -61,7 +62,7 @@ export function TradeChart({
 }: TradeChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const seriesRef = useRef<ISeriesApi<any> | null>(null)
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const entryArrowRef = useRef<HTMLDivElement>(null)
   const exitArrowRef = useRef<HTMLDivElement>(null)
@@ -135,8 +136,6 @@ export function TradeChart({
 
     // MT5-style colors: BUY start=blue, end=deepPink; SELL start=deepPink, end=blue
     const entryColor = isLong ? "#2563eb" : "#ff1493" // blue : deepPink
-    const exitColor = isLong ? "#ff1493" : "#2563eb" // deepPink : blue
-
     // Store update function for later use
     let updateArrowPositions: (() => void) | null = null
 
@@ -310,6 +309,48 @@ export function TradeChart({
 
   return (
     <div className="relative h-full w-full">
+      <SemanticSnapshotScript
+        block={{
+          id: `trade-chart:${currentTrade.trade_id}`,
+          blockType: "chart",
+          title: `Trade ${currentTrade.trade_id} Chart`,
+          summary: "Trade detail candlestick chart with entry, exit, and trade PnL context.",
+          keywords: [
+            "trade chart",
+            String(currentTrade.trade_id),
+            currentTrade.side || "side",
+            currentTrade.symbol || "symbol",
+            "entry",
+            "exit",
+            "pnl",
+          ],
+          metrics: [
+            { label: "Trade ID", value: String(currentTrade.trade_id) },
+            { label: "Side", value: currentTrade.side || "N/A" },
+            { label: "Entry Price", value: currentTrade.open_price?.toFixed(5) || "N/A" },
+            { label: "Exit Price", value: currentTrade.close_price?.toFixed(5) || "N/A" },
+            { label: "PnL Pips", value: currentTrade.pnl_pips !== undefined && currentTrade.pnl_pips !== null ? String(currentTrade.pnl_pips) : "N/A" },
+          ],
+          series: [
+            {
+              label: "OHLC",
+              points: fullChartData.slice(-160).map((bar) => ({
+                x: String(bar.time),
+                y: `O=${bar.open} H=${bar.high} L=${bar.low} C=${bar.close}`,
+              })),
+            },
+            {
+              label: "Trade line",
+              points: currentTrade.open_time && currentTrade.close_time && currentTrade.open_price && currentTrade.close_price
+                ? [
+                    { x: currentTrade.open_time, y: String(currentTrade.open_price) },
+                    { x: currentTrade.close_time, y: String(currentTrade.close_price) },
+                  ]
+                : [],
+            },
+          ],
+        }}
+      />
       <div ref={chartContainerRef} className="h-full w-full" />
 
       {/* Entry arrow marker */}

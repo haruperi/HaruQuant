@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { cn } from "@/lib/utils"
 
 interface DistributionPanel3WayProps {
@@ -105,9 +106,6 @@ export function DistributionPanel3Way({
   className,
   unit = "",
 }: DistributionPanel3WayProps) {
-  // Combine all data to determine global range for bins
-  const combined = [...data.all]
-
   const stats = React.useMemo(() => {
     const calc = (arr: number[]) => {
       const m = mean(arr)
@@ -129,6 +127,7 @@ export function DistributionPanel3Way({
   }, [data])
 
   const histogramData = React.useMemo(() => {
+    const combined = [...data.all]
     const { buckets, step } = computeHistogram(combined, 15)
 
     // Fill buckets
@@ -148,7 +147,7 @@ export function DistributionPanel3Way({
     fill(data.short, "short")
 
     return buckets
-  }, [combined, data])
+  }, [data])
 
   const formatStat = (val: number) => {
       if (Math.abs(val) < 0.01 && val !== 0) return val.toExponential(2)
@@ -157,6 +156,32 @@ export function DistributionPanel3Way({
 
   return (
     <Card className={cn("w-full", className)}>
+      <SemanticSnapshotScript
+        block={{
+          id: `distribution:${title}`,
+          blockType: "chart",
+          title,
+          summary: "Distribution histogram and summary statistics for all, long, and short trades.",
+          keywords: [title, "distribution", "histogram", "mean", "median", "std dev", "skewness", "kurtosis"],
+          metrics: [
+            { label: "Count (All)", value: String(stats.all.count) },
+            { label: "Mean (All)", value: `${formatStat(stats.all.mean)} ${unit}`.trim() },
+            { label: "Median (All)", value: `${formatStat(stats.all.median)} ${unit}`.trim() },
+            { label: "Std Dev (All)", value: formatStat(stats.all.stdDev) },
+            { label: "Skewness (All)", value: formatStat(stats.all.skew) },
+            { label: "Kurtosis (All)", value: formatStat(stats.all.kurt) },
+          ],
+          headers: ["Statistic", "All", "Long", "Short"],
+          rows: [
+            ["Count", String(stats.all.count), String(stats.long.count), String(stats.short.count)],
+            ["Mean", `${formatStat(stats.all.mean)} ${unit}`.trim(), `${formatStat(stats.long.mean)} ${unit}`.trim(), `${formatStat(stats.short.mean)} ${unit}`.trim()],
+            ["Median", `${formatStat(stats.all.median)} ${unit}`.trim(), `${formatStat(stats.long.median)} ${unit}`.trim(), `${formatStat(stats.short.median)} ${unit}`.trim()],
+            ["Std Dev", formatStat(stats.all.stdDev), formatStat(stats.long.stdDev), formatStat(stats.short.stdDev)],
+            ["Skewness", formatStat(stats.all.skew), formatStat(stats.long.skew), formatStat(stats.short.skew)],
+            ["Kurtosis", formatStat(stats.all.kurt), formatStat(stats.long.kurt), formatStat(stats.short.kurt)],
+          ],
+        }}
+      />
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">{title}</CardTitle>
       </CardHeader>

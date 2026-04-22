@@ -160,3 +160,66 @@ def test_ai_gateway_reports_runtime_generation_source(mock_services) -> None:
     assert metadata["generation_source"] == "llm_runtime"
     assert metadata["provider_name"] == "litellm"
     assert "".join(chunks) == "Live model reply"
+
+
+def test_ai_gateway_polishes_runtime_reply_that_leaks_internal_labels(mock_services) -> None:
+    gateway = AIGatewayService(
+        conversation_service=mock_services["conv_service"],
+        context_assembler=mock_services["context_assembler"],
+        prompt_builder=mock_services["prompt_builder"],
+        agent_router=mock_services["agent_router"],
+        tool_executor=mock_services["tool_executor"],
+    )
+
+    runtime = MagicMock()
+    runtime.provider_name = "litellm"
+    runtime._call_llm.return_value = {
+        "content": "Mode: answer\nStyle: summary\nRequest ID: abc123\nSummary:\nThe dashboard is flat because no active strategies are contributing this week.",
+        "prompt_tokens": 12,
+        "completion_tokens": 8,
+        "total_tokens": 20,
+    }
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
+        metadata, chunks, _msg_id = gateway.stream_response(
+            ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
+        )
+
+    content = "".join(chunks)
+    assert metadata["generation_source"] == "llm_runtime"
+    assert "Mode:" not in content
+    assert "Style:" not in content
+    assert "Request ID:" not in content
+    assert content == "The dashboard is flat because no active strategies are contributing this week."
+
+
+def test_ai_gateway_polishes_runtime_reply_that_leaks_section_headers(mock_services) -> None:
+    gateway = AIGatewayService(
+        conversation_service=mock_services["conv_service"],
+        context_assembler=mock_services["context_assembler"],
+        prompt_builder=mock_services["prompt_builder"],
+        agent_router=mock_services["agent_router"],
+        tool_executor=mock_services["tool_executor"],
+    )
+
+    runtime = MagicMock()
+    runtime.provider_name = "litellm"
+    runtime._call_llm.return_value = {
+        "content": "### Summary\nThe strategy made money.\n\n### Metrics\n- Net profit: $340.75\n\n### Implications\nLong trades are carrying performance.",
+        "prompt_tokens": 12,
+        "completion_tokens": 8,
+        "total_tokens": 20,
+    }
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
+        metadata, chunks, _msg_id = gateway.stream_response(
+            ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
+        )
+
+    content = "".join(chunks)
+    assert metadata["generation_source"] == "llm_runtime"
+    assert "### Summary" not in content
+    assert "### Metrics" not in content
+    assert "### Implications" not in content
+    assert "The strategy made money." in content
+    assert "- Net profit: $340.75" in content

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
+import json
 import re
 from typing import Protocol
 from uuid import uuid4
@@ -71,7 +73,14 @@ class ContextBuilder(Protocol):
     page_type: PageType
     builder_name: str
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         ...
 
 
@@ -83,19 +92,57 @@ class BaseContextBuilder:
         self.db = db_manager
         self.strategy_catalog = strategy_catalog
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
+        page_state = page_state or {}
+        dom = page_state.get("dom") if isinstance(page_state.get("dom"), dict) else {}
+        headings = dom.get("headings") if isinstance(dom.get("headings"), list) else []
+        title = str(dom.get("title") or page_title or "Current page").strip()
+        excerpt = str(dom.get("text_excerpt") or "").strip()
+        tables = dom.get("tables") if isinstance(dom.get("tables"), list) else []
+        semantic_blocks = dom.get("semantic_blocks") if isinstance(dom.get("semantic_blocks"), list) else []
+        headline = "This page does not have a specialized chat context yet"
+        bullets = [
+            "No dashboard, strategy, backtest, optimization, portfolio, or live session was detected from the current route.",
+            "Open a more specific HaruQuant workspace page for grounded metrics and entity-aware answers.",
+        ]
+        payload: dict[str, object] = {"route": route}
+        if title or headings or excerpt:
+            headline = f"Captured current UI context for {title}"
+            bullets = []
+            if headings:
+                bullets.append(f"visible_headings={', '.join(str(item) for item in headings[:4])}")
+            if tables:
+                first_table = tables[0] if isinstance(tables[0], dict) else {}
+                headers = first_table.get("headers") if isinstance(first_table.get("headers"), list) else []
+                rows = first_table.get("rows") if isinstance(first_table.get("rows"), list) else []
+                if headers:
+                    bullets.append(f"table_headers={', '.join(str(item) for item in headers[:4])}")
+                if rows:
+                    first_row = rows[0] if isinstance(rows[0], list) else []
+                    if first_row:
+                        bullets.append(f"first_row={', '.join(str(item) for item in first_row[:4])}")
+            if semantic_blocks:
+                bullets.append(f"semantic_blocks={len(semantic_blocks)}")
+            if excerpt:
+                bullets.append(f"visible_text_excerpt={excerpt[:180]}")
+            bullets.append(f"route={route}")
+            payload["dom"] = dom
         return BuiltContext(
             page_type=self.page_type,
-            page_title=page_title,
+            page_title=page_title or title,
             entity_refs=[],
             summary=ContextSummary(
-                headline="This page does not have a specialized chat context yet",
-                bullets=[
-                    "No dashboard, strategy, backtest, optimization, portfolio, or live session was detected from the current route.",
-                    "Open a more specific HaruQuant workspace page for grounded metrics and entity-aware answers.",
-                ],
+                headline=headline,
+                bullets=bullets[:5],
             ),
-            payload={"route": route},
+            payload=payload,
             trust_level="fallback",
             builder_name=self.builder_name,
         )
@@ -110,7 +157,14 @@ class DashboardContextBuilder(BaseContextBuilder):
     page_type = "dashboard"
     builder_name = "DashboardContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         sessions = self.db.get_user_live_sessions(user_id) or []
         active_sessions = [session for session in sessions if str(session.get("status", "")).lower() in {"running", "paused"}]
         active_strategy_count = 0
@@ -152,14 +206,21 @@ class StrategyDetailContextBuilder(BaseContextBuilder):
     page_type = "strategy_detail"
     builder_name = "StrategyDetailContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         strategy_id = self._extract_first_int(route)
         if strategy_id is None:
-            return super().build(route=route, user_id=user_id, page_title=page_title)
+            return super().build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
         try:
             strategy = self.strategy_catalog.get_strategy(strategy_id, user_id=user_id)
         except Exception:
-            return super().build(route=route, user_id=user_id, page_title=page_title)
+            return super().build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
 
         bullets = [
             f"status={strategy.get('status') or 'unknown'}",
@@ -201,13 +262,20 @@ class BacktestDetailContextBuilder(BaseContextBuilder):
     page_type = "backtest_detail"
     builder_name = "BacktestDetailContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         backtest_id = self._extract_first_int(route)
         if backtest_id is None:
-            return super().build(route=route, user_id=user_id, page_title=page_title)
+            return super().build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
         run = self.db.get_backtest_run(backtest_id)
         if not run:
-            return super().build(route=route, user_id=user_id, page_title=page_title)
+            return super().build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
 
         return BuiltContext(
             page_type=self.page_type,
@@ -241,13 +309,20 @@ class OptimizationContextBuilder(BaseContextBuilder):
     page_type = "optimization_detail"
     builder_name = "OptimizationContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         optimization_id = self._extract_first_int(route)
         if optimization_id is None:
-            return super().build(route=route, user_id=user_id, page_title=page_title)
+            return super().build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
         run = self.db.get_optimization_run(optimization_id)
         if not run:
-            return super().build(route=route, user_id=user_id, page_title=page_title)
+            return super().build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
         return BuiltContext(
             page_type=self.page_type,
             page_title=page_title or f"Optimization {optimization_id}",
@@ -279,7 +354,14 @@ class PortfolioRiskContextBuilder(BaseContextBuilder):
     page_type = "portfolio_risk"
     builder_name = "PortfolioRiskContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         sessions = self.db.get_user_live_sessions(user_id) or []
         running_sessions = [session for session in sessions if str(session.get("status", "")).lower() == "running"]
         return BuiltContext(
@@ -307,29 +389,52 @@ class LiveTradingContextBuilder(BaseContextBuilder):
     page_type = "live_trading"
     builder_name = "LiveTradingContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
-        session_id = self._extract_first_int(route)
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
+        page_state = page_state or {}
+        session_id = page_state.get("session_id")
+        if not isinstance(session_id, int):
+            session_id = self._extract_first_int(route)
+        symbol = str(page_state.get("symbol") or "").upper() or None
+        timeframe = str(page_state.get("timeframe") or "").upper() or None
         if session_id is not None:
             session = self.db.get_live_session(session_id)
             if session:
                 strategies = self.db.get_session_strategies(session_id) or []
+                entity_refs = [
+                    EntityRef(
+                        type="live_session",
+                        id=str(session_id),
+                        label=str(session.get("session_name") or f"Live Session {session_id}"),
+                    )
+                ]
+                bullets = [
+                    f"broker={session.get('broker_name') or 'n/a'}",
+                    f"strategies={len(strategies)}",
+                    f"mode={session.get('trading_mode') or 'n/a'}",
+                ]
+                if symbol:
+                    entity_refs.append(EntityRef(type="symbol", id=symbol, label=symbol))
+                    bullets.append(f"chart_symbol={symbol}")
+                if timeframe:
+                    bullets.append(f"chart_timeframe={timeframe}")
                 return BuiltContext(
                     page_type=self.page_type,
                     page_title=page_title or str(session.get("session_name") or f"Live Session {session_id}"),
-                    entity_refs=[
-                        EntityRef(
-                            type="live_session",
-                            id=str(session_id),
-                            label=str(session.get("session_name") or f"Live Session {session_id}"),
-                        )
-                    ],
+                    entity_refs=entity_refs,
                     summary=ContextSummary(
-                        headline=f"Live session {session.get('session_name') or session_id} is {session.get('status') or 'unknown'}",
-                        bullets=[
-                            f"broker={session.get('broker_name') or 'n/a'}",
-                            f"strategies={len(strategies)}",
-                            f"mode={session.get('trading_mode') or 'n/a'}",
-                        ],
+                        headline=(
+                            f"Live session {session.get('session_name') or session_id} is {session.get('status') or 'unknown'}"
+                            if not (symbol and timeframe)
+                            else f"Live session {session.get('session_name') or session_id} is {session.get('status') or 'unknown'} with chart focus on {symbol} {timeframe}"
+                        ),
+                        bullets=bullets[:6],
                     ),
                     payload={
                         "session_id": session_id,
@@ -337,25 +442,38 @@ class LiveTradingContextBuilder(BaseContextBuilder):
                         "broker_name": session.get("broker_name"),
                         "trading_mode": session.get("trading_mode"),
                         "strategy_count": len(strategies),
+                        "symbol": symbol,
+                        "timeframe": timeframe,
                     },
                     trust_level="system_state",
                     builder_name=self.builder_name,
                 )
 
         sessions = self.db.get_user_live_sessions(user_id) or []
+        bullets = [
+            f"running={sum(1 for session in sessions if str(session.get('status', '')).lower() == 'running')}",
+            f"paused={sum(1 for session in sessions if str(session.get('status', '')).lower() == 'paused')}",
+            f"route={route}",
+        ]
+        payload: dict[str, object] = {"session_count": len(sessions)}
+        headline = f"Live trading overview across {len(sessions)} sessions"
+        if symbol:
+            payload["symbol"] = symbol
+            bullets.append(f"chart_symbol={symbol}")
+        if timeframe:
+            payload["timeframe"] = timeframe
+            bullets.append(f"chart_timeframe={timeframe}")
+        if symbol and timeframe:
+            headline = f"Live trading overview with chart focus on {symbol} {timeframe}"
         return BuiltContext(
             page_type=self.page_type,
             page_title=page_title or "Live Trading",
             entity_refs=[],
             summary=ContextSummary(
-                headline=f"Live trading overview across {len(sessions)} sessions",
-                bullets=[
-                    f"running={sum(1 for session in sessions if str(session.get('status', '')).lower() == 'running')}",
-                    f"paused={sum(1 for session in sessions if str(session.get('status', '')).lower() == 'paused')}",
-                    f"route={route}",
-                ],
+                headline=headline,
+                bullets=bullets[:6],
             ),
-            payload={"session_count": len(sessions)},
+            payload=payload,
             trust_level="derived_summary",
             builder_name=self.builder_name,
         )
@@ -365,7 +483,14 @@ class DataWorkspaceContextBuilder(BaseContextBuilder):
     page_type = "data_workspace"
     builder_name = "DataWorkspaceContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         return BuiltContext(
             page_type=self.page_type,
             page_title=page_title or "Data Workspace",
@@ -387,7 +512,14 @@ class OperatorWorkflowContextBuilder(BaseContextBuilder):
     page_type = "operator_workflow"
     builder_name = "OperatorWorkflowContextBuilder"
 
-    def build(self, *, route: str, user_id: int, page_title: str | None = None) -> BuiltContext:
+    def build(
+        self,
+        *,
+        route: str,
+        user_id: int,
+        page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
+    ) -> BuiltContext:
         return BuiltContext(
             page_type=self.page_type,
             page_title=page_title or "Operator Workflow",
@@ -449,6 +581,26 @@ class PageContextAssembler:
                 return descriptor.page_type
         return "generic"
 
+    @staticmethod
+    def _resolve_page_type_hint(page_state: dict[str, object]) -> PageType | None:
+        hint = page_state.get("page_type_hint")
+        if not isinstance(hint, str):
+            return None
+        normalized = hint.strip()
+        if normalized in {
+            "dashboard",
+            "strategy_detail",
+            "backtest_detail",
+            "optimization_detail",
+            "portfolio_risk",
+            "live_trading",
+            "data_workspace",
+            "operator_workflow",
+            "generic",
+        }:
+            return normalized  # type: ignore[return-value]
+        return None
+
     def builder_name_for_route(self, route: str) -> str:
         return self._builders[self.resolve_page_type(route)].builder_name
 
@@ -502,18 +654,23 @@ class PageContextAssembler:
         route: str,
         user_id: int,
         page_title: str | None = None,
+        page_state: dict[str, object] | None = None,
     ) -> PageContextPacket:
         now = datetime.now(timezone.utc)
-        page_type = self.resolve_page_type(route)
+        page_state = page_state or {}
+        page_type = self._resolve_page_type_hint(page_state) or self.resolve_page_type(route)
         
         # Try cache first
-        cache_key = f"ctx:{user_id}:{route}"
+        page_state_key = hashlib.sha1(
+            json.dumps(page_state, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()[:12]
+        cache_key = f"ctx:{user_id}:{route}:{page_title or ''}:{page_state_key}"
         cached = self._cache.get(cache_key)
         if cached:
             built = cached.snapshot
         else:
             builder = self._builders[page_type]
-            built = builder.build(route=route, user_id=user_id, page_title=page_title)
+            built = builder.build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
             # Store in cache
             ttl = PAGE_CONTEXT_TTL.get(page_type, 60)
             self._cache.put(

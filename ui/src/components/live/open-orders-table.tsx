@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { XCircle, Loader2, AlertCircle } from "lucide-react"
 import { LiveTradingAPI } from "@/lib/api/live"
 import type { Order } from "@/types/live"
@@ -128,6 +129,30 @@ export function OpenOrdersTable({ sessionId }: OpenOrdersTableProps) {
 
   return (
     <Card>
+      <SemanticSnapshotScript
+        block={{
+          id: `live-open-orders:${sessionId}`,
+          blockType: "table",
+          title: "Open Orders",
+          summary: sessionId ? `Pending orders for live session ${sessionId}.` : "Open orders table.",
+          keywords: ["orders", "open orders", "pending orders", "price", "distance"],
+          metrics: [
+            { label: "Open Order Count", value: String(orders.length) },
+          ],
+          headers: ["Symbol", "Type", "Vol", "Price", "Distance"],
+          rows: orders.slice(0, 24).map((order) => {
+            const current = order.price_current ?? order.price_open
+            const distance = current !== undefined ? Math.abs(current - order.price_open) : undefined
+            return [
+              order.symbol,
+              orderTypeLabel(order.type),
+              String(order.volume_current),
+              formatPrice(order.price_open, order.symbol),
+              distance !== undefined ? distance.toFixed(getPrecision(order.symbol)) : "-",
+            ]
+          }),
+        }}
+      />
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center space-x-2">
             <CardTitle className="text-sm font-medium">Open Orders</CardTitle>

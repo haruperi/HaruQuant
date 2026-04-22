@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useEffect, useState } from "react"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { strategyApi } from "@/lib/api/strategies"
@@ -104,6 +105,40 @@ export default function ConsecutiveWinnersLosersPage() {
 
     return (
         <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+             <CustomChartSemanticSnapshot
+                id={`consecutive-winners-losers:${selectedBacktest.backtest_id}:${displayMode}`}
+                title="Consecutive Winners and Losers"
+                summary="Streak analysis showing average outcome for winning and losing streak lengths."
+                keywords={["consecutive winners", "consecutive losers", "streak", displayMode]}
+                metrics={[
+                    { label: "Display Mode", value: displayMode },
+                    { label: "Streak Count", value: String(chartData.length) },
+                    {
+                        label: "Best Winning Streak Avg",
+                        value: chartData.length > 0 ? formatValue(Math.max(...chartData.map((item) => item.winValue))) : formatValue(0),
+                    },
+                    {
+                        label: "Worst Losing Streak Avg",
+                        value: chartData.length > 0 ? formatValue(Math.min(...chartData.map((item) => item.lossValue))) : formatValue(0),
+                    },
+                ]}
+                series={[
+                    {
+                        label: "Winning Streak Average",
+                        points: chartData.slice(0, 240).map((point) => ({
+                            x: `${point.length} consecutive winners`,
+                            y: String(point.winValue),
+                        })),
+                    },
+                    {
+                        label: "Losing Streak Average",
+                        points: chartData.slice(0, 240).map((point) => ({
+                            x: `${point.length} consecutive losers`,
+                            y: String(point.lossValue),
+                        })),
+                    },
+                ]}
+            />
              {/* Header Controls */}
             <div className="flex items-center justify-between shrink-0">
                 <div className="flex gap-4">

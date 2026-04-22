@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useMemo, useState, useEffect } from "react"
 import {
   BarChart,
@@ -321,6 +322,44 @@ export default function PerformanceByTimePage() {
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+      <CustomChartSemanticSnapshot
+        id={`performance-by-time:${selectedBacktest.backtest_id}:${displayMode}:${dateSetting}:${period}`}
+        title="Performance By Time"
+        summary="Time-bucket performance analysis across entry or exit timestamps with period-level returns and win rates."
+        keywords={["performance by time", "time analysis", "best hour", "best weekday", displayMode, dateSetting, period]}
+        metrics={[
+          { label: "Display Mode", value: displayMode },
+          { label: "Date Setting", value: dateSetting },
+          { label: "Period", value: period },
+          { label: summaryStats?.bestLabel ?? "Best Period", value: summaryStats ? `${summaryStats.bestName} (${formatCurrency(summaryStats.bestValue)})` : "N/A" },
+          { label: summaryStats?.worstLabel ?? "Worst Period", value: summaryStats ? `${summaryStats.worstName} (${formatCurrency(summaryStats.worstValue)})` : "N/A" },
+          { label: summaryStats?.tradesLabel ?? "Trades per Period", value: summaryStats ? summaryStats.avgTrades.toFixed(2) : "0.00" },
+          { label: summaryStats?.avgPnLLabel ?? "Average Period P&L", value: summaryStats ? formatCurrency(summaryStats.avgPeriodPnL) : formatCurrency(0) },
+        ]}
+        series={[
+          {
+            label: displayMode === "dollar" ? "Time Bucket Return" : displayMode === "percent" ? "Time Bucket Return Percent" : "Time Bucket Return R",
+            points: chartData.slice(0, 240).map((point) => ({
+              x: point.name,
+              y: String(point.value),
+            })),
+          },
+          {
+            label: "Period Trades",
+            points: tableData.slice(0, 240).map((item) => ({
+              x: item.name,
+              y: String(item.trades),
+            })),
+          },
+          {
+            label: "Period Win Rate",
+            points: tableData.slice(0, 240).map((item) => ({
+              x: item.name,
+              y: String(item.winRate),
+            })),
+          },
+        ]}
+      />
       {/* Header Controls */}
       <div className="flex items-center gap-4 shrink-0">
          <div className="w-[180px]">

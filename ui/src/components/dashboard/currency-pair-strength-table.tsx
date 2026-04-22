@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 import { TrendingUp, TrendingDown } from "lucide-react"
 import type { CurrencyPairSignal } from "@/types/live"
 
@@ -62,6 +63,33 @@ export function CurrencyPairStrengthTable({
 
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+      <SemanticSnapshotScript
+        block={{
+          id: `currency-pair-strength:${title}:${type}`,
+          blockType: "table",
+          title,
+          summary: `${type === "strong" ? "Strong" : "Weak"} currency pair ranking across ${tf1Label}, ${tf2Label}, and ${tf3Label}.`,
+          keywords: [title, type, "currency strength", tf1Label, tf2Label, tf3Label],
+          metrics: [
+            { label: "Visible Pair Count", value: String(displayPairs.length) },
+            {
+              label: "Top Pair",
+              value: displayPairs[0] ? `${displayPairs[0].pair} ${displayPairs[0].recommendation}` : "-",
+            },
+          ],
+          headers: ["Pair", "Base", "Quote", tf1Label, tf2Label, tf3Label, "Strength", "Signal"],
+          rows: displayPairs.slice(0, 20).map((pair) => [
+            pair.pair,
+            pair.base,
+            pair.quote,
+            pair.tf1_change != null ? `${pair.tf1_change > 0 ? "+" : ""}${pair.tf1_change.toFixed(2)}%` : "-",
+            pair.tf2_change != null ? `${pair.tf2_change > 0 ? "+" : ""}${pair.tf2_change.toFixed(2)}%` : "-",
+            pair.tf3_change != null ? `${pair.tf3_change > 0 ? "+" : ""}${pair.tf3_change.toFixed(2)}%` : "-",
+            `${pair.pair_strength > 0 ? "+" : ""}${pair.pair_strength.toFixed(2)}%`,
+            pair.recommendation,
+          ]),
+        }}
+      />
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">{title}</h3>

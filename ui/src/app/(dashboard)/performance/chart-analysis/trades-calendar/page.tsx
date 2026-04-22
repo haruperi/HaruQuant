@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import {
   format,
   eachDayOfInterval,
@@ -96,6 +97,47 @@ export default function TradesCalendarPage() {
 
     return (
         <div className="flex flex-col h-full bg-slate-950 p-1 overflow-hidden">
+            <CustomChartSemanticSnapshot
+                id={`trades-calendar:${selectedBacktest?.backtest_id ?? "none"}:${year}:${metric}`}
+                title="Trades Calendar"
+                summary="Calendar heatmap of daily PnL or return values across the selected year."
+                keywords={["trades calendar", "calendar heatmap", "daily pnl", "daily return", String(year), metric]}
+                metrics={[
+                    { label: "Year", value: String(year) },
+                    { label: "Metric", value: metric },
+                    { label: "Days With Trades", value: String(Object.keys(currentStats).length) },
+                    {
+                        label: "Best Day",
+                        value: Object.keys(currentStats).length > 0
+                            ? (() => {
+                                const bestEntry = Object.entries(currentStats).reduce((best, current) => current[1] > best[1] ? current : best)
+                                return `${bestEntry[0]} (${bestEntry[1].toFixed(2)})`
+                              })()
+                            : "N/A",
+                    },
+                    {
+                        label: "Worst Day",
+                        value: Object.keys(currentStats).length > 0
+                            ? (() => {
+                                const worstEntry = Object.entries(currentStats).reduce((worst, current) => current[1] < worst[1] ? current : worst)
+                                return `${worstEntry[0]} (${worstEntry[1].toFixed(2)})`
+                              })()
+                            : "N/A",
+                    },
+                ]}
+                series={[
+                    {
+                        label: metric === "return" ? "Daily Return" : "Daily PnL",
+                        points: Object.entries(currentStats)
+                            .sort((a, b) => a[0].localeCompare(b[0]))
+                            .slice(-366)
+                            .map(([dateKey, value]) => ({
+                                x: dateKey,
+                                y: String(value),
+                            })),
+                    },
+                ]}
+            />
             <div className="flex items-center justify-between px-2 shrink-0 h-8 mb-1">
                 <div className="flex items-center gap-4">
                      <Select value={metric} onValueChange={setMetric}>

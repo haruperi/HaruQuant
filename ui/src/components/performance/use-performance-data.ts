@@ -139,11 +139,18 @@ export function usePerformanceData() {
              return
         }
 
+        // Sort trades ONCE at the beginning
+        const orderedTrades = [...trades].sort((a, b) => {
+           const timeA = new Date(a.close_time ?? a.open_time ?? a.timestamp ?? a.created_at ?? 0).getTime()
+           const timeB = new Date(b.close_time ?? b.open_time ?? b.timestamp ?? b.created_at ?? 0).getTime()
+           return timeA - timeB
+        })
+
         // =================================================================
-        // PHASE 1: Quick metrics (fast first paint ~2-3 sec)
+        // PHASE 1: Quick metrics (fast first paint)
         // =================================================================
         try {
-          const quickData = await strategyApi.getPerformanceSummaryQuick(trades, initialBalance)
+          const quickData = await strategyApi.getPerformanceSummaryQuick(orderedTrades, initialBalance, true)
           setQuickMetrics(quickData)
           setQuickLoading(false)
         } catch (err) {
@@ -155,25 +162,25 @@ export function usePerformanceData() {
         // PHASE 2: Full metrics + equity curves (background)
         // =================================================================
 
-        // Prepare trade subsets for equity curves
-        const longTrades = trades.filter((t: TradeLike) => {
+        // Prepare trade subsets for equity curves from the already ordered trades
+        const longTrades = orderedTrades.filter((t: TradeLike) => {
             const type = (t.type || t.side || "").toString().toLowerCase()
             return type === "buy" || type === "long"
         })
-        const shortTrades = trades.filter((t: TradeLike) => {
+        const shortTrades = orderedTrades.filter((t: TradeLike) => {
             const type = (t.type || t.side || "").toString().toLowerCase()
             return type === "sell" || type === "short"
         })
 
-        // Fetch full metrics and equity curves in parallel
+        // Fetch full metrics and equity curves in parallel, passing isSorted=true
         const fetchCurve = async (t: TradeLike[]) => {
           if (t.length === 0) return []
-          return await strategyApi.getEquityCurveDetailed(t, initialBalance)
+          return await strategyApi.getEquityCurveDetailed(t, initialBalance, true)
         }
 
         const [fullMetricsData, allCurve, longCurve, shortCurve] = await Promise.all([
-          strategyApi.getPerformanceSummary(trades, initialBalance),
-          fetchCurve(trades),
+          strategyApi.getPerformanceSummary(orderedTrades, initialBalance, true),
+          fetchCurve(orderedTrades),
           fetchCurve(longTrades),
           fetchCurve(shortTrades)
         ])

@@ -3,6 +3,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
 
 const data = Array.from({ length: 100 }, (_, i) => {
   const equity = 10000 + Math.random() * 1000 + (i * 50);
@@ -18,6 +19,34 @@ const data = Array.from({ length: 100 }, (_, i) => {
 export function EquityChart() {
   return (
     <Card className="w-full">
+        <SemanticSnapshotScript
+            block={{
+                id: "backtest-equity-chart",
+                blockType: "chart",
+                title: "Performance Charts",
+                summary: "Backtest equity curve, benchmark, and drawdown series.",
+                keywords: ["equity curve", "drawdown", "benchmark", "performance"],
+                metrics: [
+                    { label: "Latest Equity", value: `$${data[data.length - 1]?.equity.toFixed(2)}` },
+                    { label: "Latest Benchmark", value: `$${data[data.length - 1]?.benchmark.toFixed(2)}` },
+                    { label: "Max Drawdown", value: `${Math.min(...data.map((point) => point.drawdown)).toFixed(2)}%` },
+                ],
+                series: [
+                    {
+                        label: "Equity",
+                        points: data.slice(-160).map((point) => ({ x: point.name, y: point.equity.toFixed(2) })),
+                    },
+                    {
+                        label: "Benchmark",
+                        points: data.slice(-160).map((point) => ({ x: point.name, y: point.benchmark.toFixed(2) })),
+                    },
+                    {
+                        label: "Drawdown",
+                        points: data.slice(-160).map((point) => ({ x: point.name, y: point.drawdown.toFixed(2) })),
+                    },
+                ],
+            }}
+        />
         <CardHeader>
             <CardTitle>Performance Charts</CardTitle>
         </CardHeader>

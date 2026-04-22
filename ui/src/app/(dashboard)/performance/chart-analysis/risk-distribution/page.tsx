@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomChartSemanticSnapshot } from "@/components/ai-chat/CustomChartSemanticSnapshot"
 import { useEffect, useState, useMemo } from "react"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { strategyApi } from "@/lib/api/strategies"
@@ -90,6 +91,29 @@ export default function RiskDistributionPage() {
 
     return (
         <div className="flex flex-col gap-4 p-4 h-full bg-black overflow-hidden">
+            <CustomChartSemanticSnapshot
+                id={`risk-distribution:${selectedBacktest.backtest_id}:${selectedMetric}`}
+                title="Risk Distribution"
+                summary="Trade outcome distribution histogram across return or R-multiple buckets with winner and loser averages."
+                keywords={["risk distribution", "return distribution", "r multiple distribution", selectedMetric]}
+                metrics={[
+                    { label: "Selected Metric", value: selectedMetric },
+                    { label: "Bucket Count", value: String(data.length) },
+                    { label: "Average Return", value: stats ? `${formatNumber(stats.avg_return, 2)}%` : "0.00%" },
+                    { label: "Total Return", value: stats ? `${formatNumber(stats.total_return, 2)}%` : "0.00%" },
+                    { label: "Average Winner", value: stats ? `${formatNumber(stats.avg_winner, 2)}%` : "0.00%" },
+                    { label: "Average Loser", value: stats ? `${formatNumber(stats.avg_loser, 2)}%` : "0.00%" },
+                ]}
+                series={[
+                    {
+                        label: selectedMetric,
+                        points: data.slice(0, 240).map((point) => ({
+                            x: point.range,
+                            y: String(point.count),
+                        })),
+                    },
+                ]}
+            />
             {/* Header Controls */}
             <div className="flex items-center gap-4 shrink-0">
                 <div className="w-64">
