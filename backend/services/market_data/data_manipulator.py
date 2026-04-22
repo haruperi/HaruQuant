@@ -870,6 +870,7 @@ class TicksGenerator:
                     "tp",
                     "source_bar_time",
                     "tick_index_in_bar",
+                    "is_bar_close",
                 ]
             )
 
@@ -915,6 +916,7 @@ class TicksGenerator:
                     "tp",
                     "source_bar_time",
                     "tick_index_in_bar",
+                    "is_bar_close",
                 ]
             )
 
@@ -958,6 +960,10 @@ class TicksGenerator:
         bid[1::4] = np.where(bullish, low_arr, high_arr)
         bid[2::4] = np.where(bullish, high_arr, low_arr)
         bid[3::4] = close_arr
+
+        # is_bar_close: True only for the 4th tick of every bar
+        is_bar_close = np.zeros(total_ticks, dtype=bool)
+        is_bar_close[3::4] = True
 
         if self.spread_model == "native_spread":
             spread_points = np.repeat(np.maximum(native_spread_arr, 0.0), 4)
@@ -1024,6 +1030,7 @@ class TicksGenerator:
                 "tp": tp,
                 "source_bar_time": np.repeat(bar_times, 4),
                 "tick_index_in_bar": np.tile(np.array([0, 1, 2, 3], dtype=np.int64), n_bars),
+                "is_bar_close": is_bar_close,
             },
             index=datetime_index,
         )
@@ -1172,6 +1179,10 @@ class TicksGenerator:
 
         out["source_bar_time"] = bucket
         out["tick_index_in_bar"] = pd.Series(bucket, index=out.index).groupby(bucket).cumcount()
+        
+        # is_bar_close: True for the last tick in each bucket
+        out["is_bar_close"] = ~bucket.duplicated(keep="last")
+        
         out.index = pd.DatetimeIndex(out.index, name="Datetime")
         return out.sort_index()
 
@@ -1274,6 +1285,7 @@ class TicksGenerator:
                         "tp": tp_value if i == 0 else 0.0,
                         "source_bar_time": ts,
                         "tick_index_in_bar": i,
+                        "is_bar_close": (i == vol - 1),
                     }
                 )
 

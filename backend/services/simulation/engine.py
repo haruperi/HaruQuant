@@ -144,6 +144,7 @@ class Engine:
         # Optional callback scheduler for future run-loop orchestration.
         # `None` disables a callback; positive int means "run every N ticks".
         self.run_schedule = {
+            "auto": True,
             "positions": None,
             "pending_orders": None,
             "account": None,
@@ -784,6 +785,7 @@ class Engine:
 
     def configure_run_schedule(
         self,
+        auto: bool = True,
         positions_every=None,
         pending_orders_every=None,
         account_every=None,
@@ -791,6 +793,18 @@ class Engine:
         risk_every=None,
     ):
         """Configure optional callback intervals for Engine.run tick scheduling."""
+        manual_schedule = any(
+            v is not None
+            for v in (
+                positions_every,
+                pending_orders_every,
+                account_every,
+                portfolio_every,
+                risk_every,
+            )
+        )
+        self.run_schedule["auto"] = auto if not manual_schedule else False
+
         self.run_schedule["positions"] = self._normalize_schedule_every(positions_every)
         self.run_schedule["pending_orders"] = self._normalize_schedule_every(
             pending_orders_every
@@ -1199,10 +1213,27 @@ class Engine:
         self,
         tick_number: int,
         verbose: bool = False,
+        is_bar_close: bool = False,
     ):
         schedule = self.run_schedule
         state_changed = False
 
+        if schedule.get("auto") and is_bar_close:
+            # Auto-mode: Trigger everything at bar close
+            if self._has_open_positions():
+                self.monitor_positions(verbose=verbose)
+                state_changed = True
+            if self._has_pending_orders():
+                self.monitor_pending_orders(verbose=verbose)
+                state_changed = True
+            
+            self.monitor_account(verbose=verbose)
+            self.monitor_portfolio(verbose=verbose)
+            self.monitor_risk(verbose=verbose)
+            self._schedule_state_dirty = False
+            return
+
+        # Manual/Legacy mode: Trigger based on tick intervals
         positions_every = schedule.get("positions")
         positions_due = self._due_by_interval(tick_number, positions_every)
         if positions_due:
@@ -1292,6 +1323,10 @@ class Engine:
         ask_col = col_name_map["ask"]
         bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
         ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
+
+        is_bar_close_values = None
+        if "is_bar_close" in col_name_map:
+            is_bar_close_values = data[col_name_map["is_bar_close"]].to_numpy(dtype="bool", copy=False)
 
         tick_time_values = None
         tick_epoch_values = None
@@ -1422,6 +1457,9 @@ class Engine:
                     signal_price_2 = 0.0 if signal_price_values_2 is None else float(signal_price_values_2[batch_idx])
                     sl_value = 0.0 if sl_values is None else float(sl_values[batch_idx])
                     tp_value = 0.0 if tp_values is None else float(tp_values[batch_idx])
+                    is_bar_close_flag = False
+                    if is_bar_close_values is not None:
+                        is_bar_close_flag = bool(is_bar_close_values[batch_idx])
 
                     if risk_enabled:
                         if self._exec_exit_signal(symbol_name, exit_signal, bid, ask, verbose=bool(monitor_verbose)):
@@ -1503,6 +1541,7 @@ class Engine:
                     self._run_scheduled_callbacks(
                         tick_number=tick_number,
                         verbose=bool(monitor_verbose),
+                        is_bar_close=is_bar_close_flag,
                     )
                     processed += 1
                     if progress_bar is not None:

@@ -1084,22 +1084,36 @@ def example_15_complete_backtests():
 
     start_time = time.time()
     # UI Inputs in order from top to bottom
-    # Strategy & Data
-    # Select the strategy and historical data parameters.
 
-    # 1. Pick a strategy with its set defaults
-    strategy = TrendFollowingStrategy
-
-    # 2. Pick a trading timeframe
-    trading_timeframe = timeframe
-
-    # 3. Pick a symbol or symbols
-    symbols = [audusd, eurgbp, nzdchf]
-
-    # 4. Pick a data source Metatrader5 or Dukascopy API
+    # ------------------------------------------------------------------------------------------------------------------
+    # Phase 1 : CONFIGURATION AND ENVIRONMENT SETUP
+    # ------------------------------------------------------------------------------------------------------------------
+ 
+    # Data Settings
+    # 1. Pick a data source Metatrader5 or Dukascopy API
     data_source = "metatrader"
 
-    # 5. Money Management
+    # 2. Pick a symbol or symbols
+    symbols = [audusd, eurgbp, nzdchf]
+
+    # 3. Pick a trading timeframe
+    trading_timeframe = "H1"
+
+    # 4. Pick Data Range
+    range_by = "dates" # dates, bars
+    if range_by == "dates":
+        bt_start_date = start_date
+        bt_end_date = end_date
+        bt_warmup_start_date = warmup_start_date
+    else:
+        bars = 1000
+        warmup_bars = 100
+
+    # Strategy Settings
+    # 5. Pick a strategy with its set defaults
+    strategy = TrendFollowingStrategy
+
+    # 6. Money Management
     position_size_type = "fixed_lot" # fixed_lot, fixed_percent, milestone, kelly_criterion, volatility_adjusted_atr, fixed_fractional
     position_size_config = None
     if position_size_type == "fixed_lot":
@@ -1135,27 +1149,10 @@ def example_15_complete_backtests():
             "fractional_factor": 0.5,
         }
 
-    # 6. Pick Data Range
-    range_by = "dates" # dates, bars
-    if range_by == "dates":
-        bt_start_date = start_date
-        bt_end_date = end_date
-    else:
-        bars = 1000
-
-    # 6. Pick Warmup Period
-    warmup_by = "dates" # dates, bars
-    if warmup_by == "dates":
-        bt_warmup_start_date = warmup_start_date
-    else:
-        warmup_bars = 100
 
     # Engine Settings
-    # Engine Type Event-Driven or Vectorised has been removed for now,
-    # everything is event-driven via loop
-
     # 7. Data resolution
-    tick_model = "m1_ticks" # "real_ticks", "synthetic_ticks", "timeframe_ticks", "m1_ticks"
+    tick_model = "m1_ticks" # "real_ticks", "synthetic_ticks", "m1_ticks", "timeframe_ticks"
 
     # 8. Account details
     account_balance = 10000 
@@ -1189,8 +1186,13 @@ def example_15_complete_backtests():
             "spread_max": 50
         }
     
+
+   
     
-    # Preparing data for backtest
+    #------------------------------------------------------------------------------------------------------------------###
+    # Phase 2 : DATA PREPARATION
+    #------------------------------------------------------------------------------------------------------------------###
+    
     # Step 1: Load Data
     logger.info("\nLoading historical data...")
     # Load data from warmup_start_date to properly initialize indicators
@@ -1219,15 +1221,13 @@ def example_15_complete_backtests():
     data_end_time = time.time()
     print(f"Data loading and preparation completed in {data_end_time - start_time} seconds")
     run_start_time = time.time()
-    engine_instance.configure_run_schedule(
-        positions_every=60, # monitor positions every 15 mins (4 ticks per bar * 15)
-        pending_orders_every=60,
-        account_every=240, # every 1 hour
-        portfolio_every=240,
-        risk_every=240,
-    )
 
-    
+
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Phase 3 : CONFIGURING AND RUNNING THE BACKTEST
+    # ------------------------------------------------------------------------------------------------------------------
+
     processed = engine_instance.run(
         ticks_data,
         position_size=0.01,
@@ -1235,6 +1235,12 @@ def example_15_complete_backtests():
         show_progress=True,
         progress_desc="Portfolio Tester Progress",
     )
+
+
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Phase 4 : RESULTS AND REPORTING
+    # ------------------------------------------------------------------------------------------------------------------
 
     run_result = engine_instance.get_run_result(processed_ticks=processed)
     for symbol_name, count in per_symbol_counts.items():
