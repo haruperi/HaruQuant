@@ -673,13 +673,13 @@ class Trade:
         resolved_order_type = self._resolve_order_type(order_type)
         tick = self._tick(symbol)
         if tick is None:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10021, comment="No quotes to process the request"))
         if hasattr(tick, "_asdict"):
             tick_data = tick._asdict()
         elif isinstance(tick, dict):
             tick_data = dict(tick)
         else:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10013, comment="Invalid tick data format"))
         if price == 0.0:
             price = (
                 tick_data.get("ask")
@@ -715,13 +715,13 @@ class Trade:
         """Modify position parameters by the specified symbol or position ticket."""
         position = self._get_position(symbol=symbol, ticket=ticket)
         if position is None:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10036, comment="Position not found"))
         if hasattr(position, "_asdict"):
             data = position._asdict()
         elif isinstance(position, dict):
             data = dict(position)
         else:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10013, comment="Invalid position data format"))
         # Use "id" for simulator, "ticket" for MT5
         position_id = int(data.get("id") or data.get("ticket") or 0)
         request = {
@@ -753,23 +753,23 @@ class Trade:
         """Close a position for the specified symbol."""
         position = self._get_position(symbol=symbol, ticket=ticket)
         if position is None:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10036, comment="Position not found"))
         if hasattr(position, "_asdict"):
             data = position._asdict()
         elif isinstance(position, dict):
             data = dict(position)
         else:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10013, comment="Invalid position data format"))
         symbol_name = data.get("symbol")
         tick = self._tick(symbol_name)
         if tick is None:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10021, comment="No quotes to process the request"))
         if hasattr(tick, "_asdict"):
             tick_data = tick._asdict()
         elif isinstance(tick, dict):
             tick_data = dict(tick)
         else:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10013, comment="Invalid tick data format"))
         pos_type = data.get("type")
         volume = data.get("volume")
         # Handle both string types ("buy", "sell") and MT5 integer constants
@@ -807,23 +807,23 @@ class Trade:
         """Close the position partially for a specified symbol or ticket."""
         position = self._get_position(symbol=symbol, ticket=ticket)
         if position is None:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10036, comment="Position not found"))
         if hasattr(position, "_asdict"):
             data = position._asdict()
         elif isinstance(position, dict):
             data = dict(position)
         else:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10013, comment="Invalid position data format"))
         symbol_name = data.get("symbol")
         tick = self._tick(symbol_name)
         if tick is None:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10021, comment="No quotes to process the request"))
         if hasattr(tick, "_asdict"):
             tick_data = tick._asdict()
         elif isinstance(tick, dict):
             tick_data = dict(tick)
         else:
-            return False
+            return self._validation_fail(tv.TradeValidationResult(ok=False, retcode=10013, comment="Invalid tick data format"))
         pos_type = data.get("type")
         # Handle both string types ("buy", "sell") and MT5 integer constants
         is_buy = pos_type == mt5.POSITION_TYPE_BUY or str(pos_type).lower() == "buy"

@@ -101,3 +101,24 @@ mcp
 google-genai
 google.generativeai
 aider-install
+
+# === VectorBT Dependencies ===
+anywidget
+dill
+dateparser
+imageio
+schedule
+pytz
+mypy_extensions
+
+# Optional VectorBT dependencies
+yfinance
+python-binance
+ccxt
+alpaca-py
+ray
+ta
+pandas-ta-classic
+python-telegram-bot
+quantstats
+kaleido
