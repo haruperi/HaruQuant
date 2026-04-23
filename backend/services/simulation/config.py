@@ -129,11 +129,14 @@ class PositionSizeConfig:
             SUPPORTED_POSITION_SIZE_TYPES,
             "execution.position_size.type",
         )
-        if size_type != "fixed_lot":
-            raise SimulationConfigError(
-                f"unsupported execution.position_size.type: {size_type}"
+        if size_type == "fixed_lot":
+            lot_size = _required_float(raw, "execution.position_size.lot_size")
+        else:
+            lot_size = _optional_float(
+                raw,
+                "lot_size",
+                default=float(raw.get("base_lot_size", 0.1) or 0.1),
             )
-        lot_size = _required_float(raw, "execution.position_size.lot_size")
         if lot_size <= 0.0:
             raise SimulationConfigError("execution.position_size.lot_size must be > 0")
         return cls(type=size_type, lot_size=lot_size, params=dict(raw))
@@ -147,6 +150,8 @@ class ExecutionConfig:
     position_size: PositionSizeConfig
     slippage_model: str = "none"
     slippage_points: float = 0.0
+    slippage_min: Optional[float] = None
+    slippage_max: Optional[float] = None
     spread_points: Optional[float] = None
     spread_min: Optional[float] = None
     spread_max: Optional[float] = None
@@ -184,6 +189,22 @@ class ExecutionConfig:
             raise SimulationConfigError(
                 "execution.slippage_points is required for fixed slippage"
             )
+        slippage_min = _optional_float_or_none(raw, "slippage_min")
+        slippage_max = _optional_float_or_none(raw, "slippage_max")
+        if slippage_model == "dynamic":
+            if slippage_min is None or slippage_max is None:
+                raise SimulationConfigError(
+                    "execution.slippage_min and execution.slippage_max are required "
+                    "for dynamic slippage"
+                )
+            if slippage_min < 0.0 or slippage_max < 0.0:
+                raise SimulationConfigError(
+                    "execution.slippage_min and execution.slippage_max must be >= 0"
+                )
+            if slippage_min > slippage_max:
+                raise SimulationConfigError(
+                    "execution.slippage_min must be <= execution.slippage_max"
+                )
 
         spread_points = _optional_float_or_none(raw, "spread_points")
         spread_min = _optional_float_or_none(raw, "spread_min")
@@ -217,6 +238,8 @@ class ExecutionConfig:
             position_size=position_size,
             slippage_model=slippage_model,
             slippage_points=slippage_points,
+            slippage_min=slippage_min,
+            slippage_max=slippage_max,
             spread_points=spread_points,
             spread_min=spread_min,
             spread_max=spread_max,

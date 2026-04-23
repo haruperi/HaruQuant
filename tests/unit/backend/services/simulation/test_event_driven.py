@@ -20,7 +20,12 @@ class FastPathEngine:
         self.state = SimpleNamespace(
             current_tick_datetime=None,
             current_tick_epoch=None,
+            execution_settings={},
         )
+        self.account = {}
+
+    def account_info(self):
+        return self.account
 
     def _risk_enabled(self):
         return False
@@ -45,9 +50,24 @@ def _ticks():
 def test_event_driven_fast_path_counts_ticks_without_signals():
     engine = FastPathEngine()
 
-    processed = run_event_driven_simulation(engine, _ticks())
+    processed = run_event_driven_simulation(
+        engine,
+        _ticks(),
+        commission_per_lot=7.0,
+        slippage_model="fixed",
+        slippage_points=2.0,
+        slippage_min=1.0,
+        slippage_max=5.0,
+    )
 
     assert processed == 3
+    assert engine.account["commission"] == 7.0
+    assert engine.state.execution_settings == {
+        "slippage_model": "fixed",
+        "slippage_points": 2.0,
+        "slippage_min": 1.0,
+        "slippage_max": 5.0,
+    }
 
 
 def test_engine_run_event_driven_delegates_to_module(monkeypatch):
@@ -68,6 +88,11 @@ def test_engine_run_event_driven_delegates_to_module(monkeypatch):
     processed = engine.run_event_driven(
         ticks,
         position_size=0.2,
+        commission_per_lot=7.0,
+        slippage_model="fixed",
+        slippage_points=1.0,
+        slippage_min=0.5,
+        slippage_max=4.0,
         monitor_verbose=True,
         show_progress=False,
         progress_desc="Check",
@@ -81,6 +106,11 @@ def test_engine_run_event_driven_delegates_to_module(monkeypatch):
             ticks,
             {
                 "position_size": 0.2,
+                "commission_per_lot": 7.0,
+                "slippage_model": "fixed",
+                "slippage_points": 1.0,
+                "slippage_min": 0.5,
+                "slippage_max": 4.0,
                 "monitor_verbose": True,
                 "show_progress": False,
                 "progress_desc": "Check",

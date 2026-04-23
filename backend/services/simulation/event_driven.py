@@ -34,6 +34,11 @@ def run_event_driven_simulation(
     engine,
     data,
     position_size=None,
+    commission_per_lot: float = 0.0,
+    slippage_model: str = "none",
+    slippage_points: float = 0.0,
+    slippage_min: float | None = None,
+    slippage_max: float | None = None,
     monitor_verbose: bool = False,
     show_progress: bool = False,
     progress_desc: str = "Tester Progress",
@@ -44,6 +49,13 @@ def run_event_driven_simulation(
         return 0
     if position_size is not None and float(position_size) <= 0.0:
         raise ValueError("position_size must be > 0 when provided.")
+    engine.account_info()["commission"] = float(commission_per_lot or 0.0)
+    engine.state.execution_settings = {
+        "slippage_model": str(slippage_model or "none"),
+        "slippage_points": float(slippage_points or 0.0),
+        "slippage_min": float(slippage_min or 0.0),
+        "slippage_max": float(slippage_max or 0.0),
+    }
 
     if not hasattr(data, "columns"):
         raise ValueError("Engine.run expects a tick DataFrame input.")

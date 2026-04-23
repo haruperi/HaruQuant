@@ -18,7 +18,7 @@ The core simulator must remain fast and clean. It consumes prepared tick/array d
 - `example_12_complete_backtests()` declares UI-style config but does not pass most of it into the engine.
 - `build_symbol_ticks_for_backtest()` lives in an example script but should be simulation preparation logic.
 - `reset_sim_runtime_state()` lives in an example script but should be engine/runtime logic.
-- `run_vectorized()` ignores `position_size` and hardcodes `0.01` lots.
+- ~~`run_vectorized()` ignores `position_size` and hardcodes `0.01` lots.~~ Fixed in Phase 9 for fixed-lot sizing.
 - `commission`, `slippage_config`, `spread_config`, `strategy`, `data_source`, and `trading_timeframe` are partially unused or inconsistently wired.
 - `backend/services/simulation/engine.py` mixes facade, orchestration, vectorized simulation, event-driven simulation, MT5 parity helpers, runtime state, and reporting-adjacent reconstruction logic.
 - There is no stable config contract for a full simulation backtest.
@@ -618,9 +618,9 @@ Add config examples if needed:
 - [x] Move vectorized Numba core out of `engine.py`.
 - [x] Add `backend/services/simulation/event_driven.py`.
 - [x] Move event-driven loop out of `engine.py`.
-- [ ] Wire fixed-lot position size into vectorized core.
+- [x] Wire money-management position sizing into simulator routing.
 - [ ] Wire contract size into vectorized core from config.
-- [ ] Wire fixed slippage and commission config.
+- [x] Wire fixed slippage and commission config.
 - [ ] Add/expand `backend/services/simulation/results.py`.
 - [ ] Add `backend/services/simulation/reporting.py`.
 - [ ] Rewrite `example_12_complete_backtests()`.

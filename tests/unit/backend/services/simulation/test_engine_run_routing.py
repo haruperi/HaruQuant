@@ -70,8 +70,30 @@ def test_engine_run_prepared_routes_vectorized_engine():
     engine = Engine.__new__(Engine)
     calls = []
 
-    def fake_run_vectorized(data, initial_balance, contract_size):
-        calls.append((data, initial_balance, contract_size))
+    def fake_run_vectorized(
+        data,
+        initial_balance,
+        contract_size,
+        position_size,
+        commission_per_lot,
+        slippage_model,
+        slippage_points,
+        slippage_min,
+        slippage_max,
+    ):
+        calls.append(
+            (
+                data,
+                initial_balance,
+                contract_size,
+                position_size,
+                commission_per_lot,
+                slippage_model,
+                slippage_points,
+                slippage_min,
+                slippage_max,
+            )
+        )
         return len(data)
 
     engine.run_vectorized = fake_run_vectorized
@@ -81,15 +103,35 @@ def test_engine_run_prepared_routes_vectorized_engine():
     processed_ticks = engine.run_prepared(prepared, config)
 
     assert processed_ticks == 1
-    assert calls == [(prepared.ticks, 10000.0, 100000.0)]
+    assert calls == [
+        (prepared.ticks, 10000.0, 100000.0, 0.1, 0.0, "none", 0.0, None, None)
+    ]
 
 
 def test_engine_run_prepared_routes_event_driven_engine():
     engine = Engine.__new__(Engine)
     calls = []
 
-    def fake_run_event_driven(data):
-        calls.append(data)
+    def fake_run_event_driven(
+        data,
+        position_size=None,
+        commission_per_lot=0.0,
+        slippage_model="none",
+        slippage_points=0.0,
+        slippage_min=None,
+        slippage_max=None,
+    ):
+        calls.append(
+            (
+                data,
+                position_size,
+                commission_per_lot,
+                slippage_model,
+                slippage_points,
+                slippage_min,
+                slippage_max,
+            )
+        )
         return len(data)
 
     engine.run_event_driven = fake_run_event_driven
@@ -99,4 +141,4 @@ def test_engine_run_prepared_routes_event_driven_engine():
     processed_ticks = engine.run_prepared(prepared, config)
 
     assert processed_ticks == 1
-    assert calls == [prepared.ticks]
+    assert calls == [(prepared.ticks, 0.1, 0.0, "none", 0.0, None, None)]

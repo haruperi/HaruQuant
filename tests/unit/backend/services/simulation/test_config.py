@@ -143,6 +143,29 @@ def test_simulation_config_rejects_fixed_spread_without_points():
         SimulationConfig.from_dict(raw)
 
 
+def test_simulation_config_parses_dynamic_slippage_bounds():
+    raw = _valid_config()
+    raw["execution"]["slippage_model"] = "dynamic"
+    raw["execution"].pop("slippage_points")
+    raw["execution"]["slippage_min"] = 1
+    raw["execution"]["slippage_max"] = 5
+
+    config = SimulationConfig.from_dict(raw)
+
+    assert config.execution.slippage_model == "dynamic"
+    assert config.execution.slippage_min == 1.0
+    assert config.execution.slippage_max == 5.0
+
+
+def test_simulation_config_rejects_dynamic_slippage_without_bounds():
+    raw = _valid_config()
+    raw["execution"]["slippage_model"] = "dynamic"
+    raw["execution"].pop("slippage_points")
+
+    with pytest.raises(SimulationConfigError, match="slippage_min"):
+        SimulationConfig.from_dict(raw)
+
+
 def test_simulation_config_rejects_non_positive_fixed_lot():
     raw = _valid_config()
     raw["execution"]["position_size"]["lot_size"] = 0

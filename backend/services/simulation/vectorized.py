@@ -31,7 +31,7 @@ POS_COLS = 9
 
 # Trade record columns:
 # [ticket, symbol_id, type, open_price, close_price, volume, sl, tp,
-#  open_idx, close_idx, profit, close_reason]
+#  open_idx, close_idx, profit, close_reason, commission]
 REC_TICKET = 0
 REC_SYMBOL_ID = 1
 REC_TYPE = 2
@@ -44,7 +44,8 @@ REC_OPEN_IDX = 8
 REC_CLOSE_IDX = 9
 REC_PROFIT = 10
 REC_REASON = 11
-REC_COLS = 12
+REC_COMMISSION = 12
+REC_COLS = 13
 
 
 if njit is not None:
@@ -61,6 +62,10 @@ if njit is not None:
         tp_arr,
         initial_balance,
         contract_size,
+        position_size,
+        commission_per_lot,
+        slippage_points_arr,
+        point_value,
         max_positions=100,
     ):
         balance = initial_balance
@@ -81,6 +86,7 @@ if njit is not None:
             bid = bid_arr[idx]
             ask = ask_arr[idx]
             symbol_id = symbol_id_arr[idx]
+            slippage_price = slippage_points_arr[idx] * point_value
 
             for i in range(max_positions):
                 if active_positions[i, POS_STATUS] == 0:
@@ -101,17 +107,17 @@ if njit is not None:
 
                 if p_type == 0:
                     if p_sl > 0 and bid <= p_sl:
-                        close_price = bid
+                        close_price = bid - slippage_price
                         reason = 1.0
                     elif p_tp > 0 and bid >= p_tp:
-                        close_price = bid
+                        close_price = bid - slippage_price
                         reason = 2.0
                 else:
                     if p_sl > 0 and ask >= p_sl:
-                        close_price = ask
+                        close_price = ask + slippage_price
                         reason = 1.0
                     elif p_tp > 0 and ask <= p_tp:
-                        close_price = ask
+                        close_price = ask + slippage_price
                         reason = 2.0
 
                 if close_price > 0:
@@ -119,7 +125,9 @@ if njit is not None:
                         pnl = (close_price - p_open) * p_vol * contract_size
                     else:
                         pnl = (p_open - close_price) * p_vol * contract_size
-                    balance += pnl
+                    commission = -abs(p_vol * commission_per_lot * 2.0)
+                    net_pnl = pnl + commission
+                    balance += net_pnl
 
                     completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
                     completed_trades[completed_count, REC_SYMBOL_ID] = pos_symbol_id
@@ -131,8 +139,9 @@ if njit is not None:
                     completed_trades[completed_count, REC_TP] = p_tp
                     completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
                     completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                    completed_trades[completed_count, REC_PROFIT] = pnl
+                    completed_trades[completed_count, REC_PROFIT] = net_pnl
                     completed_trades[completed_count, REC_REASON] = reason
+                    completed_trades[completed_count, REC_COMMISSION] = commission
                     completed_count += 1
                     active_positions[i, POS_STATUS] = 0
 
@@ -147,12 +156,18 @@ if njit is not None:
                     ):
                         p_vol = active_positions[i, POS_VOLUME]
                         p_open = active_positions[i, POS_OPEN_PRICE]
-                        close_price = bid if target_type == 0 else ask
+                        close_price = (
+                            bid - slippage_price
+                            if target_type == 0
+                            else ask + slippage_price
+                        )
                         if target_type == 0:
                             pnl = (close_price - p_open) * p_vol * contract_size
                         else:
                             pnl = (p_open - close_price) * p_vol * contract_size
-                        balance += pnl
+                        commission = -abs(p_vol * commission_per_lot * 2.0)
+                        net_pnl = pnl + commission
+                        balance += net_pnl
 
                         completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
                         completed_trades[completed_count, REC_SYMBOL_ID] = symbol_id
@@ -164,8 +179,9 @@ if njit is not None:
                         completed_trades[completed_count, REC_TP] = active_positions[i, POS_TP]
                         completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
                         completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                        completed_trades[completed_count, REC_PROFIT] = pnl
+                        completed_trades[completed_count, REC_PROFIT] = net_pnl
                         completed_trades[completed_count, REC_REASON] = 3.0
+                        completed_trades[completed_count, REC_COMMISSION] = commission
                         completed_count += 1
                         active_positions[i, POS_STATUS] = 0
 
@@ -179,12 +195,16 @@ if njit is not None:
 
                 if slot != -1:
                     e_type = 0 if entry_sig == 1 else 1
-                    e_price = ask if e_type == 0 else bid
+                    e_price = (
+                        ask + slippage_price
+                        if e_type == 0
+                        else bid - slippage_price
+                    )
                     active_positions[slot, POS_TICKET] = next_ticket
                     active_positions[slot, POS_SYMBOL_ID] = symbol_id
                     active_positions[slot, POS_TYPE] = e_type
                     active_positions[slot, POS_OPEN_PRICE] = e_price
-                    active_positions[slot, POS_VOLUME] = 0.01
+                    active_positions[slot, POS_VOLUME] = position_size
                     active_positions[slot, POS_SL] = sl_arr[idx]
                     active_positions[slot, POS_TP] = tp_arr[idx]
                     active_positions[slot, POS_OPEN_IDX] = idx
@@ -217,11 +237,38 @@ def run_vectorized_simulation(
     data,
     initial_balance: float = 10000.0,
     contract_size: float = 100000.0,
+    position_size: float = 0.01,
+    commission_per_lot: float = 0.0,
+    slippage_model: str = "none",
+    slippage_points: float = 0.0,
+    slippage_min: float | None = None,
+    slippage_max: float | None = None,
+    point_value: float = 0.00001,
 ) -> int:
     """Run the vectorized simulation backend and update engine state."""
+    if float(position_size) <= 0.0:
+        raise ValueError("position_size must be > 0.")
+    resolved_slippage_points = _resolve_slippage_points_array(
+        slippage_model,
+        slippage_points,
+        slippage_min,
+        slippage_max,
+        len(data),
+    )
     if njit is None:
         logger.warning("Numba not available. Falling back to run_event_driven().")
-        return int(engine.run_event_driven(data) or 0)
+        return int(
+            engine.run_event_driven(
+                data,
+                position_size=position_size,
+                commission_per_lot=commission_per_lot,
+                slippage_model=slippage_model,
+                slippage_points=slippage_points,
+                slippage_min=slippage_min,
+                slippage_max=slippage_max,
+            )
+            or 0
+        )
 
     start_time = time.time()
     prepared = prepare_vectorized_data(data)
@@ -237,6 +284,10 @@ def run_vectorized_simulation(
         prepared["tp_arr"],
         float(initial_balance),
         float(contract_size),
+        float(position_size),
+        float(commission_per_lot),
+        resolved_slippage_points,
+        float(point_value),
     )
 
     engine.state.completed_trade_records = reconstruct_trades(
@@ -347,6 +398,7 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float) -> list
                 open_time=timestamps[open_idx] if timestamps is not None else None,
                 close_time=timestamps[close_idx] if timestamps is not None else None,
                 profit_loss=row[REC_PROFIT],
+                commission=row[REC_COMMISSION] if len(row) > REC_COMMISSION else 0.0,
                 mfe_usd=mfe_usd,
                 mae_usd=mae_usd,
                 exit_reason=reason,
@@ -355,6 +407,30 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float) -> list
         )
 
     return reconstructed
+
+
+def _resolve_slippage_points_array(
+    slippage_model: str,
+    slippage_points: float,
+    slippage_min: float | None,
+    slippage_max: float | None,
+    length: int,
+):
+    model = str(slippage_model or "none").strip().lower()
+    if model in {"", "none", "disabled"}:
+        return np.zeros(int(length), dtype=np.float64)
+    if model == "fixed":
+        return np.full(
+            int(length),
+            max(0.0, float(slippage_points or 0.0)),
+            dtype=np.float64,
+        )
+    low = max(0.0, float(slippage_min or 0.0))
+    high = max(low, float(slippage_max if slippage_max is not None else low))
+    if high <= low:
+        return np.full(int(length), low, dtype=np.float64)
+    rng = np.random.default_rng(42)
+    return rng.uniform(low, high, int(length)).astype(np.float64)
 
 
 def reconstruct_equity_curve(equity_arr, prepared: dict) -> list:

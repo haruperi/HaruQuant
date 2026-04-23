@@ -21,6 +21,7 @@ from backend.services.execution.core import RunResult
 from backend.common.logger import logger
 from backend.services.execution import core
 from backend.services.simulation.event_driven import run_event_driven_simulation
+from backend.services.simulation.position_sizing import resolve_position_size
 from backend.services.simulation.vectorized import run_vectorized_simulation
 
 from backend.services.simulation.config import AccountConfig, SimulationConfig
@@ -154,13 +155,30 @@ class Engine:
 
         logger.info(f"successfully initialised trading engine {self.backend}")
 
-    def run_vectorized(self, data, initial_balance=10000.0, contract_size=100000.0):
+    def run_vectorized(
+        self,
+        data,
+        initial_balance=10000.0,
+        contract_size=100000.0,
+        position_size=0.01,
+        commission_per_lot=0.0,
+        slippage_model="none",
+        slippage_points=0.0,
+        slippage_min=None,
+        slippage_max=None,
+    ):
         """Run prepared tick data through the vectorized backend."""
         return run_vectorized_simulation(
             self,
             data,
             initial_balance=initial_balance,
             contract_size=contract_size,
+            position_size=position_size,
+            commission_per_lot=commission_per_lot,
+            slippage_model=slippage_model,
+            slippage_points=slippage_points,
+            slippage_min=slippage_min,
+            slippage_max=slippage_max,
         )
 
     def run(self, config: SimulationConfig | Mapping[str, Any]):
@@ -176,17 +194,35 @@ class Engine:
 
     def run_prepared(self, prepared, config: SimulationConfig) -> int:
         """Execute already-prepared simulation data through the selected engine."""
+        position_size = resolve_position_size(config, prepared)
         if config.engine_type == "vectorized":
             return int(
                 self.run_vectorized(
                     prepared.ticks,
                     initial_balance=config.account.initial_balance,
                     contract_size=config.execution.contract_size,
+                    position_size=position_size,
+                    commission_per_lot=config.account.commission,
+                    slippage_model=config.execution.slippage_model,
+                    slippage_points=config.execution.slippage_points,
+                    slippage_min=config.execution.slippage_min,
+                    slippage_max=config.execution.slippage_max,
                 )
                 or 0
             )
         if config.engine_type == "event_driven":
-            return int(self.run_event_driven(prepared.ticks) or 0)
+            return int(
+                self.run_event_driven(
+                    prepared.ticks,
+                    position_size=position_size,
+                    commission_per_lot=config.account.commission,
+                    slippage_model=config.execution.slippage_model,
+                    slippage_points=config.execution.slippage_points,
+                    slippage_min=config.execution.slippage_min,
+                    slippage_max=config.execution.slippage_max,
+                )
+                or 0
+            )
         raise ValueError(f"unsupported simulation engine_type: {config.engine_type}")
 
     def _strict_order_calc_profit(self, order_type, symbol, volume, price_open, price_close):
@@ -1346,6 +1382,11 @@ class Engine:
         self,
         data,
         position_size=None,
+        commission_per_lot=0.0,
+        slippage_model="none",
+        slippage_points=0.0,
+        slippage_min=None,
+        slippage_max=None,
         monitor_verbose: bool = False,
         show_progress: bool = False,
         progress_desc: str = "Tester Progress",
@@ -1356,6 +1397,11 @@ class Engine:
             self,
             data,
             position_size=position_size,
+            commission_per_lot=commission_per_lot,
+            slippage_model=slippage_model,
+            slippage_points=slippage_points,
+            slippage_min=slippage_min,
+            slippage_max=slippage_max,
             monitor_verbose=monitor_verbose,
             show_progress=show_progress,
             progress_desc=progress_desc,

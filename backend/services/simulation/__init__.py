@@ -25,6 +25,11 @@ from .data_preparation import (
     SimulationDataPreparationError,
     SimulationDataPreparer,
 )
+from .position_sizing import (
+    SimulationPositionSizingError,
+    SimulationSymbolInfo,
+    resolve_position_size,
+)
 from .runner import (
     SimulationRun,
     SimulationRunner,
@@ -66,6 +71,9 @@ __all__ = [
     "PreparedSimulationData",
     "SimulationDataPreparationError",
     "SimulationDataPreparer",
+    "SimulationPositionSizingError",
+    "SimulationSymbolInfo",
+    "resolve_position_size",
     "SimulationRun",
     "SimulationRunner",
     "SimulationStartRequest",
