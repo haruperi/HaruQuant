@@ -79,6 +79,9 @@ No order placement, modification, scaling, or close action reaches broker adapte
 **DP-003 State machines over implicit flow**  
 All material workflows are persisted as explicit finite state machines.
 
+**DP-004 Simulation backend purity**  
+Backtest simulation backends consume prepared tick data plus primitive execution values only. Data loading, strategy instantiation, tick generation, reporting, and persistence live outside the vectorized/event-driven simulator loops under `backend/services/simulation`.
+
 **DP-004 Contracts over ad hoc JSON**  
 All agent-to-agent and service-to-service messages use versioned canonical schemas.
 

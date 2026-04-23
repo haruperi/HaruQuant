@@ -619,16 +619,16 @@ Add config examples if needed:
 - [x] Add `backend/services/simulation/event_driven.py`.
 - [x] Move event-driven loop out of `engine.py`.
 - [x] Wire money-management position sizing into simulator routing.
-- [ ] Wire contract size into vectorized core from config.
+- [x] Wire contract size into vectorized core from config.
 - [x] Wire fixed slippage and commission config.
-- [ ] Add/expand `backend/services/simulation/results.py`.
-- [ ] Add `backend/services/simulation/reporting.py`.
-- [ ] Rewrite `example_12_complete_backtests()`.
-- [ ] Remove obsolete example-level simulation helpers.
-- [ ] Add config/data-prep/simulator tests.
-- [ ] Run short backtest validation.
+- [x] Add/expand `backend/services/simulation/results.py`.
+- [x] Add `backend/services/simulation/reporting.py`.
+- [x] Rewrite `example_12_complete_backtests()`.
+- [x] Remove obsolete example-level simulation helpers from the Example 12 path.
+- [x] Add config/data-prep/simulator tests.
+- [ ] Run short backtest validation against broker data.
 - [ ] Run full 10-year benchmark validation.
-- [ ] Update architecture/config documentation.
+- [x] Update architecture/config documentation.
 
 ## Validation Strategy
 

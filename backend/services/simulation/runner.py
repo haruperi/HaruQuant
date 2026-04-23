@@ -2,46 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from backend.common.logger import logger
-from backend.services.execution.core import RunResult
 from backend.services.simulation.config import SimulationConfig
 from backend.services.simulation.data_preparation import (
     PreparedSimulationData,
     SimulationDataPreparer,
 )
-
-
-@dataclass(frozen=True)
-class SimulationRun:
-    """Completed simulation payload with config and preparation metadata."""
-
-    config: SimulationConfig
-    prepared: PreparedSimulationData
-    result: RunResult
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-    @property
-    def trades(self):
-        return self.result.trades
-
-    @property
-    def equity_curve(self):
-        return self.result.equity_curve
-
-    @property
-    def processed_ticks(self) -> int:
-        return int(self.result.processed_ticks)
-
-    @property
-    def final_balance(self) -> float:
-        return float(self.result.final_balance)
-
-    @property
-    def final_equity(self) -> float:
-        return float(self.result.final_equity)
+from backend.services.simulation.results import SimulationRun, SimulationRunResult
 
 
 class SimulationRunner:
@@ -55,7 +24,7 @@ class SimulationRunner:
         self.engine = engine
         self.data_preparer = data_preparer or SimulationDataPreparer(engine)
 
-    def run(self, config: SimulationConfig | Mapping[str, Any]) -> SimulationRun:
+    def run(self, config: SimulationConfig | Mapping[str, Any]) -> SimulationRunResult:
         parsed = self._parse_config(config)
         self.engine.reset_runtime(parsed.account)
         prepared = self.data_preparer.prepare(parsed)
@@ -63,10 +32,10 @@ class SimulationRunner:
         result = self.engine.get_run_result(processed_ticks=processed_ticks)
         metadata = self._metadata(parsed, prepared, result)
         self._report_if_requested(parsed, metadata)
-        return SimulationRun(
-            config=parsed,
-            prepared=prepared,
-            result=result,
+        return SimulationRunResult.from_run_result(
+            parsed,
+            prepared,
+            result,
             metadata=metadata,
         )
 

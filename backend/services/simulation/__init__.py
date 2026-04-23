@@ -30,8 +30,17 @@ from .position_sizing import (
     SimulationSymbolInfo,
     resolve_position_size,
 )
-from .runner import (
+from .reporting import (
+    print_portfolio_symbol_summary,
+    print_run_result_summary,
+    print_simulation_summary,
+    print_trade_record_summary,
+)
+from .results import (
     SimulationRun,
+    SimulationRunResult,
+)
+from .runner import (
     SimulationRunner,
 )
 from .models import (
@@ -75,6 +84,11 @@ __all__ = [
     "SimulationSymbolInfo",
     "resolve_position_size",
     "SimulationRun",
+    "SimulationRunResult",
+    "print_portfolio_symbol_summary",
+    "print_run_result_summary",
+    "print_simulation_summary",
+    "print_trade_record_summary",
     "SimulationRunner",
     "SimulationStartRequest",
     "SimulationUpdateRequest",

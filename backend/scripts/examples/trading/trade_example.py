@@ -11,7 +11,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 sys.path.insert(0, PROJECT_ROOT)
 
 from backend.common.logger import logger
+from backend.services.simulation.config import AccountConfig
 from backend.services.simulation.engine import Engine
+from backend.services.simulation.reporting import print_simulation_summary
 from backend.services.execution import core
 from backend.services.execution.trade import Trade
 from backend.services.risk_engine import CorrelationPreference, RiskLimits
@@ -27,12 +29,12 @@ audusd = "AUDUSD"
 eurgbp = "EURGBP"
 nzdchf = "NZDCHF"
 timeframe = "H1"
-warmup_start_date = datetime(2025, 10, 1)  # 3 months of warmup data
-start_date = datetime(2025, 11, 1)
+warmup_start_date = datetime(2024, 12, 1)  # 3 months of warmup data
+start_date = datetime(2025, 1, 1)
 end_date = datetime(2025, 12, 31)
 stoploss = 10
 
-# Derived globals
+# Derived globals``
 backend = "sim"  # set to: "mt5" or "sim"
 engine_instance = Engine(backend=backend)
 api = engine_instance.api
@@ -74,20 +76,14 @@ pending_orders_created = []
 def reset_sim_runtime_state(account_balance = 10000, commission = 7.0, leverage = 400):
     if backend != "sim":
         return
-    account = engine_instance.account_info()
-    account["balance"] = account_balance
-    account["profit"] = 0.0
-    account["equity"] = account_balance
-    account["margin"] = 0.0
-    account["margin_free"] = account_balance
-    account["margin_level"] = 0.0
-    account["commission"] = commission
-    account["leverage"] = leverage
-    engine_instance.state.trading_deals = []
-    engine_instance.state.trading_history_deals = []
-    engine_instance.state.trading_orders = []
-    engine_instance.state.trading_history_orders = []
-    engine_instance.clear_completed_trades()
+    engine_instance.reset_runtime(
+        AccountConfig(
+            initial_balance=float(account_balance),
+            commission=float(commission),
+            leverage=int(leverage),
+            currency=str(engine_instance.account_info().get("currency", "USD") or "USD"),
+        )
+    )
     pending_orders_created.clear()
 
 def print_trade_record_summary(records):
@@ -218,7 +214,7 @@ def example_01_open_position():
 def example_02_calculate_profit_margin():
     print_example_header("Example 02: Calculate Profit and Margin")
     volume = 0.10
-    symbols_to_test = [audusd, usdjpy, eurgbp, test_symbol]
+    symbols_to_test = [audusd, nzdchf, eurgbp, test_symbol]
     ordered_symbols = []
     seen = set()
     for sym in symbols_to_test:
@@ -496,835 +492,192 @@ def example_09_monitoring_functions():
         f"margin_level={float(acct.get('margin_level', 0.0)):.2f}"
     )
 
-def example_10_simple_backtest():
-    print_example_header("Example 10: Simple Backtest")
+def example_12_complete_backtests():
+    print_example_header("Example 12: Complete Backtests")
+    started = time.time()
+    config = {
+        "engine_type": "vectorized",
+        "account": {
+            "initial_balance": 10000.0,
+            "commission": 7.0,
+            "leverage": 400,
+            "currency": "USD",
+        },
+        "data": {
+            "source": "metatrader",
+            "symbols": [audusd, eurgbp, nzdchf],
+            "timeframe": "H1",
+            "start": start_date,
+            "end": end_date,
+            "warmup_start": warmup_start_date,
+        },
+        "strategy": {
+            "name": "TrendFollowingStrategy",
+            "params": {
+                "fast_period": 20,
+                "slow_period": 50,
+                "filter_period": 200,
+            },
+        },
+        "execution": {
+            "tick_model": "timeframe_ticks",
+            "spread_model": "native_spread",
+            "slippage_model": "fixed",
+            "slippage_points": 1,
+            "contract_size": 100000,
+            "position_size": {
+                "type": "fixed_lot",
+                "lot_size": 0.1,
+            },
+        },
+        "reporting": {
+            "print_summary": False,
+            "save_to_db": False,
+            "alias": "example_12_complete_backtests",
+            "description": "Clean config-driven portfolio simulation example.",
+        },
+    }
 
-    client = engine_instance.client
-
-    # Step 1: Load Data
-    logger.info("\nLoading historical data...")
-    # Load data from warmup_start_date to properly initialize indicators
-    data = client.get_bars(
-        symbol=test_symbol,
-        timeframe=timeframe,
-        date_from=warmup_start_date,
-        date_to=end_date
-    )
-        
-    if data is None or data.empty:
-        logger.error("No data retrieved.")
-        return
-
-    # Step 2: Setup and initialize strategy
-    logger.info("\nSetting up strategy...")
-    strategy = TrendFollowingStrategy(
-                params={
-                'symbol': test_symbol,
-                'fast_period': 20,
-                'slow_period': 50,
-                'filter_period': 200
-            }
-        )
-    strategy.on_init()
-    
-    # Step 3: Pre-calculate signals (Vectorized/Pandas approach used by Strategy class)
-    data = strategy.on_bar(data)
-    #print(data)
-
-    # Step 4: Cut data to start from start_date
-    data = data[data.index >= start_date]
-    if data is None or data.empty:
-        logger.error("No data available after start_date filter.")
-        return
-
-    # Keep comparison window small and identical across models.
-    compare_bars = data.copy()
-
-    # Step 5: Convert bars data to ticks dataframe (multiple models)
-    logger.info("\nConverting bars to ticks...")
-    symbol_info = engine_instance.client.symbol_info(test_symbol)
-    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
-    compare_start = compare_bars.index.min().to_pydatetime()
-    compare_end = (
-        compare_bars.index.max() + pd.Timedelta(minutes=59, seconds=59)
-    ).to_pydatetime()
-    # m1_data = client.get_bars(
-    #     symbol=test_symbol,
-    #     timeframe="M1",
-    #     date_from=compare_start,
-    #     date_to=compare_end,
-    # )
-    # if m1_data is not None and not m1_data.empty:
-    #     m1_data = m1_data[
-    #         (m1_data.index >= compare_bars.index.min())
-    #         & (m1_data.index <= compare_end)
-    #     ]
-    # else:
-    #     m1_data = None
-
-    # # Fetch real ticks over the exact same comparison window.
-    # real_ticks_start = compare_start
-    # real_ticks_end = compare_end
-    # real_ticks = client.get_ticks(
-    #     symbol=test_symbol,
-    #     start=real_ticks_start,
-    #     end=real_ticks_end,
-    #     as_dataframe=True,
-    # )
-    # if real_ticks is not None and not real_ticks.empty:
-    #     if "timestamp" in real_ticks.columns:
-    #         real_ticks = real_ticks.set_index("timestamp")
-    #     real_ticks.index = real_ticks.index.tz_localize(None) if getattr(real_ticks.index, "tz", None) is not None else real_ticks.index
-    # else:
-    #     real_ticks = None
-
-    start_tick = time.time()
-
-    tick_model = "timeframe_ticks" # "real_ticks", "synthetic_ticks", "timeframe_ticks", "m1_ticks"
-    spread_model = "native_spread" # "native_spread", "fixed_spread", "variable_spread"
-
-    ticks_generator = TicksGenerator(
-        model=tick_model,
-        trading_timeframe=timeframe,
-        # m1_data=m1_data,
-        # real_ticks=real_ticks,
-        point_value=point_value,
-        spread_model=spread_model,
-    )
-    ticks_data = ticks_generator.generate(compare_bars)
-    if ticks_data is None or ticks_data.empty:
-        print(f"{tick_model}: no ticks generated (skipped)")
-
-    end_tick = time.time()
-    print(f"{tick_model}: generated {len(ticks_data)} ticks in {end_tick - start_tick} seconds")
-
-    # Step 6: Run backtest
-    start_time = time.time()
-
-    engine_instance.configure_run_schedule(
-      positions_every=1,          # only if you must enforce SL/TP each tick
-      pending_orders_every=1,     # only if pending trigger must be tick-accurate     # only if you must enforce SL/TP each tick
-      account_every=4,            # every 4 ticks represent bar close (ex real and synthetic ticks)
-      portfolio_every=4,          
-      risk_every=4,               
-  )
-
-
-    processed = engine_instance.run(
-        ticks_data,
-        engine_type="event_driven",
-        position_size=0.01,
-        monitor_verbose=True,
-        show_progress=True,
-        progress_desc="Tester Progress",
-    )
-    end_time = time.time()
-
-
-
-    # Trade Results Report and Save To DB
-    run_result = engine_instance.get_run_result(processed_ticks=processed)
-    print(f"Backtest completed in {end_time - start_time :.2f} seconds")
-    print_run_result_summary(run_result)
-    completed_trades = engine_instance.get_completed_trades()
-    equity_curve = engine_instance.get_equity_curve()
-
-    db = DatabaseManager()
-    db.initialize_database()
-    backtest_id = db.create_backtest_run(
-        strategy_name="TrendFollowingStrategy",
-        strategy_version="1.0.0",
-        start_date=data.index.min().to_pydatetime(),
-        end_date=data.index.max().to_pydatetime(),
-        engine_type="sim",
-        data_resolution="timeframe_ticks",
-        config_hash=str(hash(("example_10", test_symbol, timeframe, len(data)))),
-        symbols=[test_symbol],
-        timeframes=[timeframe],
-        initial_balance=10000.0,
-        alias="example_10_trade_results_report_save_to_db",
-        description="Engine.run completed trades + equity save example",
-    )
-    db.save_backtest_trades(backtest_id, completed_trades)
-    db.save_backtest_equity_curve(backtest_id, equity_curve)
-    final_balance = float(engine_instance.account_info().get("balance", 0.0) or 0.0)
-    db.update_backtest_status(backtest_id, "completed", final_balance=final_balance)
-
-    print(
-        f"saved_backtest_id={backtest_id} db_path={db.db_path} "
-        f"saved_trades={len(completed_trades)} saved_equity_points={len(equity_curve)}"
-    )
-
-    #print(ticks_data)
-    # run_result_dict = run_result.to_dict()
-    # print(run_result_dict)
-
-def example_11_simple_backtest_pending():
-    print_example_header("Example 11: Simple Backtest Pending")
-
-    client = engine_instance.client
-
-    logger.info("Loading historical data...")
-    data = client.get_bars(
-        symbol=test_symbol,
-        timeframe=timeframe,
-        date_from=warmup_start_date,
-        date_to=end_date
-    )
-
-    if data is None or data.empty:
-        logger.error("No data retrieved.")
-        return
-
-    logger.info("Setting up strategy...")
-    strategy = CloseBreakoutStrategy(
-        params={
-            'symbol': test_symbol,
-            'timeframe': timeframe,
-        }
-    )
-    strategy.on_init()
-
-    data = strategy.on_bar(data)
-    data = data[data.index >= start_date]
-    if data is None or data.empty:
-        logger.error("No data available after start_date filter.")
-        return
-
-    compare_bars = data.head(40).copy()
-
-    logger.info("Converting bars to ticks...")
-    symbol_info = engine_instance.client.symbol_info(test_symbol)
-    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
-
-    start_tick = time.time()
-    tick_model = "timeframe_ticks"
-    spread_model = "native_spread"
-
-    ticks_generator = TicksGenerator(
-        model=tick_model,
-        trading_timeframe=timeframe,
-        point_value=point_value,
-        spread_model=spread_model,
-    )
-    ticks_data = ticks_generator.generate(compare_bars)
-    if ticks_data is None or ticks_data.empty:
-        print(f"{tick_model}: no ticks generated (skipped)")
-        return
-
-    end_tick = time.time()
-    print(f"{tick_model}: generated {len(ticks_data)} ticks in {end_tick - start_tick} seconds")
-
-    start_time = time.time()
-    engine_instance.configure_run_schedule(
-        positions_every=1,
-        pending_orders_every=1,
-        account_every=250,
-        portfolio_every=250,
-        risk_every=250,
-    )
-
-    processed = engine_instance.run(
-        ticks_data,
-        engine_type="event_driven",
-        position_size=0.01,
-        monitor_verbose=True,
-        show_progress=True,
-        progress_desc="Tester Progress",
-    )
-    end_time = time.time()
-    print(f"{tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
-
-    print(
-        "Pending demo summary: "
-        f"active_orders={api.orders_total()} "
-        f"open_positions={api.positions_total()} "
-        f"history_orders={len(engine_instance.state.trading_history_orders)} "
-        f"history_deals={len(engine_instance.state.trading_history_deals)}"
-    )
-
-def example_12_trade_results_partial_close():
-    print_example_header("Example 12: Trade Results Partial Close")
-    if backend != "sim":
-        print("Example 12 is simulator-only")
-        return
-
-    reset_sim_runtime_state()
-
-    info = get_mutable_sim_symbol(test_symbol)
-    if info is None:
-        print(f"{test_symbol}: symbol info unavailable, skipped")
-        return
-
-    open_price = float(info.ask)
-    open_result = trade.PositionOpen(
-        symbol=test_symbol,
-        order_type="BUY",
-        volume=0.02,
-        price=open_price,
-        sl=0.0,
-        tp=0.0,
-        comment="Example 12 partial close seed",
-    )
-    if not open_result or int(open_result.retcode) not in (10008, 10009):
-        print("Failed to open seed position")
-        return
-
-    point = float(info.point)
-    info.bid = float(info.bid) + (150 * point * 10)
-    info.ask = float(info.ask) + (150 * point * 10)
-    engine_instance.monitor_positions(verbose=True)
-    engine_instance.monitor_account(verbose=True)
-
-    partial_result = trade.PositionClosePartial(symbol=test_symbol, volume=0.01)
-    if not partial_result or int(partial_result.retcode) not in (10008, 10009):
-        print("Partial close failed")
-        return
-
-    info.bid = float(info.bid) + (100 * point * 10)
-    info.ask = float(info.ask) + (100 * point * 10)
-    engine_instance.monitor_positions(verbose=True)
-    engine_instance.monitor_account(verbose=True)
-
-    close_result = trade.PositionClose(symbol=test_symbol)
-    if not close_result or int(close_result.retcode) not in (10008, 10009):
-        print("Final close failed")
-        return
-
-    records = engine_instance.get_completed_trades()
-    print_trade_record_summary(records)
-    print(f"equity_points={len(engine_instance.get_equity_curve())}")
-
-def build_symbol_ticks_for_backtest(
-    symbol_name: str,
-    strategy_cls=TrendFollowingStrategy,
-    tick_model: str = "timeframe_ticks",
-    spread_model: str = "native_spread",
-    return_signal_bars: bool = False,
-):
-    client = engine_instance.client
-    data = client.get_bars(
-        symbol=symbol_name,
-        timeframe=timeframe,
-        date_from=warmup_start_date,
-        date_to=end_date,
-    )
-    if data is None or data.empty:
-        logger.error(f"No data retrieved for {symbol_name}.")
-        return None
-
-    strategy = strategy_cls(
-        params={
-            "symbol": symbol_name,
-            "fast_period": 20,
-            "slow_period": 50,
-            "filter_period": 200,
-        }
-    )
-    strategy.on_init()
-    data = strategy.on_bar(data)
-    data = data[data.index >= start_date]
-    if data is None or data.empty:
-        logger.error(f"No signal-ready data available for {symbol_name} after start_date filter.")
-        return None
-
-    symbol_info = engine_instance.client.symbol_info(symbol_name)
-    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
-    
-    m1_data = None
-    if tick_model in ["m1_ticks", "synthetic_ticks"]:
-        m1_data = client.get_bars(
-            symbol=symbol_name,
-            timeframe="M1",
-            date_from=warmup_start_date,
-            date_to=end_date,
-        )
-        if m1_data is None or m1_data.empty:
-            logger.error(f"No M1 data retrieved for {symbol_name}, but tick_model requires it.")
-            return None
-
-    ticks_generator = TicksGenerator(
-        model=tick_model,
-        trading_timeframe=timeframe,
-        m1_data=m1_data,
-        point_value=point_value,
-        spread_model=spread_model,
-    )
-    ticks_data = ticks_generator.generate(data.copy())
-    if ticks_data is None or ticks_data.empty:
-        logger.error(f"No ticks generated for {symbol_name}.")
-        return None
-
-    ticks_data = ticks_data.copy()
-    ticks_data["symbol"] = symbol_name
-    ticks_data["signal_timeframe"] = timeframe
-    if return_signal_bars:
-        return ticks_data, data.copy()
-    return ticks_data
+    result = engine_instance.run(config)
+    print_simulation_summary(result)
+    print(f"total_seconds={time.time() - started:.4f}")
 
 
 def example_13_simple_portfolion_backtest():
-    print_example_header("Example 13: Simple Portfolion Backtest")
+    print_example_header("Example 13: Simple Portfolio Backtest")
+    started = time.time()
+    config = {
+        "engine_type": "event_driven",
+        "account": {
+            "initial_balance": 10000.0,
+            "commission": 7.0,
+            "leverage": 400,
+        },
+        "data": {
+            "source": "metatrader",
+            "symbols": [test_symbol, audusd, eurgbp],
+            "timeframe": "H1",
+            "start": start_date,
+            "end": end_date,
+            "warmup_start": warmup_start_date,
+        },
+        "strategy": {
+            "name": "TrendFollowingStrategy",
+            "params": {
+                "fast_period": 20,
+                "slow_period": 50,
+                "filter_period": 200,
+            },
+        },
+        "execution": {
+            "tick_model": "timeframe_ticks",
+            "spread_model": "native_spread",
+            "contract_size": 100000,
+            "position_size": {
+                "type": "fixed_lot",
+                "lot_size": 0.01,
+            },
+        },
+        "reporting": {
+            "print_summary": True,
+            "save_to_db": True,
+            "alias": "example_13_simple_portfolion_backtest",
+            "description": "Event-driven multi-symbol portfolio backtest.",
+        },
+    }
 
-    if backend == "sim":
-        reset_sim_runtime_state()
-
-    portfolio_symbols = [test_symbol, audusd, eurgbp]
-    tick_model = "timeframe_ticks"
-    spread_model = "native_spread"
-    merged_ticks = []
-    per_symbol_counts = {}
-    generation_started = time.time()
-
-    logger.info("Loading and preparing portfolio symbol data...")
-    for symbol_name in portfolio_symbols:
-        symbol_started = time.time()
-        ticks_data = build_symbol_ticks_for_backtest(
-            symbol_name,
-            tick_model=tick_model,
-            spread_model=spread_model,
-        )
-        if ticks_data is None or ticks_data.empty:
-            continue
-        merged_ticks.append(ticks_data)
-        per_symbol_counts[symbol_name] = len(ticks_data)
-        print(
-            f"portfolio {tick_model}: generated {len(ticks_data)} ticks for {symbol_name} "
-            f"in {time.time() - symbol_started} seconds"
-        )
-
-    if not merged_ticks:
-        print(f"portfolio {tick_model}: no ticks generated")
-        return
-
-    ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
-    print(
-        f"portfolio {tick_model}: merged {len(ticks_data)} ticks across {len(per_symbol_counts)} symbols "
-        f"in {time.time() - generation_started} seconds"
-    )
-
-    engine_instance.configure_run_schedule(
-        positions_every=1,
-        pending_orders_every=1,
-        account_every=4,
-        portfolio_every=4,
-        risk_every=4,
-    )
-
-    start_time = time.time()
-    processed = engine_instance.run(
-        ticks_data,
-        engine_type="event_driven",
-        position_size=0.01,
-        monitor_verbose=False,
-        show_progress=True,
-        progress_desc="Portfolio Tester Progress",
-    )
-    end_time = time.time()
-
-    run_result = engine_instance.get_run_result(processed_ticks=processed)
-    print(f"portfolio {tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
-    for symbol_name, count in per_symbol_counts.items():
-        print(f"symbol_ticks[{symbol_name}]={count}")
-
-    trade_counts = {}
-    for record in run_result.trades:
-        trade_counts[record.symbol] = trade_counts.get(record.symbol, 0) + 1
-
-    print_run_result_summary(run_result)
-    print_portfolio_symbol_summary(run_result.trades, portfolio_symbols)
-    for symbol_name in portfolio_symbols:
-        print(f"completed_trades[{symbol_name}]={trade_counts.get(symbol_name, 0)}")
-
-    save_engine_backtest_snapshot(
-        alias="example_13_simple_portfolion_backtest_save_to_db",
-        description="Merged multi-symbol portfolio backtest using one shared engine run.",
-        strategy_name="TrendFollowingStrategy",
-        symbols=portfolio_symbols,
-        timeframes=[timeframe],
-        start_dt=ticks_data.index.min().to_pydatetime(),
-        end_dt=ticks_data.index.max().to_pydatetime(),
-        config_hash=str(hash(("example_13_portfolio", tuple(portfolio_symbols), timeframe, len(ticks_data)))),
-    )
+    result = engine_instance.run(config)
+    print_simulation_summary(result)
+    print(f"total_seconds={time.time() - started:.4f}")
 
 
 def example_14_portfolio_backtest_with_risk():
     print_example_header("Example 14: Portfolio Backtest With Risk")
-
-    if backend == "sim":
-        reset_sim_runtime_state()
-
-    portfolio_symbols = [test_symbol, audusd, eurgbp]
-    tick_model = "timeframe_ticks"
-    spread_model = "native_spread"
-    governor_timeframe = timeframe
-    merged_ticks = []
-    historical_data = {}
-    per_symbol_counts = {}
-    generation_started = time.time()
-
-    logger.info("Loading and preparing portfolio symbol data for risk-managed run...")
-    for symbol_name in portfolio_symbols:
-        symbol_started = time.time()
-        built = build_symbol_ticks_for_backtest(
-            symbol_name,
-            tick_model=tick_model,
-            spread_model=spread_model,
-            return_signal_bars=True,
-        )
-        if not built:
-            continue
-        ticks_data, signal_bars = built
-        if ticks_data is None or ticks_data.empty:
-            continue
-        merged_ticks.append(ticks_data)
-        historical_data[symbol_name] = {
-            timeframe: signal_bars.copy(),
-            governor_timeframe: signal_bars.copy(),
-        }
-        per_symbol_counts[symbol_name] = len(ticks_data)
-        print(
-            f"risk portfolio {tick_model}: generated {len(ticks_data)} ticks for {symbol_name} "
-            f"in {time.time() - symbol_started} seconds"
-        )
-
-    if not merged_ticks:
-        print(f"risk portfolio {tick_model}: no ticks generated")
-        return
-
-    ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
-    print(
-        f"risk portfolio {tick_model}: merged {len(ticks_data)} ticks across {len(per_symbol_counts)} symbols "
-        f"in {time.time() - generation_started} seconds"
-    )
-
-    engine_instance.configure_run_schedule(
-        positions_every=1,
-        pending_orders_every=1,
-        account_every=4,
-        portfolio_every=4,
-        risk_every=4,
-    )
-    engine_instance.configure_risk_management(
-        enabled=True,
-        historical_data=historical_data,
-        position_sizing_method="fixed_lot",
-        position_sizing_config={
-            "lot_size": 0.01,
+    started = time.time()
+    config = {
+        "engine_type": "event_driven",
+        "account": {
+            "initial_balance": 10000.0,
+            "commission": 7.0,
+            "leverage": 400,
         },
-        risk_limits=RiskLimits(
-            var_cap_frac=0.10,
-            es_cap_frac=0.15,
-            delta_var_cap_frac=0.03,
-            delta_es_cap_frac=0.04,
-            max_margin_used_frac=0.50,
-            max_single_rc_frac=0.60,
-            cluster_var_caps={"FOREX": 0.10},
-            cluster_es_caps={"FOREX": 0.15},
-        ),
-        governor_timeframe=governor_timeframe,
-        governor_start_pos=0,
-        governor_end_pos=500,
-        enable_regime_detection=True,
-        regime_config={
-            "lookback": 40,
-            "vol_med_window": 10,
-            "dd_trigger_frac": 0.05,
+        "data": {
+            "source": "metatrader",
+            "symbols": [test_symbol, audusd, eurgbp],
+            "timeframe": "H1",
+            "start": start_date,
+            "end": end_date,
+            "warmup_start": warmup_start_date,
         },
-        enable_allocation=True,
-        correlation_preference=CorrelationPreference(
-            target_corr=0.50,
-            penalty_strength=2.0,
-            min_budget_frac=0.30,
-        ),
-        risk_budgets={symbol_name: 1.0 / len(portfolio_symbols) for symbol_name in portfolio_symbols},
-        symbol_clusters={symbol_name: "FOREX" for symbol_name in portfolio_symbols},
-    )
+        "strategy": {
+            "name": "TrendFollowingStrategy",
+            "params": {
+                "fast_period": 20,
+                "slow_period": 50,
+                "filter_period": 200,
+            },
+        },
+        "execution": {
+            "tick_model": "timeframe_ticks",
+            "spread_model": "native_spread",
+            "contract_size": 100000,
+            "position_size": {
+                "type": "fixed_lot",
+                "lot_size": 0.01,
+            },
+        },
+        "risk": {
+            "enabled": True,
+            "risk_limits": {
+                "var_cap_frac": 0.10,
+                "es_cap_frac": 0.15,
+                "max_margin_used_frac": 0.50,
+            },
+            "enable_regime_detection": True,
+            "enable_allocation": True,
+            "correlation_preference": {
+                "target_corr": 0.50,
+                "penalty_strength": 2.0,
+            },
+        },
+        "reporting": {
+            "print_summary": True,
+            "save_to_db": True,
+            "alias": "example_14_portfolio_backtest_with_risk",
+            "description": "Portfolio backtest with active risk management.",
+        },
+    }
 
-    start_time = time.time()
-    processed = engine_instance.run(
-        ticks_data,
-        engine_type="event_driven",
-        position_size=0.01,
-        monitor_verbose=True,
-        show_progress=True,
-        progress_desc="Risk Portfolio Tester Progress",
-    )
-    end_time = time.time()
-
-    run_result = engine_instance.get_run_result(processed_ticks=processed)
-    print(f"risk portfolio {tick_model}: processed {processed} ticks in {end_time - start_time} seconds")
-    for symbol_name, count in per_symbol_counts.items():
-        print(f"risk_symbol_ticks[{symbol_name}]={count}")
-
-    trade_counts = {}
-    for record in run_result.trades:
-        trade_counts[record.symbol] = trade_counts.get(record.symbol, 0) + 1
-
-    print_run_result_summary(run_result)
-    print_portfolio_symbol_summary(run_result.trades, portfolio_symbols)
-    for symbol_name in portfolio_symbols:
-        print(f"risk_completed_trades[{symbol_name}]={trade_counts.get(symbol_name, 0)}")
-
-    save_engine_backtest_snapshot(
-        alias="example_14_portfolio_backtest_with_risk_save_to_db",
-        description="Merged multi-symbol portfolio backtest using simulator risk management.",
-        strategy_name="TrendFollowingStrategy",
-        symbols=portfolio_symbols,
-        timeframes=[timeframe],
-        start_dt=ticks_data.index.min().to_pydatetime(),
-        end_dt=ticks_data.index.max().to_pydatetime(),
-        config_hash=str(hash(("example_14_portfolio_risk", tuple(portfolio_symbols), timeframe, len(ticks_data)))),
-    )
-    engine_instance.configure_risk_management(enabled=False)
-
-def example_15_complete_backtests():
-    print_example_header("Example 15: Complete Backtests")
-    """
-    This example is a pre-cursor to the UI, everything that will be done in
-    this example is what will be done in the UI. And more attention given to 
-    the inputs to match here and in the UI
-    """
-
-    start_time = time.time()
-    # UI Inputs in order from top to bottom
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Phase 1 : CONFIGURATION AND ENVIRONMENT SETUP
-    # ------------------------------------------------------------------------------------------------------------------
- 
-    # Data Settings
-    # 1. Pick a data source Metatrader5 or Dukascopy API
-    data_source = "metatrader"
-
-    # 2. Pick a symbol or symbols
-    symbols = [audusd, eurgbp, nzdchf]
-
-    # 3. Pick a trading timeframe
-    trading_timeframe = "H1"
-
-    # 4. Pick Data Range
-    range_by = "dates" # dates, bars
-    if range_by == "dates":
-        bt_start_date = start_date
-        bt_end_date = end_date
-        bt_warmup_start_date = warmup_start_date
-    else:
-        bars = 1000
-        warmup_bars = 100
-
-    # Strategy Settings
-    # 5. Pick a strategy with its set defaults
-    strategy = TrendFollowingStrategy
-
-    # 6. Money Management
-    position_size_type = "fixed_lot" # fixed_lot, fixed_percent, milestone, kelly_criterion, volatility_adjusted_atr, fixed_fractional
-    position_size_config = None
-    if position_size_type == "fixed_lot":
-        position_size_config = {
-            "lot_size": 0.1
-        }
-    elif position_size_type == "fixed_percent":
-        position_size_config = {
-            "risk_percent": 1.0,
-            "use_dynamic_stop_loss": False
-        }
-    elif position_size_type == "milestone":
-        position_size_config = {
-            "initial_balance": 1000.0,
-            "base_lot_size": 0.1,
-            "milestone_amount": 3000.0,
-            "lot_increment": 0.1,
-        }
-    elif position_size_type == "kelly_criterion":
-        position_size_config = {
-            "kelly_fraction_limit": 0.25,
-            "win_rate": 0.55,
-            "avg_win": 150.0,
-            "avg_loss": 100.0,
-        }
-    elif position_size_type == "volatility_adjusted_atr":
-        position_size_config = {
-            "risk_percent": 1.0,
-            "atr_multiplier": 2.0,
-        }
-    elif position_size_type == "fixed_fractional":
-        position_size_config = {
-            "fractional_factor": 0.5,
-        }
+    result = engine_instance.run(config)
+    print_simulation_summary(result)
+    print(f"total_seconds={time.time() - started:.4f}")
 
 
-    # Engine Settings
-    # 7. Data resolution
-    tick_model = "m1_ticks" # "real_ticks", "synthetic_ticks", "m1_ticks", "timeframe_ticks"
-
-    # 8. Account details
-    account_balance = 10000 
-    commission = 7.0
-    leverage = 400
-    if backend == "sim":
-        reset_sim_runtime_state(account_balance, commission, leverage)
-
-    # 9. Trading Conditions
-    slippage_config = None
-    slippage_model = "fixed" # fixed, dynamic
-    if slippage_model == "fixed":
-        slippage_config = {
-            "slippage_points": 1 
-        }
-    elif slippage_model == "dynamic":
-        slippage_config = {
-            "slippage_min": 1, 
-            "slippage_max": 10
-        }
-
-    spread_config = None
-    spread_model = "native_spread" # native_spread, fixed, dynamic
-    if spread_model == "fixed":
-        spread_config = {
-            "spread_points": 10 
-        }
-    elif spread_model == "dynamic":
-        spread_config = {
-            "spread_min": 10, 
-            "spread_max": 50
-        }
-    
-
-   
-    
-    #------------------------------------------------------------------------------------------------------------------###
-    # Phase 2 : DATA PREPARATION
-    #------------------------------------------------------------------------------------------------------------------###
-    
-    # Step 1: Load Data
-    logger.info("\nLoading historical data...")
-    # Load data from warmup_start_date to properly initialize indicators
-    merged_ticks = []
-    per_symbol_counts = {}
-
-    logger.info("Loading and preparing portfolio symbol data...")
-    for symbol in symbols:
-        ticks_data = build_symbol_ticks_for_backtest(
-            symbol,
-            tick_model=tick_model,
-            spread_model=spread_model,
-        )
-        if ticks_data is None or ticks_data.empty:
-            continue
-        merged_ticks.append(ticks_data)
-        per_symbol_counts[symbol] = len(ticks_data)
-
-    if not merged_ticks:
-        print(f"No ticks generated")
-        return
-
-    ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
-    print(f"merged {len(ticks_data)} ticks across {len(per_symbol_counts)} symbols")
-
-    data_end_time = time.time()
-    print(f"Data loading and preparation completed in {data_end_time - start_time} seconds")
-    run_start_time = time.time()
-
-
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Phase 3 : CONFIGURING AND RUNNING THE BACKTEST
-    # ------------------------------------------------------------------------------------------------------------------
-
-    processed = engine_instance.run(
-        ticks_data,
-        engine_type="vectorized",
-        position_size=0.1,
-        monitor_verbose=False,
-        show_progress=True,
-        progress_desc="Portfolio Tester Progress",
-    )
-
-
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # Phase 4 : RESULTS AND REPORTING
-    # ------------------------------------------------------------------------------------------------------------------
-
-    run_result = engine_instance.get_run_result(processed_ticks=processed)
-    for symbol_name, count in per_symbol_counts.items():
-        print(f"symbol_ticks[{symbol_name}]={count}")
-
-    trade_counts = {}
-    for record in run_result.trades:
-        trade_counts[record.symbol] = trade_counts.get(record.symbol, 0) + 1
-
-    print_run_result_summary(run_result)
-    print_portfolio_symbol_summary(run_result.trades, symbols)
-    for symbol_name in symbols:
-        print(f"completed_trades[{symbol_name}]={trade_counts.get(symbol_name, 0)}")
-
-    run_end_time = time.time()
-    print(f"Run completed in {run_end_time - run_start_time} seconds")
-    print(f"Total completed in {run_end_time - start_time} seconds")
-
-
-def example_16_turbo_backtest():
-    print_example_header("Example 16: Turbo Mode Backtest (High Speed)")
-    """
-    Demonstrates the new Numba-accelerated Turbo Mode.
-    Expect 100x+ speedup compared to standard run().
-    """
-    start_time = time.time()
-
-    # 1. Setup
-    symbols = [audusd, eurgbp, nzdchf]
-    tick_model = "m1_ticks" 
-    spread_model = "native_spread"
-    account_balance = 10000 
-
-    if backend == "sim":
-        reset_sim_runtime_state(account_balance)
-
-    # 2. Data Preparation
-    logger.info("Loading and preparing data...")
-    merged_ticks = []
-    for symbol in symbols:
-        ticks_data = build_symbol_ticks_for_backtest(symbol, tick_model=tick_model, spread_model=spread_model)
-        if ticks_data is not None:
-            merged_ticks.append(ticks_data)
-
-    ticks_data = pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
-    print(f"Testing with {len(ticks_data)} ticks across {len(symbols)} symbols")
-
-    data_prep_end_time = time.time()
-    print(f"Data preparation completed in {data_prep_end_time - start_time} seconds")
-
-    # 3. Run Turbo Backtest
-    print("\nStarting Turbo Run...")
-    run_start_time = time.time()
-    
-
-    # We use unified run method with engine_type="vectorized"
-    processed = engine_instance.run(
-        ticks_data, 
-        engine_type="vectorized",
-        initial_balance=account_balance,
-        contract_size=100000.0
-    )
-
-    run_end_time = time.time()
-    duration = run_end_time - run_start_time
-
-    # 4. Results
-    run_result = engine_instance.get_run_result(processed_ticks=processed)
-    print(f"\nTurbo Backtest completed in {duration:.4f} seconds")
-    print(f"Speed: {processed / duration:,.0f} ticks/second")
-    print_run_result_summary(run_result)
-    print_portfolio_symbol_summary(run_result.trades, symbols)
 
 
 if __name__ == "__main__":
     # example_01_open_position()
-    # ...
-    example_15_complete_backtests()
-    #example_16_turbo_backtest()
+    # example_02_calculate_profit_margin()
+    # example_03_modify_position()
+    # example_04_close_partial_position()
+    # example_05_close_position()
+    # example_06_pending_orders()
+    # example_07_modify_pending_orders()
+    # example_08_delete_pending_orders()
+    # example_09_monitoring_functions()
+    example_12_complete_backtests()
+    #example_13_simple_portfolion_backtest()
+    #example_14_portfolio_backtest_with_risk()
+
+
+  
+
+
+
+
+ 
+
+  
 
  
 
