@@ -25,6 +25,10 @@ from .data_preparation import (
     SimulationDataPreparationError,
     SimulationDataPreparer,
 )
+from .runner import (
+    SimulationRun,
+    SimulationRunner,
+)
 from .models import (
     SimulationStartRequest,
     SimulationUpdateRequest,
@@ -62,6 +66,8 @@ __all__ = [
     "PreparedSimulationData",
     "SimulationDataPreparationError",
     "SimulationDataPreparer",
+    "SimulationRun",
+    "SimulationRunner",
     "SimulationStartRequest",
     "SimulationUpdateRequest",
     "ManualTradeRequest",

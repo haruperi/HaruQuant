@@ -611,7 +611,7 @@ Add config examples if needed:
 - [x] Add `backend/services/simulation/strategy_registry.py`.
 - [x] Add `backend/services/simulation/data_preparation.py`.
 - [x] Add `Engine.reset_runtime(account_config)`.
-- [ ] Add `backend/services/simulation/runner.py`.
+- [x] Add `backend/services/simulation/runner.py`.
 - [ ] Change `Engine.run(config)` to use `SimulationRunner`.
 - [ ] Add `Engine.run_prepared(prepared, config)`.
 - [ ] Add `backend/services/simulation/vectorized.py`.
