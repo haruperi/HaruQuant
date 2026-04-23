@@ -33,6 +33,8 @@ except Exception:  # pragma: no cover - optional dependency fallback
 
 import numpy as np
 
+from backend.services.simulation.config import AccountConfig
+
 # Turbo Mode Constants
 # Position Table Columns: [ticket, symbol_id, type (0=buy, 1=sell), open_price, volume, sl, tp, open_tick_idx, status (1=active, 0=empty)]
 POS_TICKET = 0
@@ -795,6 +797,50 @@ class Engine:
             final_balance=float(account.get("balance", 0.0) or 0.0),
             final_equity=float(account.get("equity", account.get("balance", 0.0)) or 0.0),
         )
+
+    def reset_runtime(self, account_config: AccountConfig):
+        """Reset simulator runtime state to a clean account baseline."""
+        if not isinstance(account_config, AccountConfig):
+            raise TypeError("account_config must be an AccountConfig instance")
+
+        if self.backend != "sim":
+            self._sync_live_state_to_simulator_state()
+            return self.account_info()
+
+        account = self.account_info()
+        if account is None:
+            self.state.trading_account = core.DotDict()
+            account = self.state.trading_account
+
+        preserved_currency = str(
+            account.get("currency")
+            or account.get("currency_code")
+            or account_config.currency
+            or "USD"
+        ).upper()
+
+        account["balance"] = float(account_config.initial_balance)
+        account["credit"] = 0.0
+        account["profit"] = 0.0
+        account["equity"] = float(account_config.initial_balance)
+        account["margin"] = 0.0
+        account["margin_free"] = float(account_config.initial_balance)
+        account["margin_level"] = 0.0
+        account["commission"] = float(account_config.commission)
+        account["leverage"] = int(account_config.leverage)
+        account["currency"] = preserved_currency
+
+        self.state.trading_deals = []
+        self.state.trading_history_deals = []
+        self.state.trading_orders = []
+        self.state.trading_history_orders = []
+        self.state.current_tick_epoch = None
+        self.state.current_tick_datetime = None
+        self.state.execution_settings = core.DotDict()
+        self.clear_completed_trades()
+        self._risk_equity_history = []
+        self._schedule_state_dirty = True
+        return account
 
     def clear_completed_trades(self):
         self.state.completed_trade_records = []
