@@ -1,13 +1,141 @@
-import pandas as pd
-from typing import Optional, Union, List, Any
-from datetime import datetime
+import hashlib
+import json
 import os
+import pickle
 import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Union
+
+import pandas as pd
 
 # Ensure backend is in sys.path if not already
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+
+
+def _normalize_cache_value(value: Any) -> Any:
+    """Convert fetch parameters into stable JSON-serializable cache input."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return [_normalize_cache_value(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            str(key): _normalize_cache_value(val)
+            for key, val in sorted(value.items(), key=lambda item: str(item[0]))
+        }
+    if isinstance(value, set):
+        return sorted(_normalize_cache_value(item) for item in value)
+    return value
+
+
+class DataCache:
+    """LMDB-backed disk cache for remote data downloads."""
+
+    _default_path = (
+        Path(PROJECT_ROOT) / "backend" / "data" / "cache" / "haruquant_data.lmdb"
+    )
+
+    @classmethod
+    def _get_cache_path(cls) -> Path:
+        raw_path = os.getenv("HQT_DATA_CACHE_PATH")
+        return Path(raw_path) if raw_path else cls._default_path
+
+    @classmethod
+    def _open_env(cls):
+        try:
+            import lmdb
+        except ImportError as exc:
+            raise ImportError(
+                "lmdb is required for data caching. Install with 'pip install lmdb'"
+            ) from exc
+
+        cache_path = cls._get_cache_path()
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.mkdir(parents=True, exist_ok=True)
+        return lmdb.open(
+            str(cache_path),
+            map_size=512 * 1024 * 1024,
+            subdir=True,
+            create=True,
+            lock=True,
+            readahead=False,
+            writemap=False,
+        )
+
+    @classmethod
+    def make_key(cls, source_name: str, payload: Dict[str, Any]) -> bytes:
+        normalized = _normalize_cache_value(payload)
+        encoded = json.dumps(
+            {"source": source_name, "params": normalized},
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        digest = hashlib.sha256(encoded).hexdigest()
+        return f"{source_name}:{digest}".encode("utf-8")
+
+    @classmethod
+    def get(cls, source_name: str, payload: Dict[str, Any]) -> Optional[pd.DataFrame]:
+        key = cls.make_key(source_name, payload)
+        with cls._open_env() as env:
+            with env.begin(write=False) as txn:
+                raw = txn.get(key)
+        if raw is None:
+            return None
+        return pickle.loads(raw)
+
+    @classmethod
+    def set(cls, source_name: str, payload: Dict[str, Any], df: pd.DataFrame) -> None:
+        key = cls.make_key(source_name, payload)
+        raw = pickle.dumps(df, protocol=pickle.HIGHEST_PROTOCOL)
+        with cls._open_env() as env:
+            with env.begin(write=True) as txn:
+                txn.put(key, raw)
+
+    @classmethod
+    def clear(cls) -> None:
+        with cls._open_env() as env:
+            default_db = env.open_db()
+            with env.begin(write=True) as txn:
+                txn.drop(db=default_db, delete=False)
+
+
+def _build_cache_payload(
+    symbol: Union[str, List[str]],
+    timeframe: Optional[str],
+    params: Dict[str, Any],
+) -> Dict[str, Any]:
+    payload = dict(params)
+    payload["symbol"] = symbol
+    payload["timeframe"] = timeframe
+    return payload
+
+
+def _download_with_cache(
+    source_name: str,
+    symbol: Union[str, List[str]],
+    timeframe: Optional[str],
+    cache: bool,
+    params: Dict[str, Any],
+    fetcher: Callable[[], pd.DataFrame],
+) -> "Data":
+    cache_payload = _build_cache_payload(symbol=symbol, timeframe=timeframe, params=params)
+
+    if cache:
+        cached_df = DataCache.get(source_name, cache_payload)
+        if cached_df is not None:
+            return Data(cached_df.copy(), symbol=str(symbol), timeframe=timeframe)
+
+    df = fetcher()
+    if cache:
+        DataCache.set(source_name, cache_payload, df)
+
+    return Data(df, symbol=str(symbol), timeframe=timeframe)
 
 class Data:
     """Wrapper class for trading data, mimicking VectorBT's Data object."""
@@ -67,23 +195,33 @@ class MT5Data:
         start: Optional[Union[str, datetime]] = None,
         end: Optional[Union[str, datetime]] = None,
         count: Optional[int] = None,
+        cache: bool = False,
         **kwargs
     ) -> Data:
         """Download data from MT5."""
         from backend.services.market_data.data_getters import load_mt5
-        
-        df = load_mt5(
+
+        def fetcher() -> pd.DataFrame:
+            df = load_mt5(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=start,
+                end_date=end,
+                count=count or 0,
+                **kwargs
+            )
+            if df is None:
+                raise ValueError(f"Failed to download MT5 data for {symbol}")
+            return df
+
+        return _download_with_cache(
+            source_name="MT5Data",
             symbol=symbol,
             timeframe=timeframe,
-            start_date=start,
-            end_date=end,
-            count=count or 0,
-            **kwargs
+            cache=cache,
+            params={"start": start, "end": end, "count": count or 0, **kwargs},
+            fetcher=fetcher,
         )
-        if df is None:
-            raise ValueError(f"Failed to download MT5 data for {symbol}")
-            
-        return Data(df, symbol=symbol, timeframe=timeframe)
 
 
 class DukascopyData:
@@ -96,23 +234,33 @@ class DukascopyData:
         start: Optional[str] = None,
         end: Optional[str] = None,
         count: Optional[int] = None,
+        cache: bool = False,
         **kwargs
     ) -> Data:
         """Download data from Dukascopy API."""
         from backend.services.market_data.data_getters import load_dukascopy
-        
-        df = load_dukascopy(
+
+        def fetcher() -> pd.DataFrame:
+            df = load_dukascopy(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=start,
+                end_date=end,
+                count=count,
+                **kwargs
+            )
+            if df is None or df.empty:
+                raise ValueError(f"Failed to download Dukascopy data for {symbol}")
+            return df
+
+        return _download_with_cache(
+            source_name="DukascopyData",
             symbol=symbol,
             timeframe=timeframe,
-            start_date=start,
-            end_date=end,
-            count=count,
-            **kwargs
+            cache=cache,
+            params={"start": start, "end": end, "count": count, **kwargs},
+            fetcher=fetcher,
         )
-        if df is None or df.empty:
-            raise ValueError(f"Failed to download Dukascopy data for {symbol}")
-            
-        return Data(df, symbol=symbol, timeframe=timeframe)
 
 
 class YFData:
@@ -125,34 +273,53 @@ class YFData:
         end: Optional[Union[str, datetime]] = None,
         period: Optional[str] = None,
         interval: str = "1d",
+        cache: bool = False,
         **kwargs
     ) -> Data:
         """Download data from Yahoo Finance."""
-        try:
-            import yfinance as yf
-        except ImportError:
-            raise ImportError("yfinance is required for YFData. Install with 'pip install yfinance'")
-            
-        df = yf.download(
-            tickers=symbol,
-            start=start,
-            end=end,
-            period=period,
-            interval=interval,
-            **kwargs
+        def fetcher() -> pd.DataFrame:
+            try:
+                import yfinance as yf
+            except ImportError:
+                raise ImportError(
+                    "yfinance is required for YFData. Install with 'pip install yfinance'"
+                )
+
+            df = yf.download(
+                tickers=symbol,
+                start=start,
+                end=end,
+                period=period,
+                interval=interval,
+                **kwargs
+            )
+
+            if df.empty:
+                raise ValueError(f"Failed to download Yahoo Finance data for {symbol}")
+
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.set_levels(
+                    [level.lower() for level in df.columns.levels[0]],
+                    level=0,
+                )
+            else:
+                df.columns = [str(column).lower() for column in df.columns]
+            return df
+
+        return _download_with_cache(
+            source_name="YFData",
+            symbol=symbol,
+            timeframe=interval,
+            cache=cache,
+            params={
+                "start": start,
+                "end": end,
+                "period": period,
+                "interval": interval,
+                **kwargs,
+            },
+            fetcher=fetcher,
         )
-        
-        if df.empty:
-            raise ValueError(f"Failed to download Yahoo Finance data for {symbol}")
-            
-        # Normalize column names to lowercase for consistency
-        if isinstance(df.columns, pd.MultiIndex):
-            # For MultiIndex, we lower the top level (Price) and keep the rest
-            df.columns = df.columns.set_levels([l.lower() for l in df.columns.levels[0]], level=0)
-        else:
-            df.columns = [str(c).lower() for c in df.columns]
-        
-        return Data(df, symbol=str(symbol), timeframe=interval)
 
 
 class BinanceData:
@@ -164,42 +331,55 @@ class BinanceData:
         start: Optional[Union[str, datetime]] = None,
         end: Optional[Union[str, datetime]] = None,
         interval: str = "1d",
+        cache: bool = False,
         **kwargs
     ) -> Data:
         """Download data from Binance."""
-        try:
-            from binance import Client
-        except ImportError:
-            raise ImportError("python-binance is required for BinanceData. Install with 'pip install python-binance'")
-            
-        client = Client(None, None) # Public data doesn't need API keys
-        
-        # Binance uses specific interval strings (1m, 1h, 1d, etc.)
-        # Mapping common interval formats if necessary
-        binance_interval = interval
-        
-        # Convert start/end to strings if they are datetime
-        if isinstance(start, datetime):
-            start = start.strftime("%d %b %Y %H:%M:%S")
-        if isinstance(end, datetime):
-            end = end.strftime("%d %b %Y %H:%M:%S")
-            
-        klines = client.get_historical_klines(symbol, binance_interval, start, end)
-        
-        cols = [
-            "timestamp", "open", "high", "low", "close", "volume",
-            "close_time", "quote_asset_volume", "number_of_trades",
-            "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
-        ]
-        df = pd.DataFrame(klines, columns=cols)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        
-        # Convert to numeric
-        for col in ["open", "high", "low", "close", "volume"]:
-            df[col] = pd.to_numeric(df[col])
-            
-        return Data(df, symbol=symbol, timeframe=interval)
+        def fetcher() -> pd.DataFrame:
+            try:
+                from binance import Client
+            except ImportError:
+                raise ImportError(
+                    "python-binance is required for BinanceData. Install with 'pip install python-binance'"
+                )
+
+            client = Client(None, None)
+            request_start = start
+            request_end = end
+
+            if isinstance(request_start, datetime):
+                request_start = request_start.strftime("%d %b %Y %H:%M:%S")
+            if isinstance(request_end, datetime):
+                request_end = request_end.strftime("%d %b %Y %H:%M:%S")
+
+            klines = client.get_historical_klines(
+                symbol,
+                interval,
+                request_start,
+                request_end,
+            )
+
+            cols = [
+                "timestamp", "open", "high", "low", "close", "volume",
+                "close_time", "quote_asset_volume", "number_of_trades",
+                "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
+            ]
+            df = pd.DataFrame(klines, columns=cols)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df.set_index("timestamp", inplace=True)
+
+            for col in ["open", "high", "low", "close", "volume"]:
+                df[col] = pd.to_numeric(df[col])
+            return df
+
+        return _download_with_cache(
+            source_name="BinanceData",
+            symbol=symbol,
+            timeframe=interval,
+            cache=cache,
+            params={"start": start, "end": end, "interval": interval, **kwargs},
+            fetcher=fetcher,
+        )
 
 
 class CCXTData:
@@ -212,32 +392,48 @@ class CCXTData:
         start: Optional[Union[str, datetime]] = None,
         timeframe: str = "1d",
         limit: int = 1000,
+        cache: bool = False,
         **kwargs
     ) -> Data:
         """Download data using CCXT."""
-        try:
-            import ccxt
-        except ImportError:
-            raise ImportError("ccxt is required for CCXTData. Install with 'pip install ccxt'")
-            
-        exchange_class = getattr(ccxt, exchange)
-        ex = exchange_class()
-        
-        since = None
-        if start:
-            if isinstance(start, str):
-                since = ex.parse8601(start)
-            elif isinstance(start, datetime):
-                since = int(start.timestamp() * 1000)
-                
-        ohlcv = ex.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
-        
-        cols = ["timestamp", "open", "high", "low", "close", "volume"]
-        df = pd.DataFrame(ohlcv, columns=cols)
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df.set_index("timestamp", inplace=True)
-        
-        return Data(df, symbol=symbol, timeframe=timeframe)
+        def fetcher() -> pd.DataFrame:
+            try:
+                import ccxt
+            except ImportError:
+                raise ImportError("ccxt is required for CCXTData. Install with 'pip install ccxt'")
+
+            exchange_class = getattr(ccxt, exchange)
+            ex = exchange_class()
+
+            since = None
+            if start:
+                if isinstance(start, str):
+                    since = ex.parse8601(start)
+                elif isinstance(start, datetime):
+                    since = int(start.timestamp() * 1000)
+
+            ohlcv = ex.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+
+            cols = ["timestamp", "open", "high", "low", "close", "volume"]
+            df = pd.DataFrame(ohlcv, columns=cols)
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            df.set_index("timestamp", inplace=True)
+            return df
+
+        return _download_with_cache(
+            source_name="CCXTData",
+            symbol=symbol,
+            timeframe=timeframe,
+            cache=cache,
+            params={
+                "exchange": exchange,
+                "start": start,
+                "timeframe": timeframe,
+                "limit": limit,
+                **kwargs,
+            },
+            fetcher=fetcher,
+        )
 
 
 class GBMData:

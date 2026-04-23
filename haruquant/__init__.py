@@ -1,13 +1,14 @@
 """HaruQuant: High-performance algorithmic trading and backtesting library."""
 
 from .data import (
-    Data, 
-    MT5Data, 
-    DukascopyData, 
-    YFData, 
-    BinanceData, 
-    CCXTData, 
-    GBMData, 
+    Data,
+    DataCache,
+    MT5Data,
+    DukascopyData,
+    YFData,
+    BinanceData,
+    CCXTData,
+    GBMData,
     ScheduledDataUpdater,
     DataSplitter,
     Labeler
@@ -25,13 +26,14 @@ from .strategy import (
 )
 
 __all__ = [
-    "Data", 
-    "MT5Data", 
-    "DukascopyData", 
-    "YFData", 
-    "BinanceData", 
-    "CCXTData", 
-    "GBMData", 
+    "Data",
+    "DataCache",
+    "MT5Data",
+    "DukascopyData",
+    "YFData",
+    "BinanceData",
+    "CCXTData",
+    "GBMData",
     "ScheduledDataUpdater",
     "DataSplitter",
     "Labeler",

@@ -17,6 +17,7 @@ fastparquet
 pyarrow
 tqdm
 sqlparse
+lmdb
 
 
 # Development Tools & Linters
