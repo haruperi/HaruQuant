@@ -13,6 +13,10 @@ from .data import (
     Labeler
 )
 
+from . import indicators as ind
+# Convenience exports
+from .indicators import ema, sma, rsi, bbands, atr, ta
+
 __all__ = [
     "Data", 
     "MT5Data", 
@@ -23,5 +27,12 @@ __all__ = [
     "GBMData", 
     "ScheduledDataUpdater",
     "DataSplitter",
-    "Labeler"
+    "Labeler",
+    "ind",
+    "ema",
+    "sma",
+    "rsi",
+    "bbands",
+    "atr",
+    "ta"
 ]
