@@ -603,7 +603,7 @@ Add config examples if needed:
 ## Migration Checklist
 
 - [x] Add `backend/services/simulation/config.py`.
-- [ ] Add `backend/services/simulation/strategy_registry.py`.
+- [x] Add `backend/services/simulation/strategy_registry.py`.
 - [ ] Add `backend/services/simulation/data_preparation.py`.
 - [ ] Add `Engine.reset_runtime(account_config)`.
 - [ ] Add `backend/services/simulation/runner.py`.

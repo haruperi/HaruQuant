@@ -32,6 +32,13 @@ from .models import (
     WhatIfActionRequest,
     WhatIfRequest,
 )
+from .strategy_registry import (
+    StrategyRegistryError,
+    get_strategy_class,
+    list_strategy_names,
+    register_strategy,
+    registered_strategies,
+)
 
 __all__ = [
     "SessionCoordinator",
@@ -57,4 +64,9 @@ __all__ = [
     "AdvanceRequest",
     "WhatIfActionRequest",
     "WhatIfRequest",
+    "StrategyRegistryError",
+    "get_strategy_class",
+    "list_strategy_names",
+    "register_strategy",
+    "registered_strategies",
 ]
