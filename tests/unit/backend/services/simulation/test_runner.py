@@ -9,7 +9,7 @@ from backend.services.simulation.runner import SimulationRunner
 class FakeEngine:
     def __init__(self):
         self.calls = []
-        self.last_run_kwargs = None
+        self.last_run_prepared = None
         self._result = RunResult(
             trades=[TradeRecord(ticket=1, symbol="AUDUSD", profit_loss=25.0)],
             equity_curve=[EquityPoint(balance=10025.0, equity=10025.0)],
@@ -21,10 +21,10 @@ class FakeEngine:
     def reset_runtime(self, account_config):
         self.calls.append(("reset_runtime", account_config))
 
-    def run(self, data, engine_type="vectorized", **kwargs):
-        self.calls.append(("run", data, engine_type, kwargs))
-        self.last_run_kwargs = kwargs
-        return len(data)
+    def run_prepared(self, prepared, config):
+        self.calls.append(("run_prepared", prepared, config))
+        self.last_run_prepared = (prepared, config)
+        return len(prepared.ticks)
 
     def get_run_result(self, processed_ticks=0):
         self.calls.append(("get_run_result", processed_ticks))
@@ -96,13 +96,10 @@ def test_runner_parses_config_resets_prepares_runs_and_returns_payload():
     assert len(run.trades) == 1
     assert engine.calls[0][0] == "reset_runtime"
     assert preparer.calls[0][0] == "prepare"
-    assert engine.calls[1][0] == "run"
+    assert engine.calls[1][0] == "run_prepared"
     assert engine.calls[2] == ("get_run_result", 2)
-    assert engine.calls[1][2] == "vectorized"
-    assert engine.last_run_kwargs == {
-        "initial_balance": 10000.0,
-        "contract_size": 100000.0,
-    }
+    assert engine.calls[1][2] is run.config
+    assert engine.last_run_prepared == (run.prepared, run.config)
     assert run.metadata["processed_ticks"] == 2
     assert run.metadata["trade_count"] == 1
     assert run.metadata["prepared"]["tick_count"] == 2

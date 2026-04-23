@@ -612,8 +612,8 @@ Add config examples if needed:
 - [x] Add `backend/services/simulation/data_preparation.py`.
 - [x] Add `Engine.reset_runtime(account_config)`.
 - [x] Add `backend/services/simulation/runner.py`.
-- [ ] Change `Engine.run(config)` to use `SimulationRunner`.
-- [ ] Add `Engine.run_prepared(prepared, config)`.
+- [x] Change `Engine.run(config)` to use `SimulationRunner`.
+- [x] Add `Engine.run_prepared(prepared, config)`.
 - [ ] Add `backend/services/simulation/vectorized.py`.
 - [ ] Move vectorized Numba core out of `engine.py`.
 - [ ] Add `backend/services/simulation/event_driven.py`.
