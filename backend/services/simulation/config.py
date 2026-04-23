@@ -8,7 +8,7 @@ from typing import Any, Mapping, Optional, Sequence
 
 
 SUPPORTED_ENGINE_TYPES = {"vectorized", "event_driven"}
-SUPPORTED_DATA_SOURCES = {"metatrader", "dukascopy"}
+SUPPORTED_DATA_SOURCES = {"metatrader", "dukascopy", "local"}
 SUPPORTED_TICK_MODELS = {"timeframe_ticks", "m1_ticks", "real_ticks", "synthetic_ticks"}
 SUPPORTED_SPREAD_MODELS = {"native_spread", "fixed_spread", "variable_spread"}
 SUPPORTED_SLIPPAGE_MODELS = {"none", "fixed", "dynamic"}
@@ -58,16 +58,13 @@ class DataConfig:
     start: datetime
     end: datetime
     warmup_start: datetime
+    local_files: Mapping[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> "DataConfig":
         if not isinstance(raw, Mapping):
             raise SimulationConfigError("data must be an object")
-        source = _normalize_choice(
-            _required_str(raw, "data.source"),
-            SUPPORTED_DATA_SOURCES,
-            "data.source",
-        )
+        source = _normalize_data_source(_required_str(raw, "data.source"))
         symbols = _normalize_symbols(raw.get("symbols"))
         timeframe = _required_str(raw, "data.timeframe").strip().upper()
         if not timeframe:
@@ -79,6 +76,13 @@ class DataConfig:
             raise SimulationConfigError("data.warmup_start must be <= data.start")
         if start > end:
             raise SimulationConfigError("data.start must be <= data.end")
+        local_files = raw.get("local_files", {})
+        if local_files is None:
+            local_files = {}
+        if not isinstance(local_files, Mapping):
+            raise SimulationConfigError("data.local_files must be an object")
+        if source == "local" and not local_files:
+            raise SimulationConfigError("data.local_files is required for local source")
         return cls(
             source=source,
             symbols=symbols,
@@ -86,6 +90,7 @@ class DataConfig:
             start=start,
             end=end,
             warmup_start=warmup_start,
+            local_files=dict(local_files),
         )
 
 
@@ -369,3 +374,24 @@ def _normalize_choice(value: str, supported: set[str], dotted_key: str) -> str:
             f"{dotted_key} must be one of [{supported_text}], got {value!r}"
         )
     return normalized
+
+
+def _normalize_data_source(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_")
+    aliases = {
+        "mt5": "metatrader",
+        "metatrader": "metatrader",
+        "metatrader5": "metatrader",
+        "dukascopy": "dukascopy",
+        "local": "local",
+        "file": "local",
+        "csv": "local",
+        "parquet": "local",
+    }
+    source = aliases.get(normalized)
+    if source is None or source not in SUPPORTED_DATA_SOURCES:
+        supported_text = ", ".join(sorted(SUPPORTED_DATA_SOURCES))
+        raise SimulationConfigError(
+            f"data.source must be one of [{supported_text}], got {value!r}"
+        )
+    return source

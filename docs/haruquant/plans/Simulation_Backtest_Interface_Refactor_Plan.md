@@ -369,12 +369,17 @@ Tasks:
 - Implement `prepare_symbol(...)`.
 - Return `PreparedSimulationData`.
 - Preserve existing behavior first: MT5 bars, strategy signals, warmup trim, `TicksGenerator`, symbol columns, merge.
+- Route data loading by `data.source`: `metatrader`, `dukascopy`, and `local`.
+- Load MT5/Dukascopy `real_ticks` from the same configured market data source.
+- Load local CSV/parquet files for bars, M1 bars, and real ticks through `data.local_files`.
 
 Acceptance criteria:
 
 - Prepared ticks contain `bid`, `ask`, `entry_signal`, `exit_signal`, `is_bar_close`, and `symbol`.
 - Prepared portfolio tick stream is sorted by datetime with stable merge ordering.
 - Per-symbol tick counts are available in metadata.
+- Local CSV/parquet data can be used without example scripts building ticks directly.
+- `real_ticks` no longer fails for MT5, Dukascopy, or local sources when `bid` and `ask` data is provided.
 
 ### Phase 4: Move Runtime Reset Into Engine
 
@@ -604,7 +609,7 @@ Add config examples if needed:
 
 - [x] Add `backend/services/simulation/config.py`.
 - [x] Add `backend/services/simulation/strategy_registry.py`.
-- [ ] Add `backend/services/simulation/data_preparation.py`.
+- [x] Add `backend/services/simulation/data_preparation.py`.
 - [ ] Add `Engine.reset_runtime(account_config)`.
 - [ ] Add `backend/services/simulation/runner.py`.
 - [ ] Change `Engine.run(config)` to use `SimulationRunner`.

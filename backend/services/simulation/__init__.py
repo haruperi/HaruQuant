@@ -20,6 +20,11 @@ from .config import (
     SimulationConfigError,
     StrategyConfig,
 )
+from .data_preparation import (
+    PreparedSimulationData,
+    SimulationDataPreparationError,
+    SimulationDataPreparer,
+)
 from .models import (
     SimulationStartRequest,
     SimulationUpdateRequest,
@@ -54,6 +59,9 @@ __all__ = [
     "SimulationConfig",
     "SimulationConfigError",
     "StrategyConfig",
+    "PreparedSimulationData",
+    "SimulationDataPreparationError",
+    "SimulationDataPreparer",
     "SimulationStartRequest",
     "SimulationUpdateRequest",
     "ManualTradeRequest",

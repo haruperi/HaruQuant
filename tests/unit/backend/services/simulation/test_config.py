@@ -79,6 +79,25 @@ def test_simulation_config_defaults_engine_and_reporting():
     assert config.reporting.save_to_db is False
 
 
+def test_simulation_config_parses_local_source_alias_and_files():
+    raw = _valid_config()
+    raw["data"]["source"] = "csv"
+    raw["data"]["local_files"] = {"AUDUSD": {"bars": "audusd_h1.csv"}}
+
+    config = SimulationConfig.from_dict(raw)
+
+    assert config.data.source == "local"
+    assert config.data.local_files["AUDUSD"]["bars"] == "audusd_h1.csv"
+
+
+def test_simulation_config_requires_files_for_local_source():
+    raw = _valid_config()
+    raw["data"]["source"] = "local"
+
+    with pytest.raises(SimulationConfigError, match="local_files"):
+        SimulationConfig.from_dict(raw)
+
+
 @pytest.mark.parametrize(
     ("path", "expected"),
     [
