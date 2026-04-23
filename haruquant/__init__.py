@@ -17,6 +17,13 @@ from . import indicators as ind
 # Convenience exports
 from .indicators import ema, sma, rsi, bbands, atr, ta
 
+from .strategy import (
+    TrendFollowingStrategy,
+    BreakoutStrategy,
+    MeanReversionStrategy,
+    CloseBreakoutStrategy
+)
+
 __all__ = [
     "Data", 
     "MT5Data", 
@@ -34,5 +41,9 @@ __all__ = [
     "rsi",
     "bbands",
     "atr",
-    "ta"
+    "ta",
+    "TrendFollowingStrategy",
+    "BreakoutStrategy",
+    "MeanReversionStrategy",
+    "CloseBreakoutStrategy"
 ]
