@@ -81,12 +81,7 @@ class SimulationRunner:
         prepared: PreparedSimulationData,
         config: SimulationConfig,
     ) -> int:
-        processed_ticks = self.engine.run(
-            prepared.ticks,
-            engine_type=config.engine_type,
-            initial_balance=config.account.initial_balance,
-            contract_size=config.execution.contract_size,
-        )
+        processed_ticks = self.engine.run_prepared(prepared, config)
         return int(processed_ticks or 0)
 
     @staticmethod

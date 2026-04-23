@@ -614,10 +614,10 @@ Add config examples if needed:
 - [x] Add `backend/services/simulation/runner.py`.
 - [x] Change `Engine.run(config)` to use `SimulationRunner`.
 - [x] Add `Engine.run_prepared(prepared, config)`.
-- [ ] Add `backend/services/simulation/vectorized.py`.
-- [ ] Move vectorized Numba core out of `engine.py`.
-- [ ] Add `backend/services/simulation/event_driven.py`.
-- [ ] Move event-driven loop out of `engine.py`.
+- [x] Add `backend/services/simulation/vectorized.py`.
+- [x] Move vectorized Numba core out of `engine.py`.
+- [x] Add `backend/services/simulation/event_driven.py`.
+- [x] Move event-driven loop out of `engine.py`.
 - [ ] Wire fixed-lot position size into vectorized core.
 - [ ] Wire contract size into vectorized core from config.
 - [ ] Wire fixed slippage and commission config.

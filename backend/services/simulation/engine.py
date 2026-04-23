@@ -2,6 +2,7 @@
 Simulator engine execution and state management.
 """
 import time
+from typing import Any, Mapping
 
 import pandas as pd
 
@@ -19,235 +20,10 @@ from backend.services.risk_engine import (
 from backend.services.execution.core import RunResult
 from backend.common.logger import logger
 from backend.services.execution import core
+from backend.services.simulation.event_driven import run_event_driven_simulation
+from backend.services.simulation.vectorized import run_vectorized_simulation
 
-try:
-    from numba import njit
-except Exception:  # pragma: no cover - optional dependency fallback
-    njit = None
-
-try:
-    from tqdm.auto import tqdm
-except Exception:  # pragma: no cover - optional dependency fallback
-    tqdm = None
-
-
-import numpy as np
-
-from backend.services.simulation.config import AccountConfig
-
-# Turbo Mode Constants
-# Position Table Columns: [ticket, symbol_id, type (0=buy, 1=sell), open_price, volume, sl, tp, open_tick_idx, status (1=active, 0=empty)]
-POS_TICKET = 0
-POS_SYMBOL_ID = 1
-POS_TYPE = 2
-POS_OPEN_PRICE = 3
-POS_VOLUME = 4
-POS_SL = 5
-POS_TP = 6
-POS_OPEN_IDX = 7
-POS_STATUS = 8
-POS_COLS = 9
-
-# Trade Record (Output) Columns: [ticket, symbol_id, type, open_price, close_price, volume, sl, tp, open_idx, close_idx, profit, close_reason (1=SL, 2=TP, 3=Signal)]
-REC_TICKET = 0
-REC_SYMBOL_ID = 1
-REC_TYPE = 2
-REC_OPEN_PRICE = 3
-REC_CLOSE_PRICE = 4
-REC_VOLUME = 5
-REC_SL = 6
-REC_TP = 7
-REC_OPEN_IDX = 8
-REC_CLOSE_IDX = 9
-REC_PROFIT = 10
-REC_REASON = 11
-REC_COLS = 12
-
-if njit is not None:
-    @njit(cache=True)
-    def _run_turbo_sim_numba(
-        bid_arr,
-        ask_arr,
-        symbol_id_arr,
-        is_bar_close_arr,
-        event_indices,
-        entry_signals,
-        exit_signals,
-        sl_arr,
-        tp_arr,
-        initial_balance,
-        contract_size,
-        max_positions=100,
-    ):
-        # State
-        balance = initial_balance
-        active_positions = np.zeros((max_positions, POS_COLS), dtype=np.float64)
-        completed_trades = np.zeros((len(event_indices) * max_positions, REC_COLS), dtype=np.float64)
-        completed_count = 0
-        
-        # Pre-allocate equity curve (recorded at every bar close)
-        # For simplicity in this first version, we'll return equity points only at bar closes
-        bar_close_indices = np.where(is_bar_close_arr)[0]
-        equity_curve = np.zeros((len(bar_close_indices), 2), dtype=np.float64) # [tick_idx, equity]
-        equity_ptr = 0
-        
-        next_ticket = 1
-        
-        # Main Event Loop
-        for event_ptr in range(len(event_indices)):
-            idx = event_indices[event_ptr]
-            bid = bid_arr[idx]
-            ask = ask_arr[idx]
-            symbol_id = symbol_id_arr[idx]
-            
-            # 1. Monitor existing positions for SL/TP (Vectorized check within Numba)
-            for i in range(max_positions):
-                if active_positions[i, POS_STATUS] == 0:
-                    continue
-                
-                pos_symbol_id = int(active_positions[i, POS_SYMBOL_ID])
-                # Note: In multi-symbol, we need the price for THAT symbol.
-                # If the event tick is NOT for this position's symbol, we skip SL/TP check for this tick 
-                # (unless we want to pass a full price matrix, which is memory-heavy).
-                # For now, we only check SL/TP when a tick for that symbol arrives.
-                if pos_symbol_id != symbol_id:
-                    continue
-                    
-                p_type = active_positions[i, POS_TYPE]
-                p_sl = active_positions[i, POS_SL]
-                p_tp = active_positions[i, POS_TP]
-                p_vol = active_positions[i, POS_VOLUME]
-                p_open = active_positions[i, POS_OPEN_PRICE]
-                
-                close_price = -1.0
-                reason = 0.0
-                
-                if p_type == 0: # BUY
-                    if p_sl > 0 and bid <= p_sl:
-                        close_price = bid
-                        reason = 1.0 # SL
-                    elif p_tp > 0 and bid >= p_tp:
-                        close_price = bid
-                        reason = 2.0 # TP
-                else: # SELL
-                    if p_sl > 0 and ask >= p_sl:
-                        close_price = ask
-                        reason = 1.0 # SL
-                    elif p_tp > 0 and ask <= p_tp:
-                        close_price = ask
-                        reason = 2.0 # TP
-                        
-                if close_price > 0:
-                    # Close position
-                    pnl = (close_price - p_open) * p_vol * contract_size if p_type == 0 else (p_open - close_price) * p_vol * contract_size
-                    balance += pnl
-                    
-                    # Record
-                    completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
-                    completed_trades[completed_count, REC_SYMBOL_ID] = pos_symbol_id
-                    completed_trades[completed_count, REC_TYPE] = p_type
-                    completed_trades[completed_count, REC_OPEN_PRICE] = p_open
-                    completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
-                    completed_trades[completed_count, REC_VOLUME] = p_vol
-                    completed_trades[completed_count, REC_SL] = p_sl
-                    completed_trades[completed_count, REC_TP] = p_tp
-                    completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
-                    completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                    completed_trades[completed_count, REC_PROFIT] = pnl
-                    completed_trades[completed_count, REC_REASON] = reason
-                    completed_count += 1
-                    
-                    active_positions[i, POS_STATUS] = 0 # Free slot
-            
-            # 2. Process Signal Exits
-            exit_sig = exit_signals[idx]
-            if exit_sig != 0:
-                target_type = 0 if exit_sig == 1 else 1 # 1=Exit Buy (target buy pos), -1=Exit Sell
-                for i in range(max_positions):
-                    if active_positions[i, POS_STATUS] == 1 and active_positions[i, POS_SYMBOL_ID] == symbol_id and active_positions[i, POS_TYPE] == target_type:
-                        p_vol = active_positions[i, POS_VOLUME]
-                        p_open = active_positions[i, POS_OPEN_PRICE]
-                        close_price = bid if target_type == 0 else ask
-                        pnl = (close_price - p_open) * p_vol * contract_size if target_type == 0 else (p_open - close_price) * p_vol * contract_size
-                        balance += pnl
-                        
-                        completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
-                        completed_trades[completed_count, REC_SYMBOL_ID] = symbol_id
-                        completed_trades[completed_count, REC_TYPE] = target_type
-                        completed_trades[completed_count, REC_OPEN_PRICE] = p_open
-                        completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
-                        completed_trades[completed_count, REC_VOLUME] = p_vol
-                        completed_trades[completed_count, REC_SL] = active_positions[i, POS_SL]
-                        completed_trades[completed_count, REC_TP] = active_positions[i, POS_TP]
-                        completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
-                        completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                        completed_trades[completed_count, REC_PROFIT] = pnl
-                        completed_trades[completed_count, REC_REASON] = 3.0 # Signal
-                        completed_count += 1
-                        active_positions[i, POS_STATUS] = 0
-
-            # 3. Process Signal Entries
-            entry_sig = entry_signals[idx]
-            if entry_sig != 0:
-                # Find free slot
-                slot = -1
-                for i in range(max_positions):
-                    if active_positions[i, POS_STATUS] == 0:
-                        slot = i
-                        break
-                
-                if slot != -1:
-                    e_type = 0 if entry_sig == 1 else 1
-                    e_price = ask if e_type == 0 else bid
-                    active_positions[slot, POS_TICKET] = next_ticket
-                    active_positions[slot, POS_SYMBOL_ID] = symbol_id
-                    active_positions[slot, POS_TYPE] = e_type
-                    active_positions[slot, POS_OPEN_PRICE] = e_price
-                    active_positions[slot, POS_VOLUME] = 0.01 # Default volume for now
-                    active_positions[slot, POS_SL] = sl_arr[idx]
-                    active_positions[slot, POS_TP] = tp_arr[idx]
-                    active_positions[slot, POS_OPEN_IDX] = idx
-                    active_positions[slot, POS_STATUS] = 1
-                    next_ticket += 1
-
-            # 4. Record Equity at Bar Close
-            if is_bar_close_arr[idx]:
-                unrealized = 0.0
-                for i in range(max_positions):
-                    if active_positions[i, POS_STATUS] == 1:
-                        # For equity calculation, we need current bid/ask for each symbol
-                        # In the event loop, we only have it for the CURRENT symbol.
-                        # Simplification: use the most recent price if available.
-                        # For now, just use current bid/ask if it's the same symbol.
-                        if active_positions[i, POS_SYMBOL_ID] == symbol_id:
-                            p_type = active_positions[i, POS_TYPE]
-                            p_open = active_positions[i, POS_OPEN_PRICE]
-                            p_vol = active_positions[i, POS_VOLUME]
-                            p_price = bid if p_type == 0 else ask
-                            unrealized += (p_price - p_open) * p_vol * contract_size if p_type == 0 else (p_open - p_price) * p_vol * contract_size
-                
-                equity_curve[equity_ptr, 0] = idx
-                equity_curve[equity_ptr, 1] = balance + unrealized
-                equity_ptr += 1
-
-        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
-
-if njit is not None:
-    @njit(cache=True)
-    def _process_ticks_numba(bid_values, ask_values):
-        processed = 0
-        for idx in range(bid_values.shape[0]):
-            # Keep per-tick value access in the hot loop skeleton.
-            _ = bid_values[idx] + ask_values[idx]
-            processed += 1
-        return processed
-else:
-    def _process_ticks_numba(bid_values, ask_values):
-        processed = 0
-        for idx in range(len(bid_values)):
-            _ = bid_values[idx] + ask_values[idx]
-            processed += 1
-        return processed
+from backend.services.simulation.config import AccountConfig, SimulationConfig
 
 
 class _SimulationRiskSymbolInfo:
@@ -378,182 +154,40 @@ class Engine:
 
         logger.info(f"successfully initialised trading engine {self.backend}")
 
-    def _prepare_turbo_data(self, data):
-        """Prepare contiguous numpy arrays for Turbo Mode."""
-        col_name_map = {}
-        for col in data.columns:
-            col_name_map[str(col).lower()] = col
-
-        # 1. Price and Metadata Arrays
-        bid_arr = data[col_name_map["bid"]].to_numpy(dtype="float64", copy=False)
-        ask_arr = data[col_name_map["ask"]].to_numpy(dtype="float64", copy=False)
-        is_bar_close_arr = data[col_name_map["is_bar_close"]].to_numpy(dtype="bool", copy=False)
-
-        # 2. Symbol Mapping (Strings -> IDs)
-        symbol_series = data[col_name_map["symbol"]].astype(str)
-        unique_symbols = symbol_series.unique()
-        symbol_to_id = {name: i for i, name in enumerate(unique_symbols)}
-        id_to_symbol = {i: name for name, i in symbol_to_id.items()}
-        symbol_id_arr = symbol_series.map(symbol_to_id).to_numpy(dtype="int64")
-
-        # 3. Signal Arrays
-        entry_signals = self._signal_to_float_array(data, col_name_map, ["entry_signal"])
-        if entry_signals is None: entry_signals = np.zeros(len(data))
-        
-        exit_signals = self._signal_to_float_array(data, col_name_map, ["exit_signal"])
-        if exit_signals is None: exit_signals = np.zeros(len(data))
-
-        sl_arr = self._signal_to_float_array(data, col_name_map, ["sl", "stop_loss"])
-        if sl_arr is None: sl_arr = np.zeros(len(data))
-
-        tp_arr = self._signal_to_float_array(data, col_name_map, ["tp", "take_profit"])
-        if tp_arr is None: tp_arr = np.zeros(len(data))
-
-        # 4. Event Teleportation: Find indices where SOMETHING happens
-        # Events: Signals OR Bar Closes (for equity recording)
-        event_mask = (entry_signals != 0) | (exit_signals != 0) | (is_bar_close_arr)
-        event_indices = np.where(event_mask)[0]
-
-        return {
-            "bid_arr": bid_arr,
-            "ask_arr": ask_arr,
-            "symbol_id_arr": symbol_id_arr,
-            "is_bar_close_arr": is_bar_close_arr,
-            "event_indices": event_indices,
-            "entry_signals": entry_signals,
-            "exit_signals": exit_signals,
-            "sl_arr": sl_arr,
-            "tp_arr": tp_arr,
-            "id_to_symbol": id_to_symbol,
-            "timestamps": data.index.to_pydatetime() if isinstance(data.index, pd.DatetimeIndex) else None
-        }
-
     def run_vectorized(self, data, initial_balance=10000.0, contract_size=100000.0):
-        """High-speed simulation runner using Numba JIT and vectorized events."""
-        if njit is None:
-            logger.warning("Numba not available. Falling back to run_event_driven().")
-            return self.run_event_driven(data)
-
-        start_time = time.time()
-        
-        # Phase 1: Prepare Arrays
-        prep = self._prepare_turbo_data(data)
-        
-        # Phase 2: Run Compiled Simulation
-        trades_arr, equity_arr, final_balance = _run_turbo_sim_numba(
-            prep["bid_arr"],
-            prep["ask_arr"],
-            prep["symbol_id_arr"],
-            prep["is_bar_close_arr"],
-            prep["event_indices"],
-            prep["entry_signals"],
-            prep["exit_signals"],
-            prep["sl_arr"],
-            prep["tp_arr"],
-            float(initial_balance),
-            float(contract_size)
+        """Run prepared tick data through the vectorized backend."""
+        return run_vectorized_simulation(
+            self,
+            data,
+            initial_balance=initial_balance,
+            contract_size=contract_size,
         )
-        
-        # Phase 3: Reconstruct Objects
-        # 1. Reconstruct TradeRecords
-        id_to_symbol = prep["id_to_symbol"]
-        timestamps = prep["timestamps"]
-        bid_arr = prep["bid_arr"]
-        ask_arr = prep["ask_arr"]
-        
-        reconstructed_trades = []
-        for i in range(len(trades_arr)):
-            row = trades_arr[i]
-            symbol_name = id_to_symbol[int(row[REC_SYMBOL_ID])]
-            open_idx = int(row[REC_OPEN_IDX])
-            close_idx = int(row[REC_CLOSE_IDX])
-            is_buy = (row[REC_TYPE] == 0)
-            
-            # --- Vectorized MFE/MAE Calculation ---
-            # Slice the price array for the duration of the trade
-            # Note: We use bid for buy positions and ask for sell positions 
-            # to determine the extremes reached by the opposite side (execution price).
-            # Long (Buy): MFE is Max Bid, MAE is Min Bid
-            # Short (Sell): MFE is Min Ask (lowest point reached), MAE is Max Ask
-            price_slice = bid_arr[open_idx:close_idx+1] if is_buy else ask_arr[open_idx:close_idx+1]
-            
-            mfe_usd = 0.0
-            mae_usd = 0.0
-            
-            if len(price_slice) > 0:
-                p_open = row[REC_OPEN_PRICE]
-                p_vol = row[REC_VOLUME]
-                
-                if is_buy:
-                    max_reached = np.max(price_slice)
-                    min_reached = np.min(price_slice)
-                    mfe_usd = (max_reached - p_open) * p_vol * contract_size
-                    mae_usd = (min_reached - p_open) * p_vol * contract_size
-                else:
-                    min_reached = np.min(price_slice) # Lowest ask is best for sell
-                    max_reached = np.max(price_slice) # Highest ask is worst for sell
-                    mfe_usd = (p_open - min_reached) * p_vol * contract_size
-                    mae_usd = (p_open - max_reached) * p_vol * contract_size
 
-            reason_map = {1.0: "stop_loss", 2.0: "take_profit", 3.0: "signal"}
-            reason_str = reason_map.get(row[REC_REASON], "manual")
+    def run(self, config: SimulationConfig | Mapping[str, Any]):
+        """
+        Public simulation entry point.
 
-            record = core.TradeRecord(
-                ticket=int(row[REC_TICKET]),
-                symbol=symbol_name,
-                type="buy" if is_buy else "sell",
-                open_price=row[REC_OPEN_PRICE],
-                close_price=row[REC_CLOSE_PRICE],
-                size=row[REC_VOLUME],
-                stop_loss_price=row[REC_SL],
-                profit_target_price=row[REC_TP],
-                open_time=timestamps[open_idx] if timestamps is not None else None,
-                close_time=timestamps[close_idx] if timestamps is not None else None,
-                profit_loss=row[REC_PROFIT],
-                mfe_usd=mfe_usd,
-                mae_usd=mae_usd,
-                exit_reason=reason_str,
-                close_type=reason_str.upper()
+        The public contract is a simulation config dict or ``SimulationConfig``.
+        Prepared tick DataFrames are executed through ``run_prepared``.
+        """
+        from backend.services.simulation.runner import SimulationRunner
+
+        return SimulationRunner(self).run(config)
+
+    def run_prepared(self, prepared, config: SimulationConfig) -> int:
+        """Execute already-prepared simulation data through the selected engine."""
+        if config.engine_type == "vectorized":
+            return int(
+                self.run_vectorized(
+                    prepared.ticks,
+                    initial_balance=config.account.initial_balance,
+                    contract_size=config.execution.contract_size,
+                )
+                or 0
             )
-            reconstructed_trades.append(record)
-            
-        # 2. Reconstruct Equity Curve
-        reconstructed_equity = []
-        for i in range(len(equity_arr)):
-            tick_idx = int(equity_arr[i, 0])
-            val = equity_arr[i, 1]
-            reconstructed_equity.append(core.EquityPoint(
-                timestamp=timestamps[tick_idx] if timestamps is not None else None,
-                balance=val, # Simplification
-                equity=val
-            ))
-            
-        # 3. Update Engine State to match final simulation state
-        self.state.completed_trade_records = reconstructed_trades
-        self.state.completed_equity_curve = reconstructed_equity
-        self.state.trading_account.balance = final_balance
-        self.state.trading_account.equity = final_balance
-        
-        logger.info(f"Turbo run completed in {time.time() - start_time:.4f}s")
-        return len(data) # Return processed ticks count
-
-    def run(self, data, engine_type="vectorized", **kwargs):
-        """
-        Unified simulation entry point.
-        
-        Args:
-            data: Tick DataFrame
-            engine_type (str): "vectorized" (fast, default) or "event_driven" (tick-perfect)
-            **kwargs: Arguments passed to the underlying engine
-        """
-        if engine_type == "vectorized":
-            # Map keyword arguments to run_vectorized signature
-            initial_balance = kwargs.get("initial_balance", 10000.0)
-            contract_size = kwargs.get("contract_size", 100000.0)
-            return self.run_vectorized(data, initial_balance=initial_balance, contract_size=contract_size)
-        
-        # Fallback to event driven
-        return self.run_event_driven(data, **kwargs)
+        if config.engine_type == "event_driven":
+            return int(self.run_event_driven(prepared.ticks) or 0)
+        raise ValueError(f"unsupported simulation engine_type: {config.engine_type}")
 
     def _strict_order_calc_profit(self, order_type, symbol, volume, price_open, price_close):
         if self.client is None or not hasattr(self.client, "order_calc_profit"):
@@ -1717,281 +1351,16 @@ class Engine:
         progress_desc: str = "Tester Progress",
         frame_observer=None,
     ):
-        """Simple backtest loop placeholder that iterates over tick data."""
-        if data is None:
-            return 0
-        if position_size is not None and float(position_size) <= 0.0:
-            raise ValueError("position_size must be > 0 when provided.")
-
-        if not hasattr(data, "columns"):
-            raise ValueError("Engine.run expects a tick DataFrame input.")
-
-        col_name_map = {}
-        for col in data.columns:
-            key = str(col).lower()
-            if key not in col_name_map:
-                col_name_map[key] = col
-
-        cols_lower = set(col_name_map.keys())
-        required = {"bid", "ask"}
-        missing = required - cols_lower
-        if missing:
-            raise ValueError(
-                f"Engine.run expects tick DataFrame columns {sorted(required)}; "
-                f"missing {sorted(missing)}."
-            )
-
-        bid_col = col_name_map["bid"]
-        ask_col = col_name_map["ask"]
-        bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
-        ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
-
-        is_bar_close_values = None
-        if "is_bar_close" in col_name_map:
-            is_bar_close_values = data[col_name_map["is_bar_close"]].to_numpy(dtype="bool", copy=False)
-
-        tick_time_values = None
-        tick_epoch_values = None
-        if hasattr(data, "index") and getattr(data.index, "dtype", None) is not None:
-            if str(getattr(data.index, "dtype", "")).startswith("datetime64"):
-                tick_time_values = data.index.to_pydatetime()
-                tick_epoch_values = (data.index.view("int64") // 1_000_000_000).astype("int64")
-
-        entry_values = self._signal_to_float_array(data, col_name_map, ["entry_signal"])
-        exit_values = self._signal_to_float_array(data, col_name_map, ["exit_signal", "exit_trade"])
-        pending_values = self._signal_to_float_array(data, col_name_map, ["pending_signal"])
-        cancel_pending_values = self._signal_to_float_array(
-            data, col_name_map, ["cancel_pending_signal"]
+        """Run prepared tick data through the event-driven backend."""
+        return run_event_driven_simulation(
+            self,
+            data,
+            position_size=position_size,
+            monitor_verbose=monitor_verbose,
+            show_progress=show_progress,
+            progress_desc=progress_desc,
+            frame_observer=frame_observer,
         )
-        signal_price_values = self._signal_to_float_array(data, col_name_map, ["price"])
-        pending_values_2 = self._signal_to_float_array(data, col_name_map, ["pending_signal_2"])
-        cancel_pending_values_2 = self._signal_to_float_array(
-            data, col_name_map, ["cancel_pending_signal_2"]
-        )
-        signal_price_values_2 = self._signal_to_float_array(data, col_name_map, ["price_2"])
-        sl_values = self._signal_to_float_array(data, col_name_map, ["sl", "stop_loss"])
-        tp_values = self._signal_to_float_array(data, col_name_map, ["tp", "take_profit"])
-        symbol_values = self._signal_to_object_array(data, col_name_map, ["symbol"])
-        portfolio_run = False
-
-        has_signal_cols = any(
-            arr is not None
-            for arr in (
-                entry_values,
-                exit_values,
-                pending_values,
-                cancel_pending_values,
-                pending_values_2,
-                cancel_pending_values_2,
-            )
-        )
-
-        schedule_enabled = any(value is not None for value in self.run_schedule.values())
-        risk_enabled = self._risk_enabled()
-        if not schedule_enabled and not has_signal_cols and not risk_enabled:
-            processed = _process_ticks_numba(bid_values, ask_values)
-            return processed
-
-        symbol_map = self._build_symbol_map()
-        default_symbol = self._default_run_symbol()
-        if symbol_values is not None:
-            symbol_series = (
-                data[col_name_map["symbol"]]
-                .fillna("")
-                .astype(str)
-                .str.strip()
-            )
-            unique_symbols = tuple(sym for sym in symbol_series.unique().tolist() if sym)
-            portfolio_run = len(unique_symbols) > 1
-            if portfolio_run:
-                if not unique_symbols:
-                    raise ValueError(
-                        "Portfolio Engine.run expects non-empty symbol values in the tick DataFrame."
-                    )
-                missing_symbols = [sym for sym in unique_symbols if sym not in symbol_map]
-                if missing_symbols:
-                    raise ValueError(
-                        "Portfolio Engine.run received unknown symbols: "
-                        f"{sorted(missing_symbols)}"
-                    )
-                if (symbol_series == "").any():
-                    raise ValueError(
-                        "Portfolio Engine.run requires every tick row to include a non-empty symbol."
-                    )
-
-        self._schedule_state_dirty = True
-        run_position_size = (
-            float(self.default_signal_volume)
-            if position_size is None
-            else float(position_size)
-        )
-        processed = 0
-        total_ticks = int(bid_values.shape[0])
-        progress_bar = None
-        if show_progress and tqdm is not None:
-            progress_bar = tqdm(
-                total=total_ticks,
-                desc=str(progress_desc),
-                unit="tick",
-                dynamic_ncols=True,
-            )
-        try:
-            idx = 0
-            while idx < total_ticks:
-                batch_end = idx + 1
-                if risk_enabled and tick_epoch_values is not None:
-                    current_epoch = int(tick_epoch_values[idx])
-                    while batch_end < total_ticks and int(tick_epoch_values[batch_end]) == current_epoch:
-                        batch_end += 1
-
-                risk_candidates = []
-                for batch_idx in range(idx, batch_end):
-                    bid = float(bid_values[batch_idx])
-                    ask = float(ask_values[batch_idx])
-                    _ = bid + ask
-                    tick_number = batch_idx + 1
-
-                    if tick_time_values is not None:
-                        self.state.current_tick_datetime = tick_time_values[batch_idx]
-                        self.state.current_tick_epoch = int(tick_epoch_values[batch_idx])
-                    else:
-                        self.state.current_tick_datetime = None
-                        self.state.current_tick_epoch = None
-
-                    symbol_name = self._resolve_tick_symbol(batch_idx, symbol_values, default_symbol)
-                    if portfolio_run and not symbol_name:
-                        raise ValueError(
-                            f"Portfolio Engine.run could not resolve symbol at tick index {batch_idx}."
-                        )
-                    self._update_symbol_tick(symbol_map, symbol_name, bid, ask)
-
-                    entry_signal = 0.0 if entry_values is None else float(entry_values[batch_idx])
-                    exit_signal = 0.0 if exit_values is None else float(exit_values[batch_idx])
-                    pending_signal = 0.0 if pending_values is None else float(pending_values[batch_idx])
-                    cancel_pending_signal = (
-                        0.0 if cancel_pending_values is None else float(cancel_pending_values[batch_idx])
-                    )
-                    pending_signal_2 = 0.0 if pending_values_2 is None else float(pending_values_2[batch_idx])
-                    cancel_pending_signal_2 = (
-                        0.0 if cancel_pending_values_2 is None else float(cancel_pending_values_2[batch_idx])
-                    )
-                    signal_price = 0.0 if signal_price_values is None else float(signal_price_values[batch_idx])
-                    signal_price_2 = 0.0 if signal_price_values_2 is None else float(signal_price_values_2[batch_idx])
-                    sl_value = 0.0 if sl_values is None else float(sl_values[batch_idx])
-                    tp_value = 0.0 if tp_values is None else float(tp_values[batch_idx])
-                    is_bar_close_flag = False
-                    if is_bar_close_values is not None:
-                        is_bar_close_flag = bool(is_bar_close_values[batch_idx])
-
-                    if risk_enabled:
-                        if self._exec_exit_signal(symbol_name, exit_signal, bid, ask, verbose=bool(monitor_verbose)):
-                            self._schedule_state_dirty = True
-                        if self._exec_cancel_pending_signal(
-                            symbol_name,
-                            cancel_pending_signal,
-                            verbose=bool(monitor_verbose),
-                        ):
-                            self._schedule_state_dirty = True
-                        if self._exec_cancel_pending_signal(
-                            symbol_name,
-                            cancel_pending_signal_2,
-                            verbose=bool(monitor_verbose),
-                        ):
-                            self._schedule_state_dirty = True
-
-                        if self._safe_int(entry_signal, 0) in (1, -1):
-                            risk_candidates.append(
-                                self._build_risk_candidate(
-                                    action="entry",
-                                    symbol_name=symbol_name,
-                                    signal_code=entry_signal,
-                                    bid=bid,
-                                    ask=ask,
-                                    sl=sl_value,
-                                    tp=tp_value,
-                                    requested_volume=run_position_size,
-                                )
-                            )
-                        if self._safe_int(pending_signal, 0) in (1, -1, 2, -2):
-                            risk_candidates.append(
-                                self._build_risk_candidate(
-                                    action="pending",
-                                    symbol_name=symbol_name,
-                                    signal_code=pending_signal,
-                                    bid=bid,
-                                    ask=ask,
-                                    signal_price=signal_price,
-                                    sl=sl_value,
-                                    tp=tp_value,
-                                    requested_volume=run_position_size,
-                                )
-                            )
-                        if self._safe_int(pending_signal_2, 0) in (1, -1, 2, -2):
-                            risk_candidates.append(
-                                self._build_risk_candidate(
-                                    action="pending",
-                                    symbol_name=symbol_name,
-                                    signal_code=pending_signal_2,
-                                    bid=bid,
-                                    ask=ask,
-                                    signal_price=signal_price_2,
-                                    sl=sl_value,
-                                    tp=tp_value,
-                                    requested_volume=run_position_size,
-                                )
-                            )
-                    else:
-                        if self._apply_tick_signals(
-                            symbol_name=symbol_name,
-                            bid=bid,
-                            ask=ask,
-                            entry_signal=entry_signal,
-                            exit_signal=exit_signal,
-                            pending_signal=pending_signal,
-                            cancel_pending_signal=cancel_pending_signal,
-                            pending_signal_2=pending_signal_2,
-                            cancel_pending_signal_2=cancel_pending_signal_2,
-                            signal_price=signal_price,
-                            signal_price_2=signal_price_2,
-                            sl=sl_value,
-                            tp=tp_value,
-                            volume=run_position_size,
-                            verbose=bool(monitor_verbose),
-                        ):
-                            self._schedule_state_dirty = True
-
-                    self._run_scheduled_callbacks(
-                        tick_number=tick_number,
-                        verbose=bool(monitor_verbose),
-                        is_bar_close=is_bar_close_flag,
-                    )
-                    processed += 1
-                    if progress_bar is not None:
-                        progress_bar.update(1)
-
-                if risk_enabled and self._execute_risk_batch(
-                    risk_candidates,
-                    fallback_volume=run_position_size,
-                    verbose=bool(monitor_verbose),
-                ):
-                    self._schedule_state_dirty = True
-
-                if frame_observer is not None:
-                    frame_observer(
-                        engine=self,
-                        timestamp=self.state.current_tick_datetime,
-                        tick_number=processed,
-                        batch_end=batch_end,
-                    )
-
-                idx = batch_end
-        finally:
-            self.state.current_tick_datetime = None
-            self.state.current_tick_epoch = None
-            if progress_bar is not None:
-                progress_bar.close()
-
-        return processed
 
     def monitor_positions(self, verbose: bool = False):
         if self.backend == "mt5":
