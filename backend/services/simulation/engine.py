@@ -21,7 +21,10 @@ from backend.services.execution.core import RunResult
 from backend.common.logger import logger
 from backend.services.execution import core
 from backend.services.simulation.event_driven import run_event_driven_simulation
-from backend.services.simulation.position_sizing import resolve_position_size
+from backend.services.simulation.position_sizing import (
+    _position_sizer_config,
+    _position_sizer_method,
+)
 from backend.services.simulation.vectorized import run_vectorized_simulation
 
 from backend.services.simulation.config import AccountConfig, SimulationConfig
@@ -152,6 +155,7 @@ class Engine:
         self._risk_adapter = None
         self._portfolio_state_engine = PortfolioStateEngine()
         self._risk_equity_history = []
+        self.equity_snapshot_policy = "bar_close"
 
         logger.info(f"successfully initialised trading engine {self.backend}")
 
@@ -194,14 +198,41 @@ class Engine:
 
     def run_prepared(self, prepared, config: SimulationConfig) -> int:
         """Execute already-prepared simulation data through the selected engine."""
-        position_size = resolve_position_size(config, prepared)
+        self.equity_snapshot_policy = str(
+            getattr(config.reporting, "equity_snapshot_policy", "bar_close") or "bar_close"
+        )
+        self._configure_simulation_position_sizing(prepared, config)
         if config.engine_type == "vectorized":
+            if self.equity_snapshot_policy not in {"bar_close", "position_update"}:
+                logger.warning(
+                    "Vectorized simulation currently supports only 'bar_close' and "
+                    "'position_update' equity snapshots; "
+                    f"falling back from {self.equity_snapshot_policy!r}."
+                )
+            if config.execution.position_size.type != "fixed_lot":
+                logger.warning(
+                    "Vectorized simulation does not support dynamic position sizing for %r; "
+                    "falling back to the event-driven engine so size is resolved at order time.",
+                    config.execution.position_size.type,
+                )
+                return int(
+                    self.run_event_driven(
+                        prepared.ticks,
+                        position_size=None,
+                        commission_per_lot=config.account.commission,
+                        slippage_model=config.execution.slippage_model,
+                        slippage_points=config.execution.slippage_points,
+                        slippage_min=config.execution.slippage_min,
+                        slippage_max=config.execution.slippage_max,
+                    )
+                    or 0
+                )
             return int(
                 self.run_vectorized(
                     prepared.ticks,
                     initial_balance=config.account.initial_balance,
                     contract_size=config.execution.contract_size,
-                    position_size=position_size,
+                    position_size=float(config.execution.position_size.lot_size),
                     commission_per_lot=config.account.commission,
                     slippage_model=config.execution.slippage_model,
                     slippage_points=config.execution.slippage_points,
@@ -214,7 +245,7 @@ class Engine:
             return int(
                 self.run_event_driven(
                     prepared.ticks,
-                    position_size=position_size,
+                    position_size=None,
                     commission_per_lot=config.account.commission,
                     slippage_model=config.execution.slippage_model,
                     slippage_points=config.execution.slippage_points,
@@ -224,6 +255,20 @@ class Engine:
                 or 0
             )
         raise ValueError(f"unsupported simulation engine_type: {config.engine_type}")
+
+    def _configure_simulation_position_sizing(self, prepared, config: SimulationConfig) -> None:
+        position_config = config.execution.position_size
+        self.default_signal_volume = float(position_config.lot_size)
+        historical_data = {
+            str(symbol): {str(config.data.timeframe): frame.copy()}
+            for symbol, frame in getattr(prepared, "signal_bars_by_symbol", {}).items()
+        }
+        self.configure_position_sizing(
+            enabled=True,
+            position_sizing_method=_position_sizer_method(position_config.type),
+            position_sizing_config=_position_sizer_config(config, position_config),
+            historical_data=historical_data,
+        )
 
     def _strict_order_calc_profit(self, order_type, symbol, volume, price_open, price_close):
         if self.client is None or not hasattr(self.client, "order_calc_profit"):
@@ -507,6 +552,7 @@ class Engine:
         self.state.current_tick_epoch = None
         self.state.current_tick_datetime = None
         self.state.execution_settings = core.DotDict()
+        self.equity_snapshot_policy = "bar_close"
         self.clear_completed_trades()
         self._risk_equity_history = []
         self._schedule_state_dirty = True
@@ -1312,14 +1358,18 @@ class Engine:
 
         if schedule.get("auto") and is_bar_close:
             # Auto-mode: Trigger everything at bar close
-            if self._has_open_positions():
+            snapshot_policy = str(
+                getattr(self, "equity_snapshot_policy", "bar_close") or "bar_close"
+            ).lower()
+            if snapshot_policy == "bar_close" and self._has_open_positions():
                 self.monitor_positions(verbose=verbose)
                 state_changed = True
             if self._has_pending_orders():
                 self.monitor_pending_orders(verbose=verbose)
                 state_changed = True
-            
-            self.monitor_account(verbose=verbose)
+
+            if snapshot_policy == "bar_close":
+                self.monitor_account(verbose=verbose)
             self.monitor_portfolio(verbose=verbose)
             self.monitor_risk(verbose=verbose)
             self._schedule_state_dirty = False

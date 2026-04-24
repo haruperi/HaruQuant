@@ -496,7 +496,7 @@ def example_12_complete_backtests():
     print_example_header("Example 12: Complete Backtests")
     started = time.time()
     config = {
-        "engine_type": "vectorized",
+        "engine_type": "event_driven",
         "account": {
             "initial_balance": 10000.0,
             "commission": 7.0,
@@ -505,7 +505,7 @@ def example_12_complete_backtests():
         },
         "data": {
             "source": "metatrader",
-            "symbols": [audusd, eurgbp, nzdchf],
+            "symbols": [test_symbol],
             "timeframe": "H1",
             "start": start_date,
             "end": end_date,
@@ -535,11 +535,73 @@ def example_12_complete_backtests():
             "save_to_db": False,
             "alias": "example_12_complete_backtests",
             "description": "Clean config-driven portfolio simulation example.",
+            "equity_snapshot_policy": "position_update",
         },
     }
 
     result = engine_instance.run(config)
     print_simulation_summary(result)
+
+    #print([point.to_dict() for point in result.run_result.equity_curve])
+
+    '''
+    Its structure is:
+
+        SimulationRunResult(
+            config=SimulationConfig(...),
+            prepared=PreparedSimulationData(...),
+            run_result=RunResult(...),
+            metrics={...},
+            symbol_summary={...},
+            warnings=(),
+            metadata={...},
+        )
+
+        The most useful fields on result are:
+
+        - result.config
+            The parsed simulation config object.
+        - result.prepared
+            The prepared market data bundle used for the run.
+        - result.run_result
+            The low-level packaged engine result:
+
+            RunResult(
+                trades=[TradeRecord, ...],
+                equity_curve=[EquityPoint, ...],
+                processed_ticks=int,
+                final_balance=float,
+                final_equity=float
+            )
+        - result.metrics
+            A flat summary dict like:
+
+            {
+                "processed_ticks": ...,
+                "trade_count": ...,
+                "equity_points": ...,
+                "initial_balance": ...,
+                "final_balance": ...,
+                "final_equity": ...,
+                "total_profit": ...,
+                "total_return": ...
+            }
+        - result.symbol_summary
+            Per-symbol pnl/trade summary:
+
+            {
+                "AUDUSD": {"trades": 12.0, "pnl": 153.2},
+                "EURGBP": {"trades": 8.0, "pnl": -41.0},
+                "NZDCHF": {"trades": 5.0, "pnl": 22.5}
+            }
+        - result.metadata
+            Run metadata such as engine type, symbols, timeframe, tick model, processed ticks, and prepared-data metadata.
+    '''
+
+
+    
+
+
     print(f"total_seconds={time.time() - started:.4f}")
 
 

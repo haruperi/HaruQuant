@@ -1455,7 +1455,10 @@ def order_send(
         state.trading_history_orders.append(history_order)
 
         entry_price = float(getattr(position, "price_open", getattr(position, "price", exec_price)) or exec_price)
-        position_type = int(getattr(position, "type", order_type) or order_type)
+        raw_position_type = getattr(position, "type", order_type)
+        if raw_position_type is None:
+            raw_position_type = order_type
+        position_type = int(raw_position_type)
         if profit_calculator is not None:
             calc_value = profit_calculator(position_type, symbol_name, close_volume, entry_price, exec_price)
             if calc_value is None:

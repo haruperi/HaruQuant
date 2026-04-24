@@ -12,6 +12,7 @@ from backend.services.simulation.data_preparation import (
 )
 from backend.services.simulation.strategy_registry import register_strategy
 from backend.services.strategy.base import BaseStrategy
+from backend.services.market_data.data_manipulator import TicksGenerator
 
 
 class FixtureSignalStrategy(BaseStrategy):
@@ -157,9 +158,27 @@ def test_prepare_symbol_builds_timeframe_ticks_and_metadata():
     assert set(["bid", "ask", "entry_signal", "exit_signal", "is_bar_close", "symbol"]).issubset(
         prepared.ticks.columns
     )
+    assert set(prepared.ticks["is_bar_close"].unique()) == {"open", "high", "low", "close"}
     assert prepared.ticks["symbol"].eq("AUDUSD").all()
     assert prepared.ticks["signal_timeframe"].eq("H1").all()
     assert prepared.metadata["point_value"] == 0.00001
+
+
+def test_timeframe_ticks_place_close_at_end_of_bar():
+    bars = _bars(start="2025-01-01", periods=1, freq="h")
+    ticks = TicksGenerator(
+        model="timeframe_ticks",
+        trading_timeframe="H1",
+        point_value=0.00001,
+        spread_model="native_spread",
+    ).generate(bars)
+
+    assert list(ticks.index) == [
+        pd.Timestamp("2025-01-01 00:00:00"),
+        pd.Timestamp("2025-01-01 00:20:00"),
+        pd.Timestamp("2025-01-01 00:40:00"),
+        pd.Timestamp("2025-01-01 00:59:59.999000"),
+    ]
 
 
 def test_prepare_merges_multiple_symbols_in_datetime_order():

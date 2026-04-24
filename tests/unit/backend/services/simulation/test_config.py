@@ -65,6 +65,9 @@ def test_simulation_config_parses_valid_example_config():
     assert config.execution.position_size.type == "fixed_lot"
     assert config.execution.position_size.lot_size == 0.1
     assert config.reporting.print_summary is True
+    assert config.reporting.benchmark_policy == "equal_weight"
+    assert config.reporting.benchmark_symbol is None
+    assert config.reporting.equity_snapshot_policy == "bar_close"
 
 
 def test_simulation_config_defaults_engine_and_reporting():
@@ -77,6 +80,36 @@ def test_simulation_config_defaults_engine_and_reporting():
     assert config.engine_type == "vectorized"
     assert config.reporting.print_summary is False
     assert config.reporting.save_to_db is False
+    assert config.reporting.benchmark_policy == "equal_weight"
+    assert config.reporting.equity_snapshot_policy == "bar_close"
+
+
+def test_simulation_config_parses_custom_benchmark_policy():
+    raw = _valid_config()
+    raw["reporting"]["benchmark_policy"] = "custom_symbol"
+    raw["reporting"]["benchmark_symbol"] = "EURGBP"
+
+    config = SimulationConfig.from_dict(raw)
+
+    assert config.reporting.benchmark_policy == "custom_symbol"
+    assert config.reporting.benchmark_symbol == "EURGBP"
+
+
+def test_simulation_config_parses_equity_snapshot_policy():
+    raw = _valid_config()
+    raw["reporting"]["equity_snapshot_policy"] = "every_tick"
+
+    config = SimulationConfig.from_dict(raw)
+
+    assert config.reporting.equity_snapshot_policy == "every_tick"
+
+
+def test_simulation_config_rejects_custom_benchmark_without_symbol():
+    raw = _valid_config()
+    raw["reporting"]["benchmark_policy"] = "custom_symbol"
+
+    with pytest.raises(SimulationConfigError, match="benchmark_symbol"):
+        SimulationConfig.from_dict(raw)
 
 
 def test_simulation_config_parses_local_source_alias_and_files():

@@ -594,6 +594,10 @@ class TicksGenerator:
     """
 
     SUPPORTED_MODELS = {"timeframe_ticks", "m1_ticks", "real_ticks", "synthetic_ticks"}
+    BAR_PHASE_OPEN = "open"
+    BAR_PHASE_HIGH = "high"
+    BAR_PHASE_LOW = "low"
+    BAR_PHASE_CLOSE = "close"
 
     def __init__(
         self,
@@ -675,6 +679,39 @@ class TicksGenerator:
                 secs = int(max(1, deltas.median().total_seconds()))
                 return secs
         return 60
+
+    @staticmethod
+    def _four_tick_offsets_ms(bar_seconds: int) -> np.ndarray:
+        bar_ms = max(1, int(bar_seconds) * 1000)
+        close_offset = max(0, bar_ms - 1)
+        first_inner = max(1, bar_ms // 3)
+        second_inner = max(first_inner + 1, (2 * bar_ms) // 3)
+        second_inner = min(second_inner, max(first_inner + 1, close_offset - 1))
+        return np.array([0, first_inner, second_inner, close_offset], dtype=np.int64)
+
+    def _configured_bar_seconds(self) -> int:
+        timeframe_seconds = {
+            "M1": 60,
+            "M5": 300,
+            "M15": 900,
+            "M30": 1800,
+            "H1": 3600,
+            "H4": 14400,
+            "D1": 86400,
+            "W1": 604800,
+            "MN1": 2592000,
+        }
+        return int(timeframe_seconds.get(str(self.trading_timeframe).upper(), 60))
+
+    @staticmethod
+    def _merge_bar_phase(current: object, phase: str) -> str:
+        current_text = str(current or "").strip()
+        if not current_text:
+            return str(phase)
+        parts = current_text.split("|")
+        if phase in parts:
+            return current_text
+        return f"{current_text}|{phase}"
 
     def _generate_timeframe_ticks(self, bars: pd.DataFrame) -> pd.DataFrame:
         if bars is None or bars.empty:
@@ -772,11 +809,12 @@ class TicksGenerator:
         sl_arr = _bar_col_or_zeros(sl_col)
         tp_arr = _bar_col_or_zeros(tp_col)
 
-        bar_seconds = self._infer_bar_seconds(bars.index)
-        offsets_ms = np.array(
-            [0, int(bar_seconds * 250), int(bar_seconds * 500), int(bar_seconds * 750)],
-            dtype=np.int64,
+        bar_seconds = (
+            self._infer_bar_seconds(bars.index)
+            if len(bars.index) > 1
+            else self._configured_bar_seconds()
         )
+        offsets_ms = self._four_tick_offsets_ms(bar_seconds)
 
         # 4-tick bar path: bullish O-L-H-C, bearish O-H-L-C
         bullish = close_arr >= open_arr
@@ -787,9 +825,19 @@ class TicksGenerator:
         bid[2::4] = np.where(bullish, high_arr, low_arr)
         bid[3::4] = close_arr
 
-        # is_bar_close: True only for the 4th tick of every bar
-        is_bar_close = np.zeros(total_ticks, dtype=bool)
-        is_bar_close[3::4] = True
+        is_bar_close = np.empty(total_ticks, dtype=object)
+        is_bar_close[0::4] = self.BAR_PHASE_OPEN
+        is_bar_close[1::4] = np.where(
+            bullish,
+            self.BAR_PHASE_LOW,
+            self.BAR_PHASE_HIGH,
+        )
+        is_bar_close[2::4] = np.where(
+            bullish,
+            self.BAR_PHASE_HIGH,
+            self.BAR_PHASE_LOW,
+        )
+        is_bar_close[3::4] = self.BAR_PHASE_CLOSE
 
         if self.spread_model == "native_spread":
             spread_points = np.repeat(np.maximum(native_spread_arr, 0.0), 4)
@@ -1005,8 +1053,22 @@ class TicksGenerator:
         out["source_bar_time"] = bucket
         out["tick_index_in_bar"] = pd.Series(bucket, index=out.index).groupby(bucket).cumcount()
         
-        # is_bar_close: True for the last tick in each bucket
-        out["is_bar_close"] = ~bucket.duplicated(keep="last")
+        phases = np.full(len(out), "", dtype=object)
+        bid_values = out["bid"].to_numpy(dtype=np.float64, copy=False)
+        for bucket_value in pd.Index(bucket).unique():
+            locs = np.flatnonzero(bucket == bucket_value)
+            if locs.size == 0:
+                continue
+            open_idx = int(locs[0])
+            close_idx = int(locs[-1])
+            local_bids = bid_values[locs]
+            high_idx = int(locs[int(np.argmax(local_bids))])
+            low_idx = int(locs[int(np.argmin(local_bids))])
+            phases[open_idx] = self._merge_bar_phase(phases[open_idx], self.BAR_PHASE_OPEN)
+            phases[high_idx] = self._merge_bar_phase(phases[high_idx], self.BAR_PHASE_HIGH)
+            phases[low_idx] = self._merge_bar_phase(phases[low_idx], self.BAR_PHASE_LOW)
+            phases[close_idx] = self._merge_bar_phase(phases[close_idx], self.BAR_PHASE_CLOSE)
+        out["is_bar_close"] = phases
         
         out.index = pd.DatetimeIndex(out.index, name="Datetime")
         return out.sort_index()
@@ -1075,6 +1137,14 @@ class TicksGenerator:
             else:
                 path = [open_px, high_px, low_px, close_px]
             prices = self._interpolate_path(path, vol)
+            high_price = max(prices)
+            low_price = min(prices)
+            first_high = next(
+                idx for idx, price_value in enumerate(prices) if price_value == high_price
+            )
+            first_low = next(
+                idx for idx, price_value in enumerate(prices) if price_value == low_price
+            )
 
             entry_signal = float(bar.get("entry_signal", 0.0) or 0.0)
             exit_signal = float(bar.get("exit_signal", 0.0) or 0.0)
@@ -1093,6 +1163,15 @@ class TicksGenerator:
                 tick_ts = ts + pd.to_timedelta(offset_ms, unit="ms")
                 bid = float(px)
                 ask = float(px + spread_price)
+                phase = ""
+                if i == 0:
+                    phase = self._merge_bar_phase(phase, self.BAR_PHASE_OPEN)
+                if i == first_high:
+                    phase = self._merge_bar_phase(phase, self.BAR_PHASE_HIGH)
+                if i == first_low:
+                    phase = self._merge_bar_phase(phase, self.BAR_PHASE_LOW)
+                if i == vol - 1:
+                    phase = self._merge_bar_phase(phase, self.BAR_PHASE_CLOSE)
                 rows.append(
                     {
                         "datetime": tick_ts,
@@ -1110,7 +1189,7 @@ class TicksGenerator:
                         "tp": tp_value if i == 0 else 0.0,
                         "source_bar_time": ts,
                         "tick_index_in_bar": i,
-                        "is_bar_close": (i == vol - 1),
+                        "is_bar_close": phase,
                     }
                 )
 

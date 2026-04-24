@@ -66,10 +66,14 @@ if njit is not None:
         commission_per_lot,
         slippage_points_arr,
         point_value,
+        num_symbols,
+        snapshot_requires_open_positions,
         max_positions=100,
     ):
         balance = initial_balance
         active_positions = np.zeros((max_positions, POS_COLS), dtype=np.float64)
+        last_bid_by_symbol = np.zeros(num_symbols, dtype=np.float64)
+        last_ask_by_symbol = np.zeros(num_symbols, dtype=np.float64)
         completed_trades = np.zeros(
             (len(event_indices) * max_positions, REC_COLS),
             dtype=np.float64,
@@ -86,6 +90,8 @@ if njit is not None:
             bid = bid_arr[idx]
             ask = ask_arr[idx]
             symbol_id = symbol_id_arr[idx]
+            last_bid_by_symbol[symbol_id] = bid
+            last_ask_by_symbol[symbol_id] = ask
             slippage_price = slippage_points_arr[idx] * point_value
 
             for i in range(max_positions):
@@ -139,7 +145,7 @@ if njit is not None:
                     completed_trades[completed_count, REC_TP] = p_tp
                     completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
                     completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                    completed_trades[completed_count, REC_PROFIT] = net_pnl
+                    completed_trades[completed_count, REC_PROFIT] = pnl
                     completed_trades[completed_count, REC_REASON] = reason
                     completed_trades[completed_count, REC_COMMISSION] = commission
                     completed_count += 1
@@ -179,7 +185,7 @@ if njit is not None:
                         completed_trades[completed_count, REC_TP] = active_positions[i, POS_TP]
                         completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
                         completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                        completed_trades[completed_count, REC_PROFIT] = net_pnl
+                        completed_trades[completed_count, REC_PROFIT] = pnl
                         completed_trades[completed_count, REC_REASON] = 3.0
                         completed_trades[completed_count, REC_COMMISSION] = commission
                         completed_count += 1
@@ -212,18 +218,27 @@ if njit is not None:
                     next_ticket += 1
 
             if is_bar_close_arr[idx]:
+                has_open_positions = False
                 unrealized = 0.0
                 for i in range(max_positions):
                     if active_positions[i, POS_STATUS] == 1:
-                        if active_positions[i, POS_SYMBOL_ID] == symbol_id:
-                            p_type = active_positions[i, POS_TYPE]
-                            p_open = active_positions[i, POS_OPEN_PRICE]
-                            p_vol = active_positions[i, POS_VOLUME]
-                            p_price = bid if p_type == 0 else ask
-                            if p_type == 0:
-                                unrealized += (p_price - p_open) * p_vol * contract_size
-                            else:
-                                unrealized += (p_open - p_price) * p_vol * contract_size
+                        has_open_positions = True
+                        pos_symbol_id = int(active_positions[i, POS_SYMBOL_ID])
+                        p_type = active_positions[i, POS_TYPE]
+                        p_open = active_positions[i, POS_OPEN_PRICE]
+                        p_vol = active_positions[i, POS_VOLUME]
+                        p_bid = last_bid_by_symbol[pos_symbol_id]
+                        p_ask = last_ask_by_symbol[pos_symbol_id]
+                        if p_bid <= 0.0 or p_ask <= 0.0:
+                            continue
+                        p_price = p_bid if p_type == 0 else p_ask
+                        if p_type == 0:
+                            unrealized += (p_price - p_open) * p_vol * contract_size
+                        else:
+                            unrealized += (p_open - p_price) * p_vol * contract_size
+
+                if snapshot_requires_open_positions and not has_open_positions:
+                    continue
 
                 equity_curve[equity_ptr, 0] = idx
                 equity_curve[equity_ptr, 1] = balance + unrealized
@@ -271,7 +286,10 @@ def run_vectorized_simulation(
         )
 
     start_time = time.time()
-    prepared = prepare_vectorized_data(data)
+    snapshot_policy = str(
+        getattr(engine, "equity_snapshot_policy", "bar_close") or "bar_close"
+    ).lower()
+    prepared = prepare_vectorized_data(data, snapshot_policy=snapshot_policy)
     trades_arr, equity_arr, final_balance = _run_turbo_sim_numba(
         prepared["bid_arr"],
         prepared["ask_arr"],
@@ -288,33 +306,53 @@ def run_vectorized_simulation(
         float(commission_per_lot),
         resolved_slippage_points,
         float(point_value),
+        int(len(prepared["id_to_symbol"])),
+        bool(snapshot_policy == "position_update"),
     )
 
     engine.state.completed_trade_records = reconstruct_trades(
         trades_arr,
         prepared,
         float(contract_size),
+        engine=engine,
     )
+
+    trade_deltas = []
+    total_delta = 0.0
+    for i in range(len(trades_arr)):
+        original_profit = trades_arr[i, REC_PROFIT]
+        corrected_profit = engine.state.completed_trade_records[i].profit_loss
+        delta = corrected_profit - original_profit
+        total_delta += delta
+        trade_deltas.append((int(trades_arr[i, REC_CLOSE_IDX]), delta))
+
+    trade_deltas.sort(key=lambda x: x[0])
+
     engine.state.completed_equity_curve = reconstruct_equity_curve(
         equity_arr,
         prepared,
+        trade_deltas=trade_deltas,
     )
-    engine.state.trading_account.balance = final_balance
-    engine.state.trading_account.equity = final_balance
+    corrected_final_balance = final_balance + total_delta
+    engine.state.trading_account.balance = corrected_final_balance
+    engine.state.trading_account.equity = corrected_final_balance
 
     logger.info(f"Turbo run completed in {time.time() - start_time:.4f}s")
     return int(len(data))
 
 
-def prepare_vectorized_data(data) -> dict:
+def prepare_vectorized_data(data, snapshot_policy: str = "position_update") -> dict:
     """Prepare contiguous numpy arrays for the vectorized backend."""
     col_name_map = {str(col).lower(): col for col in data.columns}
 
     bid_arr = data[col_name_map["bid"]].to_numpy(dtype="float64", copy=False)
     ask_arr = data[col_name_map["ask"]].to_numpy(dtype="float64", copy=False)
-    is_bar_close_arr = data[col_name_map["is_bar_close"]].to_numpy(
-        dtype="bool",
-        copy=False,
+    bar_phase_arr = data[col_name_map["is_bar_close"]].to_numpy(copy=False)
+    snapshot_policy_normalized = str(snapshot_policy or "bar_close").strip().lower()
+    phases = ("close",) if snapshot_policy_normalized == "bar_close" else ("open", "high", "low")
+    is_bar_close_arr = _bar_phase_mask(
+        bar_phase_arr,
+        phases=phases,
     )
 
     symbol_series = data[col_name_map["symbol"]].astype(str)
@@ -356,7 +394,7 @@ def prepare_vectorized_data(data) -> dict:
     }
 
 
-def reconstruct_trades(trades_arr, prepared: dict, contract_size: float) -> list:
+def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=None) -> list:
     id_to_symbol = prepared["id_to_symbol"]
     timestamps = prepared["timestamps"]
     bid_arr = prepared["bid_arr"]
@@ -370,6 +408,22 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float) -> list
         close_idx = int(row[REC_CLOSE_IDX])
         is_buy = row[REC_TYPE] == 0
         price_slice = bid_arr[open_idx : close_idx + 1] if is_buy else ask_arr[open_idx : close_idx + 1]
+
+        profit_loss = row[REC_PROFIT]
+        if engine is not None and hasattr(engine, "_strict_order_calc_profit"):
+            try:
+                # MT5 types: BUY=0, SELL=1. Vectorized matches this: REC_TYPE 0=BUY, 1=SELL
+                profit_loss = engine._strict_order_calc_profit(
+                    int(row[REC_TYPE]),
+                    symbol_name,
+                    row[REC_VOLUME],
+                    row[REC_OPEN_PRICE],
+                    row[REC_CLOSE_PRICE],
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Vectorized post-processing: order_calc_profit failed for {symbol_name}: {e}"
+                )
 
         mfe_usd = 0.0
         mae_usd = 0.0
@@ -397,7 +451,7 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float) -> list
                 profit_target_price=row[REC_TP],
                 open_time=timestamps[open_idx] if timestamps is not None else None,
                 close_time=timestamps[close_idx] if timestamps is not None else None,
-                profit_loss=row[REC_PROFIT],
+                profit_loss=profit_loss,
                 commission=row[REC_COMMISSION] if len(row) > REC_COMMISSION else 0.0,
                 mfe_usd=mfe_usd,
                 mae_usd=mae_usd,
@@ -433,17 +487,29 @@ def _resolve_slippage_points_array(
     return rng.uniform(low, high, int(length)).astype(np.float64)
 
 
-def reconstruct_equity_curve(equity_arr, prepared: dict) -> list:
+def reconstruct_equity_curve(equity_arr, prepared: dict, trade_deltas=None) -> list:
     timestamps = prepared["timestamps"]
     reconstructed = []
+    
+    cumulative_delta = 0.0
+    delta_ptr = 0
+    num_deltas = len(trade_deltas) if trade_deltas else 0
+    
     for i in range(len(equity_arr)):
         tick_idx = int(equity_arr[i, 0])
         value = equity_arr[i, 1]
+        
+        if trade_deltas:
+            while delta_ptr < num_deltas and trade_deltas[delta_ptr][0] <= tick_idx:
+                cumulative_delta += trade_deltas[delta_ptr][1]
+                delta_ptr += 1
+        
+        corrected_value = value + cumulative_delta
         reconstructed.append(
             core.EquityPoint(
                 timestamp=timestamps[tick_idx] if timestamps is not None else None,
-                balance=value,
-                equity=value,
+                balance=corrected_value,
+                equity=corrected_value,
             )
         )
     return reconstructed
@@ -455,3 +521,19 @@ def _signal_to_float_array(data, col_name_map: dict[str, object], names: list[st
         if col is not None:
             return data[col].fillna(0.0).to_numpy(dtype="float64", copy=False)
     return None
+
+
+def _bar_phase_mask(values, phases: tuple[str, ...]) -> np.ndarray:
+    target = {str(phase).strip().lower() for phase in phases}
+    mask = np.zeros(len(values), dtype=bool)
+    for idx, value in enumerate(values):
+        if isinstance(value, (bool, np.bool_)):
+            mask[idx] = bool(value) if "close" in target else False
+            continue
+        parts = {
+            part.strip().lower()
+            for part in str(value).split("|")
+            if part is not None and str(part).strip()
+        }
+        mask[idx] = bool(parts & target)
+    return mask

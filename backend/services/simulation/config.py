@@ -13,6 +13,8 @@ SUPPORTED_TICK_MODELS = {"timeframe_ticks", "m1_ticks", "real_ticks", "synthetic
 SUPPORTED_SPREAD_MODELS = {"native_spread", "fixed_spread", "variable_spread"}
 SUPPORTED_SLIPPAGE_MODELS = {"none", "fixed", "dynamic"}
 SUPPORTED_POSITION_SIZE_TYPES = {"fixed_lot", "fixed_percent", "milestone", "kelly_criterion", "volatility_adjusted_atr", "fixed_fractional"}
+SUPPORTED_BENCHMARK_POLICIES = {"equal_weight", "first_symbol", "custom_symbol"}
+SUPPORTED_EQUITY_SNAPSHOT_POLICIES = {"bar_close", "position_update", "every_tick"}
 
 
 class SimulationConfigError(ValueError):
@@ -252,6 +254,9 @@ class ReportingConfig:
     save_to_db: bool = False
     alias: Optional[str] = None
     description: Optional[str] = None
+    benchmark_policy: str = "equal_weight"
+    benchmark_symbol: Optional[str] = None
+    equity_snapshot_policy: str = "bar_close"
 
     @classmethod
     def from_dict(cls, raw: Optional[Mapping[str, Any]]) -> "ReportingConfig":
@@ -261,11 +266,31 @@ class ReportingConfig:
             raise SimulationConfigError("reporting must be an object")
         alias = raw.get("alias")
         description = raw.get("description")
+        benchmark_policy = _normalize_choice(
+            str(raw.get("benchmark_policy", "equal_weight")),
+            SUPPORTED_BENCHMARK_POLICIES,
+            "reporting.benchmark_policy",
+        )
+        equity_snapshot_policy = _normalize_choice(
+            str(raw.get("equity_snapshot_policy", "bar_close")),
+            SUPPORTED_EQUITY_SNAPSHOT_POLICIES,
+            "reporting.equity_snapshot_policy",
+        )
+        benchmark_symbol = raw.get("benchmark_symbol")
+        if benchmark_symbol is not None:
+            benchmark_symbol = str(benchmark_symbol).strip().upper() or None
+        if benchmark_policy == "custom_symbol" and not benchmark_symbol:
+            raise SimulationConfigError(
+                "reporting.benchmark_symbol is required for custom_symbol benchmark policy"
+            )
         return cls(
             print_summary=bool(raw.get("print_summary", False)),
             save_to_db=bool(raw.get("save_to_db", False)),
             alias=None if alias is None else str(alias),
             description=None if description is None else str(description),
+            benchmark_policy=benchmark_policy,
+            benchmark_symbol=benchmark_symbol,
+            equity_snapshot_policy=equity_snapshot_policy,
         )
 
 

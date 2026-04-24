@@ -599,6 +599,45 @@ def sqn(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     return float(np.sqrt(n) * (avg_r / std_r))
 
 
+def kelly_criterion(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
+    """
+    Calculate Kelly Criterion fraction.
+
+    Formula:
+    K = W - ((1 - W) / R)
+
+    where:
+    - W is win probability
+    - R is payoff ratio = avg win / |avg loss|
+
+    Returns:
+        Fraction of capital to risk, clipped at 0 on the lower bound.
+    """
+    if isinstance(trades, pd.DataFrame):
+        if len(trades) == 0 or "profit_loss" not in trades.columns:
+            return 0.0
+        values = trades["profit_loss"].astype(float).to_numpy()
+    else:
+        values = _to_1d_float_array(trades)
+
+    if len(values) == 0:
+        return 0.0
+
+    win_prob = win_rate_fraction(values)
+    avg_win, avg_loss = avg_win_loss(values)
+    avg_loss_abs = abs(float(avg_loss)) if not np.isnan(avg_loss) else 0.0
+
+    if np.isnan(win_prob) or avg_loss_abs <= 0.0 or np.isnan(avg_win) or avg_win <= 0.0:
+        return 0.0
+
+    payoff_ratio = float(avg_win / avg_loss_abs)
+    if payoff_ratio <= 0.0:
+        return 0.0
+
+    lose_prob = 1.0 - float(win_prob)
+    return float(max(0.0, float(win_prob) - (lose_prob / payoff_ratio)))
+
+
 def compute_trade_metrics(
     values,
     mae: Optional[np.ndarray] = None,
@@ -613,6 +652,7 @@ def compute_trade_metrics(
         "win_rate": win_rate_fraction(normalized),
         "profit_factor": ratios.profit_factor(normalized),
         "sqn": sqn(normalized),
+        "kelly_criterion": kelly_criterion(normalized),
         "t_stat": t_statistic(normalized),
     }
 

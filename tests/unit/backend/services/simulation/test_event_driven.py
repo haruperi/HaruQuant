@@ -31,6 +31,94 @@ class FastPathEngine:
         return False
 
 
+class SnapshotPolicyEngine:
+    def __init__(self, policy: str):
+        self.run_schedule = {
+            "auto": True,
+            "positions": None,
+            "pending_orders": None,
+            "account": None,
+            "portfolio": None,
+            "risk": None,
+        }
+        self.state = SimpleNamespace(
+            current_tick_datetime=None,
+            current_tick_epoch=None,
+            execution_settings={},
+        )
+        self.account = {}
+        self.equity_snapshot_policy = policy
+        self._schedule_state_dirty = False
+        self.default_signal_volume = 0.01
+        self.monitor_account_calls = 0
+        self.monitor_positions_calls = 0
+
+    def account_info(self):
+        return self.account
+
+    def _risk_enabled(self):
+        return False
+
+    def _build_symbol_map(self):
+        return {}
+
+    def _default_run_symbol(self):
+        return "AUDUSD"
+
+    def _resolve_tick_symbol(self, batch_idx, symbol_values, default_symbol):
+        return default_symbol
+
+    def _update_symbol_tick(self, symbol_map, symbol_name, bid, ask):
+        return None
+
+    def _apply_tick_signals(self, **kwargs):
+        return False
+
+    def _has_open_positions(self):
+        return True
+
+    def _has_pending_orders(self):
+        return False
+
+    def monitor_positions(self, verbose=False):
+        self.monitor_positions_calls += 1
+
+    def monitor_account(self, verbose=False):
+        self.monitor_account_calls += 1
+
+    def monitor_portfolio(self, verbose=False):
+        return None
+
+    def monitor_risk(self, verbose=False):
+        return None
+
+    def _run_scheduled_callbacks(self, tick_number: int, verbose: bool = False, is_bar_close: bool = False):
+        if self.run_schedule.get("auto") and is_bar_close:
+            if self.equity_snapshot_policy == "bar_close" and self._has_open_positions():
+                self.monitor_positions(verbose=verbose)
+            if self.equity_snapshot_policy == "bar_close":
+                self.monitor_account(verbose=verbose)
+            self._schedule_state_dirty = False
+
+
+def _ticks_with_bar_close():
+    return pd.DataFrame(
+        {
+            "bid": [1.1000, 1.1003, 1.0998, 1.1002],
+            "ask": [1.1002, 1.1005, 1.1000, 1.1004],
+            "is_bar_close": ["open", "high", "low", "close"],
+        },
+        index=pd.to_datetime(
+            [
+                "2025-01-01 00:00:00",
+                "2025-01-01 00:00:01",
+                "2025-01-01 00:00:02",
+                "2025-01-01 00:00:03",
+            ]
+        ),
+    )
+
+
 def _ticks():
     return pd.DataFrame(
         {
@@ -118,3 +206,15 @@ def test_engine_run_event_driven_delegates_to_module(monkeypatch):
             },
         )
     ]
+
+
+def test_event_driven_equity_snapshot_policy_changes_account_sampling():
+    bar_close_engine = SnapshotPolicyEngine("bar_close")
+    position_update_engine = SnapshotPolicyEngine("position_update")
+
+    run_event_driven_simulation(bar_close_engine, _ticks_with_bar_close())
+    run_event_driven_simulation(position_update_engine, _ticks_with_bar_close())
+
+    assert bar_close_engine.monitor_account_calls == 1
+    assert position_update_engine.monitor_account_calls == 3
+    assert position_update_engine.monitor_positions_calls == 3

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
+
 try:
     from numba import njit
 except Exception:  # pragma: no cover - optional dependency fallback
@@ -80,12 +82,9 @@ def run_event_driven_simulation(
     bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
     ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
 
-    is_bar_close_values = None
+    bar_phase_values = None
     if "is_bar_close" in col_name_map:
-        is_bar_close_values = data[col_name_map["is_bar_close"]].to_numpy(
-            dtype="bool",
-            copy=False,
-        )
+        bar_phase_values = data[col_name_map["is_bar_close"]].to_numpy(copy=False)
 
     tick_time_values = None
     tick_epoch_values = None
@@ -238,9 +237,16 @@ def run_event_driven_simulation(
                 )
                 sl_value = 0.0 if sl_values is None else float(sl_values[batch_idx])
                 tp_value = 0.0 if tp_values is None else float(tp_values[batch_idx])
-                is_bar_close_flag = False
-                if is_bar_close_values is not None:
-                    is_bar_close_flag = bool(is_bar_close_values[batch_idx])
+                bar_tick_phase = None
+                if bar_phase_values is not None:
+                    bar_tick_phase = bar_phase_values[batch_idx]
+                is_bar_close_flag = _tick_phase_matches(bar_tick_phase, "close")
+                is_equity_snapshot_tick = _tick_phase_matches(
+                    bar_tick_phase,
+                    "open",
+                    "high",
+                    "low",
+                )
 
                 if risk_enabled:
                     if engine._exec_exit_signal(
@@ -325,6 +331,20 @@ def run_event_driven_simulation(
                     ):
                         engine._schedule_state_dirty = True
 
+                snapshot_policy = str(
+                    getattr(engine, "equity_snapshot_policy", "bar_close") or "bar_close"
+                ).lower()
+                if snapshot_policy in {"position_update", "every_tick"}:
+                    should_snapshot = (
+                        is_equity_snapshot_tick if bar_phase_values is not None else True
+                    )
+                    if should_snapshot and engine._has_open_positions():
+                        engine.monitor_positions(verbose=False)
+                        engine.monitor_account(verbose=False)
+                        engine._schedule_state_dirty = True
+                    elif should_snapshot and snapshot_policy == "every_tick":
+                        engine.monitor_account(verbose=False)
+
                 engine._run_scheduled_callbacks(
                     tick_number=tick_number,
                     verbose=bool(monitor_verbose),
@@ -373,3 +393,18 @@ def _signal_to_object_array(data, col_name_map, names):
         if col is not None:
             return data[col].to_numpy(copy=False)
     return None
+
+
+def _tick_phase_matches(value, *phases: str) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value) if "close" in phases else False
+    parts = {
+        part.strip().lower()
+        for part in str(value).split("|")
+        if part is not None and str(part).strip()
+    }
+    if not parts:
+        return False
+    return any(str(phase).strip().lower() in parts for phase in phases)
