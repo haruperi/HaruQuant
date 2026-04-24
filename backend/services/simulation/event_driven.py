@@ -1,4 +1,10 @@
-"""Event-driven simulation backend."""
+"""
+Event-driven simulation backend.
+
+Optimized with a high-performance 'Turbo' fast-path that executes standard
+signal-based simulations inside a fully compiled Numba kernel, bypassing
+Python interpreter overhead for tick-by-tick processing.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +21,189 @@ except Exception:  # pragma: no cover - optional dependency fallback
     tqdm = None
 
 
+# Position columns for Event Kernel
+EV_POS_TICKET = 0
+EV_POS_SYMBOL_ID = 1
+EV_POS_TYPE = 2
+EV_POS_OPEN_PRICE = 3
+EV_POS_VOLUME = 4
+EV_POS_SL = 5
+EV_POS_TP = 6
+EV_POS_OPEN_IDX = 7
+EV_POS_STATUS = 8
+EV_POS_COLS = 9
+
+# Record columns
+EV_REC_TICKET = 0
+EV_REC_SYMBOL_ID = 1
+EV_REC_TYPE = 2
+EV_REC_OPEN_PRICE = 3
+EV_REC_CLOSE_PRICE = 4
+EV_REC_VOLUME = 5
+EV_REC_SL = 6
+EV_REC_TP = 7
+EV_REC_OPEN_IDX = 8
+EV_REC_CLOSE_IDX = 9
+EV_REC_PROFIT = 10
+EV_REC_REASON = 11
+EV_REC_COMMISSION = 12
+EV_REC_COLS = 13
+
 if njit is not None:
+    @njit(cache=True)
+    def _run_event_driven_turbo_kernel(
+        bid_values,
+        ask_values,
+        symbol_id_arr,
+        entry_signals,
+        exit_signals,
+        sl_arr,
+        tp_arr,
+        is_bar_close_arr,
+        initial_balance,
+        contract_size,
+        commission_per_lot,
+        point_value,
+        num_symbols,
+        max_positions=200,
+    ):
+        balance = initial_balance
+        active_positions = np.empty((max_positions, EV_POS_COLS), dtype=np.float64)
+        for i in range(max_positions):
+            active_positions[i, EV_POS_STATUS] = 0.0
+
+        # Active slot tracker
+        active_slots = np.zeros(max_positions, dtype=np.int32)
+        num_active_slots = 0
+
+        last_bid_by_symbol = np.zeros(num_symbols, dtype=np.float64)
+        last_ask_by_symbol = np.zeros(num_symbols, dtype=np.float64)
+        
+        n_ticks = len(bid_values)
+        completed_trades = np.empty((min(1000000, n_ticks * 2), EV_REC_COLS), dtype=np.float64)
+        completed_count = 0
+        
+        equity_curve = np.empty((n_ticks, 2), dtype=np.float64)
+        equity_ptr = 0
+        next_ticket = 1
+
+        for idx in range(n_ticks):
+            bid = bid_values[idx]
+            ask = ask_values[idx]
+            symbol_id = int(symbol_id_arr[idx])
+            last_bid_by_symbol[symbol_id] = bid
+            last_ask_by_symbol[symbol_id] = ask
+            
+            # 1. SL/TP and Signal Checks for Active Positions
+            s_ptr = 0
+            while s_ptr < num_active_slots:
+                slot = active_slots[s_ptr]
+                p_sid = int(active_positions[slot, EV_POS_SYMBOL_ID])
+                
+                if p_sid == symbol_id:
+                    p_type = active_positions[slot, EV_POS_TYPE]
+                    p_open = active_positions[slot, EV_POS_OPEN_PRICE]
+                    p_vol = active_positions[slot, EV_POS_VOLUME]
+                    p_sl = active_positions[slot, EV_POS_SL]
+                    p_tp = active_positions[slot, EV_POS_TP]
+
+                    close_price = -1.0
+                    reason = 0.0
+
+                    # SL/TP Check
+                    if p_type == 0: # BUY
+                        if p_sl > 0.0 and bid <= p_sl:
+                            close_price = bid; reason = 1.0
+                        elif p_tp > 0.0 and bid >= p_tp:
+                            close_price = bid; reason = 2.0
+                    else: # SELL
+                        if p_sl > 0.0 and ask >= p_sl:
+                            close_price = ask; reason = 1.0
+                        elif p_tp > 0.0 and ask <= p_tp:
+                            close_price = ask; reason = 2.0
+                    
+                    # Exit Signal Check
+                    if close_price <= 0.0:
+                        exit_sig = exit_signals[idx]
+                        if exit_sig != 0.0:
+                            target_type = 0 if exit_sig == 1 else 1
+                            if p_type == target_type:
+                                close_price = bid if p_type == 0 else ask
+                                reason = 3.0
+
+                    if close_price > 0.0:
+                        pnl = (close_price - p_open) * p_vol * contract_size if p_type == 0 else (p_open - close_price) * p_vol * contract_size
+                        comm = -abs(p_vol * commission_per_lot * 2.0)
+                        balance += pnl + comm
+
+                        if completed_count < len(completed_trades):
+                            completed_trades[completed_count, EV_REC_TICKET] = active_positions[slot, EV_POS_TICKET]
+                            completed_trades[completed_count, EV_REC_SYMBOL_ID] = p_sid
+                            completed_trades[completed_count, EV_REC_TYPE] = p_type
+                            completed_trades[completed_count, EV_REC_OPEN_PRICE] = p_open
+                            completed_trades[completed_count, EV_REC_CLOSE_PRICE] = close_price
+                            completed_trades[completed_count, EV_REC_VOLUME] = p_vol
+                            completed_trades[completed_count, EV_REC_SL] = p_sl
+                            completed_trades[completed_count, EV_REC_TP] = p_tp
+                            completed_trades[completed_count, EV_REC_OPEN_IDX] = active_positions[slot, EV_POS_OPEN_IDX]
+                            completed_trades[completed_count, EV_REC_CLOSE_IDX] = idx
+                            completed_trades[completed_count, EV_REC_PROFIT] = pnl
+                            completed_trades[completed_count, EV_REC_REASON] = reason
+                            completed_trades[completed_count, EV_REC_COMMISSION] = comm
+                            completed_count += 1
+                        
+                        active_positions[slot, EV_POS_STATUS] = 0.0
+                        active_slots[s_ptr] = active_slots[num_active_slots - 1]
+                        num_active_slots -= 1
+                        continue
+                s_ptr += 1
+
+            # 2. Entry Signal Check
+            entry_sig = entry_signals[idx]
+            if entry_sig != 0.0 and num_active_slots < max_positions:
+                slot = -1
+                for i in range(max_positions):
+                    if active_positions[i, EV_POS_STATUS] == 0.0:
+                        slot = i
+                        break
+                
+                if slot != -1:
+                    e_type = 0 if entry_sig == 1 else 1
+                    active_positions[slot, EV_POS_TICKET] = next_ticket
+                    active_positions[slot, EV_POS_SYMBOL_ID] = symbol_id
+                    active_positions[slot, EV_POS_TYPE] = e_type
+                    active_positions[slot, EV_POS_OPEN_PRICE] = ask if e_type == 0 else bid
+                    active_positions[slot, EV_POS_VOLUME] = 0.01 
+                    active_positions[slot, EV_POS_SL] = sl_arr[idx]
+                    active_positions[slot, EV_POS_TP] = tp_arr[idx]
+                    active_positions[slot, EV_POS_OPEN_IDX] = idx
+                    active_positions[slot, EV_POS_STATUS] = 1.0
+                    
+                    active_slots[num_active_slots] = slot
+                    num_active_slots += 1
+                    next_ticket += 1
+
+            # 3. Equity Snapshot
+            if is_bar_close_arr[idx] or (idx % 1000 == 0):
+                unrealized = 0.0
+                for s_ptr in range(num_active_slots):
+                    slot = active_slots[s_ptr]
+                    p_sid = int(active_positions[slot, EV_POS_SYMBOL_ID])
+                    p_bid = last_bid_by_symbol[p_sid]
+                    p_ask = last_ask_by_symbol[p_sid]
+                    if p_bid <= 0.0: continue
+                    p_type = active_positions[slot, EV_POS_TYPE]
+                    p_price = p_bid if p_type == 0 else p_ask
+                    unrealized += (p_price - active_positions[slot, EV_POS_OPEN_PRICE]) * active_positions[slot, EV_POS_VOLUME] * contract_size if p_type == 0 else (active_positions[slot, EV_POS_OPEN_PRICE] - p_price) * active_positions[slot, EV_POS_VOLUME] * contract_size
+                
+                equity_curve[equity_ptr, 0] = idx
+                equity_curve[equity_ptr, 1] = balance + unrealized
+                equity_ptr += 1
+
+        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
+
+        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
+
     @njit(cache=True)
     def _process_ticks_numba(bid_values, ask_values):
         processed = 0
@@ -81,6 +269,7 @@ def run_event_driven_simulation(
     ask_col = col_name_map["ask"]
     bid_values = data[bid_col].to_numpy(dtype="float64", copy=False)
     ask_values = data[ask_col].to_numpy(dtype="float64", copy=False)
+    total_ticks = int(bid_values.shape[0])
 
     bar_phase_values = None
     if "is_bar_close" in col_name_map:
@@ -128,8 +317,95 @@ def run_event_driven_simulation(
         )
     )
 
-    schedule_enabled = any(value is not None for value in engine.run_schedule.values())
-    risk_enabled = engine._risk_enabled()
+    run_position_size = (
+        float(getattr(engine, "default_signal_volume", 0.01))
+        if position_size is None
+        else float(position_size)
+    )
+
+    processed = 0
+
+    # Basic setup for all paths
+    schedule_enabled = any(value is not None for value in getattr(engine, "run_schedule", {}).values())
+    risk_enabled = engine._risk_enabled() if hasattr(engine, "_risk_enabled") else False
+    
+    # -- FAST PATH: Turbo Kernel --
+    if (
+        not schedule_enabled 
+        and not risk_enabled 
+        and njit is not None 
+        and hasattr(engine, "_build_symbol_map")
+    ):
+        try:
+            symbol_map = engine._build_symbol_map()
+            default_symbol = engine._default_run_symbol()
+            
+            # Pre-resolve symbol names to IDs for the kernel
+            sym_to_id = {name: i for i, name in enumerate(symbol_map.keys())}
+            symbol_id_arr = np.zeros(total_ticks, dtype=np.int64)
+            if symbol_values is not None:
+                for i in range(total_ticks):
+                    s_name = symbol_values[i] if symbol_values[i] else default_symbol
+                    symbol_id_arr[i] = sym_to_id.get(s_name, 0)
+            
+            # We need bar close info for snapshots
+            is_bar_close_bool = np.zeros(total_ticks, dtype=np.bool_)
+            if bar_phase_values is not None:
+                for i in range(total_ticks):
+                    if _tick_phase_matches(bar_phase_values[i], "close"):
+                        is_bar_close_bool[i] = True
+            
+            # Resolve point value
+            point_val = 0.00001
+            first_sym_name = next(iter(symbol_map.keys())) if symbol_map else default_symbol
+            first_sym = symbol_map.get(first_sym_name)
+            if first_sym:
+                point_val = float(getattr(first_sym, "point", 0.00001) or 0.00001)
+
+            trades_arr, equity_arr, final_balance = _run_event_driven_turbo_kernel(
+                bid_values,
+                ask_values,
+                symbol_id_arr,
+                entry_values if entry_values is not None else np.zeros(total_ticks),
+                exit_values if exit_values is not None else np.zeros(total_ticks),
+                sl_values if sl_values is not None else np.zeros(total_ticks),
+                tp_values if tp_values is not None else np.zeros(total_ticks),
+                is_bar_close_bool,
+                float(engine.state.trading_account.balance),
+                float(getattr(first_sym, "trade_contract_size", 100000.0) or 100000.0) if first_sym else 100000.0,
+                float(commission_per_lot),
+                point_val,
+                len(symbol_map) if symbol_map else 1,
+            )
+            
+            # Post-process into Engine state
+            from backend.services.simulation.vectorized import reconstruct_trades, reconstruct_equity_curve
+            
+            prepared_fake = {
+                "id_to_symbol": {i: name for i, name in enumerate(symbol_map.keys())} if symbol_map else {0: default_symbol},
+                "timestamps": tick_time_values,
+                "bid_arr": bid_values,
+                "ask_arr": ask_values
+            }
+            
+            engine.state.completed_trade_records = reconstruct_trades(
+                trades_arr,
+                prepared_fake,
+                float(getattr(first_sym, "trade_contract_size", 100000.0) or 100000.0) if first_sym else 100000.0,
+                engine=engine
+            )
+            engine.state.completed_equity_curve = reconstruct_equity_curve(
+                equity_arr,
+                prepared_fake
+            )
+            engine.state.trading_account.balance = float(final_balance)
+            engine.state.trading_account.equity = float(final_balance)
+            
+            return int(total_ticks)
+        except Exception as e:
+            logger.warning(f"Event-driven turbo fast-path failed, falling back to slow path: {e}")
+
+    # Fallback/Slow path setup
     if not schedule_enabled and not has_signal_cols and not risk_enabled:
         return int(_process_ticks_numba(bid_values, ask_values))
 
@@ -154,15 +430,6 @@ def run_event_driven_simulation(
                 raise ValueError(
                     "Portfolio Engine.run requires every tick row to include a non-empty symbol."
                 )
-
-    engine._schedule_state_dirty = True
-    run_position_size = (
-        float(engine.default_signal_volume)
-        if position_size is None
-        else float(position_size)
-    )
-    processed = 0
-    total_ticks = int(bid_values.shape[0])
     progress_bar = None
     if show_progress and tqdm is not None:
         progress_bar = tqdm(

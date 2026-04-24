@@ -13,6 +13,15 @@ import pandas as pd
 from . import drawdowns, ratios
 
 
+try:
+    from numba import njit
+except ImportError:
+    def njit(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+
 def _to_1d_float_array(values) -> np.ndarray:
     """Normalize 1D numeric inputs to a float NumPy array."""
     if isinstance(values, pd.Series):
@@ -44,6 +53,26 @@ def avg_win_loss(values) -> tuple[float, float]:
     return avg_win, avg_loss
 
 
+@njit(cache=True)
+def _consecutive_wins_losses_kernel(wins_bool_arr):
+    max_wins = 0
+    max_losses = 0
+    current_wins = 0
+    current_losses = 0
+    for is_win in wins_bool_arr:
+        if is_win:
+            current_wins += 1
+            if current_wins > max_wins:
+                max_wins = current_wins
+            current_losses = 0
+        else:
+            current_losses += 1
+            if current_losses > max_losses:
+                max_losses = current_losses
+            current_wins = 0
+    return max_wins, max_losses
+
+
 def consecutive_wins_losses(values) -> tuple[int, int]:
     """Calculate max consecutive wins and losses from 1D numeric input."""
     normalized = _to_1d_float_array(values)
@@ -51,22 +80,7 @@ def consecutive_wins_losses(values) -> tuple[int, int]:
         return 0, 0
 
     wins = normalized > 0
-    max_wins = 0
-    max_losses = 0
-    current_wins = 0
-    current_losses = 0
-
-    for is_win in wins:
-        if is_win:
-            current_wins += 1
-            max_wins = max(max_wins, current_wins)
-            current_losses = 0
-        else:
-            current_losses += 1
-            max_losses = max(max_losses, current_losses)
-            current_wins = 0
-
-    return max_wins, max_losses
+    return _consecutive_wins_losses_kernel(wins)
 
 
 def median_mae_mfe(mae: np.ndarray, mfe: np.ndarray) -> tuple[float, float]:
@@ -207,80 +221,114 @@ def swap_paid(trades: pd.DataFrame) -> float:
     return float(trades["swap"].sum())
 
 
+@njit(cache=True)
+def _max_size_held_kernel(times, sizes):
+    # events are (time, size_change)
+    # Since we can't easily sort tuples in Numba efficiently, 
+    # we expect sorted inputs or handle it here if possible.
+    # But usually, it's better to sort in NumPy then process.
+    current_held = 0.0
+    max_held = 0.0
+    for i in range(len(sizes)):
+        current_held += sizes[i]
+        if abs(current_held) < 1e-9:
+            current_held = 0.0
+        if current_held > max_held:
+            max_held = current_held
+    return max_held
+
+
 def max_size_held(trades: pd.DataFrame) -> float:
     """
     Maximum number of contracts held at any one time.
-
-    If 'open_time' and 'close_time' are present, calculates max concurrent position size.
-    Otherwise, returns the maximum size of a single trade.
     """
     if len(trades) == 0:
         return 0.0
 
-    # Check for required columns for concurrency check
     has_time = "open_time" in trades.columns and "close_time" in trades.columns
-    has_size = "size" in trades.columns
-
-    if not has_size:
-        # If no size column, assume 1 unit per trade? Or return 0?
-        # Let's assume quantity/size column is 'size' (standard) or 'quantity'
-        if "quantity" in trades.columns:
-            trades = trades.rename(columns={"quantity": "size"})
-            has_size = True
-        elif "volume" in trades.columns:
-            trades = trades.rename(columns={"volume": "size"})
-            has_size = True
+    has_size = "size" in trades.columns or "quantity" in trades.columns or "volume" in trades.columns
 
     if not has_size:
         return 0.0
+    
+    size_col = "size" if "size" in trades.columns else ("quantity" if "quantity" in trades.columns else "volume")
 
     if not has_time:
-        # Fallback: Max single trade size
-        return float(trades["size"].max())
+        return float(trades[size_col].max())
 
-    # Calculate concurrency
     # Create events: (timestamp, size_change)
-    events = []
-
-    for _, trade in trades.iterrows():
-        size = trade["size"]
-        # Entry adds size, Exit removes size
-        # We assume direction is magnitude.
-        # For 'Max Contracts Held', usually we care about total exposure (Gross).
-
-        events.append((trade["open_time"], size))
-        events.append((trade["close_time"], -size))
-
-    # Sort events by time
-    # If times are equal, process exits before entries?
-    # Or entries before exits?
-    # "At any one time" -> If I close and open same second, did I hold both?
-    # Conservative (worst case): Open before Close -> Peak is higher.
-    # Realistic: Close then Open.
-    # Let's simple sort. Tuples sort by first elem then second.
-    # If times equal, positive size (Entry) comes AFTER negative size (Exit) because -size < size?
-    # No, -size is smaller. So Exits (-size) come BEFORE Entries (+size).
-    # This implies FIFO / Netting at the timestamp.
-
-    events.sort(key=lambda x: (x[0], x[1]))
-
-    current_held = 0.0
-    max_held = 0.0
-
-    for _, change in events:
-        current_held += change
-        # Floating point precision safety
-        if abs(current_held) < 1e-9:
-            current_held = 0.0
-
-        max_held = max(max_held, current_held)
-
-    return float(max_held)
+    # Using NumPy for faster event creation
+    open_times = trades["open_time"].values
+    close_times = trades["close_time"].values
+    sizes = trades[size_col].values
+    
+    # Combine into a flat array of events for sorting
+    n = len(trades)
+    event_times = np.concatenate([open_times, close_times])
+    # Open adds size, Close removes size
+    event_sizes = np.concatenate([sizes, -sizes])
+    
+    # Sort events by time, then size (exits before entries if times equal)
+    # In NumPy, lexsort is (secondary, primary)
+    idx = np.lexsort((event_sizes, event_times))
+    
+    sorted_sizes = event_sizes[idx]
+    
+    return float(_max_size_held_kernel(None, sorted_sizes))
 
 
-# =========================================================================
-# Win/Loss Statistics
-# =========================================================================
+@njit(cache=True)
+def _merge_intervals_kernel(starts, ends):
+    n = len(starts)
+    if n == 0:
+        return np.empty((0, 2), dtype=starts.dtype)
+    
+    # Pre-allocate worst case
+    merged = np.empty((n, 2), dtype=starts.dtype)
+    m_ptr = 0
+    
+    curr_start = starts[0]
+    curr_end = ends[0]
+    
+    for i in range(1, n):
+        if starts[i] <= curr_end:
+            if ends[i] > curr_end:
+                curr_end = ends[i]
+        else:
+            merged[m_ptr, 0] = curr_start
+            merged[m_ptr, 1] = curr_end
+            m_ptr += 1
+            curr_start = starts[i]
+            curr_end = ends[i]
+            
+    merged[m_ptr, 0] = curr_start
+    merged[m_ptr, 1] = curr_end
+    m_ptr += 1
+    
+    return merged[:m_ptr]
+
+
+def _merge_intervals(trades: pd.DataFrame) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """
+    Merge overlapping time intervals from trades.
+    """
+    if len(trades) == 0:
+        return []
+
+    if "open_time" not in trades.columns or "close_time" not in trades.columns:
+        return []
+
+    # Sort by open_time using NumPy
+    sorted_df = trades.sort_values("open_time")
+    starts = sorted_df["open_time"].values.view("int64")
+    ends = sorted_df["close_time"].values.view("int64")
+    
+    merged_raw = _merge_intervals_kernel(starts, ends)
+    
+    return [
+        (pd.Timestamp(merged_raw[i, 0]), pd.Timestamp(merged_raw[i, 1]))
+        for i in range(len(merged_raw))
+    ]
 
 
 def win_rate(trades: pd.DataFrame) -> float:

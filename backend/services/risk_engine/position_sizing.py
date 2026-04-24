@@ -189,7 +189,7 @@ class PositionSizer:
         """
         lot_size = float(self.config.get("lot_size", 0.1))
 
-        logger.debug(f"Fixed lot: size={lot_size:.3f} lots")
+        #logger.debug(f"Fixed lot: size={lot_size:.3f} lots")
 
         return lot_size
 

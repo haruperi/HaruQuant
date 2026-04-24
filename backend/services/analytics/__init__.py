@@ -9,6 +9,8 @@ Design principles:
 - Side-effect free
 - Composable
 - ML-ready
+- High-Performance: Uses Hybrid Vectorization with Numba-jitted kernels for
+  computationally intensive metrics and statistical tests.
 
 Modules:
 - metrics: Trade-based statistics & system-quality metrics

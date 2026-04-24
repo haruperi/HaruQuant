@@ -11,6 +11,15 @@ import numpy as np
 import pandas as pd
 
 
+try:
+    from numba import njit
+except ImportError:
+    def njit(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+
 def _returns_array(values) -> np.ndarray:
     """Normalize returns-like input to a float NumPy array."""
     if isinstance(values, pd.Series):
@@ -22,6 +31,23 @@ def _returns_array(values) -> np.ndarray:
         array = array.reshape(1)
 
     return array[~np.isnan(array)]
+
+
+@njit(cache=True)
+def _max_drawdown_duration_kernel(cumulative_equity):
+    running_max = -1e18
+    max_duration = 0
+    current_duration = 0
+    for val in cumulative_equity:
+        if val >= running_max:
+            running_max = val
+            current_duration = 0
+        else:
+            current_duration += 1
+            if current_duration > max_duration:
+                max_duration = current_duration
+    return max_duration
+
 
 # =========================================================================
 # Core Drawdowns
@@ -156,6 +182,23 @@ def drawdown_distribution(equity_curve: pd.Series) -> Dict[str, float]:
 # =========================================================================
 
 
+@njit(cache=True)
+def _drawdown_duration_series_kernel(equity_arr):
+    n = len(equity_arr)
+    durations = np.zeros(n, dtype=np.int64)
+    running_max = -1e18
+    current_duration = 0
+    for i in range(n):
+        val = equity_arr[i]
+        if val >= running_max:
+            running_max = val
+            current_duration = 0
+        else:
+            current_duration += 1
+        durations[i] = current_duration
+    return durations
+
+
 def drawdown_duration_series(equity_curve: pd.Series) -> pd.Series:
     """
     Calculate drawdown duration series.
@@ -171,24 +214,9 @@ def drawdown_duration_series(equity_curve: pd.Series) -> pd.Series:
     if len(equity_curve) == 0:
         return pd.Series(dtype=int)
 
-    # Find running maximum
-    running_max = equity_curve.expanding().max()
-
-    # Check if at new high
-    at_high = equity_curve >= running_max
-
-    # Count periods since last high
-    duration = pd.Series(0, index=equity_curve.index)
-    current_duration = 0
-
-    for i, is_high in enumerate(at_high):
-        if is_high:
-            current_duration = 0
-        else:
-            current_duration += 1
-        duration.iloc[i] = current_duration
-
-    return duration
+    equity_arr = equity_curve.astype(float).to_numpy()
+    durations = _drawdown_duration_series_kernel(equity_arr)
+    return pd.Series(durations, index=equity_curve.index)
 
 
 def max_drawdown_duration(equity_curve: pd.Series | np.ndarray) -> int:
@@ -205,26 +233,14 @@ def max_drawdown_duration(equity_curve: pd.Series | np.ndarray) -> int:
         returns = _returns_array(equity_curve)
         if len(returns) == 0:
             return 0
-
         cumulative = np.cumprod(1 + returns)
-        running_max = np.maximum.accumulate(cumulative)
-        in_drawdown = cumulative < running_max
-
-        max_duration = 0
-        current_duration = 0
-        for drawdown_flag in in_drawdown:
-            if drawdown_flag:
-                current_duration += 1
-                max_duration = max(max_duration, current_duration)
-            else:
-                current_duration = 0
-        return max_duration
+        return _max_drawdown_duration_kernel(cumulative)
 
     if len(equity_curve) == 0:
         return 0
 
-    duration_series = drawdown_duration_series(equity_curve)
-    return int(duration_series.max())
+    equity_arr = equity_curve.astype(float).to_numpy()
+    return _max_drawdown_duration_kernel(equity_arr)
 
 
 def avg_drawdown_duration(equity_curve: pd.Series) -> float:
@@ -452,6 +468,36 @@ def trade_level_drawdowns(trades: pd.DataFrame) -> pd.Series:
     return drawdown
 
 
+@njit(cache=True)
+def _max_close_to_close_drawdown_kernel(mfe_arr, mae_arr, pnl_arr, initial_equity):
+    current_equity = initial_equity
+    running_max_equity = initial_equity
+    max_dd = 0.0
+
+    for i in range(len(mfe_arr)):
+        mfe = mfe_arr[i]
+        mae = mae_arr[i]
+        pnl = pnl_arr[i]
+
+        trade_peak = current_equity + mfe
+        trade_valley = current_equity - mae
+        trade_close = current_equity + pnl
+
+        if trade_peak > running_max_equity:
+            running_max_equity = trade_peak
+
+        dd_valley = running_max_equity - trade_valley
+        dd_close = running_max_equity - trade_close
+
+        if dd_valley > max_dd:
+            max_dd = dd_valley
+        if dd_close > max_dd:
+            max_dd = dd_close
+
+        current_equity = trade_close
+    return max_dd
+
+
 def max_close_to_close_drawdown(trades: pd.DataFrame) -> float:
     """
     Max 'Close To Close' Drawdown (using User's Run-Up Definition).
@@ -465,43 +511,56 @@ def max_close_to_close_drawdown(trades: pd.DataFrame) -> float:
 
     # Ensure we have the necessary columns, if not fall back to simple PL
     if "mfe_usd" not in trades.columns or "mae_usd" not in trades.columns:
-        return max_strategy_drawdown(trades["profit_loss"].cumsum())
+        # Sort by close_time to be consistent
+        sorted_trades = trades.sort_values("close_time")
+        # For simple cumulative PnL, we can use vectorized numpy
+        cumulative_pnl = sorted_trades["profit_loss"].cumsum().to_numpy()
+        running_max = np.maximum.accumulate(cumulative_pnl)
+        drawdown = running_max - cumulative_pnl
+        return float(np.max(drawdown))
 
     # Sort trades to ensure correct equity sequence
     sorted_trades = trades.sort_values("close_time")
 
-    current_equity = 0.0
-    running_max_equity = 0.0
-    max_dd = 0.0
+    mfe_arr = sorted_trades["mfe_usd"].astype(float).to_numpy()
+    mae_arr = sorted_trades["mae_usd"].astype(float).to_numpy()
+    pnl_arr = sorted_trades["profit_loss"].astype(float).to_numpy()
 
-    for _, trade in sorted_trades.iterrows():
-        # High point of this trade for the account
-        # (Assuming MFE is positive distance from entry)
-        trade_peak = current_equity + trade["mfe_usd"]
+    return _max_close_to_close_drawdown_kernel(mfe_arr, mae_arr, pnl_arr, 0.0)
 
-        # Low point of this trade for the account
-        # (Assuming MAE is positive distance from entry, representing loss)
-        trade_valley = current_equity - trade["mae_usd"]
 
-        # Close point
-        trade_close = current_equity + trade["profit_loss"]
+@njit(cache=True)
+def _max_close_to_close_drawdown_percent_kernel(
+    mfe_arr, mae_arr, pnl_arr, initial_balance
+):
+    current_equity = initial_balance
+    running_max_equity = initial_balance
+    max_dd_pct = 0.0
 
-        # Update Running Max (Run-Up)
-        running_max_equity = max(running_max_equity, trade_peak)
+    for i in range(len(mfe_arr)):
+        mfe = mfe_arr[i]
+        mae = mae_arr[i]
+        pnl = pnl_arr[i]
 
-        # Calculate Drawdowns from that Running Max
-        # 1. To the intra-trade valley
-        dd_valley = running_max_equity - trade_valley
+        trade_peak = current_equity + mfe
+        trade_valley = current_equity - mae
+        trade_close = current_equity + pnl
 
-        # 2. To the close
-        dd_close = running_max_equity - trade_close
+        if trade_peak > running_max_equity:
+            running_max_equity = trade_peak
 
-        max_dd = max(max_dd, dd_valley, dd_close)
+        peak_ref = running_max_equity if running_max_equity > 0 else 1e-9
 
-        # Update equity for next step
+        dd_valley_pct = (running_max_equity - trade_valley) / peak_ref * 100
+        dd_close_pct = (running_max_equity - trade_close) / peak_ref * 100
+
+        if dd_valley_pct > max_dd_pct:
+            max_dd_pct = dd_valley_pct
+        if dd_close_pct > max_dd_pct:
+            max_dd_pct = dd_close_pct
+
         current_equity = trade_close
-
-    return float(max_dd)
+    return max_dd_pct
 
 
 def max_close_to_close_drawdown_percent(
@@ -524,31 +583,13 @@ def max_close_to_close_drawdown_percent(
 
     sorted_trades = trades.sort_values("close_time")
 
-    current_equity = initial_balance
-    running_max_equity = initial_balance
-    max_dd_pct = 0.0
+    mfe_arr = sorted_trades["mfe_usd"].astype(float).to_numpy()
+    mae_arr = sorted_trades["mae_usd"].astype(float).to_numpy()
+    pnl_arr = sorted_trades["profit_loss"].astype(float).to_numpy()
 
-    for _, trade in sorted_trades.iterrows():
-        trade_peak = current_equity + trade["mfe_usd"]
-        trade_valley = current_equity - trade["mae_usd"]
-        trade_close = current_equity + trade["profit_loss"]
-
-        running_max_equity = max(running_max_equity, trade_peak)
-
-        # Avoid division by zero
-        if running_max_equity <= 0:
-            # If account is blown, DD is massive?
-            # Or undefined? Let's skip or treat as 0 gain?
-            running_max_equity = 1e-9
-
-        dd_valley_pct = (running_max_equity - trade_valley) / running_max_equity * 100
-        dd_close_pct = (running_max_equity - trade_close) / running_max_equity * 100
-
-        max_dd_pct = max(max_dd_pct, dd_valley_pct, dd_close_pct)
-
-        current_equity = trade_close
-
-    return float(max_dd_pct)
+    return _max_close_to_close_drawdown_percent_kernel(
+        mfe_arr, mae_arr, pnl_arr, float(initial_balance)
+    )
 
 
 def avg_trade_drawdown(trades: pd.DataFrame) -> float:

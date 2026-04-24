@@ -134,6 +134,7 @@ class Engine:
         }
         self._schedule_state_dirty = True
         self.default_signal_volume = 0.01
+        self.fast_mode = False
         self.risk_management = {
             "enabled": False,
             "position_sizer": None,

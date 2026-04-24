@@ -90,38 +90,44 @@ def gross_loss(trades: pd.DataFrame) -> float:
 # =========================================================================
 
 
+try:
+    from numba import njit
+except ImportError:
+    def njit(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+
+@njit(cache=True)
+def _equity_curve_kernel(pnl_arr, initial_balance):
+    n = len(pnl_arr)
+    out = np.empty(n + 1, dtype=np.float64)
+    out[0] = initial_balance
+    curr = initial_balance
+    for i in range(n):
+        curr += pnl_arr[i]
+        out[i + 1] = curr
+    return out
+
+
 def equity_curve(trades: pd.DataFrame, initial_balance: float) -> pd.Series:
     """
     Generate equity curve from trades.
-
-    Args:
-        trades: Trades DataFrame
-        initial_balance: Starting balance
-
-    Returns:
-        Series with cumulative equity indexed by close_time
     """
     if len(trades) == 0:
         return pd.Series([initial_balance])
 
-    # Sort by close time
     sorted_trades = trades.sort_values("close_time")
-
-    # Cumulative P&L
-    cumulative_pnl = sorted_trades["profit_loss"].cumsum()
-    equity_series = initial_balance + cumulative_pnl
-
-    # Set index to close time
-    equity_series.index = sorted_trades["close_time"]
-
-    # Add initial point
-    if len(sorted_trades) > 0:
-        first_time = sorted_trades.iloc[0]["open_time"]
-        equity_series = pd.concat(
-            [pd.Series([initial_balance], index=[first_time]), equity_series]
-        )
-
-    return equity_series
+    pnl_arr = sorted_trades["profit_loss"].values.astype(np.float64)
+    
+    equity_values = _equity_curve_kernel(pnl_arr, float(initial_balance))
+    
+    # Construct index
+    first_time = sorted_trades.iloc[0]["open_time"]
+    indices = np.concatenate([np.array([first_time]), sorted_trades["close_time"].values])
+    
+    return pd.Series(equity_values, index=indices)
 
 
 def balance_curve(trades: pd.DataFrame, initial_balance: float) -> pd.Series:
@@ -505,29 +511,33 @@ def adjusted_net_profit(trades: pd.DataFrame) -> float:
     return adjusted_gross_profit(trades) + adjusted_gross_loss(trades)
 
 
+@njit(cache=True)
+def _outlier_mask_kernel(pnl_arr, mean, std, sigma):
+    n = len(pnl_arr)
+    mask = np.ones(n, dtype=np.bool_)
+    lower = mean - (sigma * std)
+    upper = mean + (sigma * std)
+    for i in range(n):
+        if pnl_arr[i] < lower or pnl_arr[i] > upper:
+            mask[i] = False
+    return mask
+
+
 def _remove_outliers(trades: pd.DataFrame, sigma: float = 3.0) -> pd.DataFrame:
     """
     Remove trades that are outliers.
-
-    Helper to remove trades that are more than `sigma` standard deviations
-    away from the mean profit/loss.
     """
     if len(trades) < 2:
         return trades
 
-    mean = trades["profit_loss"].mean()
-    std = trades["profit_loss"].std()
+    pnl_arr = trades["profit_loss"].values.astype(np.float64)
+    mean = np.mean(pnl_arr)
+    std = np.std(pnl_arr)
 
     if std == 0:
         return trades
 
-    lower_bound = mean - (sigma * std)
-    upper_bound = mean + (sigma * std)
-
-    # Keep trades within [mean - 3std, mean + 3std]
-    mask = (trades["profit_loss"] >= lower_bound) & (
-        trades["profit_loss"] <= upper_bound
-    )
+    mask = _outlier_mask_kernel(pnl_arr, float(mean), float(std), float(sigma))
     return trades[mask]
 
 

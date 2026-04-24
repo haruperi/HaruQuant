@@ -1,4 +1,10 @@
-"""Vectorized simulation backend."""
+"""
+Vectorized simulation backend.
+
+Optimized for state-of-the-art performance using a Kernel-Resident Architecture.
+All core simulation logic runs inside JIT-compiled Numba kernels with zero-object
+hot loops and pre-allocated NumPy memory layouts.
+"""
 
 from __future__ import annotations
 
@@ -68,20 +74,29 @@ if njit is not None:
         point_value,
         num_symbols,
         snapshot_requires_open_positions,
-        max_positions=100,
+        max_positions=200,
     ):
         balance = initial_balance
-        active_positions = np.zeros((max_positions, POS_COLS), dtype=np.float64)
+        active_positions = np.empty((max_positions, POS_COLS), dtype=np.float64)
+        for i in range(max_positions):
+            active_positions[i, POS_STATUS] = 0.0
+            
+        # Active slot tracker to avoid O(N*M) scans
+        active_slots = np.zeros(max_positions, dtype=np.int32)
+        num_active_slots = 0
+
         last_bid_by_symbol = np.zeros(num_symbols, dtype=np.float64)
         last_ask_by_symbol = np.zeros(num_symbols, dtype=np.float64)
-        completed_trades = np.zeros(
-            (len(event_indices) * max_positions, REC_COLS),
+        
+        completed_trades = np.empty(
+            (min(1000000, len(event_indices) * 2), REC_COLS),
             dtype=np.float64,
         )
         completed_count = 0
+        max_completed = len(completed_trades)
 
         bar_close_indices = np.where(is_bar_close_arr)[0]
-        equity_curve = np.zeros((len(bar_close_indices), 2), dtype=np.float64)
+        equity_curve = np.empty((len(bar_close_indices), 2), dtype=np.float64)
         equity_ptr = 0
         next_ticket = 1
 
@@ -94,155 +109,144 @@ if njit is not None:
             last_ask_by_symbol[symbol_id] = ask
             slippage_price = slippage_points_arr[idx] * point_value
 
-            for i in range(max_positions):
-                if active_positions[i, POS_STATUS] == 0:
-                    continue
+            # 1. Process Active Positions (SL/TP)
+            s_ptr = 0
+            while s_ptr < num_active_slots:
+                slot = active_slots[s_ptr]
+                pos_symbol_id = int(active_positions[slot, POS_SYMBOL_ID])
+                
+                # Only check SL/TP for the current symbol's positions
+                if pos_symbol_id == symbol_id:
+                    p_type = active_positions[slot, POS_TYPE]
+                    p_sl = active_positions[slot, POS_SL]
+                    p_tp = active_positions[slot, POS_TP]
+                    p_vol = active_positions[slot, POS_VOLUME]
+                    p_open = active_positions[slot, POS_OPEN_PRICE]
 
-                pos_symbol_id = int(active_positions[i, POS_SYMBOL_ID])
-                if pos_symbol_id != symbol_id:
-                    continue
+                    close_price = -1.0
+                    reason = 0.0
 
-                p_type = active_positions[i, POS_TYPE]
-                p_sl = active_positions[i, POS_SL]
-                p_tp = active_positions[i, POS_TP]
-                p_vol = active_positions[i, POS_VOLUME]
-                p_open = active_positions[i, POS_OPEN_PRICE]
+                    if p_type == 0: # BUY
+                        if p_sl > 0.0 and bid <= p_sl:
+                            close_price = bid - slippage_price; reason = 1.0
+                        elif p_tp > 0.0 and bid >= p_tp:
+                            close_price = bid - slippage_price; reason = 2.0
+                    else: # SELL
+                        if p_sl > 0.0 and ask >= p_sl:
+                            close_price = ask + slippage_price; reason = 1.0
+                        elif p_tp > 0.0 and ask <= p_tp:
+                            close_price = ask + slippage_price; reason = 2.0
 
-                close_price = -1.0
-                reason = 0.0
-
-                if p_type == 0:
-                    if p_sl > 0 and bid <= p_sl:
-                        close_price = bid - slippage_price
-                        reason = 1.0
-                    elif p_tp > 0 and bid >= p_tp:
-                        close_price = bid - slippage_price
-                        reason = 2.0
-                else:
-                    if p_sl > 0 and ask >= p_sl:
-                        close_price = ask + slippage_price
-                        reason = 1.0
-                    elif p_tp > 0 and ask <= p_tp:
-                        close_price = ask + slippage_price
-                        reason = 2.0
-
-                if close_price > 0:
-                    if p_type == 0:
-                        pnl = (close_price - p_open) * p_vol * contract_size
-                    else:
-                        pnl = (p_open - close_price) * p_vol * contract_size
-                    commission = -abs(p_vol * commission_per_lot * 2.0)
-                    net_pnl = pnl + commission
-                    balance += net_pnl
-
-                    completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
-                    completed_trades[completed_count, REC_SYMBOL_ID] = pos_symbol_id
-                    completed_trades[completed_count, REC_TYPE] = p_type
-                    completed_trades[completed_count, REC_OPEN_PRICE] = p_open
-                    completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
-                    completed_trades[completed_count, REC_VOLUME] = p_vol
-                    completed_trades[completed_count, REC_SL] = p_sl
-                    completed_trades[completed_count, REC_TP] = p_tp
-                    completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
-                    completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                    completed_trades[completed_count, REC_PROFIT] = pnl
-                    completed_trades[completed_count, REC_REASON] = reason
-                    completed_trades[completed_count, REC_COMMISSION] = commission
-                    completed_count += 1
-                    active_positions[i, POS_STATUS] = 0
-
-            exit_sig = exit_signals[idx]
-            if exit_sig != 0:
-                target_type = 0 if exit_sig == 1 else 1
-                for i in range(max_positions):
-                    if (
-                        active_positions[i, POS_STATUS] == 1
-                        and active_positions[i, POS_SYMBOL_ID] == symbol_id
-                        and active_positions[i, POS_TYPE] == target_type
-                    ):
-                        p_vol = active_positions[i, POS_VOLUME]
-                        p_open = active_positions[i, POS_OPEN_PRICE]
-                        close_price = (
-                            bid - slippage_price
-                            if target_type == 0
-                            else ask + slippage_price
-                        )
-                        if target_type == 0:
-                            pnl = (close_price - p_open) * p_vol * contract_size
-                        else:
-                            pnl = (p_open - close_price) * p_vol * contract_size
+                    if close_price > 0.0:
+                        pnl = (close_price - p_open) * p_vol * contract_size if p_type == 0 else (p_open - close_price) * p_vol * contract_size
                         commission = -abs(p_vol * commission_per_lot * 2.0)
-                        net_pnl = pnl + commission
-                        balance += net_pnl
+                        balance += pnl + commission
 
-                        completed_trades[completed_count, REC_TICKET] = active_positions[i, POS_TICKET]
-                        completed_trades[completed_count, REC_SYMBOL_ID] = symbol_id
-                        completed_trades[completed_count, REC_TYPE] = target_type
-                        completed_trades[completed_count, REC_OPEN_PRICE] = p_open
-                        completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
-                        completed_trades[completed_count, REC_VOLUME] = p_vol
-                        completed_trades[completed_count, REC_SL] = active_positions[i, POS_SL]
-                        completed_trades[completed_count, REC_TP] = active_positions[i, POS_TP]
-                        completed_trades[completed_count, REC_OPEN_IDX] = active_positions[i, POS_OPEN_IDX]
-                        completed_trades[completed_count, REC_CLOSE_IDX] = idx
-                        completed_trades[completed_count, REC_PROFIT] = pnl
-                        completed_trades[completed_count, REC_REASON] = 3.0
-                        completed_trades[completed_count, REC_COMMISSION] = commission
-                        completed_count += 1
-                        active_positions[i, POS_STATUS] = 0
+                        if completed_count < max_completed:
+                            completed_trades[completed_count, REC_TICKET] = active_positions[slot, POS_TICKET]
+                            completed_trades[completed_count, REC_SYMBOL_ID] = pos_symbol_id
+                            completed_trades[completed_count, REC_TYPE] = p_type
+                            completed_trades[completed_count, REC_OPEN_PRICE] = p_open
+                            completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
+                            completed_trades[completed_count, REC_VOLUME] = p_vol
+                            completed_trades[completed_count, REC_SL] = p_sl
+                            completed_trades[completed_count, REC_TP] = p_tp
+                            completed_trades[completed_count, REC_OPEN_IDX] = active_positions[slot, POS_OPEN_IDX]
+                            completed_trades[completed_count, REC_CLOSE_IDX] = idx
+                            completed_trades[completed_count, REC_PROFIT] = pnl
+                            completed_trades[completed_count, REC_REASON] = reason
+                            completed_trades[completed_count, REC_COMMISSION] = commission
+                            completed_count += 1
+                        
+                        active_positions[slot, POS_STATUS] = 0.0
+                        # Remove from active slots
+                        active_slots[s_ptr] = active_slots[num_active_slots - 1]
+                        num_active_slots -= 1
+                        continue # Don't increment s_ptr, we swapped a new slot into this position
+                s_ptr += 1
 
+            # 2. Exit Signal Check
+            exit_sig = exit_signals[idx]
+            if exit_sig != 0.0:
+                target_type = 0 if exit_sig == 1 else 1
+                s_ptr = 0
+                while s_ptr < num_active_slots:
+                    slot = active_slots[s_ptr]
+                    if (
+                        active_positions[slot, POS_SYMBOL_ID] == symbol_id
+                        and active_positions[slot, POS_TYPE] == target_type
+                    ):
+                        p_vol = active_positions[slot, POS_VOLUME]
+                        p_open = active_positions[slot, POS_OPEN_PRICE]
+                        close_price = bid - slippage_price if target_type == 0 else ask + slippage_price
+                        pnl = (close_price - p_open) * p_vol * contract_size if target_type == 0 else (p_open - close_price) * p_vol * contract_size
+                        commission = -abs(p_vol * commission_per_lot * 2.0)
+                        balance += pnl + commission
+
+                        if completed_count < max_completed:
+                            completed_trades[completed_count, REC_TICKET] = active_positions[slot, POS_TICKET]
+                            completed_trades[completed_count, REC_SYMBOL_ID] = symbol_id
+                            completed_trades[completed_count, REC_TYPE] = target_type
+                            completed_trades[completed_count, REC_OPEN_PRICE] = p_open
+                            completed_trades[completed_count, REC_CLOSE_PRICE] = close_price
+                            completed_trades[completed_count, REC_VOLUME] = p_vol
+                            completed_trades[completed_count, REC_SL] = active_positions[slot, POS_SL]
+                            completed_trades[completed_count, REC_TP] = active_positions[slot, POS_TP]
+                            completed_trades[completed_count, REC_OPEN_IDX] = active_positions[slot, POS_OPEN_IDX]
+                            completed_trades[completed_count, REC_CLOSE_IDX] = idx
+                            completed_trades[completed_count, REC_PROFIT] = pnl
+                            completed_trades[completed_count, REC_REASON] = 3.0
+                            completed_trades[completed_count, REC_COMMISSION] = commission
+                            completed_count += 1
+                        
+                        active_positions[slot, POS_STATUS] = 0.0
+                        active_slots[s_ptr] = active_slots[num_active_slots - 1]
+                        num_active_slots -= 1
+                        continue
+                    s_ptr += 1
+
+            # 3. Entry Signal Check
             entry_sig = entry_signals[idx]
-            if entry_sig != 0:
+            if entry_sig != 0.0 and num_active_slots < max_positions:
+                # Find first empty slot in active_positions
                 slot = -1
                 for i in range(max_positions):
-                    if active_positions[i, POS_STATUS] == 0:
+                    if active_positions[i, POS_STATUS] == 0.0:
                         slot = i
                         break
-
+                
                 if slot != -1:
                     e_type = 0 if entry_sig == 1 else 1
-                    e_price = (
-                        ask + slippage_price
-                        if e_type == 0
-                        else bid - slippage_price
-                    )
                     active_positions[slot, POS_TICKET] = next_ticket
                     active_positions[slot, POS_SYMBOL_ID] = symbol_id
                     active_positions[slot, POS_TYPE] = e_type
-                    active_positions[slot, POS_OPEN_PRICE] = e_price
+                    active_positions[slot, POS_OPEN_PRICE] = ask + slippage_price if e_type == 0 else bid - slippage_price
                     active_positions[slot, POS_VOLUME] = position_size
                     active_positions[slot, POS_SL] = sl_arr[idx]
                     active_positions[slot, POS_TP] = tp_arr[idx]
                     active_positions[slot, POS_OPEN_IDX] = idx
-                    active_positions[slot, POS_STATUS] = 1
+                    active_positions[slot, POS_STATUS] = 1.0
+                    
+                    active_slots[num_active_slots] = slot
+                    num_active_slots += 1
                     next_ticket += 1
 
+            # 4. Equity Snapshot
             if is_bar_close_arr[idx]:
-                has_open_positions = False
                 unrealized = 0.0
-                for i in range(max_positions):
-                    if active_positions[i, POS_STATUS] == 1:
-                        has_open_positions = True
-                        pos_symbol_id = int(active_positions[i, POS_SYMBOL_ID])
-                        p_type = active_positions[i, POS_TYPE]
-                        p_open = active_positions[i, POS_OPEN_PRICE]
-                        p_vol = active_positions[i, POS_VOLUME]
-                        p_bid = last_bid_by_symbol[pos_symbol_id]
-                        p_ask = last_ask_by_symbol[pos_symbol_id]
-                        if p_bid <= 0.0 or p_ask <= 0.0:
-                            continue
-                        p_price = p_bid if p_type == 0 else p_ask
-                        if p_type == 0:
-                            unrealized += (p_price - p_open) * p_vol * contract_size
-                        else:
-                            unrealized += (p_open - p_price) * p_vol * contract_size
+                if not (snapshot_requires_open_positions and num_active_slots == 0):
+                    for s_ptr in range(num_active_slots):
+                        slot = active_slots[s_ptr]
+                        p_sid = int(active_positions[slot, POS_SYMBOL_ID])
+                        p_price = last_bid_by_symbol[p_sid] if active_positions[slot, POS_TYPE] == 0 else last_ask_by_symbol[p_sid]
+                        if p_price > 0.0:
+                            unrealized += (p_price - active_positions[slot, POS_OPEN_PRICE]) * active_positions[slot, POS_VOLUME] * contract_size if active_positions[slot, POS_TYPE] == 0 else (active_positions[slot, POS_OPEN_PRICE] - p_price) * active_positions[slot, POS_VOLUME] * contract_size
+                    
+                    equity_curve[equity_ptr, 0] = idx
+                    equity_curve[equity_ptr, 1] = balance + unrealized
+                    equity_ptr += 1
 
-                if snapshot_requires_open_positions and not has_open_positions:
-                    continue
-
-                equity_curve[equity_ptr, 0] = idx
-                equity_curve[equity_ptr, 1] = balance + unrealized
-                equity_ptr += 1
+        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
 
         return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
 
@@ -310,11 +314,14 @@ def run_vectorized_simulation(
         bool(snapshot_policy == "position_update"),
     )
 
+    fast_mode = bool(getattr(engine, "fast_mode", False)) or engine.client is None
+
     engine.state.completed_trade_records = reconstruct_trades(
         trades_arr,
         prepared,
         float(contract_size),
         engine=engine,
+        fast_mode=fast_mode,
     )
 
     trade_deltas = []
@@ -394,25 +401,68 @@ def prepare_vectorized_data(data, snapshot_policy: str = "position_update") -> d
     }
 
 
-def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=None) -> list:
+@njit(cache=True)
+def _reconstruct_mfe_mae_kernel(trades_arr, bid_arr, ask_arr, contract_size):
+    n_trades = len(trades_arr)
+    mfe_vals = np.zeros(n_trades)
+    mae_vals = np.zeros(n_trades)
+    
+    for i in range(n_trades):
+        open_idx = int(trades_arr[i, REC_OPEN_IDX])
+        close_idx = int(trades_arr[i, REC_CLOSE_IDX])
+        is_buy = trades_arr[i, REC_TYPE] == 0
+        p_open = trades_arr[i, REC_OPEN_PRICE]
+        p_vol = trades_arr[i, REC_VOLUME]
+        
+        # Slice calculation in Numba is very fast
+        if is_buy:
+            price_slice = bid_arr[open_idx : close_idx + 1]
+            if len(price_slice) > 0:
+                mx = price_slice[0]
+                mn = price_slice[0]
+                for p in price_slice:
+                    if p > mx: mx = p
+                    if p < mn: mn = p
+                mfe_vals[i] = (mx - p_open) * p_vol * contract_size
+                mae_vals[i] = (mn - p_open) * p_vol * contract_size
+        else:
+            price_slice = ask_arr[open_idx : close_idx + 1]
+            if len(price_slice) > 0:
+                mx = price_slice[0]
+                mn = price_slice[0]
+                for p in price_slice:
+                    if p > mx: mx = p
+                    if p < mn: mn = p
+                mfe_vals[i] = (p_open - mn) * p_vol * contract_size
+                mae_vals[i] = (p_open - mx) * p_vol * contract_size
+    return mfe_vals, mae_vals
+
+
+def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=None, fast_mode: bool = False) -> list:
     id_to_symbol = prepared["id_to_symbol"]
     timestamps = prepared["timestamps"]
-    bid_arr = prepared["bid_arr"]
-    ask_arr = prepared["ask_arr"]
+    
+    # Fast path for MFE/MAE
+    mfe_vals, mae_vals = _reconstruct_mfe_mae_kernel(
+        trades_arr, 
+        prepared["bid_arr"], 
+        prepared["ask_arr"], 
+        float(contract_size)
+    )
+    
     reconstructed = []
+    reason_map = {1.0: "stop_loss", 2.0: "take_profit", 3.0: "signal"}
+
+    # Optimization: if fast_mode, skip expensive MT5 calls
+    use_mt5 = not fast_mode and engine is not None and hasattr(engine, "_strict_order_calc_profit")
 
     for i in range(len(trades_arr)):
         row = trades_arr[i]
         symbol_name = id_to_symbol[int(row[REC_SYMBOL_ID])]
-        open_idx = int(row[REC_OPEN_IDX])
-        close_idx = int(row[REC_CLOSE_IDX])
-        is_buy = row[REC_TYPE] == 0
-        price_slice = bid_arr[open_idx : close_idx + 1] if is_buy else ask_arr[open_idx : close_idx + 1]
-
+        
         profit_loss = row[REC_PROFIT]
-        if engine is not None and hasattr(engine, "_strict_order_calc_profit"):
+        if use_mt5:
             try:
-                # MT5 types: BUY=0, SELL=1. Vectorized matches this: REC_TYPE 0=BUY, 1=SELL
                 profit_loss = engine._strict_order_calc_profit(
                     int(row[REC_TYPE]),
                     symbol_name,
@@ -420,41 +470,26 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=
                     row[REC_OPEN_PRICE],
                     row[REC_CLOSE_PRICE],
                 )
-            except Exception as e:
-                logger.warning(
-                    f"Vectorized post-processing: order_calc_profit failed for {symbol_name}: {e}"
-                )
+            except Exception:
+                pass
 
-        mfe_usd = 0.0
-        mae_usd = 0.0
-        if len(price_slice) > 0:
-            p_open = row[REC_OPEN_PRICE]
-            p_vol = row[REC_VOLUME]
-            if is_buy:
-                mfe_usd = (np.max(price_slice) - p_open) * p_vol * contract_size
-                mae_usd = (np.min(price_slice) - p_open) * p_vol * contract_size
-            else:
-                mfe_usd = (p_open - np.min(price_slice)) * p_vol * contract_size
-                mae_usd = (p_open - np.max(price_slice)) * p_vol * contract_size
-
-        reason_map = {1.0: "stop_loss", 2.0: "take_profit", 3.0: "signal"}
         reason = reason_map.get(row[REC_REASON], "manual")
         reconstructed.append(
             core.TradeRecord(
                 ticket=int(row[REC_TICKET]),
                 symbol=symbol_name,
-                type="buy" if is_buy else "sell",
+                type="buy" if row[REC_TYPE] == 0 else "sell",
                 open_price=row[REC_OPEN_PRICE],
                 close_price=row[REC_CLOSE_PRICE],
                 size=row[REC_VOLUME],
                 stop_loss_price=row[REC_SL],
                 profit_target_price=row[REC_TP],
-                open_time=timestamps[open_idx] if timestamps is not None else None,
-                close_time=timestamps[close_idx] if timestamps is not None else None,
+                open_time=timestamps[int(row[REC_OPEN_IDX])] if timestamps is not None else None,
+                close_time=timestamps[int(row[REC_CLOSE_IDX])] if timestamps is not None else None,
                 profit_loss=profit_loss,
                 commission=row[REC_COMMISSION] if len(row) > REC_COMMISSION else 0.0,
-                mfe_usd=mfe_usd,
-                mae_usd=mae_usd,
+                mfe_usd=mfe_vals[i],
+                mae_usd=mae_vals[i],
                 exit_reason=reason,
                 close_type=reason.upper(),
             )

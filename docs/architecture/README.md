@@ -6,5 +6,6 @@ Use this area for:
 - architecture decision records
 - backend and system topology notes
 - durable design records that are not runtime code
+- [Performance Optimization Guide](../development/performance-optimization-guide.md)
 
 The ADR collection lives in [`docs/architecture/adr`](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\architecture\adr).

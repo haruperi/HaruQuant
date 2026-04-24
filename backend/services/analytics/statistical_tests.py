@@ -105,6 +105,75 @@ class WhitesRealityCheckResult:
         )
 
 
+try:
+    from numba import njit
+except ImportError:
+    def njit(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+
+# ============================================================================
+# KERNELS
+# ============================================================================
+
+
+@njit(cache=True)
+def _whites_reality_check_kernel(
+    strategy_returns_aligned, benchmark_returns_aligned, n_bootstrap, min_length
+):
+    n_strategies = len(strategy_returns_aligned)
+    bootstrap_max_outperformances = np.zeros(n_bootstrap)
+
+    for b in range(n_bootstrap):
+        # Resample indices once for all strategies to maintain correlation structure
+        indices = np.random.choice(min_length, size=min_length, replace=True)
+        
+        max_outperf = -1e18
+        
+        # Bench Sharpe for this bootstrap sample
+        boot_bench = benchmark_returns_aligned[indices]
+        bench_mean = np.mean(boot_bench)
+        bench_std = np.std(boot_bench)
+        bench_sharpe = (bench_mean * 252) / (bench_std * 15.8745) if bench_std > 0 else 0.0
+
+        for s in range(n_strategies):
+            strat_returns = strategy_returns_aligned[s]
+            boot_strat = strat_returns[indices]
+            
+            strat_mean = np.mean(boot_strat)
+            strat_std = np.std(boot_strat)
+            strat_sharpe = (strat_mean * 252) / (strat_std * 15.8745) if strat_std > 0 else 0.0
+            
+            outperf = strat_sharpe - bench_sharpe
+            if outperf > max_outperf:
+                max_outperf = outperf
+        
+        bootstrap_max_outperformances[b] = max_outperf
+    
+    return bootstrap_max_outperformances
+
+
+@njit(cache=True)
+def _permutation_test_sharpe_kernel(returns, n_permutations):
+    null_distribution = np.zeros(n_permutations)
+    n = len(returns)
+    
+    for i in range(n_permutations):
+        # Randomly permute returns
+        permuted = np.random.permutation(returns)
+        
+        mean = np.mean(permuted)
+        std = np.std(permuted)
+        
+        # Annualized Sharpe (assuming daily returns)
+        sharpe = (mean * 252) / (std * 15.8745) if std > 0 else 0.0
+        null_distribution[i] = sharpe
+        
+    return null_distribution
+
+
 # ============================================================================
 # WHITE'S REALITY CHECK
 # ============================================================================
@@ -144,6 +213,7 @@ def whites_reality_check(
     if metric_func is None:
         # Default to Sharpe ratio
         def metric_func(result: "BacktestResult") -> float:
+            # We assume annualize=True for internal kernel compatibility
             return float(result.sharpe_ratio or 0.0)
 
     if seed is not None:
@@ -159,8 +229,7 @@ def whites_reality_check(
     best_strategy_name = strategy_results[best_idx].strategy_name
 
     # Calculate outperformance
-    outperformances = [perf - benchmark_performance for perf in strategy_performances]
-    best_outperformance = max(outperformances)
+    best_outperformance = best_performance - benchmark_performance
 
     # Bootstrap procedure
     # Generate returns for strategies and benchmark
@@ -169,25 +238,22 @@ def whites_reality_check(
         equity_df = result.get_equity_df()
         if len(equity_df) > 0:
             returns = equity_df["equity"].pct_change().dropna()
-            strategy_returns_list.append(returns.values)
+            strategy_returns_list.append(returns.values.astype(float))
         else:
-            strategy_returns_list.append(np.array([]))
+            strategy_returns_list.append(np.array([], dtype=float))
 
     benchmark_equity_df = benchmark_result.get_equity_df()
     if len(benchmark_equity_df) > 0:
-        benchmark_returns = benchmark_equity_df["equity"].pct_change().dropna().values
+        benchmark_returns = benchmark_equity_df["equity"].pct_change().dropna().values.astype(float)
     else:
-        benchmark_returns = np.array([])
+        benchmark_returns = np.array([], dtype=float)
 
     # Find minimum length for alignment
-    min_length = (
-        min(
-            min(len(r) for r in strategy_returns_list if len(r) > 0),
-            len(benchmark_returns),
-        )
-        if any(len(r) > 0 for r in strategy_returns_list) and len(benchmark_returns) > 0
-        else 0
-    )
+    lengths = [len(r) for r in strategy_returns_list if len(r) > 0]
+    if len(benchmark_returns) > 0:
+        lengths.append(len(benchmark_returns))
+        
+    min_length = min(lengths) if lengths else 0
 
     if min_length < 2:
         logger.warning("Insufficient data for White's Reality Check")
@@ -202,52 +268,28 @@ def whites_reality_check(
         )
 
     # Align returns
-    strategy_returns_aligned = [r[:min_length] for r in strategy_returns_list]
+    strategy_returns_aligned = np.stack([r[:min_length] for r in strategy_returns_list if len(r) >= min_length])
     benchmark_returns_aligned = benchmark_returns[:min_length]
 
-    # Bootstrap distribution of maximum outperformance
-    bootstrap_max_outperformances = []
-
-    for _ in range(n_bootstrap):
-        # Resample returns with replacement
-        indices = np.random.choice(min_length, size=min_length, replace=True)
-
-        # Calculate metric for each strategy on bootstrap sample
-        bootstrap_outperformances = []
-        for strat_returns in strategy_returns_aligned:
-            boot_strat_returns = strat_returns[indices]
-            boot_bench_returns = benchmark_returns_aligned[indices]
-
-            # Calculate Sharpe ratio for bootstrap sample
-            strat_sharpe = (
-                (boot_strat_returns.mean() * 252)
-                / (boot_strat_returns.std() * np.sqrt(252))
-                if boot_strat_returns.std() > 0
-                else 0
-            )
-            bench_sharpe = (
-                (boot_bench_returns.mean() * 252)
-                / (boot_bench_returns.std() * np.sqrt(252))
-                if boot_bench_returns.std() > 0
-                else 0
-            )
-
-            bootstrap_outperformances.append(strat_sharpe - bench_sharpe)
-
-        # Get maximum outperformance for this bootstrap sample
-        bootstrap_max_outperformances.append(max(bootstrap_outperformances))
+    # Run optimized kernel
+    bootstrap_max_outperformances = _whites_reality_check_kernel(
+        strategy_returns_aligned,
+        benchmark_returns_aligned,
+        int(n_bootstrap),
+        int(min_length)
+    )
 
     # Calculate p-value
     # p-value = proportion of bootstrap samples where max outperformance >= observed
-    p_value = np.mean(np.array(bootstrap_max_outperformances) >= best_outperformance)
+    p_value = np.mean(bootstrap_max_outperformances >= best_outperformance)
 
     is_significant = p_value < significance_level
 
     wr_result: WhitesRealityCheckResult = WhitesRealityCheckResult(
         best_strategy_name=best_strategy_name,
         best_performance=best_performance,
-        p_value=p_value,
-        is_significant=is_significant,
+        p_value=float(p_value),
+        is_significant=bool(is_significant),
         significance_level=significance_level,
         n_strategies=len(strategy_results),
         n_bootstrap=n_bootstrap,
@@ -290,6 +332,7 @@ def permutation_test(
     """
     logger.info(f"Running permutation test for {strategy_result.strategy_name}")
 
+    use_custom_func = metric_func is not None
     if metric_func is None:
         # Default to Sharpe ratio
         def metric_func(returns: np.ndarray) -> float:
@@ -319,21 +362,23 @@ def permutation_test(
             null_distribution_std=0.0,
         )
 
-    returns = equity_df["equity"].pct_change().dropna().values
+    returns = equity_df["equity"].pct_change().dropna().values.astype(float)
 
     # Calculate observed metric
     observed_value = metric_func(returns)
 
-    # Generate null distribution by permuting returns
-    null_distribution = []
-
-    for _ in range(n_permutations):
-        # Randomly permute returns
-        permuted_returns = np.random.permutation(returns)
-        null_value = metric_func(permuted_returns)
-        null_distribution.append(null_value)
-
-    null_distribution_array = np.array(null_distribution)
+    # Generate null distribution
+    if not use_custom_func:
+        # Use optimized kernel for default Sharpe ratio
+        null_distribution_array = _permutation_test_sharpe_kernel(returns, int(n_permutations))
+    else:
+        # Fallback to Python loop for custom functions
+        null_distribution = []
+        for _ in range(n_permutations):
+            permuted_returns = np.random.permutation(returns)
+            null_value = metric_func(permuted_returns)
+            null_distribution.append(null_value)
+        null_distribution_array = np.array(null_distribution)
 
     # Calculate p-value (two-tailed test)
     p_value = np.mean(np.abs(null_distribution_array) >= np.abs(observed_value))
@@ -342,9 +387,9 @@ def permutation_test(
 
     result = PermutationTestResult(
         metric_name=metric_name,
-        observed_value=observed_value,
-        p_value=p_value,
-        is_significant=is_significant,
+        observed_value=float(observed_value),
+        p_value=float(p_value),
+        is_significant=bool(is_significant),
         significance_level=significance_level,
         n_permutations=n_permutations,
         null_distribution_mean=float(np.mean(null_distribution_array)),
@@ -361,6 +406,35 @@ def permutation_test(
 # ============================================================================
 # BOOTSTRAP CONFIDENCE INTERVALS
 # ============================================================================
+
+
+@njit(cache=True)
+def _bootstrap_standard_metrics_kernel(returns, n_bootstrap):
+    n_samples = len(returns)
+    sharpe_vals = np.zeros(n_bootstrap)
+    total_ret_vals = np.zeros(n_bootstrap)
+    vol_vals = np.zeros(n_bootstrap)
+    
+    for b in range(n_bootstrap):
+        indices = np.random.choice(n_samples, size=n_samples, replace=True)
+        boot_returns = returns[indices]
+        
+        mean = np.mean(boot_returns)
+        std = np.std(boot_returns)
+        
+        # Sharpe
+        sharpe_vals[b] = (mean * 252) / (std * 15.8745) if std > 0 else 0.0
+        
+        # Total Return
+        prod = 1.0
+        for r in boot_returns:
+            prod *= (1.0 + r)
+        total_ret_vals[b] = (prod - 1.0) * 100.0
+        
+        # Volatility
+        vol_vals[b] = std * 15.8745 * 100.0
+        
+    return sharpe_vals, total_ret_vals, vol_vals
 
 
 def bootstrap_confidence_intervals(
@@ -387,6 +461,7 @@ def bootstrap_confidence_intervals(
     """
     logger.info(f"Calculating bootstrap CIs for {strategy_result.strategy_name}")
 
+    use_optimized = metrics is None
     if metrics is None:
         # Default metrics
         metrics = {
@@ -406,27 +481,34 @@ def bootstrap_confidence_intervals(
         logger.warning("Insufficient data for bootstrap")
         return []
 
-    returns = equity_df["equity"].pct_change().dropna().values
+    returns = equity_df["equity"].pct_change().dropna().values.astype(float)
     n_samples = len(returns)
 
     results = []
+
+    # Run optimized kernel if using defaults
+    if use_optimized:
+        sharpe_dist, ret_dist, vol_dist = _bootstrap_standard_metrics_kernel(returns, int(n_bootstrap))
+        dists = {
+            "Sharpe Ratio": sharpe_dist,
+            "Total Return %": ret_dist,
+            "Volatility %": vol_dist
+        }
 
     for metric_name, metric_func in metrics.items():
         # Calculate point estimate
         point_estimate = metric_func(returns)
 
-        # Bootstrap distribution
-        bootstrap_values = []
-
-        for _ in range(n_bootstrap):
-            # Resample with replacement
-            boot_returns = returns[
-                np.random.choice(n_samples, size=n_samples, replace=True)
-            ]
-            boot_value = metric_func(boot_returns)
-            bootstrap_values.append(boot_value)
-
-        bootstrap_values_array = np.array(bootstrap_values)
+        if use_optimized and metric_name in dists:
+            bootstrap_values_array = dists[metric_name]
+        else:
+            # Bootstrap distribution (fallback)
+            bootstrap_values = []
+            for _ in range(n_bootstrap):
+                boot_returns = returns[np.random.choice(n_samples, size=n_samples, replace=True)]
+                boot_value = metric_func(boot_returns)
+                bootstrap_values.append(boot_value)
+            bootstrap_values_array = np.array(bootstrap_values)
 
         # Calculate confidence intervals
         alpha = 1 - confidence_level
@@ -435,14 +517,14 @@ def bootstrap_confidence_intervals(
 
         result = BootstrapResult(
             metric_name=metric_name,
-            point_estimate=point_estimate,
+            point_estimate=float(point_estimate),
             mean=float(np.mean(bootstrap_values_array)),
             median=float(np.median(bootstrap_values_array)),
             std=float(np.std(bootstrap_values_array)),
-            ci_lower=ci_lower,
-            ci_upper=ci_upper,
-            confidence_level=confidence_level,
-            n_bootstrap=n_bootstrap,
+            ci_lower=float(ci_lower),
+            ci_upper=float(ci_upper),
+            confidence_level=float(confidence_level),
+            n_bootstrap=int(n_bootstrap),
         )
 
         results.append(result)

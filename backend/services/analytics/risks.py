@@ -10,6 +10,15 @@ from typing import Literal, Optional
 import numpy as np
 import pandas as pd
 
+try:
+    from numba import njit
+except ImportError:
+    def njit(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+
 # =========================================================================
 # Volatility
 # =========================================================================
@@ -185,6 +194,32 @@ def expected_shortfall(returns: pd.Series, confidence: float = 0.95) -> float:
 # =========================================================================
 
 
+@njit(cache=True)
+def _risk_of_ruin_kernel(
+    outcomes, risk_per_trade, target_drawdown, num_simulations, initial_capital
+):
+    ruin_count = 0
+    n_outcomes = len(outcomes)
+    simulation_length = n_outcomes * 2
+    ruin_threshold = initial_capital - target_drawdown
+
+    for _ in range(num_simulations):
+        capital = initial_capital
+        for _ in range(simulation_length):
+            # Sample random outcome
+            idx = np.random.randint(0, n_outcomes)
+            outcome = outcomes[idx]
+
+            # Apply outcome
+            capital += outcome * risk_per_trade
+
+            # Check for ruin
+            if capital <= ruin_threshold:
+                ruin_count += 1
+                break
+    return ruin_count
+
+
 def risk_of_ruin(
     trades: pd.DataFrame,
     risk_per_trade: float,
@@ -214,34 +249,21 @@ def risk_of_ruin(
 
     # Use R-multiples if available, otherwise estimate from P&L
     if "r_multiple" in trades.columns:
-        outcomes = trades["r_multiple"].values
+        outcomes = trades["r_multiple"].astype(float).values
     else:
         # Estimate R-multiples assuming equal risk per trade
         avg_trade_value = trades["profit_loss"].abs().mean()
         if avg_trade_value == 0:
             return 0.0
-        outcomes = trades["profit_loss"].values / avg_trade_value
+        outcomes = (trades["profit_loss"].values / avg_trade_value).astype(float)
 
-    # Monte Carlo simulation
-    ruin_count = 0
-    initial_capital = 100.0  # Percentage
-
-    for _ in range(num_simulations):
-        capital = initial_capital
-        num_trades = len(outcomes)
-
-        # Random walk through trade outcomes
-        for _ in range(num_trades * 2):  # Simulate 2x the historical trades
-            # Sample random trade outcome
-            outcome = np.random.choice(outcomes)
-
-            # Apply outcome
-            capital += outcome * risk_per_trade
-
-            # Check for ruin
-            if capital <= (initial_capital - target_drawdown):
-                ruin_count += 1
-                break
+    ruin_count = _risk_of_ruin_kernel(
+        outcomes,
+        float(risk_per_trade),
+        float(target_drawdown),
+        int(num_simulations),
+        100.0,
+    )
 
     return float(ruin_count / num_simulations)
 

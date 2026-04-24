@@ -29,8 +29,8 @@ audusd = "AUDUSD"
 eurgbp = "EURGBP"
 nzdchf = "NZDCHF"
 timeframe = "H1"
-warmup_start_date = datetime(2024, 12, 1)  # 3 months of warmup data
-start_date = datetime(2025, 1, 1)
+warmup_start_date = datetime(2014, 12, 1)  # 3 months of warmup data
+start_date = datetime(2015, 1, 1)
 end_date = datetime(2025, 12, 31)
 stoploss = 10
 
