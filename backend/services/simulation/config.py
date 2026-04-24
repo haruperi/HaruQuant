@@ -39,8 +39,8 @@ class AccountConfig:
         if commission < 0.0:
             raise SimulationConfigError("account.commission must be >= 0")
         leverage = int(_optional_float(raw, "leverage", default=400.0))
-        if leverage <= 0:
-            raise SimulationConfigError("account.leverage must be > 0")
+        if leverage < 0:
+            raise SimulationConfigError("account.leverage must be >= 0")
         currency = str(raw.get("currency", "USD") or "USD").strip().upper()
         if not currency:
             raise SimulationConfigError("account.currency must be non-empty")
@@ -252,6 +252,8 @@ class ExecutionConfig:
 class ReportingConfig:
     print_summary: bool = False
     save_to_db: bool = False
+    user_id: Optional[int] = None
+    backtest_id: Optional[int] = None
     alias: Optional[str] = None
     description: Optional[str] = None
     benchmark_policy: str = "equal_weight"
@@ -266,6 +268,8 @@ class ReportingConfig:
             raise SimulationConfigError("reporting must be an object")
         alias = raw.get("alias")
         description = raw.get("description")
+        user_id = raw.get("user_id")
+        backtest_id = raw.get("backtest_id")
         benchmark_policy = _normalize_choice(
             str(raw.get("benchmark_policy", "equal_weight")),
             SUPPORTED_BENCHMARK_POLICIES,
@@ -286,6 +290,8 @@ class ReportingConfig:
         return cls(
             print_summary=bool(raw.get("print_summary", False)),
             save_to_db=bool(raw.get("save_to_db", False)),
+            user_id=None if user_id is None else int(user_id),
+            backtest_id=None if backtest_id is None else int(backtest_id),
             alias=None if alias is None else str(alias),
             description=None if description is None else str(description),
             benchmark_policy=benchmark_policy,

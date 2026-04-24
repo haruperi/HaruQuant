@@ -198,6 +198,9 @@ def simulation_summary_rows(result: SimulationRunResult) -> list[tuple[str, str]
     beta_value = benchmark.beta(strategy_returns, benchmark_returns) if not strategy_returns.empty and not benchmark_returns.empty else 0.0
     max_drawdown_pct = -drawdowns.max_strategy_drawdown_percent(equity_curve) if len(equity_curve) >= 2 else 0.0
     avg_drawdown_pct = _average_drawdown_percent(equity_curve)
+    
+    total_profit_usd = result.total_profit
+    var_95_pct = risks.value_at_risk(strategy_returns, confidence=0.95) * 100.0 if not strategy_returns.empty else 0.0
 
     dd_duration_series = drawdowns.drawdown_duration_series(equity_curve) if len(equity_curve) >= 2 else pd.Series(dtype=int)
     max_dd_duration = _periods_to_timedelta(dd_duration_series.max() if not dd_duration_series.empty else 0, pd.DatetimeIndex(equity_curve.index))
@@ -231,10 +234,12 @@ def simulation_summary_rows(result: SimulationRunResult) -> list[tuple[str, str]
         ("Exposure Time [%]", _fmt_number(exposure_pct, 5)),
         ("Equity Final [$]", _fmt_number(equity_final, 2)),
         ("Equity Peak [$]", _fmt_number(equity_peak, 2)),
+        ("Return [$]", _fmt_number(total_profit_usd, 2)),
         ("Return [%]", _fmt_number(total_return_pct, 5)),
         ("Buy & Hold Return [%]", _fmt_number(buy_hold_return_pct, 5)),
         ("Return (Ann.) [%]", _fmt_number(annual_return_pct, 5)),
         ("Volatility (Ann.) [%]", _fmt_number(annual_volatility_pct, 5)),
+        ("Value at Risk (95%) [%]", _fmt_number(var_95_pct, 5)),
         ("CAGR [%]", _fmt_number(cagr_pct, 5)),
         ("Sharpe Ratio", _fmt_number(sharpe_ratio, 5)),
         ("Sortino Ratio", _fmt_number(sortino_ratio, 5)),

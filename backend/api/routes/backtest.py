@@ -24,9 +24,73 @@ from backend.services.market_data.data_manipulator import TicksGenerator
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger
 
+from backend.services.simulation.data_preparation import (
+    _generate_ticks_for_backtest,
+    _normalize_position_sizing_method,
+    _resolve_engine_type,
+    _resolve_modelling,
+    _resolve_tick_generator_config,
+)
+
+import haruquant as hqt
+
 router = APIRouter()
 db_manager = DatabaseManager()
 AUTH_HEADER = Header(None)
+
+
+def _map_request_to_config(
+    request: Union[BacktestRequest, PortfolioBacktestRequest],
+    strategy_name: str,
+    params: Dict[str, Any],
+    user_id: int,
+    symbols: Optional[List[str]] = None,
+    backtest_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Map flat API request to nested SimulationConfig structure."""
+    if symbols is None:
+        # Fallback to single symbol from request if not provided
+        symbols = [getattr(request, "symbol", "")]
+
+    return {
+        "engine_type": _resolve_engine_type(request.engine_type),
+        "account": {
+            "initial_balance": float(request.initial_capital),
+            "commission": float(request.commission),
+            "leverage": int(request.leverage),
+        },
+        "data": {
+            "source": str(request.data_source or "mt5").lower(),
+            "symbols": symbols,
+            "timeframe": request.timeframe,
+            "start": request.start_date,
+            "end": request.end_date,
+            "warmup_start": request.warmup_start_date,
+        },
+        "strategy": {
+            "name": strategy_name,
+            "params": params,
+        },
+        "execution": {
+            "tick_model": _resolve_tick_generator_config(request, _resolve_modelling(request.data_resolution))[0],
+            "spread_model": _resolve_tick_generator_config(request, _resolve_modelling(request.data_resolution))[1],
+            "slippage_model": str(request.slippage_type or "fixed"),
+            "slippage_points": float(request.slippage or 0),
+            "position_size": {
+                "type": _normalize_position_sizing_method(request.position_sizing_method),
+                "lot_size": float(request.lot_size),
+                # Add extra fields for dynamic sizing if needed
+                "risk_percent": float(getattr(request, "risk_percent", 1.0)),
+            },
+        },
+        "reporting": {
+            "save_to_db": True,
+            "user_id": user_id,
+            "backtest_id": backtest_id,
+            "alias": request.alias,
+            "description": request.description,
+        },
+    }
 
 class BacktestRequest(BaseModel):
     """Request payload for running a backtest."""
@@ -131,6 +195,7 @@ class PortfolioBacktestRequest(BaseModel):
     spread_max: int = 50
     leverage: int = 100
     data_source: Optional[str] = "mt5"
+    engine_type: Optional[str] = "event_driven"
     data_resolution: Optional[str] = "trading_timeframe"
     allocation_method: Optional[str] = "equal_weight"  # "equal_weight" or "risk_parity"
     lot_size: float = 0.1  # Base lot size per symbol
@@ -176,6 +241,30 @@ class PortfolioBacktestResponse(BaseModel):
     asset_results: Optional[Dict[str, Dict[str, Any]]] = None
 
 
+def _load_strategy_class(user_id: int, strategy_id: int, version_id: int):
+    assert_strategy_allowed(strategy_id, "backtest", db_manager=db_manager)
+    version = db_manager.get_strategy_version(version_id)
+    strategy = db_manager.get_strategy(strategy_id)
+    if version is None:
+        raise ValueError(f"Strategy version {version_id} not found")
+    if strategy is None:
+        raise ValueError(f"Strategy {strategy_id} not found")
+
+    user = db_manager.get_user(user_id=user_id)
+    username = (user.get("username") if user else "") or ""
+    strategy_name = (strategy.get("name") if strategy else "") or ""
+
+    strategy_class = storage.load_strategy_class(
+        user_id=user_id,
+        strategy_id=strategy_id,
+        version=version["version"],
+        username=username,
+        strategy_name=strategy_name,
+    )
+
+    return version, strategy, strategy_class
+
+
 def _parse_request_date(value: Optional[str]) -> Optional[datetime]:
     if value is None:
         return None
@@ -207,376 +296,6 @@ def _parse_symbols(value: str) -> List[str]:
     return symbols
 
 
-def _resolve_modelling(mode: Optional[str]) -> str:
-    resolved = str(mode or "trading_timeframe").strip().lower()
-    allowed = {
-        "trading_timeframe",
-        "m1_ohlc",
-        "synthetic_ticks",
-        "real_ticks",
-    }
-    if resolved not in allowed:
-        raise ValueError(f"Unsupported data_resolution: {mode}")
-    return resolved
-
-
-# ----------------------------
-# Vectorized Engine Support
-# ----------------------------
-def _resolve_engine_type(value: Optional[str]) -> str:
-    raw = str(value or "event_driven").strip().lower()
-    if raw == "simulator":
-        raw = "event_driven"
-    raw = raw.replace("-", "_")
-    if raw == "vectorized":
-        raw = "vectorised"
-    if raw not in {"event_driven", "vectorised"}:
-        raise ValueError(f"Unsupported engine_type: {value}")
-    return raw
-
-
-def _load_mt5_bars(
-    client: MT5Client,
-    symbol: str,
-    timeframe: str,
-    request: BacktestRequest,
-):
-    if request.range_by == "bars":
-        if request.number_of_bars is None:
-            raise ValueError("number_of_bars is required when range_by='bars'")
-        # Add warmup bars to the total count
-        total_bars = request.number_of_bars
-        if request.warmup_by == "bars" and request.warmup_bars:
-            total_bars += request.warmup_bars
-        return client.get_bars(
-            symbol=symbol,
-            timeframe=timeframe,
-            count=total_bars,
-        )
-
-    # For date-based range, use warmup_start_date if provided
-    start_date = _parse_request_date(request.start_date)
-    if request.warmup_by == "date" and request.warmup_start_date:
-        start_date = _parse_request_date(request.warmup_start_date)
-
-    return client.get_bars(
-        symbol=symbol,
-        timeframe=timeframe,
-        date_from=start_date,
-        date_to=_parse_request_date(request.end_date),
-    )
-
-
-def _load_mt5_ticks(client: MT5Client, symbol: str, request: BacktestRequest):
-    if request.range_by == "bars":
-        if request.number_of_bars is None:
-            raise ValueError("number_of_bars is required when range_by='bars'")
-        tick_count = request.number_of_bars * 100
-        # Add warmup bars to tick count estimate
-        if request.warmup_by == "bars" and request.warmup_bars:
-            tick_count += request.warmup_bars * 100
-        return client.get_ticks(symbol=symbol, count=tick_count)
-
-    # For date-based range, use warmup_start_date if provided
-    start_date = _parse_request_date(request.start_date)
-    if request.warmup_by == "date" and request.warmup_start_date:
-        start_date = _parse_request_date(request.warmup_start_date)
-
-    return client.get_ticks(
-        symbol=symbol,
-        start=start_date,
-        end=_parse_request_date(request.end_date),
-    )
-
-
-def _load_data(  # noqa: C901
-    request: BacktestRequest,
-    symbol: str,
-    data_mode: str,
-    user_id: int,
-) -> Tuple[Any, Optional[Any], str]:
-    data_source = (request.data_source or "mt5").strip().lower()
-
-    if data_source not in {"mt5", "metatrader5", "dukascopy"}:
-        raise ValueError(f"Unsupported data_source: {request.data_source}")
-
-    data = None
-    step_data = None
-
-    if data_source in {"mt5", "metatrader5"}:
-        credentials = db_manager.get_mt5_credentials(user_id)
-        client = MT5Client()
-        if credentials:
-            ok = client.connect(
-                path=credentials.get("path", ""),
-                login=credentials.get("login", 0),
-                password=credentials.get("password", ""),
-                server=credentials.get("server", ""),
-            )
-        else:
-            ok = False
-        if not ok:
-            raise RuntimeError("Failed to connect to MT5")
-
-        try:
-            data = _load_mt5_bars(client, symbol, request.timeframe, request)
-            if data is None or data.empty:
-                raise ValueError("No trading timeframe data loaded from MT5")
-            data = DataValidator.prepare_data(data)
-
-            if data_mode in {"m1_ohlc", "synthetic_ticks"}:
-                step_data = _load_mt5_bars(client, symbol, "M1", request)
-                if step_data is None or step_data.empty:
-                    raise ValueError("No M1 data loaded from MT5")
-                step_data = DataValidator.prepare_data(step_data)
-            elif data_mode == "real_ticks":
-                step_data = _load_mt5_ticks(client, symbol, request)
-                if step_data is None or len(step_data) == 0:
-                    raise ValueError("No tick data loaded from MT5")
-                step_data.columns = [str(c).lower() for c in step_data.columns]
-        finally:
-            client.shutdown()
-    else:
-        if request.range_by == "bars":
-            if request.number_of_bars is None:
-                raise ValueError("number_of_bars is required when range_by='bars'")
-            # Add warmup bars to total count
-            total_bars = request.number_of_bars
-            if request.warmup_by == "bars" and request.warmup_bars:
-                total_bars += request.warmup_bars
-            data = load_dukascopy(
-                symbol=symbol,
-                timeframe=request.timeframe,
-                count=total_bars,
-            )
-        else:
-            # Use warmup_start_date if provided for date range
-            start_date = request.start_date
-            if request.warmup_by == "date" and request.warmup_start_date:
-                start_date = request.warmup_start_date
-            data = load_dukascopy(
-                symbol=symbol,
-                timeframe=request.timeframe,
-                start_date=start_date,
-                end_date=request.end_date,
-            )
-
-        if data is None or data.empty:
-            raise ValueError("No trading timeframe data loaded from Dukascopy")
-        data = DataValidator.prepare_data(data)
-
-        if data_mode == "real_ticks":
-            raise ValueError("Real ticks are not available for Dukascopy source")
-        if data_mode in {"m1_ohlc", "synthetic_ticks"}:
-            # Use warmup_start_date for M1 data as well
-            start_date = request.start_date
-            if request.warmup_by == "date" and request.warmup_start_date:
-                start_date = request.warmup_start_date
-            step_data = load_dukascopy(
-                symbol=symbol,
-                timeframe="M1",
-                start_date=start_date,
-                end_date=request.end_date,
-            )
-            if step_data is None or step_data.empty:
-                raise ValueError("No M1 data loaded from Dukascopy")
-            step_data = DataValidator.prepare_data(step_data)
-
-    return data, step_data, data_source
-
-
-def _load_strategy_class(user_id: int, strategy_id: int, version_id: int):
-    assert_strategy_allowed(strategy_id, "backtest", db_manager=db_manager)
-    version = db_manager.get_strategy_version(version_id)
-    strategy = db_manager.get_strategy(strategy_id)
-    if version is None:
-        raise ValueError(f"Strategy version {version_id} not found")
-    if strategy is None:
-        raise ValueError(f"Strategy {strategy_id} not found")
-
-    user = db_manager.get_user(user_id=user_id)
-    username = (user.get("username") if user else "") or ""
-    strategy_name = (strategy.get("name") if strategy else "") or ""
-
-    strategy_class = storage.load_strategy_class(
-        user_id=user_id,
-        strategy_id=strategy_id,
-        version=version["version"],
-        username=username,
-        strategy_name=strategy_name,
-    )
-
-    return version, strategy, strategy_class
-
-
-def _seed_engine_account(engine: Engine, initial_capital: float) -> None:
-    account = engine.account_info()
-    account["balance"] = float(initial_capital)
-    account["credit"] = 0.0
-    account["profit"] = 0.0
-    account["equity"] = float(initial_capital)
-    account["margin"] = 0.0
-    account["margin_free"] = float(initial_capital)
-    account["margin_level"] = 0.0
-
-
-def _normalize_position_sizing_method(value: Optional[str]) -> str:
-    raw = str(value or "fixed_lot").strip().lower().replace("-", "_")
-    mapping = {
-        "fixed_lot": "fixed_lot",
-        "fixed_percent": "fixed_risk",
-        "fixed_risk": "fixed_risk",
-        "milestone": "milestone",
-        "kelly_criterion": "kelly",
-        "kelly": "kelly",
-        "volatility_adjusted_atr": "volatility",
-        "volatility": "volatility",
-        "fixed_fractional": "fixed_fractional",
-    }
-    return mapping.get(raw, "fixed_lot")
-
-
-def _build_position_sizing_config(request: BacktestRequest, method: str) -> dict:
-    if method == "fixed_risk":
-        return {
-            "risk_percent": float(request.risk_percent),
-            "use_dynamic_stop_loss": bool(getattr(request, "use_dynamic_stop_loss", False)),
-        }
-    if method == "milestone":
-        return {
-            "initial_balance": float(request.initial_capital),
-            "base_lot_size": float(request.base_lot_size),
-            "milestone_amount": float(request.milestone_amount),
-            "lot_increment": float(request.lot_increment),
-        }
-    if method == "kelly":
-        return {
-            "kelly_fraction_limit": float(request.kelly_fraction_limit),
-            "win_rate": float(getattr(request, "win_rate", 0.55)),
-            "avg_win": float(getattr(request, "avg_win", 150.0)),
-            "avg_loss": float(getattr(request, "avg_loss", 100.0)),
-        }
-    if method == "volatility":
-        return {
-            "risk_percent": float(request.risk_percent),
-            "atr_multiplier": float(getattr(request, "atr_multiplier", 2.0)),
-        }
-    if method == "fixed_fractional":
-        return {
-            "fraction": float(getattr(request, "fractional_factor", request.fraction)),
-        }
-    return {"lot_size": float(request.lot_size)}
-
-
-def _configure_backtest_engine(
-    engine: Engine,
-    request: BacktestRequest,
-    historical_data=None,
-) -> None:
-    account = engine.account_info()
-    account["balance"] = float(request.initial_capital)
-    account["credit"] = 0.0
-    account["profit"] = 0.0
-    account["equity"] = float(request.initial_capital)
-    account["margin"] = 0.0
-    account["margin_free"] = float(request.initial_capital)
-    account["margin_level"] = 0.0
-    account["commission"] = float(request.commission)
-    account["leverage"] = int(request.leverage)
-
-    engine.state.execution_settings = core.DotDict(
-        {
-            "slippage_model": str(request.slippage_type or "fixed"),
-            "slippage_points": float(request.slippage or 0),
-            "slippage_min": float(request.slippage_min or 0),
-            "slippage_max": float(request.slippage_max or 0),
-        }
-    )
-
-    method = _normalize_position_sizing_method(request.position_sizing_method)
-    if method == "fixed_lot":
-        engine.configure_position_sizing(enabled=False)
-        return
-
-    engine.configure_position_sizing(
-        enabled=True,
-        position_sizing_method=method,
-        position_sizing_config=_build_position_sizing_config(request, method),
-        historical_data=historical_data or {},
-    )
-
-
-def _ensure_engine_symbol(engine: Engine, symbol_name: str):
-    for row in engine.state.trading_symbols:
-        if str(getattr(row, "name", "") or "") == str(symbol_name):
-            return row
-    symbol_row = engine.client.symbol_info(symbol_name)
-    if symbol_row is None:
-        raise ValueError(f"Symbol info unavailable for {symbol_name}")
-    engine.state.trading_symbols.append(symbol_row)
-    return symbol_row
-
-
-def _resolve_tick_generator_config(request: BacktestRequest, data_mode: str) -> tuple[str, str]:
-    model_map = {
-        "trading_timeframe": "timeframe_ticks",
-        "m1_ohlc": "m1_ticks",
-        "synthetic_ticks": "synthetic_ticks",
-        "real_ticks": "real_ticks",
-    }
-    spread_map = {
-        "use-broker": "native_spread",
-        "broker": "native_spread",
-        "fixed": "fixed_spread",
-        "fixed_spread": "fixed_spread",
-        "variable": "variable_spread",
-        "variable_spread": "variable_spread",
-    }
-    tick_model = model_map.get(str(data_mode), "timeframe_ticks")
-    spread_model = spread_map.get(str(request.spread_type or "use-broker").strip().lower(), "native_spread")
-    return tick_model, spread_model
-
-
-def _generate_ticks_for_backtest(
-    engine: Engine,
-    symbol_name: str,
-    timeframe: str,
-    request: BacktestRequest,
-    data_mode: str,
-    bars_data,
-    step_data=None,
-):
-    symbol_info = _ensure_engine_symbol(engine, symbol_name)
-    tick_model, spread_model = _resolve_tick_generator_config(request, data_mode)
-    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
-
-    generator_kwargs = {
-        "model": tick_model,
-        "trading_timeframe": timeframe,
-        "point_value": point_value,
-        "spread_model": spread_model,
-    }
-    if spread_model == "fixed_spread":
-        generator_kwargs["fixed_spread_points"] = float(request.spread or 0)
-    elif spread_model == "variable_spread":
-        generator_kwargs["min_spread_points"] = float(request.spread_min or 0)
-        generator_kwargs["max_spread_points"] = float(request.spread_max or request.spread_min or 0)
-
-    if tick_model == "m1_ticks":
-        generator_kwargs["m1_data"] = step_data
-    elif tick_model == "synthetic_ticks":
-        generator_kwargs["m1_data"] = step_data
-    elif tick_model == "real_ticks":
-        generator_kwargs["real_ticks"] = step_data
-
-    ticks_generator = TicksGenerator(**generator_kwargs)
-    ticks_data = ticks_generator.generate(bars_data.copy())
-    if ticks_data is None or ticks_data.empty:
-        raise ValueError(f"No ticks generated for {symbol_name}")
-    return ticks_data, tick_model
-
-
-
 async def _run_backtest_task(
     backtest_id: int,
     user_id: int,
@@ -584,7 +303,7 @@ async def _run_backtest_task(
     version_id: int,
     request: BacktestRequest,
 ) -> None:
-    """Background task to run a backtest using the simulator."""
+    """Background task to run a backtest using the high-performance Portfolio API."""
     loop = asyncio.get_event_loop()
 
     def log_sink(record: Any) -> None:
@@ -603,114 +322,58 @@ async def _run_backtest_task(
     handler_id = logger.add(log_sink, level="INFO", raw=True)
 
     try:
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(1.0)
         db_manager.update_backtest_status(backtest_id, "running")
 
-        symbol = _parse_symbol(request.symbol)
-        engine_type = _resolve_engine_type(request.engine_type)
-        data_mode = _resolve_modelling(request.data_resolution)
-        if engine_type == "vectorised" and data_mode != "trading_timeframe":
-            raise ValueError(
-                "Vectorized engine only supports trading_timeframe data resolution"
-            )
-
+        # Load strategy class from DB
         version, strategy_meta, strategy_class = _load_strategy_class(
             user_id=user_id,
             strategy_id=strategy_id,
             version_id=version_id,
         )
+        
+        # Register strategy so Portfolio.run can find it by name
+        from backend.services.simulation.strategy_registry import register_strategy
+        strategy_name = f"db_strategy_{strategy_id}_{version_id}"
+        register_strategy(strategy_name, strategy_class)
 
-        data, step_data, data_source = _load_data(
+        # Prepare configuration
+        config = _map_request_to_config(
             request=request,
-            symbol=symbol,
-            data_mode=data_mode,
+            strategy_name=strategy_name,
+            params=version.get("parameters", {}),
             user_id=user_id,
+            backtest_id=backtest_id,
         )
-
-        params = dict(version.get("parameters") or {})
-        params["symbol"] = symbol
-        params["timeframe"] = request.timeframe
-        strategy_instance = strategy_class(params=params)
-        if hasattr(strategy_instance, "on_init"):
-            strategy_instance.on_init()
-        if hasattr(strategy_instance, "on_bar"):
-            data = strategy_instance.on_bar(data)
-
-        engine = Engine(backend="sim")
-        _configure_backtest_engine(
-            engine,
-            request,
-            historical_data={symbol: {request.timeframe: data.copy()}},
-        )
-        _ensure_engine_symbol(engine, symbol)
-
-        ticks_data, tick_model = _generate_ticks_for_backtest(
-            engine=engine,
-            symbol_name=symbol,
-            timeframe=request.timeframe,
-            request=request,
-            data_mode=data_mode,
-            bars_data=data,
-            step_data=step_data,
-        )
-
-        logger.info(
-            f"Running simulator backtest {backtest_id} | "
-            f"symbol={symbol} timeframe={request.timeframe} "
-            f"engine={engine_type} mode={data_mode} ticks_model={tick_model} source={data_source}"
-        )
-
-        engine.configure_run_schedule(
-            positions_every=1,
-            pending_orders_every=1,
-            account_every=4,
-            portfolio_every=4,
-            risk_every=4,
-        )
-        processed = engine.run(
-            ticks_data,
-            engine_type="event_driven",
-            position_size=float(request.lot_size),
-            monitor_verbose=False,
-            show_progress=False,
-        )
-
-        completed_trades = engine.get_completed_trades()
-        equity_curve = engine.get_equity_curve()
-        if completed_trades:
-            db_manager.save_backtest_trades(backtest_id, completed_trades)
-        if equity_curve:
-            db_manager.save_backtest_equity_curve(backtest_id, equity_curve)
-
-        final_balance = float(engine.account_info().get("balance", request.initial_capital) or request.initial_capital)
+        
+        # Run high-performance simulation (Automatic DB persistence enabled in config)
+        logger.info(f"Starting batch backtest {backtest_id} using hqt.Portfolio.run")
+        portfolio = hqt.Portfolio.run(config, user_id=user_id)
+        
         db_manager.update_backtest_status(
             backtest_id,
             "completed",
-            final_balance=final_balance,
+            final_balance=float(portfolio.final_value),
         )
         logger.info(
-            f"Backtest {backtest_id} completed successfully | processed_ticks={processed} trades={len(completed_trades)}"
+            f"Backtest {backtest_id} completed successfully | "
+            f"trades={len(portfolio.trades)} final_equity={portfolio.final_value:.2f}"
         )
-        engine.client.shutdown()
 
     except Exception as exc:
-        logger.error(f"Backtest {backtest_id} failed: {exc}")
+        logger.exception(f"Backtest {backtest_id} failed: {exc}")
         db_manager.update_backtest_status(backtest_id, "failed")
     finally:
         try:
             logger.remove(handler_id)
-            logger.info(f"WebSocket handler removed for backtest {backtest_id}")
-        except Exception as exc:
-            logger.warning(f"Error removing WebSocket handler: {exc}")
+        except Exception:
+            pass
 
         try:
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(2.0)
             await backtest_log_manager.clear_buffer(backtest_id)
-            logger.info(f"Log buffer cleared for backtest {backtest_id}")
-        except Exception as exc:
-            logger.warning(f"Error clearing log buffer: {exc}")
-
-        logger.info(f"Background task completed for backtest {backtest_id}")
+        except Exception:
+            pass
 
 
 @router.post("/run/{strategy_id}", response_model=BacktestResponse)
@@ -1094,7 +757,7 @@ async def _run_portfolio_backtest_task(
     version_id: int,
     request: PortfolioBacktestRequest,
 ) -> None:
-    """Background task to run a portfolio backtest."""
+    """Background task to run a portfolio backtest using the high-performance Portfolio API."""
     loop = asyncio.get_event_loop()
 
     def log_sink(record: Any) -> None:
@@ -1113,182 +776,62 @@ async def _run_portfolio_backtest_task(
     handler_id = logger.add(log_sink, level="INFO", raw=True)
 
     try:
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(1.0)
         db_manager.update_backtest_status(backtest_id, "running")
 
         symbols = _parse_symbols(request.symbols)
-        data_mode = _resolve_modelling(request.data_resolution)
 
-        # Load strategy class
+        # Load strategy class from DB
         version, strategy_meta, strategy_class = _load_strategy_class(
             user_id=user_id,
             strategy_id=strategy_id,
             version_id=version_id,
         )
+        
+        # Register strategy so Portfolio.run can find it
+        from backend.services.simulation.strategy_registry import register_strategy
+        strategy_name = f"db_strategy_{strategy_id}_{version_id}"
+        register_strategy(strategy_name, strategy_class)
 
-        # Load data and create strategies for each symbol
-        data_dict = {}
-        strategy_dict = {}
-        symbol_specs = {}
-
-        for symbol in symbols:
-            # Load data for this symbol
-            data, step_data, data_source = _load_data(
-                request=BacktestRequest(
-                    symbol=symbol,
-                    timeframe=request.timeframe,
-                    range_by=request.range_by,
-                    start_date=request.start_date,
-                    end_date=request.end_date,
-                    number_of_bars=request.number_of_bars,
-                    warmup_by=request.warmup_by,
-                    warmup_start_date=request.warmup_start_date,
-                    warmup_bars=request.warmup_bars,
-                    initial_capital=request.initial_capital,
-                    commission=request.commission,
-                    slippage=request.slippage,
-                    leverage=request.leverage,
-                    data_source=request.data_source,
-                    data_resolution=request.data_resolution,
-                    lot_size=request.lot_size,
-                ),
-                symbol=symbol,
-                data_mode=data_mode,
-                user_id=user_id,
-            )
-
-            # Create strategy instance for this symbol
-            params = dict(version.get("parameters") or {})
-            params["symbol"] = symbol
-            params["timeframe"] = request.timeframe
-            strategy_instance = strategy_class(params=params)
-            if hasattr(strategy_instance, "on_init"):
-                strategy_instance.on_init()
-            if hasattr(strategy_instance, "on_bar"):
-                data = strategy_instance.on_bar(data)
-
-            data_dict[symbol] = data
-            strategy_dict[symbol] = strategy_instance
-
-        engine = Engine(backend="sim")
-        _configure_backtest_engine(
-            engine,
-            request,
-            historical_data={
-                symbol_name: {request.timeframe: symbol_data.copy()}
-                for symbol_name, symbol_data in data_dict.items()
-            },
+        # Prepare configuration
+        config = _map_request_to_config(
+            request=request,
+            strategy_name=strategy_name,
+            params=version.get("parameters", {}),
+            user_id=user_id,
+            symbols=symbols,
+            backtest_id=backtest_id,
         )
-
-        merged_ticks = []
-        tick_model_used = None
-        for symbol in symbols:
-            _ensure_engine_symbol(engine, symbol)
-            ticks_data, tick_model = _generate_ticks_for_backtest(
-                engine=engine,
-                symbol_name=symbol,
-                timeframe=request.timeframe,
-                request=BacktestRequest(
-                    symbol=symbol,
-                    timeframe=request.timeframe,
-                    range_by=request.range_by,
-                    start_date=request.start_date,
-                    end_date=request.end_date,
-                    number_of_bars=request.number_of_bars,
-                    warmup_by=request.warmup_by,
-                    warmup_start_date=request.warmup_start_date,
-                    warmup_bars=request.warmup_bars,
-                    initial_capital=request.initial_capital,
-                    commission=request.commission,
-                    slippage_type=request.slippage_type,
-                    slippage=request.slippage,
-                    spread_type=request.spread_type,
-                    spread=request.spread,
-                    spread_min=request.spread_min,
-                    spread_max=request.spread_max,
-                    leverage=request.leverage,
-                    data_source=request.data_source,
-                    engine_type="event_driven",
-                    data_resolution=request.data_resolution,
-                    lot_size=request.lot_size,
-                    alias=request.alias,
-                    description=request.description,
-                ),
-                data_mode=data_mode,
-                bars_data=data_dict[symbol],
-                step_data=None,
-            )
-            ticks_data = ticks_data.copy()
-            ticks_data["symbol"] = symbol
-            ticks_data["signal_timeframe"] = request.timeframe
-            merged_ticks.append(ticks_data)
-            tick_model_used = tick_model
-
-        if not merged_ticks:
-            raise ValueError("No merged portfolio ticks generated")
-
-        portfolio_ticks = merged_ticks[0] if len(merged_ticks) == 1 else pd.concat(merged_ticks, axis=0).sort_index(kind="mergesort")
-
-        logger.info(
-            f"Running portfolio backtest {backtest_id} | "
-            f"symbols={symbols} timeframe={request.timeframe} "
-            f"allocation={request.allocation_method} ticks_model={tick_model_used}"
-        )
-
-        engine.configure_run_schedule(
-            positions_every=1,
-            pending_orders_every=1,
-            account_every=4,
-            portfolio_every=4,
-            risk_every=4,
-        )
-        processed = engine.run(
-            portfolio_ticks,
-            engine_type="event_driven",
-            position_size=float(request.lot_size),
-            monitor_verbose=False,
-            show_progress=False,
-        )
-
-        completed_trades = engine.get_completed_trades()
-        equity_curve = engine.get_equity_curve()
-        if completed_trades:
-            db_manager.save_backtest_trades(backtest_id, completed_trades)
-        if equity_curve:
-            db_manager.save_backtest_equity_curve(backtest_id, equity_curve)
-
-        final_balance = float(engine.account_info().get("balance", request.initial_capital) or request.initial_capital)
+        
+        # Run high-performance portfolio simulation (Automatic DB persistence enabled in config)
+        logger.info(f"Starting portfolio backtest {backtest_id} using hqt.Portfolio.run")
+        portfolio = hqt.Portfolio.run(config, user_id=user_id)
+        
         db_manager.update_backtest_status(
             backtest_id,
             "completed",
-            final_balance=final_balance,
+            final_balance=float(portfolio.final_value),
         )
 
-        logger.info(f"Portfolio backtest {backtest_id} completed successfully")
-        logger.info(f"Final balance: ${final_balance:,.2f}")
-        logger.info(f"Processed ticks: {processed} | Total trades: {len(completed_trades)}")
-        engine.client.shutdown()
+        logger.info(
+            f"Portfolio backtest {backtest_id} completed successfully | "
+            f"trades={len(portfolio.trades)} final_equity={portfolio.final_value:,.2f}"
+        )
 
     except Exception as exc:
-        logger.error(f"Portfolio backtest {backtest_id} failed: {exc}")
+        logger.exception(f"Portfolio backtest {backtest_id} failed: {exc}")
         db_manager.update_backtest_status(backtest_id, "failed")
     finally:
         try:
             logger.remove(handler_id)
-            logger.info(
-                f"WebSocket handler removed for portfolio backtest {backtest_id}"
-            )
-        except Exception as exc:
-            logger.warning(f"Error removing WebSocket handler: {exc}")
+        except Exception:
+            pass
 
         try:
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(2.0)
             await backtest_log_manager.clear_buffer(backtest_id)
-            logger.info(f"Log buffer cleared for portfolio backtest {backtest_id}")
-        except Exception as exc:
-            logger.warning(f"Error clearing log buffer: {exc}")
-
-        logger.info(f"Portfolio backtest task completed for backtest {backtest_id}")
+        except Exception:
+            pass
 
 
 @router.post("/portfolio/run/{strategy_id}", response_model=PortfolioBacktestResponse)

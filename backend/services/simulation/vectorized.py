@@ -342,7 +342,10 @@ def run_vectorized_simulation(
     )
     corrected_final_balance = final_balance + total_delta
     engine.state.trading_account.balance = corrected_final_balance
-    engine.state.trading_account.equity = corrected_final_balance
+    if engine.state.completed_equity_curve:
+        engine.state.trading_account.equity = engine.state.completed_equity_curve[-1].equity
+    else:
+        engine.state.trading_account.equity = corrected_final_balance
 
     logger.info(f"Turbo run completed in {time.time() - start_time:.4f}s")
     return int(len(data))

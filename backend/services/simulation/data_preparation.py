@@ -12,8 +12,137 @@ from backend.common.logger import logger
 from backend.mcp.market_data_mcp import INTERVAL_TICK, OFFER_SIDE_BID, fetch
 from backend.services.market_data.data_getters import load_dukascopy, load_parquet
 from backend.services.market_data.data_manipulator import TicksGenerator
-from backend.services.simulation.config import SimulationConfig, SimulationConfigError
-from backend.services.simulation.strategy_registry import get_strategy_class
+from .config import SimulationConfig, SimulationConfigError
+from .strategy_registry import get_strategy_class
+
+
+from backend.services.execution import core
+
+def _resolve_engine_type(value: Optional[str]) -> str:
+    raw = str(value or "event_driven").strip().lower()
+    if raw == "simulator":
+        raw = "event_driven"
+    raw = raw.replace("-", "_")
+    if raw == "vectorized":
+        raw = "vectorised"
+    if raw not in {"event_driven", "vectorised"}:
+        raise ValueError(f"Unsupported engine_type: {value}")
+    return raw
+
+
+def _normalize_position_sizing_method(value: Optional[str]) -> str:
+    raw = str(value or "fixed_lot").strip().lower().replace("-", "_")
+    mapping = {
+        "fixed_lot": "fixed_lot",
+        "fixed_percent": "fixed_risk",
+        "fixed_risk": "fixed_risk",
+        "milestone": "milestone",
+        "kelly_criterion": "kelly",
+        "kelly": "kelly",
+        "volatility_adjusted_atr": "volatility",
+        "volatility": "volatility",
+        "fixed_fractional": "fixed_fractional",
+    }
+    return mapping.get(raw, "fixed_lot")
+
+
+def _resolve_modelling(mode: Optional[str]) -> str:
+    resolved = str(mode or "trading_timeframe").strip().lower()
+    allowed = {
+        "trading_timeframe",
+        "m1_ohlc",
+        "synthetic_ticks",
+        "real_ticks",
+    }
+    if resolved not in allowed:
+        raise ValueError(f"Unsupported data_resolution: {mode}")
+    return resolved
+
+
+def _resolve_tick_generator_config(request: Any, data_mode: str) -> tuple[str, str]:
+    model_map = {
+        "trading_timeframe": "timeframe_ticks",
+        "m1_ohlc": "m1_ticks",
+        "synthetic_ticks": "synthetic_ticks",
+        "real_ticks": "real_ticks",
+    }
+    spread_map = {
+        "use-broker": "native_spread",
+        "broker": "native_spread",
+        "fixed": "fixed_spread",
+        "fixed_spread": "fixed_spread",
+        "variable": "variable_spread",
+        "variable_spread": "variable_spread",
+    }
+    tick_model = model_map.get(str(data_mode), "timeframe_ticks")
+    spread_model = spread_map.get(str(getattr(request, "spread_type", "use-broker") or "use-broker").strip().lower(), "native_spread")
+    return tick_model, spread_model
+
+
+def _ensure_engine_symbol(engine: Any, symbol_name: str) -> Any:
+    """Register symbol info in engine state if not already present."""
+    state = getattr(engine, "state", None)
+    if state is None:
+        return None
+
+    for row in state.trading_symbols:
+        if str(getattr(row, "name", "") or "") == str(symbol_name):
+            return row
+
+    client = getattr(engine, "client", None)
+    symbol_info_fn = getattr(client, "symbol_info", None)
+    if symbol_info_fn:
+        info = symbol_info_fn(symbol_name)
+        if info:
+            # Wrap in core.SymbolInfo if available, otherwise use raw
+            try:
+                info = core.SymbolInfo(info)
+            except Exception:
+                pass
+            state.trading_symbols.append(info)
+            return info
+    return None
+
+
+def _generate_ticks_for_backtest(
+    engine: Any,
+    symbol_name: str,
+    timeframe: str,
+    request: Any,
+    data_mode: str,
+    bars_data,
+    step_data=None,
+):
+    symbol_info = _ensure_engine_symbol(engine, symbol_name)
+    tick_model, spread_model = _resolve_tick_generator_config(request, data_mode)
+    point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
+
+    generator_kwargs = {
+        "model": tick_model,
+        "trading_timeframe": timeframe,
+        "point_value": point_value,
+        "spread_model": spread_model,
+    }
+    if spread_model == "fixed_spread":
+        generator_kwargs["fixed_spread_points"] = float(getattr(request, "spread", 0) or 0)
+    elif spread_model == "variable_spread":
+        generator_kwargs["min_spread_points"] = float(getattr(request, "spread_min", 0) or 0)
+        generator_kwargs["max_spread_points"] = float(
+            getattr(request, "spread_max", getattr(request, "spread_min", 0)) or 0
+        )
+
+    if tick_model == "m1_ticks":
+        generator_kwargs["m1_data"] = step_data
+    elif tick_model == "synthetic_ticks":
+        generator_kwargs["m1_data"] = step_data
+    elif tick_model == "real_ticks":
+        generator_kwargs["real_ticks"] = step_data
+
+    ticks_generator = TicksGenerator(**generator_kwargs)
+    ticks_data = ticks_generator.generate(bars_data.copy())
+    if ticks_data is None or ticks_data.empty:
+        raise ValueError(f"No ticks generated for {symbol_name}")
+    return ticks_data, tick_model
 
 
 class SimulationDataPreparationError(RuntimeError):
@@ -88,6 +217,7 @@ class SimulationDataPreparer:
             )
 
         point_value = self._point_value(symbol)
+        _ensure_engine_symbol(self.engine, symbol)
         m1_data = self._load_m1_data_if_required(config, symbol)
         real_ticks = self._load_real_ticks_if_required(config, symbol)
 

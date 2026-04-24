@@ -543,7 +543,12 @@ class Engine:
         account["margin_free"] = float(account_config.initial_balance)
         account["margin_level"] = 0.0
         account["commission"] = float(account_config.commission)
-        account["leverage"] = int(account_config.leverage)
+        leverage = int(account_config.leverage)
+        if leverage == 0:
+            leverage = int(getattr(self.mt5_account, "leverage", 0.0) or 400)
+            logger.info(f"Inheriting MT5 account leverage: {leverage}")
+        
+        account["leverage"] = leverage
         account["currency"] = preserved_currency
 
         self.state.trading_deals = []

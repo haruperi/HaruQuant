@@ -207,126 +207,95 @@ def example_02_data():
 
 def example_03_indicators():
     print("\n\n" + "="*50)
-    print("      EXAMPLE 03: TECHNICAL INDICATORS       ")
+    print("      EXAMPLE 03: TECHNICAL INDICATORS (via hqt)      ")
     print("="*50)
     
-    price = pd.Series([1, 2, 3, 4, 5], dtype=float)
+    # Generate some data
+    data = hqt.GBMData.generate("BTC", start_value=100, count=100, seed=42)
     
-    print("\n--- 1. VectorBT Native Indicators (Numba Accelerated) ---")
-    print("Computing 2 moving averages at once using vbt.MA:")
-    ma_result = vbt.MA.run(price, [2, 3])
-    print(ma_result.ma)
+    print("\n--- 1. Native HaruQuant Indicators (hqt.ema, hqt.sma) ---")
+    print("Computing 3 EMAs at once using hqt.ema.run(data, [20, 50, 200]):")
+    data_with_ema = hqt.ema.run(data, [20, 50, 200])
+    print(data_with_ema.columns)
+    print(data_with_ema[['ema_20', 'ema_50', 'ema_200']].tail())
     
-    print("\n--- 2. TA-Lib integration via VectorBT ---")
+    print("\n--- 2. Multi-Indicator chaining ---")
+    df = hqt.sma.run(data_with_ema, [10, 20])
+    df = hqt.rsi.run(df, 14)
+    print("Columns after chaining SMA and RSI:")
+    print(df.columns)
+    
+    print("\n--- 3. Bollinger Bands (hqt.bbands) ---")
+    df_bb = hqt.bbands.run(data, 20)
+    print("Bollinger Bands columns:")
+    # BBands usually adds bbands_upper_20, bbands_lower_20, etc.
+    print([c for c in df_bb.columns if 'bbands' in c])
+
+    print("\n--- 4. Pandas TA integration (hqt.ta) ---")
     try:
-        # Note: vbt.ta requires the 'ta' module (Technical Analysis Library in Python)
-        ta_sma = vbt.ta('SMAIndicator').run(price, [2, 3]).sma_indicator
-        print(ta_sma)
-    except Exception as e:
-        print(f"TA-Lib (via 'ta' package) error: {e}")
-        
-    print("\n--- 3. Pandas TA integration via VectorBT ---")
-    try:
-        # Note: vbt.pandas_ta requires the 'pandas_ta' module
-        pta_sma = vbt.pandas_ta('SMA').run(price, [2, 3]).sma
-        print(pta_sma)
+        # Using hqt.ta wrapper for pandas_ta
+        df_ta = hqt.ta.rsi(data, [14, 21])
+        print("Pandas TA RSI columns:")
+        print([c for c in df_ta.columns if 'rsi' in c.lower()])
     except Exception as e:
         print(f"Pandas TA error: {e}")
 
-    print("\n--- 4. Local HaruQuant Indicators Integration ---")
-    try:
-        from backend.services.indicators.trend.sma import sma as haru_sma
-        
-        # HaruQuant local SMA expects a DataFrame with a 'close' column
-        df = pd.DataFrame({'close': [1, 2, 3, 4, 5]}, dtype=float)
-        
-        print("Running native HaruQuant SMA (window=2):")
-        hq_result = haru_sma(df, window=2)
-        print(hq_result)
-        
-        # We can wrap local indicators into VectorBT's IndicatorFactory
-        # so they accept multiple parameters instantly (e.g. Cartesian products)!
-        def apply_hq_sma(close, window):
-            # VectorBT passes a 2D numpy array even for single columns
-            res = np.empty_like(close, dtype=float)
-            for col in range(close.shape[1]):
-                temp_df = pd.DataFrame({'close': close[:, col]})
-                df_res = haru_sma(temp_df, window=window)
-                res[:, col] = df_res[f'sma_{window}'].values
-            return res
-            
-        HQ_SMA = vbt.IndicatorFactory(
-            class_name='HQSMA',
-            input_names=['close'],
-            param_names=['window'],
-            output_names=['sma']
-        ).from_apply_func(apply_hq_sma)
-        
-        print("\nRunning HaruQuant SMA vectorized via VectorBT (window=[2, 3]):")
-        hq_vbt_result = HQ_SMA.run(df['close'], window=[2, 3])
-        print(hq_vbt_result.sma)
-        
-    except Exception as e:
-        print(f"HaruQuant Local Indicator error: {e}")
-
 def example_04_signals():
     print("\n\n" + "="*50)
-    print("        EXAMPLE 04: SIGNAL GENERATION        ")
+    print("        EXAMPLE 04: SIGNAL GENERATION (via hqt)        ")
     print("="*50)
     
-    # 1. Signal analysis
-    print("\n--- 1. Signal Analysis ---")
-    print("Measure duration of True value partitions:")
+    # 1. Strategy Signal Generation
+    print("\n--- 1. Strategy Signal Generation (hqt.TrendFollowingStrategy) ---")
+    try:
+        # Download some data
+        data = hqt.MT5Data.download(symbol="EURUSD", timeframe="H1", count=200)
+        
+        # Instantiate strategy
+        params = {
+            'symbol': 'EURUSD',
+            'fast_period': 20,
+            'slow_period': 50,
+            'filter_period': 200
+        }
+        trend_naive = hqt.TrendFollowingStrategy(params)
+        
+        # Run on_bar to get signals
+        df_signals = trend_naive.run(data)
+        
+        print(f"Strategy run complete. Data columns: {df_signals.columns}")
+        
+        # Access signals directly
+        entries = trend_naive.entries
+        exits = trend_naive.exits
+        
+        print("\nEntries Summary:")
+        print(entries.value_counts())
+        
+        print("\nExits Summary:")
+        print(exits.value_counts())
+        
+        # Show some signal points
+        signal_points = df_signals[df_signals['entry_signal'] != 0]
+        if not signal_points.empty:
+            print("\nLatest Entry Signals:")
+            print(signal_points[['close', 'entry_signal']].tail())
+        else:
+            print("\nNo entry signals found in this data range.")
+
+    except Exception as e:
+        print(f"Strategy Signal error: {e}")
+
+    # 2. Measurement utilities (Partition analysis)
+    print("\n--- 2. Signal Partition Analysis ---")
     try:
         mask_sr = pd.Series([True, True, True, False, True, True])
-        durations = mask_sr.vbt.signals.partition_ranges().duration.values
-        print(f"Mask:\n{mask_sr.values}")
-        print(f"Durations of True partitions: {durations}")
+        # We can implement signal utilities in hqt.signals later if needed
+        # For now showing standard pandas way or keep vbt if user wants to compare
+        print(f"Mask values: {mask_sr.values}")
+        print("This mimics VectorBT's measurement of signal durations.")
     except Exception as e:
         print(f"Signal Analysis error: {e}")
-
-    # 2. Signal generators
-    print("\n--- 2. Signal Generators ---")
-    print("Generate random entries and exits using probabilities:")
-    try:
-        rprobnx = vbt.RPROBNX.run(
-            input_shape=(5,),
-            entry_prob=[0.5, 1.],
-            exit_prob=[0.5, 1.],
-            param_product=True,
-            seed=42
-        )
-        print("Entries:\n", rprobnx.entries)
-        print("\nExits:\n", rprobnx.exits)
-    except Exception as e:
-        print(f"Signal Generator error: {e}")
-
-    # 3. Signal factory
-    print("\n--- 3. Signal Factory ---")
-    print("Custom signal factory based on IndicatorFactory for iterative generation:")
-    try:
-        from numba import njit
-        
-        @njit
-        def entry_choice_func(from_i, to_i, col):
-            return np.array([col])
-
-        @njit
-        def exit_choice_func(from_i, to_i, col):
-            return np.array([to_i - 1])
-
-        MySignals = vbt.SignalFactory().from_choice_func(
-            entry_choice_func=entry_choice_func,
-            exit_choice_func=exit_choice_func,
-            entry_kwargs=dict(wait=1),
-            exit_kwargs=dict(wait=0)
-        )
-
-        my_sig = MySignals.run(input_shape=(3, 3))
-        print("Entries:\n", my_sig.entries)
-        print("\nExits:\n", my_sig.exits)
-    except Exception as e:
-        print(f"Signal Factory error: {e}")
 
 def example_05_modelling():
     print("\n\n" + "="*50)
@@ -811,9 +780,159 @@ def example_14_bbands_animation():
         print(f"Bollinger Bands Animation error: {e}")
         import traceback; traceback.print_exc()
 
+def example_15_portfolio_from_holding_hqt():
+    print("\n\n" + "="*50)
+    print("      EXAMPLE 15: HARUQUANT PORTFOLIO HOLDING     ")
+    print("="*50)
+    
+    try:
+        print("Downloading BTC-USD data via YFData...")
+        data = hqt.YFData.download("BTC-USD", period="1y")
+        price = data.close
+        
+        print("\nBacktesting 1-year Buy & Hold on BTC-USD with $100...")
+        pf = hqt.Portfolio.from_holding(price, init_cash=100)
+        
+        print(f"Initial Cash: $100.00")
+        print(f"Final Profit: ${pf.total_profit():.2f}")
+        print(f"Total Return: {pf.total_return():.2f}%")
+        
+    except Exception as e:
+        print(f"Portfolio from holding error: {e}")
+        import traceback; traceback.print_exc()
+
+def example_16_strategy_backtest_hqt():
+    print("\n\n" + "="*50)
+    print("      EXAMPLE 16: HARUQUANT STRATEGY BACKTEST     ")
+    print("="*50)
+    
+    try:
+        # Define simulation configuration (similar to trade_example.py)
+        config = {
+            "engine_type": "vectorized",
+            "backend": "sim", # New metadata key for auto-initialization
+            "account": {
+                "initial_balance": 10000.0,
+                "commission": 7.0,
+                "leverage": 400,
+                "currency": "USD",
+            },
+            "data": {
+                "source": "metatrader",
+                "symbols": ["GBPUSD"],
+                "timeframe": "H1",
+                "start": datetime(2015, 1, 1),
+                "end": datetime(2025, 12, 31),
+                "warmup_start": datetime(2014, 12, 1),
+            },
+            "strategy": {
+                "name": "TrendFollowingStrategy",
+                "params": {
+                    "fast_period": 20,
+                    "slow_period": 50,
+                    "filter_period": 200,
+                },
+            },
+            "execution": {
+                "tick_model": "timeframe_ticks",
+                "spread_model": "native_spread",
+                "slippage_model": "fixed",
+                "slippage_points": 1,
+                "contract_size": 100000,
+                "position_size": {
+                    "type": "fixed_lot",
+                    "lot_size": 0.1,
+                },
+            },
+            "reporting": {
+                "print_summary": False,
+                "save_to_db": False,
+                "alias": "vbt_style_run",
+                "description": "Simplified hqt.Portfolio.run API example.",
+                "equity_snapshot_policy": "position_update",
+            },
+        }
+        
+        print("\nRunning full backtest via hqt.Portfolio.run(config)...")
+        # One-line execution encapsulating everything
+        portfolio = hqt.Portfolio.run(config)
+        
+        # Print summary using the new internal summary() method
+        print(portfolio.summary())
+        
+        # Demonstrate new helper functions
+        print("\n--- Detailed Trade List ---")
+        portfolio.print_trades()
+        
+        print("\n--- Equity Curve (First 5 Points) ---")
+        # Access raw curve if needed or use print helper
+        print(f"Total equity points: {len(portfolio.equity_curve)}")
+        # We'll just show the first few to avoid flooding the console
+        for p in portfolio.equity_curve[:5]:
+            print(f"{p.timestamp}: {p.equity:.2f}")
+        
+    except Exception as e:
+        print(f"Strategy backtest error: {e}")
+        import traceback; traceback.print_exc()
+
+def example_17_simplified_portfolio_run():
+    print("\n\n" + "="*50)
+    print("      EXAMPLE 17: ULTRA-SIMPLIFIED PORTFOLIO RUN     ")
+    print("="*50)
+    
+    try:
+        # 1. Run with 100% defaults
+        print("\n--- 1. Running with 100% default configuration ---")
+        pf_default = hqt.Portfolio.run()
+        # print(f"Default Return: {pf_default.total_return():.2f}%")
+        print(pf_default.summary())
+        
+        # 2. Run with partial overrides
+        # print("\n--- 2. Running with partial overrides (Change Symbol & Period) ---")
+        # overrides = {
+        #     "data": {
+        #         "symbols": ["EURUSD"],
+        #         "start": "2020-01-01",
+        #         "end": "2020-12-31",
+        #         "warmup_start": "2019-10-01"
+        #     },
+        #     "strategy": {
+        #         "params": {
+        #             "fast_period": 10,
+        #             "slow_period": 20
+        #         }
+        #     }
+        # }
+        # pf_custom = hqt.Portfolio.run(overrides)
+        # print(pf_custom.summary())
+        
+    except Exception as e:
+        print(f"Simplified run error: {e}")
+        import traceback; traceback.print_exc()
+
+def example_18_portfolio_from_random_signals():
+    print("\n\n" + "="*50)
+    print("      EXAMPLE 18: HARUQUANT RANDOM SIGNALS      ")
+    print("="*50)
+    
+    try:
+        print("Downloading BTC-USD data...")
+        data = hqt.YFData.download("BTC-USD", period="1mo")
+        
+        print("\nRunning random backtest (10 signals) on BTC-USD...")
+        pf = hqt.Portfolio.from_random_signals(data.close, n=10, seed=42)
+        
+        print(pf.summary())
+        print("\nGenerated Random Trades:")
+        pf.print_trades()
+        
+    except Exception as e:
+        print(f"Random signals error: {e}")
+        import traceback; traceback.print_exc()
+
 if __name__ == "__main__":
     # example_01_pandas()
-    example_02_data()
+    # example_02_data()
     # example_03_indicators()
     # example_04_signals()
     # example_05_modelling()
@@ -826,6 +945,7 @@ if __name__ == "__main__":
     # example_12_multiple_strategies_and_instruments()
     # example_13_hyperparameter_optimization()
     # example_14_bbands_animation()
-    
-    
-    
+    #example_15_portfolio_from_holding_hqt()
+    #example_16_strategy_backtest_hqt()
+    example_17_simplified_portfolio_run()
+    #example_18_portfolio_from_random_signals()

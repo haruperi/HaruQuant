@@ -19,6 +19,10 @@ from . import indicators as ind
 from .indicators import ema, sma, rsi, bbands, atr, ta
 
 from .strategy import (
+    Catalog,
+    Portfolio,
+    StrategyCatalogCreateRequest,
+    StrategyCatalogUpdateRequest,
     TrendFollowingStrategy,
     BreakoutStrategy,
     MeanReversionStrategy,
@@ -44,6 +48,10 @@ __all__ = [
     "bbands",
     "atr",
     "ta",
+    "Catalog",
+    "Portfolio",
+    "StrategyCatalogCreateRequest",
+    "StrategyCatalogUpdateRequest",
     "TrendFollowingStrategy",
     "BreakoutStrategy",
     "MeanReversionStrategy",

@@ -23,30 +23,11 @@ from backend.services.strategy.baselines import (
     RsiBaselineStrategy,
 )
 
+import haruquant as hqt
+
 router = APIRouter()
 db_manager = DatabaseManager()
-catalog_service = StrategyCatalogService(db_manager=db_manager)
-
-# Map known baseline strategy names to their classes for source-code fallback
-_BASELINE_STRATEGIES: Dict[str, type] = {
-    "ema_cross": EmaCrossBaselineStrategy,
-    "ema_cross_baseline_strategy": EmaCrossBaselineStrategy,
-    "naive_momentum": NaiveMomentumStrategy,
-    "naive_momentum_strategy": NaiveMomentumStrategy,
-    "rsi": RsiBaselineStrategy,
-    "rsi_baseline_strategy": RsiBaselineStrategy,
-}
-
-
-def _get_baseline_source_code(strategy_name: str) -> Optional[str]:
-    """Return the Python source code for a built-in baseline strategy."""
-    cls = _BASELINE_STRATEGIES.get(strategy_name.lower().strip())
-    if cls is None:
-        return None
-    try:
-        return inspect.getsource(cls)
-    except (OSError, TypeError):
-        return None
+catalog = hqt.Catalog(db_manager=db_manager)
 
 IMPORT_FILE = File(...)
 
@@ -295,8 +276,8 @@ async def create_strategy(
     """
     try:
         logger.info(f"Creating strategy: {request.name} for user {user_id}")
-        strategy = catalog_service.create_strategy(
-            StrategyCatalogCreateRequest(
+        strategy = catalog.create(
+            hqt.StrategyCatalogCreateRequest(
                 name=request.name,
                 description=request.description,
                 category=request.category,
@@ -332,11 +313,10 @@ async def list_strategies(
 ) -> List[StrategyResponse]:
     """List all strategies for a user."""
     try:
-        strategies = catalog_service.list_strategies(
+        strategies = catalog.list(
             user_id=user_id,
             status=strategy_status,
             category=category,
-            include_shared=include_shared,
         )
 
         return [StrategyResponse(**s) for s in strategies]
@@ -353,7 +333,7 @@ async def list_strategies(
 async def get_strategy(strategy_id: int) -> StrategyResponse:
     """Get a specific strategy."""
     try:
-        strategy = catalog_service.get_strategy(strategy_id)
+        strategy = catalog.get(strategy_id)
 
         return StrategyResponse(**strategy)
 
@@ -383,9 +363,9 @@ async def update_strategy(
     If code is provided, creates a new version.
     """
     try:
-        updated_strategy = catalog_service.update_strategy(
+        updated_strategy = catalog.update(
             strategy_id,
-            StrategyCatalogUpdateRequest(
+            hqt.StrategyCatalogUpdateRequest(
                 name=request.name,
                 description=request.description,
                 status=request.status,
@@ -432,7 +412,7 @@ async def update_strategy(
 async def delete_strategy(strategy_id: int, user_id: int = 1) -> None:
     """Delete a strategy and all its versions."""
     try:
-        catalog_service.delete_strategy(strategy_id, user_id=user_id)
+        catalog.delete(strategy_id, user_id=user_id)
 
         logger.info(f"Strategy {strategy_id} deleted successfully")
 
@@ -463,7 +443,7 @@ async def delete_strategy(strategy_id: int, user_id: int = 1) -> None:
 async def list_versions(strategy_id: int) -> List[VersionResponse]:
     """List all versions of a strategy."""
     try:
-        versions = catalog_service.list_versions(strategy_id)
+        versions = catalog.list_versions(strategy_id)
         return [VersionResponse(**v) for v in versions]
 
     except Exception as e:
@@ -480,11 +460,10 @@ async def get_version_code(
 ) -> Dict[str, Any]:
     """Get the code for a specific version."""
     try:
-        return catalog_service.get_version_code(
+        return catalog.get_version_code(
             strategy_id=strategy_id,
             version_id=version_id,
             user_id=user_id,
-            baseline_source_lookup=_get_baseline_source_code,
         )
 
     except LookupError as e:
@@ -521,7 +500,7 @@ async def rollback_version(
 ) -> Dict[str, str]:
     """Rollback to a specific version (make it the active version)."""
     try:
-        catalog_service.rollback_version(
+        catalog.rollback(
             strategy_id=strategy_id,
             version_id=version_id,
             user_id=user_id,
@@ -556,7 +535,7 @@ async def rollback_version(
 async def export_strategy(strategy_id: int, user_id: int = 1) -> FileResponse:
     """Export strategy as a zip file."""
     try:
-        zip_path = catalog_service.export_strategy(strategy_id=strategy_id, user_id=user_id)
+        zip_path = catalog.export(strategy_id=strategy_id, user_id=user_id)
         return FileResponse(
             zip_path, media_type="application/zip", filename=os.path.basename(zip_path)
         )
@@ -597,10 +576,10 @@ async def import_strategy(
             content = await file.read()
             f.write(content)
 
-        new_version = catalog_service.import_strategy(
+        new_version = catalog.import_zip(
             strategy_id=strategy_id,
             import_path=import_path,
-            original_filename=file.filename or "unknown.zip",
+            filename=file.filename or "unknown.zip",
             user_id=user_id,
         )
         logger.info(f"Strategy version created from import: {file.filename}")

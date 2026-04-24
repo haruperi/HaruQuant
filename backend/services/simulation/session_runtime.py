@@ -40,7 +40,7 @@ from backend.services.execution import core
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger
 
-from backend.api.routes.backtest import _generate_ticks_for_backtest, _resolve_modelling
+from backend.services.simulation.data_preparation import _generate_ticks_for_backtest, _resolve_modelling
 
 mt5 = get_mt5_api()
 FX_CLUSTER_CURRENCIES = {"USD", "EUR", "JPY", "CAD", "AUD", "NZD", "CHF", "GBP"}
