@@ -1,8 +1,71 @@
 """
 Trade-based statistics & system-quality metrics.
 
-from backend.common.logger import logger
 Focus: trades, sequences, expectancy, system edge
+
+This module provides a comprehensive suite of analytical functions for trading strategy performance evaluation.
+It includes trade counts, P&L statistics, R-multiple analytics, sequence quality, time-based metrics, 
+and system-level metrics like SQN and Kelly Criterion.
+
+Summary of Methods:
+------------------
+Utility & Kernel Helpers:
+    - win_rate_fraction: Win rate on a 0-1 scale.
+    - avg_win_loss: Mean winning and losing outcomes.
+    - consecutive_wins_losses: Max consecutive wins and losses (wrapper for kernel).
+    - median_mae_mfe: Median MAE and MFE from R-space.
+    - t_statistic: T-statistic for mean outcome.
+
+Core Trade Counts & Costs:
+    - open_position_pnl: Profit/loss for currently open positions.
+    - total_trades: Total number of trades.
+    - winning_trades / losing_trades / breakeven_trades: Count trades by outcome.
+    - long_trades / short_trades: Count trades by direction.
+    - count_open_trades: Number of trades still open.
+    - slippage_paid / commission_paid / swap_paid: Total costs paid.
+    - max_size_held: Maximum contracts/units held at any one time.
+
+Trade P&L Statistics:
+    - win_rate / loss_rate: Percentage of winning/losing trades.
+    - avg_win / avg_loss: Average P&L of winning/losing trades.
+    - largest_win / largest_loss: Max/min P&L values.
+    - median_win / median_loss: Median P&L of winning/losing trades.
+
+R-Multiple Analytics:
+    - avg_r_multiple / median_r_multiple: Statistics for R-multiples.
+    - r_multiple_distribution: Detailed distribution (mean, std, quartiles).
+    - r_expectancy: Expected value per trade in R-terms.
+    - max_r_multiple / min_r_multiple: Extreme R-multiple values.
+
+Trade Sequence Quality:
+    - max_consecutive_wins / max_consecutive_losses: Longest streaks.
+    - avg_consecutive_wins / avg_consecutive_losses: Average streak lengths.
+    - win_loss_streaks: Lists of all streak lengths.
+
+Time-in-Trade:
+    - avg_time_in_trade / median_time_in_trade: Statistics for trade duration.
+    - max_time_in_trade / min_time_in_trade: Extreme trade durations.
+
+System Quality Metrics:
+    - sqn: System Quality Number (Van Tharp).
+    - kelly_criterion: Optimal fraction of capital to risk.
+    - compute_trade_metrics: High-level dictionary of trade-based analytics.
+    - compute_equity_metrics: High-level dictionary of equity-based analytics (Sharpe, etc.).
+
+Advanced Performance & Information:
+    - trade_efficiency: Realized R captured relative to available MFE/MAE.
+    - expectancy_variance: Measure of expectancy stability.
+    - trade_outcome_entropy: Shannon entropy of trade outcomes (predictability).
+
+Time-Based Period Metrics:
+    - trading_period_duration: Total duration of the test period.
+    - time_in_market_duration: Total duration with at least one open position.
+    - percent_time_in_market: Percentage of time spent in the market.
+    - longest_flat_period_duration: Maximum time between trades.
+
+Equity Curve Metrics:
+    - max_runup: Maximum peak-to-valley gain.
+    - max_runup_date: Timestamp of the peak of max run-up.
 """
 
 from typing import Dict, List, Optional
@@ -20,6 +83,11 @@ except ImportError:
         def decorator(f):
             return f
         return decorator
+
+
+# =========================================================================
+# Utility & Kernel Helpers
+# =========================================================================
 
 
 def _to_1d_float_array(values) -> np.ndarray:
@@ -93,33 +161,49 @@ def median_mae_mfe(mae: np.ndarray, mfe: np.ndarray) -> tuple[float, float]:
     )
 
 
-def _r_trade_efficiency(r: np.ndarray, mfe: np.ndarray) -> float:
-    """Calculate realized R captured relative to available MFE."""
-    r = np.asarray(r, dtype=float)
-    mfe = np.asarray(mfe, dtype=float)
-    if len(r) != len(mfe) or len(r) == 0:
-        return float("nan")
+@njit(cache=True)
+def _max_size_held_kernel(times, sizes):
+    # events are (time, size_change)
+    current_held = 0.0
+    max_held = 0.0
+    for i in range(len(sizes)):
+        current_held += sizes[i]
+        if abs(current_held) < 1e-9:
+            current_held = 0.0
+        if current_held > max_held:
+            max_held = current_held
+    return max_held
 
-    mask = mfe > 0
-    if not np.any(mask):
-        return float("nan")
 
-    return float(np.mean(r[mask] / mfe[mask]))
-
-
-def _r_edge_ratio(mfe: np.ndarray, mae: np.ndarray) -> float:
-    """Calculate excursion edge ratio as MFE divided by MAE magnitude."""
-    mfe = np.asarray(mfe, dtype=float)
-    mae = np.asarray(mae, dtype=float)
-    if len(mfe) != len(mae) or len(mfe) == 0:
-        return float("nan")
-
-    mae_abs = np.abs(mae)
-    mask = mae_abs > 0
-    if not np.any(mask):
-        return float("inf") if np.mean(mfe) > 0 else float("nan")
-
-    return float(np.mean(mfe[mask] / mae_abs[mask]))
+@njit(cache=True)
+def _merge_intervals_kernel(starts, ends):
+    n = len(starts)
+    if n == 0:
+        return np.empty((0, 2), dtype=starts.dtype)
+    
+    # Pre-allocate worst case
+    merged = np.empty((n, 2), dtype=starts.dtype)
+    m_ptr = 0
+    
+    curr_start = starts[0]
+    curr_end = ends[0]
+    
+    for i in range(1, n):
+        if starts[i] <= curr_end:
+            if ends[i] > curr_end:
+                curr_end = ends[i]
+        else:
+            merged[m_ptr, 0] = curr_start
+            merged[m_ptr, 1] = curr_end
+            m_ptr += 1
+            curr_start = starts[i]
+            curr_end = ends[i]
+            
+    merged[m_ptr, 0] = curr_start
+    merged[m_ptr, 1] = curr_end
+    m_ptr += 1
+    
+    return merged[:m_ptr]
 
 
 def t_statistic(values) -> float:
@@ -135,6 +219,7 @@ def t_statistic(values) -> float:
         return float("inf") if mean > 0 else float("-inf") if mean < 0 else float("nan")
 
     return float(mean / (std / np.sqrt(n)))
+
 
 # =========================================================================
 # Core Trade Counts & Costs
@@ -221,23 +306,6 @@ def swap_paid(trades: pd.DataFrame) -> float:
     return float(trades["swap"].sum())
 
 
-@njit(cache=True)
-def _max_size_held_kernel(times, sizes):
-    # events are (time, size_change)
-    # Since we can't easily sort tuples in Numba efficiently, 
-    # we expect sorted inputs or handle it here if possible.
-    # But usually, it's better to sort in NumPy then process.
-    current_held = 0.0
-    max_held = 0.0
-    for i in range(len(sizes)):
-        current_held += sizes[i]
-        if abs(current_held) < 1e-9:
-            current_held = 0.0
-        if current_held > max_held:
-            max_held = current_held
-    return max_held
-
-
 def max_size_held(trades: pd.DataFrame) -> float:
     """
     Maximum number of contracts held at any one time.
@@ -257,19 +325,16 @@ def max_size_held(trades: pd.DataFrame) -> float:
         return float(trades[size_col].max())
 
     # Create events: (timestamp, size_change)
-    # Using NumPy for faster event creation
     open_times = trades["open_time"].values
     close_times = trades["close_time"].values
     sizes = trades[size_col].values
     
     # Combine into a flat array of events for sorting
-    n = len(trades)
     event_times = np.concatenate([open_times, close_times])
     # Open adds size, Close removes size
     event_sizes = np.concatenate([sizes, -sizes])
     
     # Sort events by time, then size (exits before entries if times equal)
-    # In NumPy, lexsort is (secondary, primary)
     idx = np.lexsort((event_sizes, event_times))
     
     sorted_sizes = event_sizes[idx]
@@ -277,58 +342,9 @@ def max_size_held(trades: pd.DataFrame) -> float:
     return float(_max_size_held_kernel(None, sorted_sizes))
 
 
-@njit(cache=True)
-def _merge_intervals_kernel(starts, ends):
-    n = len(starts)
-    if n == 0:
-        return np.empty((0, 2), dtype=starts.dtype)
-    
-    # Pre-allocate worst case
-    merged = np.empty((n, 2), dtype=starts.dtype)
-    m_ptr = 0
-    
-    curr_start = starts[0]
-    curr_end = ends[0]
-    
-    for i in range(1, n):
-        if starts[i] <= curr_end:
-            if ends[i] > curr_end:
-                curr_end = ends[i]
-        else:
-            merged[m_ptr, 0] = curr_start
-            merged[m_ptr, 1] = curr_end
-            m_ptr += 1
-            curr_start = starts[i]
-            curr_end = ends[i]
-            
-    merged[m_ptr, 0] = curr_start
-    merged[m_ptr, 1] = curr_end
-    m_ptr += 1
-    
-    return merged[:m_ptr]
-
-
-def _merge_intervals(trades: pd.DataFrame) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
-    """
-    Merge overlapping time intervals from trades.
-    """
-    if len(trades) == 0:
-        return []
-
-    if "open_time" not in trades.columns or "close_time" not in trades.columns:
-        return []
-
-    # Sort by open_time using NumPy
-    sorted_df = trades.sort_values("open_time")
-    starts = sorted_df["open_time"].values.view("int64")
-    ends = sorted_df["close_time"].values.view("int64")
-    
-    merged_raw = _merge_intervals_kernel(starts, ends)
-    
-    return [
-        (pd.Timestamp(merged_raw[i, 0]), pd.Timestamp(merged_raw[i, 1]))
-        for i in range(len(merged_raw))
-    ]
+# =========================================================================
+# Trade P&L Statistics
+# =========================================================================
 
 
 def win_rate(trades: pd.DataFrame) -> float:
@@ -381,6 +397,7 @@ def median_loss(trades: pd.DataFrame) -> float:
 
 # =========================================================================
 # R-Multiple Analytics
+# =========================================================================
 
 
 def avg_r_multiple(trades: pd.DataFrame) -> float:
@@ -617,15 +634,6 @@ def sqn(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     Calculate System Quality Number (Van Tharp).
 
     SQN = sqrt(N) × (Avg R / Std R)
-
-    Interpretation:
-    - < 1.6: Poor
-    - 1.6 - 2.0: Below average
-    - 2.0 - 2.5: Average
-    - 2.5 - 3.0: Good
-    - 3.0 - 5.0: Very good
-    - 5.0 - 7.0: Excellent
-    - > 7.0: Holy Grail
     """
     if isinstance(trades, pd.DataFrame):
         if len(trades) == 0 or "r_multiple" not in trades.columns:
@@ -651,13 +659,6 @@ def kelly_criterion(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """
     Calculate Kelly Criterion fraction.
 
-    Formula:
-    K = W - ((1 - W) / R)
-
-    where:
-    - W is win probability
-    - R is payoff ratio = avg win / |avg loss|
-
     Returns:
         Fraction of capital to risk, clipped at 0 on the lower bound.
     """
@@ -672,13 +673,13 @@ def kelly_criterion(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
         return 0.0
 
     win_prob = win_rate_fraction(values)
-    avg_win, avg_loss = avg_win_loss(values)
-    avg_loss_abs = abs(float(avg_loss)) if not np.isnan(avg_loss) else 0.0
+    avg_win_val, avg_loss_val = avg_win_loss(values)
+    avg_loss_abs = abs(float(avg_loss_val)) if not np.isnan(avg_loss_val) else 0.0
 
-    if np.isnan(win_prob) or avg_loss_abs <= 0.0 or np.isnan(avg_win) or avg_win <= 0.0:
+    if np.isnan(win_prob) or avg_loss_abs <= 0.0 or np.isnan(avg_win_val) or avg_win_val <= 0.0:
         return 0.0
 
-    payoff_ratio = float(avg_win / avg_loss_abs)
+    payoff_ratio = float(avg_win_val / avg_loss_abs)
     if payoff_ratio <= 0.0:
         return 0.0
 
@@ -704,9 +705,9 @@ def compute_trade_metrics(
         "t_stat": t_statistic(normalized),
     }
 
-    avg_win, avg_loss = avg_win_loss(normalized)
-    summary["avg_win"] = avg_win
-    summary["avg_loss"] = avg_loss
+    avg_win_val, avg_loss_val = avg_win_loss(normalized)
+    summary["avg_win"] = avg_win_val
+    summary["avg_loss"] = avg_loss_val
     summary["payoff_ratio"] = ratios.payoff_ratio(normalized)
 
     max_cons_wins, max_cons_losses = consecutive_wins_losses(normalized)
@@ -747,12 +748,43 @@ def compute_equity_metrics(returns_input, periods_per_year: int = 252) -> dict:
     }
 
 
+# =========================================================================
+# Advanced Performance & Information (Efficiency & Entropy)
+# =========================================================================
+
+
+def _r_trade_efficiency(r: np.ndarray, mfe: np.ndarray) -> float:
+    """Calculate realized R captured relative to available MFE."""
+    r = np.asarray(r, dtype=float)
+    mfe = np.asarray(mfe, dtype=float)
+    if len(r) != len(mfe) or len(r) == 0:
+        return float("nan")
+
+    mask = mfe > 0
+    if not np.any(mask):
+        return float("nan")
+
+    return float(np.mean(r[mask] / mfe[mask]))
+
+
+def _r_edge_ratio(mfe: np.ndarray, mae: np.ndarray) -> float:
+    """Calculate excursion edge ratio as MFE divided by MAE magnitude."""
+    mfe = np.asarray(mfe, dtype=float)
+    mae = np.asarray(mae, dtype=float)
+    if len(mfe) != len(mae) or len(mfe) == 0:
+        return float("nan")
+
+    mae_abs = np.abs(mae)
+    mask = mae_abs > 0
+    if not np.any(mask):
+        return float("inf") if np.mean(mfe) > 0 else float("nan")
+
+    return float(np.mean(mfe[mask] / mae_abs[mask]))
+
+
 def trade_efficiency(trades: pd.DataFrame) -> float:
     """
     Calculate trade efficiency based on MFE/MAE ratio.
-
-    Measures how efficiently trades capture favorable moves
-    vs adverse moves
     """
     if len(trades) == 0:
         return 0.0
@@ -760,14 +792,11 @@ def trade_efficiency(trades: pd.DataFrame) -> float:
     if "mfe_pips" not in trades.columns or "mae_pips" not in trades.columns:
         return 0.0
 
-    # Filter out zero MAE to avoid division by zero
     valid_trades = trades[trades["mae_pips"] > 0]
-
     if len(valid_trades) == 0:
         return 0.0
 
     efficiency_ratios = valid_trades["mfe_pips"] / valid_trades["mae_pips"]
-
     return float(efficiency_ratios.mean())
 
 
@@ -781,21 +810,15 @@ def expectancy_variance(trades: pd.DataFrame) -> float:
 def trade_outcome_entropy(trades: pd.DataFrame) -> float:
     """
     Calculate Shannon entropy of trade outcomes.
-
-    Measures predictability of trade results.
-    Higher = more random outcomes
-    Lower = more consistent outcomes
     """
     if len(trades) == 0:
         return 0.0
 
-    # Categorize trades
     wins = winning_trades(trades)
     losses = losing_trades(trades)
     be = breakeven_trades(trades)
     total = len(trades)
 
-    # Calculate probabilities
     probs = []
     if wins > 0:
         probs.append(wins / total)
@@ -807,15 +830,36 @@ def trade_outcome_entropy(trades: pd.DataFrame) -> float:
     if not probs:
         return 0.0
 
-    # Shannon entropy: -Σ(p × log2(p))
     entropy = -sum(p * np.log2(p) for p in probs if p > 0)
-
     return float(entropy)
 
 
 # =========================================================================
-# Time-Based Metrics
+# Time-Based Period Metrics
 # =========================================================================
+
+
+def _merge_intervals(trades: pd.DataFrame) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """
+    Merge overlapping time intervals from trades using optimized Numba kernel.
+    """
+    if len(trades) == 0:
+        return []
+
+    if "open_time" not in trades.columns or "close_time" not in trades.columns:
+        return []
+
+    # Sort by open_time using NumPy
+    sorted_df = trades.sort_values("open_time")
+    starts = sorted_df["open_time"].values.view("int64")
+    ends = sorted_df["close_time"].values.view("int64")
+    
+    merged_raw = _merge_intervals_kernel(starts, ends)
+    
+    return [
+        (pd.Timestamp(merged_raw[i, 0]), pd.Timestamp(merged_raw[i, 1]))
+        for i in range(len(merged_raw))
+    ]
 
 
 def trading_period_duration(
@@ -825,96 +869,29 @@ def trading_period_duration(
 ) -> pd.Timedelta:
     """
     Calculate total duration of the trading period (Test Period).
-
-    If start_time/end_time not provided, inferred from trades.
-
-    Args:
-        trades: Trades DataFrame
-        start_time: Optional start of period
-        end_time: Optional end of period
-
-    Returns:
-        Timedelta duration
     """
     if len(trades) == 0:
         if start_time and end_time:
             return end_time - start_time
         return pd.Timedelta(0)
 
-    # Inferred start/end
     t_start = start_time if start_time else trades["open_time"].min()
     t_end = end_time if end_time else trades["close_time"].max()
 
-    if pd.isna(t_start) or pd.isna(t_end):
-        return pd.Timedelta(0)
-
-    # Ensure Order
-    if t_end < t_start:
+    if pd.isna(t_start) or pd.isna(t_end) or t_end < t_start:
         return pd.Timedelta(0)
 
     return t_end - t_start
 
 
-def _merge_intervals(
-    trades: pd.DataFrame,
-) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
-    """
-    Merge overlapping time intervals from trades.
-
-    Args:
-        trades: Trades DataFrame with 'open_time' and 'close_time'
-
-    Returns:
-        List of (start, end) tuples for merged intervals
-    """
-    if len(trades) == 0:
-        return []
-
-    if "open_time" not in trades.columns or "close_time" not in trades.columns:
-        return []
-
-    sorted_trades = trades.sort_values("open_time").reset_index(drop=True)
-    merged_intervals = []
-
-    if len(sorted_trades) > 0:
-        current_start = sorted_trades.iloc[0]["open_time"]
-        current_end = sorted_trades.iloc[0]["close_time"]
-
-        for i in range(1, len(sorted_trades)):
-            next_start = sorted_trades.iloc[i]["open_time"]
-            next_end = sorted_trades.iloc[i]["close_time"]
-
-            if next_start <= current_end:
-                current_end = max(current_end, next_end)
-            else:
-                merged_intervals.append((current_start, current_end))
-                current_start = next_start
-                current_end = next_end
-
-        merged_intervals.append((current_start, current_end))
-
-    return merged_intervals
-
-
 def time_in_market_duration(trades: pd.DataFrame) -> pd.Timedelta:
     """
     Calculate total duration where at least one position was open.
-
-    Handles overlapping trades by merging intervals.
-
-    Args:
-        trades: Trades DataFrame
-
-    Returns:
-        Timedelta duration
     """
     merged_intervals = _merge_intervals(trades)
-
-    # 3. Sum durations
     total_duration = pd.Timedelta(0)
     for start, end in merged_intervals:
         total_duration += end - start
-
     return total_duration
 
 
@@ -925,24 +902,12 @@ def percent_time_in_market(
 ) -> float:
     """
     Calculate percent of the trading period spent in the market.
-
-    Formula: (Time in Market / Total Trading Period) * 100
-
-    Args:
-        trades: Trades DataFrame
-        start_time: Optional start (for denom)
-        end_time: Optional end (for denom)
-
-    Returns:
-        Percentage (0-100)
     """
     total_period = trading_period_duration(trades, start_time, end_time)
-
     if total_period.total_seconds() == 0:
         return 0.0
 
     market_time = time_in_market_duration(trades)
-
     ratio = market_time.total_seconds() / total_period.total_seconds()
     return float(ratio * 100.0)
 
@@ -954,53 +919,26 @@ def longest_flat_period_duration(
 ) -> pd.Timedelta:
     """
     Calculate longest period the strategy refrained from trading (flat).
-
-    Calculated as the maximum gap between merged market intervals.
-    Includes gaps at start (Start -> First Trade) and end (Last Trade -> End).
-
-    Args:
-        trades: Trades DataFrame
-        start_time: Optional start
-        end_time: Optional end
-
-    Returns:
-        Timedelta duration
     """
-    # Define period bounds
-    t_start = (
-        start_time
-        if start_time
-        else (trades["open_time"].min() if len(trades) > 0 else None)
-    )
-    t_end = (
-        end_time
-        if end_time
-        else (trades["close_time"].max() if len(trades) > 0 else None)
-    )
+    t_start = start_time if start_time else (trades["open_time"].min() if len(trades) > 0 else None)
+    t_end = end_time if end_time else (trades["close_time"].max() if len(trades) > 0 else None)
 
-    if t_start is None or t_end is None:
-        return pd.Timedelta(0)
-
-    if pd.isna(t_start) or pd.isna(t_end):
+    if t_start is None or t_end is None or pd.isna(t_start) or pd.isna(t_end):
         return pd.Timedelta(0)
 
     if len(trades) == 0:
-        # If no trades, entire period is flat
         return t_end - t_start
 
-    # 1. Get Merged Intervals (Market Time)
     merged_intervals = _merge_intervals(trades)
-
-    # 2. Find Gaps
     max_flat = pd.Timedelta(0)
 
-    # Check start gap (Start -> First Interval Start)
     if merged_intervals:
+        # Start gap
         first_open = merged_intervals[0][0]
         if first_open > t_start:
             max_flat = max(max_flat, first_open - t_start)
 
-        # Check gaps between intervals
+        # Gaps between
         prev_close = merged_intervals[0][1]
         for i in range(1, len(merged_intervals)):
             curr_open = merged_intervals[i][0]
@@ -1009,7 +947,7 @@ def longest_flat_period_duration(
                 max_flat = max(max_flat, gap)
             prev_close = merged_intervals[i][1]
 
-        # Check end gap (Last Interval End -> End)
+        # End gap
         last_close = merged_intervals[-1][1]
         if last_close < t_end:
             max_flat = max(max_flat, t_end - last_close)
@@ -1017,48 +955,31 @@ def longest_flat_period_duration(
     return max_flat
 
 
+# =========================================================================
+# Equity Curve Metrics
+# =========================================================================
+
+
 def max_runup(equity_curve: pd.Series) -> float:
     """
-    Max Run-up.
-
-    The maximum gain from a valley to a peak in the equity curve.
-    Calculated as max(Equity - Running Min).
-
-    Args:
-        equity_curve: Equity series
-
-    Returns:
-        Max Run-up value (positive)
+    Max Run-up: maximum gain from a valley to a peak.
     """
     if len(equity_curve) == 0:
         return 0.0
-
     running_min = equity_curve.expanding().min()
     runup_series = equity_curve - running_min
-
     return float(runup_series.max())
 
 
 def max_runup_date(equity_curve: pd.Series) -> Optional[pd.Timestamp]:
     """
-    Date of Max Run-up.
-
-    Returns the timestamp where the equity curve reached the peak of the max run-up.
-
-    Args:
-        equity_curve: Equity series with DatetimeIndex
-
-    Returns:
-        Timestamp of max run-up peak or None
+    Date of Max Run-up peak.
     """
     if len(equity_curve) == 0:
         return None
-
     running_min = equity_curve.expanding().min()
     runup_series = equity_curve - running_min
-
     try:
-        max_idx = runup_series.idxmax()
-        return max_idx
+        return runup_series.idxmax()
     except (ValueError, TypeError):
         return None

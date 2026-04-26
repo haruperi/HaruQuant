@@ -1,8 +1,36 @@
 """
 Statistical structure of returns & trades.
 
-from backend.common.logger import logger
-Used heavily in Monte Carlo & ML
+Focus: distribution shape, tail behavior, and statistical fitting
+
+This module provides tools to analyze the underlying distribution of trading results.
+It includes measures for skewness and kurtosis, normality tests (Jarque-Bera, Shapiro-Wilk),
+outlier detection logic, and curve fitting for different probability density functions.
+
+Summary of Methods:
+------------------
+Core Summary Statistics:
+    - return_distribution: Statistical summary (mean, std, quartiles) of returns.
+    - trade_pnl_distribution: Statistical summary of individual trade P&L.
+    - r_multiple_distribution: Statistical summary of risk-normalized outcomes.
+
+Higher Moments:
+    - skewness: Measure of return distribution asymmetry.
+    - kurtosis: Measure of extreme tail thickness (excess kurtosis).
+    - higher_moments: Combined dict of skew and kurtosis.
+    - fat_tail_score: Kurtosis-based measure compared to a normal distribution.
+
+Normality & Statistical Tests:
+    - jarque_bera_test: Test if returns follow a normal distribution.
+    - shapiro_wilk_test: Normality test optimized for smaller sample sizes.
+    - qq_plot_data: Data points for Quantile-Quantile visual analysis.
+
+Distribution Fitting:
+    - fit_distribution: Fit data to Normal, Student-t, Log-Normal, or Gamma distributions.
+
+Outlier Detection:
+    - detect_outliers: Identify anomalous points using IQR or Z-score methods.
+    - outlier_ratio: Percentage of the data set flagged as outliers.
 """
 
 from typing import Dict, Literal, Tuple
@@ -12,78 +40,40 @@ import pandas as pd
 
 try:
     from scipy import stats
-
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
 
 
 # =========================================================================
-# Distribution Analysis
+# Core Summary Statistics
 # =========================================================================
 
 
-def return_distribution(returns: pd.Series) -> Dict[str, float]:
-    """
-    Statistical summary of returns distribution.
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Dict with mean, median, std, skew, kurtosis, min, max
-    """
-    if len(returns) == 0:
-        return {
-            "mean": 0.0,
-            "median": 0.0,
-            "std": 0.0,
-            "skew": 0.0,
-            "kurtosis": 0.0,
-            "min": 0.0,
-            "max": 0.0,
-            "q25": 0.0,
-            "q75": 0.0,
-        }
-
+def return_distribution(rets: pd.Series) -> Dict[str, float]:
+    """Statistical summary of returns distribution."""
+    if len(rets) == 0:
+        return {"mean": 0.0, "median": 0.0, "std": 0.0, "skew": 0.0, "kurtosis": 0.0, 
+                "min": 0.0, "max": 0.0, "q25": 0.0, "q75": 0.0}
     return {
-        "mean": float(returns.mean()),
-        "median": float(returns.median()),
-        "std": float(returns.std()),
-        "skew": float(returns.skew()),
-        "kurtosis": float(returns.kurtosis()),
-        "min": float(returns.min()),
-        "max": float(returns.max()),
-        "q25": float(returns.quantile(0.25)),
-        "q75": float(returns.quantile(0.75)),
+        "mean": float(rets.mean()),
+        "median": float(rets.median()),
+        "std": float(rets.std()),
+        "skew": float(rets.skew()),
+        "kurtosis": float(rets.kurtosis()),
+        "min": float(rets.min()),
+        "max": float(rets.max()),
+        "q25": float(rets.quantile(0.25)),
+        "q75": float(rets.quantile(0.75)),
     }
 
 
 def trade_pnl_distribution(trades: pd.DataFrame) -> Dict[str, float]:
-    """
-    Statistical summary of trade P&L distribution.
-
-    Args:
-        trades: Trades DataFrame
-
-    Returns:
-        Dict with distribution statistics
-    """
+    """Statistical summary of trade P&L distribution."""
     if len(trades) == 0 or "profit_loss" not in trades.columns:
-        return {
-            "mean": 0.0,
-            "median": 0.0,
-            "std": 0.0,
-            "skew": 0.0,
-            "kurtosis": 0.0,
-            "min": 0.0,
-            "max": 0.0,
-            "q25": 0.0,
-            "q75": 0.0,
-        }
-
+        return {"mean": 0.0, "median": 0.0, "std": 0.0, "skew": 0.0, "kurtosis": 0.0, 
+                "min": 0.0, "max": 0.0, "q25": 0.0, "q75": 0.0}
     pnl = trades["profit_loss"]
-
     return {
         "mean": float(pnl.mean()),
         "median": float(pnl.median()),
@@ -98,30 +88,11 @@ def trade_pnl_distribution(trades: pd.DataFrame) -> Dict[str, float]:
 
 
 def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
-    """
-    Statistical summary of R-multiple distribution.
-
-    Args:
-        trades: Trades DataFrame
-
-    Returns:
-        Dict with distribution statistics
-    """
+    """Statistical summary of R-multiple distribution."""
     if len(trades) == 0 or "r_multiple" not in trades.columns:
-        return {
-            "mean": 0.0,
-            "median": 0.0,
-            "std": 0.0,
-            "skew": 0.0,
-            "kurtosis": 0.0,
-            "min": 0.0,
-            "max": 0.0,
-            "q25": 0.0,
-            "q75": 0.0,
-        }
-
+        return {"mean": 0.0, "median": 0.0, "std": 0.0, "skew": 0.0, "kurtosis": 0.0, 
+                "min": 0.0, "max": 0.0, "q25": 0.0, "q75": 0.0}
     r_values = trades["r_multiple"]
-
     return {
         "mean": float(r_values.mean()),
         "median": float(r_values.median()),
@@ -136,6 +107,82 @@ def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
 
 
 # =========================================================================
+# Higher Moments
+# =========================================================================
+
+
+def skewness(data: pd.Series) -> float:
+    """Calculate skewness of a data series."""
+    if len(data) < 3: return 0.0
+    val = data.skew()
+    return float(val) if not pd.isna(val) else 0.0
+
+
+def kurtosis(data: pd.Series) -> float:
+    """Calculate excess kurtosis of a data series."""
+    if len(data) < 4: return 0.0
+    val = data.kurtosis()
+    return float(val) if not pd.isna(val) else 0.0
+
+
+def higher_moments(data: pd.Series) -> Dict[str, float]:
+    """Calculate combined higher statistical moments."""
+    if len(data) < 4:
+        return {"skewness": 0.0, "kurtosis": 0.0, "excess_kurtosis": 0.0}
+    k = data.kurtosis()
+    return {
+        "skewness": float(data.skew()),
+        "excess_kurtosis": float(k),
+        "kurtosis": float(k + 3),
+    }
+
+
+def fat_tail_score(rets: pd.Series) -> float:
+    """Excess kurtosis measure of tail thickness."""
+    return float(rets.kurtosis()) if len(rets) >= 4 else 0.0
+
+
+# =========================================================================
+# Normality & Statistical Tests
+# =========================================================================
+
+
+def jarque_bera_test(rets: pd.Series) -> Dict[str, float]:
+    """Jarque-Bera test for normality."""
+    if not HAS_SCIPY:
+        raise ImportError("scipy is required for Jarque-Bera test.")
+    if len(rets) < 4:
+        return {"statistic": 0.0, "p_value": 1.0, "is_normal": True}
+    stat, p = stats.jarque_bera(rets.values)
+    return {"statistic": float(stat), "p_value": float(p), "is_normal": bool(p > 0.05)}
+
+
+def shapiro_wilk_test(rets: pd.Series) -> Dict[str, float]:
+    """Shapiro-Wilk test for normality (optimized for < 5000 samples)."""
+    if not HAS_SCIPY:
+        raise ImportError("scipy is required for Shapiro-Wilk test.")
+    if len(rets) < 3:
+        return {"statistic": 0.0, "p_value": 1.0, "is_normal": True}
+    sample = rets.values
+    if len(sample) > 5000:
+        sample = np.random.choice(sample, 5000, replace=False)
+    stat, p = stats.shapiro(sample)
+    return {"statistic": float(stat), "p_value": float(p), "is_normal": bool(p > 0.05)}
+
+
+def qq_plot_data(data: pd.Series) -> Tuple[np.ndarray, np.ndarray]:
+    """Generate Q-Q plot theoretical vs sample quantiles."""
+    if not HAS_SCIPY:
+        raise ImportError("scipy is required for Q-Q plot.")
+    if len(data) < 2:
+        return (np.array([]), np.array([]))
+    standardized = (data - data.mean()) / data.std()
+    sorted_sample = np.sort(standardized.values)
+    theoretical = stats.norm.ppf(np.linspace(0.01, 0.99, len(sorted_sample)))
+    return (theoretical, sorted_sample)
+
+
+# =========================================================================
 # Distribution Fitting
 # =========================================================================
 
@@ -143,245 +190,24 @@ def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
 def fit_distribution(
     data: pd.Series, dist_name: Literal["norm", "t", "lognorm", "gamma"] = "norm"
 ) -> Dict[str, float]:
-    """
-    Fit distribution to data.
-
-    Args:
-        data: Data series
-        dist_name: Distribution name ('norm', 't', 'lognorm', 'gamma')
-
-    Returns:
-        Dict with distribution parameters
-    """
+    """Fit data to a probability density function."""
     if not HAS_SCIPY:
-        raise ImportError(
-            "scipy is required for distribution fitting. Install with: pip install scipy"
-        )
-
-    if len(data) < 2:
-        return {}
-
-    data_array = data.values
-
+        raise ImportError("scipy is required for distribution fitting.")
+    if len(data) < 2: return {}
+    arr = data.values
     if dist_name == "norm":
-        # Normal distribution
-        mu, sigma = stats.norm.fit(data_array)
+        mu, sigma = stats.norm.fit(arr)
         return {"mu": float(mu), "sigma": float(sigma)}
-
     elif dist_name == "t":
-        # Student's t-distribution
-        df, loc, scale = stats.t.fit(data_array)
+        df, loc, scale = stats.t.fit(arr)
         return {"df": float(df), "loc": float(loc), "scale": float(scale)}
-
     elif dist_name == "lognorm":
-        # Log-normal distribution
-        shape, loc, scale = stats.lognorm.fit(data_array, floc=0)
+        shape, loc, scale = stats.lognorm.fit(arr, floc=0)
         return {"shape": float(shape), "loc": float(loc), "scale": float(scale)}
-
     elif dist_name == "gamma":
-        # Gamma distribution
-        shape, loc, scale = stats.gamma.fit(data_array, floc=0)
+        shape, loc, scale = stats.gamma.fit(arr, floc=0)
         return {"shape": float(shape), "loc": float(loc), "scale": float(scale)}
-
     return {}
-
-
-def qq_plot_data(data: pd.Series) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Generate Q-Q plot data for normality test.
-
-    Args:
-        data: Data series
-
-    Returns:
-        Tuple of (theoretical_quantiles, sample_quantiles)
-    """
-    if not HAS_SCIPY:
-        raise ImportError(
-            "scipy is required for Q-Q plot. Install with: pip install scipy"
-        )
-
-    if len(data) < 2:
-        return (np.array([]), np.array([]))
-
-    # Standardize data
-    standardized = (data - data.mean()) / data.std()
-
-    # Sort data
-    sorted_data = np.sort(standardized.values)
-
-    # Theoretical quantiles (normal distribution)
-    n = len(sorted_data)
-    theoretical = stats.norm.ppf(np.linspace(0.01, 0.99, n))
-
-    return (theoretical, sorted_data)
-
-
-def fat_tail_score(returns: pd.Series) -> float:
-    """
-    Fat tail score - kurtosis-based measure.
-
-    Measures how "fat" the tails are compared to normal distribution
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Fat tail score (excess kurtosis)
-        - 0: Normal distribution
-        - > 0: Fat tails (more extreme events)
-        - < 0: Thin tails (fewer extreme events)
-    """
-    if len(returns) < 4:
-        return 0.0
-
-    # Excess kurtosis (kurtosis - 3 for normal)
-    return float(returns.kurtosis())
-
-
-# =========================================================================
-# Normality Tests
-# =========================================================================
-
-
-def jarque_bera_test(returns: pd.Series) -> Dict[str, float]:
-    """
-    Jarque-Bera test for normality.
-
-    Tests whether returns follow normal distribution
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Dict with statistic, p_value, is_normal
-    """
-    if not HAS_SCIPY:
-        raise ImportError(
-            "scipy is required for Jarque-Bera test. Install with: pip install scipy"
-        )
-
-    if len(returns) < 4:
-        return {"statistic": 0.0, "p_value": 1.0, "is_normal": True}
-
-    statistic, p_value = stats.jarque_bera(returns.values)
-
-    # Typically reject normality if p < 0.05
-    is_normal = p_value > 0.05
-
-    return {
-        "statistic": float(statistic),
-        "p_value": float(p_value),
-        "is_normal": bool(is_normal),
-    }
-
-
-def shapiro_wilk_test(returns: pd.Series) -> Dict[str, float]:
-    """
-    Shapiro-Wilk test for normality.
-
-    More powerful test for small samples
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Dict with statistic, p_value, is_normal
-    """
-    if not HAS_SCIPY:
-        raise ImportError(
-            "scipy is required for Shapiro-Wilk test. Install with: pip install scipy"
-        )
-
-    if len(returns) < 3:
-        return {"statistic": 0.0, "p_value": 1.0, "is_normal": True}
-
-    # Shapiro-Wilk test limited to 5000 samples
-    sample = returns.values
-    if len(sample) > 5000:
-        sample = np.random.choice(sample, 5000, replace=False)
-
-    statistic, p_value = stats.shapiro(sample)
-
-    is_normal = p_value > 0.05
-
-    return {
-        "statistic": float(statistic),
-        "p_value": float(p_value),
-        "is_normal": bool(is_normal),
-    }
-
-
-# =========================================================================
-# Higher Moments
-# =========================================================================
-
-
-def higher_moments(data: pd.Series) -> Dict[str, float]:
-    """
-    Calculate higher statistical moments.
-
-    Args:
-        data: Data series
-
-    Returns:
-        Dict with skewness, kurtosis, and derived measures
-    """
-    if len(data) < 4:
-        return {
-            "skewness": 0.0,
-            "kurtosis": 0.0,
-            "excess_kurtosis": 0.0,
-        }
-
-    skew = data.skew()
-    kurt = data.kurtosis()  # Pandas returns excess kurtosis
-
-    return {
-        "skewness": float(skew),
-        "excess_kurtosis": float(kurt),
-        "kurtosis": float(kurt + 3),  # Total kurtosis
-    }
-
-
-def skewness(data: pd.Series) -> float:
-    """
-    Calculate skewness of a data series.
-
-    Args:
-        data: Data series
-
-    Returns:
-        Skewness value (0.0 for insufficient data)
-    """
-    if len(data) < 3:
-        return 0.0
-
-    value = data.skew()
-    if pd.isna(value):
-        return 0.0
-
-    return float(value)
-
-
-def kurtosis(data: pd.Series) -> float:
-    """
-    Calculate excess kurtosis of a data series.
-
-    Args:
-        data: Data series
-
-    Returns:
-        Excess kurtosis value (0.0 for insufficient data)
-    """
-    if len(data) < 4:
-        return 0.0
-
-    value = data.kurtosis()
-    if pd.isna(value):
-        return 0.0
-
-    return float(value)
 
 
 # =========================================================================
@@ -392,57 +218,19 @@ def kurtosis(data: pd.Series) -> float:
 def detect_outliers(
     data: pd.Series, method: Literal["iqr", "zscore"] = "iqr", threshold: float = 3.0
 ) -> pd.Series:
-    """
-    Detect outliers in data.
-
-    Args:
-        data: Data series
-        method: Detection method ('iqr' or 'zscore')
-        threshold: Threshold for outlier detection
-            - IQR: multiplier for IQR (default 3.0)
-            - Z-score: number of std deviations (default 3.0)
-
-    Returns:
-        Boolean series indicating outliers
-    """
-    if len(data) == 0:
-        return pd.Series(dtype=bool)
-
+    """Identify anomalous data points."""
+    if len(data) == 0: return pd.Series(dtype=bool)
     if method == "iqr":
-        # IQR method
-        q1 = data.quantile(0.25)
-        q3 = data.quantile(0.75)
+        q1, q3 = data.quantile(0.25), data.quantile(0.75)
         iqr = q3 - q1
-
-        lower_bound = q1 - threshold * iqr
-        upper_bound = q3 + threshold * iqr
-
-        outliers = (data < lower_bound) | (data > upper_bound)
-
+        return (data < q1 - threshold * iqr) | (data > q3 + threshold * iqr)
     elif method == "zscore":
-        # Z-score method
-        z_scores = np.abs((data - data.mean()) / data.std())
-        outliers = z_scores > threshold
-
-    else:
-        outliers = pd.Series(False, index=data.index)
-
-    return outliers
+        z = np.abs((data - data.mean()) / data.std())
+        return z > threshold
+    return pd.Series(False, index=data.index)
 
 
 def outlier_ratio(data: pd.Series, **kwargs) -> float:
-    """
-    Percentage of outliers in data.
-
-    Args:
-        data: Data series
-        **kwargs: Arguments passed to detect_outliers
-
-    Returns:
-        Outlier ratio (0-1)
-    """
-    if len(data) == 0:
-        return 0.0
-
-    outliers = detect_outliers(data, **kwargs)
-    return float(outliers.sum() / len(data))
+    """Percentage of data points identified as outliers."""
+    if len(data) == 0: return 0.0
+    return float(detect_outliers(data, **kwargs).sum() / len(data))

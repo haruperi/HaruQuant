@@ -1,8 +1,59 @@
 """
-Return calculations & period-based analysis.
+Return calculations & period-based growth analysis.
 
-from backend.common.logger import logger
 Focus: equity growth, compounding, time normalization
+
+This module provides functions to calculate raw and compounded returns, 
+generate equity curves from trades, and perform time-period resampling (daily, monthly, annual).
+It also includes adjusted profit metrics and benchmarking utilities.
+
+Summary of Methods:
+------------------
+Basic Profit & Loss:
+    - total_return: Net gain/loss from an equity curve.
+    - net_profit: Total P&L from all closed trades.
+    - gross_profit: Sum of all winning trades.
+    - gross_loss: Sum of all losing trades (negative).
+
+Equity & Returns Generation:
+    - equity_curve: Generate a time-series of account equity from trades.
+    - balance_curve: Generate a time-series of realized balance.
+    - returns_series: Calculate percentage returns between equity points.
+    - log_returns_series: Calculate logarithmic returns.
+
+Resampled Period Returns:
+    - daily_returns / weekly_returns: Period-resampled percentage returns.
+    - monthly_returns / annual_returns: Period-resampled percentage returns.
+
+Compounding & Growth Rates:
+    - cagr: Compound Annual Growth Rate.
+    - compound_monthly_growth_rate (CMGR): Monthly equivalent of CAGR.
+    - avg_monthly_return: Arithmetic mean of monthly returns.
+    - monthly_return_stddev: Volatility of monthly returns.
+    - annualized_return: Scale sub-annual returns to yearly terms.
+    - geometric_mean_return: Average growth factor per period.
+
+Benchmarking:
+    - buy_and_hold_return: Return if asset was held from start to end.
+    - buy_and_hold_cagr: CAGR of a buy-and-hold position.
+
+Return Stability & Moments:
+    - return_volatility: Standard deviation of returns.
+    - downside_return_volatility: Standard deviation of negative returns only.
+    - return_skewness: Measure of return distribution asymmetry.
+    - return_kurtosis: Measure of "fat tails" in returns.
+
+Adjusted & Select Metrics:
+    - adjusted_net_profit: Net profit adjusted for statistical significance.
+    - select_net_profit: Net profit after removing 3-sigma outliers.
+    - adjusted_gross_profit / adjusted_gross_loss: Scaled components of adjusted profit.
+    - select_gross_profit / select_gross_loss: Outlier-removed profit components.
+
+Return Ratios & Capital Relations:
+    - return_on_max_strategy_drawdown: Total return relative to max peak-to-valley dip.
+    - return_on_max_close_to_close_drawdown: Net profit relative to trade-level max dip.
+    - return_on_account: Return relative to required capital.
+    - return_on_initial_capital: Return relative to starting balance.
 """
 
 from typing import Optional
@@ -12,83 +63,6 @@ import pandas as pd
 
 from . import drawdowns
 
-# =========================================================================
-# Basic Returns & Benchmarks
-# =========================================================================
-
-
-def buy_and_hold_return(price_data: pd.Series) -> float:
-    """
-    Buy & Hold Return.
-
-    Return achieved if asset was bought at start and held to end.
-
-    Args:
-        price_data: Series of asset prices (e.g., Close prices)
-
-    Returns:
-        Percentage return (0.0 - 100.0+)
-    """
-    if len(price_data) < 2:
-        return 0.0
-
-    start_price = float(price_data.iloc[0])
-    end_price = float(price_data.iloc[-1])
-
-    if start_price == 0:
-        return 0.0
-
-    return ((end_price - start_price) / start_price) * 100.0
-
-
-def buy_and_hold_cagr(price_data: pd.Series) -> float:
-    """Buy & Hold CAGR."""
-    # Create a dummy equity curve matching the price
-    if len(price_data) < 2:
-        return 0.0
-    return cagr(price_data)
-
-
-def total_return(equity: pd.Series) -> float:
-    """
-    Total return from equity curve.
-
-    Args:
-        equity: Equity series
-
-    Returns:
-        Total return in currency units
-    """
-    if len(equity) == 0:
-        return 0.0
-    return float(equity.iloc[-1] - equity.iloc[0])
-
-
-def net_profit(trades: pd.DataFrame) -> float:
-    """Net profit from all trades."""
-    if len(trades) == 0:
-        return 0.0
-    return float(trades["profit_loss"].sum())
-
-
-def gross_profit(trades: pd.DataFrame) -> float:
-    """Gross profit (sum of winning trades)."""
-    if len(trades) == 0:
-        return 0.0
-    return float(trades[trades["profit_loss"] > 0]["profit_loss"].sum())
-
-
-def gross_loss(trades: pd.DataFrame) -> float:
-    """Gross loss (sum of losing trades, negative value)."""
-    if len(trades) == 0:
-        return 0.0
-    return float(trades[trades["profit_loss"] < 0]["profit_loss"].sum())
-
-
-# =========================================================================
-# Equity Curve Generation
-# =========================================================================
-
 
 try:
     from numba import njit
@@ -97,6 +71,11 @@ except ImportError:
         def decorator(f):
             return f
         return decorator
+
+
+# =========================================================================
+# Utility & Kernel Helpers
+# =========================================================================
 
 
 @njit(cache=True)
@@ -109,406 +88,6 @@ def _equity_curve_kernel(pnl_arr, initial_balance):
         curr += pnl_arr[i]
         out[i + 1] = curr
     return out
-
-
-def equity_curve(trades: pd.DataFrame, initial_balance: float) -> pd.Series:
-    """
-    Generate equity curve from trades.
-    """
-    if len(trades) == 0:
-        return pd.Series([initial_balance])
-
-    sorted_trades = trades.sort_values("close_time")
-    pnl_arr = sorted_trades["profit_loss"].values.astype(np.float64)
-    
-    equity_values = _equity_curve_kernel(pnl_arr, float(initial_balance))
-    
-    # Construct index
-    first_time = sorted_trades.iloc[0]["open_time"]
-    indices = np.concatenate([np.array([first_time]), sorted_trades["close_time"].values])
-    
-    return pd.Series(equity_values, index=indices)
-
-
-def balance_curve(trades: pd.DataFrame, initial_balance: float) -> pd.Series:
-    """
-    Generate balance curve (realized P&L only).
-
-    Same as equity_curve for closed trades
-    """
-    return equity_curve(trades, initial_balance)
-
-
-def returns_series(equity_curve: pd.Series) -> pd.Series:
-    """
-    Calculate returns series from equity curve.
-
-    Returns:
-        Series of percentage returns
-    """
-    if len(equity_curve) < 2:
-        return pd.Series(dtype=float)
-
-    return equity_curve.pct_change().dropna()
-
-
-def log_returns_series(equity_curve: pd.Series) -> pd.Series:
-    """
-    Calculate log returns series from equity curve.
-
-    Returns:
-        Series of log returns
-    """
-    if len(equity_curve) < 2:
-        return pd.Series(dtype=float)
-
-    return np.log(equity_curve / equity_curve.shift(1)).dropna()
-
-
-# =========================================================================
-# Period-Based Returns
-# =========================================================================
-
-
-def daily_returns(equity_curve: pd.Series) -> pd.Series:
-    """
-    Resample equity curve to daily returns.
-
-    Args:
-        equity_curve: Equity series with datetime index
-
-    Returns:
-        Daily returns series
-    """
-    if len(equity_curve) < 2:
-        return pd.Series(dtype=float)
-
-    daily_equity = equity_curve.resample("D").last().dropna()
-    return daily_equity.pct_change().dropna()
-
-
-def weekly_returns(equity_curve: pd.Series) -> pd.Series:
-    """Resample equity curve to weekly returns."""
-    if len(equity_curve) < 2:
-        return pd.Series(dtype=float)
-
-    weekly_equity = equity_curve.resample("W").last().dropna()
-    return weekly_equity.pct_change().dropna()
-
-
-def monthly_returns(equity_curve: pd.Series) -> pd.Series:
-    """Resample equity curve to monthly returns."""
-    if len(equity_curve) < 2:
-        return pd.Series(dtype=float)
-
-    monthly_equity = equity_curve.resample("ME").last().dropna()
-    return monthly_equity.pct_change().dropna()
-
-
-def annual_returns(equity_curve: pd.Series) -> pd.Series:
-    """Resample equity curve to annual returns."""
-    if len(equity_curve) < 2:
-        return pd.Series(dtype=float)
-
-    annual_equity = equity_curve.resample("YE").last().dropna()
-    return annual_equity.pct_change().dropna()
-
-
-# =========================================================================
-# Compounding Metrics
-# =========================================================================
-
-
-def compound_monthly_growth_rate(equity_curve: pd.Series) -> float:
-    """
-    Compound Monthly Growth Rate (CMGR).
-
-    Equivalent to CAGR but for monthly periods.
-    """
-    if len(equity_curve) < 2:
-        return 0.0
-
-    start_value = equity_curve.iloc[0]
-    end_value = equity_curve.iloc[-1]
-
-    if start_value <= 0:
-        return 0.0
-
-    # Calculate months
-    start_date = equity_curve.index[0]
-    end_date = equity_curve.index[-1]
-    # More accurate month diff
-    days = (end_date - start_date).total_seconds() / (24 * 3600)
-    months = days / 30.44  # Average days in month
-
-    if months == 0:
-        return 0.0
-
-    # CMGR = (End/Start)^(1/months) - 1
-    # Handle negative end value (total loss)
-    if end_value <= 0:
-        return -100.0
-
-    cmgr_value = (end_value / start_value) ** (1 / months) - 1
-
-    return float(cmgr_value * 100)
-
-
-def avg_monthly_return(equity_curve: pd.Series) -> float:
-    """
-    Average Monthly Return.
-
-    Arithmetic mean of monthly returns.
-    """
-    m_ret = monthly_returns(equity_curve)
-    if len(m_ret) == 0:
-        return 0.0
-    return float(m_ret.mean() * 100)
-
-
-def monthly_return_stddev(equity_curve: pd.Series) -> float:
-    """Calculate standard deviation of monthly returns."""
-    m_ret = monthly_returns(equity_curve)
-    if len(m_ret) < 2:
-        return 0.0
-    return float(m_ret.std() * 100)
-
-
-def cagr(equity_curve: pd.Series) -> float:
-    """
-    Compound Annual Growth Rate.
-
-    Args:
-        equity_curve: Equity series with datetime index
-
-    Returns:
-        CAGR as percentage
-    """
-    if len(equity_curve) < 2:
-        return 0.0
-
-    start_value = equity_curve.iloc[0]
-    end_value = equity_curve.iloc[-1]
-
-    if start_value <= 0:
-        return 0.0
-
-    # Calculate years
-    start_date = equity_curve.index[0]
-    end_date = equity_curve.index[-1]
-    years = (end_date - start_date).total_seconds() / (365.25 * 24 * 3600)
-
-    if years == 0:
-        return 0.0
-
-    # CAGR = (End/Start)^(1/years) - 1
-    # Handle negative end value (total loss)
-    if end_value <= 0:
-        return -100.0
-
-    cagr_value = (end_value / start_value) ** (1 / years) - 1
-
-    return float(cagr_value * 100)
-
-
-def annualized_return(
-    returns: pd.Series, periods_per_year: Optional[int] = None
-) -> float:
-    """
-    Calculate annualized return from returns series.
-
-    Args:
-        returns: Returns series
-        periods_per_year: Number of periods per year (auto-detected if None)
-
-    Returns:
-        Annualized return as percentage
-    """
-    if len(returns) == 0:
-        return 0.0
-
-    # Auto-detect periods per year if not provided
-    if periods_per_year is None:
-        if isinstance(returns.index, pd.DatetimeIndex):
-            # Estimate based on index frequency
-            mean_diff = (returns.index[-1] - returns.index[0]) / len(returns)
-            days_per_period = mean_diff.total_seconds() / (24 * 3600)
-
-            if days_per_period < 2:
-                periods_per_year = 252  # Daily
-            elif days_per_period < 8:
-                periods_per_year = 52  # Weekly
-            elif days_per_period < 35:
-                periods_per_year = 12  # Monthly
-            else:
-                periods_per_year = 1  # Yearly
-        else:
-            periods_per_year = 252  # Default to daily
-
-    # Geometric mean return
-    mean_return = returns.mean()
-
-    # Annualize
-    annualized = (1 + mean_return) ** periods_per_year - 1
-
-    return float(annualized * 100)
-
-
-def geometric_mean_return(returns: pd.Series) -> float:
-    """
-    Calculate geometric mean return.
-
-    Args:
-        returns: Returns series (as decimals, e.g., 0.01 for 1%)
-
-    Returns:
-        Geometric mean return
-    """
-    if len(returns) == 0:
-        return 0.0
-
-    # Convert to growth factors
-    growth_factors = 1 + returns
-
-    # Geometric mean: (product of all factors)^(1/n) - 1
-    geometric_mean = growth_factors.prod() ** (1 / len(returns)) - 1
-
-    return float(geometric_mean)
-
-
-# =========================================================================
-# Stability
-# =========================================================================
-
-
-def return_volatility(returns: pd.Series) -> float:
-    """
-    Calculate return volatility (standard deviation).
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Standard deviation of returns
-    """
-    if len(returns) < 2:
-        return 0.0
-    return float(returns.std())
-
-
-def downside_return_volatility(returns: pd.Series, target: float = 0.0) -> float:
-    """
-    Calculate downside volatility (semi-deviation).
-
-    Only considers returns below target
-
-    Args:
-        returns: Returns series
-        target: Target return (default 0)
-
-    Returns:
-        Downside standard deviation
-    """
-    if len(returns) < 2:
-        return 0.0
-
-    downside_returns = returns[returns < target]
-
-    if len(downside_returns) == 0:
-        return 0.0
-
-    return float(downside_returns.std())
-
-
-def return_skewness(returns: pd.Series) -> float:
-    """
-    Calculate skewness of returns distribution.
-
-    - Negative: More extreme losses than gains
-    - Positive: More extreme gains than losses
-    - Zero: Symmetric
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Skewness value
-    """
-    if len(returns) < 3:
-        return 0.0
-    return float(returns.skew())
-
-
-def return_kurtosis(returns: pd.Series) -> float:
-    """
-    Calculate kurtosis of returns distribution.
-
-    Measures "tailedness" of distribution
-    - High kurtosis: Fat tails (more extreme events)
-    - Low kurtosis: Thin tails (fewer extreme events)
-
-    Args:
-        returns: Returns series
-
-    Returns:
-        Excess kurtosis value
-    """
-    if len(returns) < 4:
-        return 0.0
-    return float(returns.kurtosis())
-
-
-# =========================================================================
-# Adjusted & Select Metrics (Trade-Based)
-# =========================================================================
-
-
-def adjusted_gross_profit(trades: pd.DataFrame) -> float:
-    """
-    Calculate Adjusted Gross Profit.
-
-    (N_Winning_Trades - Sqrt(N_Winning_Trades)) * Avg_Winning_Trade
-    """
-    winners = trades[trades["profit_loss"] > 0]
-    n_winners = len(winners)
-
-    if n_winners == 0:
-        return 0.0
-
-    avg_win_val = float(winners["profit_loss"].mean())
-    adjusted_n = n_winners - np.sqrt(n_winners)
-
-    return float(adjusted_n * avg_win_val)
-
-
-def adjusted_gross_loss(trades: pd.DataFrame) -> float:
-    """
-    Calculate Adjusted Gross Loss.
-
-    (N_Losing_Trades + Sqrt(N_Losing_Trades)) * Avg_Losing_Trade
-
-    (Note: Since Avg_Losing_Trade is negative, increasing the count by sqrt(N)
-    makes the result more negative, effectively 'increasing' the loss magnitude)
-    """
-    losers = trades[trades["profit_loss"] < 0]
-    n_losers = len(losers)
-
-    if n_losers == 0:
-        return 0.0
-
-    avg_loss_val = float(losers["profit_loss"].mean())
-    adjusted_n = n_losers + np.sqrt(n_losers)
-
-    return float(adjusted_n * avg_loss_val)
-
-
-def adjusted_net_profit(trades: pd.DataFrame) -> float:
-    """
-    Calculate Adjusted Net Profit.
-
-    The difference between the adjusted gross loss and the adjusted gross profit.
-    """
-    return adjusted_gross_profit(trades) + adjusted_gross_loss(trades)
 
 
 @njit(cache=True)
@@ -524,118 +103,305 @@ def _outlier_mask_kernel(pnl_arr, mean, std, sigma):
 
 
 def _remove_outliers(trades: pd.DataFrame, sigma: float = 3.0) -> pd.DataFrame:
-    """
-    Remove trades that are outliers.
-    """
+    """Remove trades that are outliers (> sigma * std)."""
     if len(trades) < 2:
         return trades
-
     pnl_arr = trades["profit_loss"].values.astype(np.float64)
     mean = np.mean(pnl_arr)
     std = np.std(pnl_arr)
-
     if std == 0:
         return trades
-
     mask = _outlier_mask_kernel(pnl_arr, float(mean), float(std), float(sigma))
     return trades[mask]
 
 
-def select_net_profit(trades: pd.DataFrame) -> float:
-    """
-    Select Net Profit.
+# =========================================================================
+# Basic Profit & Loss
+# =========================================================================
 
-    Net Profit with outlier trades removed.
-    A trade is an outlier if its PnL is > 3 std devs from the mean.
-    """
+
+def total_return(equity: pd.Series) -> float:
+    """Total return in currency units from equity curve."""
+    if len(equity) == 0:
+        return 0.0
+    return float(equity.iloc[-1] - equity.iloc[0])
+
+
+def net_profit(trades: pd.DataFrame) -> float:
+    """Total realized profit/loss from closed trades."""
     if len(trades) == 0:
         return 0.0
+    return float(trades["profit_loss"].sum())
 
-    filtered = _remove_outliers(trades, sigma=3.0)
-    return float(filtered["profit_loss"].sum())
+
+def gross_profit(trades: pd.DataFrame) -> float:
+    """Sum of all winning trades."""
+    if len(trades) == 0:
+        return 0.0
+    return float(trades[trades["profit_loss"] > 0]["profit_loss"].sum())
+
+
+def gross_loss(trades: pd.DataFrame) -> float:
+    """Sum of all losing trades (negative)."""
+    if len(trades) == 0:
+        return 0.0
+    return float(trades[trades["profit_loss"] < 0]["profit_loss"].sum())
+
+
+# =========================================================================
+# Equity & Returns Generation
+# =========================================================================
+
+
+def equity_curve(trades: pd.DataFrame, initial_balance: float) -> pd.Series:
+    """Generate a time-indexed equity curve from trades."""
+    if len(trades) == 0:
+        return pd.Series([initial_balance])
+
+    sorted_trades = trades.sort_values("close_time")
+    pnl_arr = sorted_trades["profit_loss"].values.astype(np.float64)
+    equity_values = _equity_curve_kernel(pnl_arr, float(initial_balance))
+    
+    first_time = sorted_trades.iloc[0]["open_time"]
+    indices = np.concatenate([np.array([first_time]), sorted_trades["close_time"].values])
+    return pd.Series(equity_values, index=indices)
+
+
+def balance_curve(trades: pd.DataFrame, initial_balance: float) -> pd.Series:
+    """Generate balance curve (equivalent to equity curve for closed trades)."""
+    return equity_curve(trades, initial_balance)
+
+
+def returns_series(equity: pd.Series) -> pd.Series:
+    """Calculate percentage returns between equity points."""
+    if len(equity) < 2:
+        return pd.Series(dtype=float)
+    return equity.pct_change().dropna()
+
+
+def log_returns_series(equity: pd.Series) -> pd.Series:
+    """Calculate logarithmic returns."""
+    if len(equity) < 2:
+        return pd.Series(dtype=float)
+    return np.log(equity / equity.shift(1)).dropna()
+
+
+# =========================================================================
+# Resampled Period Returns
+# =========================================================================
+
+
+def daily_returns(equity: pd.Series) -> pd.Series:
+    """Resample equity curve to daily percentage returns."""
+    if len(equity) < 2:
+        return pd.Series(dtype=float)
+    daily_equity = equity.resample("D").last().dropna()
+    return daily_equity.pct_change().dropna()
+
+
+def weekly_returns(equity: pd.Series) -> pd.Series:
+    """Resample equity curve to weekly percentage returns."""
+    if len(equity) < 2:
+        return pd.Series(dtype=float)
+    weekly_equity = equity.resample("W").last().dropna()
+    return weekly_equity.pct_change().dropna()
+
+
+def monthly_returns(equity: pd.Series) -> pd.Series:
+    """Resample equity curve to monthly percentage returns."""
+    if len(equity) < 2:
+        return pd.Series(dtype=float)
+    monthly_equity = equity.resample("ME").last().dropna()
+    return monthly_equity.pct_change().dropna()
+
+
+def annual_returns(equity: pd.Series) -> pd.Series:
+    """Resample equity curve to annual percentage returns."""
+    if len(equity) < 2:
+        return pd.Series(dtype=float)
+    annual_equity = equity.resample("YE").last().dropna()
+    return annual_equity.pct_change().dropna()
+
+
+# =========================================================================
+# Compounding & Growth Rates
+# =========================================================================
+
+
+def cagr(equity: pd.Series) -> float:
+    """Compound Annual Growth Rate as percentage."""
+    if len(equity) < 2:
+        return 0.0
+    start_val, end_val = equity.iloc[0], equity.iloc[-1]
+    if start_val <= 0:
+        return 0.0
+    years = (equity.index[-1] - equity.index[0]).total_seconds() / (365.25 * 24 * 3600)
+    if years == 0:
+        return 0.0
+    if end_val <= 0:
+        return -100.0
+    return float(((end_val / start_val) ** (1 / years) - 1) * 100)
+
+
+def compound_monthly_growth_rate(equity: pd.Series) -> float:
+    """Compound Monthly Growth Rate as percentage."""
+    if len(equity) < 2:
+        return 0.0
+    start_val, end_val = equity.iloc[0], equity.iloc[-1]
+    if start_val <= 0:
+        return 0.0
+    months = (equity.index[-1] - equity.index[0]).total_seconds() / (30.44 * 24 * 3600)
+    if months == 0:
+        return 0.0
+    if end_val <= 0:
+        return -100.0
+    return float(((end_val / start_val) ** (1 / months) - 1) * 100)
+
+
+def avg_monthly_return(equity: pd.Series) -> float:
+    """Arithmetic mean of monthly returns as percentage."""
+    m_ret = monthly_returns(equity)
+    return float(m_ret.mean() * 100) if len(m_ret) > 0 else 0.0
+
+
+def monthly_return_stddev(equity: pd.Series) -> float:
+    """Volatility of monthly returns as percentage."""
+    m_ret = monthly_returns(equity)
+    return float(m_ret.std() * 100) if len(m_ret) >= 2 else 0.0
+
+
+def annualized_return(
+    rets: pd.Series, periods_per_year: Optional[int] = None
+) -> float:
+    """Scale sub-annual returns to yearly terms."""
+    if len(rets) == 0:
+        return 0.0
+    if periods_per_year is None:
+        if isinstance(rets.index, pd.DatetimeIndex):
+            mean_diff = (rets.index[-1] - rets.index[0]) / len(rets)
+            days = mean_diff.total_seconds() / (24 * 3600)
+            periods_per_year = 252 if days < 2 else (52 if days < 8 else (12 if days < 35 else 1))
+        else:
+            periods_per_year = 252
+    return float(((1 + rets.mean()) ** periods_per_year - 1) * 100)
+
+
+def geometric_mean_return(rets: pd.Series) -> float:
+    """Calculate geometric mean return factor."""
+    if len(rets) == 0:
+        return 0.0
+    return float((1 + rets).prod() ** (1 / len(rets)) - 1)
+
+
+# =========================================================================
+# Benchmarking
+# =========================================================================
+
+
+def buy_and_hold_return(price_data: pd.Series) -> float:
+    """Total percentage return if asset was bought and held."""
+    if len(price_data) < 2 or price_data.iloc[0] == 0:
+        return 0.0
+    return ((price_data.iloc[-1] - price_data.iloc[0]) / price_data.iloc[0]) * 100.0
+
+
+def buy_and_hold_cagr(price_data: pd.Series) -> float:
+    """CAGR of a buy-and-hold position."""
+    return cagr(price_data) if len(price_data) >= 2 else 0.0
+
+
+# =========================================================================
+# Return Stability & Moments
+# =========================================================================
+
+
+def return_volatility(rets: pd.Series) -> float:
+    """Standard deviation of returns."""
+    return float(rets.std()) if len(rets) >= 2 else 0.0
+
+
+def downside_return_volatility(rets: pd.Series, target: float = 0.0) -> float:
+    """Standard deviation of returns below target."""
+    downside = rets[rets < target]
+    return float(downside.std()) if len(downside) >= 2 else 0.0
+
+
+def return_skewness(rets: pd.Series) -> float:
+    """Skewness of returns distribution."""
+    return float(rets.skew()) if len(rets) >= 3 else 0.0
+
+
+def return_kurtosis(rets: pd.Series) -> float:
+    """Excess kurtosis of returns distribution."""
+    return float(rets.kurtosis()) if len(rets) >= 4 else 0.0
+
+
+# =========================================================================
+# Adjusted & Select Metrics
+# =========================================================================
+
+
+def adjusted_gross_profit(trades: pd.DataFrame) -> float:
+    """Adjusted Gross Profit: (N - sqrt(N)) * AvgWin."""
+    winners = trades[trades["profit_loss"] > 0]
+    n = len(winners)
+    return float((n - np.sqrt(n)) * winners["profit_loss"].mean()) if n > 0 else 0.0
+
+
+def adjusted_gross_loss(trades: pd.DataFrame) -> float:
+    """Adjusted Gross Loss: (N + sqrt(N)) * AvgLoss."""
+    losers = trades[trades["profit_loss"] < 0]
+    n = len(losers)
+    return float((n + np.sqrt(n)) * losers["profit_loss"].mean()) if n > 0 else 0.0
+
+
+def adjusted_net_profit(trades: pd.DataFrame) -> float:
+    """Difference between adjusted gross profit and adjusted gross loss."""
+    return adjusted_gross_profit(trades) + adjusted_gross_loss(trades)
+
+
+def select_net_profit(trades: pd.DataFrame) -> float:
+    """Net profit after removing 3-sigma outliers."""
+    if len(trades) == 0: return 0.0
+    return float(_remove_outliers(trades, 3.0)["profit_loss"].sum())
 
 
 def select_gross_profit(trades: pd.DataFrame) -> float:
-    """
-    Select Gross Profit.
-
-    Gross Profit consisting only of non-outlier trades.
-    """
-    if len(trades) == 0:
-        return 0.0
-
-    # Filter global outliers, then sum the positive ones remaining.
-    filtered = _remove_outliers(trades, sigma=3.0)
-
-    winners = filtered[filtered["profit_loss"] > 0]
-    return float(winners["profit_loss"].sum())
+    """Gross profit after removing 3-sigma outliers."""
+    if len(trades) == 0: return 0.0
+    filtered = _remove_outliers(trades, 3.0)
+    return float(filtered[filtered["profit_loss"] > 0]["profit_loss"].sum())
 
 
 def select_gross_loss(trades: pd.DataFrame) -> float:
-    """
-    Select Gross Loss.
-
-    Gross Loss consisting only of non-outlier trades.
-    """
-    if len(trades) == 0:
-        return 0.0
-
-    filtered = _remove_outliers(trades, sigma=3.0)
-
-    losers = filtered[filtered["profit_loss"] < 0]
-    return float(losers["profit_loss"].sum())
+    """Gross loss after removing 3-sigma outliers."""
+    if len(trades) == 0: return 0.0
+    filtered = _remove_outliers(trades, 3.0)
+    return float(filtered[filtered["profit_loss"] < 0]["profit_loss"].sum())
 
 
 # =========================================================================
-# Return Ratios
+# Return Ratios & Capital Relations
 # =========================================================================
 
 
-def return_on_max_strategy_drawdown(equity_curve: pd.Series) -> float:
-    """
-    Return on Max Strategy Drawdown.
-
-    Total Return / Max Strategy Drawdown.
-    """
-    dd = drawdowns.max_strategy_drawdown(equity_curve)
-    if dd == 0:
-        return 0.0
-
-    tot_ret = total_return(equity_curve)
-    return tot_ret / dd
+def return_on_max_strategy_drawdown(equity: pd.Series) -> float:
+    """Total Return / Max Strategy Drawdown."""
+    dd = drawdowns.max_strategy_drawdown(equity)
+    return total_return(equity) / dd if dd != 0 else 0.0
 
 
 def return_on_max_close_to_close_drawdown(trades: pd.DataFrame) -> float:
-    """
-    Return on Max Close To Close Drawdown.
-
-    Net Profit / Max Close To Close Drawdown.
-    """
+    """Net Profit / Max Close-to-Close Drawdown."""
     dd = drawdowns.max_close_to_close_drawdown(trades)
-    if dd == 0:
-        return 0.0
-
-    profit = net_profit(trades)
-    return profit / dd
+    return net_profit(trades) / dd if dd != 0 else 0.0
 
 
 def return_on_account(trades: pd.DataFrame) -> float:
-    """
-    Return on Account.
-
-    Net Profit / Account Size Required.
-    """
+    """Return on required account size."""
     return return_on_max_close_to_close_drawdown(trades)
 
 
 def return_on_initial_capital(trades: pd.DataFrame, initial_capital: float) -> float:
-    """
-    Return on Initial Capital.
-
-    Net Profit / Initial Capital.
-    """
-    if initial_capital == 0:
-        return 0.0
-
-    profit = net_profit(trades)
-    return profit / initial_capital
+    """Net Profit / Initial Capital."""
+    return net_profit(trades) / initial_capital if initial_capital != 0 else 0.0

@@ -1,8 +1,28 @@
 """
 Strategy vs benchmark comparison.
 
-from backend.common.logger import logger
-Focus: relative performance
+Focus: relative performance and market sensitivity
+
+This module provides metrics to compare a trading strategy against a benchmark (market).
+It includes standard market statistics like Alpha, Beta, and R-Squared, 
+as well as relative performance measures like Tracking Error, Batting Average, and Capture Ratios.
+
+Summary of Methods:
+------------------
+Core Returns Alignment:
+    - benchmark_returns: Calculate percentage returns from benchmark equity.
+    - excess_returns: Strategy returns minus benchmark returns (alpha series).
+
+Market Statistics (Alpha & Beta):
+    - beta: Sensitivity of strategy returns to market movements.
+    - alpha: Jensen's Alpha - risk-adjusted excess return.
+    - r_squared: Proportion of strategy variance explained by the benchmark.
+    - tracking_error: Annualized volatility of excess returns.
+
+Relative Performance Analysis:
+    - relative_drawdown: Underperformance periods of strategy equity relative to benchmark equity.
+    - batting_average: Percentage of periods where the strategy outperformed the benchmark.
+    - up_down_capture: Ratios showing performance in rising vs falling markets.
 """
 
 from typing import Tuple
@@ -10,84 +30,42 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
+
 # =========================================================================
-# Benchmark Returns
+# Core Returns Alignment
 # =========================================================================
 
 
 def benchmark_returns(benchmark_equity: pd.Series) -> pd.Series:
-    """
-    Calculate returns from benchmark equity curve.
-
-    Args:
-        benchmark_equity: Benchmark equity series
-
-    Returns:
-        Benchmark returns series
-    """
+    """Calculate percentage returns from benchmark equity curve."""
     if len(benchmark_equity) < 2:
         return pd.Series(dtype=float)
-
     return benchmark_equity.pct_change(fill_method=None).dropna()
 
 
 def excess_returns(
     strategy_returns: pd.Series, benchmark_returns: pd.Series
 ) -> pd.Series:
-    """
-    Calculate excess returns (strategy - benchmark).
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-
-    Returns:
-        Excess returns series
-    """
-    # Align returns
+    """Calculate excess returns (strategy - benchmark)."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
-
-    if len(aligned) == 0:
-        return pd.Series(dtype=float)
-
-    return aligned["strategy"] - aligned["benchmark"]
+    return aligned["strategy"] - aligned["benchmark"] if not aligned.empty else pd.Series(dtype=float)
 
 
 # =========================================================================
-# Market Statistics
+# Market Statistics (Alpha & Beta)
 # =========================================================================
 
 
 def beta(strategy_returns: pd.Series, benchmark_returns: pd.Series) -> float:
-    """
-    Beta - sensitivity to market movements.
-
-    Beta = Cov(Strategy, Benchmark) / Var(Benchmark)
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-
-    Returns:
-        Beta value
-    """
-    # Align returns
+    """Beta - sensitivity of strategy to benchmark movements."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
-
-    if len(aligned) < 2:
-        return 0.0
-
-    covariance = aligned["strategy"].cov(aligned["benchmark"])
-    variance = aligned["benchmark"].var()
-
-    if variance == 0:
-        return 0.0
-
-    return float(covariance / variance)
+    if len(aligned) < 2: return 0.0
+    var = aligned["benchmark"].var()
+    return float(aligned["strategy"].cov(aligned["benchmark"]) / var) if var != 0 else 0.0
 
 
 def alpha(
@@ -95,212 +73,77 @@ def alpha(
     benchmark_returns: pd.Series,
     risk_free_rate: float = 0.0,
 ) -> float:
-    """
-    Jensen's Alpha - risk-adjusted excess return.
-
-    Alpha = Strategy Return - [RiskFree + Beta × (Benchmark - RiskFree)]
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-        risk_free_rate: Risk-free rate (annualized)
-
-    Returns:
-        Alpha value (annualized)
-    """
-    # Align returns
+    """Jensen's Alpha - annualized risk-adjusted excess return."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
-
-    if len(aligned) < 2:
-        return 0.0
-
-    # Calculate beta
-    beta_value = beta(strategy_returns, benchmark_returns)
-
-    # Average returns
-    avg_strategy = aligned["strategy"].mean()
-    avg_benchmark = aligned["benchmark"].mean()
-
-    # Daily risk-free rate
+    if len(aligned) < 2: return 0.0
+    
+    b = beta(strategy_returns, benchmark_returns)
     daily_rf = risk_free_rate / 252
-
-    # Alpha = Strategy - [RiskFree + Beta × (Benchmark - RiskFree)]
-    alpha_value = avg_strategy - (daily_rf + beta_value * (avg_benchmark - daily_rf))
-
-    # Annualize
-    annualized_alpha = alpha_value * 252
-
-    return float(annualized_alpha)
+    alpha_val = aligned["strategy"].mean() - (daily_rf + b * (aligned["benchmark"].mean() - daily_rf))
+    return float(alpha_val * 252)
 
 
 def r_squared(strategy_returns: pd.Series, benchmark_returns: pd.Series) -> float:
-    """
-    R-squared - proportion of variance explained by benchmark.
-
-    Measures how well strategy movements are explained by benchmark
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-
-    Returns:
-        R-squared value (0-1)
-    """
-    # Align returns
+    """R-squared - proportion of variance explained by benchmark."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
-
-    if len(aligned) < 2:
-        return 0.0
-
-    correlation = aligned["strategy"].corr(aligned["benchmark"])
-
-    return float(correlation**2)
+    if len(aligned) < 2: return 0.0
+    corr = aligned["strategy"].corr(aligned["benchmark"])
+    return float(corr**2) if not pd.isna(corr) else 0.0
 
 
 def tracking_error(strategy_returns: pd.Series, benchmark_returns: pd.Series) -> float:
-    """
-    Tracking Error - volatility of excess returns.
-
-    Measures consistency of outperformance/underperformance
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-
-    Returns:
-        Tracking error (annualized)
-    """
-    # Align returns
+    """Annualized tracking error (volatility of excess returns)."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
-
-    if len(aligned) < 2:
-        return 0.0
-
-    excess = aligned["strategy"] - aligned["benchmark"]
-    te = excess.std()
-
-    # Annualize
-    annualized_te = te * np.sqrt(252)
-
-    return float(annualized_te)
+    if len(aligned) < 2: return 0.0
+    te = (aligned["strategy"] - aligned["benchmark"]).std()
+    return float(te * np.sqrt(252))
 
 
 # =========================================================================
-# Relative Performance
+# Relative Performance Analysis
 # =========================================================================
 
 
 def relative_drawdown(
     strategy_equity: pd.Series, benchmark_equity: pd.Series
 ) -> pd.Series:
-    """
-    Relative drawdown vs benchmark.
-
-    Shows periods where strategy underperforms benchmark
-
-    Args:
-        strategy_equity: Strategy equity curve
-        benchmark_equity: Benchmark equity curve
-
-    Returns:
-        Relative drawdown series
-    """
-    # Align equity curves
+    """Relative drawdown (peak-to-valley underperformance vs benchmark)."""
     aligned = pd.DataFrame(
         {"strategy": strategy_equity, "benchmark": benchmark_equity}
     ).dropna()
-
-    if len(aligned) == 0:
-        return pd.Series(dtype=float)
-
-    # Calculate relative equity
-    relative_equity = aligned["strategy"] / aligned["benchmark"]
-
-    # Calculate drawdown of relative equity
-    running_max = relative_equity.expanding().max()
-    drawdown = relative_equity - running_max
-
-    return drawdown
+    if aligned.empty: return pd.Series(dtype=float)
+    rel_eq = aligned["strategy"] / aligned["benchmark"]
+    return rel_eq - rel_eq.expanding().max()
 
 
 def batting_average(strategy_returns: pd.Series, benchmark_returns: pd.Series) -> float:
-    """
-    Batting Average - percentage of periods outperforming benchmark.
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-
-    Returns:
-        Batting average (0-100)
-    """
-    # Align returns
+    """Percentage of periods where strategy outpaced the benchmark."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
-
-    if len(aligned) == 0:
-        return 0.0
-
-    outperform = (aligned["strategy"] > aligned["benchmark"]).sum()
-    total = len(aligned)
-
-    return float((outperform / total) * 100)
+    if aligned.empty: return 0.0
+    return float((aligned["strategy"] > aligned["benchmark"]).mean() * 100)
 
 
 def up_down_capture(
     strategy_returns: pd.Series, benchmark_returns: pd.Series
 ) -> Tuple[float, float]:
-    """
-    Up/Down Capture Ratios.
-
-    Up Capture: Strategy performance when benchmark is positive
-    Down Capture: Strategy performance when benchmark is negative
-
-    Higher up capture = better at capturing gains
-    Lower down capture = better at avoiding losses
-
-    Args:
-        strategy_returns: Strategy returns series
-        benchmark_returns: Benchmark returns series
-
-    Returns:
-        Tuple of (up_capture, down_capture) percentages
-    """
-    # Align returns
+    """Up/Down capture ratios showing behavior in rising vs falling markets."""
     aligned = pd.DataFrame(
         {"strategy": strategy_returns, "benchmark": benchmark_returns}
     ).dropna()
+    if aligned.empty: return (0.0, 0.0)
 
-    if len(aligned) == 0:
-        return (0.0, 0.0)
+    up = aligned[aligned["benchmark"] > 0]
+    up_cap = (up["strategy"].mean() / up["benchmark"].mean() * 100) if not up.empty and up["benchmark"].mean() != 0 else 0.0
 
-    # Up capture (benchmark positive periods)
-    up_periods = aligned[aligned["benchmark"] > 0]
+    down = aligned[aligned["benchmark"] < 0]
+    down_cap = (down["strategy"].mean() / down["benchmark"].mean() * 100) if not down.empty and down["benchmark"].mean() != 0 else 0.0
 
-    if len(up_periods) > 0:
-        strategy_up = up_periods["strategy"].mean()
-        benchmark_up = up_periods["benchmark"].mean()
-        up_capture = (strategy_up / benchmark_up * 100) if benchmark_up != 0 else 0.0
-    else:
-        up_capture = 0.0
-
-    # Down capture (benchmark negative periods)
-    down_periods = aligned[aligned["benchmark"] < 0]
-
-    if len(down_periods) > 0:
-        strategy_down = down_periods["strategy"].mean()
-        benchmark_down = down_periods["benchmark"].mean()
-        down_capture = (
-            (strategy_down / benchmark_down * 100) if benchmark_down != 0 else 0.0
-        )
-    else:
-        down_capture = 0.0
-
-    return (float(up_capture), float(down_capture))
+    return (float(up_cap), float(down_cap))

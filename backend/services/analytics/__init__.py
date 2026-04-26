@@ -1,26 +1,24 @@
 """
-Finance Module.
+HaruQuant Analytics Service.
 
 Comprehensive financial analytics for trading systems.
-All functions accept pd.DataFrame with canonical HaruQuant trade schema.
+Provides deterministic, side-effect free, and composable metrics for strategy evaluation.
 
-Design principles:
-- Deterministic
-- Side-effect free
-- Composable
-- ML-ready
-- High-Performance: Uses Hybrid Vectorization with Numba-jitted kernels for
-  computationally intensive metrics and statistical tests.
+This service utilizes Hybrid Vectorization with Numba-jitted kernels for high-performance 
+computation of metrics, drawdowns, and statistical robustness tests.
 
-Modules:
-- metrics: Trade-based statistics & system-quality metrics
-- returns: Return calculations & period-based analysis
-- drawdowns: Drawdown depth, duration, and recovery
-- ratios: Risk-adjusted performance ratios
-- risks: Volatility, tail risk, and capital risk
-- benchmark: Strategy vs benchmark comparison
-- distributions: Statistical structure of returns & trades
-- efficiency: Capital and time efficiency metrics
+Sub-Modules:
+-----------
+- overview: Parallel aggregator and API payload builder.
+- metrics: Trade-based statistics and system-quality measures (SQN, Kelly).
+- returns: Profit/Loss, CAGR, and period-based performance.
+- drawdowns: Peak-to-valley analysis, duration, and recovery metrics.
+- ratios: Risk-adjusted performance (Sharpe, Sortino, Calmar, etc.).
+- risks: Volatility, Value at Risk (VaR), and Risk of Ruin.
+- benchmark: Relative performance against market benchmarks (Alpha/Beta).
+- distributions: Statistical moments, normality tests, and outlier detection.
+- efficiency: Capital deployment, time efficiency, and MFE/MAE capture.
+- statistical_tests: Robustness validation (DSR, White's Reality Check, Bootstrap).
 """
 
 from . import (
@@ -29,6 +27,7 @@ from . import (
     drawdowns,
     efficiency,
     metrics,
+    overview,
     ratios,
     returns,
     risks,
@@ -36,6 +35,7 @@ from . import (
 )
 
 __all__ = [
+    "overview",
     "metrics",
     "returns",
     "drawdowns",
