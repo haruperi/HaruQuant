@@ -308,6 +308,7 @@ class SimulationConfig:
     strategy: StrategyConfig
     execution: ExecutionConfig
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
+    preloaded_data: Optional[pd.DataFrame] = None
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> "SimulationConfig":
@@ -330,6 +331,7 @@ class SimulationConfig:
             strategy=strategy,
             execution=execution,
             reporting=reporting,
+            preloaded_data=raw.get("preloaded_data"),
         )
 
 

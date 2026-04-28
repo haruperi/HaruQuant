@@ -119,16 +119,24 @@ export default function OptimizationPage() {
         }
     }
 
+    const resetState = () => {
+        setView('config')
+        setOptimizationId(null)
+    }
+
     return (
-        <div className="h-full flex-1 flex-col space-y-8 p-8 flex">
+        <div className="flex flex-col gap-6 p-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Strategy Analysis</h2>
+                    <h1 className="text-3xl font-bold tracking-tight">Optimization</h1>
                     <p className="text-muted-foreground">
                         Advanced tools for parameter tuning, validation, and stress testing.
                     </p>
                 </div>
+                <Button variant="outline" onClick={resetState}>
+                    New Optimization
+                </Button>
             </div>
 
             <Tabs defaultValue="optimization" className="space-y-6">
@@ -208,10 +216,7 @@ export default function OptimizationPage() {
                         <OptimizationResults
                             run={run}
                             results={results}
-                            onBack={() => {
-                                setView('config')
-                                setOptimizationId(null)
-                            }}
+                            onBack={resetState}
                         />
                     )}
                 </TabsContent>

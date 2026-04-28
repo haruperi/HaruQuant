@@ -289,6 +289,9 @@ class SimulationDataPreparer:
         symbol: str,
         timeframe: str,
     ) -> pd.DataFrame:
+        if config.preloaded_data is not None:
+            return config.preloaded_data
+
         if config.data.source == "metatrader":
             client = self._required_client()
             return client.get_bars(

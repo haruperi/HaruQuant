@@ -915,24 +915,24 @@ def example_17_simplified_portfolio_run():
         # print(f"Default Return: {pf_default.total_return():.2f}%")
         print(pf_default.summary())
         
-        # 2. Run with partial overrides
-        # print("\n--- 2. Running with partial overrides (Change Symbol & Period) ---")
-        # overrides = {
-        #     "data": {
-        #         "symbols": ["EURUSD"],
-        #         "start": "2020-01-01",
-        #         "end": "2020-12-31",
-        #         "warmup_start": "2019-10-01"
-        #     },
-        #     "strategy": {
-        #         "params": {
-        #             "fast_period": 10,
-        #             "slow_period": 20
-        #         }
-        #     }
-        # }
-        # pf_custom = hqt.Portfolio.run(overrides)
-        # print(pf_custom.summary())
+       # 2. Run with partial overrides
+        print("\n--- 2. Running with partial overrides (Change Symbol & Period) ---")
+        overrides = {
+            "data": {
+                "symbols": ["EURUSD"],
+                "start": "2020-01-01",
+                "end": "2020-12-31",
+                "warmup_start": "2019-10-01"
+            },
+            "strategy": {
+                "params": {
+                    "fast_period": 10,
+                    "slow_period": 20
+                }
+            }
+        }
+        pf_custom = hqt.Portfolio.run(overrides)
+        print(pf_custom.summary())
         
     except Exception as e:
         print(f"Simplified run error: {e}")

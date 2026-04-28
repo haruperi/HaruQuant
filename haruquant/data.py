@@ -522,10 +522,6 @@ class ScheduledDataUpdater:
         except KeyboardInterrupt:
             self.stop()
             
-    def stop(self):
-        """Stop periodic updates."""
-        self._running = False
-        print("Scheduled updates stopped.")
 
 
 class DataSplitter:
@@ -537,6 +533,7 @@ class DataSplitter:
         window_len: int,
         set_lens: tuple = (1, 1),
         left_to_right: bool = False,
+        step: int = 1,
     ) -> List[dict]:
         """
         Perform a rolling split of the data into training and testing sets.
@@ -547,6 +544,7 @@ class DataSplitter:
             window_len: Total length of the window (train + test).
             set_lens: Relative lengths of (train, test) or (train, valid, test).
             left_to_right: Direction of the rolling window.
+            step: Number of bars to step the window forward.
             
         Returns:
             A list of dictionaries containing 'train', 'valid' (optional), and 'test' subsets.
@@ -565,9 +563,9 @@ class DataSplitter:
         actual_lens = [int(l * unit) for l in set_lens]
         
         if left_to_right:
-            indices = range(0, n - window_len + 1)
+            indices = range(0, n - window_len + 1, step)
         else:
-            indices = range(n - window_len, -1, -1)
+            indices = range(n - window_len, -1, -step)
             
         for i in indices:
             current_window = df.iloc[i : i + window_len]

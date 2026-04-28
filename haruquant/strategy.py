@@ -8,6 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 def _deep_merge(base, overrides):
     """Recursively merge two dictionaries."""
+    if overrides is None:
+        return base
     for key, value in overrides.items():
         if isinstance(value, dict) and key in base and isinstance(base[key], dict):
             _deep_merge(base[key], value)
@@ -435,7 +437,10 @@ class Portfolio:
         full_config = copy.deepcopy(DEFAULT_SIM_CONFIG)
         
         # Apply user overrides
+        preloaded_bars = None
         if config is not None and isinstance(config, dict):
+            # Extract preloaded data if present to avoid merging it into metadata
+            preloaded_bars = config.pop("preloaded_data", None)
             _deep_merge(full_config, config)
             
         # Determine backend
@@ -459,6 +464,12 @@ class Portfolio:
                 )
             
         # Execute simulation
+        if preloaded_bars is not None:
+            # If we have preloaded bars, we use the engine's lower level run_prepared logic
+            # but for now we'll just inject it into the runner if it supported it.
+            # Since we want to simplify execution.py, let's make the engine.run handle it.
+            full_config["preloaded_data"] = preloaded_bars
+            
         run_result = engine.run(full_config)
         
         return cls(run_result)

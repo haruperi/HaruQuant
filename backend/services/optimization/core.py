@@ -27,7 +27,13 @@ from .methods import (
 )
 from .models import MonteCarloRequest, OptimizationRequest, WalkForwardRequest
 from .monte_carlo import monte_carlo_analysis
-from .scoring import calmar_score, profit_factor_score, sharpe_score, sortino_score
+from .scoring import (
+    calmar_score,
+    profit_factor_score,
+    sharpe_score,
+    sortino_score,
+    total_return_score,
+)
 
 
 class BacktestDatabase:
@@ -48,6 +54,7 @@ OBJECTIVE_FUNCTIONS = {
     "sortino": sortino_score,
     "calmar": calmar_score,
     "profit_factor": profit_factor_score,
+    "total_return": total_return_score,
 }
 
 
@@ -202,40 +209,20 @@ async def run_optimization_task(  # noqa: C901
 
         if data_source in ["metatrader5", "mt5"]:
             try:
-                from backend.mcp.mt5_mcp.client import MT5Client
-                from backend.data.database.sqlite.users import UserManager
+                import haruquant as hqt
 
-                creds = UserManager().get_mt5_credentials(user_id) or {}
-                login = int(creds.get("login") or 0)
-                password = creds.get("password") or ""
-                server = creds.get("server") or ""
-                path = creds.get("path") or ""
-                if not (login and password and server):
-                    raise ValueError("Missing MT5 credentials")
-
-                client = MT5Client()
-                if not client.connect(
-                    path=path,
-                    login=login,
-                    password=password,
-                    server=server,
-                ):
-                    raise ValueError("Failed to initialize MT5")
-
-                data = client.get_bars(
+                # Use hqt module for unified data loading
+                data_obj = hqt.MT5Data.download(
                     symbol=request.symbol,
                     timeframe=request.timeframe,
-                    date_from=_parse_request_date(request.start_date),
-                    date_to=_parse_request_date(request.end_date),
+                    start=_parse_request_date(request.start_date),
+                    end=_parse_request_date(request.end_date),
+                    user_id=user_id
                 )
-                client.shutdown()
-
-                # Validate and normalize data (ensure lowercase columns)
-                if data is not None and not data.empty:
-                    data = DataValidator.prepare_data(data)
+                data = data_obj.df
 
             except Exception as e:
-                logger.error(f"MT5 data loading failed: {e}")
+                logger.error(f"MT5 data loading failed via hqt: {e}")
                 raise ValueError(f"Failed to load data from MT5: {str(e)}")
         else:
             # Fallback to Dukascopy for other data sources
@@ -618,40 +605,20 @@ async def run_walk_forward_task(  # noqa: C901
 
         if data_source in ["metatrader5", "mt5"]:
             try:
-                from backend.mcp.mt5_mcp.client import MT5Client
-                from backend.data.database.sqlite.users import UserManager
+                import haruquant as hqt
 
-                creds = UserManager().get_mt5_credentials(user_id) or {}
-                login = int(creds.get("login") or 0)
-                password = creds.get("password") or ""
-                server = creds.get("server") or ""
-                path = creds.get("path") or ""
-                if not (login and password and server):
-                    raise ValueError("Missing MT5 credentials")
-
-                client = MT5Client()
-                if not client.connect(
-                    path=path,
-                    login=login,
-                    password=password,
-                    server=server,
-                ):
-                    raise ValueError("Failed to initialize MT5")
-
-                data = client.get_bars(
+                # Use hqt module for unified data loading
+                data_obj = hqt.MT5Data.download(
                     symbol=request.symbol,
                     timeframe=request.timeframe,
-                    date_from=_parse_request_date(request.start_date),
-                    date_to=_parse_request_date(request.end_date),
+                    start=_parse_request_date(request.start_date),
+                    end=_parse_request_date(request.end_date),
+                    user_id=user_id
                 )
-                client.shutdown()
-
-                # Validate and normalize data (ensure lowercase columns)
-                if data is not None and not data.empty:
-                    data = DataValidator.prepare_data(data)
+                data = data_obj.df
 
             except Exception as e:
-                logger.error(f"MT5 data loading failed: {e}")
+                logger.error(f"MT5 data loading failed via hqt: {e}")
                 raise ValueError(f"Failed to load data from MT5: {str(e)}")
         else:
             # Fallback to Dukascopy for other data sources

@@ -87,7 +87,7 @@ def walk_forward(  # noqa: C901
                 param_grid,
                 initial_balance=initial_balance,
                 scoring_func=scoring_func,
-                engine_type="vectorised",
+                engine_type="vectorized",
                 verbose=False,
                 strategy_file_path=strategy_file_path,
                 symbol=symbol,
@@ -102,7 +102,7 @@ def walk_forward(  # noqa: C901
                 symbol=symbol,
                 params={},
                 initial_balance=initial_balance,
-                engine_type="vectorised",
+                engine_type="vectorized",
                 position_size=0.1,
             )
             train_score = scoring_func(train_result)
@@ -228,3 +228,8 @@ def print_optimization_report(summary: OptimizationSummary, top_n: int = 10) -> 
         )
 
     print("\n" + "=" * 80)
+
+
+# Alias for consistency with other methods
+walk_forward_optimization = walk_forward
+

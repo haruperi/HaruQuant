@@ -1,4 +1,4 @@
-﻿"""
+"""
 Optimization execution helpers built on the trading engine.
 """
 
@@ -12,8 +12,7 @@ import pandas as pd
 
 from backend.services.analytics import drawdowns, metrics, ratios, returns
 from backend.services.strategy import BaseStrategy
-from backend.services.simulation.engine import Engine
-from backend.services.market_data.data_manipulator import TicksGenerator
+import haruquant as hqt
 
 
 def load_strategy_from_path(path: str, class_name: str) -> Type[BaseStrategy]:
@@ -27,10 +26,10 @@ def load_strategy_from_path(path: str, class_name: str) -> Type[BaseStrategy]:
 
 
 def normalize_engine_type(engine_type: str) -> str:
-    raw = str(engine_type or "vectorised").strip().lower().replace("-", "_")
-    if raw == "vectorized":
-        raw = "vectorised"
-    if raw not in {"vectorised", "event_driven"}:
+    raw = str(engine_type or "vectorized").strip().lower().replace("-", "_")
+    if raw == "vectorised":
+        raw = "vectorized"
+    if raw not in {"vectorized", "event_driven"}:
         raise ValueError(f"Unsupported engine_type: {engine_type}")
     return raw
 
@@ -190,53 +189,63 @@ def run_strategy_backtest(
     position_size: float = 0.1,
 ) -> EngineOptimizationResult:
     """Run one optimization candidate through the trading engine."""
-    _ = normalize_engine_type(engine_type)
-    full_params = dict(params)
-    full_params["symbol"] = symbol
-    strategy = strategy_class(params=full_params)
+    # Build a centralized configuration overrides
+    # Following the example_17 pattern: hqt.Portfolio.run(overrides)
+    overrides = {
+        "engine_type": normalize_engine_type(engine_type),
+        "backend": "sim",
+        "account": {
+            "initial_balance": float(initial_balance),
+        },
+        "data": {
+            "symbols": [symbol],
+            # These are required by SimulationConfig but will be ignored 
+            # because we pass preloaded_data
+            "source": "metatrader", 
+            "timeframe": _infer_trading_timeframe(data),
+            "start": data.index[0],
+            "end": data.index[-1],
+            "warmup_start": data.index[0],
+        },
+        "strategy": {
+            "name": strategy_class.__name__ if hasattr(strategy_class, "__name__") else str(strategy_class),
+            "params": params,
+        },
+        "execution": {
+            "position_size": {
+                "type": "fixed_lot",
+                "lot_size": float(position_size),
+            }
+        },
+        "preloaded_data": data, # Our new feature to avoid reloading
+    }
 
-    if hasattr(strategy, "on_init"):
-        strategy.on_init()
-
-    bars = data.copy()
-    if hasattr(strategy, "on_bar"):
-        bars = strategy.on_bar(bars)
-
-    if bars is None or bars.empty:
-        raise ValueError("Strategy produced no bars for optimization run.")
-
-    engine = Engine(backend="sim")
-    try:
-        _seed_engine_account(engine, initial_balance)
-        symbol_info = _ensure_engine_symbol(engine, symbol)
-        point_value = float(getattr(symbol_info, "point", 0.00001) or 0.00001)
-        trading_timeframe = _infer_trading_timeframe(bars)
-        ticks = TicksGenerator(
-            model="timeframe_ticks",
-            trading_timeframe=trading_timeframe,
-            point_value=point_value,
-            spread_model="native_spread",
-        ).generate(bars.copy())
-        if ticks is None or ticks.empty:
-            raise ValueError("No ticks generated for optimization run.")
-
-        engine.configure_run_schedule(
-            positions_every=1,
-            pending_orders_every=1,
-            account_every=4,
-            portfolio_every=4,
-            risk_every=4,
-        )
-        processed = engine.run(
-            ticks,
-            engine_type="event_driven",
-            position_size=float(position_size),
-            monitor_verbose=False,
-            show_progress=False,
-        )
-        return _build_result(engine, processed, float(initial_balance))
-    finally:
-        engine.client.shutdown()
+    # Execute via the centralized HaruQuant API
+    portfolio = hqt.Portfolio.run(overrides)
+    
+    # Map back to EngineOptimizationResult for compatibility with optimization methods
+    analytics = portfolio.analytics()
+    metrics_all = analytics.get("metrics", {}).get("all", {})
+    ratios_all = analytics.get("ratios", {}).get("all", {})
+    summary = analytics.get("summary", {})
+    
+    # Result mapping
+    result = portfolio.result()
+    return EngineOptimizationResult(
+        trades=result["trades"],
+        equity_curve=result["equity_curve"]["equity"] if not result["equity_curve"].empty else pd.Series([initial_balance]),
+        initial_balance=float(initial_balance),
+        final_balance=portfolio.final_value,
+        processed_ticks=int(portfolio.metadata().get("processed_ticks", 0)),
+        total_trades=int(metrics_all.get("total_trades", 0)),
+        win_rate=float(metrics_all.get("win_rate", 0.0)),
+        profit_factor=float(ratios_all.get("profit_factor", 0.0)),
+        sharpe_ratio=float(ratios_all.get("sharpe_ratio", 0.0)),
+        sortino_ratio=float(ratios_all.get("sortino_ratio", 0.0)),
+        calmar_ratio=float(ratios_all.get("calmar_ratio", 0.0)),
+        total_return_pct=portfolio.total_return(),
+        max_drawdown_pct=float(summary.get("max_drawdown_pct", 0.0)),
+    )
 
 
 def run_strategy_backtest_from_path(

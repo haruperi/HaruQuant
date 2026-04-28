@@ -30,6 +30,11 @@ def profit_factor_score(result: BacktestResult) -> float:
     return float(pf if pf != float("inf") else 0.0)
 
 
+def total_return_score(result: BacktestResult) -> float:
+    """Score based on total return percentage."""
+    return float(result.total_return_pct)
+
+
 def custom_score(
     result: BacktestResult,
     return_weight: float = 0.3,

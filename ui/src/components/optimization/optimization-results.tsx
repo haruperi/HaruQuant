@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, Fragment } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -153,7 +153,7 @@ export function OptimizationResults({ run, results, onBack }: OptimizationResult
 
                                     {/* Rows */}
                                     {heatmapData.yValues.map((y, yIdx) => (
-                                        <>
+                                        <Fragment key={`row-${y}`}>
                                             {/* Y-Axis Label */}
                                             <div key={`label-${y}`} className="flex items-center justify-end pr-2 text-xs text-muted-foreground font-mono">
                                                 {y}
@@ -174,7 +174,7 @@ export function OptimizationResults({ run, results, onBack }: OptimizationResult
                                                     </div>
                                                 </div>
                                             ))}
-                                        </>
+                                        </Fragment>
                                     ))}
                                 </div>
                                 <div className="text-center mt-2 text-xs text-muted-foreground">
