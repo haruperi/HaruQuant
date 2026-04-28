@@ -21,6 +21,7 @@ from backend.services.simulation.models import (
     PendingOrderRequest,
     PositionModifyRequest,
     SeekRequest,
+    SeekTradeRequest,
     SimulationStartRequest,
     SimulationUpdateRequest,
     WhatIfRequest,
@@ -99,57 +100,71 @@ def _get_running_session(
 
 @router.post("/start")
 async def start_simulation(
-    request: SimulationStartRequest,
+    payload: SimulationStartRequest,
     user_id: Annotated[int, Depends(_get_authenticated_user_id)],
 ):
     """Start a new simulation session."""
     try:
-        config = request.model_dump()
+        config = payload.model_dump()
         config["user_id"] = user_id
+
+        if payload.mode == "replay":
+            if payload.replay_source == "csv" and not payload.replay_backtest_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Import CSV via /api/import/sqx and provide replay_backtest_id",
+                )
+            if payload.replay_backtest_id:
+                # Load backtest record for metadata
+                backtest_run = db_manager.get_backtest_run(payload.replay_backtest_id)
+                if backtest_run:
+                    # Automatically adopt metadata from backtest if not explicitly provided
+                    if not payload.symbol or payload.symbol == "AUDUSD, EURGBP, NZDCHF":
+                         config["symbol"] = backtest_run.get("symbol") or payload.symbol
+                    if not payload.timeframe or payload.timeframe == "H1":
+                         config["timeframe"] = backtest_run.get("timeframe") or payload.timeframe
+                    
+                    config["start_time"] = backtest_run.get("start_date") or config.get("start_time")
+                    config["end_time"] = backtest_run.get("end_date") or config.get("end_time")
+                    config["range_by"] = "dates"
 
         session_id = db_manager.create_simulation_session(user_id, config)
         session = SimulatorSession(session_id=session_id, config=config, db=db_manager)
 
-        if request.mode == "strategy":
-            if not request.strategy_id:
+        if payload.mode == "strategy":
+            if not payload.strategy_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="strategy_id is required for strategy mode",
                 )
             version_id = (
-                request.strategy_version_id
-                if request.strategy_version_id
-                else resolve_strategy_version_id(db_manager, request.strategy_id)
+                payload.strategy_version_id
+                if payload.strategy_version_id
+                else resolve_strategy_version_id(db_manager, payload.strategy_id)
             )
             strategy_class = load_strategy_class(
                 db_manager,
                 user_id,
-                request.strategy_id,
+                payload.strategy_id,
                 version_id,
             )
             if len(session.symbols) > 1:
                 strategies_by_symbol = {}
                 for symbol in session.symbols:
-                    params = dict(request.strategy_params or {})
+                    params = dict(payload.strategy_params or {})
                     params["symbol"] = symbol
                     strategies_by_symbol[symbol] = strategy_class(params=params)
                 session.set_strategy_map(strategies_by_symbol)
             else:
-                params = dict(request.strategy_params or {})
-                params.setdefault("symbol", request.symbol)
+                params = dict(payload.strategy_params or {})
+                params.setdefault("symbol", config.get("symbol"))
                 strategy_instance = strategy_class(params=params)
                 session.set_strategy(strategy_instance)
 
-        if request.mode == "replay":
-            if request.replay_source == "csv" and not request.replay_backtest_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Import CSV via /api/import/sqx and provide replay_backtest_id",
-                )
-            if request.replay_backtest_id:
-                snapshot = db_manager.get_backtest_snapshot(request.replay_backtest_id)
-                trades = (snapshot or {}).get("result", {}).get("trades", [])
-                session.set_replay_trades(trades)
+        if payload.mode == "replay" and payload.replay_backtest_id:
+            snapshot = db_manager.get_backtest_snapshot(payload.replay_backtest_id)
+            trades = (snapshot or {}).get("result", {}).get("trades", [])
+            session.set_replay_trades(trades)
 
         session.load_historical_bars()
         session.apply_mt5_account_defaults()
@@ -159,7 +174,7 @@ async def start_simulation(
             session_id,
             total_bars=session.total_bars,
             status="running",
-            speed_multiplier=request.speed_multiplier,
+            speed_multiplier=payload.speed_multiplier,
             current_bar_index=session.current_bar_index,
         )
 
@@ -221,33 +236,33 @@ async def get_session(
 @router.put("/{session_id}")
 async def update_session(  # noqa: C901
     session_id: int,
-    request: SimulationUpdateRequest,
+    payload: SimulationUpdateRequest,
     session: Annotated[Dict[str, Any], Depends(_get_owned_session)],
 ):
     """Update speed or pause state."""
     active = session_coordinator.get_runtime(session_id, renew=True)
-    if request.speed_multiplier is not None:
+    if payload.speed_multiplier is not None:
         db_manager.update_simulation_session(
-            session_id, speed_multiplier=request.speed_multiplier
+            session_id, speed_multiplier=payload.speed_multiplier
         )
         if active:
-            active.speed_multiplier = float(request.speed_multiplier)
+            active.speed_multiplier = float(payload.speed_multiplier)
 
-    if request.paused is not None and active:
-        if request.paused:
+    if payload.paused is not None and active:
+        if payload.paused:
             active.pause()
         else:
             active.resume()
 
     indicator_updates = {}
-    if request.indicators_enabled is not None:
-        indicator_updates["indicators_enabled"] = request.indicators_enabled
-    if request.indicator_sma_enabled is not None:
-        indicator_updates["indicator_sma_enabled"] = request.indicator_sma_enabled
-    if request.indicator_ema_enabled is not None:
-        indicator_updates["indicator_ema_enabled"] = request.indicator_ema_enabled
-    if request.indicator_rsi_enabled is not None:
-        indicator_updates["indicator_rsi_enabled"] = request.indicator_rsi_enabled
+    if payload.indicators_enabled is not None:
+        indicator_updates["indicators_enabled"] = payload.indicators_enabled
+    if payload.indicator_sma_enabled is not None:
+        indicator_updates["indicator_sma_enabled"] = payload.indicator_sma_enabled
+    if payload.indicator_ema_enabled is not None:
+        indicator_updates["indicator_ema_enabled"] = payload.indicator_ema_enabled
+    if payload.indicator_rsi_enabled is not None:
+        indicator_updates["indicator_rsi_enabled"] = payload.indicator_rsi_enabled
 
     if indicator_updates:
         session_config = dict(session.get("config") or {})
@@ -289,11 +304,11 @@ async def get_bar(
 @router.post("/{session_id}/advance")
 async def advance_bars(
     session_id: int,
-    request: AdvanceRequest,
+    payload: AdvanceRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Advance the simulation by N bars and return them."""
-    bars = active.advance_frames(request.count)
+    bars = active.advance_frames(payload.count)
 
     totals = active.simulator.monitor_positions()
     active.simulator.monitor_account(totals)
@@ -314,6 +329,7 @@ async def advance_bars(
         "risk_scorecard": active.get_risk_score_summary(),
         "recommendations": active.get_recommendation_summary(),
         "governance": active.get_governance_report(),
+        "trades": active.replay_trades or [],
     }
 
 
@@ -341,44 +357,44 @@ async def get_positions(
 @router.post("/{session_id}/trade")
 async def execute_trade(
     session_id: int,
-    request: ManualTradeRequest,
+    payload: ManualTradeRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Execute a manual trade within a session."""
-    return execute_trade_runtime(active, request.model_dump())
+    return execute_trade_runtime(active, payload.model_dump())
 
 
 @router.post("/{session_id}/trade/preview")
 async def preview_trade(
     session_id: int,
-    request: ManualTradeRequest,
+    payload: ManualTradeRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Preview a manual trade without executing it."""
-    return preview_trade_runtime(active, request.model_dump())
+    return preview_trade_runtime(active, payload.model_dump())
 
 
 @router.post("/{session_id}/order/pending")
 async def place_pending_order(
     session_id: int,
-    request: PendingOrderRequest,
+    payload: PendingOrderRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Place a pending order within a session."""
-    return place_pending_order_runtime(active, request.model_dump())
+    return place_pending_order_runtime(active, payload.model_dump())
 
 
 @router.post("/{session_id}/what-if")
 async def evaluate_what_if(
     session_id: int,
-    request: WhatIfRequest,
+    payload: WhatIfRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Evaluate a hypothetical portfolio change without mutating the live simulator."""
     return evaluate_what_if_runtime(
         active,
-        request.actions,
-        request.leverage_override,
+        payload.actions,
+        payload.leverage_override,
         refresh_session_risk_state=refresh_session_risk_state,
     )
 
@@ -387,7 +403,7 @@ async def evaluate_what_if(
 async def modify_position(
     session_id: int,
     position_id: int,
-    request: PositionModifyRequest,
+    payload: PositionModifyRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Modify a position's SL/TP."""
@@ -396,8 +412,8 @@ async def modify_position(
             active,
             session_id=session_id,
             position_id=position_id,
-            sl=request.sl,
-            tp=request.tp,
+            sl=payload.sl,
+            tp=payload.tp,
         )
     except HTTPException:
         raise
@@ -459,7 +475,7 @@ async def partial_close_position(
 async def modify_order(
     session_id: int,
     order_id: int,
-    request: OrderModifyRequest,
+    payload: OrderModifyRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Modify a pending order's price/SL/TP and optionally reduce its volume."""
@@ -468,7 +484,7 @@ async def modify_order(
             active,
             session_id=session_id,
             order_id=order_id,
-            request_payload=request.model_dump(),
+            request_payload=payload.model_dump(),
         )
     except HTTPException:
         raise
@@ -520,15 +536,35 @@ async def resume_session(
 @router.post("/{session_id}/seek")
 async def seek_session(
     session_id: int,
-    request: SeekRequest,
+    payload: SeekRequest,
     active: Annotated[SimulatorSession, Depends(_get_running_session)],
 ):
     """Seek to a bar index."""
-    target_bar_index = active.resolve_base_bar_index(request.target_time, request.bar_index)
+    target_bar_index = active.resolve_base_bar_index(payload.target_time, payload.bar_index)
     active.seek_to_bar(target_bar_index)
     if active.current_bar_index < active.total_bars:
         active.process_bar_at_index(active.current_bar_index)
         refresh_session_risk_state(active)
+    return {"session_id": session_id, "bar_index": active.visible_current_step()}
+
+
+@router.get("/{session_id}/trades")
+async def get_session_trades(
+    session_id: int,
+    active: Annotated[SimulatorSession, Depends(_get_running_session)],
+):
+    """Get the list of trades (for replay mode)."""
+    return active.replay_trades or []
+
+
+@router.post("/{session_id}/seek-trade")
+async def seek_trade(
+    session_id: int,
+    payload: SeekTradeRequest,
+    active: Annotated[SimulatorSession, Depends(_get_running_session)],
+):
+    """Seek to a specific trade in replay mode."""
+    active.seek_to_trade(payload.trade_index)
     return {"session_id": session_id, "bar_index": active.visible_current_step()}
 
 
@@ -558,5 +594,3 @@ async def stop_and_save_session(
         session_id=session_id,
         user_id=user_id,
     )
-
-

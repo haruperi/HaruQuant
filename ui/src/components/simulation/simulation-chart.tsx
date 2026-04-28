@@ -40,6 +40,9 @@ interface SimulationChartProps {
   indicators?: ChartIndicatorData[]
   digits?: number
   indicatorVisibility?: IndicatorSelection
+  positions?: any[]
+  trades?: any[]
+  currentPrice?: number
 }
 
 interface TradeMarker {
@@ -100,6 +103,9 @@ export function SimulationChart({
   indicators = [],
   digits = 5,
   indicatorVisibility = { sma: false, ema: false, rsi: false },
+  positions = [],
+  trades = [],
+  currentPrice,
 }: SimulationChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -113,11 +119,23 @@ export function SimulationChart({
   const [markerPositions, setMarkerPositions] = useState<
     { id: number; x: number; y: number; side: "buy" | "sell" }[]
   >([])
+  const [linePositions, setLinePositions] = useState<
+    {
+      id: string | number
+      x1: number
+      y1: number
+      x2: number
+      y2: number
+      color: string
+      side: "buy" | "sell"
+      status: "open" | "closed"
+    }[]
+  >([])
 
   const updateMarkerPositions = useCallback(() => {
     if (!chartRef.current || !candleSeriesRef.current) return
 
-    const positions = markersRef.current
+    const positions_coords = markersRef.current
       .map((marker) => {
         const x = chartRef.current!.timeScale().timeToCoordinate(marker.time)
         const y = candleSeriesRef.current!.priceToCoordinate(marker.price)
@@ -126,8 +144,78 @@ export function SimulationChart({
       })
       .filter(Boolean) as { id: number; x: number; y: number; side: "buy" | "sell" }[]
 
-    setMarkerPositions(positions)
-  }, [])
+    setMarkerPositions(positions_coords)
+
+    // Calculate line positions
+    const lines: typeof linePositions = []
+
+    // 1. Process open positions
+    if (positions && positions.length > 0) {
+      const lastBar = bars[bars.length - 1]
+      const lastBarTime = lastBar ? resolveChartTime(lastBar.time, timeframe) : null
+
+      for (const pos of positions) {
+        if (pos.symbol !== symbol) continue
+        const openTimeValue = pos.time || pos.openTime
+        const openTime = resolveChartTime(openTimeValue, timeframe)
+        if (!openTime) continue
+
+        const x1 = chartRef.current!.timeScale().timeToCoordinate(openTime)
+        const y1 = candleSeriesRef.current!.priceToCoordinate(pos.openPrice)
+
+        // For open positions, end point follows current price and time
+        const x2 = lastBarTime
+          ? chartRef.current!.timeScale().timeToCoordinate(lastBarTime)
+          : null
+        const y2 = candleSeriesRef.current!.priceToCoordinate(pos.currentPrice || currentPrice || 0)
+
+        if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
+          lines.push({
+            id: `pos-${pos.id}`,
+            x1,
+            y1,
+            x2,
+            y2,
+            color: pos.type === "buy" ? "#10b981" : "#ef4444",
+            side: pos.type,
+            status: "open",
+          })
+        }
+      }
+    }
+
+    // 2. Process completed trades
+    if (trades && trades.length > 0) {
+      for (const trade of trades) {
+        if (trade.symbol !== symbol) continue
+        const openTimeValue = trade.open_time || trade.time_open
+        const closeTimeValue = trade.close_time || trade.time_close
+        const openTime = resolveChartTime(openTimeValue, timeframe)
+        const closeTime = resolveChartTime(closeTimeValue, timeframe)
+        if (!openTime || !closeTime) continue
+
+        const x1 = chartRef.current!.timeScale().timeToCoordinate(openTime)
+        const y1 = candleSeriesRef.current!.priceToCoordinate(trade.open_price)
+        const x2 = chartRef.current!.timeScale().timeToCoordinate(closeTime)
+        const y2 = candleSeriesRef.current!.priceToCoordinate(trade.close_price)
+
+        if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
+          lines.push({
+            id: `trade-${trade.ticket || trade.id}`,
+            x1,
+            y1,
+            x2,
+            y2,
+            color: (trade.type === 0 || trade.type === "buy") ? "#10b981" : "#ef4444",
+            side: (trade.type === 0 || trade.type === "buy") ? "buy" : "sell",
+            status: "closed",
+          })
+        }
+      }
+    }
+
+    setLinePositions(lines)
+  }, [bars, currentPrice, positions, symbol, timeframe, trades])
 
   // Create chart on mount
   useEffect(() => {
@@ -261,7 +349,9 @@ export function SimulationChart({
     if (chartRef.current && chartBars.length <= 10) {
       chartRef.current.timeScale().fitContent()
     }
-  }, [bars, timeframe, digits])
+    
+    updateMarkerPositions()
+  }, [bars, timeframe, digits, updateMarkerPositions])
 
   // Update indicators
   useEffect(() => {
@@ -309,6 +399,11 @@ export function SimulationChart({
       rsiSeriesRef.current.applyOptions({ visible: indicatorVisibility.rsi })
     }
   }, [indicatorVisibility])
+
+  // Re-calculate positions when props change
+  useEffect(() => {
+    updateMarkerPositions()
+  }, [positions, trades, currentPrice, updateMarkerPositions])
 
   return (
     <div className="w-full space-y-3">
@@ -363,8 +458,37 @@ export function SimulationChart({
         <div className="text-sm font-medium text-muted-foreground">{symbol} Chart</div>
       </div>
 
-      <div className="relative w-full rounded-lg border border-border/60 bg-muted/10">
-        <div ref={chartContainerRef} className="w-full h-full" style={{ height }} />
+      <div className="relative w-full rounded-lg border border-border/60 bg-muted/10 overflow-hidden" style={{ height }}>
+        <div ref={chartContainerRef} className="w-full h-full" />
+        
+        {/* SVG Overlay for Trendlines */}
+        <svg 
+          className="absolute inset-0 pointer-events-none" 
+          width="100%" 
+          height="100%"
+          style={{ zIndex: 10 }}
+        >
+          {linePositions.map((line) => (
+            <g key={line.id}>
+              <line
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke={line.color}
+                strokeWidth={2}
+                strokeDasharray={line.status === "open" ? "4 2" : "0"}
+                className={line.status === "open" ? "animate-pulse" : ""}
+                opacity={0.8}
+              />
+              <circle cx={line.x1} cy={line.y1} r={3} fill={line.color} />
+              {line.status === "closed" && (
+                <circle cx={line.x2} cy={line.y2} r={3} fill={line.color} />
+              )}
+            </g>
+          ))}
+        </svg>
+
         {markerPositions.map((marker) => (
           <div
             key={marker.id}
@@ -377,6 +501,7 @@ export function SimulationChart({
               fontWeight: 700,
               color: marker.side === "buy" ? "#10b981" : "#ef4444",
               textShadow: "0 0 4px rgba(0,0,0,0.5)",
+              zIndex: 20,
             }}
           >
             {marker.side === "buy" ? "▲" : "▼"}

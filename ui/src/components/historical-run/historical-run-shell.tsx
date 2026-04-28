@@ -1,6 +1,6 @@
 "use client"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { BacktestExecutionView } from "@/components/backtest/execution-view"
 import { HistoricalRunForm } from "@/components/historical-run/historical-run-form"
@@ -8,6 +8,7 @@ import type { AccountMetrics } from "@/components/simulation/account-metrics"
 import { SimulationExecutionView } from "@/components/simulation/execution-view"
 import { SimulationResultsView } from "@/components/simulation/results-view"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   historicalRunConfigToSimulationPayload,
   type HistoricalRunConfig,
@@ -24,6 +25,8 @@ type SimulationTrade = {
   volume?: number
   pnl?: number
 }
+
+export type SimulationTab = "visual_auto" | "batch_auto" | "manual" | "replay"
 
 interface HistoricalRunShellProps {
   title: string
@@ -58,6 +61,15 @@ export function HistoricalRunShell({
   const [activeExecutionMode, setActiveExecutionMode] = useState<"visualized" | "batch">(
     initialExecutionMode
   )
+
+  const [activeTab, setActiveTab] = useState<SimulationTab>(() => {
+    if (initialSource === "manual") return "manual"
+    if (initialSource === "replay") return "replay"
+    if (initialSource === "strategy") {
+      return initialExecutionMode === "batch" ? "batch_auto" : "visual_auto"
+    }
+    return "visual_auto"
+  })
 
   const resetVisualizedState = () => {
     setSessionId(null)
@@ -132,6 +144,10 @@ export function HistoricalRunShell({
     resetBatchState()
   }
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as SimulationTab)
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between gap-4">
@@ -145,18 +161,28 @@ export function HistoricalRunShell({
       </div>
 
       {view === "config" && (
-        <HistoricalRunForm
-          initialExecutionMode={initialExecutionMode}
-          initialSource={initialSource}
-          initialStrategyId={initialStrategyId}
-          initialReplayBacktestId={initialReplayBacktestId}
-          initialReplaySource={initialReplaySource}
-          onSimulationStart={handleSimulationStart}
-          onSimulationResume={handleSimulationResume}
-          onBacktestStart={(backtestIdValue, strategyIdValue, _config) =>
-            handleBacktestStart(backtestIdValue, strategyIdValue)
-          }
-        />
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="visual_auto">Visual Auto</TabsTrigger>
+            <TabsTrigger value="batch_auto">Batch Auto</TabsTrigger>
+            <TabsTrigger value="manual">Manual</TabsTrigger>
+            <TabsTrigger value="replay">Replay</TabsTrigger>
+          </TabsList>
+
+          <div className="mt-6">
+            <HistoricalRunForm
+              variant={activeTab}
+              initialStrategyId={initialStrategyId}
+              initialReplayBacktestId={initialReplayBacktestId}
+              initialReplaySource={initialReplaySource}
+              onSimulationStart={handleSimulationStart}
+              onSimulationResume={handleSimulationResume}
+              onBacktestStart={(backtestIdValue, strategyIdValue, _config) =>
+                handleBacktestStart(backtestIdValue, strategyIdValue)
+              }
+            />
+          </div>
+        </Tabs>
       )}
 
       {view === "execution" && activeExecutionMode === "visualized" && sessionId && (

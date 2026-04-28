@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 interface HistoricalRunFormProps {
+  variant?: "visual_auto" | "batch_auto" | "manual" | "replay"
   initialExecutionMode?: HistoricalOutputMode
   initialSource?: "manual" | "strategy" | "replay"
   initialStrategyId?: string
@@ -49,22 +50,8 @@ function formatLocalDate(value: Date): string {
   return `${year}-${month}-${day}`
 }
 
-function shiftDate(value: Date, { years = 0, months = 0 }: { years?: number; months?: number }) {
-  const next = new Date(value)
-  next.setFullYear(next.getFullYear() + years)
-  next.setMonth(next.getMonth() + months)
-  return next
-}
-
-const riskPresetsByTimeframe: Partial<
-  Record<string, { horizonUnit: SimulationRiskHorizonUnit; horizonValue: number; volLookback: number; corrLookback: number }>
-> = {
-  M5: { horizonUnit: "hours", horizonValue: 1, volLookback: 48, corrLookback: 96 },
-  H1: { horizonUnit: "hours", horizonValue: 1, volLookback: 24, corrLookback: 72 },
-  D1: { horizonUnit: "days", horizonValue: 1, volLookback: 20, corrLookback: 60 },
-}
-
 export function HistoricalRunForm({
+  variant,
   initialExecutionMode = "visualized",
   initialSource = "manual",
   initialStrategyId = "",
@@ -74,10 +61,6 @@ export function HistoricalRunForm({
   onSimulationResume,
   onBacktestStart,
 }: HistoricalRunFormProps) {
-  const today = useMemo(() => new Date(), [])
-  const defaultEndDate = useMemo(() => "2025-12-31", [])
-  const defaultStartDate = useMemo(() => "2025-01-01", [])
-  const defaultWarmupStartDate = useMemo(() => "2024-12-01", [])
   const { strategies, loading: loadingStrategies } = useStrategies()
   const { backtests, loading: loadingBacktests } = useAllBacktests(200)
 
@@ -88,10 +71,10 @@ export function HistoricalRunForm({
   const [symbol, setSymbol] = useState("AUDUSD, EURGBP, NZDCHF")
   const [timeframe, setTimeframe] = useState("H1")
   const [rangeBy, setRangeBy] = useState<"dates" | "bars">("dates")
-  const [startDate, setStartDate] = useState(defaultStartDate)
-  const [endDate, setEndDate] = useState(defaultEndDate)
+  const [startDate, setStartDate] = useState("2025-01-01")
+  const [endDate, setEndDate] = useState("2025-12-31")
   const [numberOfBars, setNumberOfBars] = useState(500)
-  const [warmupStartDate, setWarmupStartDate] = useState(defaultWarmupStartDate)
+  const [warmupStartDate, setWarmupStartDate] = useState("2024-12-01")
   const [warmupBars, setWarmupBars] = useState(100)
   const [dataSource, setDataSource] = useState<"mt5" | "dukascopy">("mt5")
   const [strategyId, setStrategyId] = useState(initialStrategyId)
@@ -126,6 +109,7 @@ export function HistoricalRunForm({
     engineType: "event_driven",
     dataResolution: "trading_timeframe",
   })
+  
   const [riskSettings, setRiskSettings] = useState({
     confidenceLevel: 0.95,
     horizonUnit: "days" as SimulationRiskHorizonUnit,
@@ -144,18 +128,6 @@ export function HistoricalRunForm({
   })
 
   useEffect(() => {
-    const preset = riskPresetsByTimeframe[timeframe]
-    if (!preset) return
-    setRiskSettings((prev) => ({
-      ...prev,
-      horizonUnit: preset.horizonUnit,
-      horizonValue: preset.horizonValue,
-      volLookback: preset.volLookback,
-      corrLookback: preset.corrLookback,
-    }))
-  }, [timeframe])
-
-  useEffect(() => {
     const loadPausedSessions = async () => {
       try {
         const data = await simulatorApi.getPausedSessions()
@@ -169,102 +141,29 @@ export function HistoricalRunForm({
   }, [])
 
   useEffect(() => {
-    if (mode !== "strategy" && executionMode === "batch") {
+    if (variant === "visual_auto") {
+      setMode("strategy")
       setExecutionMode("visualized")
+    } else if (variant === "batch_auto") {
+      setMode("strategy")
+      setExecutionMode("batch")
+    } else if (variant === "manual") {
+      setMode("manual")
+      setExecutionMode("visualized")
+      setStrategyId("")
+    } else if (variant === "replay") {
+      setMode("replay")
+      setExecutionMode("visualized")
+      setStrategyId("")
     }
-  }, [mode, executionMode])
+  }, [variant])
 
-  useEffect(() => {
-    setExecutionMode(initialExecutionMode)
-  }, [initialExecutionMode])
-
-  useEffect(() => {
-    setMode(initialSource)
-  }, [initialSource])
-
-  useEffect(() => {
-    setStrategyId(initialStrategyId)
-  }, [initialStrategyId])
-
-  useEffect(() => {
-    if (rangeBy === "dates") {
-      setStartDate((prev) => prev || defaultStartDate)
-      setEndDate((prev) => prev || defaultEndDate)
-      setWarmupStartDate((prev) => prev || defaultWarmupStartDate)
-      return
-    }
-    setNumberOfBars((prev) => (prev > 0 ? prev : 500))
-    setWarmupBars((prev) => (prev >= 0 ? prev : 100))
-  }, [defaultEndDate, defaultStartDate, defaultWarmupStartDate, rangeBy])
-
-  useEffect(() => {
-    if (rangeBy !== "dates" || !startDate) {
-      return
-    }
-    const start = new Date(startDate)
-    if (Number.isNaN(start.getTime())) {
-      return
-    }
-    setWarmupStartDate(formatLocalDate(shiftDate(start, { months: -1 })))
-  }, [rangeBy, startDate])
-
-  useEffect(() => {
-    const selectedStrategy = strategies.find((item) => item.id === Number(strategyId))
-    if (!selectedStrategy?.active_version_id) {
-      setStrategyVersionId(undefined)
-      setStrategyParams({})
-      setStrategyParameterTypes({})
-      return
-    }
-
-    const loadStrategyParameters = async () => {
-      try {
-        setLoadingStrategyParams(true)
-        const versionCode: StrategyCodeResponse = await strategyApi.getVersionCode(
-          selectedStrategy.id,
-          selectedStrategy.active_version_id as number
-        )
-        setStrategyVersionId(versionCode.version_id)
-        setStrategyParams({ ...(versionCode.parameters || {}) })
-        setStrategyParameterTypes({ ...(versionCode.parameterTypes || {}) })
-      } catch (error) {
-        setStrategyVersionId(selectedStrategy.active_version_id ?? undefined)
-        setStrategyParams({})
-        setStrategyParameterTypes({})
-        toast.error("Failed to load strategy parameters", {
-          description: getErrorMessage(error),
-        })
-      } finally {
-        setLoadingStrategyParams(false)
-      }
-    }
-
-    void loadStrategyParameters()
-  }, [strategyId, strategies])
-
-  const pausedOptions = useMemo(
-    () =>
-      pausedSessions.map((session) => ({
-        value: String(session.session_id),
-        label: `${session.session_name || `Session ${session.session_id}`} (${session.symbol} ${session.timeframe})`,
-      })),
-    [pausedSessions]
-  )
-
-  const strategySelectionValue =
-    mode === "manual"
-      ? "manual"
-      : mode === "replay"
-        ? "replay"
-        : strategyId
-          ? `strategy:${strategyId}`
-          : "__select_strategy__"
   const showSessionControls = executionMode === "visualized"
   const showRisk = executionMode === "visualized"
   const showStrategy = mode === "strategy" && Boolean(strategyId)
   const showReplay = mode === "replay"
   const canUseBatch = showStrategy
-  const symbolCount = symbol.split(",").map((item) => item.trim()).filter(Boolean).length
+  
   const selectedStrategyName =
     strategies.find((item) => item.id === Number(strategyId))?.name || undefined
 
@@ -300,8 +199,7 @@ export function HistoricalRunForm({
       dataSource,
       engineType: engineSettings.engineType,
       dataResolution: engineSettings.dataResolution,
-      },
-
+    },
     risk: showRisk
       ? {
           confidenceLevel: riskSettings.confidenceLevel,
@@ -340,30 +238,6 @@ export function HistoricalRunForm({
       alias: runName || undefined,
       description: description || undefined,
     },
-  }
-
-  const handleStrategySelectionChange = (value: string) => {
-    if (value === "manual") {
-      setMode("manual")
-      setExecutionMode("visualized")
-      setStrategyId("")
-      return
-    }
-    if (value === "replay") {
-      setMode("replay")
-      setExecutionMode("visualized")
-      setStrategyId("")
-      return
-    }
-    if (value === "__select_strategy__") {
-      setMode("strategy")
-      setStrategyId("")
-      return
-    }
-    if (value.startsWith("strategy:")) {
-      setMode("strategy")
-      setStrategyId(value.replace("strategy:", ""))
-    }
   }
 
   const handleResume = async () => {
@@ -418,13 +292,14 @@ export function HistoricalRunForm({
   }
 
   const handleSubmit = async () => {
-    if (!symbol) return toast.error("Symbol is required.")
-    if (rangeBy === "dates" && (!startDate || !endDate)) return toast.error("Start and end dates are required.")
-    if (rangeBy === "bars" && (!numberOfBars || numberOfBars <= 0)) return toast.error("Please enter a valid number of bars.")
+    if (variant !== "replay") {
+      if (!symbol) return toast.error("Symbol is required.")
+      if (rangeBy === "dates" && (!startDate || !endDate)) return toast.error("Start and end dates are required.")
+    }
+    
     if (mode === "strategy" && !strategyId) return toast.error("Strategy is required for strategy runs.")
     if (mode === "replay" && !replayBacktestId) return toast.error("Please select or import a backtest to replay.")
-    if (mode === "manual" && executionMode === "batch") return toast.error("Manual runs are visualized only in phase 1.")
-    if (mode === "replay" && executionMode === "batch") return toast.error("Batch replay is not supported yet.")
+    
     try {
       setSubmitting(true)
       if (executionMode === "visualized") {
@@ -449,7 +324,7 @@ export function HistoricalRunForm({
 
   return (
     <div className="grid gap-6">
-      {showSessionControls && pausedOptions.length > 0 && (
+      {showSessionControls && pausedSessions.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Resume Session</CardTitle>
@@ -459,8 +334,10 @@ export function HistoricalRunForm({
             <Select value={selectedPausedId} onValueChange={setSelectedPausedId}>
               <SelectTrigger><SelectValue placeholder="Select paused session" /></SelectTrigger>
               <SelectContent>
-                {pausedOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                {pausedSessions.map((session) => (
+                  <SelectItem key={session.session_id} value={String(session.session_id)}>
+                    {`${session.session_name || `Session ${session.session_id}`} (${session.symbol} ${session.timeframe})`}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -469,142 +346,82 @@ export function HistoricalRunForm({
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Data</CardTitle>
-          <CardDescription>Shared run inputs used across all simulation modes.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="runName">Run Name</Label>
-              <Input id="runName" value={runName} onChange={(e) => setRunName(e.target.value)} placeholder="e.g. London Session Replay" />
+      {variant !== "replay" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Settings</CardTitle>
+            <CardDescription>
+              {variant === "manual" ? "Configure symbol and timeframe for manual trading." : "Common inputs for the simulation run."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="symbol">Symbol(s)</Label>
+                <Input id="symbol" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="EURUSD or EURUSD, GBPUSD" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timeframe">Timeframe</Label>
+                <Select value={timeframe} onValueChange={setTimeframe}>
+                  <SelectTrigger id="timeframe"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="M1">M1</SelectItem>
+                    <SelectItem value="M5">M5</SelectItem>
+                    <SelectItem value="M15">M15</SelectItem>
+                    <SelectItem value="H1">H1</SelectItem>
+                    <SelectItem value="H4">H4</SelectItem>
+                    <SelectItem value="D1">D1</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            {(variant === "visual_auto" || variant === "batch_auto") && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <RangeModeSelector value={rangeBy} onValueChange={setRangeBy} variant="toggle" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start</Label>
+                    <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">End</Label>
+                    <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {variant?.includes("auto") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Strategy</CardTitle>
+            <CardDescription>Select the strategy and parameters for automated execution.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
             <div className="space-y-2">
-              <Label htmlFor="runDescription">Description</Label>
-              <Input id="runDescription" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the run setup or hypothesis" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol(s)</Label>
-              <Input id="symbol" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="EURUSD or EURUSD, GBPUSD, USDJPY" />
-              {symbolCount > 1 && executionMode === "batch" && (
-                <p className="text-xs text-muted-foreground">
-                  Multi-symbol input is allowed for batch strategy runs.
-                </p>
-              )}
-              {symbolCount > 1 && executionMode === "visualized" && symbolCount <= 4 && (
-                <p className="text-xs text-muted-foreground">
-                  Visualized mode will render {symbolCount} charts, one per symbol.
-                </p>
-              )}
-              {symbolCount > 4 && executionMode === "visualized" && (
-                <p className="text-xs text-muted-foreground">
-                  Visualized mode will switch to table view when more than 4 symbols are entered.
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="timeframe">Timeframe</Label>
-              <Select value={timeframe} onValueChange={setTimeframe}>
-                <SelectTrigger id="timeframe"><SelectValue /></SelectTrigger>
+              <Label>Target Strategy</Label>
+              <Select
+                value={strategyId ? `strategy:${strategyId}` : "__select_strategy__"}
+                onValueChange={(val) => setStrategyId(val.replace("strategy:", ""))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingStrategies ? "Loading..." : "Select strategy"} />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="M1">M1</SelectItem><SelectItem value="M5">M5</SelectItem><SelectItem value="M15">M15</SelectItem>
-                  <SelectItem value="H1">H1</SelectItem><SelectItem value="H4">H4</SelectItem><SelectItem value="D1">D1</SelectItem><SelectItem value="W1">W1</SelectItem>
+                  {strategies.map((strategy) => (
+                    <SelectItem key={strategy.id} value={`strategy:${strategy.id}`}>
+                      {strategy.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <RangeModeSelector value={rangeBy} onValueChange={setRangeBy} variant="toggle" />
-            <div />
-          </div>
-          {rangeBy === "dates" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label htmlFor="startDate">Start Date</Label><Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-              <div className="space-y-2"><Label htmlFor="endDate">End Date</Label><Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
-              <div className="space-y-2"><Label htmlFor="warmupStartDate">Warmup Start Date</Label><Input id="warmupStartDate" type="date" value={warmupStartDate} onChange={(e) => setWarmupStartDate(e.target.value)} /></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label htmlFor="numberOfBars">Number of Bars</Label><Input id="numberOfBars" type="number" min="1" value={numberOfBars} onChange={(e) => setNumberOfBars(Number(e.target.value))} /></div>
-              <div className="space-y-2"><Label htmlFor="warmupBars">Warmup Bars</Label><Input id="warmupBars" type="number" min="0" value={warmupBars} onChange={(e) => setWarmupBars(Number(e.target.value))} /></div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Strategy</CardTitle>
-          <CardDescription>Select `Manual`, `Replay`, or a strategy-driven run.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="strategyMode">Strategy</Label>
-            <Select value={strategySelectionValue} onValueChange={handleStrategySelectionChange}>
-              <SelectTrigger id="strategyMode">
-                <SelectValue placeholder={loadingStrategies ? "Loading..." : "Select mode or strategy"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="replay">Replay</SelectItem>
-                <SelectItem value="__select_strategy__" disabled>
-                  Strategies
-                </SelectItem>
-                {strategies.map((strategy) => (
-                  <SelectItem key={strategy.id} value={`strategy:${strategy.id}`}>
-                    {strategy.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {showStrategy && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <OutputModeSelector
-                  value={executionMode}
-                  onValueChange={(value) =>
-                    value === "batch" && !canUseBatch ? undefined : setExecutionMode(value)
-                  }
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="engineType">Engine Type</Label>
-                  <Select
-                    value={engineSettings.engineType}
-                    onValueChange={(value) =>
-                      setEngineSettings((prev) => ({
-                        ...prev,
-                        engineType: value as any,
-                      }))
-                    }
-                  >
-                    <SelectTrigger id="engineType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="event_driven">Event Driven (Turbo)</SelectItem>
-                      <SelectItem value="vectorised">Vectorized (Ultra-Fast)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dataSource">Data Source</Label>
-                  <Select
-                    value={dataSource}
-                    onValueChange={(value) => setDataSource(value as "mt5" | "dukascopy")}
-                  >
-                    <SelectTrigger id="dataSource"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mt5">MetaTrader 5</SelectItem>
-                      <SelectItem value="dukascopy">Dukascopy API</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            {showStrategy && (
               <StrategyParametersCard
                 values={strategyParams}
                 parameterTypes={strategyParameterTypes}
@@ -616,27 +433,33 @@ export function HistoricalRunForm({
                   }))
                 }
               />
-            </>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {showReplay && (
+      {variant === "replay" && (
         <Card>
-          <CardHeader><CardTitle>Replay Source</CardTitle><CardDescription>Replay existing trades in the visualized simulator flow.</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle>Replay Source</CardTitle>
+            <CardDescription>Select a previously completed backtest to replay tick-by-tick.</CardDescription>
+          </CardHeader>
           <CardContent className="grid gap-6">
             <div className="space-y-2">
-              <Label>Source</Label>
+              <Label>Source Type</Label>
               <ToggleGroup type="single" value={replaySource} onValueChange={(value) => value && setReplaySource(value as ReplaySource)}>
-                <ToggleGroupItem value="backtest">Backtest</ToggleGroupItem>
-                <ToggleGroupItem value="csv">CSV Import</ToggleGroupItem>
+                <ToggleGroupItem value="backtest" className="flex-1">Existing Backtest</ToggleGroupItem>
+                <ToggleGroupItem value="csv" className="flex-1">CSV Import</ToggleGroupItem>
               </ToggleGroup>
             </div>
+            
             {replaySource === "backtest" ? (
               <div className="space-y-2">
-                <Label htmlFor="replayBacktestId">Backtest</Label>
+                <Label htmlFor="replayBacktestId">Select Backtest</Label>
                 <Select value={replayBacktestId} onValueChange={setReplayBacktestId} disabled={loadingBacktests}>
-                  <SelectTrigger id="replayBacktestId"><SelectValue placeholder={loadingBacktests ? "Loading..." : "Select backtest"} /></SelectTrigger>
+                  <SelectTrigger id="replayBacktestId">
+                    <SelectValue placeholder={loadingBacktests ? "Loading..." : "Select a backtest result"} />
+                  </SelectTrigger>
                   <SelectContent>
                     {backtests.map((backtest) => (
                       <SelectItem key={backtest.backtest_id} value={backtest.backtest_id.toString()}>
@@ -645,16 +468,15 @@ export function HistoricalRunForm({
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground pt-1">
+                  Replay will automatically use the symbol, timeframe, and dates from the selected backtest.
+                </p>
               </div>
             ) : (
               <div className="grid gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label htmlFor="importStrategyName">Strategy Name</Label><Input id="importStrategyName" value={importStrategyName} onChange={(e) => setImportStrategyName(e.target.value)} /></div>
                   <div className="space-y-2"><Label htmlFor="importFile">CSV File</Label><Input id="importFile" type="file" accept=".csv" onChange={(e) => setImportFile(e.target.files?.[0] || null)} /></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label htmlFor="importAlias">Alias</Label><Input id="importAlias" value={importAlias} onChange={(e) => setImportAlias(e.target.value)} /></div>
-                  <div className="space-y-2"><Label htmlFor="importDescription">Description</Label><Input id="importDescription" value={importDescription} onChange={(e) => setImportDescription(e.target.value)} /></div>
                 </div>
                 <Button onClick={handleCsvImport} disabled={importing}>{importing ? "Importing..." : "Import CSV"}</Button>
               </div>
@@ -663,63 +485,31 @@ export function HistoricalRunForm({
         </Card>
       )}
 
-      <EngineSettings values={engineSettings} onChange={(key, value) => setEngineSettings((prev) => ({ ...prev, [key]: value }))} />
-
-      {showRisk && (
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Risk Settings</CardTitle><CardDescription>Configure the VaR, CVaR, and limit inputs for this simulation session.</CardDescription></CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="space-y-2">
-              <Label>Risk Limit Mode</Label>
-              <ToggleGroup type="single" value={riskSettings.limitsEnforced ? "blocking" : "descriptive"} onValueChange={(value) => value && setRiskSettings((prev) => ({ ...prev, limitsEnforced: value === "blocking" }))}>
-                <ToggleGroupItem value="blocking">Blocking</ToggleGroupItem>
-                <ToggleGroupItem value="descriptive">Descriptive Only</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-            <div className="space-y-1">
-              <div className="text-sm font-medium">VaR And CVaR</div>
-              <div className="text-xs text-muted-foreground">
-                Controls the descriptive portfolio risk snapshot calculations.
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2"><Label htmlFor="riskConfidenceLevel">Confidence Level</Label><Input id="riskConfidenceLevel" type="number" step="0.01" value={riskSettings.confidenceLevel} onChange={(e) => setRiskSettings((prev) => ({ ...prev, confidenceLevel: Number(e.target.value) || 0.95 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskHorizonUnit">Risk Horizon Unit</Label><Select value={riskSettings.horizonUnit} onValueChange={(value) => setRiskSettings((prev) => ({ ...prev, horizonUnit: value as SimulationRiskHorizonUnit }))}><SelectTrigger id="riskHorizonUnit"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="bars">Bars</SelectItem><SelectItem value="hours">Hours</SelectItem><SelectItem value="days">Days</SelectItem></SelectContent></Select></div>
-              <div className="space-y-2"><Label htmlFor="riskHorizonValue">Risk Horizon Value</Label><Input id="riskHorizonValue" type="number" min="1" value={riskSettings.horizonValue} onChange={(e) => setRiskSettings((prev) => ({ ...prev, horizonValue: Number(e.target.value) || 1 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskVolLookback">Volatility Lookback</Label><Input id="riskVolLookback" type="number" min="2" value={riskSettings.volLookback} onChange={(e) => setRiskSettings((prev) => ({ ...prev, volLookback: Number(e.target.value) || 20 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskCorrLookback">Correlation Lookback</Label><Input id="riskCorrLookback" type="number" min="2" value={riskSettings.corrLookback} onChange={(e) => setRiskSettings((prev) => ({ ...prev, corrLookback: Number(e.target.value) || 60 }))} /></div>
-            </div>
-            <div className="space-y-1 pt-2">
-              <div className="text-sm font-medium">Limits</div>
-              <div className="text-xs text-muted-foreground">
-                These values feed the current compliance and warning status.
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label htmlFor="riskVarCapFrac">VaR Cap %</Label><Input id="riskVarCapFrac" type="number" min="0" step="0.01" value={riskSettings.varCapFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, varCapFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskEsCapFrac">CVaR Cap %</Label><Input id="riskEsCapFrac" type="number" min="0" step="0.01" value={riskSettings.esCapFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, esCapFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskDeltaVarCapFrac">Delta VaR Cap %</Label><Input id="riskDeltaVarCapFrac" type="number" min="0" step="0.01" value={riskSettings.deltaVarCapFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, deltaVarCapFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskDeltaEsCapFrac">Delta CVaR Cap %</Label><Input id="riskDeltaEsCapFrac" type="number" min="0" step="0.01" value={riskSettings.deltaEsCapFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, deltaEsCapFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskMaxMarginUsedFrac">Max Margin Used %</Label><Input id="riskMaxMarginUsedFrac" type="number" min="0" step="0.01" value={riskSettings.maxMarginUsedFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, maxMarginUsedFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskMaxCurrencyExposureFrac">Max Currency Weight Buffer %</Label><Input id="riskMaxCurrencyExposureFrac" type="number" min="0" step="0.01" value={riskSettings.maxCurrencyExposureFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, maxCurrencyExposureFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskMaxSingleRcFrac">Max Single Risk Contribution Buffer %</Label><Input id="riskMaxSingleRcFrac" type="number" min="0" step="0.01" value={riskSettings.maxSingleRcFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, maxSingleRcFrac: Number(e.target.value) || 0 }))} /></div>
-              <div className="space-y-2"><Label htmlFor="riskWarningUtilizationFrac">Warning Utilization %</Label><Input id="riskWarningUtilizationFrac" type="number" step="0.01" value={riskSettings.warningUtilizationFrac} onChange={(e) => setRiskSettings((prev) => ({ ...prev, warningUtilizationFrac: Number(e.target.value) || 0.9 }))} /></div>
-            </div>
-          </CardContent>
-        </Card>
+      {variant !== "replay" && (
+        <EngineSettings 
+          values={engineSettings} 
+          onChange={(key, value) => setEngineSettings((prev) => ({ ...prev, [key]: value }))} 
+        />
       )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-4">
         <Button
           size="lg"
           onClick={handleSubmit}
-          disabled={
-            submitting ||
-            importing ||
-            loadingStrategies
-          }
+          disabled={submitting || importing || loadingStrategies}
+          className="px-8"
         >
-          {submitting ? (executionMode === "visualized" ? "Starting..." : "Starting Backtest...") : executionMode === "visualized" ? "Start Visualized Run" : "Run Batch Backtest"}
+          {submitting
+            ? "Starting..."
+            : variant === "visual_auto"
+              ? "Start Visualized Auto Run"
+              : variant === "batch_auto"
+                ? "Run Batch Backtest"
+                : variant === "manual"
+                  ? "Start Manual Simulation"
+                  : variant === "replay"
+                    ? "Start Replay"
+                    : "Start Simulation"}
         </Button>
       </div>
     </div>

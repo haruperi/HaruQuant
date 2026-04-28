@@ -1753,6 +1753,24 @@ class SimulatorSession:
         visible_index = self.visible_start_bar_index + int(fallback_index or 0)
         return max(self.visible_start_bar_index, min(visible_index, len(base_data.index) - 1))
 
+    def seek_to_trade(self, trade_index: int):
+        if not self.replay_trades or trade_index < 0 or trade_index >= len(self.replay_trades):
+            return
+
+        trade = self.replay_trades[trade_index]
+        # Common fields for entry time in our backtest results
+        entry_time = (
+            trade.get("entry_time")
+            or trade.get("time")
+            or trade.get("open_time")
+            or trade.get("entry_dt")
+        )
+        if not entry_time:
+            return
+
+        target_bar_index = self.resolve_base_bar_index(str(entry_time), None)
+        self.seek_to_bar(target_bar_index)
+
     def seek_to_bar(self, index: int):
         base_data = self.data_by_symbol.get(self.symbols[0]) if self.symbols else self.data
         if base_data is None or base_data.empty:

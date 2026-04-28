@@ -165,3 +165,9 @@ class WhatIfRequest(BaseModel):
 
     actions: List[WhatIfActionRequest] = Field(default_factory=list)
     leverage_override: Optional[int] = None
+
+
+class SeekTradeRequest(BaseModel):
+    """Request to seek to a specific trade index in replay mode."""
+
+    trade_index: int

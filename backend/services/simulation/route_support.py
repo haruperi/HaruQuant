@@ -295,9 +295,15 @@ def monitor_refresh_collect(
 
 def build_session_state_response(active: SimulatorSession) -> Dict[str, Any]:
     positions, orders = monitor_refresh_collect(active)
+    
+    # Return replay_trades if in replay mode, otherwise return engine trades
+    is_replay = active.config.get("mode") == "replay"
+    trades = active.replay_trades if is_replay else active.engine.get_completed_trades()
+    
     return {
         "positions": positions,
         "orders": orders,
+        "trades": trades,
         "market": active.get_market_snapshots(),
         "risk_snapshot": active.get_risk_summary(),
         "risk_scorecard": active.get_risk_score_summary(),

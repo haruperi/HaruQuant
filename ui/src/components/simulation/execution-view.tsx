@@ -310,7 +310,7 @@ export function SimulationExecutionView({
     margin_free: config?.initial_balance || 10000,
     margin_level: 0,
   })
-  const [trades] = useState<SimulationTrade[]>([])
+  const [trades, setTrades] = useState<any[]>([])
   const [positions, setPositions] = useState<PositionRow[]>([])
   const [orders, setOrders] = useState<OrderRow[]>([])
 
@@ -398,113 +398,39 @@ export function SimulationExecutionView({
         ),
       },
       {
-        key: "concentration_score",
-        label: "Concentration",
-        value: formatScore(riskScorecard.concentration_score),
+        key: "strategy_compliance_score",
+        label: "Compliance",
+        value: formatScore(riskScorecard.strategy_compliance_score),
         max: "100.0%",
-        progress: toScoreProgress(riskScorecard.concentration_score),
+        progress: toScoreProgress(riskScorecard.strategy_compliance_score),
         tooltip: formatScoreTooltip(
-          riskScorecard.details?.concentration_score?.explanation,
-          riskScorecard.details?.concentration_score?.context
+          riskScorecard.details?.strategy_compliance_score?.explanation,
+          riskScorecard.details?.strategy_compliance_score?.context
         ),
       },
       {
-        key: "stress_resilience_score",
-        label: "Stress Resilience",
-        value: formatScore(riskScorecard.stress_resilience_score),
+        key: "market_stability_score",
+        label: "Stability",
+        value: formatScore(riskScorecard.market_stability_score),
         max: "100.0%",
-        progress: toScoreProgress(riskScorecard.stress_resilience_score),
+        progress: toScoreProgress(riskScorecard.market_stability_score),
         tooltip: formatScoreTooltip(
-          riskScorecard.details?.stress_resilience_score?.explanation,
-          riskScorecard.details?.stress_resilience_score?.context
-        ),
-      },
-      {
-        key: "leverage_safety_score",
-        label: "Leverage Safety",
-        value: formatScore(riskScorecard.leverage_safety_score),
-        max: "100.0%",
-        progress: toScoreProgress(riskScorecard.leverage_safety_score),
-        tooltip: formatScoreTooltip(
-          riskScorecard.details?.leverage_safety_score?.explanation,
-          riskScorecard.details?.leverage_safety_score?.context
-        ),
-      },
-      {
-        key: "margin_safety_score",
-        label: "Margin Safety",
-        value: formatScore(riskScorecard.margin_safety_score),
-        max: "100.0%",
-        progress: toScoreProgress(riskScorecard.margin_safety_score),
-        tooltip: formatScoreTooltip(
-          riskScorecard.details?.margin_safety_score?.explanation,
-          riskScorecard.details?.margin_safety_score?.context
-        ),
-      },
-      {
-        key: "diversification_score",
-        label: "Diversification",
-        value: formatScore(riskScorecard.diversification_score),
-        max: "100.0%",
-        progress: toScoreProgress(riskScorecard.diversification_score),
-        tooltip: formatScoreTooltip(
-          riskScorecard.details?.diversification_score?.explanation,
-          riskScorecard.details?.diversification_score?.context
-        ),
-      },
-      {
-        key: "regime_alignment_score",
-        label: "Regime Alignment",
-        value: formatScore(riskScorecard.regime_alignment_score),
-        max: "100.0%",
-        progress: toScoreProgress(riskScorecard.regime_alignment_score),
-        tooltip: formatScoreTooltip(
-          riskScorecard.details?.regime_alignment_score?.explanation,
-          riskScorecard.details?.regime_alignment_score?.context
-        ),
-      },
-      {
-        key: "governance_compliance_score",
-        label: "Governance Compliance",
-        value: formatScore(riskScorecard.governance_compliance_score),
-        max: "100.0%",
-        progress: toScoreProgress(riskScorecard.governance_compliance_score),
-        tooltip: formatScoreTooltip(
-          riskScorecard.details?.governance_compliance_score?.explanation,
-          riskScorecard.details?.governance_compliance_score?.context
-        ),
-      },
-      {
-        key: "overall_risk_quality_score",
-        label: "Overall Risk Quality",
-        value: formatScore(riskScorecard.overall_risk_quality_score),
-        max: "100.0%",
-        progress: toScoreProgress(riskScorecard.overall_risk_quality_score),
-        tooltip: formatScoreTooltip(
-          riskScorecard.details?.overall_risk_quality_score?.explanation,
-          riskScorecard.details?.overall_risk_quality_score?.context
+          riskScorecard.details?.market_stability_score?.explanation,
+          riskScorecard.details?.market_stability_score?.context
         ),
       },
     ],
   }
-  const marginUsed =
-    typeof riskSnapshot.margin_used === "number" && Number.isFinite(riskSnapshot.margin_used)
-      ? riskSnapshot.margin_used
-      : accountState.margin
-  const marginUsedPct =
-    typeof riskSnapshot.margin_used_frac === "number" && Number.isFinite(riskSnapshot.margin_used_frac)
-      ? riskSnapshot.margin_used_frac
-      : currentEquity > 0
-        ? marginUsed / currentEquity
-        : null
   const accountMargin = {
     balance: formatNumber(accountState.balance),
     equity: formatNumber(accountState.equity),
     profit: formatNumber(accountState.profit),
     profitTone: accountState.profit >= 0 ? "text-emerald-500" : "text-red-500",
     freeMargin: formatNumber(accountState.margin_free),
-    marginUsed: formatNumber(marginUsed),
-    marginUsedPct: formatPercent(marginUsedPct),
+    marginUsed: formatNumber(accountState.margin),
+    marginUsedPct: formatPercent(
+      accountState.equity > 0 ? accountState.margin / accountState.equity : 0
+    ),
     marginLevel:
       typeof accountState.margin_level === "number" && Number.isFinite(accountState.margin_level)
         ? `${accountState.margin_level.toFixed(2)}%`
@@ -684,6 +610,10 @@ export function SimulationExecutionView({
       if (response.orders) {
         setOrders(toOrderRows(response.orders))
       }
+      
+      if (response.trades) {
+        setTrades(response.trades)
+      }
 
       setCurrentBarIndex(response.current_index)
 
@@ -699,11 +629,15 @@ export function SimulationExecutionView({
     } finally {
       isFetchingRef.current = false
     }
-  }, [sessionId, isPaused, isCompleted, isStopping, calculateBarsToFetch, onComplete, accountState, symbol])
+  }, [sessionId, calculateBarsToFetch, accountState, symbol])
 
-  // Start/stop interval with fixed update rate
+  const pauseForManualReview = useCallback(async () => {
+    setIsPaused(true)
+  }, [])
+
+  // Start update interval
   useEffect(() => {
-    if (isPaused || isCompleted) {
+    if (isPaused || isCompleted || isStopping) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
@@ -711,12 +645,8 @@ export function SimulationExecutionView({
       return
     }
 
-    // Reset timing when starting
-    lastUpdateTimeRef.current = Date.now()
-    accumulatorRef.current = 0
-
-    // Use fixed update rate regardless of speed
     intervalRef.current = setInterval(fetchBars, UPDATE_RATE_MS)
+    lastUpdateTimeRef.current = Date.now()
 
     return () => {
       if (intervalRef.current) {
@@ -724,229 +654,173 @@ export function SimulationExecutionView({
         intervalRef.current = null
       }
     }
-  }, [isPaused, isCompleted, fetchBars])
+  }, [fetchBars, isPaused, isCompleted, isStopping])
 
-  // Reset accumulator when speed changes
-  useEffect(() => {
-    accumulatorRef.current = 0
-    lastUpdateTimeRef.current = Date.now()
-  }, [currentSpeed])
-
-  useEffect(() => {
-    onFinalAccount?.(accountState)
-  }, [accountState, onFinalAccount])
-
-  useEffect(() => {
-    onTradesUpdate?.(trades)
-  }, [onTradesUpdate, trades])
-
-  useEffect(() => {
-    let cancelled = false
-
-    const loadInitialState = async () => {
-      try {
-        const response: PositionsResponse = await simulatorApi.getPositions(sessionId)
-        if (cancelled) {
-          return
+  const loadInitialState = useCallback(async () => {
+    try {
+      const response = await simulatorApi.getSessionState(sessionId)
+      if (response.market) {
+        setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
+        const primaryMarket = response.market.find((item) => item.symbol === symbol)
+        if (primaryMarket) {
+          setCurrentPrice(primaryMarket.close)
         }
-        setPositions(toPositionRows(response.positions))
-        setOrders(toOrderRows(response.orders))
-        if (response.market) {
-          setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
-          const primaryMarket = response.market.find((item) => item.symbol === symbol)
-          if (primaryMarket) {
-            setCurrentPrice(primaryMarket.close)
-          }
-        }
-        if (response.risk_snapshot) {
-          setRiskSnapshot(response.risk_snapshot)
-        }
-        if (response.risk_scorecard) {
-          setRiskScorecard(response.risk_scorecard)
-        }
-        if (response.recommendations) {
-          setRecommendations(response.recommendations)
-        }
-        if (response.governance) {
-          setLatestGovernanceReport(response.governance)
-        }
-        if (response.account) {
-          setAccountState((prev) => toAccountMetrics(response.account, prev))
-        }
-      } catch (error) {
-        console.error("Failed to load simulation state:", error)
       }
-    }
-
-    loadInitialState()
-
-    return () => {
-      cancelled = true
+      if (response.risk_snapshot) {
+        setRiskSnapshot(response.risk_snapshot)
+      }
+      if (response.risk_scorecard) {
+        setRiskScorecard(response.risk_scorecard)
+      }
+      if (response.recommendations) {
+        setRecommendations(response.recommendations)
+      }
+      if (response.governance) {
+        setLatestGovernanceReport(response.governance)
+      }
+      if (response.positions) {
+        setPositions(toPositionRows(response.positions))
+      }
+      if (response.orders) {
+        setOrders(toOrderRows(response.orders))
+      }
+      if (response.trades) {
+        setTrades(response.trades)
+      }
+    } catch (error) {
+      console.error("Failed to load initial session state:", error)
     }
   }, [sessionId, symbol])
 
-  const handlePauseToggle = async () => {
-    try {
-      await simulatorApi.updateSession(sessionId, { paused: !isPaused })
-      setIsPaused(!isPaused)
-      // Reset timing when resuming
-      if (isPaused) {
-        lastUpdateTimeRef.current = Date.now()
-        accumulatorRef.current = 0
-      }
-    } catch {
-      toast.error("Failed to toggle pause")
-    }
+  useEffect(() => {
+    loadInitialState()
+  }, [loadInitialState])
+
+  const handleSpeedChange = (newSpeed: number) => {
+    setCurrentSpeed(newSpeed)
+    accumulatorRef.current = 0 // Reset accumulator on speed change
   }
 
-  const handleStopSimulation = async () => {
-    setStopDialogOpen(true)
-  }
-
-  const handleQuitSimulation = async () => {
-    try {
-      setStopActionLoading("quit")
-      setIsPaused(true)
-      await simulatorApi.deleteSession(sessionId)
-      toast.success("Simulation stopped")
-      setStopDialogOpen(false)
-      onStop()
-    } catch (error) {
-      toast.error("Failed to stop simulation", {
-        description: getErrorMessage(error),
-      })
-    } finally {
-      setStopActionLoading(null)
-    }
-  }
-
-  const pauseForManualReview = useCallback(async () => {
-    if (isPaused) {
-      return
-    }
-    await simulatorApi.updateSession(sessionId, { paused: true })
-    setIsPaused(true)
-    lastUpdateTimeRef.current = Date.now()
+  const handleSeek = async (barIndex: number) => {
+    // Reset local state that is rebuilt by seeking
+    setChartBarsBySymbol({})
+    setChartIndicatorsBySymbol({})
+    setCurrentBarIndex(barIndex)
     accumulatorRef.current = 0
-  }, [isPaused, sessionId])
+    lastUpdateTimeRef.current = Date.now()
+
+    // Optionally reload latest session state if seeking may have closed/opened positions
+    try {
+      const response = await simulatorApi.getSessionState(sessionId)
+      if (response.positions) {
+        setPositions(toPositionRows(response.positions))
+      }
+      if (response.orders) {
+        setOrders(toOrderRows(response.orders))
+      }
+      if (response.account) {
+        setAccountState((prev) => toAccountMetrics(response.account, prev))
+      }
+      if (response.trades) {
+        setTrades(response.trades)
+      }
+    } catch (error) {
+      console.error("Failed to sync state after seek:", error)
+    }
+  }
 
   const handleSaveAndStopSimulation = async () => {
     try {
       setStopActionLoading("save")
-      setIsPaused(true)
-      const response = await simulatorApi.stopAndSaveSession(sessionId)
-      toast.success("Simulation saved to backtest results")
-      setStopDialogOpen(false)
-      router.push(`/performance?selected=${response.backtest_id}`)
+      const result = await simulatorApi.stopAndSaveSession(sessionId)
+      toast.success("Simulation saved successfully", {
+        description: `Backtest created with ID ${result.backtest_id}`,
+      })
+      if (onFinalAccount) {
+        onFinalAccount(accountState)
+      }
+      onStop()
     } catch (error) {
       toast.error("Failed to save simulation", {
         description: getErrorMessage(error),
       })
     } finally {
       setStopActionLoading(null)
+      setStopDialogOpen(false)
     }
   }
 
-  const handleSpeedChange = (newSpeed: number) => {
-    setCurrentSpeed(newSpeed)
+  const handleQuitSimulation = async () => {
+    try {
+      setStopActionLoading("quit")
+      await simulatorApi.deleteSession(sessionId)
+      toast.success("Simulation session deleted")
+      onStop()
+    } catch (error) {
+      toast.error("Failed to delete session", {
+        description: getErrorMessage(error),
+      })
+    } finally {
+      setStopActionLoading(null)
+      setStopDialogOpen(false)
+    }
   }
 
-  const handleSeek = useCallback(
-    async (barIndex: number) => {
-      try {
-        const response: PositionsResponse = await simulatorApi.getPositions(sessionId)
-        setPositions(toPositionRows(response.positions))
-        setOrders(toOrderRows(response.orders))
-        if (response.market) {
-          setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
-          const primaryMarket = response.market.find((item) => item.symbol === symbol)
-          if (primaryMarket) {
-            setCurrentPrice(primaryMarket.close)
-          }
+  const getBarIndexForTime = useCallback(
+    (isoTime: string) => {
+      // Find the closest bar index for a given time
+      // This is a simple client-side implementation that finds the index in currently loaded bars
+      // If not found, it returns the requested time's index if the backend can resolve it
+      const bars = chartBarsBySymbol[symbol] || []
+      const targetTime = new Date(isoTime).getTime()
+      for (let i = 0; i < bars.length; i++) {
+        if (new Date(bars[i].time).getTime() >= targetTime) {
+          return i
         }
-        if (response.risk_snapshot) {
-          setRiskSnapshot(response.risk_snapshot)
-        }
-        if (response.risk_scorecard) {
-          setRiskScorecard(response.risk_scorecard)
-        }
-        if (response.recommendations) {
-          setRecommendations(response.recommendations)
-        }
-        if (response.governance) {
-          setLatestGovernanceReport(response.governance)
-        }
-        if (response.account) {
-          setAccountState((prev) => toAccountMetrics(response.account, prev))
-        }
-        setCurrentBarIndex(barIndex)
-      } catch (error) {
-        toast.error("Failed to refresh simulation state", {
-          description: getErrorMessage(error),
-        })
       }
+      return null
     },
-    [sessionId, symbol]
+    [chartBarsBySymbol, symbol]
   )
 
-  const getBarIndexForTime = (isoTime: string) => {
-    const target = new Date(isoTime).getTime()
-    if (Number.isNaN(target)) return null
-
-    const primaryBars = chartBarsBySymbol[symbol] || []
-    if (primaryBars.length === 0) {
-      return null
-    }
-
-    let closestIndex = 0
-    let closestDistance = Number.POSITIVE_INFINITY
-
-    for (let index = 0; index < primaryBars.length; index += 1) {
-      const barTime = new Date(primaryBars[index].time).getTime()
-      if (Number.isNaN(barTime)) {
-        continue
-      }
-      const distance = Math.abs(barTime - target)
-      if (distance < closestDistance) {
-        closestDistance = distance
-        closestIndex = index
-      }
-      if (barTime >= target) {
-        return index
-      }
-    }
-
-    return closestIndex
+  const accountMarginProps = {
+    balance: formatNumber(accountState.balance),
+    equity: formatNumber(accountState.equity),
+    profit: formatNumber(accountState.profit),
+    profitTone: accountState.profit >= 0 ? "text-emerald-500" : "text-red-500",
+    freeMargin: formatNumber(accountState.margin_free),
+    marginUsed: formatNumber(accountState.margin),
+    marginUsedPct: formatPercent(
+      accountState.equity > 0 ? accountState.margin / accountState.equity : 0
+    ),
+    marginLevel:
+      typeof accountState.margin_level === "number" && Number.isFinite(accountState.margin_level)
+        ? `${accountState.margin_level.toFixed(2)}%`
+        : "--",
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-2">
-          {isCompleted && (
-            <div className="text-sm text-green-500">(Completed)</div>
-          )}
-          <div className="text-xs text-muted-foreground">
-            Regime: <span className="text-foreground">{riskSnapshot.regime_name || "--"}</span>
-            {" | "}Confidence: <span className="text-foreground">
-              {typeof riskSnapshot.regime_confidence === "number"
-                ? `${(riskSnapshot.regime_confidence * 100).toFixed(0)}%`
-                : "--"}
-            </span>
-            {" | "}Market: <span className="text-foreground">{riskSnapshot.market_regime || "--"}</span>
-            {" | "}Volatility: <span className="text-foreground">{riskSnapshot.volatility_regime || "--"}</span>
-            {" | "}Liquidity: <span className="text-foreground">{riskSnapshot.liquidity_regime || "--"}</span>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Execution Control</h2>
+          <p className="text-muted-foreground">
+            Control the flow of the simulation and monitor risk in real-time.
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           <Button
             variant={isPaused ? "default" : "outline"}
-            onClick={handlePauseToggle}
-            disabled={isCompleted}
+            onClick={() => setIsPaused(!isPaused)}
+            disabled={isCompleted || isStopping}
           >
             {isPaused ? "Resume" : "Pause"}
           </Button>
-          <Button variant="destructive" onClick={handleStopSimulation}>
+          <Button
+            variant="destructive"
+            onClick={() => setStopDialogOpen(true)}
+            disabled={isStopping}
+          >
             Stop Simulation
           </Button>
         </div>
@@ -959,6 +833,7 @@ export function SimulationExecutionView({
               sessionId={sessionId}
               getBarIndexForTime={getBarIndexForTime}
               onSeek={handleSeek}
+              currentBarIndex={currentBarIndex}
             />
             <SpeedControl
               sessionId={sessionId}
@@ -989,6 +864,9 @@ export function SimulationExecutionView({
                   indicators={chartIndicatorsBySymbol[symbolKey] || []}
                   digits={digits}
                   indicatorVisibility={indicatorSelection}
+                  positions={positions}
+                  trades={trades}
+                  currentPrice={currentPrice}
                 />
               ))}
             </div>
@@ -1039,7 +917,7 @@ export function SimulationExecutionView({
             sessionDetails={sessionDetails}
             strategyControl={strategyControl}
             riskMonitor={riskMonitor}
-            accountMargin={accountMargin}
+            accountMargin={accountMarginProps}
             exposureHeat={exposureHeat}
             regime={regime}
           />
