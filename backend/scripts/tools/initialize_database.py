@@ -19,14 +19,13 @@ def main():
     """
     Initialize complete database schema.
 
-    Creates all tables in a 4-layer architecture:
+    Creates the canonical JSON-backed schema:
     - Layer 1: User management tables
     - Layer 2: Strategy management tables
-    - Layer 3: Backtest tables (run, trades, events, equity)
-    - Layer 4: Finance metrics tables
-    - Layer 5: Optimization tables
-    - Layer 6: Live trading tables
-    - Layer 7: Market data tables
+    - Layer 3: Backtests snapshot table
+    - Layer 4: Optimization tables
+    - Layer 5: Live trading tables
+    - Layer 6: Market data tables
     """
     db = SQLiteDatabase(db_path="backend/data/database/haruquant.db")
 
@@ -44,22 +43,8 @@ def main():
         print("    - strategies")
         print("    - strategy_versions")
         print("    - strategy_shares")
-        print("  Backtest Layer 1 (Run):")
-        print("    - backtest_runs")
-        print("  Backtest Layer 2 (Facts):")
-        print("    - backtest_trades")
-        print("    - backtest_trade_events")
-        print("    - backtest_equity_curve")
-        print("  Backtest Layer 3 (Derived Finance Metrics):")
-        print("    - finance_trade_metrics")
-        print("    - finance_return_metrics")
-        print("    - finance_drawdown_metrics")
-        print("    - finance_ratio_metrics")
-        print("    - finance_risk_metrics")
-        print("    - finance_efficiency_metrics")
-        print("  Backtest Layer 4 (Research):")
-        print("    - finance_benchmark_metrics")
-        print("    - finance_distributions")
+        print("  Backtests:")
+        print("    - backtests")
         print("  Optimization:")
         print("    - optimization_runs")
         print("    - optimization_results")

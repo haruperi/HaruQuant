@@ -1,39 +1,36 @@
 """
-Volatility, tail risk, and capital risk metrics.
-
-Focus: worst-case scenarios and risk distributions
-
-This module provides functions to quantify the risk profile of a strategy.
-It includes volatility measures, Value at Risk (VaR), Conditional VaR (CVaR),
-Monte Carlo-based Risk of Ruin, and position exposure analysis.
+Summary:
+-------
+HaruQuant Risk & Tail Analytics.
+Volatility, tail risk, and capital preservation analysis.
+This module provides institutional-grade risk metrics including classical volatility measures, 
+Value-at-Risk (VaR), Conditional VaR (CVaR), and Monte Carlo-based Risk of Ruin simulations.
 
 Summary of Methods:
 ------------------
-Volatility Metrics:
-    - volatility: Standard deviation of returns.
-    - annualized_volatility: Volatility scaled to yearly terms.
-    - downside_volatility: Standard deviation of negative returns (semi-deviation).
+Volatility Measures:
+    - return_volatility: Annualized standard deviation of returns.
+    - downside_return_volatility: Volatility of negative returns only (Semi-Deviation).
 
-Tail Risk & Loss Thresholds:
-    - value_at_risk (VaR): Maximum expected loss at a given confidence level.
-    - conditional_var (CVaR): Average loss beyond the VaR threshold.
-    - expected_shortfall: Same as CVaR, measures extreme tail risk.
-    - max_loss_probability: Probability of a single trade loss exceeding a threshold.
-    - drawdown_probability: Probability of equity drawdown exceeding a threshold.
+Tail Risk (VaR/CVaR):
+    - value_at_risk: Maximum expected loss over a time horizon at a given confidence.
+    - conditional_value_at_risk: Expected loss given that the loss exceeds the VaR (Expected Shortfall).
+    - ulcer_index: Measure of the depth and duration of drawdowns.
 
-Capital Risk & Ruin:
-    - risk_of_ruin: Monte Carlo simulation to estimate the probability of hitting a ruin threshold.
-
-Market Exposure:
-    - max_exposure: Maximum capital allocated to open positions.
-    - avg_exposure: Average capital exposure over time.
-    - exposure_time_ratio: Percentage of the total period spent in the market.
+Systemic & Ruin Risk:
+    - risk_of_ruin: Probability of account depletion based on win rate and payoff ratio.
+    - max_gross_exposure: Maximum total capital committed to the market at any point.
 """
 
 from typing import Literal, Optional
-
 import numpy as np
 import pandas as pd
+
+from . import common
+from .common import (
+    EPSILON, _to_1d_float_array, get_closed_trades, 
+    get_r_multiples, max_gross_size_held, percent_time_in_market
+)
 
 
 try:
@@ -54,6 +51,13 @@ except ImportError:
 def _risk_of_ruin_kernel(
     outcomes, risk_per_trade, target_drawdown, num_simulations, initial_capital
 ):
+    """
+    Monte Carlo simulation of trade outcomes to estimate ruin probability.
+    
+    This simulates fixed fractional risk based on initial capital, 
+    not dynamic compounding risk. Each 1R outcome is converted to 
+    a capital unit change based on risk_per_trade.
+    """
     ruin_count = 0
     n_outcomes = len(outcomes)
     simulation_length = n_outcomes * 2
@@ -76,22 +80,33 @@ def _risk_of_ruin_kernel(
 # =========================================================================
 
 
-def volatility(rets: pd.Series) -> float:
-    """Standard deviation of returns."""
-    return float(rets.std()) if len(rets) >= 2 else 0.0
-
-
-def annualized_volatility(rets: pd.Series, periods_per_year: int = 252) -> float:
-    """Volatility scaled to yearly terms."""
-    if len(rets) < 2:
+def volatility(rets: pd.Series | np.ndarray) -> float:
+    """Standard deviation of returns as positive percentage."""
+    normalized = _to_1d_float_array(rets)
+    if len(normalized) < 2:
         return 0.0
-    return float(rets.std() * np.sqrt(periods_per_year))
+    return float(np.std(normalized, ddof=1) * 100.0)
 
 
-def downside_volatility(rets: pd.Series, target: float = 0.0) -> float:
-    """Standard deviation of returns below target threshold."""
-    downside = rets[rets < target]
-    return float(downside.std()) if len(downside) >= 2 else 0.0
+def annualized_volatility(rets: pd.Series | np.ndarray, periods_per_year: int = 252) -> float:
+    """Annualized volatility as positive percentage."""
+    v = volatility(rets)
+    return float(v * np.sqrt(periods_per_year))
+
+
+def downside_volatility(rets: pd.Series | np.ndarray, target: float = 0.0) -> float:
+    """
+    Downside deviation as positive percentage.
+    target is a per-period target return, in fractional units (e.g. 0.0).
+    """
+    normalized = _to_1d_float_array(rets)
+    if len(normalized) < 2:
+        return 0.0
+
+    downside_diffs = np.minimum(normalized - target, 0.0)
+    downside_risk = np.sqrt(np.mean(downside_diffs**2))
+
+    return float(downside_risk * 100.0)
 
 
 # =========================================================================
@@ -100,65 +115,103 @@ def downside_volatility(rets: pd.Series, target: float = 0.0) -> float:
 
 
 def value_at_risk(
-    rets: pd.Series,
+    rets: pd.Series | np.ndarray,
     confidence: float = 0.95,
-    method: Literal["historical", "parametric", "cornish_fisher"] = "historical",
+    method: Literal["historical", "parametric"] = "historical",
 ) -> float:
-    """Calculate Value at Risk (VaR) - maximum expected loss at confidence level."""
-    if len(rets) == 0:
+    """
+    Value at Risk as positive percentage.
+    Example: 2.5 means 2.5% loss.
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+
+    normalized = _to_1d_float_array(rets)
+    if len(normalized) == 0:
         return 0.0
 
     if method == "historical":
-        return float(abs(rets.quantile(1 - confidence)))
+        q = np.quantile(normalized, 1.0 - confidence)
+        return float(max(0.0, -q) * 100.0)
 
-    elif method == "parametric":
-        mean, std = rets.mean(), rets.std()
-        z_score = abs(np.percentile(np.random.standard_normal(10000), (1 - confidence) * 100))
-        return float(abs(mean - z_score * std))
+    if method == "parametric":
+        if len(normalized) < 2:
+            return 0.0
 
-    elif method == "cornish_fisher":
-        mean, std = rets.mean(), rets.std()
-        skew, kurt = rets.skew(), rets.kurtosis()
-        z = abs(np.percentile(np.random.standard_normal(10000), (1 - confidence) * 100))
-        z_cf = (z + (z**2 - 1) * skew / 6 + (z**3 - 3 * z) * kurt / 24 - (2 * z**3 - 5 * z) * skew**2 / 36)
-        return float(abs(mean - z_cf * std))
+        from scipy.stats import norm
 
-    return 0.0
+        mean = np.mean(normalized)
+        std = np.std(normalized, ddof=1)
+        z_score = norm.ppf(1.0 - confidence)
+
+        var_return = mean + z_score * std
+        return float(max(0.0, -var_return) * 100.0)
+
+    raise ValueError("method must be 'historical' or 'parametric'")
 
 
-def conditional_var(rets: pd.Series, confidence: float = 0.95) -> float:
-    """Calculate Conditional Value at Risk (CVaR) / Expected Shortfall."""
-    if len(rets) == 0:
+def conditional_var(rets: pd.Series | np.ndarray, confidence: float = 0.95) -> float:
+    """
+    CVaR / Expected Shortfall as positive percentage.
+    Example: 3.2 means average tail loss of 3.2%.
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+
+    normalized = _to_1d_float_array(rets)
+    if len(normalized) == 0:
         return 0.0
-    var_threshold = -value_at_risk(rets, confidence, method="historical")
-    tail_returns = rets[rets <= var_threshold]
-    return float(abs(tail_returns.mean())) if len(tail_returns) > 0 else 0.0
+
+    var_threshold = np.quantile(normalized, 1.0 - confidence)
+    tail_returns = normalized[normalized <= var_threshold]
+
+    if len(tail_returns) == 0:
+        return float(max(0.0, -var_threshold) * 100.0)
+
+    tail_mean = np.mean(tail_returns)
+    return float(max(0.0, -tail_mean) * 100.0)
 
 
-def expected_shortfall(rets: pd.Series, confidence: float = 0.95) -> float:
-    """Calculate Expected Shortfall (same as CVaR)."""
+def expected_shortfall(rets: pd.Series | np.ndarray, confidence: float = 0.95) -> float:
+    """Calculate Expected Shortfall (alias for CVaR)."""
     return conditional_var(rets, confidence)
 
 
-def max_loss_probability(trades: pd.DataFrame, loss_threshold: float = -5.0) -> float:
-    """Probability of a single trade loss exceeding a threshold."""
-    if len(trades) == 0:
+def max_loss_probability(trades: pd.DataFrame, loss_threshold_r: float = -1.0) -> float:
+    """
+    Probability of a single trade loss exceeding a threshold in R-units.
+    Example: loss_threshold_r = -2.0 means loss > 2R.
+    """
+    r_multiples = get_r_multiples(trades)
+    if r_multiples.empty:
         return 0.0
-    losses = trades[trades["profit_loss"] < 0]["profit_loss"]
-    if len(losses) == 0:
-        return 0.0
-    extreme_losses = losses[losses < loss_threshold]
-    return float(len(extreme_losses) / len(losses))
+    
+    # We want losses worse than threshold (e.g. -2.5 < -2.0)
+    extreme_losses = r_multiples[r_multiples < loss_threshold_r]
+    return float(len(extreme_losses) / len(r_multiples))
 
 
-def drawdown_probability(equity: pd.Series, threshold: float) -> float:
-    """Probability of equity drawdown exceeding a threshold percentage."""
-    if len(equity) == 0:
+def drawdown_probability(returns_in: pd.Series | np.ndarray, threshold_pct: float) -> float:
+    """
+    Probability that the strategy will experience a drawdown exceeding threshold_pct.
+    Calculated as frequency of periods spent in such drawdowns.
+    """
+    normalized = _to_1d_float_array(returns_in)
+    if len(normalized) == 0:
         return 0.0
-    running_max = equity.expanding().max()
-    pct_drawdowns = ((equity - running_max) / running_max) * 100
-    exceeded = (pct_drawdowns < -threshold).sum()
-    return float(exceeded / len(pct_drawdowns))
+        
+    # Prepend starting equity 1.0 to capture first-period drawdown
+    equity = np.concatenate([[1.0], np.cumprod(1.0 + normalized)])
+    running_max = np.maximum.accumulate(equity)
+    drawdowns = (running_max - equity) / running_max
+    
+    threshold_fraction = threshold_pct / 100.0
+    
+    # Exclude synthetic point from denominator
+    dd_after_start = drawdowns[1:]
+    exceeded = (dd_after_start > threshold_fraction).sum()
+    
+    return float(exceeded / len(dd_after_start))
 
 
 # =========================================================================
@@ -168,60 +221,340 @@ def drawdown_probability(equity: pd.Series, threshold: float) -> float:
 
 def risk_of_ruin(
     trades: pd.DataFrame,
-    risk_per_trade: float,
-    target_drawdown: float = 50.0,
+    risk_per_trade_pct: float,
+    target_drawdown_pct: float = 50.0,
     num_simulations: int = 10000,
 ) -> float:
-    """Monte Carlo simulation of trade outcomes to estimate ruin probability."""
-    if len(trades) == 0 or "profit_loss" not in trades.columns:
+    """
+    Monte Carlo simulation of trade outcomes to estimate ruin probability.
+    
+    This simulates fixed fractional risk based on initial capital, not dynamic compounding.
+    
+    Args:
+        trades: DataFrame of trades.
+        risk_per_trade_pct: Risk per trade as % of initial capital (e.g. 1.0 for 1%).
+        target_drawdown_pct: Drawdown at which ruin is defined (e.g. 50.0).
+        num_simulations: Number of paths to simulate.
+    """
+    if risk_per_trade_pct <= 0 or target_drawdown_pct <= 0 or num_simulations <= 0:
         return 0.0
 
-    if "r_multiple" in trades.columns:
-        outcomes = trades["r_multiple"].astype(float).values
-    else:
-        avg_trade_val = trades["profit_loss"].abs().mean()
-        if avg_trade_val == 0: return 0.0
-        outcomes = (trades["profit_loss"].values / avg_trade_val).astype(float)
+    r_outcomes = get_r_multiples(trades).values
+    if len(r_outcomes) < 5:
+        return 0.0
 
+    # _risk_of_ruin_kernel uses initial_capital=100.0
     ruin_count = _risk_of_ruin_kernel(
-        outcomes, float(risk_per_trade), float(target_drawdown), int(num_simulations), 100.0
+        r_outcomes, 
+        float(risk_per_trade_pct), 
+        float(target_drawdown_pct), 
+        int(num_simulations), 
+        100.0
     )
     return float(ruin_count / num_simulations)
 
 
 # =========================================================================
-# Market Exposure
+# Market Exposure (Capacity & Utilization)
 # =========================================================================
 
 
-def max_exposure(trades: pd.DataFrame) -> float:
-    """Maximum capital allocated to open positions (simplified)."""
-    if len(trades) == 0 or "size" not in trades.columns:
+def max_nominal_exposure_simple(trades: pd.DataFrame, contract_size: float = 100000.0) -> float:
+    """
+    Maximum total nominal exposure held at any one time.
+    
+    Assumes 1 lot = contract_size and ignores price/account-currency conversion.
+    Calculated as (Max Gross Size Held * contract_size).
+    """
+    if trades.empty:
         return 0.0
-    return float((trades["size"] * 100000).max())
+    
+    max_gross_size = max_gross_size_held(trades)
+    return float(max_gross_size * contract_size)
 
 
-def avg_exposure(trades: pd.DataFrame) -> float:
-    """Average capital exposure over all trades."""
-    if len(trades) == 0 or "size" not in trades.columns:
+def max_gross_exposure(trades: pd.DataFrame, contract_size: float = 100000.0) -> float:
+    """Maximum total nominal exposure held (Gross Exposure)."""
+    return max_nominal_exposure_simple(trades, contract_size)
+
+
+def avg_trade_nominal_exposure(trades: pd.DataFrame, contract_size: float = 100000.0) -> float:
+    """
+    Average nominal exposure per trade (not time-weighted).
+    
+    Assumes 1 lot = contract_size and ignores price/account-currency conversion.
+    """
+    if trades.empty:
         return 0.0
-    return float((trades["size"] * 100000).mean())
+        
+    # Find size column
+    size_col = None
+    for col in ["size", "quantity", "volume"]:
+        if col in trades.columns:
+            size_col = col
+            break
+            
+    if not size_col:
+        return 0.0
+        
+    return float(trades[size_col].abs().mean() * contract_size)
 
 
 def exposure_time_ratio(
-    trades: pd.DataFrame, total_time_hours: Optional[float] = None
+    trades: pd.DataFrame,
+    start_time: Optional[pd.Timestamp] = None,
+    end_time: Optional[pd.Timestamp] = None,
 ) -> float:
-    """Percentage of the total period spent in the market."""
-    if len(trades) == 0 or "time_in_trade" not in trades.columns:
+    """
+    Percentage of the total period spent in the market (0-100).
+    Alias for percent_time_in_market.
+    """
+    return percent_time_in_market(trades, start_time, end_time)
+
+
+def max_single_trade_margin_utilization(trades: pd.DataFrame, account_equity: float) -> float:
+    """Maximum absolute margin used by a single trade as percentage of equity."""
+    if trades.empty or account_equity <= 0:
+        return 0.0
+        
+    if "margin_used" in trades.columns:
+        return float((trades["margin_used"].abs().max() / account_equity) * 100.0)
+        
+    return 0.0
+
+
+def avg_single_trade_margin_utilization(trades: pd.DataFrame, account_equity: float) -> float:
+    """Average absolute margin used per trade as percentage of equity."""
+    if trades.empty or account_equity <= 0:
+        return 0.0
+        
+    if "margin_used" in trades.columns:
+        return float((trades["margin_used"].abs().mean() / account_equity) * 100.0)
+        
+    return 0.0
+
+
+# =========================================================================
+# Advanced Portfolio & Compounding Risks
+# =========================================================================
+
+
+@njit(cache=True)
+def _compounding_ruin_kernel(
+    outcomes, risk_fraction, target_drawdown, num_simulations, initial_capital
+):
+    """
+    Monte Carlo simulation using dynamic compounding risk.
+    Each 1R outcome risks a fraction of *current* capital.
+    """
+    ruin_count = 0
+    n_outcomes = len(outcomes)
+    simulation_length = n_outcomes * 2
+    # target_drawdown is percentage (e.g. 50.0)
+    ruin_threshold = initial_capital * (1.0 - target_drawdown / 100.0)
+
+    for _ in range(num_simulations):
+        capital = initial_capital
+        for _ in range(simulation_length):
+            idx = np.random.randint(0, n_outcomes)
+            outcome = outcomes[idx]
+            # Compounding: outcome * (current_capital * risk_fraction)
+            capital += outcome * (capital * risk_fraction)
+            if capital <= ruin_threshold:
+                ruin_count += 1
+                break
+    return ruin_count
+
+
+@njit(cache=True)
+def _horizon_ruin_kernel(
+    outcomes, risk_per_trade, target_drawdown, num_simulations, initial_capital, horizon
+):
+    """
+    Monte Carlo simulation with a fixed trade horizon.
+    """
+    ruin_count = 0
+    n_outcomes = len(outcomes)
+    ruin_threshold = initial_capital - target_drawdown
+
+    for _ in range(num_simulations):
+        capital = initial_capital
+        for _ in range(horizon):
+            idx = np.random.randint(0, n_outcomes)
+            outcome = outcomes[idx]
+            capital += outcome * risk_per_trade
+            if capital <= ruin_threshold:
+                ruin_count += 1
+                break
+    return ruin_count
+
+
+def time_weighted_avg_exposure(trades: pd.DataFrame, contract_size: float = 100000.0, end_time: Optional[pd.Timestamp] = None) -> float:
+    """
+    Time-weighted average notional exposure held.
+    """
+    if trades.empty:
+        return 0.0
+    
+    size_col = None
+    for col in ["size", "quantity", "volume"]:
+        if col in trades.columns:
+            size_col = col
+            break
+    if not size_col: return 0.0
+
+    open_times = trades["open_time"].values
+    fallback = end_time if end_time else trades["open_time"].max()
+    close_times = trades["close_time"].fillna(fallback).values
+    sizes = trades[size_col].abs().values
+    
+    event_times = np.concatenate([open_times, close_times])
+    event_sizes = np.concatenate([sizes, -sizes])
+    
+    idx = np.lexsort((-event_sizes, event_times))
+    sorted_times = event_times[idx].astype("datetime64[ns]").view("int64")
+    sorted_sizes = event_sizes[idx]
+    
+    tw_avg = common._time_weighted_kernel(sorted_times, sorted_sizes)
+    return float(tw_avg * contract_size)
+
+
+def portfolio_margin_utilization_curve(trades: pd.DataFrame, account_equity: float, end_time: Optional[pd.Timestamp] = None) -> pd.Series:
+    """
+    Generate the curve of total aggregate margin utilization over time.
+    """
+    if trades.empty or "margin_used" not in trades.columns or account_equity <= 0:
+        return pd.Series(dtype=float)
+
+    open_times = trades["open_time"].values
+    fallback = end_time if end_time else trades["open_time"].max()
+    close_times = trades["close_time"].fillna(fallback).values
+    margins = trades["margin_used"].abs().values
+    
+    event_times = np.concatenate([open_times, close_times])
+    event_changes = np.concatenate([margins, -margins])
+    
+    idx = np.argsort(event_times)
+    sorted_times = event_times[idx]
+    sorted_changes = event_changes[idx]
+    
+    curve_values = common._exposure_curve_kernel(sorted_times, sorted_changes)
+    utilization_pct = (curve_values / account_equity) * 100.0
+    
+    return pd.Series(utilization_pct, index=pd.to_datetime(sorted_times))
+
+
+def compounding_risk_of_ruin(
+    trades: pd.DataFrame,
+    risk_fraction: float,
+    target_drawdown_pct: float = 50.0,
+    num_simulations: int = 10000,
+) -> float:
+    """
+    Monte Carlo simulation of ruin probability using dynamic compounding risk.
+    risk_fraction = 0.01 for 1% risk per trade.
+    """
+    if risk_fraction <= 0 or target_drawdown_pct <= 0 or num_simulations <= 0:
         return 0.0
 
-    if total_time_hours is None:
-        if "open_time" not in trades.columns or "close_time" not in trades.columns:
-            return 0.0
-        duration = (trades["close_time"].max() - trades["open_time"].min()).total_seconds() / 3600
-        total_time_hours = duration
-
-    if total_time_hours == 0:
+    r_outcomes = get_r_multiples(trades).values
+    if len(r_outcomes) < 5:
         return 0.0
 
-    return float(trades["time_in_trade"].sum() / total_time_hours)
+    ruin_count = _compounding_ruin_kernel(
+        r_outcomes, 
+        float(risk_fraction), 
+        float(target_drawdown_pct), 
+        int(num_simulations), 
+        100.0
+    )
+    return float(ruin_count / num_simulations)
+
+
+def risk_of_ruin_with_custom_horizon(
+    trades: pd.DataFrame,
+    risk_per_trade_pct: float,
+    horizon: int,
+    target_drawdown_pct: float = 50.0,
+    num_simulations: int = 10000,
+) -> float:
+    """
+    Monte Carlo simulation of ruin probability over a fixed number of future trades.
+    """
+    if risk_per_trade_pct <= 0 or horizon <= 0 or target_drawdown_pct <= 0 or num_simulations <= 0:
+        return 0.0
+
+    r_outcomes = get_r_multiples(trades).values
+    if len(r_outcomes) < 5:
+        return 0.0
+
+    ruin_count = _horizon_ruin_kernel(
+        r_outcomes, 
+        float(risk_per_trade_pct), 
+        float(target_drawdown_pct), 
+        int(num_simulations), 
+        100.0,
+        int(horizon)
+    )
+    return float(ruin_count / num_simulations)
+
+
+def historical_var_by_symbol(
+    trades: pd.DataFrame,
+    confidence: float = 0.95
+) -> pd.Series:
+    """
+    Calculate historical VaR (as positive profit_loss units) for each symbol individually.
+    Based on realized trade outcomes, not price returns.
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+
+    data = get_closed_trades(trades)
+    if data.empty or "symbol" not in data.columns or "profit_loss" not in data.columns:
+        return pd.Series(dtype=float)
+        
+    def _calc_var(group):
+        pnl = group["profit_loss"].values
+        if len(pnl) == 0: return 0.0
+        q = np.quantile(pnl, 1.0 - confidence)
+        return float(max(0.0, -q))
+        
+    return data.groupby("symbol").apply(_calc_var)
+
+
+def portfolio_var_from_covariance(
+    returns_df: pd.DataFrame,
+    weights: Optional[np.ndarray] = None,
+    confidence: float = 0.95
+) -> float:
+    """
+    Calculate Portfolio VaR using Variance-Covariance (Parametric) method.
+    returns_df: Columns are assets, rows are periodic returns.
+    weights: Optional array of portfolio weights (defaults to equal weighting).
+    Returns positive percentage.
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be between 0 and 1")
+
+    if returns_df.empty:
+        return 0.0
+        
+    n_assets = returns_df.shape[1]
+    if weights is None:
+        weights = np.ones(n_assets) / n_assets
+    else:
+        if len(weights) != n_assets:
+            raise ValueError(f"weights length ({len(weights)}) must match number of assets ({n_assets})")
+        # Normalize weights to sum to 1
+        weights = weights / weights.sum()
+        
+    cov_matrix = returns_df.cov().values
+    portfolio_std = np.sqrt(weights.T @ cov_matrix @ weights)
+    portfolio_mean = returns_df.mean() @ weights
+    
+    from scipy.stats import norm
+    z_score = norm.ppf(1.0 - confidence)
+    
+    var_return = portfolio_mean + z_score * portfolio_std
+    return float(max(0.0, -var_return) * 100.0)

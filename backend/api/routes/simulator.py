@@ -147,7 +147,8 @@ async def start_simulation(
                     detail="Import CSV via /api/import/sqx and provide replay_backtest_id",
                 )
             if request.replay_backtest_id:
-                trades = db_manager.get_backtest_trades(request.replay_backtest_id)
+                snapshot = db_manager.get_backtest_snapshot(request.replay_backtest_id)
+                trades = (snapshot or {}).get("result", {}).get("trades", [])
                 session.set_replay_trades(trades)
 
         session.load_historical_bars()

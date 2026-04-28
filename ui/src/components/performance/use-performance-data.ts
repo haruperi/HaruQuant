@@ -2,42 +2,39 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
-import strategyApi from "@/lib/api/strategies"
-import type { TradeLike } from "@/lib/api/strategies"
+import strategyApi, { PerformanceMetrics, ThreeWayMetrics, EquityPoint, BacktestOverviewResponse } from "@/lib/api/strategies"
 
 // Define types based on backend response
-export interface PerformanceMetrics {
-  "Net Profit": number
-  "Gross Profit": number
-  "Gross Loss": number
-  "Sharpe Ratio": number
-  "Win Rate": number
-  "Total Trades": number
-  "Max Strategy Drawdown": number
-  "Max Strategy Drawdown (%)": number
-  chart_data?: Record<string, unknown>
-  // ... add others as needed dynamically
-  [key: string]: unknown
+export type { PerformanceMetrics, ThreeWayMetrics, EquityPoint }
+
+export interface PerformanceAnalytics {
+  metrics: ThreeWayMetrics
+  returns: ThreeWayMetrics
+  ratios: ThreeWayMetrics
+  risks: ThreeWayMetrics
+  drawdowns: ThreeWayMetrics
+  distributions: ThreeWayMetrics
+  efficiency: ThreeWayMetrics
+  benchmark: ThreeWayMetrics
+  validation: ThreeWayMetrics
+  summary: ThreeWayMetrics
+  dashboard?: any
+  scorecard?: any
 }
 
-export interface ThreeWayMetrics {
-  all: PerformanceMetrics
-  long: PerformanceMetrics
-  short: PerformanceMetrics
-}
-
-export interface EquityPoint {
-  date: string
-  equity_close: number
-  drawdown_usd: number
-  [key: string]: unknown
+export interface ChartDataPoint {
+  date: string | number
+  all?: number | null
+  long?: number | null
+  short?: number | null
+  [key: string]: any
 }
 
 // Simple in-memory cache for performance data
 const performanceCache = new Map<number, {
-  quickMetrics: ThreeWayMetrics
-  fullMetrics: ThreeWayMetrics
+  analytics: PerformanceAnalytics
   equityCurves: { all: EquityPoint[], long: EquityPoint[], short: EquityPoint[] }
+  charts: { equity_curve: ChartDataPoint[], drawdown_curve: ChartDataPoint[] }
   timestamp: number
 }>()
 
@@ -46,17 +43,15 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 export function usePerformanceData() {
   const { selectedBacktest } = useSelectedBacktest()
 
-  // Two-phase metrics state
-  const [quickMetrics, setQuickMetrics] = useState<ThreeWayMetrics | null>(null)
-  const [fullMetrics, setFullMetrics] = useState<ThreeWayMetrics | null>(null)
-
-  // Expose combined metrics (prefer full, fallback to quick)
-  const metrics = fullMetrics || quickMetrics
-
+  const [analytics, setAnalytics] = useState<PerformanceAnalytics | null>(null)
   const [equityCurves, setEquityCurves] = useState<{
     all: EquityPoint[]
     long: EquityPoint[]
     short: EquityPoint[]
+  } | null>(null)
+  const [charts, setCharts] = useState<{
+    equity_curve: ChartDataPoint[]
+    drawdown_curve: ChartDataPoint[]
   } | null>(null)
 
   // Separate loading states for progressive UI
@@ -80,7 +75,7 @@ export function usePerformanceData() {
       }
 
       // Prevent duplicate fetches for same backtest
-      if (lastFetchedId.current === backtestId && (metrics || quickLoading || detailedLoading)) {
+      if (lastFetchedId.current === backtestId && (analytics || quickLoading || detailedLoading)) {
         return
       }
 
@@ -92,9 +87,9 @@ export function usePerformanceData() {
       // Check cache first
       const cached = performanceCache.get(backtestId)
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        setQuickMetrics(cached.quickMetrics)
-        setFullMetrics(cached.fullMetrics)
+        setAnalytics(cached.analytics)
         setEquityCurves(cached.equityCurves)
+        setCharts(cached.charts)
         lastFetchedId.current = backtestId
         return
       }
@@ -105,102 +100,44 @@ export function usePerformanceData() {
       setError(null)
 
       // Reset previous data when loading new backtest
-      setQuickMetrics(null)
-      setFullMetrics(null)
+      setAnalytics(null)
       setEquityCurves(null)
+      setCharts(null)
 
       try {
-        let trades: TradeLike[] | undefined = selectedBacktest.trades
-        let initialBalance = selectedBacktest.initial_balance || 10000
+        const overview = await strategyApi.getBacktestOverview(backtestId)
 
-        // If trades are missing, try to fetch full backtest details using backtest_id directly
-        if ((!trades || trades.length === 0) && backtestId) {
-            try {
-                const fullBacktest = await strategyApi.getBacktestById(backtestId)
-                if (fullBacktest.trades) {
-                    trades = fullBacktest.trades
-                    initialBalance = fullBacktest.initial_balance || initialBalance
-                }
-            } catch (err) {
-                console.error("Failed to fetch full backtest details:", err)
-                setError("Failed to load backtest details.")
-                setQuickLoading(false)
-                setDetailedLoading(false)
-                isFetching.current = false
-                return
-            }
+        // The backend returns a full analytics dictionary + equity_curves + charts
+        // If it's the old structure, it might only have metrics and charts.
+        // We normalize it here.
+        const analyticsData: PerformanceAnalytics = {
+          metrics: overview.metrics || { all: {}, long: {}, short: {} },
+          returns: overview.returns || { all: {}, long: {}, short: {} },
+          ratios: overview.ratios || { all: {}, long: {}, short: {} },
+          risks: overview.risks || { all: {}, long: {}, short: {} },
+          drawdowns: overview.drawdowns || { all: {}, long: {}, short: {} },
+          distributions: overview.distributions || { all: {}, long: {}, short: {} },
+          efficiency: overview.efficiency || { all: {}, long: {}, short: {} },
+          benchmark: overview.benchmark || { all: {}, long: {}, short: {} },
+          validation: overview.validation || { all: {}, long: {}, short: {} },
+          summary: overview.summary || overview.metrics || { all: {}, long: {}, short: {} },
+          dashboard: overview.dashboard,
+          scorecard: overview.scorecard,
         }
 
-        if (!trades || trades.length === 0) {
-             setError("No trade data available.")
-             setQuickLoading(false)
-             setDetailedLoading(false)
-             isFetching.current = false
-             return
-        }
+        const curves = overview.equity_curves
+        const chartData = overview.charts as { equity_curve: ChartDataPoint[], drawdown_curve: ChartDataPoint[] }
 
-        // Sort trades ONCE at the beginning
-        const orderedTrades = [...trades].sort((a, b) => {
-           const timeA = new Date(a.close_time ?? a.open_time ?? a.timestamp ?? a.created_at ?? 0).getTime()
-           const timeB = new Date(b.close_time ?? b.open_time ?? b.timestamp ?? b.created_at ?? 0).getTime()
-           return timeA - timeB
-        })
-
-        // =================================================================
-        // PHASE 1: Quick metrics (fast first paint)
-        // =================================================================
-        try {
-          const quickData = await strategyApi.getPerformanceSummaryQuick(orderedTrades, initialBalance, true)
-          setQuickMetrics(quickData)
-          setQuickLoading(false)
-        } catch (err) {
-          console.error("Error fetching quick metrics:", err)
-          // Continue to full metrics even if quick fails
-        }
-
-        // =================================================================
-        // PHASE 2: Full metrics + equity curves (background)
-        // =================================================================
-
-        // Prepare trade subsets for equity curves from the already ordered trades
-        const longTrades = orderedTrades.filter((t: TradeLike) => {
-            const type = (t.type || t.side || "").toString().toLowerCase()
-            return type === "buy" || type === "long"
-        })
-        const shortTrades = orderedTrades.filter((t: TradeLike) => {
-            const type = (t.type || t.side || "").toString().toLowerCase()
-            return type === "sell" || type === "short"
-        })
-
-        // Fetch full metrics and equity curves in parallel, passing isSorted=true
-        const fetchCurve = async (t: TradeLike[]) => {
-          if (t.length === 0) return []
-          return await strategyApi.getEquityCurveDetailed(t, initialBalance, true)
-        }
-
-        const [fullMetricsData, allCurve, longCurve, shortCurve] = await Promise.all([
-          strategyApi.getPerformanceSummary(orderedTrades, initialBalance, true),
-          fetchCurve(orderedTrades),
-          fetchCurve(longTrades),
-          fetchCurve(shortTrades)
-        ])
-
-        const curves = {
-          all: allCurve,
-          long: longCurve,
-          short: shortCurve
-        }
-
-        // Update state with full data
-        setFullMetrics(fullMetricsData)
+        setAnalytics(analyticsData)
         setEquityCurves(curves)
+        setCharts(chartData)
         lastFetchedId.current = backtestId
 
         // Cache the results
         performanceCache.set(backtestId, {
-          quickMetrics: quickMetrics || fullMetricsData, // Use full as quick if quick wasn't set
-          fullMetrics: fullMetricsData,
+          analytics: analyticsData,
           equityCurves: curves,
+          charts: chartData,
           timestamp: Date.now()
         })
 
@@ -220,16 +157,16 @@ export function usePerformanceData() {
   }, [backtestId])
 
   return {
-    metrics,           // Combined metrics (full if available, else quick)
-    quickMetrics,      // Quick metrics only
-    fullMetrics,       // Full metrics only
+    analytics,
+    metrics: analytics?.summary, // Keep 'metrics' as alias for 'summary' for compatibility with current page components
     equityCurves,
+    charts,
     loading,           // True if either phase is loading
     quickLoading,      // True only during quick phase
     detailedLoading,   // True only during detailed phase
     error,
     selectedBacktest,
-    hasQuickData: !!quickMetrics,
-    hasFullData: !!fullMetrics
+    hasQuickData: !!analytics,
+    hasFullData: !!analytics
   }
 }

@@ -959,7 +959,7 @@ export function TradesCalendar() {
                                    {formatCurrency(Number(trade.pnl ?? trade.profit_loss ?? trade.profit ?? trade.net_profit ?? 0))}
                                 </TableCell>
                                  <TableCell className="text-right text-foreground">
-                                    {trade.pnl_pips !== undefined ? trade.pnl_pips.toFixed(1) : (trade.pips !== undefined ? trade.pips.toFixed(1) : "-")}
+                                    {trade.profit_loss_pips !== undefined ? trade.profit_loss_pips.toFixed(1) : (trade.pnl_pips !== undefined ? trade.pnl_pips.toFixed(1) : (trade.pips !== undefined ? trade.pips.toFixed(1) : "-"))}
                                  </TableCell>
                              </TableRow>
                           ))}
@@ -971,7 +971,17 @@ export function TradesCalendar() {
                     <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
                         Cancel
                     </Button>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button 
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                        onClick={() => {
+                            if (selectedBacktest?.backtest_id) {
+                                router.push(`/simulation?source=replay&replayBacktestId=${selectedBacktest.backtest_id}`)
+                            } else {
+                                router.push("/simulation?source=replay")
+                            }
+                            setIsDetailsOpen(false)
+                        }}
+                    >
                         View Details
                     </Button>
                  </div>

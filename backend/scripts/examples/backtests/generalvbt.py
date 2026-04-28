@@ -809,7 +809,7 @@ def example_16_strategy_backtest_hqt():
     try:
         # Define simulation configuration (similar to trade_example.py)
         config = {
-            "engine_type": "vectorized",
+            "engine_type": "event_driven",
             "backend": "sim", # New metadata key for auto-initialization
             "account": {
                 "initial_balance": 10000.0,
@@ -821,9 +821,9 @@ def example_16_strategy_backtest_hqt():
                 "source": "metatrader",
                 "symbols": ["GBPUSD"],
                 "timeframe": "H1",
-                "start": datetime(2015, 1, 1),
+                "start": datetime(2025, 1, 1),
                 "end": datetime(2025, 12, 31),
-                "warmup_start": datetime(2014, 12, 1),
+                "warmup_start": datetime(2024, 12, 1),
             },
             "strategy": {
                 "name": "TrendFollowingStrategy",
@@ -837,7 +837,7 @@ def example_16_strategy_backtest_hqt():
                 "tick_model": "timeframe_ticks",
                 "spread_model": "native_spread",
                 "slippage_model": "fixed",
-                "slippage_points": 1,
+                "slippage_points": 0,
                 "contract_size": 100000,
                 "position_size": {
                     "type": "fixed_lot",
@@ -856,20 +856,48 @@ def example_16_strategy_backtest_hqt():
         print("\nRunning full backtest via hqt.Portfolio.run(config)...")
         # One-line execution encapsulating everything
         portfolio = hqt.Portfolio.run(config)
+
+        # Metadata
+        # dict_keys(['engine_type', 'account', 'data', 'strategy', 'execution', 'reporting', 'prepared', 'warnings'])
+
+        # 'processed_ticks', 'trade_count', 'equity_points', 'final_balance', 'final_equity', '', '', ''])
+        # print(portfolio.metadata())
+        # print(portfolio.metadata()["reporting"])    # Get a specific attribute from the config dictionary
+
+        # Prepared Data
+        # dict_keys(['ticks', 'signal_bars_by_symbol', 'tick_counts_by_symbol', 'metadata'])
+        # print(portfolio.prepared())
+        # print(portfolio.prepared()["ticks"])
+
+        # Result Data
+        # dict_keys(['trades', 'equity_curve'])
+        #print(portfolio.result())
+        #print(portfolio.result()["trades"])
+
+        # Analytics data
+        # dict_keys(['metrics', 'returns', 'ratios', 'risks', 'drawdowns', 'distributions', 'efficiency', 'benchmark', 'summary'])
+        #print(portfolio.analytics())
+        print(portfolio.analytics()["returns"])
+        #print(portfolio.analytics()["metrics"]["all"]["avg_loss"])
+
+
+   
+        
+
         
         # Print summary using the new internal summary() method
-        print(portfolio.summary())
+        #print(portfolio.summary())
         
         # Demonstrate new helper functions
-        print("\n--- Detailed Trade List ---")
-        portfolio.print_trades()
+        # print("\n--- Detailed Trade List ---")
+        # portfolio.print_trades()
         
-        print("\n--- Equity Curve (First 5 Points) ---")
+        # print("\n--- Equity Curve (First 5 Points) ---")
         # Access raw curve if needed or use print helper
-        print(f"Total equity points: {len(portfolio.equity_curve)}")
-        # We'll just show the first few to avoid flooding the console
-        for p in portfolio.equity_curve[:5]:
-            print(f"{p.timestamp}: {p.equity:.2f}")
+        # print(f"Total equity points: {len(portfolio.equity_curve)}")
+        # # We'll just show the first few to avoid flooding the console
+        # for p in portfolio.equity_curve[:5]:
+        #     print(f"{p.timestamp}: {p.equity:.2f}")
         
     except Exception as e:
         print(f"Strategy backtest error: {e}")
@@ -946,6 +974,6 @@ if __name__ == "__main__":
     # example_13_hyperparameter_optimization()
     # example_14_bbands_animation()
     #example_15_portfolio_from_holding_hqt()
-    #example_16_strategy_backtest_hqt()
-    example_17_simplified_portfolio_run()
+    example_16_strategy_backtest_hqt()
+    #example_17_simplified_portfolio_run()
     #example_18_portfolio_from_random_signals()

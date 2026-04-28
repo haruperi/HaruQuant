@@ -1674,13 +1674,6 @@ class SimulatorSession:
             description=description,
         )
 
-        completed_trades = self.engine.get_completed_trades()
-        equity_curve = self.engine.get_equity_curve()
-        if completed_trades:
-            db_manager.save_backtest_trades(backtest_id, completed_trades)
-        if equity_curve:
-            db_manager.save_backtest_equity_curve(backtest_id, equity_curve)
-
         final_balance = float(
             self.engine.account_info().get(
                 "balance",
@@ -1688,9 +1681,45 @@ class SimulatorSession:
             )
             or self.config.get("initial_balance", 10000.0)
         )
+        completed_trades = self.engine.get_completed_trades()
+        equity_curve = self.engine.get_equity_curve()
+        analytics = {}
+        if completed_trades:
+            from backend.services.analytics.overview import build_overview_payload, get_analytics_overview
+            analytics = get_analytics_overview(
+                trades=completed_trades,
+                initial_balance=float(self.config.get("initial_balance", 10000.0) or 10000.0),
+                start_time=start_dt,
+                end_time=end_dt,
+            )
+            analytics["overview"] = build_overview_payload(
+                completed_trades,
+                initial_balance=float(self.config.get("initial_balance", 10000.0) or 10000.0),
+                start_time=start_dt,
+                end_time=end_dt,
+                equity_curve_records=equity_curve,
+                summary_overrides=analytics.get("summary", {}),
+            )
         db_manager.update_backtest_status(
             backtest_id,
             "completed",
+            final_balance=final_balance,
+        )
+        db_manager.save_backtest_snapshot(
+            backtest_id=backtest_id,
+            metadata={
+                "alias": alias,
+                "description": description,
+                "status": "completed",
+                "final_balance": final_balance,
+                "final_equity": equity_curve[-1].equity if equity_curve else final_balance,
+            },
+            result={
+                "trades": completed_trades,
+                "equity_curve": equity_curve,
+            },
+            analytics=analytics,
+            status="completed",
             final_balance=final_balance,
         )
         return backtest_id

@@ -246,9 +246,20 @@ if njit is not None:
                     equity_curve[equity_ptr, 1] = balance + unrealized
                     equity_ptr += 1
 
-        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
+        # Final pass to collect open positions for post-processing
+        open_positions = np.empty((num_active_slots, POS_COLS), dtype=np.float64)
+        for s_ptr in range(num_active_slots):
+            slot = active_slots[s_ptr]
+            open_positions[s_ptr] = active_positions[slot]
 
-        return completed_trades[:completed_count], equity_curve[:equity_ptr], balance
+        return (
+            completed_trades[:completed_count],
+            equity_curve[:equity_ptr],
+            balance,
+            open_positions,
+            last_bid_by_symbol,
+            last_ask_by_symbol,
+        )
 
 
 def run_vectorized_simulation(
@@ -294,7 +305,14 @@ def run_vectorized_simulation(
         getattr(engine, "equity_snapshot_policy", "bar_close") or "bar_close"
     ).lower()
     prepared = prepare_vectorized_data(data, snapshot_policy=snapshot_policy)
-    trades_arr, equity_arr, final_balance = _run_turbo_sim_numba(
+    (
+        trades_arr,
+        equity_arr,
+        final_balance,
+        open_pos_arr,
+        last_bids,
+        last_asks,
+    ) = _run_turbo_sim_numba(
         prepared["bid_arr"],
         prepared["ask_arr"],
         prepared["symbol_id_arr"],
@@ -314,14 +332,21 @@ def run_vectorized_simulation(
         bool(snapshot_policy == "position_update"),
     )
 
-    fast_mode = bool(getattr(engine, "fast_mode", False)) or engine.client is None
+    # MT5 PnL Post-Processing logic
+    # We want to converge the simple (close-open)*vol calculations to MT5's precise formulas
+    # which handle non-USD accounts, currency conversions, and specific symbol contract types.
+    client_available = engine.client is not None
+    fast_mode = bool(getattr(engine, "fast_mode", False))
+    
+    # We use MT5 if available and NOT in super-fast mode, OR if explicitly requested.
+    use_mt5_pnl = client_available and (not fast_mode or getattr(engine, "force_mt5_pnl", False))
 
     engine.state.completed_trade_records = reconstruct_trades(
         trades_arr,
         prepared,
         float(contract_size),
         engine=engine,
-        fast_mode=fast_mode,
+        use_mt5=use_mt5_pnl,
     )
 
     trade_deltas = []
@@ -335,14 +360,56 @@ def run_vectorized_simulation(
 
     trade_deltas.sort(key=lambda x: x[0])
 
+    # Calculate unrealized delta for open positions at the end of simulation
+    total_unrealized_delta = 0.0
+    if use_mt5_pnl and len(open_pos_arr) > 0:
+        id_to_symbol = prepared["id_to_symbol"]
+        
+        for i in range(len(open_pos_arr)):
+            pos = open_pos_arr[i]
+            sid = int(pos[POS_SYMBOL_ID])
+            p_type = int(pos[POS_TYPE])
+            p_vol = pos[POS_VOLUME]
+            p_open = pos[POS_OPEN_PRICE]
+            
+            # Use the last known bid/ask for the specific symbol from the kernel
+            close_price = last_bids[sid] if p_type == 0 else last_asks[sid]
+            
+            # Simple unrealized used in kernel
+            simple_unrealized = (
+                (close_price - p_open) * p_vol * contract_size 
+                if p_type == 0 else 
+                (p_open - close_price) * p_vol * contract_size
+            )
+            
+            try:
+                mt5_unrealized = engine._strict_order_calc_profit(
+                    p_type,
+                    id_to_symbol[sid],
+                    p_vol,
+                    p_open,
+                    close_price
+                )
+                total_unrealized_delta += (mt5_unrealized - simple_unrealized)
+            except Exception:
+                pass
+
     engine.state.completed_equity_curve = reconstruct_equity_curve(
         equity_arr,
         prepared,
         trade_deltas=trade_deltas,
     )
+    
+    # Apply unrealized delta to the last equity point if applicable
+    if engine.state.completed_equity_curve and total_unrealized_delta != 0:
+        last_point = engine.state.completed_equity_curve[-1]
+        last_point.balance += 0.0 # Balance doesn't include unrealized
+        last_point.equity += total_unrealized_delta
+
     corrected_final_balance = final_balance + total_delta
     engine.state.trading_account.balance = corrected_final_balance
     if engine.state.completed_equity_curve:
+        # Final equity is the corrected last point of the curve
         engine.state.trading_account.equity = engine.state.completed_equity_curve[-1].equity
     else:
         engine.state.trading_account.equity = corrected_final_balance
@@ -441,7 +508,7 @@ def _reconstruct_mfe_mae_kernel(trades_arr, bid_arr, ask_arr, contract_size):
     return mfe_vals, mae_vals
 
 
-def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=None, fast_mode: bool = False) -> list:
+def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=None, use_mt5: bool = False) -> list:
     id_to_symbol = prepared["id_to_symbol"]
     timestamps = prepared["timestamps"]
     
@@ -456,8 +523,8 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=
     reconstructed = []
     reason_map = {1.0: "stop_loss", 2.0: "take_profit", 3.0: "signal"}
 
-    # Optimization: if fast_mode, skip expensive MT5 calls
-    use_mt5 = not fast_mode and engine is not None and hasattr(engine, "_strict_order_calc_profit")
+    # If use_mt5 is True, ensure we have the function
+    use_mt5 = use_mt5 and engine is not None and hasattr(engine, "_strict_order_calc_profit")
 
     for i in range(len(trades_arr)):
         row = trades_arr[i]
@@ -489,7 +556,7 @@ def reconstruct_trades(trades_arr, prepared: dict, contract_size: float, engine=
                 profit_target_price=row[REC_TP],
                 open_time=timestamps[int(row[REC_OPEN_IDX])] if timestamps is not None else None,
                 close_time=timestamps[int(row[REC_CLOSE_IDX])] if timestamps is not None else None,
-                profit_loss=profit_loss,
+                profit_loss=profit_loss + (row[REC_COMMISSION] if len(row) > REC_COMMISSION else 0.0),
                 commission=row[REC_COMMISSION] if len(row) > REC_COMMISSION else 0.0,
                 mfe_usd=mfe_vals[i],
                 mae_usd=mae_vals[i],

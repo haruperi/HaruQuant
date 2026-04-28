@@ -540,12 +540,13 @@ def example_12_complete_backtests():
     }
 
     result = engine_instance.run(config)
-    print_simulation_summary(result)
+    print(result.metadata)
+    #print_simulation_summary(result)
 
     #print([point.to_dict() for point in result.run_result.equity_curve])
 
     '''
-    Its structure is:
+    The SimulationRunResult structure is:
 
         SimulationRunResult(
             config=SimulationConfig(...),

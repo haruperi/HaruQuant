@@ -45,23 +45,27 @@ class BacktestSummaryTool:
         backtest_id = context.get("backtest_id")
         if backtest_id is None:
             return {"backtest_found": False}
-        run = self.db.get_backtest_run(int(backtest_id))
-        if not run:
+        snapshot = self.db.get_backtest_snapshot(int(backtest_id))
+        if not snapshot:
             return {"backtest_found": False}
-        metrics = self.db.get_backtest_finance_metrics(int(backtest_id))
-        headline_metrics = _build_backtest_headline_metrics(metrics)
+        analytics = snapshot.get("analytics", {}) or {}
+        summary = (analytics.get("summary", {}) or {}).get("all", {})
+        headline_metrics = {
+            "net_profit": summary.get("return_usd"),
+            "cagr": summary.get("cagr"),
+            "sharpe_ratio": summary.get("sharpe_ratio"),
+            "profit_factor": summary.get("profit_factor"),
+            "win_rate": summary.get("win_rate_pct"),
+            "max_drawdown": summary.get("max_drawdown_pct"),
+        }
         return {
             "backtest_found": True,
             "backtest_id": int(backtest_id),
-            "status": run.get("status"),
-            "strategy_id": run.get("strategy_id"),
-            "total_trades": run.get("total_trades"),
-            "symbols": run.get("symbols"),
-            "timeframes": run.get("timeframes"),
+            "status": (snapshot.get("metadata", {}) or {}).get("status"),
+            "strategy_id": (snapshot.get("metadata", {}) or {}).get("strategy_id"),
+            "total_trades": len((snapshot.get("result", {}) or {}).get("trades", []) or []),
+            "symbols": (snapshot.get("metadata", {}) or {}).get("data", {}).get("symbols"),
+            "timeframes": [(snapshot.get("metadata", {}) or {}).get("data", {}).get("timeframe")],
             "headline_metrics": headline_metrics,
-            "metrics": {
-                "trade_metrics": metrics.get("trade_metrics", {}),
-                "return_metrics": metrics.get("return_metrics", {}),
-                "drawdown_metrics": metrics.get("drawdown_metrics", {}),
-            },
+            "metrics": analytics,
         }

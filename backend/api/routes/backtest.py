@@ -23,6 +23,7 @@ from backend.services.market_data.data_getters import load_dukascopy
 from backend.services.market_data.data_manipulator import TicksGenerator
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger
+from backend.services.analytics.overview import build_overview_payload
 
 from backend.services.simulation.data_preparation import (
     _generate_ticks_for_backtest,
@@ -162,6 +163,25 @@ class BacktestResponse(BaseModel):
     engine_type: Optional[str] = None
     data_resolution: Optional[str] = None
     trades: Optional[List[Dict[str, Any]]] = None
+
+
+class BacktestOverviewResponse(BaseModel):
+    """Backend-computed overview payload for a backtest."""
+
+    summary: Dict[str, Dict[str, Any]]
+    metrics: Dict[str, Dict[str, Any]]
+    returns: Dict[str, Dict[str, Any]] = {}
+    ratios: Dict[str, Dict[str, Any]] = {}
+    risks: Dict[str, Dict[str, Any]] = {}
+    drawdowns: Dict[str, Dict[str, Any]] = {}
+    distributions: Dict[str, Dict[str, Any]] = {}
+    efficiency: Dict[str, Dict[str, Any]] = {}
+    benchmark: Dict[str, Dict[str, Any]] = {}
+    validation: Dict[str, Dict[str, Any]] = {}
+    dashboard: Dict[str, Any] = {}
+    scorecard: Dict[str, Any] = {}
+    equity_curves: Dict[str, List[Dict[str, Any]]]
+    charts: Dict[str, List[Dict[str, Any]]]
 
 
 class BacktestUpdateRequest(BaseModel):
@@ -426,31 +446,34 @@ async def run_backtest(
             request=request,
         )
 
-        backtest_run = db_manager.get_backtest_run(backtest_id)
-        if backtest_run is None:
+        snapshot = db_manager.get_backtest_snapshot(backtest_id)
+        if snapshot is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to load backtest run",
             )
 
+        metadata = snapshot.get("metadata", {}) or {}
+        result = snapshot.get("result", {}) or {}
+
         response_data = {
-            "backtest_id": backtest_run["backtest_id"],
-            "strategy_version_id": backtest_run.get("strategy_version_id"),
-            "status": backtest_run["status"],
-            "strategy_name": backtest_run["strategy_name"],
+            "backtest_id": snapshot["backtest_id"],
+            "strategy_version_id": metadata.get("strategy_version_id"),
+            "status": metadata.get("status", "completed"),
+            "strategy_name": metadata.get("strategy_name") or metadata.get("strategy", {}).get("name"),
             "symbol": symbol,
             "timeframe": request.timeframe,
-            "start_date": backtest_run["start_date"],
-            "end_date": backtest_run["end_date"],
-            "initial_balance": backtest_run["initial_balance"],
-            "final_balance": backtest_run.get("final_balance"),
-            "total_trades": backtest_run.get("total_trades"),
-            "win_rate": None,
-            "profit_factor": None,
-            "sharpe_ratio": None,
-            "max_drawdown": None,
-            "created_at": backtest_run["created_at"],
-            "completed_at": backtest_run.get("completed_at"),
+            "start_date": metadata.get("data", {}).get("start") or metadata.get("start_date"),
+            "end_date": metadata.get("data", {}).get("end") or metadata.get("end_date"),
+            "initial_balance": metadata.get("account", {}).get("initial_balance", metadata.get("initial_balance")),
+            "final_balance": metadata.get("final_balance"),
+            "total_trades": len((result.get("trades", []) or [])),
+            "win_rate": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("win_rate_pct"),
+            "profit_factor": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("profit_factor"),
+            "sharpe_ratio": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("sharpe_ratio"),
+            "max_drawdown": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("max_drawdown_pct"),
+            "created_at": metadata.get("created_at"),
+            "completed_at": metadata.get("completed_at"),
             "engine_type": engine_type,
             "data_resolution": request.data_resolution or "trading_timeframe",
         }
@@ -530,45 +553,41 @@ async def list_strategy_backtests(strategy_id: int) -> List[BacktestResponse]:
 async def get_backtest(backtest_id: int) -> BacktestResponse:
     """Get a specific backtest."""
     try:
-        backtest = db_manager.get_backtest_run(backtest_id)
-        if not backtest:
+        snapshot = db_manager.get_backtest_snapshot(backtest_id)
+        if not snapshot:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Backtest {backtest_id} not found",
             )
 
-        trades = []
-        with suppress(Exception):
-            trades = db_manager.get_backtest_trades(backtest_id)
+        metadata = snapshot.get("metadata", {}) or {}
+        result = snapshot.get("result", {}) or {}
+        result_trades = result.get("trades", []) or []
 
         response_data = {
-            "backtest_id": backtest["backtest_id"],
-            "strategy_id": backtest.get("strategy_id"),
-            "strategy_version_id": backtest.get("strategy_version_id"),
-            "status": backtest["status"],
-            "strategy_name": backtest["strategy_name"],
-            "symbol": ",".join(backtest.get("symbols", []) or []) or None,
-            "timeframe": (
-                backtest.get("timeframes", [""])[0]
-                if backtest.get("timeframes")
-                else None
-            ),
-            "start_date": backtest.get("start_date"),
-            "end_date": backtest.get("end_date"),
-            "initial_balance": backtest.get("initial_balance"),
-            "final_balance": backtest.get("final_balance"),
-            "total_trades": backtest.get("total_trades"),
-            "win_rate": None,
-            "profit_factor": None,
-            "sharpe_ratio": None,
-            "max_drawdown": None,
-            "created_at": backtest["created_at"],
-            "completed_at": backtest.get("completed_at"),
-            "alias": backtest.get("alias"),
-            "description": backtest.get("description"),
-            "engine_type": backtest.get("engine_type"),
-            "data_resolution": backtest.get("data_resolution"),
-            "trades": trades,
+            "backtest_id": snapshot["backtest_id"],
+            "strategy_id": metadata.get("strategy_id"),
+            "strategy_version_id": metadata.get("strategy_version_id"),
+            "status": metadata.get("status", "completed"),
+            "strategy_name": metadata.get("strategy_name") or metadata.get("strategy", {}).get("name"),
+            "symbol": ",".join(metadata.get("data", {}).get("symbols", []) or metadata.get("symbols", []) or []) or None,
+            "timeframe": metadata.get("data", {}).get("timeframe") or (metadata.get("timeframes") or [None])[0],
+            "start_date": metadata.get("data", {}).get("start") or metadata.get("start_date"),
+            "end_date": metadata.get("data", {}).get("end") or metadata.get("end_date"),
+            "initial_balance": metadata.get("account", {}).get("initial_balance", metadata.get("initial_balance")),
+            "final_balance": metadata.get("final_balance"),
+            "total_trades": len(result_trades),
+            "win_rate": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("win_rate_pct"),
+            "profit_factor": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("profit_factor"),
+            "sharpe_ratio": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("sharpe_ratio"),
+            "max_drawdown": (snapshot.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("max_drawdown_pct"),
+            "created_at": metadata.get("created_at"),
+            "completed_at": metadata.get("completed_at"),
+            "alias": metadata.get("reporting", {}).get("alias", metadata.get("alias")),
+            "description": metadata.get("reporting", {}).get("description", metadata.get("description")),
+            "engine_type": metadata.get("engine_type"),
+            "data_resolution": metadata.get("data_resolution"),
+            "trades": result_trades,
         }
 
         return BacktestResponse(**response_data)
@@ -580,6 +599,75 @@ async def get_backtest(backtest_id: int) -> BacktestResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get backtest: {str(exc)}",
+        )
+
+
+@router.get("/{backtest_id}/overview", response_model=BacktestOverviewResponse)
+async def get_backtest_overview(backtest_id: int) -> BacktestOverviewResponse:
+    """Get the backend-computed performance overview for a backtest."""
+    try:
+        payload = db_manager.get_backtest_overview_snapshot(backtest_id)
+        
+        # Check if the cached payload is missing the new analytics categories or processed_ticks
+        is_stale = (
+            payload is None 
+            or "returns" not in payload 
+            or not payload.get("returns")
+            or "dashboard" not in payload
+            or "scorecard" not in payload
+            or "validation" not in payload
+            or "processed_ticks" not in (payload.get("summary", {}).get("all", {}) or {})
+        )
+        
+        if is_stale:
+            snapshot = db_manager.get_backtest_snapshot(backtest_id)
+            if not snapshot:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Backtest {backtest_id} not found",
+                )
+
+            metadata = snapshot.get("metadata", {}) or {}
+            result = snapshot.get("result", {}) or {}
+            trades = result.get("trades", []) or []
+            
+            # Force re-calculation of the full comprehensive suite
+            payload = build_overview_payload(
+                trades,
+                initial_balance=float(
+                    metadata.get("account", {}).get("initial_balance")
+                    or metadata.get("initial_balance")
+                    or 0.0
+                ),
+                start_time=metadata.get("data", {}).get("start") or metadata.get("start_date"),
+                end_time=metadata.get("data", {}).get("end") or metadata.get("end_date"),
+                equity_curve_records=result.get("equity_curve", []) or [],
+                summary_overrides={
+                    "processed_ticks": result.get("processed_ticks") or metadata.get("tick_count")
+                }
+            )
+            
+            # Optional: Update the database with the new full payload if it was completed
+            if metadata.get("status") == "completed" and payload:
+                db_manager.save_backtest_snapshot(backtest_id, analytics={"overview": payload})
+        
+        # Ensure processed_ticks is available in the final response even if not in the cached payload
+        if payload and "summary" in payload and "all" in payload["summary"]:
+            if not payload["summary"]["all"].get("processed_ticks"):
+                snapshot = db_manager.get_backtest_snapshot(backtest_id)
+                if snapshot:
+                    meta = snapshot.get("metadata", {}) or {}
+                    payload["summary"]["all"]["processed_ticks"] = meta.get("tick_count") or meta.get("processed_ticks")
+                
+        return BacktestOverviewResponse(**payload)
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Error getting backtest overview: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get backtest overview: {str(exc)}",
         )
 
 
@@ -655,8 +743,8 @@ async def update_backtest(
 ) -> BacktestResponse:
     """Update backtest metadata (alias, description)."""
     try:
-        backtest = db_manager.get_backtest_run(backtest_id)
-        if not backtest:
+        snapshot = db_manager.get_backtest_snapshot(backtest_id)
+        if not snapshot:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Backtest {backtest_id} not found",
@@ -669,40 +757,39 @@ async def update_backtest(
                 description=request.description,
             )
 
-        updated = db_manager.get_backtest_run(backtest_id)
+        updated = db_manager.get_backtest_snapshot(backtest_id)
         if updated is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to load backtest {backtest_id}",
             )
 
+        metadata = updated.get("metadata", {}) or {}
+        result = updated.get("result", {}) or {}
+
         response_data = {
             "backtest_id": updated["backtest_id"],
-            "strategy_id": updated.get("strategy_id"),
-            "strategy_version_id": updated.get("strategy_version_id"),
-            "status": updated["status"],
-            "strategy_name": updated["strategy_name"],
-            "symbol": ",".join(updated.get("symbols", []) or []) or None,
-            "timeframe": (
-                updated.get("timeframes", [""])[0]
-                if updated.get("timeframes")
-                else None
-            ),
-            "start_date": updated.get("start_date"),
-            "end_date": updated.get("end_date"),
-            "initial_balance": updated.get("initial_balance"),
-            "final_balance": updated.get("final_balance"),
-            "total_trades": updated.get("total_trades"),
-            "win_rate": None,
-            "profit_factor": None,
-            "sharpe_ratio": None,
-            "max_drawdown": None,
-            "created_at": updated["created_at"],
-            "completed_at": updated.get("completed_at"),
-            "alias": updated.get("alias"),
-            "description": updated.get("description"),
-            "engine_type": updated.get("engine_type"),
-            "data_resolution": updated.get("data_resolution"),
+            "strategy_id": metadata.get("strategy_id"),
+            "strategy_version_id": metadata.get("strategy_version_id"),
+            "status": metadata.get("status", "completed"),
+            "strategy_name": metadata.get("strategy_name") or metadata.get("strategy", {}).get("name"),
+            "symbol": ",".join(metadata.get("data", {}).get("symbols", []) or metadata.get("symbols", []) or []) or None,
+            "timeframe": metadata.get("data", {}).get("timeframe") or (metadata.get("timeframes") or [None])[0],
+            "start_date": metadata.get("data", {}).get("start") or metadata.get("start_date"),
+            "end_date": metadata.get("data", {}).get("end") or metadata.get("end_date"),
+            "initial_balance": metadata.get("account", {}).get("initial_balance", metadata.get("initial_balance")),
+            "final_balance": metadata.get("final_balance"),
+            "total_trades": len((result.get("trades", []) or [])),
+            "win_rate": (updated.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("win_rate_pct"),
+            "profit_factor": (updated.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("profit_factor"),
+            "sharpe_ratio": (updated.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("sharpe_ratio"),
+            "max_drawdown": (updated.get("analytics", {}) or {}).get("summary", {}).get("all", {}).get("max_drawdown_pct"),
+            "created_at": metadata.get("created_at"),
+            "completed_at": metadata.get("completed_at"),
+            "alias": metadata.get("reporting", {}).get("alias", metadata.get("alias")),
+            "description": metadata.get("reporting", {}).get("description", metadata.get("description")),
+            "engine_type": metadata.get("engine_type"),
+            "data_resolution": metadata.get("data_resolution"),
         }
 
         return BacktestResponse(**response_data)
@@ -721,8 +808,8 @@ async def update_backtest(
 async def delete_backtest_endpoint(backtest_id: int) -> None:
     """Delete a backtest and all associated data."""
     try:
-        backtest = db_manager.get_backtest_run(backtest_id)
-        if not backtest:
+        snapshot = db_manager.get_backtest_snapshot(backtest_id)
+        if not snapshot:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Backtest {backtest_id} not found",
@@ -885,32 +972,35 @@ async def run_portfolio_backtest(
             request=request,
         )
 
-        backtest_run = db_manager.get_backtest_run(backtest_id)
-        if backtest_run is None:
+        snapshot = db_manager.get_backtest_snapshot(backtest_id)
+        if snapshot is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to load backtest run",
             )
 
+        metadata = snapshot.get("metadata", {}) or {}
+        result = snapshot.get("result", {}) or {}
+
         response_data = {
-            "backtest_id": backtest_run["backtest_id"],
-            "status": backtest_run["status"],
-            "portfolio_name": backtest_run["strategy_name"],
+            "backtest_id": snapshot["backtest_id"],
+            "status": metadata.get("status", "completed"),
+            "portfolio_name": metadata.get("strategy_name") or metadata.get("strategy", {}).get("name"),
             "symbols": symbols,
             "timeframe": request.timeframe,
-            "start_date": backtest_run["start_date"],
-            "end_date": backtest_run["end_date"],
-            "initial_balance": backtest_run["initial_balance"],
-            "final_balance": backtest_run.get("final_balance"),
+            "start_date": metadata.get("data", {}).get("start") or metadata.get("start_date"),
+            "end_date": metadata.get("data", {}).get("end") or metadata.get("end_date"),
+            "initial_balance": metadata.get("account", {}).get("initial_balance", metadata.get("initial_balance")),
+            "final_balance": metadata.get("final_balance"),
             "total_return": None,
             "total_return_pct": None,
-            "total_trades": backtest_run.get("total_trades"),
+            "total_trades": len((result.get("trades", []) or [])),
             "win_rate": None,
             "profit_factor": None,
             "sharpe_ratio": None,
             "max_drawdown_pct": None,
-            "created_at": backtest_run["created_at"],
-            "completed_at": backtest_run.get("completed_at"),
+            "created_at": metadata.get("created_at"),
+            "completed_at": metadata.get("completed_at"),
             "allocation_method": request.allocation_method or "equal_weight",
             "asset_results": None,
         }

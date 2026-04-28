@@ -1,84 +1,88 @@
 """
-Risk-adjusted performance ratios.
-
-Focus: reward vs volatility vs downside
-
-This module provides various metrics to evaluate strategy performance relative to risk.
-It includes classical ratios (Sharpe, Sortino, Calmar), modern specialized ratios (Omega, Kappa, RINA),
-and trade-based performance relations.
+Summary:
+-------
+HaruQuant Risk-Adjusted Performance Ratios.
+Reward vs volatility vs downside analysis.
+This module implements institutional-grade risk-adjusted ratios (Sharpe, Sortino, Calmar), 
+modern specialized indices (Omega, Kappa, Tail Ratio), and trade-based efficiency metrics.
 
 Summary of Methods:
 ------------------
-Utility Helpers:
-    - win_rate_fraction: Win rate on a 0-1 scale.
+Volatility-Adjusted Ratios:
+    - sharpe_ratio: Excess return per unit of total risk.
+    - information_ratio: Active return per unit of active risk (Tracking Error).
 
-Classical Risk-Adjusted Ratios:
-    - sharpe_ratio: Excess return per unit of volatility.
-    - annualized_sharpe_ratio: Sharpe ratio scaled to yearly terms.
-    - sortino_ratio: Excess return per unit of downside volatility.
-    - calmar_ratio: CAGR divided by maximum drawdown.
-    - information_ratio: Excess return per unit of tracking error.
+Downside-Adjusted Ratios:
+    - sortino_ratio: Excess return per unit of downside risk.
+    - calmar_ratio: Annualized return per unit of max drawdown.
+    - sterling_ratio: Return relative to average drawdown.
+    - burke_ratio: Return relative to square root of squared drawdowns.
 
-Modern & Specialized Ratios:
-    - fouse_ratio: Risk-adjusted return considering risk tolerance.
-    - upside_potential_ratio: Upside potential relative to downside risk.
-    - omega_ratio: Probability-weighted ratio of gains vs losses.
-    - gain_to_pain_ratio: Total returns relative to absolute negative returns.
-    - kappa_ratio: Generalization of Sortino using higher moments.
-    - sterling_ratio: CAGR relative to average yearly max drawdown.
-    - rina_index: Select net profit relative to time-adjusted drawdown.
-
-Trade-Based Performance Ratios:
-    - profit_factor: Gross Profit / |Gross Loss|.
-    - payoff_ratio: |Avg Win| / |Avg Loss|.
-    - edge_ratio: (Avg Win / |Avg Loss|) x Win Rate.
-    - profit_to_mae_ratio: Efficiency of profit capture relative to adverse excursion.
-    - mfe_to_mae_ratio: Favorable excursion vs adverse excursion.
-    - return_over_drawdown: Total return / max trade drawdown.
-    - expectancy_over_variance: Stability of the trading edge.
-
-Net Profit Performance Relations:
-    - net_profit_as_percent_of_largest_loss
-    - net_profit_as_percent_of_max_trade_drawdown
-    - net_profit_as_percent_of_max_strategy_drawdown
-    - select_net_profit_as_percent_of_largest_loss
-    - select_net_profit_as_percent_of_max_trade_drawdown
-    - select_net_profit_as_percent_of_max_strategy_drawdown
-    - adjusted_net_profit_as_percent_of_largest_loss
-    - adjusted_net_profit_as_percent_of_max_trade_drawdown
-    - adjusted_net_profit_as_percent_of_max_strategy_drawdown
-
-Advanced Profit Factors:
-    - adjusted_profit_factor: Adjusted Gross Profit / |Adjusted Gross Loss|.
-    - select_profit_factor: Select Gross Profit / |Select Gross Loss|.
-
-Expectancy & Edge:
-    - expectancy: Expected value per trade.
-    - expectancy_r: Expectancy in terms of R-multiples.
+Threshold & Tail Ratios:
+    - omega_ratio: Gain-to-loss ratio relative to a target return.
+    - kappa_ratio (Kappa 1, 2, 3): Standardized downside risk measures.
+    - tail_ratio: Ratio of right-tail (95th) to left-tail (5th) returns.
 """
 
 import numpy as np
 import pandas as pd
 
-from . import drawdowns, metrics, returns
+from . import common, drawdowns, returns
+from .common import EPSILON, _to_1d_float_array
+
+
+# =========================================================================
+# Local Trade Helpers (to avoid circular dependency with metrics.py)
+# =========================================================================
+
+
+def _closed_pnl(trades: pd.DataFrame) -> pd.Series:
+    """Helper to get realized P&L series from a trade frame."""
+    data = common.get_closed_trades(trades)
+    if data.empty or "profit_loss" not in data.columns:
+        return pd.Series(dtype=float)
+    return data["profit_loss"].astype(float)
+
+
+def _avg_win(trades: pd.DataFrame) -> float:
+    """Mean profit of winning trades."""
+    pnl = _closed_pnl(trades)
+    wins = pnl[pnl > EPSILON]
+    return float(wins.mean()) if not wins.empty else 0.0
+
+
+def _avg_loss(trades: pd.DataFrame) -> float:
+    """Mean loss of losing trades."""
+    pnl = _closed_pnl(trades)
+    losses = pnl[pnl < -EPSILON]
+    return float(losses.mean()) if not losses.empty else 0.0
+
+
+def _win_rate(trades: pd.DataFrame) -> float:
+    """Win rate fraction (0-1)."""
+    pnl = _closed_pnl(trades)
+    if pnl.empty:
+        return 0.0
+    return float((pnl > EPSILON).mean())
+
+
+def _loss_rate(trades: pd.DataFrame) -> float:
+    """Loss rate fraction (0-1)."""
+    pnl = _closed_pnl(trades)
+    if pnl.empty:
+        return 0.0
+    return float((pnl < -EPSILON).mean())
+
+
+def _largest_loss(trades: pd.DataFrame) -> float:
+    """Maximum loss from a single trade."""
+    pnl = _closed_pnl(trades)
+    return float(pnl.min()) if not pnl.empty else 0.0
 
 
 # =========================================================================
 # Utility Helpers
 # =========================================================================
-
-
-def _to_1d_float_array(values) -> np.ndarray:
-    """Normalize 1D numeric inputs to a float NumPy array."""
-    if isinstance(values, pd.Series):
-        array = values.astype(float).to_numpy()
-    else:
-        array = np.asarray(values, dtype=float)
-
-    if array.ndim == 0:
-        array = array.reshape(1)
-
-    return array[~np.isnan(array)]
 
 
 def _expectancy_1d(values) -> float:
@@ -99,14 +103,14 @@ def win_rate_fraction(values) -> float:
     normalized = _to_1d_float_array(values)
     if len(normalized) == 0:
         return float("nan")
-    return float(np.mean(normalized > 0))
+    return float(np.mean(normalized > EPSILON))
 
 
 def _avg_win_loss_1d(values) -> tuple[float, float]:
     """Calculate mean winning and losing outcomes from 1D numeric input."""
     normalized = _to_1d_float_array(values)
-    wins = normalized[normalized > 0]
-    losses = normalized[normalized < 0]
+    wins = normalized[normalized > EPSILON]
+    losses = normalized[normalized < -EPSILON]
     avg_win = float(np.mean(wins)) if len(wins) else float("nan")
     avg_loss = float(np.mean(losses)) if len(losses) else float("nan")
     return avg_win, avg_loss
@@ -118,27 +122,32 @@ def _avg_win_loss_1d(values) -> tuple[float, float]:
 
 
 def sharpe_ratio(
-    returns_in: pd.Series | np.ndarray, risk_free_rate: float = 0.0, annualize: bool = True
+    returns_in: pd.Series | np.ndarray,
+    risk_free_rate: float = 0.0,
+    periods_per_year: int = 252,
+    annualize: bool = True,
 ) -> float:
     """
     Sharpe Ratio - excess return per unit of volatility.
+    
+    Uses simple periodic risk-free conversion: rf / periods_per_year.
     """
     normalized = _to_1d_float_array(returns_in)
 
     if len(normalized) < 2:
         return 0.0
 
-    excess_returns = normalized - (risk_free_rate / 252)
-    mean_excess = excess_returns.mean()
-    std_excess = excess_returns.std(ddof=1)
+    period_rf = risk_free_rate / periods_per_year
+    excess_returns = normalized - period_rf
 
+    std_excess = excess_returns.std(ddof=1)
     if std_excess == 0:
         return 0.0
 
-    sharpe = mean_excess / std_excess
+    sharpe = excess_returns.mean() / std_excess
 
     if annualize:
-        sharpe = sharpe * np.sqrt(252)
+        sharpe *= np.sqrt(periods_per_year)
 
     return float(sharpe)
 
@@ -149,17 +158,30 @@ def annualized_sharpe_ratio(
     """
     Annualized Sharpe Ratio from monthly inputs.
     """
-    monthly_sharpe = sharpe_ratio(
-        monthly_returns, risk_free_rate_monthly, annualize=False
-    )
-    return float(monthly_sharpe * np.sqrt(12))
+    normalized = _to_1d_float_array(monthly_returns)
+
+    if len(normalized) < 2:
+        return 0.0
+
+    excess = normalized - risk_free_rate_monthly
+    std = excess.std(ddof=1)
+
+    if std == 0:
+        return 0.0
+
+    return float((excess.mean() / std) * np.sqrt(12))
 
 
 def sortino_ratio(
-    returns_in: pd.Series | np.ndarray, target_return: float = 0.0, annualize: bool = True
+    returns_in: pd.Series | np.ndarray,
+    target_return: float = 0.0,
+    periods_per_year: int = 252,
+    annualize: bool = True,
 ) -> float:
     """
     Sortino Ratio - excess return per unit of downside volatility.
+    
+    Target return is handled as a per-period target (e.g. 0.0).
     """
     normalized = _to_1d_float_array(returns_in)
 
@@ -169,13 +191,9 @@ def sortino_ratio(
     excess_returns = normalized - target_return
     mean_excess = excess_returns.mean()
 
-    # Lower Partial Moment (LPM) order 2 for downside risk
-    deviations = normalized - target_return
-    downside_deviations = deviations[deviations < 0]
-
-    sum_sq_diff = (downside_deviations**2).sum()
-    n = len(normalized)
-    downside_risk = np.sqrt(sum_sq_diff / n)
+    # Downside risk calculated using the full-period denominator
+    downside_diffs = np.minimum(normalized - target_return, 0.0)
+    downside_risk = np.sqrt(np.mean(downside_diffs**2))
 
     if downside_risk == 0:
         return float("inf") if mean_excess > 0 else 0.0
@@ -183,7 +201,7 @@ def sortino_ratio(
     sortino = mean_excess / downside_risk
 
     if annualize:
-        sortino = sortino * np.sqrt(12)
+        sortino *= np.sqrt(periods_per_year)
 
     return float(sortino)
 
@@ -194,24 +212,29 @@ def calmar_ratio(
     periods_per_year: int = 252,
 ) -> float:
     """
-    Calmar Ratio - CAGR divided by maximum drawdown.
+    Calmar Ratio = annualized return percentage / max drawdown percentage.
     """
     if max_dd is None and not np.isscalar(cagr_value):
         normalized = _to_1d_float_array(cagr_value)
         if len(normalized) < 2:
-            return float("nan")
+            return 0.0
 
-        annual_return = np.mean(normalized) * periods_per_year
-        drawdown = drawdowns.max_drawdown(normalized)
-        if drawdown == 0:
-            return float("inf") if annual_return > 0 else float("nan")
-        return float(annual_return / abs(drawdown))
+        annual_return_pct = returns.annualized_return(
+            pd.Series(normalized),
+            periods_per_year=periods_per_year,
+        )
+        drawdown_pct = drawdowns.max_drawdown(normalized)
+
+        if drawdown_pct == 0:
+            return float("inf") if annual_return_pct > 0 else 0.0
+
+        return float(annual_return_pct / drawdown_pct)
 
     if max_dd is None:
-        raise ValueError("max_dd is required when calmar_ratio receives a scalar CAGR")
+        raise ValueError("max_dd is required when cagr_value is scalar")
 
     if max_dd == 0:
-        return 0.0 if cagr_value == 0 else float("inf")
+        return float("inf") if cagr_value > 0 else 0.0
 
     return float(cagr_value / max_dd)
 
@@ -256,25 +279,24 @@ def information_ratio(
 
 
 def fouse_ratio(
-    monthly_returns: pd.Series,
+    monthly_returns: pd.Series | np.ndarray,
     risk_tolerance: float,
     risk_free_rate_monthly: float = 0.0,
 ) -> float:
     """
     Fouse Ratio (Fouse DD Index). Formula: rc - rt * dd^2
     """
-    if len(monthly_returns) == 0:
+    normalized = _to_1d_float_array(monthly_returns)
+    if len(normalized) == 0:
         return 0.0
 
-    growth_factors = 1 + monthly_returns
-    rc = growth_factors.prod() ** (1 / len(monthly_returns)) - 1
+    growth_factors = 1 + normalized
+    rc = growth_factors.prod() ** (1 / len(normalized)) - 1
 
     target = risk_free_rate_monthly
-    deviations = monthly_returns - target
-    downside_deviations = deviations[deviations < 0]
-    sum_sq_diff = (downside_deviations**2).sum()
-    n = len(monthly_returns)
-    dd = np.sqrt(sum_sq_diff / n)
+    deviations = normalized - target
+    downside_deviations = np.minimum(deviations, 0.0)
+    dd = np.sqrt(np.mean(downside_deviations**2))
 
     fouse = rc - (risk_tolerance * (dd**2))
     return float(fouse)
@@ -284,18 +306,18 @@ def upside_potential_ratio(returns_in: pd.Series, target: float = 0.0) -> float:
     """
     Upside Potential Ratio - upside potential / downside risk.
     """
-    if len(returns_in) < 2:
+    normalized = _to_1d_float_array(returns_in)
+    if len(normalized) < 2:
         return 0.0
 
-    deviations = returns_in - target
-    downside_deviations = deviations[deviations < 0]
-    sum_sq_diff_down = (downside_deviations**2).sum()
-    n = len(returns_in)
-    downside_risk = np.sqrt(sum_sq_diff_down / n)
+    deviations = normalized - target
+    
+    # Downside Risk
+    downside_diffs = np.minimum(deviations, 0.0)
+    downside_risk = np.sqrt(np.mean(downside_diffs**2))
 
-    upside_deviations = deviations[deviations > 0]
-    sum_diff_up = upside_deviations.sum()
-    upside_potential = sum_diff_up / n
+    # Upside Potential
+    upside_potential = np.mean(np.maximum(deviations, 0.0))
 
     if downside_risk == 0:
         return float("inf") if upside_potential > 0 else 0.0
@@ -307,14 +329,15 @@ def omega_ratio(returns_in: pd.Series, threshold: float = 0.0) -> float:
     """
     Omega Ratio - probability-weighted ratio of gains vs losses.
     """
-    if len(returns_in) == 0:
+    normalized = _to_1d_float_array(returns_in)
+    if len(normalized) == 0:
         return 0.0
 
-    gains = returns_in[returns_in > threshold] - threshold
-    losses = threshold - returns_in[returns_in < threshold]
+    gains = np.maximum(normalized - threshold, 0.0)
+    losses = np.maximum(threshold - normalized, 0.0)
 
-    sum_gains = gains.sum()
-    sum_losses = losses.sum()
+    sum_gains = np.sum(gains)
+    sum_losses = np.sum(losses)
 
     if sum_losses == 0:
         return float("inf") if sum_gains > 0 else 1.0
@@ -326,11 +349,12 @@ def gain_to_pain_ratio(returns_in: pd.Series) -> float:
     """
     Gain-to-Pain Ratio - sum of returns / sum of absolute negative returns.
     """
-    if len(returns_in) == 0:
+    normalized = _to_1d_float_array(returns_in)
+    if len(normalized) == 0:
         return 0.0
 
-    sum_returns = returns_in.sum()
-    sum_negative = abs(returns_in[returns_in < 0].sum())
+    sum_returns = np.sum(normalized)
+    sum_negative = np.abs(np.sum(normalized[normalized < 0]))
 
     if sum_negative == 0:
         return float("inf") if sum_returns > 0 else 0.0
@@ -338,23 +362,22 @@ def gain_to_pain_ratio(returns_in: pd.Series) -> float:
     return float(sum_returns / sum_negative)
 
 
-def kappa_ratio(returns_in: pd.Series, target: float = 0.0, order: int = 3) -> float:
+def kappa_ratio(returns_in: pd.Series | np.ndarray, target: float = 0.0, order: int = 3) -> float:
     """
     Kappa Ratio - generalization of Sortino using higher moments.
     """
-    if len(returns_in) < 2:
+    normalized = _to_1d_float_array(returns_in)
+    if len(normalized) < 2:
         return 0.0
 
-    excess_returns = returns_in - target
-    mean_excess = excess_returns.mean()
-    downside_returns = excess_returns[excess_returns < 0]
-
-    if len(downside_returns) == 0:
-        return float("inf") if mean_excess > 0 else 0.0
-
-    lpm = (abs(downside_returns) ** order).mean() ** (1 / order)
+    mean_excess = np.mean(normalized - target)
+    
+    # Lower Partial Moment (LPM) calculation including all observations
+    shortfall = np.maximum(target - normalized, 0.0)
+    lpm = np.mean(shortfall ** order) ** (1.0 / order)
+    
     if lpm == 0:
-        return 0.0
+        return float("inf") if mean_excess > 0 else 0.0
 
     return float(mean_excess / lpm)
 
@@ -398,19 +421,19 @@ def profit_factor(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """Measure profit factor: Gross Profit / |Gross Loss|."""
     if not isinstance(trades, pd.DataFrame):
         normalized = _to_1d_float_array(trades)
-        wins = normalized[normalized > 0].sum()
-        gross_l = abs(normalized[normalized < 0].sum())
+        wins = normalized[normalized > EPSILON].sum()
+        gross_l = np.abs(normalized[normalized < -EPSILON].sum())
         if gross_l == 0:
-            return 0.0 if wins == 0 else float("inf")
+            return float("inf") if wins > EPSILON else 0.0
         return float(wins / gross_l)
 
     gross_p = returns.gross_profit(trades)
-    gross_l = abs(returns.gross_loss(trades))
+    gross_l = np.abs(returns.gross_loss(trades))
 
     if gross_l == 0:
-        return 0.0 if gross_p == 0 else float("inf")
+        return float("inf") if gross_p > EPSILON else 0.0
 
-    return gross_p / gross_l
+    return float(gross_p / gross_l)
 
 
 def payoff_ratio(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
@@ -418,77 +441,91 @@ def payoff_ratio(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     if not isinstance(trades, pd.DataFrame):
         avg_win_val, avg_loss_val = _avg_win_loss_1d(trades)
         if np.isnan(avg_loss_val) or avg_loss_val == 0:
-            return 0.0 if np.isnan(avg_win_val) or avg_win_val == 0 else float("inf")
-        return abs(avg_win_val / avg_loss_val)
+            return float("inf") if not np.isnan(avg_win_val) and avg_win_val != 0 else 0.0
+        return float(np.abs(avg_win_val / avg_loss_val))
 
-    avg_win_val = metrics.avg_win(trades)
-    avg_loss_val = abs(metrics.avg_loss(trades))
+    avg_win_val = _avg_win(trades)
+    avg_loss_val = np.abs(_avg_loss(trades))
 
     if avg_loss_val == 0:
-        return 0.0 if avg_win_val == 0 else float("inf")
+        return float("inf") if avg_win_val > EPSILON else 0.0
 
-    return avg_win_val / avg_loss_val
+    return float(avg_win_val / avg_loss_val)
 
 
 def edge_ratio(trades: pd.DataFrame) -> float:
     """Edge Ratio: (Avg Win / |Avg Loss|) x Win Rate."""
     payoff = payoff_ratio(trades)
-    win_pct = metrics.win_rate(trades) / 100.0
-    return payoff * win_pct
+    win_pct = _win_rate(trades)
+    return float(payoff * win_pct)
 
 
 def profit_to_mae_ratio(trades: pd.DataFrame) -> float:
     """Profit-to-MAE Ratio - measures efficiency of profit capture."""
-    if len(trades) == 0 or "profit_loss" not in trades.columns or "mae_usd" not in trades.columns:
+    if trades.empty or "profit_loss" not in trades.columns or "mae_usd" not in trades.columns:
         return 0.0
 
-    valid_trades = trades[trades["mae_usd"] > 0]
-    if len(valid_trades) == 0:
+    data = common.get_closed_trades(trades)
+    if data.empty:
         return 0.0
 
-    ratio = valid_trades["profit_loss"] / valid_trades["mae_usd"]
-    return float(ratio.mean())
+    pnl = data["profit_loss"].astype(float).values
+    mae = np.abs(data["mae_usd"].astype(float).values)
+
+    valid = mae > EPSILON
+    if not valid.any():
+        return 0.0
+
+    return float((pnl[valid] / mae[valid]).mean())
 
 
 def mfe_to_mae_ratio(trades: pd.DataFrame) -> float:
     """MFE-to-MAE Ratio - favorable excursion vs adverse excursion."""
-    if len(trades) == 0 or "mfe_usd" not in trades.columns or "mae_usd" not in trades.columns:
+    if trades.empty or "mfe_usd" not in trades.columns or "mae_usd" not in trades.columns:
         return 0.0
 
-    valid_trades = trades[trades["mae_usd"] > 0]
-    if len(valid_trades) == 0:
+    data = common.get_closed_trades(trades)
+    if data.empty:
         return 0.0
 
-    ratio = valid_trades["mfe_usd"] / valid_trades["mae_usd"]
-    return float(ratio.mean())
+    mfe = np.maximum(data["mfe_usd"].astype(float).values, 0.0)
+    mae = np.abs(data["mae_usd"].astype(float).values)
+
+    valid = mae > EPSILON
+    if not valid.any():
+        return 0.0
+
+    return float((mfe[valid] / mae[valid]).mean())
 
 
 def return_over_drawdown(trades: pd.DataFrame) -> float:
     """Return-over-Drawdown Ratio - total return / max trade drawdown."""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
 
-    total_ret = trades["profit_loss"].sum()
+    total_ret = returns.net_profit(trades)
     max_dd = drawdowns.max_close_to_close_drawdown(trades)
 
     if max_dd == 0:
-        return float("inf") if total_ret > 0 else 0.0
+        return float("inf") if total_ret > EPSILON else 0.0
 
     return float(total_ret / max_dd)
 
 
-def expectancy_over_variance(trades: pd.DataFrame) -> float:
-    """Expectancy-over-Variance Ratio - stability of edge."""
-    if len(trades) == 0:
+def expectancy_over_std(trades: pd.DataFrame) -> float:
+    """Expectancy-over-Std Ratio - stability of edge (Expectancy / Standard Deviation)."""
+    data = common.get_closed_trades(trades)
+    if data.empty or "profit_loss" not in data.columns:
         return 0.0
 
-    expectancy_val = trades["profit_loss"].mean()
-    variance = trades["profit_loss"].var()
+    pnl = data["profit_loss"].astype(float)
+    expectancy_val = pnl.mean()
+    std_dev = pnl.std()
 
-    if variance == 0:
+    if std_dev == 0:
         return 0.0
 
-    return float(expectancy_val / np.sqrt(variance))
+    return float(expectancy_val / std_dev)
 
 
 # =========================================================================
@@ -498,23 +535,23 @@ def expectancy_over_variance(trades: pd.DataFrame) -> float:
 
 def net_profit_as_percent_of_largest_loss(trades: pd.DataFrame) -> float:
     """(Net Profit / |Largest Loss|) * 100"""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
     net_p = returns.net_profit(trades)
-    largest_l = abs(metrics.largest_loss(trades))
+    largest_l = np.abs(_largest_loss(trades))
     if largest_l == 0:
-        return float("inf") if net_p > 0 else 0.0
+        return float("inf") if net_p > EPSILON else 0.0
     return float((net_p / largest_l) * 100.0)
 
 
 def net_profit_as_percent_of_max_trade_drawdown(trades: pd.DataFrame) -> float:
     """(Net Profit / Max Trade Drawdown) * 100"""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
     net_p = returns.net_profit(trades)
     max_dd = drawdowns.max_close_to_close_drawdown(trades)
     if max_dd == 0:
-        return float("inf") if net_p > 0 else 0.0
+        return float("inf") if net_p > EPSILON else 0.0
     return float((net_p / max_dd) * 100.0)
 
 
@@ -523,29 +560,29 @@ def net_profit_as_percent_of_max_strategy_drawdown(
 ) -> float:
     """(Net Profit / Max Strategy Drawdown) * 100"""
     if max_strategy_drawdown == 0:
-        return float("inf") if net_profit_val > 0 else 0.0
+        return float("inf") if net_profit_val > EPSILON else 0.0
     return float((net_profit_val / max_strategy_drawdown) * 100.0)
 
 
 def select_net_profit_as_percent_of_largest_loss(trades: pd.DataFrame) -> float:
     """(Select Net Profit / |Largest Loss|) * 100"""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
     sel_net = returns.select_net_profit(trades)
-    largest_l = abs(metrics.largest_loss(trades))
+    largest_l = np.abs(_largest_loss(trades))
     if largest_l == 0:
-        return float("inf") if sel_net > 0 else 0.0
+        return float("inf") if sel_net > EPSILON else 0.0
     return float((sel_net / largest_l) * 100.0)
 
 
 def select_net_profit_as_percent_of_max_trade_drawdown(trades: pd.DataFrame) -> float:
     """(Select Net Profit / Max Trade Drawdown) * 100"""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
     sel_net = returns.select_net_profit(trades)
     max_dd = drawdowns.max_close_to_close_drawdown(trades)
     if max_dd == 0:
-        return float("inf") if sel_net > 0 else 0.0
+        return float("inf") if sel_net > EPSILON else 0.0
     return float((sel_net / max_dd) * 100.0)
 
 
@@ -554,29 +591,29 @@ def select_net_profit_as_percent_of_max_strategy_drawdown(
 ) -> float:
     """(Select Net Profit / Max Strategy Drawdown) * 100"""
     if max_strategy_drawdown == 0:
-        return float("inf") if select_net_profit_val > 0 else 0.0
+        return float("inf") if select_net_profit_val > EPSILON else 0.0
     return float((select_net_profit_val / max_strategy_drawdown) * 100.0)
 
 
 def adjusted_net_profit_as_percent_of_largest_loss(trades: pd.DataFrame) -> float:
     """(Adjusted Net Profit / |Largest Loss|) * 100"""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
     adj_net = returns.adjusted_net_profit(trades)
-    largest_l = abs(metrics.largest_loss(trades))
+    largest_l = np.abs(_largest_loss(trades))
     if largest_l == 0:
-        return float("inf") if adj_net > 0 else 0.0
+        return float("inf") if adj_net > EPSILON else 0.0
     return float((adj_net / largest_l) * 100.0)
 
 
 def adjusted_net_profit_as_percent_of_max_trade_drawdown(trades: pd.DataFrame) -> float:
     """(Adjusted Net Profit / Max Trade Drawdown) * 100"""
-    if len(trades) == 0:
+    if trades.empty:
         return 0.0
     adj_net = returns.adjusted_net_profit(trades)
     max_dd = drawdowns.max_close_to_close_drawdown(trades)
     if max_dd == 0:
-        return float("inf") if adj_net > 0 else 0.0
+        return float("inf") if adj_net > EPSILON else 0.0
     return float((adj_net / max_dd) * 100.0)
 
 
@@ -585,7 +622,7 @@ def adjusted_net_profit_as_percent_of_max_strategy_drawdown(
 ) -> float:
     """(Adjusted Net Profit / Max Strategy Drawdown) * 100"""
     if max_strategy_drawdown == 0:
-        return float("inf") if adjusted_net_profit_val > 0 else 0.0
+        return float("inf") if adjusted_net_profit_val > EPSILON else 0.0
     return float((adjusted_net_profit_val / max_strategy_drawdown) * 100.0)
 
 
@@ -597,19 +634,19 @@ def adjusted_net_profit_as_percent_of_max_strategy_drawdown(
 def adjusted_profit_factor(trades: pd.DataFrame) -> float:
     """Adjusted Gross Profit / |Adjusted Gross Loss|"""
     gross_p = returns.adjusted_gross_profit(trades)
-    gross_l = abs(returns.adjusted_gross_loss(trades))
+    gross_l = np.abs(returns.adjusted_gross_loss(trades))
     if gross_l == 0:
-        return 0.0 if gross_p == 0 else float("inf")
-    return gross_p / gross_l
+        return float("inf") if gross_p > EPSILON else 0.0
+    return float(gross_p / gross_l)
 
 
 def select_profit_factor(trades: pd.DataFrame) -> float:
     """Select Gross Profit / |Select Gross Loss|"""
     gross_p = returns.select_gross_profit(trades)
-    gross_l = abs(returns.select_gross_loss(trades))
+    gross_l = np.abs(returns.select_gross_loss(trades))
     if gross_l == 0:
-        return 0.0 if gross_p == 0 else float("inf")
-    return gross_p / gross_l
+        return float("inf") if gross_p > EPSILON else 0.0
+    return float(gross_p / gross_l)
 
 
 # =========================================================================
@@ -617,31 +654,22 @@ def select_profit_factor(trades: pd.DataFrame) -> float:
 # =========================================================================
 
 
-def expectancy(trades: pd.DataFrame) -> float:
+def expectancy(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """(Win% x Avg Win) + (Loss% x Avg Loss)"""
     if not isinstance(trades, pd.DataFrame):
         return _expectancy_1d(trades)
 
-    win_pct = metrics.win_rate(trades) / 100.0
-    loss_pct = metrics.loss_rate(trades) / 100.0
-    avg_win_val = metrics.avg_win(trades)
-    avg_loss_val = metrics.avg_loss(trades)
+    win_pct = _win_rate(trades)
+    loss_pct = _loss_rate(trades)
+    avg_win_val = _avg_win(trades)
+    avg_loss_val = _avg_loss(trades)
 
-    return (win_pct * avg_win_val) + (loss_pct * avg_loss_val)
+    return float((win_pct * avg_win_val) + (loss_pct * avg_loss_val))
 
 
-def expectancy_r(trades: pd.DataFrame) -> float:
-    """(Win% x Avg R Win) + (Loss% x Avg R Loss)"""
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
+def expectancy_r(r_multiples: pd.Series | np.ndarray) -> float:
+    """Average R-multiple value."""
+    r = _to_1d_float_array(r_multiples)
+    if len(r) == 0:
         return 0.0
-
-    win_pct = metrics.win_rate(trades) / 100.0
-    loss_pct = metrics.loss_rate(trades) / 100.0
-
-    winners = trades[trades["profit_loss"] > 0]
-    losers = trades[trades["profit_loss"] < 0]
-
-    avg_r_win = winners["r_multiple"].mean() if len(winners) > 0 else 0.0
-    avg_r_loss = losers["r_multiple"].mean() if len(losers) > 0 else 0.0
-
-    return (win_pct * avg_r_win) + (loss_pct * avg_r_loss)
+    return float(np.mean(r))

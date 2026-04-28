@@ -1,79 +1,78 @@
 """
-Trade-based statistics & system-quality metrics.
-
-Focus: trades, sequences, expectancy, system edge
-
-This module provides a comprehensive suite of analytical functions for trading strategy performance evaluation.
-It includes trade counts, P&L statistics, R-multiple analytics, sequence quality, time-based metrics, 
-and system-level metrics like SQN and Kelly Criterion.
+Summary:
+-------
+HaruQuant Trade Diagnostics Module.
+Trade-based statistics, system-quality metrics, and temporal exposure analytics.
+This module provides a production-grade suite of analytical functions for trading strategy 
+performance evaluation, with a focus on normalized R-multiple stability, sequence quality, 
+and market exposure.
 
 Summary of Methods:
 ------------------
 Utility & Kernel Helpers:
-    - win_rate_fraction: Win rate on a 0-1 scale.
-    - avg_win_loss: Mean winning and losing outcomes.
-    - consecutive_wins_losses: Max consecutive wins and losses (wrapper for kernel).
-    - median_mae_mfe: Median MAE and MFE from R-space.
-    - t_statistic: T-statistic for mean outcome.
-
-Core Trade Counts & Costs:
-    - open_position_pnl: Profit/loss for currently open positions.
-    - total_trades: Total number of trades.
-    - winning_trades / losing_trades / breakeven_trades: Count trades by outcome.
-    - long_trades / short_trades: Count trades by direction.
-    - count_open_trades: Number of trades still open.
-    - slippage_paid / commission_paid / swap_paid: Total costs paid.
-    - max_size_held: Maximum contracts/units held at any one time.
+    - get_closed_trades: Filter for realized (non-open) trades.
+    - get_ordered_closed_trades: Filter and sort trades by exit time.
+    - classify_trades: Win/Loss/Breakeven categorization.
+    - win_rate: Fraction of winning trades.
+    - profit_factor: Total profit divided by total loss.
+    - avg_win_loss: Mean winner vs mean loser.
+    - expectancy: Expected profit per trade (notional or R).
+    - sqn: System Quality Number - statistical expectancy.
+    - exposure_metrics: Time in market and exposure time analysis.
+    - winning_trades / losing_trades / breakeven_trades: Trade counts.
+    - long_trades / short_trades: Counts by trade direction.
+    - count_open_trades: Number of currently active positions.
+    - slippage_paid / commission_paid / swap_paid: Total execution costs (absolute positive).
+    - max_gross_size_held: Maximum total contracts held.
+    - max_net_size_held: Maximum directional net exposure.
 
 Trade P&L Statistics:
     - win_rate / loss_rate: Percentage of winning/losing trades.
     - avg_win / avg_loss: Average P&L of winning/losing trades.
-    - largest_win / largest_loss: Max/min P&L values.
-    - median_win / median_loss: Median P&L of winning/losing trades.
+    - largest_win / largest_loss: Extreme P&L outcomes.
+    - median_win / median_loss: Median P&L outcomes.
 
 R-Multiple Analytics:
-    - avg_r_multiple / median_r_multiple: Statistics for R-multiples.
+    - get_r_multiples: Generate R-multiple series from risk-adjusted profit.
+    - avg_r_multiple / median_r_multiple: Central tendencies in R-terms.
     - r_multiple_distribution: Detailed distribution (mean, std, quartiles).
     - r_expectancy: Expected value per trade in R-terms.
-    - max_r_multiple / min_r_multiple: Extreme R-multiple values.
 
-Trade Sequence Quality:
-    - max_consecutive_wins / max_consecutive_losses: Longest streaks.
-    - avg_consecutive_wins / avg_consecutive_losses: Average streak lengths.
-    - win_loss_streaks: Lists of all streak lengths.
-
-Time-in-Trade:
-    - avg_time_in_trade / median_time_in_trade: Statistics for trade duration.
-    - max_time_in_trade / min_time_in_trade: Extreme trade durations.
+Trade Sequence & Stability:
+    - runs_test_zscore: Wald-Wolfowitz Z-Score for sequence randomness.
+    - win_after_win_probability: Probability of consecutive winning outcomes.
+    - r_signal_to_noise: Mean R / Std R (unannualized Trade Sharpe).
+    - rolling_expectancy_stability: Consistency of the edge over time.
+    - max_consecutive_wins / max_consecutive_losses: Streak diagnostics.
 
 System Quality Metrics:
     - sqn: System Quality Number (Van Tharp).
     - kelly_criterion: Optimal fraction of capital to risk.
-    - compute_trade_metrics: High-level dictionary of trade-based analytics.
-    - compute_equity_metrics: High-level dictionary of equity-based analytics (Sharpe, etc.).
+    - trade_efficiency: Realized R captured relative to available MFE.
+    - trade_outcome_entropy: Shannon entropy of outcomes (predictability).
 
-Advanced Performance & Information:
-    - trade_efficiency: Realized R captured relative to available MFE/MAE.
-    - expectancy_variance: Measure of expectancy stability.
-    - trade_outcome_entropy: Shannon entropy of trade outcomes (predictability).
-
-Time-Based Period Metrics:
-    - trading_period_duration: Total duration of the test period.
-    - time_in_market_duration: Total duration with at least one open position.
-    - percent_time_in_market: Percentage of time spent in the market.
-    - longest_flat_period_duration: Maximum time between trades.
+Temporal exposure:
+    - trading_period_duration: Total duration of the test.
+    - time_in_market_duration: Total time with at least one active position.
+    - percent_time_in_market: Percentage of test period spent in-market.
+    - longest_flat_period_duration: Maximum duration between trade intervals.
 
 Equity Curve Metrics:
     - max_runup: Maximum peak-to-valley gain.
     - max_runup_date: Timestamp of the peak of max run-up.
 """
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
-from . import drawdowns, ratios
+from . import common, ratios, drawdowns
+from .common import (
+    EPSILON, _has_col, get_closed_trades, classify_trades, 
+    _to_1d_float_array, get_r_multiples, max_gross_size_held,
+    percent_time_in_market, _merge_intervals, time_in_market_duration
+)
 
 
 try:
@@ -90,120 +89,145 @@ except ImportError:
 # =========================================================================
 
 
-def _to_1d_float_array(values) -> np.ndarray:
-    """Normalize 1D numeric inputs to a float NumPy array."""
-    if isinstance(values, pd.Series):
-        array = values.astype(float).to_numpy()
-    else:
-        array = np.asarray(values, dtype=float)
-
-    if array.ndim == 0:
-        array = array.reshape(1)
-
-    return array[~np.isnan(array)]
 
 
-def win_rate_fraction(values) -> float:
-    """Calculate win rate on a 0-1 scale from 1D numeric input."""
+def get_r_multiples(trades: pd.DataFrame, closed_only: bool = True) -> pd.Series:
+    """
+    Get R-multiples for trades. 
+    Priority:
+    1. 'initial_risk_amount' (Monetary risk)
+    2. 'initial_risk' (Generic risk amount)
+    3. Fallback: abs(avg_loss) as estimated proxy.
+    """
+    data = get_closed_trades(trades) if closed_only else trades
+    if data.empty or not _has_col(data, "profit_loss"):
+        return pd.Series(dtype=float)
+        
+    # 1. Official Risk Amount (Monetary)
+    for col in ["initial_risk_amount", "initial_risk"]:
+        if col in data.columns:
+            risk = data[col].abs().replace(0, np.nan)
+            r = data["profit_loss"] / risk
+            r = r.replace([np.inf, -np.inf], np.nan).dropna()
+            if not r.empty:
+                return r
+
+    # 2. Fallback: Use Average Loss as proxy for 1R baseline
+    avg_l = abs(avg_loss(data))
+    if avg_l > EPSILON:
+        r = data["profit_loss"] / avg_l
+        return r.replace([np.inf, -np.inf], np.nan).dropna()
+        
+    return pd.Series(dtype=float)
+
+
+def get_ordered_closed_trades(trades: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filter for closed trades and sort them by time to ensure sequence-dependent metrics are correct.
+    Priority: close_time, then open_time.
+    """
+    closed = get_closed_trades(trades).copy()
+    if closed.empty:
+        return closed
+        
+    if "close_time" in closed.columns:
+        return closed.sort_values("close_time")
+    if "open_time" in closed.columns:
+        return closed.sort_values("open_time")
+    return closed
+
+
+def _to_datetime_series(series: pd.Series) -> pd.Series:
+    """Convert a timestamp series safely, supporting datetime values and Unix seconds."""
+    if pd.api.types.is_numeric_dtype(series):
+        return pd.to_datetime(series, unit="s")
+    return pd.to_datetime(series)
+
+
+def win_rate_fraction(values, epsilon: float = EPSILON) -> float:
+    """Win rate on a 0-1 scale."""
     normalized = _to_1d_float_array(values)
     if len(normalized) == 0:
         return float("nan")
-    return float(np.mean(normalized > 0))
+    return float(np.mean(normalized > epsilon))
 
 
-def avg_win_loss(values) -> tuple[float, float]:
-    """Calculate mean winning and losing outcomes from 1D numeric input."""
+def avg_win_loss(values, epsilon: float = EPSILON) -> tuple[float, float]:
+    """Mean winning and losing outcomes."""
     normalized = _to_1d_float_array(values)
-    wins = normalized[normalized > 0]
-    losses = normalized[normalized < 0]
+    wins = normalized[normalized > epsilon]
+    losses = normalized[normalized < -epsilon]
+    
     avg_win = float(np.mean(wins)) if len(wins) else float("nan")
     avg_loss = float(np.mean(losses)) if len(losses) else float("nan")
     return avg_win, avg_loss
 
 
-@njit(cache=True)
-def _consecutive_wins_losses_kernel(wins_bool_arr):
+def consecutive_wins_losses(values, epsilon: float = EPSILON) -> tuple[int, int]:
+    """
+    Max consecutive wins and losses from a 1D array.
+    Breakeven trades (abs < epsilon) break both streaks.
+    """
+    normalized = _to_1d_float_array(values)
+    
     max_wins = 0
     max_losses = 0
-    current_wins = 0
-    current_losses = 0
-    for is_win in wins_bool_arr:
-        if is_win:
-            current_wins += 1
-            if current_wins > max_wins:
-                max_wins = current_wins
-            current_losses = 0
+    curr_wins = 0
+    curr_losses = 0
+    
+    for val in normalized:
+        if val > epsilon:
+            curr_wins += 1
+            curr_losses = 0
+        elif val < -epsilon:
+            curr_losses += 1
+            curr_wins = 0
         else:
-            current_losses += 1
-            if current_losses > max_losses:
-                max_losses = current_losses
-            current_wins = 0
+            curr_wins = 0
+            curr_losses = 0
+            
+        if curr_wins > max_wins: max_wins = curr_wins
+        if curr_losses > max_losses: max_losses = curr_losses
+        
     return max_wins, max_losses
 
 
-def consecutive_wins_losses(values) -> tuple[int, int]:
-    """Calculate max consecutive wins and losses from 1D numeric input."""
-    normalized = _to_1d_float_array(values)
-    if len(normalized) == 0:
-        return 0, 0
 
-    wins = normalized > 0
-    return _consecutive_wins_losses_kernel(wins)
+
+
+# Helper kernels and functions moved or unified above.
 
 
 def median_mae_mfe(mae: np.ndarray, mfe: np.ndarray) -> tuple[float, float]:
-    """Calculate median MAE and MFE from R-space arrays."""
+    """Calculate median MAE and MFE."""
     mae = np.asarray(mae, dtype=float)
     mfe = np.asarray(mfe, dtype=float)
     return (
-        float(np.median(mae)) if len(mae) else float("nan"),
-        float(np.median(mfe)) if len(mfe) else float("nan"),
+        float(np.median(mae)) if len(mae) else 0.0,
+        float(np.median(mfe)) if len(mfe) else 0.0,
     )
 
 
-@njit(cache=True)
-def _max_size_held_kernel(times, sizes):
-    # events are (time, size_change)
-    current_held = 0.0
-    max_held = 0.0
-    for i in range(len(sizes)):
-        current_held += sizes[i]
-        if abs(current_held) < 1e-9:
-            current_held = 0.0
-        if current_held > max_held:
-            max_held = current_held
-    return max_held
+def get_mae_mfe_r(trades: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Get MAE and MFE normalized to R-space."""
+    if trades.empty:
+        return pd.Series(dtype=float), pd.Series(dtype=float)
+        
+    # Prefer pre-calculated R-space columns
+    if "mae_r" in trades.columns and "mfe_r" in trades.columns:
+        return trades["mae_r"], trades["mfe_r"]
+        
+    # Fallback: calculate from USD and risk amount
+    if "initial_risk_amount" in trades.columns:
+        risk = trades["initial_risk_amount"].abs().replace(0, np.nan)
+        mae_usd = trades["mae_usd"] if "mae_usd" in trades.columns else pd.Series(0.0, index=trades.index)
+        mfe_usd = trades["mfe_usd"] if "mfe_usd" in trades.columns else pd.Series(0.0, index=trades.index)
+        return mae_usd / risk, mfe_usd / risk
+        
+    return pd.Series(0.0, index=trades.index), pd.Series(0.0, index=trades.index)
 
 
-@njit(cache=True)
-def _merge_intervals_kernel(starts, ends):
-    n = len(starts)
-    if n == 0:
-        return np.empty((0, 2), dtype=starts.dtype)
-    
-    # Pre-allocate worst case
-    merged = np.empty((n, 2), dtype=starts.dtype)
-    m_ptr = 0
-    
-    curr_start = starts[0]
-    curr_end = ends[0]
-    
-    for i in range(1, n):
-        if starts[i] <= curr_end:
-            if ends[i] > curr_end:
-                curr_end = ends[i]
-        else:
-            merged[m_ptr, 0] = curr_start
-            merged[m_ptr, 1] = curr_end
-            m_ptr += 1
-            curr_start = starts[i]
-            curr_end = ends[i]
-            
-    merged[m_ptr, 0] = curr_start
-    merged[m_ptr, 1] = curr_end
-    m_ptr += 1
-    
-    return merged[:m_ptr]
+
 
 
 def t_statistic(values) -> float:
@@ -226,120 +250,78 @@ def t_statistic(values) -> float:
 # =========================================================================
 
 
-def open_position_pnl(open_trades: pd.DataFrame) -> Optional[float]:
-    """
-    Calculate Open Position P/L.
-
-    The profit/loss for the position currently open.
-    Returns None if no positions are open, to signify 'N/A'.
-    """
-    if len(open_trades) == 0:
-        return None
-
+def open_position_pnl(open_trades: pd.DataFrame) -> float:
+    """Total unrealized P&L from open positions."""
+    if open_trades.empty or not _has_col(open_trades, "profit_loss"):
+        return 0.0
     return float(open_trades["profit_loss"].sum())
 
 
 def total_trades(trades: pd.DataFrame) -> int:
-    """
-    Calculate the total number of trades generated by a strategy.
-
-    The total number of trades (both winning and losing) generated by a strategy. The total
-    number of trades is important for a number of reasons. For example, no matter how large
-    is the strategies Total Net Profit, one must be sure the value is staistically valid,
-    i.e. the number of trades is large enough. Also important is the relation between the
-    number of trades and time; even good, profitable trades may be taking place too rarely
-    or too frequently for your needs.
-    """
-    return len(trades)
+    """Total number of closed trades."""
+    return len(get_closed_trades(trades))
 
 
 def winning_trades(trades: pd.DataFrame) -> int:
-    """Calculate number of winning trades."""
-    return int((trades["profit_loss"] > 1).sum())
+    """Count of closed winning trades (> EPSILON)."""
+    wins, _, _ = classify_trades(get_closed_trades(trades))
+    return len(wins)
 
 
 def losing_trades(trades: pd.DataFrame) -> int:
-    """Calculate number of losing trades."""
-    return int((trades["profit_loss"] < -1).sum())
+    """Count of closed losing trades (< -EPSILON)."""
+    _, losses, _ = classify_trades(get_closed_trades(trades))
+    return len(losses)
 
 
 def breakeven_trades(trades: pd.DataFrame) -> int:
-    """Calculate number of breakeven trades."""
-    return int(((trades["profit_loss"] >= -1) & (trades["profit_loss"] <= 1)).sum())
+    """Count of closed trades with |PnL| <= EPSILON."""
+    _, _, be = classify_trades(get_closed_trades(trades))
+    return len(be)
 
 
 def long_trades(trades: pd.DataFrame) -> int:
-    """Calculate number of long trades."""
-    return int((trades["type"] == "buy").sum())
+    """Count of closed long trades."""
+    closed = get_closed_trades(trades)
+    if "type" not in closed.columns: return 0
+    return len(closed[closed["type"] == "buy"])
 
 
 def short_trades(trades: pd.DataFrame) -> int:
-    """Calculate number of short trades."""
-    return int((trades["type"] == "sell").sum())
+    """Count of closed short trades."""
+    closed = get_closed_trades(trades)
+    if "type" not in closed.columns: return 0
+    return len(closed[closed["type"] == "sell"])
 
 
 def count_open_trades(trades: pd.DataFrame) -> int:
-    """Calculate number of open trades (exit_reason="END_OF_DATA")."""
-    if len(trades) == 0 or "exit_reason" not in trades.columns:
-        return 0
-    return int((trades["exit_reason"] == "END_OF_DATA").sum())
+    """Count of trades currently open."""
+    closed = get_closed_trades(trades)
+    return len(trades) - len(closed)
 
 
-def slippage_paid(trades: pd.DataFrame) -> float:
-    """Calculate total slippage paid."""
-    if len(trades) == 0 or "slippage" not in trades.columns:
+def slippage_paid(trades: pd.DataFrame, closed_only: bool = False) -> float:
+    """Total absolute slippage costs paid (Option A: positive paid)."""
+    data = get_closed_trades(trades) if closed_only else trades
+    if data.empty or not _has_col(data, "slippage_usd"):
         return 0.0
-    return float(trades["slippage"].sum())
+    return float(data["slippage_usd"].abs().sum())
 
 
-def commission_paid(trades: pd.DataFrame) -> float:
-    """Calculate total commission paid."""
-    if len(trades) == 0 or "commission" not in trades.columns:
+def commission_paid(trades: pd.DataFrame, closed_only: bool = False) -> float:
+    """Total absolute commission costs paid (Option A: positive paid)."""
+    data = get_closed_trades(trades) if closed_only else trades
+    if data.empty or not _has_col(data, "commission"):
         return 0.0
-    return float(trades["commission"].sum())
+    return float(data["commission"].abs().sum())
 
 
-def swap_paid(trades: pd.DataFrame) -> float:
-    """Calculate total swap paid."""
-    if len(trades) == 0 or "swap" not in trades.columns:
+def swap_paid(trades: pd.DataFrame, closed_only: bool = False) -> float:
+    """Total absolute swap costs paid (Option A: positive paid)."""
+    data = get_closed_trades(trades) if closed_only else trades
+    if data.empty or not _has_col(data, "swap"):
         return 0.0
-    return float(trades["swap"].sum())
-
-
-def max_size_held(trades: pd.DataFrame) -> float:
-    """
-    Maximum number of contracts held at any one time.
-    """
-    if len(trades) == 0:
-        return 0.0
-
-    has_time = "open_time" in trades.columns and "close_time" in trades.columns
-    has_size = "size" in trades.columns or "quantity" in trades.columns or "volume" in trades.columns
-
-    if not has_size:
-        return 0.0
-    
-    size_col = "size" if "size" in trades.columns else ("quantity" if "quantity" in trades.columns else "volume")
-
-    if not has_time:
-        return float(trades[size_col].max())
-
-    # Create events: (timestamp, size_change)
-    open_times = trades["open_time"].values
-    close_times = trades["close_time"].values
-    sizes = trades[size_col].values
-    
-    # Combine into a flat array of events for sorting
-    event_times = np.concatenate([open_times, close_times])
-    # Open adds size, Close removes size
-    event_sizes = np.concatenate([sizes, -sizes])
-    
-    # Sort events by time, then size (exits before entries if times equal)
-    idx = np.lexsort((event_sizes, event_times))
-    
-    sorted_sizes = event_sizes[idx]
-    
-    return float(_max_size_held_kernel(None, sorted_sizes))
+    return float(data["swap"].abs().sum())
 
 
 # =========================================================================
@@ -348,51 +330,123 @@ def max_size_held(trades: pd.DataFrame) -> float:
 
 
 def win_rate(trades: pd.DataFrame) -> float:
-    """Calculate win rate as percentage (0-100)."""
-    if len(trades) == 0:
-        return 0.0
-    return (winning_trades(trades) / len(trades)) * 100
+    """Percentage of winning trades (0-100)."""
+    closed = get_closed_trades(trades)
+    if len(closed) == 0: return 0.0
+    return (winning_trades(closed) / len(closed)) * 100.0
 
 
 def loss_rate(trades: pd.DataFrame) -> float:
-    """Calculate loss rate as percentage (0-100)."""
-    if len(trades) == 0:
-        return 0.0
-    return (losing_trades(trades) / len(trades)) * 100
+    """Percentage of losing trades (0-100)."""
+    closed = get_closed_trades(trades)
+    if len(closed) == 0: return 0.0
+    return (losing_trades(closed) / len(closed)) * 100.0
 
 
 def avg_win(trades: pd.DataFrame) -> float:
-    """Calculate average winning trade P&L."""
-    winners = trades[trades["profit_loss"] > 1]["profit_loss"]
-    return float(winners.mean()) if len(winners) > 0 else 0.0
+    """Mean profit of winning trades."""
+    if trades.empty or not _has_col(trades, "profit_loss"): return 0.0
+    wins, _, _ = classify_trades(get_closed_trades(trades))
+    return float(wins["profit_loss"].mean()) if not wins.empty else 0.0
 
 
 def avg_loss(trades: pd.DataFrame) -> float:
-    """Calculate average losing trade P&L (negative value)."""
-    losers = trades[trades["profit_loss"] < -1]["profit_loss"]
-    return float(losers.mean()) if len(losers) > 0 else 0.0
+    """Mean loss of losing trades."""
+    if trades.empty or not _has_col(trades, "profit_loss"): return 0.0
+    _, losses, _ = classify_trades(get_closed_trades(trades))
+    return float(losses["profit_loss"].mean()) if not losses.empty else 0.0
 
 
 def largest_win(trades: pd.DataFrame) -> float:
-    """Calculate largest winning trade."""
-    return float(trades["profit_loss"].max()) if len(trades) > 0 else 0.0
+    """Maximum profit from a single trade."""
+    if trades.empty or not _has_col(trades, "profit_loss"): return 0.0
+    closed = get_closed_trades(trades)
+    return float(closed["profit_loss"].max()) if not closed.empty else 0.0
 
 
 def largest_loss(trades: pd.DataFrame) -> float:
-    """Calculate largest losing trade (negative value)."""
-    return float(trades["profit_loss"].min()) if len(trades) > 0 else 0.0
+    """Maximum loss from a single trade."""
+    if trades.empty or not _has_col(trades, "profit_loss"): return 0.0
+    closed = get_closed_trades(trades)
+    return float(closed["profit_loss"].min()) if not closed.empty else 0.0
 
 
 def median_win(trades: pd.DataFrame) -> float:
-    """Calculate median winning trade P&L."""
-    winners = trades[trades["profit_loss"] > 1]["profit_loss"]
-    return float(winners.median()) if len(winners) > 0 else 0.0
+    """Median P&L of winning trades."""
+    wins, _, _ = classify_trades(get_closed_trades(trades))
+    return float(wins["profit_loss"].median()) if not wins.empty else 0.0
 
 
 def median_loss(trades: pd.DataFrame) -> float:
-    """Calculate median losing trade P&L (negative value)."""
-    losers = trades[trades["profit_loss"] < -1]["profit_loss"]
-    return float(losers.median()) if len(losers) > 0 else 0.0
+    """Median P&L of losing trades."""
+    _, losses, _ = classify_trades(get_closed_trades(trades))
+    return float(losses["profit_loss"].median()) if not losses.empty else 0.0
+
+
+def expectancy(trades: pd.DataFrame) -> float:
+    """Calculate expectancy using ratios module."""
+    return ratios.expectancy(trades)
+
+
+def expectancy_r(r_values: pd.Series | np.ndarray) -> float:
+    """Calculate R-expectancy using ratios module."""
+    return ratios.expectancy_r(r_values)
+
+
+def max_size_held(trades: pd.DataFrame) -> float:
+    """Maximum total contracts held (Gross). Wrapper for max_gross_size_held."""
+    return max_gross_size_held(trades)
+
+
+def max_net_size_held(
+    trades: pd.DataFrame,
+    end_time: Optional[pd.Timestamp] = None
+) -> float:
+    """Maximum net directional size held (Long - Short). Returns absolute peak."""
+    if trades.empty: return 0.0
+    
+    size_col = _get_size_col(trades)
+    if not size_col or "type" not in trades.columns: return 0.0
+
+    is_buy = (trades["type"] == "buy").values
+    raw_sizes = trades[size_col].abs().values # Standardize to positive size, then apply type
+    
+    open_sizes = np.where(is_buy, raw_sizes, -raw_sizes)
+    close_sizes = -open_sizes
+    
+    o_times = trades["open_time"].values
+    c_times = trades["close_time"].fillna(end_time if end_time else trades["open_time"].max()).values
+    
+    event_times = np.concatenate([o_times, c_times])
+    event_sizes = np.concatenate([open_sizes, close_sizes])
+    
+    idx = np.lexsort((-event_sizes, event_times))
+    sorted_sizes = event_sizes[idx]
+    
+    current = 0.0
+    peak = 0.0
+    for s in sorted_sizes:
+        current += s
+        if abs(current) > peak:
+            peak = abs(current)
+            
+    return float(peak)
+
+
+def max_long_size_held(trades: pd.DataFrame) -> float:
+    """Maximum total long contracts held at any one time."""
+    return max_gross_size_held(trades[trades["type"] == "buy"]) if "type" in trades.columns else 0.0
+
+
+def max_short_size_held(trades: pd.DataFrame) -> float:
+    """Maximum total short contracts held at any one time."""
+    return max_gross_size_held(trades[trades["type"] == "sell"]) if "type" in trades.columns else 0.0
+
+
+def _get_size_col(trades: pd.DataFrame) -> Optional[str]:
+    for col in ["size", "quantity", "volume"]:
+        if col in trades.columns: return col
+    return None
 
 
 # =========================================================================
@@ -400,18 +454,23 @@ def median_loss(trades: pd.DataFrame) -> float:
 # =========================================================================
 
 
+
+
+
 def avg_r_multiple(trades: pd.DataFrame) -> float:
     """Calculate average R-multiple across all trades."""
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
+    r_values = get_r_multiples(trades)
+    if r_values.empty:
         return 0.0
-    return float(trades["r_multiple"].mean())
+    return float(r_values.mean())
 
 
 def median_r_multiple(trades: pd.DataFrame) -> float:
     """Calculate median R-multiple."""
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
+    r_values = get_r_multiples(trades)
+    if r_values.empty:
         return 0.0
-    return float(trades["r_multiple"].median())
+    return float(r_values.median())
 
 
 def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
@@ -421,7 +480,8 @@ def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
     Returns:
         Dict with mean, median, std, min, max, 25th, 75th percentiles
     """
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
+    r_values = get_r_multiples(trades)
+    if r_values.empty:
         return {
             "mean": 0.0,
             "median": 0.0,
@@ -431,8 +491,6 @@ def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
             "q25": 0.0,
             "q75": 0.0,
         }
-
-    r_values = trades["r_multiple"]
 
     return {
         "mean": float(r_values.mean()),
@@ -446,22 +504,72 @@ def r_multiple_distribution(trades: pd.DataFrame) -> Dict[str, float]:
 
 
 def r_expectancy(trades: pd.DataFrame) -> float:
-    """Calculate R-expectancy (same as avg_r_multiple, but explicit name)."""
-    return avg_r_multiple(trades)
+    """Calculate R-expectancy using ratios module."""
+    return ratios.expectancy_r(get_r_multiples(trades))
 
 
 def max_r_multiple(trades: pd.DataFrame) -> float:
     """Calculate maximum R-multiple achieved."""
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
+    r_values = get_r_multiples(trades)
+    if r_values.empty:
         return 0.0
-    return float(trades["r_multiple"].max())
+    return float(r_values.max())
 
 
 def min_r_multiple(trades: pd.DataFrame) -> float:
     """Calculate minimum R-multiple achieved."""
-    if len(trades) == 0 or "r_multiple" not in trades.columns:
+    r_values = get_r_multiples(trades)
+    if r_values.empty:
         return 0.0
-    return float(trades["r_multiple"].min())
+    return float(r_values.min())
+
+
+def median_mae_r(trades: pd.DataFrame) -> float:
+    """Median Maximum Adverse Excursion in R-multiple terms."""
+    if trades.empty or "mae_usd" not in trades.columns:
+        return 0.0
+    
+    # Extract risk for normalization
+    risk_cols = ["initial_risk_amount", "initial_risk"]
+    risk = pd.Series(dtype=float)
+    for col in risk_cols:
+        if col in trades.columns:
+            risk = trades[col].abs().replace(0, np.nan)
+            break
+            
+    if risk.empty:
+        # Fallback to avg loss as risk proxy if no explicit risk
+        from .common import avg_loss
+        risk_val = abs(avg_loss(trades))
+        if risk_val < EPSILON: return 0.0
+        mae_r = trades["mae_usd"].abs() / risk_val
+    else:
+        mae_r = trades["mae_usd"].abs() / risk
+        
+    return float(mae_r.dropna().median())
+
+
+def median_mfe_r(trades: pd.DataFrame) -> float:
+    """Median Maximum Favorable Excursion in R-multiple terms."""
+    if trades.empty or "mfe_usd" not in trades.columns:
+        return 0.0
+        
+    risk_cols = ["initial_risk_amount", "initial_risk"]
+    risk = pd.Series(dtype=float)
+    for col in risk_cols:
+        if col in trades.columns:
+            risk = trades[col].abs().replace(0, np.nan)
+            break
+            
+    if risk.empty:
+        from .common import avg_loss
+        risk_val = abs(avg_loss(trades))
+        if risk_val < EPSILON: return 0.0
+        mfe_r = trades["mfe_usd"].abs() / risk_val
+    else:
+        mfe_r = trades["mfe_usd"].abs() / risk
+        
+    return float(mfe_r.dropna().median())
 
 
 # =========================================================================
@@ -469,124 +577,89 @@ def min_r_multiple(trades: pd.DataFrame) -> float:
 # =========================================================================
 
 
-def max_consecutive_wins(trades: pd.DataFrame) -> int:
-    """Calculate maximum consecutive winning trades."""
-    if len(trades) == 0:
-        return 0
-
-    is_win = (trades["profit_loss"] > 1).astype(int)
+@njit(cache=True)
+def _consecutive_kernel(is_win):
+    """
+    Calculates max consecutive wins or losses.
+    NOTE: Input must be a boolean array where True is the event of interest (Win).
+    Any non-win (Loss or Breakeven) breaks the streak.
+    """
     max_streak = 0
     current_streak = 0
-
-    for win in is_win:
-        if win:
+    for i in range(len(is_win)):
+        if is_win[i]:
             current_streak += 1
-            max_streak = max(max_streak, current_streak)
+            if current_streak > max_streak:
+                max_streak = current_streak
         else:
             current_streak = 0
-
     return max_streak
+
+
+def max_consecutive_wins(trades: pd.DataFrame) -> int:
+    """Calculate maximum consecutive winning trades."""
+    ordered = get_ordered_closed_trades(trades)
+    if ordered.empty: return 0
+    return int(_consecutive_kernel((ordered["profit_loss"] > EPSILON).values))
 
 
 def max_consecutive_losses(trades: pd.DataFrame) -> int:
     """Calculate maximum consecutive losing trades."""
-    if len(trades) == 0:
-        return 0
-
-    is_loss = (trades["profit_loss"] < -1).astype(int)
-    max_streak = 0
-    current_streak = 0
-
-    for loss in is_loss:
-        if loss:
-            current_streak += 1
-            max_streak = max(max_streak, current_streak)
-        else:
-            current_streak = 0
-
-    return max_streak
-
+    ordered = get_ordered_closed_trades(trades)
+    if ordered.empty: return 0
+    return int(_consecutive_kernel((ordered["profit_loss"] < -EPSILON).values))
 
 def avg_consecutive_wins(trades: pd.DataFrame) -> float:
-    """Calculate average length of winning streaks."""
-    if len(trades) == 0:
-        return 0.0
-
-    is_win = (trades["profit_loss"] > 1).astype(int)
-    streaks = []
-    current_streak = 0
-
-    for win in is_win:
-        if win:
-            current_streak += 1
-        else:
-            if current_streak > 0:
-                streaks.append(current_streak)
-            current_streak = 0
-
-    if current_streak > 0:
-        streaks.append(current_streak)
-
+    """Average length of winning streaks."""
+    streaks = win_loss_streaks(trades)["win_streaks"]
     return float(np.mean(streaks)) if streaks else 0.0
 
 
 def avg_consecutive_losses(trades: pd.DataFrame) -> float:
-    """Calculate average length of losing streaks."""
-    if len(trades) == 0:
-        return 0.0
-
-    is_loss = (trades["profit_loss"] < -1).astype(int)
-    streaks = []
-    current_streak = 0
-
-    for loss in is_loss:
-        if loss:
-            current_streak += 1
-        else:
-            if current_streak > 0:
-                streaks.append(current_streak)
-            current_streak = 0
-
-    if current_streak > 0:
-        streaks.append(current_streak)
-
+    """Average length of losing streaks."""
+    streaks = win_loss_streaks(trades)["loss_streaks"]
     return float(np.mean(streaks)) if streaks else 0.0
 
 
 def win_loss_streaks(trades: pd.DataFrame) -> Dict[str, List[int]]:
     """
     Get all winning and losing streaks.
-
-    Returns:
-        Dict with 'win_streaks' and 'loss_streaks' lists
+    Breakeven trades break BOTH win and loss streaks.
     """
-    if len(trades) == 0:
-        return {"win_streaks": [], "loss_streaks": []}
-
-    is_win = (trades["profit_loss"] > 1).astype(int)
-
+    ordered = get_ordered_closed_trades(trades)
+    if ordered.empty: return {"win_streaks": [], "loss_streaks": []}
+    
+    pnl = ordered["profit_loss"].values
+    
     win_streaks = []
     loss_streaks = []
-    current_win_streak = 0
-    current_loss_streak = 0
+    current_win = 0
+    current_loss = 0
 
-    for win in is_win:
-        if win:
-            if current_loss_streak > 0:
-                loss_streaks.append(current_loss_streak)
-                current_loss_streak = 0
-            current_win_streak += 1
+    for val in pnl:
+        if val > EPSILON:
+            # Win
+            if current_loss > 0:
+                loss_streaks.append(current_loss)
+                current_loss = 0
+            current_win += 1
+        elif val < -EPSILON:
+            # Loss
+            if current_win > 0:
+                win_streaks.append(current_win)
+                current_win = 0
+            current_loss += 1
         else:
-            if current_win_streak > 0:
-                win_streaks.append(current_win_streak)
-                current_win_streak = 0
-            current_loss_streak += 1
+            # Breakeven - breaks both
+            if current_win > 0:
+                win_streaks.append(current_win)
+            if current_loss > 0:
+                loss_streaks.append(current_loss)
+            current_win = 0
+            current_loss = 0
 
-    # Add final streak
-    if current_win_streak > 0:
-        win_streaks.append(current_win_streak)
-    if current_loss_streak > 0:
-        loss_streaks.append(current_loss_streak)
+    if current_win > 0: win_streaks.append(current_win)
+    if current_loss > 0: loss_streaks.append(current_loss)
 
     return {"win_streaks": win_streaks, "loss_streaks": loss_streaks}
 
@@ -636,9 +709,10 @@ def sqn(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     SQN = sqrt(N) × (Avg R / Std R)
     """
     if isinstance(trades, pd.DataFrame):
-        if len(trades) == 0 or "r_multiple" not in trades.columns:
+        r_series = get_r_multiples(trades)
+        if r_series.empty:
             return 0.0
-        r_values = trades["r_multiple"].astype(float).to_numpy()
+        r_values = r_series.astype(float).to_numpy()
     else:
         r_values = _to_1d_float_array(trades)
 
@@ -657,43 +731,56 @@ def sqn(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
 
 def kelly_criterion(trades: pd.DataFrame | pd.Series | np.ndarray) -> float:
     """
-    Calculate Kelly Criterion fraction.
+    Calculate Kelly Criterion percentage based on R-multiples (if available) or Returns.
+    This provides a normalized edge estimate independent of raw dollar sizing.
 
     Returns:
-        Fraction of capital to risk, clipped at 0 on the lower bound.
+        Percentage of capital to risk (0-100).
     """
     if isinstance(trades, pd.DataFrame):
-        if len(trades) == 0 or "profit_loss" not in trades.columns:
-            return 0.0
-        values = trades["profit_loss"].astype(float).to_numpy()
+        # Prefer R-multiples for Kelly as it normalizes for position size
+        values = get_r_multiples(trades).values
     else:
         values = _to_1d_float_array(trades)
 
     if len(values) == 0:
         return 0.0
 
-    win_prob = win_rate_fraction(values)
-    avg_win_val, avg_loss_val = avg_win_loss(values)
-    avg_loss_abs = abs(float(avg_loss_val)) if not np.isnan(avg_loss_val) else 0.0
+    # Probability of win (R > EPSILON)
+    wins = values[values > EPSILON]
+    losses = values[values < -EPSILON]
+    
+    n_total = len(values)
+    if n_total == 0: return 0.0
+    
+    p = len(wins) / n_total
+    q = 1.0 - p
+    
+    avg_w = float(np.mean(wins)) if len(wins) > 0 else 0.0
+    avg_l = abs(float(np.mean(losses))) if len(losses) > 0 else 0.0
 
-    if np.isnan(win_prob) or avg_loss_abs <= 0.0 or np.isnan(avg_win_val) or avg_win_val <= 0.0:
-        return 0.0
+    if avg_l == 0:
+        return p * 100.0 if avg_w > 0 else 0.0
+        
+    if avg_w == 0:
+        return -100.0 if avg_l > 0 else 0.0
 
-    payoff_ratio = float(avg_win_val / avg_loss_abs)
-    if payoff_ratio <= 0.0:
-        return 0.0
+    payoff_ratio = avg_w / avg_l
+    kelly_fraction = p - (q / payoff_ratio)
 
-    lose_prob = 1.0 - float(win_prob)
-    return float(max(0.0, float(win_prob) - (lose_prob / payoff_ratio)))
+    return float(kelly_fraction * 100.0)
 
 
-def compute_trade_metrics(
-    values,
-    mae: Optional[np.ndarray] = None,
-    mfe: Optional[np.ndarray] = None,
-) -> dict:
-    """Compute Edge-style trade metrics from 1D R-space inputs."""
-    normalized = _to_1d_float_array(values)
+def compute_r_trade_metrics(
+    r_values: np.ndarray,
+    mae_r: Optional[np.ndarray] = None,
+    mfe_r: Optional[np.ndarray] = None,
+) -> Dict[str, float]:
+    """
+    Calculate trade metrics from R-multiple space.
+    All inputs should be normalized to R (Realized R, MAE R, MFE R).
+    """
+    normalized = _to_1d_float_array(r_values)
 
     summary = {
         "n_trades": len(normalized),
@@ -714,14 +801,14 @@ def compute_trade_metrics(
     summary["max_consecutive_wins"] = max_cons_wins
     summary["max_consecutive_losses"] = max_cons_losses
 
-    if mae is not None:
-        mae = np.asarray(mae, dtype=float)
+    if mae_r is not None:
+        mae = np.asarray(mae_r, dtype=float)
         summary["median_mae"] = float(np.median(mae)) if len(mae) else float("nan")
 
-    if mfe is not None:
-        mfe = np.asarray(mfe, dtype=float)
+    if mfe_r is not None:
+        mfe = np.asarray(mfe_r, dtype=float)
         summary["median_mfe"] = float(np.median(mfe)) if len(mfe) else float("nan")
-        if mae is not None:
+        if mae_r is not None:
             summary["edge_ratio"] = _r_edge_ratio(mfe, mae)
             summary["trade_efficiency"] = _r_trade_efficiency(normalized, mfe)
 
@@ -784,82 +871,133 @@ def _r_edge_ratio(mfe: np.ndarray, mae: np.ndarray) -> float:
 
 def trade_efficiency(trades: pd.DataFrame) -> float:
     """
-    Calculate trade efficiency based on MFE/MAE ratio.
+    Efficiency = Realized Outcome / Maximum Favorable Excursion.
+    Uses closed trades only.
     """
-    if len(trades) == 0:
+    closed = get_closed_trades(trades)
+    if closed.empty:
         return 0.0
 
-    if "mfe_pips" not in trades.columns or "mae_pips" not in trades.columns:
-        return 0.0
-
-    valid_trades = trades[trades["mae_pips"] > 0]
-    if len(valid_trades) == 0:
-        return 0.0
-
-    efficiency_ratios = valid_trades["mfe_pips"] / valid_trades["mae_pips"]
-    return float(efficiency_ratios.mean())
-
-
-def expectancy_variance(trades: pd.DataFrame) -> float:
-    """Calculate variance of trade P&L (measure of expectancy stability)."""
-    if len(trades) == 0:
-        return 0.0
-    return float(trades["profit_loss"].var())
-
-
-def trade_outcome_entropy(trades: pd.DataFrame) -> float:
-    """
-    Calculate Shannon entropy of trade outcomes.
-    """
-    if len(trades) == 0:
-        return 0.0
-
-    wins = winning_trades(trades)
-    losses = losing_trades(trades)
-    be = breakeven_trades(trades)
-    total = len(trades)
-
-    probs = []
-    if wins > 0:
-        probs.append(wins / total)
-    if losses > 0:
-        probs.append(losses / total)
-    if be > 0:
-        probs.append(be / total)
-
-    if not probs:
-        return 0.0
-
-    entropy = -sum(p * np.log2(p) for p in probs if p > 0)
-    return float(entropy)
-
-
-# =========================================================================
-# Time-Based Period Metrics
-# =========================================================================
-
-
-def _merge_intervals(trades: pd.DataFrame) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
-    """
-    Merge overlapping time intervals from trades using optimized Numba kernel.
-    """
-    if len(trades) == 0:
-        return []
-
-    if "open_time" not in trades.columns or "close_time" not in trades.columns:
-        return []
-
-    # Sort by open_time using NumPy
-    sorted_df = trades.sort_values("open_time")
-    starts = sorted_df["open_time"].values.view("int64")
-    ends = sorted_df["close_time"].values.view("int64")
+    # 1. Try to get R-multiples (normalized)
+    r_vals = get_r_multiples(closed, closed_only=False)
     
-    merged_raw = _merge_intervals_kernel(starts, ends)
+    # 2. Identify MFE source
+    mfe = pd.Series(dtype=float)
+    if "mfe_r" in closed.columns:
+        mfe = closed["mfe_r"]
+    elif "mfe_usd" in closed.columns:
+        # If we have R-multiples, we need MFE in R-terms
+        if not r_vals.empty and "initial_risk_amount" in closed.columns:
+            risk = closed["initial_risk_amount"].abs().replace(0, np.nan)
+            mfe = closed["mfe_usd"] / risk
+        else:
+            # Fallback: Just use USD vs USD (Ratio is still valid)
+            mfe = closed["mfe_usd"]
+            r_vals = closed["profit_loss"] if "profit_loss" in closed.columns else pd.Series(dtype=float)
+    elif "mfe_pips" in closed.columns:
+        mfe = closed["mfe_pips"]
+        r_vals = closed["profit_pips"] if "profit_pips" in closed.columns else pd.Series(dtype=float)
+
+    if mfe.empty or r_vals.empty:
+        return 0.0
+
+    # Ensure index alignment and drop non-finite
+    aligned = pd.concat(
+        [r_vals.rename("r"), mfe.rename("mfe")],
+        axis=1
+    ).replace([np.inf, -np.inf], np.nan).dropna()
+
+    # Efficiency is only defined for trades that were in profit at some point
+    aligned = aligned[aligned["mfe"] > EPSILON]
+
+    if aligned.empty:
+        return 0.0
+
+    # Mean of (Realized / MFE)
+    return float((aligned["r"] / aligned["mfe"]).mean())
+
+
+def r_signal_to_noise(trades: pd.DataFrame) -> float:
+    """
+    Measure of trade expectancy normalized by its volatility (Mean R / Std R).
+    Also known as unannualized Trade Sharpe.
+    """
+    r_vals = get_r_multiples(trades)
+    if len(r_vals) < 5: return 0.0
     
-    return [
-        (pd.Timestamp(merged_raw[i, 0]), pd.Timestamp(merged_raw[i, 1]))
-        for i in range(len(merged_raw))
-    ]
+    mu = r_vals.mean()
+    sigma = r_vals.std()
+    
+    if sigma == 0: return float("inf") if mu > 0 else 0.0
+    return float(mu / sigma)
+
+
+def rolling_expectancy_stability(trades: pd.DataFrame, window: int = 50) -> float:
+    """
+    Measure of how stable the expectancy is over time using a rolling window.
+    Calculates (Mean of Rolling Mean R) / (Std of Rolling Mean R).
+    """
+    r = get_r_multiples(trades)
+    if len(r) < window: return 0.0
+    
+    rolling_exp = r.rolling(window).mean().dropna()
+    if rolling_exp.empty: return 0.0
+    
+    mu = rolling_exp.mean()
+    sigma = rolling_exp.std()
+    
+    if sigma == 0: return float("inf") if mu > 0 else 0.0
+    return float(mu / sigma)
+
+
+def win_after_win_probability(trades: pd.DataFrame) -> float:
+    """Probability that a win is followed by another win."""
+    ordered = get_ordered_closed_trades(trades)
+    if len(ordered) < 2: return 0.0
+    wins = (ordered["profit_loss"] > EPSILON).values
+    
+    win_followed_by_win = 0
+    total_wins_except_last = 0
+    
+    for i in range(len(wins) - 1):
+        if wins[i]:
+            total_wins_except_last += 1
+            if wins[i+1]:
+                win_followed_by_win += 1
+                
+    if total_wins_except_last == 0: return 0.0
+    return float(win_followed_by_win / total_wins_except_last)
+
+
+def runs_test_zscore(trades: pd.DataFrame) -> float:
+    """
+    Wald-Wolfowitz Runs Test Z-Score.
+    Tests if the sequence of wins/losses is random.
+    """
+    ordered = get_ordered_closed_trades(trades)
+    if len(ordered) < 10: return 0.0
+    
+    # Binary sequence: 1 for Win, 0 for Loss (Breakeven treated as Loss for binary test)
+    seq = (ordered["profit_loss"] > EPSILON).astype(int).values
+    n1 = np.sum(seq)      # Wins
+    n2 = len(seq) - n1    # Non-Wins
+    
+    if n1 == 0 or n2 == 0: return 0.0
+    
+    # Count runs
+    runs = 1
+    for i in range(1, len(seq)):
+        if seq[i] != seq[i-1]:
+            runs += 1
+            
+    # Expected runs
+    mu = ((2.0 * n1 * n2) / (n1 + n2)) + 1
+    # Variance
+    var = (2.0 * n1 * n2 * (2.0 * n1 * n2 - n1 - n2)) / (((n1 + n2)**2) * (n1 + n2 - 1))
+    
+    if var <= 0: return 0.0
+    z = (runs - mu) / np.sqrt(var)
+    return float(z)
 
 
 def trading_period_duration(
@@ -867,49 +1005,44 @@ def trading_period_duration(
     start_time: Optional[pd.Timestamp] = None,
     end_time: Optional[pd.Timestamp] = None,
 ) -> pd.Timedelta:
-    """
-    Calculate total duration of the trading period (Test Period).
-    """
-    if len(trades) == 0:
-        if start_time and end_time:
-            return end_time - start_time
+    """Calculate total duration of the trading period."""
+    if start_time is not None and end_time is not None:
+        return pd.Timestamp(end_time) - pd.Timestamp(start_time)
+
+    if trades.empty or "open_time" not in trades.columns:
         return pd.Timedelta(0)
 
-    t_start = start_time if start_time else trades["open_time"].min()
-    t_end = end_time if end_time else trades["close_time"].max()
+    start = pd.to_datetime(trades["open_time"]).min()
+    if "close_time" in trades.columns:
+        end = pd.to_datetime(trades["close_time"]).max()
+    else:
+        end = pd.to_datetime(trades["open_time"]).max()
 
-    if pd.isna(t_start) or pd.isna(t_end) or t_end < t_start:
-        return pd.Timedelta(0)
-
-    return t_end - t_start
+    return end - start
 
 
-def time_in_market_duration(trades: pd.DataFrame) -> pd.Timedelta:
+def trade_outcome_entropy(trades: pd.DataFrame) -> float:
     """
-    Calculate total duration where at least one position was open.
+    Calculate Shannon entropy of trade outcomes.
     """
-    merged_intervals = _merge_intervals(trades)
-    total_duration = pd.Timedelta(0)
-    for start, end in merged_intervals:
-        total_duration += end - start
-    return total_duration
-
-
-def percent_time_in_market(
-    trades: pd.DataFrame,
-    start_time: Optional[pd.Timestamp] = None,
-    end_time: Optional[pd.Timestamp] = None,
-) -> float:
-    """
-    Calculate percent of the trading period spent in the market.
-    """
-    total_period = trading_period_duration(trades, start_time, end_time)
-    if total_period.total_seconds() == 0:
+    closed = get_closed_trades(trades)
+    if closed.empty:
         return 0.0
 
-    market_time = time_in_market_duration(trades)
-    ratio = market_time.total_seconds() / total_period.total_seconds()
-    return float(ratio * 100.0)
+    wins = winning_trades(closed)
+    losses = losing_trades(closed)
+    be = breakeven_trades(closed)
+    total = len(closed)
+
+    probs = [x / total for x in [wins, losses, be] if x > 0]
+    if not probs:
+        return 0.0
+
+    entropy = -sum(p * np.log2(p) for p in probs)
+    return float(entropy)
+
+
+
 
 
 def longest_flat_period_duration(
@@ -920,66 +1053,39 @@ def longest_flat_period_duration(
     """
     Calculate longest period the strategy refrained from trading (flat).
     """
-    t_start = start_time if start_time else (trades["open_time"].min() if len(trades) > 0 else None)
-    t_end = end_time if end_time else (trades["close_time"].max() if len(trades) > 0 else None)
-
-    if t_start is None or t_end is None or pd.isna(t_start) or pd.isna(t_end):
+    if trades.empty:
+        return trading_period_duration(trades, start_time, end_time)
+        
+    merged = _merge_intervals(trades, end_time)
+    if not merged:
+        return trading_period_duration(trades, start_time, end_time)
+        
+    gaps_ns = []
+    
+    # Gap before first trade
+    if start_time:
+        s_val = start_time.value
+        m_start_val = merged[0][0].value
+        if m_start_val > s_val:
+            gaps_ns.append(m_start_val - s_val)
+            
+    # Gaps between trades
+    for i in range(len(merged) - 1):
+        gap = merged[i+1][0].value - merged[i][1].value
+        if gap > 0:
+            gaps_ns.append(gap)
+            
+    # Gap after last trade
+    if end_time:
+        e_val = end_time.value
+        m_end_val = merged[-1][1].value
+        if e_val > m_end_val:
+            gaps_ns.append(e_val - m_end_val)
+            
+    if not gaps_ns:
         return pd.Timedelta(0)
-
-    if len(trades) == 0:
-        return t_end - t_start
-
-    merged_intervals = _merge_intervals(trades)
-    max_flat = pd.Timedelta(0)
-
-    if merged_intervals:
-        # Start gap
-        first_open = merged_intervals[0][0]
-        if first_open > t_start:
-            max_flat = max(max_flat, first_open - t_start)
-
-        # Gaps between
-        prev_close = merged_intervals[0][1]
-        for i in range(1, len(merged_intervals)):
-            curr_open = merged_intervals[i][0]
-            gap = curr_open - prev_close
-            if gap > pd.Timedelta(0):
-                max_flat = max(max_flat, gap)
-            prev_close = merged_intervals[i][1]
-
-        # End gap
-        last_close = merged_intervals[-1][1]
-        if last_close < t_end:
-            max_flat = max(max_flat, t_end - last_close)
-
-    return max_flat
+        
+    return pd.Timedelta(max(gaps_ns), unit="ns")
 
 
-# =========================================================================
-# Equity Curve Metrics
-# =========================================================================
 
-
-def max_runup(equity_curve: pd.Series) -> float:
-    """
-    Max Run-up: maximum gain from a valley to a peak.
-    """
-    if len(equity_curve) == 0:
-        return 0.0
-    running_min = equity_curve.expanding().min()
-    runup_series = equity_curve - running_min
-    return float(runup_series.max())
-
-
-def max_runup_date(equity_curve: pd.Series) -> Optional[pd.Timestamp]:
-    """
-    Date of Max Run-up peak.
-    """
-    if len(equity_curve) == 0:
-        return None
-    running_min = equity_curve.expanding().min()
-    runup_series = equity_curve - running_min
-    try:
-        return runup_series.idxmax()
-    except (ValueError, TypeError):
-        return None

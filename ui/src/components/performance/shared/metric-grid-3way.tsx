@@ -21,10 +21,12 @@ import {
 export type MetricConfig = {
   label: string
   accessor: string // key in the data object
+  type?: "metric" | "group"
   format?: (value: string | number | null | undefined) => string
   unit?: string
   notes?: string
   description?: string
+  onlyShowAll?: boolean
 }
 
 export type MetricData = {
@@ -57,17 +59,33 @@ export function MetricGrid3Way({
   className,
 }: MetricGrid3WayProps) {
   const resolveMetric = (
-    obj: Record<string, string | number | null | undefined>,
+    obj: Record<string, string | number | null | undefined | any>,
     accessor: string,
   ) => {
-    if (obj && obj[accessor] !== undefined) {
+    if (!obj || !accessor) return undefined;
+    
+    // Support nested accessors (e.g., "returns.mean")
+    if (accessor.includes(".")) {
+      const parts = accessor.split(".");
+      let current: any = obj;
+      for (const part of parts) {
+        if (current && current[part] !== undefined) {
+          current = current[part];
+        } else {
+          return undefined;
+        }
+      }
+      return current;
+    }
+
+    if (obj[accessor] !== undefined) {
       return obj[accessor]
     }
     if (accessor === "Total # of Trades") {
-      if (obj && obj["Total Trades"] !== undefined) return obj["Total Trades"]
-      if (obj && obj["total_trades"] !== undefined) return obj["total_trades"]
+      if (obj["Total Trades"] !== undefined) return obj["Total Trades"]
+      if (obj["total_trades"] !== undefined) return obj["total_trades"]
     }
-    return obj ? obj[accessor] : undefined
+    return obj[accessor]
   }
 
   return (
@@ -78,18 +96,18 @@ export function MetricGrid3Way({
           blockType: "metric_table",
           title: title || "Performance metrics",
           summary: "Three-way metric comparison table for all, long, and short trades.",
-          keywords: metrics.map((metric) => metric.label).slice(0, 24),
+          keywords: metrics.filter(m => m.type !== "group").map((metric) => metric.label).slice(0, 24),
           headers: ["Metric", "All Trades", "Long", "Short"],
-          rows: metrics.slice(0, 48).map((metric) => {
+          rows: metrics.slice(0, 60).filter(m => m.type !== "group").map((metric) => {
             const formatter = metric.format || defaultFormatter
             const valAll = resolveMetric(data.all, metric.accessor)
-            const valLong = resolveMetric(data.long, metric.accessor)
-            const valShort = resolveMetric(data.short, metric.accessor)
+            const valLong = metric.onlyShowAll ? undefined : resolveMetric(data.long, metric.accessor)
+            const valShort = metric.onlyShowAll ? undefined : resolveMetric(data.short, metric.accessor)
             return [
               metric.label,
               valAll === null || valAll === undefined ? "-" : formatter(valAll),
-              valLong === null || valLong === undefined ? "-" : formatter(valLong),
-              valShort === null || valShort === undefined ? "-" : formatter(valShort),
+              valLong === null || valLong === undefined ? "" : formatter(valLong),
+              valShort === null || valShort === undefined ? "" : formatter(valShort),
             ]
           }),
         }}
@@ -111,16 +129,35 @@ export function MetricGrid3Way({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {metrics.map((metric) => {
+              {metrics.map((metric, idx) => {
+                if (metric.type === "group") {
+                    return (
+                        <TableRow key={`group-${idx}`} className="bg-muted/40 hover:bg-muted/40 border-y">
+                            <TableCell colSpan={4} className="py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                                {metric.label}
+                            </TableCell>
+                        </TableRow>
+                    )
+                }
+
                 const formatter = metric.format || defaultFormatter
                 const valAll = resolveMetric(data.all, metric.accessor)
                 const valLong = resolveMetric(data.long, metric.accessor)
                 const valShort = resolveMetric(data.short, metric.accessor)
 
                 const renderCell = (
-                  val: string | number | null | undefined,
+                  val: any,
                   defaultColor: string,
+                  onlyShowAll?: boolean,
+                  isSubset?: boolean
                 ) => {
+                  if (onlyShowAll && isSubset) {
+                    return (
+                        <TableCell className={cn("text-right font-mono", defaultColor)}>
+                        </TableCell>
+                      )
+                  }
+
                   if (val === null || val === undefined) {
                     return (
                       <TableCell className={cn("text-right font-mono", defaultColor)}>
@@ -128,6 +165,16 @@ export function MetricGrid3Way({
                       </TableCell>
                     )
                   }
+                  
+                  // If it's an object and not a React element, we can't render it directly
+                  if (typeof val === 'object' && !React.isValidElement(val)) {
+                      return (
+                        <TableCell className={cn("text-right font-mono text-muted-foreground", defaultColor)}>
+                          N/A
+                        </TableCell>
+                      )
+                  }
+
                   const isNegative = typeof val === "number" && val < 0
                   // Use absolute value for formatting if negative
                   const absVal = isNegative ? Math.abs(val) : val
@@ -147,7 +194,7 @@ export function MetricGrid3Way({
                     <TableCell className="font-medium">
                       {metric.description ? (
                         <Tooltip>
-                          <TooltipTrigger className="underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 cursor-help text-left">
+                          <TooltipTrigger className="cursor-help text-left hover:text-primary transition-colors">
                             {metric.label}
                           </TooltipTrigger>
                           <TooltipContent>
@@ -158,9 +205,9 @@ export function MetricGrid3Way({
                         metric.label
                       )}
                     </TableCell>
-                    {renderCell(valAll, "text-foreground/90")}
-                    {renderCell(valLong, "text-foreground/90")}
-                    {renderCell(valShort, "text-foreground/90")}
+                    {renderCell(valAll, "text-foreground/90", metric.onlyShowAll, false)}
+                    {renderCell(valLong, "text-foreground/90", metric.onlyShowAll, true)}
+                    {renderCell(valShort, "text-foreground/90", metric.onlyShowAll, true)}
                   </TableRow>
                 )
               })}

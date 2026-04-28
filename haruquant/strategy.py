@@ -5,7 +5,6 @@ from haruquant.data import Data
 from backend.services.execution.core import RunResult
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 
 def _deep_merge(base, overrides):
     """Recursively merge two dictionaries."""
@@ -17,8 +16,8 @@ def _deep_merge(base, overrides):
     return base
 
 DEFAULT_SIM_CONFIG = {
-    "engine_type": "vectorized",
     "backend": "sim",
+    "engine_type": "vectorized",
     "account": {
         "initial_balance": 10000.0,
         "commission": 7.0,
@@ -143,25 +142,32 @@ class Catalog:
 class Portfolio:
     """Result of a backtest, mimicking VectorBT's Portfolio class."""
     
-    def __init__(self, run_result: Union[RunResult, Any], initial_balance: float):
+    def __init__(self, run_result: Union[RunResult, Any], initial_balance: Optional[float] = None):
         self._raw_result = run_result
-        self.initial_balance = initial_balance
+        
+        # Extract initial balance from SimulationRunResult if available
+        if initial_balance is None:
+            from backend.services.simulation.results import SimulationRunResult
+            if isinstance(run_result, SimulationRunResult):
+                self.initial_balance = float(run_result.metrics.get("initial_balance", 0.0))
+            else:
+                self.initial_balance = 0.0 # Fallback for raw RunResult
+        else:
+            self.initial_balance = initial_balance
         
     @property
-    def result(self):
-        # Compatibility with existing code expecting .result to be RunResult
+    def trades(self) -> List[Any]:
         from backend.services.simulation.results import SimulationRunResult
         if isinstance(self._raw_result, SimulationRunResult):
-            return self._raw_result.run_result
-        return self._raw_result
-
-    @property
-    def trades(self) -> List[Any]:
-        return self.result.trades
+            return self._raw_result.result.trades
+        return self._raw_result.trades
         
     @property
     def equity_curve(self) -> List[Any]:
-        return self.result.equity_curve
+        from backend.services.simulation.results import SimulationRunResult
+        if isinstance(self._raw_result, SimulationRunResult):
+            return self._raw_result.result.equity_curve
+        return self._raw_result.equity_curve
         
     @property
     def init_cash(self) -> float:
@@ -169,11 +175,14 @@ class Portfolio:
         
     @property
     def final_value(self) -> float:
-        return self.result.final_equity
+        from backend.services.simulation.results import SimulationRunResult
+        if isinstance(self._raw_result, SimulationRunResult):
+            return float(self._raw_result.metrics.get("final_equity", self.initial_balance))
+        return self.equity_curve[-1].equity if self.equity_curve else self.initial_balance
         
     def total_profit(self) -> float:
         """Returns the total net profit (realized + unrealized)."""
-        return self.result.final_equity - self.initial_balance
+        return self.final_value - self.initial_balance
         
     def total_return(self) -> float:
         """Returns the total return as a percentage of initial balance."""
@@ -181,10 +190,124 @@ class Portfolio:
             return 0.0
         return (self.total_profit() / self.initial_balance) * 100.0
 
+    def metadata(self) -> Dict[str, Any]:
+        """Returns the simulation metadata as a formatted dictionary."""
+        from backend.services.simulation.results import SimulationRunResult
+        from dataclasses import asdict
+        from datetime import datetime
+
+        if not isinstance(self._raw_result, SimulationRunResult):
+            return {}
+
+        def _serialize(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, dict):
+                return {k: _serialize(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_serialize(x) for x in obj]
+            if hasattr(obj, "__dataclass_fields__"):
+                return _serialize(asdict(obj))
+            return obj
+
+        return _serialize(dict(self._raw_result.metadata))
+
+    def analytics(self) -> Dict[str, Any]:
+        """Returns comprehensive simulation analytics as a formatted dictionary."""
+        from backend.services.simulation.results import SimulationRunResult
+        from backend.services.analytics.overview import get_analytics_overview
+        
+        if not isinstance(self._raw_result, SimulationRunResult):
+            return {}
+            
+        meta = self.metadata()
+        start_time = meta.get("data", {}).get("start")
+        end_time = meta.get("data", {}).get("end")
+        
+        return get_analytics_overview(
+            trades=self.trades,
+            initial_balance=self.initial_balance,
+            start_time=start_time,
+            end_time=end_time
+        )
+
+    def prepared(self) -> Dict[str, Any]:
+        """
+        Returns the prepared simulation data as a dictionary.
+        DataFrames are kept as-is to ensure they 'show well' with Pandas truncation.
+        """
+        from backend.services.simulation.results import SimulationRunResult
+        from dataclasses import asdict
+        from datetime import datetime
+
+        if not isinstance(self._raw_result, SimulationRunResult):
+            return {}
+
+        def _serialize(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, pd.DataFrame):
+                return obj  # Keep as DataFrame for better display/performance
+            if isinstance(obj, dict):
+                return {k: _serialize(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_serialize(x) for x in obj]
+            if hasattr(obj, "__dataclass_fields__"):
+                return _serialize(asdict(obj))
+            return obj
+
+        return _serialize(asdict(self._raw_result.prepared))
+
+    def result(self) -> Dict[str, Any]:
+        """
+        Returns the core execution outputs (trades and equity curve) as a dictionary.
+        Both are returned as Pandas DataFrames.
+        """
+        from dataclasses import asdict
+        from backend.services.simulation.results import SimulationRunResult
+        
+        if isinstance(self._raw_result, SimulationRunResult):
+            res = self._raw_result.result
+        else:
+            res = self._raw_result
+        
+        # Convert lists of dataclasses to DataFrames
+        trades_df = pd.DataFrame([asdict(t) for t in res.trades]) if res.trades else pd.DataFrame()
+        equity_df = pd.DataFrame([asdict(p) for p in res.equity_curve]) if res.equity_curve else pd.DataFrame()
+        
+        return {
+            "trades": trades_df,
+            "equity_curve": equity_df,
+        }
+
+    def snapshot(self) -> Dict[str, Any]:
+        """
+        Returns a JSON-ready snapshot of the portfolio result.
+
+        This is the canonical payload for database persistence:
+        metadata + result + analytics.
+        """
+        import json
+
+        def _frame_to_records(frame: pd.DataFrame) -> list[dict[str, Any]]:
+            if frame.empty:
+                return []
+            return json.loads(frame.to_json(orient="records", date_format="iso"))
+
+        result = self.result()
+        return {
+            "metadata": self.metadata(),
+            "result": {
+                "trades": _frame_to_records(result["trades"]),
+                "equity_curve": _frame_to_records(result["equity_curve"]),
+            },
+            "analytics": self.analytics(),
+        }
+
     def summary(self) -> str:
         """Returns a formatted summary table of All, Long, and Short results."""
         from backend.services.simulation.results import SimulationRunResult
-        from backend.services.simulation.reporting import simulation_summary_rows
+        from backend.services.analytics.overview import format_summary_as_rows, calculate_analytics_for_subset
         
         if not isinstance(self._raw_result, SimulationRunResult):
             # Fallback for simple RunResult (e.g. from_holding)
@@ -192,7 +315,7 @@ class Portfolio:
                 f"Backtest Summary\n"
                 f"{'-'*30}\n"
                 f"Initial Balance: {self.initial_balance:.2f}\n"
-                f"Final Equity:    {self.result.final_equity:.2f}\n"
+                f"Final Equity:    {self.final_value:.2f}\n"
                 f"Total Profit:    {self.total_profit():.2f}\n"
                 f"Total Return:    {self.total_return():.2f}%\n"
                 f"Number of Trades: {len(self.trades)}\n"
@@ -203,23 +326,34 @@ class Portfolio:
         long_trades = [t for t in all_trades if str(t.type).lower() == "buy"]
         short_trades = [t for t in all_trades if str(t.type).lower() == "sell"]
         
+        meta = self.metadata()
+        data_config = meta.get("data", {})
+        period_start = data_config.get("start")
+        period_end = data_config.get("end")
+        
         # Parallel Calculation Helper
-        def get_subset_metrics(trades_subset):
-            if not trades_subset and trades_subset is not all_trades:
+        def get_subset_metrics(trades_subset, *, is_all: bool = False):
+            if not trades_subset and not is_all:
                 return None
+
+            # Convert trades to list of dicts for the calculator
+            from dataclasses import asdict
+            trade_records = [asdict(t) for t in trades_subset] if trades_subset else []
             
-            # Create a localized result for this subset
-            # We clear equity_curve so reporting helper regenerates it from the trade subset
-            subset_run_result = replace(self.result, trades=trades_subset, equity_curve=[])
-            subset_sim_result = replace(self._raw_result, run_result=subset_run_result)
+            # Calculate analytics for this subset
+            analytics = calculate_analytics_for_subset(
+                pd.DataFrame(trade_records),
+                initial_balance=self.initial_balance,
+                start_time=period_start,
+                end_time=period_end
+            )
             
-            # Calculate metrics
-            return simulation_summary_rows(subset_sim_result)
+            return format_summary_as_rows(analytics["summary"])
 
         # Run All, Long, and Short in parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = [
-                executor.submit(get_subset_metrics, all_trades),
+                executor.submit(get_subset_metrics, all_trades, is_all=True),
                 executor.submit(get_subset_metrics, long_trades),
                 executor.submit(get_subset_metrics, short_trades),
             ]
@@ -246,9 +380,11 @@ class Portfolio:
             table.append(f"{label:<25} | {all_val:<18} | {long_val:<18} | {short_val:<18}")
 
         # Add symbol summary at the bottom
-        if self._raw_result.symbol_summary:
+        metrics = self.metrics()
+        symbol_summary = metrics.get("symbol_summary", {})
+        if symbol_summary:
             table.append("\nSymbol Summary:")
-            for symbol, row in self._raw_result.symbol_summary.items():
+            for symbol, row in symbol_summary.items():
                 table.append(
                     f"  {symbol:<10} trades={int(row.get('trades', 0.0)):<5} "
                     f"pnl={float(row.get('pnl', 0.0)):.2f}"
@@ -262,6 +398,7 @@ class Portfolio:
         from backend.services.simulation.reporting import print_trade_record_summary
         
         if isinstance(self._raw_result, SimulationRunResult):
+            # In the new structure, we can pass the metrics directly or handle locally
             print_trade_record_summary(self._raw_result)
         else:
             # Manual print for raw RunResult
@@ -324,7 +461,7 @@ class Portfolio:
         # Execute simulation
         run_result = engine.run(full_config)
         
-        return cls(run_result, initial_balance=run_result.initial_balance)
+        return cls(run_result)
 
     @classmethod
     def from_random_signals(

@@ -101,6 +101,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
     spreadMin: 10,
     spreadMax: 50,
     leverage: 0,
+    engineType: "event_driven",
     dataResolution: "trading_timeframe",
   })
   const [riskSettings, setRiskSettings] = useState({
@@ -258,6 +259,7 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
       speed_multiplier: Number(speed),
       commission: engineSettings.commission,
       leverage: engineSettings.leverage,
+      engine_type: engineSettings.engineType,
       slippage_type: engineSettings.slippageType,
       slippage: engineSettings.slippage,
       slippage_min: engineSettings.slippageMin,
@@ -578,23 +580,45 @@ export function SimulationConfigForm({ onStart, onResume }: SimulationConfigForm
         </CardContent>
       </Card>
 
-      {mode === "strategy" && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Strategy Selection</CardTitle>
-              <CardDescription>Select a strategy to execute.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <StrategySelector
-                id="strategyId"
-                value={strategyId}
-                onValueChange={setStrategyId}
-                strategies={strategies}
-                loading={loadingStrategies}
-              />
-            </CardContent>
-          </Card>
+          {mode === "strategy" && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Strategy Selection</CardTitle>
+                  <CardDescription>Select a strategy to execute.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <StrategySelector
+                      id="strategyId"
+                      value={strategyId}
+                      onValueChange={setStrategyId}
+                      strategies={strategies}
+                      loading={loadingStrategies}
+                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="engineType">Engine Type</Label>
+                      <Select
+                        value={engineSettings.engineType}
+                        onValueChange={(value) =>
+                          setEngineSettings((prev) => ({
+                            ...prev,
+                            engineType: value as any,
+                          }))
+                        }
+                      >
+                        <SelectTrigger id="engineType">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="event_driven">Event Driven (Turbo)</SelectItem>
+                          <SelectItem value="vectorised">Vectorized (Ultra-Fast)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
           <StrategyParametersCard
             values={strategyParams}
             parameterTypes={strategyParameterTypes}

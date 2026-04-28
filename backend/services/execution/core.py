@@ -5,7 +5,7 @@ import time
 import uuid
 import re
 from dataclasses import asdict, dataclass, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from backend.common.logger import logger
@@ -192,9 +192,6 @@ class RunResult:
 
     trades: list[TradeRecord]
     equity_curve: list[EquityPoint]
-    processed_ticks: int = 0
-    final_balance: float = 0.0
-    final_equity: float = 0.0
 
     def to_dict(self):
         return _serialize_payload(asdict(self))
@@ -242,6 +239,7 @@ class SimulatorState:
         self.equity_peak = None
         self.current_tick_epoch = None
         self.current_tick_datetime = None
+        self.last_rollover_datetime = None
         self.execution_settings = DotDict()
 
 
@@ -646,9 +644,9 @@ def _finalize_trade_tracking(
     completed.requested_exit_price = float(requested_exit_price)
     completed.time_in_trade = max(0.0, float((completed.close_time - _coerce_datetime(completed.open_time)).total_seconds()))
     completed.bars_in_trade = int(tracker.bars_in_trade)
-    completed.profit_loss = float(realized_profit)
     completed.commission = float(getattr(position, "commission", 0.0) or 0.0)
     completed.swap = float(getattr(position, "swap", 0.0) or 0.0)
+    completed.profit_loss = float(realized_profit) + completed.commission + completed.swap
     completed.mae_usd = abs(min(float(tracker.mae_usd), 0.0))
     completed.mfe_usd = max(float(tracker.mfe_usd), 0.0)
     completed.mae_pips = abs(min(float(tracker.mae_pips), 0.0))
@@ -689,6 +687,7 @@ def monitor_positions(
     strict_calc_access: bool = False,
 ) -> None:
     """Monitor open positions, update mark-to-market fields, and close on SL/TP."""
+    _apply_swaps(state, verbose=verbose)
     now = _state_now_epoch(state)
     now_msc = now * 1000
     to_close = []
@@ -805,10 +804,14 @@ def monitor_positions(
         if position not in state.trading_deals:
             continue
 
+        vol = float(getattr(position, "volume", 0.0) or 0.0)
+        close_comm = _commission_for_volume(state, vol)
+        position.commission = float(getattr(position, "commission", 0.0) or 0.0) + close_comm
+
         _finalize_trade_tracking(
             state,
             position,
-            float(getattr(position, "volume", 0.0) or 0.0),
+            vol,
             close_price,
             profit,
             close_price,
@@ -816,7 +819,7 @@ def monitor_positions(
         )
 
         balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
-        state.trading_account.balance = balance + float(profit)
+        state.trading_account.balance = balance + float(profit) + close_comm
 
         closed_row = DealInfo(dict(position))
         closed_row.profit = float(profit)
@@ -1097,8 +1100,91 @@ def _apply_margin_tier_policy(state: SimulatorState) -> None:
             position.margin_required = float(total_margin * share)
 
 
+def _apply_swaps(state: SimulatorState, verbose: bool = False) -> None:
+    """Check for daily rollover and apply swaps to open positions."""
+    now_dt = _state_now_datetime(state)
+    if state.last_rollover_datetime is None:
+        state.last_rollover_datetime = now_dt
+        return
+
+    # Check if we crossed 00:00 (daily rollover)
+    if now_dt.date() <= state.last_rollover_datetime.date():
+        return
+
+    # Rollover occurred - count how many midnight rollovers we crossed
+    num_days = (now_dt.date() - state.last_rollover_datetime.date()).days
+    
+    for d in range(num_days):
+        rollover_dt = state.last_rollover_datetime + timedelta(days=d+1)
+        day_of_week = rollover_dt.weekday()  # Python: 0=Mon, 2=Wed
+        
+        for position in state.trading_deals:
+            # Only process open positions (entry=0)
+            if str(getattr(position, "entry", 0)) != "0":
+                continue
+            
+            symbol_name = str(getattr(position, "symbol", "") or "")
+            sym_info = symbol_info(state, symbol_name)
+            if sym_info is None:
+                continue
+            
+            swap_long = float(getattr(sym_info, "swap_long", 0.0) or 0.0)
+            swap_short = float(getattr(sym_info, "swap_short", 0.0) or 0.0)
+            swap_mode = int(getattr(sym_info, "swap_mode", 0) or 0)
+            
+            # Swaps disabled
+            if swap_mode == 0:
+                continue
+                
+            rollover3days = int(getattr(sym_info, "swap_rollover3days", 3) or 3) # MQL5: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+            # Triple swap is applied when holding over the night of 'rollover3days'.
+            # For example, if rollover3days is 3 (Wednesday), it's applied when crossing from Wednesday to Thursday.
+            # In our simulation, when we cross to Thursday, rollover_dt.weekday() will be 3 (Thursday).
+            # So py_rollover3days should be (mql_day + 1) % 7? 
+            # Wait: MQL 3 (Wed) -> crosses to Thu -> Python 3 (Thu). Correct.
+            # MQL 0 (Sun) -> crosses to Mon -> Python 0 (Mon). Correct.
+            # MQL 6 (Sat) -> crosses to Sun -> Python 6 (Sun). Correct.
+            # So the Python weekday we are looking for is exactly the MQL day index.
+            py_rollover3days = rollover3days
+            
+            multiplier = 3.0 if day_of_week == py_rollover3days else 1.0
+            
+            order_type = int(getattr(position, "type", 0) or 0)
+            swap_value = swap_long if order_type == 0 else swap_short
+            volume = float(getattr(position, "volume", 0.0) or 0.0)
+            
+            daily_swap = 0.0
+            if swap_mode == 1: # Points
+                point = float(getattr(sym_info, "point", 0.00001) or 0.00001)
+                contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+                # Swap in points formula: Volume * SwapValue * Point * ContractSize
+                daily_swap = volume * swap_value * point * contract_size
+            elif swap_mode == 2: # Currency
+                # Swap in currency: multiplier * volume * swap_value (assuming swap_value is per lot)
+                daily_swap = volume * swap_value
+            elif swap_mode == 3: # Interest
+                # TODO: Implement interest-based swap calculation if needed
+                pass
+            
+            total_applied = daily_swap * multiplier
+            position.swap = float(getattr(position, "swap", 0.0) or 0.0) + total_applied
+            
+            # Update balance immediately for applied swap (MT5 behavior)
+            balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
+            state.trading_account.balance = balance + total_applied
+
+            if verbose and abs(total_applied) > 1e-8:
+                logger.info(
+                    f"[swap] Applied swap to {symbol_name} ticket={_position_ticket(position)}: "
+                    f"{total_applied:.2f} (mode={swap_mode}, multiplier={multiplier})"
+                )
+
+    state.last_rollover_datetime = now_dt
+
+
 def monitor_account(state: SimulatorState, verbose: bool = False) -> None:
     """Monitor account aggregates from open positions."""
+    _apply_swaps(state, verbose=verbose)
     _apply_margin_tier_policy(state)
     total_unrealized_profit = 0.0
     used_margin = 0.0

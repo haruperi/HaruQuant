@@ -5,7 +5,8 @@ import { PerformancePageHeader } from "@/components/performance/performance-page
 import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
 import { strategyApi } from "@/lib/api/strategies"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { Loader2, Download } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -114,7 +115,7 @@ export default function TradeListPage() {
             minute: "2-digit",
             second: "2-digit",
             hour12: false
-        })
+        }).replace(",", "")
     }
 
     const getValueColor = (value: number | undefined) => {
@@ -170,16 +171,6 @@ export default function TradeListPage() {
                     return tradeDuration < minDuration ? trade : min
                 })
                 return shortestTrade.trade_number || trades.indexOf(shortestTrade) + 1
-            case "max_drawdown_usd":
-                const maxDDTrade = trades.reduce((max, trade) =>
-                    Math.abs(trade.drawdown_usd || 0) > Math.abs(max.drawdown_usd || 0) ? trade : max
-                )
-                return maxDDTrade.trade_number || trades.indexOf(maxDDTrade) + 1
-            case "max_drawdown_percent":
-                const maxDDPercentTrade = trades.reduce((max, trade) =>
-                    Math.abs(trade.drawdown_percent || 0) > Math.abs(max.drawdown_percent || 0) ? trade : max
-                )
-                return maxDDPercentTrade.trade_number || trades.indexOf(maxDDPercentTrade) + 1
             case "max_runup_usd":
                 const maxRUTrade = trades.reduce((max, trade) =>
                     (trade.runup_usd || 0) > (max.runup_usd || 0) ? trade : max
@@ -223,6 +214,66 @@ export default function TradeListPage() {
         }
     }
 
+    const handleExportCSV = () => {
+        if (trades.length === 0) return
+
+        const headers = [
+            "Trade #",
+            "Symbol",
+            "Type",
+            "Entry Time",
+            "Exit Time",
+            "Entry Price",
+            "Exit Price",
+            "Size",
+            "Profit ($)",
+            "Profit (Pips)",
+            "Commission",
+            "Swap",
+            "MAE (Pips)",
+            "MFE (Pips)",
+            "Balance ($)"
+        ]
+
+        const initialBalance = selectedBacktest?.initial_balance || 10000
+        const rows = trades.map((trade, index) => {
+            const currentBalance = initialBalance + (trade.cumulative_profit_usd || 0)
+            return [
+                trade.trade_number || index + 1,
+                trade.symbol || selectedBacktest?.symbol || '-',
+                trade.type || '-',
+                formatDateTime(trade.open_time),
+                formatDateTime(trade.close_time),
+                trade.open_price || 0,
+                trade.close_price || 0,
+                trade.volume || 0,
+                trade.profit_loss || 0,
+                trade.profit_loss_pips || 0,
+                trade.commission || 0,
+                trade.swap || 0,
+                trade.mae_pips || 0,
+                trade.mfe_pips || 0,
+                currentBalance.toFixed(2)
+            ]
+        })
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+        ].join("\n")
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        const filename = `trades_${selectedBacktest?.alias || selectedBacktest?.strategy_name || 'backtest'}_${new Date().toISOString().slice(0, 10)}.csv`
+        link.setAttribute("download", filename)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     if (!selectedBacktest) {
          return (
             <div className="flex flex-col h-full w-full">
@@ -264,12 +315,22 @@ export default function TradeListPage() {
                                             <SelectItem value="special_largest_losing_percent">Largest Losing Trade %</SelectItem>
                                             <SelectItem value="special_longest">Longest Trade</SelectItem>
                                             <SelectItem value="special_shortest">Shortest Trade</SelectItem>
-                                            <SelectItem value="special_max_drawdown_usd">Max Drawdown Trade</SelectItem>
-                                            <SelectItem value="special_max_drawdown_percent">Max Drawdown Trade %</SelectItem>
                                             <SelectItem value="special_max_runup_usd">Max Run-up Trade</SelectItem>
                                             <SelectItem value="special_max_runup_percent">Max Run-up Trade %</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
+                                <div className="ml-auto">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="h-8 gap-2"
+                                        onClick={handleExportCSV}
+                                        disabled={trades.length === 0}
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        Export CSV
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -369,16 +430,8 @@ export default function TradeListPage() {
                                             <TableHead className="text-center">
                                                 <TooltipProvider>
                                                     <Tooltip>
-                                                        <TooltipTrigger className="cursor-help">Drawdown</TooltipTrigger>
-                                                        <TooltipContent>Maximum adverse excursion in dollars</TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </TableHead>
-                                            <TableHead className="text-center">
-                                                <TooltipProvider>
-                                                    <Tooltip>
                                                         <TooltipTrigger className="cursor-help">Balance</TooltipTrigger>
-                                                        <TooltipContent>Running account balance/profit</TooltipContent>
+                                                        <TooltipContent>Running account balance</TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
                                             </TableHead>
@@ -399,13 +452,15 @@ export default function TradeListPage() {
                                             <TableHead className="text-center text-xs h-8">MAE</TableHead>
                                             <TableHead className="text-center text-xs h-8">MFE</TableHead>
                                             <TableHead className="text-center text-xs h-8">$</TableHead>
-                                            <TableHead className="text-center text-xs h-8">$</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {trades.map((trade, index) => {
                                             const tradeNum = trade.trade_number || index + 1
                                             const isHighlighted = highlightedTrade === tradeNum
+                                            const initialBalance = selectedBacktest?.initial_balance || 10000
+                                            const currentBalance = initialBalance + (trade.cumulative_profit_usd || 0)
+                                            
                                             return (
                                             <TableRow
                                                 key={index}
@@ -442,11 +497,8 @@ export default function TradeListPage() {
                                             <TableCell className="text-center text-sm text-muted-foreground">
                                                 {trade.mfe_pips?.toFixed(1) || '-'}
                                             </TableCell>
-                                            <TableCell className="text-center text-sm text-red-500">
-                                                {formatCurrency(trade.drawdown_usd)}
-                                            </TableCell>
-                                            <TableCell className={`text-center text-sm ${getValueColor(trade.cumulative_profit_usd)}`}>
-                                                {formatCurrency(trade.cumulative_profit_usd)}
+                                            <TableCell className="text-center text-sm font-medium">
+                                                {formatCurrency(currentBalance)}
                                             </TableCell>
                                         </TableRow>
 

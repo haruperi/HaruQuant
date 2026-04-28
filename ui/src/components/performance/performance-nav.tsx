@@ -42,12 +42,14 @@ const performanceNavItems: NavSection[] = [
     label: "Strategy Analysis",
     href: "/performance/strategy-analysis",
     items: [
+      { label: "Total Trade Analysis", href: "/performance/strategy-analysis/total-analysis", icon: Table },
       { label: "Returns", href: "/performance/strategy-analysis/returns", icon: Table },
       { label: "Performance Ratios", href: "/performance/strategy-analysis/performance-ratios", icon: Table },
       { label: "Risk", href: "/performance/strategy-analysis/risk", icon: Table },
+      { label: "Drawdown", href: "/performance/strategy-analysis/drawdown", icon: Table },
+      { label: "Efficiency Analysis", href: "/performance/strategy-analysis/efficiency", icon: Table },
       { label: "Distributions", href: "/performance/strategy-analysis/distributions", icon: Table },
       { label: "Benchmark Comparison", href: "/performance/strategy-analysis/benchmarks", icon: Table },
-      { label: "Time Analysis", href: "/performance/strategy-analysis/time-analysis", icon: Table },
       { label: "Buy & Hold Return", href: "/performance/strategy-analysis/buy-hold-return", icon: LineChartIcon },
       { label: "Value Added Monthly Index", href: "/performance/strategy-analysis/vami", icon: LineChartIcon },
     ]
@@ -57,7 +59,6 @@ const performanceNavItems: NavSection[] = [
     href: "/performance/trade-analysis",
     items: [
       { label: "List of Trades", href: "/performance/trade-analysis/list", icon: Table },
-      { label: "Total Trade Analysis", href: "/performance/trade-analysis/total-analysis", icon: Table },
       { label: "Outliers", href: "/performance/trade-analysis/outliers", icon: Table },
       { label: "Run-up/Drawdown", href: "/performance/trade-analysis/runup-drawdown", icon: Table },
       { label: "Trade Series Analysis", href: "/performance/trade-analysis/series-analysis", icon: Table },
@@ -65,8 +66,6 @@ const performanceNavItems: NavSection[] = [
       { label: "Total Trades", href: "/performance/trade-analysis/total-trades", icon: LineChartIcon },
       { label: "Winning Trades", href: "/performance/trade-analysis/winning-trades", icon: LineChartIcon },
       { label: "Losing Trades", href: "/performance/trade-analysis/losing-trades", icon: LineChartIcon },
-      { label: "Drawdown", href: "/performance/trade-analysis/drawdown", icon: LineChartIcon },
-      { label: "Efficiency Analysis", href: "/performance/trade-analysis/efficiency", icon: LineChartIcon },
       { label: "Maximum Adverse Excursion", href: "/performance/trade-analysis/mae", icon: LineChartIcon },
       { label: "Maximum Adverse Excursion (%)", href: "/performance/trade-analysis/mae-percent", icon: LineChartIcon },
       { label: "Run-up", href: "/performance/trade-analysis/runup", icon: LineChartIcon },

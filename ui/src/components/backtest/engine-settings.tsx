@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 export interface EngineSettingsValues {
     initialCapital: number
     commission: number
+    leverage: number
+    engineType: "event_driven" | "vectorised"
+    dataResolution: "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks"
     slippageType: "fixed" | "variable"
     slippage: number
     slippageMin: number
@@ -16,8 +19,6 @@ export interface EngineSettingsValues {
     spread: number
     spreadMin: number
     spreadMax: number
-    leverage: number
-    dataResolution: "trading_timeframe" | "m1_ohlc" | "synthetic_ticks" | "real_ticks"
 }
 
 interface EngineSettingsProps {
@@ -37,16 +38,16 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                         <Label htmlFor="dataResolution">Data Resolution</Label>
                         <Select
                             value={values.dataResolution}
-                            onValueChange={(val) => onChange("dataResolution", val)}
+                            onValueChange={(val) => onChange("dataResolution", val as any)}
                         >
                             <SelectTrigger id="dataResolution">
                                 <SelectValue placeholder="Select Resolution" />
                             </SelectTrigger>
                             <SelectContent>
-                            <SelectItem value="trading_timeframe">Trading Timeframe (Fast)</SelectItem>
-                            <SelectItem value="m1_ohlc">M1 OHLC (Bar Ticks)</SelectItem>
-                            <SelectItem value="synthetic_ticks">Synthetic Ticks (M1)</SelectItem>
-                            <SelectItem value="real_ticks">Real Ticks (Slowest)</SelectItem>
+                                <SelectItem value="trading_timeframe">Trading Timeframe (Fast)</SelectItem>
+                                <SelectItem value="m1_ohlc">M1 OHLC (Bar Ticks)</SelectItem>
+                                <SelectItem value="synthetic_ticks">Synthetic Ticks (M1)</SelectItem>
+                                <SelectItem value="real_ticks">Real Ticks (Slowest)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

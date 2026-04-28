@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
 import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
+import { format, isValid, parseISO } from "date-fns"
 
 interface DataPoint {
   date: string | number
@@ -48,8 +49,6 @@ export function SeriesChart3Way({
     }
   }
 
-  // Pre-calculate min/max for Y-axis domain if needed, or let Recharts handle 'auto'
-  // Getting stats for footer
   const getLastValue = (key: ViewMode) => {
     const validPoints = data.filter((d) => d[key] !== undefined && d[key] !== null)
     if (validPoints.length === 0) return "-"
@@ -96,7 +95,7 @@ export function SeriesChart3Way({
         }}
       />
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg font-medium">{title}</CardTitle>
+        <CardTitle className="text-lg font-medium tracking-tight uppercase">{title}</CardTitle>
         <ToggleGroup
           type="multiple"
           variant="outline"
@@ -104,13 +103,13 @@ export function SeriesChart3Way({
           onValueChange={handleToggle}
           className="scale-90 origin-right"
         >
-          <ToggleGroupItem value="all" aria-label="Toggle All">
+          <ToggleGroupItem value="all" aria-label="Toggle All" className="text-[10px] h-7 px-2">
             All
           </ToggleGroupItem>
-          <ToggleGroupItem value="long" aria-label="Toggle Long">
+          <ToggleGroupItem value="long" aria-label="Toggle Long" className="text-[10px] h-7 px-2">
             Long
           </ToggleGroupItem>
-          <ToggleGroupItem value="short" aria-label="Toggle Short">
+          <ToggleGroupItem value="short" aria-label="Toggle Short" className="text-[10px] h-7 px-2">
             Short
           </ToggleGroupItem>
         </ToggleGroup>
@@ -119,18 +118,27 @@ export function SeriesChart3Way({
         <div className="h-[350px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
               <XAxis
                 dataKey="date"
                 stroke="#888888"
-                fontSize={12}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
-                minTickGap={30}
+                minTickGap={60}
+                tickFormatter={(val) => {
+                  if (!val) return ""
+                  try {
+                    const d = parseISO(String(val))
+                    return isValid(d) ? format(d, "MMM dd") : String(val)
+                  } catch {
+                    return String(val)
+                  }
+                }}
               />
               <YAxis
                 stroke="#888888"
-                fontSize={12}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(val) => `${val}`}
@@ -139,27 +147,38 @@ export function SeriesChart3Way({
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
+                    const formattedDate = (() => {
+                      try {
+                        const d = parseISO(String(label))
+                        return isValid(d) ? format(d, "yyyy-MM-dd HH:mm") : label
+                      } catch {
+                        return label
+                      }
+                    })()
+
                     return (
-                      <div className="rounded-lg border bg-background p-2 shadow-sm">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex flex-col">
-                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                              Date
+                      <div className="rounded-lg border bg-background p-2 shadow-xl backdrop-blur-sm border-primary/20">
+                        <div className="grid grid-cols-1 gap-2">
+                          <div className="flex flex-col border-b border-border/50 pb-1 mb-1">
+                            <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">
+                              Time Period
                             </span>
-                            <span className="font-bold text-muted-foreground">
-                              {label}
+                            <span className="font-mono text-xs text-primary">
+                              {formattedDate}
                             </span>
                           </div>
-                          {payload.map((p) => (
-                            <div key={p.name} className="flex flex-col">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                {p.name}
-                              </span>
-                              <span className="font-bold" style={{ color: p.color }}>
-                                {p.value !== undefined ? valueFormatter(Number(p.value)) : "-"}
-                              </span>
-                            </div>
-                          ))}
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            {payload.map((p) => (
+                              <React.Fragment key={p.name}>
+                                <span className="text-[10px] uppercase text-muted-foreground">
+                                  {p.name}
+                                </span>
+                                <span className="font-bold text-right text-xs" style={{ color: p.color }}>
+                                  {p.value !== undefined ? valueFormatter(Number(p.value)) : "-"}
+                                </span>
+                              </React.Fragment>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     )
@@ -167,13 +186,13 @@ export function SeriesChart3Way({
                   return null
                 }}
               />
-              <Legend />
+              <Legend verticalAlign="top" height={36}/>
               {visibleModes.includes("all") && (
                 <Line
                   type="monotone"
                   dataKey="all"
                   name="All Trades"
-                  stroke="var(--foreground)" // Use theme foreground or primary color
+                  stroke="var(--foreground)"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}
@@ -185,7 +204,7 @@ export function SeriesChart3Way({
                   type="monotone"
                   dataKey="long"
                   name="Long Trades"
-                  stroke="#3b82f6" // blue-500
+                  stroke="#3b82f6"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}
@@ -197,7 +216,7 @@ export function SeriesChart3Way({
                   type="monotone"
                   dataKey="short"
                   name="Short Trades"
-                  stroke="#ef4444" // red-500
+                  stroke="#ef4444"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}

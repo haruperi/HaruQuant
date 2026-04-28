@@ -2,61 +2,67 @@
 
 import React from "react"
 import { usePerformanceData } from "@/components/performance/use-performance-data"
-import { Loader2 } from "lucide-react"
+import { Loader2, Download } from "lucide-react"
 import { PerformancePageLayout } from "@/components/performance/shared/performance-page-layout"
+import { Button } from "@/components/ui/button"
 
 const returnsConfig = {
   title: "Returns Analysis",
-  description: "Detailed breakdown of strategy returns, profitability, and baseline comparisons.",
+  description: "Detailed breakdown of strategy returns, profitability, and growth metrics.",
   metrics: [
-    // --- Profitability (Absolute) ---
-    { label: "Net Profit", accessor: "Net Profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Net profit from all trades" },
-    { label: "Gross Profit", accessor: "Gross Profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Gross profit (sum of winning trades)" },
-    { label: "Gross Loss", accessor: "Gross Loss", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Gross loss (sum of losing trades, negative value)" },
-    { label: "Total Return", accessor: "Total Return", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Total return from equity curve" },
+    // --- Basic Profit & Loss ---
+    { label: "Basic Profit & Loss", accessor: "", type: "group" as const },
+    { label: "Total Return", accessor: "total_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Total profit/loss as a percentage of initial capital." },
+    { label: "Total Return ($)", accessor: "total_return_usd", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Total profit/loss in currency units." },
+    { label: "Net Profit", accessor: "net_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Total P&L from all closed trades." },
+    { label: "Gross Profit", accessor: "gross_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Sum of all winning trades." },
+    { label: "Gross Loss", accessor: "gross_loss", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Sum of all losing trades (negative)." },
 
-    // --- Profitability (Adjusted & Select) ---
-    { label: "Adj. Net Profit", accessor: "Adjusted Net Profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "The difference between the adjusted gross loss and the adjusted gross profit." },
-    { label: "Adj. Gross Profit", accessor: "Adjusted Gross Profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "(N_Winning_Trades - Sqrt(N_Winning_Trades)) * Avg_Winning_Trade" },
-    { label: "Adj. Gross Loss", accessor: "Adjusted Gross Loss", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "(N_Losing_Trades + Sqrt(N_Losing_Trades)) * Avg_Losing_Trade" },
-    { label: "Select Net Profit", accessor: "Select Net Profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Net Profit with outlier trades removed. A trade is an outlier if its PnL is > 3 std devs from the mean." },
-    { label: "Select Gross Profit", accessor: "Select Gross Profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Gross Profit consisting only of non-outlier trades." },
-    { label: "Select Gross Loss", accessor: "Select Gross Loss", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Gross Loss consisting only of non-outlier trades." },
+    // --- Compounding & Growth Rates ---
+    { label: "Compounding & Growth Rates", accessor: "", type: "group" as const },
+    { label: "CAGR", accessor: "cagr", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Compound Annual Growth Rate." },
+    { label: "CMGR", accessor: "cmgr", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Compound Monthly Growth Rate (CMGR). Monthly equivalent of CAGR." },
+    { label: "Avg Monthly Return", accessor: "avg_monthly_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Arithmetic mean of monthly returns." },
+    { label: "Monthly Return StdDev", accessor: "monthly_return_stddev", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Volatility of monthly returns." },
+    { label: "Annualized Return", accessor: "annualized_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Scale sub-annual returns to yearly terms." },
+    { label: "Geometric Mean Return", accessor: "geometric_mean_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Average growth factor per period." },
+    { label: "Best Period Return", accessor: "best_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Maximum single period return." },
+    { label: "Worst Period Return", accessor: "worst_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Minimum single period return." },
 
-    // --- Growth Rates ---
-    { label: "CAGR", accessor: "CAGR", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Compound Annual Growth Rate" },
-    { label: "Annualized Return", accessor: "Annualized Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Annualized return from returns series" },
-    { label: "CMGR", accessor: "Monthly Rate of Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Compound Monthly Growth Rate (CMGR). Equivalent to CAGR but for monthly periods." },
-    { label: "Geometric Mean Return", accessor: "Geometric Mean Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Geometric mean return" },
+    // --- Benchmarking ---
+    { label: "Benchmarking", accessor: "", type: "group" as const },
+    { label: "Buy & Hold Return", accessor: "buy_and_hold_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Return if asset was held from start to end." },
+    { label: "Buy & Hold CAGR", accessor: "buy_and_hold_cagr", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "CAGR of a buy-and-hold position." },
 
-    // --- Buy & Hold ---
-    { label: "Buy & Hold Return", accessor: "Buy & Hold Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Return achieved if asset was bought at start and held to end." },
-    { label: "Buy & Hold CAGR", accessor: "Buy & Hold CAGR", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Buy & Hold CAGR" },
+    // --- Return Stability & Moments ---
+    { label: "Return Stability & Moments", accessor: "", type: "group" as const },
+    { label: "Return Volatility", accessor: "volatility", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Standard deviation of returns." },
+    { label: "Downside Return Volatility", accessor: "downside_volatility", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Standard deviation of negative returns only." },
+    { label: "Return Skewness", accessor: "return_skewness", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Measure of return distribution asymmetry." },
+    { label: "Return Kurtosis", accessor: "return_kurtosis", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Measure of 'fat tails' in returns." },
 
-    // --- Average Period Returns ---
-    { label: "Avg Daily Return", accessor: "Avg Daily Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Average daily return." },
-    { label: "Avg Weekly Return", accessor: "Avg Weekly Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Average weekly return." },
-    { label: "Avg Monthly Return", accessor: "Avg Monthly Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Average Monthly Return. Arithmetic mean of monthly returns." },
-    { label: "Avg Annual Return", accessor: "Avg Annual Return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Average annual return." },
+    // --- Adjusted & Select Metrics ---
+    { label: "Adjusted & Select Metrics", accessor: "", type: "group" as const },
+    { label: "Adj. Net Profit", accessor: "adjusted_net_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Net profit adjusted for statistical significance." },
+    { label: "Select Net Profit", accessor: "select_net_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Net profit after removing 3-sigma outliers." },
+    { label: "Adj. Gross Profit", accessor: "adjusted_gross_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Adjusted Gross Profit component." },
+    { label: "Adj. Gross Loss", accessor: "adjusted_gross_loss", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Adjusted Gross Loss component." },
+    { label: "Select Gross Profit", accessor: "select_gross_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Outlier-removed gross profit component." },
+    { label: "Select Gross Loss", accessor: "select_gross_loss", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Outlier-removed gross loss component." },
 
-    // --- Volatility & Risk Stats ---
-    { label: "Return Volatility", accessor: "Return Volatility", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Return volatility (standard deviation)" },
-    { label: "Downside Return Volatility", accessor: "Downside Return Volatility", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Downside volatility (semi-deviation). Only considers returns below target." },
-    { label: "Monthly Return StdDev", accessor: "Monthly Return StdDev", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Standard deviation of monthly returns." },
-    { label: "Return Skewness", accessor: "Return Skewness", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Skewness of returns distribution. Negative: More extreme losses. Positive: More extreme gains." },
-    { label: "Return Kurtosis", accessor: "Return Kurtosis", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Kurtosis of returns distribution. High value indicates fat tails (more extreme events)." },
-
-    // --- Return Efficiency ---
-    { label: "Return on Account", accessor: "Return on Account", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Net Profit / Account Size Required." },
-    { label: "Return on Initial Capital", accessor: "Return on Initial Capital", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Net Profit / Initial Capital." },
-    { label: "Return on Max Strategy Drawdown", accessor: "Return on Max Strategy Drawdown", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Total Return / Max Strategy Drawdown." },
-    { label: "Return on Max Close To Close DD", accessor: "Return on Max Close To Close Drawdown", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Net Profit / Max Close To Close Drawdown." },
+    // --- Return Ratios & Capital Relations ---
+    { label: "Return Ratios & Capital Relations", accessor: "", type: "group" as const },
+    { label: "Return / Max Strategy DD", accessor: "return_on_max_drawdown", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Total return relative to max peak-to-valley dip." },
+    { label: "Return / Max C2C DD", accessor: "return_on_max_c2c_drawdown", format: (v: any) => v != null ? v.toFixed(2) : "-", description: "Net profit relative to trade-level max dip." },
+    { label: "Return on Initial Capital", accessor: "return_on_initial_capital", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Return relative to starting balance." },
+    { label: "Max Run-up", accessor: "max_runup", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Maximum peak-to-valley gain." },
+    { label: "Max Run-up Date", accessor: "max_runup_date", description: "Timestamp of the max run-up peak." },
   ],
-  charts: [], // No charts for this specific page requested, only table
+  charts: [],
 }
 
 export default function ReturnsPage() {
-  const { metrics, loading, error, selectedBacktest } = usePerformanceData()
+  const { analytics, loading, error, selectedBacktest } = usePerformanceData()
 
   if (!selectedBacktest) {
     return <div className="p-8 text-center text-muted-foreground">Select a backtest to view performance.</div>
@@ -74,12 +80,12 @@ export default function ReturnsPage() {
     return <div className="p-8 text-red-500">Error: {error}</div>
   }
 
-  if (!metrics) {
+  if (!analytics?.returns) {
       return null
   }
 
   const pageData = {
-    metrics: metrics,
+    metrics: analytics.returns as any,
     charts: {}
   }
 

@@ -31,6 +31,8 @@ interface HistoricalRunShellProps {
   initialExecutionMode?: "visualized" | "batch"
   initialSource?: "manual" | "strategy" | "replay"
   initialStrategyId?: string
+  initialReplayBacktestId?: string
+  initialReplaySource?: "backtest" | "csv"
 }
 
 export function HistoricalRunShell({
@@ -39,6 +41,8 @@ export function HistoricalRunShell({
   initialExecutionMode = "visualized",
   initialSource = "manual",
   initialStrategyId = "",
+  initialReplayBacktestId = "",
+  initialReplaySource = "backtest",
 }: HistoricalRunShellProps) {
   const router = useRouter()
   const [view, setView] = useState<ViewState>("config")
@@ -145,6 +149,8 @@ export function HistoricalRunShell({
           initialExecutionMode={initialExecutionMode}
           initialSource={initialSource}
           initialStrategyId={initialStrategyId}
+          initialReplayBacktestId={initialReplayBacktestId}
+          initialReplaySource={initialReplaySource}
           onSimulationStart={handleSimulationStart}
           onSimulationResume={handleSimulationResume}
           onBacktestStart={(backtestIdValue, strategyIdValue, _config) =>

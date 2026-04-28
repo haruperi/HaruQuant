@@ -31,6 +31,8 @@ interface HistoricalRunFormProps {
   initialExecutionMode?: HistoricalOutputMode
   initialSource?: "manual" | "strategy" | "replay"
   initialStrategyId?: string
+  initialReplayBacktestId?: string
+  initialReplaySource?: ReplaySource
   onSimulationStart: (
     sessionId: number,
     config: HistoricalRunConfig,
@@ -66,6 +68,8 @@ export function HistoricalRunForm({
   initialExecutionMode = "visualized",
   initialSource = "manual",
   initialStrategyId = "",
+  initialReplayBacktestId = "",
+  initialReplaySource = "backtest",
   onSimulationStart,
   onSimulationResume,
   onBacktestStart,
@@ -95,8 +99,8 @@ export function HistoricalRunForm({
   const [strategyParams, setStrategyParams] = useState<Record<string, unknown>>({})
   const [strategyParameterTypes, setStrategyParameterTypes] = useState<Record<string, string>>({})
   const [loadingStrategyParams, setLoadingStrategyParams] = useState(false)
-  const [replaySource, setReplaySource] = useState<ReplaySource>("backtest")
-  const [replayBacktestId, setReplayBacktestId] = useState("")
+  const [replaySource, setReplaySource] = useState<ReplaySource>(initialReplaySource)
+  const [replayBacktestId, setReplayBacktestId] = useState(initialReplayBacktestId)
   const [replayFileName, setReplayFileName] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -119,6 +123,7 @@ export function HistoricalRunForm({
     spreadMin: 10,
     spreadMax: 50,
     leverage: 0,
+    engineType: "event_driven",
     dataResolution: "trading_timeframe",
   })
   const [riskSettings, setRiskSettings] = useState({
@@ -293,8 +298,10 @@ export function HistoricalRunForm({
       spreadMin: engineSettings.spreadMin,
       spreadMax: engineSettings.spreadMax,
       dataSource,
+      engineType: engineSettings.engineType,
       dataResolution: engineSettings.dataResolution,
-    },
+      },
+
     risk: showRisk
       ? {
           confidenceLevel: riskSettings.confidenceLevel,
@@ -557,13 +564,33 @@ export function HistoricalRunForm({
 
           {showStrategy && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <OutputModeSelector
                   value={executionMode}
                   onValueChange={(value) =>
                     value === "batch" && !canUseBatch ? undefined : setExecutionMode(value)
                   }
                 />
+                <div className="space-y-2">
+                  <Label htmlFor="engineType">Engine Type</Label>
+                  <Select
+                    value={engineSettings.engineType}
+                    onValueChange={(value) =>
+                      setEngineSettings((prev) => ({
+                        ...prev,
+                        engineType: value as any,
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="engineType">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="event_driven">Event Driven (Turbo)</SelectItem>
+                      <SelectItem value="vectorised">Vectorized (Ultra-Fast)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="dataSource">Data Source</Label>
                   <Select

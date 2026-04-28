@@ -505,13 +505,10 @@ class Engine:
         return list(self.state.completed_equity_curve)
 
     def get_run_result(self, processed_ticks: int = 0):
-        account = self.account_info()
+        _ = processed_ticks # no longer stored in RunResult
         return RunResult(
             trades=self.get_completed_trades(),
             equity_curve=self.get_equity_curve(),
-            processed_ticks=int(processed_ticks),
-            final_balance=float(account.get("balance", 0.0) or 0.0),
-            final_equity=float(account.get("equity", account.get("balance", 0.0)) or 0.0),
         )
 
     def reset_runtime(self, account_config: AccountConfig):

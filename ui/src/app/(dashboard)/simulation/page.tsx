@@ -8,6 +8,8 @@ export default function SimulationPage() {
   const execution = searchParams.get("execution")
   const source = searchParams.get("source")
   const strategyId = searchParams.get("strategyId") || ""
+  const replayBacktestId = searchParams.get("replayBacktestId") || ""
+  const replaySource = (searchParams.get("replaySource") as any) || "backtest"
 
   const initialExecutionMode = execution === "batch" ? "batch" : "visualized"
   const initialSource =
@@ -20,6 +22,8 @@ export default function SimulationPage() {
       initialExecutionMode={initialExecutionMode}
       initialSource={initialSource}
       initialStrategyId={strategyId}
+      initialReplayBacktestId={replayBacktestId}
+      initialReplaySource={replaySource}
     />
   )
 }
