@@ -101,7 +101,7 @@ def step_clean_and_prepare_data(
     ctx: WorkflowContext,
 ) -> dict[str, Any]:
     """Normalize column names and validate data integrity."""
-    from backend.services.research.datasets import normalize_columns
+    from backend.common.datasets import normalize_columns
 
     raw_df = ctx["raw_df"]
     normalized = normalize_columns(raw_df)

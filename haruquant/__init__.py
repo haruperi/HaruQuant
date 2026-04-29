@@ -15,6 +15,9 @@ from .data import (
 )
 
 from . import indicators as ind
+from . import common
+from .common import resample, merge, concat
+
 # Convenience exports
 from .indicators import ema, sma, rsi, bbands, atr, ta
 
@@ -42,6 +45,10 @@ __all__ = [
     "DataSplitter",
     "Labeler",
     "ind",
+    "common",
+    "resample",
+    "merge",
+    "concat",
     "ema",
     "sma",
     "rsi",

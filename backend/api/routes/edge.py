@@ -33,7 +33,7 @@ from backend.services.research.data import (
     EnrichmentConfig,
     PreparedDataset,
 )
-from backend.services.research.datasets import (
+from backend.common.datasets import (
     DataSource,
     load_ohlc,
     normalize_columns,

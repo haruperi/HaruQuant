@@ -188,12 +188,16 @@ def _periods_to_timedelta(periods: float | int, index: pd.Index) -> pd.Timedelta
 def calculate_analytics_for_subset(
     trades: pd.DataFrame,
     initial_balance: float,
-    start_time: pd.Timestamp | None = None,
-    end_time: pd.Timestamp | None = None,
+    start_time: pd.Timestamp | str | None = None,
+    end_time: pd.Timestamp | str | None = None,
     benchmark_returns_series: pd.Series | None = None,
     benchmark_equity_series: pd.Series | None = None,
 ) -> dict[str, Any]:
     """Calculate ALL analytics categories for a specific subset of trades."""
+    # Ensure timestamps are in pd.Timestamp format
+    start_time = pd.Timestamp(start_time) if start_time else None
+    end_time = pd.Timestamp(end_time) if end_time else None
+
     if trades.empty:
         return {
             "metrics": {}, "returns": {}, "ratios": {}, 

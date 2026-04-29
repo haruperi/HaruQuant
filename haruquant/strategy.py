@@ -233,6 +233,13 @@ class Portfolio:
             end_time=end_time
         )
 
+    def metrics(self) -> Dict[str, Any]:
+        """Returns the simulation metrics as a dictionary."""
+        from backend.services.simulation.results import SimulationRunResult
+        if isinstance(self._raw_result, SimulationRunResult):
+            return dict(self._raw_result.metrics)
+        return {}
+
     def prepared(self) -> Dict[str, Any]:
         """
         Returns the prepared simulation data as a dictionary.
@@ -330,8 +337,8 @@ class Portfolio:
         
         meta = self.metadata()
         data_config = meta.get("data", {})
-        period_start = data_config.get("start")
-        period_end = data_config.get("end")
+        period_start = pd.Timestamp(data_config.get("start")) if data_config.get("start") else None
+        period_end = pd.Timestamp(data_config.get("end")) if data_config.get("end") else None
         
         # Parallel Calculation Helper
         def get_subset_metrics(trades_subset, *, is_all: bool = False):

@@ -27,7 +27,7 @@ from .config import (
     MarketStructureConfig,
     TrendPersistenceConfig,
 )
-from .datasets import (
+from backend.common.datasets import (
     DataSource,
     OHLCVSchema,
     load_ohlc,

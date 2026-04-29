@@ -49,7 +49,7 @@ def _run_single_backtest(
 ) -> Dict[str, Any]:
     """Run a single backtest and return metrics."""
     from backend.services.market_data.data_getters import load_mt5
-    from backend.services.research.datasets import normalize_columns
+    from backend.common.datasets import normalize_columns
     from backend.services.features.pipeline import FeaturePipeline, FeatureSpec
     from backend.services.strategy.baselines import EmaCrossBaselineStrategy
     from backend.services.execution.core import SymbolInfo

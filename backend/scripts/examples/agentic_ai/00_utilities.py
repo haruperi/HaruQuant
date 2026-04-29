@@ -236,7 +236,7 @@ def example_04_load_csv() -> None:
 
 def example_05_data_preprocess() -> None:
     print_header("Example 05: HaruQuant Dataset Pipeline")
-    from backend.services.research.datasets import normalize_columns, prepare_ohlcvs_dataset
+    from backend.common.datasets import normalize_columns, prepare_ohlcvs_dataset
 
     raw_frame = _load_market_data(symbol="EURUSD", timeframe="H1")
     if raw_frame is None:

@@ -48,7 +48,7 @@ from backend.services.research.config import (  # noqa: E402
     EdgeLabConfig,
     PermutationConfig,
 )
-from backend.services.research.datasets import DataSource, load_ohlc, normalize_columns  # noqa: E402
+from backend.common.datasets import DataSource, load_ohlc, normalize_columns  # noqa: E402
 from backend.services.research.eds_mean_reversion import run_eds_mean_reversion  # noqa: E402
 from backend.services.research.eds_null_models import run_eds_null_baseline  # noqa: E402
 from backend.services.research.eds_session import run_eds_session  # noqa: E402

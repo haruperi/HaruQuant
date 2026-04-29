@@ -27,7 +27,7 @@ from backend.services.analytics.ratios import expectancy, profit_factor
 from backend.common.logger import logger
 
 from .config import BootstrapConfig, PermutationConfig, SessionConfig, SessionEdgeConfig
-from .datasets import tag_sessions
+from backend.common.datasets import tag_sessions
 from .features import atr
 from .null_models import (
     benjamini_hochberg,

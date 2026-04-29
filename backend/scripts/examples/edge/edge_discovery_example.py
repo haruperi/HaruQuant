@@ -444,7 +444,7 @@ def example_6_exploratory_analysis():
     bars = 5000
 
     # Load data
-    from backend.services.research.datasets import compute_session_stats
+    from backend.common.datasets import compute_session_stats
 
     df = load_ohlc(source, symbol, timeframe, 0, bars, exclude_last_bar=True)
     df = tag_sessions(df)

@@ -11,11 +11,11 @@ import pandas as pd
 from backend.services.market_data.data_validator import DataValidator
 from backend.common.logger import logger
 
-from .session_config import session_hours_payload, session_label_for_hour
-from .data.cleaning import CleaningConfig, clean_dataset
-from .data.enrichment import EnrichmentConfig, enrich_dataset
-from .data.models import CanonicalOHLCVSSchema, PreparedDataset
-from .data.validation import validate_dataset
+from backend.services.research.session_config import session_hours_payload, session_label_for_hour
+from backend.services.research.data.cleaning import CleaningConfig, clean_dataset
+from backend.services.research.data.enrichment import EnrichmentConfig, enrich_dataset
+from backend.services.research.data.models import CanonicalOHLCVSSchema, PreparedDataset
+from backend.services.research.data.validation import validate_dataset
 
 
 class DataSource(Protocol):
