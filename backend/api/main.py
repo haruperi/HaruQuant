@@ -39,6 +39,7 @@ def _optional_import(module_path: str, label: str):
 optimization = _optional_import('.routes.optimization', 'Optimization route')
 live = _optional_import('.routes.live', 'Live route')
 edge = _optional_import('.routes.edge', 'Edge route')
+data = _optional_import('.routes.data', 'Data route')
 dashboard_broker = _optional_import('.routes.dashboard.broker', 'Dashboard broker route')
 dashboard_currency_strength = _optional_import('.routes.dashboard.currency_strength', 'Dashboard currency-strength route')
 dashboard_forex_calendar = _optional_import('.routes.dashboard.forex_calendar', 'Dashboard forex-calendar route')
@@ -141,11 +142,10 @@ _include_optional_router(app, dashboard_forex_calendar, prefix="/api/dashboard",
 
 app.include_router(docs.router, prefix="/api/docs", tags=["docs"])
 _include_optional_router(app, edge, prefix="/api/edge-lab", tags=["edge-lab"])
+_include_optional_router(app, data, prefix="/api/data", tags=["data"])
 
 
 @app.get("/api/health")
 async def health_check():
     """Return health check status."""
     return {"status": "healthy", "service": "haruquant-api"}
-
-

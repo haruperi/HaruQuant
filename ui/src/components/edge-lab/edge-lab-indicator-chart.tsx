@@ -9,6 +9,8 @@ import {
   LineSeries,
   type IChartApi,
   type Time,
+  type LogicalRange,
+  type LineWidth,
 } from "lightweight-charts"
 import { ChevronDown, Plus, Settings2, Trash2 } from "lucide-react"
 
@@ -38,8 +40,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useEdgeLabData } from "@/contexts/edge-lab-data-context"
 import type { EdgeLabPreparedDataset } from "@/lib/api/edge"
 import { cn } from "@/lib/utils"
+import { SymbolSelector } from "../dashboard/symbol-selector"
 
 type IndicatorKind = "sma" | "bollinger" | "rsi" | "macd"
 type IndicatorSource = "open" | "high" | "low" | "close"
@@ -474,10 +478,12 @@ export function EdgeLabIndicatorChart({
   const deferredRows = useDeferredValue(rows)
   const pricePaneRef = useRef<HTMLDivElement>(null)
   const paneRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const { dataset: fullDataset, loadDataset } = useEdgeLabData()
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([
     defaultIndicatorConfig("macd"),
   ])
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [selectorOpen, setSelectorOpen] = useState(false)
 
   const candles = buildCandles(deferredRows, schema)
   const digits = inferDigits(candles)
@@ -537,7 +543,7 @@ export function EdgeLabIndicatorChart({
       if (overlay.kind === "sma") {
         const series = mainChart.addSeries(LineSeries, {
           color: overlay.color,
-          lineWidth: overlay.lineWidth,
+          lineWidth: overlay.lineWidth as LineWidth,
           priceLineVisible: false,
           lastValueVisible: false,
         })
@@ -612,7 +618,7 @@ export function EdgeLabIndicatorChart({
       if (paneIndicator.kind === "rsi") {
         const rsiSeries = paneChart.addSeries(LineSeries, {
           color: paneIndicator.color,
-          lineWidth: paneIndicator.lineWidth,
+          lineWidth: paneIndicator.lineWidth as LineWidth,
           priceLineVisible: false,
         })
         rsiSeries.setData(calculateRsi(candles, paneIndicator.source, paneIndicator.length))
@@ -670,7 +676,7 @@ export function EdgeLabIndicatorChart({
     let syncing = false
 
     for (const chart of charts) {
-      const syncHandler = (range: ReturnType<IChartApi["timeScale"]["getVisibleLogicalRange"]>) => {
+      const syncHandler = (range: LogicalRange | null) => {
         if (syncing || range === null) {
           return
         }
@@ -723,6 +729,22 @@ export function EdgeLabIndicatorChart({
     )
   }
 
+  const handleSymbolSelect = (newSymbol: string) => {
+    if (fullDataset) {
+      void loadDataset({
+        symbol: newSymbol,
+        timeframe: fullDataset.request.timeframe,
+        data_source: fullDataset.request.data_source,
+        range_by: fullDataset.request.range_by,
+        start_date: fullDataset.request.start_date ?? undefined,
+        end_date: fullDataset.request.end_date ?? undefined,
+        number_of_bars: fullDataset.request.number_of_bars ?? undefined,
+        session_basis: fullDataset.request.session_basis ?? undefined,
+        session_hours: fullDataset.request.session_hours ?? undefined,
+      })
+    }
+  }
+
   if (candles.length === 0) {
     return (
       <div className="rounded-xl border border-border/60 bg-muted/10 p-6 text-sm text-muted-foreground">
@@ -751,19 +773,33 @@ export function EdgeLabIndicatorChart({
 
       <div className="pointer-events-none absolute inset-x-4 top-4 z-20 flex items-start justify-between gap-4">
         <div className="pointer-events-auto max-w-[72%] space-y-3">
-          <div className="w-fit rounded-xl border border-slate-700/80 bg-[rgba(7,11,20,0.5)] px-4 py-3 backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setSelectorOpen(true)}
+            className="group w-fit rounded-xl border border-slate-700/80 bg-[rgba(7,11,20,0.5)] px-4 py-3 text-left backdrop-blur-sm transition-all hover:border-slate-600 hover:bg-[rgba(15,23,42,0.6)]"
+          >
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-slate-600 bg-[rgba(15,23,42,0.5)] text-slate-100">{symbol}</Badge>
-              <Badge className="border-slate-600 bg-[rgba(15,23,42,0.5)] text-slate-100">{timeframe}</Badge>
-              <span className={cn("text-sm font-medium", change >= 0 ? "text-emerald-400" : "text-rose-400")}>
+              <Badge className="border-slate-600 bg-[rgba(15,23,42,0.5)] text-slate-100 group-hover:border-indigo-500/50 group-hover:text-indigo-400">
+                {symbol}
+              </Badge>
+              <Badge className="border-slate-600 bg-[rgba(15,23,42,0.5)] text-slate-100">
+                {timeframe}
+              </Badge>
+              <span
+                className={cn(
+                  "text-sm font-medium",
+                  change >= 0 ? "text-emerald-400" : "text-rose-400"
+                )}
+              >
                 {change >= 0 ? "+" : ""}
                 {change.toFixed(digits)} ({changePct.toFixed(2)}%)
               </span>
             </div>
             <div className="mt-1 text-xs text-slate-300">
-              O: {latest.open.toFixed(digits)} | H: {latest.high.toFixed(digits)} | L: {latest.low.toFixed(digits)} | C: {latest.close.toFixed(digits)}
+              O: {latest.open.toFixed(digits)} | H: {latest.high.toFixed(digits)} | L:{" "}
+              {latest.low.toFixed(digits)} | C: {latest.close.toFixed(digits)}
             </div>
-          </div>
+          </button>
 
           {indicators.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -979,6 +1015,12 @@ export function EdgeLabIndicatorChart({
           )}
         </DialogContent>
       </Dialog>
+      <SymbolSelector
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+        onSelect={handleSymbolSelect}
+        currentSymbol={symbol}
+      />
     </div>
   )
 }
