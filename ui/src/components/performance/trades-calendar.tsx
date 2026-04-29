@@ -88,6 +88,36 @@ interface WeekStats {
   daysTraded: number
 }
 
+interface CalendarTrade {
+  [key: string]: unknown
+  trade_id?: string | number
+  id?: string | number
+  ticket?: string | number
+  order?: string | number
+  position_id?: string | number
+  deal_id?: string | number
+  open_time?: string
+  close_time?: string
+  exit_time?: string
+  time?: string
+  entry_time?: string
+  symbol?: string
+  type?: string
+  side?: string | number
+  pnl?: number
+  profit_loss?: number
+  profit?: number
+  net_profit?: number
+  profit_loss_pips?: number
+  pnl_pips?: number
+  pips?: number
+  commission?: number
+  commissions?: number
+  swap?: number
+  volume?: number
+  size?: number
+}
+
 export function TradesCalendar() {
   const { selectedBacktest } = useSelectedBacktest()
   const router = useRouter()
@@ -106,7 +136,7 @@ export function TradesCalendar() {
   const [pickerYear, setPickerYear] = React.useState(new Date().getFullYear())
 
   // Details Dialog State
-  const [rawTrades, setRawTrades] = React.useState<any[]>([])
+  const [rawTrades, setRawTrades] = React.useState<CalendarTrade[]>([])
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
 
@@ -393,6 +423,39 @@ export function TradesCalendar() {
       chartData
     }
   }, [selectedDate, rawTrades])
+
+  const getReplayTradeId = React.useCallback((trade: CalendarTrade) => {
+    const value =
+      trade.trade_id ??
+      trade.id ??
+      trade.ticket ??
+      trade.order ??
+      trade.position_id ??
+      trade.deal_id
+    return value === undefined || value === null ? "" : String(value)
+  }, [])
+
+  const openReplayForTrade = React.useCallback((trade?: CalendarTrade) => {
+    const backtestId = selectedBacktest?.backtest_id
+    if (!backtestId) {
+      router.push("/simulation/replay")
+      setIsDetailsOpen(false)
+      return
+    }
+
+    const tradeId = trade ? getReplayTradeId(trade) : ""
+    const tradeTime = trade?.open_time ?? trade?.entry_time ?? trade?.time
+    const params = new URLSearchParams()
+    if (tradeTime) {
+      params.set("replayTradeTime", String(tradeTime))
+    }
+    const query = params.toString()
+    const targetPath = tradeId
+      ? `/simulation/replay/backtest/${backtestId}/trade/${encodeURIComponent(tradeId)}`
+      : `/simulation/replay/backtest/${backtestId}`
+    router.push(query ? `${targetPath}?${query}` : targetPath)
+    setIsDetailsOpen(false)
+  }, [getReplayTradeId, router, selectedBacktest?.backtest_id])
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground p-4 gap-4">
@@ -824,7 +887,13 @@ export function TradesCalendar() {
                        </DialogTitle>
                     </div>
                     <div className="flex items-center gap-2">
-                       <Button variant="outline" size="sm" className="gap-2 h-8">
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         className="gap-2 h-8"
+                         disabled={!selectedDayData.trades.length}
+                         onClick={() => openReplayForTrade(selectedDayData.trades[0])}
+                       >
                           <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-current border-b-[4px] border-b-transparent ml-0.5" /> Replay
                        </Button>
                        <DialogClose className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors">
@@ -925,6 +994,7 @@ export function TradesCalendar() {
                              {/* <TableHead>Instrument</TableHead> */}
                              <TableHead className="text-right">Net P&L</TableHead>
                               <TableHead className="text-right">P&L Pips</TableHead>
+                              <TableHead className="text-right">Replay</TableHead>
                              {/* <TableHead className="text-right">Net ROI</TableHead> */}
                              {/* <TableHead className="text-right">Realized R-Multiple</TableHead> */}
                           </TableRow>
@@ -961,6 +1031,20 @@ export function TradesCalendar() {
                                  <TableCell className="text-right text-foreground">
                                     {trade.profit_loss_pips !== undefined ? trade.profit_loss_pips.toFixed(1) : (trade.pnl_pips !== undefined ? trade.pnl_pips.toFixed(1) : (trade.pips !== undefined ? trade.pips.toFixed(1) : "-"))}
                                  </TableCell>
+                                 <TableCell className="text-right">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 gap-1 px-2 text-xs"
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        openReplayForTrade(trade)
+                                      }}
+                                    >
+                                      <div className="w-0 h-0 border-t-[3px] border-t-transparent border-l-[5px] border-l-current border-b-[3px] border-b-transparent" />
+                                      Replay
+                                    </Button>
+                                 </TableCell>
                              </TableRow>
                           ))}
                        </TableBody>
@@ -973,16 +1057,9 @@ export function TradesCalendar() {
                     </Button>
                     <Button 
                         className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                        onClick={() => {
-                            if (selectedBacktest?.backtest_id) {
-                                router.push(`/simulation?source=replay&replayBacktestId=${selectedBacktest.backtest_id}`)
-                            } else {
-                                router.push("/simulation?source=replay")
-                            }
-                            setIsDetailsOpen(false)
-                        }}
+                        onClick={() => openReplayForTrade(selectedDayData.trades[0])}
                     >
-                        View Details
+                        Replay First Trade
                     </Button>
                  </div>
               </div>

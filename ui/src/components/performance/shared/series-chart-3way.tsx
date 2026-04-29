@@ -22,7 +22,7 @@ interface DataPoint {
   all?: number | null
   long?: number | null
   short?: number | null
-  [key: string]: string | number | null | undefined
+  [key: string]: any
 }
 
 interface SeriesChart3WayProps {

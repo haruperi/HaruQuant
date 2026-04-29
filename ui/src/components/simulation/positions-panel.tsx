@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Pencil, X } from "lucide-react"
+import { Pencil, X, TrendingUp, TrendingDown } from "lucide-react"
 
 export interface PositionRow {
   id: string | number
@@ -37,6 +37,7 @@ export interface PositionRow {
   currentPrice: number
   swap?: number
   pnl: number
+  pnlPct?: number
   marginRequired?: number
   exposure?: number
   weight?: number
@@ -180,6 +181,58 @@ interface CloseDialogState {
   isSubmitting: boolean
 }
 
+function PriceCell({ value, digits, className }: { value: number, digits: number, className?: string }) {
+  const [flash, setFlash] = useState<"up" | "down" | null>(null)
+  const prevValue = useRef(value)
+
+  useEffect(() => {
+    if (value !== prevValue.current) {
+      setFlash(value > prevValue.current ? "up" : "down")
+      const timer = setTimeout(() => setFlash(null), 400)
+      prevValue.current = value
+      return () => clearTimeout(timer)
+    }
+  }, [value])
+
+  return (
+    <TableCell className={`${className} transition-colors duration-500 ${
+      flash === "up" ? "bg-emerald-500/20" : flash === "down" ? "bg-red-500/20" : ""
+    }`}>
+      {formatPrice(value, digits)}
+    </TableCell>
+  )
+}
+
+function PnlCell({ pnl, pnlPct, className }: { pnl: number, pnlPct: number, className?: string }) {
+  const [flash, setFlash] = useState<"up" | "down" | null>(null)
+  const prevValue = useRef(pnl)
+  const isProfit = pnl >= 0
+
+  useEffect(() => {
+    if (pnl !== prevValue.current) {
+      setFlash(pnl > prevValue.current ? "up" : "down")
+      const timer = setTimeout(() => setFlash(null), 400)
+      prevValue.current = pnl
+      return () => clearTimeout(timer)
+    }
+  }, [pnl])
+
+  return (
+    <TableCell className={`${className} transition-colors duration-500 ${
+      flash === "up" ? "bg-emerald-500/20" : flash === "down" ? "bg-red-500/20" : ""
+    }`}>
+      <div className="flex flex-col">
+        <span className={`font-mono font-bold text-sm ${isProfit ? "text-emerald-500" : "text-red-500"}`}>
+          {isProfit ? "+" : ""}{pnl.toFixed(2)}
+        </span>
+        <span className={`font-mono text-[10px] ${isProfit ? "text-emerald-400/80" : "text-red-400/80"}`}>
+          ({isProfit ? "+" : ""}{pnlPct.toFixed(2)}%)
+        </span>
+      </div>
+    </TableCell>
+  )
+}
+
 export function PositionsPanel({
   positions,
   digits = 5,
@@ -270,8 +323,8 @@ export function PositionsPanel({
                 <TableHead>TP</TableHead>
                 <TableHead>Current</TableHead>
                 <TableHead>Swap</TableHead>
-                <TableHead>P&amp;L ($)</TableHead>
-                <TableHead>P&amp;L (Pips)</TableHead>
+                <TableHead>PnL ($/%)</TableHead>
+                <TableHead>PnL (Pips)</TableHead>
                 <TableHead>Margin Req</TableHead>
                 <TableHead>Exposure</TableHead>
                 <TableHead>Weight</TableHead>
@@ -281,7 +334,7 @@ export function PositionsPanel({
             <TableBody>
               {positions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={16} className="text-center text-muted-foreground">
+                  <TableCell colSpan={16} className="text-center text-muted-foreground py-8">
                     No open positions.
                   </TableCell>
                 </TableRow>
@@ -292,17 +345,33 @@ export function PositionsPanel({
                     position.type === "buy"
                       ? (position.currentPrice - position.openPrice) / pipSize
                       : (position.openPrice - position.currentPrice) / pipSize
+                  
+                  const isProfit = position.pnl >= 0
+                  const pnlPct = position.pnlPct ?? (
+                    position.type === "buy" 
+                      ? ((position.currentPrice / position.openPrice) - 1) * 100 
+                      : ((position.openPrice / position.currentPrice) - 1) * 100
+                  )
 
                   return (
-                    <TableRow key={position.id}>
-                      <TableCell>{position.symbol}</TableCell>
-                      <TableCell>{position.ticket}</TableCell>
-                      <TableCell>{formatTime(position.time)}</TableCell>
-                      <TableCell className={position.type === "buy" ? "text-emerald-500" : "text-red-500"}>
-                        {position.type.toUpperCase()}
+                    <TableRow key={position.id} className="hover:bg-muted/50 transition-colors">
+                      <TableCell className="font-medium">{position.symbol}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">#{position.ticket}</TableCell>
+                      <TableCell className="text-xs">{formatTime(position.time)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {position.type === "buy" ? (
+                            <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+                          )}
+                          <span className={`text-xs font-bold ${position.type === "buy" ? "text-emerald-500" : "text-red-500"}`}>
+                            {position.type.toUpperCase()}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell>{position.volume.toFixed(2)}</TableCell>
-                      <TableCell>{formatPrice(position.openPrice, digits)}</TableCell>
+                      <TableCell className="font-mono text-xs">{position.volume.toFixed(2)}</TableCell>
+                      <TableCell className="font-mono text-xs">{formatPrice(position.openPrice, digits)}</TableCell>
                       <TableCell>
                         <InlineEditableNumber
                           value={position.sl}
@@ -317,26 +386,28 @@ export function PositionsPanel({
                           onSave={(newVal) => handleModifyField(position.id, "tp", newVal)}
                         />
                       </TableCell>
-                      <TableCell>{formatPrice(position.currentPrice, digits)}</TableCell>
-                      <TableCell>{(position.swap ?? 0).toFixed(2)}</TableCell>
-                      <TableCell className={position.pnl >= 0 ? "text-emerald-500" : "text-red-500"}>
-                        {position.pnl.toFixed(2)}
-                      </TableCell>
-                      <TableCell className={pipDelta >= 0 ? "text-emerald-500" : "text-red-500"}>
+                      <PriceCell 
+                        value={position.currentPrice} 
+                        digits={digits} 
+                        className="font-mono text-xs font-semibold" 
+                      />
+                      <TableCell className="font-mono text-xs text-muted-foreground">{(position.swap ?? 0).toFixed(2)}</TableCell>
+                      <PnlCell pnl={position.pnl} pnlPct={pnlPct} />
+                      <TableCell className={`font-mono text-xs ${pipDelta >= 0 ? "text-emerald-500" : "text-red-500"}`}>
                         {pipDelta.toFixed(1)}
                       </TableCell>
-                      <TableCell>{(position.marginRequired ?? 0).toFixed(2)}</TableCell>
-                      <TableCell>{position.exposure !== undefined ? position.exposure.toFixed(2) : "--"}</TableCell>
-                      <TableCell>{position.weight !== undefined ? (position.weight * 100).toFixed(2) + "%" : "--"}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{(position.marginRequired ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{position.exposure !== undefined ? position.exposure.toFixed(2) : "--"}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{position.weight !== undefined ? (position.weight * 100).toFixed(2) + "%" : "--"}</TableCell>
                       <TableCell>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                           title="Close position"
                           onClick={() => openCloseDialog(position)}
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>

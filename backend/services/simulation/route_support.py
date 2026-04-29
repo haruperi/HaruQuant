@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from backend.mcp.mt5_mcp import get_mt5_api
@@ -184,6 +185,130 @@ def _position_notional_from_payload(active: SimulatorSession, position: dict) ->
     )
 
 
+def _parse_replay_time(value: Any) -> Optional[datetime]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        raw = float(value)
+        if raw > 1e12:
+            raw /= 1000.0
+        return datetime.fromtimestamp(raw, tz=timezone.utc).replace(tzinfo=None)
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc).replace(tzinfo=None) if value.tzinfo else value
+    raw = str(value).strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None) if parsed.tzinfo else parsed
+
+
+def _first_present(mapping: dict, *keys: str) -> Any:
+    for key in keys:
+        value = mapping.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _replay_side(trade: dict) -> str:
+    raw = _first_present(trade, "type", "side", "direction", "order_type")
+    text = str(raw or "").lower()
+    return "buy" if raw == 0 or "buy" in text or "long" in text else "sell"
+
+
+def _replay_float(trade: dict, *keys: str, default: float = 0.0) -> float:
+    value = _first_present(trade, *keys)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _current_replay_time_by_symbol(active: SimulatorSession) -> dict[str, datetime]:
+    out: dict[str, datetime] = {}
+    for symbol, market in getattr(active, "current_market_by_symbol", {}).items():
+        parsed = _parse_replay_time((market or {}).get("time"))
+        if parsed is not None:
+            out[str(symbol)] = parsed
+    return out
+
+
+def _replay_position_payloads(active: SimulatorSession) -> list[dict]:
+    if active.config.get("mode") != "replay" or not active.replay_trades:
+        return []
+
+    current_time_by_symbol = _current_replay_time_by_symbol(active)
+    if not current_time_by_symbol:
+        return []
+
+    payloads: list[dict] = []
+    for index, raw_trade in enumerate(active.replay_trades):
+        if not isinstance(raw_trade, dict):
+            continue
+        symbol = str(raw_trade.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        current_market = getattr(active, "current_market_by_symbol", {}).get(symbol) or {}
+        current_time = current_time_by_symbol.get(symbol)
+        if current_time is None:
+            continue
+
+        open_time = _parse_replay_time(
+            _first_present(raw_trade, "open_time", "time_open", "entry_time", "time", "entry_dt")
+        )
+        close_time = _parse_replay_time(
+            _first_present(raw_trade, "close_time", "time_close", "exit_time", "exit_dt")
+        )
+        if open_time is None or current_time < open_time:
+            continue
+        if close_time is not None and current_time >= close_time:
+            continue
+
+        open_price = _replay_float(raw_trade, "open_price", "entry_price", "price_open")
+        current_price = float(current_market.get("close") or current_market.get("bid") or open_price or 0.0)
+        volume = _replay_float(raw_trade, "volume", "lots", "size", default=0.0)
+        if open_price <= 0.0 or current_price <= 0.0 or volume <= 0.0:
+            continue
+
+        side = _replay_side(raw_trade)
+        symbol_info = active.engine.symbol_info(symbol)
+        contract_size = float(getattr(symbol_info, "trade_contract_size", 100000.0) or 100000.0)
+        price_delta = current_price - open_price if side == "buy" else open_price - current_price
+        profit = float(price_delta * volume * contract_size)
+        raw_id = _first_present(raw_trade, "trade_id", "id", "ticket", "order", "position_id", "deal_id")
+        try:
+            ticket = int(raw_id)
+        except (TypeError, ValueError):
+            ticket = 900000000 + index
+
+        payloads.append(
+            {
+                "ticket": ticket,
+                "identifier": ticket,
+                "symbol": symbol,
+                "type": side,
+                "volume": volume,
+                "price_open": open_price,
+                "price_current": current_price,
+                "sl": _replay_float(raw_trade, "sl", "stop_loss"),
+                "tp": _replay_float(raw_trade, "tp", "take_profit"),
+                "profit": profit,
+                "swap": _replay_float(raw_trade, "swap"),
+                "commission": _replay_float(raw_trade, "commission", "commissions"),
+                "margin_required": 0.0,
+                "time": open_time.isoformat(),
+                "comment": f"replay:{raw_id or index + 1}",
+            }
+        )
+
+    return payloads
+
+
 def normalize_order(order: dict) -> dict:
     type_map = {
         mt5.ORDER_TYPE_BUY_LIMIT: "buy_limit",
@@ -264,6 +389,7 @@ def collect_positions_orders(active: SimulatorSession) -> tuple[list[dict], list
         if abs(volume) <= 1e-12:
             continue
         position_payloads.append(payload)
+    position_payloads.extend(_replay_position_payloads(active))
     gross_notional = float(
         sum(_position_notional_from_payload(active, pos) for pos in position_payloads)
     )

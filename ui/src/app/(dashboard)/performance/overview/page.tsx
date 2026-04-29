@@ -8,7 +8,7 @@ import { Loader2, CheckCircle2, AlertTriangle, ShieldCheck, TrendingUp, Activity
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { MetricGrid3Way } from "@/components/performance/shared/metric-grid-3way"
+import { MetricGrid3Way, MetricConfig } from "@/components/performance/shared/metric-grid-3way"
 import { PerformanceActions } from "@/components/performance/shared/performance-actions"
 import { SeriesChart3Way } from "@/components/performance/shared/series-chart-3way"
 
@@ -19,7 +19,7 @@ const formatDateTime = (value: string | null | undefined) => {
   return format(parsed, "yyyy-MM-dd HH:mm:ss")
 }
 
-const dashboardConfig = {
+const dashboardConfig: Record<string, MetricConfig[]> = {
   profitability: [
     { label: "Net Profit", accessor: "net_profit", format: (v: any) => v != null ? `$${v.toFixed(2)}` : "-", unit: "USD", description: "Total monetary gain or loss after all trades and costs." },
     { label: "Total Return", accessor: "total_return", format: (v: any) => v != null ? `${v.toFixed(2)}%` : "-", unit: "%", description: "Percentage change in account balance relative to initial capital." },
@@ -127,7 +127,7 @@ function StrategyScorecard({ scorecard }: { scorecard: any }) {
   )
 }
 
-function DashboardGrid({ title, icon: Icon, metrics, data }: { title: string, icon: any, metrics: any[], data: any }) {
+function DashboardGrid({ title, icon: Icon, metrics, data }: { title: string, icon: any, metrics: MetricConfig[], data: any }) {
   if (!data) return null;
   
   // Support both new 3-way backend structure and legacy flat structure
@@ -239,29 +239,29 @@ export default function OverviewPage() {
              <DashboardGrid 
                title="Profitability & Growth" 
                icon={TrendingUp} 
-               metrics={dashboardConfig.profitability} 
-               data={analytics.dashboard.profitability} 
+               metrics={dashboardConfig.profitability as any} 
+               data={analytics.dashboard.profitability as any} 
              />
              
              <DashboardGrid 
                title="Risk & Preservation" 
                icon={ShieldCheck} 
-               metrics={dashboardConfig.risk} 
-               data={analytics.dashboard.risk} 
+               metrics={dashboardConfig.risk as any} 
+               data={analytics.dashboard.risk as any} 
              />
 
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                <DashboardGrid 
                  title="Strategy Quality" 
                  icon={Activity} 
-                 metrics={dashboardConfig.quality} 
-                 data={analytics.dashboard.quality} 
+                 metrics={dashboardConfig.quality as any} 
+                 data={analytics.dashboard.quality as any} 
                />
                <DashboardGrid 
                  title="Statistical Robustness" 
                  icon={BarChart3} 
-                 metrics={dashboardConfig.robustness} 
-                 data={analytics.dashboard.robustness} 
+                 metrics={dashboardConfig.robustness as any} 
+                 data={analytics.dashboard.robustness as any} 
                />
              </div>
           </div>
@@ -273,14 +273,14 @@ export default function OverviewPage() {
             {charts.equity_curve && (
               <SeriesChart3Way 
                 title="Cumulative Equity" 
-                data={charts.equity_curve} 
+                data={charts.equity_curve as any} 
                 valueFormatter={(v) => `$${v.toLocaleString()}`}
               />
             )}
             {charts.drawdown_curve && (
               <SeriesChart3Way 
                 title="Strategy Drawdown" 
-                data={charts.drawdown_curve} 
+                data={charts.drawdown_curve as any} 
                 valueFormatter={(v) => `${v.toFixed(2)}%`}
               />
             )}

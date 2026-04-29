@@ -33,10 +33,10 @@ export function SkipControl({
     if (sessionId) {
       simulatorApi
         .getTrades(sessionId)
-        .then((data) => {
+        .then((data: any[]) => {
           setTrades(data || [])
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error("Failed to fetch trades for skip control:", err)
         })
     }

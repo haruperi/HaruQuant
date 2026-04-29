@@ -1,5 +1,5 @@
 "use client"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { BacktestExecutionView } from "@/components/backtest/execution-view"
@@ -13,7 +13,7 @@ import {
   historicalRunConfigToSimulationPayload,
   type HistoricalRunConfig,
 } from "@/lib/historical-run"
-import type { SimulationStartResponse } from "@/lib/api/simulator"
+import simulatorApi, { type SimulationStartResponse } from "@/lib/api/simulator"
 
 type ViewState = "config" | "execution" | "results"
 
@@ -28,6 +28,13 @@ type SimulationTrade = {
 
 export type SimulationTab = "visual_auto" | "batch_auto" | "manual" | "replay"
 
+const simulationTabPaths: Record<SimulationTab, string> = {
+  visual_auto: "/simulation/visual-auto",
+  batch_auto: "/simulation/batch-auto",
+  manual: "/simulation/manual",
+  replay: "/simulation/replay",
+}
+
 interface HistoricalRunShellProps {
   title: string
   description: string
@@ -35,7 +42,10 @@ interface HistoricalRunShellProps {
   initialSource?: "manual" | "strategy" | "replay"
   initialStrategyId?: string
   initialReplayBacktestId?: string
+  initialReplayTradeId?: string
+  initialReplayTradeTime?: string
   initialReplaySource?: "backtest" | "csv"
+  initialAutoStartReplay?: boolean
 }
 
 export function HistoricalRunShell({
@@ -45,7 +55,10 @@ export function HistoricalRunShell({
   initialSource = "manual",
   initialStrategyId = "",
   initialReplayBacktestId = "",
+  initialReplayTradeId = "",
+  initialReplayTradeTime = "",
   initialReplaySource = "backtest",
+  initialAutoStartReplay = false,
 }: HistoricalRunShellProps) {
   const router = useRouter()
   const [view, setView] = useState<ViewState>("config")
@@ -71,6 +84,8 @@ export function HistoricalRunShell({
     return "visual_auto"
   })
 
+  const pathname = usePathname()
+
   const resetVisualizedState = () => {
     setSessionId(null)
     setSessionConfig(null)
@@ -86,17 +101,35 @@ export function HistoricalRunShell({
     setStrategyId(null)
   }
 
-  const handleSimulationStart = (
+  const handleSimulationStart = async (
     id: number,
     config: HistoricalRunConfig,
     response?: SimulationStartResponse
   ) => {
+    let effectiveResponse = response || null
+    try {
+      const persistedSession = await simulatorApi.getSession(id)
+      if (persistedSession.config) {
+        effectiveResponse = {
+          ...(response || {
+            session_id: id,
+            status: persistedSession.status,
+            total_bars: persistedSession.total_bars,
+            symbol_digits: symbolDigits,
+          }),
+          config: persistedSession.config,
+        }
+      }
+    } catch {
+      effectiveResponse = response || null
+    }
+
     setActiveExecutionMode("visualized")
     setSessionId(id)
     setSessionConfig(config)
-    setSessionResponse(response || null)
-    setTotalBars(response?.total_bars || config.range.numberOfBars || 500)
-    setSymbolDigits(response?.symbol_digits || 5)
+    setSessionResponse(effectiveResponse)
+    setTotalBars(effectiveResponse?.total_bars || config.range.numberOfBars || 500)
+    setSymbolDigits(effectiveResponse?.symbol_digits || 5)
     setTrades([])
     setFinalAccount(null)
     setView("execution")
@@ -139,13 +172,27 @@ export function HistoricalRunShell({
   }
 
   const handleBackToConfig = () => {
+    const targetPath = simulationTabPaths[activeTab]
+    
+    // If we are on a specific sub-route (like a specific backtest replay), 
+    // just redirect to the base tab. The remount will handle starting in config view.
+    if (pathname !== targetPath) {
+      router.push(targetPath)
+      return
+    }
+
+    // Otherwise we are on the base page, just switch the view back to config.
     setView("config")
     resetVisualizedState()
     resetBatchState()
+    // Ensure URL is clean
+    router.replace(targetPath)
   }
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value as SimulationTab)
+    const nextTab = value as SimulationTab
+    setActiveTab(nextTab)
+    router.push(simulationTabPaths[nextTab])
   }
 
   return (
@@ -155,7 +202,7 @@ export function HistoricalRunShell({
           <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
         </div>
-        <Button variant="outline" onClick={() => router.push("/simulation")}>
+        <Button variant="outline" onClick={() => router.push("/simulation/visual-auto")}>
           New Run
         </Button>
       </div>
@@ -175,6 +222,7 @@ export function HistoricalRunShell({
               initialStrategyId={initialStrategyId}
               initialReplayBacktestId={initialReplayBacktestId}
               initialReplaySource={initialReplaySource}
+              initialAutoStartReplay={initialAutoStartReplay}
               onSimulationStart={handleSimulationStart}
               onSimulationResume={handleSimulationResume}
               onBacktestStart={(backtestIdValue, strategyIdValue, _config) =>
@@ -188,10 +236,15 @@ export function HistoricalRunShell({
       {view === "execution" && activeExecutionMode === "visualized" && sessionId && (
         <SimulationExecutionView
           sessionId={sessionId}
-          config={sessionConfig ? historicalRunConfigToSimulationPayload(sessionConfig) : null}
+          config={
+            sessionResponse?.config ??
+            (sessionConfig ? historicalRunConfigToSimulationPayload(sessionConfig) : null)
+          }
           sessionResponse={sessionResponse}
           totalBars={totalBars}
           symbolDigits={symbolDigits}
+          initialReplayTradeId={initialReplayTradeId}
+          initialReplayTradeTime={initialReplayTradeTime}
           onComplete={handleSimulationComplete}
           onStop={handleBackToConfig}
           onTradesUpdate={setTrades}

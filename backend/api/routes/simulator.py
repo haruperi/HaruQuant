@@ -118,12 +118,10 @@ async def start_simulation(
                 # Load backtest record for metadata
                 backtest_run = db_manager.get_backtest_run(payload.replay_backtest_id)
                 if backtest_run:
-                    # Automatically adopt metadata from backtest if not explicitly provided
-                    if not payload.symbol or payload.symbol == "AUDUSD, EURGBP, NZDCHF":
-                         config["symbol"] = backtest_run.get("symbol") or payload.symbol
-                    if not payload.timeframe or payload.timeframe == "H1":
-                         config["timeframe"] = backtest_run.get("timeframe") or payload.timeframe
-                    
+                    # For replay mode, we ALWAYS adopt metadata from the backtest source
+                    # to ensure consistency with the recorded trades.
+                    config["symbol"] = backtest_run.get("symbol") or config.get("symbol")
+                    config["timeframe"] = backtest_run.get("timeframe") or config.get("timeframe")
                     config["start_time"] = backtest_run.get("start_date") or config.get("start_time")
                     config["end_time"] = backtest_run.get("end_date") or config.get("end_time")
                     config["range_by"] = "dates"
@@ -194,6 +192,7 @@ async def start_simulation(
             "total_bars": session.visible_total_steps(),
             "symbol_digits": session.symbol_digits,
             "risk_run_id": session.risk_run_id,
+            "config": config,
             "account_leverage": session.engine.account_info().get("leverage"),
             "account_login": credentials.get("login"),
             "account_server": credentials.get("server"),

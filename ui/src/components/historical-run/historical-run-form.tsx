@@ -1,8 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { backtestApi } from "@/lib/api/backtest"
+import {
+  backtestApi,
+  type BacktestRunPayload,
+  type PortfolioBacktestRunPayload,
+} from "@/lib/api/backtest"
 import { getErrorMessage } from "@/lib/api-error"
 import { strategyApi, type StrategyCodeResponse } from "@/lib/api/strategies"
 import simulatorApi, {
@@ -34,6 +39,7 @@ interface HistoricalRunFormProps {
   initialStrategyId?: string
   initialReplayBacktestId?: string
   initialReplaySource?: ReplaySource
+  initialAutoStartReplay?: boolean
   onSimulationStart: (
     sessionId: number,
     config: HistoricalRunConfig,
@@ -57,10 +63,12 @@ export function HistoricalRunForm({
   initialStrategyId = "",
   initialReplayBacktestId = "",
   initialReplaySource = "backtest",
+  initialAutoStartReplay = false,
   onSimulationStart,
   onSimulationResume,
   onBacktestStart,
 }: HistoricalRunFormProps) {
+  const router = useRouter()
   const { strategies, loading: loadingStrategies } = useStrategies()
   const { backtests, loading: loadingBacktests } = useAllBacktests(200)
 
@@ -86,6 +94,8 @@ export function HistoricalRunForm({
   const [replayBacktestId, setReplayBacktestId] = useState(initialReplayBacktestId)
   const [replayFileName, setReplayFileName] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const autoStartAttemptedRef = useRef(false)
+  const handleSubmitRef = useRef<() => void>(() => undefined)
   const [importing, setImporting] = useState(false)
   const [pausedSessions, setPausedSessions] = useState<Array<{ session_id: number; session_name?: string | null; symbol: string; timeframe: string }>>([])
   const [selectedPausedId, setSelectedPausedId] = useState("")
@@ -303,16 +313,37 @@ export function HistoricalRunForm({
     try {
       setSubmitting(true)
       if (executionMode === "visualized") {
+        // For replays, if we're not already on the specific backtest page, redirect there first
+        // This allows the page to load because of the URL, and then auto-start
+        if (mode === "replay" && replayBacktestId && !initialAutoStartReplay) {
+          const params = new URLSearchParams()
+          if (replaySource === "csv") {
+            params.set("replaySource", "csv")
+          }
+          const query = params.toString()
+          const target = `/simulation/replay/backtest/${replayBacktestId}`
+          router.push(query ? `${target}?${query}` : target)
+          setSubmitting(false)
+          return
+        }
+
         const payload = historicalRunConfigToSimulationPayload(config)
         const response = await simulatorApi.startSession(payload)
+        
+        // If we are already on the replay page or it's not a replay, we can proceed
+        if (mode === "replay" && replayBacktestId) {
+          // Ensure we are on the right URL, but use replace to not add to history if we're already basically there
+          router.replace(`/simulation/replay/backtest/${replayBacktestId}`)
+        }
+        
         toast.success("Historical run started", { description: `Session ${response.session_id}` })
         onSimulationStart(response.session_id, config, response)
         return
       }
       const plan = historicalRunConfigToBacktestPayload(config)
       const result = plan.isPortfolio
-        ? await backtestApi.runPortfolio(plan.strategyId, plan.payload as any)
-        : await backtestApi.run(plan.strategyId, plan.payload as any)
+        ? await backtestApi.runPortfolio(plan.strategyId, plan.payload as PortfolioBacktestRunPayload)
+        : await backtestApi.run(plan.strategyId, plan.payload as BacktestRunPayload)
       toast.success("Batch backtest started", { description: `Backtest ${result.backtest_id}` })
       onBacktestStart(result.backtest_id, plan.strategyId, config)
     } catch (error) {
@@ -321,6 +352,27 @@ export function HistoricalRunForm({
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    handleSubmitRef.current = () => {
+      void handleSubmit()
+    }
+  })
+
+  useEffect(() => {
+    if (
+      autoStartAttemptedRef.current ||
+      !initialAutoStartReplay ||
+      variant !== "replay" ||
+      mode !== "replay" ||
+      !replayBacktestId ||
+      submitting
+    ) {
+      return
+    }
+    autoStartAttemptedRef.current = true
+    handleSubmitRef.current()
+  }, [initialAutoStartReplay, mode, replayBacktestId, submitting, variant])
 
   return (
     <div className="grid gap-6">

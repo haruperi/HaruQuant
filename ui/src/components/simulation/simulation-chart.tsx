@@ -32,6 +32,40 @@ export interface ChartIndicatorData {
   rsi?: number
 }
 
+interface PositionOverlay {
+  id?: string | number
+  symbol?: string
+  time?: string | number | null
+  openTime?: string | number | null
+  openPrice?: number
+  currentPrice?: number
+  type?: "buy" | "sell" | string
+}
+
+interface TradeOverlay {
+  [key: string]: unknown
+  id?: string | number
+  ticket?: string | number
+  symbol?: string
+  type?: string | number
+  side?: string
+  direction?: string
+  order_type?: string | number
+  open_time?: string | number | null
+  time_open?: string | number | null
+  entry_time?: string | number | null
+  time?: string | number | null
+  close_time?: string | number | null
+  time_close?: string | number | null
+  exit_time?: string | number | null
+  open_price?: number
+  entry_price?: number
+  price_open?: number
+  close_price?: number
+  exit_price?: number
+  price_close?: number
+}
+
 interface SimulationChartProps {
   symbol?: string
   timeframe?: string
@@ -40,8 +74,8 @@ interface SimulationChartProps {
   indicators?: ChartIndicatorData[]
   digits?: number
   indicatorVisibility?: IndicatorSelection
-  positions?: any[]
-  trades?: any[]
+  positions?: PositionOverlay[]
+  trades?: TradeOverlay[]
   currentPrice?: number
 }
 
@@ -50,6 +84,17 @@ interface TradeMarker {
   time: Time
   price: number
   side: "buy" | "sell"
+}
+
+interface TradeLinePosition {
+  id: string | number
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  color: string
+  side: "buy" | "sell"
+  status: "open" | "closed"
 }
 
 const indicatorColors: Record<IndicatorKey, string> = {
@@ -95,6 +140,29 @@ const resolveChartTime = (value: unknown, timeframe?: string): Time | null => {
   return Math.floor(date.getTime() / 1000) as Time
 }
 
+const resolveTimeMs = (value: unknown): number | null => {
+  const date = parseDate(value)
+  return date ? date.getTime() : null
+}
+
+const resolveTradeSide = (trade: TradeOverlay): "buy" | "sell" => {
+  const rawType = trade.type ?? trade.side ?? trade.direction ?? trade.order_type
+  const normalized = String(rawType ?? "").toLowerCase()
+  return rawType === 0 || normalized.includes("buy") || normalized.includes("long")
+    ? "buy"
+    : "sell"
+}
+
+const resolveNumber = (...values: unknown[]): number | null => {
+  for (const value of values) {
+    const numeric = Number(value)
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return numeric
+    }
+  }
+  return null
+}
+
 export function SimulationChart({
   symbol = "EURUSD",
   timeframe,
@@ -115,22 +183,13 @@ export function SimulationChart({
   const rsiSeriesRef = useRef<ISeriesApi<"Line"> | null>(null)
   const markersRef = useRef<TradeMarker[]>([])
   const digitsRef = useRef<number>(digits)
+  const userControlledRangeRef = useRef(false)
+  const updateMarkerPositionsRef = useRef<() => void>(() => undefined)
 
   const [markerPositions, setMarkerPositions] = useState<
     { id: number; x: number; y: number; side: "buy" | "sell" }[]
   >([])
-  const [linePositions, setLinePositions] = useState<
-    {
-      id: string | number
-      x1: number
-      y1: number
-      x2: number
-      y2: number
-      color: string
-      side: "buy" | "sell"
-      status: "open" | "closed"
-    }[]
-  >([])
+  const [linePositions, setLinePositions] = useState<TradeLinePosition[]>([])
 
   const updateMarkerPositions = useCallback(() => {
     if (!chartRef.current || !candleSeriesRef.current) return
@@ -147,13 +206,14 @@ export function SimulationChart({
     setMarkerPositions(positions_coords)
 
     // Calculate line positions
-    const lines: typeof linePositions = []
+    const lines: TradeLinePosition[] = []
+    const lastBar = bars[bars.length - 1]
+    const lastBarTime = lastBar ? resolveChartTime(lastBar.time, timeframe) : null
+    const lastBarMs = lastBar ? resolveTimeMs(lastBar.time) : null
+    const currentLinePrice = resolveNumber(currentPrice, lastBar?.close)
 
     // 1. Process open positions
     if (positions && positions.length > 0) {
-      const lastBar = bars[bars.length - 1]
-      const lastBarTime = lastBar ? resolveChartTime(lastBar.time, timeframe) : null
-
       for (const pos of positions) {
         if (pos.symbol !== symbol) continue
         const openTimeValue = pos.time || pos.openTime
@@ -167,7 +227,9 @@ export function SimulationChart({
         const x2 = lastBarTime
           ? chartRef.current!.timeScale().timeToCoordinate(lastBarTime)
           : null
-        const y2 = candleSeriesRef.current!.priceToCoordinate(pos.currentPrice || currentPrice || 0)
+        const y2 = candleSeriesRef.current!.priceToCoordinate(
+          resolveNumber(pos.currentPrice, currentLinePrice) ?? 0
+        )
 
         if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
           lines.push({
@@ -184,20 +246,33 @@ export function SimulationChart({
       }
     }
 
-    // 2. Process completed trades
+    // 2. Process replay trades as a time-progressive overlay.
+    // Future trades stay hidden; active trades extend to the current replay bar;
+    // closed trades freeze at their recorded close point.
     if (trades && trades.length > 0) {
       for (const trade of trades) {
         if (trade.symbol !== symbol) continue
-        const openTimeValue = trade.open_time || trade.time_open
-        const closeTimeValue = trade.close_time || trade.time_close
+        const openTimeValue = trade.open_time || trade.time_open || trade.entry_time || trade.time
+        const closeTimeValue = trade.close_time || trade.time_close || trade.exit_time
         const openTime = resolveChartTime(openTimeValue, timeframe)
-        const closeTime = resolveChartTime(closeTimeValue, timeframe)
-        if (!openTime || !closeTime) continue
+        const openMs = resolveTimeMs(openTimeValue)
+        const closeMs = resolveTimeMs(closeTimeValue)
+        if (!openTime || openMs === null || lastBarMs === null || openMs > lastBarMs) continue
 
+        const isClosedAtReplayTime = closeMs !== null && closeMs <= lastBarMs
+        const lineEndTime = isClosedAtReplayTime
+          ? resolveChartTime(closeTimeValue, timeframe)
+          : lastBarTime
+        const openPrice = resolveNumber(trade.open_price, trade.entry_price, trade.price_open)
+        const closePrice = resolveNumber(trade.close_price, trade.exit_price, trade.price_close)
+        const lineEndPrice = isClosedAtReplayTime ? closePrice : currentLinePrice
+        if (!lineEndTime || openPrice === null || lineEndPrice === null) continue
+
+        const side = resolveTradeSide(trade)
         const x1 = chartRef.current!.timeScale().timeToCoordinate(openTime)
-        const y1 = candleSeriesRef.current!.priceToCoordinate(trade.open_price)
-        const x2 = chartRef.current!.timeScale().timeToCoordinate(closeTime)
-        const y2 = candleSeriesRef.current!.priceToCoordinate(trade.close_price)
+        const y1 = candleSeriesRef.current!.priceToCoordinate(openPrice)
+        const x2 = chartRef.current!.timeScale().timeToCoordinate(lineEndTime)
+        const y2 = candleSeriesRef.current!.priceToCoordinate(lineEndPrice)
 
         if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
           lines.push({
@@ -206,9 +281,9 @@ export function SimulationChart({
             y1,
             x2,
             y2,
-            color: (trade.type === 0 || trade.type === "buy") ? "#10b981" : "#ef4444",
-            side: (trade.type === 0 || trade.type === "buy") ? "buy" : "sell",
-            status: "closed",
+            color: side === "buy" ? "#10b981" : "#ef4444",
+            side,
+            status: isClosedAtReplayTime ? "closed" : "open",
           })
         }
       }
@@ -216,6 +291,10 @@ export function SimulationChart({
 
     setLinePositions(lines)
   }, [bars, currentPrice, positions, symbol, timeframe, trades])
+
+  useEffect(() => {
+    updateMarkerPositionsRef.current = updateMarkerPositions
+  }, [updateMarkerPositions])
 
   // Create chart on mount
   useEffect(() => {
@@ -286,13 +365,18 @@ export function SimulationChart({
       if (!entries.length || !chartContainerRef.current) return
       const rect = entries[0].contentRect
       chart.applyOptions({ width: rect.width, height: rect.height })
-      updateMarkerPositions()
+      updateMarkerPositionsRef.current()
     })
     resizeObserver.observe(chartContainerRef.current)
 
-    chart.timeScale().subscribeVisibleTimeRangeChange(updateMarkerPositions)
+    const handleVisibleRangeChange = () => {
+      userControlledRangeRef.current = true
+      updateMarkerPositionsRef.current()
+    }
+    chart.timeScale().subscribeVisibleTimeRangeChange(handleVisibleRangeChange)
 
     return () => {
+      chart.timeScale().unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange)
       resizeObserver.disconnect()
       chart.remove()
       chartRef.current = null
@@ -301,7 +385,7 @@ export function SimulationChart({
       emaSeriesRef.current = null
       rsiSeriesRef.current = null
     }
-  }, [height, timeframe, updateMarkerPositions, digits])
+  }, [height, timeframe, digits])
 
   // Update bars when they change
   useEffect(() => {
@@ -342,11 +426,15 @@ export function SimulationChart({
       return (a.time as number) - (b.time as number)
     })
 
-    // Set all data at once
+    const previousLogicalRange = chartRef.current?.timeScale().getVisibleLogicalRange() ?? null
+
+    // Set all data at once. Restore the visible range afterwards so replay ticks
+    // do not reset a user-selected zoom/pan window.
     candleSeriesRef.current.setData(chartBars)
 
-    // Fit content on first load
-    if (chartRef.current && chartBars.length <= 10) {
+    if (previousLogicalRange && userControlledRangeRef.current) {
+      chartRef.current?.timeScale().setVisibleLogicalRange(previousLogicalRange)
+    } else if (chartRef.current && chartBars.length <= 10) {
       chartRef.current.timeScale().fitContent()
     }
     

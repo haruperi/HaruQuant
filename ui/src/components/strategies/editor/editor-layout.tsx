@@ -228,7 +228,7 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
                         variant="secondary"
                         onClick={() =>
                             router.push(
-                                `/simulation?execution=batch&source=strategy&strategyId=${strategyId}`
+                                `/simulation/batch-auto?strategyId=${strategyId}`
                             )
                         }
                     >

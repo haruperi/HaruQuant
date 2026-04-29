@@ -269,6 +269,8 @@ interface SimulationExecutionViewProps {
   sessionId: number
   config?: SimulationConfig | null
   sessionResponse?: SimulationStartResponse | null
+  initialReplayTradeId?: string
+  initialReplayTradeTime?: string
   totalBars?: number
   symbolDigits?: number
   onComplete: () => void
@@ -284,6 +286,8 @@ export function SimulationExecutionView({
   sessionId,
   config,
   sessionResponse,
+  initialReplayTradeId = "",
+  initialReplayTradeTime = "",
   totalBars = 0,
   symbolDigits = 5,
   onComplete,
@@ -318,9 +322,9 @@ export function SimulationExecutionView({
   const [chartBarsBySymbol, setChartBarsBySymbol] = useState<Record<string, ChartBarData[]>>({})
   const [chartIndicatorsBySymbol, setChartIndicatorsBySymbol] = useState<Record<string, ChartIndicatorData[]>>({})
   const [marketBySymbol, setMarketBySymbol] = useState<Record<string, SimulationMarketRow>>({})
-  const [riskSnapshot, setRiskSnapshot] = useState<SimulationRiskSnapshotSummary>({})
-  const [riskScorecard, setRiskScorecard] = useState<SimulationRiskScorecardSummary>({})
-  const [recommendations, setRecommendations] = useState<SimulationRecommendationSummary>({ items: [] })
+  const [riskSnapshot, setRiskSnapshot] = useState<SimulationRiskSnapshotSummary>({} as any)
+  const [riskScorecard, setRiskScorecard] = useState<SimulationRiskScorecardSummary>({} as any)
+  const [recommendations, setRecommendations] = useState<SimulationRecommendationSummary>({ items: [] } as any)
   const [latestGovernanceReport, setLatestGovernanceReport] = useState<SimulationGovernanceReport | null>(null)
   const [whatIfComparison, setWhatIfComparison] = useState<SimulationWhatIfComparison | null>(null)
   const [whatIfLoading, setWhatIfLoading] = useState(false)
@@ -341,6 +345,7 @@ export function SimulationExecutionView({
   const isFetchingRef = useRef(false)
   const accumulatorRef = useRef(0) // Accumulates fractional bars over time
   const lastUpdateTimeRef = useRef(Date.now())
+  const initialReplaySeekDoneRef = useRef(false)
 
   const symbol = symbols[0] || "EURUSD"
   const sessionDetails = {
@@ -440,11 +445,11 @@ export function SimulationExecutionView({
     grossExposure: formatNumber(riskSnapshot.gross_exposure),
     netExposure: formatNumber(riskSnapshot.net_exposure),
     maxSingleExposurePct: formatPercent(riskSnapshot.max_single_exposure_frac),
-    currencyExposure: (riskSnapshot.currency_exposure || []).slice(0, 8).map((item) => ({
+    currencyExposure: (riskSnapshot.currency_exposure || []).slice(0, 8).map((item: any) => ({
       label: item.currency,
       value: formatNumber(item.value),
     })),
-    currencyWeights: (riskSnapshot.currency_weights || []).slice(0, 8).map((item) => ({
+    currencyWeights: (riskSnapshot.currency_weights || []).slice(0, 8).map((item: any) => ({
       label: item.currency,
       value:
         typeof item.value === "number" && Number.isFinite(item.value)
@@ -585,7 +590,7 @@ export function SimulationExecutionView({
 
       if (response.market) {
         setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
-        const primaryMarket = response.market.find((item) => item.symbol === symbol)
+        const primaryMarket = response.market.find((item: SimulationMarketRow) => item.symbol === symbol)
         if (primaryMarket) {
           setCurrentPrice(primaryMarket.close)
         }
@@ -661,7 +666,7 @@ export function SimulationExecutionView({
       const response = await simulatorApi.getSessionState(sessionId)
       if (response.market) {
         setMarketBySymbol((prev) => mergeMarketBySymbol(prev, response.market))
-        const primaryMarket = response.market.find((item) => item.symbol === symbol)
+        const primaryMarket = response.market.find((item: SimulationMarketRow) => item.symbol === symbol)
         if (primaryMarket) {
           setCurrentPrice(primaryMarket.close)
         }
@@ -728,6 +733,60 @@ export function SimulationExecutionView({
       console.error("Failed to sync state after seek:", error)
     }
   }
+
+  useEffect(() => {
+    if (
+      initialReplaySeekDoneRef.current ||
+      config?.mode !== "replay" ||
+      (!initialReplayTradeId && !initialReplayTradeTime)
+    ) {
+      return
+    }
+
+    const seekInitialReplayTrade = async () => {
+      try {
+        initialReplaySeekDoneRef.current = true
+        const replayTrades = await simulatorApi.getTrades(sessionId)
+        const targetTradeId = String(initialReplayTradeId)
+        const targetTradeTime = initialReplayTradeTime ? new Date(initialReplayTradeTime).getTime() : null
+        const tradeIndex = replayTrades.findIndex((trade) => {
+          const candidateIds = [
+            trade.trade_id,
+            trade.id,
+            trade.ticket,
+            trade.order,
+            trade.position_id,
+            trade.deal_id,
+          ]
+          if (targetTradeId && candidateIds.some((value) => value !== undefined && String(value) === targetTradeId)) {
+            return true
+          }
+          if (targetTradeTime === null || Number.isNaN(targetTradeTime)) {
+            return false
+          }
+          const candidateTime = trade.open_time ?? trade.entry_time ?? trade.time ?? trade.time_open
+          return candidateTime ? new Date(candidateTime).getTime() === targetTradeTime : false
+        })
+
+        if (tradeIndex < 0) {
+          toast.error("Replay trade not found", {
+            description: `Could not find the requested trade in this backtest replay.`,
+          })
+          return
+        }
+
+        const response = await simulatorApi.seekToTrade(sessionId, tradeIndex)
+        await handleSeek(response.bar_index)
+        toast.success(`Replay opened at trade #${tradeIndex + 1}`)
+      } catch (error) {
+        toast.error("Failed to open trade replay", {
+          description: getErrorMessage(error),
+        })
+      }
+    }
+
+    void seekInitialReplayTrade()
+  }, [config?.mode, handleSeek, initialReplayTradeId, initialReplayTradeTime, sessionId])
 
   const handleSaveAndStopSimulation = async () => {
     try {
@@ -901,9 +960,9 @@ export function SimulationExecutionView({
                           <td className="p-2">{market ? market.high.toFixed(digits) : "--"}</td>
                           <td className="p-2">{market ? market.low.toFixed(digits) : "--"}</td>
                           <td className="p-2">{market ? market.close.toFixed(digits) : "--"}</td>
-                          <td className="p-2">{market ? market.bid.toFixed(digits) : "--"}</td>
-                          <td className="p-2">{market ? market.ask.toFixed(digits) : "--"}</td>
-                          <td className="p-2">{market ? market.spread.toFixed(0) : "--"}</td>
+                          <td className="p-2">{market?.bid != null ? market.bid.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market?.ask != null ? market.ask.toFixed(digits) : "--"}</td>
+                          <td className="p-2">{market?.spread != null ? market.spread.toFixed(0) : "--"}</td>
                         </tr>
                       )
                     })}
