@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import { edgeLabApi } from "@/lib/api/edge"
+import { marketDataApi } from "@/lib/api/data"
 import { Loader2 } from "lucide-react"
 
 interface Instrument {
@@ -41,7 +41,7 @@ export function SymbolSelector({
     const fetchSymbols = async () => {
       setLoading(true)
       try {
-        const data = await edgeLabApi.getSymbols()
+        const data = await marketDataApi.getSymbols()
         setInstruments(data)
         const cats = ["All", ...Array.from(new Set(data.map((i: Instrument) => i.category)))]
         setCategories(cats)
