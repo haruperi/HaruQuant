@@ -591,27 +591,45 @@ class Portfolio:
     def from_random_signals(
         cls, 
         price: Union[pd.Series, pd.DataFrame], 
-        n: Optional[int] = None, 
+        n: Optional[Union[int, List[int]]] = None, 
         prob: Optional[float] = None, 
         init_cash: float = 10000.0, 
         symbol: str = "ASSET",
-        seed: Optional[int] = None
-    ) -> 'Portfolio':
+        seed: Optional[int] = None,
+        chunked: Optional[str] = None
+    ) -> Union['Portfolio', List['Portfolio']]:
         """
         Create a portfolio from random signals.
         
         Args:
             price: Price series or single-column DataFrame.
-            n: Number of random signals to generate.
+            n: Number of random signals to generate. Can be a list of ints for multiple simulations.
             prob: Probability of a signal at each tick (0-1).
             init_cash: Initial cash.
             symbol: Symbol name.
             seed: Random seed for reproducibility.
+            chunked: Execution backend for multiple simulations ('threadpool', None).
         """
         from backend.services.simulation.engine import Engine
-        
+        from concurrent.futures import ThreadPoolExecutor
+
         if len(price) == 0:
             raise ValueError("Price series is empty.")
+
+        # Handle multiple simulations
+        if isinstance(n, (list, tuple, np.ndarray)):
+            # If a list of n is provided, we run multiple simulations
+            seeds = [seed + i if seed is not None else None for i in range(len(n))]
+            
+            def run_single(n_val, s_val):
+                return cls.from_random_signals(price, n=n_val, prob=prob, init_cash=init_cash, symbol=symbol, seed=s_val)
+
+            if chunked == "threadpool":
+                with ThreadPoolExecutor() as executor:
+                    return list(executor.map(run_single, n, seeds))
+            else:
+                return [run_single(nv, sv) for nv, sv in zip(n, seeds)]
+
         if n is None and prob is None:
             n = 10 # Default to 10 random signals
             

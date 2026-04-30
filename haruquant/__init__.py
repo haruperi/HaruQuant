@@ -36,6 +36,7 @@ from .strategy import (
     CloseBreakoutStrategy
 )
 from .optimization import Optimizer, Splitter, PortfolioOptimizer
+from .performance import rolling_mean, chunked
 PFO = PortfolioOptimizer
 grid_search = Optimizer.grid_search
 random_search = Optimizer.random_search
@@ -94,6 +95,8 @@ __all__ = [
     "Optimizer",
     "PortfolioOptimizer",
     "PFO",
+    "rolling_mean",
+    "chunked",
     "grid_search",
     "random_search",
     "bayesian",

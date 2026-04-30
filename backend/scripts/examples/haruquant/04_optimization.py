@@ -1,14 +1,14 @@
 import os
 import sys
+from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
 # Add project root to sys.path to allow importing haruquant
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..', '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+root_path = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
+if root_path not in sys.path:
+    sys.path.insert(0, root_path)
 
 import haruquant as hqt
 
