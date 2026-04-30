@@ -12,7 +12,6 @@ from .data import (
     ParquetData,
     GBMData,
     ScheduledDataUpdater,
-    DataSplitter,
     Labeler,
     DataSaver,
     CSVDataSaver,
@@ -21,7 +20,7 @@ from .data import (
 
 from . import indicators as ind
 from . import common
-from .common import resample, merge, concat, symbol_dict
+from .common import resample, merge, concat, symbol_dict, Param, combine_params
 
 # Convenience exports
 from .indicators import ema, sma, rsi, bbands, atr, hurst, fvg, ob, bos_choch, phl, ta, list_indicators, indicator, run_indicators
@@ -36,6 +35,14 @@ from .strategy import (
     MeanReversionStrategy,
     CloseBreakoutStrategy
 )
+from .optimization import Optimizer, Splitter, PortfolioOptimizer
+PFO = PortfolioOptimizer
+grid_search = Optimizer.grid_search
+random_search = Optimizer.random_search
+bayesian = Optimizer.bayesian
+genetic = Optimizer.genetic
+walk_forward = Optimizer.walk_forward
+monte_carlo = Optimizer.monte_carlo
 
 __all__ = [
     "Data",
@@ -49,17 +56,19 @@ __all__ = [
     "ParquetData",
     "GBMData",
     "ScheduledDataUpdater",
-    "DataSplitter",
     "Labeler",
     "DataSaver",
     "CSVDataSaver",
     "ParquetDataSaver",
+    "Splitter",
     "ind",
     "common",
     "resample",
     "merge",
     "concat",
     "symbol_dict",
+    "Param",
+    "combine_params",
     "ema",
     "sma",
     "rsi",
@@ -81,5 +90,14 @@ __all__ = [
     "TrendFollowingStrategy",
     "BreakoutStrategy",
     "MeanReversionStrategy",
-    "CloseBreakoutStrategy"
+    "CloseBreakoutStrategy",
+    "Optimizer",
+    "PortfolioOptimizer",
+    "PFO",
+    "grid_search",
+    "random_search",
+    "bayesian",
+    "genetic",
+    "walk_forward",
+    "monte_carlo"
 ]

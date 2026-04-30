@@ -183,29 +183,6 @@ def example_10_caching():
     except Exception as e:
         print(f"Data Caching error: {e}")
 
-def example_11_data_splitter():
-    print("\n" + "="*50)
-    print("--- 11. Data Preparation and Splitting (hqt.DataSplitter) ---")
-    print("="*50)
-    try:
-        index = [datetime(2020, 1, 1) + timedelta(days=i) for i in range(10)]
-        sr = pd.Series(np.arange(len(index)), index=index)
-        
-        splits = hqt.DataSplitter.rolling_split(
-            sr,
-            window_len=5, 
-            set_lens=(3, 2), # 3 for train, 2 for test
-            left_to_right=True
-        )
-        
-        print(f"Successfully generated {len(splits)} rolling splits!")
-        first_split = splits[0]
-        print(f"First split - Train rows: {len(first_split['train'])}, Test rows: {len(first_split['test'])}")
-        print("Train start:", first_split['train'].index[0])
-        print("Test end:", first_split['test'].index[-1])
-
-    except Exception as e:
-        print(f"Rolling split error: {e}")
 
 def example_12_labeler():
     print("\n" + "="*50)

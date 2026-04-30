@@ -42,7 +42,15 @@ Features are illustrated and classified into:
 - **Comprehensive Reporting**: Generate detailed performance reports with trade-by-trade analysis and All/Long/Short breakdowns via `portfolio.summary()`.
 
 ### 4. Optimization (`04_optimization.py`)
-- *In progress...*
+- **Grid Search**: Exhaustive parameter optimization with multi-threading support and `random_subset` sampling.
+- **Random Search**: Stochastic parameter discovery over continuous or discrete distributions.
+- **Bayesian Optimization**: AI-driven search using Gaussian Processes for efficient global optimization.
+- **Genetic Algorithms**: Evolutionary search for complex, non-linear parameter spaces.
+- **Walk-Forward Analysis (WFA)**: Time-series validation to detect overfitting and ensure strategy robustness.
+- **Monte Carlo Simulations**: Stress-testing strategy performance through resampling and trade-skipping scenarios.
+- **Advanced Parameter Handling**: Use `hqt.Param` to wrap ranges and `hqt.combine_params` for level-based grouping and random sampling of complex search spaces.
+- **Data Splitting**: Professional time-series validation using `hqt.Splitter` with support for rolling, expanding, and anchored windows.
+- **Portfolio Optimization (PFO)**: Periodic asset allocation and rebalancing using custom optimization functions via `hqt.PFO.from_optimize_func`.
 
 ### 5. Performance (`05_performance.py`)
 - *In progress...*

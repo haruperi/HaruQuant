@@ -202,6 +202,23 @@ class Data:
         self._source_name = None
         self._fetch_params = {}
 
+    @property
+    def df(self) -> pd.DataFrame:
+        """Return the underlying pandas DataFrame."""
+        return self._df
+
+    @property
+    def index(self) -> pd.Index:
+        """Return the index of the underlying DataFrame."""
+        return self._df.index
+
+    @property
+    def symbols(self) -> List[str]:
+        """Return the list of symbols in this dataset."""
+        if isinstance(self._df.columns, pd.MultiIndex):
+            return list(self._df.columns.get_level_values(0).unique())
+        return [self._symbol] if self._symbol else []
+
     def get(self, column: str = "close") -> Union[pd.Series, pd.DataFrame]:
         """Get a specific column from the data."""
         col = column.lower()
@@ -248,6 +265,16 @@ class Data:
     @property
     def volume(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("volume")
+
+    @property
+    def pct_change(self) -> Union[pd.Series, pd.DataFrame]:
+        """Return percentage returns of the close price."""
+        return self.close.pct_change()
+
+    @property
+    def returns(self) -> Union[pd.Series, pd.DataFrame]:
+        """Alias for pct_change."""
+        return self.pct_change
 
 
 
@@ -337,6 +364,10 @@ class MT5Data:
         )
 
     @staticmethod
+    def pull(*args, **kwargs) -> Data:
+        return MT5Data.download(*args, **kwargs)
+
+    @staticmethod
     def list_symbols(pattern: Optional[str] = None) -> List[str]:
         """List available symbols in MT5."""
         try:
@@ -386,6 +417,10 @@ class DukascopyData:
             params={"start": start, "end": end, "count": count, **kwargs},
             fetcher=fetcher,
         )
+
+    @staticmethod
+    def pull(*args, **kwargs) -> Data:
+        return DukascopyData.download(*args, **kwargs)
 
     @staticmethod
     def list_symbols(pattern: Optional[str] = None) -> List[str]:
@@ -456,6 +491,10 @@ class YFData:
             fetcher=fetcher,
         )
 
+    @staticmethod
+    def pull(*args, **kwargs) -> Data:
+        return YFData.download(*args, **kwargs)
+
 
 class BinanceData:
     """Data source for Binance."""
@@ -515,6 +554,10 @@ class BinanceData:
             params={"start": start, "end": end, "interval": interval, **kwargs},
             fetcher=fetcher,
         )
+
+    @staticmethod
+    def pull(*args, **kwargs) -> Data:
+        return BinanceData.download(*args, **kwargs)
 
     @staticmethod
     def list_symbols(pattern: Optional[str] = None) -> List[str]:
@@ -581,6 +624,10 @@ class CCXTData:
             },
             fetcher=fetcher,
         )
+
+    @staticmethod
+    def pull(*args, **kwargs) -> Data:
+        return CCXTData.download(*args, **kwargs)
 
 
 class GBMData:
@@ -872,62 +919,6 @@ class ScheduledDataUpdater:
             
 
 
-class DataSplitter:
-    """Utilities for data splitting and preparation."""
-    
-    @staticmethod
-    def rolling_split(
-        data: Union[pd.Series, pd.DataFrame, Data],
-        window_len: int,
-        set_lens: tuple = (1, 1),
-        left_to_right: bool = False,
-        step: int = 1,
-    ) -> List[dict]:
-        """
-        Perform a rolling split of the data into training and testing sets.
-        Mimics vbt.rolling_split.
-        
-        Args:
-            data: The data to split.
-            window_len: Total length of the window (train + test).
-            set_lens: Relative lengths of (train, test) or (train, valid, test).
-            left_to_right: Direction of the rolling window.
-            step: Number of bars to step the window forward.
-            
-        Returns:
-            A list of dictionaries containing 'train', 'valid' (optional), and 'test' subsets.
-        """
-        if isinstance(data, Data):
-            df = data.df
-        else:
-            df = data
-            
-        n = len(df)
-        splits = []
-        
-        total_set_len = sum(set_lens)
-        # Normalize set_lens to be fractions of window_len
-        unit = window_len / total_set_len
-        actual_lens = [int(l * unit) for l in set_lens]
-        
-        if left_to_right:
-            indices = range(0, n - window_len + 1, step)
-        else:
-            indices = range(n - window_len, -1, -step)
-            
-        for i in indices:
-            current_window = df.iloc[i : i + window_len]
-            split = {}
-            start = 0
-            
-            names = ['train', 'valid', 'test'] if len(set_lens) == 3 else ['train', 'test']
-            for name, length in zip(names, actual_lens):
-                split[name] = current_window.iloc[start : start + length]
-                start += length
-                
-            splits.append(split)
-            
-        return splits if left_to_right else splits[::-1]
 
 
 class Labeler:

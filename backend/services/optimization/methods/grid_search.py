@@ -1,4 +1,4 @@
-﻿"""
+"""
 Grid Search Optimization.
 
 Exhaustive search over parameter space.
@@ -70,10 +70,13 @@ def grid_search(  # noqa: C901
     strategy_file_path: Optional[str] = None,
     symbol: Optional[str] = None,
     constraint: Optional[Callable[[Dict[str, Any]], bool]] = None,
+    random_subset: Optional[int] = None,
 ) -> OptimizationSummary:
     """Grid search over parameter space."""
     if verbose:
         logger.info("Starting grid search optimization")
+        if random_subset:
+            logger.info(f"Randomly sampling {random_subset} combinations from grid")
         logger.info(f"Parameters: {param_grid}")
 
     param_names = list(param_grid.keys())
@@ -83,6 +86,10 @@ def grid_search(  # noqa: C901
     param_sets = [dict(zip(param_names, combo)) for combo in combinations]
     if constraint:
         param_sets = [params for params in param_sets if constraint(params)]
+
+    if random_subset and random_subset < len(param_sets):
+        import random
+        param_sets = random.sample(param_sets, random_subset)
 
     total = len(param_sets)
 

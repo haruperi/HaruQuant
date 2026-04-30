@@ -1,5 +1,98 @@
+from typing import Union, Dict, List, Any, Optional
 import pandas as pd
-from typing import Union
+import numpy as np
+
+class Param:
+    """
+    Helper class to wrap parameter values for optimization.
+    Mimics vbt.Param.
+    """
+    def __init__(self, values: Any, name: Optional[str] = None, level: Optional[int] = None):
+        if isinstance(values, np.ndarray):
+            self.values = values.tolist()
+        elif not isinstance(values, (list, tuple)):
+            self.values = [values]
+        else:
+            self.values = list(values)
+        self.name = name
+        self.level = level
+
+    def __iter__(self):
+        return iter(self.values)
+
+    def __len__(self):
+        return len(self.values)
+
+    def __repr__(self):
+        return f"Param(values={self.values}, name={self.name}, level={self.level})"
+
+def combine_params(params_dict: Dict[str, Any], random_subset: Optional[int] = None, build_index: bool = False) -> List[Dict[str, Any]]:
+    """
+    Combine multiple parameters into a list of parameter sets.
+    Supports grouping by 'level' (parameters with same level are zipped).
+    Mimics vbt.combine_params.
+    
+    Args:
+        params_dict: Dict mapping param names to values or Param objects.
+        random_subset: Optional number of random combinations to return.
+        build_index: (Currently ignored) Whether to return a MultiIndex.
+    """
+    from itertools import product
+    import random
+
+    # 1. Standardize everything to lists and collect levels
+    levels = {} # level -> {name: [values]}
+    default_level_counter = 1000 # For params without level
+    
+    for name, p in params_dict.items():
+        if isinstance(p, Param):
+            lvl = p.level if p.level is not None else default_level_counter
+            if p.level is None: default_level_counter += 1
+            vals = p.values
+        else:
+            lvl = default_level_counter
+            default_level_counter += 1
+            vals = p if isinstance(p, (list, tuple)) else [p]
+            
+        if lvl not in levels:
+            levels[lvl] = {}
+        levels[lvl][name] = vals
+
+    # 2. For each level, zip the parameters (must have same length)
+    level_combinations = [] # List of list of dicts
+    for lvl in sorted(levels.keys()):
+        group = levels[lvl]
+        # Check lengths
+        lengths = {name: len(vals) for name, vals in group.items()}
+        max_len = max(lengths.values())
+        
+        for name, length in lengths.items():
+            if length != max_len and length != 1:
+                raise ValueError(f"Parameters in level {lvl} must have same length or length 1. Error in {name}.")
+        
+        # Zip them
+        group_combos = []
+        for i in range(max_len):
+            combo = {}
+            for name, vals in group.items():
+                combo[name] = vals[i] if len(vals) > 1 else vals[0]
+            group_combos.append(combo)
+        level_combinations.append(group_combos)
+
+    # 3. Cartesian product across levels
+    final_combos = []
+    for product_tuple in product(*level_combinations):
+        # Merge dicts in product_tuple
+        merged = {}
+        for d in product_tuple:
+            merged.update(d)
+        final_combos.append(merged)
+
+    # 4. Apply random subset
+    if random_subset and random_subset < len(final_combos):
+        final_combos = random.sample(final_combos, random_subset)
+        
+    return final_combos
 from .data import Data
 from backend.common.datasets import resample_ohlc as _resample_ohlc, OHLCVSchema
 
