@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -671,6 +671,7 @@ class PageContextAssembler:
         else:
             builder = self._builders[page_type]
             built = builder.build(route=route, user_id=user_id, page_title=page_title, page_state=page_state)
+            built = self._augment_with_page_intelligence(built=built, page_state=page_state)
             # Store in cache
             ttl = PAGE_CONTEXT_TTL.get(page_type, 60)
             self._cache.put(
@@ -705,6 +706,43 @@ class PageContextAssembler:
                 payload=built.payload,
             ),
         )
+
+    @staticmethod
+    def _augment_with_page_intelligence(*, built: BuiltContext, page_state: dict[str, object]) -> BuiltContext:
+        page_intelligence = page_state.get("page_intelligence")
+        if not isinstance(page_intelligence, dict):
+            return built
+
+        payload = dict(built.payload)
+        payload["page_intelligence"] = page_intelligence
+
+        summary = built.summary
+        bullets = list(summary.bullets)
+        metric_count = _safe_len(page_intelligence.get("visibleMetrics"))
+        table_count = _safe_len(page_intelligence.get("visibleTables"))
+        chart_count = _safe_len(page_intelligence.get("visibleCharts"))
+        action_count = _safe_len(page_intelligence.get("actionAffordances"))
+        intelligence_bullets = [
+            f"registered_metrics={metric_count}" if metric_count else "",
+            f"registered_tables={table_count}" if table_count else "",
+            f"registered_charts={chart_count}" if chart_count else "",
+            f"registered_actions={action_count}" if action_count else "",
+        ]
+        bullets.extend(item for item in intelligence_bullets if item)
+
+        return replace(
+            built,
+            summary=ContextSummary(
+                headline=summary.headline,
+                bullets=bullets[:8],
+            ),
+            payload=payload,
+            trust_level="system_state" if built.trust_level == "fallback" else built.trust_level,
+        )
+
+
+def _safe_len(value: object) -> int:
+    return len(value) if isinstance(value, list) else 0
 
 
 __all__ = [

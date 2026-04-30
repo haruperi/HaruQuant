@@ -97,9 +97,9 @@ interface ChatWidgetStoreValue {
   setThreadSearch: (value: string) => void
   createNewThread: () => Promise<void>
   selectThread: (value: string) => Promise<void>
-  renameThread: (value: string) => Promise<void>
-  deleteThread: () => Promise<void>
-  exportThread: () => Promise<void>
+  renameThread: (value: string, targetThreadId?: string) => Promise<void>
+  deleteThread: (targetThreadId?: string) => Promise<void>
+  exportThread: (targetThreadId?: string) => Promise<void>
   saveSignalProposalToWatchlist: (proposalId: string) => Promise<void>
   queueSignalProposalForReview: (proposalId: string) => Promise<void>
   requestActionDraftApproval: (draftId: string) => Promise<void>
@@ -652,15 +652,18 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     refreshActionDrafts,
   ])
 
-  const renameThread = React.useCallback(async (value: string) => {
-    if (!threadId || !isAuthenticated) {
+  const renameThread = React.useCallback(async (value: string, targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated) {
       return
     }
     setIsManagingThreads(true)
     setError(null)
     try {
-      const renamed = await renameAiChatThread(authenticatedFetch, threadId, { title: value })
-      syncThread(renamed)
+      const renamed = await renameAiChatThread(authenticatedFetch, selectedThreadId, { title: value })
+      if (selectedThreadId === threadId) {
+        syncThread(renamed)
+      }
       await refreshThreadList(threadSearch)
     } catch (threadError) {
       console.error("Failed to rename AI chat thread:", threadError)
@@ -670,29 +673,35 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, refreshThreadList, syncThread, threadId, threadSearch])
 
-  const deleteThread = React.useCallback(async () => {
-    if (!threadId || !isAuthenticated || isStreaming) {
+  const deleteThread = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated || isStreaming) {
       return
     }
     setIsManagingThreads(true)
     setError(null)
     try {
-      await deleteAiChatThread(authenticatedFetch, threadId)
-      setThreadId(null)
-      setThreadTitle(DEFAULT_THREAD_TITLE)
-      setMessages([])
-      signalProposalMapRef.current = {}
-      actionDraftMapRef.current = {}
+      await deleteAiChatThread(authenticatedFetch, selectedThreadId)
+      const deletedActiveThread = selectedThreadId === threadId
+      if (deletedActiveThread) {
+        setThreadId(null)
+        setThreadTitle(DEFAULT_THREAD_TITLE)
+        setMessages([])
+        signalProposalMapRef.current = {}
+        actionDraftMapRef.current = {}
+      }
       await refreshThreadList(threadSearch)
-      const listed = threadSearch.trim().length > 0
-        ? await searchAiChatThreads(authenticatedFetch, threadSearch.trim())
-        : await listAiChatThreads(authenticatedFetch)
-      const fallback = listed[0]
-      if (fallback) {
-        const selected = await getAiChatThread(authenticatedFetch, fallback.thread_id)
-        await refreshSignalProposals(fallback.thread_id)
-        await refreshActionDrafts(fallback.thread_id)
-        syncThread(selected)
+      if (deletedActiveThread) {
+        const listed = threadSearch.trim().length > 0
+          ? await searchAiChatThreads(authenticatedFetch, threadSearch.trim())
+          : await listAiChatThreads(authenticatedFetch)
+        const fallback = listed[0]
+        if (fallback) {
+          const selected = await getAiChatThread(authenticatedFetch, fallback.thread_id)
+          await refreshSignalProposals(fallback.thread_id)
+          await refreshActionDrafts(fallback.thread_id)
+          syncThread(selected)
+        }
       }
     } catch (threadError) {
       console.error("Failed to delete AI chat thread:", threadError)
@@ -780,13 +789,14 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
 
-  const exportThread = React.useCallback(async () => {
-    if (!threadId || !isAuthenticated) {
+  const exportThread = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated) {
       return
     }
     setError(null)
     try {
-      const exported = await exportAiChatThread(authenticatedFetch, threadId, "markdown")
+      const exported = await exportAiChatThread(authenticatedFetch, selectedThreadId, "markdown")
       if (typeof window !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(exported)
       }

@@ -737,11 +737,7 @@ mt5_exports/
 !alembic.ini
 !mypy.ini
 
-# Whitelist app/data directory
-!app/data/
-!ui/app/data/
-!ui/components/data/
-!ui/lib/
+# Whitelist 
 .benchmarks/  
 artifacts/  
 .aider*

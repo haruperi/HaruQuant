@@ -1,11 +1,18 @@
 "use client"
 
 import * as React from "react"
+import { NotebookPen, MoreVertical, Search } from "lucide-react"
 
 import { ChatHeader } from "@/components/ai-chat/ChatHeader"
 import { ChatInput } from "@/components/ai-chat/ChatInput"
 import { MessageList } from "@/components/ai-chat/MessageList"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -35,14 +42,14 @@ interface ChatPanelProps {
   onCancel: () => void
   onClose: () => void
   onCreateThread: () => void
-  onDeleteThread: () => void
+  onDeleteThread: (threadId?: string) => void
   onDraftChange: (value: string) => void
-  onExportThread: () => void
+  onExportThread: (threadId?: string) => void
   onQueueSignalProposalForReview: (proposalId: string) => void
   onRequestActionDraftApproval: (draftId: string) => void
   onExecutePaperActionDraft: (draftId: string) => void
   onRegenerate: () => void
-  onRenameThread: (value: string) => void
+  onRenameThread: (value: string, threadId?: string) => void
   onSaveSignalProposalToWatchlist: (proposalId: string) => void
   onSelectThread: (value: string) => void
   onThreadSearchChange: (value: string) => void
@@ -172,12 +179,12 @@ export function ChatPanel({
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [isOpen, onClose])
 
-  const handleRename = React.useCallback(() => {
-    const nextTitle = window.prompt("Rename conversation", threadTitle)
+  const handleRename = React.useCallback((targetThreadId: string, currentTitle: string) => {
+    const nextTitle = window.prompt("Rename conversation", currentTitle)
     if (nextTitle && nextTitle.trim()) {
-      onRenameThread(nextTitle.trim())
+      onRenameThread(nextTitle.trim(), targetThreadId)
     }
-  }, [onRenameThread, threadTitle])
+  }, [onRenameThread])
 
   const latestAssistantMessage = React.useMemo(
     () => [...messages].reverse().find((message) => message.role === "assistant"),
@@ -211,45 +218,79 @@ export function ChatPanel({
       <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[16rem_minmax(0,1fr)]">
         <div className="border-b md:border-b-0 md:border-r">
           <div className="space-y-2 p-3">
-            <Input
-              value={threadSearch}
-              onChange={(event) => onThreadSearchChange(event.target.value)}
-              placeholder="Search conversations"
-              aria-label="Search conversations"
-              className="rounded-md"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={onCreateThread} disabled={isManagingThreads || isStreaming}>
-                New
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleRename} disabled={!threadId || isManagingThreads}>
-                Rename
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={onExportThread} disabled={!threadId}>
-                Export
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={onDeleteThread} disabled={!threadId || isManagingThreads || isStreaming}>
-                Delete
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={threadSearch}
+                onChange={(event) => onThreadSearchChange(event.target.value)}
+                placeholder="Search chats..."
+                aria-label="Search chats"
+                className="rounded-md pl-9"
+              />
+            </div>
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCreateThread}
+                disabled={isManagingThreads || isStreaming}
+                className="w-full justify-start gap-2 border-transparent bg-transparent shadow-none hover:border-border hover:bg-background focus-visible:border-ring"
+              >
+                <NotebookPen className="h-4 w-4" />
+                New chat
               </Button>
             </div>
           </div>
           <ScrollArea className="h-40 border-t md:h-[calc(100%-5.5rem)]">
             <div className="space-y-1 p-2">
               {threads.map((thread) => (
-                <button
+                <div
                   key={thread.threadId}
-                  type="button"
-                  onClick={() => onSelectThread(thread.threadId)}
                   className={cn(
-                    "w-full rounded-md border px-3 py-2 text-left text-sm",
+                    "group relative rounded-md border",
                     thread.threadId === threadId ? "border-primary bg-muted/40" : "hover:bg-muted/30",
                   )}
                 >
-                  <div className="truncate font-medium">{thread.title}</div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {thread.pageType ?? "generic"} | {formatUpdatedAt(thread.updatedAt)}
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectThread(thread.threadId)}
+                    className="w-full rounded-md px-3 py-2 pr-9 text-left text-sm"
+                  >
+                    <div className="truncate font-medium">{thread.title}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {thread.pageType ?? "generic"} | {formatUpdatedAt(thread.updatedAt)}
+                    </div>
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Conversation actions for ${thread.title}`}
+                        disabled={isManagingThreads || isStreaming}
+                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleRename(thread.threadId, thread.title)}>
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onExportThread(thread.threadId)}>
+                        Export
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDeleteThread(thread.threadId)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ))}
               {threads.length === 0 ? (
                 <p className="px-2 py-4 text-xs text-muted-foreground">No conversations found.</p>

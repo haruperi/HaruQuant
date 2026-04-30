@@ -123,3 +123,69 @@ def test_page_context_assembler_uses_dom_fallback_for_generic_pages(tmp_path) ->
     assert "captured current ui context" in packet.payload.summary.headline.lower()
     assert packet.payload.payload["dom"]["headings"][1] == "Order Types"
     assert packet.payload.payload["dom"]["semantic_blocks"][0]["title"] == "Order Types"
+
+
+def test_page_context_assembler_preserves_registered_page_intelligence(tmp_path) -> None:
+    database_path = tmp_path / "agentic_page_intelligence_ctx.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="intelligence@example.com", username="intelligence_user", password="password")
+
+    page_intelligence = {
+        "pageIdentity": {
+            "route": "/performance/overview",
+            "pageType": "backtest_detail",
+            "title": "Backtest Overview",
+            "activeTab": "overview",
+        },
+        "primaryEntity": {"type": "backtest", "id": "42", "label": "Backtest 42"},
+        "visibleMetrics": [
+            {
+                "id": "net_profit",
+                "label": "Net Profit",
+                "value": 1240.5,
+                "unit": "USD",
+                "source": "backtest_summary",
+            },
+            {
+                "id": "max_drawdown",
+                "label": "Max Drawdown",
+                "value": -8.2,
+                "unit": "%",
+                "source": "backtest_summary",
+            },
+        ],
+        "visibleCharts": [
+            {
+                "id": "equity_curve",
+                "title": "Equity Curve",
+                "series": [{"label": "Equity", "points": [{"x": "2026-01-01", "y": "10000"}]}],
+            }
+        ],
+        "actionAffordances": [
+            {
+                "id": "backtest.export_report",
+                "label": "Export report",
+                "riskLevel": "backend_non_trading",
+                "requiresConfirmation": True,
+            }
+        ],
+    }
+
+    assembler = PageContextAssembler(db_manager=db)
+    packet = assembler.assemble_context(
+        route="/performance/overview",
+        user_id=1,
+        page_title="Backtest Overview",
+        page_state={
+            "page_type_hint": "backtest_detail",
+            "page_intelligence": page_intelligence,
+        },
+    )
+
+    assert packet.payload.page_type == "backtest_detail"
+    assert packet.payload.payload["page_intelligence"]["primaryEntity"]["id"] == "42"
+    assert "registered_metrics=2" in packet.payload.summary.bullets
+    assert "registered_charts=1" in packet.payload.summary.bullets
+    assert "registered_actions=1" in packet.payload.summary.bullets

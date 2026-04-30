@@ -136,6 +136,12 @@ class ChatPromptBuilder:
             if visible_snapshot
             else "none"
         )
+        registered_page_intelligence = page_context.payload.payload.get("page_intelligence")
+        registered_page_intelligence_text = (
+            self.compactor.truncate_json(str(registered_page_intelligence), 1800)
+            if registered_page_intelligence
+            else "none"
+        )
 
         composed_user_prompt = "\n".join(
             [
@@ -144,6 +150,7 @@ class ChatPromptBuilder:
                 f"Page entities: {'; '.join(entity_refs)}",
                 f"Page bullets: {'; '.join(page_bullets)}",
                 f"Visible page snapshot: {visible_snapshot_text}",
+                f"Registered page intelligence: {registered_page_intelligence_text}",
                 f"Retrieved current-page evidence: {'; '.join(page_chunk_summaries)}",
                 f"Conversation state entities: {'; '.join(active_entities)}",
                 f"Conversation resolved references: {'; '.join(resolved_references)}",

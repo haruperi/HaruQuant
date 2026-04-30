@@ -42,8 +42,8 @@ const performanceNavItems: NavSection[] = [
     href: "/performance/trades-calender",
     items: [
       { label: "Trades Calendar", href: "/performance/trades-calender", icon: LineChartIcon },
-      { label: "Trades Chart", href: "/data", icon: LineChartIcon, isTradesChart: true },
-      { label: "Trades Chart Replay", href: "/data", icon: LineChartIcon, isTradesChart: true, replay: true },
+      { label: "Trades Chart", href: "/chart", icon: LineChartIcon, isTradesChart: true },
+      { label: "Trades Chart Replay", href: "/chart", icon: LineChartIcon, isTradesChart: true, replay: true },
     ],
     icon: LineChartIcon
   },
@@ -158,11 +158,11 @@ export function PerformanceNav() {
   }
 
   const buildTradesChartHref = (replay = false) => {
-    if (!selectedBacktest?.symbol) return "/data"
+    if (!selectedBacktest?.symbol) return "/chart"
     const timeframe = selectedBacktest.timeframe || selectedBacktest.data_resolution || "H1"
     const start = formatDateSegment(selectedBacktest.start_date)
     const end = formatDateSegment(selectedBacktest.end_date)
-    return `/data/${selectedBacktest.symbol}/${timeframe}/dates/${start}/${end}/trades-charts${replay ? "/replay" : ""}`
+    return `/chart/${selectedBacktest.symbol}/${timeframe}/dates/${start}/${end}/trades-charts${replay ? "/replay" : ""}`
   }
 
   const openTradesChart = async (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -238,7 +238,7 @@ export function PerformanceNav() {
                 const ItemIcon = item.icon
                 const href = item.isTradesChart ? buildTradesChartHref(item.replay) : item.href
                 const isItemActive = item.isTradesChart
-                  ? pathname.startsWith("/data") && href.includes("/trades-charts")
+                  ? pathname.startsWith("/chart") && href.includes("/trades-charts")
                   : pathname === item.href
                 const isDisabled = item.isTradesChart && !selectedBacktest?.symbol
 

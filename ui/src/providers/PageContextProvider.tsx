@@ -10,6 +10,7 @@ import type {
   AiChatDomTableSnapshot,
   AiChatSemanticBlock,
 } from "@/lib/ai-chat/contracts"
+import { mergePageIntelligence, pageIntelligenceToSemanticBlocks } from "@/lib/ai-chat/page-intelligence"
 import { useAuth } from "@/lib/auth-context"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
@@ -184,6 +185,7 @@ function mergeRegistrations(registrations: RegisteredStateMap): AiChatPageContex
       merged.extra = { ...(merged.extra || {}), ...value.extra }
     }
   }
+  merged.pageIntelligence = mergePageIntelligence(values.map((value) => value.pageIntelligence))
 
   if (!merged.entityRefs?.length) {
     delete merged.entityRefs
@@ -193,6 +195,9 @@ function mergeRegistrations(registrations: RegisteredStateMap): AiChatPageContex
   }
   if (!merged.extra || Object.keys(merged.extra).length === 0) {
     delete merged.extra
+  }
+  if (!merged.pageIntelligence) {
+    delete merged.pageIntelligence
   }
 
   return merged
@@ -280,6 +285,11 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
       setError(null)
       try {
         const domSnapshot = buildDomSnapshot()
+        const registeredSemanticBlocks = pageIntelligenceToSemanticBlocks(mergedRegistration.pageIntelligence)
+        const semanticBlocks = [
+          ...registeredSemanticBlocks,
+          ...(domSnapshot.semanticBlocks ?? []),
+        ]
         const response = await authenticatedFetch(`${API_URL}/api/ai-chat/context/resolve`, {
           method: "POST",
           headers: {
@@ -297,13 +307,14 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
               entity_refs: mergedRegistration.entityRefs ?? [],
               filters: mergedRegistration.filters ?? {},
               extra: mergedRegistration.extra ?? {},
+              page_intelligence: mergedRegistration.pageIntelligence ?? null,
             },
             dom: {
               title: domSnapshot.title ?? null,
               headings: domSnapshot.headings,
               text_excerpt: domSnapshot.textExcerpt ?? null,
               tables: domSnapshot.tables ?? [],
-              semantic_blocks: domSnapshot.semanticBlocks ?? [],
+              semantic_blocks: semanticBlocks,
             },
           }),
         })

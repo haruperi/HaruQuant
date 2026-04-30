@@ -109,9 +109,9 @@ export default function DataPageContent() {
   const updateUrl = (symbol: string, tf: string, mode: RangeMode, bars: string, start: string, end: string) => {
     const suffix = showTradesChart ? `/trades-charts${replayMode ? "/replay" : ""}` : ""
     if (mode === "bars") {
-      router.push(`/data/${symbol}/${tf}/bars/${bars}${suffix}`)
+      router.push(`/chart/${symbol}/${tf}/bars/${bars}${suffix}`)
     } else {
-      router.push(`/data/${symbol}/${tf}/dates/${start || "null"}/${end || "null"}${suffix}`)
+      router.push(`/chart/${symbol}/${tf}/dates/${start || "null"}/${end || "null"}${suffix}`)
     }
   }
 

@@ -44,18 +44,18 @@ const routes = [
       color: "text-sky-500",
     },
     {
-      label: "Data",
-      icon: Database,
-      href: "/data",
+      label: "Chart",
+      icon: LineChartIcon,
+      href: "/chart",
       color: "text-violet-500",
       subRoutes: [
         {
           label: "Quotes",
-          href: "/data/quotes",
+          href: "/chart/quotes",
         },
         {
           label: "Forex Calendar",
-          href: "/data/forex-calendar",
+          href: "/chart/forex-calendar",
         },
       ],
     },
