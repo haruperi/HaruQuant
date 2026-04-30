@@ -26,40 +26,6 @@ import haruquant as hqt
 
 
 
-def example_03_indicators():
-    print("\n\n" + "="*50)
-    print("      EXAMPLE 03: TECHNICAL INDICATORS (via hqt)      ")
-    print("="*50)
-    
-    # Generate some data
-    data = hqt.GBMData.generate("BTC", start_value=100, count=100, seed=42)
-    
-    print("\n--- 1. Native HaruQuant Indicators (hqt.ema, hqt.sma) ---")
-    print("Computing 3 EMAs at once using hqt.ema.run(data, [20, 50, 200]):")
-    data_with_ema = hqt.ema.run(data, [20, 50, 200])
-    print(data_with_ema.columns)
-    print(data_with_ema[['ema_20', 'ema_50', 'ema_200']].tail())
-    
-    print("\n--- 2. Multi-Indicator chaining ---")
-    df = hqt.sma.run(data_with_ema, [10, 20])
-    df = hqt.rsi.run(df, 14)
-    print("Columns after chaining SMA and RSI:")
-    print(df.columns)
-    
-    print("\n--- 3. Bollinger Bands (hqt.bbands) ---")
-    df_bb = hqt.bbands.run(data, 20)
-    print("Bollinger Bands columns:")
-    # BBands usually adds bbands_upper_20, bbands_lower_20, etc.
-    print([c for c in df_bb.columns if 'bbands' in c])
-
-    print("\n--- 4. Pandas TA integration (hqt.ta) ---")
-    try:
-        # Using hqt.ta wrapper for pandas_ta
-        df_ta = hqt.ta.rsi(data, [14, 21])
-        print("Pandas TA RSI columns:")
-        print([c for c in df_ta.columns if 'rsi' in c.lower()])
-    except Exception as e:
-        print(f"Pandas TA error: {e}")
 
 def example_04_signals():
     print("\n\n" + "="*50)

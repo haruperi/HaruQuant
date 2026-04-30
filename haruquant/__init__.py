@@ -24,7 +24,7 @@ from . import common
 from .common import resample, merge, concat, symbol_dict
 
 # Convenience exports
-from .indicators import ema, sma, rsi, bbands, atr, ta
+from .indicators import ema, sma, rsi, bbands, atr, hurst, fvg, ob, bos_choch, phl, ta, list_indicators, indicator, run_indicators
 
 from .strategy import (
     Catalog,
@@ -65,7 +65,15 @@ __all__ = [
     "rsi",
     "bbands",
     "atr",
+    "hurst",
+    "fvg",
+    "ob",
+    "bos_choch",
+    "phl",
     "ta",
+    "list_indicators",
+    "indicator",
+    "run_indicators",
     "Catalog",
     "Portfolio",
     "StrategyCatalogCreateRequest",

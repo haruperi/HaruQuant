@@ -249,6 +249,8 @@ class Data:
     def volume(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("volume")
 
+
+
     @property
     def df(self) -> pd.DataFrame:
         """Returns the underlying DataFrame."""

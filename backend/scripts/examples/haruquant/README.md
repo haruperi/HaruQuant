@@ -22,7 +22,14 @@ Features are illustrated and classified into:
 - **Data Preprocessing**: Utilities for splitting data into Train/Test sets and labeling for machine learning.
 
 ### 2. Indicators (`02_indicators.py`)
-- *In progress...*
+- **Native Indicator Suite**: Built-in implementations for SMA, EMA, WMA, RSI, ATR, BBands, and more.
+- **Smart Money Concepts (SMC)**: Institutional order flow tools including Fair Value Gaps (FVG), Order Blocks (OB), Market Structure (BOS/CHOCH), and Previous High/Low (PHL) tracking.
+- **Statistical Analysis**: Advanced indicators like the **Hurst Exponent** for identifying trending vs. mean-reverting market regimes.
+- **Indicator Discovery**: Search for indicators using globbing patterns via `hqt.list_indicators("*ma")` and access them dynamically with `hqt.indicator()`.
+- **Bulk Feature Generation**: Generate dozens of features for Machine Learning in a single call using `hqt.run_indicators(data, "native")` or `hqt.run_indicators(data, "smc")`.
+- **Pandas TA Integration**: Seamless wrapper for the `pandas_ta` library, allowing any of its 130+ indicators to be used within the `hqt` pipeline (e.g., `hqt.ta.zlema.run()`).
+- **Parallel Execution**: High-performance parameter sweeps using `engine="threadpool"` or `engine="processpool"` to distribute calculations across multiple CPU cores.
+- **Vectorized Chaining**: Effortlessly chain indicators (e.g., `hqt.rsi.run(hqt.ema.run(data))`) for complex technical signals.
 
 ### 3. Analysis (`03_analysis.py`)
 - *In progress...*
