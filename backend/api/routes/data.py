@@ -226,6 +226,24 @@ def serialize_prepared_dataset(prepared: PreparedDataset) -> Dict[str, Any]:
         "preview_rows": preview,
     }
 
+def resolve_symbol_price_metadata(source: DataSource, symbol: str) -> Dict[str, Any]:
+    """Resolve broker price display metadata for a symbol when available."""
+    if not isinstance(source, MT5DataSource) or not source.client:
+        return {}
+
+    symbol_info = source.client.symbol_info(symbol)
+    if not symbol_info:
+        return {}
+
+    digits = getattr(symbol_info, "digits", None)
+    point = getattr(symbol_info, "point", None)
+    trade_tick_size = getattr(symbol_info, "trade_tick_size", None)
+    return {
+        "digits": int(digits) if digits is not None else None,
+        "point": float(point) if point is not None else None,
+        "trade_tick_size": float(trade_tick_size) if trade_tick_size is not None else None,
+    }
+
 def parse_date(value: Optional[str]) -> Optional[datetime]:
     """Parse an ISO date string."""
     if value is None:
@@ -505,4 +523,5 @@ async def prepare_dataset_endpoint(
         "session_basis": request.session_basis,
         "session_hours": session_hours,
     }
+    payload["meta"]["symbol_info"] = resolve_symbol_price_metadata(source, request.symbol)
     return payload

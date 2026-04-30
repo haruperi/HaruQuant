@@ -293,6 +293,7 @@ export default function DataPageContent() {
             timeframe={dataset.request.timeframe}
             rows={dataset.rows}
             schema={dataset.schema}
+            symbolInfo={dataset.meta.symbol_info}
             trades={showTradesChart ? tradesOverlay?.trades : undefined}
             replayMode={replayMode}
           />

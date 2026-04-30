@@ -832,6 +832,25 @@ def _resolve_seasonality_symbol_info(
     return symbol_digits, resolved_point_size, resolved_pip_size
 
 
+def _resolve_symbol_price_metadata(source: DataSource, symbol: str) -> Dict[str, Any]:
+    """Resolve broker price display metadata for a symbol when available."""
+    if not isinstance(source, MT5DataSource) or not source.client:
+        return {}
+
+    symbol_info = source.client.symbol_info(symbol)
+    if not symbol_info:
+        return {}
+
+    digits = getattr(symbol_info, "digits", None)
+    point = getattr(symbol_info, "point", None)
+    trade_tick_size = getattr(symbol_info, "trade_tick_size", None)
+    return {
+        "digits": int(digits) if digits is not None else None,
+        "point": float(point) if point is not None else None,
+        "trade_tick_size": float(trade_tick_size) if trade_tick_size is not None else None,
+    }
+
+
 def _infer_digits_from_point_size(point_size: float) -> Optional[int]:
     """Infer quote display digits from point size when broker metadata is absent."""
     if point_size <= 0:
@@ -1738,6 +1757,7 @@ async def prepare_edge_lab_dataset(
         "session_basis": request.session_basis,
         "session_hours": session_hours,
     }
+    payload["meta"]["symbol_info"] = _resolve_symbol_price_metadata(source, request.symbol)
     return payload
 
 
@@ -2662,4 +2682,3 @@ async def export_scorecard_snapshot_comparison_markdown(
             detail="One or both scorecard snapshots were not found.",
         )
     return result
-

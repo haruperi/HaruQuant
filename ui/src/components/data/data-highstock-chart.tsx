@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Highcharts from "highcharts/highstock"
 import HighchartsReact from "highcharts-react-official"
 
@@ -13,6 +13,9 @@ import FullScreen from "highcharts/modules/full-screen"
 import HeikinAshi from "highcharts/modules/heikinashi"
 import HollowCandlestick from "highcharts/modules/hollowcandlestick"
 import StockTools from "highcharts/modules/stock-tools"
+
+// Import custom indicators
+import { registerSwingTrendLines } from "./indicators/swing-trend-lines"
 
 // Import Highcharts CSS for Stock Tools GUI
 import "highcharts/css/stocktools/gui.css"
@@ -38,11 +41,12 @@ const modules = [
 if (typeof Highcharts === "object") {
   modules.forEach(module => {
     if (typeof module === "function") {
-      module(Highcharts)
+      (module as (hc: typeof Highcharts) => void)(Highcharts)
     } else if (module && typeof (module as { default?: unknown }).default === "function") {
-      ;(module as { default: (highcharts: typeof Highcharts) => void }).default(Highcharts)
+      ;(module as unknown as { default: (highcharts: typeof Highcharts) => void }).default(Highcharts)
     }
   })
+  registerSwingTrendLines(Highcharts)
 }
 
 interface DataHighstockChartProps {
@@ -50,6 +54,7 @@ interface DataHighstockChartProps {
   timeframe: string
   rows: Array<Record<string, unknown>>
   schema: MarketPreparedDataset["schema"]
+  symbolInfo?: MarketPreparedDataset["meta"]["symbol_info"]
   trades?: TradeLike[]
   replayMode?: boolean
   className?: string
@@ -140,6 +145,7 @@ export function DataHighstockChart({
   timeframe,
   rows,
   schema,
+  symbolInfo,
   trades,
   replayMode = false,
   className,
@@ -151,6 +157,19 @@ export function DataHighstockChart({
   const [isReplayPlaying, setIsReplayPlaying] = useState(replayMode)
   const [replayIndex, setReplayIndex] = useState(0)
   const [replaySpeedMs, setReplaySpeedMs] = useState(180)
+  const priceDigits = useMemo(() => {
+    const digits = symbolInfo?.digits
+    if (typeof digits === "number" && Number.isInteger(digits) && digits >= 0 && digits <= 10) {
+      return digits
+    }
+    if (symbol.toUpperCase().includes("JPY")) return 3
+    if (/XAU|GOLD/i.test(symbol)) return 2
+    return 5
+  }, [symbol, symbolInfo?.digits])
+
+  const formatPrice = useCallback((value: number | null | undefined) => (
+    typeof value === "number" && Number.isFinite(value) ? value.toFixed(priceDigits) : "N/A"
+  ), [priceDigits])
 
   useEffect(() => {
     const el = containerRef.current
@@ -327,6 +346,8 @@ export function DataHighstockChart({
         tradeTicket,
         entryPrice,
         exitPrice,
+        entryPriceText: formatPrice(entryPrice),
+        exitPriceText: formatPrice(exitPrice),
         entryTime: formatTradeTime(trade.open_time ?? trade.entry_time ?? trade.time),
         exitTime: formatTradeTime(trade.close_time ?? trade.exit_time),
         pips: pips ?? "N/A",
@@ -369,7 +390,7 @@ export function DataHighstockChart({
     }
 
     return { lineSeries, entries, exits, count: entries.length }
-  }, [replayClose, replayMode, replayTime, trades])
+  }, [formatPrice, replayClose, replayMode, replayTime, trades])
 
   const options: Highcharts.Options = useMemo(() => ({
     chart: {
@@ -519,7 +540,10 @@ export function DataHighstockChart({
         labels: { 
           align: "right", 
           x: -8, 
-          style: { color: "#94a3b8", fontSize: "10px" } 
+          style: { color: "#94a3b8", fontSize: "10px" },
+          formatter: function () {
+            return typeof this.value === "number" ? this.value.toFixed(priceDigits) : String(this.value)
+          },
         },
         title: { text: "" },
         height: "100%",
@@ -564,7 +588,7 @@ export function DataHighstockChart({
             lineColor: "#e2e8f0",
           },
           tooltip: {
-            pointFormat: '<b>Trade #{point.custom.tradeTicket}</b><br/>Entry Price: <b>{point.custom.entryPrice}</b><br/>Entry Time: <b>{point.custom.entryTime}</b><br/>'
+            pointFormat: '<b>Trade #{point.custom.tradeTicket}</b><br/>Entry Price: <b>{point.custom.entryPriceText}</b><br/>Entry Time: <b>{point.custom.entryTime}</b><br/>'
           },
           zIndex: 6,
         },
@@ -580,7 +604,7 @@ export function DataHighstockChart({
             lineColor: "#e2e8f0",
           },
           tooltip: {
-            pointFormat: '<b>Trade #{point.custom.tradeTicket}</b><br/>Exit Price: <b>{point.custom.exitPrice}</b><br/>Exit Time: <b>{point.custom.exitTime}</b><br/>Pips: <b>{point.custom.pips}</b><br/>P&L: <b>{point.custom.pnl}</b><br/>'
+            pointFormat: '<b>Trade #{point.custom.tradeTicket}</b><br/>Exit Price: <b>{point.custom.exitPriceText}</b><br/>Exit Time: <b>{point.custom.exitTime}</b><br/>Pips: <b>{point.custom.pips}</b><br/>P&L: <b>{point.custom.pnl}</b><br/>'
           },
           zIndex: 6,
         },
@@ -631,10 +655,25 @@ export function DataHighstockChart({
       shared: true,
       shadow: true
     },
+    lang: {
+      decimalPoint: ".",
+      navigation: {
+        popup: {
+          swingtrendlines: "Swing Trend Lines"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any
+      },
+      stockTools: {
+        gui: {
+          swingtrendlines: "Swing Trend Lines"
+        }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any
+    },
     credits: {
       enabled: false,
     },
-  }), [containerHeight, replayMode, seriesOhlc, symbol, timeframe, tradeOverlay])
+  }), [containerHeight, priceDigits, replayMode, seriesOhlc, symbol, timeframe, tradeOverlay])
 
   return (
     <div className={cn("relative h-full w-full bg-[#070b14] overflow-hidden", className)}>
