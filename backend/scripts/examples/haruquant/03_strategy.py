@@ -1,19 +1,8 @@
-'''
-This is the adaptation of the original vectorbt basic and pro feature examples to work with HaruQuant.
-
-The original vectorbt examples can be found here:
-https://vectorbt.dev/
-https://vectorbt.pro/
-https://qubitquants.github.io/index.html
-
-'''
-
 import os
 import sys
-from datetime import datetime, timedelta
-import time
-import numpy as np
+from datetime import datetime
 import pandas as pd
+import numpy as np
 
 # Add project root to sys.path to allow importing haruquant
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -23,19 +12,16 @@ if project_root not in sys.path:
 
 import haruquant as hqt
 
-
-
-
-
-def example_04_signals():
+def example_01_strategy_signals():
     print("\n\n" + "="*50)
-    print("        EXAMPLE 04: SIGNAL GENERATION (via hqt)        ")
+    print("        EXAMPLE 01: SIGNAL GENERATION (via hqt)        ")
     print("="*50)
     
     # 1. Strategy Signal Generation
     print("\n--- 1. Strategy Signal Generation (hqt.TrendFollowingStrategy) ---")
     try:
         # Download some data
+        print("Downloading EURUSD H1 data...")
         data = hqt.MT5Data.download(symbol="EURUSD", timeframe="H1", count=200)
         
         # Instantiate strategy
@@ -47,10 +33,10 @@ def example_04_signals():
         }
         trend_naive = hqt.TrendFollowingStrategy(params)
         
-        # Run on_bar to get signals
+        # Run strategy to get signals
         df_signals = trend_naive.run(data)
         
-        print(f"Strategy run complete. Data columns: {df_signals.columns}")
+        print(f"Strategy run complete. Data columns: {df_signals.columns.tolist()}")
         
         # Access signals directly
         entries = trend_naive.entries
@@ -58,9 +44,6 @@ def example_04_signals():
         
         print("\nEntries Summary:")
         print(entries.value_counts())
-        
-        print("\nExits Summary:")
-        print(exits.value_counts())
         
         # Show some signal points
         signal_points = df_signals[df_signals['entry_signal'] != 0]
@@ -73,20 +56,9 @@ def example_04_signals():
     except Exception as e:
         print(f"Strategy Signal error: {e}")
 
-    # 2. Measurement utilities (Partition analysis)
-    print("\n--- 2. Signal Partition Analysis ---")
-    try:
-        mask_sr = pd.Series([True, True, True, False, True, True])
-        # We can implement signal utilities in hqt.signals later if needed
-        # For now showing standard pandas way or keep vbt if user wants to compare
-        print(f"Mask values: {mask_sr.values}")
-        print("This mimics VectorBT's measurement of signal durations.")
-    except Exception as e:
-        print(f"Signal Analysis error: {e}")
-
-def example_05_portfolio_random_signals():
+def example_02_portfolio_random_signals():
     print("\n\n" + "="*50)
-    print("      EXAMPLE 05: HARUQUANT RANDOM SIGNALS      ")
+    print("      EXAMPLE 02: HARUQUANT RANDOM SIGNALS      ")
     print("="*50)
     
     try:
@@ -102,15 +74,14 @@ def example_05_portfolio_random_signals():
         
     except Exception as e:
         print(f"Random signals error: {e}")
-        import traceback; traceback.print_exc()
 
-def example_06_portfolio_buy_and_hold():
+def example_03_portfolio_buy_and_hold():
     print("\n\n" + "="*50)
-    print("      EXAMPLE 06: HARUQUANT PORTFOLIO BUY AND HOLD     ")
+    print("      EXAMPLE 03: HARUQUANT PORTFOLIO BUY AND HOLD     ")
     print("="*50)
     
     try:
-        print("Downloading BTC-USD data via YFData...")
+        print("Downloading BTC-USD data...")
         data = hqt.YFData.download("BTC-USD", period="1y")
         price = data.close
         
@@ -123,21 +94,19 @@ def example_06_portfolio_buy_and_hold():
         
     except Exception as e:
         print(f"Portfolio from holding error: {e}")
-        import traceback; traceback.print_exc()
 
-def example_07_portfolio_backtest():
+def example_04_portfolio_backtest():
     print("\n\n" + "="*50)
-    print("      EXAMPLE 07: PORTFOLIO BACKTESTING     ")
+    print("      EXAMPLE 04: PORTFOLIO BACKTESTING (One-Line)     ")
     print("="*50)
     
     # 1. Run with 100% defaults
     print("\n--- 1. Running with 100% default configuration ---")
     portfolio = hqt.Portfolio.run()  # One-line execution encapsulating everything
-    # print(f"Default Return: {portfolio.total_return():.2f}%")
     print(portfolio.summary())
     
     # 2. Run with partial overrides
-    print("\n--- 2. Running with partial overrides (Change Symbol & Period) ---")
+    print("\n--- 2. Running with partial overrides ---")
     overrides = {
         "data": {
             "symbols": ["EURUSD"],
@@ -152,7 +121,6 @@ def example_07_portfolio_backtest():
             }
         }
     }
-
     
     portfolio = hqt.Portfolio.run(overrides)
     print(portfolio.summary())
@@ -194,13 +162,45 @@ def example_07_portfolio_backtest():
     # for p in portfolio.equity_curve[:5]:
     #     print(f"{p.timestamp}: {p.equity:.2f}")
 
+def example_05_simulation_ranges():
+    print("\n\n" + "="*50)
+    print("      EXAMPLE 05: SIMULATION RANGES (Slicing)      ")
+    print("="*50)
+    
+    try:
+        print("Running full-year backtest for 2020...")
+        overrides = {
+            "data": {
+                "symbols": ["EURUSD"],
+                "start": datetime(2020,1,1),
+                "end": datetime(2020,12,31),
+                "warmup_start": datetime(2019,10,1)
+            }
+        }
+        pf_full = hqt.Portfolio.run(overrides)
+        print(f"Full Year Return: {pf_full.total_return():.2f}%")
+        
+        # Now slice for Q1 2020 only
+        print("\nSlicing for Q1 2020 (Jan 1 to Mar 31)...")
+        pf_q1 = pf_full.slice(start="2020-01-01", end="2020-03-31")
+        
+        print("Q1 Summary:")
+        print(pf_q1.summary())
+        
+        # Slice for a specific month
+        print("\nSlicing for December 2020...")
+        pf_dec = pf_full.slice(start="2020-12-01", end="2020-12-31")
+        print(f"December Profit: ${pf_dec.total_profit():.2f}")
+        print(f"December Trades: {len(pf_dec.trades)}")
 
-
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Simulation Range Error: {e}")
 
 if __name__ == "__main__":
-    example_02_resample_data()
-    #example_03_indicators()
-    #example_04_signals()
-    #example_05_portfolio_random_signals()
-    #example_06_portfolio_buy_and_hold()
-    #example_07_portfolio_backtest()
+    # example_01_strategy_signals()
+    # example_02_portfolio_random_signals()
+    # example_03_portfolio_buy_and_hold()
+    # example_04_portfolio_backtest()
+    example_05_simulation_ranges()

@@ -1,4 +1,4 @@
-﻿# HaruQuant
+# HaruQuant
 
 A comprehensive quantitative trading platform for backtesting, optimization, and live trading with MetaTrader 5.
 
@@ -13,6 +13,8 @@ A comprehensive quantitative trading platform for backtesting, optimization, and
 - **Data Management**: Historical data loading from MT5 and Dukascopy
 - **Risk Management**: Portfolio-level risk controls with correlation monitoring
 - **Reporting**: Comprehensive performance analytics and visualization
+- **Indicator Automation**: Run entire indicator packages (e.g., TALIB) with one command
+- **Simulation Slicing**: Dynamic range adjustment and isolated time-window analysis
 
 ### Technical Features
 - Event-driven simulation architecture
@@ -109,6 +111,55 @@ simulator.run(
 # Results
 print(f"Final Balance: ${simulator._account_data.balance:,.2f}")
 print(f"Total Trades: {len(simulator._completed_trades)}")
+```
+
+---
+
+## Modern API (`haruquant`)
+
+The modern `hqt` namespace provides a high-level, simplified interface for indicators and strategy execution.
+
+### Indicator Packages
+Feed indicators as features to ML models or batch-calculate entire packages:
+
+```python
+import haruquant as hqt
+
+# Pull data and run all TALIB indicators
+data = hqt.YFData.pull("BTC-USD")
+features = data.run("talib", mavp=hqt.run_arg_dict(periods=14))
+print(features.shape) # (3046, 175)
+```
+
+### Simplified Simulation
+Run complex simulations with minimal configuration using the `Portfolio` class:
+
+```python
+import haruquant as hqt
+
+# Run a full-year simulation
+portfolio = hqt.Portfolio.run({
+    "data": {
+        "symbols": ["EURUSD"],
+        "start": "2020-01-01",
+        "end": "2020-12-31"
+    }
+})
+
+# Display beautiful summary table
+print(portfolio.summary())
+```
+
+### Simulation Range Slicing
+Analyze specific market regimes or isolated time windows without re-running simulations:
+
+```python
+# Slice existing portfolio for Q1 analysis
+q1_portfolio = portfolio.slice(start="2020-01-01", end="2020-03-31")
+
+# Metrics are instantly recalculated for the new window
+print(f"Q1 Profit: ${q1_portfolio.total_profit():.2f}")
+print(q1_portfolio.summary())
 ```
 
 ---

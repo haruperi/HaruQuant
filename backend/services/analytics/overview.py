@@ -206,7 +206,7 @@ def calculate_analytics_for_subset(
         }
 
     # Pre-calculate common derived data
-    equity = returns.equity_curve(trades, initial_balance)
+    equity = returns.equity_curve(trades, initial_balance, start_time=start_time, end_time=end_time)
     rets = returns.returns_series(equity)
     
     # Resolve benchmark if missing

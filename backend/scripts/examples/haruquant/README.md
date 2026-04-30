@@ -30,9 +30,16 @@ Features are illustrated and classified into:
 - **Pandas TA Integration**: Seamless wrapper for the `pandas_ta` library, allowing any of its 130+ indicators to be used within the `hqt` pipeline (e.g., `hqt.ta.zlema.run()`).
 - **Parallel Execution**: High-performance parameter sweeps using `engine="threadpool"` or `engine="processpool"` to distribute calculations across multiple CPU cores.
 - **Vectorized Chaining**: Effortlessly chain indicators (e.g., `hqt.rsi.run(hqt.ema.run(data))`) for complex technical signals.
+- **Indicator Packages**: Run entire indicator packages (e.g., TALIB) on a data instance in a single call using `data.run("talib")`.
+- **Parallelizable Indicators**: Process parameter combinations efficiently by distributing the indicator factory across multiple threads or processes.
 
-### 3. Analysis (`03_analysis.py`)
-- *In progress...*
+### 3. Strategy (`03_strategy.py`)
+- **Signal Generation**: One-line strategy execution using `hqt.TrendFollowingStrategy` to generate entry and exit signals.
+- **Random Backtesting**: Generate and backtest random signals for strategy benchmarking using `hqt.Portfolio.from_random_signals()`.
+- **Buy & Hold Analysis**: Evaluate benchmark performance using the one-line `hqt.Portfolio.from_holding()` method.
+- **Unified Portfolio Backtesting**: Complete end-to-end backtesting with overrides (symbols, periods, parameters) using the powerful `hqt.Portfolio.run()` method.
+- **Simulation Range Slicing**: Isolate and analyze specific market regimes or time windows (e.g., Q1 performance) instantly using `portfolio.slice(start, end)`.
+- **Comprehensive Reporting**: Generate detailed performance reports with trade-by-trade analysis and All/Long/Short breakdowns via `portfolio.summary()`.
 
 ### 4. Optimization (`04_optimization.py`)
 - *In progress...*

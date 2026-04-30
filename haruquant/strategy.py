@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, Union, List
 from haruquant.data import Data
-from backend.services.execution.core import RunResult
+from backend.services.execution.core import RunResult, EquityPoint
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -427,6 +427,112 @@ class Portfolio:
         for p in self.equity_curve:
             ts_str = str(p.timestamp) if p.timestamp else "N/A"
             print(f"{ts_str:<25} {p.balance:<15.2f} {p.equity:<15.2f}")
+
+    def slice(self, start: Union[str, datetime, pd.Timestamp], end: Union[str, datetime, pd.Timestamp]) -> 'Portfolio':
+        """
+        Create a new Portfolio by slicing the current one by date range.
+        
+        Args:
+            start: Start date of the slice.
+            end: End date of the slice.
+            
+        Returns:
+            A new Portfolio object containing only data from the specified range.
+        """
+        from backend.services.simulation.results import SimulationRunResult, build_symbol_summary
+        from backend.services.execution.core import RunResult, EquityPoint
+        import copy
+        
+        # Parse dates
+        start_ts = pd.Timestamp(start)
+        end_ts = pd.Timestamp(end)
+        
+        # Filter trades: exit time within range
+        # Filter trades: exit time within range
+        filtered_trades = [t for t in self.trades if start_ts <= pd.Timestamp(t.close_time) <= end_ts]
+        
+        # 1. Correct new_initial_balance: the equity at EXACTLY start_ts
+        # We find the last equity point before or at start_ts in the original curve
+        pre_points = [p for p in self.equity_curve if pd.Timestamp(p.timestamp) <= start_ts]
+        if pre_points:
+            new_initial_balance = pre_points[-1].equity
+            start_balance = pre_points[-1].balance
+        else:
+            new_initial_balance = self.initial_balance
+            start_balance = self.initial_balance
+
+        # 2. Reconstruct filtered_equity to span the full window [start_ts, end_ts]
+        # This ensures time-based metrics (CAGR) are accurate even for sparse results.
+        start_point = EquityPoint(
+            timestamp=start_ts.to_pydatetime(), 
+            balance=float(start_balance),
+            equity=float(new_initial_balance)
+        )
+                                 
+        mid_points = [p for p in self.equity_curve if start_ts < pd.Timestamp(p.timestamp) < end_ts]
+        
+        last_points = [p for p in self.equity_curve if pd.Timestamp(p.timestamp) <= end_ts]
+        if last_points:
+             end_val = last_points[-1].equity
+             end_bal = last_points[-1].balance
+        else:
+             end_val = new_initial_balance
+             end_bal = start_balance
+
+        end_point = EquityPoint(
+            timestamp=end_ts.to_pydatetime(),
+            balance=float(end_bal),
+            equity=float(end_val)
+        )
+        
+        filtered_equity = [start_point] + mid_points + [end_point]
+
+        # Construct a new result object
+        new_run_result = RunResult(
+            trades=filtered_trades,
+            equity_curve=filtered_equity
+        )
+        
+        if isinstance(self._raw_result, SimulationRunResult):
+            # Recalculate metrics for the slice
+            meta = self.metadata()
+            symbols = tuple(meta.get("data", {}).get("symbols", []))
+            
+            final_equity = filtered_equity[-1].equity if filtered_equity else new_initial_balance
+            final_balance = filtered_equity[-1].balance if filtered_equity else new_initial_balance
+            
+            new_metrics = {
+                "processed_ticks": len(filtered_equity),
+                "trade_count": len(filtered_trades),
+                "equity_points": len(filtered_equity),
+                "initial_balance": float(new_initial_balance),
+                "final_balance": float(final_balance),
+                "final_equity": float(final_equity),
+                "total_profit": float(final_equity - new_initial_balance),
+                "total_return": (
+                    float((final_equity - new_initial_balance) / new_initial_balance)
+                    if new_initial_balance > 0.0
+                    else 0.0
+                ),
+                "symbol_summary": build_symbol_summary(symbols, filtered_trades),
+            }
+            
+            # Update metadata
+            new_metadata = copy.deepcopy(meta)
+            new_metadata["data"]["start"] = start_ts.isoformat()
+            new_metadata["data"]["end"] = end_ts.isoformat()
+            
+            # Create the sliced SimulationRunResult
+            sliced_run_result = SimulationRunResult(
+                metadata=new_metadata,
+                prepared=self._raw_result.prepared,
+                result=new_run_result,
+                metrics=new_metrics
+            )
+            return Portfolio(sliced_run_result, initial_balance=new_initial_balance)
+        else:
+            # Fallback for simple RunResult (e.g. from_holding)
+            return Portfolio(new_run_result, initial_balance=new_initial_balance)
         
     @classmethod
     def run(cls, config: Optional[Union[Dict[str, Any], Any]] = None, user_id: Optional[int] = None) -> 'Portfolio':
