@@ -21,6 +21,7 @@ import "highcharts/css/annotations/popup.css"
 import type { MarketPreparedDataset } from "@/lib/api/data"
 import type { TradeLike } from "@/lib/api/strategies"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 // Initialize modules - checking for both default and direct function
 const modules = [
@@ -50,8 +51,12 @@ interface DataHighstockChartProps {
   rows: Array<Record<string, unknown>>
   schema: MarketPreparedDataset["schema"]
   trades?: TradeLike[]
+  replayMode?: boolean
   className?: string
 }
+
+type OhlcPoint = [number, number, number, number, number]
+type NullableOhlcPoint = [number, number | null, number | null, number | null, number | null]
 
 function parseTimestamp(row: Record<string, unknown>) {
   const directValue =
@@ -136,12 +141,16 @@ export function DataHighstockChart({
   rows,
   schema,
   trades,
+  replayMode = false,
   className,
 }: DataHighstockChartProps) {
   const chartComponentRef = useRef<HighchartsReact.RefObject>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const containerHeightRef = useRef<number>(600)
   const [containerHeight, setContainerHeight] = useState<number>(600)
+  const [isReplayPlaying, setIsReplayPlaying] = useState(replayMode)
+  const [replayIndex, setReplayIndex] = useState(0)
+  const [replaySpeedMs, setReplaySpeedMs] = useState(180)
 
   useEffect(() => {
     const el = containerRef.current
@@ -172,7 +181,7 @@ export function DataHighstockChart({
   }, [])
 
   const ohlcData = useMemo(() => {
-    const data: Array<[number, number, number, number, number]> = []
+    const data: OhlcPoint[] = []
     const volume: Array<[number, number]> = []
 
     for (const row of rows) {
@@ -201,6 +210,84 @@ export function DataHighstockChart({
     return { ohlc: data, volume }
   }, [rows, schema])
 
+  const visibleOhlc = useMemo(() => {
+    if (!replayMode) return ohlcData.ohlc
+    return ohlcData.ohlc.slice(0, Math.min(replayIndex + 1, ohlcData.ohlc.length))
+  }, [ohlcData.ohlc, replayIndex, replayMode])
+
+  const replayCursor = visibleOhlc.at(-1)
+  const replayTime = replayMode ? replayCursor?.[0] ?? null : null
+  const replayClose = replayMode ? replayCursor?.[4] ?? null : null
+  const replayWindowSize = Math.min(120, Math.max(30, Math.floor(ohlcData.ohlc.length * 0.08)))
+  const replayPaddingPoint = useMemo(() => {
+    if (!replayMode || visibleOhlc.length === 0) return null
+    const lastPoint = visibleOhlc.at(-1)
+    const previousPoint = visibleOhlc.at(-2)
+    if (!lastPoint) return null
+
+    const barDuration = previousPoint ? Math.max(1, lastPoint[0] - previousPoint[0]) : 60 * 60 * 1000
+    const rightPaddingBars = Math.ceil(replayWindowSize * 0.2)
+    return lastPoint[0] + barDuration * rightPaddingBars
+  }, [replayMode, replayWindowSize, visibleOhlc])
+
+  const seriesOhlc = useMemo<NullableOhlcPoint[]>(() => {
+    const data: NullableOhlcPoint[] = [...visibleOhlc]
+    if (!replayMode || visibleOhlc.length === 0) return data
+
+    const lastPoint = visibleOhlc.at(-1)
+    const previousPoint = visibleOhlc.at(-2)
+    if (!lastPoint) return data
+
+    const barDuration = previousPoint ? Math.max(1, lastPoint[0] - previousPoint[0]) : 60 * 60 * 1000
+    const rightPaddingBars = Math.ceil(replayWindowSize * 0.2)
+
+    for (let index = 1; index <= rightPaddingBars; index += 1) {
+      data.push([lastPoint[0] + barDuration * index, null, null, null, null])
+    }
+
+    return data
+  }, [replayMode, replayWindowSize, visibleOhlc])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setReplayIndex(0)
+      setIsReplayPlaying(replayMode)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [ohlcData.ohlc.length, replayMode])
+
+  useEffect(() => {
+    if (!replayMode || !isReplayPlaying || ohlcData.ohlc.length <= 1) return
+
+    const timer = window.setInterval(() => {
+      setReplayIndex((current) => {
+        if (current >= ohlcData.ohlc.length - 1) {
+          window.clearInterval(timer)
+          return current
+        }
+        return current + 1
+      })
+    }, replaySpeedMs)
+
+    return () => window.clearInterval(timer)
+  }, [isReplayPlaying, ohlcData.ohlc.length, replayMode, replaySpeedMs])
+
+  useEffect(() => {
+    if (!replayMode || visibleOhlc.length === 0) return
+
+    const chart = chartComponentRef.current?.chart
+    const lastPoint = visibleOhlc.at(-1)
+    if (!chart || !lastPoint) return
+
+    const firstVisibleIndex = Math.max(0, visibleOhlc.length - replayWindowSize)
+    const min = visibleOhlc[firstVisibleIndex]?.[0]
+    const max = replayPaddingPoint ?? lastPoint[0]
+
+    if (min !== undefined && max !== undefined) {
+      chart.xAxis[0]?.setExtremes(min, max, true, false)
+    }
+  }, [replayMode, replayPaddingPoint, replayWindowSize, visibleOhlc])
+
   const tradeOverlay = useMemo(() => {
     const lineSeries: Highcharts.SeriesLineOptions[] = []
     const entries: Highcharts.PointOptionsObject[] = []
@@ -213,6 +300,7 @@ export function DataHighstockChart({
       const exitPrice = firstFiniteNumber(trade.close_price, trade.exit_price)
 
       if (entryTime === null || exitTime === null || entryPrice === null || exitPrice === null) continue
+      if (replayMode && (replayTime === null || entryTime > replayTime)) continue
 
       const isLong = isLongTrade(trade)
       const entryColor = isLong ? "#2563eb" : "#ff1493"
@@ -245,10 +333,15 @@ export function DataHighstockChart({
         pnl: pnl ?? "N/A",
       }
 
-      lineSeries.push({
+      const hasClosedInReplay = !replayMode || exitTime <= (replayTime ?? exitTime)
+      const lineEndTime = hasClosedInReplay ? exitTime : replayTime
+      const lineEndPrice = hasClosedInReplay ? exitPrice : replayClose
+
+      if (lineEndTime !== null && lineEndPrice !== null) {
+        lineSeries.push({
         type: "line",
         name: `Trade ${tradeTicket}`,
-        data: [[entryTime, entryPrice], [exitTime, exitPrice]],
+        data: [[entryTime, entryPrice], [lineEndTime, lineEndPrice]],
         color: lineColor,
         dashStyle: "ShortDash",
         lineWidth: 1,
@@ -257,23 +350,26 @@ export function DataHighstockChart({
         linkedTo: "main-series",
         showInLegend: false,
         zIndex: 4,
-      })
+        })
+      }
       entries.push({
         x: entryTime,
         y: entryPrice,
         marker: { fillColor: entryColor, lineColor: "#e2e8f0", symbol: isLong ? "triangle" : "triangle-down" },
         custom: { ...commonCustom, label: "Entry" },
       })
-      exits.push({
-        x: exitTime,
-        y: exitPrice,
-        marker: { fillColor: exitColor, lineColor: "#e2e8f0", symbol: isLong ? "triangle-down" : "triangle" },
-        custom: { ...commonCustom, label: "Exit" },
-      })
+      if (hasClosedInReplay) {
+        exits.push({
+          x: exitTime,
+          y: exitPrice,
+          marker: { fillColor: exitColor, lineColor: "#e2e8f0", symbol: isLong ? "triangle-down" : "triangle" },
+          custom: { ...commonCustom, label: "Exit" },
+        })
+      }
     }
 
     return { lineSeries, entries, exits, count: entries.length }
-  }, [trades])
+  }, [replayClose, replayMode, replayTime, trades])
 
   const options: Highcharts.Options = useMemo(() => ({
     chart: {
@@ -324,7 +420,7 @@ export function DataHighstockChart({
       spacingLeft: 50,
     },
     title: {
-      text: `${symbol} - ${timeframe}`,
+      text: `${symbol} - ${timeframe}${replayMode ? " Replay" : ""}`,
       align: "center",
       style: { 
         color: "#f8fafc",
@@ -441,7 +537,7 @@ export function DataHighstockChart({
       {
         type: "candlestick",
         name: symbol,
-        data: ohlcData.ohlc,
+        data: seriesOhlc,
         id: "main-series",
         upColor: "#00ffbd",
         color: "#ff3b69",
@@ -538,10 +634,48 @@ export function DataHighstockChart({
     credits: {
       enabled: false,
     },
-  }), [containerHeight, ohlcData, symbol, timeframe, tradeOverlay])
+  }), [containerHeight, replayMode, seriesOhlc, symbol, timeframe, tradeOverlay])
 
   return (
     <div className={cn("relative h-full w-full bg-[#070b14] overflow-hidden", className)}>
+      {replayMode && (
+        <div className="absolute right-4 top-4 z-20 flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs text-slate-200 shadow-lg">
+          <span className="font-mono text-slate-400">
+            {visibleOhlc.length}/{ohlcData.ohlc.length}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 hover:bg-slate-800"
+            onClick={() => setIsReplayPlaying((playing) => !playing)}
+          >
+            {isReplayPlaying ? "Pause" : "Play"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 hover:bg-slate-800"
+            onClick={() => {
+              setReplayIndex(0)
+              setIsReplayPlaying(true)
+            }}
+          >
+            Reset
+          </Button>
+          <select
+            value={replaySpeedMs}
+            onChange={(event) => setReplaySpeedMs(Number(event.target.value))}
+            className="h-7 rounded border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100"
+          >
+            <option value={320}>1x</option>
+            <option value={180}>2x</option>
+            <option value={80}>4x</option>
+            <option value={30}>8x</option>
+          </select>
+        </div>
+      )}
       <style dangerouslySetInnerHTML={{ __html: `
         /* ── Stock Tools sidebar: colors only, no structural overrides ── */
 

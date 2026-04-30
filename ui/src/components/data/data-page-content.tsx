@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { toPng } from "html-to-image"
 import { DataHighstockChart } from "@/components/data/data-highstock-chart"
 import { useMarketData } from "@/contexts/market-data-context"
 import { SymbolSelector } from "@/components/dashboard/symbol-selector"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Search, Loader2, Download } from "lucide-react"
+import { Search, Loader2, Download, Camera } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -43,9 +44,11 @@ export default function DataPageContent() {
   const initialStart = initialMode === "dates" && slug?.[3] ? slug[3] : ""
   const initialEnd = initialMode === "dates" && slug?.[4] ? slug[4] : ""
   const showTradesChart = slug?.includes("trades-charts") ?? false
+  const replayMode = slug?.includes("replay") ?? false
 
   const [selectorOpen, setSelectorOpen] = useState(false)
   const [timeframe, setTimeframe] = useState(initialTimeframe)
+  const [exportingChart, setExportingChart] = useState(false)
 
   // Range controls
   const [rangeMode, setRangeMode] = useState<RangeMode>(initialMode)
@@ -54,6 +57,7 @@ export default function DataPageContent() {
   const [endDate, setEndDate] = useState(initialEnd === "null" ? "" : initialEnd)
 
   const hasInitialLoadFired = useRef(false)
+  const chartAreaRef = useRef<HTMLDivElement>(null)
 
   const tradesOverlay = useMemo(() => {
     if (!showTradesChart || typeof window === "undefined") return null
@@ -103,7 +107,7 @@ export default function DataPageContent() {
   }, [slug, loadDataset, initialSymbol, initialTimeframe, initialMode, initialBars, initialStart, initialEnd])
 
   const updateUrl = (symbol: string, tf: string, mode: RangeMode, bars: string, start: string, end: string) => {
-    const suffix = showTradesChart ? "/trades-charts" : ""
+    const suffix = showTradesChart ? `/trades-charts${replayMode ? "/replay" : ""}` : ""
     if (mode === "bars") {
       router.push(`/data/${symbol}/${tf}/bars/${bars}${suffix}`)
     } else {
@@ -130,6 +134,27 @@ export default function DataPageContent() {
     if (!symbol) return
     void loadDataset(buildPayload(symbol, timeframe, rangeMode, numBars, startDate, endDate))
     updateUrl(symbol, timeframe, rangeMode, numBars, startDate, endDate)
+  }
+
+  const handleChartScreenshot = async () => {
+    const chartArea = chartAreaRef.current
+    if (!chartArea || !dataset) return
+
+    setExportingChart(true)
+    try {
+      const dataUrl = await toPng(chartArea, {
+        backgroundColor: "#070b14",
+        pixelRatio: 2,
+        cacheBust: true,
+      })
+      const link = document.createElement("a")
+      const suffix = replayMode ? "replay" : showTradesChart ? "trades-chart" : "chart"
+      link.download = `${dataset.request.symbol}-${dataset.request.timeframe}-${suffix}.png`
+      link.href = dataUrl
+      link.click()
+    } finally {
+      setExportingChart(false)
+    }
   }
 
 
@@ -235,15 +260,32 @@ export default function DataPageContent() {
           )}
         </div>
 
-        {loading && (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading Data...
-          </div>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading Data...
+            </div>
+          )}
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={handleChartScreenshot}
+            disabled={!dataset || exportingChart}
+            title="Download chart screenshot"
+            className="border-slate-700 bg-slate-800/50 text-slate-100 hover:bg-slate-800"
+          >
+            {exportingChart ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Camera className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 min-h-0 relative overflow-hidden rounded-2xl border border-slate-800 bg-[#070b14] shadow-2xl">
+      <div ref={chartAreaRef} className="flex-1 min-h-0 relative overflow-hidden rounded-2xl border border-slate-800 bg-[#070b14] shadow-2xl">
         {dataset ? (
           <DataHighstockChart
             className="h-full w-full"
@@ -252,6 +294,7 @@ export default function DataPageContent() {
             rows={dataset.rows}
             schema={dataset.schema}
             trades={showTradesChart ? tradesOverlay?.trades : undefined}
+            replayMode={replayMode}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-slate-500">

@@ -20,6 +20,7 @@ interface NavItem {
   href: string
   icon?: LucideIcon
   isTradesChart?: boolean
+  replay?: boolean
 }
 
 interface NavSection {
@@ -42,6 +43,7 @@ const performanceNavItems: NavSection[] = [
     items: [
       { label: "Trades Calendar", href: "/performance/trades-calender", icon: LineChartIcon },
       { label: "Trades Chart", href: "/data", icon: LineChartIcon, isTradesChart: true },
+      { label: "Trades Chart Replay", href: "/data", icon: LineChartIcon, isTradesChart: true, replay: true },
     ],
     icon: LineChartIcon
   },
@@ -155,13 +157,13 @@ export function PerformanceNav() {
     return parsed.toISOString().slice(0, 10)
   }
 
-  const tradesChartHref = (() => {
+  const buildTradesChartHref = (replay = false) => {
     if (!selectedBacktest?.symbol) return "/data"
     const timeframe = selectedBacktest.timeframe || selectedBacktest.data_resolution || "H1"
     const start = formatDateSegment(selectedBacktest.start_date)
     const end = formatDateSegment(selectedBacktest.end_date)
-    return `/data/${selectedBacktest.symbol}/${timeframe}/dates/${start}/${end}/trades-charts`
-  })()
+    return `/data/${selectedBacktest.symbol}/${timeframe}/dates/${start}/${end}/trades-charts${replay ? "/replay" : ""}`
+  }
 
   const openTradesChart = async (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (!selectedBacktest) return
@@ -234,9 +236,9 @@ export function PerformanceNav() {
             >
               {section.items.map((item) => {
                 const ItemIcon = item.icon
-                const href = item.isTradesChart ? tradesChartHref : item.href
+                const href = item.isTradesChart ? buildTradesChartHref(item.replay) : item.href
                 const isItemActive = item.isTradesChart
-                  ? pathname.startsWith("/data") && href.endsWith("/trades-charts")
+                  ? pathname.startsWith("/data") && href.includes("/trades-charts")
                   : pathname === item.href
                 const isDisabled = item.isTradesChart && !selectedBacktest?.symbol
 
