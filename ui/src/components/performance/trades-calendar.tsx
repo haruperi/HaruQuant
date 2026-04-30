@@ -1006,7 +1006,7 @@ export function TradesCalendar() {
                                className="cursor-pointer hover:bg-accent/50 transition-colors"
                                onClick={() => {
                                  if (trade.trade_id) {
-                                   router.push(`/performance/trades-chart/${trade.trade_id}`)
+                                   router.push(`/performance/trades-calender/${trade.trade_id}`)
                                    setIsDetailsOpen(false)
                                  }
                                }}

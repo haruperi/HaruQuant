@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { DataHighstockChart } from "@/components/data/data-highstock-chart"
 import { useMarketData } from "@/contexts/market-data-context"
@@ -16,8 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { TradeLike } from "@/lib/api/strategies"
 
 type RangeMode = "bars" | "dates"
+
+interface TradesChartOverlay {
+  backtest_id?: number
+  symbol?: string | null
+  timeframe?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  trades?: TradeLike[]
+}
 
 export default function DataPageContent() {
   const { dataset, loading, loadDataset } = useMarketData()
@@ -32,6 +42,7 @@ export default function DataPageContent() {
   const initialBars = initialMode === "bars" && slug?.[3] ? slug[3] : "1000"
   const initialStart = initialMode === "dates" && slug?.[3] ? slug[3] : ""
   const initialEnd = initialMode === "dates" && slug?.[4] ? slug[4] : ""
+  const showTradesChart = slug?.includes("trades-charts") ?? false
 
   const [selectorOpen, setSelectorOpen] = useState(false)
   const [timeframe, setTimeframe] = useState(initialTimeframe)
@@ -43,6 +54,24 @@ export default function DataPageContent() {
   const [endDate, setEndDate] = useState(initialEnd === "null" ? "" : initialEnd)
 
   const hasInitialLoadFired = useRef(false)
+
+  const tradesOverlay = useMemo(() => {
+    if (!showTradesChart || typeof window === "undefined") return null
+    const raw = window.sessionStorage.getItem("haruquant:trades-chart-overlay")
+    if (!raw) return null
+
+    try {
+      const overlay = JSON.parse(raw) as TradesChartOverlay
+      const matchesSymbol = !overlay.symbol || !initialSymbol || overlay.symbol === initialSymbol
+      const matchesTimeframe = !overlay.timeframe || !initialTimeframe || overlay.timeframe === initialTimeframe
+      if (matchesSymbol && matchesTimeframe) {
+        return overlay
+      }
+    } catch {
+      return null
+    }
+    return null
+  }, [showTradesChart, initialSymbol, initialTimeframe])
 
   // Build the payload
   const buildPayload = (symbol: string, tf: string, mode: RangeMode, bars: string, start: string, end: string) => {
@@ -74,10 +103,11 @@ export default function DataPageContent() {
   }, [slug, loadDataset, initialSymbol, initialTimeframe, initialMode, initialBars, initialStart, initialEnd])
 
   const updateUrl = (symbol: string, tf: string, mode: RangeMode, bars: string, start: string, end: string) => {
+    const suffix = showTradesChart ? "/trades-charts" : ""
     if (mode === "bars") {
-      router.push(`/data/${symbol}/${tf}/bars/${bars}`)
+      router.push(`/data/${symbol}/${tf}/bars/${bars}${suffix}`)
     } else {
-      router.push(`/data/${symbol}/${tf}/dates/${start || "null"}/${end || "null"}`)
+      router.push(`/data/${symbol}/${tf}/dates/${start || "null"}/${end || "null"}${suffix}`)
     }
   }
 
@@ -221,6 +251,7 @@ export default function DataPageContent() {
             timeframe={dataset.request.timeframe}
             rows={dataset.rows}
             schema={dataset.schema}
+            trades={showTradesChart ? tradesOverlay?.trades : undefined}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-slate-500">

@@ -1,9 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { ChevronDown, Table, LineChart as LineChartIcon, Settings } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSelectedBacktest } from "@/contexts/selected-backtest-context"
+import { strategyApi } from "@/lib/api/strategies"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,14 +18,15 @@ import { Button } from "@/components/ui/button"
 interface NavItem {
   label: string
   href: string
-  icon?: typeof Table | typeof LineChartIcon
+  icon?: LucideIcon
+  isTradesChart?: boolean
 }
 
 interface NavSection {
   label: string
   href: string
   items: NavItem[]
-  icon?: any
+  icon?: LucideIcon
 }
 
 const performanceNavItems: NavSection[] = [
@@ -33,9 +37,12 @@ const performanceNavItems: NavSection[] = [
     icon: Table
   },
   {
-    label: "Trades Chart",
-    href: "/performance/trades-chart",
-    items: [],
+    label: "Trades Calendar",
+    href: "/performance/trades-calender",
+    items: [
+      { label: "Trades Calendar", href: "/performance/trades-calender", icon: LineChartIcon },
+      { label: "Trades Chart", href: "/data", icon: LineChartIcon, isTradesChart: true },
+    ],
     icon: LineChartIcon
   },
   {
@@ -138,6 +145,47 @@ const performanceNavItems: NavSection[] = [
 
 export function PerformanceNav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { selectedBacktest } = useSelectedBacktest()
+
+  const formatDateSegment = (value?: string | null) => {
+    if (!value) return "null"
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value.slice(0, 10)
+    return parsed.toISOString().slice(0, 10)
+  }
+
+  const tradesChartHref = (() => {
+    if (!selectedBacktest?.symbol) return "/data"
+    const timeframe = selectedBacktest.timeframe || selectedBacktest.data_resolution || "H1"
+    const start = formatDateSegment(selectedBacktest.start_date)
+    const end = formatDateSegment(selectedBacktest.end_date)
+    return `/data/${selectedBacktest.symbol}/${timeframe}/dates/${start}/${end}/trades-charts`
+  })()
+
+  const openTradesChart = async (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!selectedBacktest) return
+    event.preventDefault()
+
+    let backtest = selectedBacktest
+    if (!backtest.trades?.length) {
+      backtest = await strategyApi.getBacktestById(backtest.backtest_id)
+    }
+
+    if (typeof window === "undefined") return
+    window.sessionStorage.setItem(
+      "haruquant:trades-chart-overlay",
+      JSON.stringify({
+        backtest_id: backtest.backtest_id,
+        symbol: backtest.symbol,
+        timeframe: backtest.timeframe || backtest.data_resolution || "H1",
+        start_date: backtest.start_date,
+        end_date: backtest.end_date,
+        trades: backtest.trades || [],
+      })
+    )
+    router.push(href)
+  }
 
   return (
     <nav className="flex items-center gap-1 px-6 pb-4 overflow-x-auto">
@@ -186,14 +234,20 @@ export function PerformanceNav() {
             >
               {section.items.map((item) => {
                 const ItemIcon = item.icon
-                const isItemActive = pathname === item.href
+                const href = item.isTradesChart ? tradesChartHref : item.href
+                const isItemActive = item.isTradesChart
+                  ? pathname.startsWith("/data") && href.endsWith("/trades-charts")
+                  : pathname === item.href
+                const isDisabled = item.isTradesChart && !selectedBacktest?.symbol
 
                 return (
-                  <DropdownMenuItem key={item.href} asChild>
+                  <DropdownMenuItem key={`${section.href}:${item.label}`} asChild disabled={isDisabled}>
                     <Link
-                      href={item.href}
+                      href={href}
+                      onClick={item.isTradesChart ? (event) => void openTradesChart(event, href) : undefined}
                       className={cn(
                         "flex items-center gap-2 cursor-pointer",
+                        isDisabled && "pointer-events-none opacity-50",
                         isItemActive && "bg-accent"
                       )}
                     >

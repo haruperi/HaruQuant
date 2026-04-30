@@ -182,7 +182,7 @@ export function TradeDetailView({ tradeId }: TradeDetailViewProps) {
       setCurrentTrade(prevTrade)
 
       // Update URL without scrolling
-      router.push(`/performance/trades-chart/${prevTrade.trade_id}`, { scroll: false })
+      router.push(`/performance/trades-calender/${prevTrade.trade_id}`, { scroll: false })
     }
   }
 
@@ -208,7 +208,7 @@ export function TradeDetailView({ tradeId }: TradeDetailViewProps) {
       setCurrentTrade(nextTrade)
 
       // Update URL without scrolling
-      router.push(`/performance/trades-chart/${nextTrade.trade_id}`, { scroll: false })
+      router.push(`/performance/trades-calender/${nextTrade.trade_id}`, { scroll: false })
     }
   }
 
@@ -216,7 +216,7 @@ export function TradeDetailView({ tradeId }: TradeDetailViewProps) {
    * Navigate back to the trades calendar view
    */
   const handleBack = () => {
-    router.push("/performance/trades-chart")
+    router.push("/performance/trades-calender")
   }
 
   // Loading state

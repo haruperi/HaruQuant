@@ -19,6 +19,7 @@ import "highcharts/css/stocktools/gui.css"
 import "highcharts/css/annotations/popup.css"
 
 import type { MarketPreparedDataset } from "@/lib/api/data"
+import type { TradeLike } from "@/lib/api/strategies"
 import { cn } from "@/lib/utils"
 
 // Initialize modules - checking for both default and direct function
@@ -36,9 +37,9 @@ const modules = [
 if (typeof Highcharts === "object") {
   modules.forEach(module => {
     if (typeof module === "function") {
-      (module as any)(Highcharts)
-    } else if (module && typeof (module as any).default === "function") {
-      (module as any).default(Highcharts)
+      module(Highcharts)
+    } else if (module && typeof (module as { default?: unknown }).default === "function") {
+      ;(module as { default: (highcharts: typeof Highcharts) => void }).default(Highcharts)
     }
   })
 }
@@ -48,6 +49,7 @@ interface DataHighstockChartProps {
   timeframe: string
   rows: Array<Record<string, unknown>>
   schema: MarketPreparedDataset["schema"]
+  trades?: TradeLike[]
   className?: string
 }
 
@@ -91,16 +93,55 @@ function parseTimestamp(row: Record<string, unknown>) {
   return null
 }
 
+function parseTradeTimestamp(value: unknown) {
+  if (typeof value === "number") {
+    return value > 1e12 ? value : value * 1000
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const raw = value.trim()
+    const normalized = /[zZ]|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : `${raw}Z`
+    const parsed = Date.parse(normalized)
+    if (Number.isFinite(parsed)) return parsed
+  }
+
+  return null
+}
+
+function firstFiniteNumber(...values: unknown[]) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue
+    const numberValue = typeof value === "string"
+      ? Number(value.replace(/[$,%\s,]/g, ""))
+      : Number(value)
+    if (Number.isFinite(numberValue)) return numberValue
+  }
+  return null
+}
+
+function formatTradeTime(value: unknown) {
+  const timestamp = parseTradeTimestamp(value)
+  if (timestamp === null) return "N/A"
+  return new Date(timestamp).toISOString().replace("T", " ").slice(0, 19)
+}
+
+function isLongTrade(trade: TradeLike) {
+  const side = String(trade.side ?? trade.type ?? trade.direction ?? "").toUpperCase()
+  return side === "BUY" || side === "LONG"
+}
+
 export function DataHighstockChart({
   symbol,
   timeframe,
   rows,
   schema,
+  trades,
   className,
 }: DataHighstockChartProps) {
   const chartComponentRef = useRef<HighchartsReact.RefObject>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const containerHeightRef = useRef<number>(600)
+  const [containerHeight, setContainerHeight] = useState<number>(600)
 
   useEffect(() => {
     const el = containerRef.current
@@ -160,12 +201,84 @@ export function DataHighstockChart({
     return { ohlc: data, volume }
   }, [rows, schema])
 
-  const [containerHeight, setContainerHeight] = useState<number>(600)
+  const tradeOverlay = useMemo(() => {
+    const lineSeries: Highcharts.SeriesLineOptions[] = []
+    const entries: Highcharts.PointOptionsObject[] = []
+    const exits: Highcharts.PointOptionsObject[] = []
+
+    for (const trade of trades || []) {
+      const entryTime = parseTradeTimestamp(trade.open_time ?? trade.entry_time ?? trade.time)
+      const exitTime = parseTradeTimestamp(trade.close_time ?? trade.exit_time)
+      const entryPrice = firstFiniteNumber(trade.open_price, trade.entry_price, trade.price)
+      const exitPrice = firstFiniteNumber(trade.close_price, trade.exit_price)
+
+      if (entryTime === null || exitTime === null || entryPrice === null || exitPrice === null) continue
+
+      const isLong = isLongTrade(trade)
+      const entryColor = isLong ? "#2563eb" : "#ff1493"
+      const exitColor = isLong ? "#ff1493" : "#2563eb"
+      const lineColor = isLong ? "#2563eb" : "#ff1493"
+      const tradeTicket = trade.ticket ?? trade.order ?? trade.position_id ?? trade.deal_id ?? trade.trade_id ?? trade.id ?? ""
+      const pips = firstFiniteNumber(
+        trade.profit_loss_pips,
+        trade.pnl_pips,
+        trade.profit_pips,
+        trade.pips,
+        trade.pl_pips
+      )
+      const pnl = firstFiniteNumber(
+        trade.pnl,
+        trade.profit_loss,
+        trade.net_profit,
+        trade.profit,
+        trade.pl,
+        trade.p_l,
+        trade.final_profit
+      )
+      const commonCustom = {
+        tradeTicket,
+        entryPrice,
+        exitPrice,
+        entryTime: formatTradeTime(trade.open_time ?? trade.entry_time ?? trade.time),
+        exitTime: formatTradeTime(trade.close_time ?? trade.exit_time),
+        pips: pips ?? "N/A",
+        pnl: pnl ?? "N/A",
+      }
+
+      lineSeries.push({
+        type: "line",
+        name: `Trade ${tradeTicket}`,
+        data: [[entryTime, entryPrice], [exitTime, exitPrice]],
+        color: lineColor,
+        dashStyle: "ShortDash",
+        lineWidth: 1,
+        opacity: 0.5,
+        enableMouseTracking: false,
+        linkedTo: "main-series",
+        showInLegend: false,
+        zIndex: 4,
+      })
+      entries.push({
+        x: entryTime,
+        y: entryPrice,
+        marker: { fillColor: entryColor, lineColor: "#e2e8f0", symbol: isLong ? "triangle" : "triangle-down" },
+        custom: { ...commonCustom, label: "Entry" },
+      })
+      exits.push({
+        x: exitTime,
+        y: exitPrice,
+        marker: { fillColor: exitColor, lineColor: "#e2e8f0", symbol: isLong ? "triangle-down" : "triangle" },
+        custom: { ...commonCustom, label: "Exit" },
+      })
+    }
+
+    return { lineSeries, entries, exits, count: entries.length }
+  }, [trades])
 
   const options: Highcharts.Options = useMemo(() => ({
     chart: {
       backgroundColor: "transparent",
-      height: containerHeightRef.current,
+      height: containerHeight,
       style: {
         fontFamily: "inherit",
       },
@@ -341,6 +454,41 @@ export function DataHighstockChart({
           enabled: true
         }
       },
+      ...(tradeOverlay.count > 0 ? [
+        ...tradeOverlay.lineSeries,
+        {
+          type: "scatter" as const,
+          name: "Trade entries",
+          data: tradeOverlay.entries,
+          color: "#2563eb",
+          marker: {
+            enabled: true,
+            radius: 8,
+            lineWidth: 1,
+            lineColor: "#e2e8f0",
+          },
+          tooltip: {
+            pointFormat: '<b>Trade #{point.custom.tradeTicket}</b><br/>Entry Price: <b>{point.custom.entryPrice}</b><br/>Entry Time: <b>{point.custom.entryTime}</b><br/>'
+          },
+          zIndex: 6,
+        },
+        {
+          type: "scatter" as const,
+          name: "Trade exits",
+          data: tradeOverlay.exits,
+          color: "#ff1493",
+          marker: {
+            enabled: true,
+            radius: 8,
+            lineWidth: 1,
+            lineColor: "#e2e8f0",
+          },
+          tooltip: {
+            pointFormat: '<b>Trade #{point.custom.tradeTicket}</b><br/>Exit Price: <b>{point.custom.exitPrice}</b><br/>Exit Time: <b>{point.custom.exitTime}</b><br/>Pips: <b>{point.custom.pips}</b><br/>P&L: <b>{point.custom.pnl}</b><br/>'
+          },
+          zIndex: 6,
+        },
+      ] satisfies Highcharts.SeriesOptionsType[] : []),
     ],
     stockTools: {
       gui: {
@@ -390,7 +538,7 @@ export function DataHighstockChart({
     credits: {
       enabled: false,
     },
-  }), [ohlcData, symbol, timeframe])
+  }), [containerHeight, ohlcData, symbol, timeframe, tradeOverlay])
 
   return (
     <div className={cn("relative h-full w-full bg-[#070b14] overflow-hidden", className)}>
