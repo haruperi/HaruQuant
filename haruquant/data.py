@@ -1,7 +1,9 @@
+import fnmatch
 import hashlib
 import json
 import os
 import pickle
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -31,6 +33,23 @@ def _normalize_cache_value(value: Any) -> Any:
     if isinstance(value, set):
         return sorted(_normalize_cache_value(item) for item in value)
     return value
+
+
+def _map_timeframe(tf: str) -> str:
+    """Map MT5-style timeframe strings to Pandas frequency strings."""
+    tf_upper = tf.upper()
+    if tf_upper.startswith("H") and tf_upper[1:].isdigit():
+        return f"{tf_upper[1:]}h"
+    elif tf_upper.startswith("M") and tf_upper[1:].isdigit():
+        return f"{tf_upper[1:]}min"
+    elif tf_upper.startswith("D") and (len(tf_upper) == 1 or tf_upper[1:].isdigit()):
+        num = tf_upper[1:] or "1"
+        return f"{num}D"
+    elif tf_upper == "W1":
+        return "1W"
+    elif tf_upper == "MN1":
+        return "1MS"
+    return tf.lower()
 
 
 class DataCache:
@@ -129,51 +148,105 @@ def _download_with_cache(
     if cache:
         cached_df = DataCache.get(source_name, cache_payload)
         if cached_df is not None:
-            return Data(cached_df.copy(), symbol=str(symbol), timeframe=timeframe)
+            data = Data(cached_df.copy(), symbol=symbol, timeframe=timeframe)
+            data._source_name = source_name
+            full_params = dict(params)
+            full_params["symbol"] = symbol
+            if timeframe:
+                full_params["timeframe"] = timeframe
+            data._fetch_params = full_params
+            return data
 
     df = fetcher()
     if cache:
         DataCache.set(source_name, cache_payload, df)
 
-    return Data(df, symbol=str(symbol), timeframe=timeframe)
+    data = Data(df, symbol=symbol, timeframe=timeframe)
+    data._source_name = source_name
+    # Ensure symbol and timeframe are in params for future updates
+    full_params = dict(params)
+    full_params["symbol"] = symbol
+    if timeframe:
+        full_params["timeframe"] = timeframe
+    data._fetch_params = full_params
+    return data
+
+
+def _filter_symbols(symbols: List[str], pattern: Optional[str]) -> List[str]:
+    """Filter symbols using glob or regex."""
+    if not pattern:
+        return sorted(list(set(symbols)))
+    
+    # Try glob first
+    if "*" in pattern or "?" in pattern:
+        filtered = fnmatch.filter(symbols, pattern)
+    else:
+        # Try regex
+        try:
+            regex = re.compile(pattern, re.IGNORECASE)
+            filtered = [s for s in symbols if regex.search(s)]
+        except re.error:
+            # Fallback to simple contains
+            filtered = [s for s in symbols if pattern.lower() in s.lower()]
+    
+    return sorted(list(set(filtered)))
+
 
 class Data:
     """Wrapper class for trading data, mimicking VectorBT's Data object."""
     
-    def __init__(self, df: pd.DataFrame, symbol: Optional[str] = None, timeframe: Optional[str] = None):
+    def __init__(self, df: pd.DataFrame, symbol: Optional[Union[str, List[str]]] = None, timeframe: Optional[str] = None):
         self._df = df
         self._symbol = symbol
         self._timeframe = timeframe
+        self._source_name = None
+        self._fetch_params = {}
 
-    def get(self, column: str = "close") -> pd.Series:
+    def get(self, column: str = "close") -> Union[pd.Series, pd.DataFrame]:
         """Get a specific column from the data."""
         col = column.lower()
+        
+        # Handle MultiIndex columns (VBT style)
+        if isinstance(self._df.columns, pd.MultiIndex):
+            # Find the level that contains OHLCV columns (usually the last one)
+            for level in range(self._df.columns.nlevels - 1, -1, -1):
+                level_vals = [str(v).lower() for v in self._df.columns.get_level_values(level).unique()]
+                if col in level_vals:
+                    # We need to find the actual case-sensitive value in the level
+                    actual_val = None
+                    for v in self._df.columns.get_level_values(level).unique():
+                        if str(v).lower() == col:
+                            actual_val = v
+                            break
+                    return self._df.xs(actual_val, axis=1, level=level)
+
         if col in self._df.columns:
             return self._df[col]
+            
         # Try to find a match if exact lowercase fails
         for c in self._df.columns:
-            if c.lower() == col:
+            if str(c).lower() == col:
                 return self._df[c]
         raise ValueError(f"Column '{column}' not found in data. Available: {list(self._df.columns)}")
 
     @property
-    def close(self) -> pd.Series:
+    def close(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("close")
 
     @property
-    def open(self) -> pd.Series:
+    def open(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("open")
 
     @property
-    def high(self) -> pd.Series:
+    def high(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("high")
 
     @property
-    def low(self) -> pd.Series:
+    def low(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("low")
 
     @property
-    def volume(self) -> pd.Series:
+    def volume(self) -> Union[pd.Series, pd.DataFrame]:
         return self.get("volume")
 
     @property
@@ -190,38 +263,88 @@ class MT5Data:
     
     @staticmethod
     def download(
-        symbol: str,
+        symbol: Union[str, List[str]],
         timeframe: str = "H1",
         start: Optional[Union[str, datetime]] = None,
         end: Optional[Union[str, datetime]] = None,
         count: Optional[int] = None,
         cache: bool = False,
+        classes: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Data:
         """Download data from MT5."""
         from backend.services.market_data.data_getters import load_mt5
 
+        symbols = [symbol] if isinstance(symbol, str) else symbol
+
         def fetcher() -> pd.DataFrame:
-            df = load_mt5(
-                symbol=symbol,
-                timeframe=timeframe,
-                start_date=start,
-                end_date=end,
-                count=count or 0,
-                **kwargs
-            )
-            if df is None:
-                raise ValueError(f"Failed to download MT5 data for {symbol}")
-            return df
+            dfs = {}
+            for sym in symbols:
+                df = load_mt5(
+                    symbol=sym,
+                    timeframe=timeframe,
+                    start_date=start,
+                    end_date=end,
+                    count=count or 0,
+                    **kwargs
+                )
+                if df is not None and not df.empty:
+                    dfs[sym] = df
+            
+            if not dfs:
+                raise ValueError(f"Failed to download any MT5 data for {symbols}")
+            
+            if len(dfs) == 1 and not classes:
+                return next(iter(dfs.values()))
+            
+            # Combine into MultiIndex DataFrame
+            # Base level: Symbol
+            # Second level: Column (open, high, etc.)
+            combined = pd.concat(dfs.values(), axis=1, keys=dfs.keys())
+            
+            if classes:
+                # Add classes as top-level MultiIndex
+                # e.g. {"EURUSD": {"sector": "USDPairs"}}
+                first_meta = next(iter(classes.values()))
+                if isinstance(first_meta, dict):
+                    # We add levels in reverse so the first key in the dict is level 0
+                    for meta_key in reversed(list(first_meta.keys())):
+                        new_columns = []
+                        for col_tuple in combined.columns:
+                            # The symbol is always second to last in (..., sym, col)
+                            sym = col_tuple[-2] if len(col_tuple) > 1 else col_tuple[0]
+                            val = classes.get(sym, {}).get(meta_key, "Unknown")
+                            new_columns.append((val,) + col_tuple)
+                        combined.columns = pd.MultiIndex.from_tuples(new_columns)
+                
+            return combined
 
         return _download_with_cache(
             source_name="MT5Data",
             symbol=symbol,
             timeframe=timeframe,
             cache=cache,
-            params={"start": start, "end": end, "count": count or 0, **kwargs},
+            params={
+                "start": start, 
+                "end": end, 
+                "count": count or 0, 
+                "classes": classes,
+                **kwargs
+            },
             fetcher=fetcher,
         )
+
+    @staticmethod
+    def list_symbols(pattern: Optional[str] = None) -> List[str]:
+        """List available symbols in MT5."""
+        try:
+            import MetaTrader5 as mt5
+            if not mt5.initialize():
+                return []
+            symbols = [s.name for s in mt5.symbols_get()]
+            return _filter_symbols(symbols, pattern)
+        except Exception:
+            return []
 
 
 class DukascopyData:
@@ -261,6 +384,16 @@ class DukascopyData:
             params={"start": start, "end": end, "count": count, **kwargs},
             fetcher=fetcher,
         )
+
+    @staticmethod
+    def list_symbols(pattern: Optional[str] = None) -> List[str]:
+        """List available symbols in Dukascopy."""
+        try:
+            from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
+            symbols = list(INSTRUMENT_MAP.keys())
+            return _filter_symbols(symbols, pattern)
+        except Exception:
+            return []
 
 
 class YFData:
@@ -381,6 +514,18 @@ class BinanceData:
             fetcher=fetcher,
         )
 
+    @staticmethod
+    def list_symbols(pattern: Optional[str] = None) -> List[str]:
+        """List available symbols in Binance."""
+        try:
+            from binance import Client
+            client = Client(None, None)
+            exchange_info = client.get_exchange_info()
+            symbols = [s['symbol'] for s in exchange_info['symbols']]
+            return _filter_symbols(symbols, pattern)
+        except Exception:
+            return []
+
 
 class CCXTData:
     """Data source for CCXT (supports many exchanges)."""
@@ -457,7 +602,9 @@ class GBMData:
         if isinstance(symbols, str):
             symbols = [symbols]
             
-        date_range = pd.date_range(start=start, end=end, freq=interval)
+        # Map MT5-style interval to Pandas freq
+        freq = _map_timeframe(interval)
+        date_range = pd.date_range(start=start, end=end, freq=freq)
         n_steps = len(date_range)
         
         if seed is not None:
@@ -482,7 +629,206 @@ class GBMData:
             # Reorder columns
             df = df[["open", "high", "low", "close", "volume"]]
         
-        return Data(df, symbol=str(symbols), timeframe=interval)
+        return Data(df, symbol=symbols, timeframe=interval)
+
+
+class CSVData:
+    """Data source for CSV files."""
+    
+    @staticmethod
+    def load(
+        path: Union[str, Path],
+        index_col: Union[int, str] = 0,
+        parse_dates: bool = True,
+        **kwargs
+    ) -> Data:
+        """Load data from a CSV file."""
+        df = pd.read_csv(path, index_col=index_col, parse_dates=parse_dates, **kwargs)
+        # Normalize columns to lowercase
+        df.columns = [str(c).lower() for c in df.columns]
+        return Data(df, symbol=Path(path).stem)
+
+
+class ParquetData:
+    """Data source for Parquet files."""
+    
+    @staticmethod
+    def load(
+        path: Union[str, Path],
+        **kwargs
+    ) -> Data:
+        """Load data from a Parquet file."""
+        df = pd.read_parquet(path, **kwargs)
+        # Normalize columns to lowercase
+        df.columns = [str(c).lower() for c in df.columns]
+        return Data(df, symbol=Path(path).stem)
+
+
+class DataSaver:
+    """Base class for saving and periodically updating data."""
+    
+    def __init__(self, data: Data, path: Optional[Union[str, Path]] = None):
+        self.data = data
+        self._path = path
+
+    def _get_extension(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def path(self) -> Path:
+        if self._path:
+            return Path(self._path)
+        folder = Path(PROJECT_ROOT) / "backend" / "data" / "saved"
+        folder.mkdir(parents=True, exist_ok=True)
+        sym = str(self.data._symbol).replace("/", "_").replace(" ", "_")
+        tf = self.data._timeframe or "unknown"
+        return folder / f"{sym}_{tf}.{self._get_extension()}"
+
+    @property
+    def meta_path(self) -> Path:
+        return self.path.with_suffix(".json")
+
+    @classmethod
+    def file_exists(cls, path: Optional[Union[str, Path]] = None, symbol: str = "EURUSD", timeframe: str = "M1") -> bool:
+        if path:
+            return os.path.exists(path)
+        # Check default location
+        folder = Path(PROJECT_ROOT) / "backend" / "data" / "saved"
+        ext = cls(Data(pd.DataFrame(), symbol=symbol, timeframe=timeframe))._get_extension()
+        path = folder / f"{symbol}_{timeframe}.{ext}"
+        return path.exists()
+
+    def save(self, is_initial: bool = False):
+        """Save data and source metadata."""
+        # Save metadata
+        meta = {
+            "symbol": self.data._symbol,
+            "timeframe": self.data._timeframe,
+            "source_name": self.data._source_name,
+            "fetch_params": self.data._fetch_params
+        }
+        with open(self.meta_path, "w") as f:
+            json.dump(meta, f, default=str)
+        self._save_df()
+        
+        if is_initial:
+            start_str = self.data.df.index[0].strftime("%Y-%m-%d %H:%M:%S") if not self.data.df.empty else "N/A"
+            end_str = self.data.df.index[-1].strftime("%Y-%m-%d %H:%M:%S") if not self.data.df.empty else "N/A"
+            print(f"INFO:haruquant.data.saver:Saved initial {len(self.data.df)} rows from {start_str} to {end_str}")
+
+    def _save_df(self):
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, path: Optional[Union[str, Path]] = None, symbol: str = "EURUSD", timeframe: str = "M1") -> "DataSaver":
+        """Load data and source metadata."""
+        if not path:
+            folder = Path(PROJECT_ROOT) / "backend" / "data" / "saved"
+            ext = cls(Data(pd.DataFrame(), symbol=symbol, timeframe=timeframe))._get_extension()
+            path = folder / f"{symbol}_{timeframe}.{ext}"
+            
+        path = Path(path)
+        meta_path = path.with_suffix(".json")
+        if not path.exists() or not meta_path.exists():
+            raise FileNotFoundError(f"Data or metadata not found at {path}")
+            
+        with open(meta_path, "r") as f:
+            meta = json.load(f)
+            
+        df = cls._load_df(path)
+        data = Data(df, symbol=meta["symbol"], timeframe=meta["timeframe"])
+        data._source_name = meta["source_name"]
+        data._fetch_params = meta["fetch_params"]
+        return cls(data, path=path)
+
+    @staticmethod
+    def _load_df(path: Path) -> pd.DataFrame:
+        raise NotImplementedError
+
+    def update(self) -> int:
+        """Fetch latest data using stored source info. Returns number of new rows."""
+        if not self.data._source_name:
+             print("Warning: Data object has no source information. Skipping update.")
+             return 0
+        
+        source_cls = getattr(sys.modules[__name__], self.data._source_name)
+        
+        params = dict(self.data._fetch_params)
+        start_time = None
+        if not self.data.df.empty:
+             start_time = self.data.df.index[-1]
+             params["start"] = start_time
+             if "count" in params and params["count"]:
+                  params["count"] = max(params["count"], 10)
+        
+        try:
+            new_data = source_cls.download(**params)
+            
+            if new_data.df.empty:
+                return 0
+                
+            prev_len = len(self.data.df)
+            combined = pd.concat([self.data.df, new_data.df])
+            self.data._df = combined[~combined.index.duplicated(keep='last')].sort_index()
+            
+            new_rows = len(self.data.df) - prev_len
+            if new_rows > 0:
+                start_str = start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else "N/A"
+                end_str = self.data.df.index[-1].strftime("%Y-%m-%d %H:%M:%S")
+                print(f"INFO:haruquant.data.saver:Saved {new_rows} rows from {start_str} to {end_str}")
+            return new_rows
+        except Exception as e:
+            # print(f"Update failed for {self.data._symbol}: {e}")
+            return 0
+
+    def update_every(self, interval: int, unit: str = "minute", init_save: bool = True):
+        """Start periodic updates (blocking)."""
+        import time
+        from datetime import datetime, timedelta
+        
+        if init_save:
+            self.save(is_initial=True)
+            
+        seconds = interval
+        if unit == "minute": delta = timedelta(minutes=interval); seconds *= 60
+        elif unit == "hour": delta = timedelta(hours=interval); seconds *= 3600
+        elif unit == "day": delta = timedelta(days=interval); seconds *= 86400
+        else: delta = timedelta(minutes=interval); seconds *= 60
+        
+        next_run = datetime.now() + delta
+        print(f"INFO:haruquant.utils.schedule_:Starting schedule manager with jobs [Every {interval} {unit} do update() (last run: [never], next run: {next_run.strftime('%Y-%m-%d %H:%M:%S')})]")
+        
+        try:
+            while True:
+                time.sleep(seconds)
+                self.update()
+                self.save()
+        except KeyboardInterrupt:
+            print("INFO:haruquant.utils.schedule_:Stopping schedule manager")
+
+
+class CSVDataSaver(DataSaver):
+    def _get_extension(self) -> str:
+        return "csv"
+
+    def _save_df(self):
+        self.data.df.to_csv(self.path)
+
+    @staticmethod
+    def _load_df(path: Path) -> pd.DataFrame:
+        return pd.read_csv(path, index_col=0, parse_dates=True)
+
+
+class ParquetDataSaver(DataSaver):
+    def _get_extension(self) -> str:
+        return "parquet"
+
+    def _save_df(self):
+        self.data.df.to_parquet(self.path)
+
+    @staticmethod
+    def _load_df(path: Path) -> pd.DataFrame:
+        return pd.read_parquet(path)
 
 
 class ScheduledDataUpdater:

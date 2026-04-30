@@ -445,10 +445,19 @@ class MT5Client:
         tf = self._get_mt5_timeframe(timeframe)
 
         try:
-            rates = None
             if date_from:
-                d_to = date_to or datetime.now()
-                rates = mt5.copy_rates_range(symbol, tf, date_from, d_to)
+                # Ensure date_from is naive for MT5
+                if hasattr(date_from, "tzinfo") and date_from.tzinfo is not None:
+                    date_from = date_from.replace(tzinfo=None)
+                
+                if date_to:
+                    if hasattr(date_to, "tzinfo") and date_to.tzinfo is not None:
+                        date_to = date_to.replace(tzinfo=None)
+                    rates = mt5.copy_rates_range(symbol, tf, date_from, date_to)
+                else:
+                    # Use copy_rates_from to fetch bars starting from date_from into the future.
+                    # This is much more robust for updates as it uses the broker's clock.
+                    rates = mt5.copy_rates_from(symbol, tf, date_from, count)
             else:
                 rates = mt5.copy_rates_from_pos(symbol, tf, start_pos, count)
 

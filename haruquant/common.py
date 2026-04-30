@@ -12,6 +12,13 @@ HQT_SCHEMA = OHLCVSchema(
     volume="volume"
 )
 
+def symbol_dict(mapping: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Helper to create a dictionary mapping symbols to metadata.
+    Mimics vbt.symbol_dict.
+    """
+    return mapping
+
 def resample(data: Union[Data, pd.DataFrame], rule: str) -> Data:
     """
     Resample OHLCV data to a different timeframe.

@@ -415,8 +415,8 @@ def load_mt5(  # noqa: C901
             start_date = datetime.strptime(start_date, "%Y-%m-%d")
         if isinstance(end_date, str):
             end_date = datetime.strptime(end_date, "%Y-%m-%d")
-        if start_date and not end_date:
-            end_date = datetime.now()
+        # if start_date and not end_date:
+        #     end_date = datetime.now()
 
         creds = None
         user_manager = UserManager()
@@ -447,12 +447,13 @@ def load_mt5(  # noqa: C901
         logger.info(
             f"Fetching {symbol} {timeframe} data from MT5... from {start_date} to {end_date} or last {count} bars"
         )
-        if start_date and end_date:
+        if start_date:
             bars = client.get_bars(
                 symbol=symbol,
                 timeframe=timeframe,
                 date_from=start_date,
                 date_to=end_date,
+                count=count if count and count > 0 else 1000
             )
         else:
             effective_count = count if count and count > 0 else 1000
