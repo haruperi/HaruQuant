@@ -1,0 +1,23 @@
+{
+  "case_id": "knowledge_retrieval_standard",
+  "description": "Knowledge retrieval standard match",
+  "tool_results": {
+    "internal_knowledge": {
+      "tool_name": "internal_knowledge",
+      "success": true,
+      "payload": {
+        "query": "How do I configure the kill switch?",
+        "matches": [
+          {
+            "filename": "docs/risk_management.md",
+            "relevance_score": 0.92,
+            "content": "The global kill switch can be activated via the dashboard or by setting HARUQUANT_KILL_SWITCH=1 in the environment. When active, all new orders are blocked."
+          }
+        ]
+      }
+    }
+  },
+  "expected_findings_contain": ["kill switch", "dashboard", "HARUQUANT_KILL_SWITCH=1"],
+  "expected_confidence_range": [70, 95],
+  "must_not_contain": []
+}

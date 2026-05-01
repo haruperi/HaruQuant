@@ -1,0 +1,29 @@
+{
+  "case_id": "portfolio_high_concentration",
+  "description": "Live portfolio with high single-asset concentration",
+  "tool_results": {
+    "open_positions": {
+      "tool_name": "open_positions",
+      "success": true,
+      "payload": {
+        "open_position_count": 3,
+        "positions": [
+          {"symbol": "EURUSD", "floating_pnl": 120.50, "exposure_pct": 55.0, "side": "LONG"},
+          {"symbol": "GBPUSD", "floating_pnl": -40.00, "exposure_pct": 10.0, "side": "SHORT"},
+          {"symbol": "USDJPY", "floating_pnl": 10.00, "exposure_pct": 5.0, "side": "LONG"}
+        ]
+      }
+    },
+    "portfolio_summary": {
+      "tool_name": "portfolio_summary",
+      "success": true,
+      "payload": {
+        "aggregate_open_profit": 90.50,
+        "total_exposure": 70.0
+      }
+    }
+  },
+  "expected_findings_contain": ["concentration", "EURUSD"],
+  "expected_confidence_range": [70, 95],
+  "must_not_contain": ["generic trading advice"]
+}

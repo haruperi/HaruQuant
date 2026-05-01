@@ -1,0 +1,25 @@
+{
+  "case_id": "backtest_weak_performance",
+  "description": "Backtest with weak Sharpe, high drawdown, low win rate",
+  "tool_results": {
+    "backtest_summary": {
+      "tool_name": "backtest_summary",
+      "success": true,
+      "payload": {
+        "backtest_found": true,
+        "backtest_id": "bt_weak_001",
+        "total_trades": 45,
+        "timeframes": ["H1"],
+        "headline_metrics": {
+          "sharpe": 0.4,
+          "max_drawdown": "35%",
+          "win_rate": "42%",
+          "profit_factor": 0.85
+        }
+      }
+    }
+  },
+  "expected_findings_contain": ["sharpe", "drawdown", "win rate"],
+  "expected_confidence_range": [65, 85],
+  "must_not_contain": ["generic trading advice", "I recommend you"]
+}

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from backend.agents.chat import (
-    BacktestExplainerAgent,
-    FinalResponderAgent,
-    KnowledgeRetrievalAgent,
-    OptimizationComparisonAgent,
-    PortfolioRiskAgent,
-)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from backend.agents.chat import (
+        BacktestExplainerAgent,
+        FinalResponderAgent,
+        KnowledgeRetrievalAgent,
+        OptimizationComparisonAgent,
+        PortfolioRiskAgent,
+    )
+
 from backend.services.ai_chat.models import ConversationPlan, ConversationState, SpecialistAgentArtifact
 from backend.services.tool_executor import ToolExecutionResult
 
@@ -19,17 +23,41 @@ class AgentConsultationService:
     def __init__(
         self,
         *,
-        backtest_explainer_agent: BacktestExplainerAgent | None = None,
-        portfolio_risk_agent: PortfolioRiskAgent | None = None,
-        optimization_comparison_agent: OptimizationComparisonAgent | None = None,
-        knowledge_retrieval_agent: KnowledgeRetrievalAgent | None = None,
-        final_responder_agent: FinalResponderAgent | None = None,
+        backtest_explainer_agent: 'BacktestExplainerAgent | None' = None,
+        portfolio_risk_agent: 'PortfolioRiskAgent | None' = None,
+        optimization_comparison_agent: 'OptimizationComparisonAgent | None' = None,
+        knowledge_retrieval_agent: 'KnowledgeRetrievalAgent | None' = None,
+        final_responder_agent: 'FinalResponderAgent | None' = None,
     ) -> None:
-        self.backtest_explainer_agent = backtest_explainer_agent or BacktestExplainerAgent()
-        self.portfolio_risk_agent = portfolio_risk_agent or PortfolioRiskAgent()
-        self.optimization_comparison_agent = optimization_comparison_agent or OptimizationComparisonAgent()
-        self.knowledge_retrieval_agent = knowledge_retrieval_agent or KnowledgeRetrievalAgent()
-        self.final_responder_agent = final_responder_agent or FinalResponderAgent()
+        if backtest_explainer_agent is None:
+            from backend.agents.chat.backtest_explainer_agent import BacktestExplainerAgent
+            self.backtest_explainer_agent = BacktestExplainerAgent()
+        else:
+            self.backtest_explainer_agent = backtest_explainer_agent
+            
+        if portfolio_risk_agent is None:
+            from backend.agents.chat.portfolio_risk_agent import PortfolioRiskAgent
+            self.portfolio_risk_agent = PortfolioRiskAgent()
+        else:
+            self.portfolio_risk_agent = portfolio_risk_agent
+            
+        if optimization_comparison_agent is None:
+            from backend.agents.chat.optimization_comparison_agent import OptimizationComparisonAgent
+            self.optimization_comparison_agent = OptimizationComparisonAgent()
+        else:
+            self.optimization_comparison_agent = optimization_comparison_agent
+            
+        if knowledge_retrieval_agent is None:
+            from backend.agents.chat.knowledge_retrieval_agent import KnowledgeRetrievalAgent
+            self.knowledge_retrieval_agent = KnowledgeRetrievalAgent()
+        else:
+            self.knowledge_retrieval_agent = knowledge_retrieval_agent
+            
+        if final_responder_agent is None:
+            from backend.agents.chat.final_responder_agent import FinalResponderAgent
+            self.final_responder_agent = FinalResponderAgent()
+        else:
+            self.final_responder_agent = final_responder_agent
 
     def consult(
         self,
