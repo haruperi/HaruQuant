@@ -138,9 +138,18 @@ class ConversationPlan(BaseModel):
     rationale: str = Field(min_length=1)
     needs_clarification: bool = False
     clarification_question: str | None = None
+    intent: str = Field(min_length=1, default="answer")
+    missing_inputs: list[str] = Field(default_factory=list)
+    context_needed: list[str] = Field(default_factory=list)
+    backend_tools_to_run: list[str] = Field(default_factory=list)
     tools_to_run: list[str] = Field(default_factory=list)
     agents_to_consult: list[str] = Field(default_factory=list)
     attached_tools: list[str] = Field(default_factory=list)
+    page_actions_to_plan: list[str] = Field(default_factory=list)
+    artifact_expected: str | None = None
+    risk_level: str = Field(min_length=1, default="read_only")
+    planner_source: str = Field(min_length=1, default="deterministic")
+    planner_confidence: float = Field(ge=0, le=1, default=1.0)
 
 
 class ChatToolAttachment(BaseModel):

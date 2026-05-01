@@ -15,6 +15,7 @@ from backend.observability.cost_tracker import calculate_cost
 from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.agent_consultation_service import AgentConsultationService
 from backend.services.ai_chat.conversation_orchestrator import ConversationOrchestrator
+from backend.services.ai_chat.conversation_planner import ConversationPlanner, RuntimeLLMPlannerClient
 from backend.services.ai_chat.conversation_state_service import ConversationStateService
 from backend.services.ai_chat.context_service import PageContextAssembler
 from backend.services.ai_chat.conversation_service import ConversationService
@@ -88,6 +89,7 @@ class AIGatewayService:
         self.agent_router = agent_router or ChatAgentRouter()
         self.conversation_orchestrator = conversation_orchestrator or ConversationOrchestrator(
             agent_router=self.agent_router,
+            planner=ConversationPlanner(llm_planner=RuntimeLLMPlannerClient()),
         )
         self.conversation_state_service = conversation_state_service or ConversationStateService()
         self.agent_consultation_service = agent_consultation_service or AgentConsultationService()
@@ -149,12 +151,24 @@ class AIGatewayService:
                 {"role": message.role, "content": message.content}
                 for message in thread.messages[-8:]
             ]
+            requested_attached_tool_ids = tuple(dict.fromkeys(request.attached_tools or []))
+            tool_context["attached_tool_ids"] = requested_attached_tool_ids
+            plan = self.conversation_orchestrator.build_plan(
+                prompt=request.prompt,
+                thread=thread,
+                page_context=page_context,
+                conversation_state=conversation_state,
+                tool_context=tool_context,
+            )
+            final_attached_tool_ids = tuple(dict.fromkeys((*requested_attached_tool_ids, *plan.attached_tools)))
+            tool_context["attached_tool_ids"] = final_attached_tool_ids
             attached_tools = self.tool_attachment_runtime.resolve_attachments(
-                selected_tool_ids=request.attached_tools or [],
+                selected_tool_ids=list(final_attached_tool_ids),
                 page_context=page_context,
                 tool_context=tool_context,
             )
             attached_tool_ids = {tool.tool_id for tool in attached_tools}
+            plan.attached_tools = [tool.tool_id for tool in attached_tools]
             strategy_creator_result = None
             if "strategy_creator" in attached_tool_ids:
                 strategy_creator_result = self.strategy_creator_agent.create_from_idea(
@@ -163,14 +177,6 @@ class AIGatewayService:
                     context=tool_context,
                     full_permissions="full_permissions" in attached_tool_ids,
                 )
-            plan = self.conversation_orchestrator.build_plan(
-                prompt=request.prompt,
-                thread=thread,
-                page_context=page_context,
-                conversation_state=conversation_state,
-                tool_context=tool_context,
-            )
-            plan.attached_tools = [tool.tool_id for tool in attached_tools]
             if plan.needs_clarification:
                 return self._stream_clarification_response(
                     request=request,
@@ -178,12 +184,7 @@ class AIGatewayService:
                     page_context=page_context,
                     plan=plan,
                 )
-            requested_tools = self._select_tools(
-                prompt=request.prompt,
-                page_type=page_context.payload.page_type,
-                context=tool_context,
-                prioritize_page_evidence=prioritize_page_evidence,
-            )
+            requested_tools = () if prioritize_page_evidence else tuple(plan.tools_to_run)
             requested_tools = tuple(
                 dict.fromkeys(
                     [
@@ -378,6 +379,16 @@ class AIGatewayService:
                 "answer_mode": plan.answer_mode,
                 "conversation_plan_id": plan.conversation_plan_id,
                 "clarification_required": plan.needs_clarification,
+                "planner": {
+                    "source": plan.planner_source,
+                    "confidence": plan.planner_confidence,
+                    "intent": plan.intent,
+                    "risk_level": plan.risk_level,
+                    "artifact_expected": plan.artifact_expected,
+                    "backend_tools_to_run": plan.backend_tools_to_run,
+                    "attached_tools": plan.attached_tools,
+                    "page_actions_to_plan": plan.page_actions_to_plan,
+                },
                 "model": model,
                 "generation_source": gen_result.generation_source,
                 "provider_name": gen_result.provider_name,

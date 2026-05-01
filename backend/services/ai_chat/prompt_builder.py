@@ -51,12 +51,12 @@ class ChatPromptBuilder:
         page_context: PageContextPacket,
         conversation_state: ConversationState | None,
         specialist_artifacts: list[SpecialistAgentArtifact] | None,
-        page_chunks: list[RetrievedPageChunk] | None,
         user_prompt: str,
         response_mode: str,
         task_class: str = "performance_summary",
         attached_tools: list[ChatToolAttachment] | None = None,
         attached_tool_prompt: str = "No chat tools are attached.",
+        page_chunks: list[RetrievedPageChunk] | None = None,
     ) -> BuiltPrompt:
         prompt_spec = resolve_domain_prompt_spec(task_class)
         requires_structured_sections = response_mode in {"signal_proposal", "action_draft"}

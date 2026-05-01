@@ -5,6 +5,7 @@ from .agent_consultation_service import AgentConsultationService
 from .ai_gateway import AIGatewayService, ChatStreamRequest
 from .clarification_policy import ClarificationDecision, ClarificationPolicy
 from .conversation_orchestrator import ConversationOrchestrator
+from .conversation_planner import ConversationPlanner, RuntimeLLMPlannerClient, StructuredChatPlan
 from .conversation_state_service import ConversationStateService
 from .conversation_service import ConversationService
 from .context_service import (
@@ -56,6 +57,7 @@ __all__ = [
     "ClarificationDecision",
     "ClarificationPolicy",
     "ConversationOrchestrator",
+    "ConversationPlanner",
     "ConversationEntityState",
     "ConversationPlan",
     "ConversationState",
@@ -69,6 +71,8 @@ __all__ = [
     "PinnedFact",
     "RouteContextDescriptor",
     "ResponseComposer",
+    "RuntimeLLMPlannerClient",
     "SignalProposalRecord",
+    "StructuredChatPlan",
     "ToolPermissionTier",
 ]
