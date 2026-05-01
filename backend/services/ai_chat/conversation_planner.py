@@ -587,7 +587,7 @@ class ConversationPlanner:
     def _is_page_operation(normalized: str, attached_tool_ids: tuple[str, ...]) -> bool:
         return "page_operator" in attached_tool_ids or any(
             phrase in normalized
-            for phrase in ("click", "open tab", "change filter", "select row", "export this report", "download this")
+            for phrase in ("click", "open tab", "change filter", "select row", "export this report", "download this", "change symbol", "switch symbol", "change timeframe", "switch timeframe")
         )
 
     @staticmethod

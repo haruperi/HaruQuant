@@ -183,6 +183,14 @@ Rules:
                 )
                 if part
             )
+        if task_class == "page_operation":
+            return " ".join(
+                part for part in (
+                    summaries,
+                    recommendation,
+                )
+                if part
+            )
         return " ".join(
             part for part in (
                 default_text,

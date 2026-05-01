@@ -3,6 +3,7 @@
 import * as React from "react"
 import { AlertTriangle, ExternalLink, FileCode2, Loader2, Scale, Sparkles, TrendingUp, TriangleAlert, User2 } from "lucide-react"
 
+import { ActionPlanPreview } from "@/components/ai-chat/ActionPlanPreview"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -16,6 +17,7 @@ interface MessageListProps {
   onQueueSignalProposalForReview?: (proposalId: string) => void
   onRequestActionDraftApproval?: (draftId: string) => void
   onExecutePaperActionDraft?: (draftId: string) => void
+  onExecutePageAction?: (actionId: string, params: any) => void
   onSaveSignalProposalToWatchlist?: (proposalId: string) => void
   showDebug?: boolean
 }
@@ -131,6 +133,7 @@ export function MessageList({
   onQueueSignalProposalForReview,
   onRequestActionDraftApproval,
   onExecutePaperActionDraft,
+  onExecutePageAction,
   onSaveSignalProposalToWatchlist,
   showDebug = false,
 }: MessageListProps) {
@@ -267,6 +270,20 @@ export function MessageList({
                             <div className="mt-2">{renderListItems(specialistItems)}</div>
                           </details>
                         ) : null}
+                      </div>
+                    ) : null}
+                    {message.role === "assistant" && (message.specialistArtifacts ?? []).some(a => a.action_plan) ? (
+                      <div className="mt-2 space-y-2">
+                        {(message.specialistArtifacts ?? [])
+                          .filter(a => a.action_plan)
+                          .map((artifact, idx) => (
+                            <ActionPlanPreview
+                              key={`action_plan_${idx}`}
+                              plan={artifact.action_plan!}
+                              onApprove={(plan) => onExecutePageAction?.(plan.action_id, plan.parameters)}
+                            />
+                          ))
+                        }
                       </div>
                     ) : null}
                     {message.strategyCreator?.artifact ? (

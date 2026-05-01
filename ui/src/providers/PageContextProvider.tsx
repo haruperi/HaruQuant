@@ -27,8 +27,9 @@ interface PageContextValue {
   pageContext: AiChatPageContextPayload | null
   isLoading: boolean
   error: string | null
-  registerPageContext: (id: string, registration: AiChatPageContextRegistration) => void
+  registerPageContext: (id: string, registration: AiChatPageContextRegistration, callbacks?: Record<string, (params: any) => void | Promise<void>>) => void
   unregisterPageContext: (id: string) => void
+  executeAction: (actionId: string, params: any) => Promise<boolean>
 }
 
 const PageContextContext = React.createContext<PageContextValue | null>(null)
@@ -210,13 +211,17 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [registrations, setRegistrations] = React.useState<RegisteredStateMap>({})
+  const [actionCallbacks, setActionCallbacks] = React.useState<Record<string, Record<string, (params: any) => void | Promise<void>>>>({})
   const [domVersion, setDomVersion] = React.useState(0)
 
-  const registerPageContext = React.useCallback((id: string, registration: AiChatPageContextRegistration) => {
+  const registerPageContext = React.useCallback((id: string, registration: AiChatPageContextRegistration, callbacks?: Record<string, (params: any) => void | Promise<void>>) => {
     setRegistrations((current) => {
       const next = { ...current, [id]: registration }
       return next
     })
+    if (callbacks) {
+      setActionCallbacks((current) => ({ ...current, [id]: callbacks }))
+    }
   }, [])
 
   const unregisterPageContext = React.useCallback((id: string) => {
@@ -228,7 +233,29 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
       delete next[id]
       return next
     })
+    setActionCallbacks((current) => {
+      if (!(id in current)) return current
+      const next = { ...current }
+      delete next[id]
+      return next
+    })
   }, [])
+
+  const executeAction = React.useCallback(async (actionId: string, params: any) => {
+    for (const callbacks of Object.values(actionCallbacks)) {
+      if (actionId in callbacks) {
+        try {
+          await callbacks[actionId](params)
+          return true
+        } catch (err) {
+          console.error(`Failed to execute page action ${actionId}:`, err)
+          throw err
+        }
+      }
+    }
+    console.warn(`No callback registered for page action ${actionId}`)
+    return false
+  }, [actionCallbacks])
 
   React.useEffect(() => {
     if (typeof document === "undefined") {
@@ -352,8 +379,9 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
       error,
       registerPageContext,
       unregisterPageContext,
+      executeAction,
     }),
-    [error, isLoading, pageContext, registerPageContext, unregisterPageContext],
+    [error, isLoading, pageContext, registerPageContext, unregisterPageContext, executeAction],
   )
 
   return (

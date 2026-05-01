@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -200,6 +200,7 @@ class SpecialistAgentArtifact(BaseModel):
     sources: list[str] = Field(default_factory=list)
     recommendation: str | None = None
     confidence: int = Field(ge=0, le=100, default=60)
+    action_plan: dict[str, Any] | None = None
 
 
 class ConversationThreadRecord(BaseModel):

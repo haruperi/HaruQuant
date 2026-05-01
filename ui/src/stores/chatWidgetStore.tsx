@@ -113,6 +113,7 @@ interface ChatWidgetStoreValue {
   queueSignalProposalForReview: (proposalId: string) => Promise<void>
   requestActionDraftApproval: (draftId: string) => Promise<void>
   executePaperActionDraft: (draftId: string) => Promise<void>
+  executePageAction: (actionId: string, params: any) => Promise<void>
   submitDraft: () => Promise<void>
   regenerateLastResponse: () => Promise<void>
   cancelStream: () => void
@@ -264,7 +265,7 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
 
 export function ChatWidgetStoreProvider({ children }: { children: React.ReactNode }) {
   const { authenticatedFetch, isAuthenticated, isLoading } = useAuth()
-  const { pageContext } = usePageContext()
+  const { pageContext, executeAction } = usePageContext()
   const [isOpen, setIsOpen] = React.useState(false)
   const [draft, setDraftState] = React.useState("")
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
@@ -807,6 +808,19 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
 
+  const executePageAction = React.useCallback(async (actionId: string, params: any) => {
+    try {
+      const success = await executeAction(actionId, params)
+      if (success) {
+        setActiveResponseStatus(`Executed page action: ${actionId}`)
+      } else {
+        setError(`Failed to execute page action ${actionId}: No implementation found.`)
+      }
+    } catch (err) {
+      setError(`Failed to execute page action ${actionId}.`)
+    }
+  }, [executeAction])
+
   const requestActionDraftApproval = React.useCallback(async (draftId: string) => {
     if (!threadId || !isAuthenticated) {
       return
@@ -1140,6 +1154,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       queueSignalProposalForReview,
       requestActionDraftApproval,
       executePaperActionDraft,
+      executePageAction,
       submitDraft,
       regenerateLastResponse,
       cancelStream,
@@ -1153,6 +1168,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       deleteThread,
       draft,
       error,
+      executePageAction,
       exportThread,
       isHydrated,
       isInitializing,

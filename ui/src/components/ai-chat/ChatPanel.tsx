@@ -51,6 +51,7 @@ interface ChatPanelProps {
   onQueueSignalProposalForReview: (proposalId: string) => void
   onRequestActionDraftApproval: (draftId: string) => void
   onExecutePaperActionDraft: (draftId: string) => void
+  onExecutePageAction: (actionId: string, params: any) => void
   onRegenerate: () => void
   onRenameThread: (value: string, threadId?: string) => void
   onSaveSignalProposalToWatchlist: (proposalId: string) => void
@@ -126,6 +127,7 @@ export function ChatPanel({
   onQueueSignalProposalForReview,
   onRequestActionDraftApproval,
   onExecutePaperActionDraft,
+  onExecutePageAction,
   onRegenerate,
   onRenameThread,
   onSaveSignalProposalToWatchlist,
@@ -332,6 +334,7 @@ export function ChatPanel({
               onQueueSignalProposalForReview={onQueueSignalProposalForReview}
               onRequestActionDraftApproval={onRequestActionDraftApproval}
               onExecutePaperActionDraft={onExecutePaperActionDraft}
+              onExecutePageAction={onExecutePageAction}
               onSaveSignalProposalToWatchlist={onSaveSignalProposalToWatchlist}
               showDebug={showDebug}
             />

@@ -18,6 +18,7 @@ import { ManualOrderControls } from "@/components/live/manual-order-controls"
 import { LiveLogViewer } from "@/components/live/live-log-viewer"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRegisterPageContext } from "@/hooks/usePageContext"
+import { useRegisterPageActions } from "@/hooks/useRegisterPageActions"
 
 export default function LivePage() {
   const [sessionId, setSessionId] = useState<number | undefined>(undefined)
@@ -27,6 +28,33 @@ export default function LivePage() {
   // Chart state
   const [selectedSymbol, setSelectedSymbol] = useState<string>("XAUUSD")
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>("M15")
+
+  useRegisterPageActions(
+    useMemo(() => [
+      {
+        id: "live_trading.change_symbol",
+        label: "Change Symbol",
+        description: "Change the symbol displayed on the live chart",
+        riskLevel: "local_ui",
+        inputSchema: { symbol: "string" },
+      },
+      {
+        id: "live_trading.change_timeframe",
+        label: "Change Timeframe",
+        description: "Change the timeframe displayed on the live chart",
+        riskLevel: "local_ui",
+        inputSchema: { timeframe: "string" },
+      }
+    ], []),
+    useMemo(() => ({
+      "live_trading.change_symbol": (params) => {
+        if (params.symbol) setSelectedSymbol(params.symbol.toUpperCase())
+      },
+      "live_trading.change_timeframe": (params) => {
+        if (params.timeframe) setSelectedTimeframe(params.timeframe.toUpperCase())
+      }
+    }), [])
+  )
 
   const handleSessionCreated = (newSessionId: number) => {
     setSessionId(newSessionId)

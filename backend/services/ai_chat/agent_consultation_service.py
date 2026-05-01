@@ -11,6 +11,7 @@ if TYPE_CHECKING:
         KnowledgeRetrievalAgent,
         OptimizationComparisonAgent,
         PortfolioRiskAgent,
+        PageOperatorAgent,
     )
 
 from backend.services.ai_chat.models import ConversationPlan, ConversationState, SpecialistAgentArtifact
@@ -27,6 +28,7 @@ class AgentConsultationService:
         portfolio_risk_agent: 'PortfolioRiskAgent | None' = None,
         optimization_comparison_agent: 'OptimizationComparisonAgent | None' = None,
         knowledge_retrieval_agent: 'KnowledgeRetrievalAgent | None' = None,
+        page_operator_agent: 'PageOperatorAgent | None' = None,
         final_responder_agent: 'FinalResponderAgent | None' = None,
     ) -> None:
         if backtest_explainer_agent is None:
@@ -52,6 +54,12 @@ class AgentConsultationService:
             self.knowledge_retrieval_agent = KnowledgeRetrievalAgent()
         else:
             self.knowledge_retrieval_agent = knowledge_retrieval_agent
+            
+        if page_operator_agent is None:
+            from backend.agents.chat.page_operator_agent import PageOperatorAgent
+            self.page_operator_agent = PageOperatorAgent()
+        else:
+            self.page_operator_agent = page_operator_agent
             
         if final_responder_agent is None:
             from backend.agents.chat.final_responder_agent import FinalResponderAgent
@@ -123,6 +131,22 @@ class AgentConsultationService:
                 task_class=plan.task_class,
                 tool_results=tool_results,
                 page_context=page_context,
+                tool_context=tool_context,
+            )
+            if artifact is not None:
+                artifacts.append(artifact)
+        elif plan.task_class == "page_operation":
+            # This task passes user prompt specifically if needed, 
+            # but AgentConsultationService currently doesn't receive `user_prompt` in `consult`.
+            # Wait, `consult` method does not have `user_prompt`. Let's just pass `page_context`.
+            # The agent signature requires `user_prompt`. We must modify `consult` signature or 
+            # `PageOperatorAgent` signature or pass `user_prompt` down.
+            # I will pass `user_prompt=plan.user_goal` to the agent.
+            artifact = self.page_operator_agent.analyze(
+                task_class=plan.task_class,
+                user_prompt=plan.user_goal,
+                page_context=page_context,
+                tool_results=tool_results,
                 tool_context=tool_context,
             )
             if artifact is not None:
