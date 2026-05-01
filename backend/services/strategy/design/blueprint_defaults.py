@@ -1,4 +1,4 @@
-"""Deterministic defaults for Hypothesis Designer blueprints."""
+"""Deterministic defaults for Strategy Creator blueprints."""
 
 from __future__ import annotations
 

@@ -5,10 +5,6 @@ from .correlation_agent import CORRELATION_AGENT_INSTRUCTION, CorrelationAgentWr
 from .drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION, DrawdownAgentWrapper
 from .execution_agent import EXECUTION_AGENT_INSTRUCTION, ExecutionAgentWrapper
 from .exposure_agent import EXPOSURE_AGENT_INSTRUCTION, ExposureAgentWrapper
-from .hypothesis_designer_agent import (
-    HYPOTHESIS_DESIGNER_AGENT_INSTRUCTION,
-    HypothesisDesignerAgentWrapper,
-)
 from .intent_router import IntentRouterAgent, IntentRouterError, intent_router_agent
 from .portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
 from .refine_agent import REFINE_AGENT_INSTRUCTION, RefineAgentWrapper
@@ -19,6 +15,11 @@ from .orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION, OrchestratorAgen
 from .research_agent import RESEARCH_AGENT_INSTRUCTION, ResearchAgentWrapper
 from .regime_agent import REGIME_AGENT_INSTRUCTION, RegimeAgentWrapper
 from .strategy_agent import STRATEGY_AGENT_INSTRUCTION, StrategyAgentWrapper
+from .strategy_creator_agent import (
+    STRATEGY_CREATOR_AGENT_INSTRUCTION,
+    StrategyCreatorAgent,
+    StrategyCreatorResult,
+)
 from .slippage_agent import SLIPPAGE_AGENT_INSTRUCTION, SlippageAgentWrapper
 from .volatility_agent import VOLATILITY_AGENT_INSTRUCTION, VolatilityAgentWrapper
 from .runtime import (
@@ -96,7 +97,6 @@ __all__ = [
     "DRAWDOWN_AGENT_INSTRUCTION",
     "EXECUTION_AGENT_INSTRUCTION",
     "EXPOSURE_AGENT_INSTRUCTION",
-    "HYPOTHESIS_DESIGNER_AGENT_INSTRUCTION",
     "REFINE_AGENT_INSTRUCTION",
     "MONITORING_AGENT_INSTRUCTION",
     "ORCHESTRATOR_AGENT_INSTRUCTION",
@@ -105,6 +105,7 @@ __all__ = [
     "REGIME_AGENT_INSTRUCTION",
     "SLIPPAGE_AGENT_INSTRUCTION",
     "STRATEGY_AGENT_INSTRUCTION",
+    "STRATEGY_CREATOR_AGENT_INSTRUCTION",
     "VOLATILITY_AGENT_INSTRUCTION",
     "AgentSession",
     "AgentExecutionContext",
@@ -115,7 +116,6 @@ __all__ = [
     "DrawdownAgentWrapper",
     "ExecutionAgentWrapper",
     "ExposureAgentWrapper",
-    "HypothesisDesignerAgentWrapper",
     "IntentRouterAgent",
     "IntentRouterError",
     "MonitoringAgentWrapper",
@@ -129,6 +129,8 @@ __all__ = [
     "RegimeAgentWrapper",
     "SlippageAgentWrapper",
     "StrategyAgentWrapper",
+    "StrategyCreatorAgent",
+    "StrategyCreatorResult",
     "VolatilityAgentWrapper",
     "EvaluatorRubric",
     "EvaluatorRubricCriterion",

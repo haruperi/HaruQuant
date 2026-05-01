@@ -1,4 +1,4 @@
-"""Real agent example: Hypothesis Designer system.
+"""Real agent example: Strategy Creator system.
 
 Usage:
     python backend/scripts/examples/agentic_ai/05_agents_systems.py
@@ -23,7 +23,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from backend.agents.hypothesis_designer_agent import HypothesisDesignerAgentWrapper
+from backend.agents.strategy_creator_agent import StrategyCreatorAgent
 from backend.agents.runtime import (
     ADKRunRequest,
     ADKRunResult,
@@ -59,7 +59,7 @@ def print_kv(label: str, value: Any) -> None:
     print(f"  {label:<35s} {value}")
 
 
-class MockHypothesisDesignerRuntime:
+class MockStrategyCreatorRuntime:
     """Deterministic runtime used by the examples."""
 
     def run(
@@ -128,7 +128,7 @@ class MockHypothesisDesignerRuntime:
             "correlation_id": request.correlation_id,
             "causation_id": f"evt-{request.correlation_id}",
             "timestamp_utc": "2026-04-19T12:00:00Z",
-            "originator": {"type": "agent", "id": "hypothesis_designer_agent"},
+            "originator": {"type": "agent", "id": "strategy_creator_agent"},
             "environment": "paper",
             "operating_mode": "MODE-001",
             "payload": {
@@ -146,16 +146,16 @@ class MockHypothesisDesignerRuntime:
 def _runner() -> ADKRunnerService:
     return ADKRunnerService(
         config=ADKRunnerConfig(
-            runner_name="hypothesis_designer_examples",
-            default_model="mock-hypothesis-designer",
+            runner_name="strategy_creator_examples",
+            default_model="mock-strategy-creator",
         )
     )
 
 
-def _wrapper() -> HypothesisDesignerAgentWrapper:
-    return HypothesisDesignerAgentWrapper(
-        runner=_runner(),
-        blueprint_validator=StrategyBlueprintValidator(),
+def _agent() -> StrategyCreatorAgent:
+    return StrategyCreatorAgent(
+        validator=StrategyBlueprintValidator(),
+        materializer=_materializer(),
     )
 
 
@@ -166,7 +166,7 @@ def _workflow_definition() -> dict[str, Any]:
 
 def prompt_user_idea() -> str:
     print_example_header("00: User Prompt")
-    print("  Enter a rough trading idea for the Hypothesis Designer agent.")
+    print("  Enter a rough trading idea for the Strategy Creator agent.")
     print(f"  Press Enter to use default: {DEFAULT_USER_IDEA}")
     try:
         idea = input("\nUser idea> ").strip()
@@ -178,7 +178,7 @@ def prompt_user_idea() -> str:
 
 
 def _materializer() -> StrategyBlueprintMaterializationService:
-    temp_root = Path(PROJECT_ROOT) / ".tmp_agentic_examples" / "hypothesis_designer"
+    temp_root = Path(PROJECT_ROOT) / ".tmp_agentic_examples" / "strategy_creator"
     temp_root.mkdir(parents=True, exist_ok=True)
     db_path = temp_root / "materialization.db"
     storage_root = temp_root / "strategies"
@@ -217,70 +217,43 @@ def example_01_rulebook_defaults(user_idea: str) -> None:
     print_kv("Defaults used", result.blueprint.payload.assumption_defaults_used)
 
 
-def example_02_hypothesis_designer_agent(user_idea: str) -> None:
-    print_example_header("02: Hypothesis Designer Agent")
-    runtime = MockHypothesisDesignerRuntime()
-    wrapper = _wrapper()
-    request = ADKRunRequest(
-        workflow_id="wf_hypothesis_design",
-        correlation_id="corr_rsi",
-        agent_name="hypothesis_designer_agent",
-        input_payload={"idea": user_idea},
-    )
-    result = wrapper.execute(runtime_agent=runtime, request=request)
-    print_kv("Contract type", result.output_payload["contract_type"])
-    print_kv("Strategy name", result.output_payload["payload"]["strategy_name"])
-    print_kv("Readiness", result.output_payload["payload"]["backtest_readiness"])
+def example_02_strategy_creator_agent(user_idea: str) -> None:
+    print_example_header("02: Strategy Creator Agent")
+    result = _agent().create_from_idea(user_id=1, idea=user_idea, full_permissions=False)
+    print_kv("Contract type", result.blueprint.contract_type)
+    print_kv("Strategy name", result.blueprint.payload.strategy_name)
+    print_kv("Readiness", result.blueprint.payload.backtest_readiness)
 
 
 def example_03_portfolio_blueprint() -> None:
     print_example_header("03: Portfolio Strategy Blueprint")
-    runtime = MockHypothesisDesignerRuntime()
-    wrapper = _wrapper()
-    request = ADKRunRequest(
-        workflow_id="wf_hypothesis_design",
-        correlation_id="corr_hrp",
-        agent_name="hypothesis_designer_agent",
-        input_payload={"idea": "Build an HRP portfolio over large-cap tech and rebalance weekly."},
+    result = _agent().create_from_idea(
+        user_id=1,
+        idea="Build an HRP portfolio over large-cap tech and rebalance weekly.",
+        full_permissions=False,
     )
-    result = wrapper.execute(runtime_agent=runtime, request=request)
-    payload = result.output_payload["payload"]
-    print_kv("Strategy type", payload["strategy_type"])
-    print_kv("Portfolio method", payload["portfolio_construction"]["method"])
-    print_kv("Assets count", len(payload["asset_scope"]["assets"]))
+    payload = result.blueprint.payload
+    print_kv("Strategy type", payload.strategy_type)
+    print_kv("Portfolio method", payload.portfolio_construction.method if payload.portfolio_construction else None)
+    print_kv("Assets count", len(payload.asset_scope.assets))
 
 
 def example_04_ml_blueprint() -> None:
     print_example_header("04: ML Strategy Blueprint")
-    runtime = MockHypothesisDesignerRuntime()
-    wrapper = _wrapper()
-    request = ADKRunRequest(
-        workflow_id="wf_hypothesis_design",
-        correlation_id="corr_ml",
-        agent_name="hypothesis_designer_agent",
-        input_payload={"idea": "Use a decision tree classifier to predict next-day direction."},
+    result = _agent().create_from_idea(
+        user_id=1,
+        idea="Use a decision tree classifier to predict next-day direction.",
+        full_permissions=False,
     )
-    result = wrapper.execute(runtime_agent=runtime, request=request)
-    payload = result.output_payload["payload"]
-    print_kv("Strategy type", payload["strategy_type"])
-    print_kv("Model spec", payload["model_spec"])
+    payload = result.blueprint.payload
+    print_kv("Strategy type", payload.strategy_type)
+    print_kv("Model spec", payload.model_spec)
 
 
 def example_05_render_strategy_code(user_idea: str) -> None:
     print_example_header("05: Render Strategy Code")
-    runtime = MockHypothesisDesignerRuntime()
-    wrapper = _wrapper()
     renderer = StrategyBlueprintRenderer()
-    request = ADKRunRequest(
-        workflow_id="wf_hypothesis_design",
-        correlation_id="corr_render",
-        agent_name="hypothesis_designer_agent",
-        input_payload={"idea": user_idea},
-    )
-    result = wrapper.execute(runtime_agent=runtime, request=request)
-    from backend.contracts.strategy_blueprint.model import StrategyBlueprint
-
-    blueprint = StrategyBlueprint.model_validate(result.output_payload)
+    blueprint = _agent().create_from_idea(user_id=1, idea=user_idea, full_permissions=False).blueprint
     rendered = renderer.render_python_strategy(blueprint)
     print_kv("Render summary", renderer.render_summary(blueprint))
     print("  Code preview:")
@@ -290,29 +263,11 @@ def example_05_render_strategy_code(user_idea: str) -> None:
 
 def example_06_catalog_governance_integration(user_idea: str) -> None:
     print_example_header("06: Catalog and Governance Integration")
-    runtime = MockHypothesisDesignerRuntime()
-    wrapper = _wrapper()
-    materializer = _materializer()
-    request = ADKRunRequest(
-        workflow_id="wf_hypothesis_design",
-        correlation_id="corr_catalog",
-        agent_name="hypothesis_designer_agent",
-        input_payload={"idea": user_idea},
-    )
-    result = wrapper.execute(runtime_agent=runtime, request=request)
-    from backend.contracts.strategy_blueprint.model import StrategyBlueprint
-
-    blueprint = StrategyBlueprint.model_validate(result.output_payload)
-    materialized = materializer.materialize(
-        StrategyBlueprintMaterializationRequest(
-            blueprint=blueprint,
-            user_id=1,
-        )
-    )
-    print_kv("Strategy id", materialized.strategy["id"])
-    print_kv("Governance strategy id", materialized.strategy["governance_strategy_id"])
-    print_kv("Lifecycle state", materialized.strategy["lifecycle_state"])
-    print_kv("Blueprint artifact", materialized.blueprint_artifact_path)
+    result = _agent().create_from_idea(user_id=1, idea=user_idea, full_permissions=True)
+    print_kv("Strategy id", result.strategy["id"] if result.strategy else None)
+    print_kv("Governance strategy id", result.strategy["governance_strategy_id"] if result.strategy else None)
+    print_kv("Lifecycle state", result.strategy["lifecycle_state"] if result.strategy else None)
+    print_kv("Blueprint artifact", result.blueprint_artifact_path)
 
 
 def example_07_workflow_design() -> None:
@@ -335,14 +290,14 @@ def example_07_workflow_design() -> None:
 def main() -> None:
     print()
     print("#" * 78)
-    print("#  Hypothesis Designer Agent System")
+    print("#  Strategy Creator Agent System")
     print("#" * 78)
 
     user_idea = prompt_user_idea()
 
     examples = [
         lambda: example_01_rulebook_defaults(user_idea),
-        lambda: example_02_hypothesis_designer_agent(user_idea),
+        lambda: example_02_strategy_creator_agent(user_idea),
         example_03_portfolio_blueprint,
         example_04_ml_blueprint,
         lambda: example_05_render_strategy_code(user_idea),
@@ -358,7 +313,7 @@ def main() -> None:
 
     print()
     print("#" * 78)
-    print("#  Hypothesis Designer examples complete")
+    print("#  Strategy Creator examples complete")
     print("#" * 78)
     print()
 

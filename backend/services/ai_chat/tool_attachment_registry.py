@@ -21,6 +21,7 @@ class ChatToolDefinition:
     allowed_specialist_agents: tuple[str, ...] = ()
     required_context: tuple[str, ...] = ()
     artifact_type: str | None = None
+    required_user_ack: bool = False
     input_schema: dict[str, object] = field(default_factory=dict)
     output_schema: dict[str, object] = field(default_factory=dict)
 
@@ -65,11 +66,25 @@ class ChatToolAttachmentRegistry:
 
 DEFAULT_CHAT_TOOLS: tuple[ChatToolDefinition, ...] = (
     ChatToolDefinition(
+        tool_id="full_permissions",
+        display_name="Full Permissions",
+        description="Explicitly allows attached chat tools to perform implementation writes that they otherwise cannot perform.",
+        capability_type="page_operation",
+        authority_band="supervised_drafts",
+        side_effect_policy="approval_gate",
+        system_prompt_fragment=(
+            "Full Permissions is attached. This only grants write authority to other attached tools that explicitly support it. "
+            "It does not allow broker execution or live trades."
+        ),
+        response_template="permission_gate",
+        required_user_ack=True,
+    ),
+    ChatToolDefinition(
         tool_id="strategy_creator",
         display_name="Strategy Creator",
         description="Create a HaruQuant strategy artifact with code, parameters, and validation checklist.",
         capability_type="strategy_creation",
-        authority_band="read_only",
+        authority_band="supervised_drafts",
         side_effect_policy="artifact_only",
         artifact_type="strategy_blueprint",
         required_context=("symbol", "timeframe"),

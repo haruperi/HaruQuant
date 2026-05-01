@@ -19,8 +19,11 @@ def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:
         - absolute high minus previous close
         - absolute low minus previous close
     Those true range values are then exponentially smoothed over ``period``
-    bars. Higher ATR indicates higher volatility. The resulting column is
-    appended as ``atr_{period}`` while leaving the input unchanged.
+    bars. Higher ATR indicates higher volatility.
+
+    Calculation steps:
+        1. Calculate True Range (TR) as max(high-low, |high-prev_close|, |low-prev_close|).
+        2. Smooth TR using EWMA with alpha=1/period.
 
     Args:
         data: DataFrame containing OHLCV data.
@@ -48,8 +51,8 @@ def atr(data: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     ).mean()
 
     result = data.copy()
-    result[f"atr_{period}"] = atr_values.astype(float)
+    col_name = f"atr_{period}"
+    result[col_name] = atr_values.astype(float)
 
-    logger.success("ATR calculation complete")
+    logger.success(f"ATR calculation complete: {col_name}")
     return result
-

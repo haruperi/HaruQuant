@@ -26,6 +26,11 @@ def bbands(
         - Middle band = SMA(period)
         - Lower band = SMA(period) - (std_dev * standard deviation)
 
+    Calculation steps:
+        1. Calculate SMA of price_col.
+        2. Calculate rolling standard deviation.
+        3. Derive upper and lower bands using std_dev multiplier.
+
     Args:
         data: DataFrame containing OHLCV data.
         period: Lookback period for moving average (default: 20).
@@ -69,6 +74,5 @@ def bbands(
     result[f"bb_middle_{suffix}"] = middle.astype(float)
     result[f"bb_lower_{suffix}"] = lower.astype(float)
 
-    logger.success("Bollinger Bands calculation complete")
+    logger.success(f"Bollinger Bands calculation complete: bb_{suffix}")
     return result
-

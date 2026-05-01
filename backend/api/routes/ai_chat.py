@@ -203,6 +203,7 @@ def list_ai_chat_tools() -> list[dict[str, object]]:
             "side_effect_policy": definition.side_effect_policy,
             "required_context": list(definition.required_context),
             "artifact_type": definition.artifact_type,
+            "required_user_ack": definition.required_user_ack,
         }
         for definition in ChatToolAttachmentRegistry().list_definitions()
     ]

@@ -135,7 +135,7 @@ Examples:
 - `PortfolioRiskAgent`
 - `BacktestExplainerAgent`
 - `OptimizationComparisonAgent`
-- `HypothesisDesignerAgent`
+- `StrategyCreatorAgent`
 - `StrategyDiagnosticsAgent`
 - `KnowledgeRetrievalAgent`
 

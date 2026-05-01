@@ -13,8 +13,12 @@ def accumulation_distribution(data: pd.DataFrame) -> pd.DataFrame:
     (distributing) a symbol by weighting volume with the close's position within
     the high-low range of each bar. Positive multipliers signal buying pressure,
     negative multipliers signal selling pressure, and cumulative sums highlight
-    confirmation or divergence versus price. The resulting series is appended as
-    ``adl``.
+    confirmation or divergence versus price.
+
+    Calculation steps:
+        1. Calculate Money Flow Multiplier = [(Close - Low) - (High - Close)] / (High - Low).
+        2. Calculate Money Flow Volume = Multiplier * Volume.
+        3. Accumulate Money Flow Volume to get the ADL.
 
     Args:
         data: DataFrame containing OHLCV data with volume.
@@ -41,6 +45,5 @@ def accumulation_distribution(data: pd.DataFrame) -> pd.DataFrame:
     result = data.copy()
     result["adl"] = adl
 
-    logger.success("Accumulation/Distribution calculation complete")
+    logger.success("Accumulation/Distribution calculation complete: adl")
     return result
-

@@ -18,6 +18,10 @@ import numpy as np
 import pandas as pd
 
 from backend.common.logger import logger
+from backend.services.indicators.validation import (
+    require_columns,
+    require_dataframe,
+)
 
 # Major currency pairs to analyze (28 pairs covering 8 major currencies)
 CURRENCY_PAIRS = [
@@ -614,6 +618,6 @@ def currency_strength_indicator(
         result["strong_pairs"] = strong_pairs
         result["weak_pairs"] = weak_pairs
 
-    logger.success("Currency strength analysis complete")
+    logger.success(f"Currency strength analysis complete for {len(MAJOR_CURRENCIES)} currencies")
     return result
 

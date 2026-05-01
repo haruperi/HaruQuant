@@ -121,11 +121,11 @@ class StrategyBlueprintValidator:
         normalized = {
             "schema_version": candidate.get("schema_version", "1.0.0"),
             "contract_type": "StrategyBlueprint",
-            "workflow_id": candidate.get("workflow_id", "wf_hypothesis_design"),
-            "correlation_id": candidate.get("correlation_id", "corr_hypothesis_design"),
-            "causation_id": candidate.get("causation_id", "evt_hypothesis_design"),
+            "workflow_id": candidate.get("workflow_id", "wf_strategy_creation"),
+            "correlation_id": candidate.get("correlation_id", "corr_strategy_creation"),
+            "causation_id": candidate.get("causation_id", "evt_strategy_creation"),
             "timestamp_utc": candidate.get("timestamp_utc", _now_iso()),
-            "originator": candidate.get("originator", {"type": "agent", "id": "hypothesis_designer_agent"}),
+            "originator": candidate.get("originator", {"type": "agent", "id": "strategy_creator_agent"}),
             "environment": candidate.get("environment", "paper"),
             "operating_mode": candidate.get("operating_mode", "MODE-001"),
             "payload": {

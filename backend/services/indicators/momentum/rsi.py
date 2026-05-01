@@ -26,8 +26,6 @@ def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.Da
         4. Compute RS = avg_gain / avg_loss and convert to RSI = 100 - 100/(1 + RS).
         5. Fill initial values with a neutral 50 and guard divide-by-zero cases.
 
-    The resulting column is appended as ``rsi_{period}`` and leaves the input intact.
-
     Args:
         data: DataFrame containing OHLCV data.
         period: Lookback period for smoothing (default: 14).
@@ -60,8 +58,8 @@ def rsi(data: pd.DataFrame, period: int = 14, price_col: str = "close") -> pd.Da
     rsi_values = rsi_values.mask(avg_gain == 0, 0.0)
 
     result = data.copy()
-    result[f"rsi_{period}"] = rsi_values.astype(float)
+    col_name = f"rsi_{period}"
+    result[col_name] = rsi_values.astype(float)
 
-    logger.success("RSI calculation complete")
+    logger.success(f"RSI calculation complete: {col_name}")
     return result
-

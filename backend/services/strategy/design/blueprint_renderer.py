@@ -68,10 +68,10 @@ class {class_name}(BaseStrategy):
         data["cancel_pending_signal"] = 0
         data["price"] = float("nan")
 
-        # Entry logic from Hypothesis Designer:
+        # Entry logic from Strategy Creator:
         # {entry_comment}
 
-        # Exit logic from Hypothesis Designer:
+        # Exit logic from Strategy Creator:
         # {exit_comment}
 
         # Risk management notes:

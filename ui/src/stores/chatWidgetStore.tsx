@@ -30,6 +30,7 @@ import type {
   AiChatResponseStyle,
   AiChatSignalProposal,
   AiChatSpecialistArtifact,
+  AiChatStrategyCreatorMetadata,
   AiChatTelemetryMetadata,
   AiChatToolAttachment,
   AiChatToolDefinition,
@@ -53,6 +54,7 @@ export interface ChatMessage {
   actionDraftId?: string | null
   actionDraft?: AiChatActionDraft
   attachedTools?: AiChatToolAttachment[]
+  strategyCreator?: AiChatStrategyCreatorMetadata
   responseMode?: string
   responseStyle?: string
   taskClass?: string
@@ -163,6 +165,7 @@ function mapApiMessage(
     specialistAgentsUsed: responseMetadata?.specialist_agents_used,
     specialistArtifacts: responseMetadata?.specialist_artifacts,
     attachedTools: responseMetadata?.attached_tools,
+    strategyCreator: responseMetadata?.strategy_creator,
     telemetry: responseMetadata?.telemetry,
     costPolicy: responseMetadata?.cost_policy,
     status: "ready",
@@ -252,6 +255,10 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
     attached_tools: Array.isArray(payload.attached_tools)
       ? payload.attached_tools.filter((value): value is AiChatToolAttachment => !!value && typeof value === "object") as AiChatToolAttachment[]
       : undefined,
+    strategy_creator:
+      payload.strategy_creator && typeof payload.strategy_creator === "object"
+        ? payload.strategy_creator as AiChatStrategyCreatorMetadata
+        : undefined,
   }
 }
 
@@ -914,6 +921,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                       specialistAgentsUsed: metadata?.specialist_agents_used,
                       specialistArtifacts: metadata?.specialist_artifacts,
                       attachedTools: metadata?.attached_tools,
+                      strategyCreator: metadata?.strategy_creator,
                       telemetry: metadata?.telemetry,
                       costPolicy: metadata?.cost_policy,
                     }
@@ -1028,6 +1036,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                       specialistAgentsUsed: metadata?.specialist_agents_used,
                       specialistArtifacts: metadata?.specialist_artifacts,
                       attachedTools: metadata?.attached_tools,
+                      strategyCreator: metadata?.strategy_creator,
                       telemetry: metadata?.telemetry,
                       costPolicy: metadata?.cost_policy,
                     }

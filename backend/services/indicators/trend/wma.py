@@ -17,7 +17,23 @@ def wma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFra
     WMA assigns larger weights to more recent prices within the ``window`` while
     still considering all observations in the window. This creates a smoother yet
     responsive trend estimate that sits between SMA (slowest) and EMA (fastest).
-    The output column is appended as ``wma_{window}`` without altering the input.
+
+    Calculation steps:
+        1. Generate linearly increasing weights from 1 to window.
+        2. Apply rolling weighted average using dot product.
+
+    Args:
+        data: DataFrame containing the necessary market data.
+        window: Lookback window size for the average.
+        price_col: Column name to use for calculations (default: "close").
+
+    Returns:
+        DataFrame with the new WMA column appended.
+        Example column name: `wma_{window}`
+
+    Raises:
+        ValueError: If parameters are invalid or required columns are missing.
+        TypeError: If input types are incorrect.
     """
     require_dataframe(data)
     require_positive_int(window, name="window")
@@ -32,7 +48,8 @@ def wma(data: pd.DataFrame, window: int, price_col: str = "close") -> pd.DataFra
     )
 
     result = data.copy()
-    result[f"wma_{window}"] = weighted_sum
-    logger.success("WMA calculation complete")
+    col_name = f"wma_{window}"
+    result[col_name] = weighted_sum
+    
+    logger.success(f"WMA calculation complete: {col_name}")
     return result
-

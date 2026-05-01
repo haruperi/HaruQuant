@@ -1,4 +1,4 @@
-name: hypothesis_design
+name: strategy_creation
 version: 0.1.0
 pattern: sequential
 description: >
@@ -8,7 +8,7 @@ description: >
   readiness.
 steps:
   - name: define_strategy_blueprint
-    agent: hypothesis_designer_agent
+    agent: strategy_creator_agent
     expected_output: StrategyBlueprint
     validate: true
     input:

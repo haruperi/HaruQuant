@@ -19,7 +19,7 @@ This catalog now reflects the implemented agent layer exactly as exposed by
 | `drawdown_agent` | `DrawdownAgentWrapper` | `backend/agents/drawdown_agent.py` | LLM wrapper | `DRAWDOWN_AGENT_INSTRUCTION` | `ObservationEvent` |
 | `execution_agent` | `ExecutionAgentWrapper` | `backend/agents/execution_agent.py` | LLM wrapper | `EXECUTION_AGENT_INSTRUCTION` | `ExecutionIntent` |
 | `exposure_agent` | `ExposureAgentWrapper` | `backend/agents/exposure_agent.py` | LLM wrapper | `EXPOSURE_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `hypothesis_designer_agent` | `HypothesisDesignerAgentWrapper` | `backend/agents/hypothesis_designer_agent.py` | LLM wrapper | `HYPOTHESIS_DESIGNER_AGENT_INSTRUCTION` | `StrategyBlueprint` |
+| `strategy_creator_agent` | `StrategyCreatorAgent` | `backend/agents/strategy_creator_agent.py` | deterministic service agent | `STRATEGY_CREATOR_AGENT_INSTRUCTION` | `StrategyBlueprint` plus optional registered strategy artifact |
 | `intent_router_agent` | `IntentRouterAgent`, `intent_router_agent` | `backend/agents/intent_router.py` | Router/service | classifier + `RouteDecisionService` | dispatches handler output, no canonical output validator |
 | `monitoring_agent` | `MonitoringAgentWrapper` | `backend/agents/monitoring_agent.py` | LLM wrapper | `MONITORING_AGENT_INSTRUCTION` | `IncidentAlert` |
 | `orchestrator_agent` | `OrchestratorAgentWrapper` | `backend/agents/orchestrator_agent.py` | LLM wrapper | `ORCHESTRATOR_AGENT_INSTRUCTION` | `WorkflowPlan` |
@@ -53,7 +53,7 @@ Prompt-backed agents resolve their instruction strings from
 - `drawdown_template.py`
 - `execution_template.py`
 - `exposure_template.py`
-- `hypothesis_designer_template.py`
+- `strategy_creator_template.py`
 - `monitoring_template.py`
 - `orchestrator_template.py`
 - `portfolio_template.py`
@@ -79,5 +79,5 @@ Shared agent model settings are defined in
 
 - [Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Catalog.md)
 - [Tool_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Catalog.md)
-- [agents/Hypothesis_Designer_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Hypothesis_Designer_Agent.md)
+- [agents/Strategy_Creator_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Strategy_Creator_Agent.md)
 - [backend/agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\runtime)

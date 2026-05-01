@@ -35,7 +35,7 @@ ChatToolCapabilityType = Literal[
     "page_operation",
     "knowledge_retrieval",
 ]
-ChatToolSideEffectPolicy = Literal["read_only", "artifact_only", "draft_action", "page_action_plan"]
+ChatToolSideEffectPolicy = Literal["read_only", "artifact_only", "approval_gate", "draft_action", "page_action_plan"]
 
 
 class PinnedFact(BaseModel):

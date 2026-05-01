@@ -4,6 +4,12 @@ import numpy as np
 from pandas import DataFrame, Series
 from datetime import datetime
 from typing import Union, List, Optional
+from backend.common.logger import logger
+from backend.services.indicators.validation import (
+    require_dataframe,
+    require_columns,
+    require_positive_int,
+)
 
 def inputvalidator(input_="ohlc"):
     def dfcheck(func):
@@ -449,16 +455,64 @@ class smc:
         return pd.concat([ohlc, phl], axis=1)
 
 def fvg(ohlc: DataFrame, join_consecutive=False) -> DataFrame:
-    return smc.fvg(ohlc, join_consecutive=join_consecutive)
+    """Compute Fair Value Gaps (FVG).
+    
+    FVGs occur when there is an imbalance between buying and selling pressure,
+    leaving a gap in the price action.
+    """
+    require_dataframe(ohlc)
+    require_columns(ohlc, ("open", "high", "low", "close"))
+    logger.debug("Calculating Fair Value Gaps (FVG)")
+    result = smc.fvg(ohlc, join_consecutive=join_consecutive)
+    logger.success("FVG calculation complete")
+    return result
 
 def swing_highs_lows(ohlc: DataFrame, swing_length: int = 50) -> DataFrame:
-    return smc.swing_highs_lows(ohlc, swing_length=swing_length)
+    """Identify Swing Highs and Lows.
+    
+    Identifies peaks and troughs in price action over a specified lookback.
+    """
+    require_dataframe(ohlc)
+    require_columns(ohlc, ("high", "low"))
+    require_positive_int(swing_length, name="swing_length")
+    logger.debug(f"Calculating Swing Highs/Lows with length={swing_length}")
+    result = smc.swing_highs_lows(ohlc, swing_length=swing_length)
+    logger.success("Swing Highs/Lows calculation complete")
+    return result
 
 def bos_choch(ohlc: DataFrame, swing_length: int = 50, close_break: bool = True) -> DataFrame:
-    return smc.bos_choch(ohlc, swing_length=swing_length, close_break=close_break)
+    """Identify Break of Structure (BOS) and Change of Character (CHoCH).
+    
+    BOS and CHoCH are key concepts in Smart Money Concepts (SMC) to identify
+    trend continuations and reversals.
+    """
+    require_dataframe(ohlc)
+    require_columns(ohlc, ("open", "high", "low", "close"))
+    require_positive_int(swing_length, name="swing_length")
+    logger.debug(f"Calculating BOS/CHoCH with length={swing_length}")
+    result = smc.bos_choch(ohlc, swing_length=swing_length, close_break=close_break)
+    logger.success("BOS/CHoCH calculation complete")
+    return result
 
 def ob(ohlc: DataFrame, swing_length: int = 50, close_mitigation: bool = False) -> DataFrame:
-    return smc.ob(ohlc, swing_length=swing_length, close_mitigation=close_mitigation)
+    """Identify Order Blocks (OB).
+    
+    Order Blocks are areas where institutional buying or selling is suspected to have occurred.
+    """
+    require_dataframe(ohlc)
+    require_columns(ohlc, ("open", "high", "low", "close", "volume"))
+    require_positive_int(swing_length, name="swing_length")
+    logger.debug(f"Calculating Order Blocks with length={swing_length}")
+    result = smc.ob(ohlc, swing_length=swing_length, close_mitigation=close_mitigation)
+    logger.success("Order Blocks calculation complete")
+    return result
 
 def previous_high_low(ohlc: DataFrame, timeframe: str = "1D") -> DataFrame:
-    return smc.previous_high_low(ohlc, timeframe=timeframe)
+    """Identify Previous High and Low for a given timeframe.
+    """
+    require_dataframe(ohlc)
+    require_columns(ohlc, ("high", "low"))
+    logger.debug(f"Calculating Previous High/Low for timeframe={timeframe}")
+    result = smc.previous_high_low(ohlc, timeframe=timeframe)
+    logger.success("Previous High/Low calculation complete")
+    return result

@@ -8,6 +8,7 @@ import time
 from typing import Iterable
 from uuid import uuid4
 
+from backend.agents.strategy_creator_agent import StrategyCreatorAgent, StrategyCreatorResult
 from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
 from backend.config.agent_model import get_model_for_tier
 from backend.observability.cost_tracker import calculate_cost
@@ -79,6 +80,7 @@ class AIGatewayService:
         cost_enforcer: CostEnforcer | None = None,
         page_retrieval_service: PageSemanticRetrievalService | None = None,
         tool_attachment_runtime: ChatToolAttachmentRuntime | None = None,
+        strategy_creator_agent: StrategyCreatorAgent | None = None,
     ) -> None:
         self.conversation_service = conversation_service
         self.context_assembler = context_assembler
@@ -96,6 +98,9 @@ class AIGatewayService:
         self.cost_enforcer = cost_enforcer or CostEnforcer()
         self.page_retrieval_service = page_retrieval_service or PageSemanticRetrievalService()
         self.tool_attachment_runtime = tool_attachment_runtime or ChatToolAttachmentRuntime()
+        self.strategy_creator_agent = strategy_creator_agent or StrategyCreatorAgent(
+            db_manager=context_assembler.db_manager,
+        )
 
     def stream_response(self, request: ChatStreamRequest) -> tuple[dict[str, object], Iterable[str], str]:
         if not self.rate_limiter.acquire(request.user_id, wait=True, timeout=15.0):
@@ -140,11 +145,24 @@ class AIGatewayService:
                 prompt=request.prompt,
                 state=conversation_state,
             )
+            tool_context["strategy_creator_recent_messages"] = [
+                {"role": message.role, "content": message.content}
+                for message in thread.messages[-8:]
+            ]
             attached_tools = self.tool_attachment_runtime.resolve_attachments(
                 selected_tool_ids=request.attached_tools or [],
                 page_context=page_context,
                 tool_context=tool_context,
             )
+            attached_tool_ids = {tool.tool_id for tool in attached_tools}
+            strategy_creator_result = None
+            if "strategy_creator" in attached_tool_ids:
+                strategy_creator_result = self.strategy_creator_agent.create_from_idea(
+                    user_id=request.user_id,
+                    idea=request.prompt,
+                    context=tool_context,
+                    full_permissions="full_permissions" in attached_tool_ids,
+                )
             plan = self.conversation_orchestrator.build_plan(
                 prompt=request.prompt,
                 thread=thread,
@@ -303,6 +321,7 @@ class AIGatewayService:
                 signal_proposal=signal_proposal,
                 action_draft=action_draft,
                 specialist_artifacts=specialist_artifacts,
+                strategy_creator_result=strategy_creator_result,
             )
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             cost = self._calculate_cost(
@@ -391,6 +410,16 @@ class AIGatewayService:
             if action_draft is not None:
                 metadata["action_draft"] = action_draft.model_dump(mode="json")
                 metadata["action_draft_id"] = action_draft.draft_id
+            if strategy_creator_result is not None:
+                metadata["strategy_creator"] = strategy_creator_result.to_metadata()
+                if strategy_creator_result.needs_clarification:
+                    metadata["clarification_required"] = True
+                    metadata["response_style"] = "clarification"
+                if strategy_creator_result.needs_confirmation:
+                    metadata["clarification_required"] = True
+                    metadata["response_style"] = "clarification"
+                if strategy_creator_result.materialized and strategy_creator_result.strategy is not None:
+                    metadata["strategy_id"] = strategy_creator_result.strategy.get("id")
             if request.include_debug:
                 metadata["debug"] = {
                     "router_rationale": plan.rationale,
@@ -548,7 +577,14 @@ class AIGatewayService:
         signal_proposal=None,
         action_draft=None,
         specialist_artifacts: list[SpecialistAgentArtifact] | None = None,
+        strategy_creator_result: StrategyCreatorResult | None = None,
     ) -> GenerationResult:
+        if strategy_creator_result is not None:
+            return GenerationResult(
+                text=self._build_strategy_creator_response(strategy_creator_result),
+                generation_source="strategy_creator_agent",
+                provider_name=None,
+            )
         try:
             runtime = create_llm_runtime(
                 model=model,
@@ -588,6 +624,7 @@ class AIGatewayService:
             signal_proposal=signal_proposal,
             action_draft=action_draft,
             specialist_artifacts=specialist_artifacts or [],
+            strategy_creator_result=strategy_creator_result,
         )
         return GenerationResult(text=fallback_text, generation_source="fallback", provider_name=None)
 
@@ -663,7 +700,10 @@ class AIGatewayService:
         signal_proposal=None,
         action_draft=None,
         specialist_artifacts: list[SpecialistAgentArtifact],
+        strategy_creator_result: StrategyCreatorResult | None = None,
     ) -> str:
+        if strategy_creator_result is not None:
+            return self._build_strategy_creator_response(strategy_creator_result)
         if signal_proposal is not None:
             return "\n".join(
                 [
@@ -737,6 +777,118 @@ class AIGatewayService:
             response_style=response_style,
             specialist_artifacts=specialist_artifacts,
         )
+
+    @staticmethod
+    def _build_strategy_creator_response(result: StrategyCreatorResult) -> str:
+        if result.needs_clarification:
+            lines = [
+                "I cannot generate the strategy yet because key design inputs are missing.",
+                "",
+                "Missing inputs:",
+                *[f"- {item}" for item in result.missing_inputs],
+                "",
+                result.clarification_question or "Please provide the missing inputs.",
+            ]
+            return "\n".join(lines)
+
+        if result.needs_confirmation:
+            interpretation = result.final_interpretation or {}
+            lines = [
+                "CONFIRMATION:",
+                "",
+                "Final interpretation:",
+                f"- Strategy type: {interpretation.get('strategy_type')}",
+                f"- Assets: {', '.join(interpretation.get('assets') or [])}",
+                f"- Timeframe: {interpretation.get('timeframe')}",
+                "",
+                "Entry logic:",
+                *[f"- {rule}" for rule in interpretation.get("entry_logic") or []],
+                "",
+                "Exit logic:",
+                *[f"- {rule}" for rule in interpretation.get("exit_logic") or []],
+                "",
+                "Risk management:",
+                f"- {interpretation.get('risk_management')}",
+                "",
+                "Position sizing:",
+                f"- {interpretation.get('position_sizing')}",
+                "",
+                "Confirm or modify before I generate the strategy.",
+            ]
+            return "\n".join(lines)
+
+        if result.blueprint is None:
+            return result.permission_note or "Strategy Creator could not produce an artifact."
+
+        payload = result.blueprint.payload
+        artifact = result.artifact or {}
+        lines = [
+            f"Strategy Creator produced `{payload.strategy_name}`.",
+            "",
+            "Artifact:",
+            f"- Type: {payload.strategy_type}",
+            f"- Assets: {', '.join(payload.asset_scope.assets)}",
+            f"- Timeframe: {payload.asset_scope.timeframe}",
+            f"- Backtest readiness: {payload.backtest_readiness}",
+            f"- Code validation: {'passed' if result.code_valid else 'failed'}",
+            f"- Persistence: {'registered in strategy catalog' if result.materialized else 'not saved'}",
+        ]
+        if result.strategy:
+            lines.extend(
+                [
+                    f"- Strategy ID: {result.strategy.get('id')}",
+                    f"- Active version: {result.strategy.get('active_version')}",
+                    f"- Strategy file: {result.strategy.get('active_file_path')}",
+                ]
+            )
+        if result.validation_issues:
+            lines.append(f"- Validation issues: {', '.join(result.validation_issues)}")
+        indicator_dependencies = artifact.get("indicator_dependencies", [])
+        indicator_artifacts = artifact.get("indicator_artifacts", [])
+        lines.extend(
+            [
+                "",
+                "Entry rules:",
+                *[f"- {rule}" for rule in payload.entry_logic],
+                "",
+                "Exit rules:",
+                *[f"- {rule}" for rule in payload.exit_logic],
+                "",
+                "Parameters:",
+                *[
+                    f"- {param.get('name')}: default={param.get('default')}, range={param.get('range')}"
+                    for param in artifact.get("parameters", [])
+                ],
+                "",
+                "Required data fields:",
+                f"- {', '.join(artifact.get('required_data_fields', []))}",
+                "",
+                "Indicator dependencies:",
+                *([
+                    f"- {item.get('name')} ({'available' if item.get('available') else 'missing'}): {item.get('target_path')}"
+                    for item in indicator_dependencies
+                ] if indicator_dependencies else ["- None detected"]),
+                "",
+                "Created indicators:",
+                *([
+                    f"- {item.get('normalized_name')}: {item.get('file_path')}"
+                    for item in indicator_artifacts
+                    if item.get("materialized")
+                ] if indicator_artifacts else ["- None"]),
+                "",
+                "Backtest suggestion:",
+                f"- Symbol: {artifact.get('backtest_configuration_suggestion', {}).get('symbol')}",
+                f"- Timeframe: {artifact.get('backtest_configuration_suggestion', {}).get('timeframe')}",
+                "",
+                "Known failure modes:",
+                *[f"- {mode}" for mode in artifact.get("known_failure_modes", [])],
+                "",
+                artifact.get("robustness_warning", ""),
+                "",
+                result.permission_note,
+            ]
+        )
+        return "\n".join(lines)
 
     def _build_conversational_fallback(
         self,

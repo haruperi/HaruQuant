@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, Loader2, Scale, Sparkles, TrendingUp, TriangleAlert, User2 } from "lucide-react"
+import { AlertTriangle, ExternalLink, FileCode2, Loader2, Scale, Sparkles, TrendingUp, TriangleAlert, User2 } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -267,6 +267,74 @@ export function MessageList({
                             <div className="mt-2">{renderListItems(specialistItems)}</div>
                           </details>
                         ) : null}
+                      </div>
+                    ) : null}
+                    {message.strategyCreator?.artifact ? (
+                      <div className="mt-3 rounded-md border bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-foreground">{message.strategyCreator.artifact.strategy_name ?? "Strategy artifact"}</p>
+                            <p className="mt-1 line-clamp-2">{message.strategyCreator.artifact.hypothesis}</p>
+                          </div>
+                          <FileCode2 className="h-4 w-4 shrink-0 text-foreground" />
+                        </div>
+                        <p className="mt-2">
+                          Status: {message.strategyCreator.materialized ? "saved draft" : "review draft"} | Code: {message.strategyCreator.code_valid ? "valid" : "needs review"}
+                        </p>
+                        {message.strategyCreator.artifact.required_data_fields?.length ? (
+                          <p className="mt-1">Data: {message.strategyCreator.artifact.required_data_fields.join(", ")}</p>
+                        ) : null}
+                        {message.strategyCreator.artifact.indicator_dependencies?.length ? (
+                          <div className="mt-2">
+                            <p className="font-medium text-foreground">Indicators</p>
+                            <ul className="mt-1 space-y-1">
+                              {message.strategyCreator.artifact.indicator_dependencies.map((indicator, index) => (
+                                <li key={`${indicator.normalized_name ?? indicator.name}_${index}`}>
+                                  - {indicator.name ?? indicator.normalized_name}: {indicator.available ? "available" : "missing"}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {message.strategyCreator.artifact.indicator_artifacts?.some((indicator) => indicator.materialized) ? (
+                          <div className="mt-2">
+                            <p className="font-medium text-foreground">Created indicators</p>
+                            <ul className="mt-1 space-y-1">
+                              {message.strategyCreator.artifact.indicator_artifacts
+                                .filter((indicator) => indicator.materialized)
+                                .map((indicator, index) => (
+                                  <li key={`${indicator.normalized_name ?? indicator.name}_${index}`}>
+                                    - {indicator.normalized_name}: {indicator.file_path}
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {message.strategyCreator.artifact.robustness_warning ? (
+                          <p className="mt-2 text-amber-700 dark:text-amber-300">{message.strategyCreator.artifact.robustness_warning}</p>
+                        ) : null}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {message.strategyCreator.artifact.available_actions?.map((action) => (
+                            <button
+                              key={action.id}
+                              type="button"
+                              title={action.reason ?? undefined}
+                              disabled={!action.enabled}
+                              className="rounded-md border px-2 py-1 text-[11px] text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                          {message.strategyCreator.artifact.saved_strategy?.id ? (
+                            <a
+                              href={`/strategies/${message.strategyCreator.artifact.saved_strategy.id}`}
+                              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] text-foreground"
+                            >
+                              Open strategy
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                     {message.role === "assistant" && showDebug ? (

@@ -2,4 +2,4 @@
 
 ## 1.0.0
 
-- Initial contract for Hypothesis Designer outputs.
+- Initial contract for Strategy Creator outputs.

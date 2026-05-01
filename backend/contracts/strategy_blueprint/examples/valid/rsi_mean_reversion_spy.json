@@ -7,7 +7,7 @@
   "timestamp_utc": "2026-04-19T12:00:00Z",
   "originator": {
     "type": "agent",
-    "id": "hypothesis_designer_agent_v1"
+    "id": "strategy_creator_agent_v1"
   },
   "environment": "paper",
   "operating_mode": "MODE-001",
