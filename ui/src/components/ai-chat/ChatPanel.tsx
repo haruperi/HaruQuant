@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import type { ChatMessage } from "@/stores/chatWidgetStore"
+import type { AiChatToolDefinition } from "@/lib/ai-chat/contracts"
 
 interface ChatPanelProps {
   isOpen: boolean
@@ -32,6 +33,8 @@ interface ChatPanelProps {
   activeResponseStatus: string | null
   error: string | null
   draft: string
+  availableTools: AiChatToolDefinition[]
+  selectedToolIds: string[]
   threads: {
     threadId: string
     title: string
@@ -53,6 +56,7 @@ interface ChatPanelProps {
   onSaveSignalProposalToWatchlist: (proposalId: string) => void
   onSelectThread: (value: string) => void
   onThreadSearchChange: (value: string) => void
+  onToggleTool: (toolId: string) => void
   onSubmit: () => void
 }
 
@@ -109,6 +113,8 @@ export function ChatPanel({
   activeResponseStatus,
   error,
   draft,
+  availableTools,
+  selectedToolIds,
   threads,
   messages,
   onCancel,
@@ -125,6 +131,7 @@ export function ChatPanel({
   onSaveSignalProposalToWatchlist,
   onSelectThread,
   onThreadSearchChange,
+  onToggleTool,
   onSubmit,
 }: ChatPanelProps) {
   const panelRef = React.useRef<HTMLDivElement | null>(null)
@@ -334,8 +341,11 @@ export function ChatPanel({
             disabled={!isOnline || !isHydrated}
             isStreaming={isStreaming}
             textareaRef={textareaRef}
+            availableTools={availableTools}
+            selectedToolIds={selectedToolIds}
             onCancel={onCancel}
             onDraftChange={onDraftChange}
+            onToggleTool={onToggleTool}
             onSubmit={onSubmit}
           />
         </div>

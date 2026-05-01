@@ -21,6 +21,7 @@ from backend.services.ai_chat import (
     ConversationService,
     PageContextAssembler,
 )
+from backend.services.ai_chat.tool_attachment_registry import ChatToolAttachmentRegistry
 
 
 router = APIRouter()
@@ -88,6 +89,7 @@ class StreamChatRequest(BaseModel):
     context_symbol: str | None = None
     context_timeframe: str | None = None
     context_dom: dict[str, object] | None = None
+    attached_tools: list[str] = Field(default_factory=list)
 
 
 class ResolvePageContextRequest(BaseModel):
@@ -184,6 +186,25 @@ def get_ai_chat_route_contexts() -> list[dict[str, str]]:
             "builder_name": descriptor.builder_name,
         }
         for descriptor in assembler.registry
+    ]
+
+
+@router.get("/tools")
+def list_ai_chat_tools() -> list[dict[str, object]]:
+    """Expose allowlisted chat attachment tools for the composer picker."""
+
+    return [
+        {
+            "tool_id": definition.tool_id,
+            "display_name": definition.display_name,
+            "description": definition.description,
+            "capability_type": definition.capability_type,
+            "authority_band": definition.authority_band,
+            "side_effect_policy": definition.side_effect_policy,
+            "required_context": list(definition.required_context),
+            "artifact_type": definition.artifact_type,
+        }
+        for definition in ChatToolAttachmentRegistry().list_definitions()
     ]
 
 
@@ -537,6 +558,7 @@ def stream_thread_response(
                     context_symbol=payload.context_symbol,
                     context_timeframe=payload.context_timeframe,
                     context_dom=payload.context_dom,
+                    attached_tools=payload.attached_tools,
                 )
             )
             yield stream_manager.meta_event(metadata)
@@ -586,6 +608,7 @@ def regenerate_thread_response(
                     context_symbol=payload.context_symbol,
                     context_timeframe=payload.context_timeframe,
                     context_dom=payload.context_dom,
+                    attached_tools=payload.attached_tools,
                 )
             )
             yield stream_manager.meta_event({**metadata, "regenerated_from_message_id": last_prompt.message_id})

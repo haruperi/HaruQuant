@@ -11,6 +11,7 @@ import {
   listAiChatActionDrafts,
   listAiChatThreads,
   listAiChatSignalProposals,
+  listAiChatTools,
   queueAiChatSignalProposalForReview,
   regenerateAiChatResponse,
   renameAiChatThread,
@@ -30,6 +31,8 @@ import type {
   AiChatSignalProposal,
   AiChatSpecialistArtifact,
   AiChatTelemetryMetadata,
+  AiChatToolAttachment,
+  AiChatToolDefinition,
   AiChatThreadDetail,
   AiChatThreadSummary,
 } from "@/lib/ai-chat/contracts"
@@ -49,6 +52,7 @@ export interface ChatMessage {
   signalProposal?: AiChatSignalProposal
   actionDraftId?: string | null
   actionDraft?: AiChatActionDraft
+  attachedTools?: AiChatToolAttachment[]
   responseMode?: string
   responseStyle?: string
   taskClass?: string
@@ -82,6 +86,8 @@ interface ChatWidgetStoreValue {
   isRestoring: boolean
   isStreaming: boolean
   isManagingThreads: boolean
+  availableTools: AiChatToolDefinition[]
+  selectedToolIds: string[]
   draft: string
   messages: ChatMessage[]
   threads: ChatThreadListItem[]
@@ -95,6 +101,7 @@ interface ChatWidgetStoreValue {
   toggle: () => void
   setDraft: (value: string) => void
   setThreadSearch: (value: string) => void
+  toggleTool: (toolId: string) => void
   createNewThread: () => Promise<void>
   selectThread: (value: string) => Promise<void>
   renameThread: (value: string, targetThreadId?: string) => Promise<void>
@@ -155,6 +162,7 @@ function mapApiMessage(
     activeTopic: responseMetadata?.active_topic,
     specialistAgentsUsed: responseMetadata?.specialist_agents_used,
     specialistArtifacts: responseMetadata?.specialist_artifacts,
+    attachedTools: responseMetadata?.attached_tools,
     telemetry: responseMetadata?.telemetry,
     costPolicy: responseMetadata?.cost_policy,
     status: "ready",
@@ -241,6 +249,9 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
       payload.action_draft && typeof payload.action_draft === "object"
         ? payload.action_draft as AiChatActionDraft
         : undefined,
+    attached_tools: Array.isArray(payload.attached_tools)
+      ? payload.attached_tools.filter((value): value is AiChatToolAttachment => !!value && typeof value === "object") as AiChatToolAttachment[]
+      : undefined,
   }
 }
 
@@ -251,6 +262,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const [draft, setDraftState] = React.useState("")
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [threads, setThreads] = React.useState<ChatThreadListItem[]>([])
+  const [availableTools, setAvailableTools] = React.useState<AiChatToolDefinition[]>([])
+  const [selectedToolIds, setSelectedToolIds] = React.useState<string[]>([])
   const [isHydrated, setIsHydrated] = React.useState(false)
   const [isInitializing, setIsInitializing] = React.useState(false)
   const [hasOpenedOnce, setHasOpenedOnce] = React.useState(false)
@@ -537,6 +550,30 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     void refreshThreadList(threadSearch)
   }, [isAuthenticated, isHydrated, refreshThreadList, threadSearch])
 
+  React.useEffect(() => {
+    if (!isAuthenticated || !isHydrated) {
+      return
+    }
+
+    let isMounted = true
+    async function loadTools() {
+      try {
+        const tools = await listAiChatTools(authenticatedFetch)
+        if (isMounted) {
+          setAvailableTools(tools)
+        }
+      } catch (toolError) {
+        console.error("Failed to load AI chat tools:", toolError)
+      }
+    }
+
+    void loadTools()
+
+    return () => {
+      isMounted = false
+    }
+  }, [authenticatedFetch, isAuthenticated, isHydrated])
+
   const beginInitialization = React.useCallback(() => {
     if (hasOpenedOnce) {
       return
@@ -573,6 +610,14 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
 
   const setThreadSearch = React.useCallback((value: string) => {
     setThreadSearchState(value)
+  }, [])
+
+  const toggleTool = React.useCallback((toolId: string) => {
+    setSelectedToolIds((current) =>
+      current.includes(toolId)
+        ? current.filter((selected) => selected !== toolId)
+        : [...current, toolId],
+    )
   }, [])
 
   const cancelStream = React.useCallback(() => {
@@ -844,6 +889,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         {
           prompt: trimmed,
           ...buildRuntimeContextPayload(pageContext),
+          attached_tools: selectedToolIds,
         },
         {
           onMeta: (payload) => {
@@ -867,6 +913,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                       activeTopic: metadata?.active_topic,
                       specialistAgentsUsed: metadata?.specialist_agents_used,
                       specialistArtifacts: metadata?.specialist_artifacts,
+                      attachedTools: metadata?.attached_tools,
                       telemetry: metadata?.telemetry,
                       costPolicy: metadata?.cost_policy,
                     }
@@ -932,6 +979,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     refreshSignalProposals,
     refreshActionDrafts,
     rememberResponseMetadata,
+    selectedToolIds,
     syncThread,
     threadSearch,
   ])
@@ -953,7 +1001,10 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       await regenerateAiChatResponse(
         authenticatedFetch,
         threadId,
-        buildRuntimeContextPayload(pageContext),
+        {
+          ...buildRuntimeContextPayload(pageContext),
+          attached_tools: selectedToolIds,
+        },
         {
           onMeta: (payload) => {
             rememberResponseMetadata(payload)
@@ -976,6 +1027,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                       activeTopic: metadata?.active_topic,
                       specialistAgentsUsed: metadata?.specialist_agents_used,
                       specialistArtifacts: metadata?.specialist_artifacts,
+                      attachedTools: metadata?.attached_tools,
                       telemetry: metadata?.telemetry,
                       costPolicy: metadata?.cost_policy,
                     }
@@ -1035,6 +1087,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     refreshSignalProposals,
     refreshActionDrafts,
     rememberResponseMetadata,
+    selectedToolIds,
     syncThread,
     threadId,
     threadSearch,
@@ -1053,6 +1106,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       isRestoring,
       isStreaming,
       isManagingThreads,
+      availableTools,
+      selectedToolIds,
       draft,
       messages,
       threads,
@@ -1066,6 +1121,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       toggle,
       setDraft,
       setThreadSearch,
+      toggleTool,
       createNewThread,
       selectThread,
       renameThread,
@@ -1081,6 +1137,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }),
     [
       activeResponseStatus,
+      availableTools,
       cancelStream,
       close,
       createNewThread,
@@ -1105,6 +1162,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       saveSignalProposalToWatchlist,
       setDraft,
       setThreadSearch,
+      selectedToolIds,
       selectThread,
       submitDraft,
       threadId,
@@ -1112,6 +1170,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       threadTitle,
       threads,
       toggle,
+      toggleTool,
     ],
   )
 

@@ -23,6 +23,7 @@ from backend.services.ai_chat.response_composer import ResponseComposer
 from backend.services.ai_chat.rate_limiter import ChatRateLimiter
 from backend.services.ai_chat.policy import AuthorityBand
 from backend.services.ai_chat.page_retrieval import PageSemanticRetrievalService, RetrievedPageChunk
+from backend.services.ai_chat.tool_attachment_runtime import ChatToolAttachmentRuntime
 from backend.services.cost import CostEnforcer
 from backend.services.tool_executor import ToolExecutionResult, ToolExecutor
 
@@ -51,6 +52,7 @@ class ChatStreamRequest:
     context_symbol: str | None = None
     context_timeframe: str | None = None
     context_dom: dict[str, object] | None = None
+    attached_tools: list[str] | None = None
 
 
 class ChatRateLimitError(Exception):
@@ -76,6 +78,7 @@ class AIGatewayService:
         compactor: ContextCompactor | None = None,
         cost_enforcer: CostEnforcer | None = None,
         page_retrieval_service: PageSemanticRetrievalService | None = None,
+        tool_attachment_runtime: ChatToolAttachmentRuntime | None = None,
     ) -> None:
         self.conversation_service = conversation_service
         self.context_assembler = context_assembler
@@ -92,6 +95,7 @@ class AIGatewayService:
         self.compactor = compactor or ContextCompactor()
         self.cost_enforcer = cost_enforcer or CostEnforcer()
         self.page_retrieval_service = page_retrieval_service or PageSemanticRetrievalService()
+        self.tool_attachment_runtime = tool_attachment_runtime or ChatToolAttachmentRuntime()
 
     def stream_response(self, request: ChatStreamRequest) -> tuple[dict[str, object], Iterable[str], str]:
         if not self.rate_limiter.acquire(request.user_id, wait=True, timeout=15.0):
@@ -136,6 +140,11 @@ class AIGatewayService:
                 prompt=request.prompt,
                 state=conversation_state,
             )
+            attached_tools = self.tool_attachment_runtime.resolve_attachments(
+                selected_tool_ids=request.attached_tools or [],
+                page_context=page_context,
+                tool_context=tool_context,
+            )
             plan = self.conversation_orchestrator.build_plan(
                 prompt=request.prompt,
                 thread=thread,
@@ -143,6 +152,7 @@ class AIGatewayService:
                 conversation_state=conversation_state,
                 tool_context=tool_context,
             )
+            plan.attached_tools = [tool.tool_id for tool in attached_tools]
             if plan.needs_clarification:
                 return self._stream_clarification_response(
                     request=request,
@@ -155,6 +165,14 @@ class AIGatewayService:
                 page_type=page_context.payload.page_type,
                 context=tool_context,
                 prioritize_page_evidence=prioritize_page_evidence,
+            )
+            requested_tools = tuple(
+                dict.fromkeys(
+                    [
+                        *requested_tools,
+                        *self.tool_attachment_runtime.collect_backend_tools(attached_tools),
+                    ]
+                )
             )
             tool_results, denied_tools = self.tool_executor.execute(
                 user_id=request.user_id,
@@ -211,6 +229,8 @@ class AIGatewayService:
                     )
                 ),
                 task_class=plan.task_class,
+                attached_tools=attached_tools,
+                attached_tool_prompt=self.tool_attachment_runtime.system_prompt_fragment(attached_tools),
             )
 
             if request.persist_user_message:
@@ -349,6 +369,7 @@ class AIGatewayService:
                 "active_topic": conversation_state.active_topic,
                 "specialist_agents_used": [artifact.agent_name for artifact in specialist_artifacts],
                 "specialist_artifacts": [artifact.model_dump(mode="json") for artifact in specialist_artifacts],
+                "attached_tools": [tool.model_dump(mode="json") for tool in attached_tools],
                 "telemetry": {
                     "latency_ms": latency_ms,
                     "prompt_tokens": gen_result.prompt_tokens,

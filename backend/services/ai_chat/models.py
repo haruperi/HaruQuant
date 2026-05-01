@@ -25,6 +25,17 @@ ActionDraftType = Literal[
 ]
 ActionDraftStatus = Literal["draft", "approval_requested", "approved", "rejected", "cancelled"]
 RiskPrecheckStatus = Literal["passed", "blocked", "not_required"]
+ChatToolCapabilityType = Literal[
+    "strategy_creation",
+    "strategy_refinement",
+    "backtest_analysis",
+    "optimization_comparison",
+    "risk_review",
+    "signal_proposal",
+    "page_operation",
+    "knowledge_retrieval",
+]
+ChatToolSideEffectPolicy = Literal["read_only", "artifact_only", "draft_action", "page_action_plan"]
 
 
 class PinnedFact(BaseModel):
@@ -129,6 +140,24 @@ class ConversationPlan(BaseModel):
     clarification_question: str | None = None
     tools_to_run: list[str] = Field(default_factory=list)
     agents_to_consult: list[str] = Field(default_factory=list)
+    attached_tools: list[str] = Field(default_factory=list)
+
+
+class ChatToolAttachment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool_id: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    capability_type: ChatToolCapabilityType
+    authority_band: str = Field(min_length=1)
+    side_effect_policy: ChatToolSideEffectPolicy
+    system_prompt_fragment: str = Field(min_length=1)
+    response_template: str | None = None
+    allowed_backend_tools: list[str] = Field(default_factory=list)
+    allowed_specialist_agents: list[str] = Field(default_factory=list)
+    required_context: list[str] = Field(default_factory=list)
+    artifact_type: str | None = None
+    missing_context: list[str] = Field(default_factory=list)
 
 
 class ConversationEntityState(BaseModel):
@@ -230,6 +259,9 @@ __all__ = [
     "ConversationRole",
     "ConversationState",
     "ConversationThreadRecord",
+    "ChatToolAttachment",
+    "ChatToolCapabilityType",
+    "ChatToolSideEffectPolicy",
     "MemorySummary",
     "PinnedFact",
     "RiskPrecheckStatus",

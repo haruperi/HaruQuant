@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from backend.contracts.page_context_packet.model import PageContextPacket
 from backend.services.ai_chat.domain_intelligence import resolve_domain_prompt_spec
 from backend.services.ai_chat.models import (
+    ChatToolAttachment,
     ConversationState,
     ConversationThreadRecord,
     SpecialistAgentArtifact,
@@ -54,6 +55,8 @@ class ChatPromptBuilder:
         user_prompt: str,
         response_mode: str,
         task_class: str = "performance_summary",
+        attached_tools: list[ChatToolAttachment] | None = None,
+        attached_tool_prompt: str = "No chat tools are attached.",
     ) -> BuiltPrompt:
         prompt_spec = resolve_domain_prompt_spec(task_class)
         requires_structured_sections = response_mode in {"signal_proposal", "action_draft"}
@@ -77,9 +80,14 @@ class ChatPromptBuilder:
             for key, value in list(state.user_preferences.items())[:6]
         ] or ["none"]
         artifacts = specialist_artifacts or []
+        tools = attached_tools or []
         specialist_summaries = [
             f"{artifact.agent_name}: {artifact.summary}"
             for artifact in artifacts[:4]
+        ] or ["none"]
+        attached_tool_summaries = [
+            f"{tool.display_name}: {tool.capability_type}, {tool.side_effect_policy}"
+            for tool in tools[:6]
         ] or ["none"]
         retrieved_page_chunks = page_chunks or []
         page_chunk_summaries = [
@@ -114,6 +122,7 @@ class ChatPromptBuilder:
                 f"Conversation topic: {state.active_topic}",
                 f"Resolved references: {'; '.join(resolved_references)}",
                 f"User preferences: {'; '.join(user_preferences)}",
+                attached_tool_prompt,
                 f"Specialist agent context: {'; '.join(specialist_summaries)}",
                 f"Retrieved current-page chunks: {'; '.join(page_chunk_summaries)}",
                 *([f"Required sections: {required_sections}"] if required_sections else []),
@@ -154,6 +163,7 @@ class ChatPromptBuilder:
                 f"Retrieved current-page evidence: {'; '.join(page_chunk_summaries)}",
                 f"Conversation state entities: {'; '.join(active_entities)}",
                 f"Conversation resolved references: {'; '.join(resolved_references)}",
+                f"Attached chat tools: {'; '.join(attached_tool_summaries)}",
                 f"Specialist summaries: {'; '.join(specialist_summaries)}",
                 "Recent conversation:",
                 *transcript_lines,

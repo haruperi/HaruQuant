@@ -16,6 +16,7 @@ from .prompt_builder import BuiltPrompt, ChatPromptBuilder
 from .response_composer import ResponseComposer
 from .models import (
     ActionDraftRecord,
+    ChatToolAttachment,
     ConversationPlan,
     ConversationEntityState,
     ConversationMessageRecord,
@@ -32,6 +33,8 @@ from .policy import (
     ToolPermissionTier,
 )
 from .stream_manager import ChatStreamManager
+from .tool_attachment_registry import ChatToolAttachmentRegistry, ChatToolDefinition
+from .tool_attachment_runtime import ChatToolAttachmentRuntime
 
 __all__ = [
     "ALLOWED_TIERS_BY_AUTHORITY_BAND",
@@ -46,6 +49,10 @@ __all__ = [
     "ChatRouteDecision",
     "ChatStreamManager",
     "ChatStreamRequest",
+    "ChatToolAttachment",
+    "ChatToolAttachmentRegistry",
+    "ChatToolAttachmentRuntime",
+    "ChatToolDefinition",
     "ClarificationDecision",
     "ClarificationPolicy",
     "ConversationOrchestrator",

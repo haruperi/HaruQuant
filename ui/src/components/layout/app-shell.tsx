@@ -17,6 +17,7 @@ function GlobalChatWidget() {
     error,
     exportThread,
     activeResponseStatus,
+    availableTools,
     isHydrated,
     isInitializing,
     isManagingThreads,
@@ -35,8 +36,10 @@ function GlobalChatWidget() {
     saveSignalProposalToWatchlist,
     setDraft,
     setThreadSearch,
+    selectedToolIds,
     selectThread,
     submitDraft,
+    toggleTool,
     threadId,
     threadSearch,
     threadTitle,
@@ -60,6 +63,8 @@ function GlobalChatWidget() {
         activeResponseStatus={activeResponseStatus}
         error={error}
         draft={draft}
+        availableTools={availableTools}
+        selectedToolIds={selectedToolIds}
         threads={threads}
         messages={messages}
         onCancel={cancelStream}
@@ -76,6 +81,7 @@ function GlobalChatWidget() {
         onSaveSignalProposalToWatchlist={saveSignalProposalToWatchlist}
         onSelectThread={selectThread}
         onThreadSearchChange={setThreadSearch}
+        onToggleTool={toggleTool}
         onSubmit={submitDraft}
       />
     </>
