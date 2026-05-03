@@ -209,7 +209,10 @@ historical_data/
 # Backtest results and exports
 results/
 exports/
-reports/
+/reports/**
+!/reports/**/
+!/reports/**/README.md
+backend/**/reports/**
 output/
 
 # Temporary data
@@ -404,7 +407,9 @@ historical_data/
 # Backtest results and exports
 results/
 exports/
-reports/
+/reports/**
+!/reports/**/
+!/reports/**/README.md
 output/
 
 # Temporary data
@@ -599,7 +604,9 @@ historical_data/
 # Backtest results and exports
 results/
 exports/
-reports/
+/reports/**
+!/reports/**/
+!/reports/**/README.md
 output/
 
 # Temporary data

@@ -1,4 +1,4 @@
-# HaruQuant Agentic Firm Governance Pack
+# HaruQuant Agentic Trading Firm Governance Pack
 
 ## Overview
 
@@ -28,18 +28,20 @@ docs/
     risk_policy.md
     agent_permissions.md
     strategy_lifecycle.md
+    phase2_repository_refactor_plan.md
 ```
 
 ---
 
 ## Documents
 
-| Document | Purpose | Status |
-|---|---|---:|
-| `constitution.md` | Defines the mission, authority structure, allowed/forbidden behavior, Board approval rules, audit requirements, and incident escalation. | Complete |
-| `risk_policy.md` | Defines the standard prop-firm-compliant risk profile, exposure limits, spread/slippage/news filters, automation rules, allocation rules, and kill-switch rules. | Complete |
-| `agent_permissions.md` | Defines each agent role, allowed tools, forbidden tools, tool risk classes, approval requirements, and emergency-disable rules. | Complete |
-| `strategy_lifecycle.md` | Defines the full lifecycle from idea to live deployment, including promotion, demotion, retirement, and evidence requirements. | Complete |
+| Document                  | Purpose                                                                                                                                                          |   Status |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------: |
+| `constitution.md`       | Defines the mission, authority structure, allowed/forbidden behavior, Board approval rules, audit requirements, and incident escalation.                         | Complete |
+| `risk_policy.md`        | Defines the standard prop-firm-compliant risk profile, exposure limits, spread/slippage/news filters, automation rules, allocation rules, and kill-switch rules. | Complete |
+| `agent_permissions.md`  | Defines each agent role, allowed tools, forbidden tools, tool risk classes, approval requirements, and emergency-disable rules.                                  | Complete |
+| `strategy_lifecycle.md` | Defines the full lifecycle from idea to live deployment, including promotion, demotion, retirement, and evidence requirements.                                   | Complete |
+| `phase2_repository_refactor_plan.md` | Maps the Phase 2 repository/folder target onto the current codebase and defines the additive migration plan.                                      | Complete |
 
 ---
 
@@ -107,14 +109,14 @@ This profile is intentionally conservative and designed to stop HaruQuant before
 
 ### Core Prop-Firm Risk Profile
 
-| Rule | External Limit | HaruQuant Internal Control |
-|---|---:|---:|
-| Max daily loss | 5% | Stop new trades at 4%; emergency state near 4.5% |
-| Max total loss | 10% static | Stop new trades at 8.5%; emergency state near 9% |
-| Monthly/cycle profit target | 10% | Target only, never used to justify over-risking |
-| News restriction | 10 minutes before and after high-impact news | Block new entries in restricted window |
-| Weekend/overnight holding | Restricted by default | Close or block according to policy |
-| Best Day Rule | Max single-day profit contribution limit | Warning at 40%, critical at 45%, hard limit at 50% |
+| Rule                        |                               External Limit |                         HaruQuant Internal Control |
+| --------------------------- | -------------------------------------------: | -------------------------------------------------: |
+| Max daily loss              |                                           5% |   Stop new trades at 4%; emergency state near 4.5% |
+| Max total loss              |                                   10% static |   Stop new trades at 8.5%; emergency state near 9% |
+| Monthly/cycle profit target |                                          10% |    Target only, never used to justify over-risking |
+| News restriction            | 10 minutes before and after high-impact news |             Block new entries in restricted window |
+| Weekend/overnight holding   |                        Restricted by default |                 Close or block according to policy |
+| Best Day Rule               |     Max single-day profit contribution limit | Warning at 40%, critical at 45%, hard limit at 50% |
 
 ### Risk Enforcement Philosophy
 
@@ -136,13 +138,13 @@ It separates tools into:
 
 ### Permission Model
 
-| Tool Class | Example | Approval Required |
-|---|---|---|
-| Read-only | Read market data, read reports, read strategy registry | No |
-| Write | Save strategy spec, run backtest, create report | Usually no, but audited |
-| Critical | Request live activation, pause strategy, place order | Yes |
-| RiskGovernor-gated | Trade proposal, paper order, live order | RiskGovernor approval required |
-| Human-gated | Live activation, allocation increase, risk threshold change | Human Board approval required |
+| Tool Class         | Example                                                     | Approval Required              |
+| ------------------ | ----------------------------------------------------------- | ------------------------------ |
+| Read-only          | Read market data, read reports, read strategy registry      | No                             |
+| Write              | Save strategy spec, run backtest, create report             | Usually no, but audited        |
+| Critical           | Request live activation, pause strategy, place order        | Yes                            |
+| RiskGovernor-gated | Trade proposal, paper order, live order                     | RiskGovernor approval required |
+| Human-gated        | Live activation, allocation increase, risk threshold change | Human Board approval required  |
 
 ### Key Principle
 
@@ -179,16 +181,16 @@ A strategy cannot skip stages.
 
 A strategy must collect evidence before promotion:
 
-| Promotion | Required Evidence |
-|---|---|
-| Idea → Spec | Research brief and feasibility score |
-| Spec → Code Review | Complete strategy spec |
-| Code Review → Backtest | Bias, feasibility, and implementation review |
-| Backtest → Robustness | Reproducible backtest package |
-| Robustness → Paper Trading | Robustness score, risk memo, lifecycle approval |
+| Promotion                   | Required Evidence                                   |
+| --------------------------- | --------------------------------------------------- |
+| Idea → Spec                | Research brief and feasibility score                |
+| Spec → Code Review         | Complete strategy spec                              |
+| Code Review → Backtest     | Bias, feasibility, and implementation review        |
+| Backtest → Robustness      | Reproducible backtest package                       |
+| Robustness → Paper Trading | Robustness score, risk memo, lifecycle approval     |
 | Paper Trading → Micro Live | Paper-trading record, risk approval, Board approval |
-| Micro Live → Limited Live | Stable micro-live record and allocation review |
-| Limited Live → Normal Live | Stable live performance and Board approval |
+| Micro Live → Limited Live  | Stable micro-live record and allocation review      |
+| Limited Live → Normal Live | Stable live performance and Board approval          |
 
 ---
 
@@ -375,13 +377,14 @@ backend/app/audit/audit_logger.py
 
 ## Implementation Status
 
-| Phase | Deliverable | Status |
-|---:|---|---:|
-| 1.1 | `constitution.md` | Complete |
-| 1.2 | `risk_policy.md` | Complete |
-| 1.3 | `agent_permissions.md` | Complete |
-| 1.4 | `strategy_lifecycle.md` | Complete |
-| 1.5 | Governance README | Complete |
+| Phase | Deliverable               |   Status |
+| ----: | ------------------------- | -------: |
+|   1.1 | `constitution.md`       | Complete |
+|   1.2 | `risk_policy.md`        | Complete |
+|   1.3 | `agent_permissions.md`  | Complete |
+|   1.4 | `strategy_lifecycle.md` | Complete |
+|   1.5 | Governance README         | Complete |
+|   2.0 | Repository and folder structure | Complete |
 
 ---
 

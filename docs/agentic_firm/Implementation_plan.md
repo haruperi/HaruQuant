@@ -135,71 +135,75 @@ Phase 1 complete.
 
 ### 2.1 Create backend agent folders
 
-* [ ] Create `backend/agents/`.
-* [ ] Create `backend/agents/ceo/`.
-* [ ] Create `backend/agents/planner/`.
-* [ ] Create `backend/agents/research/`.
-* [ ] Create `backend/agents/strategy_creator/`.
-* [ ] Create `backend/agents/strategy_reviewer/`.
-* [ ] Create `backend/agents/codegen/`.
-* [ ] Create `backend/agents/backtest/`.
-* [ ] Create `backend/agents/optimization/`.
-* [ ] Create `backend/agents/robustness/`.
-* [ ] Create `backend/agents/statistical_validation/`.
-* [ ] Create `backend/agents/risk_reviewer/`.
-* [ ] Create `backend/agents/portfolio_manager/`.
-* [ ] Create `backend/agents/execution/`.
-* [ ] Create `backend/agents/performance_reporter/`.
-* [ ] Create `backend/agents/audit/`.
-* [ ] Create `backend/agents/cost_optimizer/`.
+* [X] Create `backend/agents/`.
+* [X] Create `backend/agents/ceo/`.
+* [X] Create `backend/agents/planner/`.
+* [X] Create `backend/agents/research/`.
+* [X] Create `backend/agents/strategy_creator/`.
+* [X] Create `backend/agents/strategy_reviewer/`.
+* [X] Create `backend/agents/codegen/`.
+* [X] Create `backend/agents/backtest/`.
+* [X] Create `backend/agents/optimization/`.
+* [X] Create `backend/agents/robustness/`.
+* [X] Create `backend/agents/statistical_validation/`.
+* [X] Create `backend/agents/risk_reviewer/`.
+* [X] Create `backend/agents/portfolio_manager/`.
+* [X] Create `backend/agents/execution/`.
+* [X] Create `backend/agents/performance_reporter/`.
+* [X] Create `backend/agents/audit/`.
+* [X] Create `backend/agents/cost_optimizer/`.
 
 ### 2.2 Create tool folders
 
-* [ ] Create `backend/tools/`.
-* [ ] Create `backend/tools/data_tools.py`.
-* [ ] Create `backend/tools/strategy_tools.py`.
-* [ ] Create `backend/tools/backtest_tools.py`.
-* [ ] Create `backend/tools/analytics_tools.py`.
-* [ ] Create `backend/tools/risk_tools.py`.
-* [ ] Create `backend/tools/portfolio_tools.py`.
-* [ ] Create `backend/tools/execution_tools.py`.
-* [ ] Create `backend/tools/reporting_tools.py`.
-* [ ] Create `backend/tools/audit_tools.py`.
+* [X] Create `backend/tools/`.
+* [X] Create `backend/tools/data_tools.py`.
+* [X] Create `backend/tools/strategy_tools.py`.
+* [X] Create `backend/tools/backtest_tools.py`.
+* [X] Create `backend/tools/analytics_tools.py`.
+* [X] Create `backend/tools/risk_tools.py`.
+* [X] Create `backend/tools/portfolio_tools.py`.
+* [X] Create `backend/tools/execution_tools.py`.
+* [X] Create `backend/tools/reporting_tools.py`.
+* [X] Create `backend/tools/audit_tools.py`.
 
 ### 2.3 Create risk and execution folders
 
-* [ ] Create `backend/risk/governor.py`.
-* [ ] Create `backend/risk/approvals.py`.
-* [ ] Create `backend/risk/kill_switch.py`.
-* [ ] Create `backend/risk/correlation.py`.
-* [ ] Create `backend/risk/var_engine.py`.
-* [ ] Create `backend/execution/paper_broker.py`.
-* [ ] Create `backend/execution/mt5_bridge.py`.
-* [ ] Create `backend/execution/ctrader_bridge.py`.
-* [ ] Create `backend/execution/order_router.py`.
+* [X] Create `backend/risk/governor.py`.
+* [X] Create `backend/risk/approvals.py`.
+* [X] Create `backend/risk/kill_switch.py`.
+* [X] Create `backend/risk/correlation.py`.
+* [X] Create `backend/risk/var_engine.py`.
+* [X] Create `backend/execution/paper_broker.py`.
+* [X] Create `backend/execution/mt5_bridge.py`.
+* [X] Create `backend/execution/ctrader_bridge.py`.
+* [X] Create `backend/execution/order_router.py`.
 
 ### 2.4 Create memory folders
 
-* [ ] Create `memory/institutional/`.
-* [ ] Create `memory/performance/`.
-* [ ] Create `memory/evidence/`.
-* [ ] Create `memory/lessons/`.
-* [ ] Create `memory/strategies/active/`.
-* [ ] Create `memory/strategies/paper/`.
-* [ ] Create `memory/strategies/live/`.
-* [ ] Create `memory/strategies/rejected/`.
-* [ ] Create `memory/strategies/retired/`.
+* [X] Create `memory/institutional/`.
+* [X] Create `memory/performance/`.
+* [X] Create `memory/evidence/`.
+* [X] Create `memory/lessons/`.
+* [X] Create `memory/strategies/active/`.
+* [X] Create `memory/strategies/paper/`.
+* [X] Create `memory/strategies/live/`.
+* [X] Create `memory/strategies/rejected/`.
+* [X] Create `memory/strategies/retired/`.
 
 ### 2.5 Create report folders
 
-* [ ] Create `reports/daily/`.
-* [ ] Create `reports/weekly/`.
-* [ ] Create `reports/monthly/`.
-* [ ] Create `reports/board/`.
-* [ ] Create `reports/risk/`.
-* [ ] Create `reports/backtests/`.
-* [ ] Create `reports/robustness/`.
-* [ ] Create `reports/strategy_reviews/`.
+* [X] Create `reports/daily/`.
+* [X] Create `reports/weekly/`.
+* [X] Create `reports/monthly/`.
+* [X] Create `reports/board/`.
+* [X] Create `reports/risk/`.
+* [X] Create `reports/backtests/`.
+* [X] Create `reports/robustness/`.
+* [X] Create `reports/strategy_reviews/`.
+
+### Phase 2 implementation note
+
+Phase 2 was implemented as an additive facade migration to avoid losing existing functionality. New firm-facing packages wrap current deterministic services and governed MCP boundaries instead of duplicating risk, execution, strategy, audit, and optimization logic. `backend/execution/ctrader_bridge.py` exists as an explicit fail-closed placeholder until a governed cTrader bridge is implemented.
 
 ## Done definition
 
@@ -221,7 +225,7 @@ Phase 2 complete.
 
 ### 3.1 Create shared schemas
 
-* [ ] Create `backend/app/agents/schemas.py`.
+* [ ] Create `backend/agents/schemas.py`.
 * [ ] Add `AgentTask`.
 * [ ] Add `AgentPlan`.
 * [ ] Add `AgentObservation`.
