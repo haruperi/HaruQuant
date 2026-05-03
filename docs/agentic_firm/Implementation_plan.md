@@ -225,77 +225,81 @@ Phase 2 complete.
 
 ### 3.1 Create shared schemas
 
-* [ ] Create `backend/agents/schemas.py`.
-* [ ] Add `AgentTask`.
-* [ ] Add `AgentPlan`.
-* [ ] Add `AgentObservation`.
-* [ ] Add `AgentDecision`.
-* [ ] Add `EvidenceRef`.
-* [ ] Add `ToolCallRequest`.
-* [ ] Add `ToolCallResult`.
-* [ ] Add `StrategySpec`.
-* [ ] Add `StrategyReview`.
-* [ ] Add `BacktestRequest`.
-* [ ] Add `BacktestResultSummary`.
-* [ ] Add `RiskReview`.
-* [ ] Add `TradeProposal`.
-* [ ] Add `RiskApproval`.
-* [ ] Add `ExecutionRequest`.
-* [ ] Add `ExecutionResult`.
+* [X] Create `backend/agents/schemas.py`.
+* [X] Add `AgentTask`.
+* [X] Add `AgentPlan`.
+* [X] Add `AgentObservation`.
+* [X] Add `AgentDecision`.
+* [X] Add `EvidenceRef`.
+* [X] Add `ToolCallRequest`.
+* [X] Add `ToolCallResult`.
+* [X] Add `StrategySpec`.
+* [X] Add `StrategyReview`.
+* [X] Add `BacktestRequest`.
+* [X] Add `BacktestResultSummary`.
+* [X] Add `RiskReview`.
+* [X] Add `TradeProposal`.
+* [X] Add `RiskApproval`.
+* [X] Add `ExecutionRequest`.
+* [X] Add `ExecutionResult`.
 
 ### 3.2 Define planner output schema
 
 Your planner already has a good base. Expand it.
 
-* [ ] Keep `intent`.
-* [ ] Keep `missing_inputs`.
-* [ ] Keep `context_needed`.
-* [ ] Keep `backend_tools_to_run`.
-* [ ] Keep `attached_tools`.
-* [ ] Keep `page_actions_to_plan`.
-* [ ] Keep `artifact_expected`.
-* [ ] Keep `risk_level`.
-* [ ] Add `requires_board_approval`.
-* [ ] Add `requires_risk_governor`.
-* [ ] Add `requires_audit_log`.
-* [ ] Add `allowed_agents`.
-* [ ] Add `blocked_agents`.
-* [ ] Add `expected_outputs`.
-* [ ] Add `evidence_requirements`.
-* [ ] Add `failure_policy`.
+* [X] Keep `intent`.
+* [X] Keep `missing_inputs`.
+* [X] Keep `context_needed`.
+* [X] Keep `backend_tools_to_run`.
+* [X] Keep `attached_tools`.
+* [X] Keep `page_actions_to_plan`.
+* [X] Keep `artifact_expected`.
+* [X] Keep `risk_level`.
+* [X] Add `requires_board_approval`.
+* [X] Add `requires_risk_governor`.
+* [X] Add `requires_audit_log`.
+* [X] Add `allowed_agents`.
+* [X] Add `blocked_agents`.
+* [X] Add `expected_outputs`.
+* [X] Add `evidence_requirements`.
+* [X] Add `failure_policy`.
 
 ### 3.3 Define strategy spec schema
 
-* [ ] Add `strategy_name`.
-* [ ] Add `version`.
-* [ ] Add `market`.
-* [ ] Add `symbol`.
-* [ ] Add `timeframe`.
-* [ ] Add `data_requirements`.
-* [ ] Add `entry_logic`.
-* [ ] Add `exit_logic`.
-* [ ] Add `position_sizing`.
-* [ ] Add `risk_assumptions`.
-* [ ] Add `cost_assumptions`.
-* [ ] Add `invalid_conditions`.
-* [ ] Add `test_plan`.
-* [ ] Add `deployment_recommendation`.
+* [X] Add `strategy_name`.
+* [X] Add `version`.
+* [X] Add `market`.
+* [X] Add `symbol`.
+* [X] Add `timeframe`.
+* [X] Add `data_requirements`.
+* [X] Add `entry_logic`.
+* [X] Add `exit_logic`.
+* [X] Add `position_sizing`.
+* [X] Add `risk_assumptions`.
+* [X] Add `cost_assumptions`.
+* [X] Add `invalid_conditions`.
+* [X] Add `test_plan`.
+* [X] Add `deployment_recommendation`.
 
 ### 3.4 Define trade proposal schema
 
-* [ ] Add `strategy_id`.
-* [ ] Add `symbol`.
-* [ ] Add `side`.
-* [ ] Add `entry_type`.
-* [ ] Add `requested_size`.
-* [ ] Add `stop_loss`.
-* [ ] Add `take_profit`.
-* [ ] Add `max_spread`.
-* [ ] Add `max_slippage`.
-* [ ] Add `expected_risk`.
-* [ ] Add `portfolio_impact`.
-* [ ] Add `evidence_refs`.
-* [ ] Add `requires_risk_approval`.
+* [X] Add `strategy_id`.
+* [X] Add `symbol`.
+* [X] Add `side`.
+* [X] Add `entry_type`.
+* [X] Add `requested_size`.
+* [X] Add `stop_loss`.
+* [X] Add `take_profit`.
+* [X] Add `max_spread`.
+* [X] Add `max_slippage`.
+* [X] Add `expected_risk`.
+* [X] Add `portfolio_impact`.
+* [X] Add `evidence_refs`.
+* [X] Add `requires_risk_approval`.
+
+### Phase 3 implementation note
+
+Phase 3 was implemented by extending existing schemas instead of creating competing contracts. `AgentPlan` aliases the existing `ConversationPlan`, which now includes Board approval, RiskGovernor, audit, allowed/blocked agent, output, evidence, and failure-policy fields. `backend/agents/schemas.py` provides firm-facing agent exchange models and bridge helpers to existing canonical contracts such as `StrategyBlueprint`, `TradeProposal`, `RiskAssessmentDecision`, `ExecutionIntent`, and `ExecutionReceipt`.
 
 ## Done definition
 

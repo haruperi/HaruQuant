@@ -385,6 +385,7 @@ backend/app/audit/audit_logger.py
 |   1.4 | `strategy_lifecycle.md` | Complete |
 |   1.5 | Governance README         | Complete |
 |   2.0 | Repository and folder structure | Complete |
+|   3.0 | Core schemas and contracts | Complete |
 
 ---
 

@@ -148,6 +148,14 @@ class ConversationPlan(BaseModel):
     page_actions_to_plan: list[str] = Field(default_factory=list)
     artifact_expected: str | None = None
     risk_level: str = Field(min_length=1, default="read_only")
+    requires_board_approval: bool = False
+    requires_risk_governor: bool = False
+    requires_audit_log: bool = True
+    allowed_agents: list[str] = Field(default_factory=list)
+    blocked_agents: list[str] = Field(default_factory=list)
+    expected_outputs: list[str] = Field(default_factory=list)
+    evidence_requirements: list[str] = Field(default_factory=list)
+    failure_policy: dict[str, Any] = Field(default_factory=dict)
     planner_source: str = Field(min_length=1, default="deterministic")
     planner_confidence: float = Field(ge=0, le=1, default=1.0)
 
