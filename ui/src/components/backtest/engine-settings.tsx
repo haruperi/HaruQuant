@@ -38,7 +38,7 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                         <Label htmlFor="dataResolution">Data Resolution</Label>
                         <Select
                             value={values.dataResolution}
-                            onValueChange={(val) => onChange("dataResolution", val as any)}
+                            onValueChange={(val) => onChange("dataResolution", val as EngineSettingsValues["dataResolution"])}
                         >
                             <SelectTrigger id="dataResolution">
                                 <SelectValue placeholder="Select Resolution" />
@@ -95,7 +95,7 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                             <Label htmlFor="slippageType">Slippage Type</Label>
                             <Select
                                 value={values.slippageType}
-                                onValueChange={(val) => onChange("slippageType", val)}
+                                onValueChange={(val) => onChange("slippageType", val as EngineSettingsValues["slippageType"])}
                             >
                                 <SelectTrigger id="slippageType">
                                     <SelectValue placeholder="Select Slippage Type" />
@@ -155,7 +155,7 @@ export function EngineSettings({ values, onChange }: EngineSettingsProps) {
                             <Label htmlFor="spreadType">Spread Type</Label>
                             <Select
                                 value={values.spreadType}
-                                onValueChange={(val) => onChange("spreadType", val)}
+                                onValueChange={(val) => onChange("spreadType", val as EngineSettingsValues["spreadType"])}
                             >
                                 <SelectTrigger id="spreadType">
                                     <SelectValue placeholder="Select Spread Type" />

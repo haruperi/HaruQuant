@@ -22,7 +22,7 @@
     },
     "risk_level": {
       "type": "string",
-      "enum": ["view_only", "local_ui", "backend_safe", "backend_risk"]
+      "enum": ["view_only", "local_ui", "backend_non_trading", "trading_adjacent", "prohibited"]
     },
     "parameters": {
       "type": "object",

@@ -11,11 +11,75 @@ import { Settings2, FlaskConical, LineChart, Zap } from "lucide-react"
 import { optimizationApi, type OptimizationRequest, type ParameterRange } from "@/lib/api/optimization"
 import { useOptimization } from "@/lib/hooks/use-optimization"
 import { useToast } from "@/components/ui/use-toast"
+import { useRegisterPageActions } from "@/hooks/useRegisterPageActions"
+
+interface OptimizationFormParameter {
+    name: string
+    start: number
+    stop: number
+    step: number
+    type: "int" | "float"
+}
+
+interface OptimizationFormConfig {
+    strategy: string | number
+    method: OptimizationRequest["method"]
+    objective: OptimizationRequest["objective"]
+    symbol?: string
+    timeframe?: string
+    startDate?: string
+    endDate?: string
+    initialCapital?: number
+    dataSource?: string
+    parameters: OptimizationFormParameter[]
+    workers?: number
+    nIter?: number
+    nInitialPoints?: number
+    populationSize?: number
+    generations?: number
+}
 
 export default function OptimizationPage() {
     const [view, setView] = useState<'config' | 'running' | 'results'>('config')
     const [optimizationId, setOptimizationId] = useState<number | null>(null)
     const { toast } = useToast()
+    const [activeTab, setActiveTab] = useState("optimization")
+
+    useRegisterPageActions(
+        [
+            {
+                id: "switch_optimization_tab",
+                label: "Switch Optimization Tab",
+                description: "Switch between 'optimization' (Parameter Tuning), 'wfa' (Walk-Forward Analysis), and 'monte-carlo' (Stress Testing).",
+                riskLevel: "view_only",
+                parameters: [
+                    {
+                        name: "tab",
+                        type: "string",
+                        description: "The tab ID to switch to ('optimization', 'wfa', 'monte-carlo')",
+                        required: true,
+                    }
+                ]
+            },
+            {
+                id: "start_new_optimization",
+                label: "Start New Optimization",
+                description: "Reset the current view to the optimization configuration screen to start a new run.",
+                riskLevel: "local_ui",
+                parameters: []
+            }
+        ],
+        {
+            switch_optimization_tab: ({ tab }) => {
+                if (typeof tab === "string") {
+                    setActiveTab(tab)
+                }
+            },
+            start_new_optimization: () => {
+                resetState()
+            }
+        }
+    )
 
     // Use optimization hook for real-time updates
     const {
@@ -23,8 +87,6 @@ export default function OptimizationPage() {
         results,
         progress,
         isConnected,
-        loading,
-        error,
         cancelOptimization,
     } = useOptimization({
         optimizationId,
@@ -41,13 +103,13 @@ export default function OptimizationPage() {
         },
     })
 
-    const handleStart = async (config: any) => {
+    const handleStart = async (config: OptimizationFormConfig) => {
         try {
             console.log("=== Starting Optimization ===")
             console.log("Config:", config)
 
             // Transform frontend config to API request format
-            const parameters: ParameterRange[] = config.parameters.map((p: any) => ({
+            const parameters: ParameterRange[] = config.parameters.map((p) => ({
                 name: p.name,
                 min: p.start,
                 max: p.stop,
@@ -56,7 +118,7 @@ export default function OptimizationPage() {
             }))
 
             const request: OptimizationRequest = {
-                strategy_id: parseInt(config.strategy) || 1,
+                strategy_id: Number(config.strategy) || 1,
                 method: config.method,
                 objective: config.objective,
                 symbol: config.symbol || "EURUSD",
@@ -66,7 +128,7 @@ export default function OptimizationPage() {
                 initial_capital: config.initialCapital || 10000,
                 data_source: config.dataSource || "mt5",
                 parameters,
-                n_jobs: config.workers,
+                n_jobs: config.workers ?? 1,
                 engine_type: "vectorised",
                 // Method-specific parameters
                 n_iter: config.method === "random" ? config.nIter : undefined,
@@ -139,7 +201,7 @@ export default function OptimizationPage() {
                 </Button>
             </div>
 
-            <Tabs defaultValue="optimization" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList>
                     <TabsTrigger value="optimization" className="flex items-center gap-2">
                         <FlaskConical className="h-4 w-4" />

@@ -97,7 +97,13 @@ export function HistoricalRunForm({
   const autoStartAttemptedRef = useRef(false)
   const handleSubmitRef = useRef<() => void>(() => undefined)
   const [importing, setImporting] = useState(false)
-  const [pausedSessions, setPausedSessions] = useState<Array<{ session_id: number; session_name?: string | null; symbol: string; timeframe: string }>>([])
+  const [pausedSessions, setPausedSessions] = useState<Array<{
+    session_id: number
+    session_name?: string | null
+    symbol?: string | null
+    timeframe?: string | null
+    config?: { symbol?: string | null; timeframe?: string | null }
+  }>>([])
   const [selectedPausedId, setSelectedPausedId] = useState("")
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importStrategyName, setImportStrategyName] = useState("")
@@ -388,7 +394,7 @@ export function HistoricalRunForm({
               <SelectContent>
                 {pausedSessions.map((session) => (
                   <SelectItem key={session.session_id} value={String(session.session_id)}>
-                    {`${session.session_name || `Session ${session.session_id}`} (${session.symbol} ${session.timeframe})`}
+                    {`${session.session_name || `Session ${session.session_id}`} (${session.symbol ?? session.config?.symbol ?? "N/A"} ${session.timeframe ?? session.config?.timeframe ?? "N/A"})`}
                   </SelectItem>
                 ))}
               </SelectContent>

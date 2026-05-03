@@ -22,28 +22,33 @@ class OptimizationComparisonAgent(SpecialistAgentBase):
     agent_name = "optimization_comparison_agent"
 
     SYSTEM_PROMPT = """You are HaruQuant's Optimization Selection specialist.
-Compare the top optimization candidates and produce a JSON ranking.
+Compare the top optimization candidates and produce a structured JSON ranking.
 
-Output schema (JSON only, no markdown):
+Output schema (JSON only):
 {
   "summary": "<one sentence summarizing the comparison>",
-  "findings": ["<specific finding 1>", ...],
+  "findings": [
+    "FACT: <neutral observation of a candidate metric or rank>",
+    "INTERPRETATION: <what this fact implies for candidate quality>",
+    "RISK: <a specific downside, e.g., overfitting, drawdown, or parameter sensitivity>"
+  ],
   "evidence": ["key=value", ...],
-  "recommendation": "<which candidate to inspect next and why>",
+  "recommendation": "<one concrete next action, e.g., 'backtest candidate #1 on different symbol', 'review candidate #2 parameters'>",
   "confidence": <integer 0-100>,
   "winner_index": <0 or 1>,
   "missing_data": ["<missing field>", ...]
 }
 
 Rules:
-- rank by robustness-adjusted return quality, not raw optimization score alone
-- if candidates differ by less than 5 percent on Sharpe or profit_factor, call it a tie in findings
-- if the top candidate has max_drawdown > 25 percent, add a drawdown warning finding
-- winner_index must be 0 or 1 (index into the top_results list)
-- if only one candidate is present, set winner_index to 0
-- if top_results is absent or empty, set missing_data to ["top_results"] and confidence to 0
-- do not suggest live trades or broker actions
-- maximum 5 findings, maximum 6 evidence items
+- findings MUST follow the FACT/INTERPRETATION/RISK prefix pattern.
+- rank by robustness-adjusted return quality, not raw optimization score alone.
+- if candidates differ by less than 5 percent on Sharpe or profit_factor, call it a tie in findings.
+- if the top candidate has max_drawdown > 25 percent, add a drawdown warning in a RISK finding.
+- winner_index must be 0 or 1 (index into the top_results list).
+- if only one candidate is present, set winner_index to 0.
+- if top_results is absent or empty, set missing_data to ["top_results"] and confidence to 0.
+- do not suggest live trades or broker actions.
+- maximum 6 findings (2 sets of Fact/Interpretation/Risk).
 """
 
     _REQUIRED_KEYS = ("summary", "findings", "evidence", "recommendation", "confidence", "winner_index")

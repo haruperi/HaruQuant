@@ -1,0 +1,24 @@
+[
+  {
+    "name": "navigate_to_trades_calendar",
+    "route": "/performance/overview",
+    "page_type": "backtest_detail",
+    "prompt": "Show me the trades calendar for this backtest.",
+    "expected_task_class": "page_operation",
+    "expected_action_id": "navigate_performance_page",
+    "expected_parameters": { "path": "trades-calender" },
+    "expected_phrases": ["navigating", "trades calendar"],
+    "forbidden_phrases": ["I cannot navigate"]
+  },
+  {
+    "name": "switch_to_monte_carlo",
+    "route": "/optimization",
+    "page_type": "optimization_detail",
+    "prompt": "Run a monte carlo simulation on these results.",
+    "expected_task_class": "page_operation",
+    "expected_action_id": "switch_optimization_tab",
+    "expected_parameters": { "tab": "monte-carlo" },
+    "expected_phrases": ["switching", "Monte Carlo"],
+    "forbidden_phrases": ["not supported"]
+  }
+]

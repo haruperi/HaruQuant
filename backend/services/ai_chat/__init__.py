@@ -6,6 +6,8 @@ from .ai_gateway import AIGatewayService, ChatStreamRequest
 from .clarification_policy import ClarificationDecision, ClarificationPolicy
 from .conversation_orchestrator import ConversationOrchestrator
 from .conversation_planner import ConversationPlanner, RuntimeLLMPlannerClient, StructuredChatPlan
+from .artifact_service import ChatArtifact, ChatArtifactService, ChatArtifactValidation
+from .page_action_planner import PageActionPlanner, PageActionPlanningResult
 from .conversation_state_service import ConversationStateService
 from .conversation_service import ConversationService
 from .context_service import (
@@ -58,6 +60,11 @@ __all__ = [
     "ClarificationPolicy",
     "ConversationOrchestrator",
     "ConversationPlanner",
+    "ChatArtifact",
+    "ChatArtifactService",
+    "ChatArtifactValidation",
+    "PageActionPlanner",
+    "PageActionPlanningResult",
     "ConversationEntityState",
     "ConversationPlan",
     "ConversationState",

@@ -42,16 +42,16 @@ type DisplayMode = "dollar" | "percent" | "r_multiple"
 type DateSetting = "entry" | "exit"
 
 interface Trade {
-    open_time: string
-    close_time: string
-    profit_loss: number
-    commission: number
-    swap: number
-    r_multiple?: number
-    profit_percent?: number
-    net_profit?: number
-    pnl?: number
-    [key: string]: any
+    open_time?: string | null
+    close_time?: string | null
+    profit_loss?: number | string | null
+    commission?: number | string | null
+    swap?: number | string | null
+    r_multiple?: number | string | null
+    profit_percent?: number | string | null
+    net_profit?: number | string | null
+    pnl?: number | string | null
+    [key: string]: unknown
 }
 
 interface DayStats {
@@ -83,8 +83,9 @@ function formatR(value: number) {
     return `${value.toFixed(2)}R`
 }
 
-const safelyParseFloat = (value: any): number => {
+const safelyParseFloat = (value: string | number | null | undefined): number => {
     if (value === undefined || value === null || value === "") return 0
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0
     const parsed = parseFloat(value)
     return isNaN(parsed) ? 0 : parsed
 }
@@ -132,7 +133,7 @@ export default function PerformanceByDayPage() {
 
     // Group by Day (YYYY-MM-DD)
     trades.forEach(trade => {
-        let dateStr = dateSetting === 'entry' ? trade.open_time : trade.close_time
+        const dateStr = dateSetting === 'entry' ? trade.open_time : trade.close_time
         if (!dateStr) return
         const date = new Date(dateStr)
         if (!isValid(date)) return

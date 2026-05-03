@@ -4,8 +4,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
+import type { EquityCurvePoint } from "@/lib/api/strategies"
 
-const data = Array.from({ length: 100 }, (_, i) => {
+const fallbackData = Array.from({ length: 100 }, (_, i) => {
   const equity = 10000 + Math.random() * 1000 + (i * 50);
   const drawdown = Math.min(0, Math.random() * -5); // Mock DD percentage
   return {
@@ -16,7 +17,30 @@ const data = Array.from({ length: 100 }, (_, i) => {
   };
 });
 
-export function EquityChart() {
+function toNumber(value: unknown, fallback = 0): number {
+    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value)
+        return Number.isFinite(parsed) ? parsed : fallback
+    }
+    return fallback
+}
+
+function buildChartData(equityCurve?: EquityCurvePoint[]) {
+    if (!equityCurve?.length) return fallbackData
+    return equityCurve.map((point, index) => {
+        const equity = toNumber(point.equity_close ?? point.equity ?? point.value, 0)
+        return {
+            name: String(point.date ?? point.open_time ?? `Trade ${index + 1}`),
+            equity,
+            drawdown: -Math.abs(toNumber(point.drawdown_pct ?? point.drawdown ?? 0, 0)),
+            benchmark: equity - toNumber(point.buy_hold_return_usd ?? 0, 0),
+        }
+    })
+}
+
+export function EquityChart({ equityCurve }: { equityCurve?: EquityCurvePoint[] }) {
+  const data = buildChartData(equityCurve)
   return (
     <Card className="w-full">
         <SemanticSnapshotScript

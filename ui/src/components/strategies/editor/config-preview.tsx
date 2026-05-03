@@ -9,15 +9,12 @@ interface ConfigPreviewProps {
         description: string
         status: "active" | "inactive" | "testing"
         category: string
-        parameters: Record<string, any>
+        parameters: Record<string, unknown>
         symbol?: string
         timeframe?: string
         type?: string
-        moneyManagement?: {
-            method: string
-            positionSize: number
-        }
-        variables?: Record<string, any>
+        moneyManagement?: Record<string, unknown>
+        variables?: Record<string, unknown>
     }
     version?: string
 }

@@ -12,6 +12,9 @@ if TYPE_CHECKING:
         OptimizationComparisonAgent,
         PortfolioRiskAgent,
         PageOperatorAgent,
+        TradingAdvisorAgent,
+        MarketRegimeAgent,
+        StrategyCodeReviewAgent,
     )
 
 from backend.services.ai_chat.models import ConversationPlan, ConversationState, SpecialistAgentArtifact
@@ -29,6 +32,9 @@ class AgentConsultationService:
         optimization_comparison_agent: 'OptimizationComparisonAgent | None' = None,
         knowledge_retrieval_agent: 'KnowledgeRetrievalAgent | None' = None,
         page_operator_agent: 'PageOperatorAgent | None' = None,
+        trading_advisor_agent: 'TradingAdvisorAgent | None' = None,
+        market_regime_agent: 'MarketRegimeAgent | None' = None,
+        strategy_code_review_agent: 'StrategyCodeReviewAgent | None' = None,
         final_responder_agent: 'FinalResponderAgent | None' = None,
     ) -> None:
         if backtest_explainer_agent is None:
@@ -36,31 +42,49 @@ class AgentConsultationService:
             self.backtest_explainer_agent = BacktestExplainerAgent()
         else:
             self.backtest_explainer_agent = backtest_explainer_agent
-            
+
         if portfolio_risk_agent is None:
             from backend.agents.chat.portfolio_risk_agent import PortfolioRiskAgent
             self.portfolio_risk_agent = PortfolioRiskAgent()
         else:
             self.portfolio_risk_agent = portfolio_risk_agent
-            
+
         if optimization_comparison_agent is None:
             from backend.agents.chat.optimization_comparison_agent import OptimizationComparisonAgent
             self.optimization_comparison_agent = OptimizationComparisonAgent()
         else:
             self.optimization_comparison_agent = optimization_comparison_agent
-            
+
         if knowledge_retrieval_agent is None:
             from backend.agents.chat.knowledge_retrieval_agent import KnowledgeRetrievalAgent
             self.knowledge_retrieval_agent = KnowledgeRetrievalAgent()
         else:
             self.knowledge_retrieval_agent = knowledge_retrieval_agent
-            
+
         if page_operator_agent is None:
             from backend.agents.chat.page_operator_agent import PageOperatorAgent
             self.page_operator_agent = PageOperatorAgent()
         else:
             self.page_operator_agent = page_operator_agent
-            
+
+        if trading_advisor_agent is None:
+            from backend.agents.chat.trading_advisor_agent import TradingAdvisorAgent
+            self.trading_advisor_agent = TradingAdvisorAgent()
+        else:
+            self.trading_advisor_agent = trading_advisor_agent
+
+        if market_regime_agent is None:
+            from backend.agents.chat.market_regime_agent import MarketRegimeAgent
+            self.market_regime_agent = MarketRegimeAgent()
+        else:
+            self.market_regime_agent = market_regime_agent
+
+        if strategy_code_review_agent is None:
+            from backend.agents.chat.strategy_code_review_agent import StrategyCodeReviewAgent
+            self.strategy_code_review_agent = StrategyCodeReviewAgent()
+        else:
+            self.strategy_code_review_agent = strategy_code_review_agent
+
         if final_responder_agent is None:
             from backend.agents.chat.final_responder_agent import FinalResponderAgent
             self.final_responder_agent = FinalResponderAgent()
@@ -80,7 +104,18 @@ class AgentConsultationService:
             return []
 
         artifacts: list[SpecialistAgentArtifact] = []
-        if plan.task_class == "diagnostic":
+        if plan.task_class == "strategy_creation":
+            # Strategy creation is owned by backend.agents.strategy_creator_agent.StrategyCreatorAgent.
+            # This service only adds supplemental review if a rendered script is present.
+            review = self.strategy_code_review_agent.analyze(
+                task_class=plan.task_class,
+                tool_results=tool_results,
+                page_context=page_context,
+                tool_context=tool_context,
+            )
+            if review is not None:
+                artifacts.append(review)
+        elif plan.task_class == "diagnostic":
             artifact = self.backtest_explainer_agent.analyze(
                 task_class=plan.task_class,
                 tool_results=tool_results,
@@ -136,10 +171,10 @@ class AgentConsultationService:
             if artifact is not None:
                 artifacts.append(artifact)
         elif plan.task_class == "page_operation":
-            # This task passes user prompt specifically if needed, 
+            # This task passes user prompt specifically if needed,
             # but AgentConsultationService currently doesn't receive `user_prompt` in `consult`.
             # Wait, `consult` method does not have `user_prompt`. Let's just pass `page_context`.
-            # The agent signature requires `user_prompt`. We must modify `consult` signature or 
+            # The agent signature requires `user_prompt`. We must modify `consult` signature or
             # `PageOperatorAgent` signature or pass `user_prompt` down.
             # I will pass `user_prompt=plan.user_goal` to the agent.
             artifact = self.page_operator_agent.analyze(
@@ -151,6 +186,29 @@ class AgentConsultationService:
             )
             if artifact is not None:
                 artifacts.append(artifact)
+
+        # Market regime analysis for relevant tasks
+        if plan.task_class in {"diagnostic", "recommendation", "risk_explanation", "performance_summary"}:
+            regime = self.market_regime_agent.analyze(
+                task_class=plan.task_class,
+                tool_results=tool_results,
+                page_context=page_context,
+                tool_context=tool_context,
+            )
+            if regime is not None:
+                artifacts.append(regime)
+
+        # General strategic advice fallback for appropriate task classes
+        if plan.task_class in {"recommendation", "performance_summary"} and not artifacts:
+            artifact = self.trading_advisor_agent.analyze(
+                task_class=plan.task_class,
+                tool_results=tool_results,
+                page_context=page_context,
+                tool_context=tool_context,
+            )
+            if artifact is not None:
+                artifacts.append(artifact)
+
         return artifacts
 
     def compose_final_response(

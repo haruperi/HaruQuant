@@ -115,7 +115,7 @@ function StatItem({ label, value, colorCode = false, isPercentage = false, isCur
   )
 }
 
-export function TradeStatsSidebar({ trade, onBack }: TradeStatsSidebarProps) {
+export function TradeStatsSidebar({ trade }: TradeStatsSidebarProps) {
   return (
     <div className="flex h-full flex-col">
       <Tabs defaultValue="overview" className="flex h-full flex-col">

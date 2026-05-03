@@ -36,12 +36,18 @@ type DisplayMode = "dollar" | "percent" | "r_multiple"
 type TimeUnit = "minutes" | "hours" | "days"
 
 interface Trade {
-    profit_loss: number
-    commission: number
-    swap: number
-    open_time: string
-    close_time: string
-    [key: string]: any
+    profit_loss?: number | string | null
+    commission?: number | string | null
+    swap?: number | string | null
+    open_time?: string | null
+    close_time?: string | null
+    entry_time?: string | null
+    exit_time?: string | null
+    net_profit?: number | string | null
+    pnl?: number | string | null
+    profit_percent?: number | string | null
+    r_multiple?: number | string | null
+    [key: string]: unknown
 }
 
 function formatCurrency(value: number) {
@@ -67,10 +73,17 @@ function formatDuration(value: number, unit: TimeUnit) {
     return `${value.toFixed(2)}`
 }
 
-const safelyParseFloat = (value: any): number => {
+const safelyParseFloat = (value: string | number | null | undefined): number => {
     if (value === undefined || value === null || value === "") return 0
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0
     const parsed = parseFloat(value)
     return isNaN(parsed) ? 0 : parsed
+}
+
+const safeTimestamp = (value: string | null | undefined): number => {
+    if (!value) return 0
+    const parsed = new Date(value).getTime()
+    return Number.isFinite(parsed) ? parsed : 0
 }
 
 export default function HoldingTimePage() {
@@ -139,8 +152,8 @@ export default function HoldingTimePage() {
         }
 
         // Duration
-        const open = new Date(trade.open_time).getTime()
-        const close = new Date(trade.close_time).getTime()
+        const open = safeTimestamp(trade.open_time ?? trade.entry_time)
+        const close = safeTimestamp(trade.close_time ?? trade.exit_time)
         let durationMs = close - open
         if (durationMs < 0) durationMs = 0 // Should not happen but safety first
 
@@ -359,7 +372,7 @@ export default function HoldingTimePage() {
               />
               <ReferenceLine y={0} stroke="#64748b" />
               <Scatter name="Trades" data={chartData} fill="#8884d8">
-                  {chartData.map((entry: any, index: number) => (
+                  {chartData.map((entry, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.y > 0 ? '#22c55e' : '#ef4444'} />
                   ))}
               </Scatter>

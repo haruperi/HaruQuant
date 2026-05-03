@@ -23,6 +23,26 @@ interface EditorLayoutProps {
     strategyId: string
 }
 
+interface StrategyEditorMetadata {
+    name: string
+    description: string
+    status: "inactive" | "active" | "testing"
+    category: string
+    parameters: Record<string, unknown>
+    parameterTypes: Record<string, string>
+    symbol: string
+    timeframe: string
+    type: string
+    moneyManagement: Record<string, unknown>
+    variables: Record<string, unknown>
+    variableTypes: Record<string, string>
+}
+
+const defaultMoneyManagement = {
+    method: "Fixed lot size",
+    positionSize: 0.1,
+}
+
 export function EditorLayout({ strategyId }: EditorLayoutProps) {
     const router = useRouter()
     const strategyIdNum = parseInt(strategyId)
@@ -30,42 +50,36 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
     const { updateStrategy, updating } = useStrategyMutations()
 
     const [code, setCode] = React.useState("")
-    const [metadata, setMetadata] = React.useState({
+    const [metadata, setMetadata] = React.useState<StrategyEditorMetadata>({
         name: "",
         description: "",
         status: "inactive" as "inactive" | "active" | "testing",
         category: "",
-        parameters: {} as Record<string, any>,
+        parameters: {},
         parameterTypes: {} as Record<string, string>,
         symbol: "",
         timeframe: "H1",
         type: "MetaTrader5 (hedged)",
-        moneyManagement: {
-            method: "Fixed lot size",
-            positionSize: 0.1
-        },
-        variables: {} as Record<string, any>,
+        moneyManagement: defaultMoneyManagement,
+        variables: {},
         variableTypes: {} as Record<string, string>
     })
     const [hasChanges, setHasChanges] = React.useState(false)
 
     // Store original values for comparison
     const [originalCode, setOriginalCode] = React.useState("")
-    const [originalMetadata, setOriginalMetadata] = React.useState({
+    const [originalMetadata, setOriginalMetadata] = React.useState<StrategyEditorMetadata>({
         name: "",
         description: "",
         status: "inactive" as "inactive" | "active" | "testing",
         category: "",
-        parameters: {} as Record<string, any>,
+        parameters: {},
         parameterTypes: {} as Record<string, string>,
         symbol: "",
         timeframe: "H1",
         type: "MetaTrader5 (hedged)",
-        moneyManagement: {
-            method: "Fixed lot size",
-            positionSize: 0.1
-        },
-        variables: {} as Record<string, any>,
+        moneyManagement: defaultMoneyManagement,
+        variables: {},
         variableTypes: {} as Record<string, string>
     })
 
@@ -87,10 +101,7 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
                 symbol: strategyCode?.symbol || "EURUSD",
                 timeframe: strategyCode?.timeframe || "H1",
                 type: strategyCode?.type || "MetaTrader5 (hedged)",
-                moneyManagement: strategyCode?.moneyManagement || {
-                    method: "Fixed lot size",
-                    positionSize: 0.1
-                },
+                moneyManagement: strategyCode?.moneyManagement || defaultMoneyManagement,
                 variables: strategyCode?.variables || {},
                 variableTypes: strategyCode?.variableTypes || {}
             }
@@ -157,8 +168,8 @@ export function EditorLayout({ strategyId }: EditorLayoutProps) {
 
             // Reset the hasChanges flag
             setHasChanges(false)
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to save strategy")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to save strategy")
             console.error("Save error:", error)
         }
     }

@@ -57,16 +57,16 @@ type DateSetting = "entry" | "exit"
 type Period = "weekday" | "month" | "week" | "hour" | "30min" | "15min" | "5min" | "year"
 
 interface Trade {
-    open_time: string
-    close_time: string
-    profit_loss: number
-    commission: number
-    swap: number
-    r_multiple?: number
-    profit_percent?: number
-    net_profit?: number
-    pnl?: number
-    [key: string]: any
+    open_time?: string | null
+    close_time?: string | null
+    profit_loss?: number | string | null
+    commission?: number | string | null
+    swap?: number | string | null
+    r_multiple?: number | string | null
+    profit_percent?: number | string | null
+    net_profit?: number | string | null
+    pnl?: number | string | null
+    [key: string]: unknown
 }
 
 interface TimeStats {
@@ -100,8 +100,9 @@ function formatR(value: number) {
     return `${value.toFixed(2)}R`
 }
 
-const safelyParseFloat = (value: any): number => {
+const safelyParseFloat = (value: string | number | null | undefined): number => {
     if (value === undefined || value === null || value === "") return 0
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0
     const parsed = parseFloat(value)
     return isNaN(parsed) ? 0 : parsed
 }
@@ -153,7 +154,7 @@ export default function PerformanceByTimePage() {
     const grouped: Record<string, Trade[]> = {}
 
     // Initialize groups for fixed periods to ensure 0-value entries
-    let fixedKeys: { name: string, sortKey: number | string }[] = []
+    const fixedKeys: { name: string, sortKey: number | string }[] = []
 
     if (period === 'weekday') {
         const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -191,7 +192,12 @@ export default function PerformanceByTimePage() {
         }
     } else if (period === 'year') {
         // Find min and max year from trades to create range
-        const years = trades.map(t => new Date(dateSetting === 'entry' ? t.open_time : t.close_time).getFullYear()).filter(y => !isNaN(y))
+        const years = trades
+            .map((t) => {
+                const dateStr = dateSetting === 'entry' ? t.open_time : t.close_time
+                return dateStr ? new Date(dateStr).getFullYear() : NaN
+            })
+            .filter(y => !isNaN(y))
         if (years.length > 0) {
             const minYear = Math.min(...years)
             const maxYear = Math.max(...years)
@@ -203,7 +209,7 @@ export default function PerformanceByTimePage() {
     }
 
     trades.forEach(trade => {
-        let dateStr = dateSetting === 'entry' ? trade.open_time : trade.close_time
+        const dateStr = dateSetting === 'entry' ? trade.open_time : trade.close_time
         // Handle potential different timestamp formats if needed, assuming ISO string standard
         if (!dateStr) return
 

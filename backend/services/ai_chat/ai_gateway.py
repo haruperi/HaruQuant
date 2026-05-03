@@ -54,6 +54,7 @@ class ChatStreamRequest:
     context_symbol: str | None = None
     context_timeframe: str | None = None
     context_dom: dict[str, object] | None = None
+    context_page_intelligence: dict[str, object] | None = None
     attached_tools: list[str] | None = None
 
 
@@ -122,6 +123,7 @@ class AIGatewayService:
                     "symbol": request.context_symbol,
                     "timeframe": request.context_timeframe,
                     "dom": request.context_dom,
+                    "page_intelligence": request.context_page_intelligence,
                 },
             )
             if isinstance(request.context_dom, dict):
@@ -148,6 +150,10 @@ class AIGatewayService:
                 state=conversation_state,
             )
             tool_context["strategy_creator_recent_messages"] = [
+                {"role": message.role, "content": message.content}
+                for message in thread.messages[-8:]
+            ]
+            tool_context["recent_messages"] = [
                 {"role": message.role, "content": message.content}
                 for message in thread.messages[-8:]
             ]
@@ -341,26 +347,6 @@ class AIGatewayService:
             cumulative_workflow_cost = self.cost_enforcer.get_current_cost(request.thread_id)
             within_workflow_budget = self.cost_enforcer.check_workflow_budget(cumulative_workflow_cost)
 
-            self.conversation_service.add_message(
-                user_id=request.user_id,
-                thread_id=request.thread_id,
-                role="assistant",
-                content=gen_result.text,
-                request_id=request_id,
-                context_revision=page_context.payload.context_revision,
-                tool_calls=[result.tool_name for result in tool_results if result.success],
-                signal_proposal_id=signal_proposal.proposal_id if signal_proposal is not None else None,
-                action_draft_id=action_draft.draft_id if action_draft is not None else None,
-                prompt_tokens=gen_result.prompt_tokens,
-                completion_tokens=gen_result.completion_tokens,
-                total_tokens=gen_result.total_tokens,
-                cost=cost,
-                latency_ms=latency_ms,
-            )
-            refreshed_thread = self.conversation_service.get_thread(
-                user_id=request.user_id,
-                thread_id=request.thread_id,
-            )
             metadata = {
                 "request_id": request_id,
                 "thread_id": request.thread_id,
@@ -431,6 +417,36 @@ class AIGatewayService:
                     metadata["response_style"] = "clarification"
                 if strategy_creator_result.materialized and strategy_creator_result.strategy is not None:
                     metadata["strategy_id"] = strategy_creator_result.strategy.get("id")
+
+            # Extract strategy_artifact from specialist agents (new LLM path)
+            for artifact in specialist_artifacts:
+                if artifact.agent_name == "strategy_creator_agent" and artifact.strategy_artifact:
+                    if "strategy_creator" not in metadata:
+                        metadata["strategy_creator"] = {}
+                    metadata["strategy_creator"]["artifact"] = artifact.strategy_artifact
+                    metadata["strategy_creator"]["blueprint"] = artifact.strategy_artifact.get("blueprint") # For consistency
+
+            self.conversation_service.add_message(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+                role="assistant",
+                content=gen_result.text,
+                request_id=request_id,
+                context_revision=page_context.payload.context_revision,
+                tool_calls=[result.tool_name for result in tool_results if result.success],
+                signal_proposal_id=signal_proposal.proposal_id if signal_proposal is not None else None,
+                action_draft_id=action_draft.draft_id if action_draft is not None else None,
+                prompt_tokens=gen_result.prompt_tokens,
+                completion_tokens=gen_result.completion_tokens,
+                total_tokens=gen_result.total_tokens,
+                cost=cost,
+                latency_ms=latency_ms,
+                metadata=metadata,
+            )
+            refreshed_thread = self.conversation_service.get_thread(
+                user_id=request.user_id,
+                thread_id=request.thread_id,
+            )
             if request.include_debug:
                 metadata["debug"] = {
                     "router_rationale": plan.rationale,
@@ -440,7 +456,7 @@ class AIGatewayService:
                     "page_chunks": [chunk.__dict__ for chunk in page_chunks],
                     "prompt": built_prompt.debug,
                 }
-            
+
             # Wrap chunks to release slot on completion
             def chunk_generator():
                 try:

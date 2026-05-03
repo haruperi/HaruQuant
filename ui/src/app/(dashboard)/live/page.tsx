@@ -48,10 +48,10 @@ export default function LivePage() {
     ], []),
     useMemo(() => ({
       "live_trading.change_symbol": (params) => {
-        if (params.symbol) setSelectedSymbol(params.symbol.toUpperCase())
+        if (typeof params.symbol === "string") setSelectedSymbol(params.symbol.toUpperCase())
       },
       "live_trading.change_timeframe": (params) => {
-        if (params.timeframe) setSelectedTimeframe(params.timeframe.toUpperCase())
+        if (typeof params.timeframe === "string") setSelectedTimeframe(params.timeframe.toUpperCase())
       }
     }), [])
   )

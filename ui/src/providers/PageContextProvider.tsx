@@ -9,6 +9,8 @@ import type {
   AiChatPageContextRegistration,
   AiChatDomTableSnapshot,
   AiChatSemanticBlock,
+  AiChatPageIntelligence,
+  AiChatDomActionableElementSnapshot,
 } from "@/lib/ai-chat/contracts"
 import { mergePageIntelligence, pageIntelligenceToSemanticBlocks } from "@/lib/ai-chat/page-intelligence"
 import { useAuth } from "@/lib/auth-context"
@@ -20,6 +22,7 @@ const DOM_TABLE_LIMIT = 2
 const DOM_TABLE_ROW_LIMIT = 8
 const DOM_TABLE_COL_LIMIT = 6
 const DOM_SEMANTIC_BLOCK_LIMIT = 24
+const DOM_ACTIONABLE_ELEMENT_LIMIT = 80
 
 type RegisteredStateMap = Record<string, AiChatPageContextRegistration>
 
@@ -27,15 +30,77 @@ interface PageContextValue {
   pageContext: AiChatPageContextPayload | null
   isLoading: boolean
   error: string | null
-  registerPageContext: (id: string, registration: AiChatPageContextRegistration, callbacks?: Record<string, (params: any) => void | Promise<void>>) => void
+  registerPageContext: (id: string, registration: AiChatPageContextRegistration, callbacks?: Record<string, (params: Record<string, unknown>) => void | Promise<void>>) => void
   unregisterPageContext: (id: string) => void
-  executeAction: (actionId: string, params: any) => Promise<boolean>
+  executeAction: (actionId: string, params: Record<string, unknown>) => Promise<boolean>
 }
 
 const PageContextContext = React.createContext<PageContextValue | null>(null)
 
 function normalizeText(value: string | null | undefined) {
   return (value || "").replace(/\s+/g, " ").trim()
+}
+
+function isElementVisible(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false
+  }
+  if (element.hidden || element.getAttribute("aria-hidden") === "true") {
+    return false
+  }
+  const style = window.getComputedStyle(element)
+  if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+    return false
+  }
+  const rect = element.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+}
+
+function actionableLabel(element: HTMLElement): string {
+  return normalizeText(
+    element.getAttribute("aria-label")
+    || element.getAttribute("title")
+    || element.textContent
+    || element.getAttribute("href")
+    || "",
+  )
+}
+
+function buildActionableElements(root: Element): AiChatDomActionableElementSnapshot[] {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  const candidates = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      [
+        "button",
+        "a[href]",
+        "[role='button']",
+        "[role='menuitem']",
+        "[role='tab']",
+        "input[type='button']",
+        "input[type='submit']",
+      ].join(","),
+    ),
+  )
+    .filter((element) => isElementVisible(element))
+    .filter((element) => !element.hasAttribute("disabled") && element.getAttribute("aria-disabled") !== "true")
+    .map((element, index) => {
+      const selector = `ai-chat-actionable-${index}`
+      element.setAttribute("data-ai-chat-actionable", selector)
+      const tagName = element.tagName.toLowerCase()
+      return {
+        selector: `[data-ai-chat-actionable="${selector}"]`,
+        label: actionableLabel(element),
+        role: element.getAttribute("role") || (tagName === "a" ? "link" : tagName === "button" ? "button" : "control"),
+        tagName,
+        index,
+      }
+    })
+    .filter((item) => item.label.length > 0)
+
+  return candidates.slice(0, DOM_ACTIONABLE_ELEMENT_LIMIT)
 }
 
 function parseSemanticBlocks(root: Element, tables: AiChatDomTableSnapshot[], headings: string[], textExcerpt: string | null): AiChatSemanticBlock[] {
@@ -97,10 +162,11 @@ function parseSemanticBlocks(root: Element, tables: AiChatDomTableSnapshot[], he
 
 function buildDomSnapshot(): AiChatDomSnapshot {
   if (typeof document === "undefined") {
-    return { title: null, headings: [], textExcerpt: null, tables: [], semanticBlocks: [] }
+    return { title: null, headings: [], textExcerpt: null, tables: [], actionableElements: [], semanticBlocks: [] }
   }
 
   const root = document.querySelector("main") ?? document.body
+  const actionableElements = buildActionableElements(root)
   const headingNodes = Array.from(root.querySelectorAll("h1, h2, h3"))
   const headings = headingNodes
     .map((node) => normalizeText(node.textContent))
@@ -141,6 +207,7 @@ function buildDomSnapshot(): AiChatDomSnapshot {
     headings,
     textExcerpt,
     tables,
+    actionableElements,
     semanticBlocks,
   }
 }
@@ -211,10 +278,10 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [registrations, setRegistrations] = React.useState<RegisteredStateMap>({})
-  const [actionCallbacks, setActionCallbacks] = React.useState<Record<string, Record<string, (params: any) => void | Promise<void>>>>({})
+  const [actionCallbacks, setActionCallbacks] = React.useState<Record<string, Record<string, (params: Record<string, unknown>) => void | Promise<void>>>>({})
   const [domVersion, setDomVersion] = React.useState(0)
 
-  const registerPageContext = React.useCallback((id: string, registration: AiChatPageContextRegistration, callbacks?: Record<string, (params: any) => void | Promise<void>>) => {
+  const registerPageContext = React.useCallback((id: string, registration: AiChatPageContextRegistration, callbacks?: Record<string, (params: Record<string, unknown>) => void | Promise<void>>) => {
     setRegistrations((current) => {
       const next = { ...current, [id]: registration }
       return next
@@ -241,7 +308,7 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
     })
   }, [])
 
-  const executeAction = React.useCallback(async (actionId: string, params: any) => {
+  const executeAction = React.useCallback(async (actionId: string, params: Record<string, unknown>) => {
     for (const callbacks of Object.values(actionCallbacks)) {
       if (actionId in callbacks) {
         try {
@@ -312,7 +379,34 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
       setError(null)
       try {
         const domSnapshot = buildDomSnapshot()
-        const registeredSemanticBlocks = pageIntelligenceToSemanticBlocks(mergedRegistration.pageIntelligence)
+        const baselinePageIntelligence: AiChatPageIntelligence = {
+          pageIdentity: {
+            route: pathname || "/",
+            pageType: mergedRegistration.pageTypeHint ?? null,
+            title: mergedRegistration.pageTitle ?? domSnapshot.title ?? null,
+            activeTab: mergedRegistration.activeTab ?? null,
+          },
+          primaryEntity: mergedRegistration.entityRefs?.[0] ?? null,
+          selectedEntities: mergedRegistration.entityRefs ?? [],
+          visibleTables: (domSnapshot.tables ?? []).map((table, index) => ({
+            id: `dom_table_${index + 1}`,
+            title: table.headers.length > 0 ? `Visible table ${index + 1}` : "Visible table",
+            headers: table.headers,
+            rows: table.rows,
+            source: "dom_snapshot",
+          })),
+          filters: mergedRegistration.filters ?? {},
+          freshness: {
+            observedAt: new Date().toISOString(),
+            stalenessSeconds: 0,
+            source: "page_context_provider",
+          },
+        }
+        const pageIntelligence = mergePageIntelligence([
+          baselinePageIntelligence,
+          mergedRegistration.pageIntelligence,
+        ])
+        const registeredSemanticBlocks = pageIntelligenceToSemanticBlocks(pageIntelligence)
         const semanticBlocks = [
           ...registeredSemanticBlocks,
           ...(domSnapshot.semanticBlocks ?? []),
@@ -334,13 +428,14 @@ export function PageContextProvider({ children }: { children: React.ReactNode })
               entity_refs: mergedRegistration.entityRefs ?? [],
               filters: mergedRegistration.filters ?? {},
               extra: mergedRegistration.extra ?? {},
-              page_intelligence: mergedRegistration.pageIntelligence ?? null,
+              page_intelligence: pageIntelligence ?? null,
             },
             dom: {
               title: domSnapshot.title ?? null,
               headings: domSnapshot.headings,
               text_excerpt: domSnapshot.textExcerpt ?? null,
               tables: domSnapshot.tables ?? [],
+              actionable_elements: domSnapshot.actionableElements ?? [],
               semantic_blocks: semanticBlocks,
             },
           }),

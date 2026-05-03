@@ -76,6 +76,7 @@ export function BacktestConfigForm({ onSubmit }: BacktestConfigFormProps) {
         engineSettings: {
             initialCapital: 10000,
             commission: 7,
+            engineType: "event_driven" as "event_driven" | "vectorised",
             slippageType: "fixed" as "fixed" | "variable",
             slippage: 0,
             slippageMin: 0,

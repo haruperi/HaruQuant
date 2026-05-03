@@ -27,15 +27,15 @@ export function SelectedBacktestProvider({ children }: { children: React.ReactNo
     setSelectedBacktest(null)
   }, [])
 
+  const value = React.useMemo(() => ({
+    selectedBacktest,
+    selectBacktest,
+    isSelected,
+    clearSelection
+  }), [selectedBacktest, selectBacktest, isSelected, clearSelection])
+
   return (
-    <SelectedBacktestContext.Provider
-      value={{
-        selectedBacktest,
-        selectBacktest,
-        isSelected,
-        clearSelection
-      }}
-    >
+    <SelectedBacktestContext.Provider value={value}>
       {children}
     </SelectedBacktestContext.Provider>
   )

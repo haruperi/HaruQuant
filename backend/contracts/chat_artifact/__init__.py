@@ -1,0 +1,1 @@
+"""Chat artifact contract package."""

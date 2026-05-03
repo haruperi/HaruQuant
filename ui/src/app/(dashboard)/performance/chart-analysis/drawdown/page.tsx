@@ -33,16 +33,16 @@ import { strategyApi } from "@/lib/api/strategies"
 type DisplayMode = "dollar" | "percent" | "r_multiple"
 
 interface Trade {
-    profit_loss: number
-    commission: number
-    swap: number
-    close_time: string
-    net_profit?: number | string
-    profit?: number | string
-    pnl?: number | string
-    r_multiple?: number | string
-    commissions?: number | string
-    [key: string]: string | number | undefined
+    profit_loss?: number | string | null
+    commission?: number | string | null
+    swap?: number | string | null
+    close_time?: string | null
+    net_profit?: number | string | null
+    profit?: number | string | null
+    pnl?: number | string | null
+    r_multiple?: number | string | null
+    commissions?: number | string | null
+    [key: string]: unknown
 }
 
 function formatCurrency(value: number) {
@@ -66,6 +66,7 @@ function formatR(value: number) {
 
 const safelyParseFloat = (value: string | number | null | undefined): number => {
     if (value === undefined || value === null || value === "") return 0
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0
     const parsed = parseFloat(value)
     return isNaN(parsed) ? 0 : parsed
 }

@@ -347,7 +347,7 @@ export function TradesCalendar() {
     }).sort((a, b) => {
         const tA = a.close_time || a.exit_time || a.time || a.entry_time
         const tB = b.close_time || b.exit_time || b.time || b.entry_time
-        return new Date(tA).getTime() - new Date(tB).getTime()
+        return (tA ? new Date(tA).getTime() : 0) - (tB ? new Date(tB).getTime() : 0)
     })
 
 

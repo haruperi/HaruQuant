@@ -151,10 +151,13 @@ class ConversationPlanner:
     }
     ALLOWED_ATTACHED_TOOLS = {
         "strategy_creator",
+        "strategy_refiner",
         "backtest_analyst",
         "risk_reviewer",
         "optimization_comparator",
+        "signal_proposal_builder",
         "page_operator",
+        "haruquant_docs",
         "full_permissions",
     }
     ALLOWED_SPECIALISTS = {
@@ -223,6 +226,43 @@ class ConversationPlanner:
             if isinstance(value, str)
         )
         user_goal = self._infer_user_goal(prompt=prompt, page_context=page_context)
+
+        tool_guidance = self._missing_required_tool_guidance(normalized, attached_tool_ids)
+        if tool_guidance is not None:
+            return StructuredChatPlan(
+                user_goal=user_goal,
+                intent="summarize_or_answer",
+                response_mode=ChatResponseMode.ANSWER.value,
+                task_class="tool_requirement",
+                model_tier="standard",
+                response_style="clarification",
+                domain_focus="tool_requirement",
+                answer_mode="clarification",
+                rationale="Planner detected a request that requires an explicitly selected chat tool.",
+                needs_clarification=True,
+                clarification_question=tool_guidance,
+                missing_inputs=("required_chat_tool",),
+                risk_level="read_only",
+                confidence=0.96,
+            )
+
+        if self._confirms_pending_page_action(normalized, thread):
+            return StructuredChatPlan(
+                user_goal=user_goal,
+                intent="operate_page",
+                response_mode=ChatResponseMode.ANSWER.value,
+                task_class="page_operation",
+                model_tier="standard",
+                response_style="recommendation",
+                domain_focus="page_operation",
+                answer_mode="governed_artifact",
+                rationale="Planner selected Page Operator because the user confirmed a pending page action inference.",
+                attached_tools=tuple(dict.fromkeys((*attached_tool_ids, "page_operator"))),
+                page_actions_to_plan=("registered_page_action_plan",),
+                artifact_expected="page_action_plan",
+                risk_level="page_action_plan",
+                confidence=0.95,
+            )
 
         if self._is_strategy_creation(normalized, attached_tool_ids):
             spec = resolve_domain_prompt_spec("recommendation")
@@ -305,7 +345,15 @@ class ConversationPlanner:
 
         if "optimization_comparator" in attached_tool_ids or self._is_optimization_comparison(normalized, tool_context):
             spec = resolve_domain_prompt_spec("comparison")
-            missing = () if tool_context.get("optimization_id") is not None or page_context.payload.page_type == "optimization_detail" else ("optimization_id",)
+            missing = (
+                ()
+                if (
+                    tool_context.get("optimization_id") is not None
+                    or page_context.payload.page_type == "optimization_detail"
+                    or self._has_named_optimization_references(normalized)
+                )
+                else ("optimization_id",)
+            )
             return StructuredChatPlan(
                 user_goal=user_goal,
                 intent="compare_optimization",
@@ -587,8 +635,181 @@ class ConversationPlanner:
     def _is_page_operation(normalized: str, attached_tool_ids: tuple[str, ...]) -> bool:
         return "page_operator" in attached_tool_ids or any(
             phrase in normalized
-            for phrase in ("click", "open tab", "change filter", "select row", "export this report", "download this", "change symbol", "switch symbol", "change timeframe", "switch timeframe")
+            for phrase in (
+                "click",
+                "open tab",
+                "show me",
+                "go to",
+                "navigate",
+                "switch to",
+                "change filter",
+                "select ",
+                "select row",
+                "select the",
+                "select first",
+                "select backtest",
+                "export this report",
+                "download this",
+                "change symbol",
+                "switch symbol",
+                "change timeframe",
+                "switch timeframe",
+                "trades calendar",
+                "monte carlo",
+                "walk forward",
+            )
         )
+
+    @staticmethod
+    def _missing_required_tool_guidance(normalized: str, attached_tool_ids: tuple[str, ...]) -> str | None:
+        if "page_operator" not in attached_tool_ids and ConversationPlanner._looks_like_page_operation_request(normalized):
+            return (
+                "This request needs the Page Operator tool selected. "
+                "Attach Page Operator from the Tools menu, then resend the page action. "
+                "Page Operator is required for real UI actions like navigation, clicking, selecting rows, tabs, or visible controls."
+            )
+        wants_strategy_artifact = ConversationPlanner._mentions_strategy_creation(normalized)
+        wants_strategy_write = wants_strategy_artifact and any(
+            phrase in normalized
+            for phrase in (
+                "save",
+                "persist",
+                "register",
+                "materialize",
+                "write file",
+                "create file",
+                "actual strategy",
+                "from a to z",
+                "implementation",
+            )
+        )
+        if wants_strategy_write and "full_permissions" not in attached_tool_ids:
+            missing = ["Full Permissions"]
+            if "strategy_creator" not in attached_tool_ids:
+                missing.insert(0, "Strategy Creator")
+            return (
+                f"This request needs the {' and '.join(missing)} tool"
+                f"{'s' if len(missing) > 1 else ''} selected. "
+                "Attach them from the Tools menu, then resend the request. "
+                "Without Full Permissions I can only draft/review artifacts, not save files or register strategies."
+            )
+        if wants_strategy_artifact and "strategy_creator" not in attached_tool_ids:
+            return (
+                "This request needs the Strategy Creator tool selected. "
+                "Attach Strategy Creator from the Tools menu, then resend the strategy idea. "
+                "Add Full Permissions as well only if you want me to save/register the generated strategy."
+            )
+        if ConversationPlanner._mentions_signal_proposal(normalized) and "signal_proposal_builder" not in attached_tool_ids:
+            return (
+                "This request needs the Signal Proposal Builder tool selected. "
+                "Attach Signal Proposal Builder from the Tools menu so I can produce a structured, non-executed trade setup."
+            )
+        if ConversationPlanner._mentions_optimization_comparison(normalized) and "optimization_comparator" not in attached_tool_ids:
+            return (
+                "This request needs the Optimization Comparator tool selected. "
+                "Attach Optimization Comparator from the Tools menu and make sure an optimization run is selected or named."
+            )
+        if ConversationPlanner._mentions_risk_review(normalized) and "risk_reviewer" not in attached_tool_ids:
+            return (
+                "This request needs the Risk Reviewer tool selected. "
+                "Attach Risk Reviewer from the Tools menu so I can focus on exposure, concentration, open risk, and session state."
+            )
+        if ConversationPlanner._mentions_docs(normalized) and "haruquant_docs" not in attached_tool_ids:
+            return (
+                "This request needs the HaruQuant Docs tool selected. "
+                "Attach HaruQuant Docs from the Tools menu so I can answer from internal documentation with provenance."
+            )
+        return None
+
+    @staticmethod
+    def _mentions_strategy_creation(normalized: str) -> bool:
+        strategy_terms = ("strategy", "strategy.py", "trading system")
+        creation_terms = ("create", "build", "generate", "implement", "write")
+        if any(strategy in normalized for strategy in strategy_terms) and any(term in normalized for term in creation_terms):
+            return True
+        return any(
+            phrase in normalized
+            for phrase in (
+                "create strategy",
+                "create a strategy",
+                "build strategy",
+                "build a strategy",
+                "generate strategy",
+                "generate a strategy",
+                "strategy creator",
+                "strategy artifact",
+                "strategy.py",
+            )
+        )
+
+    @staticmethod
+    def _mentions_signal_proposal(normalized: str) -> bool:
+        return any(phrase in normalized for phrase in ("signal proposal", "trade setup proposal", "setup proposal"))
+
+    @staticmethod
+    def _mentions_optimization_comparison(normalized: str) -> bool:
+        return any(phrase in normalized for phrase in ("compare optimization", "optimization comparator", "rank candidates"))
+
+    @staticmethod
+    def _mentions_risk_review(normalized: str) -> bool:
+        return any(phrase in normalized for phrase in ("risk review", "review risk", "risk reviewer", "portfolio risk"))
+
+    @staticmethod
+    def _mentions_docs(normalized: str) -> bool:
+        return any(phrase in normalized for phrase in ("haruquant docs", "internal docs", "internal documentation"))
+
+    @staticmethod
+    def _looks_like_page_operation_request(normalized: str) -> bool:
+        return any(
+            phrase in normalized
+            for phrase in (
+                "click",
+                "open tab",
+                "show me",
+                "go to",
+                "navigate",
+                "switch to",
+                "change filter",
+                "select ",
+                "select row",
+                "select the",
+                "select first",
+                "export this report",
+                "download this",
+                "change symbol",
+                "switch symbol",
+                "change timeframe",
+                "switch timeframe",
+                "trades calendar",
+                "monte carlo",
+                "walk forward",
+            )
+        )
+
+    @staticmethod
+    def _confirms_pending_page_action(normalized: str, thread: ConversationThreadRecord) -> bool:
+        confirmations = {
+            "yes",
+            "y",
+            "confirm",
+            "confirmed",
+            "correct",
+            "that's right",
+            "that is right",
+            "do it",
+            "proceed",
+            "go ahead",
+        }
+        if normalized.strip() not in confirmations:
+            return False
+        recent_messages = list(getattr(thread, "messages", []) or [])[-4:]
+        for message in reversed(recent_messages):
+            if str(getattr(message, "role", "")) != "assistant":
+                continue
+            content = str(getattr(message, "content", "") or "").lower()
+            if "do you want me to" in content and "page_action_confirmation" in content:
+                return True
+        return False
 
     @staticmethod
     def _looks_like_knowledge_dialogue(normalized: str) -> bool:
@@ -619,7 +840,14 @@ class ConversationPlanner:
     @staticmethod
     def _is_optimization_comparison(normalized: str, tool_context: dict[str, object]) -> bool:
         return tool_context.get("optimization_id") is not None or any(
-            keyword in normalized for keyword in ("compare optimization", "best candidate", "rank candidates")
+            keyword in normalized for keyword in ("compare optimization", "optimization run", "best candidate", "rank candidates")
+        )
+
+    @staticmethod
+    def _has_named_optimization_references(normalized: str) -> bool:
+        return "optimization" in normalized and any(
+            marker in normalized
+            for marker in ("run a", "run b", "versus", " vs ", "compare")
         )
 
     @staticmethod

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 from backend.agents.strategy_creator_agent import StrategyCreatorAgent, StrategyCreatorResult
@@ -7,6 +8,8 @@ from backend.agents.runtime import LLMRuntimeError
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.ai_chat import AIGatewayService, ChatStreamRequest, ConversationService, PageContextAssembler
+from backend.services.ai_chat.artifact_service import ChatArtifactService
+from backend.services.ai_chat.page_action_planner import PageActionPlanner
 from backend.services.ai_chat.tool_attachment_registry import ChatToolAttachmentRegistry
 from backend.services.ai_chat.tool_attachment_runtime import ChatToolAttachmentRuntime
 
@@ -25,6 +28,291 @@ def test_chat_tool_registry_exposes_strategy_creator() -> None:
     assert full_permissions.display_name == "Full Permissions"
     assert full_permissions.side_effect_policy == "approval_gate"
     assert full_permissions.required_user_ack is True
+    assert {"strategy_refiner", "signal_proposal_builder", "haruquant_docs"}.issubset(
+        {definition.tool_id for definition in definitions}
+    )
+
+
+def test_chat_tool_and_artifact_contract_files_exist() -> None:
+    assert Path("backend/contracts/chat_tool_attachment/schema.json").exists()
+    assert Path("backend/contracts/chat_artifact/schema.json").exists()
+
+
+def test_chat_artifact_service_validates_artifact_shape() -> None:
+    artifact = ChatArtifactService().build_artifact(
+        artifact_type="strategy_refinement",
+        payload={"summary": "Tighten entry threshold."},
+        tool_id="strategy_refiner",
+        status="validated",
+    )
+    assert artifact.validation.valid is True
+    assert artifact.to_dict()["artifact_type"] == "strategy_refinement"
+
+
+def test_page_action_planner_matches_registered_action() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="Show me the trades calendar for this backtest.",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "navigate_performance_page",
+                "label": "Navigate Performance Page",
+                "description": "Switch between performance views.",
+                "riskLevel": "view_only",
+                "parameters": [{"name": "path", "type": "string", "description": "target path", "required": True}],
+            }
+        ],
+    )
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "navigate_performance_page"
+    assert result.action_plan["parameters"] == {"path": "trades-calender"}
+    assert result.audit_event["status"] == "planned"
+
+
+def test_page_action_planner_infers_global_navigation_route() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="Go to simulation page",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "navigate_app_page",
+                "label": "Navigate App Page",
+                "description": "Navigate to a top-level app page.",
+                "riskLevel": "view_only",
+                "parameters": [{"name": "path", "type": "string", "description": "target path", "required": True}],
+            }
+        ],
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "navigate_app_page"
+    assert result.action_plan["parameters"] == {"path": "/simulation"}
+
+
+def test_page_action_planner_tolerates_performance_typo() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="Go to perfomance page",
+        page_type="generic",
+        allowed_actions=[
+            {
+                "id": "navigate_app_page",
+                "label": "Navigate App Page",
+                "description": "Navigate to a top-level app page.",
+                "riskLevel": "view_only",
+                "parameters": [{"name": "path", "type": "string", "description": "target path", "required": True}],
+            }
+        ],
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "navigate_app_page"
+    assert result.action_plan["parameters"] == {"path": "/performance"}
+
+
+def test_page_action_planner_infers_chart_route() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="go to chart page",
+        page_type="generic",
+        allowed_actions=[
+            {
+                "id": "navigate_app_page",
+                "label": "Navigate App Page",
+                "description": "Navigate to a top-level app page.",
+                "riskLevel": "view_only",
+                "parameters": [{"name": "path", "type": "string", "description": "target path", "required": True}],
+            }
+        ],
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "navigate_app_page"
+    assert result.action_plan["parameters"] == {"path": "/chart"}
+
+
+def test_page_action_planner_accepts_explicit_absolute_route() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="the path is /simulation",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "navigate_performance_page",
+                "label": "Navigate Performance Page",
+                "description": "Navigate to a performance or app page.",
+                "riskLevel": "view_only",
+                "parameters": [{"name": "path", "type": "string", "description": "target path", "required": True}],
+            }
+        ],
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "navigate_performance_page"
+    assert result.action_plan["parameters"] == {"path": "/simulation"}
+
+
+def test_page_action_planner_selects_first_backtest_registered_action() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="select the first backtest on the list",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "backtests.select_first",
+                "label": "Select First Backtest",
+                "description": "Select the first visible backtest run.",
+                "riskLevel": "local_ui",
+                "parameters": [],
+            },
+            {
+                "id": "generic_dom_click",
+                "label": "Click Visible UI Element",
+                "description": "Click a visible low-risk element.",
+                "riskLevel": "local_ui",
+                "parameters": [{"name": "selector", "type": "string", "description": "target", "required": True}],
+            },
+        ],
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "backtests.select_first"
+    assert result.action_plan["parameters"] == {}
+
+
+def test_page_action_planner_selects_indexed_backtest_registered_action() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="select 3rd backtest",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "backtests.select_first",
+                "label": "Select First Backtest",
+                "description": "Select the first visible backtest run.",
+                "riskLevel": "local_ui",
+                "parameters": [],
+            },
+            {
+                "id": "backtests.select_by_index",
+                "label": "Select Backtest By Index",
+                "description": "Select a visible backtest run by ordinal position.",
+                "riskLevel": "local_ui",
+                "parameters": [{"name": "index", "type": "number", "required": True}],
+            },
+        ],
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "backtests.select_by_index"
+    assert result.action_plan["parameters"] == {"index": 3}
+
+
+def test_page_action_planner_does_not_map_strategy_selection_to_backtest_selection() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="select first strategy",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "backtests.select_first",
+                "label": "Select First Backtest",
+                "description": "Select the first visible backtest run.",
+                "riskLevel": "local_ui",
+                "parameters": [],
+            }
+        ],
+    )
+
+    assert result.action_plan is None
+
+
+def test_page_action_planner_uses_generic_dom_click_for_low_risk_visible_control() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="open the strategy analysis tab",
+        page_type="backtest_detail",
+        allowed_actions=[
+            {
+                "id": "generic_dom_click",
+                "label": "Click Visible UI Element",
+                "description": "Click a visible low-risk element.",
+                "riskLevel": "local_ui",
+                "parameters": [{"name": "selector", "type": "string", "description": "target", "required": True}],
+            }
+        ],
+        dom_snapshot={
+            "actionable_elements": [
+                {
+                    "selector": "[data-ai-chat-actionable=\"ai-chat-actionable-0\"]",
+                    "label": "Strategy Analysis",
+                    "role": "link",
+                    "tagName": "a",
+                    "index": 0,
+                }
+            ]
+        },
+    )
+
+    assert result.action_plan is not None
+    assert result.action_plan["action_id"] == "generic_dom_click"
+    assert result.action_plan["parameters"]["selector"] == "[data-ai-chat-actionable=\"ai-chat-actionable-0\"]"
+
+
+def test_page_action_planner_refuses_generic_dom_click_for_destructive_request() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="delete the first strategy",
+        page_type="strategy_detail",
+        allowed_actions=[
+            {
+                "id": "generic_dom_click",
+                "label": "Click Visible UI Element",
+                "description": "Click a visible low-risk element.",
+                "riskLevel": "local_ui",
+                "parameters": [{"name": "selector", "type": "string", "description": "target", "required": True}],
+            }
+        ],
+        dom_snapshot={
+            "actionable_elements": [
+                {
+                    "selector": "[data-ai-chat-actionable=\"ai-chat-actionable-0\"]",
+                    "label": "Delete Strategy",
+                    "role": "button",
+                    "tagName": "button",
+                    "index": 0,
+                }
+            ]
+        },
+    )
+
+    assert result.action_plan is None
+    assert "destructive/trading action" in result.summary
+    assert "registered in the common workflow actions" in result.summary
+    assert result.recommendation.startswith("Register this action")
+
+
+def test_page_action_planner_refuses_generic_dom_click_for_trading_request_with_registration_note() -> None:
+    result = PageActionPlanner().plan(
+        user_prompt="click buy on the live order panel",
+        page_type="live_trading",
+        allowed_actions=[
+            {
+                "id": "generic_dom_click",
+                "label": "Click Visible UI Element",
+                "description": "Click a visible low-risk element.",
+                "riskLevel": "local_ui",
+                "parameters": [{"name": "selector", "type": "string", "description": "target", "required": True}],
+            }
+        ],
+        dom_snapshot={
+            "actionable_elements": [
+                {
+                    "selector": "[data-ai-chat-actionable=\"ai-chat-actionable-0\"]",
+                    "label": "Buy",
+                    "role": "button",
+                    "tagName": "button",
+                    "index": 0,
+                }
+            ]
+        },
+    )
+
+    assert result.action_plan is None
+    assert "destructive/trading action" in result.summary
+    assert "registered in the common workflow actions" in result.summary
 
 
 def test_chat_tool_runtime_marks_missing_context(tmp_path) -> None:
@@ -221,3 +509,68 @@ def test_gateway_strategy_creator_generates_after_confirmation(tmp_path) -> None
     assert second_metadata["strategy_creator"]["needs_confirmation"] is False
     assert second_metadata["strategy_creator"]["materialized"] is True
     assert second_metadata["strategy_id"] == 1
+
+
+class PageActionContextAssembler(PageContextAssembler):
+    def assemble_context(self, **kwargs):
+        packet = super().assemble_context(**kwargs)
+        packet.payload.payload["page_intelligence"] = {
+            "actionAffordances": [
+                {
+                    "id": "navigate_performance_page",
+                    "label": "Navigate Performance Page",
+                    "description": "Switch between different performance analysis views.",
+                    "riskLevel": "view_only",
+                    "parameters": [
+                        {
+                            "name": "path",
+                            "type": "string",
+                            "description": "Performance sub-page path.",
+                            "required": True,
+                        }
+                    ],
+                }
+            ]
+        }
+        return packet
+
+
+def test_gateway_page_operator_produces_action_plan_from_registered_actions(tmp_path) -> None:
+    database_path = tmp_path / "tool_attachment_page_operator.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="pageoperator@example.com", username="page_operator_user", password="password")
+
+    conversation_service = ConversationService(AiChatRepository(database_path))
+    thread = conversation_service.create_thread(
+        user_id=1,
+        current_route="/performance/overview",
+        current_page_type="backtest_detail",
+    )
+    gateway = AIGatewayService(
+        conversation_service=conversation_service,
+        context_assembler=PageActionContextAssembler(db_manager=db),
+    )
+
+    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
+        metadata, chunks, _message_id = gateway.stream_response(
+            ChatStreamRequest(
+                user_id=1,
+                thread_id=thread.thread_id,
+                prompt="Show me the trades calendar for this backtest.",
+                attached_tools=["page_operator"],
+            )
+        )
+    content = "".join(chunks)
+    page_operator_artifact = next(
+        artifact
+        for artifact in metadata["specialist_artifacts"]
+        if artifact["agent_name"] == "page_operator_agent"
+    )
+
+    assert content.strip()
+    assert metadata["planner"]["intent"] == "operate_page"
+    assert metadata["planner"]["artifact_expected"] == "page_action_plan"
+    assert page_operator_artifact["action_plan"]["action_id"] == "navigate_performance_page"
+    assert page_operator_artifact["action_plan"]["parameters"] == {"path": "trades-calender"}

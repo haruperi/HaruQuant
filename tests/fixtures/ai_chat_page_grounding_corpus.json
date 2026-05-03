@@ -1,0 +1,22 @@
+[
+  {
+    "name": "grounding_on_backtest_overview",
+    "route": "/performance/overview",
+    "page_type": "backtest_detail",
+    "prompt": "Summarize the current performance.",
+    "expected_task_class": "performance_summary",
+    "expected_specialists_used": ["trading_advisor_agent"],
+    "expected_phrases": ["Performance Overview", "Net Profit"],
+    "forbidden_phrases": ["I don't see any performance data"]
+  },
+  {
+    "name": "grounding_on_live_trading",
+    "route": "/live",
+    "page_type": "live_trading",
+    "prompt": "What is my current floating PnL?",
+    "expected_task_class": "risk_explanation",
+    "expected_specialists_used": ["portfolio_risk_agent"],
+    "expected_phrases": ["FACT:", "INTERPRETATION:", "RISK:", "floating profit"],
+    "forbidden_phrases": ["No positions found"]
+  }
+]

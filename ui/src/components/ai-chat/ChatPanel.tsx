@@ -35,6 +35,7 @@ interface ChatPanelProps {
   draft: string
   availableTools: AiChatToolDefinition[]
   selectedToolIds: string[]
+  autoApprovePageActions: boolean
   threads: {
     threadId: string
     title: string
@@ -51,7 +52,8 @@ interface ChatPanelProps {
   onQueueSignalProposalForReview: (proposalId: string) => void
   onRequestActionDraftApproval: (draftId: string) => void
   onExecutePaperActionDraft: (draftId: string) => void
-  onExecutePageAction: (actionId: string, params: any) => void
+  onExecutePageAction: (actionId: string, params: Record<string, unknown>) => void | Promise<void>
+  onEnablePageActionAutoApproval: () => void
   onRegenerate: () => void
   onRenameThread: (value: string, threadId?: string) => void
   onSaveSignalProposalToWatchlist: (proposalId: string) => void
@@ -116,6 +118,7 @@ export function ChatPanel({
   draft,
   availableTools,
   selectedToolIds,
+  autoApprovePageActions,
   threads,
   messages,
   onCancel,
@@ -128,6 +131,7 @@ export function ChatPanel({
   onRequestActionDraftApproval,
   onExecutePaperActionDraft,
   onExecutePageAction,
+  onEnablePageActionAutoApproval,
   onRegenerate,
   onRenameThread,
   onSaveSignalProposalToWatchlist,
@@ -225,7 +229,7 @@ export function ChatPanel({
         onClose={onClose}
       />
       <div className="grid min-h-0 flex-1 gap-0 md:grid-cols-[16rem_minmax(0,1fr)]">
-        <div className="border-b md:border-b-0 md:border-r">
+        <div className="min-w-0 overflow-hidden flex flex-col border-b md:border-b-0 md:border-r">
           <div className="space-y-2 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -251,23 +255,23 @@ export function ChatPanel({
               </Button>
             </div>
           </div>
-          <ScrollArea className="h-40 border-t md:h-[calc(100%-5.5rem)]">
-            <div className="space-y-1 p-2">
+          <ScrollArea className="h-40 min-w-0 border-t md:h-[calc(100%-5.5rem)]">
+            <div className="min-w-0 space-y-1 p-2">
               {threads.map((thread) => (
                 <div
                   key={thread.threadId}
                   className={cn(
-                    "group relative rounded-md border",
+                    "group grid min-w-0 grid-cols-[minmax(0,1fr)_2rem] items-center overflow-hidden rounded-md border",
                     thread.threadId === threadId ? "border-primary bg-muted/40" : "hover:bg-muted/30",
                   )}
                 >
                   <button
                     type="button"
                     onClick={() => onSelectThread(thread.threadId)}
-                    className="w-full rounded-md px-3 py-2 pr-9 text-left text-sm"
+                    className="block min-w-0 overflow-hidden rounded-l-md px-3 py-2 text-left text-sm"
                   >
-                    <div className="truncate font-medium">{thread.title}</div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
+                    <div className="min-w-0 truncate font-medium">{thread.title}</div>
+                    <div className="mt-1 min-w-0 truncate text-[11px] text-muted-foreground">
                       {thread.pageType ?? "generic"} | {formatUpdatedAt(thread.updatedAt)}
                     </div>
                   </button>
@@ -279,7 +283,12 @@ export function ChatPanel({
                         size="icon"
                         aria-label={`Conversation actions for ${thread.title}`}
                         disabled={isManagingThreads || isStreaming}
-                        className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                        className={cn(
+                          "h-7 w-7 bg-background/80 transition-opacity hover:bg-muted",
+                          thread.threadId === threadId
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100"
+                        )}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
@@ -335,7 +344,9 @@ export function ChatPanel({
               onRequestActionDraftApproval={onRequestActionDraftApproval}
               onExecutePaperActionDraft={onExecutePaperActionDraft}
               onExecutePageAction={onExecutePageAction}
+              onEnablePageActionAutoApproval={onEnablePageActionAutoApproval}
               onSaveSignalProposalToWatchlist={onSaveSignalProposalToWatchlist}
+              autoApprovePageActions={autoApprovePageActions}
               showDebug={showDebug}
             />
           </div>

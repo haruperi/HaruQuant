@@ -43,7 +43,7 @@ export function WalkForwardAnalysis() {
     // Walk-forward specific
     const [trainPeriod, setTrainPeriod] = useState<number>(1000)
     const [testPeriod, setTestPeriod] = useState<number>(500)
-    const [objective, setObjective] = useState<string>("sharpe")
+    const [objective, setObjective] = useState<WalkForwardRequest["objective"]>("sharpe")
 
     // Parameters
     const [parameters, setParameters] = useState<ParameterRangeExt[]>([])
@@ -86,7 +86,10 @@ export function WalkForwardAnalysis() {
 
                 // Initialize parameter ranges with sensible defaults
                 const initialParams: ParameterRangeExt[] = paramNames.map((name, index) => {
-                    const value = strategyParams[name]
+                    const rawValue = strategyParams[name]
+                    const value = typeof rawValue === "number" && Number.isFinite(rawValue)
+                        ? rawValue
+                        : Number(rawValue) || 0
                     const isInt = Number.isInteger(value)
 
                     return {
@@ -238,7 +241,7 @@ export function WalkForwardAnalysis() {
         setParameters(parameters.filter(p => p.id !== id))
     }
 
-    const updateParameter = (id: string, field: keyof ParameterRangeExt, value: any) => {
+    const updateParameter = <K extends keyof ParameterRangeExt>(id: string, field: K, value: ParameterRangeExt[K]) => {
         setParameters(parameters.map(p =>
             p.id === id ? { ...p, [field]: value } : p
         ))
@@ -416,7 +419,7 @@ export function WalkForwardAnalysis() {
 
                         <div className="space-y-2">
                             <Label>Objective</Label>
-                            <Select value={objective} onValueChange={setObjective}>
+                            <Select value={objective} onValueChange={(value) => setObjective(value as WalkForwardRequest["objective"])}>
                                 <SelectTrigger className="h-9">
                                     <SelectValue />
                                 </SelectTrigger>

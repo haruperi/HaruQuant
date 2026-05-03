@@ -99,6 +99,23 @@ DEFAULT_CHAT_TOOLS: tuple[ChatToolDefinition, ...] = (
         response_template="strategy_artifact",
     ),
     ChatToolDefinition(
+        tool_id="strategy_refiner",
+        display_name="Strategy Refiner",
+        description="Review an existing strategy and propose safe, inspectable improvements.",
+        capability_type="strategy_refinement",
+        authority_band="read_only",
+        side_effect_policy="artifact_only",
+        artifact_type="strategy_refinement",
+        required_context=("strategy_id",),
+        allowed_backend_tools=("strategy_parameters", "internal_knowledge"),
+        allowed_specialist_agents=("strategy_code_review_agent",),
+        system_prompt_fragment=(
+            "When Strategy Refiner is attached, inspect the current strategy and produce improvement notes, "
+            "parameter adjustments, and code-diff proposals. Do not edit files unless Full Permissions is also attached."
+        ),
+        response_template="strategy_refinement",
+    ),
+    ChatToolDefinition(
         tool_id="backtest_analyst",
         display_name="Backtest Analyst",
         description="Diagnose a selected backtest using metrics, trades, equity, and drawdown evidence.",
@@ -130,6 +147,22 @@ DEFAULT_CHAT_TOOLS: tuple[ChatToolDefinition, ...] = (
         response_template="risk_review",
     ),
     ChatToolDefinition(
+        tool_id="signal_proposal_builder",
+        display_name="Signal Proposal Builder",
+        description="Create a structured, non-executed trade setup proposal for review.",
+        capability_type="signal_proposal",
+        authority_band="signal_only",
+        side_effect_policy="draft_action",
+        artifact_type="signal_proposal",
+        required_context=("symbol", "timeframe"),
+        allowed_backend_tools=("symbol_stats", "latest_candle", "risk_snapshot"),
+        system_prompt_fragment=(
+            "When Signal Proposal Builder is attached, create a non-executed signal proposal with entry logic, "
+            "exit logic, confidence, and risk note. Never claim execution and never place live trades."
+        ),
+        response_template="signal_proposal",
+    ),
+    ChatToolDefinition(
         tool_id="optimization_comparator",
         display_name="Optimization Comparator",
         description="Compare optimization candidates by score, drawdown, stability, and deployability.",
@@ -159,6 +192,21 @@ DEFAULT_CHAT_TOOLS: tuple[ChatToolDefinition, ...] = (
             "Only use registered page action affordances. Do not claim that an action has been executed."
         ),
         response_template="page_action_plan",
+    ),
+    ChatToolDefinition(
+        tool_id="haruquant_docs",
+        display_name="HaruQuant Docs",
+        description="Answer from internal HaruQuant documentation and include provenance.",
+        capability_type="knowledge_retrieval",
+        authority_band="read_only",
+        side_effect_policy="read_only",
+        allowed_backend_tools=("internal_knowledge",),
+        allowed_specialist_agents=("knowledge_retrieval_agent",),
+        system_prompt_fragment=(
+            "When HaruQuant Docs is attached, answer from internal documentation and cite the retrieved source names. "
+            "If docs are missing, say what was unavailable."
+        ),
+        response_template="doc_grounded_answer",
     ),
 )
 

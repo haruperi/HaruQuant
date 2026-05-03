@@ -17,17 +17,14 @@ interface MetadataFormProps {
         description: string
         status: "active" | "inactive" | "testing"
         category: string
-        parameters: Record<string, any>
-        parameterTypes?: Record<string, string>
+        parameters: Record<string, unknown>
+        parameterTypes: Record<string, string>
         symbol: string
         timeframe: string
         type: string
-        moneyManagement: {
-            method: string
-            positionSize: number
-        }
-        variables: Record<string, any>
-        variableTypes?: Record<string, string>
+        moneyManagement: Record<string, unknown>
+        variables: Record<string, unknown>
+        variableTypes: Record<string, string>
     }
     onChange: (metadata: MetadataFormProps["metadata"]) => void
 }
@@ -48,7 +45,7 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
         }
     }, [metadata.variableTypes])
 
-    const getEffectiveType = (value: any, key: string, overrides: Record<string, string>): string => {
+    const getEffectiveType = (value: unknown, key: string, overrides: Record<string, string>): string => {
         if (overrides[key]) return overrides[key]
 
         if (typeof value === 'boolean') return 'boolean'
@@ -59,11 +56,11 @@ export function MetadataForm({ metadata, onChange }: MetadataFormProps) {
         return 'string'
     }
 
-    const handleFieldChange = (field: keyof typeof metadata, value: any) => {
+    const handleFieldChange = (field: keyof typeof metadata, value: unknown) => {
         onChange({ ...metadata, [field]: value })
     }
 
-    const handleParameterChange = (key: string, value: any) => {
+    const handleParameterChange = (key: string, value: unknown) => {
         onChange({
             ...metadata,
             parameters: { ...metadata.parameters, [key]: value }

@@ -30,14 +30,23 @@ import {
 } from "recharts"
 
 const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-const formatCell = (value: number | null, digits = 2) => {
-  if (value === null || Number.isNaN(value)) return "-"
+const formatCell = (value: number | null | undefined, digits = 2) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-"
   return value.toFixed(digits)
 }
 
 const formatPct = (value: number | null | undefined, digits = 1) => {
   if (value === null || value === undefined || Number.isNaN(value)) return "-"
   return `${(value * 100).toFixed(digits)}%`
+}
+
+const formatDowLabel = (value: number | string | undefined) => {
+  if (typeof value === "number") return DOW_LABELS[value] ?? String(value)
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    return Number.isInteger(parsed) ? DOW_LABELS[parsed] ?? value : value
+  }
+  return "-"
 }
 
 const DataInputTable = ({
@@ -140,7 +149,7 @@ const HeatmapChart = ({
         <div />
         {table.columns.map((col) => (
           <div key={`head-${title}-${col}`} className="text-center text-muted-foreground">
-            {DOW_LABELS[col] ?? col}
+            {formatDowLabel(col)}
           </div>
         ))}
         {table.index.map((hour, rowIdx) => (
@@ -155,7 +164,7 @@ const HeatmapChart = ({
                 key={`${title}-${hour}-${colIdx}`}
                 className="flex h-7 items-center justify-center rounded text-[10px] font-medium text-white"
                 style={{ backgroundColor: scale(value) }}
-                title={`${DOW_LABELS[table.columns[colIdx] ?? colIdx] ?? colIdx} ${hour}:00 = ${
+                title={`${formatDowLabel(table.columns[colIdx] ?? colIdx)} ${hour}:00 = ${
                   percent ? `${Math.round((value ?? 0) * 100)}%` : formatCell(value, digits)
                 }`}
               >

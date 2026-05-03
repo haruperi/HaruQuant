@@ -1,0 +1,32 @@
+{
+  "test_cases": [
+    {
+      "id": "tc_001",
+      "category": "backtest_explanation",
+      "user_prompt": "Why did my strategy lose 15% in February?",
+      "expected_concepts": ["drawdown", "February", "volatility"],
+      "advice_standard": "FACT/INTERPRETATION/RISK"
+    },
+    {
+      "id": "tc_002",
+      "category": "portfolio_risk",
+      "user_prompt": "What is my current exposure to Gold?",
+      "expected_concepts": ["XAUUSD", "concentration", "margin"],
+      "advice_standard": "FACT/INTERPRETATION/RISK"
+    },
+    {
+      "id": "tc_003",
+      "category": "optimization_comparison",
+      "user_prompt": "Which of these top 3 results is actually the most robust?",
+      "expected_concepts": ["overfitting", "Sharpe", "drawdown efficiency"],
+      "advice_standard": "FACT/INTERPRETATION/RISK"
+    },
+    {
+      "id": "tc_004",
+      "category": "strategy_creation",
+      "user_prompt": "Create a mean reversion strategy using RSI and Bollinger Bands on M15.",
+      "expected_concepts": ["oversold", "upper band", "ATR"],
+      "advice_standard": "FACT/INTERPRETATION/RISK"
+    }
+  ]
+}

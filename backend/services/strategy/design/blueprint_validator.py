@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 from typing import Any
 
 from backend.contracts.strategy_blueprint.model import StrategyBlueprint
@@ -68,7 +69,11 @@ class StrategyBlueprintValidator:
         if not asset_scope.get("timeframe") and not payload_candidate.get("timeframe"):
             assumptions_applied.append("Timeframe defaulted to Daily (1D).")
             defaults_used.append("timeframe=1D")
-        if strategy_type == "technical" and "rsi" in source_text.lower():
+        if strategy_type == "technical" and "rsi" in source_text.lower() and not re.search(
+            r"\brsi\s*\(?\s*\d{1,3}\s*\)?",
+            source_text,
+            flags=re.IGNORECASE,
+        ):
             assumptions_applied.append("RSI parameter defaulted to 14 periods.")
             defaults_used.append("indicator_default=rsi_14")
         if not ignore_sl_tp:
@@ -86,12 +91,14 @@ class StrategyBlueprintValidator:
                     else "10% above entry price"
                 )
                 defaults_used.append("risk_default=10pct_take_profit")
-        if strategy_type in {"portfolio", "allocation", "rotation"}:
-            assumptions_applied.append("Portfolio position sizing defaulted to equal weight.")
-            defaults_used.append("position_sizing=equal_weight")
-        else:
-            assumptions_applied.append("Single-asset sizing defaulted to full capital.")
-            defaults_used.append("position_sizing=full_capital")
+        position_sizing_candidate = payload_candidate.get("position_sizing")
+        if not isinstance(position_sizing_candidate, dict) or not position_sizing_candidate.get("sizing_rule"):
+            if strategy_type in {"portfolio", "allocation", "rotation"}:
+                assumptions_applied.append("Portfolio position sizing defaulted to equal weight.")
+                defaults_used.append("position_sizing=equal_weight")
+            else:
+                assumptions_applied.append("Single-asset sizing defaulted to full capital.")
+                defaults_used.append("position_sizing=full_capital")
 
         model_spec = payload_candidate.get("model_spec")
         if strategy_type == "ml" and not model_spec:

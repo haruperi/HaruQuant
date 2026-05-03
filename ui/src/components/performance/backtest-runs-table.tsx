@@ -33,6 +33,7 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { SemanticSnapshotScript } from "@/components/ai-chat/SemanticSnapshotScript"
+import { useRegisterPageActions } from "@/hooks/useRegisterPageActions"
 
 export function BacktestRunsTable() {
   const { backtests, loading, error, refetch } = useAllBacktests(100, true)
@@ -44,6 +45,82 @@ export function BacktestRunsTable() {
   const [deleting, setDeleting] = React.useState(false)
   const searchParams = useSearchParams()
   const initialSelectionMade = React.useRef(false)
+
+  const handleSelect = React.useCallback((backtest: Backtest) => {
+    if (isSelected(backtest.backtest_id)) {
+      // Deselect if already selected
+      selectBacktest(null)
+      toast.info("Backtest deselected")
+    } else {
+      // Select the backtest
+      selectBacktest(backtest)
+      toast.success("Backtest selected", {
+        description: `${backtest.alias || backtest.strategy_name} is now active for analysis`,
+      })
+    }
+  }, [isSelected, selectBacktest])
+
+  useRegisterPageActions(
+    React.useMemo(() => [
+      {
+        id: "backtests.select_first",
+        label: "Select First Backtest",
+        description: "Select the first visible backtest run in the backtest list.",
+        riskLevel: "local_ui" as const,
+        parameters: [],
+      },
+      {
+        id: "backtests.select_by_index",
+        label: "Select Backtest By Index",
+        description: "Select a visible backtest run by 1-based row number from the current backtest list.",
+        riskLevel: "local_ui" as const,
+        parameters: [
+          {
+            name: "index",
+            type: "number",
+            description: "1-based row number in the visible backtest list.",
+            required: true,
+          },
+        ],
+      },
+      {
+        id: "backtests.clear_selection",
+        label: "Clear Selected Backtest",
+        description: "Clear the currently selected backtest.",
+        riskLevel: "local_ui" as const,
+        parameters: [],
+      },
+      {
+        id: "backtests.refresh",
+        label: "Refresh Backtests",
+        description: "Refresh the backtest runs table.",
+        riskLevel: "view_only" as const,
+        parameters: [],
+      },
+    ], []),
+    React.useMemo(() => ({
+      "backtests.select_first": () => {
+        const first = backtests[0]
+        if (first) {
+          handleSelect(first)
+        }
+      },
+      "backtests.select_by_index": ({ index }) => {
+        const numericIndex = typeof index === "number" ? index : Number(index)
+        const target = Number.isFinite(numericIndex) ? backtests[Math.max(0, numericIndex - 1)] : null
+        if (target) {
+          handleSelect(target)
+        }
+      },
+      "backtests.clear_selection": () => {
+        selectBacktest(null)
+        toast.info("Backtest selection cleared")
+      },
+      "backtests.refresh": () => {
+        refetch()
+      },
+    }), [backtests, handleSelect, refetch, selectBacktest])
+  )
 
   // Auto-select backtest from URL query param
   React.useEffect(() => {
@@ -60,21 +137,6 @@ export function BacktestRunsTable() {
       }
     }
   }, [backtests, searchParams, selectBacktest])
-
-
-  const handleSelect = (backtest: Backtest) => {
-    if (isSelected(backtest.backtest_id)) {
-      // Deselect if already selected
-      selectBacktest(null)
-      toast.info("Backtest deselected")
-    } else {
-      // Select the backtest
-      selectBacktest(backtest)
-      toast.success("Backtest selected", {
-        description: `${backtest.alias || backtest.strategy_name} is now active for analysis`,
-      })
-    }
-  }
 
   const handleEdit = (backtest: Backtest) => {
     setBacktestToEdit(backtest)

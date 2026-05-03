@@ -14,13 +14,17 @@ interface MessageListProps {
   isInitializing: boolean
   isOnline: boolean
   error: string | null
+  autoApprovePageActions?: boolean
   onQueueSignalProposalForReview?: (proposalId: string) => void
   onRequestActionDraftApproval?: (draftId: string) => void
   onExecutePaperActionDraft?: (draftId: string) => void
-  onExecutePageAction?: (actionId: string, params: any) => void
+  onExecutePageAction?: (actionId: string, params: Record<string, unknown>) => void | Promise<void>
+  onEnablePageActionAutoApproval?: () => void
   onSaveSignalProposalToWatchlist?: (proposalId: string) => void
   showDebug?: boolean
 }
+
+type ActionPlanStatus = "pending" | "approved" | "rejected"
 
 function formatTimestamp(value: string): string {
   const date = new Date(value)
@@ -130,23 +134,59 @@ export function MessageList({
   isInitializing,
   isOnline,
   error,
+  autoApprovePageActions = false,
   onQueueSignalProposalForReview,
   onRequestActionDraftApproval,
   onExecutePaperActionDraft,
   onExecutePageAction,
+  onEnablePageActionAutoApproval,
   onSaveSignalProposalToWatchlist,
   showDebug = false,
 }: MessageListProps) {
   const endRef = React.useRef<HTMLDivElement | null>(null)
+  const [actionPlanStatuses, setActionPlanStatuses] = React.useState<Record<string, ActionPlanStatus>>({})
+  const showInitialSkeleton = isInitializing && messages.length === 0
+
+  const executePlan = React.useCallback(async (key: string, actionId: string, params: Record<string, unknown>) => {
+    setActionPlanStatuses((current) => ({ ...current, [key]: "approved" }))
+    try {
+      await onExecutePageAction?.(actionId, params)
+    } catch {
+      setActionPlanStatuses((current) => ({ ...current, [key]: "pending" }))
+    }
+  }, [onExecutePageAction])
 
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [isInitializing, messages.length])
 
+  React.useEffect(() => {
+    if (!autoApprovePageActions || !onExecutePageAction) {
+      return
+    }
+
+    messages.forEach((message) => {
+      if (message.role !== "assistant") {
+        return
+      }
+      ;(message.specialistArtifacts ?? []).forEach((artifact, index) => {
+        const plan = artifact.action_plan
+        if (!plan || plan.risk_level === "prohibited") {
+          return
+        }
+        const key = `${message.id}:action_plan:${index}:${plan.action_id}:${JSON.stringify(plan.parameters)}`
+        if (actionPlanStatuses[key]) {
+          return
+        }
+        void executePlan(key, plan.action_id, plan.parameters)
+      })
+    })
+  }, [actionPlanStatuses, autoApprovePageActions, executePlan, messages, onExecutePageAction])
+
   return (
     <ScrollArea className="h-full">
       <div className="flex min-h-full flex-col gap-3 p-4">
-        {isInitializing ? (
+        {showInitialSkeleton ? (
           <>
             <div className="space-y-2">
               <Skeleton className="h-4 w-24 rounded-sm" />
@@ -276,13 +316,28 @@ export function MessageList({
                       <div className="mt-2 space-y-2">
                         {(message.specialistArtifacts ?? [])
                           .filter(a => a.action_plan)
-                          .map((artifact, idx) => (
-                            <ActionPlanPreview
-                              key={`action_plan_${idx}`}
-                              plan={artifact.action_plan!}
-                              onApprove={(plan) => onExecutePageAction?.(plan.action_id, plan.parameters)}
-                            />
-                          ))
+                          .map((artifact, idx) => {
+                            const plan = artifact.action_plan!
+                            const key = `${message.id}:action_plan:${idx}:${plan.action_id}:${JSON.stringify(plan.parameters)}`
+                            return (
+                              <ActionPlanPreview
+                                key={key}
+                                plan={plan}
+                                status={actionPlanStatuses[key] ?? "pending"}
+                                autoApproveEnabled={autoApprovePageActions}
+                                onApprove={(approvedPlan) => {
+                                  void executePlan(key, approvedPlan.action_id, approvedPlan.parameters)
+                                }}
+                                onApproveAll={(approvedPlan) => {
+                                  onEnablePageActionAutoApproval?.()
+                                  void executePlan(key, approvedPlan.action_id, approvedPlan.parameters)
+                                }}
+                                onReject={() => {
+                                  setActionPlanStatuses((current) => ({ ...current, [key]: "rejected" }))
+                                }}
+                              />
+                            )
+                          })
                         }
                       </div>
                     ) : null}

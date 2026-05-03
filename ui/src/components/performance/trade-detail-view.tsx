@@ -18,7 +18,7 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { parseUtcDate } from "@/lib/utils"
-import { tradesApi, Trade, ChartData, BacktestChartResponse } from "@/lib/api/trades"
+import { tradesApi, Trade, ChartData } from "@/lib/api/trades"
 import { TradeStatsSidebar } from "./trade-stats-sidebar"
 import { TradeChart } from "./trade-chart"
 import { TradeDetailSkeleton } from "./trade-detail-skeleton"
@@ -67,7 +67,6 @@ export function TradeDetailView({ tradeId }: TradeDetailViewProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [symbol, setSymbol] = useState<string>("")
-  const [timeframe, setTimeframe] = useState<string>("")
   const [barDuration, setBarDuration] = useState<number>(3600) // Default: 1 hour in seconds
 
   /**
@@ -137,8 +136,6 @@ export function TradeDetailView({ tradeId }: TradeDetailViewProps) {
         setAllTrades(chartResponse.all_trades)
         setCurrentTradeIndex(chartResponse.current_trade_index)
         setSymbol(chartResponse.symbol)
-        setTimeframe(chartResponse.timeframe)
-
         // Calculate bar duration
         const duration = getBarDuration(chartResponse.timeframe)
         setBarDuration(duration)
@@ -149,9 +146,9 @@ export function TradeDetailView({ tradeId }: TradeDetailViewProps) {
           after: 25,
         })
         setVisibleWindow(initialWindow)
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching trade data:", err)
-        setError(err.message || "Failed to load trade data")
+        setError(err instanceof Error ? err.message : "Failed to load trade data")
       } finally {
         setLoading(false)
       }

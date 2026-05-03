@@ -92,6 +92,7 @@ interface ChatWidgetStoreValue {
   selectedToolIds: string[]
   draft: string
   messages: ChatMessage[]
+  autoApprovePageActions: boolean
   threads: ChatThreadListItem[]
   threadSearch: string
   threadId: string | null
@@ -113,7 +114,8 @@ interface ChatWidgetStoreValue {
   queueSignalProposalForReview: (proposalId: string) => Promise<void>
   requestActionDraftApproval: (draftId: string) => Promise<void>
   executePaperActionDraft: (draftId: string) => Promise<void>
-  executePageAction: (actionId: string, params: any) => Promise<void>
+  executePageAction: (actionId: string, params: Record<string, unknown>) => Promise<void>
+  enablePageActionAutoApproval: () => void
   submitDraft: () => Promise<void>
   regenerateLastResponse: () => Promise<void>
   cancelStream: () => void
@@ -140,7 +142,8 @@ function mapApiMessage(
   message: AiChatMessage,
   metadataByRequestId: Record<string, AiChatResponseMetadata>,
 ): ChatMessage {
-  const responseMetadata = message.request_id ? metadataByRequestId[message.request_id] : undefined
+  const transientMetadata = message.request_id ? metadataByRequestId[message.request_id] : undefined
+  const responseMetadata = { ...message.metadata, ...transientMetadata }
   return {
     id: message.message_id,
     role: message.role === "assistant" ? "assistant" : "user",
@@ -204,6 +207,10 @@ function buildRuntimeContextPayload(pageContext: AiChatPageContextPayload | null
     context_symbol: typeof payload?.symbol === "string" ? payload.symbol : undefined,
     context_timeframe: typeof payload?.timeframe === "string" ? payload.timeframe : undefined,
     context_dom: payload?.dom && typeof payload.dom === "object" ? payload.dom as Record<string, unknown> : undefined,
+    context_page_intelligence:
+      payload?.page_intelligence && typeof payload.page_intelligence === "object"
+        ? payload.page_intelligence as Record<string, unknown>
+        : undefined,
   }
 }
 
@@ -269,6 +276,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const [isOpen, setIsOpen] = React.useState(false)
   const [draft, setDraftState] = React.useState("")
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
+  const [autoApprovePageActions, setAutoApprovePageActions] = React.useState(false)
   const [threads, setThreads] = React.useState<ChatThreadListItem[]>([])
   const [availableTools, setAvailableTools] = React.useState<AiChatToolDefinition[]>([])
   const [selectedToolIds, setSelectedToolIds] = React.useState<string[]>([])
@@ -288,6 +296,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const responseMetadataRef = React.useRef<Record<string, AiChatResponseMetadata>>({})
   const signalProposalMapRef = React.useRef<Record<string, AiChatSignalProposal>>({})
   const actionDraftMapRef = React.useRef<Record<string, AiChatActionDraft>>({})
+  const pageActionAutoApprovedThreadsRef = React.useRef<Set<string>>(new Set())
   const lastSyncedContextRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
@@ -384,7 +393,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   }, [])
 
   const refreshSignalProposals = React.useCallback(async (activeThreadId: string) => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !activeThreadId) {
       return
     }
     const proposals = await listAiChatSignalProposals(authenticatedFetch, activeThreadId)
@@ -394,7 +403,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   }, [authenticatedFetch, isAuthenticated])
 
   const refreshActionDrafts = React.useCallback(async (activeThreadId: string) => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !activeThreadId) {
       return
     }
     const drafts = await listAiChatActionDrafts(authenticatedFetch, activeThreadId)
@@ -402,6 +411,18 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       drafts.map((draft) => [draft.draft_id, draft]),
     )
   }, [authenticatedFetch, isAuthenticated])
+
+  const refreshThreadMessageAttachments = React.useCallback(async (activeThreadId: string) => {
+    const results = await Promise.allSettled([
+      refreshSignalProposals(activeThreadId),
+      refreshActionDrafts(activeThreadId),
+    ])
+    results.forEach((result) => {
+      if (result.status === "rejected") {
+        console.error("Failed to refresh AI chat message attachment metadata:", result.reason)
+      }
+    })
+  }, [refreshActionDrafts, refreshSignalProposals])
 
   const refreshThreadList = React.useCallback(async (query?: string) => {
     if (!isAuthenticated) {
@@ -421,8 +442,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
 
     if (threadId) {
       const existing = await getAiChatThread(authenticatedFetch, threadId)
-      await refreshSignalProposals(threadId)
-      await refreshActionDrafts(threadId)
+      syncThread(existing)
+      await refreshThreadMessageAttachments(threadId)
       syncThread(existing)
       return existing
     }
@@ -433,8 +454,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
 
     if (selected) {
       const existing = await getAiChatThread(authenticatedFetch, selected.thread_id)
-      await refreshSignalProposals(selected.thread_id)
-      await refreshActionDrafts(selected.thread_id)
+      syncThread(existing)
+      await refreshThreadMessageAttachments(selected.thread_id)
       syncThread(existing)
       return existing
     }
@@ -455,14 +476,21 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     pageContext?.page_type,
     pageContext?.route,
     refreshThreadList,
-    refreshActionDrafts,
-    refreshSignalProposals,
+    refreshThreadMessageAttachments,
     syncThread,
     threadId,
   ])
 
+  // Stabilization: We only want to restore the thread once when the app is ready.
+  const hasRestoredRef = React.useRef(false)
+
   React.useEffect(() => {
     if (!isHydrated || isLoading || !isAuthenticated) {
+      hasRestoredRef.current = false
+      return
+    }
+
+    if (hasRestoredRef.current) {
       return
     }
 
@@ -476,7 +504,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         if (!isMounted || !restored) {
           return
         }
-        await refreshThreadList(threadSearch)
+        hasRestoredRef.current = true
+        await refreshThreadList()
       } catch (restoreError) {
         console.error("Failed to restore AI chat thread:", restoreError)
         if (isMounted) {
@@ -495,13 +524,11 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       isMounted = false
     }
   }, [
-    authenticatedFetch,
     ensureThread,
     isAuthenticated,
     isHydrated,
     isLoading,
     refreshThreadList,
-    threadSearch,
   ])
 
   React.useEffect(() => {
@@ -640,6 +667,9 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       return
     }
     setIsManagingThreads(true)
+    setIsInitializing(false)
+    setIsRestoring(false)
+    setActiveResponseStatus(null)
     setError(null)
     try {
       const created = await createAiChatThread(authenticatedFetch, {
@@ -651,6 +681,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       actionDraftMapRef.current = {}
       syncThread(created)
       setMessages([])
+      setAutoApprovePageActions(false)
       setDraftState("")
       await refreshThreadList(threadSearch)
     } catch (threadError) {
@@ -679,8 +710,9 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     setError(null)
     try {
       const selected = await getAiChatThread(authenticatedFetch, value)
-      await refreshSignalProposals(value)
-      await refreshActionDrafts(value)
+      syncThread(selected)
+      setAutoApprovePageActions(pageActionAutoApprovedThreadsRef.current.has(selected.thread_id))
+      await refreshThreadMessageAttachments(value)
       syncThread(selected)
       await updateAiChatThreadContext(authenticatedFetch, value, {
         current_route: pageContext?.route,
@@ -701,8 +733,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     pageContext?.page_type,
     pageContext?.route,
     syncThread,
-    refreshSignalProposals,
-    refreshActionDrafts,
+    refreshThreadMessageAttachments,
   ])
 
   const renameThread = React.useCallback(async (value: string, targetThreadId?: string) => {
@@ -740,6 +771,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         setThreadId(null)
         setThreadTitle(DEFAULT_THREAD_TITLE)
         setMessages([])
+        setAutoApprovePageActions(false)
         signalProposalMapRef.current = {}
         actionDraftMapRef.current = {}
       }
@@ -751,8 +783,9 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
         const fallback = listed[0]
         if (fallback) {
           const selected = await getAiChatThread(authenticatedFetch, fallback.thread_id)
-          await refreshSignalProposals(fallback.thread_id)
-          await refreshActionDrafts(fallback.thread_id)
+          syncThread(selected)
+          setAutoApprovePageActions(pageActionAutoApprovedThreadsRef.current.has(selected.thread_id))
+          await refreshThreadMessageAttachments(fallback.thread_id)
           syncThread(selected)
         }
       }
@@ -767,8 +800,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     isAuthenticated,
     isStreaming,
     refreshThreadList,
-    refreshSignalProposals,
-    refreshActionDrafts,
+    refreshThreadMessageAttachments,
     syncThread,
     threadId,
     threadSearch,
@@ -808,7 +840,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, syncThread, threadId])
 
-  const executePageAction = React.useCallback(async (actionId: string, params: any) => {
+  const executePageAction = React.useCallback(async (actionId: string, params: Record<string, unknown>) => {
     try {
       const success = await executeAction(actionId, params)
       if (success) {
@@ -816,10 +848,20 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       } else {
         setError(`Failed to execute page action ${actionId}: No implementation found.`)
       }
-    } catch (err) {
+    } catch (pageActionError) {
+      console.error("Failed to execute AI chat page action:", pageActionError)
       setError(`Failed to execute page action ${actionId}.`)
     }
   }, [executeAction])
+
+  const enablePageActionAutoApproval = React.useCallback(() => {
+    if (!threadId) {
+      return
+    }
+    pageActionAutoApprovedThreadsRef.current.add(threadId)
+    setAutoApprovePageActions(true)
+    setActiveResponseStatus("Page actions approved for this chat.")
+  }, [threadId])
 
   const requestActionDraftApproval = React.useCallback(async (draftId: string) => {
     if (!threadId || !isAuthenticated) {
@@ -1133,6 +1175,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       selectedToolIds,
       draft,
       messages,
+      autoApprovePageActions,
       threads,
       threadSearch,
       threadId,
@@ -1155,12 +1198,14 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       requestActionDraftApproval,
       executePaperActionDraft,
       executePageAction,
+      enablePageActionAutoApproval,
       submitDraft,
       regenerateLastResponse,
       cancelStream,
     }),
     [
       activeResponseStatus,
+      autoApprovePageActions,
       availableTools,
       cancelStream,
       close,
@@ -1169,6 +1214,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       draft,
       error,
       executePageAction,
+      enablePageActionAutoApproval,
       exportThread,
       isHydrated,
       isInitializing,

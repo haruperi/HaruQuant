@@ -128,7 +128,7 @@ export default function EdgeLabScorecardPage() {
         unsupervised_result: unsupervisedResult,
         market_structure_stability: marketStructureStability,
         market_structure_robustness: marketStructureRobustness,
-        scorecard_report: report as Record<string, unknown>,
+        scorecard_report: report,
       })
       setSavedSnapshot(snapshot)
       setExportArtifact(null)

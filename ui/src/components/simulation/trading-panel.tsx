@@ -292,7 +292,7 @@ export function TradingPanel({
           description: renderGovernanceMessages(response.governance) || undefined,
         })
       } else if (response.governance) {
-        onGovernanceEvaluated(response.governance)
+        onGovernanceEvaluated?.(response.governance)
       }
       if (response.risk_snapshot) {
         onRiskSnapshotUpdate?.(response.risk_snapshot)
@@ -477,7 +477,7 @@ export function TradingPanel({
           description: renderGovernanceMessages(response.governance) || undefined,
         })
       } else if (response.governance) {
-        onGovernanceEvaluated(response.governance)
+        onGovernanceEvaluated?.(response.governance)
       }
       if (response.risk_snapshot) {
         onRiskSnapshotUpdate?.(response.risk_snapshot)

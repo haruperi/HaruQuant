@@ -201,6 +201,7 @@ class SpecialistAgentArtifact(BaseModel):
     recommendation: str | None = None
     confidence: int = Field(ge=0, le=100, default=60)
     action_plan: dict[str, Any] | None = None
+    strategy_artifact: dict[str, Any] | None = None
 
 
 class ConversationThreadRecord(BaseModel):
@@ -249,6 +250,7 @@ class ConversationMessageRecord(BaseModel):
     total_tokens: int | None = None
     cost: float | None = None
     latency_ms: int | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("created_at")
     @classmethod

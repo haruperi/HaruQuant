@@ -1,0 +1,24 @@
+[
+  {
+    "name": "rsi_mean_reversion_strategy",
+    "prompt": "Create an RSI mean reversion strategy for EURUSD on M15 with Bollinger Bands.",
+    "expected_task_class": "strategy_creation",
+    "expected_response_style": "recommendation",
+    "expected_answer_mode": "governed_artifact",
+    "expected_specialists_used": ["strategy_creator_agent"],
+    "required_artifact_keys": ["strategy_name", "hypothesis", "python_strategy_script", "parameters"],
+    "expected_phrases": ["FACT:", "INTERPRETATION:", "RISK:", "RSI", "Bollinger"],
+    "forbidden_phrases": ["generic strategy", "unspecified instrument"]
+  },
+  {
+    "name": "trend_following_ema_cross",
+    "prompt": "Build a trend following strategy using EMA 50 and 200 cross on Daily timeframe.",
+    "expected_task_class": "strategy_creation",
+    "expected_response_style": "recommendation",
+    "expected_answer_mode": "governed_artifact",
+    "expected_specialists_used": ["strategy_creator_agent"],
+    "required_artifact_keys": ["strategy_name", "python_strategy_script", "entry_rules"],
+    "expected_phrases": ["FACT:", "INTERPRETATION:", "RISK:", "EMA", "cross"],
+    "forbidden_phrases": ["I don't know how to cross EMA"]
+  }
+]

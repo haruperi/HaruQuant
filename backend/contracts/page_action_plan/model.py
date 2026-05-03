@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.contracts.common import CanonicalEnvelope
 
 
-RiskLevel = Literal["view_only", "local_ui", "backend_safe", "backend_risk"]
+RiskLevel = Literal["view_only", "local_ui", "backend_non_trading", "trading_adjacent", "prohibited"]
 
 
 class PageActionPlanPayload(BaseModel):

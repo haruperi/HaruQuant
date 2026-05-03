@@ -43,19 +43,20 @@ type DisplayMode = "dollar" | "percent" | "r_multiple"
 type SortMode = "name" | "value"
 
 interface Trade {
-    symbol: string
-    profit_loss: number
-    commission: number
-    swap: number
-    r_multiple?: number
-    profit_percent?: number
-    net_profit?: number
-    strategy_name?: string
-    strategy?: string
-    setup?: string
-    magic_number?: number
-    comment?: string
-    [key: string]: any
+    symbol?: string | null
+    profit_loss?: number | string | null
+    commission?: number | string | null
+    swap?: number | string | null
+    r_multiple?: number | string | null
+    profit_percent?: number | string | null
+    net_profit?: number | string | null
+    pnl?: number | string | null
+    strategy_name?: string | null
+    strategy?: string | null
+    setup?: string | null
+    magic_number?: number | string | null
+    comment?: string | null
+    [key: string]: unknown
 }
 
 interface SetupStats {
@@ -88,8 +89,9 @@ function formatR(value: number) {
     return `${value.toFixed(2)}R`
 }
 
-const safelyParseFloat = (value: any): number => {
+const safelyParseFloat = (value: string | number | null | undefined): number => {
     if (value === undefined || value === null || value === "") return 0
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0
     const parsed = parseFloat(value)
     return isNaN(parsed) ? 0 : parsed
 }

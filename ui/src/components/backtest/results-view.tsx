@@ -46,7 +46,7 @@ export function BacktestResultsView({ backtestId, strategyId, onBack }: Backtest
         const headers = ["ID", "Time", "Type", "Symbol", "Price", "Volume", "Profit"]
         const csvContent = [
             headers.join(","),
-            ...backtest.trades.map((t: any, idx: number) =>
+            ...backtest.trades.map((t: Record<string, unknown>, idx: number) =>
                 `${idx + 1},${t.time || "N/A"},${t.type || "N/A"},${backtest.symbol || "N/A"},${t.price || 0},${t.volume || 0},${t.profit || 0}`
             )
         ].join("\n")

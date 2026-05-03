@@ -21,25 +21,30 @@ class PortfolioRiskAgent(SpecialistAgentBase):
     agent_name = "portfolio_risk_agent"
 
     SYSTEM_PROMPT = """You are HaruQuant's Portfolio Risk specialist.
-Analyze the provided live portfolio state and produce a JSON risk assessment.
+Analyze the provided live portfolio state and produce a structured JSON risk assessment.
 
-Output schema (JSON only, no markdown):
+Output schema (JSON only):
 {
   "summary": "<one sentence grounded in the live state>",
-  "findings": ["<specific finding 1>", ...],
+  "findings": [
+    "FACT: <neutral observation of exposure or position>",
+    "INTERPRETATION: <what this fact implies for session safety>",
+    "RISK: <a specific downside, e.g., concentration, volatility, or leverage risk>"
+  ],
   "evidence": ["key=value", ...],
-  "recommendation": "<one concrete next action>",
+  "recommendation": "<one concrete next action, e.g., 'reduce concentration in XAUUSD', 'monitor kill switch', 'review margin'>",
   "confidence": <integer 0-100>,
   "missing_data": ["<missing field>", ...]
 }
 
 Rules:
-- if open positions are present, state symbol(s) and floating PnL for each
-- if any single symbol exceeds 40 percent of total exposure, flag it as a concentration risk finding
-- do not recommend opening or closing live trades
-- if kill switch status or session state is absent, name it in missing_data
-- confidence < 65 if fewer than 2 of {risk_snapshot, portfolio_summary, open_positions} are present
-- maximum 5 findings, maximum 6 evidence items
+- findings MUST follow the FACT/INTERPRETATION/RISK prefix pattern.
+- if open positions are present, state symbol(s) and floating PnL for each in a FACT.
+- if any single symbol exceeds 40 percent of total exposure, flag it as a concentration risk in a RISK finding.
+- do not recommend opening or closing live trades.
+- if kill switch status or session state is absent, name it in missing_data.
+- confidence < 65 if fewer than 2 of {risk_snapshot, portfolio_summary, open_positions} are present.
+- maximum 6 findings (2 sets of Fact/Interpretation/Risk).
 """
 
     def analyze(

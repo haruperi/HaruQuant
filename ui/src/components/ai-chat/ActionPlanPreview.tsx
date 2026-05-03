@@ -10,15 +10,19 @@ import type { AiChatPageActionPlan } from "@/lib/ai-chat/contracts"
 interface ActionPlanPreviewProps {
   plan: AiChatPageActionPlan
   onApprove?: (plan: AiChatPageActionPlan) => void
+  onApproveAll?: (plan: AiChatPageActionPlan) => void
   onReject?: () => void
   status?: "pending" | "approved" | "rejected"
+  autoApproveEnabled?: boolean
 }
 
 export function ActionPlanPreview({
   plan,
   onApprove,
+  onApproveAll,
   onReject,
   status = "pending",
+  autoApproveEnabled = false,
 }: ActionPlanPreviewProps) {
   const isPending = status === "pending"
 
@@ -112,11 +116,11 @@ export function ActionPlanPreview({
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <ShieldCheck className="h-3 w-3 text-emerald-500" />
-            AI Proposal - Requires User Approval
+            {autoApproveEnabled ? "AI Proposal - Auto-approved in this chat" : "AI Proposal - Requires User Approval"}
           </div>
           
           {isPending ? (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -126,6 +130,17 @@ export function ActionPlanPreview({
                 <X className="mr-1 h-3 w-3" />
                 Reject
               </Button>
+              {!autoApproveEnabled ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[11px] hover:bg-sky-500/10 hover:text-sky-600"
+                  onClick={() => onApproveAll?.(plan)}
+                >
+                  <ShieldCheck className="mr-1 h-3 w-3" />
+                  Approve all in this chat
+                </Button>
+              ) : null}
               <Button 
                 variant="outline" 
                 size="sm" 

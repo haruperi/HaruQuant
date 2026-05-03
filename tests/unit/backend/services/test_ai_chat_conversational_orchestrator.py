@@ -130,6 +130,145 @@ def test_clarification_policy_does_not_block_page_summary_question(tmp_path) -> 
     assert result.needs_clarification is False
 
 
+def test_planner_routes_confirmation_of_pending_page_action(tmp_path) -> None:
+    database_path = tmp_path / "ai_chat_page_action_confirmation.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="pageconfirm@example.com", username="page_confirm_user", password="password")
+
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1, current_route="/simulation")
+    service.add_message(
+        user_id=1,
+        thread_id=thread.thread_id,
+        role="assistant",
+        content="Do you want me to navigate to `/performance`? page_action_confirmation: navigate_app_page {'path': '/performance'}",
+    )
+    thread = service.get_thread(user_id=1, thread_id=thread.thread_id)
+    page_context = PageContextAssembler(db_manager=db).assemble_context(route="/simulation", user_id=1)
+    conversation_state = ConversationStateService().build_state(
+        thread=thread,
+        page_context=page_context,
+        latest_prompt="yes",
+    )
+
+    plan = ConversationPlanner().plan(
+        prompt="yes",
+        thread=thread,
+        page_context=page_context,
+        conversation_state=conversation_state,
+        tool_context=_base_tool_context("yes"),
+    )
+
+    assert plan.task_class == "page_operation"
+    assert "page_operator" in plan.attached_tools
+    assert plan.page_actions_to_plan == ("registered_page_action_plan",)
+
+
+def test_planner_explains_missing_strategy_creator_tool(tmp_path) -> None:
+    database_path = tmp_path / "ai_chat_missing_strategy_creator_tool.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="missingstrategytool@example.com", username="missing_strategy_tool_user", password="password")
+
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1, current_route="/strategies")
+    page_context = PageContextAssembler(db_manager=db).assemble_context(route="/strategies", user_id=1)
+    prompt = "Create a strategy that buys RSI dips"
+
+    plan = ConversationPlanner().plan(
+        prompt=prompt,
+        thread=thread,
+        page_context=page_context,
+        conversation_state=ConversationStateService().build_state(thread=thread, page_context=page_context, latest_prompt=prompt),
+        tool_context=_base_tool_context(prompt),
+    )
+
+    assert plan.needs_clarification is True
+    assert plan.task_class == "tool_requirement"
+    assert "Strategy Creator" in (plan.clarification_question or "")
+    assert "Tools menu" in (plan.clarification_question or "")
+
+
+def test_planner_explains_missing_page_operator_tool(tmp_path) -> None:
+    database_path = tmp_path / "ai_chat_missing_page_operator_tool.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="missingpageoperator@example.com", username="missing_page_operator_user", password="password")
+
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1, current_route="/simulation")
+    page_context = PageContextAssembler(db_manager=db).assemble_context(route="/simulation", user_id=1)
+    prompt = "go to the home page"
+
+    plan = ConversationPlanner().plan(
+        prompt=prompt,
+        thread=thread,
+        page_context=page_context,
+        conversation_state=ConversationStateService().build_state(thread=thread, page_context=page_context, latest_prompt=prompt),
+        tool_context=_base_tool_context(prompt),
+    )
+
+    assert plan.needs_clarification is True
+    assert plan.task_class == "tool_requirement"
+    assert "Page Operator" in (plan.clarification_question or "")
+    assert "navigation" in (plan.clarification_question or "")
+
+
+def test_planner_explains_missing_full_permissions_for_strategy_write(tmp_path) -> None:
+    database_path = tmp_path / "ai_chat_missing_full_permissions_tool.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="missingfullpermission@example.com", username="missing_full_permission_user", password="password")
+
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1, current_route="/strategies")
+    page_context = PageContextAssembler(db_manager=db).assemble_context(route="/strategies", user_id=1)
+    prompt = "Create and save the actual strategy implementation from A to Z"
+
+    plan = ConversationPlanner().plan(
+        prompt=prompt,
+        thread=thread,
+        page_context=page_context,
+        conversation_state=ConversationStateService().build_state(thread=thread, page_context=page_context, latest_prompt=prompt),
+        tool_context=_base_tool_context(prompt, attached_tool_ids=("strategy_creator",)),
+    )
+
+    assert plan.needs_clarification is True
+    assert plan.task_class == "tool_requirement"
+    assert "Full Permissions" in (plan.clarification_question or "")
+    assert "save files or register strategies" in (plan.clarification_question or "")
+
+
+def test_planner_does_not_block_strategy_creator_when_required_tools_selected(tmp_path) -> None:
+    database_path = tmp_path / "ai_chat_selected_strategy_tools.db"
+    db = DatabaseManager(db_path=str(database_path))
+    db.initialize_database()
+    apply_pending_migrations(database_path, default_migrations_dir())
+    db.create_user(email="selectedstrategytools@example.com", username="selected_strategy_tools_user", password="password")
+
+    service = ConversationService(AiChatRepository(database_path))
+    thread = service.create_thread(user_id=1, current_route="/strategies")
+    page_context = PageContextAssembler(db_manager=db).assemble_context(route="/strategies", user_id=1)
+    prompt = "Create and save the actual strategy implementation from A to Z"
+
+    plan = ConversationPlanner().plan(
+        prompt=prompt,
+        thread=thread,
+        page_context=page_context,
+        conversation_state=ConversationStateService().build_state(thread=thread, page_context=page_context, latest_prompt=prompt),
+        tool_context=_base_tool_context(prompt, attached_tool_ids=("strategy_creator", "full_permissions")),
+    )
+
+    assert plan.task_class == "strategy_creation"
+    assert plan.needs_clarification is False
+    assert "strategy_creator" in plan.attached_tools
+
+
 def test_conversation_orchestrator_uses_conversation_state_to_resolve_previous_run(tmp_path) -> None:
     database_path = tmp_path / "agentic_conversation_orchestrator_state.db"
     db = DatabaseManager(db_path=str(database_path))
@@ -223,7 +362,7 @@ def test_clarification_policy_requests_scope_for_broad_docs_prompt(tmp_path) -> 
     assert "document area" in (result.question or "").lower()
 
 
-def test_conversation_planner_routes_strategy_creation_to_strategy_creator(tmp_path) -> None:
+def test_conversation_planner_requires_strategy_creator_tool_for_strategy_creation(tmp_path) -> None:
     database_path = tmp_path / "agentic_conversation_planner_strategy.db"
     db = DatabaseManager(db_path=str(database_path))
     db.initialize_database()
@@ -241,10 +380,10 @@ def test_conversation_planner_routes_strategy_creation_to_strategy_creator(tmp_p
         tool_context=_base_tool_context(prompt, route="/strategies", symbol="EURUSD", timeframe="H1"),
     )
 
-    assert plan.intent == "create_strategy"
-    assert plan.task_class == "strategy_creation"
-    assert "strategy_creator" in plan.attached_tools
-    assert plan.artifact_expected == "strategy_artifact"
+    assert plan.needs_clarification is True
+    assert plan.task_class == "tool_requirement"
+    assert "Strategy Creator" in (plan.clarification_question or "")
+    assert "Tools menu" in (plan.clarification_question or "")
 
 
 def test_conversation_planner_routes_backtest_page_to_backtest_analyst(tmp_path) -> None:
@@ -271,7 +410,7 @@ def test_conversation_planner_routes_backtest_page_to_backtest_analyst(tmp_path)
     assert "backtest_summary" in plan.tools_to_run
 
 
-def test_conversation_planner_routes_page_actions_to_page_operator(tmp_path) -> None:
+def test_conversation_planner_routes_page_actions_to_page_operator_when_tool_selected(tmp_path) -> None:
     database_path = tmp_path / "agentic_conversation_planner_page_action.db"
     db = DatabaseManager(db_path=str(database_path))
     db.initialize_database()
@@ -286,7 +425,7 @@ def test_conversation_planner_routes_page_actions_to_page_operator(tmp_path) -> 
         thread=thread,
         page_context=page_context,
         conversation_state=ConversationStateService().build_state(thread=thread, page_context=page_context, latest_prompt=prompt),
-        tool_context=_base_tool_context(prompt, route="/backtests/42", page_type="backtest_detail"),
+        tool_context=_base_tool_context(prompt, route="/backtests/42", page_type="backtest_detail", attached_tool_ids=("page_operator",)),
     )
 
     assert plan.intent == "operate_page"

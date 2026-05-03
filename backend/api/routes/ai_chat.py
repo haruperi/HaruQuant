@@ -89,6 +89,7 @@ class StreamChatRequest(BaseModel):
     context_symbol: str | None = None
     context_timeframe: str | None = None
     context_dom: dict[str, object] | None = None
+    context_page_intelligence: dict[str, object] | None = None
     attached_tools: list[str] = Field(default_factory=list)
 
 
@@ -201,7 +202,11 @@ def list_ai_chat_tools() -> list[dict[str, object]]:
             "capability_type": definition.capability_type,
             "authority_band": definition.authority_band,
             "side_effect_policy": definition.side_effect_policy,
+            "input_schema": definition.input_schema,
+            "output_schema": definition.output_schema,
             "required_context": list(definition.required_context),
+            "allowed_backend_tools": list(definition.allowed_backend_tools),
+            "allowed_specialist_agents": list(definition.allowed_specialist_agents),
             "artifact_type": definition.artifact_type,
             "required_user_ack": definition.required_user_ack,
         }
@@ -559,6 +564,7 @@ def stream_thread_response(
                     context_symbol=payload.context_symbol,
                     context_timeframe=payload.context_timeframe,
                     context_dom=payload.context_dom,
+                    context_page_intelligence=payload.context_page_intelligence,
                     attached_tools=payload.attached_tools,
                 )
             )
@@ -609,6 +615,7 @@ def regenerate_thread_response(
                     context_symbol=payload.context_symbol,
                     context_timeframe=payload.context_timeframe,
                     context_dom=payload.context_dom,
+                    context_page_intelligence=payload.context_page_intelligence,
                     attached_tools=payload.attached_tools,
                 )
             )

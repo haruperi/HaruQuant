@@ -64,6 +64,13 @@ interface EquityPerformanceTrade {
   time?: string
 }
 
+function tradeTimestamp(trade: EquityPerformanceTrade): number {
+  const value = trade.close_time || trade.exit_time || trade.time
+  if (!value) return 0
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
 function MetricCard({ title, value, tooltip, color }: MetricCardProps) {
   // Determine color based on value: Red if negative, Green otherwise
   const isNegative = typeof value === 'number'
@@ -174,7 +181,7 @@ export default function EquityPerformancePage() {
 
         // Sort trades by time just in case
         const sortedTrades = [...filteredTrades].sort((a, b) =>
-            new Date(a.close_time || a.exit_time || a.time).getTime() - new Date(b.close_time || b.exit_time || b.time).getTime()
+            tradeTimestamp(a) - tradeTimestamp(b)
         )
 
         for (let i = 0; i < sortedTrades.length; i++) {

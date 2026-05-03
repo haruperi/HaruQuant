@@ -57,7 +57,7 @@ function compactMarketStructureProfile(
     summary: {
       ...profile.summary,
       regime_map: [],
-      calibration_metadata: profile.summary.calibration_metadata ?? null,
+      calibration_metadata: profile.summary.calibration_metadata,
     },
   }
 }

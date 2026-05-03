@@ -15,6 +15,10 @@ import { useToast } from "@/components/ui/use-toast"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+function formatNumber(value: number | null | undefined, digits = 2): string {
+    return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "-"
+}
+
 export function MonteCarloSimulation() {
     const { toast } = useToast()
     const [mode, setMode] = useState<"backtest" | "parametric" | "position-sizing">("backtest")
@@ -441,25 +445,25 @@ export function MonteCarloSimulation() {
                                         <div className="grid grid-cols-3 gap-4 text-center">
                                             <div className="p-4 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Original Return</div>
-                                                <div className="text-xl font-bold font-mono text-emerald-500">{result.original_return.toFixed(2)}%</div>
+                                                <div className="text-xl font-bold font-mono text-emerald-500">{formatNumber(result.original_return, 2)}%</div>
                                             </div>
                                             <div className="p-4 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Mean Simulated</div>
-                                                <div className="text-xl font-bold font-mono">{result.mean_return.toFixed(2)}%</div>
+                                                <div className="text-xl font-bold font-mono">{formatNumber(result.mean_return, 2)}%</div>
                                             </div>
                                             <div className="p-4 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Prob. Profit</div>
-                                                <div className="text-xl font-bold font-mono text-emerald-500">{result.probability_of_profit.toFixed(1)}%</div>
+                                                <div className="text-xl font-bold font-mono text-emerald-500">{formatNumber(result.probability_of_profit, 1)}%</div>
                                             </div>
                                         </div>
                                          <div className="grid grid-cols-2 gap-4 text-sm">
                                             <div className="p-3 rounded border bg-card/30">
                                                 <div className="text-muted-foreground mb-1">95% CI</div>
-                                                <div className="font-mono">{result.ci_95_lower.toFixed(2)}% to {result.ci_95_upper.toFixed(2)}%</div>
+                                                <div className="font-mono">{formatNumber(result.ci_95_lower, 2)}% to {formatNumber(result.ci_95_upper, 2)}%</div>
                                             </div>
                                             <div className="p-3 rounded border bg-card/30">
                                                 <div className="text-muted-foreground mb-1">Prob. Ruin</div>
-                                                <div className="font-mono text-red-500">{result.probability_of_ruin.toFixed(2)}%</div>
+                                                <div className="font-mono text-red-500">{formatNumber(result.probability_of_ruin, 2)}%</div>
                                             </div>
                                         </div>
                                     </div>
@@ -560,32 +564,32 @@ export function MonteCarloSimulation() {
                                         <div className="grid grid-cols-4 gap-4 text-center">
                                             <div className="p-3 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Mean Return</div>
-                                                <div className="font-bold">{paraResult.mean_return.toFixed(2)}%</div>
+                                                <div className="font-bold">{formatNumber(paraResult.mean_return, 2)}%</div>
                                             </div>
                                             <div className="p-3 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Median Return</div>
-                                                <div className="font-bold">{paraResult.median_return.toFixed(2)}%</div>
+                                                <div className="font-bold">{formatNumber(paraResult.median_return, 2)}%</div>
                                             </div>
                                             <div className="p-3 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Std Dev (Return)</div>
-                                                <div className="font-bold">{paraResult.std_return.toFixed(2)}%</div>
+                                                <div className="font-bold">{formatNumber(paraResult.std_return, 2)}%</div>
                                             </div>
                                             <div className="p-3 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Prob. Profit</div>
-                                                <div className="font-bold text-emerald-500">{(paraResult.probability_of_profit || 0).toFixed(1)}%</div>
+                                                <div className="font-bold text-emerald-500">{formatNumber(paraResult.probability_of_profit, 1)}%</div>
                                             </div>
 
                                             <div className="p-3 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Max DD (Avg)</div>
-                                                <div className="font-bold text-red-500">{paraResult.max_drawdown_avg.toFixed(2)}%</div>
+                                                <div className="font-bold text-red-500">{formatNumber(paraResult.max_drawdown_avg, 2)}%</div>
                                             </div>
                                             <div className="p-3 rounded border bg-card/50">
                                                 <div className="text-xs text-muted-foreground">Prob. Ruin (&gt;50%)</div>
-                                                <div className="font-bold text-red-500">{paraResult.probability_of_ruin.toFixed(2)}%</div>
+                                                <div className="font-bold text-red-500">{formatNumber(paraResult.probability_of_ruin, 2)}%</div>
                                             </div>
                                             <div className="p-3 rounded border bg-card/50 col-span-2">
                                                  <div className="text-xs text-muted-foreground">95% CI</div>
-                                                 <div className="text-xs font-mono mt-1">{paraResult.ci_95_lower.toFixed(1)}% / {paraResult.ci_95_upper.toFixed(1)}%</div>
+                                                 <div className="text-xs font-mono mt-1">{formatNumber(paraResult.ci_95_lower, 1)}% / {formatNumber(paraResult.ci_95_upper, 1)}%</div>
                                             </div>
                                         </div>
                                     </>

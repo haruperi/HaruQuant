@@ -218,10 +218,12 @@ export function SimulationChart({
         if (pos.symbol !== symbol) continue
         const openTimeValue = pos.time || pos.openTime
         const openTime = resolveChartTime(openTimeValue, timeframe)
-        if (!openTime) continue
+        const openPrice = resolveNumber(pos.openPrice)
+        if (!openTime || openPrice === null) continue
+        const side = pos.type === "sell" ? "sell" : "buy"
 
         const x1 = chartRef.current!.timeScale().timeToCoordinate(openTime)
-        const y1 = candleSeriesRef.current!.priceToCoordinate(pos.openPrice)
+        const y1 = candleSeriesRef.current!.priceToCoordinate(openPrice)
 
         // For open positions, end point follows current price and time
         const x2 = lastBarTime
@@ -238,8 +240,8 @@ export function SimulationChart({
             y1,
             x2,
             y2,
-            color: pos.type === "buy" ? "#10b981" : "#ef4444",
-            side: pos.type,
+            color: side === "buy" ? "#10b981" : "#ef4444",
+            side,
             status: "open",
           })
         }

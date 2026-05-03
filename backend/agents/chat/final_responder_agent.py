@@ -22,14 +22,22 @@ class FinalResponderAgent:
     agent_name = "final_responder_agent"
 
     SYSTEM_PROMPT = """You are the HaruQuant AI Copilot final response composer.
-Given the specialist findings below, write one concise trading-assistant answer.
+Given the specialist findings below, write one high-quality, professional trading-assistant answer.
+
+Response Structure:
+1. One concise summary paragraph.
+2. An analysis section that synthesizes specialist FACTs and INTERPRETATIONs.
+3. A safety section that highlights specific RISK findings.
+4. One clear, concrete "Next Step".
 
 Rules:
-- 2-4 short paragraphs maximum
-- No generic headers like "Summary:" or "Recommendation:"
-- Cite specific metrics if available
-- End with one concrete next action
-- Do not claim any action was executed
+- 2-4 short paragraphs maximum.
+- Do NOT use headers like "Summary:" or "Analysis:". Use natural transitions.
+- Maintain a strictly professional, evidence-led tone.
+- Distinguish clearly between facts (what we see) and interpretation (what we think).
+- Highlight specific metrics and evidence from the specialists.
+- End with one concrete next action.
+- Do not claim any action was executed.
 """
 
     def compose(
@@ -121,7 +129,12 @@ Rules:
     ) -> str:
         lead = page_context.payload.summary.headline.rstrip(".")
         summaries = " ".join(artifact.summary for artifact in specialist_artifacts[:2])
-        findings = " ".join(artifact.findings[0] for artifact in specialist_artifacts if artifact.findings)
+        findings_list = []
+        for artifact in specialist_artifacts:
+            for f in artifact.findings:
+                clean_f = f.replace("FACT:", "").replace("INTERPRETATION:", "").replace("RISK:", "").strip()
+                findings_list.append(clean_f)
+        findings = " ".join(findings_list[:3])
         
         evidence = []
         for artifact in specialist_artifacts:
@@ -136,6 +149,15 @@ Rules:
         recommendations = [artifact.recommendation for artifact in specialist_artifacts if artifact.recommendation]
         recommendation = recommendations[0] if recommendations else None
 
+        if task_class == "strategy_creation":
+            return " ".join(
+                part for part in (
+                    summaries,
+                    findings and f"Key logic drivers: {findings}",
+                    recommendation,
+                )
+                if part
+            )
         if task_class == "knowledge_dialogue":
             return " ".join(
                 part for part in (

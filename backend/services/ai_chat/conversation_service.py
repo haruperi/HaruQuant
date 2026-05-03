@@ -130,6 +130,7 @@ class ConversationService:
         total_tokens: int | None = None,
         cost: float | None = None,
         latency_ms: int | None = None,
+        metadata: dict | None = None,
     ) -> ConversationMessageRecord:
         user_key = str(user_id)
         normalized_content = content.strip()
@@ -149,6 +150,7 @@ class ConversationService:
             total_tokens=total_tokens,
             cost=cost,
             latency_ms=latency_ms,
+            metadata_json=json.dumps(metadata or {}),
         )
         self._promote_title_if_needed(
             user_id=user_key,
@@ -537,6 +539,7 @@ class ConversationService:
             total_tokens=row.total_tokens,
             cost=row.cost,
             latency_ms=row.latency_ms,
+            metadata=json.loads(row.metadata_json or "{}"),
         )
 
     @staticmethod

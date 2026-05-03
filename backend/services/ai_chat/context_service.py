@@ -49,10 +49,13 @@ DEFAULT_ROUTE_CONTEXT_REGISTRY: tuple[RouteContextDescriptor, ...] = (
     RouteContextDescriptor("/dashboard", "dashboard", "DashboardContextBuilder"),
     RouteContextDescriptor("/strategies/", "strategy_detail", "StrategyDetailContextBuilder"),
     RouteContextDescriptor("/backtests/", "backtest_detail", "BacktestDetailContextBuilder"),
+    RouteContextDescriptor("/performance", "backtest_detail", "BacktestDetailContextBuilder"),
     RouteContextDescriptor("/optimization", "optimization_detail", "OptimizationContextBuilder"),
     RouteContextDescriptor("/portfolio", "portfolio_risk", "PortfolioRiskContextBuilder"),
     RouteContextDescriptor("/risk", "portfolio_risk", "PortfolioRiskContextBuilder"),
     RouteContextDescriptor("/live", "live_trading", "LiveTradingContextBuilder"),
+    RouteContextDescriptor("/edge", "data_workspace", "DataWorkspaceContextBuilder"),
+    RouteContextDescriptor("/market", "data_workspace", "DataWorkspaceContextBuilder"),
     RouteContextDescriptor("/data", "data_workspace", "DataWorkspaceContextBuilder"),
     RouteContextDescriptor("/operator", "operator_workflow", "OperatorWorkflowContextBuilder"),
 )

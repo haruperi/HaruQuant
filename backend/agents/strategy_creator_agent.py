@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 from typing import Any
 
 from backend.contracts.strategy_blueprint.model import StrategyBlueprint
 from backend.data.database.sqlite.database_operations import DatabaseManager
+from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
+from backend.config.agent_model import get_model_for_tier
 from backend.services.strategy.catalog import StrategyCatalogService
 from backend.services.strategy.design import (
     StrategyBlueprintMaterializationRequest,
@@ -69,6 +72,42 @@ class StrategyCreatorAgent:
 
     agent_name = "strategy_creator_agent"
     instruction = STRATEGY_CREATOR_AGENT_INSTRUCTION
+    LLM_ASSIST_PROMPT = """You are the bounded LLM interpretation assist inside HaruQuant StrategyCreatorAgent.
+You do not write files, execute trades, register strategies, or bypass validation.
+
+Return JSON only:
+{
+  "summary": "<short interpretation note>",
+  "candidate_patch": {
+    "strategy_name": "<optional>",
+    "strategy_type": "<optional technical|portfolio|machine-learning|factor|statistical-arbitrage|allocation|rotation>",
+    "asset_scope": {"assets": ["<symbol>"], "timeframe": "<timeframe>", "data_granularity": "<timeframe>"},
+    "entry_logic": ["<objective entry rule>", "..."],
+    "exit_logic": ["<objective exit rule>", "..."],
+    "risk_management": {
+      "stop_loss": "<string or null>",
+      "take_profit": "<string or null>",
+      "ignore_stop_loss_take_profit": <true|false>,
+      "additional_rules": ["<rule>"]
+    },
+    "position_sizing": {
+      "sizing_rule": "<string>",
+      "leverage": <number>,
+      "allocation_notes": "<string>"
+    }
+  },
+  "missing_inputs": ["<critical missing input>"],
+  "confidence": <integer 0-100>
+}
+
+Rules:
+- Preserve explicit user rules exactly. Do not replace RSI cross-50 rules with RSI 30/70 defaults.
+- Never silently invent critical fields: asset/universe, timeframe, entry logic, exit logic, risk rule, or sizing.
+- If the user disables SL/TP, set stop_loss and take_profit to null and ignore_stop_loss_take_profit to true.
+- If the user gives fixed lots, preserve fixed-lot sizing.
+- Treat BUY/SELL/LONG/SHORT and indicator names such as RSI/EMA/ATR as directions or indicators, not assets.
+- If unsure, put the field in missing_inputs instead of guessing.
+"""
 
     def __init__(
         self,
@@ -100,7 +139,18 @@ class StrategyCreatorAgent:
         context = context or {}
         confirmed = self._is_confirmation_prompt(idea)
         source_idea = self._source_idea_for_request(idea=idea, context=context, confirmed=confirmed)
-        intake = self._analyze_intake(idea=source_idea, context=context, full_permissions=full_permissions)
+        deterministic_candidate = self._candidate_from_idea(idea=source_idea, context=context)
+        candidate = self._candidate_with_llm_assist(
+            idea=source_idea,
+            context=context,
+            deterministic_candidate=deterministic_candidate,
+        )
+        intake = self._analyze_intake(
+            idea=source_idea,
+            context=context,
+            full_permissions=full_permissions,
+            candidate=candidate,
+        )
         if intake:
             return StrategyCreatorResult(
                 blueprint=None,
@@ -116,7 +166,6 @@ class StrategyCreatorAgent:
                 permission_note="Strategy generation is blocked until the missing strategy inputs are supplied.",
             )
 
-        candidate = self._candidate_from_idea(idea=source_idea, context=context)
         validation = self.validator.validate(candidate, source_idea=source_idea)
         blueprint = validation.blueprint
         final_interpretation = self._final_interpretation(blueprint)
@@ -253,13 +302,16 @@ class StrategyCreatorAgent:
         return updated
 
     def _source_idea_for_request(self, *, idea: str, context: dict[str, object], confirmed: bool) -> str:
+        strategy_memory = self._recent_strategy_memory_text(context)
+        if confirmed or self._is_create_above_prompt(idea):
+            return strategy_memory or self._recent_user_strategy_text(context) or idea
         if not confirmed:
             prior_user_text = self._recent_user_strategy_text(context)
+            if self._is_short_followup_prompt(idea) and strategy_memory:
+                return strategy_memory
             if prior_user_text:
                 return f"{prior_user_text}\n{idea}".strip()
             return idea
-        prior_user_text = self._recent_user_strategy_text(context)
-        return prior_user_text or idea
 
     @staticmethod
     def _recent_user_strategy_text(context: dict[str, object]) -> str:
@@ -278,11 +330,64 @@ class StrategyCreatorAgent:
         return "\n".join(user_messages)
 
     @staticmethod
+    def _recent_strategy_memory_text(context: dict[str, object]) -> str:
+        raw_messages = context.get("strategy_creator_recent_messages")
+        if not isinstance(raw_messages, list):
+            return ""
+        for item in reversed(raw_messages[-12:]):
+            if not isinstance(item, dict) or item.get("role") != "assistant":
+                continue
+            content = item.get("content")
+            if not isinstance(content, str) or not content.strip():
+                continue
+            if "CONFIRMATION:" in content or "Strategy Creator produced" in content:
+                return StrategyCreatorAgent._compact_strategy_memory(content)
+        return ""
+
+    @staticmethod
+    def _compact_strategy_memory(content: str) -> str:
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        useful: list[str] = []
+        capture_section = False
+        section_headers = (
+            "Entry logic:",
+            "Exit logic:",
+            "Entry rules:",
+            "Exit rules:",
+            "Risk management:",
+            "Position sizing:",
+            "Backtest suggestion:",
+        )
+        stop_headers = (
+            "Parameters:",
+            "Required data fields:",
+            "Indicator dependencies:",
+            "Created indicators:",
+            "Known failure modes:",
+        )
+        for line in lines:
+            if line.startswith("- Assets:") or line.startswith("- Timeframe:") or line.startswith("- Symbol:"):
+                useful.append(line)
+                continue
+            if line in section_headers:
+                capture_section = True
+                useful.append(line)
+                continue
+            if line in stop_headers:
+                capture_section = False
+                continue
+            if capture_section and line.startswith("- "):
+                useful.append(line)
+        return "\n".join(useful)
+
+    @staticmethod
     def _is_confirmation_prompt(idea: str) -> bool:
         lower = idea.strip().lower()
         confirmations = (
             "confirm",
+            "confim",
             "confirmed",
+            "confimed",
             "yes generate",
             "generate it",
             "go ahead",
@@ -290,9 +395,29 @@ class StrategyCreatorAgent:
             "proceed",
             "create it",
             "save it",
+            "register it",
             "use this",
+            "full permissions",
+            "create strategy above",
+            "strategy above",
         )
         return any(token in lower for token in confirmations)
+
+    @staticmethod
+    def _is_create_above_prompt(idea: str) -> bool:
+        lower = idea.strip().lower()
+        return (
+            lower in {"create", "save", "register", "materialize", "persist"}
+            or "strategy above" in lower
+            or "create above" in lower
+            or "save above" in lower
+            or "register above" in lower
+        )
+
+    @staticmethod
+    def _is_short_followup_prompt(idea: str) -> bool:
+        words = re.findall(r"[A-Za-z0-9_]+", idea.strip())
+        return len(words) <= 4 and any(word.lower() in {"create", "save", "register", "proceed"} for word in words)
 
     @staticmethod
     def _final_interpretation(blueprint: StrategyBlueprint) -> dict[str, Any]:
@@ -314,19 +439,34 @@ class StrategyCreatorAgent:
             "other_assumptions": payload.assumptions_applied,
         }
 
-    def _analyze_intake(self, *, idea: str, context: dict[str, object], full_permissions: bool) -> list[str]:
+    def _analyze_intake(
+        self,
+        *,
+        idea: str,
+        context: dict[str, object],
+        full_permissions: bool,
+        candidate: dict[str, Any] | None = None,
+    ) -> list[str]:
         missing: list[str] = []
-        if not (self._extract_symbol(idea) or self._context_str(context, "symbol")):
+        payload = candidate.get("payload", {}) if isinstance(candidate, dict) else {}
+        asset_scope = payload.get("asset_scope", {}) if isinstance(payload, dict) else {}
+        candidate_assets = asset_scope.get("assets") if isinstance(asset_scope, dict) else None
+        candidate_timeframe = asset_scope.get("timeframe") if isinstance(asset_scope, dict) else None
+        candidate_entry = payload.get("entry_logic") if isinstance(payload, dict) else None
+        candidate_exit = payload.get("exit_logic") if isinstance(payload, dict) else None
+        candidate_risk = payload.get("risk_management") if isinstance(payload, dict) else None
+        candidate_sizing = payload.get("position_sizing") if isinstance(payload, dict) else None
+        if not (candidate_assets or self._extract_symbol(idea) or self._context_symbol(context)):
             missing.append("instrument_or_market")
-        if not (self._extract_timeframe(idea) or self._context_str(context, "timeframe")):
+        if not (candidate_timeframe or self._extract_timeframe(idea) or self._context_timeframe(context)):
             missing.append("timeframe")
-        if not self._has_entry_rule(idea):
+        if not (self._candidate_has_specific_rules(candidate_entry) or self._has_entry_rule(idea)):
             missing.append("entry_rule")
-        if not self._has_exit_rule(idea):
+        if not (self._candidate_has_specific_rules(candidate_exit) or self._has_exit_rule(idea)):
             missing.append("exit_rule")
-        if not self._has_risk_rule(idea):
+        if not (self._candidate_has_risk_rule(candidate_risk) or self._has_risk_rule(idea)):
             missing.append("risk_rule")
-        if not self._has_position_sizing(idea):
+        if not (self._candidate_has_position_sizing(candidate_sizing) or self._has_position_sizing(idea)):
             missing.append("position_sizing")
         missing_indicator_specs = [spec for spec in self._indicator_specs_from_idea(idea) if not spec["available"]]
         if missing_indicator_specs and not any(spec["creation_allowed"] for spec in missing_indicator_specs):
@@ -336,6 +476,31 @@ class StrategyCreatorAgent:
         if any(spec["needs_definition"] for spec in missing_indicator_specs):
             missing.append("indicator_formula_or_definition")
         return missing
+
+    @staticmethod
+    def _candidate_has_risk_rule(raw: Any) -> bool:
+        if not isinstance(raw, dict):
+            return False
+        if raw.get("ignore_stop_loss_take_profit") is True:
+            return True
+        return bool(raw.get("stop_loss") or raw.get("take_profit") or raw.get("additional_rules"))
+
+    @staticmethod
+    def _candidate_has_specific_rules(raw: Any) -> bool:
+        if not isinstance(raw, list) or not raw:
+            return False
+        text = " ".join(str(item).lower() for item in raw if isinstance(item, str))
+        generic_fragments = (
+            "derived from the source idea",
+            "define a precise",
+            "entry thesis is invalidated",
+            "configured risk rule triggers",
+        )
+        return bool(text.strip()) and not any(fragment in text for fragment in generic_fragments)
+
+    @staticmethod
+    def _candidate_has_position_sizing(raw: Any) -> bool:
+        return isinstance(raw, dict) and bool(raw.get("sizing_rule"))
 
     @staticmethod
     def _clarification_question(missing: list[str]) -> str:
@@ -473,15 +638,18 @@ class StrategyCreatorAgent:
         return "formula:" in lower or "calculation:" in lower or "definition:" in lower
 
     def _candidate_from_idea(self, *, idea: str, context: dict[str, object]) -> dict[str, Any]:
-        symbol = self._extract_symbol(idea) or self._context_str(context, "symbol")
-        timeframe = self._extract_timeframe(idea) or self._context_str(context, "timeframe")
+        symbol = self._extract_symbol(idea) or self._context_symbol(context)
+        timeframe = self._extract_timeframe(idea) or self._context_timeframe(context)
         payload: dict[str, Any] = {
             "source_idea": idea.strip(),
             "strategy_name": self._strategy_name_from_idea(idea),
             "entry_logic": self._entry_logic_from_idea(idea),
             "exit_logic": self._exit_logic_from_idea(idea),
-            "risk_management": {},
+            "risk_management": self._risk_management_from_idea(idea),
         }
+        position_sizing = self._position_sizing_from_idea(idea)
+        if position_sizing:
+            payload["position_sizing"] = position_sizing
         if symbol or timeframe:
             payload["asset_scope"] = {
                 "assets": [symbol] if symbol else None,
@@ -496,6 +664,158 @@ class StrategyCreatorAgent:
             "payload": payload,
         }
 
+    def _candidate_with_llm_assist(
+        self,
+        *,
+        idea: str,
+        context: dict[str, object],
+        deterministic_candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        assisted_patch = self._call_llm_interpretation_assist(
+            idea=idea,
+            context=context,
+            deterministic_candidate=deterministic_candidate,
+        )
+        if not assisted_patch:
+            return deterministic_candidate
+        merged = self._merge_candidate_patch(deterministic_candidate, assisted_patch)
+        return merged
+
+    def _call_llm_interpretation_assist(
+        self,
+        *,
+        idea: str,
+        context: dict[str, object],
+        deterministic_candidate: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        user_payload = {
+            "source_idea": idea,
+            "page_context": {
+                "symbol": self._context_symbol(context),
+                "timeframe": self._context_timeframe(context),
+            },
+            "deterministic_candidate": deterministic_candidate,
+            "available_indicators": sorted(self._available_indicator_names())[:80],
+        }
+        try:
+            runtime = create_llm_runtime(
+                model=get_model_for_tier("standard"),
+                json_mode=True,
+                temperature=0.0,
+                max_output_tokens=1400,
+            )
+            result = runtime._call_llm(
+                self.LLM_ASSIST_PROMPT,
+                json.dumps(user_payload, ensure_ascii=False, default=str),
+            )
+            parsed = json.loads(str(result.get("content") or "{}"))
+        except (LLMRuntimeError, json.JSONDecodeError, Exception):
+            return None
+        if not isinstance(parsed, dict):
+            return None
+        patch = parsed.get("candidate_patch")
+        confidence = parsed.get("confidence", 0)
+        missing_inputs = parsed.get("missing_inputs") or []
+        if not isinstance(patch, dict) or not isinstance(confidence, (int, float)) or float(confidence) < 55:
+            return None
+        if isinstance(missing_inputs, list) and missing_inputs:
+            patch = dict(patch)
+            patch["llm_missing_inputs"] = [str(item) for item in missing_inputs[:8]]
+        return patch
+
+    @classmethod
+    def _merge_candidate_patch(cls, candidate: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+        merged = dict(candidate)
+        payload = dict(merged.get("payload", {}))
+        for key in ("strategy_name", "strategy_type"):
+            value = patch.get(key)
+            if isinstance(value, str) and value.strip():
+                payload[key] = value.strip()
+        asset_scope = cls._valid_asset_scope_patch(patch.get("asset_scope"))
+        if asset_scope:
+            existing = dict(payload.get("asset_scope", {}))
+            existing.update(asset_scope)
+            payload["asset_scope"] = existing
+        for key in ("entry_logic", "exit_logic"):
+            value = cls._valid_rule_list_patch(patch.get(key))
+            if value:
+                payload[key] = value
+        risk_management = cls._valid_risk_patch(patch.get("risk_management"))
+        if risk_management:
+            existing_risk = dict(payload.get("risk_management", {}))
+            existing_risk.update(risk_management)
+            payload["risk_management"] = existing_risk
+        position_sizing = cls._valid_position_sizing_patch(patch.get("position_sizing"))
+        if position_sizing:
+            existing_sizing = dict(payload.get("position_sizing", {}))
+            existing_sizing.update(position_sizing)
+            payload["position_sizing"] = existing_sizing
+        merged["payload"] = payload
+        return merged
+
+    @staticmethod
+    def _valid_asset_scope_patch(raw: Any) -> dict[str, Any]:
+        if not isinstance(raw, dict):
+            return {}
+        patch: dict[str, Any] = {}
+        assets = raw.get("assets")
+        if isinstance(assets, list):
+            clean_assets = [
+                str(asset).upper()
+                for asset in assets
+                if isinstance(asset, str)
+                and re.fullmatch(r"[A-Z0-9._/-]{2,16}", asset.upper())
+                and asset.upper() not in StrategyCreatorAgent._NON_SYMBOL_TOKENS
+            ]
+            if clean_assets:
+                patch["assets"] = clean_assets[:50]
+        timeframe = raw.get("timeframe")
+        if isinstance(timeframe, str):
+            normalized_timeframe = timeframe.upper()
+            if re.fullmatch(r"(M1|M5|M15|M30|H1|H4|D1|W1|MN1|1D)", normalized_timeframe):
+                patch["timeframe"] = normalized_timeframe
+                patch["data_granularity"] = normalized_timeframe
+        return patch
+
+    @staticmethod
+    def _valid_rule_list_patch(raw: Any) -> list[str]:
+        if not isinstance(raw, list):
+            return []
+        clean = [str(item).strip() for item in raw if isinstance(item, str) and item.strip()]
+        return clean[:12]
+
+    @staticmethod
+    def _valid_risk_patch(raw: Any) -> dict[str, Any]:
+        if not isinstance(raw, dict):
+            return {}
+        patch: dict[str, Any] = {}
+        if "ignore_stop_loss_take_profit" in raw:
+            patch["ignore_stop_loss_take_profit"] = bool(raw.get("ignore_stop_loss_take_profit"))
+        for key in ("stop_loss", "take_profit"):
+            if key in raw:
+                value = raw.get(key)
+                patch[key] = None if value is None else str(value).strip()
+        additional = raw.get("additional_rules")
+        if isinstance(additional, list):
+            patch["additional_rules"] = [str(item).strip() for item in additional if isinstance(item, str) and item.strip()][:10]
+        return patch
+
+    @staticmethod
+    def _valid_position_sizing_patch(raw: Any) -> dict[str, Any]:
+        if not isinstance(raw, dict):
+            return {}
+        patch: dict[str, Any] = {}
+        sizing_rule = raw.get("sizing_rule")
+        if isinstance(sizing_rule, str) and sizing_rule.strip():
+            patch["sizing_rule"] = sizing_rule.strip()
+        leverage = raw.get("leverage")
+        if isinstance(leverage, (int, float)) and 0 < float(leverage) <= 100:
+            patch["leverage"] = float(leverage)
+        notes = raw.get("allocation_notes")
+        if isinstance(notes, str) and notes.strip():
+            patch["allocation_notes"] = notes.strip()
+        return patch
+
     @staticmethod
     def _strategy_name_from_idea(idea: str) -> str:
         cleaned = re.sub(r"\b(create|build|make|strategy|for|using|with)\b", " ", idea, flags=re.IGNORECASE)
@@ -505,6 +825,9 @@ class StrategyCreatorAgent:
     @staticmethod
     def _entry_logic_from_idea(idea: str) -> list[str]:
         lower = idea.lower()
+        rsi_cross = StrategyCreatorAgent._rsi_cross_rules_from_idea(idea, scope="entry")
+        if rsi_cross:
+            return rsi_cross
         if "rsi" in lower:
             return [
                 "Enter LONG when previous-bar RSI is below 30 and price confirms mean-reversion setup.",
@@ -525,6 +848,9 @@ class StrategyCreatorAgent:
     @staticmethod
     def _exit_logic_from_idea(idea: str) -> list[str]:
         lower = idea.lower()
+        rsi_cross = StrategyCreatorAgent._rsi_cross_rules_from_idea(idea, scope="exit")
+        if rsi_cross:
+            return rsi_cross
         if "rsi" in lower or "mean reversion" in lower or "mean-reversion" in lower:
             return [
                 "Exit LONG when RSI normalizes above 50, mean reversion completes, or risk rules trigger.",
@@ -536,6 +862,85 @@ class StrategyCreatorAgent:
                 "Exit SHORT when the fast moving average crosses back above the slow moving average or risk rules trigger.",
             ]
         return ["Exit when the entry thesis is invalidated or the configured risk rule triggers."]
+
+    @staticmethod
+    def _rsi_cross_rules_from_idea(idea: str, *, scope: str) -> list[str]:
+        lower = idea.lower()
+        if "rsi" not in lower or "cross" not in lower:
+            return []
+        period = StrategyCreatorAgent._extract_rsi_period(idea)
+        period_label = f"RSI({period})" if period else "RSI"
+        threshold = StrategyCreatorAgent._extract_rsi_cross_threshold(idea) or 50
+        rules: list[str] = []
+        if scope == "entry":
+            if re.search(r"\b(?:buy|enter\s+long)\b.*cross(?:es)?\s+up", lower, flags=re.IGNORECASE):
+                rules.append(f"Enter LONG when {period_label} crosses up through {threshold} on the completed bar.")
+            if re.search(r"\b(?:sell|enter\s+short)\b.*cross(?:es)?\s+down", lower, flags=re.IGNORECASE):
+                rules.append(f"Enter SHORT when {period_label} crosses down through {threshold} on the completed bar.")
+        else:
+            if re.search(r"\bexit\s+(?:buy|long)\b.*cross(?:es)?\s+down", lower, flags=re.IGNORECASE):
+                rules.append(f"Exit LONG when {period_label} crosses down through {threshold} on the completed bar.")
+            if re.search(r"\bexit\s+(?:sell|short)\b.*cross(?:es)?\s+up", lower, flags=re.IGNORECASE):
+                rules.append(f"Exit SHORT when {period_label} crosses up through {threshold} on the completed bar.")
+        return rules
+
+    @staticmethod
+    def _extract_rsi_period(idea: str) -> int | None:
+        match = re.search(r"\brsi\s*\(?\s*(\d{1,3})\s*\)?", idea, flags=re.IGNORECASE)
+        if not match:
+            return None
+        value = int(match.group(1))
+        return value if 2 <= value <= 200 else None
+
+    @staticmethod
+    def _extract_rsi_cross_threshold(idea: str) -> int | None:
+        matches = [int(value) for value in re.findall(r"cross(?:es)?\s+(?:up|down)\s+(\d{1,3})", idea, flags=re.IGNORECASE)]
+        valid = [value for value in matches if 1 <= value <= 99]
+        return valid[0] if valid else None
+
+    @staticmethod
+    def _risk_management_from_idea(idea: str) -> dict[str, Any]:
+        lower = idea.lower()
+        ignore_sl_tp = (
+            "ignore_stop_loss_take_profit" in lower and "true" in lower
+        ) or bool(re.search(r"\bno\s+(?:sl|stop[- ]loss|stop loss)\b", lower)) or bool(
+            re.search(r"\bno\s+(?:tp|take[- ]profit|take profit)\b", lower)
+        )
+        if ignore_sl_tp:
+            return {
+                "stop_loss": None,
+                "take_profit": None,
+                "ignore_stop_loss_take_profit": True,
+                "additional_rules": ["No stop-loss or take-profit. Exits are governed by the explicit exit logic."],
+            }
+        risk: dict[str, Any] = {"ignore_stop_loss_take_profit": False}
+        stop = re.search(r"(\d+(?:\.\d+)?)\s*(?:pip|pips|%)\s+stop", lower)
+        take = re.search(r"(\d+(?:\.\d+)?)\s*(?:pip|pips|%)\s+(?:take profit|tp)", lower)
+        if stop:
+            unit = "%" if "%" in stop.group(0) else "pips"
+            risk["stop_loss"] = f"{stop.group(1)} {unit}"
+        if take:
+            unit = "%" if "%" in take.group(0) else "pips"
+            risk["take_profit"] = f"{take.group(1)} {unit}"
+        return risk
+
+    @staticmethod
+    def _position_sizing_from_idea(idea: str) -> dict[str, Any] | None:
+        lot_match = re.search(r"\bfixed\s+(\d+(?:\.\d+)?)\s+lots?\b", idea, flags=re.IGNORECASE)
+        if lot_match:
+            lots = lot_match.group(1)
+            return {
+                "sizing_rule": f"Use fixed {lots} lots per trade.",
+                "leverage": 1.0,
+                "allocation_notes": "Fixed-lot position sizing supplied by the user.",
+            }
+        if "fixed lots" in idea.lower():
+            return {
+                "sizing_rule": "Use fixed lots per trade. Lot size must be configured before backtesting.",
+                "leverage": 1.0,
+                "allocation_notes": "Fixed-lot sizing method supplied without a numeric lot value.",
+            }
+        return None
 
     @staticmethod
     def _has_entry_rule(idea: str) -> bool:
@@ -550,7 +955,25 @@ class StrategyCreatorAgent:
     @staticmethod
     def _has_risk_rule(idea: str) -> bool:
         lower = idea.lower()
-        return any(token in lower for token in ("stop", "stop-loss", "stop loss", "take profit", "tp", "risk", "drawdown", "no leverage", "leverage"))
+        return any(
+            token in lower
+            for token in (
+                "stop",
+                "stop-loss",
+                "stop loss",
+                "take profit",
+                "tp",
+                "risk",
+                "drawdown",
+                "no leverage",
+                "leverage",
+                "no sl",
+                "no tp",
+                "ignore_stop_loss_take_profit",
+                "fixed lot",
+                "fixed lots",
+            )
+        )
 
     @staticmethod
     def _has_position_sizing(idea: str) -> bool:
@@ -560,7 +983,7 @@ class StrategyCreatorAgent:
     @staticmethod
     def _extract_symbol(idea: str) -> str | None:
         for token in re.findall(r"\b[A-Z]{2,8}\b", idea):
-            if token not in {"RSI", "EMA", "SMA", "ATR", "MACD"}:
+            if token not in StrategyCreatorAgent._NON_SYMBOL_TOKENS:
                 return token
         return None
 
@@ -568,6 +991,37 @@ class StrategyCreatorAgent:
     def _extract_timeframe(idea: str) -> str | None:
         match = re.search(r"\b(M1|M5|M15|M30|H1|H4|D1|W1|MN1|1D)\b", idea.upper())
         return match.group(1) if match else None
+
+    _NON_SYMBOL_TOKENS = {
+        "RSI",
+        "EMA",
+        "SMA",
+        "ATR",
+        "MACD",
+        "LONG",
+        "SHORT",
+        "BUY",
+        "SELL",
+        "HOLD",
+        "TP",
+        "SL",
+        "TRUE",
+        "FALSE",
+    }
+
+    @staticmethod
+    def _context_symbol(context: dict[str, object]) -> str | None:
+        value = StrategyCreatorAgent._context_str(context, "symbol")
+        if value and value not in StrategyCreatorAgent._NON_SYMBOL_TOKENS:
+            return value
+        return None
+
+    @staticmethod
+    def _context_timeframe(context: dict[str, object]) -> str | None:
+        value = StrategyCreatorAgent._context_str(context, "timeframe")
+        if value and re.fullmatch(r"(M1|M5|M15|M30|H1|H4|D1|W1|MN1|1D)", value):
+            return value
+        return None
 
     @staticmethod
     def _context_str(context: dict[str, object], key: str) -> str | None:
@@ -940,14 +1394,27 @@ def {normalized_name}(
             {"name": "risk_per_trade_pct", "default": 1.0, "range": [0.1, 3.0], "description": "Maximum account risk per trade."},
         ]
         if "rsi" in lower:
+            rsi_period = StrategyCreatorAgent._extract_rsi_period(blueprint.payload.source_idea) or 14
+            rsi_threshold = StrategyCreatorAgent._extract_rsi_cross_threshold(blueprint.payload.source_idea)
             schema.extend(
                 [
-                    {"name": "rsi_period", "default": 14, "range": [5, 30], "description": "RSI lookback period."},
-                    {"name": "rsi_oversold", "default": 30, "range": [10, 45], "description": "Long entry threshold."},
-                    {"name": "rsi_overbought", "default": 70, "range": [55, 90], "description": "Short entry threshold."},
-                    {"name": "rsi_exit", "default": 50, "range": [40, 60], "description": "Mean-reversion exit level."},
+                    {"name": "rsi_period", "default": rsi_period, "range": [5, 30], "description": "RSI lookback period."},
                 ]
             )
+            if rsi_threshold:
+                schema.extend(
+                    [
+                        {"name": "rsi_cross_level", "default": rsi_threshold, "range": [1, 99], "description": "RSI midline/cross threshold."},
+                    ]
+                )
+            else:
+                schema.extend(
+                    [
+                        {"name": "rsi_oversold", "default": 30, "range": [10, 45], "description": "Long entry threshold."},
+                        {"name": "rsi_overbought", "default": 70, "range": [55, 90], "description": "Short entry threshold."},
+                        {"name": "rsi_exit", "default": 50, "range": [40, 60], "description": "Mean-reversion exit level."},
+                    ]
+                )
         if any(token in lower for token in ("trend", "moving average", "ema", "sma")):
             schema.extend(
                 [

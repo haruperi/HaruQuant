@@ -46,19 +46,21 @@ export default function EdgeLabUnsupervisedStructurePage() {
     )
   }
 
+  const activeDataset = dataset
+
   async function handleRun() {
     setLoading(true)
     setError(null)
     try {
       const response = await edgeLabApi.runUnsupervisedStructure({
-        symbol: dataset.request.symbol,
-        timeframe: dataset.request.timeframe,
-        data_source: dataset.request.data_source,
-        range_by: dataset.request.range_by,
-        start_date: dataset.request.start_date ?? undefined,
-        end_date: dataset.request.end_date ?? undefined,
-        number_of_bars: dataset.request.number_of_bars ?? undefined,
-        prepared_dataset: dataset,
+        symbol: activeDataset.request.symbol,
+        timeframe: activeDataset.request.timeframe,
+        data_source: activeDataset.request.data_source,
+        range_by: activeDataset.request.range_by,
+        start_date: activeDataset.request.start_date ?? undefined,
+        end_date: activeDataset.request.end_date ?? undefined,
+        number_of_bars: activeDataset.request.number_of_bars ?? undefined,
+        prepared_dataset: activeDataset,
         save_db: false,
         fast_period: Number(fastPeriod) || 20,
         slow_period: Number(slowPeriod) || 50,
@@ -93,7 +95,7 @@ export default function EdgeLabUnsupervisedStructurePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <EdgeLabDatasetSummary dataset={dataset} />
+          <EdgeLabDatasetSummary dataset={activeDataset} emptyMessage="Load a dataset in the Data tab first." />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
