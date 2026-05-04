@@ -7,6 +7,13 @@ from .execution_agent import EXECUTION_AGENT_INSTRUCTION, ExecutionAgentWrapper
 from .exposure_agent import EXPOSURE_AGENT_INSTRUCTION, ExposureAgentWrapper
 from .intent_router import IntentRouterAgent, IntentRouterError, intent_router_agent
 from .portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
+from .permissions import (
+    AgentToolPermissionDecision,
+    AgentToolPermissionError,
+    AgentToolPermissionService,
+    DEFAULT_AGENT_TOOL_ALLOWLIST,
+    get_default_permission_service,
+)
 from .refine_agent import REFINE_AGENT_INSTRUCTION, RefineAgentWrapper
 from .risk_governor_agent import RiskGovernorAgentAdapter
 from .route_decision import RouteDecision, RouteDecisionService
@@ -108,6 +115,9 @@ __all__ = [
     "STRATEGY_CREATOR_AGENT_INSTRUCTION",
     "VOLATILITY_AGENT_INSTRUCTION",
     "AgentSession",
+    "AgentToolPermissionDecision",
+    "AgentToolPermissionError",
+    "AgentToolPermissionService",
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
@@ -145,6 +155,7 @@ __all__ = [
     "generate_refinement_recommendations",
     "hash_schema_name",
     "ContextRedactionMiddleware",
+    "DEFAULT_AGENT_TOOL_ALLOWLIST",
     "PromptProvenance",
     "PromptRegistryService",
     "PromptRegistryRecord",
@@ -183,6 +194,7 @@ __all__ = [
     "RoutingWorkflowBranch",
     "RoutingWorkflowRunner",
     "WorkerGroupResult",
+    "get_default_permission_service",
     "intent_router_agent",
     "enforce_refine_loop_limit",
     "WorkflowMemoryBinding",

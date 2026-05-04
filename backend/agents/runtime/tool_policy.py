@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from backend.agents.permissions import AgentToolPermissionService
+
 from backend.common.logger import logger
 
 class ToolPolicyError(ValueError):
@@ -22,6 +24,9 @@ class ToolAllowlistDecision:
 
 class ToolAllowlistMiddleware:
     """Validate that requested tools stay within the declared allowlist."""
+
+    def __init__(self, permission_service: AgentToolPermissionService | None = None) -> None:
+        self.permission_service = permission_service
 
     def evaluate(
         self,
@@ -51,3 +56,24 @@ class ToolAllowlistMiddleware:
             blocked = ", ".join(decision.blocked_tools)
             raise ToolPolicyError(f"disallowed tools requested: {blocked}")
         return decision
+
+    def enforce_agent_tool(
+        self,
+        *,
+        agent_name: str,
+        tool_name: str,
+        has_human_approval: bool = False,
+        has_risk_governor_approval: bool = False,
+    ):
+        """Enforce the Phase 5 registry-backed agent permission layer."""
+
+        service = self.permission_service or AgentToolPermissionService()
+        try:
+            return service.enforce(
+                agent_name=agent_name,
+                tool_name=tool_name,
+                has_human_approval=has_human_approval,
+                has_risk_governor_approval=has_risk_governor_approval,
+            )
+        except PermissionError as exc:
+            raise ToolPolicyError(str(exc)) from exc

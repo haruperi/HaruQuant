@@ -387,6 +387,7 @@ backend/app/audit/audit_logger.py
 |   2.0 | Repository and folder structure | Complete |
 |   3.0 | Core schemas and contracts | Complete |
 |   4.0 | Database tables and audit persistence | Complete |
+|   5.0 | Tool registry and permission layer | Complete |
 
 ---
 

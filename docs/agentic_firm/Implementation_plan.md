@@ -396,61 +396,65 @@ MCP’s tool model is useful here because each tool should have a name, schema, 
 
 ### 5.1 Create tool registry
 
-* [ ] Create `backend/app/tools/registry.py`.
-* [ ] Define `ToolDefinition`.
-* [ ] Define `name`.
-* [ ] Define `description`.
-* [ ] Define `input_schema`.
-* [ ] Define `output_schema`.
-* [ ] Define `risk_level`.
-* [ ] Define `permission_required`.
-* [ ] Define `requires_human_approval`.
-* [ ] Define `requires_risk_governor`.
-* [ ] Define `audit_required`.
+* [X] Create `backend/tools/registry.py`.
+* [X] Define `ToolDefinition`.
+* [X] Define `name`.
+* [X] Define `description`.
+* [X] Define `input_schema`.
+* [X] Define `output_schema`.
+* [X] Define `risk_level`.
+* [X] Define `permission_required`.
+* [X] Define `requires_human_approval`.
+* [X] Define `requires_risk_governor`.
+* [X] Define `audit_required`.
 
 ### 5.2 Register read-only tools first
 
-* [ ] `get_symbol_data`.
-* [ ] `get_latest_ohlcv`.
-* [ ] `get_strategy`.
-* [ ] `list_strategies`.
-* [ ] `get_backtest_result`.
-* [ ] `get_analytics_summary`.
-* [ ] `get_open_positions`.
-* [ ] `get_account_snapshot`.
-* [ ] `get_risk_snapshot`.
+* [X] `get_symbol_data`.
+* [X] `get_latest_ohlcv`.
+* [X] `get_strategy`.
+* [X] `list_strategies`.
+* [X] `get_backtest_result`.
+* [X] `get_analytics_summary`.
+* [X] `get_open_positions`.
+* [X] `get_account_snapshot`.
+* [X] `get_risk_snapshot`.
 
 ### 5.3 Register write tools second
 
-* [ ] `create_strategy_spec`.
-* [ ] `save_strategy_code`.
-* [ ] `run_backtest`.
-* [ ] `run_optimization`.
-* [ ] `run_robustness_test`.
-* [ ] `create_risk_review`.
-* [ ] `create_report`.
-* [ ] `start_paper_trading`.
+* [X] `create_strategy_spec`.
+* [X] `save_strategy_code`.
+* [X] `run_backtest`.
+* [X] `run_optimization`.
+* [X] `run_robustness_test`.
+* [X] `create_risk_review`.
+* [X] `create_report`.
+* [X] `start_paper_trading`.
 
 ### 5.4 Register critical tools last
 
-* [ ] `request_live_activation`.
-* [ ] `create_trade_proposal`.
-* [ ] `request_risk_approval`.
-* [ ] `place_paper_order`.
-* [ ] `place_live_order`.
-* [ ] `close_live_position`.
-* [ ] `pause_strategy`.
-* [ ] `disable_live_trading`.
-* [ ] `trigger_kill_switch`.
+* [X] `request_live_activation`.
+* [X] `create_trade_proposal`.
+* [X] `request_risk_approval`.
+* [X] `place_paper_order`.
+* [X] `place_live_order`.
+* [X] `close_live_position`.
+* [X] `pause_strategy`.
+* [X] `disable_live_trading`.
+* [X] `trigger_kill_switch`.
 
 ### 5.5 Enforce permission checks
 
-* [ ] Create `backend/app/agents/permissions.py`.
-* [ ] Map agents to allowed tools.
-* [ ] Block tool calls not explicitly allowed.
-* [ ] Block critical tools without approval.
-* [ ] Block execution tools without RiskGovernor approval.
-* [ ] Log every blocked attempt.
+* [X] Create `backend/agents/permissions.py`.
+* [X] Map agents to allowed tools.
+* [X] Block tool calls not explicitly allowed.
+* [X] Block critical tools without approval.
+* [X] Block execution tools without RiskGovernor approval.
+* [X] Log every blocked attempt.
+
+### Phase 5 implementation note
+
+Phase 5 was implemented through `backend/tools/registry.py` and `backend/agents/permissions.py`. The existing runtime `ToolAllowlistMiddleware` keeps its original allowlist behavior and now also exposes registry-backed agent permission enforcement. The registry is metadata-only: actual execution remains inside existing service, MCP, risk, execution, and audit boundaries.
 
 ## Done definition
 
