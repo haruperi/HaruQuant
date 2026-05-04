@@ -565,41 +565,50 @@ Phase 6 complete.
 
 ### 7.1 CEO Agent
 
-* [ ] Create `backend/app/agents/ceo/agent.py`.
-* [ ] Add CEO system instructions.
-* [ ] Add firm constitution reference.
-* [ ] Add risk policy reference.
-* [ ] Add task delegation ability.
-* [ ] Add final investment memo format.
-* [ ] Add Board escalation rules.
-* [ ] Add refusal rules for unsafe requests.
-* [ ] Add evidence requirement.
+* [X] Create `backend/agents/ceo/agent.py`.
+* [X] Add CEO system instructions.
+* [X] Add firm constitution reference.
+* [X] Add risk policy reference.
+* [X] Add task delegation ability.
+* [X] Add final investment memo format.
+* [X] Add Board escalation rules.
+* [X] Add refusal rules for unsafe requests.
+* [X] Add evidence requirement.
 
 ### 7.2 Planner Agent
 
-* [ ] Create `backend/app/agents/planner/agent.py`.
-* [ ] Implement structured planner output.
-* [ ] Support `strategy_creation`.
-* [ ] Support `backtest_diagnosis`.
-* [ ] Support `optimization_comparison`.
-* [ ] Support `risk_review`.
-* [ ] Support `execution_proposal`.
-* [ ] Support `research`.
-* [ ] Support `reporting`.
-* [ ] Support `page_action`.
-* [ ] Support `clarification`.
-* [ ] Support `governed_action_draft`.
+* [X] Create `backend/agents/planner/agent.py`.
+* [X] Implement structured planner output.
+* [X] Support `strategy_creation`.
+* [X] Support `backtest_diagnosis`.
+* [X] Support `optimization_comparison`.
+* [X] Support `risk_review`.
+* [X] Support `execution_proposal`.
+* [X] Support `research`.
+* [X] Support `reporting`.
+* [X] Support `page_action`.
+* [X] Support `clarification`.
+* [X] Support `governed_action_draft`.
 
 ### 7.3 CEO response templates
 
-* [ ] Create `backend/app/agents/ceo/templates.py`.
-* [ ] Add research memo template.
-* [ ] Add strategy proposal template.
-* [ ] Add backtest report template.
-* [ ] Add risk memo template.
-* [ ] Add Board approval request template.
-* [ ] Add rejection template.
-* [ ] Add blocked-by-risk template.
+* [X] Create `backend/agents/ceo/templates.py`.
+* [X] Add research memo template.
+* [X] Add strategy proposal template.
+* [X] Add backtest report template.
+* [X] Add risk memo template.
+* [X] Add Board approval request template.
+* [X] Add rejection template.
+* [X] Add blocked-by-risk template.
+
+### Phase 7 implementation note
+
+Phase 7 was implemented on the canonical `backend/agents/` path. `PlannerAgent` now emits the expanded `ConversationPlan` contract for `strategy_creation`, `backtest_diagnosis`, `optimization_comparison`, `risk_review`, `execution_proposal`, `research`, `reporting`, `page_action`, `clarification`, and `governed_action_draft`. `CEOAgent` now owns firm-facing system instructions, policy references, evidence requirements, Board escalation rules, refusal rules, and final memo synthesis. The Phase 6 control plane now uses the Phase 7 planner and CEO memo layer directly.
+
+Usage examples:
+
+* Runnable script: `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py`.
+* Documentation: `docs/agentic_firm/phase7_ceo_planner_usage_example.md`.
 
 ## Done definition
 
@@ -623,7 +632,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.1 Market Intelligence Agent
 
-* [ ] Create `backend/app/agents/research/market_intelligence_agent.py`.
+* [ ] Create `backend/agents/research/market_intelligence_agent.py`.
 * [ ] Read symbol data.
 * [ ] Read volatility regimes.
 * [ ] Read spreads.
@@ -634,7 +643,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.2 Technical Analyst Agent
 
-* [ ] Create `backend/app/agents/research/technical_analyst_agent.py`.
+* [ ] Create `backend/agents/research/technical_analyst_agent.py`.
 * [ ] Compute indicator context.
 * [ ] Analyze trend.
 * [ ] Analyze volatility.
@@ -646,7 +655,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.3 Strategy Scout Agent
 
-* [ ] Create `backend/app/agents/research/strategy_scout_agent.py`.
+* [ ] Create `backend/agents/research/strategy_scout_agent.py`.
 * [ ] Search internal strategy memory.
 * [ ] Search past backtests.
 * [ ] Search rejected strategies.

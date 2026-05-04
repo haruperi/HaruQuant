@@ -28,7 +28,11 @@ DEFAULT_AGENT_DESCRIPTORS: tuple[AgentDescriptor, ...] = (
     AgentDescriptor("strategy_creator", "Strategy Creator Agent", "strategy", "backend.agents.strategy_creator.agent", description="Drafts structured strategy specifications."),
     AgentDescriptor("strategy_reviewer", "Strategy Reviewer Agent", "strategy", "backend.agents.strategy_reviewer.agent", description="Reviews strategy quality and lifecycle readiness."),
     AgentDescriptor("backtest", "Backtest Agent", "testing", "backend.agents.backtest.agent", description="Runs and summarizes backtest evidence."),
+    AgentDescriptor("optimization", "Optimization Agent", "testing", "backend.agents.optimization.agent", description="Compares and optimizes candidate parameter sets."),
+    AgentDescriptor("statistical_validation", "Statistical Validation Agent", "testing", "backend.agents.statistical_validation.agent", description="Checks statistical reliability and overfitting risk."),
     AgentDescriptor("risk_reviewer", "Risk Reviewer Agent", "risk", "backend.agents.risk_reviewer.agent", description="Produces advisory risk reviews before deterministic gates."),
+    AgentDescriptor("portfolio_manager", "Portfolio Manager Agent", "portfolio", "backend.agents.portfolio_manager.agent", description="Reviews strategy allocation and portfolio composition."),
+    AgentDescriptor("execution", "Execution Agent", "execution", "backend.agents.execution.agent", description="Drafts execution proposals but cannot bypass risk and approval gates."),
     AgentDescriptor("performance_reporter", "Performance Reporter Agent", "reporting", "backend.agents.performance_reporter.agent", description="Creates operating and Board performance reports."),
     AgentDescriptor("audit", "Audit Agent", "audit", "backend.agents.audit.agent", description="Checks trace completeness and policy adherence."),
 )
@@ -77,6 +81,14 @@ class AgentRegistry:
 
     def create_agent(self, agent_name: str) -> BaseAgent:
         descriptor = self.require(agent_name)
+        if agent_name == "ceo":
+            from backend.agents.ceo.agent import CEOAgent
+
+            return CEOAgent(permission_service=self.permission_service)
+        if agent_name == "planner":
+            from backend.agents.planner.agent import PlannerAgent
+
+            return PlannerAgent(permission_service=self.permission_service)
         return FirmDepartmentAgent(
             agent_name=descriptor.agent_name,
             role=descriptor.role,

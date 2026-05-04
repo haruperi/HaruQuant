@@ -10,7 +10,8 @@ from uuid import uuid4
 
 from backend.agents.agent_registry import AgentRegistry, get_default_agent_registry
 from backend.agents.base import AgentRunContext, AgentRunResult
-from backend.agents.schemas import AgentTaskStatus
+from backend.agents.ceo.agent import CEOAgent
+from backend.agents.planner.agent import PlannerAgent
 from backend.agents.task_manager import AgentTaskManager
 from backend.services.ai_chat.models import ConversationPlan
 
@@ -30,62 +31,13 @@ class AgentControlPlaneResult:
 
 
 class DefaultFirmPlanner:
-    """Small deterministic Phase 6 planner.
+    """Backward-compatible planner wrapper for the Phase 7 Planner Agent."""
 
-    This does not replace the existing AI chat planner. It gives the firm
-    control plane a stable planning contract until Phase 7 wires in the full CEO
-    and Planner agents.
-    """
+    def __init__(self, *, planner_agent: PlannerAgent | None = None) -> None:
+        self.planner_agent = planner_agent or PlannerAgent()
 
     def plan(self, *, user_request: str, request_id: str) -> ConversationPlan:
-        normalized = user_request.lower()
-        agents = ["research", "strategy_creator", "strategy_reviewer"]
-        expected_outputs = ["research_summary", "strategy_spec", "strategy_review"]
-        backend_tools = ["get_symbol_data", "get_latest_ohlcv", "create_strategy_spec"]
-        task_class = "strategy_creation"
-        artifact_expected = "strategy_artifact"
-        if "backtest" in normalized:
-            agents.append("backtest")
-            expected_outputs.append("backtest_summary")
-            backend_tools.append("run_backtest")
-            task_class = "backtest_workflow"
-        if "risk" in normalized or "approval" in normalized:
-            agents.append("risk_reviewer")
-            expected_outputs.append("risk_review")
-            backend_tools.extend(["get_risk_snapshot", "create_risk_review"])
-            task_class = "risk_review"
-        if "report" in normalized or "memo" in normalized:
-            agents.append("performance_reporter")
-            expected_outputs.append("firm_report")
-            backend_tools.append("create_report")
-
-        agents.extend(["audit", "ceo"])
-        expected_outputs.extend(["audit_trace", "ceo_summary"])
-
-        return ConversationPlan(
-            conversation_plan_id=f"plan-{uuid4().hex}",
-            user_goal=user_request,
-            answer_mode="governed_artifact",
-            response_mode="answer",
-            task_class=task_class,
-            model_tier="standard",
-            response_style="firm_memo",
-            domain_focus=task_class,
-            rationale="Phase 6 deterministic control-plane planner selected a governed firm workflow.",
-            intent=task_class,
-            backend_tools_to_run=list(dict.fromkeys(backend_tools)),
-            agents_to_consult=list(dict.fromkeys(agents)),
-            attached_tools=[],
-            artifact_expected=artifact_expected,
-            risk_level="supervised_drafts",
-            requires_audit_log=True,
-            allowed_agents=list(dict.fromkeys(agents)),
-            expected_outputs=list(dict.fromkeys(expected_outputs)),
-            evidence_requirements=["planner_result", "agent_outputs", "audit_trace"],
-            failure_policy={"default": "fail_parent_if_required_child_fails"},
-            planner_source="phase6_control_plane",
-            planner_confidence=0.82,
-        )
+        return self.planner_agent.create_plan(user_request=user_request, request_id=request_id)
 
 
 class AgentControlPlaneOrchestrator:
@@ -322,6 +274,24 @@ class AgentControlPlaneOrchestrator:
         planner_result: ConversationPlan,
         agent_results: tuple[AgentRunResult, ...],
     ) -> dict[str, Any]:
+        ceo_memo = CEOAgent().create_final_memo(
+            request=user_request,
+            planner_result=planner_result,
+            agent_outputs=tuple(
+                {
+                    "agent_name": result.agent_name,
+                    "status": result.status,
+                    "output": result.output,
+                    "evidence_refs": result.evidence_refs,
+                }
+                for result in agent_results
+            ),
+            evidence_refs=tuple(
+                evidence_ref
+                for result in agent_results
+                for evidence_ref in result.evidence_refs
+            ),
+        )
         return {
             "request": user_request,
             "plan": planner_result.model_dump(mode="json"),
@@ -333,7 +303,8 @@ class AgentControlPlaneOrchestrator:
                 result.agent_name for result in agent_results if result.status != "completed"
             ],
             "evidence_validated": True,
-            "summary": "Firm control plane completed delegated Phase 6 workflow.",
+            "ceo_memo": ceo_memo,
+            "summary": "CEO Agent completed delegated firm workflow.",
         }
 
     def _write_audit_record(
@@ -362,7 +333,7 @@ class AgentControlPlaneOrchestrator:
             request_id=request_id,
             parent_task_id=parent_task_id,
             workflow_id=workflow_id,
-            metadata_json=json.dumps({"phase": "6", "planner_source": planner_result.planner_source}, sort_keys=True),
+            metadata_json=json.dumps({"phase": "7", "planner_source": planner_result.planner_source}, sort_keys=True),
         )
         return audit_id
 

@@ -389,8 +389,11 @@ backend/tools/audit_tools.py
 |   4.0 | Database tables and audit persistence | Complete |
 |   5.0 | Tool registry and permission layer | Complete |
 |   6.0 | Agent control plane | Complete |
+|   7.0 | CEO Agent and Planner Agent | Complete |
 
 See `phase6_agent_control_plane_usage_example.md` for a runnable example of the Phase 6 request, task tree, delegated agent outputs, and audit flow.
+
+See `phase7_ceo_planner_usage_example.md` and runnable script `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py` for Planner routes, CEO memos, Board escalation, and refusal behavior.
 
 ---
 

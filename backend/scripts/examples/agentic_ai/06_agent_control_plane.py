@@ -66,7 +66,7 @@ def print_task_tree(node: TaskTreeNode, *, indent: int = 0) -> None:
 def main() -> None:
     print()
     print("#" * 78)
-    print("#  Phase 6: Agent Control Plane")
+    print("#  Phase 6/7: Agent Control Plane with CEO and Planner")
     print("#" * 78)
 
     database_path = example_database_path()
@@ -144,13 +144,14 @@ def main() -> None:
 
     print_header("07: Final Response")
     print_kv("Summary", result.final_response["summary"])
+    print_kv("CEO memo", result.final_response["ceo_memo"])
     print_kv("Completed agents", result.final_response["completed_agents"])
     print_kv("Failed agents", result.final_response["failed_agents"])
     print_kv("Evidence validated", result.final_response["evidence_validated"])
 
     print()
     print("#" * 78)
-    print("#  Phase 6 control-plane example complete")
+    print("#  Phase 6/7 control-plane example complete")
     print("#" * 78)
     print()
 

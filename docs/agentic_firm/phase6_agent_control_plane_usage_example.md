@@ -49,7 +49,7 @@ child_task_ids:
   audit task
   ceo task
 summary:
-  Firm control plane completed delegated Phase 6 workflow.
+  CEO Agent completed delegated firm workflow.
 ```
 
 ## Persisted Example With Audit
