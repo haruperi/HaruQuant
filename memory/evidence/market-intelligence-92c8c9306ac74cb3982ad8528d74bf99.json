@@ -1,0 +1,38 @@
+{
+  "candidate_ideas": [
+    {
+      "idea": "mean_reversion",
+      "rationale": "Ranging regime is more suitable for mean reversion.",
+      "score": 0.75
+    },
+    {
+      "idea": "trend_following",
+      "rationale": "Directional regime is more suitable for trend following.",
+      "score": 0.4
+    }
+  ],
+  "confidence": 0.8,
+  "created_at": "2026-05-04T14:15:02.977111Z",
+  "evidence_refs": [],
+  "market_context": {
+    "average_spread": 0.9500000000000001,
+    "bars": 60,
+    "sessions_observed": [
+      "London",
+      "New York"
+    ],
+    "trend_regime": "ranging",
+    "volatility_regime": "low"
+  },
+  "recommended_next_steps": [
+    "Run technical analysis",
+    "Create strategy spec only from supported regimes"
+  ],
+  "report_id": "market-intelligence-92c8c9306ac74cb3982ad8528d74bf99",
+  "research_question": "Research EURUSD H1 market structure and propose strategy ideas.",
+  "risks": [],
+  "source_agent": "market_intelligence",
+  "sources_used": [
+    "ohlcv"
+  ]
+}

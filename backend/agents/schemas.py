@@ -321,6 +321,31 @@ class RiskReview(BaseModel):
     evidence_refs: list[EvidenceRef] = Field(default_factory=list)
 
 
+class ResearchReport(BaseModel):
+    """Structured research report produced by read-only research agents."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    report_id: str = Field(min_length=1)
+    research_question: str = Field(min_length=1)
+    source_agent: str = Field(min_length=1)
+    sources_used: list[str] = Field(default_factory=list)
+    market_context: dict[str, Any] = Field(default_factory=dict)
+    candidate_ideas: list[dict[str, Any]] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    recommended_next_steps: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("created_at")
+    @classmethod
+    def _validate_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
 class TradeProposal(BaseModel):
     """Agent-facing trade proposal view required by the firm plan."""
 
@@ -488,6 +513,7 @@ __all__ = [
     "ExecutionResult",
     "RiskApproval",
     "RiskReview",
+    "ResearchReport",
     "StepFailurePolicy",
     "StrategyReview",
     "StrategySpec",

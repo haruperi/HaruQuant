@@ -25,6 +25,9 @@ DEFAULT_AGENT_DESCRIPTORS: tuple[AgentDescriptor, ...] = (
     AgentDescriptor("ceo", "CEO Agent", "executive", "backend.agents.ceo.agent", description="Owns final user-facing synthesis, escalation, and Board communication."),
     AgentDescriptor("planner", "Planner Agent", "executive", "backend.agents.planner.agent", description="Turns firm requests into governed task plans."),
     AgentDescriptor("research", "Research Agent", "research", "backend.agents.research.agent", description="Collects read-only market and strategy evidence."),
+    AgentDescriptor("market_intelligence", "Market Intelligence Agent", "research", "backend.agents.research.market_intelligence_agent", description="Reads market data, spreads, sessions, and volatility regimes."),
+    AgentDescriptor("technical_analyst", "Technical Analyst Agent", "research", "backend.agents.research.technical_analyst_agent", description="Computes read-only technical context and strategy suitability."),
+    AgentDescriptor("strategy_scout", "Strategy Scout Agent", "research", "backend.agents.research.strategy_scout_agent", description="Scores strategy ideas from internal memory and approved research sources."),
     AgentDescriptor("strategy_creator", "Strategy Creator Agent", "strategy", "backend.agents.strategy_creator.agent", description="Drafts structured strategy specifications."),
     AgentDescriptor("strategy_reviewer", "Strategy Reviewer Agent", "strategy", "backend.agents.strategy_reviewer.agent", description="Reviews strategy quality and lifecycle readiness."),
     AgentDescriptor("backtest", "Backtest Agent", "testing", "backend.agents.backtest.agent", description="Runs and summarizes backtest evidence."),
@@ -89,6 +92,18 @@ class AgentRegistry:
             from backend.agents.planner.agent import PlannerAgent
 
             return PlannerAgent(permission_service=self.permission_service)
+        if agent_name == "market_intelligence":
+            from backend.agents.research.market_intelligence_agent import MarketIntelligenceAgent
+
+            return MarketIntelligenceAgent(permission_service=self.permission_service)
+        if agent_name == "technical_analyst":
+            from backend.agents.research.technical_analyst_agent import TechnicalAnalystAgent
+
+            return TechnicalAnalystAgent(permission_service=self.permission_service)
+        if agent_name == "strategy_scout":
+            from backend.agents.research.strategy_scout_agent import StrategyScoutAgent
+
+            return StrategyScoutAgent(permission_service=self.permission_service)
         return FirmDepartmentAgent(
             agent_name=descriptor.agent_name,
             role=descriptor.role,

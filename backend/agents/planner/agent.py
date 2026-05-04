@@ -229,9 +229,9 @@ class PlannerAgent(BaseAgent):
                 response_style="research_memo",
                 domain_focus="market_research",
                 artifact_expected="research_report",
-                allowed_agents=("research", "audit", "ceo"),
+                allowed_agents=("market_intelligence", "technical_analyst", "strategy_scout", "audit", "ceo"),
                 backend_tools=("get_symbol_data", "get_latest_ohlcv", "get_analytics_summary", "create_report"),
-                expected_outputs=("research_report", "audit_trace", "ceo_summary"),
+                expected_outputs=("market_intelligence_report", "technical_analysis_report", "strategy_ideas", "audit_trace", "ceo_summary"),
                 evidence_requirements=("market_data", "research_observations", "audit_trace"),
             )
         if "backtest" in normalized:

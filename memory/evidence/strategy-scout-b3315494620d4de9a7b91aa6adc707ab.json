@@ -1,0 +1,55 @@
+{
+  "candidate_ideas": [
+    {
+      "edge_plausibility": 0.65,
+      "feasibility": 0.85,
+      "idea": "EURUSD H1 RSI mean reversion",
+      "novelty": 0.8,
+      "risk_compatibility": 0.75,
+      "score": 0.79,
+      "style": "mean_reversion",
+      "testability": 0.9
+    },
+    {
+      "edge_plausibility": 0.65,
+      "feasibility": 0.85,
+      "idea": "Volatility regime trend continuation",
+      "novelty": 0.8,
+      "risk_compatibility": 0.65,
+      "score": 0.77,
+      "style": "trend_following",
+      "testability": 0.9
+    },
+    {
+      "edge_plausibility": 0.65,
+      "feasibility": 0.7,
+      "idea": "London session breakout filter",
+      "novelty": 0.8,
+      "risk_compatibility": 0.65,
+      "score": 0.74,
+      "style": "breakout",
+      "testability": 0.9
+    }
+  ],
+  "confidence": 0.76,
+  "created_at": "2026-05-04T14:15:02.979337Z",
+  "evidence_refs": [],
+  "market_context": {
+    "memory_items": 1,
+    "past_backtests": 1,
+    "rejected": 1
+  },
+  "recommended_next_steps": [
+    "Send top idea to Strategy Creator",
+    "Reject low testability ideas"
+  ],
+  "report_id": "strategy-scout-b3315494620d4de9a7b91aa6adc707ab",
+  "research_question": "Research EURUSD H1 market structure and propose strategy ideas.",
+  "risks": [],
+  "source_agent": "strategy_scout",
+  "sources_used": [
+    "strategy_memory",
+    "past_backtests",
+    "rejected_strategies"
+  ]
+}

@@ -31,6 +31,9 @@ from .permissions import (
 )
 from .orchestrator import AgentControlPlaneOrchestrator, AgentControlPlaneResult, DefaultFirmPlanner
 from .planner.agent import PlannerAgent, PlannerRoute
+from .research.market_intelligence_agent import MarketIntelligenceAgent
+from .research.strategy_scout_agent import StrategyScoutAgent
+from .research.technical_analyst_agent import TechnicalAnalystAgent
 from .task_manager import (
     AgentTaskManager,
     AgentTaskTransitionError,
@@ -167,6 +170,7 @@ __all__ = [
     "IntentRouterAgent",
     "IntentRouterError",
     "MonitoringAgentWrapper",
+    "MarketIntelligenceAgent",
     "OrchestratorAgentWrapper",
     "PortfolioAgentWrapper",
     "RefineAgentWrapper",
@@ -179,6 +183,8 @@ __all__ = [
     "StrategyAgentWrapper",
     "StrategyCreatorAgent",
     "StrategyCreatorResult",
+    "StrategyScoutAgent",
+    "TechnicalAnalystAgent",
     "VolatilityAgentWrapper",
     "EvaluatorRubric",
     "EvaluatorRubricCriterion",

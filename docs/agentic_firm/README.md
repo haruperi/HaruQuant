@@ -390,6 +390,7 @@ backend/tools/audit_tools.py
 |   5.0 | Tool registry and permission layer | Complete |
 |   6.0 | Agent control plane | Complete |
 |   7.0 | CEO Agent and Planner Agent | Complete |
+|   8.0 | Research Department v1 | Complete |
 
 See `phase6_agent_control_plane_usage_example.md` for a runnable example of the Phase 6 request, task tree, delegated agent outputs, and audit flow.
 

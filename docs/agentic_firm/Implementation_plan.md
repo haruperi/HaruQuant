@@ -632,51 +632,55 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.1 Market Intelligence Agent
 
-* [ ] Create `backend/agents/research/market_intelligence_agent.py`.
-* [ ] Read symbol data.
-* [ ] Read volatility regimes.
-* [ ] Read spreads.
-* [ ] Read session behavior.
-* [ ] Detect trending/ranging/transition regimes.
-* [ ] Output market intelligence report.
-* [ ] Save report to evidence memory.
+* [X] Create `backend/agents/research/market_intelligence_agent.py`.
+* [X] Read symbol data.
+* [X] Read volatility regimes.
+* [X] Read spreads.
+* [X] Read session behavior.
+* [X] Detect trending/ranging/transition regimes.
+* [X] Output market intelligence report.
+* [X] Save report to evidence memory.
 
 ### 8.2 Technical Analyst Agent
 
-* [ ] Create `backend/agents/research/technical_analyst_agent.py`.
-* [ ] Compute indicator context.
-* [ ] Analyze trend.
-* [ ] Analyze volatility.
-* [ ] Analyze support/resistance.
-* [ ] Analyze mean-reversion suitability.
-* [ ] Analyze breakout suitability.
-* [ ] Analyze trend-following suitability.
-* [ ] Output technical analysis report.
+* [X] Create `backend/agents/research/technical_analyst_agent.py`.
+* [X] Compute indicator context.
+* [X] Analyze trend.
+* [X] Analyze volatility.
+* [X] Analyze support/resistance.
+* [X] Analyze mean-reversion suitability.
+* [X] Analyze breakout suitability.
+* [X] Analyze trend-following suitability.
+* [X] Output technical analysis report.
 
 ### 8.3 Strategy Scout Agent
 
-* [ ] Create `backend/agents/research/strategy_scout_agent.py`.
-* [ ] Search internal strategy memory.
-* [ ] Search past backtests.
-* [ ] Search rejected strategies.
-* [ ] Search external research only through approved tools.
-* [ ] Score ideas by novelty.
-* [ ] Score ideas by feasibility.
-* [ ] Score ideas by edge plausibility.
-* [ ] Score ideas by testability.
-* [ ] Score ideas by risk compatibility.
-* [ ] Output top strategy ideas.
+* [X] Create `backend/agents/research/strategy_scout_agent.py`.
+* [X] Search internal strategy memory.
+* [X] Search past backtests.
+* [X] Search rejected strategies.
+* [X] Search external research only through approved tools.
+* [X] Score ideas by novelty.
+* [X] Score ideas by feasibility.
+* [X] Score ideas by edge plausibility.
+* [X] Score ideas by testability.
+* [X] Score ideas by risk compatibility.
+* [X] Output top strategy ideas.
 
 ### 8.4 Research report schema
 
-* [ ] Add `research_question`.
-* [ ] Add `sources_used`.
-* [ ] Add `market_context`.
-* [ ] Add `candidate_ideas`.
-* [ ] Add `risks`.
-* [ ] Add `recommended_next_steps`.
-* [ ] Add `confidence`.
-* [ ] Add `evidence_refs`.
+* [X] Add `research_question`.
+* [X] Add `sources_used`.
+* [X] Add `market_context`.
+* [X] Add `candidate_ideas`.
+* [X] Add `risks`.
+* [X] Add `recommended_next_steps`.
+* [X] Add `confidence`.
+* [X] Add `evidence_refs`.
+
+### Phase 8 implementation note
+
+Phase 8 was implemented on the canonical `backend/agents/research/` path with read-only deterministic agents: `MarketIntelligenceAgent`, `TechnicalAnalystAgent`, and `StrategyScoutAgent`. The shared `ResearchReport` schema was added to `backend/agents/schemas.py`, and reports are saved as evidence JSON under `memory/evidence/`. The Phase 7 Planner research route now delegates to these Research Department v1 agents. Runnable script: `backend/scripts/examples/agentic_ai/08_research_department.py`.
 
 ## Done definition
 
@@ -698,7 +702,7 @@ Phase 8 complete.
 
 ### 9.1 Strategy Creator Agent
 
-* [ ] Create `backend/app/agents/strategy_creator/agent.py`.
+* [ ] Create `backend/agents/strategy_creator/agent.py`.
 * [ ] Convert natural language requests into `StrategySpec`.
 * [ ] Support symbol.
 * [ ] Support timeframe.
@@ -713,7 +717,7 @@ Phase 8 complete.
 
 ### 9.2 Strategy Spec Validator
 
-* [ ] Create `backend/app/agents/strategy_creator/validator.py`.
+* [ ] Create `backend/agents/strategy_creator/validator.py`.
 * [ ] Reject missing symbol.
 * [ ] Reject missing timeframe.
 * [ ] Reject untestable strategy.
@@ -752,7 +756,7 @@ Phase 9 complete.
 
 ### 10.1 Strategy Reviewer Agent
 
-* [ ] Create `backend/app/agents/strategy_reviewer/agent.py`.
+* [ ] Create `backend/agents/strategy_reviewer/agent.py`.
 * [ ] Check lookahead bias.
 * [ ] Check repainting risk.
 * [ ] Check indicator warmup.
@@ -794,7 +798,7 @@ Phase 10 complete.
 
 ### 11.1 Codegen Agent
 
-* [ ] Create `backend/app/agents/codegen/agent.py`.
+* [ ] Create `backend/agents/codegen/agent.py`.
 * [ ] Generate strategy class from `BaseStrategy`.
 * [ ] Implement `on_init`.
 * [ ] Implement `on_bar`.
@@ -850,7 +854,7 @@ Phase 11 complete.
 
 ### 12.1 Backtest Agent
 
-* [ ] Create `backend/app/agents/backtest/agent.py`.
+* [ ] Create `backend/agents/backtest/agent.py`.
 * [ ] Accept `BacktestRequest`.
 * [ ] Validate data availability.
 * [ ] Validate strategy code hash.
@@ -922,7 +926,7 @@ Phase 12 complete.
 
 ### 13.1 Backtest Analyst Agent
 
-* [ ] Create `backend/app/agents/backtest/backtest_analyst_agent.py`.
+* [ ] Create `backend/agents/backtest/backtest_analyst_agent.py`.
 * [ ] Analyze equity curve.
 * [ ] Analyze drawdowns.
 * [ ] Analyze monthly performance.
@@ -973,7 +977,7 @@ Phase 12 complete.
 
 ### 14.2 Comparator Agent
 
-* [ ] Create `backend/app/agents/optimization/comparator_agent.py`.
+* [ ] Create `backend/agents/optimization/comparator_agent.py`.
 * [ ] Compare best result.
 * [ ] Compare stable regions.
 * [ ] Compare IS vs OOS.
@@ -1003,7 +1007,7 @@ Phases 12 and 14 complete.
 
 ### 15.1 Robustness Agent
 
-* [ ] Create `backend/app/agents/robustness/agent.py`.
+* [ ] Create `backend/agents/robustness/agent.py`.
 * [ ] Run second OOS test.
 * [ ] Run spread stress test.
 * [ ] Run slippage stress test.
@@ -1052,7 +1056,7 @@ Phase 12 complete; ideally Phase 15 complete.
 
 ### 16.1 Statistical Validation Agent
 
-* [ ] Create `backend/app/agents/statistical_validation/agent.py`.
+* [ ] Create `backend/agents/statistical_validation/agent.py`.
 * [ ] Check minimum sample size.
 * [ ] Run bootstrap confidence intervals.
 * [ ] Run permutation/randomization tests.
@@ -1094,7 +1098,7 @@ TradingAgents includes risk-management agents that monitor exposure and ensure t
 
 ### 17.1 RiskGovernor core
 
-* [ ] Create `backend/app/risk/governor.py`.
+* [ ] Create `backend/risk/governor.py`.
 * [ ] Load `configs/risk_thresholds.yaml`.
 * [ ] Validate risk config hash.
 * [ ] Calculate proposed trade risk.
@@ -1158,7 +1162,7 @@ Phase 17 complete.
 
 ### 18.1 Risk Reviewer Agent
 
-* [ ] Create `backend/app/agents/risk_reviewer/agent.py`.
+* [ ] Create `backend/agents/risk_reviewer/agent.py`.
 * [ ] Read strategy evidence.
 * [ ] Read backtest result.
 * [ ] Read robustness result.
@@ -1202,7 +1206,7 @@ Phases 12, 15, 17, and 18 complete.
 
 ### 19.1 Paper broker
 
-* [ ] Create `backend/app/execution/paper_broker.py`.
+* [ ] Create `backend/execution/paper_broker.py`.
 * [ ] Simulate market orders.
 * [ ] Simulate limit orders.
 * [ ] Simulate stop orders.
@@ -1219,7 +1223,7 @@ Phases 12, 15, 17, and 18 complete.
 
 ### 19.2 Paper Execution Agent
 
-* [ ] Create `backend/app/agents/execution/paper_execution_agent.py`.
+* [ ] Create `backend/agents/execution/paper_execution_agent.py`.
 * [ ] Accept approved paper strategy.
 * [ ] Run signal checks.
 * [ ] Create trade proposal.
@@ -1259,7 +1263,7 @@ Phase 19 complete.
 
 ### 20.1 Daily report
 
-* [ ] Create `backend/app/agents/performance_reporter/daily_agent.py`.
+* [ ] Create `backend/agents/performance_reporter/daily_agent.py`.
 * [ ] Report daily P&L.
 * [ ] Report open exposure.
 * [ ] Report drawdown.
@@ -1315,7 +1319,7 @@ TradingAgents uses a fund-manager approval workflow after analysts, researchers,
 
 ### 21.1 Portfolio Manager Agent
 
-* [ ] Create `backend/app/agents/portfolio_manager/agent.py`.
+* [ ] Create `backend/agents/portfolio_manager/agent.py`.
 * [ ] Read strategy lifecycle table.
 * [ ] Read live strategy performance.
 * [ ] Read paper strategy performance.
@@ -1437,7 +1441,7 @@ Phases 17, 19, and 22 complete.
 
 ### 23.1 MT5 bridge
 
-* [ ] Create or finalize `backend/app/execution/mt5_bridge.py`.
+* [ ] Create or finalize `backend/execution/mt5_bridge.py`.
 * [ ] Add `get_account_info`.
 * [ ] Add `get_symbol_info`.
 * [ ] Add `get_latest_tick`.
@@ -1453,7 +1457,7 @@ Phases 17, 19, and 22 complete.
 
 ### 23.2 cTrader bridge
 
-* [ ] Create or finalize `backend/app/execution/ctrader_bridge.py`.
+* [ ] Create or finalize `backend/execution/ctrader_bridge.py`.
 * [ ] Match same interface as MT5 bridge.
 * [ ] Normalize symbol metadata.
 * [ ] Normalize pip/tick values.
@@ -1462,7 +1466,7 @@ Phases 17, 19, and 22 complete.
 
 ### 23.3 Order router
 
-* [ ] Create `backend/app/execution/order_router.py`.
+* [ ] Create `backend/execution/order_router.py`.
 * [ ] Require RiskGovernor approval token.
 * [ ] Require live mode enabled.
 * [ ] Require strategy live status.
@@ -1494,7 +1498,7 @@ Phase 23 complete.
 
 ### 24.1 Kill Switch Service
 
-* [ ] Create `backend/app/risk/kill_switch.py`.
+* [ ] Create `backend/risk/kill_switch.py`.
 * [ ] Monitor daily loss.
 * [ ] Monitor weekly loss.
 * [ ] Monitor account drawdown.
@@ -1511,7 +1515,7 @@ Phase 23 complete.
 
 ### 24.2 Incident Agent
 
-* [ ] Create `backend/app/agents/audit/incident_agent.py`.
+* [ ] Create `backend/agents/audit/incident_agent.py`.
 * [ ] Summarize incident.
 * [ ] Identify trigger.
 * [ ] Identify affected strategies.
@@ -1597,7 +1601,7 @@ Phase 25 complete.
 
 ### 26.1 Execution Agent
 
-* [ ] Create `backend/app/agents/execution/live_execution_agent.py`.
+* [ ] Create `backend/agents/execution/live_execution_agent.py`.
 * [ ] Read approved live strategies.
 * [ ] Listen for strategy signals.
 * [ ] Create trade proposals.
@@ -1643,7 +1647,7 @@ Phases 4, 5, 17, 23, and 26 complete.
 
 ### 27.1 Audit Agent
 
-* [ ] Create `backend/app/agents/audit/agent.py`.
+* [ ] Create `backend/agents/audit/agent.py`.
 * [ ] Check every live order has RiskGovernor approval.
 * [ ] Check every approval token matches the executed order.
 * [ ] Check no agent changed risk thresholds.
@@ -1737,7 +1741,7 @@ TradingAgents uses analyst reports, bullish and bearish researchers, trader synt
 
 ### 29.1 Add Bull Researcher
 
-* [ ] Create `backend/app/agents/research/bull_researcher_agent.py`.
+* [ ] Create `backend/agents/research/bull_researcher_agent.py`.
 * [ ] Argue why a strategy/trade should proceed.
 * [ ] Use only evidence refs.
 * [ ] Identify upside.
@@ -1746,7 +1750,7 @@ TradingAgents uses analyst reports, bullish and bearish researchers, trader synt
 
 ### 29.2 Add Bear Researcher
 
-* [ ] Create `backend/app/agents/research/bear_researcher_agent.py`.
+* [ ] Create `backend/agents/research/bear_researcher_agent.py`.
 * [ ] Argue why a strategy/trade should be rejected.
 * [ ] Use only evidence refs.
 * [ ] Identify downside.

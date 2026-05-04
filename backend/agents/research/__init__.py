@@ -12,3 +12,22 @@ __all__ = [
     "ResearchAgentWrapper",
     "VolatilityAgentWrapper",
 ]
+"""Research Department agents."""
+
+from backend.agents.research.agent import (
+    MarketIntelligenceAgent,
+    RegimeAgentWrapper,
+    ResearchAgentWrapper,
+    StrategyScoutAgent,
+    TechnicalAnalystAgent,
+    VolatilityAgentWrapper,
+)
+
+__all__ = [
+    "MarketIntelligenceAgent",
+    "RegimeAgentWrapper",
+    "ResearchAgentWrapper",
+    "StrategyScoutAgent",
+    "TechnicalAnalystAgent",
+    "VolatilityAgentWrapper",
+]
