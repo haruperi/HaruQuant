@@ -363,14 +363,14 @@ Emergency disable must be logged and escalated to the Human Board.
 After this governance pack, build:
 
 ```text
-backend/app/agents/schemas.py
-backend/app/tools/registry.py
-backend/app/agents/permissions.py
-backend/app/agents/task_manager.py
-backend/app/agents/orchestrator.py
-backend/app/risk/governor.py
-backend/app/risk/kill_switch.py
-backend/app/audit/audit_logger.py
+backend/agents/schemas.py
+backend/tools/registry.py
+backend/agents/permissions.py
+backend/agents/task_manager.py
+backend/agents/orchestrator.py
+backend/risk/governor.py
+backend/risk/kill_switch.py
+backend/tools/audit_tools.py
 ```
 
 ---
@@ -389,6 +389,8 @@ backend/app/audit/audit_logger.py
 |   4.0 | Database tables and audit persistence | Complete |
 |   5.0 | Tool registry and permission layer | Complete |
 |   6.0 | Agent control plane | Complete |
+
+See `phase6_agent_control_plane_usage_example.md` for a runnable example of the Phase 6 request, task tree, delegated agent outputs, and audit flow.
 
 ---
 

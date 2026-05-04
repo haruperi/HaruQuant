@@ -543,6 +543,8 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 Phase 6 was implemented on the canonical `backend/agents/` path, not under `backend/app/`. `AgentRegistry` registers the first firm departments and draws each agent's tool envelope from the Phase 5 permission layer. `AgentTaskManager` manages persisted or in-memory task trees with explicit status transitions. `AgentControlPlaneOrchestrator` creates a top-down workflow record, parent CEO task, planner task, delegated child tasks, standard agent run results, final response, and audit record. The base agent class provides a common `plan -> act -> observe -> evaluate -> finalize` envelope for Phase 7+ specialized agents.
 
+Usage example: `docs/agentic_firm/phase6_agent_control_plane_usage_example.md`.
+
 ## Done definition
 
 A user request can enter the CEO Agent, get planned, delegated, executed, audited, and returned as a structured answer.
