@@ -321,54 +321,58 @@ Phase 3 complete.
 
 ### 4.1 Add agent task tables
 
-* [ ] Create `agent_tasks`.
-* [ ] Create `agent_task_events`.
-* [ ] Create `agent_tool_calls`.
-* [ ] Create `agent_observations`.
-* [ ] Create `agent_decisions`.
+* [X] Create `agent_tasks`.
+* [X] Create `agent_task_events`.
+* [X] Create `agent_tool_calls`.
+* [X] Create `agent_observations`.
+* [X] Create `agent_decisions`.
 
 ### 4.2 Add evidence tables
 
-* [ ] Create `evidence_refs`.
-* [ ] Create `research_reports`.
-* [ ] Create `strategy_specs`.
-* [ ] Create `strategy_reviews`.
-* [ ] Create `backtest_run_refs`.
-* [ ] Create `robustness_run_refs`.
-* [ ] Create `risk_review_refs`.
-* [ ] Create `paper_trade_refs`.
-* [ ] Create `live_trade_refs`.
+* [X] Create `evidence_refs`.
+* [X] Create `research_reports`.
+* [X] Create `strategy_specs`.
+* [X] Create `strategy_reviews`.
+* [X] Create `backtest_run_refs`.
+* [X] Create `robustness_run_refs`.
+* [X] Create `risk_review_refs`.
+* [X] Create `paper_trade_refs`.
+* [X] Create `live_trade_refs`.
 
 ### 4.3 Add lifecycle tables
 
-* [ ] Create `strategy_lifecycle`.
-* [ ] Create `strategy_versions`.
-* [ ] Create `strategy_status_history`.
-* [ ] Create `strategy_promotion_requests`.
-* [ ] Create `strategy_retirement_records`.
+* [X] Create `strategy_lifecycle`.
+* [X] Create `strategy_versions`.
+* [X] Create `strategy_status_history`.
+* [X] Create `strategy_promotion_requests`.
+* [X] Create `strategy_retirement_records`.
 
 ### 4.4 Add risk and execution tables
 
-* [ ] Create `risk_approvals`.
-* [ ] Create `risk_rejections`.
-* [ ] Create `trade_proposals`.
-* [ ] Create `execution_requests`.
-* [ ] Create `execution_results`.
-* [ ] Create `execution_audit`.
+* [X] Create `risk_approvals`.
+* [X] Create `risk_rejections`.
+* [X] Create `trade_proposals`.
+* [X] Create `execution_requests`.
+* [X] Create `execution_results`.
+* [X] Create `execution_audit`.
 
 ### 4.5 Add immutable audit log
 
-* [ ] Create append-only audit table.
-* [ ] Add actor name.
-* [ ] Add agent name.
-* [ ] Add tool name.
-* [ ] Add input hash.
-* [ ] Add output hash.
-* [ ] Add evidence refs.
-* [ ] Add timestamp.
-* [ ] Add request ID.
-* [ ] Add parent task ID.
-* [ ] Block delete operations from normal app logic.
+* [X] Create append-only audit table.
+* [X] Add actor name.
+* [X] Add agent name.
+* [X] Add tool name.
+* [X] Add input hash.
+* [X] Add output hash.
+* [X] Add evidence refs.
+* [X] Add timestamp.
+* [X] Add request ID.
+* [X] Add parent task ID.
+* [X] Block delete operations from normal app logic.
+
+### Phase 4 implementation note
+
+Phase 4 was implemented through migration `0028_agentic_firm_phase4_persistence.sql` and `AgenticFirmRepository`. New tables were added for agent tasks, task events, tool calls, observations, decisions, evidence refs, reports, lifecycle records, and append-only audit logging. Where canonical tables already existed, Phase 4 names are compatibility views over existing sources of truth: `core_trade_proposals`, `risk_risk_decisions`, `core_execution_intents`, `core_execution_receipts`, and `core_execution_send_attempts`.
 
 ## Done definition
 
