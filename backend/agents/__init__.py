@@ -1,5 +1,13 @@
 """Agent runtime scaffolding for the agentic backend."""
 
+from .agent_registry import (
+    AgentDescriptor,
+    AgentRegistry,
+    DEFAULT_AGENT_DESCRIPTORS,
+    DEFAULT_AGENT_REGISTRY,
+    get_default_agent_registry,
+)
+from .base import AgentRunContext, AgentRunError, AgentRunResult, BaseAgent, FirmDepartmentAgent
 from .compliance_agent import COMPLIANCE_AGENT_INSTRUCTION, ComplianceAgentWrapper
 from .correlation_agent import CORRELATION_AGENT_INSTRUCTION, CorrelationAgentWrapper
 from .drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION, DrawdownAgentWrapper
@@ -13,6 +21,13 @@ from .permissions import (
     AgentToolPermissionService,
     DEFAULT_AGENT_TOOL_ALLOWLIST,
     get_default_permission_service,
+)
+from .orchestrator import AgentControlPlaneOrchestrator, AgentControlPlaneResult, DefaultFirmPlanner
+from .task_manager import (
+    AgentTaskManager,
+    AgentTaskTransitionError,
+    TaskTreeNode,
+    VALID_TASK_TRANSITIONS,
 )
 from .refine_agent import REFINE_AGENT_INSTRUCTION, RefineAgentWrapper
 from .risk_governor_agent import RiskGovernorAgentAdapter
@@ -99,6 +114,13 @@ __all__ = [
     "ADKRunResult",
     "ADKRunnerConfig",
     "ADKRunnerService",
+    "AgentControlPlaneOrchestrator",
+    "AgentControlPlaneResult",
+    "AgentDescriptor",
+    "AgentRegistry",
+    "AgentRunContext",
+    "AgentRunError",
+    "AgentRunResult",
     "COMPLIANCE_AGENT_INSTRUCTION",
     "CORRELATION_AGENT_INSTRUCTION",
     "DRAWDOWN_AGENT_INSTRUCTION",
@@ -115,12 +137,15 @@ __all__ = [
     "STRATEGY_CREATOR_AGENT_INSTRUCTION",
     "VOLATILITY_AGENT_INSTRUCTION",
     "AgentSession",
+    "AgentTaskManager",
+    "AgentTaskTransitionError",
     "AgentToolPermissionDecision",
     "AgentToolPermissionError",
     "AgentToolPermissionService",
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentRuntime",
+    "BaseAgent",
     "ComplianceAgentWrapper",
     "CorrelationAgentWrapper",
     "DrawdownAgentWrapper",
@@ -156,6 +181,10 @@ __all__ = [
     "hash_schema_name",
     "ContextRedactionMiddleware",
     "DEFAULT_AGENT_TOOL_ALLOWLIST",
+    "DEFAULT_AGENT_DESCRIPTORS",
+    "DEFAULT_AGENT_REGISTRY",
+    "DefaultFirmPlanner",
+    "FirmDepartmentAgent",
     "PromptProvenance",
     "PromptRegistryService",
     "PromptRegistryRecord",
@@ -180,6 +209,7 @@ __all__ = [
     "ToolAllowlistDecision",
     "ToolAllowlistMiddleware",
     "ToolPolicyError",
+    "TaskTreeNode",
     "EvaluatorOptimizerResult",
     "EvaluatorOptimizerStep",
     "EvaluatorOptimizerWorkflowRunner",
@@ -194,6 +224,8 @@ __all__ = [
     "RoutingWorkflowBranch",
     "RoutingWorkflowRunner",
     "WorkerGroupResult",
+    "VALID_TASK_TRANSITIONS",
+    "get_default_agent_registry",
     "get_default_permission_service",
     "intent_router_agent",
     "enforce_refine_loop_limit",
