@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from backend.agents.schemas import AgentTaskStatus
 from backend.data.database.repositories.agentic_firm_repository import (
     AgentTaskRecord,
     AgenticFirmRepository,
@@ -125,7 +124,7 @@ class AgentTaskManager:
             title=title,
             description=description,
             owner_agent=owner_agent,
-            status=AgentTaskStatus.PENDING.value,
+            status="pending",
             priority=priority,
             expected_output_contract=expected_output_contract,
             required_tools_json=required_tools_json,
@@ -151,7 +150,7 @@ class AgentTaskManager:
     def assign_task(self, task_id: str, *, owner_agent: str, actor_id: str = "planner") -> AgentTaskRecord:
         return self._transition_task(
             task_id,
-            to_status=AgentTaskStatus.ASSIGNED.value,
+            to_status="assigned",
             event_type="assigned",
             actor_id=actor_id,
             owner_agent=owner_agent,
@@ -160,7 +159,7 @@ class AgentTaskManager:
     def start_task(self, task_id: str, *, actor_id: str) -> AgentTaskRecord:
         return self._transition_task(
             task_id,
-            to_status=AgentTaskStatus.RUNNING.value,
+            to_status="running",
             event_type="started",
             actor_id=actor_id,
         )
@@ -174,7 +173,7 @@ class AgentTaskManager:
     ) -> AgentTaskRecord:
         return self._transition_task(
             task_id,
-            to_status=AgentTaskStatus.COMPLETED.value,
+            to_status="completed",
             event_type="completed",
             actor_id=actor_id,
             event_payload=output or {},
@@ -183,7 +182,7 @@ class AgentTaskManager:
     def fail_task(self, task_id: str, *, actor_id: str, reason: str) -> AgentTaskRecord:
         return self._transition_task(
             task_id,
-            to_status=AgentTaskStatus.FAILED.value,
+            to_status="failed",
             event_type="failed",
             actor_id=actor_id,
             event_payload={"reason": reason},
@@ -192,7 +191,7 @@ class AgentTaskManager:
     def block_task(self, task_id: str, *, actor_id: str, reason: str) -> AgentTaskRecord:
         return self._transition_task(
             task_id,
-            to_status=AgentTaskStatus.BLOCKED.value,
+            to_status="blocked",
             event_type="blocked",
             actor_id=actor_id,
             event_payload={"reason": reason},

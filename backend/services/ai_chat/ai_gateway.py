@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 import re
 import time
 from typing import Iterable
@@ -14,6 +15,7 @@ from backend.config.agent_model import get_model_for_tier
 from backend.observability.cost_tracker import calculate_cost
 from backend.services.ai_chat.agent_router import ChatAgentRouter
 from backend.services.ai_chat.agent_consultation_service import AgentConsultationService
+from backend.services.ai_chat.ceo_chat_orchestrator import CEOChatOrchestrator
 from backend.services.ai_chat.conversation_orchestrator import ConversationOrchestrator
 from backend.services.ai_chat.conversation_planner import ConversationPlanner, RuntimeLLMPlannerClient
 from backend.services.ai_chat.conversation_state_service import ConversationStateService
@@ -83,6 +85,8 @@ class AIGatewayService:
         page_retrieval_service: PageSemanticRetrievalService | None = None,
         tool_attachment_runtime: ChatToolAttachmentRuntime | None = None,
         strategy_creator_agent: StrategyCreatorAgent | None = None,
+        ceo_chat_orchestrator: CEOChatOrchestrator | None = None,
+        agentic_firm_chat_enabled: bool | None = None,
     ) -> None:
         self.conversation_service = conversation_service
         self.context_assembler = context_assembler
@@ -103,6 +107,14 @@ class AIGatewayService:
         self.tool_attachment_runtime = tool_attachment_runtime or ChatToolAttachmentRuntime()
         self.strategy_creator_agent = strategy_creator_agent or StrategyCreatorAgent(
             db_manager=context_assembler.db_manager,
+        )
+        self.ceo_chat_orchestrator = ceo_chat_orchestrator or CEOChatOrchestrator(
+            conversation_service=conversation_service,
+        )
+        self.agentic_firm_chat_enabled = (
+            self._env_flag_enabled("HARUQUANT_AGENTIC_FIRM_CHAT", default=True)
+            if agentic_firm_chat_enabled is None
+            else agentic_firm_chat_enabled
         )
 
     def stream_response(self, request: ChatStreamRequest) -> tuple[dict[str, object], Iterable[str], str]:
@@ -159,6 +171,29 @@ class AIGatewayService:
             ]
             requested_attached_tool_ids = tuple(dict.fromkeys(request.attached_tools or []))
             tool_context["attached_tool_ids"] = requested_attached_tool_ids
+            if self.agentic_firm_chat_enabled:
+                ceo_result = self.ceo_chat_orchestrator.handle_chat_turn(
+                    user_id=request.user_id,
+                    thread=thread,
+                    prompt=request.prompt,
+                    request_id=request_id,
+                    page_context=page_context,
+                    conversation_state=conversation_state,
+                    tool_context=tool_context,
+                    attached_tool_ids=requested_attached_tool_ids,
+                    persist_user_message=request.persist_user_message,
+                    include_debug=request.include_debug,
+                )
+
+                def ceo_chunk_generator():
+                    try:
+                        for chunk in self._chunk_text(ceo_result.text):
+                            yield chunk
+                    finally:
+                        self.rate_limiter.release(request.user_id)
+
+                return ceo_result.metadata, ceo_chunk_generator(), ceo_result.assistant_message.message_id
+
             plan = self.conversation_orchestrator.build_plan(
                 prompt=request.prompt,
                 thread=thread,
@@ -476,6 +511,18 @@ class AIGatewayService:
             return None
         normalized_model = model.split("/", 1)[-1]
         return round(calculate_cost(normalized_model, prompt_tokens, completion_tokens), 6)
+
+    @staticmethod
+    def _env_flag_enabled(name: str, *, default: bool = False) -> bool:
+        value = os.environ.get(name)
+        if value is None:
+            return default
+        normalized = value.strip().lower()
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        return default
 
     def _stream_clarification_response(
         self,

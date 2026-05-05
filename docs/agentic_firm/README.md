@@ -201,7 +201,7 @@ HaruQuant should operate as a controlled research and trading firm.
 ```mermaid
 flowchart TD
     User[Human Board / Haruperi] --> CEO[CEO Agent]
-    CEO --> Planner[Planner Agent]
+    CEO --> Planner[CEO Planning Engine]
     Planner --> Research[Research Department]
     Planner --> Strategy[Strategy Department]
     Planner --> Validation[Backtest & Robustness Department]
@@ -239,7 +239,7 @@ Recommended dependency order:
 6. Database tables
 7. Tool registry
 8. Agent registry
-9. Planner and CEO Agent
+9. CEO Agent and internal planning engine
 10. Read-only agents
 11. Strategy creation agents
 12. Backtest and robustness agents
@@ -389,12 +389,14 @@ backend/tools/audit_tools.py
 |   4.0 | Database tables and audit persistence | Complete |
 |   5.0 | Tool registry and permission layer | Complete |
 |   6.0 | Agent control plane | Complete |
-|   7.0 | CEO Agent and Planner Agent | Complete |
+|   7.0 | CEO Agent and internal planning engine | Complete |
 |   8.0 | Research Department v1 | Complete |
 
 See `phase6_agent_control_plane_usage_example.md` for a runnable example of the Phase 6 request, task tree, delegated agent outputs, and audit flow.
 
-See `phase7_ceo_planner_usage_example.md` and runnable script `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py` for Planner routes, CEO memos, Board escalation, and refusal behavior.
+See `phase7_ceo_planner_usage_example.md` and runnable script `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py` for CEO planning routes, CEO memos, Board escalation, and refusal behavior.
+
+See runnable script `backend/scripts/examples/agentic_ai/09_ceo_chat_bridge.py` for the current chatbot-to-CEO bridge.
 
 ---
 

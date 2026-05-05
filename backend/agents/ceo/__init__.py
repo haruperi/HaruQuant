@@ -1,6 +1,17 @@
 """CEO Agent department facade."""
 
-from backend.services.ai_chat.conversation_orchestrator import ConversationOrchestrator
-from backend.services.ai_chat.response_composer import ResponseComposer
+from backend.agents.ceo.agent import (
+    CEOAgent,
+    CEO_BOARD_ESCALATION_RULES,
+    CEO_POLICY_REFERENCES,
+    CEO_REFUSAL_RULES,
+    CEO_SYSTEM_INSTRUCTIONS,
+)
 
-__all__ = ["ConversationOrchestrator", "ResponseComposer"]
+__all__ = [
+    "CEOAgent",
+    "CEO_BOARD_ESCALATION_RULES",
+    "CEO_POLICY_REFERENCES",
+    "CEO_REFUSAL_RULES",
+    "CEO_SYSTEM_INSTRUCTIONS",
+]

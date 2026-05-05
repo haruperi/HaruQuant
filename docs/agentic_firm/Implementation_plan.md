@@ -603,12 +603,16 @@ Phase 6 complete.
 
 ### Phase 7 implementation note
 
-Phase 7 was implemented on the canonical `backend/agents/` path. `PlannerAgent` now emits the expanded `ConversationPlan` contract for `strategy_creation`, `backtest_diagnosis`, `optimization_comparison`, `risk_review`, `execution_proposal`, `research`, `reporting`, `page_action`, `clarification`, and `governed_action_draft`. `CEOAgent` now owns firm-facing system instructions, policy references, evidence requirements, Board escalation rules, refusal rules, and final memo synthesis. The Phase 6 control plane now uses the Phase 7 planner and CEO memo layer directly.
+Phase 7 was implemented on the canonical `backend/agents/` path. `PlannerAgent` now acts as the CEO's internal planning engine and emits the expanded `ConversationPlan` contract for `strategy_creation`, `backtest_diagnosis`, `optimization_comparison`, `risk_review`, `execution_proposal`, `research`, `reporting`, `page_action`, `clarification`, `ceo_identity`, `ceo_answer`, and `governed_action_draft`. Request classification is hybrid: deterministic safety checks run first for live trading, execution, UI action, clarification, and identity cases; then an LLM-capable classifier may choose only from the approved route catalog; if the LLM is disabled or unavailable, deterministic keyword/fallback routing remains in place. `CEOAgent` now owns firm-facing system instructions, policy references, evidence requirements, Board escalation rules, refusal rules, and final memo synthesis. The CEO is hybrid: deterministic routing and governance blocks remain binding for live trading, RiskGovernor, audit, lifecycle, and Board decisions, while generic CEO communication can use an LLM response synthesizer with deterministic fallback. The Phase 6 control plane now uses the Phase 7 planner and CEO memo layer directly.
 
 Usage examples:
 
 * Runnable script: `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py`.
 * Documentation: `docs/agentic_firm/phase7_ceo_planner_usage_example.md`.
+
+### Phase 7.5 chatbot merge note
+
+The AI chatbot is now bridged into the Agentic Firm architecture by default. Set `HARUQUANT_AGENTIC_FIRM_CHAT=false` or instantiate `AIGatewayService(agentic_firm_chat_enabled=False)` only when the legacy route is needed for comparison. `CEOChatOrchestrator` makes the chatbot speak through `CEOAgent`, the CEO planning engine, and `AgentControlPlaneOrchestrator`; legacy attached chat tools are treated as operator hints rather than authority grants; chat metadata now stores `firm_workflow_id`, parent task ID, child task IDs, audit ID, planner source, and CEO memo. Runnable script: `backend/scripts/examples/agentic_ai/09_ceo_chat_bridge.py`.
 
 ## Done definition
 

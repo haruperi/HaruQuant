@@ -10,10 +10,7 @@ from uuid import uuid4
 
 from backend.agents.agent_registry import AgentRegistry, get_default_agent_registry
 from backend.agents.base import AgentRunContext, AgentRunResult
-from backend.agents.ceo.agent import CEOAgent
-from backend.agents.planner.agent import PlannerAgent
 from backend.agents.task_manager import AgentTaskManager
-from backend.services.ai_chat.models import ConversationPlan
 
 
 @dataclass(frozen=True)
@@ -23,7 +20,7 @@ class AgentControlPlaneResult:
     workflow_id: str
     request_id: str
     parent_task_id: str
-    planner_result: ConversationPlan
+    planner_result: Any
     child_task_ids: tuple[str, ...]
     agent_results: tuple[AgentRunResult, ...]
     final_response: dict[str, Any]
@@ -33,10 +30,14 @@ class AgentControlPlaneResult:
 class DefaultFirmPlanner:
     """Backward-compatible planner wrapper for the Phase 7 Planner Agent."""
 
-    def __init__(self, *, planner_agent: PlannerAgent | None = None) -> None:
-        self.planner_agent = planner_agent or PlannerAgent()
+    def __init__(self, *, planner_agent: Any | None = None) -> None:
+        if planner_agent is None:
+            from backend.agents.planner.agent import PlannerAgent
 
-    def plan(self, *, user_request: str, request_id: str) -> ConversationPlan:
+            planner_agent = PlannerAgent()
+        self.planner_agent = planner_agent
+
+    def plan(self, *, user_request: str, request_id: str) -> Any:
         return self.planner_agent.create_plan(user_request=user_request, request_id=request_id)
 
 
@@ -196,7 +197,7 @@ class AgentControlPlaneOrchestrator:
         self,
         *,
         parent_task_id: str,
-        planner_result: ConversationPlan,
+        planner_result: Any,
     ) -> tuple[Any, ...]:
         child_tasks = []
         for agent_name in planner_result.allowed_agents:
@@ -228,7 +229,7 @@ class AgentControlPlaneOrchestrator:
         workflow_id: str,
         request_id: str,
         parent_task_id: str,
-        planner_result: ConversationPlan,
+        planner_result: Any,
         child_tasks: tuple[Any, ...],
     ) -> tuple[AgentRunResult, ...]:
         results: list[AgentRunResult] = []
@@ -271,9 +272,11 @@ class AgentControlPlaneOrchestrator:
     def _produce_final_response(
         *,
         user_request: str,
-        planner_result: ConversationPlan,
+        planner_result: Any,
         agent_results: tuple[AgentRunResult, ...],
     ) -> dict[str, Any]:
+        from backend.agents.ceo.agent import CEOAgent
+
         ceo_memo = CEOAgent().create_final_memo(
             request=user_request,
             planner_result=planner_result,
@@ -314,7 +317,7 @@ class AgentControlPlaneOrchestrator:
         request_id: str,
         parent_task_id: str,
         user_request: str,
-        planner_result: ConversationPlan,
+        planner_result: Any,
         final_response: dict[str, Any],
     ) -> str | None:
         repository = self.task_manager.repository

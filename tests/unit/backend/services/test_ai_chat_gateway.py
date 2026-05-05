@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.services.ai_chat import (
@@ -11,6 +13,11 @@ from backend.services.ai_chat import (
     PageContextAssembler,
 )
 from backend.services.tool_executor import ToolExecutionResult
+
+
+@pytest.fixture(autouse=True)
+def _use_legacy_chat_gateway(monkeypatch):
+    monkeypatch.setenv("HARUQUANT_AGENTIC_FIRM_CHAT", "false")
 
 
 class _KnowledgeToolExecutor:

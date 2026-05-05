@@ -8,13 +8,6 @@ from .agent_registry import (
     get_default_agent_registry,
 )
 from .base import AgentRunContext, AgentRunError, AgentRunResult, BaseAgent, FirmDepartmentAgent
-from .ceo.agent import (
-    CEOAgent,
-    CEO_BOARD_ESCALATION_RULES,
-    CEO_POLICY_REFERENCES,
-    CEO_REFUSAL_RULES,
-    CEO_SYSTEM_INSTRUCTIONS,
-)
 from .compliance_agent import COMPLIANCE_AGENT_INSTRUCTION, ComplianceAgentWrapper
 from .correlation_agent import CORRELATION_AGENT_INSTRUCTION, CorrelationAgentWrapper
 from .drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION, DrawdownAgentWrapper
@@ -30,7 +23,6 @@ from .permissions import (
     get_default_permission_service,
 )
 from .orchestrator import AgentControlPlaneOrchestrator, AgentControlPlaneResult, DefaultFirmPlanner
-from .planner.agent import PlannerAgent, PlannerRoute
 from .research.market_intelligence_agent import MarketIntelligenceAgent
 from .research.strategy_scout_agent import StrategyScoutAgent
 from .research.technical_analyst_agent import TechnicalAnalystAgent
@@ -133,11 +125,6 @@ __all__ = [
     "AgentRunError",
     "AgentRunResult",
     "COMPLIANCE_AGENT_INSTRUCTION",
-    "CEOAgent",
-    "CEO_BOARD_ESCALATION_RULES",
-    "CEO_POLICY_REFERENCES",
-    "CEO_REFUSAL_RULES",
-    "CEO_SYSTEM_INSTRUCTIONS",
     "CORRELATION_AGENT_INSTRUCTION",
     "DRAWDOWN_AGENT_INSTRUCTION",
     "EXECUTION_AGENT_INSTRUCTION",
@@ -213,8 +200,6 @@ __all__ = [
     "PromptEvalCaseResult",
     "PromptEvalHarness",
     "PromptEvalReport",
-    "PlannerAgent",
-    "PlannerRoute",
     "WorkflowPatternRegistration",
     "WorkflowPatternRegistry",
     "load_prompt_eval_cases",

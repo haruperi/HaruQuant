@@ -25,6 +25,40 @@ def strategy_proposal_template(*, request: str, recommendation: str, evidence_re
     }
 
 
+def ceo_identity_template(*, request: str, evidence_refs: list[str]) -> dict[str, Any]:
+    return {
+        "memo_type": "ceo_identity",
+        "request": request,
+        "name": "HaruQuant AI",
+        "summary": (
+            "My name is HaruQuant AI. I operate as the CEO/CIO-style orchestrator for the HaruQuant Agentic Firm. "
+            "I am the operator-facing interface, not an execution engine."
+        ),
+        "responsibilities": [
+            "route requests through the Planner Agent",
+            "delegate work to specialist departments",
+            "summarize evidence and decisions",
+            "escalate live capital, risk-threshold, and deployment decisions to the Human Board",
+        ],
+        "boundaries": [
+            "I do not place live trades directly",
+            "I do not approve my own capital decisions",
+            "I do not bypass RiskGovernor, lifecycle gates, audit, or Board approval",
+        ],
+        "evidence_refs": evidence_refs,
+    }
+
+
+def ceo_answer_template(*, request: str, answer: str, evidence_refs: list[str], source: str) -> dict[str, Any]:
+    return {
+        "memo_type": "ceo_answer",
+        "request": request,
+        "answer": answer,
+        "source": source,
+        "evidence_refs": evidence_refs,
+    }
+
+
 def backtest_report_template(*, request: str, summary: str, evidence_refs: list[str]) -> dict[str, Any]:
     return {
         "memo_type": "backtest_report",
@@ -80,6 +114,8 @@ __all__ = [
     "backtest_report_template",
     "blocked_by_risk_template",
     "board_approval_request_template",
+    "ceo_answer_template",
+    "ceo_identity_template",
     "rejection_template",
     "research_memo_template",
     "risk_memo_template",
