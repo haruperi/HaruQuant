@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from haruquant.execution import ApprovalPacket, ApprovalRequest, ApprovalState, RiskClass
 from haruquant.execution import TradeRecord
-from backend_retiring.observability.trace_model import Trace
-from backend_retiring.observability.span_model import Span
+from observability.trace_model import Trace
+from observability.span_model import Span
 
 
 def test_approval_packet_schema():

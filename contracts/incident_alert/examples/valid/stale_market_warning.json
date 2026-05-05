@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "IncidentAlert",
+  "payload": {
+    "incident_id": "inc_01",
+    "severity": "warning",
+    "alert_type": "stale_market_data",
+    "source": "monitoring_service",
+    "summary": "Market data is stale.",
+    "incident_state": "open",
+    "recommended_action": "Pause new entries."
+  }
+}

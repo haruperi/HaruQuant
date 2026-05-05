@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import time
 
-from backend_retiring.observability import CostTracker, RedactionRules, Span, Trace
-from backend_retiring.observability.cost_tracker import CostEntry
+from observability import CostTracker, RedactionRules, Span, Trace
+from observability.cost_tracker import CostEntry
 
 
 class TestTrace:

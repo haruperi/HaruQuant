@@ -44,7 +44,7 @@ with long-term conversation memory.
     "staleness_seconds": 2
   },
   "authority": {
-    "source": "backend_retiring/context_service",
+    "source": "context_service",
     "trust_level": "system_state"
   },
   "summary": {

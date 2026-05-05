@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 import hashlib
 
 from services.utils.ids import generate_id
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
-from backend_retiring.contracts.serialization import canonical_json_dumps
+from contracts.common import Originator
+from contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
+from contracts.serialization import canonical_json_dumps
 from data.database import ReplayBundleRecord, ResearchAuditRepository
 
 

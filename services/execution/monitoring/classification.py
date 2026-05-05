@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend_retiring.contracts.observation_event.model import ObservationEvent
+from contracts.observation_event.model import ObservationEvent
 
 from services.utils.logger import logger
 

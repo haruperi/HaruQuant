@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 from services.utils import Clock
 from services.utils.logger import logger
-from backend_retiring.contracts.risk_assessment_decision.model import RiskAssessmentDecision
-from backend_retiring.contracts.trade_proposal.model import TradeProposal
+from contracts.risk_assessment_decision.model import RiskAssessmentDecision
+from contracts.trade_proposal.model import TradeProposal
 
 from .metadata_cache import SymbolMetadataCache
 from .readiness import (

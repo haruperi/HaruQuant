@@ -363,14 +363,14 @@ Emergency disable must be logged and escalated to the Human Board.
 After this governance pack, build:
 
 ```text
-backend_retiring/agents/schemas.py
-backend_retiring/tools/registry.py
-backend_retiring/agents/permissions.py
-backend_retiring/agents/task_manager.py
-backend_retiring/agents/orchestrator.py
-backend_retiring/risk/governor.py
-backend_retiring/risk/kill_switch.py
-backend_retiring/tools/audit_tools.py
+agents/schemas.py
+tools/registry.py
+agents/permissions.py
+agents/task_manager.py
+agents/orchestrator.py
+risk/governor.py
+risk/kill_switch.py
+tools/audit_tools.py
 ```
 
 ---

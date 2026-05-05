@@ -8,8 +8,8 @@ from backend_retiring.agents import (
     AgentExecutionResult,
     RuntimeTrajectoryLogService,
 )
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.workflow_plan.model import (
+from contracts.common import Originator
+from contracts.workflow_plan.model import (
     WorkflowPattern,
     WorkflowPhaseStep,
     WorkflowPlan,

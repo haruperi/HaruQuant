@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_decision.model import LimitConstraint
+from contracts.common import Originator
+from contracts.risk_assessment_decision.model import LimitConstraint
 from data.database import apply_pending_migrations, default_migrations_dir
 from haruquant.risk import (
     RiskDecisionEnvelopeContext,

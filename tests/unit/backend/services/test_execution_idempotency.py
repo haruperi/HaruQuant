@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_decision.model import (
+from contracts.common import Originator
+from contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from haruquant.execution import generate_execution_idempotency_key
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from backend_retiring.contracts.strategy_blueprint.model import StrategyBlueprint
+from contracts.strategy_blueprint.model import StrategyBlueprint
 
 
 class StrategyBlueprintRenderer:

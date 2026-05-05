@@ -8,7 +8,7 @@ from backend_retiring.agents.chat.ai_chat import (
     ConversationStateService,
     PageContextAssembler,
 )
-from backend_retiring.contracts.page_context_packet.model import EntityRef
+from contracts.page_context_packet.model import EntityRef
 
 
 def test_conversation_state_service_builds_resolved_references_from_thread_and_page(tmp_path) -> None:

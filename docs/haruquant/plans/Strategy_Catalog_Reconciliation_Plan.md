@@ -21,8 +21,8 @@ Review cadence: during active migration work
   - `ui/src/components/strategies/`
   - `ui/src/lib/api/strategies.ts`
 - **HTTP API**
-  - `backend_retiring/api/routes/strategies.py`
-  - Mounted at `/api/strategies` in `backend_retiring/api/main.py`
+  - `api/routes/strategies.py`
+  - Mounted at `/api/strategies` in `api/main.py`
 - **Legacy operational database**
   - `data/database/haruquant.db`
   - Tables: `strategies`, `strategy_versions`, `strategy_shares`
@@ -44,7 +44,7 @@ Route all strategy create/read/update/delete/version operations through a servic
 ```text
 UI /strategies
   -> ui/src/lib/api/strategies.ts
-  -> backend_retiring/api/routes/strategies.py
+  -> api/routes/strategies.py
   -> services/strategy/catalog.py
       -> data/database/sqlite/strategies.py
       -> services/strategy/storage.py
@@ -138,7 +138,7 @@ Responsibilities:
 
 Acceptance:
 
-- `backend_retiring/api/routes/strategies.py` no longer directly coordinates DB and filesystem writes.
+- `api/routes/strategies.py` no longer directly coordinates DB and filesystem writes.
 - Existing API behavior stays compatible with `ui/src/lib/api/strategies.ts`.
 - Unit tests cover service methods without requiring the frontend.
 
@@ -297,7 +297,7 @@ Acceptance:
 Refactor:
 
 ```text
-backend_retiring/api/routes/strategies.py
+api/routes/strategies.py
 ```
 
 Keep public route paths stable:
@@ -447,14 +447,14 @@ Add unit tests:
 tests/unit/services/strategy/test_catalog_service.py
 tests/unit/services/strategy/test_strategy_storage_paths.py
 tests/unit/services/strategy/test_strategy_permissions.py
-tests/unit/backend_retiring/api/routes/test_strategies_routes.py
+tests/unit/api/routes/test_strategies_routes.py
 ```
 
 Add integration tests:
 
 ```text
-tests/integration/backend_retiring/strategy/test_strategy_create_update_storage_governance.py
-tests/integration/backend_retiring/strategy/test_legacy_strategy_migration.py
+tests/integration/strategy/test_strategy_create_update_storage_governance.py
+tests/integration/strategy/test_legacy_strategy_migration.py
 ```
 
 Test cases:
@@ -519,7 +519,7 @@ Rollback plan:
 - [ ] Add stable artifact path helpers while preserving legacy path loading.
 - [ ] Add strategy catalog DB migration.
 - [ ] Add backfill/migration script with dry-run and apply modes.
-- [ ] Refactor `backend_retiring/api/routes/strategies.py` to call the catalog service.
+- [ ] Refactor `api/routes/strategies.py` to call the catalog service.
 - [ ] Fix backend template lookup path.
 - [ ] Update UI fallback template imports.
 - [ ] Extend TypeScript strategy types with optional governance fields.

@@ -3,13 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 import shutil
 import sys
+from types import SimpleNamespace
 import uuid
 
 import pytest
 
-from backend_retiring.api.routes import edge as edge_routes
 from data.database.sqlite import SQLiteDatabase
 from tests.fixtures.edge_lab_scenarios import ScenarioDataSource, build_edge_lab_scenario_registry
+
+
+edge_routes = SimpleNamespace(db_manager=None, _create_data_source=None)
 
 
 def pytest_configure(config):

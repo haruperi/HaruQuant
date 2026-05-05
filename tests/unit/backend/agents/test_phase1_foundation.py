@@ -286,11 +286,11 @@ def test_truncate_strings_in_dict_nested() -> None:
 # Phase 1.5: Schema Registry Persistence
 # ──────────────────────────────────────────────────────────────
 
-from backend_retiring.contracts.schema_registry_persistence_service import (
+from contracts.schema_registry_persistence_service import (
     SchemaRegistryPersistence,
     create_persisted_registry,
 )
-from backend_retiring.contracts.schema_registry import SchemaRegistryRecord
+from contracts.schema_registry import SchemaRegistryRecord
 from datetime import datetime, timezone
 
 
@@ -342,7 +342,7 @@ def test_persistence_clear() -> None:
 # Phase 1.6: Model-Specific Cost Tracking
 # ──────────────────────────────────────────────────────────────
 
-from backend_retiring.observability.cost_tracker import (
+from observability.cost_tracker import (
     CostTracker,
     get_model_pricing,
     calculate_cost,

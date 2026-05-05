@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend_retiring.contracts.trade_hypothesis.model import TradeHypothesis, TradeHypothesisPayload
+from contracts.trade_hypothesis.model import TradeHypothesis, TradeHypothesisPayload
 
 
-EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "backend_retiring" / "contracts" / "trade_hypothesis" / "examples"
+EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "contracts" / "trade_hypothesis" / "examples"
 
 
 def _load_example(*parts: str) -> dict:

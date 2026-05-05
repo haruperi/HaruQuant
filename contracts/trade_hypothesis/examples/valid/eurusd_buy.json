@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "TradeHypothesis",
+  "payload": {
+    "hypothesis_id": "hyp_01",
+    "symbol": "EURUSD",
+    "direction": "buy",
+    "thesis": "EURUSD shows bullish continuation.",
+    "entry_rationale": "Momentum confirms higher lows.",
+    "invalidation_rationale": "Break below support invalidates.",
+    "stop_loss_logic": {
+      "type": "atr"
+    },
+    "holding_horizon": "intraday",
+    "confidence": 0.74,
+    "calibration_note": "Calibrated on walk-forward sample.",
+    "evidence": [
+      {
+        "source_type": "market",
+        "ref_id": "snap_01",
+        "summary": "trend intact"
+      }
+    ],
+    "required_validation_data": [
+      "market_snapshot"
+    ],
+    "strategy_family": "trend_following",
+    "feature_version": "feat_v3",
+    "strategy_code_hash": "sha256:abc123"
+  }
+}

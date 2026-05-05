@@ -32,7 +32,7 @@ paper automation capability is considered.
 ## Planning Assumptions
 
 - HaruQuant already has an agentic AI direction with agents, tools, governed
-  orchestration, and backend_retiring/frontend separation.
+  orchestration, and frontend separation.
 - The chatbot is global, but its intelligence must remain page-aware.
 - Page context is additive and ephemeral; thread memory is durable.
 - No phase may bypass execution governance.
@@ -200,9 +200,9 @@ refresh and navigation.
 #### Deliverables
 
 - `services/conversation_service.py`
-- `backend_retiring/repositories/conversation_repository.py`
-- `backend_retiring/repositories/message_repository.py`
-- `backend_retiring/repositories/memory_summary_repository.py`
+- `repositories/conversation_repository.py`
+- `repositories/message_repository.py`
+- `repositories/memory_summary_repository.py`
 - DB migrations for conversation tables
 - conversation API endpoints
 - frontend thread restore behavior
@@ -293,7 +293,7 @@ orchestration.
 
 #### Deliverables
 
-- `backend_retiring/api/ai_chat.py`
+- `api/ai_chat.py`
 - `services/ai_gateway.py`
 - `services/agent_router.py`
 - `services/prompt_builder.py`
@@ -339,9 +339,9 @@ Ground the assistant in real HaruQuant state through safe read-only tools.
 
 #### Deliverables
 
-- `backend_retiring/tools/read_only/*.py`
-- `backend_retiring/agents/chat/ai_chat/tool_executor.py`
-- `backend_retiring/policies/tool_policy.py`
+- `tools/read_only/*.py`
+- `agents/chat/ai_chat/tool_executor.py`
+- `policies/tool_policy.py`
 - provenance display in UI
 - tool integration tests
 

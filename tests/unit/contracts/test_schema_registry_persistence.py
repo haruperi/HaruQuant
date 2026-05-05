@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend_retiring.contracts import (
+from contracts import (
     SCHEMA_REGISTRY_TABLE,
     SchemaRegistryRecord,
     SchemaRegistryRow,
@@ -20,8 +20,8 @@ def _sample_record() -> SchemaRegistryRecord:
         effective_from=datetime(2026, 4, 8, 10, 0, 0, tzinfo=timezone.utc),
         compatibility_policy="major-version compatibility",
         payload_hash="sha256:123abc",
-        json_schema_ref="backend_retiring/contracts/workflow_intent/schema.json",
-        pydantic_model_ref="backend_retiring.contracts.workflow_intent.model.WorkflowIntent",
+        json_schema_ref="contracts/workflow_intent/schema.json",
+        pydantic_model_ref="contracts.workflow_intent.model.WorkflowIntent",
         owning_domain_team="platform",
         changelog_summary="Initial active version.",
     )
@@ -49,8 +49,8 @@ def test_row_to_record_round_trips_from_mapping():
         "deprecated_from": None,
         "compatibility_policy": "major-version compatibility",
         "payload_hash": "sha256:123abc",
-        "json_schema_ref": "backend_retiring/contracts/workflow_intent/schema.json",
-        "pydantic_model_ref": "backend_retiring.contracts.workflow_intent.model.WorkflowIntent",
+        "json_schema_ref": "contracts/workflow_intent/schema.json",
+        "pydantic_model_ref": "contracts.workflow_intent.model.WorkflowIntent",
         "owning_domain_team": "platform",
         "changelog_summary": "Initial active version.",
     }

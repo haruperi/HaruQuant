@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend_retiring.contracts.page_context_packet.model import (
+from contracts.page_context_packet.model import (
     ContextAuthority,
     ContextFreshness,
     ContextSummary,
@@ -15,7 +15,7 @@ from backend_retiring.contracts.page_context_packet.model import (
 )
 
 
-EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "backend_retiring" / "contracts" / "page_context_packet" / "examples"
+EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "contracts" / "page_context_packet" / "examples"
 
 
 def _load_example(*parts: str) -> dict:

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from backend_retiring.agents import RiskGovernorAgentAdapter
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_decision.model import (
+from contracts.common import Originator
+from contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,

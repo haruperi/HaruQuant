@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from services.utils.logger import logger
 from services.utils.time_utils import Clock, FreshnessWindow, SystemClock, evaluate_freshness
-from backend_retiring.contracts.risk_assessment_request.model import FreshnessClass
+from contracts.risk_assessment_request.model import FreshnessClass
 
 
 MarketSnapshotType = Literal["best_bid_ask_tick", "spread_snapshot", "symbol_tradability_status"]

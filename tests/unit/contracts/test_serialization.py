@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from backend_retiring.contracts import (
+from contracts import (
     CanonicalEnvelope,
     Originator,
     canonical_json_dumps,

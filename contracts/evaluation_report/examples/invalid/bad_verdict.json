@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "EvaluationReport",
+  "payload": {
+    "evaluation_id": "eval_01",
+    "target_type": "workflow",
+    "target_ref": "wf_01",
+    "rubric_name": "trade_review_rubric",
+    "rubric_scores": {},
+    "overall_score": 0.5,
+    "verdict": "ok",
+    "evaluator_identity": "eval_agent",
+    "evaluation_model_id": "gpt-5.4-mini"
+  }
+}

@@ -225,81 +225,100 @@ Phase 2 complete.
 
 ### 3.1 Create shared schemas
 
-* [ ] Create `agents/schemas.py`.
-* [ ] Add `AgentTask`.
-* [ ] Add `AgentPlan`.
-* [ ] Add `AgentObservation`.
-* [ ] Add `AgentDecision`.
-* [ ] Add `EvidenceRef`.
-* [ ] Add `ToolCallRequest`.
-* [ ] Add `ToolCallResult`.
-* [ ] Add `StrategySpec`.
-* [ ] Add `StrategyReview`.
-* [ ] Add `BacktestRequest`.
-* [ ] Add `BacktestResultSummary`.
-* [ ] Add `RiskReview`.
-* [ ] Add `TradeProposal`.
-* [ ] Add `RiskApproval`.
-* [ ] Add `ExecutionRequest`.
-* [ ] Add `ExecutionResult`.
+* [x] Create `agents/schemas.py`.
+* [x] Add `AgentTask`.
+* [x] Add `AgentPlan`.
+* [x] Add `AgentObservation`.
+* [x] Add `AgentDecision`.
+* [x] Add `EvidenceRef`.
+* [x] Add `ToolCallRequest`.
+* [x] Add `ToolCallResult`.
+* [x] Add `StrategySpec`.
+* [x] Add `StrategyReview`.
+* [x] Add `BacktestRequest`.
+* [x] Add `BacktestResultSummary`.
+* [x] Add `RiskReview`.
+* [x] Add `TradeProposal`.
+* [x] Add `RiskApproval`.
+* [x] Add `ExecutionRequest`.
+* [x] Add `ExecutionResult`.
 
 ### 3.2 Define planner output schema
 
 Your planner already has a good base. Expand it.
 
-* [ ] Keep `intent`.
-* [ ] Keep `missing_inputs`.
-* [ ] Keep `context_needed`.
-* [ ] Keep `backend_tools_to_run`.
-* [ ] Keep `attached_tools`.
-* [ ] Keep `page_actions_to_plan`.
-* [ ] Keep `artifact_expected`.
-* [ ] Keep `risk_level`.
-* [ ] Add `requires_board_approval`.
-* [ ] Add `requires_risk_governor`.
-* [ ] Add `requires_audit_log`.
-* [ ] Add `allowed_agents`.
-* [ ] Add `blocked_agents`.
-* [ ] Add `expected_outputs`.
-* [ ] Add `evidence_requirements`.
-* [ ] Add `failure_policy`.
+* [x] Keep `intent`.
+* [x] Keep `missing_inputs`.
+* [x] Keep `context_needed`.
+* [x] Keep `backend_tools_to_run`.
+* [x] Keep `attached_tools`.
+* [x] Keep `page_actions_to_plan`.
+* [x] Keep `artifact_expected`.
+* [x] Keep `risk_level`.
+* [x] Add `requires_board_approval`.
+* [x] Add `requires_risk_governor`.
+* [x] Add `requires_audit_log`.
+* [x] Add `allowed_agents`.
+* [x] Add `blocked_agents`.
+* [x] Add `expected_outputs`.
+* [x] Add `evidence_requirements`.
+* [x] Add `failure_policy`.
 
 ### 3.3 Define strategy spec schema
 
-* [ ] Add `strategy_name`.
-* [ ] Add `version`.
-* [ ] Add `market`.
-* [ ] Add `symbol`.
-* [ ] Add `timeframe`.
-* [ ] Add `data_requirements`.
-* [ ] Add `entry_logic`.
-* [ ] Add `exit_logic`.
-* [ ] Add `position_sizing`.
-* [ ] Add `risk_assumptions`.
-* [ ] Add `cost_assumptions`.
-* [ ] Add `invalid_conditions`.
-* [ ] Add `test_plan`.
-* [ ] Add `deployment_recommendation`.
+* [x] Add `strategy_name`.
+* [x] Add `version`.
+* [x] Add `market`.
+* [x] Add `symbol`.
+* [x] Add `timeframe`.
+* [x] Add `data_requirements`.
+* [x] Add `entry_logic`.
+* [x] Add `exit_logic`.
+* [x] Add `position_sizing`.
+* [x] Add `risk_assumptions`.
+* [x] Add `cost_assumptions`.
+* [x] Add `invalid_conditions`.
+* [x] Add `test_plan`.
+* [x] Add `deployment_recommendation`.
 
 ### 3.4 Define trade proposal schema
 
-* [ ] Add `strategy_id`.
-* [ ] Add `symbol`.
-* [ ] Add `side`.
-* [ ] Add `entry_type`.
-* [ ] Add `requested_size`.
-* [ ] Add `stop_loss`.
-* [ ] Add `take_profit`.
-* [ ] Add `max_spread`.
-* [ ] Add `max_slippage`.
-* [ ] Add `expected_risk`.
-* [ ] Add `portfolio_impact`.
-* [ ] Add `evidence_refs`.
-* [ ] Add `requires_risk_approval`.
+* [x] Add `strategy_id`.
+* [x] Add `symbol`.
+* [x] Add `side`.
+* [x] Add `entry_type`.
+* [x] Add `requested_size`.
+* [x] Add `stop_loss`.
+* [x] Add `take_profit`.
+* [x] Add `max_spread`.
+* [x] Add `max_slippage`.
+* [x] Add `expected_risk`.
+* [x] Add `portfolio_impact`.
+* [x] Add `evidence_refs`.
+* [x] Add `requires_risk_approval`.
 
 ### Phase 3 implementation note
 
-Phase 3 was implemented by extending existing schemas instead of creating competing contracts. `AgentPlan` aliases the existing `ConversationPlan`, which now includes Board approval, RiskGovernor, audit, allowed/blocked agent, output, evidence, and failure-policy fields. `agents/schemas.py` provides firm-facing agent exchange models and bridge helpers to existing canonical contracts such as `StrategyBlueprint`, `TradeProposal`, `RiskAssessmentDecision`, `ExecutionIntent`, and `ExecutionReceipt`.
+Phase 3 is implemented on the canonical package paths, with no dependency on the retired backend structure.
+
+Completed implementation:
+
+* Added `agents/schemas.py` as the shared agent exchange contract module.
+* Added firm-facing Pydantic models for tasks, plans, observations, decisions, evidence refs, tool calls, strategy specs, strategy reviews, backtest requests/results, risk reviews, trade proposals, risk approvals, execution requests/results, and research reports.
+* `AgentPlan` aliases `ConversationPlan`, which now carries planner governance fields: Board approval, RiskGovernor requirement, audit requirement, allowed/blocked agents, expected outputs, evidence requirements, and failure policy.
+* Added the canonical top-level `contracts/` package for typed workflow and trading contracts, including `WorkflowIntent`, `WorkflowPlan`, `TradeHypothesis`, `TradeProposal`, `RiskAssessmentRequest`, `RiskAssessmentDecision`, `ExecutionIntent`, `ExecutionReceipt`, `ObservationEvent`, `EvaluationReport`, `IncidentAlert`, `OverrideRequest`, `OverrideDecision`, `ReplayBundle`, `ChatLifecycleEvent`, and `PageContextPacket`.
+* Added contract family scaffolds with `README.md`, `CHANGELOG.md`, `schema.json`, `model.py`, and valid/invalid examples.
+* Added canonical envelope, deterministic serialization helpers, schema registry records, schema seed loading, registry resolution, persistence row conversion, and registered payload validation.
+* Added lightweight `observability/` trace and span models for the schema boundary tests.
+* Updated package discovery so `agents`, `contracts`, and `observability` are installable packages.
+* Removed the temporary retired-backend compatibility package and moved log defaults away from retired backend paths so that folder is not recreated.
+* Removed retired backend references from documentation.
+
+Validation:
+
+```text
+81 passed in 1.36s
+```
 
 ## Done definition
 

@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend_retiring.contracts.workflow_intent.model import WorkflowIntent, WorkflowIntentPayload
+from contracts.workflow_intent.model import WorkflowIntent, WorkflowIntentPayload
 
 
-EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "backend_retiring" / "contracts" / "workflow_intent" / "examples"
+EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "contracts" / "workflow_intent" / "examples"
 
 
 def _load_example(*parts: str) -> dict:

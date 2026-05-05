@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "ExecutionReceipt",
+  "payload": {
+    "receipt_id": "rcpt_01",
+    "execution_intent_id": "exec_01",
+    "broker": "mt5",
+    "status": "done",
+    "authoritative_state": {},
+    "receipt_hash": "sha256:receipt"
+  }
+}

@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.trade_proposal.model import TradeProposal
+from contracts.common import Originator
+from contracts.trade_proposal.model import TradeProposal
 from haruquant.risk import (
     ApprovalPolicy,
     ComplianceProfile,

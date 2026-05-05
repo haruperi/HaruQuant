@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from haruquant.utils import FixedClock
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
+from contracts.common import Originator
+from contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
 from data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations, default_migrations_dir
 from haruquant.strategy import (
     ProposalTransformationConfig,

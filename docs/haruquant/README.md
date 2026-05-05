@@ -7,7 +7,7 @@ Owner: platform architecture
 Review cadence: on every docs structure change
 
 This directory is the organized documentation root for HaruQuant's agentic and
-governed backend_retiring.
+governed 
 
 Use this file as the entry point instead of browsing the directory tree blind.
 

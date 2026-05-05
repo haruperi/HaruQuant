@@ -8,7 +8,7 @@ Owner: security and platform
 Review cadence: quarterly or when security controls change
 
 ## Identity Model
-- User identity: JWT-based authentication via `backend_retiring/api/auth_utils.py`
+- User identity: JWT-based authentication via `api/auth_utils.py`
 - Service identity: API key or mTLS for inter-service communication
 - Agent identity: Named agent with role-based permissions
 
@@ -20,7 +20,7 @@ Review cadence: quarterly or when security controls change
 ## Secret Management
 - Secrets stored in environment variables or system keyring
 - Never logged or stored in code/config files
-- Redaction via `backend_retiring/observability/redaction.py`
+- Redaction via `observability/redaction.py`
 
 ## Least Privilege Model
 - Read-only MCP servers cannot execute mutating tools

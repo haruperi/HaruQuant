@@ -230,7 +230,7 @@ class LiveTradingSession:
             },
             "notifications": {"enable_email": False},
             "logging": {
-                "dir": "backend_retiring/logs/live_session_" + str(self.session_id),
+                "dir": "reports/logs/live_session_" + str(self.session_id),
                 "level": "INFO",
             },
             "state": {"file": f"data/states/session_{self.session_id}_state.json"},

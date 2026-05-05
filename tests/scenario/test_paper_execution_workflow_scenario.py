@@ -4,14 +4,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from haruquant.utils import FixedClock
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_decision.model import (
+from contracts.common import Originator
+from contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend_retiring.contracts.serialization import canonical_json_dumps
-from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from contracts.serialization import canonical_json_dumps
+from contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 from haruquant.execution import (
     ExecutionAttemptPersistenceService,

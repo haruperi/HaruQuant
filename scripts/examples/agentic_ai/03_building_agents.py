@@ -44,7 +44,7 @@ from backend_retiring.agents.runtime.session_manager import SessionManager
 from backend_retiring.agents.runtime.tool_validation import ToolValidationError, ToolValidator, register_mcp_schemas
 from backend_retiring.mcp.mt5_mcp.tools import MT5ReadOnlyTools
 from backend_retiring.mcp.sql_mcp.tools import SQLMCPAccessError, SQLReadOnlyTools
-from backend_retiring.observability.cost_tracker import CostTracker
+from observability.cost_tracker import CostTracker
 
 
 def print_example_header(title: str) -> None:

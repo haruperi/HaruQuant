@@ -7,8 +7,8 @@ from datetime import timedelta
 
 from services.utils import Clock, SystemClock
 from services.utils.ids import generate_id
-from backend_retiring.contracts.trade_hypothesis.model import TradeHypothesis
-from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from contracts.trade_hypothesis.model import TradeHypothesis
+from contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 
 
 @dataclass(frozen=True)

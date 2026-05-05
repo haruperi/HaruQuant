@@ -6,16 +6,14 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend_retiring.contracts.risk_assessment_decision.model import (
+from contracts.risk_assessment_decision.model import (
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
 
 
 EXAMPLES_ROOT = (
-    Path(__file__).resolve().parents[3]
-    / "backend_retiring"
-    / "contracts"
+    Path(__file__).resolve().parents[3] / "contracts"
     / "risk_assessment_decision"
     / "examples"
 )

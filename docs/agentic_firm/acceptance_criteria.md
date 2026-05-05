@@ -131,14 +131,14 @@ Verify that the physical project structure supports agents, tools, risk services
 
 **Prompt:**
 ```text
-Show me the agent folders that currently exist under backend_retiring/app/agents.
+Show me the agent folders that currently exist under agents.
 ```
 
 **Expected Result:**
 The system lists folders for CEO, planner, research, strategy creator, strategy reviewer, codegen, backtest, optimization, robustness, statistical validation, risk reviewer, portfolio manager, execution, performance reporter, audit, and cost optimizer. Missing folders are reported.
 
 ### Test 2.1.2: Tool Folder Presence
-**Action:** Inspect `backend_retiring/app/tools/`.
+**Action:** Inspect `tools/`.
 
 **Prompt:**
 ```text
@@ -149,7 +149,7 @@ Which tool modules exist, and which implementation phase do they support?
 The assistant lists data, strategy, backtest, analytics, risk, portfolio, execution, reporting, and audit tools, mapping each to its domain.
 
 ### Test 2.1.3: Risk and Execution Services Exist
-**Action:** Inspect `backend_retiring/app/risk/` and `backend_retiring/app/execution/`.
+**Action:** Inspect `risk/` and `execution/`.
 
 **Prompt:**
 ```text
@@ -181,7 +181,7 @@ Where should I place the RiskGovernor approval-token code?
 ```
 
 **Expected Result:**
-The assistant routes it to `backend_retiring/app/risk/approvals.py` or a risk-specific module, not to an LLM agent folder.
+The assistant routes it to `risk/approvals.py` or a risk-specific module, not to an LLM agent folder.
 
 ### Test 2.2.2: Execution Files Do Not Contain Risk Policy Logic
 **Action:** Inspect execution services.
@@ -204,7 +204,7 @@ Verify that agents communicate through structured, validated objects instead of 
 ## Test Suite 3.1: Schema Coverage
 
 ### Test 3.1.1: Agent Task Schema Exists
-**Action:** Inspect `backend_retiring/app/agents/schemas.py`.
+**Action:** Inspect `agents/schemas.py`.
 
 **Prompt:**
 ```text
@@ -369,7 +369,7 @@ Verify that all executable capabilities are typed, registered, permissioned, ris
 ## Test Suite 5.1: Tool Registry Completeness
 
 ### Test 5.1.1: Tool Definition Fields
-**Action:** Inspect `backend_retiring/app/tools/registry.py`.
+**Action:** Inspect `tools/registry.py`.
 
 **Prompt:**
 ```text
@@ -1485,7 +1485,7 @@ What strategy am I looking at and what lifecycle state is it in?
 ```
 
 **Expected Result:**
-The assistant names the exact strategy and lifecycle state from the UI/backend_retiring.
+The assistant names the exact strategy and lifecycle state from the UI/
 
 ### Test 22.2.2: Backtest Metrics Extraction
 **Action:** Navigate to Backtest Result Detail.

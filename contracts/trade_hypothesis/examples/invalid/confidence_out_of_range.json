@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "TradeHypothesis",
+  "payload": {
+    "hypothesis_id": "hyp_01",
+    "symbol": "EURUSD",
+    "direction": "buy",
+    "thesis": "x",
+    "entry_rationale": "x",
+    "invalidation_rationale": "x",
+    "stop_loss_logic": {},
+    "holding_horizon": "intraday",
+    "confidence": 1.5,
+    "calibration_note": "x",
+    "evidence": [
+      {
+        "source_type": "market",
+        "ref_id": "snap_01",
+        "summary": "ok"
+      }
+    ],
+    "required_validation_data": [
+      "market_snapshot"
+    ],
+    "strategy_family": "trend_following",
+    "feature_version": "feat_v3",
+    "strategy_code_hash": "sha256:abc123"
+  }
+}

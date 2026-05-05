@@ -125,15 +125,15 @@ copilot.
 
 ## Suggested Initial Backend Surface
 
-- `backend_retiring/api/ai_chat.py`
+- `api/ai_chat.py`
 - `services/ai_gateway.py`
 - `services/conversation_service.py`
 - `services/context_service.py`
 - `services/prompt_builder.py`
 - `services/agent_router.py`
 - `services/stream_manager.py`
-- `backend_retiring/agents/chat/ai_chat/tool_executor.py`
-- `backend_retiring/policies/tool_policy.py`
+- `agents/chat/ai_chat/tool_executor.py`
+- `policies/tool_policy.py`
 
 ## Observability Requirements
 

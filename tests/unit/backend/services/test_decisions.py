@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_decision.model import LimitConstraint
+from contracts.common import Originator
+from contracts.risk_assessment_decision.model import LimitConstraint
 from haruquant.risk import (
     RiskDecisionEnvelopeContext,
     RiskDecisionProvenance,

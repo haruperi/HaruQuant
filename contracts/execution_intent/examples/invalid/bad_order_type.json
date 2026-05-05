@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "ExecutionIntent",
+  "payload": {
+    "execution_intent_id": "exec_01",
+    "proposal_id": "prop_01",
+    "risk_decision_id": "risk_01",
+    "broker_action_type": "submit_order",
+    "symbol": "EURUSD",
+    "side": "buy",
+    "size": {},
+    "order_type": "iceberg",
+    "idempotency_key": "idem_exec_01",
+    "expiry_time": "2026-04-08T12:00:00Z",
+    "pre_send_validation_snapshot_ref": "presend_01"
+  }
+}

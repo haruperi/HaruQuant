@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend_retiring.contracts.serialization import canonical_json_dumps
+from contracts.serialization import canonical_json_dumps
 
 
 @dataclass(frozen=True)

@@ -4,8 +4,8 @@ from pathlib import Path
 
 from backend_retiring.agents import ADKRunnerConfig, ADKRunnerService, AgentExecutionResult
 from haruquant.utils import ValidationError
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.workflow_plan.model import (
+from contracts.common import Originator
+from contracts.workflow_plan.model import (
     WorkflowPattern,
     WorkflowPhaseStep,
     WorkflowPlan,

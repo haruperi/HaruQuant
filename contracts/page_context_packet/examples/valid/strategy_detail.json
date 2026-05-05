@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "PageContextPacket",
+  "payload": {
+    "route": "/strategies/strategy_001",
+    "page_type": "strategy_detail",
+    "context_revision": "ctx_001",
+    "freshness": {
+      "observed_at": "2026-04-19T12:00:00Z",
+      "staleness_seconds": 0
+    },
+    "authority": {
+      "source": "strategy_service",
+      "trust_level": "authoritative"
+    },
+    "summary": {
+      "headline": "EURUSD strategy",
+      "bullets": [
+        "Ready for review"
+      ]
+    },
+    "payload": {},
+    "entity_refs": [
+      {
+        "type": "strategy",
+        "id": "strategy_001"
+      }
+    ]
+  }
+}

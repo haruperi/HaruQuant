@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 
-from backend_retiring.contracts.serialization import canonical_json_dumps
+from contracts.serialization import canonical_json_dumps
 
 
 def generate_integrity_manifest(artifacts: dict[str, str]) -> dict[str, object]:

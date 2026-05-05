@@ -34,8 +34,8 @@ def test_chat_tool_registry_exposes_strategy_creator() -> None:
 
 
 def test_chat_tool_and_artifact_contract_files_exist() -> None:
-    assert Path("backend_retiring/contracts/chat_tool_attachment/schema.json").exists()
-    assert Path("backend_retiring/contracts/chat_artifact/schema.json").exists()
+    assert Path("contracts/chat_tool_attachment/schema.json").exists()
+    assert Path("contracts/chat_artifact/schema.json").exists()
 
 
 def test_chat_artifact_service_validates_artifact_shape() -> None:

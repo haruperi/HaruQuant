@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from backend_retiring.contracts import SchemaRegistryRecord
+from contracts import SchemaRegistryRecord
 
 
 def test_schema_registry_record_accepts_required_fields():
@@ -17,8 +17,8 @@ def test_schema_registry_record_accepts_required_fields():
         effective_from=datetime(2026, 4, 8, 10, 0, 0, tzinfo=timezone.utc),
         compatibility_policy="major-version compatibility",
         payload_hash="sha256:123abc",
-        json_schema_ref="backend_retiring/contracts/workflow_intent/schema.json",
-        pydantic_model_ref="backend_retiring.contracts.workflow_intent.model.WorkflowIntent",
+        json_schema_ref="contracts/workflow_intent/schema.json",
+        pydantic_model_ref="contracts.workflow_intent.model.WorkflowIntent",
         owning_domain_team="platform",
         changelog_summary="Initial active version.",
     )
@@ -38,8 +38,8 @@ def test_schema_registry_record_rejects_invalid_status():
             effective_from=datetime(2026, 4, 8, 10, 0, 0, tzinfo=timezone.utc),
             compatibility_policy="major-version compatibility",
             payload_hash="sha256:123abc",
-            json_schema_ref="backend_retiring/contracts/workflow_intent/schema.json",
-            pydantic_model_ref="backend_retiring.contracts.workflow_intent.model.WorkflowIntent",
+            json_schema_ref="contracts/workflow_intent/schema.json",
+            pydantic_model_ref="contracts.workflow_intent.model.WorkflowIntent",
             owning_domain_team="platform",
             changelog_summary="Initial active version.",
         )

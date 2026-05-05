@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 from services.utils import generate_prefixed_id
 from services.utils.logger import logger
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_request.model import (
+from contracts.common import Originator
+from contracts.risk_assessment_request.model import (
     ActivePolicyBundle,
     KillSwitchState,
     RequestedFreshnessClasses,
@@ -15,7 +15,7 @@ from backend_retiring.contracts.risk_assessment_request.model import (
     RiskAssessmentRequestPayload,
     StrategyLifecycleState,
 )
-from backend_retiring.contracts.trade_proposal.model import TradeProposal
+from contracts.trade_proposal.model import TradeProposal
 from services.risk.policy import ComplianceProfile, PolicyBundle
 
 from .snapshots import AccountSnapshot, MarketSnapshot, PortfolioSnapshot

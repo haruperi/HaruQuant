@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from services.utils.logger import logger
-from backend_retiring.contracts.execution_intent.model import ExecutionIntent
+from contracts.execution_intent.model import ExecutionIntent
 
 
 class BrokerSendGateway(Protocol):

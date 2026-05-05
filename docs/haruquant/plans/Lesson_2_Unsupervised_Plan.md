@@ -45,8 +45,8 @@ Already available:
 - Lesson 1 executable tutorial:
   - `scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py`
 - Lesson 1 registry workflow:
-  - `backend_retiring/orchestration/workflow/definitions/data_transformation.yaml`
-  - `backend_retiring/orchestration/workflow/steps_data_transformation.py`
+  - `orchestration/workflow/definitions/data_transformation.yaml`
+  - `orchestration/workflow/steps_data_transformation.py`
 
 Gap:
 
@@ -57,7 +57,7 @@ The existing workflow example executes Lesson 1 data, feature, signal, backtest,
 Use the existing HaruQuant services as the implementation boundary:
 
 - Keep modeling math in `services/research/modeling/`.
-- Keep workflow step orchestration in `backend_retiring/orchestration/workflow/`.
+- Keep workflow step orchestration in `orchestration/workflow/`.
 - Keep tutorial/demo behavior in `scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py`.
 - Keep tests under the existing unit and integration test layout.
 - Avoid creating a separate course-only package.
@@ -87,7 +87,7 @@ Create a deterministic feature frame from the existing Lesson 1 output.
 
 Target:
 
-- `backend_retiring/orchestration/workflow/steps_data_transformation.py`
+- `orchestration/workflow/steps_data_transformation.py`
 - `scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py`
 
 Implementation:
@@ -114,8 +114,8 @@ Add a workflow step that builds the unsupervised insight report.
 
 Target:
 
-- `backend_retiring/orchestration/workflow/definitions/data_transformation.yaml`
-- `backend_retiring/orchestration/workflow/steps_data_transformation.py`
+- `orchestration/workflow/definitions/data_transformation.yaml`
+- `orchestration/workflow/steps_data_transformation.py`
 
 Implementation:
 
@@ -149,7 +149,7 @@ Allow the Lesson 1 backtest path to compare original shifted signals versus clus
 
 Target:
 
-- `backend_retiring/orchestration/workflow/steps_data_transformation.py`
+- `orchestration/workflow/steps_data_transformation.py`
 - `scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py`
 
 Implementation:
@@ -206,7 +206,7 @@ Targets:
   - `tests/unit/services/test_unsupervised_modeling.py`
   - `tests/unit/services/test_unsupervised_insights.py`
 - Add or extend:
-  - `tests/integration/backend_retiring/test_data_transformation_workflow.py`
+  - `tests/integration/test_data_transformation_workflow.py`
 
 Implementation:
 
@@ -220,7 +220,7 @@ Acceptance commands:
 ```powershell
 pytest tests/unit/services/test_unsupervised_modeling.py -q
 pytest tests/unit/services/test_unsupervised_insights.py -q
-pytest tests/integration/backend_retiring/test_data_transformation_workflow.py -q
+pytest tests/integration/test_data_transformation_workflow.py -q
 ```
 
 ### Phase 6 - Traceability and Reporting

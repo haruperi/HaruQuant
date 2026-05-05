@@ -86,9 +86,9 @@ Responsibilities:
 
 New service candidates:
 
-- `backend_retiring/agents/chat/ai_chat/conversation_orchestrator.py`
-- `backend_retiring/agents/chat/ai_chat/intent_state.py`
-- `backend_retiring/agents/chat/ai_chat/clarification_policy.py`
+- `agents/chat/ai_chat/conversation_orchestrator.py`
+- `agents/chat/ai_chat/intent_state.py`
+- `agents/chat/ai_chat/clarification_policy.py`
 
 Acceptance criteria:
 
@@ -149,10 +149,10 @@ Pattern:
 
 New modules:
 
-- `backend_retiring/agents/chat/portfolio_risk_agent.py`
-- `backend_retiring/agents/chat/backtest_explainer_agent.py`
-- `backend_retiring/agents/chat/optimization_comparison_agent.py`
-- `backend_retiring/agents/chat/final_responder_agent.py`
+- `agents/chat/portfolio_risk_agent.py`
+- `agents/chat/backtest_explainer_agent.py`
+- `agents/chat/optimization_comparison_agent.py`
+- `agents/chat/final_responder_agent.py`
 
 Acceptance criteria:
 
@@ -173,7 +173,7 @@ Memory classes:
 
 Suggested service:
 
-- `backend_retiring/agents/chat/ai_chat/conversation_state_service.py`
+- `agents/chat/ai_chat/conversation_state_service.py`
 
 Example:
 
@@ -200,7 +200,7 @@ It should:
 
 Suggested service:
 
-- `backend_retiring/agents/chat/ai_chat/response_composer.py`
+- `agents/chat/ai_chat/response_composer.py`
 
 Response modes:
 
@@ -230,8 +230,8 @@ Tasks:
 
 Deliverables:
 
-- `backend_retiring/agents/chat/ai_chat/conversation_orchestrator.py`
-- `backend_retiring/agents/chat/ai_chat/clarification_policy.py`
+- `agents/chat/ai_chat/conversation_orchestrator.py`
+- `agents/chat/ai_chat/clarification_policy.py`
 - tests for clarification vs direct answer routing
 
 ### Phase C2: Topic and Reference Memory
@@ -245,7 +245,7 @@ Tasks:
 
 Deliverables:
 
-- `backend_retiring/agents/chat/ai_chat/conversation_state_service.py`
+- `agents/chat/ai_chat/conversation_state_service.py`
 - tests for reference resolution across turns
 
 ### Phase C3: Specialist Agent Mesh
@@ -262,8 +262,8 @@ Tasks:
 
 Deliverables:
 
-- `backend_retiring/agents/chat/*.py`
-- `backend_retiring/agents/chat/ai_chat/agent_consultation_service.py`
+- `agents/chat/*.py`
+- `agents/chat/ai_chat/agent_consultation_service.py`
 - replayable intermediate artifacts
 
 ### Phase C4: Conversational UX Upgrade

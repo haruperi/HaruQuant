@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 
 from services.utils.logger import logger
-from backend_retiring.contracts.serialization import canonical_json_dumps
+from contracts.serialization import canonical_json_dumps
 from data.database import ExecutionRepository, ExecutionSendAttemptRecord
 
 

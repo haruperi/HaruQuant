@@ -19,39 +19,39 @@ consolidated into this register.
 
 ## Foundation Status
 
-- [x] Agent runtime foundation available in `backend_retiring/agents/runtime/`
-- [x] Canonical contracts available in `backend_retiring/contracts/`
+- [x] Agent runtime foundation available in `agents/runtime/`
+- [x] Canonical contracts available in `contracts/`
 - [x] Domain service foundation available under `services/`
 - [x] Operator and edge lab UI foundation available under `ui/src/app/(dashboard)/`
 - [x] Test layers available under `tests/`
 
 ## Project Workflow Signoff
 
-- [ ] `backend_retiring/orchestration/workflow/definitions/data_transformation.yaml`
+- [ ] `orchestration/workflow/definitions/data_transformation.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces dataset, EDA, feature, leakage, and evidence artifacts.
   - [x] Has integration test coverage.
 
-- [ ] `backend_retiring/orchestration/workflow/definitions/dynamic_strategy.yaml`
+- [ ] `orchestration/workflow/definitions/dynamic_strategy.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces returns, risk, walk-forward, cost, strategy card, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend_retiring/orchestration/workflow/definitions/rl_trading.yaml`
+- [ ] `orchestration/workflow/definitions/rl_trading.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces checkpoint, OOS evaluation, action diagnostics, strategy card, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend_retiring/orchestration/workflow/definitions/classification_optimization.yaml`
+- [ ] `orchestration/workflow/definitions/classification_optimization.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces calibrated classifier, tuning, overfit, robustness, drift, strategy card, and evidence artifacts.
   - [ ] Has integration test coverage.
 
-- [ ] `backend_retiring/orchestration/workflow/definitions/momentum_trading.yaml`
+- [ ] `orchestration/workflow/definitions/momentum_trading.yaml`
   - [x] Parses through the workflow definition parser.
   - [ ] Runs in dry-run/mock mode.
   - [ ] Produces momentum features, model, scenario, backtest, risk overlay, strategy card, and evidence artifacts.
@@ -61,16 +61,16 @@ consolidated into this register.
 
 - [x] **C1.L1 - Program Foundation and Traceability**
   - **Status:** implemented
-  - **Target modules:** `docs/haruquant/`, `backend_retiring/orchestration/workflow/definitions/`
+  - **Target modules:** `docs/haruquant/`, `orchestration/workflow/definitions/`
   - **Workflow:** all project workflow skeletons
   - **Tests:** workflow registry smoke validation for all five skeletons
   - **Artifacts:** traceability register, final coverage checklist, project workflow skeletons
 
 - [x] **C2.L1 - Introduction to AI Workflows in Trading**
   - **Status:** implemented
-  - **Target modules:** `backend_retiring/orchestration/workflow/definitions/`, `services/strategy/baselines/`
+  - **Target modules:** `orchestration/workflow/definitions/`, `services/strategy/baselines/`
   - **Workflow:** `classification_optimization.yaml`, `dynamic_strategy.yaml`, `momentum_trading.yaml`
-  - **Tests:** `tests/unit/services/test_baseline_strategies.py`, `tests/integration/backend_retiring/test_ai_trading_workflow_definitions.py`
+  - **Tests:** `tests/unit/services/test_baseline_strategies.py`, `tests/integration/test_ai_trading_workflow_definitions.py`
   - **Artifacts:** RSI, EMA crossover, and naive momentum baseline modules; workflow skeletons
 
 - [x] **C2.L2 - Unsupervised Learning**
@@ -78,7 +78,7 @@ consolidated into this register.
   - **Target modules:** `services/research/modeling/unsupervised.py`, `services/research/modeling/unsupervised_insights.py`
   - **Workflow:** `data_transformation.yaml` step `run_unsupervised_research`
   - **Example:** `scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py` examples 13-17
-  - **Tests:** `tests/unit/services/test_unsupervised_modeling.py`, `tests/unit/services/test_unsupervised_insights.py`, `tests/integration/backend_retiring/test_data_transformation_workflow.py`
+  - **Tests:** `tests/unit/services/test_unsupervised_modeling.py`, `tests/unit/services/test_unsupervised_insights.py`, `tests/integration/test_data_transformation_workflow.py`
   - **Artifacts:** unsupervised data summary, PCA metadata, K-Means cluster metadata, attachable regime labels, PCA risk factors, cluster outperformance report, cluster-adapted signal metadata
 
 - [ ] **C2.L3 - Supervised Learning: Regression**
@@ -134,7 +134,7 @@ consolidated into this register.
   - **Status:** not_started
   - **Target modules:** market data, research data, feature, evidence, and reporting services
   - **Workflow:** `data_transformation.yaml`
-  - **Tests:** `tests/integration/backend_retiring/test_data_transformation_workflow.py`
+  - **Tests:** `tests/integration/test_data_transformation_workflow.py`
   - **Artifacts:** transformed dataset, feature manifest, EDA report, evidence manifest
 
 - [ ] **C4.L1 - Measuring Returns**
@@ -169,7 +169,7 @@ consolidated into this register.
   - **Status:** not_started
   - **Target modules:** optimization, analytics, portfolio, evidence, and reporting services
   - **Workflow:** `dynamic_strategy.yaml`
-  - **Tests:** `tests/integration/backend_retiring/test_dynamic_strategy_workflow.py`
+  - **Tests:** `tests/integration/test_dynamic_strategy_workflow.py`
   - **Artifacts:** dynamic strategy card and evidence manifest
 
 - [ ] **C5.L1 - RL in Trading**
@@ -204,7 +204,7 @@ consolidated into this register.
   - **Status:** not_started
   - **Target modules:** RL, simulation, analytics, evidence, and reporting services
   - **Workflow:** `rl_trading.yaml`
-  - **Tests:** `tests/integration/backend_retiring/test_rl_trading_workflow.py`
+  - **Tests:** `tests/integration/test_rl_trading_workflow.py`
   - **Artifacts:** RL strategy card
 
 - [ ] **C6.L1 - Model Optimization**
@@ -246,7 +246,7 @@ consolidated into this register.
   - **Status:** not_started
   - **Target modules:** modeling, optimization, evidence, and reporting services
   - **Workflow:** `classification_optimization.yaml`
-  - **Tests:** `tests/integration/backend_retiring/test_classification_optimization_workflow.py`
+  - **Tests:** `tests/integration/test_classification_optimization_workflow.py`
   - **Artifacts:** classification strategy card
 
 - [ ] **C7.L1 - Momentum Foundations**
@@ -281,7 +281,7 @@ consolidated into this register.
   - **Status:** not_started
   - **Target modules:** momentum, optimization, analytics, evidence, and reporting services
   - **Workflow:** `momentum_trading.yaml`
-  - **Tests:** `tests/integration/backend_retiring/test_momentum_trading_workflow.py`
+  - **Tests:** `tests/integration/test_momentum_trading_workflow.py`
   - **Artifacts:** momentum strategy card
 
 - [ ] **C8.L1 - Final Readiness Review**

@@ -8,9 +8,9 @@ from datetime import timedelta
 from services.utils import Clock, SystemClock
 from services.utils.ids import generate_id
 from services.utils.logger import logger
-from backend_retiring.contracts.execution_intent.model import ExecutionIntent, ExecutionIntentPayload
-from backend_retiring.contracts.risk_assessment_decision.model import RiskAssessmentDecision
-from backend_retiring.contracts.trade_proposal.model import TradeProposal
+from contracts.execution_intent.model import ExecutionIntent, ExecutionIntentPayload
+from contracts.risk_assessment_decision.model import RiskAssessmentDecision
+from contracts.trade_proposal.model import TradeProposal
 
 
 @dataclass(frozen=True)

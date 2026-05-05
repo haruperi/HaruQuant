@@ -7,14 +7,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from services.utils.ids import generate_id, generate_prefixed_id
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.risk_assessment_decision.model import (
+from contracts.common import Originator
+from contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend_retiring.contracts.serialization import canonical_json_dumps
-from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from contracts.serialization import canonical_json_dumps
+from contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from data.database import (
     AiChatRepository,
     ExecutionRepository,

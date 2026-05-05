@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "workflow_id": "wf_01",
+  "correlation_id": "corr_01",
+  "causation_id": "evt_01",
+  "timestamp_utc": "2026-04-08T10:15:30Z",
+  "originator": {
+    "type": "agent",
+    "id": "planner_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "contract_type": "ReplayBundle",
+  "payload": {
+    "replay_bundle_id": "rpb_01",
+    "workflow_id": "wf_01",
+    "completeness_status": "missing",
+    "included_refs": [
+      "prop_01"
+    ],
+    "export_profile": "standard_replay",
+    "generated_at": "2026-04-08T10:25:59Z",
+    "integrity_manifest": {
+      "manifest_algorithm": "sha256"
+    }
+  }
+}

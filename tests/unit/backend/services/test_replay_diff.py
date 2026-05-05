@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend_retiring.contracts.common import Originator
-from backend_retiring.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
+from contracts.common import Originator
+from contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
 from haruquant.strategy import compare_replay_to_original
 from haruquant.strategy import ReplayRunResult
 
