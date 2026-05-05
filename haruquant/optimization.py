@@ -239,6 +239,10 @@ class Optimizer:
     """High-level encapsulation for strategy optimization and robustness testing."""
 
     @staticmethod
+    def _service_strategy_class(strategy_class: Any) -> Any:
+        return getattr(strategy_class, "_service_strategy_class", strategy_class)
+
+    @staticmethod
     def get_scoring_func(objective: str) -> Callable:
         """Map common objective names to scoring functions."""
         scoring_map = {
@@ -270,7 +274,7 @@ class Optimizer:
         }
 
         return methods.grid_search(
-            strategy_class=strategy_class,
+            strategy_class=Optimizer._service_strategy_class(strategy_class),
             data=data,
             param_grid=actual_grid,
             symbol=symbol,
@@ -310,7 +314,7 @@ class Optimizer:
     ):
         """Randomized search over parameter distributions."""
         return methods.random_search(
-            strategy_class=strategy_class,
+            strategy_class=Optimizer._service_strategy_class(strategy_class),
             data=data,
             param_distributions=param_distributions,
             n_iter=n_iter,
@@ -335,7 +339,7 @@ class Optimizer:
     ):
         """Bayesian optimization using Gaussian Processes."""
         return methods.bayesian_optimization(
-            strategy_class=strategy_class,
+            strategy_class=Optimizer._service_strategy_class(strategy_class),
             data=data,
             param_space=param_space,
             n_iterations=n_iterations,
@@ -361,7 +365,7 @@ class Optimizer:
     ):
         """Optimization using Genetic Algorithms (Evolutionary Search)."""
         return methods.genetic_algorithm(
-            strategy_class=strategy_class,
+            strategy_class=Optimizer._service_strategy_class(strategy_class),
             data=data,
             param_ranges=param_ranges,
             population_size=population_size,
@@ -387,7 +391,7 @@ class Optimizer:
     ):
         """Walk-Forward Analysis (WFA) to test strategy robustness over time."""
         return methods.walk_forward_optimization(
-            strategy_class=strategy_class,
+            strategy_class=Optimizer._service_strategy_class(strategy_class),
             data=data,
             param_grid=param_grid,
             train_period=train_period,
@@ -410,7 +414,7 @@ class Optimizer:
     ):
         """Monte Carlo simulation for strategy robustness and risk analysis."""
         if trades is None and backtest_id:
-            from backend.data.database.repositories.backtest_repository import get_backtest_trades_df
+            from data.database.repositories.backtest_repository import get_backtest_trades_df
             trades = get_backtest_trades_df(backtest_id)
             
         if trades is None or trades.empty:
@@ -422,7 +426,7 @@ class Optimizer:
             simulations=simulations,
             skip_probability=skip_probability,
             deterioration_pct=deterioration_pct,
-            initial_balance=initial_balance
+            initial_balance=initial_balance,
         )
 
 

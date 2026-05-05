@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 8,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T19:00:31.775787",
+  "name": "08 Close Breakout",
+  "description": "Breakout strategy based on daily close prices.\n    Buys when price closes higher than previous close, sells when lower.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

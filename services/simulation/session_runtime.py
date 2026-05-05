@@ -11,9 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from backend.api.websocket import backtest_log_manager
-from backend.mcp.mt5_mcp import get_mt5_api
-from backend.mcp.mt5_mcp.client import MT5Client
+from backend_retiring.api.websocket import backtest_log_manager
+from services.data.mt5 import MT5Client, get_mt5_api
 from services.risk.core import PortfolioStateEngine
 from services.risk.core.governance_engine import GovernanceEngine
 from services.risk.core.portfolio_risk_engine import PortfolioRiskEngine
@@ -34,7 +33,7 @@ from services.simulation.serializers import (
     _serialize_governance_report,
     _serialize_recommendation_batch,
 )
-from backend.data.database.sqlite.database_operations import DatabaseManager
+from data.database.sqlite.database_operations import DatabaseManager
 from services.simulation.engine import Engine
 from services.execution import core
 from services.data.quality import DataValidator

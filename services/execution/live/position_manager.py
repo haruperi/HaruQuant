@@ -10,7 +10,7 @@ from services.utils.logger import logger
 from services.execution.trade import Trade
 
 if TYPE_CHECKING:
-    from backend.mcp.mt5_mcp.client import MT5Client
+    from services.data.mt5 import MT5Client
 
 
 class PositionManager:

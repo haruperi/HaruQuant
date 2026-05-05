@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from haruquant.utils import FixedClock
-from backend.data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
+from data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
 from haruquant.execution import WorkflowTimeoutService
 
 

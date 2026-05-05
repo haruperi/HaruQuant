@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.contracts.replay_bundle.model import ReplayBundle
-from backend.data.database import ResearchAuditRepository
+from backend_retiring.contracts.replay_bundle.model import ReplayBundle
+from data.database import ResearchAuditRepository
 
 
 @dataclass(frozen=True)

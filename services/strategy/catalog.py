@@ -14,9 +14,9 @@ from services.utils.logger import logger
 from .storage import StrategyStorage, storage as default_storage
 
 if TYPE_CHECKING:
-    from backend.data.database import GovernanceRepository
-    from backend.data.database.repositories.governance_repository import StrategyRecord
-    from backend.data.database.sqlite.database_operations import DatabaseManager
+    from data.database import GovernanceRepository
+    from data.database.repositories.governance_repository import StrategyRecord
+    from data.database.sqlite.database_operations import DatabaseManager
 
 
 def canonical_json_hash(payload: Any) -> str:
@@ -79,13 +79,13 @@ class StrategyCatalogService:
         governance_repository: Optional["GovernanceRepository"] = None,
     ) -> None:
         if db_manager is None:
-            from backend.data.database.sqlite.database_operations import DatabaseManager
+            from data.database.sqlite.database_operations import DatabaseManager
 
             db_manager = DatabaseManager()
         self.db = db_manager
         self.storage = strategy_storage
         if governance_repository is None:
-            from backend.data.database import GovernanceRepository
+            from data.database import GovernanceRepository
 
             governance_repository = GovernanceRepository(self.db.db_path)
         self.governance = governance_repository

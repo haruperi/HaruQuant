@@ -4,15 +4,15 @@ from unittest.mock import patch
 
 import pytest
 
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.chat.ai_chat import (
+from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.chat.ai_chat import (
     AIGatewayService,
     ChatStreamRequest,
     ConversationService,
     PageContextAssembler,
 )
-from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult
+from backend_retiring.agents.chat.ai_chat.tool_executor import ToolExecutionResult
 
 
 @pytest.fixture(autouse=True)
@@ -352,7 +352,7 @@ def test_ai_gateway_uses_conversational_retrieval_fallback_for_docs_queries(tmp_
         tool_executor=_KnowledgeToolExecutor(),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -453,7 +453,7 @@ def test_ai_gateway_uses_latest_candle_fallback_for_live_chart_question(tmp_path
         tool_executor=_LatestCandleToolExecutor(),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -491,7 +491,7 @@ def test_ai_gateway_uses_dom_snapshot_for_generic_page_summary(tmp_path) -> None
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -556,7 +556,7 @@ def test_ai_gateway_answers_date_of_extreme_from_page_chunks(tmp_path) -> None:
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -614,7 +614,7 @@ def test_ai_gateway_answers_current_vs_previous_from_page_chunks(tmp_path) -> No
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -673,7 +673,7 @@ def test_ai_gateway_prioritizes_page_evidence_over_dashboard_tools(tmp_path) -> 
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=Exception("offline runtime")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,

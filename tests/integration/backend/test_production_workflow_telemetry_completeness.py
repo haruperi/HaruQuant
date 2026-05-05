@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunRequest,
     ADKRunnerConfig,
     ADKRunnerService,
@@ -19,7 +19,7 @@ from backend.agents import (
     attach_prompt_provenance_to_run_result,
     build_run_trajectory_log,
 )
-from backend.data.database import ResearchAuditRepository, apply_pending_migrations
+from data.database import ResearchAuditRepository, apply_pending_migrations
 
 
 class _FakeProdOrchestratorRuntime:
@@ -72,7 +72,7 @@ def test_production_workflows_emit_trajectory_logs_and_runtime_assertions(
     operating_mode: str,
 ) -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "data" / "database" / "migrations"
+    migrations_dir = repo_root / "data" / "database" / "migrations"
     database_path = tmp_path / f"agentic-{operating_mode}.db"
 
     apply_pending_migrations(database_path, migrations_dir)

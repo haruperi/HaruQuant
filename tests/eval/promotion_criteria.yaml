@@ -5,14 +5,14 @@ tier_1_unit:
   description: "All unit tests must pass"
   requirement: "100% unit test pass rate"
   tests:
-    - "tests/unit/backend/agents/test_*.py"
+    - "tests/unit/backend_retiring/agents/test_*.py"
   threshold: "all must pass"
 
 tier_2_integration:
   description: "Integration tests must pass"
   requirement: "All workflow integration tests pass"
   tests:
-    - "tests/integration/backend/agents/test_workflow_integration.py"
+    - "tests/integration/backend_retiring/agents/test_workflow_integration.py"
   threshold: "all must pass"
 
 tier_3_golden:

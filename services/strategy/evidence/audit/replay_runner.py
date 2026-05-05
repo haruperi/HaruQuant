@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 
-from backend.contracts.replay_bundle.model import ReplayBundle
-from backend.contracts.serialization import canonical_json_dumps
-from backend.data.database import ResearchAuditRepository
+from backend_retiring.contracts.replay_bundle.model import ReplayBundle
+from backend_retiring.contracts.serialization import canonical_json_dumps
+from data.database import ResearchAuditRepository
 
 
 @dataclass(frozen=True)

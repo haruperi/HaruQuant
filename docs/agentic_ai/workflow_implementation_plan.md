@@ -51,7 +51,7 @@ Replace the monolithic 273-line `ADKRunnerService` with a composable middleware 
 
 ### Current State
 ```python
-# backend/agents/runtime/runner.py — ADKRunnerService.run()
+# backend_retiring/agents/runtime/runner.py — ADKRunnerService.run()
 # Handles in one method:
 # 1. Prompt resolution (registry lookup)
 # 2. Context redaction
@@ -81,7 +81,7 @@ result = pipeline.run(agent, request)
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/middleware.py` with `MiddlewareProtocol`, `MiddlewarePipeline`, `NextMiddleware` types
+- [x] Create `backend_retiring/agents/runtime/middleware.py` with `MiddlewareProtocol`, `MiddlewarePipeline`, `NextMiddleware` types
 - [x] Extract `ContextRedactionMiddleware` from `ADKRunnerService._redactor` logic
 - [x] Extract `RetrievalGuardMiddleware` from `_evaluate_retrieved_context` + `_should_block_retrieved_context`
 - [x] Extract `PromptCompositionMiddleware` from `_build_augmented_request` + `PromptComposer.compose`
@@ -94,7 +94,7 @@ result = pipeline.run(agent, request)
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   middleware.py              # MiddlewareProtocol, MiddlewarePipeline
   redaction_middleware.py    # Extracted from ADKRunnerService
   retrieval_guard_middleware.py  # Extracted from ADKRunnerService
@@ -119,7 +119,7 @@ Split the 310-line `workflows.py` kitchen sink into 5 independent modules, one p
 
 ### Current State
 ```python
-# backend/agents/runtime/workflows.py — 310 lines
+# backend_retiring/agents/runtime/workflows.py — 310 lines
 # Contains: Sequential, Routing, Parallel, EvaluatorOptimizer,
 # OrchestratorWorkers, RefineLoopGuard, conflict detection,
 # synthetic result helpers
@@ -127,7 +127,7 @@ Split the 310-line `workflows.py` kitchen sink into 5 independent modules, one p
 
 ### Target State
 ```
-backend/agents/runtime/workflows/
+backend_retiring/agents/runtime/workflows/
   __init__.py                    # Re-exports all pattern runners
   sequential.py                  # SequentialWorkflowRunner + SequentialWorkflowStep
   routing.py                     # RoutingWorkflowRunner + RoutingWorkflowBranch
@@ -140,14 +140,14 @@ backend/agents/runtime/workflows/
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/workflows/` directory with `__init__.py`
+- [x] Create `backend_retiring/agents/runtime/workflows/` directory with `__init__.py`
 - [x] Move `SequentialWorkflowRunner` + `SequentialWorkflowStep` to `sequential.py`
 - [x] Move `RoutingWorkflowRunner` + `RoutingWorkflowBranch` to `routing.py`
 - [x] Move `ParallelWorkflowRunner` + `ParallelAggregateResult` to `parallel.py`
 - [x] Move `EvaluatorOptimizerWorkflowRunner` + related to `evaluator_optimizer.py`
 - [x] Move `OrchestratorWorkerWorkflowRunner` + `WorkerGroupResult` to `orchestrator_workers.py`
 - [x] Move shared utilities to `common.py`
-- [x] Update `backend/agents/runtime/__init__.py` exports
+- [x] Update `backend_retiring/agents/runtime/__init__.py` exports
 - [x] Update all import across codebase (agent files, tests, examples)
 - [x] Verify all existing tests still pass
 
@@ -155,7 +155,7 @@ backend/agents/runtime/workflows/
 - [x] All 144 existing tests pass
 - [x] Each module is < 80 lines
 - [x] No circular imports between workflow modules
-- [x] `from backend.agents.runtime import SequentialWorkflowRunner` still works
+- [x] `from backend_retiring.agents.runtime import SequentialWorkflowRunner` still works
 
 ---
 
@@ -239,7 +239,7 @@ class WorkflowStepRecord:
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/workflow_log.py` with `WorkflowExecutionLog`, `WorkflowStepRecord`
+- [x] Create `backend_retiring/agents/runtime/workflow_log.py` with `WorkflowExecutionLog`, `WorkflowStepRecord`
 - [x] Add `WorkflowLogCollector` that collects step records during workflow execution
 - [x] Modify `SequentialWorkflowRunner.run()` to record each step
 - [x] Modify `ParallelWorkflowRunner.run()` to record each task
@@ -253,9 +253,9 @@ class WorkflowStepRecord:
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   workflow_log.py          # WorkflowExecutionLog, WorkflowStepRecord, WorkflowLogCollector
-tests/unit/backend/agents/
+tests/unit/backend_retiring/agents/
   test_workflow_log.py     # Execution log tests
 ```
 
@@ -293,7 +293,7 @@ runner.run(
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/dynamic_orchestrator.py`
+- [x] Create `backend_retiring/agents/runtime/dynamic_orchestrator.py`
 - [x] Create `OrchestratorPlan` contract (workflow_id, tasks[], synthesis, confidence)
 - [x] Create `DynamicOrchestratorWorkerRunner` that:
   1. Sends goal to `orchestrator_agent` (ReActAgentRuntime)
@@ -310,11 +310,11 @@ runner.run(
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   dynamic_orchestrator.py      # DynamicOrchestratorWorkerRunner, OrchestratorPlan
-backend/agents/prompts/
+backend_retiring/agents/prompts/
   dynamic_orchestrator_template.py  # ReAct prompt for dynamic planning
-tests/unit/backend/agents/
+tests/unit/backend_retiring/agents/
   test_dynamic_orchestrator.py  # 3+ tests
 ```
 
@@ -365,7 +365,7 @@ def test_full_trade_plan_workflow() -> None:
 ```
 
 ### Tasks
-- [x] Create `tests/integration/backend/agents/` directory
+- [x] Create `tests/integration/backend_retiring/agents/` directory
 - [x] Create `test_sequential_integration.py` with full multi-step workflow test
 - [x] Create `test_parallel_integration.py` with fan-out/fan-in workflow test
 - [x] Create `test_evaluator_optimizer_integration.py` with rubric-based refinement loop
@@ -376,7 +376,7 @@ def test_full_trade_plan_workflow() -> None:
 
 ### Target Files
 ```
-tests/integration/backend/agents/
+tests/integration/backend_retiring/agents/
   __init__.py
   test_sequential_integration.py       # Full research→strategy→compliance chain
   test_parallel_integration.py         # Fan-out volatility+regime+correlation
@@ -427,10 +427,10 @@ steps:
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/workflow_definition.py` with `WorkflowDefinition` dataclass
+- [x] Create `backend_retiring/agents/runtime/workflow_definition.py` with `WorkflowDefinition` dataclass
 - [x] Create `WorkflowDefinitionParser` that parses YAML into `SequentialWorkflowStep` tuples
 - [x] Support all 5 workflow patterns in YAML schema (sequential, routing, parallel, evaluator-optimizer, orchestrator-workers)
-- [x] Create `WorkflowRegistry` that loads and caches workflow definitions from `backend/workflows/` directory
+- [x] Create `WorkflowRegistry` that loads and caches workflow definitions from `backend_retiring/workflows/` directory
 - [x] Create `run_workflow(workflow_name, **inputs)` convenience function
 - [x] Add schema validation for YAML definitions (check required fields, valid agent names, valid contract types)
 - [x] Add unit test: parse sequential YAML definition → SequentialWorkflowRunner
@@ -439,12 +439,12 @@ steps:
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   workflow_definition.py   # WorkflowDefinition, WorkflowDefinitionParser, WorkflowRegistry
-backend/workflows/
+backend_retiring/workflows/
   trade_analysis.yaml      # Example: sequential research→strategy→compliance
   market_monitor.yaml      # Example: parallel volatility+regime+correlation
-tests/unit/backend/agents/
+tests/unit/backend_retiring/agents/
   test_workflow_definition.py  # YAML parsing tests
 ```
 
@@ -477,8 +477,8 @@ class WorkflowStateManager:
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/workflow_state.py` with `WorkflowStateManager`
-- [x] Use SQLite for persistence (reuse existing `backend/data/database/sqlite/` infrastructure)
+- [x] Create `backend_retiring/agents/runtime/workflow_state.py` with `WorkflowStateManager`
+- [x] Use SQLite for persistence (reuse existing `data/database/sqlite/` infrastructure)
 - [x] Create `workflow_states` table with: workflow_id, step_name, state_json, created_at
 - [x] Add checkpoint saving at each workflow step completion
 - [x] Add `resume_workflow()` that loads last checkpoint and continues from next step
@@ -489,11 +489,11 @@ class WorkflowStateManager:
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   workflow_state.py       # WorkflowStateManager, SQLite persistence
-backend/data/database/sqlite/
+data/database/sqlite/
   workflow_states.db      # Auto-created by manager
-tests/unit/backend/agents/
+tests/unit/backend_retiring/agents/
   test_workflow_state.py  # Persistence and resume tests
 ```
 
@@ -530,7 +530,7 @@ class AgentCircuitBreaker:
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/circuit_breaker.py` with `AgentCircuitBreaker`
+- [x] Create `backend_retiring/agents/runtime/circuit_breaker.py` with `AgentCircuitBreaker`
 - [x] Implement 3-state machine: CLOSED → OPEN → HALF_OPEN → CLOSED
 - [x] Track failure counts per agent_name with sliding window
 - [x] Implement exponential backoff for recovery attempts
@@ -543,9 +543,9 @@ class AgentCircuitBreaker:
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   circuit_breaker.py      # AgentCircuitBreaker, CircuitOpenError, CircuitState
-tests/unit/backend/agents/
+tests/unit/backend_retiring/agents/
   test_circuit_breaker.py  # State machine and backoff tests
 ```
 
@@ -576,7 +576,7 @@ class AsyncParallelWorkflowRunner:
 ```
 
 ### Tasks
-- [x] Create `backend/agents/runtime/async_workflows.py` with async versions of all 5 workflow runners
+- [x] Create `backend_retiring/agents/runtime/async_workflows.py` with async versions of all 5 workflow runners
 - [x] Implement `AsyncSequentialWorkflowRunner` with `async for` step execution
 - [x] Implement `AsyncParallelWorkflowRunner` with `asyncio.gather()` for true concurrency
 - [x] Implement `AsyncEvaluatorOptimizerWorkflowRunner` with async evaluation
@@ -588,11 +588,11 @@ class AsyncParallelWorkflowRunner:
 
 ### Target Files
 ```
-backend/agents/runtime/
+backend_retiring/agents/runtime/
   async_workflows.py         # All 5 async workflow runners
   async_runner.py            # AsyncADKRunnerService
   async_middleware.py        # AsyncMiddlewarePipeline
-tests/unit/backend/agents/
+tests/unit/backend_retiring/agents/
   test_async_workflows.py    # Async workflow tests
 ```
 
@@ -612,12 +612,12 @@ tests/unit/backend/agents/
 - Each log event includes: `workflow_id`, `correlation_id`, `step_name`, `agent_name`, `latency_ms`, `token_usage`
 
 ### Configuration
-- All workflow parameters configurable via `backend/config/agent_model.py` or env vars
+- All workflow parameters configurable via `backend_retiring/config/agent_model.py` or env vars
 - `WORKFLOW_MAX_STEPS`, `WORKFLOW_STEP_TIMEOUT_SECONDS`, `WORKFLOW_PARALLEL_MAX_WORKERS`
 
 ### Documentation
-- Update `backend/agents/README.md` with workflow architecture diagram
-- Create `backend/workflows/README.md` with YAML definition guide
+- Update `backend_retiring/agents/README.md` with workflow architecture diagram
+- Create `backend_retiring/workflows/README.md` with YAML definition guide
 - Create `docs/agentic_ai/Workflow_Patterns.md` with usage examples for each pattern
 
 ---

@@ -1,0 +1,17 @@
+{
+  "user_id": 1,
+  "strategy_id": 9,
+  "version": "1.0.1",
+  "parameters": {},
+  "saved_at": "2026-04-15T03:13:55.816789",
+  "name": "09 Trend Following Moving Average",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

@@ -1,0 +1,17 @@
+{
+  "user_id": 1,
+  "strategy_id": 7,
+  "version": "1.0.3",
+  "parameters": {},
+  "saved_at": "2026-04-15T03:13:37.863298",
+  "name": "07 Close Mean Reversion",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

@@ -24,17 +24,17 @@ from services.utils.logger import logger
 from services.strategy import storage
 from services.strategy.permissions import assert_strategy_allowed
 from services.execution.trade import Trade
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.data.strategies.close_breakout import CloseBreakoutStrategy
-from backend.data.strategies.mean_reversion import MeanReversionStrategy
-from backend.data.strategies.trend_following import TrendFollowingStrategy
+from data.database.sqlite.database_operations import DatabaseManager
+from data.strategies.close_breakout import CloseBreakoutStrategy
+from data.strategies.mean_reversion import MeanReversionStrategy
+from data.strategies.trend_following import TrendFollowingStrategy
 
 if TYPE_CHECKING:
-    from backend.mcp.mt5_mcp.client import MT5Client
+    from services.data.mt5 import MT5Client
 
 
 def _mt5():
-    from backend.mcp.mt5_mcp import get_mt5_api
+    from services.data.mt5 import get_mt5_api
 
     return get_mt5_api()
 
@@ -264,7 +264,7 @@ class MultiStrategyEngine:
             if not self.client:
                 mt5_config = self.config["mt5"]
 
-                from backend.mcp.mt5_mcp.client import MT5Client
+                from services.data.mt5 import MT5Client
 
                 self.client = MT5Client()
                 connected = self.client.connect(
@@ -328,7 +328,7 @@ class MultiStrategyEngine:
                 )
                 self.notifier = LiveTradingNotifier.from_database(
                     user_id=user_id,
-                    db_path=self.config.get("db_path", "backend/data/database/haruquant.db"),
+                    db_path=self.config.get("db_path", "data/database/haruquant.db"),
                 )
             else:
                 # Fallback to config-based notifications (backward compatibility)
@@ -486,7 +486,7 @@ class MultiStrategyEngine:
 
         try:
             db_manager = DatabaseManager(
-                db_path=self.config.get("db_path", "backend/data/database/haruquant.db")
+                db_path=self.config.get("db_path", "data/database/haruquant.db")
             )
             assert_strategy_allowed(
                 int(strategy_id),

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from backend.mcp.wrappers.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
-from backend.mcp.wrappers.rate_limiter import RateLimiter
-from backend.mcp.wrappers.retry_policy import RetryPolicy
-from backend.orchestration.context_engineering.eviction import ContextEviction
-from backend.orchestration.context_engineering.validator import ContextValidator
+from backend_retiring.mcp.wrappers.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+from backend_retiring.mcp.wrappers.rate_limiter import RateLimiter
+from backend_retiring.mcp.wrappers.retry_policy import RetryPolicy
+from backend_retiring.orchestration.context_engineering.eviction import ContextEviction
+from backend_retiring.orchestration.context_engineering.validator import ContextValidator
 
 
 def test_retry_exhaustion():

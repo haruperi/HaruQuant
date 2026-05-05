@@ -6,13 +6,13 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.contracts.chat_lifecycle_event.model import (
+from backend_retiring.contracts.chat_lifecycle_event.model import (
     ChatLifecycleEvent,
     ChatLifecycleEventPayload,
 )
 
 
-EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "backend" / "contracts" / "chat_lifecycle_event" / "examples"
+EXAMPLES_ROOT = Path(__file__).resolve().parents[3] / "backend_retiring" / "contracts" / "chat_lifecycle_event" / "examples"
 
 
 def _load_example(*parts: str) -> dict:

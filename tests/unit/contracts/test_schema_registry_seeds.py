@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.contracts import (
+from backend_retiring.contracts import (
     INITIAL_SCHEMA_SEEDS,
     SchemaRegistryService,
     load_initial_schema_registry_seeds,

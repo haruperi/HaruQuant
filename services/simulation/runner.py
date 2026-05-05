@@ -54,7 +54,7 @@ class SimulationRunner:
     @staticmethod
     def _save_to_database(config: SimulationConfig, result: SimulationRunResult) -> None:
         """Persist simulation run to database."""
-        from backend.data.database.sqlite.database_operations import DatabaseManager
+        from data.database.sqlite.database_operations import DatabaseManager
         from services.analytics.overview import build_overview_payload, get_analytics_overview
         import pandas as pd
 

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from backend.agents.runtime.streaming import run_streaming
-from backend.observability.otel_exporter import OpenTelemetryExporter, OTelExportConfig
-from backend.orchestration.context_engineering.llm_compression import LLMContextCompressor
+from backend_retiring.agents.runtime.streaming import run_streaming
+from backend_retiring.observability.otel_exporter import OpenTelemetryExporter, OTelExportConfig
+from backend_retiring.orchestration.context_engineering.llm_compression import LLMContextCompressor
 
 
 # ──────────────────────────────────────────────────────────────

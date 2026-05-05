@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from haruquant.utils import FixedClock
-from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
-from backend.mcp.mt5_mcp import MT5ReadOnlyTools
-from backend.orchestration.workflow import KillSwitchState
+from data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
+from backend_retiring.mcp.mt5_mcp import MT5ReadOnlyTools
+from backend_retiring.orchestration.workflow import KillSwitchState
 from haruquant.execution import SymbolMetadataCacheEntry, aggregate_readiness_results, validate_market_open, validate_price_freshness, validate_terminal_connectivity
 from haruquant.execution import BrokerTruthFetcher, ReconciliationStartupLoader, build_local_execution_truth, compare_execution_truth, evaluate_retry_guard
 from haruquant.risk import evaluate_new_entry_block

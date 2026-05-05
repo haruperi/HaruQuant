@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from services.utils.logger import logger
 
 if TYPE_CHECKING:
-    from backend.data.database.sqlite.database_operations import DatabaseManager
-    from backend.mcp.mt5_mcp.client import MT5Client
+    from data.database.sqlite.database_operations import DatabaseManager
+    from services.data.mt5 import MT5Client
     from services.execution.live.engine import MultiStrategyEngine
 
 
@@ -230,10 +230,10 @@ class LiveTradingSession:
             },
             "notifications": {"enable_email": False},
             "logging": {
-                "dir": "backend/logs/live_session_" + str(self.session_id),
+                "dir": "backend_retiring/logs/live_session_" + str(self.session_id),
                 "level": "INFO",
             },
-            "state": {"file": f"backend/data/states/session_{self.session_id}_state.json"},
+            "state": {"file": f"data/states/session_{self.session_id}_state.json"},
             "user_id": session_data["user_id"],
         }
 

@@ -3,9 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
-from backend.mcp.mt5_mcp import MT5ReadOnlyTools
+
+class BrokerReadTools(Protocol):
+    def get_account_info(self) -> dict[str, Any]:
+        ...
+
+    def list_orders(self) -> list[dict[str, Any]]:
+        ...
+
+    def list_positions(self) -> list[dict[str, Any]]:
+        ...
 
 _BROKER_CLIENT_ID_FIELDS: tuple[str, ...] = (
     "client_order_id",
@@ -36,7 +45,7 @@ class BrokerTruthSnapshot:
 class BrokerTruthFetcher:
     """Fetches current broker truth for a pending client order reference."""
 
-    def __init__(self, read_tools: MT5ReadOnlyTools) -> None:
+    def __init__(self, read_tools: BrokerReadTools) -> None:
         self._read_tools = read_tools
 
     def fetch_for_client_order_id(

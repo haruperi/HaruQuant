@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
+from data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 from haruquant.execution import ExecutionAttemptPersistenceService
 
 

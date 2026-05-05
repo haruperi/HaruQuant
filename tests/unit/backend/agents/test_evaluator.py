@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents import (
+from backend_retiring.agents import (
     EvaluatorRubric,
     EvaluatorRubricCriterion,
     TrajectoryEvaluationService,

@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 6,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:54:08.595860",
+  "name": "06 RSI Breakout",
+  "description": "Breakout/momentum strategy using RSI indicator.\n    Buys when RSI is overbought (strength), sells when RSI is oversold (weakness).",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

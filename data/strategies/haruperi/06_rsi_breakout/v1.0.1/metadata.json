@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 6,
+  "version": "1.0.1",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:56:42.952059",
+  "name": "06 RSI Breakout",
+  "description": "Breakout/momentum strategy using RSI indicator.\n    Buys when RSI is overbought (strength), sells when RSI is oversold (weakness).",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

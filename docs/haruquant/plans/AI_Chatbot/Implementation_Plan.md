@@ -32,7 +32,7 @@ paper automation capability is considered.
 ## Planning Assumptions
 
 - HaruQuant already has an agentic AI direction with agents, tools, governed
-  orchestration, and backend/frontend separation.
+  orchestration, and backend_retiring/frontend separation.
 - The chatbot is global, but its intelligence must remain page-aware.
 - Page context is additive and ephemeral; thread memory is durable.
 - No phase may bypass execution governance.
@@ -199,10 +199,10 @@ refresh and navigation.
 
 #### Deliverables
 
-- `backend/services/conversation_service.py`
-- `backend/repositories/conversation_repository.py`
-- `backend/repositories/message_repository.py`
-- `backend/repositories/memory_summary_repository.py`
+- `services/conversation_service.py`
+- `backend_retiring/repositories/conversation_repository.py`
+- `backend_retiring/repositories/message_repository.py`
+- `backend_retiring/repositories/memory_summary_repository.py`
 - DB migrations for conversation tables
 - conversation API endpoints
 - frontend thread restore behavior
@@ -247,8 +247,8 @@ on every route change.
 
 #### Deliverables
 
-- `backend/services/context_service.py`
-- `backend/services/context_builders/*.py`
+- `services/context_service.py`
+- `services/context_builders/*.py`
 - `ui/providers/PageContextProvider.tsx`
 - `ui/hooks/usePageContext.ts`
 - versioned context schema
@@ -293,11 +293,11 @@ orchestration.
 
 #### Deliverables
 
-- `backend/api/ai_chat.py`
-- `backend/services/ai_gateway.py`
-- `backend/services/agent_router.py`
-- `backend/services/prompt_builder.py`
-- `backend/services/stream_manager.py`
+- `backend_retiring/api/ai_chat.py`
+- `services/ai_gateway.py`
+- `services/agent_router.py`
+- `services/prompt_builder.py`
+- `services/stream_manager.py`
 - request and response schemas
 - frontend streaming handler
 
@@ -339,9 +339,9 @@ Ground the assistant in real HaruQuant state through safe read-only tools.
 
 #### Deliverables
 
-- `backend/tools/read_only/*.py`
-- `backend/agents/chat/ai_chat/tool_executor.py`
-- `backend/policies/tool_policy.py`
+- `backend_retiring/tools/read_only/*.py`
+- `backend_retiring/agents/chat/ai_chat/tool_executor.py`
+- `backend_retiring/policies/tool_policy.py`
 - provenance display in UI
 - tool integration tests
 

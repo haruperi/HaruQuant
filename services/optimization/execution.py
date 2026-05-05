@@ -194,7 +194,7 @@ def run_strategy_backtest(
     # Following the example_17 pattern: hqt.Portfolio.run(overrides)
     overrides = {
         "engine_type": normalize_engine_type(engine_type),
-        "backend": "sim",
+        "backend_retiring": "sim",
         "account": {
             "initial_balance": float(initial_balance),
         },

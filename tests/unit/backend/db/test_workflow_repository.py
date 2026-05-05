@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from haruquant.utils import StaleVersionError
-from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.data.database.repositories import WorkflowRepository
+from data.database import apply_pending_migrations, default_migrations_dir
+from data.database.repositories import WorkflowRepository
 
 
 def test_workflow_repository_crud_and_optimistic_lock(tmp_path) -> None:

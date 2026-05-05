@@ -10,7 +10,7 @@ from dataclasses import replace
 
 import pytest
 
-from backend.agents.runtime.runner import (
+from backend_retiring.agents.runtime.runner import (
     ADKRunRequest,
     ADKRunResult,
     ADKRunnerConfig,
@@ -18,8 +18,8 @@ from backend.agents.runtime.runner import (
     AgentExecutionContext,
     AgentExecutionResult,
 )
-from backend.agents.runtime.output_validation import CanonicalOutputValidator
-from backend.agents.runtime.workflows import (
+from backend_retiring.agents.runtime.output_validation import CanonicalOutputValidator
+from backend_retiring.agents.runtime.workflows import (
     EvaluatorOptimizerResult,
     EvaluatorOptimizerStep,
     EvaluatorOptimizerWorkflowRunner,
@@ -357,7 +357,7 @@ def test_routing_with_branch_selection() -> None:
 
 def test_routing_with_default_fallback() -> None:
     """Unmatched route should use default branch."""
-    from backend.agents.runtime.workflows import RoutingWorkflowBranch
+    from backend_retiring.agents.runtime.workflows import RoutingWorkflowBranch
 
     default = RoutingWorkflowBranch(
         route_key="default",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunRequest,
     ADKRunResult,
     ADKRunnerConfig,
@@ -12,13 +12,13 @@ from backend.agents import (
     RuntimeTrajectoryLogService,
     build_run_trajectory_log,
 )
-from backend.data.database import ResearchAuditRepository, apply_pending_migrations
-from backend.agents.runtime.evaluator import hash_schema_name
+from data.database import ResearchAuditRepository, apply_pending_migrations
+from backend_retiring.agents.runtime.evaluator import hash_schema_name
 
 
 def test_runtime_trajectory_log_service_persists_to_audit_store(tmp_path) -> None:
     repo_root = Path(__file__).resolve().parents[4]
-    migrations_dir = repo_root / "backend" / "data" / "database" / "migrations"
+    migrations_dir = repo_root / "data" / "database" / "migrations"
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

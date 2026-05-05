@@ -31,7 +31,7 @@ class Dashboard:
 
     def __init__(
         self,
-        log_file: str = "backend/logs/multi_strategy/multi_strategy.log",
+        log_file: str = "backend_retiring/logs/multi_strategy/multi_strategy.log",
         state_file: str = "multi_strategy_state.json",
         refresh_interval: int = 5,
     ):
@@ -405,7 +405,7 @@ def main():
     parser = argparse.ArgumentParser(description="Live Trading Dashboard")
     parser.add_argument(
         "--log",
-        default="backend/logs/multi_strategy/multi_strategy.log",
+        default="backend_retiring/logs/multi_strategy/multi_strategy.log",
         help="Path to log file",
     )
     parser.add_argument(

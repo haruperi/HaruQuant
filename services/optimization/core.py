@@ -9,10 +9,10 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from services.utils.logger import logger
-from backend.data.database.sqlite.database_operations import DatabaseManager
+from data.database.sqlite.database_operations import DatabaseManager
 from services.strategy.storage import StrategyStorage
 from services.strategy.permissions import assert_strategy_allowed
-from services.data.service import load_dukascopy
+from services.data.dukascopy import load_dukascopy
 from services.data.quality import DataValidator
 from services.research.modeling import (
     UnsupervisedResearchConfig,

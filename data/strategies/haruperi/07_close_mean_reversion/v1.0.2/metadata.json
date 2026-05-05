@@ -1,0 +1,20 @@
+{
+  "user_id": 1,
+  "strategy_id": 7,
+  "version": "1.0.2",
+  "parameters": {},
+  "saved_at": "2026-01-14T17:38:35.993901",
+  "name": "07 Close Mean Reversion",
+  "description": "Simple mean reversion strategy based on daily close prices.\n    Buys when price closes down, sells when price closes up.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "parameterTypes": {},
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "variableTypes": {},
+  "changelog": "Updated via editor"
+}

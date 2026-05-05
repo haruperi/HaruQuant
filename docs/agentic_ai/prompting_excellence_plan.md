@@ -51,7 +51,7 @@ Replace all 13 hardcoded 3-line instruction strings with full 9-section prompts 
 
 ### Current State
 ```python
-# backend/agents/strategy_agent.py — 4 lines
+# backend_retiring/agents/strategy_agent.py — 4 lines
 STRATEGY_AGENT_INSTRUCTION = """
 You are the HaruQuant StrategyAgent.
 Generate evidence-backed trade hypotheses, compare candidate actions when needed,
@@ -73,7 +73,7 @@ Each agent prompt has 9 sections:
 9. **Failure Behavior** — what to do when uncertain, confidence scoring, uncertainty reporting
 
 ### Tasks
-- [x] Create `backend/agents/prompts/` directory with Jinja2-style template system
+- [x] Create `backend_retiring/agents/prompts/` directory with Jinja2-style template system
 - [x] Create `PromptComposer` class that assembles prompt sections from config
 - [x] Expand all 13 agent instructions to 9-section format
 - [x] Add few-shot examples to orchestrator, strategy, compliance, and execution agents
@@ -82,7 +82,7 @@ Each agent prompt has 9 sections:
 
 ### Target Files
 ```
-backend/agents/prompts/
+backend_retiring/agents/prompts/
   __init__.py                  # PromptComposer, assemble_agent_prompt()
   orchestrator_template.py     # 9-section orchestrator prompt
   strategy_template.py         # 9-section strategy prompt with examples
@@ -115,7 +115,7 @@ Create a real `AgentRuntime` implementation that calls Google's Gemini API.
 
 ### Current State
 ```python
-# backend/agents/runtime/runner.py — AgentRuntime has NO implementation
+# backend_retiring/agents/runtime/runner.py — AgentRuntime has NO implementation
 class AgentRuntime(Protocol):
     def run(self, *, request: ADKRunRequest, context: AgentExecutionContext) -> AgentExecutionResult: ...
 ```
@@ -130,9 +130,9 @@ A `GeminiAgentRuntime` class that:
 
 ### Tasks
 - [x] Add `google-genai` or `google-generativeai` to requirements
-- [x] Create `backend/agents/runtime/gemini_runtime.py` with `GeminiAgentRuntime` class
-- [x] Configure API key from `GOOGLE_API_KEY` env var (falls back to `backend/config/environments/.env`)
-- [x] Use `AGENT_MODEL` from `backend/config/agent_model.py` as the model name
+- [x] Create `backend_retiring/agents/runtime/gemini_runtime.py` with `GeminiAgentRuntime` class
+- [x] Configure API key from `GOOGLE_API_KEY` env var (falls back to `backend_retiring/config/environments/.env`)
+- [x] Use `AGENT_MODEL` from `backend_retiring/config/agent_model.py` as the model name
 - [x] Enforce JSON output mode via `generation_config.response_mime_type = "application/json"`
 - [x] Map Gemini response to `AgentExecutionResult` with token usage
 - [x] Add timeout handling (configurable, default 60s)
@@ -141,8 +141,8 @@ A `GeminiAgentRuntime` class that:
 
 ### Target Files
 ```
-backend/agents/runtime/gemini_runtime.py   # GeminiAgentRuntime class
-tests/unit/backend/agents/test_gemini_runtime.py  # Unit tests with mocked Gemini API
+backend_retiring/agents/runtime/gemini_runtime.py   # GeminiAgentRuntime class
+tests/unit/backend_retiring/agents/test_gemini_runtime.py  # Unit tests with mocked Gemini API
 ```
 
 ### Verification
@@ -210,7 +210,7 @@ A `ReActAgentRuntime` class that:
 6. Produces Final Answer
 
 ### Tasks
-- [x] Create `backend/agents/react/` directory
+- [x] Create `backend_retiring/agents/react/` directory
 - [x] Create `react_prompt.py` with ReAct instruction template:
   ```
   You are solving a task using tools. On each step, you must output:
@@ -231,7 +231,7 @@ A `ReActAgentRuntime` class that:
 
 ### Target Files
 ```
-backend/agents/react/
+backend_retiring/agents/react/
   __init__.py
   react_prompt.py              # ReAct instruction template
   react_agent.py               # ReActAgentRuntime
@@ -377,7 +377,7 @@ class PromptComposer:
 ```
 
 ### Tasks
-- [x] Create `PromptComposer` class in `backend/agents/prompts/__init__.py`
+- [x] Create `PromptComposer` class in `backend_retiring/agents/prompts/__init__.py`
 - [x] Create `PromptContext` dataclass with all 6 layers
 - [x] Add section delimiters with trust level annotations
 - [x] Modify `GeminiAgentRuntime` to use `PromptComposer.compose()` before calling LLM
@@ -399,7 +399,7 @@ Replace 5 hardcoded injection markers with 20+ comprehensive patterns.
 
 ### Current State
 ```python
-# backend/agents/runtime/retrieval_guard.py — 5 markers
+# backend_retiring/agents/runtime/retrieval_guard.py — 5 markers
 _PROMPT_INJECTION_MARKERS = (
     "ignore previous instructions",
     "reveal the system prompt",
@@ -495,7 +495,7 @@ def test_strategy_agent_produces_valid_trade_hypothesis(mocked_gemini):
 ```
 
 ### Tasks
-- [x] Create `backend/agents/prompts/test_prompts.py`
+- [x] Create `backend_retiring/agents/prompts/test_prompts.py`
 - [x] Add one test per agent: verifies output matches contract schema
 - [x] Mock `GeminiAgentRuntime` to return predefined JSON responses
 - [x] Add tests for failure cases: malformed LLM response, API timeout, content safety block
@@ -517,7 +517,7 @@ When output validation fails, feed the error back to the LLM for self-correction
 
 ### Current State
 ```python
-# backend/agents/runtime/output_validation.py — hard fail
+# backend_retiring/agents/runtime/output_validation.py — hard fail
 validated_model = validate_contract_payload(payload, self._registry)
 # Raises ContractValidationError — no retry mechanism
 ```
@@ -570,12 +570,12 @@ class CanonicalOutputValidator:
 - Log token usage, latency, and cost on every run
 
 ### Configuration
-- All prompt parameters (max CoT length, max ReAct steps, repair retries) configurable via `backend/config/agent_model.py`
+- All prompt parameters (max CoT length, max ReAct steps, repair retries) configurable via `backend_retiring/config/agent_model.py`
 - Environment variable overrides for all prompt parameters
 
 ### Documentation
 - Update `docs/agentic_ai/Catalog.md` with expanded prompt descriptions
-- Update `backend/agents/README.md` with prompt architecture diagram
+- Update `backend_retiring/agents/README.md` with prompt architecture diagram
 
 ---
 

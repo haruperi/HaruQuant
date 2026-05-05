@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunRequest,
     ADKRunnerConfig,
     ADKRunnerService,
@@ -119,7 +119,7 @@ def test_sequential_workflow_injects_prior_steps_context() -> None:
 
 def test_sequential_workflow_stops_on_invalid_step_output() -> None:
     """When step output fails validation and validate_before_next is True, chain stops."""
-    from backend.agents.runtime.output_validation import CanonicalOutputValidator
+    from backend_retiring.agents.runtime.output_validation import CanonicalOutputValidator
 
     class FailingRuntime:
         """Produces wrong contract_type to trigger validation failure."""

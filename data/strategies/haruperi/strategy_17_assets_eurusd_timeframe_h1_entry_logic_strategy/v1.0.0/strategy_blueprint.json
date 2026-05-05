@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "StrategyBlueprint",
+  "workflow_id": "wf_strategy_creation",
+  "correlation_id": "corr_strategy_creation",
+  "causation_id": "evt_strategy_creation",
+  "timestamp_utc": "2026-05-03T14:04:17.114719Z",
+  "originator": {
+    "type": "agent",
+    "id": "strategy_creator_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "strategy_id": "assets-eurusd-timeframe-h1-entry-logic-strategy",
+    "strategy_name": "Assets Eurusd Timeframe H1 Entry Logic Strategy",
+    "source_idea": "- Assets: EURUSD\n- Timeframe: H1\nEntry logic:\n- Enter LONG when RSI(12) crosses up through 50 on the completed bar.\n- Enter SHORT when RSI(12) crosses down through 50 on the completed bar.\nExit logic:\n- Exit LONG when RSI(12) crosses down through 50 on the completed bar.\n- Exit SHORT when RSI(12) crosses up through 50 on the completed bar.\nRisk management:\n- {'stop_loss': None, 'take_profit': None, 'ignore_stop_loss_take_profit': True, 'additional_rules': ['No stop-loss or take-profit. Exits are governed by the explicit exit logic.']}\nPosition sizing:\n- {'sizing_rule': 'Use fixed 0.1 lots per trade.', 'leverage': 1.0, 'allocation_notes': 'Fixed-lot position sizing supplied by the user.'}",
+    "strategy_type": "allocation",
+    "asset_scope": {
+      "assets": [
+        "EURUSD"
+      ],
+      "timeframe": "H1",
+      "data_granularity": "H1",
+      "asset_notes": "Portfolio default universe applied."
+    },
+    "entry_logic": [
+      "Enter LONG when RSI(12) crosses up through 50 on the completed bar.",
+      "Enter SHORT when RSI(12) crosses down through 50 on the completed bar."
+    ],
+    "exit_logic": [
+      "Exit LONG when RSI(12) crosses down through 50 on the completed bar.",
+      "Exit SHORT when RSI(12) crosses up through 50 on the completed bar."
+    ],
+    "risk_management": {
+      "stop_loss": null,
+      "take_profit": null,
+      "ignore_stop_loss_take_profit": true,
+      "additional_rules": [
+        "No stop-loss or take-profit. Exits are governed by the explicit exit logic."
+      ]
+    },
+    "position_sizing": {
+      "sizing_rule": "Use fixed 0.1 lots per trade.",
+      "leverage": 1.0,
+      "allocation_notes": "Fixed-lot position sizing supplied by the user."
+    },
+    "model_spec": null,
+    "portfolio_construction": {
+      "method": "EqualWeight",
+      "rebalance_frequency": "Weekly",
+      "objective": "Risk-balanced diversified allocation"
+    },
+    "assumptions_applied": [
+      "Portfolio construction defaults applied."
+    ],
+    "assumption_defaults_used": [
+      "strategy_id=slugified_strategy_name",
+      "portfolio_method=equalweight"
+    ],
+    "backtest_readiness": "ready",
+    "render_target": "template_strategy"
+  },
+  "tenant_id": null,
+  "account_scope_id": null,
+  "strategy_scope_id": null,
+  "compliance_profile_id": null,
+  "content_hash": null,
+  "signature": null,
+  "trace_id": null,
+  "replay_bundle_hint": null
+}

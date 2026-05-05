@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.contracts import (
+from backend_retiring.contracts import (
     ContractValidationError,
     SchemaRegistryRecord,
     SchemaRegistryService,
@@ -21,8 +21,8 @@ def _registry() -> SchemaRegistryService:
         effective_from=datetime(2026, 4, 8, tzinfo=timezone.utc),
         compatibility_policy="major-version compatibility",
         payload_hash="sha256:123abc",
-        json_schema_ref="backend/contracts/workflow_intent/schema.json",
-        pydantic_model_ref="backend.contracts.workflow_intent.model.WorkflowIntent",
+        json_schema_ref="backend_retiring/contracts/workflow_intent/schema.json",
+        pydantic_model_ref="backend_retiring.contracts.workflow_intent.model.WorkflowIntent",
         owning_domain_team="platform",
         changelog_summary="Initial active version.",
     )

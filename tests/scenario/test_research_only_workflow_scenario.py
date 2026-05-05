@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunRequest,
     ADKRunnerConfig,
     ADKRunnerService,
@@ -10,7 +10,7 @@ from backend.agents import (
     CanonicalOutputValidator,
     ResearchAgentWrapper,
 )
-from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations, default_migrations_dir
+from data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations, default_migrations_dir
 
 
 class _ScenarioResearchRuntime:

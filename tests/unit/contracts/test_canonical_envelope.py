@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from backend.contracts import CanonicalEnvelope, Originator
+from backend_retiring.contracts import CanonicalEnvelope, Originator
 
 
 def test_canonical_envelope_accepts_required_fields():

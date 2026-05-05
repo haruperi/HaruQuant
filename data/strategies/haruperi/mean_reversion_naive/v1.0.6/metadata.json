@@ -1,0 +1,23 @@
+{
+  "user_id": 1,
+  "strategy_id": 13,
+  "version": "1.0.6",
+  "parameters": {
+    "bb_period": 20,
+    "bb_std": 2.1,
+    "rsi_period": 12,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70
+  },
+  "saved_at": "2026-04-15T03:14:33.618694",
+  "name": "Mean Reversion Naive",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

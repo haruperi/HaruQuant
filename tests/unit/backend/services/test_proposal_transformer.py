@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from haruquant.utils import FixedClock
-from backend.contracts.common import Originator
-from backend.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
 from haruquant.strategy import ProposalTransformationConfig, transform_hypothesis_to_proposal
 
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
-from backend.orchestration.workflow import WorkflowStepRecorder, WorkflowStepRequest
+from data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
+from backend_retiring.orchestration.workflow import WorkflowStepRecorder, WorkflowStepRequest
 
 
 def test_workflow_step_recorder_persists_steps_in_order(tmp_path) -> None:

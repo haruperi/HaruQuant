@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from backend.tools.read_only.knowledge import InternalKnowledgeTool
+from backend_retiring.tools.read_only.knowledge import InternalKnowledgeTool
 
 
 def test_internal_knowledge_tool_initializes_retrieval_lazily() -> None:
-    with patch("backend.tools.read_only.knowledge.EmbeddingService") as embedding_cls, patch(
-        "backend.tools.read_only.knowledge.RetrievalService"
+    with patch("backend_retiring.tools.read_only.knowledge.EmbeddingService") as embedding_cls, patch(
+        "backend_retiring.tools.read_only.knowledge.RetrievalService"
     ) as retrieval_cls:
         tool = InternalKnowledgeTool()
 

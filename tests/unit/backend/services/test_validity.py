@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from haruquant.utils import FixedClock
-from backend.contracts.trade_proposal.model import TradeProposal
+from backend_retiring.contracts.trade_proposal.model import TradeProposal
 from haruquant.risk import (
     enforce_risk_decision_expiry,
     invalidate_for_material_proposal_change,

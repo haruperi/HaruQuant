@@ -11,7 +11,7 @@ from haruquant.risk import (
     render_scenario_report_markdown,
 )
 from haruquant.risk import RiskRepository, RiskSnapshotStore
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 from tests.unit.apps.risk.test_risk_storage import _build_state
 from haruquant.risk import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
 from haruquant.risk import ReplayFrame, build_cockpit_state

@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CONTRACTS_ROOT = REPO_ROOT / "backend" / "contracts"
+CONTRACTS_ROOT = REPO_ROOT / "backend_retiring" / "contracts"
 
 EXPECTED_CONTRACT_FAMILIES = [
     "workflow_intent",

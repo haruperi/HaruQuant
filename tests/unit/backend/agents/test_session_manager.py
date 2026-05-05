@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.agents import SessionManager, SessionState
+from backend_retiring.agents import SessionManager, SessionState
 
 
 def test_session_manager_tracks_lifecycle_and_workflow_binding() -> None:

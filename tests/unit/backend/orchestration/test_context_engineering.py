@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import time
 
-from backend.orchestration.context_engineering.budget import ContextBudget
-from backend.orchestration.context_engineering.compression import ContextCompression
-from backend.orchestration.context_engineering.eviction import ContextEviction
-from backend.orchestration.context_engineering.validator import ContextValidator
-from backend.orchestration.context_engineering.contradiction import ContradictionResolver
-from backend.orchestration.context_engineering.precedence import SourcePrecedence, TrustLevel
+from backend_retiring.orchestration.context_engineering.budget import ContextBudget
+from backend_retiring.orchestration.context_engineering.compression import ContextCompression
+from backend_retiring.orchestration.context_engineering.eviction import ContextEviction
+from backend_retiring.orchestration.context_engineering.validator import ContextValidator
+from backend_retiring.orchestration.context_engineering.contradiction import ContradictionResolver
+from backend_retiring.orchestration.context_engineering.precedence import SourcePrecedence, TrustLevel
 
 
 class TestContextBudget:

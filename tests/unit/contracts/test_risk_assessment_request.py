@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.contracts.risk_assessment_request.model import (
+from backend_retiring.contracts.risk_assessment_request.model import (
     RequestedFreshnessClasses,
     RiskAssessmentRequest,
 )
@@ -14,7 +14,7 @@ from backend.contracts.risk_assessment_request.model import (
 
 EXAMPLES_ROOT = (
     Path(__file__).resolve().parents[3]
-    / "backend"
+    / "backend_retiring"
     / "contracts"
     / "risk_assessment_request"
     / "examples"

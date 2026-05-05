@@ -7,11 +7,11 @@ Owner: platform architecture
 Review cadence: on every docs structure change
 
 This directory is the organized documentation root for HaruQuant's agentic and
-governed backend.
+governed backend_retiring.
 
 Use this file as the entry point instead of browsing the directory tree blind.
 
-Validation script: `python backend/scripts/tools/validate_haruquant_docs.py`
+Validation script: `python scripts/tools/validate_haruquant_docs.py`
 
 ## Start Here
 
@@ -152,7 +152,7 @@ Every feature should be documented across three layers:
    - runtime and incident handling -> `docs/haruquant/operations/`
    - architecture or requirements -> `docs/haruquant/specs/`
 5. Add the new document to this README if it becomes a key entry point.
-6. Run `python backend/scripts/tools/validate_haruquant_docs.py`.
+6. Run `python scripts/tools/validate_haruquant_docs.py`.
 
 ### Minimum content standard for a new feature document
 

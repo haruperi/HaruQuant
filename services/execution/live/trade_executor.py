@@ -198,7 +198,7 @@ class TradeExecutor:
 
     def _is_transient_error(self, retcode: Union[int, object]) -> bool:
         """Check if error is transient and can be retried."""
-        from backend.mcp.mt5_mcp import get_mt5_api
+        from services.data.mt5 import get_mt5_api
 
         mt5 = get_mt5_api()
         transient_codes = {

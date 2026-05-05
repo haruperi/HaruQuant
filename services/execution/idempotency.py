@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import hashlib
 
-from backend.contracts.execution_intent.model import ExecutionIntent
-from backend.contracts.serialization import canonical_json_dumps
-from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
-from backend.contracts.trade_proposal.model import TradeProposal
+from backend_retiring.contracts.execution_intent.model import ExecutionIntent
+from backend_retiring.contracts.serialization import canonical_json_dumps
+from backend_retiring.contracts.risk_assessment_decision.model import RiskAssessmentDecision
+from backend_retiring.contracts.trade_proposal.model import TradeProposal
 
 from services.utils.logger import logger
 

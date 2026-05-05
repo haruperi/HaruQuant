@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 
-from backend.data.database import apply_pending_migrations, default_migrations_dir
+from data.database import apply_pending_migrations, default_migrations_dir
 
 
 def test_workflow_steps_migration_supports_insert_and_indexes(tmp_path) -> None:

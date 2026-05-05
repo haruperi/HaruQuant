@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from backend.mcp.wrappers import BaseMCPWrapper, CircuitBreaker, RateLimiter, RetryPolicy
+from backend_retiring.mcp.wrappers import BaseMCPWrapper, CircuitBreaker, RateLimiter, RetryPolicy
 
 
 def test_wrapped_mcp_call_with_all_components():
@@ -44,7 +44,7 @@ def test_wrapped_mcp_call_with_retry_recovery():
 
 def test_wrapped_mcp_call_circuit_opens_after_failures():
     """Integration test: circuit breaker opens after threshold failures."""
-    from backend.mcp.wrappers.circuit_breaker import CircuitBreakerOpenError
+    from backend_retiring.mcp.wrappers.circuit_breaker import CircuitBreakerOpenError
 
     cb = CircuitBreaker(failure_threshold=2, recovery_timeout=60)
     retry = RetryPolicy(max_retries=0, base_delay=0.001)
@@ -60,7 +60,7 @@ def test_wrapped_mcp_call_circuit_opens_after_failures():
             pass
 
     # Circuit is now open
-    from backend.mcp.wrappers.base_wrapper import RateLimitExceededError
+    from backend_retiring.mcp.wrappers.base_wrapper import RateLimitExceededError
     with assert_raises((CircuitBreakerOpenError, RuntimeError)):
         wrapper.call(lambda: "should_be_blocked")
 

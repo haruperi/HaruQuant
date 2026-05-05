@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
+from data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from haruquant.strategy import StrategyLifecycleState, StrategyRegistrationRequest, StrategyRegistryService
 
 

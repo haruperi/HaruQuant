@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import pytest
 
 from haruquant.utils import FixedClock
-from backend.mcp.mt5_mcp import (
+from backend_retiring.mcp.mt5_mcp import (
     LegacyMT5GatewayAdapter,
     MT5MutatingTools,
     MT5ReadOnlyTools,

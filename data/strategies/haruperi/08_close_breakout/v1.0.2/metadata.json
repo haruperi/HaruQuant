@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 8,
+  "version": "1.0.2",
+  "parameters": {},
+  "saved_at": "2026-01-13T21:13:12.393913",
+  "name": "08 Close Breakout",
+  "description": "Breakout strategy based on daily close prices.\n    Buys when price closes higher than previous close, sells when lower.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

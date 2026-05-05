@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from backend.contracts.strategy_blueprint.model import StrategyBlueprint, StrategyBlueprintPayload
+from backend_retiring.contracts.strategy_blueprint.model import StrategyBlueprint, StrategyBlueprintPayload
 from services.strategy.catalog import (
     StrategyCatalogCreateRequest,
     StrategyCatalogService,

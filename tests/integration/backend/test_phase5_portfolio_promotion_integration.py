@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import GovernanceRepository, ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
+from data.database import GovernanceRepository, ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
 from haruquant.strategy import EvidenceArtifact, EvidenceBundleStorageService, assemble_lifecycle_evidence_bundle
 from haruquant.strategy import PromotionEvidenceValidator, PromotionPersistenceRequest, StrategyLifecycleState, StrategyPromotionPersistenceService, StrategyRegistrationRequest, StrategyRegistryService, StrategyRetirementService, SuspensionTriggerRequest, evaluate_suspension_triggers, route_promotion_approval, update_operating_envelope_for_promotion
 

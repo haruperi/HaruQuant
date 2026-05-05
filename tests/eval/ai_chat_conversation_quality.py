@@ -6,16 +6,16 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from backend.agents.runtime import LLMRuntimeError
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.chat.ai_chat import (
+from backend_retiring.agents.runtime import LLMRuntimeError
+from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.chat.ai_chat import (
     AIGatewayService,
     ChatStreamRequest,
     ConversationService,
     PageContextAssembler,
 )
-from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult
+from backend_retiring.agents.chat.ai_chat.tool_executor import ToolExecutionResult
 
 
 class CorpusKnowledgeToolExecutor:
@@ -107,7 +107,7 @@ class ConversationQualityEvaluator:
                     role="user",
                     content=message,
                 )
-            with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled for deterministic eval")):
+            with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled for deterministic eval")):
                 metadata, chunks, _message_id = gateway.stream_response(
                     ChatStreamRequest(
                         user_id=1,

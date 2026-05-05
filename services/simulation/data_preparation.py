@@ -9,7 +9,8 @@ from typing import Any, Mapping, Optional
 import pandas as pd
 
 from services.utils.logger import logger
-from services.data.service import load_dukascopy, load_parquet
+from services.data.dukascopy import load_dukascopy
+from services.data.parquet import load_parquet
 from services.data.transforms import TicksGenerator
 from .config import SimulationConfig, SimulationConfigError
 from .strategy_registry import get_strategy_class
@@ -25,7 +26,7 @@ fetch = None
 def _dukascopy_tick_fetcher():
     global INTERVAL_TICK, OFFER_SIDE_BID, fetch
     if fetch is None:
-        from backend.mcp.market_data_mcp import (
+        from services.data.dukascopy_client import (
             INTERVAL_TICK as resolved_interval_tick,
             OFFER_SIDE_BID as resolved_offer_side_bid,
             fetch as resolved_fetch,

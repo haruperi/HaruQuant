@@ -19,11 +19,11 @@ Follow-up: <actions to take>
 |---|---|---|---|---|
 | 001 | Use ADK for reasoning/orchestration | Accepted | 2024-01-01 | Evaluate new ADK versions quarterly |
 | 002 | Use MCP for external capability boundaries | Accepted | 2024-01-01 | Add new MCP servers per domain |
-| 003 | Split backend/services/ from apps/ | Accepted | 2024-01-01 | Complete — apps/ deleted |
+| 003 | Split services/ from apps/ | Accepted | 2024-01-01 | Complete — apps/ deleted |
 | 004 | stdio transport for local MCP servers | Accepted | 2024-01-01 | Evaluate HTTP for production deployment |
 | 005 | SQLite for persistence during migration | Accepted | 2024-01-01 | Evaluate PostgreSQL for production scale |
 | 006 | Separate risk_engine from risk control plane | Accepted | 2024-06-01 | Monitor for divergence |
-| 007 | Flatten backend/api/legacy to backend/api/ | Accepted | 2024-06-01 | Monitor route organization |
+| 007 | Flatten backend_retiring/api/legacy to backend_retiring/api/ | Accepted | 2024-06-01 | Monitor route organization |
 | 008 | Centralize agent model config in agent_model.py | Accepted | 2024-12-01 | Support per-agent model overrides |
 | 009 | Gemini 3.1 Flash Lite as default agent model | Accepted | 2024-12-01 | Benchmark against alternatives quarterly |
 
@@ -34,7 +34,7 @@ Follow-up: <actions to take>
 **Status:** Accepted
 **Date:** 2024-12-01
 **Context:** Agent model names were scattered across agent definition files, making model switches error-prone and inconsistent.
-**Decision:** Centralize all agent model configuration in `backend/config/agent_model.py` with `AGENT_MODEL` as the single source of truth, environment variable override support, and model tier routing.
+**Decision:** Centralize all agent model configuration in `backend_retiring/config/agent_model.py` with `AGENT_MODEL` as the single source of truth, environment variable override support, and model tier routing.
 **Consequences:** Changing `AGENT_MODEL` updates all agents instantly. Environment variable `HARUQUANT_AGENT_MODEL` allows runtime override without code changes.
 **Alternatives Considered:** Per-agent model strings (rejected — too scattered); config file only (rejected — no env override).
 **Follow-up:** Support per-agent model overrides via agent-specific config.

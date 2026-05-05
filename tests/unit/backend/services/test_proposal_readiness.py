@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.contracts.common import Originator
-from backend.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
-from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
+from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from haruquant.strategy import evaluate_proposal_readiness
 
 

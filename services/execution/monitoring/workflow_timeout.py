@@ -8,7 +8,7 @@ import json
 
 from services.utils.logger import logger
 from services.utils import Clock, SystemClock
-from backend.data.database import WorkflowRecord, WorkflowRepository
+from data.database import WorkflowRecord, WorkflowRepository
 
 
 TERMINAL_WORKFLOW_STATES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}

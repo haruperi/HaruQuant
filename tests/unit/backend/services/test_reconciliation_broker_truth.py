@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.mcp.mt5_mcp import MT5ReadOnlyTools
+from backend_retiring.mcp.mt5_mcp import MT5ReadOnlyTools
 from haruquant.execution import BrokerTruthFetcher
 
 

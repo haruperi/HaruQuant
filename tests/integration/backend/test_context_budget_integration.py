@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from backend.orchestration.context_engineering.budget import ContextBudget
-from backend.orchestration.context_engineering.compression import ContextCompression
-from backend.orchestration.context_engineering.validator import ContextValidator
+from backend_retiring.orchestration.context_engineering.budget import ContextBudget
+from backend_retiring.orchestration.context_engineering.compression import ContextCompression
+from backend_retiring.orchestration.context_engineering.validator import ContextValidator
 
 
 def test_context_budget_enforced_across_steps():

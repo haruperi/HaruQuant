@@ -4,8 +4,8 @@ from pathlib import Path
 from statistics import quantiles
 from time import perf_counter
 
-from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.read_models.operator_dashboard import build_operator_dashboard_read_model
+from data.database import apply_pending_migrations, default_migrations_dir
+from backend_retiring.read_models.operator_dashboard import build_operator_dashboard_read_model
 
 
 def _p95(samples_ms: list[float]) -> float:

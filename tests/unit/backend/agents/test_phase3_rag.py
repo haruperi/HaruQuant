@@ -7,12 +7,12 @@ import tempfile
 
 import pytest
 
-from backend.retrieval.embeddings import EmbeddingService
-from backend.retrieval.ingestion import DocumentIngester
-from backend.retrieval.service import RetrievalService
-from backend.retrieval.reformulation import RetrievalReformulator
-from backend.retrieval.evaluation import RetrievalEvaluator
-from backend.retrieval.models import DocumentChunk, RetrievalResult, TextChunk
+from backend_retiring.retrieval.embeddings import EmbeddingService
+from backend_retiring.retrieval.ingestion import DocumentIngester
+from backend_retiring.retrieval.service import RetrievalService
+from backend_retiring.retrieval.reformulation import RetrievalReformulator
+from backend_retiring.retrieval.evaluation import RetrievalEvaluator
+from backend_retiring.retrieval.models import DocumentChunk, RetrievalResult, TextChunk
 
 
 @pytest.fixture(scope="module")

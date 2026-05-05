@@ -7,16 +7,16 @@ from fastapi.testclient import TestClient
 
 from haruquant.utils import FixedClock
 from haruquant.utils import load_runtime_settings_from_mapping
-from backend.api import build_operator_api_dependencies, create_app
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import (
+from backend_retiring.api import build_operator_api_dependencies, create_app
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend.contracts.serialization import canonical_json_dumps
-from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.data.database import (
+from backend_retiring.contracts.serialization import canonical_json_dumps
+from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from data.database import (
     ExecutionRepository,
     GovernanceRepository,
     apply_pending_migrations,

@@ -363,14 +363,14 @@ Emergency disable must be logged and escalated to the Human Board.
 After this governance pack, build:
 
 ```text
-backend/agents/schemas.py
-backend/tools/registry.py
-backend/agents/permissions.py
-backend/agents/task_manager.py
-backend/agents/orchestrator.py
-backend/risk/governor.py
-backend/risk/kill_switch.py
-backend/tools/audit_tools.py
+backend_retiring/agents/schemas.py
+backend_retiring/tools/registry.py
+backend_retiring/agents/permissions.py
+backend_retiring/agents/task_manager.py
+backend_retiring/agents/orchestrator.py
+backend_retiring/risk/governor.py
+backend_retiring/risk/kill_switch.py
+backend_retiring/tools/audit_tools.py
 ```
 
 ---
@@ -394,9 +394,9 @@ backend/tools/audit_tools.py
 
 See `phase6_agent_control_plane_usage_example.md` for a runnable example of the Phase 6 request, task tree, delegated agent outputs, and audit flow.
 
-See `phase7_ceo_planner_usage_example.md` and runnable script `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py` for CEO planning routes, CEO memos, Board escalation, and refusal behavior.
+See `phase7_ceo_planner_usage_example.md` and runnable script `scripts/examples/agentic_ai/07_ceo_planner_agents.py` for CEO planning routes, CEO memos, Board escalation, and refusal behavior.
 
-See runnable script `backend/scripts/examples/agentic_ai/09_ceo_chat_bridge.py` for the current chatbot-to-CEO bridge.
+See runnable script `scripts/examples/agentic_ai/09_ceo_chat_bridge.py` for the current chatbot-to-CEO bridge.
 
 ---
 

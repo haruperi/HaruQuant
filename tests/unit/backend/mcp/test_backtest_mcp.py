@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.mcp.backtest_mcp import (
+from backend_retiring.mcp.backtest_mcp import (
     BACKTEST_TOOL_SPECS,
     BacktestCoordinatorView,
     BacktestMCPServer,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
-from backend.agents.runtime.workflow_log import WorkflowExecutionLog
+from backend_retiring.agents.runtime.workflow_log import WorkflowExecutionLog
 
 
 @dataclass(frozen=True)
@@ -64,7 +64,7 @@ class TrajectoryEvaluator:
 def test_trajectory_eval_all_pass() -> None:
     """All steps completed should produce overall pass."""
     from datetime import datetime, timezone
-    from backend.agents.runtime.workflow_log import WorkflowLogCollector, WorkflowExecutionLog
+    from backend_retiring.agents.runtime.workflow_log import WorkflowLogCollector, WorkflowExecutionLog
 
     now = datetime.now(timezone.utc)
     collector = WorkflowLogCollector("wf-001", "corr-001", "sequential")
@@ -88,7 +88,7 @@ def test_trajectory_eval_all_pass() -> None:
 def test_trajectory_eval_partial_failure() -> None:
     """Failed steps should be tracked."""
     from datetime import datetime, timezone
-    from backend.agents.runtime.workflow_log import WorkflowLogCollector
+    from backend_retiring.agents.runtime.workflow_log import WorkflowLogCollector
 
     now = datetime.now(timezone.utc)
     collector = WorkflowLogCollector("wf-002", "corr-002", "sequential")

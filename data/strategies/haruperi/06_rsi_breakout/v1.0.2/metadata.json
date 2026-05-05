@@ -1,0 +1,17 @@
+{
+  "user_id": 1,
+  "strategy_id": 6,
+  "version": "1.0.2",
+  "parameters": {},
+  "saved_at": "2026-04-15T03:13:30.055120",
+  "name": "06 RSI Breakout",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.api.main import app
+from backend_retiring.api.main import app
 
 
 def test_ai_chat_phase0_contracts_endpoint_exposes_frozen_contracts():

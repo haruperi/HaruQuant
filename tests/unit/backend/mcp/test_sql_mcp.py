@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from backend.mcp.sql_mcp import SQLMCPAccessError, SQLMCPServer, SQLReadOnlyTools, create_sql_mcp_server
+from backend_retiring.mcp.sql_mcp import SQLMCPAccessError, SQLMCPServer, SQLReadOnlyTools, create_sql_mcp_server
 
 
 def test_sql_mcp_server_starts_with_expected_tool_spec() -> None:

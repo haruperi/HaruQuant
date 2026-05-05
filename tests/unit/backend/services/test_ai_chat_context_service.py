@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.chat.ai_chat import PageContextAssembler
+from data.database import apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.chat.ai_chat import PageContextAssembler
 from haruquant.strategy import StrategyCatalogCreateRequest, StrategyCatalogService
 
 

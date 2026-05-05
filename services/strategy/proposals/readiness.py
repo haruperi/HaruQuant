@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.contracts.trade_hypothesis.model import TradeHypothesis
-from backend.contracts.trade_proposal.model import TradeProposal
+from backend_retiring.contracts.trade_hypothesis.model import TradeHypothesis
+from backend_retiring.contracts.trade_proposal.model import TradeProposal
 
 
 @dataclass(frozen=True)

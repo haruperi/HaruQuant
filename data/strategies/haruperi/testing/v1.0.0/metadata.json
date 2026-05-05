@@ -1,0 +1,16 @@
+{
+  "user_id": 1,
+  "strategy_id": 16,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-04-15T02:27:37.031443",
+  "name": "Testing",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null
+}

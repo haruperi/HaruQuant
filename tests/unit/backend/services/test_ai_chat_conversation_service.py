@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
-from backend.agents.chat.ai_chat import ConversationService
+from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from backend_retiring.agents.chat.ai_chat import ConversationService
 
 
 def test_conversation_service_promotes_title_and_creates_summary(tmp_path) -> None:

@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 13,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T19:07:27.541937",
+  "name": "Mean Reversion Naive",
+  "description": "Bollinger Bands + RSI strategy for counter-trend trading.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

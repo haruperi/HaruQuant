@@ -7,14 +7,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from backend.agents.react import (
+from backend_retiring.agents.react import (
     ReActAgentRuntime,
     ReActStep,
     parse_react_output,
     REACT_SYSTEM_INSTRUCTION,
 )
-from backend.agents.runtime.llm_runtime import LLMRuntime, LLMRuntimeError
-from backend.agents.runtime.runner import (
+from backend_retiring.agents.runtime.llm_runtime import LLMRuntime, LLMRuntimeError
+from backend_retiring.agents.runtime.runner import (
     ADKRunRequest,
     AgentExecutionContext,
     AgentExecutionResult,

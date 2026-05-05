@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 
 
 def test_optimization_repository_persists_unsupervised_run_and_result_payloads(tmp_path) -> None:

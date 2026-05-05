@@ -8,29 +8,29 @@ Owner: backend platform
 Review cadence: on every agent add/remove/change
 
 This catalog now reflects the implemented agent layer exactly as exposed by
-[backend/agents/__init__.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\__init__.py).
+[backend_retiring/agents/__init__.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend_retiring\agents\__init__.py).
 
 ## Exported Agents
 
 | Agent Name | Public Symbol | Module | Kind | Instruction Source | Enforced Output |
 |---|---|---|---|---|---|
-| `compliance_agent` | `ComplianceAgentWrapper` | `backend/agents/compliance_agent.py` | LLM wrapper | `COMPLIANCE_AGENT_INSTRUCTION` | `EvaluationReport` |
-| `correlation_agent` | `CorrelationAgentWrapper` | `backend/agents/correlation_agent.py` | LLM wrapper | `CORRELATION_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `drawdown_agent` | `DrawdownAgentWrapper` | `backend/agents/drawdown_agent.py` | LLM wrapper | `DRAWDOWN_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `execution_agent` | `ExecutionAgentWrapper` | `backend/agents/execution_agent.py` | LLM wrapper | `EXECUTION_AGENT_INSTRUCTION` | `ExecutionIntent` |
-| `exposure_agent` | `ExposureAgentWrapper` | `backend/agents/exposure_agent.py` | LLM wrapper | `EXPOSURE_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `strategy_creator_agent` | `StrategyCreatorAgent` | `backend/agents/strategy_creator_agent.py` | deterministic service agent | `STRATEGY_CREATOR_AGENT_INSTRUCTION` | `StrategyBlueprint` plus optional registered strategy artifact |
-| `intent_router_agent` | `IntentRouterAgent`, `intent_router_agent` | `backend/agents/intent_router.py` | Router/service | classifier + `RouteDecisionService` | dispatches handler output, no canonical output validator |
-| `monitoring_agent` | `MonitoringAgentWrapper` | `backend/agents/monitoring_agent.py` | LLM wrapper | `MONITORING_AGENT_INSTRUCTION` | `IncidentAlert` |
-| `orchestrator_agent` | `OrchestratorAgentWrapper` | `backend/agents/orchestrator_agent.py` | LLM wrapper | `ORCHESTRATOR_AGENT_INSTRUCTION` | `WorkflowPlan` |
-| `portfolio_agent` | `PortfolioAgentWrapper` | `backend/agents/portfolio_agent.py` | LLM wrapper | `PORTFOLIO_AGENT_INSTRUCTION` | `EvaluationReport` |
-| `refine_agent` | `RefineAgentWrapper` | `backend/agents/refine_agent.py` | LLM wrapper | `REFINE_AGENT_INSTRUCTION` | `RefinementReport` |
-| `regime_agent` | `RegimeAgentWrapper` | `backend/agents/regime_agent.py` | LLM wrapper | `REGIME_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `research_agent` | `ResearchAgentWrapper` | `backend/agents/research_agent.py` | LLM wrapper | `RESEARCH_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `risk_governor_agent` | `RiskGovernorAgentAdapter` | `backend/agents/risk_governor_agent.py` | deterministic adapter | no LLM instruction; delegates to `DeterministicRiskService` | `RiskAssessmentDecision` |
-| `slippage_agent` | `SlippageAgentWrapper` | `backend/agents/slippage_agent.py` | LLM wrapper | `SLIPPAGE_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `strategy_agent` | `StrategyAgentWrapper` | `backend/agents/strategy_agent.py` | LLM wrapper | `STRATEGY_AGENT_INSTRUCTION` | `TradeHypothesis` |
-| `volatility_agent` | `VolatilityAgentWrapper` | `backend/agents/volatility_agent.py` | LLM wrapper | `VOLATILITY_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `compliance_agent` | `ComplianceAgentWrapper` | `backend_retiring/agents/compliance_agent.py` | LLM wrapper | `COMPLIANCE_AGENT_INSTRUCTION` | `EvaluationReport` |
+| `correlation_agent` | `CorrelationAgentWrapper` | `backend_retiring/agents/correlation_agent.py` | LLM wrapper | `CORRELATION_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `drawdown_agent` | `DrawdownAgentWrapper` | `backend_retiring/agents/drawdown_agent.py` | LLM wrapper | `DRAWDOWN_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `execution_agent` | `ExecutionAgentWrapper` | `backend_retiring/agents/execution_agent.py` | LLM wrapper | `EXECUTION_AGENT_INSTRUCTION` | `ExecutionIntent` |
+| `exposure_agent` | `ExposureAgentWrapper` | `backend_retiring/agents/exposure_agent.py` | LLM wrapper | `EXPOSURE_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `strategy_creator_agent` | `StrategyCreatorAgent` | `backend_retiring/agents/strategy_creator_agent.py` | deterministic service agent | `STRATEGY_CREATOR_AGENT_INSTRUCTION` | `StrategyBlueprint` plus optional registered strategy artifact |
+| `intent_router_agent` | `IntentRouterAgent`, `intent_router_agent` | `backend_retiring/agents/intent_router.py` | Router/service | classifier + `RouteDecisionService` | dispatches handler output, no canonical output validator |
+| `monitoring_agent` | `MonitoringAgentWrapper` | `backend_retiring/agents/monitoring_agent.py` | LLM wrapper | `MONITORING_AGENT_INSTRUCTION` | `IncidentAlert` |
+| `orchestrator_agent` | `OrchestratorAgentWrapper` | `backend_retiring/agents/orchestrator_agent.py` | LLM wrapper | `ORCHESTRATOR_AGENT_INSTRUCTION` | `WorkflowPlan` |
+| `portfolio_agent` | `PortfolioAgentWrapper` | `backend_retiring/agents/portfolio_agent.py` | LLM wrapper | `PORTFOLIO_AGENT_INSTRUCTION` | `EvaluationReport` |
+| `refine_agent` | `RefineAgentWrapper` | `backend_retiring/agents/refine_agent.py` | LLM wrapper | `REFINE_AGENT_INSTRUCTION` | `RefinementReport` |
+| `regime_agent` | `RegimeAgentWrapper` | `backend_retiring/agents/regime_agent.py` | LLM wrapper | `REGIME_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `research_agent` | `ResearchAgentWrapper` | `backend_retiring/agents/research_agent.py` | LLM wrapper | `RESEARCH_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `risk_governor_agent` | `RiskGovernorAgentAdapter` | `backend_retiring/agents/risk_governor_agent.py` | deterministic adapter | no LLM instruction; delegates to `DeterministicRiskService` | `RiskAssessmentDecision` |
+| `slippage_agent` | `SlippageAgentWrapper` | `backend_retiring/agents/slippage_agent.py` | LLM wrapper | `SLIPPAGE_AGENT_INSTRUCTION` | `ObservationEvent` |
+| `strategy_agent` | `StrategyAgentWrapper` | `backend_retiring/agents/strategy_agent.py` | LLM wrapper | `STRATEGY_AGENT_INSTRUCTION` | `TradeHypothesis` |
+| `volatility_agent` | `VolatilityAgentWrapper` | `backend_retiring/agents/volatility_agent.py` | LLM wrapper | `VOLATILITY_AGENT_INSTRUCTION` | `ObservationEvent` |
 
 ## Notes
 
@@ -46,7 +46,7 @@ This catalog now reflects the implemented agent layer exactly as exposed by
 ## Prompt Modules
 
 Prompt-backed agents resolve their instruction strings from
-[backend/agents/prompts](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\prompts):
+[backend_retiring/agents/prompts](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend_retiring\agents\prompts):
 
 - `compliance_template.py`
 - `correlation_template.py`
@@ -65,12 +65,12 @@ Prompt-backed agents resolve their instruction strings from
 - `volatility_template.py`
 
 The deterministic risk governor metadata lives in
-[risk_governor_template.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\prompts\risk_governor_template.py).
+[risk_governor_template.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend_retiring\agents\prompts\risk_governor_template.py).
 
 ## Model Configuration
 
 Shared agent model settings are defined in
-[backend/config/agent_model.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\config\agent_model.py).
+[backend_retiring/config/agent_model.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend_retiring\config\agent_model.py).
 
 - Default model: `gemini-3.1-flash-lite-preview`
 - Override env var: `HARUQUANT_AGENT_MODEL`
@@ -80,4 +80,4 @@ Shared agent model settings are defined in
 - [Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\workflows\Catalog.md)
 - [Tool_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Catalog.md)
 - [agents/Strategy_Creator_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Strategy_Creator_Agent.md)
-- [backend/agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\runtime)
+- [backend_retiring/agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend_retiring\agents\runtime)

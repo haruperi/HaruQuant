@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 3,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:47:36.709668",
+  "name": "03 Mean Reversion Strategy",
+  "description": "Tests if the instrument has an edge in mean reversion strategies.\n    Sells when price reaches previous high, buys when price reaches previous low.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

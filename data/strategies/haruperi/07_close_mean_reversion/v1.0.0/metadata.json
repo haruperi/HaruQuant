@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 7,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:59:15.228671",
+  "name": "07 Close Mean Reversion",
+  "description": "Simple mean reversion strategy based on daily close prices.\n    Buys when price closes down, sells when price closes up.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

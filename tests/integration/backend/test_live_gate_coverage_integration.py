@@ -5,15 +5,15 @@ from datetime import datetime, timezone
 import pytest
 
 from haruquant.utils import FixedClock, ValidationError
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import (
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.mcp.mt5_mcp import MT5ToolAuthorizationError, MT5ToolAuthorizer
-from backend.orchestration.workflow import KillSwitchState
+from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from backend_retiring.mcp.mt5_mcp import MT5ToolAuthorizationError, MT5ToolAuthorizer
+from backend_retiring.orchestration.workflow import KillSwitchState
 from haruquant.risk import require_live_execution_profile
 from haruquant.execution import SymbolMetadataCache, SymbolMetadataCacheEntry, run_pre_send_validation
 from haruquant.execution import PreSendValidationRequest

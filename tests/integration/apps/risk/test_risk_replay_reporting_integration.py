@@ -10,7 +10,7 @@ from haruquant.risk import (
 from haruquant.risk import build_replay_report
 from haruquant.risk import ReplayFrame, build_cockpit_state
 from haruquant.risk import RiskRepository, RiskSnapshotStore
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 
 

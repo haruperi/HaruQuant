@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from backend.agents.chat.backtest_explainer_agent import BacktestExplainerAgent
-from backend.agents.chat.final_responder_agent import FinalResponderAgent
-from backend.agents.chat.knowledge_retrieval_agent import KnowledgeRetrievalAgent
-from backend.agents.chat.optimization_comparison_agent import OptimizationComparisonAgent
-from backend.agents.chat.portfolio_risk_agent import PortfolioRiskAgent
-from backend.agents.chat.ai_chat.models import SpecialistAgentArtifact
-from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult
+from backend_retiring.agents.chat.backtest_explainer_agent import BacktestExplainerAgent
+from backend_retiring.agents.chat.final_responder_agent import FinalResponderAgent
+from backend_retiring.agents.chat.knowledge_retrieval_agent import KnowledgeRetrievalAgent
+from backend_retiring.agents.chat.optimization_comparison_agent import OptimizationComparisonAgent
+from backend_retiring.agents.chat.portfolio_risk_agent import PortfolioRiskAgent
+from backend_retiring.agents.chat.ai_chat.models import SpecialistAgentArtifact
+from backend_retiring.agents.chat.ai_chat.tool_executor import ToolExecutionResult
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ class TestBacktestExplainerAgent:
             "missing_data": ["profit_factor"],
         }
 
-        with patch("backend.agents.chat.agent_base.create_llm_runtime") as mock_create:
+        with patch("backend_retiring.agents.chat.agent_base.create_llm_runtime") as mock_create:
             mock_runtime = MagicMock()
             mock_runtime._call_llm.return_value = {"content": json.dumps(expected_llm_output)}
             mock_create.return_value = mock_runtime
@@ -82,7 +82,7 @@ class TestBacktestExplainerAgent:
             )
         ]
 
-        with patch("backend.agents.chat.agent_base.create_llm_runtime") as mock_create:
+        with patch("backend_retiring.agents.chat.agent_base.create_llm_runtime") as mock_create:
             mock_runtime = MagicMock()
             # Simulate invalid JSON output to trigger fallback
             mock_runtime._call_llm.return_value = {"content": "not valid json"}
@@ -124,7 +124,7 @@ class TestPortfolioRiskAgent:
             "confidence": 90,
         }
 
-        with patch("backend.agents.chat.agent_base.create_llm_runtime") as mock_create:
+        with patch("backend_retiring.agents.chat.agent_base.create_llm_runtime") as mock_create:
             mock_runtime = MagicMock()
             mock_runtime._call_llm.return_value = {"content": json.dumps(expected_llm_output)}
             mock_create.return_value = mock_runtime
@@ -163,7 +163,7 @@ class TestOptimizationComparisonAgent:
             "winner_index": 5,  # Invalid: must be 0 or 1
         }
 
-        with patch("backend.agents.chat.agent_base.create_llm_runtime") as mock_create:
+        with patch("backend_retiring.agents.chat.agent_base.create_llm_runtime") as mock_create:
             mock_runtime = MagicMock()
             mock_runtime._call_llm.return_value = {"content": json.dumps(expected_llm_output)}
             mock_create.return_value = mock_runtime
@@ -218,7 +218,7 @@ class TestFinalResponderAgent:
             )
         ]
 
-        with patch("backend.agents.chat.final_responder_agent.create_llm_runtime") as mock_create:
+        with patch("backend_retiring.agents.chat.final_responder_agent.create_llm_runtime") as mock_create:
             mock_runtime = MagicMock()
             mock_runtime._call_llm.return_value = {"content": "This is the LLM composed response."}
             mock_create.return_value = mock_runtime

@@ -7,8 +7,8 @@ from pathlib import Path
 import sqlite3
 
 from services.utils.logger import logger
-from backend.contracts.serialization import canonical_json_dumps
-from backend.contracts.observation_event.model import ObservationEvent
+from backend_retiring.contracts.serialization import canonical_json_dumps
+from backend_retiring.contracts.observation_event.model import ObservationEvent
 
 
 @dataclass(frozen=True)

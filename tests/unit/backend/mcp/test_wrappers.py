@@ -6,9 +6,9 @@ import time
 
 import pytest
 
-from backend.mcp.wrappers import BaseMCPWrapper, CircuitBreaker, RateLimiter, RetryPolicy
-from backend.mcp.wrappers.base_wrapper import RateLimitExceededError
-from backend.mcp.wrappers.circuit_breaker import CircuitBreakerOpenError, CircuitState
+from backend_retiring.mcp.wrappers import BaseMCPWrapper, CircuitBreaker, RateLimiter, RetryPolicy
+from backend_retiring.mcp.wrappers.base_wrapper import RateLimitExceededError
+from backend_retiring.mcp.wrappers.circuit_breaker import CircuitBreakerOpenError, CircuitState
 
 
 class TestRetryPolicy:

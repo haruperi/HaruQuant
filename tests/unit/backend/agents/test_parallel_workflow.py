@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunRequest,
     ADKRunnerConfig,
     ADKRunnerService,

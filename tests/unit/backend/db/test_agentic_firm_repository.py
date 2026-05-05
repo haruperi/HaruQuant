@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.data.database import (
+from data.database import (
     AgenticFirmRepository,
     apply_pending_migrations,
     default_migrations_dir,

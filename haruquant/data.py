@@ -61,7 +61,7 @@ class DataCache:
     """LMDB-backed disk cache for remote data downloads."""
 
     _default_path = (
-        Path(PROJECT_ROOT) / "backend" / "data" / "cache" / "haruquant_data.lmdb"
+        Path(PROJECT_ROOT) / "data" / "cache" / "haruquant_data.lmdb"
     )
 
     @classmethod
@@ -307,7 +307,7 @@ class MT5Data:
         **kwargs
     ) -> Data:
         """Download data from MT5."""
-        from services.data.service import load_mt5
+        from services.data.mt5 import load_mt5
 
         symbols = [symbol] if isinstance(symbol, str) else symbol
 
@@ -399,7 +399,7 @@ class DukascopyData:
         **kwargs
     ) -> Data:
         """Download data from Dukascopy API."""
-        from services.data.service import load_dukascopy
+        from services.data.dukascopy import load_dukascopy
 
         def fetcher() -> pd.DataFrame:
             df = load_dukascopy(
@@ -431,7 +431,7 @@ class DukascopyData:
     def list_symbols(pattern: Optional[str] = None) -> List[str]:
         """List available symbols in Dukascopy."""
         try:
-            from services.data.instruments import INSTRUMENT_MAP
+            from services.data.dukascopy import INSTRUMENT_MAP
             symbols = list(INSTRUMENT_MAP.keys())
             return _filter_symbols(symbols, pattern)
         except Exception:
@@ -732,7 +732,7 @@ class DataSaver:
     def path(self) -> Path:
         if self._path:
             return Path(self._path)
-        folder = Path(PROJECT_ROOT) / "backend" / "data" / "saved"
+        folder = Path(PROJECT_ROOT) / "data" / "saved"
         folder.mkdir(parents=True, exist_ok=True)
         sym = str(self.data._symbol).replace("/", "_").replace(" ", "_")
         tf = self.data._timeframe or "unknown"
@@ -747,7 +747,7 @@ class DataSaver:
         if path:
             return os.path.exists(path)
         # Check default location
-        folder = Path(PROJECT_ROOT) / "backend" / "data" / "saved"
+        folder = Path(PROJECT_ROOT) / "data" / "saved"
         ext = cls(Data(pd.DataFrame(), symbol=symbol, timeframe=timeframe))._get_extension()
         path = folder / f"{symbol}_{timeframe}.{ext}"
         return path.exists()
@@ -777,7 +777,7 @@ class DataSaver:
     def load(cls, path: Optional[Union[str, Path]] = None, symbol: str = "EURUSD", timeframe: str = "M1") -> "DataSaver":
         """Load data and source metadata."""
         if not path:
-            folder = Path(PROJECT_ROOT) / "backend" / "data" / "saved"
+            folder = Path(PROJECT_ROOT) / "data" / "saved"
             ext = cls(Data(pd.DataFrame(), symbol=symbol, timeframe=timeframe))._get_extension()
             path = folder / f"{symbol}_{timeframe}.{ext}"
             

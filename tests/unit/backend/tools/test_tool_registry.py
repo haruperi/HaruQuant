@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.tools.registry import (
+from backend_retiring.tools.registry import (
     DEFAULT_TOOL_REGISTRY,
     ToolDefinition,
     ToolRegistry,

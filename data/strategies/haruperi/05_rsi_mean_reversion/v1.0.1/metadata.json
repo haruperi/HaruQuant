@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 5,
+  "version": "1.0.1",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:53:26.636465",
+  "name": "05 RSI Mean Reversion",
+  "description": "Mean reversion strategy using RSI indicator.\n    Buys when RSI is oversold, sells when RSI is overbought.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

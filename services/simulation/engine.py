@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from backend.mcp.mt5_mcp import MT5Utils, get_mt5_api
+from services.data.mt5 import get_connected_mt5_client, get_mt5_api
 from services.risk import (
     AllocationPlanner,
     CorrelationPreference,
@@ -112,7 +112,7 @@ class Engine:
 
         self.backend = backend
         self.mt5 = get_mt5_api()
-        self.client = MT5Utils.get_connected_client()
+        self.client = get_connected_mt5_client()
         self.mt5_account = self.client.account_info()
         self.state = core.SimulatorState(account_info=self.mt5_account)
         if backend == "sim":
@@ -172,7 +172,7 @@ class Engine:
         slippage_min=None,
         slippage_max=None,
     ):
-        """Run prepared tick data through the vectorized backend."""
+        """Run prepared tick data through the vectorized backend_retiring."""
         return run_vectorized_simulation(
             self,
             data,
@@ -1445,7 +1445,7 @@ class Engine:
         progress_desc: str = "Tester Progress",
         frame_observer=None,
     ):
-        """Run prepared tick data through the event-driven backend."""
+        """Run prepared tick data through the event-driven backend_retiring."""
         return run_event_driven_simulation(
             self,
             data,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from haruquant.utils import REDACTED
-from backend.agents.runtime import ContextRedactionMiddleware
+from backend_retiring.agents.runtime import ContextRedactionMiddleware
 
 
 _FORBIDDEN_UI_MARKERS = (

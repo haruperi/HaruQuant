@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.data.database import ExecutionIntentRecord, ExecutionReceiptRecord
+from data.database import ExecutionIntentRecord, ExecutionReceiptRecord
 from haruquant.execution import (
     BrokerTruthSnapshot,
     ReconciliationResultState,

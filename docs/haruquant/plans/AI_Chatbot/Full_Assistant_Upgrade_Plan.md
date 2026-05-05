@@ -222,11 +222,11 @@ Add a tool attachment bar in the chat composer:
 
 Add:
 
-- `backend/agents/chat/ai_chat/tool_attachment_registry.py`
-- `backend/agents/chat/ai_chat/tool_attachment_runtime.py`
-- `backend/agents/chat/ai_chat/artifact_service.py`
-- `backend/contracts/chat_tool_attachment/schema.json`
-- `backend/contracts/chat_artifact/schema.json`
+- `backend_retiring/agents/chat/ai_chat/tool_attachment_registry.py`
+- `backend_retiring/agents/chat/ai_chat/tool_attachment_runtime.py`
+- `backend_retiring/agents/chat/ai_chat/artifact_service.py`
+- `backend_retiring/contracts/chat_tool_attachment/schema.json`
+- `backend_retiring/contracts/chat_artifact/schema.json`
 
 Store attached tools at thread level and message level. Thread-level tools
 define the active chat mode. Message-level tools define one-turn attachments.
@@ -422,8 +422,8 @@ Frontend:
 
 Backend:
 
-- `backend/agents/chat/ai_chat/page_action_planner.py`
-- `backend/contracts/page_action_plan/schema.json`
+- `backend_retiring/agents/chat/ai_chat/page_action_planner.py`
+- `backend_retiring/contracts/page_action_plan/schema.json`
 - audit events for plan, approval, execution, failure
 
 Flow:

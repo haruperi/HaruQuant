@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 10,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T19:02:25.077635",
+  "name": "10 Bollinger Bands Trend Following",
+  "description": "Trend following strategy using Bollinger Bands.\n    Buys when price breaks above upper band, sells when price breaks below lower band.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

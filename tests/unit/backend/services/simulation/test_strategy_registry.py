@@ -1,7 +1,7 @@
 import pytest
 
-from backend.data.strategies.close_breakout import CloseBreakoutStrategy
-from backend.data.strategies.trend_following import TrendFollowingStrategy
+from data.strategies.close_breakout import CloseBreakoutStrategy
+from data.strategies.trend_following import TrendFollowingStrategy
 from haruquant.simulation import (
     StrategyRegistryError,
     get_strategy_class,

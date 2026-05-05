@@ -7,8 +7,8 @@ import tempfile
 
 import pytest
 
-from backend.agents.memory.model import SemanticMemory, EpisodicMemory, ProceduralMemory
-from backend.agents.memory.rules import MemoryWriteRules
+from backend_retiring.agents.memory.model import SemanticMemory, EpisodicMemory, ProceduralMemory
+from backend_retiring.agents.memory.rules import MemoryWriteRules
 
 
 # ──────────────────────────────────────────────────────────────
@@ -65,8 +65,8 @@ def test_procedural_memory_creation() -> None:
 @pytest.fixture
 def semantic_store():
     import uuid
-    from backend.retrieval.embeddings import EmbeddingService
-    from backend.agents.memory.semantic import SemanticMemoryStore
+    from backend_retiring.retrieval.embeddings import EmbeddingService
+    from backend_retiring.agents.memory.semantic import SemanticMemoryStore
     embeddings = EmbeddingService(model="all-MiniLM-L6-v2")
     return SemanticMemoryStore(
         embeddings=embeddings,
@@ -101,7 +101,7 @@ def test_semantic_store_filter_by_category(semantic_store) -> None:
 
 @pytest.fixture
 def episodic_store():
-    from backend.agents.memory.episodic import EpisodicMemoryStore
+    from backend_retiring.agents.memory.episodic import EpisodicMemoryStore
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "episodic.db")
         yield EpisodicMemoryStore(db_path=db_path)
@@ -145,7 +145,7 @@ def test_episodic_get_lessons(episodic_store) -> None:
 
 @pytest.fixture
 def procedural_store():
-    from backend.agents.memory.procedural import ProceduralMemoryStore
+    from backend_retiring.agents.memory.procedural import ProceduralMemoryStore
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "procedural.db")
         yield ProceduralMemoryStore(db_path=db_path)

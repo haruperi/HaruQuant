@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 
-from backend.data.database import apply_pending_migrations, default_migrations_dir
+from data.database import apply_pending_migrations, default_migrations_dir
 
 
 def test_reconciliation_runs_migration_supports_conflict_flag(tmp_path) -> None:

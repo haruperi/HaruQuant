@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import LimitConstraint
-from backend.data.database import apply_pending_migrations, default_migrations_dir
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import LimitConstraint
+from data.database import apply_pending_migrations, default_migrations_dir
 from haruquant.risk import (
     RiskDecisionEnvelopeContext,
     RiskDecisionPersistenceService,

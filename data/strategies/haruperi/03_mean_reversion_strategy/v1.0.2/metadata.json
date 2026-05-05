@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 3,
+  "version": "1.0.2",
+  "parameters": {},
+  "saved_at": "2026-01-13T21:14:02.665829",
+  "name": "03 Mean Reversion Strategy",
+  "description": "Tests if the instrument has an edge in mean reversion strategies.\n    Sells when price reaches previous high, buys when price reaches previous low.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

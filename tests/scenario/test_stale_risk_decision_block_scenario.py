@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from haruquant.utils import FixedClock
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import (
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from haruquant.execution import SymbolMetadataCache, SymbolMetadataCacheEntry, run_pre_send_validation
 from haruquant.execution import PreSendValidationRequest
 

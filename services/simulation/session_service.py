@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 from fastapi import HTTPException, status
 
-from backend.data.database.sqlite.database_operations import DatabaseManager
+from data.database.sqlite.database_operations import DatabaseManager
 from services.strategy import storage
 from services.strategy.permissions import assert_strategy_allowed
 from services.utils.logger import logger

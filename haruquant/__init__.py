@@ -7,9 +7,17 @@ This package is the public facade over `services`. Implementation belongs in
 from __future__ import annotations
 
 from importlib import import_module
+from pathlib import Path
 from pkgutil import walk_packages
+import sys
 from types import ModuleType
 from typing import Any
+
+
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = str(_PACKAGE_ROOT.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 
 def load_service_symbol(*, service_module: str, name: str) -> Any:
@@ -98,6 +106,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     # Indicator
     "ema": (".indicator", "ema"),
     "sma": (".indicator", "sma"),
+    "wma": (".indicator", "wma"),
     "rsi": (".indicator", "rsi"),
     "bbands": (".indicator", "bbands"),
     "atr": (".indicator", "atr"),
@@ -146,6 +155,26 @@ def __getattr__(name: str) -> Any:
     except KeyError as exc:
         raise AttributeError(name) from exc
     module = import_module(module_name, __name__)
+    if module_name == ".indicator":
+        for export_name in (
+            "indicator",
+            "list_indicators",
+            "run_indicators",
+            "ta",
+            "ema",
+            "sma",
+            "wma",
+            "rsi",
+            "bbands",
+            "atr",
+            "hurst",
+            "fvg",
+            "ob",
+            "bos_choch",
+            "phl",
+        ):
+            if hasattr(module, export_name):
+                globals()[export_name] = getattr(module, export_name)
     value: Any = module
     for part in attr_name.split("."):
         value = getattr(value, part)
@@ -154,3 +183,7 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = sorted(_EXPORTS)
+
+
+# Register pandas accessors such as `df.hqt` on package import.
+import_module(".utils", __name__)

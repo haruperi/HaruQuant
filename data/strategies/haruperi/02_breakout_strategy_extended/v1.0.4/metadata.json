@@ -1,0 +1,17 @@
+{
+  "user_id": 1,
+  "strategy_id": 2,
+  "version": "1.0.4",
+  "parameters": {},
+  "saved_at": "2026-04-15T03:12:55.206161",
+  "name": "02 Breakout Strategy Extended",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

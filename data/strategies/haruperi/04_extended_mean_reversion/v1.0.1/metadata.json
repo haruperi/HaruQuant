@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 4,
+  "version": "1.0.1",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:48:55.311643",
+  "name": "04 Extended Mean Reversion",
+  "description": "Enhanced mean reversion strategy that fades strong momentum moves.\n    Sells into bullish candles at highs, buys into bearish candles at lows.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

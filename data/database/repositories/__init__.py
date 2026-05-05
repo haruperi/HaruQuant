@@ -1,0 +1,87 @@
+"""Repository layer for the agentic backend SQLite baseline."""
+
+from .ai_chat_repository import (
+    AiChatMemorySummaryRow,
+    AiChatMessageRow,
+    AiChatPinnedFactRow,
+    AiChatRepository,
+    AiChatThreadRow,
+)
+from .agentic_firm_repository import (
+    AgenticFirmRepository,
+    AgentTaskEventRecord,
+    AgentTaskRecord,
+    AuditLogRecord,
+    EvidenceRefRecord,
+)
+from .execution_repository import (
+    ExecutionIntentRecord,
+    ExecutionReceiptRecord,
+    ExecutionRepository,
+    ExecutionSendAttemptRecord,
+    ReconciliationRunRecord,
+)
+from .governance_repository import (
+    ApprovalRecord,
+    ApprovalVoteRecord,
+    GovernanceRepository,
+    KillSwitchEventRecord,
+    PolicyRecord,
+    StrategyPromotionRecord,
+    StrategyRecord,
+)
+from .proposal_repository import ProposalRecord, ProposalRepository
+from .research_audit_repository import (
+    EvidenceBundleRecord,
+    LegalHoldRecord,
+    ReplayBundleRecord,
+    ResearchAuditRepository,
+    TrajectoryLogRecord,
+)
+from .risk_repository import (
+    RiskAssessmentRequestRecord,
+    RiskConstraintRecord,
+    RiskDecisionRecord,
+    RiskRepository,
+)
+from .workflow_repository import WorkflowRecord, WorkflowRepository
+from .workflow_repository import IncidentRecord
+
+__all__ = [
+    "AiChatMemorySummaryRow",
+    "AiChatMessageRow",
+    "AiChatPinnedFactRow",
+    "AiChatRepository",
+    "AiChatThreadRow",
+    "AgenticFirmRepository",
+    "AgentTaskEventRecord",
+    "AgentTaskRecord",
+    "ApprovalRecord",
+    "ApprovalVoteRecord",
+    "AuditLogRecord",
+    "EvidenceBundleRecord",
+    "EvidenceRefRecord",
+    "ExecutionIntentRecord",
+    "ExecutionReceiptRecord",
+    "ExecutionRepository",
+    "ExecutionSendAttemptRecord",
+    "GovernanceRepository",
+    "IncidentRecord",
+    "KillSwitchEventRecord",
+    "LegalHoldRecord",
+    "PolicyRecord",
+    "ProposalRecord",
+    "ProposalRepository",
+    "ReplayBundleRecord",
+    "ResearchAuditRepository",
+    "ReconciliationRunRecord",
+    "RiskAssessmentRequestRecord",
+    "RiskConstraintRecord",
+    "RiskDecisionRecord",
+    "RiskRepository",
+    "StrategyRecord",
+    "StrategyPromotionRecord",
+    "TrajectoryLogRecord",
+    "WorkflowRecord",
+    "WorkflowRepository",
+]

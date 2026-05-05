@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from backend.agents.runtime.output_validation import (
+from backend_retiring.agents.runtime.output_validation import (
     CanonicalOutputValidator,
     ContractValidationError,
     RepairAttempt,
@@ -280,7 +280,7 @@ def test_repair_attempt_records_error_and_instruction() -> None:
 
 def test_runner_includes_repair_metadata_on_success() -> None:
     """ADKRunResult should include repair_attempted and repair_succeeded."""
-    from backend.agents.runtime.runner import (
+    from backend_retiring.agents.runtime.runner import (
         ADKRunRequest,
         ADKRunnerConfig,
         ADKRunnerService,
@@ -317,7 +317,7 @@ def test_runner_includes_repair_metadata_on_success() -> None:
 
 def test_runner_attempts_repair_on_validation_failure() -> None:
     """When validation fails, runner should attempt repair."""
-    from backend.agents.runtime.runner import (
+    from backend_retiring.agents.runtime.runner import (
         ADKRunRequest,
         ADKRunnerConfig,
         ADKRunnerService,

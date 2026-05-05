@@ -23,13 +23,13 @@ catalog.
 
 ## Source Files
 
-- `backend/agents/strategy_creator_agent.py`
-- `backend/agents/prompts/strategy_creator_template.py`
+- `backend_retiring/agents/strategy_creator_agent.py`
+- `backend_retiring/agents/prompts/strategy_creator_template.py`
 - `services/strategy/design/blueprint_validator.py`
 - `services/strategy/design/blueprint_renderer.py`
 - `services/strategy/design/blueprint_materializer.py`
-- `backend/agents/chat/ai_chat/tool_attachment_registry.py`
-- `backend/agents/chat/ai_chat/ai_gateway.py`
+- `backend_retiring/agents/chat/ai_chat/tool_attachment_registry.py`
+- `backend_retiring/agents/chat/ai_chat/ai_gateway.py`
 
 ## Persisted Artifacts
 

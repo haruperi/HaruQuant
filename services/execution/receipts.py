@@ -7,8 +7,8 @@ from typing import Any
 
 from services.utils.ids import generate_id
 from services.utils.logger import logger
-from backend.data.database import ExecutionReceiptRecord, ExecutionRepository
-from backend.mcp.mt5_mcp import normalize_broker_response
+from data.database import ExecutionReceiptRecord, ExecutionRepository
+from services.execution.normalization import normalize_broker_response
 
 
 @dataclass(frozen=True)

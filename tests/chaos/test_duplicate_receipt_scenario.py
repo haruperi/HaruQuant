@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
+from data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 
 
 def test_duplicate_receipt_chaos_scenario_keeps_latest_receipt_addressable(tmp_path) -> None:

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from services.utils.logger import logger
-from backend.data.database import RiskRepository
+from data.database import RiskRepository
 
 from .decisions import PackedRiskDecisionArtifacts
 

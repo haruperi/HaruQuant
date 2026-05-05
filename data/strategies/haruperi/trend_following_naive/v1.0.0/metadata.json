@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 12,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T19:04:39.688798",
+  "name": "Trend Following Naive",
+  "description": "EMA Crossover strategy.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import time
 
-from backend.observability.cost_tracker import CostTracker
-from backend.observability.redaction import RedactionRules
-from backend.observability.span_model import Span
-from backend.observability.trace_model import Trace
+from backend_retiring.observability.cost_tracker import CostTracker
+from backend_retiring.observability.redaction import RedactionRules
+from backend_retiring.observability.span_model import Span
+from backend_retiring.observability.trace_model import Trace
 
 
 def test_trace_span_lifecycle():

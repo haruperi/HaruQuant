@@ -12,12 +12,12 @@ import pytest
 # Phase 1.1: MT5 Adapter Wiring
 # ──────────────────────────────────────────────────────────────
 
-from backend.mcp.mt5_mcp.server import (
+from backend_retiring.mcp.mt5_mcp.server import (
     MT5MCPServer,
     create_legacy_mt5_mcp_server,
     create_mt5_mcp_server,
 )
-from backend.mcp.mt5_mcp.tools import MT5ReadOnlyTools, MT5MutatingTools, LegacyMT5GatewayAdapter
+from backend_retiring.mcp.mt5_mcp.tools import MT5ReadOnlyTools, MT5MutatingTools, LegacyMT5GatewayAdapter
 
 
 class FakeMT5Client:
@@ -93,7 +93,7 @@ def test_legacy_server_unknown_tool_raises() -> None:
 # Phase 1.2: SQL Allowlist AST Parsing
 # ──────────────────────────────────────────────────────────────
 
-from backend.mcp.sql_mcp.tools import SQLReadOnlyTools, SQLMCPAccessError
+from backend_retiring.mcp.sql_mcp.tools import SQLReadOnlyTools, SQLMCPAccessError
 
 
 def _make_sql_tools(db_path: str) -> SQLReadOnlyTools:
@@ -197,7 +197,7 @@ def test_sql_ast_prevents_subquery_bypass() -> None:
 # Phase 1.3: Pre-Execution Tool Validation
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.runtime.tool_validation import (
+from backend_retiring.agents.runtime.tool_validation import (
     ToolValidator,
     ToolValidationError,
     ToolParameterSchema,
@@ -250,7 +250,7 @@ def test_register_mcp_schemas() -> None:
 # Phase 1.4: Tool Output Size Limits
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.runtime.middleware import _truncate_strings_in_dict
+from backend_retiring.agents.runtime.middleware import _truncate_strings_in_dict
 
 
 def test_truncate_strings_in_dict_short() -> None:
@@ -286,11 +286,11 @@ def test_truncate_strings_in_dict_nested() -> None:
 # Phase 1.5: Schema Registry Persistence
 # ──────────────────────────────────────────────────────────────
 
-from backend.contracts.schema_registry_persistence_service import (
+from backend_retiring.contracts.schema_registry_persistence_service import (
     SchemaRegistryPersistence,
     create_persisted_registry,
 )
-from backend.contracts.schema_registry import SchemaRegistryRecord
+from backend_retiring.contracts.schema_registry import SchemaRegistryRecord
 from datetime import datetime, timezone
 
 
@@ -342,7 +342,7 @@ def test_persistence_clear() -> None:
 # Phase 1.6: Model-Specific Cost Tracking
 # ──────────────────────────────────────────────────────────────
 
-from backend.observability.cost_tracker import (
+from backend_retiring.observability.cost_tracker import (
     CostTracker,
     get_model_pricing,
     calculate_cost,

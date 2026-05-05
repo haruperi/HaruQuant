@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
+from data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
 from haruquant.strategy import StrategyCatalogService, StrategyStorage
 from haruquant.strategy import (
     StrategyBlueprintMaterializationRequest,

@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 11,
+  "version": "1.0.1",
+  "parameters": {},
+  "saved_at": "2026-01-12T19:03:16.267477",
+  "name": "11 Bollinger Bands Mean Reversion",
+  "description": "Mean reversion strategy using Bollinger Bands.\n    Sells when price reaches upper band, buys when price reaches lower band.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

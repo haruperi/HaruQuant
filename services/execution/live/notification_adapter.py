@@ -13,7 +13,7 @@ from services.notification import (
     NotificationManagerConfig,
 )
 from services.notification.config import NotificationConfig
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 
 
 class LiveTradingNotifier:
@@ -238,7 +238,7 @@ Report generated at end of trading day.""",
 
     @classmethod
     def from_database(
-        cls, user_id: int, db_path: str = "backend/data/database/haruquant.db"
+        cls, user_id: int, db_path: str = "data/database/haruquant.db"
     ) -> "LiveTradingNotifier":
         """
         Create LiveTradingNotifier from database credentials.

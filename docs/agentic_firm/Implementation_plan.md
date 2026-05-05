@@ -135,48 +135,48 @@ Phase 1 complete.
 
 ### 2.1 Create backend agent folders
 
-* [X] Create `backend/agents/`.
-* [X] Create `backend/agents/ceo/`.
-* [X] Create `backend/agents/planner/`.
-* [X] Create `backend/agents/research/`.
-* [X] Create `backend/agents/strategy_creator/`.
-* [X] Create `backend/agents/strategy_reviewer/`.
-* [X] Create `backend/agents/codegen/`.
-* [X] Create `backend/agents/backtest/`.
-* [X] Create `backend/agents/optimization/`.
-* [X] Create `backend/agents/robustness/`.
-* [X] Create `backend/agents/statistical_validation/`.
-* [X] Create `backend/agents/risk_reviewer/`.
-* [X] Create `backend/agents/portfolio_manager/`.
-* [X] Create `backend/agents/execution/`.
-* [X] Create `backend/agents/performance_reporter/`.
-* [X] Create `backend/agents/audit/`.
-* [X] Create `backend/agents/cost_optimizer/`.
+* [X] Create `backend_retiring/agents/`.
+* [X] Create `backend_retiring/agents/ceo/`.
+* [X] Create `backend_retiring/agents/planner/`.
+* [X] Create `backend_retiring/agents/research/`.
+* [X] Create `backend_retiring/agents/strategy_creator/`.
+* [X] Create `backend_retiring/agents/strategy_reviewer/`.
+* [X] Create `backend_retiring/agents/codegen/`.
+* [X] Create `backend_retiring/agents/backtest/`.
+* [X] Create `backend_retiring/agents/optimization/`.
+* [X] Create `backend_retiring/agents/robustness/`.
+* [X] Create `backend_retiring/agents/statistical_validation/`.
+* [X] Create `backend_retiring/agents/risk_reviewer/`.
+* [X] Create `backend_retiring/agents/portfolio_manager/`.
+* [X] Create `backend_retiring/agents/execution/`.
+* [X] Create `backend_retiring/agents/performance_reporter/`.
+* [X] Create `backend_retiring/agents/audit/`.
+* [X] Create `backend_retiring/agents/cost_optimizer/`.
 
 ### 2.2 Create tool folders
 
-* [X] Create `backend/tools/`.
-* [X] Create `backend/tools/data_tools.py`.
-* [X] Create `backend/tools/strategy_tools.py`.
-* [X] Create `backend/tools/backtest_tools.py`.
-* [X] Create `backend/tools/analytics_tools.py`.
-* [X] Create `backend/tools/risk_tools.py`.
-* [X] Create `backend/tools/portfolio_tools.py`.
-* [X] Create `backend/tools/execution_tools.py`.
-* [X] Create `backend/tools/reporting_tools.py`.
-* [X] Create `backend/tools/audit_tools.py`.
+* [X] Create `backend_retiring/tools/`.
+* [X] Create `backend_retiring/tools/data_tools.py`.
+* [X] Create `backend_retiring/tools/strategy_tools.py`.
+* [X] Create `backend_retiring/tools/backtest_tools.py`.
+* [X] Create `backend_retiring/tools/analytics_tools.py`.
+* [X] Create `backend_retiring/tools/risk_tools.py`.
+* [X] Create `backend_retiring/tools/portfolio_tools.py`.
+* [X] Create `backend_retiring/tools/execution_tools.py`.
+* [X] Create `backend_retiring/tools/reporting_tools.py`.
+* [X] Create `backend_retiring/tools/audit_tools.py`.
 
 ### 2.3 Create risk and execution folders
 
-* [X] Create `backend/risk/governor.py`.
-* [X] Create `backend/risk/approvals.py`.
-* [X] Create `backend/risk/kill_switch.py`.
-* [X] Create `backend/risk/correlation.py`.
-* [X] Create `backend/risk/var_engine.py`.
-* [X] Create `backend/execution/paper_broker.py`.
-* [X] Create `backend/execution/mt5_bridge.py`.
-* [X] Create `backend/execution/ctrader_bridge.py`.
-* [X] Create `backend/execution/order_router.py`.
+* [X] Create `backend_retiring/risk/governor.py`.
+* [X] Create `backend_retiring/risk/approvals.py`.
+* [X] Create `backend_retiring/risk/kill_switch.py`.
+* [X] Create `backend_retiring/risk/correlation.py`.
+* [X] Create `backend_retiring/risk/var_engine.py`.
+* [X] Create `backend_retiring/execution/paper_broker.py`.
+* [X] Create `backend_retiring/execution/mt5_bridge.py`.
+* [X] Create `backend_retiring/execution/ctrader_bridge.py`.
+* [X] Create `backend_retiring/execution/order_router.py`.
 
 ### 2.4 Create memory folders
 
@@ -203,7 +203,7 @@ Phase 1 complete.
 
 ### Phase 2 implementation note
 
-Phase 2 was implemented as an additive facade migration to avoid losing existing functionality. New firm-facing packages wrap current deterministic services and governed MCP boundaries instead of duplicating risk, execution, strategy, audit, and optimization logic. `backend/execution/ctrader_bridge.py` exists as an explicit fail-closed placeholder until a governed cTrader bridge is implemented.
+Phase 2 was implemented as an additive facade migration to avoid losing existing functionality. New firm-facing packages wrap current deterministic services and governed MCP boundaries instead of duplicating risk, execution, strategy, audit, and optimization logic. `backend_retiring/execution/ctrader_bridge.py` exists as an explicit fail-closed placeholder until a governed cTrader bridge is implemented.
 
 ## Done definition
 
@@ -225,7 +225,7 @@ Phase 2 complete.
 
 ### 3.1 Create shared schemas
 
-* [X] Create `backend/agents/schemas.py`.
+* [X] Create `backend_retiring/agents/schemas.py`.
 * [X] Add `AgentTask`.
 * [X] Add `AgentPlan`.
 * [X] Add `AgentObservation`.
@@ -299,7 +299,7 @@ Your planner already has a good base. Expand it.
 
 ### Phase 3 implementation note
 
-Phase 3 was implemented by extending existing schemas instead of creating competing contracts. `AgentPlan` aliases the existing `ConversationPlan`, which now includes Board approval, RiskGovernor, audit, allowed/blocked agent, output, evidence, and failure-policy fields. `backend/agents/schemas.py` provides firm-facing agent exchange models and bridge helpers to existing canonical contracts such as `StrategyBlueprint`, `TradeProposal`, `RiskAssessmentDecision`, `ExecutionIntent`, and `ExecutionReceipt`.
+Phase 3 was implemented by extending existing schemas instead of creating competing contracts. `AgentPlan` aliases the existing `ConversationPlan`, which now includes Board approval, RiskGovernor, audit, allowed/blocked agent, output, evidence, and failure-policy fields. `backend_retiring/agents/schemas.py` provides firm-facing agent exchange models and bridge helpers to existing canonical contracts such as `StrategyBlueprint`, `TradeProposal`, `RiskAssessmentDecision`, `ExecutionIntent`, and `ExecutionReceipt`.
 
 ## Done definition
 
@@ -396,7 +396,7 @@ MCP’s tool model is useful here because each tool should have a name, schema, 
 
 ### 5.1 Create tool registry
 
-* [X] Create `backend/tools/registry.py`.
+* [X] Create `backend_retiring/tools/registry.py`.
 * [X] Define `ToolDefinition`.
 * [X] Define `name`.
 * [X] Define `description`.
@@ -445,7 +445,7 @@ MCP’s tool model is useful here because each tool should have a name, schema, 
 
 ### 5.5 Enforce permission checks
 
-* [X] Create `backend/agents/permissions.py`.
+* [X] Create `backend_retiring/agents/permissions.py`.
 * [X] Map agents to allowed tools.
 * [X] Block tool calls not explicitly allowed.
 * [X] Block critical tools without approval.
@@ -454,7 +454,7 @@ MCP’s tool model is useful here because each tool should have a name, schema, 
 
 ### Phase 5 implementation note
 
-Phase 5 was implemented through `backend/tools/registry.py` and `backend/agents/permissions.py`. The existing runtime `ToolAllowlistMiddleware` keeps its original allowlist behavior and now also exposes registry-backed agent permission enforcement. The registry is metadata-only: actual execution remains inside existing service, MCP, risk, execution, and audit boundaries.
+Phase 5 was implemented through `backend_retiring/tools/registry.py` and `backend_retiring/agents/permissions.py`. The existing runtime `ToolAllowlistMiddleware` keeps its original allowlist behavior and now also exposes registry-backed agent permission enforcement. The registry is metadata-only: actual execution remains inside existing service, MCP, risk, execution, and audit boundaries.
 
 ## Done definition
 
@@ -478,7 +478,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.1 Create agent registry
 
-* [X] Create `backend/agents/agent_registry.py`.
+* [X] Create `backend_retiring/agents/agent_registry.py`.
 * [X] Register CEO Agent.
 * [X] Register Planner Agent.
 * [X] Register Research Agent.
@@ -491,7 +491,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.2 Create task manager
 
-* [X] Create `backend/agents/task_manager.py`.
+* [X] Create `backend_retiring/agents/task_manager.py`.
 * [X] Add `create_task`.
 * [X] Add `assign_task`.
 * [X] Add `start_task`.
@@ -504,7 +504,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.3 Create orchestration service
 
-* [X] Create `backend/agents/orchestrator.py`.
+* [X] Create `backend_retiring/agents/orchestrator.py`.
 * [X] Accept user request.
 * [X] Call Planner.
 * [X] Create parent task.
@@ -517,7 +517,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.4 Create agent base class
 
-* [X] Create `backend/agents/base.py`.
+* [X] Create `backend_retiring/agents/base.py`.
 * [X] Add `agent_name`.
 * [X] Add `role`.
 * [X] Add `allowed_tools`.
@@ -541,7 +541,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### Phase 6 implementation note
 
-Phase 6 was implemented on the canonical `backend/agents/` path, not under `backend/app/`. `AgentRegistry` registers the first firm departments and draws each agent's tool envelope from the Phase 5 permission layer. `AgentTaskManager` manages persisted or in-memory task trees with explicit status transitions. `AgentControlPlaneOrchestrator` creates a top-down workflow record, parent CEO task, planner task, delegated child tasks, standard agent run results, final response, and audit record. The base agent class provides a common `plan -> act -> observe -> evaluate -> finalize` envelope for Phase 7+ specialized agents.
+Phase 6 was implemented on the canonical `backend_retiring/agents/` path, not under `backend_retiring/app/`. `AgentRegistry` registers the first firm departments and draws each agent's tool envelope from the Phase 5 permission layer. `AgentTaskManager` manages persisted or in-memory task trees with explicit status transitions. `AgentControlPlaneOrchestrator` creates a top-down workflow record, parent CEO task, planner task, delegated child tasks, standard agent run results, final response, and audit record. The base agent class provides a common `plan -> act -> observe -> evaluate -> finalize` envelope for Phase 7+ specialized agents.
 
 Usage example: `docs/agentic_firm/phase6_agent_control_plane_usage_example.md`.
 
@@ -565,7 +565,7 @@ Phase 6 complete.
 
 ### 7.1 CEO Agent
 
-* [X] Create `backend/agents/ceo/agent.py`.
+* [X] Create `backend_retiring/agents/ceo/agent.py`.
 * [X] Add CEO system instructions.
 * [X] Add firm constitution reference.
 * [X] Add risk policy reference.
@@ -577,7 +577,7 @@ Phase 6 complete.
 
 ### 7.2 Planner Agent
 
-* [X] Create `backend/agents/planner/agent.py`.
+* [X] Create `backend_retiring/agents/planner/agent.py`.
 * [X] Implement structured planner output.
 * [X] Support `strategy_creation`.
 * [X] Support `backtest_diagnosis`.
@@ -592,7 +592,7 @@ Phase 6 complete.
 
 ### 7.3 CEO response templates
 
-* [X] Create `backend/agents/ceo/templates.py`.
+* [X] Create `backend_retiring/agents/ceo/templates.py`.
 * [X] Add research memo template.
 * [X] Add strategy proposal template.
 * [X] Add backtest report template.
@@ -603,16 +603,16 @@ Phase 6 complete.
 
 ### Phase 7 implementation note
 
-Phase 7 was implemented on the canonical `backend/agents/` path. `PlannerAgent` now acts as the CEO's internal planning engine and emits the expanded `ConversationPlan` contract for `strategy_creation`, `backtest_diagnosis`, `optimization_comparison`, `risk_review`, `execution_proposal`, `research`, `reporting`, `page_action`, `clarification`, `ceo_identity`, `ceo_answer`, and `governed_action_draft`. Request classification is hybrid: deterministic safety checks run first for live trading, execution, UI action, clarification, and identity cases; then an LLM-capable classifier may choose only from the approved route catalog; if the LLM is disabled or unavailable, deterministic keyword/fallback routing remains in place. `CEOAgent` now owns firm-facing system instructions, policy references, evidence requirements, Board escalation rules, refusal rules, and final memo synthesis. The CEO is hybrid: deterministic routing and governance blocks remain binding for live trading, RiskGovernor, audit, lifecycle, and Board decisions, while generic CEO communication can use an LLM response synthesizer with deterministic fallback. The Phase 6 control plane now uses the Phase 7 planner and CEO memo layer directly.
+Phase 7 was implemented on the canonical `backend_retiring/agents/` path. `PlannerAgent` now acts as the CEO's internal planning engine and emits the expanded `ConversationPlan` contract for `strategy_creation`, `backtest_diagnosis`, `optimization_comparison`, `risk_review`, `execution_proposal`, `research`, `reporting`, `page_action`, `clarification`, `ceo_identity`, `ceo_answer`, and `governed_action_draft`. Request classification is hybrid: deterministic safety checks run first for live trading, execution, UI action, clarification, and identity cases; then an LLM-capable classifier may choose only from the approved route catalog; if the LLM is disabled or unavailable, deterministic keyword/fallback routing remains in place. `CEOAgent` now owns firm-facing system instructions, policy references, evidence requirements, Board escalation rules, refusal rules, and final memo synthesis. The CEO is hybrid: deterministic routing and governance blocks remain binding for live trading, RiskGovernor, audit, lifecycle, and Board decisions, while generic CEO communication can use an LLM response synthesizer with deterministic fallback. The Phase 6 control plane now uses the Phase 7 planner and CEO memo layer directly.
 
 Usage examples:
 
-* Runnable script: `backend/scripts/examples/agentic_ai/07_ceo_planner_agents.py`.
+* Runnable script: `scripts/examples/agentic_ai/07_ceo_planner_agents.py`.
 * Documentation: `docs/agentic_firm/phase7_ceo_planner_usage_example.md`.
 
 ### Phase 7.5 chatbot merge note
 
-The AI chatbot is now bridged into the Agentic Firm architecture by default. Set `HARUQUANT_AGENTIC_FIRM_CHAT=false` or instantiate `AIGatewayService(agentic_firm_chat_enabled=False)` only when the legacy route is needed for comparison. `CEOChatOrchestrator` makes the chatbot speak through `CEOAgent`, the CEO planning engine, and `AgentControlPlaneOrchestrator`; legacy attached chat tools are treated as operator hints rather than authority grants; chat metadata now stores `firm_workflow_id`, parent task ID, child task IDs, audit ID, planner source, and CEO memo. Runnable script: `backend/scripts/examples/agentic_ai/09_ceo_chat_bridge.py`.
+The AI chatbot is now bridged into the Agentic Firm architecture by default. Set `HARUQUANT_AGENTIC_FIRM_CHAT=false` or instantiate `AIGatewayService(agentic_firm_chat_enabled=False)` only when the legacy route is needed for comparison. `CEOChatOrchestrator` makes the chatbot speak through `CEOAgent`, the CEO planning engine, and `AgentControlPlaneOrchestrator`; legacy attached chat tools are treated as operator hints rather than authority grants; chat metadata now stores `firm_workflow_id`, parent task ID, child task IDs, audit ID, planner source, and CEO memo. Runnable script: `scripts/examples/agentic_ai/09_ceo_chat_bridge.py`.
 
 ## Done definition
 
@@ -636,7 +636,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.1 Market Intelligence Agent
 
-* [X] Create `backend/agents/research/market_intelligence_agent.py`.
+* [X] Create `backend_retiring/agents/research/market_intelligence_agent.py`.
 * [X] Read symbol data.
 * [X] Read volatility regimes.
 * [X] Read spreads.
@@ -647,7 +647,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.2 Technical Analyst Agent
 
-* [X] Create `backend/agents/research/technical_analyst_agent.py`.
+* [X] Create `backend_retiring/agents/research/technical_analyst_agent.py`.
 * [X] Compute indicator context.
 * [X] Analyze trend.
 * [X] Analyze volatility.
@@ -659,7 +659,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.3 Strategy Scout Agent
 
-* [X] Create `backend/agents/research/strategy_scout_agent.py`.
+* [X] Create `backend_retiring/agents/research/strategy_scout_agent.py`.
 * [X] Search internal strategy memory.
 * [X] Search past backtests.
 * [X] Search rejected strategies.
@@ -684,7 +684,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### Phase 8 implementation note
 
-Phase 8 was implemented on the canonical `backend/agents/research/` path with read-only deterministic agents: `MarketIntelligenceAgent`, `TechnicalAnalystAgent`, and `StrategyScoutAgent`. The shared `ResearchReport` schema was added to `backend/agents/schemas.py`, and reports are saved as evidence JSON under `memory/evidence/`. The Phase 7 Planner research route now delegates to these Research Department v1 agents. Runnable script: `backend/scripts/examples/agentic_ai/08_research_department.py`.
+Phase 8 was implemented on the canonical `backend_retiring/agents/research/` path with read-only deterministic agents: `MarketIntelligenceAgent`, `TechnicalAnalystAgent`, and `StrategyScoutAgent`. The shared `ResearchReport` schema was added to `backend_retiring/agents/schemas.py`, and reports are saved as evidence JSON under `memory/evidence/`. The Phase 7 Planner research route now delegates to these Research Department v1 agents. Runnable script: `scripts/examples/agentic_ai/08_research_department.py`.
 
 ## Done definition
 
@@ -706,7 +706,7 @@ Phase 8 complete.
 
 ### 9.1 Strategy Creator Agent
 
-* [ ] Create `backend/agents/strategy_creator/agent.py`.
+* [ ] Create `backend_retiring/agents/strategy_creator/agent.py`.
 * [ ] Convert natural language requests into `StrategySpec`.
 * [ ] Support symbol.
 * [ ] Support timeframe.
@@ -721,7 +721,7 @@ Phase 8 complete.
 
 ### 9.2 Strategy Spec Validator
 
-* [ ] Create `backend/agents/strategy_creator/validator.py`.
+* [ ] Create `backend_retiring/agents/strategy_creator/validator.py`.
 * [ ] Reject missing symbol.
 * [ ] Reject missing timeframe.
 * [ ] Reject untestable strategy.
@@ -760,7 +760,7 @@ Phase 9 complete.
 
 ### 10.1 Strategy Reviewer Agent
 
-* [ ] Create `backend/agents/strategy_reviewer/agent.py`.
+* [ ] Create `backend_retiring/agents/strategy_reviewer/agent.py`.
 * [ ] Check lookahead bias.
 * [ ] Check repainting risk.
 * [ ] Check indicator warmup.
@@ -802,7 +802,7 @@ Phase 10 complete.
 
 ### 11.1 Codegen Agent
 
-* [ ] Create `backend/agents/codegen/agent.py`.
+* [ ] Create `backend_retiring/agents/codegen/agent.py`.
 * [ ] Generate strategy class from `BaseStrategy`.
 * [ ] Implement `on_init`.
 * [ ] Implement `on_bar`.
@@ -858,7 +858,7 @@ Phase 11 complete.
 
 ### 12.1 Backtest Agent
 
-* [ ] Create `backend/agents/backtest/agent.py`.
+* [ ] Create `backend_retiring/agents/backtest/agent.py`.
 * [ ] Accept `BacktestRequest`.
 * [ ] Validate data availability.
 * [ ] Validate strategy code hash.
@@ -930,7 +930,7 @@ Phase 12 complete.
 
 ### 13.1 Backtest Analyst Agent
 
-* [ ] Create `backend/agents/backtest/backtest_analyst_agent.py`.
+* [ ] Create `backend_retiring/agents/backtest/backtest_analyst_agent.py`.
 * [ ] Analyze equity curve.
 * [ ] Analyze drawdowns.
 * [ ] Analyze monthly performance.
@@ -972,7 +972,7 @@ Phase 12 complete.
 
 ### 14.1 Optimization Agent
 
-* [ ] Create `backend/app/agents/optimization/agent.py`.
+* [ ] Create `backend_retiring/app/agents/optimization/agent.py`.
 * [ ] Run parameter sweeps.
 * [ ] Run walk-forward optimization if enabled.
 * [ ] Save optimization grid.
@@ -981,7 +981,7 @@ Phase 12 complete.
 
 ### 14.2 Comparator Agent
 
-* [ ] Create `backend/agents/optimization/comparator_agent.py`.
+* [ ] Create `backend_retiring/agents/optimization/comparator_agent.py`.
 * [ ] Compare best result.
 * [ ] Compare stable regions.
 * [ ] Compare IS vs OOS.
@@ -1011,7 +1011,7 @@ Phases 12 and 14 complete.
 
 ### 15.1 Robustness Agent
 
-* [ ] Create `backend/agents/robustness/agent.py`.
+* [ ] Create `backend_retiring/agents/robustness/agent.py`.
 * [ ] Run second OOS test.
 * [ ] Run spread stress test.
 * [ ] Run slippage stress test.
@@ -1029,7 +1029,7 @@ Phases 12 and 14 complete.
 
 ### 15.2 Robustness scorecard
 
-* [ ] Create `backend/app/agents/robustness/scorecard.py`.
+* [ ] Create `backend_retiring/app/agents/robustness/scorecard.py`.
 * [ ] Score profitability durability.
 * [ ] Score drawdown durability.
 * [ ] Score parameter stability.
@@ -1060,7 +1060,7 @@ Phase 12 complete; ideally Phase 15 complete.
 
 ### 16.1 Statistical Validation Agent
 
-* [ ] Create `backend/agents/statistical_validation/agent.py`.
+* [ ] Create `backend_retiring/agents/statistical_validation/agent.py`.
 * [ ] Check minimum sample size.
 * [ ] Run bootstrap confidence intervals.
 * [ ] Run permutation/randomization tests.
@@ -1102,7 +1102,7 @@ TradingAgents includes risk-management agents that monitor exposure and ensure t
 
 ### 17.1 RiskGovernor core
 
-* [ ] Create `backend/risk/governor.py`.
+* [ ] Create `backend_retiring/risk/governor.py`.
 * [ ] Load `configs/risk_thresholds.yaml`.
 * [ ] Validate risk config hash.
 * [ ] Calculate proposed trade risk.
@@ -1166,7 +1166,7 @@ Phase 17 complete.
 
 ### 18.1 Risk Reviewer Agent
 
-* [ ] Create `backend/agents/risk_reviewer/agent.py`.
+* [ ] Create `backend_retiring/agents/risk_reviewer/agent.py`.
 * [ ] Read strategy evidence.
 * [ ] Read backtest result.
 * [ ] Read robustness result.
@@ -1210,7 +1210,7 @@ Phases 12, 15, 17, and 18 complete.
 
 ### 19.1 Paper broker
 
-* [ ] Create `backend/execution/paper_broker.py`.
+* [ ] Create `backend_retiring/execution/paper_broker.py`.
 * [ ] Simulate market orders.
 * [ ] Simulate limit orders.
 * [ ] Simulate stop orders.
@@ -1227,7 +1227,7 @@ Phases 12, 15, 17, and 18 complete.
 
 ### 19.2 Paper Execution Agent
 
-* [ ] Create `backend/agents/execution/paper_execution_agent.py`.
+* [ ] Create `backend_retiring/agents/execution/paper_execution_agent.py`.
 * [ ] Accept approved paper strategy.
 * [ ] Run signal checks.
 * [ ] Create trade proposal.
@@ -1267,7 +1267,7 @@ Phase 19 complete.
 
 ### 20.1 Daily report
 
-* [ ] Create `backend/agents/performance_reporter/daily_agent.py`.
+* [ ] Create `backend_retiring/agents/performance_reporter/daily_agent.py`.
 * [ ] Report daily P&L.
 * [ ] Report open exposure.
 * [ ] Report drawdown.
@@ -1280,7 +1280,7 @@ Phase 19 complete.
 
 ### 20.2 Weekly Board report
 
-* [ ] Create `backend/app/agents/performance_reporter/weekly_board_agent.py`.
+* [ ] Create `backend_retiring/app/agents/performance_reporter/weekly_board_agent.py`.
 * [ ] Summarize portfolio performance.
 * [ ] Summarize paper strategies.
 * [ ] Summarize live strategies.
@@ -1323,7 +1323,7 @@ TradingAgents uses a fund-manager approval workflow after analysts, researchers,
 
 ### 21.1 Portfolio Manager Agent
 
-* [ ] Create `backend/agents/portfolio_manager/agent.py`.
+* [ ] Create `backend_retiring/agents/portfolio_manager/agent.py`.
 * [ ] Read strategy lifecycle table.
 * [ ] Read live strategy performance.
 * [ ] Read paper strategy performance.
@@ -1445,7 +1445,7 @@ Phases 17, 19, and 22 complete.
 
 ### 23.1 MT5 bridge
 
-* [ ] Create or finalize `backend/execution/mt5_bridge.py`.
+* [ ] Create or finalize `backend_retiring/execution/mt5_bridge.py`.
 * [ ] Add `get_account_info`.
 * [ ] Add `get_symbol_info`.
 * [ ] Add `get_latest_tick`.
@@ -1461,7 +1461,7 @@ Phases 17, 19, and 22 complete.
 
 ### 23.2 cTrader bridge
 
-* [ ] Create or finalize `backend/execution/ctrader_bridge.py`.
+* [ ] Create or finalize `backend_retiring/execution/ctrader_bridge.py`.
 * [ ] Match same interface as MT5 bridge.
 * [ ] Normalize symbol metadata.
 * [ ] Normalize pip/tick values.
@@ -1470,7 +1470,7 @@ Phases 17, 19, and 22 complete.
 
 ### 23.3 Order router
 
-* [ ] Create `backend/execution/order_router.py`.
+* [ ] Create `backend_retiring/execution/order_router.py`.
 * [ ] Require RiskGovernor approval token.
 * [ ] Require live mode enabled.
 * [ ] Require strategy live status.
@@ -1502,7 +1502,7 @@ Phase 23 complete.
 
 ### 24.1 Kill Switch Service
 
-* [ ] Create `backend/risk/kill_switch.py`.
+* [ ] Create `backend_retiring/risk/kill_switch.py`.
 * [ ] Monitor daily loss.
 * [ ] Monitor weekly loss.
 * [ ] Monitor account drawdown.
@@ -1519,7 +1519,7 @@ Phase 23 complete.
 
 ### 24.2 Incident Agent
 
-* [ ] Create `backend/agents/audit/incident_agent.py`.
+* [ ] Create `backend_retiring/agents/audit/incident_agent.py`.
 * [ ] Summarize incident.
 * [ ] Identify trigger.
 * [ ] Identify affected strategies.
@@ -1605,7 +1605,7 @@ Phase 25 complete.
 
 ### 26.1 Execution Agent
 
-* [ ] Create `backend/agents/execution/live_execution_agent.py`.
+* [ ] Create `backend_retiring/agents/execution/live_execution_agent.py`.
 * [ ] Read approved live strategies.
 * [ ] Listen for strategy signals.
 * [ ] Create trade proposals.
@@ -1651,7 +1651,7 @@ Phases 4, 5, 17, 23, and 26 complete.
 
 ### 27.1 Audit Agent
 
-* [ ] Create `backend/agents/audit/agent.py`.
+* [ ] Create `backend_retiring/agents/audit/agent.py`.
 * [ ] Check every live order has RiskGovernor approval.
 * [ ] Check every approval token matches the executed order.
 * [ ] Check no agent changed risk thresholds.
@@ -1745,7 +1745,7 @@ TradingAgents uses analyst reports, bullish and bearish researchers, trader synt
 
 ### 29.1 Add Bull Researcher
 
-* [ ] Create `backend/agents/research/bull_researcher_agent.py`.
+* [ ] Create `backend_retiring/agents/research/bull_researcher_agent.py`.
 * [ ] Argue why a strategy/trade should proceed.
 * [ ] Use only evidence refs.
 * [ ] Identify upside.
@@ -1754,7 +1754,7 @@ TradingAgents uses analyst reports, bullish and bearish researchers, trader synt
 
 ### 29.2 Add Bear Researcher
 
-* [ ] Create `backend/agents/research/bear_researcher_agent.py`.
+* [ ] Create `backend_retiring/agents/research/bear_researcher_agent.py`.
 * [ ] Argue why a strategy/trade should be rejected.
 * [ ] Use only evidence refs.
 * [ ] Identify downside.
@@ -1764,7 +1764,7 @@ TradingAgents uses analyst reports, bullish and bearish researchers, trader synt
 
 ### 29.3 Add Synthesis Trader Agent
 
-* [ ] Create `backend/app/agents/execution/synthesis_trader_agent.py`.
+* [ ] Create `backend_retiring/app/agents/execution/synthesis_trader_agent.py`.
 * [ ] Read analyst reports.
 * [ ] Read bull memo.
 * [ ] Read bear memo.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from backend.contracts.common import Originator
-from backend.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
 from haruquant.execution import classify_alert
 
 

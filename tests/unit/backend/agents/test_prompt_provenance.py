@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunResult,
     PromptRegistryRecord,
     PromptStatus,

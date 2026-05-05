@@ -7,14 +7,14 @@ from dataclasses import replace
 
 import pytest
 
-from backend.agents.prompts import PromptComposer, PromptContext
-from backend.agents.runtime.prompt_composer_middleware import PromptComposingMiddleware
-from backend.agents.runtime.runner import (
+from backend_retiring.agents.prompts import PromptComposer, PromptContext
+from backend_retiring.agents.runtime.prompt_composer_middleware import PromptComposingMiddleware
+from backend_retiring.agents.runtime.runner import (
     ADKRunRequest,
     AgentExecutionContext,
     AgentExecutionResult,
 )
-from backend.orchestration.context_engineering.budget import ContextBudget
+from backend_retiring.orchestration.context_engineering.budget import ContextBudget
 
 
 # ──────────────────────────────────────────────────────────────

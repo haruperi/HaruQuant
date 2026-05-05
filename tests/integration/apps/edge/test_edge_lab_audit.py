@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from backend.api.routes.edge import _run_edge_lab_symbol_profile_sync
+from backend_retiring.api.routes.edge import _run_edge_lab_symbol_profile_sync
 
 
 def _full_run(symbol: str):

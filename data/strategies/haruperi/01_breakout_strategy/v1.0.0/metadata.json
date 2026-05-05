@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 2,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T17:55:33.296686",
+  "name": "01 Breakout Strategy",
+  "description": "Tests if the instrument has an edge in breakout strategies.\nBuys when price breaks above previous day's high, shorts when price breaks below previous day's low.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

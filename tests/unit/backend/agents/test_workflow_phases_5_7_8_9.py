@@ -13,12 +13,12 @@ import pytest
 # Phase 5: Dynamic Orchestrator Tests
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.runtime.dynamic_orchestrator import (
+from backend_retiring.agents.runtime.dynamic_orchestrator import (
     DynamicOrchestratorResult,
     DynamicOrchestratorWorkerRunner,
     OrchestratorPlan,
 )
-from backend.agents.runtime.runner import (
+from backend_retiring.agents.runtime.runner import (
     ADKRunRequest,
     ADKRunResult,
     ADKRunnerConfig,
@@ -184,7 +184,7 @@ def test_dynamic_orchestrator_handles_worker_failure() -> None:
 # Phase 7: Workflow Definition Tests
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.runtime.workflow_definition import (
+from backend_retiring.agents.runtime.workflow_definition import (
     WorkflowDefinition,
     WorkflowDefinitionParser,
     WorkflowPattern,
@@ -307,7 +307,7 @@ def test_registry_loads_and_caches() -> None:
 # Phase 8: Workflow State Persistence Tests
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.runtime.workflow_state import (
+from backend_retiring.agents.runtime.workflow_state import (
     WorkflowCheckpoint,
     WorkflowStateManager,
 )
@@ -426,7 +426,7 @@ def test_state_manager_execution_history() -> None:
 # Phase 9: Circuit Breaker Tests
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.runtime.circuit_breaker import (
+from backend_retiring.agents.runtime.circuit_breaker import (
     AgentCircuitBreaker,
     CircuitBreakerState,
     CircuitOpenError,

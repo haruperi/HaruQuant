@@ -1,0 +1,17 @@
+{
+  "user_id": 1,
+  "strategy_id": 5,
+  "version": "1.0.2",
+  "parameters": {},
+  "saved_at": "2026-04-15T03:13:19.390224",
+  "name": "05 RSI Mean Reversion",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

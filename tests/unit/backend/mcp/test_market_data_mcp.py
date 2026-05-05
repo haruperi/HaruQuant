@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pandas as pd
 import pytest
 
-from backend.mcp.market_data_mcp import (
+from backend_retiring.mcp.market_data_mcp import (
     DukascopyMarketDataTools,
     create_market_data_mcp_server,
 )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.data.database import ReplayBundleRecord
+from data.database import ReplayBundleRecord
 from haruquant.strategy import build_audit_export_package
 
 

@@ -1236,13 +1236,13 @@ docs/agentic_firm/strategy_lifecycle.md
 configs/risk_thresholds.yaml
 configs/live_trading.yaml
 configs/agent_permissions.yaml
-backend/app/risk/governor.py
-backend/app/risk/kill_switch.py
-backend/app/agents/orchestrator.py
-backend/app/agents/planner/agent.py
-backend/app/agents/ceo/agent.py
-backend/app/tools/registry.py
-backend/app/audit/audit_logger.py
+backend_retiring/app/risk/governor.py
+backend_retiring/app/risk/kill_switch.py
+backend_retiring/app/agents/orchestrator.py
+backend_retiring/app/agents/planner/agent.py
+backend_retiring/app/agents/ceo/agent.py
+backend_retiring/app/tools/registry.py
+backend_retiring/app/audit/audit_logger.py
 ```
 
 ---

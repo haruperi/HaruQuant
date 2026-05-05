@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backend.data.database import apply_pending_migrations
+from data.database import apply_pending_migrations
 
 
 def test_apply_pending_migrations_is_idempotent(tmp_path) -> None:

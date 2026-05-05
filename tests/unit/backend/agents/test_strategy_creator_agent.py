@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.strategy_creator_agent import StrategyCreatorAgent
+from data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.strategy_creator_agent import StrategyCreatorAgent
 from haruquant.strategy import StrategyCatalogService, StrategyStorage
 from haruquant.strategy import StrategyBlueprintMaterializationService
 
@@ -277,7 +277,7 @@ def test_strategy_creator_uses_llm_assist_inside_real_agent_for_fuzzy_rules(tmp_
 """
             }
 
-    with patch("backend.agents.strategy_creator_agent.create_llm_runtime", return_value=FakeRuntime()) as mock_runtime:
+    with patch("backend_retiring.agents.strategy_creator_agent.create_llm_runtime", return_value=FakeRuntime()) as mock_runtime:
         result = agent.create_from_idea(
             user_id=1,
             idea="Create a EURUSD H1 RSI(12) midline cross strategy, no stops or targets, fixed 0.1 lots.",

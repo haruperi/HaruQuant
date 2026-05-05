@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.orchestration.workflow.states import ProposalState
+from backend_retiring.orchestration.workflow.states import ProposalState
 from haruquant.strategy import ProposalStateTransitionService
 
 

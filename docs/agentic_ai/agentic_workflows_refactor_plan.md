@@ -79,12 +79,12 @@ Remaining follow-up outside this workflow refactor:
 The codebase has strong foundations:
 
 - agent catalog and workflow catalog in `docs/haruquant/agents/Catalog.md` and `docs/haruquant/workflows/Catalog.md`
-- workflow pattern runner scaffolds in `backend/agents/runtime/workflows.py`
-- runtime enforcement in `backend/agents/runtime/runner.py`
-- canonical output validation in `backend/agents/runtime/output_validation.py`
-- explicit workflow FSMs in `backend/orchestration/workflow`
-- MCP retry, circuit-breaker, and rate-limit wrappers in `backend/mcp/wrappers`
-- trajectory log models in `backend/agents/runtime/observability.py`
+- workflow pattern runner scaffolds in `backend_retiring/agents/runtime/workflows.py`
+- runtime enforcement in `backend_retiring/agents/runtime/runner.py`
+- canonical output validation in `backend_retiring/agents/runtime/output_validation.py`
+- explicit workflow FSMs in `backend_retiring/orchestration/workflow`
+- MCP retry, circuit-breaker, and rate-limit wrappers in `backend_retiring/mcp/wrappers`
+- trajectory log models in `backend_retiring/agents/runtime/observability.py`
 
 The main gap is that these pieces are not yet integrated into a full executable workflow engine. Several patterns exist as testable scaffolds but are not production-grade orchestration paths.
 
@@ -92,26 +92,26 @@ The main gap is that these pieces are not yet integrated into a full executable 
 
 ### 1. Fix Migration Path Drift
 
-Replace stale `backend/db/migrations` references with the real migration location:
+Replace stale `backend_retiring/db/migrations` references with the real migration location:
 
 ```text
-backend/data/database/migrations
+data/database/migrations
 ```
 
 Primary targets:
 
-- `backend/api/dependencies.py`
+- `backend_retiring/api/dependencies.py`
 - tests under `tests/unit`
 - tests under `tests/integration`
 - tests under `tests/scenario`
 - tests under `tests/chaos`
 - tests under `tests/replay`
-- stale documentation references in `backend/README.md`
+- stale documentation references in `backend_retiring/README.md`
 
 Add a shared helper such as:
 
 ```python
-backend.data.database.default_migrations_dir()
+data.database.default_migrations_dir()
 ```
 
 Acceptance criteria:
@@ -122,7 +122,7 @@ Acceptance criteria:
 
 ### 2. Tighten `WorkflowPlan`
 
-Replace loose workflow plan fields in `backend/contracts/workflow_plan/model.py`.
+Replace loose workflow plan fields in `backend_retiring/contracts/workflow_plan/model.py`.
 
 Current weak points:
 
@@ -162,7 +162,7 @@ Acceptance criteria:
 
 ### 3. Fix Misleading Parallel Workflow Behavior
 
-`ParallelWorkflowRunner` in `backend/agents/runtime/workflows.py` currently loops sequentially.
+`ParallelWorkflowRunner` in `backend_retiring/agents/runtime/workflows.py` currently loops sequentially.
 
 Preferred fix:
 
@@ -188,7 +188,7 @@ Acceptance criteria:
 Create:
 
 ```text
-backend/orchestration/workflow/executor.py
+backend_retiring/orchestration/workflow/executor.py
 ```
 
 Responsibilities:
@@ -209,7 +209,7 @@ Existing components to integrate:
 - `WorkflowStepRecorder`
 - `ADKRunnerService`
 - `RuntimeTrajectoryLogService`
-- workflow pattern runners from `backend/agents/runtime/workflows.py`
+- workflow pattern runners from `backend_retiring/agents/runtime/workflows.py`
 
 Acceptance criteria:
 
@@ -223,7 +223,7 @@ Acceptance criteria:
 Create:
 
 ```text
-backend/agents/runtime/pattern_registry.py
+backend_retiring/agents/runtime/pattern_registry.py
 ```
 
 Responsibilities:
@@ -260,9 +260,9 @@ Acceptance criteria:
 
 Current routing is split across:
 
-- `backend/api/router.py`
-- `backend/agents/intent_router.py`
-- `RoutingWorkflowRunner` in `backend/agents/runtime/workflows.py`
+- `backend_retiring/api/router.py`
+- `backend_retiring/agents/intent_router.py`
+- `RoutingWorkflowRunner` in `backend_retiring/agents/runtime/workflows.py`
 
 Create a shared route decision abstraction with:
 
@@ -331,8 +331,8 @@ Acceptance criteria:
 
 Use:
 
-- `backend/observability/trace_model.py`
-- `backend/observability/span_model.py`
+- `backend_retiring/observability/trace_model.py`
+- `backend_retiring/observability/span_model.py`
 
 Runtime hierarchy:
 
@@ -490,10 +490,10 @@ Map MCP wrapper failures into workflow states:
 
 Relevant modules:
 
-- `backend/mcp/wrappers/base_wrapper.py`
-- `backend/mcp/wrappers/retry_policy.py`
-- `backend/mcp/wrappers/circuit_breaker.py`
-- `backend/mcp/wrappers/rate_limiter.py`
+- `backend_retiring/mcp/wrappers/base_wrapper.py`
+- `backend_retiring/mcp/wrappers/retry_policy.py`
+- `backend_retiring/mcp/wrappers/circuit_breaker.py`
+- `backend_retiring/mcp/wrappers/rate_limiter.py`
 
 Acceptance criteria:
 
@@ -578,7 +578,7 @@ Acceptance criteria:
 | `WorkflowPlan` is too loosely typed | High | Medium | High | Replace `dict[str, Any]` phase steps with typed step models and pattern enum |
 | Orchestrator-worker lacks plan execution and synthesis | High | High | High | Convert orchestrator `WorkflowPlan` into executable worker graph and synthesize outputs |
 | Observability is manual, not automatic | High | Medium | High | Emit step records, transitions, spans, and trajectory logs inside runners |
-| Migration path mismatch breaks workflow persistence tests | High | Low | High | Standardize on `backend/data/database/migrations` everywhere |
+| Migration path mismatch breaks workflow persistence tests | High | Low | High | Standardize on `data/database/migrations` everywhere |
 | Routing is prefix-based and low-context | Medium | Medium | Medium | Add typed `RouteDecision` with confidence, matched rules, and fallback policy |
 | Evaluator outputs are not persisted by default | Medium | Medium | Medium | Store each critique/refinement iteration as `EvaluationReport` and trajectory log |
 | Failure handling is inconsistent across pattern runners | Medium | Medium | High | Add per-step and per-pattern `FailurePolicy` |

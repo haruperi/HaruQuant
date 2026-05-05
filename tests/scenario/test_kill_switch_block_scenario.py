@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.orchestration.workflow import KillSwitchState
+from backend_retiring.orchestration.workflow import KillSwitchState
 from haruquant.risk import evaluate_new_entry_block
 
 

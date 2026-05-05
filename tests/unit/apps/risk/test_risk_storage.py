@@ -14,7 +14,7 @@ from haruquant.risk import (
 from haruquant.risk import ReplayFrame, build_cockpit_state
 from haruquant.risk import RiskRepository, RiskScenarioStore, RiskSnapshotStore
 from haruquant.risk import ScenarioResult
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 
 
 def _bars(periods: int = 160, start: str = "2024-01-01", scale: float = 1.0) -> pd.DataFrame:

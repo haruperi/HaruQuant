@@ -18,11 +18,11 @@ from services.execution.live.mt5_compat import (
 )
 
 if TYPE_CHECKING:
-    from backend.mcp.mt5_mcp.client import MT5Client
+    from services.data.mt5 import MT5Client
 
 
 def _mt5():
-    from backend.mcp.mt5_mcp import get_mt5_api
+    from services.data.mt5 import get_mt5_api
 
     return get_mt5_api()
 

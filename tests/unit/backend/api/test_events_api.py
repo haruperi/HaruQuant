@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from haruquant.utils import load_runtime_settings_from_mapping
-from backend.api import build_operator_api_dependencies, create_app
+from backend_retiring.api import build_operator_api_dependencies, create_app
 
 
 def test_operator_events_stream_returns_sse_payload(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.agents.runtime.workflow_definition import WorkflowRegistry
+from backend_retiring.agents.runtime.workflow_definition import WorkflowRegistry
 
 
 def test_ai_trading_project_workflows_parse() -> None:

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import re
 from typing import Any
 
-from backend.contracts.strategy_blueprint.model import StrategyBlueprint
+from backend_retiring.contracts.strategy_blueprint.model import StrategyBlueprint
 
 from .blueprint_defaults import DEFAULT_TIMEFRAME, default_assets, infer_strategy_type, slugify, title_case_idea
 

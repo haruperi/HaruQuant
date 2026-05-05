@@ -20,19 +20,19 @@ from dataclasses import replace
 
 import pytest
 
-from backend.agents.prompts import PromptComposer, PromptContext, assemble_agent_prompt
-from backend.agents.runtime import (
+from backend_retiring.agents.prompts import PromptComposer, PromptContext, assemble_agent_prompt
+from backend_retiring.agents.runtime import (
     ADKRunRequest,
     ADKRunnerConfig,
     ADKRunnerService,
     AgentExecutionContext,
     AgentExecutionResult,
 )
-from backend.agents.runtime.output_validation import (
+from backend_retiring.agents.runtime.output_validation import (
     CanonicalOutputValidator,
     ContractValidationError,
 )
-from backend.agents.runtime.workflows import (
+from backend_retiring.agents.runtime.workflows import (
     SequentialWorkflowRunner,
     SequentialWorkflowStep,
 )
@@ -41,19 +41,19 @@ from backend.agents.runtime.workflows import (
 # Import all 13 agent instructions
 # ──────────────────────────────────────────────────────────────
 
-from backend.agents.orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION
-from backend.agents.strategy_agent import STRATEGY_AGENT_INSTRUCTION
-from backend.agents.execution_agent import EXECUTION_AGENT_INSTRUCTION
-from backend.agents.portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION
-from backend.agents.compliance_agent import COMPLIANCE_AGENT_INSTRUCTION
-from backend.agents.research_agent import RESEARCH_AGENT_INSTRUCTION
-from backend.agents.monitoring_agent import MONITORING_AGENT_INSTRUCTION
-from backend.agents.volatility_agent import VOLATILITY_AGENT_INSTRUCTION
-from backend.agents.regime_agent import REGIME_AGENT_INSTRUCTION
-from backend.agents.drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION
-from backend.agents.exposure_agent import EXPOSURE_AGENT_INSTRUCTION
-from backend.agents.correlation_agent import CORRELATION_AGENT_INSTRUCTION
-from backend.agents.slippage_agent import SLIPPAGE_AGENT_INSTRUCTION
+from backend_retiring.agents.orchestrator_agent import ORCHESTRATOR_AGENT_INSTRUCTION
+from backend_retiring.agents.strategy_agent import STRATEGY_AGENT_INSTRUCTION
+from backend_retiring.agents.execution_agent import EXECUTION_AGENT_INSTRUCTION
+from backend_retiring.agents.portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION
+from backend_retiring.agents.compliance_agent import COMPLIANCE_AGENT_INSTRUCTION
+from backend_retiring.agents.research_agent import RESEARCH_AGENT_INSTRUCTION
+from backend_retiring.agents.monitoring_agent import MONITORING_AGENT_INSTRUCTION
+from backend_retiring.agents.volatility_agent import VOLATILITY_AGENT_INSTRUCTION
+from backend_retiring.agents.regime_agent import REGIME_AGENT_INSTRUCTION
+from backend_retiring.agents.drawdown_agent import DRAWDOWN_AGENT_INSTRUCTION
+from backend_retiring.agents.exposure_agent import EXPOSURE_AGENT_INSTRUCTION
+from backend_retiring.agents.correlation_agent import CORRELATION_AGENT_INSTRUCTION
+from backend_retiring.agents.slippage_agent import SLIPPAGE_AGENT_INSTRUCTION
 
 
 # ──────────────────────────────────────────────────────────────

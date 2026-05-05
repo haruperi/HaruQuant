@@ -7,15 +7,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from services.utils.ids import generate_id, generate_prefixed_id
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import (
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend.contracts.serialization import canonical_json_dumps
-from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.data.database import (
+from backend_retiring.contracts.serialization import canonical_json_dumps
+from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from data.database import (
     AiChatRepository,
     ExecutionRepository,
     GovernanceRepository,
@@ -23,7 +23,7 @@ from backend.data.database import (
     RiskRepository,
     WorkflowRepository,
 )
-from backend.agents.chat.ai_chat import ActionDraftRecord, ConversationService
+from backend_retiring.agents.chat.ai_chat import ActionDraftRecord, ConversationService
 from services.execution import (
     ExecutionAttemptPersistenceService,
     ExecutionReceiptService,
@@ -37,7 +37,7 @@ from services.execution import (
 )
 from services.execution.pre_send import PreSendValidationRequest
 from services.risk.safety.kill_switch import evaluate_new_entry_block
-from backend.orchestration.workflow.states import KillSwitchState
+from backend_retiring.orchestration.workflow.states import KillSwitchState
 
 
 UTC = timezone.utc

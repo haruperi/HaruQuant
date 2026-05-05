@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from haruquant.utils import REDACTED
-from backend.agents import ContextRedactionMiddleware
+from backend_retiring.agents import ContextRedactionMiddleware
 
 
 def test_context_redaction_middleware_redacts_secrets_recursively() -> None:

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents.agent_registry import AgentRegistry
-from backend.agents.orchestrator import AgentControlPlaneOrchestrator
-from backend.agents.task_manager import AgentTaskManager, AgentTaskTransitionError
-from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.data.database.repositories.agentic_firm_repository import AgenticFirmRepository
+from backend_retiring.agents.agent_registry import AgentRegistry
+from backend_retiring.agents.orchestrator import AgentControlPlaneOrchestrator
+from backend_retiring.agents.task_manager import AgentTaskManager, AgentTaskTransitionError
+from data.database import apply_pending_migrations, default_migrations_dir
+from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 
 
 def test_agent_registry_registers_phase6_departments() -> None:

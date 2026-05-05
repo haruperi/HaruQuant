@@ -1,0 +1,17 @@
+{
+  "user_id": 1,
+  "strategy_id": 8,
+  "version": "1.0.4",
+  "parameters": {},
+  "saved_at": "2026-04-15T03:13:43.619242",
+  "name": "08 Close Breakout",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

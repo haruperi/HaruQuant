@@ -9,7 +9,7 @@ from haruquant.research import MarketStructureConfig
 from haruquant.utils import prepare_ohlcvs_dataset
 from haruquant.research import _detect_swings
 from haruquant.research import _weighted_group_score
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 
 
 class DummySource:

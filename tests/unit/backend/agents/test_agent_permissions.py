@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents.permissions import (
+from backend_retiring.agents.permissions import (
     AgentToolPermissionError,
     AgentToolPermissionService,
 )
-from backend.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
+from backend_retiring.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
 
 
 def test_agent_permission_allows_registered_read_only_tool() -> None:

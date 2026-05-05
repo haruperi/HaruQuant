@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from services.utils import ErrorDescriptor, ValidationError
-from backend.data.database import GovernanceRepository, StrategyRecord
+from data.database import GovernanceRepository, StrategyRecord
 
 from .models import StrategyLifecycleState
 

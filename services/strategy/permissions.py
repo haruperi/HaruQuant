@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from backend.data.database import GovernanceRepository
-from backend.data.database.sqlite.database_operations import DatabaseManager
+from data.database import GovernanceRepository
+from data.database.sqlite.database_operations import DatabaseManager
 
 from .catalog import governance_strategy_id
 

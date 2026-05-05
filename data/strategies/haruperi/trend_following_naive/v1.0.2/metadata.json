@@ -1,0 +1,21 @@
+{
+  "user_id": 1,
+  "strategy_id": 12,
+  "version": "1.0.2",
+  "parameters": {
+    "fast_period": 20,
+    "slow_period": 50,
+    "filter_period": 200
+  },
+  "saved_at": "2026-04-15T03:14:26.342014",
+  "name": "Trend Following Naive",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null,
+  "changelog": "Migrated legacy apps imports to services paths"
+}

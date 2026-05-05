@@ -1,0 +1,18 @@
+{
+  "user_id": 1,
+  "strategy_id": 1,
+  "version": "1.0.3",
+  "parameters": {},
+  "saved_at": "2026-01-12T18:17:54.408894",
+  "name": "01 Breakout Strategy",
+  "description": "Tests if the instrument has an edge in breakout strategies.\nBuys when price breaks above previous day's high, shorts when price breaks below previous day's low.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents.intent_router import IntentRouterAgent, IntentRouterError
-from backend.agents.route_decision import RouteDecisionService
-from backend.api.router import Intent, IntentClassifier, RoutingMetadata
+from backend_retiring.agents.intent_router import IntentRouterAgent, IntentRouterError
+from backend_retiring.agents.route_decision import RouteDecisionService
+from backend_retiring.api.router import Intent, IntentClassifier, RoutingMetadata
 
 
 class TestIntentClassifier:

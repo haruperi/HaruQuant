@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "StrategyBlueprint",
+  "workflow_id": "wf_strategy_creation",
+  "correlation_id": "corr_strategy_creation",
+  "causation_id": "evt_strategy_creation",
+  "timestamp_utc": "2026-05-04T15:29:20.010582Z",
+  "originator": {
+    "type": "agent",
+    "id": "strategy_creator_agent"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "strategy_id": "assets-eurusd-timeframe-h1-entry-logic-strategy",
+    "strategy_name": "Assets Eurusd Timeframe H1 Entry Logic Strategy",
+    "source_idea": "- Assets: EURUSD\n- Timeframe: H1\nEntry logic:\n- Enter LONG when previous-bar RSI is below 30 and price confirms mean-reversion setup.\n- Enter SHORT when previous-bar RSI is above 70 and short trades are enabled.\nExit logic:\n- Exit LONG when RSI normalizes above 50, mean reversion completes, or risk rules trigger.\n- Exit SHORT when RSI normalizes below 50, mean reversion completes, or risk rules trigger.\nRisk management:\n- {'stop_loss': '50 pips', 'take_profit': '100 pips', 'ignore_stop_loss_take_profit': False, 'additional_rules': []}\nPosition sizing:\n- {'sizing_rule': 'Use full capital per trade.', 'leverage': 1.0, 'allocation_notes': 'Single-asset default applied.'}",
+    "strategy_type": "allocation",
+    "asset_scope": {
+      "assets": [
+        "EURUSD"
+      ],
+      "timeframe": "H1",
+      "data_granularity": "H1",
+      "asset_notes": "Portfolio default universe applied."
+    },
+    "entry_logic": [
+      "Enter LONG when previous-bar RSI is below 30 and price confirms mean-reversion setup.",
+      "Enter SHORT when previous-bar RSI is above 70 and short trades are enabled."
+    ],
+    "exit_logic": [
+      "Exit LONG when RSI normalizes above 50, mean reversion completes, or risk rules trigger.",
+      "Exit SHORT when RSI normalizes below 50, mean reversion completes, or risk rules trigger."
+    ],
+    "risk_management": {
+      "stop_loss": "7% portfolio-level drawdown stop or per-asset 7% stop-loss.",
+      "take_profit": "10% per-asset take-profit or rebalance-driven profit capture.",
+      "ignore_stop_loss_take_profit": false,
+      "additional_rules": []
+    },
+    "position_sizing": {
+      "sizing_rule": "Allocate capital equally across selected assets.",
+      "leverage": 1.0,
+      "allocation_notes": "Portfolio equal-weight default applied."
+    },
+    "model_spec": null,
+    "portfolio_construction": {
+      "method": "EqualWeight",
+      "rebalance_frequency": "Weekly",
+      "objective": "Risk-balanced diversified allocation"
+    },
+    "assumptions_applied": [
+      "Portfolio position sizing defaulted to equal weight.",
+      "Portfolio construction defaults applied."
+    ],
+    "assumption_defaults_used": [
+      "strategy_id=slugified_strategy_name",
+      "risk_default=7pct_stop_loss",
+      "risk_default=10pct_take_profit",
+      "position_sizing=equal_weight",
+      "portfolio_method=equalweight"
+    ],
+    "backtest_readiness": "ready",
+    "render_target": "template_strategy"
+  },
+  "tenant_id": null,
+  "account_scope_id": null,
+  "strategy_scope_id": null,
+  "compliance_profile_id": null,
+  "content_hash": null,
+  "signature": null,
+  "trace_id": null,
+  "replay_bundle_hint": null
+}

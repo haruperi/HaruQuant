@@ -2,27 +2,27 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunnerConfig,
     ADKRunnerService,
     AgentExecutionResult,
     RuntimeTrajectoryLogService,
 )
-from backend.contracts.common import Originator
-from backend.contracts.workflow_plan.model import (
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.workflow_plan.model import (
     WorkflowPattern,
     WorkflowPhaseStep,
     WorkflowPlan,
     WorkflowPlanPayload,
 )
-from backend.data.database import (
+from data.database import (
     ResearchAuditRepository,
     WorkflowRepository,
     apply_pending_migrations,
     default_migrations_dir,
 )
-from backend.read_models.operator_dashboard import build_workflow_trajectory_read_model
-from backend.orchestration.workflow import (
+from backend_retiring.read_models.operator_dashboard import build_workflow_trajectory_read_model
+from backend_retiring.orchestration.workflow import (
     WorkflowPlanExecutor,
     WorkflowStepRecorder,
     WorkflowTransitionLogger,

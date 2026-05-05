@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.contracts.execution_intent.model import ExecutionIntent
+from backend_retiring.contracts.execution_intent.model import ExecutionIntent
 from services.execution import BrokerSendResult, ExecutionSendService
 
 

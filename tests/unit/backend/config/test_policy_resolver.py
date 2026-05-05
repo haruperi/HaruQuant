@@ -1,4 +1,4 @@
-"""Tests for backend/config/policies PolicyResolver."""
+"""Tests for backend_retiring/config/policies PolicyResolver."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.config.policies import (
+from backend_retiring.config.policies import (
     EnforcementLayer,
     FailureBehavior,
     LoggingRequirement,

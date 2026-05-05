@@ -9,9 +9,9 @@ This note records local technical acceptance of the Phase 6 shadow-mode path for
 - `services/execution/shadow/execution.py`
 - `services/execution/shadow/feeds.py`
 - `services/execution/shadow/reporting.py`
-- `tests/unit/backend/services/test_shadow_execution.py`
-- `tests/unit/backend/services/test_shadow_feeds.py`
-- `tests/unit/backend/services/test_shadow_reporting.py`
+- `tests/unit/services/test_shadow_execution.py`
+- `tests/unit/services/test_shadow_feeds.py`
+- `tests/unit/services/test_shadow_reporting.py`
 
 ## Acceptance Findings
 
@@ -37,7 +37,7 @@ This sample remains within a conservative single-digit-bps comparison envelope a
 
 ## Verification
 
-- `python -m pytest tests/unit/backend/services/test_shadow_execution.py tests/unit/backend/services/test_shadow_feeds.py tests/unit/backend/services/test_shadow_reporting.py --no-cov -q`
+- `python -m pytest tests/unit/services/test_shadow_execution.py tests/unit/services/test_shadow_feeds.py tests/unit/services/test_shadow_reporting.py --no-cov -q`
 - Result: `4 passed`
 
 ## Acceptance Decision

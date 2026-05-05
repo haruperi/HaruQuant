@@ -4,13 +4,15 @@ import pandas as pd
 import threading
 import time
 from datetime import datetime
+from importlib import import_module
 from unittest.mock import MagicMock, patch, PropertyMock
-from backend.mcp.mt5_mcp.client import MT5Api, MT5Client, ConnectionState, get_mt5_api
-import backend.mcp.mt5_mcp.client as client_mod
+from haruquant.data import MT5Api, MT5Client, ConnectionState, get_mt5_api
+
+client_mod = import_module("services.data.mt5")
 
 @pytest.fixture
 def mock_mt5():
-    with patch('backend.mcp.mt5_mcp.client.mt5') as m:
+    with patch('services.data.mt5.mt5') as m:
         yield m
 
 class TestMT5Api:
@@ -396,7 +398,7 @@ class TestMT5Client:
             return [{'time': 2, 'ask': 1.2, 'bid': 1.15}]
 
         with patch.object(client, 'get_ticks', side_effect=get_ticks_side_effect):
-            with patch('backend.mcp.mt5_mcp.client.time.sleep'):
+            with patch('services.data.mt5.time.sleep'):
                 client._stream_worker("EURUSD", "ticks", callback, 0.1, None)
         
         # Should be called 2 times (1st and 3rd call)
@@ -420,7 +422,7 @@ class TestMT5Client:
             return pd.DataFrame([{'open': 1.2}], index=[datetime(2020, 1, 1, 0, 3)])
 
         with patch.object(client, 'get_bars', side_effect=get_bars_side_effect):
-            with patch('backend.mcp.mt5_mcp.client.time.sleep'):
+            with patch('services.data.mt5.time.sleep'):
                 client._stream_worker("EURUSD", "bars", callback, 1.0, "M1")
         
         assert callback.call_count == 2
@@ -434,7 +436,7 @@ class TestMT5Client:
             return pd.DataFrame()
 
         with patch.object(client, 'get_bars', side_effect=side_effect):
-            with patch('backend.mcp.mt5_mcp.client.time.sleep'):
+            with patch('services.data.mt5.time.sleep'):
                 client._stream_worker("EURUSD", "bars", MagicMock(), 1.0, "M1")
 
     def test_stop_streaming_with_thread(self, mock_mt5):
@@ -471,7 +473,7 @@ class TestMT5Client:
             return []
 
         with patch.object(client, 'get_ticks', side_effect=get_ticks_side_effect):
-            with patch('backend.mcp.mt5_mcp.client.time.sleep'):
+            with patch('services.data.mt5.time.sleep'):
                 client._stream_worker("EURUSD", "ticks", lambda x: None, 0.1, None)
         
         assert client._active_streams[stream_id] is False
@@ -488,7 +490,7 @@ class TestMT5Client:
             if count >= 1: # On first sleep
                 client._active_streams[stream_id] = False
 
-        with patch('backend.mcp.mt5_mcp.client.time.sleep', side_effect=sleep_side_effect):
+        with patch('services.data.mt5.time.sleep', side_effect=sleep_side_effect):
             client._stream_worker("EURUSD", "unknown", lambda x: None, 0.1, None)
         
         assert client._active_streams[stream_id] is False
@@ -507,7 +509,7 @@ class TestMT5Client:
             return None
 
         with patch.object(client, 'get_ticks', side_effect=get_ticks_side_effect):
-            with patch('backend.mcp.mt5_mcp.client.time.sleep'):
+            with patch('services.data.mt5.time.sleep'):
                 client._stream_worker("EURUSD", "ticks", lambda x: None, 0.1, None)
         
         assert client._active_streams[stream_id] is False
@@ -520,7 +522,7 @@ class TestMT5Client:
         def stop_loop(*args, **kwargs):
             client._active_streams[stream_id] = False
 
-        with patch('backend.mcp.mt5_mcp.client.time.sleep', side_effect=stop_loop):
+        with patch('services.data.mt5.time.sleep', side_effect=stop_loop):
             # timeframe=None should skip get_bars block
             client._stream_worker("EURUSD", "bars", lambda x: None, 0.1, None)
         

@@ -22,7 +22,7 @@ def _deep_merge(base, overrides):
     return base
 
 DEFAULT_SIM_CONFIG = {
-    "backend": "sim",
+    "backend_retiring": "sim",
     "engine_type": "vectorized",
     "account": {
         "initial_balance": 10000.0,
@@ -529,6 +529,7 @@ class Portfolio:
             
             # Create the sliced SimulationRunResult
             sliced_run_result = SimulationRunResult(
+                config=self._raw_result.config,
                 metadata=new_metadata,
                 prepared=self._raw_result.prepared,
                 result=new_run_result,
@@ -562,7 +563,7 @@ class Portfolio:
             _deep_merge(full_config, config)
             
         # Determine backend
-        backend = full_config.get("backend", "sim")
+        backend = full_config.get("backend_retiring", "sim")
             
         engine = Engine(backend=backend)
         if backend == "sim":
@@ -570,7 +571,7 @@ class Portfolio:
             
         # If user_id provided, ensure engine is connected with correct credentials
         if user_id is not None:
-            from backend.data.database.sqlite.database_operations import DatabaseManager
+            from data.database.sqlite.database_operations import DatabaseManager
             db = DatabaseManager()
             creds = db.get_mt5_credentials(user_id)
             if creds and engine.client:
@@ -749,6 +750,7 @@ class Strategy:
     """Wrapper for HaruQuant strategies to easily access signals."""
     
     def __init__(self, strategy_cls, params: Optional[Dict[str, Any]] = None):
+        self.strategy_cls = strategy_cls
         self.strategy_instance = strategy_cls(params or {})
         self.data: Optional[pd.DataFrame] = None
         self._last_run_config: Optional[Dict[str, Any]] = None
@@ -817,26 +819,34 @@ class Strategy:
         return self.data.get('pending_signal', pd.Series(0, index=self.data.index))
 
 # Import and expose specific strategies
-from backend.data.strategies.trend_following import TrendFollowingStrategy as _TrendFollowingStrategy
-from backend.data.strategies.breakout import BreakoutStrategy as _BreakoutStrategy
-from backend.data.strategies.mean_reversion import MeanReversionStrategy as _MeanReversionStrategy
-from backend.data.strategies.close_breakout import CloseBreakoutStrategy as _CloseBreakoutStrategy
+from data.strategies.trend_following import TrendFollowingStrategy as _TrendFollowingStrategy
+from data.strategies.breakout import BreakoutStrategy as _BreakoutStrategy
+from data.strategies.mean_reversion import MeanReversionStrategy as _MeanReversionStrategy
+from data.strategies.close_breakout import CloseBreakoutStrategy as _CloseBreakoutStrategy
 
 class TrendFollowingStrategy(Strategy):
+    _service_strategy_class = _TrendFollowingStrategy
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
-        super().__init__(_TrendFollowingStrategy, params)
+        super().__init__(self._service_strategy_class, params)
 
 class BreakoutStrategy(Strategy):
+    _service_strategy_class = _BreakoutStrategy
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
-        super().__init__(_BreakoutStrategy, params)
+        super().__init__(self._service_strategy_class, params)
 
 class MeanReversionStrategy(Strategy):
+    _service_strategy_class = _MeanReversionStrategy
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
-        super().__init__(_MeanReversionStrategy, params)
+        super().__init__(self._service_strategy_class, params)
 
 class CloseBreakoutStrategy(Strategy):
+    _service_strategy_class = _CloseBreakoutStrategy
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
-        super().__init__(_CloseBreakoutStrategy, params)
+        super().__init__(self._service_strategy_class, params)
 
 
 def __getattr__(name: str):

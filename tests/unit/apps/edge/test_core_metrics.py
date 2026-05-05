@@ -6,7 +6,7 @@ import pandas as pd
 
 from haruquant.research import build_core_metric_profile, build_default_registry
 from haruquant.utils import prepare_ohlcvs_dataset
-from backend.data.database.sqlite import SQLiteDatabase
+from data.database.sqlite import SQLiteDatabase
 
 
 class DummySource:

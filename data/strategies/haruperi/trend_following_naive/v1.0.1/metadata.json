@@ -1,0 +1,22 @@
+{
+  "user_id": 1,
+  "strategy_id": 12,
+  "version": "1.0.1",
+  "parameters": {
+    "fast_period": 20,
+    "slow_period": 50,
+    "filter_period": 200
+  },
+  "saved_at": "2026-01-12T19:05:56.160157",
+  "name": "Trend Following Naive",
+  "description": "EMA Crossover strategy.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}

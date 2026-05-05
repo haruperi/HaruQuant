@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "strategy_id": 11,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-01-12T19:03:02.361392",
+  "name": "11 Bollinger Bands Mean Reversion",
+  "description": "Mean reversion strategy using Bollinger Bands.\n    Sells when price reaches upper band, buys when price reaches lower band.",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "moneyManagement": null,
+  "variables": null
+}

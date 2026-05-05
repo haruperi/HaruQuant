@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 
-from backend.contracts.serialization import canonical_json_dumps
+from backend_retiring.contracts.serialization import canonical_json_dumps
 
 
 def sign_audit_evidence(

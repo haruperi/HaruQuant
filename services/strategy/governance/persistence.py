@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from services.utils import generate_id
-from backend.data.database import GovernanceRepository, StrategyPromotionRecord, StrategyRecord
+from data.database import GovernanceRepository, StrategyPromotionRecord, StrategyRecord
 
 from .models import StrategyLifecycleState
 

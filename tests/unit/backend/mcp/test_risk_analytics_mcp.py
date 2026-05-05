@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.mcp.risk_analytics_mcp import (
+from backend_retiring.mcp.risk_analytics_mcp import (
     RISK_ANALYTICS_TOOL_SPECS,
     RiskAnalyticsMCPServer,
     RiskAnalyticsTools,

@@ -29,8 +29,8 @@ const EMPTY_STRATEGY_CODE = `from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from backend.services.strategy import BaseStrategy
-from backend.services.strategy.base import SignalDict
+from services.strategy import BaseStrategy
+from services.strategy.base import SignalDict
 
 
 class MyStrategy(BaseStrategy):

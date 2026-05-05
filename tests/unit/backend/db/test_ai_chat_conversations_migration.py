@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from backend.data.database import apply_pending_migrations, default_migrations_dir
+from data.database import apply_pending_migrations, default_migrations_dir
 
 
 def test_ai_chat_conversation_tables_are_created(tmp_path) -> None:

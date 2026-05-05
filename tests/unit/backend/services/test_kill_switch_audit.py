@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.orchestration.workflow import KillSwitchState
+from data.database import apply_pending_migrations, default_migrations_dir
+from backend_retiring.orchestration.workflow import KillSwitchState
 from haruquant.risk import KillSwitchAuditService
 
 

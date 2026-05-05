@@ -13,7 +13,7 @@ Create and backtest a EURUSD H1 mean reversion strategy.
 Use this when you want to see the control-plane object flow without writing to the database.
 
 ```python
-from backend.agents.orchestrator import AgentControlPlaneOrchestrator
+from backend_retiring.agents.orchestrator import AgentControlPlaneOrchestrator
 
 orchestrator = AgentControlPlaneOrchestrator()
 
@@ -57,10 +57,10 @@ summary:
 Use this when the Phase 4 database migrations have been applied and you want the full persisted workflow/task/audit trace.
 
 ```python
-from backend.agents.orchestrator import AgentControlPlaneOrchestrator
-from backend.agents.task_manager import AgentTaskManager
-from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.data.database.repositories.agentic_firm_repository import AgenticFirmRepository
+from backend_retiring.agents.orchestrator import AgentControlPlaneOrchestrator
+from backend_retiring.agents.task_manager import AgentTaskManager
+from data.database import apply_pending_migrations, default_migrations_dir
+from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 
 database_path = "agentic_firm_example.db"
 apply_pending_migrations(database_path, default_migrations_dir())

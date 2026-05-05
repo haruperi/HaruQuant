@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.data.database import EvidenceBundleRecord
+from data.database import EvidenceBundleRecord
 from haruquant.strategy import PromotionEvidenceValidator, StrategyLifecycleState
 
 

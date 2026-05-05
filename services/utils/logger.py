@@ -646,7 +646,7 @@ def _configure_default_file_sinks() -> None:
     if _DEFAULT_FILE_SINKS_CONFIGURED:
         return
 
-    log_dir = Path("backend/logs")
+    log_dir = Path("backend_retiring/logs")
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Default policy: rotate daily (UTC) or at 50MB, keep 30 backups.

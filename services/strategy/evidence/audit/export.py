@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.data.database import ReplayBundleRecord
+from data.database import ReplayBundleRecord
 from services.risk.policy.compliance_rollout import build_compliance_profile_labels
 
 

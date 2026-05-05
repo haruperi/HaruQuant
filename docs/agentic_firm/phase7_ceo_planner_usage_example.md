@@ -9,7 +9,7 @@ Phase 7 turns the Phase 6 control plane into a firm-facing interface:
 ## Example 1: Planner Routes a Strategy Request
 
 ```python
-from backend.agents.planner.agent import PlannerAgent
+from backend_retiring.agents.planner.agent import PlannerAgent
 
 planner = PlannerAgent()
 
@@ -53,8 +53,8 @@ expected_outputs:
 ## Example 2: CEO Produces a Final Memo
 
 ```python
-from backend.agents.ceo.agent import CEOAgent
-from backend.agents.planner.agent import PlannerAgent
+from backend_retiring.agents.ceo.agent import CEOAgent
+from backend_retiring.agents.planner.agent import PlannerAgent
 
 planner = PlannerAgent()
 ceo = CEOAgent()
@@ -90,8 +90,8 @@ required_before_trading:
 ## Example 3: CEO Escalates Live/Execution Requests
 
 ```python
-from backend.agents.ceo.agent import CEOAgent
-from backend.agents.planner.agent import PlannerAgent
+from backend_retiring.agents.ceo.agent import CEOAgent
+from backend_retiring.agents.planner.agent import PlannerAgent
 
 plan = PlannerAgent().create_plan(
     user_request="Draft a trade proposal to buy EURUSD.",
@@ -124,7 +124,7 @@ approval_required:
 ## Example 4: CEO Refuses Unsafe Requests
 
 ```python
-from backend.agents.ceo.agent import CEOAgent
+from backend_retiring.agents.ceo.agent import CEOAgent
 
 ceo = CEOAgent()
 
@@ -157,7 +157,7 @@ evidence_refs:
 ## Example 5: Full Control Plane With Phase 7 CEO/Planner
 
 ```python
-from backend.agents.orchestrator import AgentControlPlaneOrchestrator
+from backend_retiring.agents.orchestrator import AgentControlPlaneOrchestrator
 
 orchestrator = AgentControlPlaneOrchestrator()
 

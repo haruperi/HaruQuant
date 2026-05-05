@@ -1,0 +1,90 @@
+{
+  "user_id": 1,
+  "strategy_id": 17,
+  "version": "1.0.0",
+  "parameters": {
+    "assets": [
+      "EURUSD"
+    ],
+    "timeframe": "H1",
+    "data_granularity": "H1",
+    "entry_logic": [
+      "Enter LONG when RSI(12) crosses up through 50 on the completed bar.",
+      "Enter SHORT when RSI(12) crosses down through 50 on the completed bar."
+    ],
+    "exit_logic": [
+      "Exit LONG when RSI(12) crosses down through 50 on the completed bar.",
+      "Exit SHORT when RSI(12) crosses up through 50 on the completed bar."
+    ],
+    "stop_loss": null,
+    "take_profit": null,
+    "ignore_stop_loss_take_profit": true,
+    "position_sizing": "Use fixed 0.1 lots per trade.",
+    "leverage": 1.0,
+    "portfolio_construction": {
+      "method": "EqualWeight",
+      "rebalance_frequency": "Weekly",
+      "objective": "Risk-balanced diversified allocation"
+    }
+  },
+  "saved_at": "2026-05-03T18:04:17.237969",
+  "name": "Assets Eurusd Timeframe H1 Entry Logic Strategy",
+  "description": "- Assets: EURUSD\n- Timeframe: H1\nEntry logic:\n- Enter LONG when RSI(12) crosses up through 50 on the completed bar.\n- Enter SHORT when RSI(12) crosses down through 50 on the completed bar.\nExit logic:\n- Exit LONG when RSI(12) crosses down through 50 on the completed bar.\n- Exit SHORT when RSI(12) crosses up through 50 on the completed bar.\nRisk management:\n- {'stop_loss': None, 'take_profit': None, 'ignore_stop_loss_take_profit': True, 'additional_rules': ['No stop-loss or take-profit. Exits are governed by the explicit exit logic.']}\nPosition sizing:\n- {'sizing_rule': 'Use fixed 0.1 lots per trade.', 'leverage': 1.0, 'allocation_notes': 'Fixed-lot position sizing supplied by the user.'}",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "allocation",
+  "parameterTypes": {
+    "assets": "list[str]",
+    "timeframe": "str",
+    "data_granularity": "str",
+    "entry_logic": "list[str]",
+    "exit_logic": "list[str]",
+    "stop_loss": "str|None",
+    "take_profit": "str|None",
+    "ignore_stop_loss_take_profit": "bool",
+    "position_sizing": "str",
+    "leverage": "float",
+    "portfolio_construction": "dict"
+  },
+  "moneyManagement": {
+    "stop_loss": null,
+    "take_profit": null,
+    "additional_rules": [
+      "No stop-loss or take-profit. Exits are governed by the explicit exit logic."
+    ],
+    "position_sizing": "Use fixed 0.1 lots per trade.",
+    "leverage": 1.0
+  },
+  "variables": {
+    "strategy_id": "assets-eurusd-timeframe-h1-entry-logic-strategy",
+    "render_target": "template_strategy",
+    "backtest_readiness": "ready",
+    "portfolio_method": "EqualWeight",
+    "rebalance_frequency": "Weekly"
+  },
+  "variableTypes": {
+    "strategy_id": "str",
+    "render_target": "str",
+    "backtest_readiness": "str",
+    "portfolio_method": "str",
+    "rebalance_frequency": "str"
+  },
+  "blueprintArtifactPath": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\backend_retiring\\data\\strategies\\haruperi\\strategy_17_assets_eurusd_timeframe_h1_entry_logic_strategy\\v1.0.0\\strategy_blueprint.json",
+  "blueprintSummary": {
+    "strategy_name": "Assets Eurusd Timeframe H1 Entry Logic Strategy",
+    "strategy_type": "allocation",
+    "assets": [
+      "EURUSD"
+    ],
+    "timeframe": "H1",
+    "backtest_readiness": "ready"
+  },
+  "backtestReadiness": "ready",
+  "assumptionsApplied": [
+    "Portfolio construction defaults applied."
+  ],
+  "assumptionDefaultsUsed": [
+    "strategy_id=slugified_strategy_name",
+    "portfolio_method=equalweight"
+  ]
+}

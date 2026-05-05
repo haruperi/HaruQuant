@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from backend.agents.runtime import (
+from backend_retiring.agents.runtime import (
     ADKRunRequest,
     AgentExecutionContext,
     LLMRuntime,
@@ -16,8 +16,8 @@ from backend.agents.runtime import (
     get_provider,
     register_provider,
 )
-from backend.agents.runtime.llm_runtime import LLMRuntime as LLMRuntimeBase
-from backend.agents.runtime.openai_runtime import OpenAIRuntime, HAS_OPENAI
+from backend_retiring.agents.runtime.llm_runtime import LLMRuntime as LLMRuntimeBase
+from backend_retiring.agents.runtime.openai_runtime import OpenAIRuntime, HAS_OPENAI
 
 
 # ──────────────────────────────────────────────────────────────

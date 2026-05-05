@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from backend.mcp import AsyncMCPCallAdapter
+from backend_retiring.mcp import AsyncMCPCallAdapter
 
 
 async def _run_call() -> int:

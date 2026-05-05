@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from backend.agents.chat.page_operator_agent import PageOperatorAgent
+from backend_retiring.agents.chat.page_operator_agent import PageOperatorAgent
 
 
 @pytest.fixture

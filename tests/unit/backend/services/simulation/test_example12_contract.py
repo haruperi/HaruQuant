@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_example_12_uses_clean_engine_run_contract():
-    path = Path("backend/scripts/examples/trading/trade_example.py")
+    path = Path("scripts/examples/trading/trade_example.py")
     tree = ast.parse(path.read_text())
     target = None
     for node in tree.body:

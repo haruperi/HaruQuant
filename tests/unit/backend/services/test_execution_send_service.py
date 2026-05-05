@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from backend.contracts.common import Originator
-from backend.contracts.execution_intent.model import ExecutionIntent, ExecutionIntentPayload
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.execution_intent.model import ExecutionIntent, ExecutionIntentPayload
 from haruquant.execution import ExecutionSendService
 
 

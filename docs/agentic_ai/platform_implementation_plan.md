@@ -47,12 +47,12 @@ Phase 6 (Production)     ✅ DONE ← Phase 1, 2 (builds on stable foundation)
 
 | # | Severity | Task | File(s) | Effort | Verification |
 |---|---|---|---|---|---|
-| 1.1 | High | Wire MT5 adapter into MCP server | `backend/mcp/mt5_mcp/server.py` | 1 day | Mutating tools functional | ✅
-| 1.2 | High | Fix SQL allowlist with AST parsing | `backend/mcp/sql_mcp/tools.py` | 2 days | Cannot bypass via subquery | ✅
-| 1.3 | High | Pre-execution tool validation | `backend/agents/runtime/tool_policy.py` | 2 days | Invalid params rejected before execution | ✅
-| 1.4 | High | Tool output size limits | `backend/agents/runtime/middleware.py` | 1 day | Outputs capped at configurable token count | ✅
-| 1.5 | Medium | Persist schema registry to SQLite | `backend/agents/runtime/schema_registry_persistence.py` | 2 days | Schema survives restart | ✅
-| 1.6 | Medium | Connect cost tracker to model-specific pricing | `backend/observability/cost_tracker.py` | 3 days | Accurate per-model cost calculation | ✅
+| 1.1 | High | Wire MT5 adapter into MCP server | `backend_retiring/mcp/mt5_mcp/server.py` | 1 day | Mutating tools functional | ✅
+| 1.2 | High | Fix SQL allowlist with AST parsing | `backend_retiring/mcp/sql_mcp/tools.py` | 2 days | Cannot bypass via subquery | ✅
+| 1.3 | High | Pre-execution tool validation | `backend_retiring/agents/runtime/tool_policy.py` | 2 days | Invalid params rejected before execution | ✅
+| 1.4 | High | Tool output size limits | `backend_retiring/agents/runtime/middleware.py` | 1 day | Outputs capped at configurable token count | ✅
+| 1.5 | Medium | Persist schema registry to SQLite | `backend_retiring/agents/runtime/schema_registry_persistence.py` | 2 days | Schema survives restart | ✅
+| 1.6 | Medium | Connect cost tracker to model-specific pricing | `backend_retiring/observability/cost_tracker.py` | 3 days | Accurate per-model cost calculation | ✅
 
 ### 1.1: Wire MT5 Adapter
 
@@ -60,7 +60,7 @@ Phase 6 (Production)     ✅ DONE ← Phase 1, 2 (builds on stable foundation)
 
 **Implementation:**
 ```python
-# backend/mcp/mt5_mcp/server.py
+# backend_retiring/mcp/mt5_mcp/server.py
 class MT5MCPServer:
     def __init__(self, gateway, legacy_adapter):
         self._gateway = gateway
@@ -90,7 +90,7 @@ class MT5MCPServer:
 
 **Implementation:**
 ```python
-# backend/mcp/sql_mcp/tools.py
+# backend_retiring/mcp/sql_mcp/tools.py
 import sqlparse
 from sqlparse.sql import Identifier, Parenthesis, Where
 
@@ -144,7 +144,7 @@ class SQLReadOnlyTools:
 
 **Implementation:**
 ```python
-# backend/agents/runtime/tool_policy.py (new file or extend existing)
+# backend_retiring/agents/runtime/tool_policy.py (new file or extend existing)
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -180,7 +180,7 @@ class ToolValidator:
 
 **Integration into middleware:**
 ```python
-# backend/agents/runtime/middleware.py
+# backend_retiring/agents/runtime/middleware.py
 # Add ToolValidationMiddleware BEFORE AgentExecutionMiddleware
 pipeline = MiddlewarePipeline([
     ContextRedactionMiddlewareComponent(),
@@ -205,7 +205,7 @@ pipeline = MiddlewarePipeline([
 
 **Implementation:**
 ```python
-# backend/agents/runtime/middleware.py (extend ToolPolicyMiddleware)
+# backend_retiring/agents/runtime/middleware.py (extend ToolPolicyMiddleware)
 class ToolPolicyMiddleware(MiddlewareProtocol):
     def __init__(
         self,
@@ -235,7 +235,7 @@ class ToolPolicyMiddleware(MiddlewareProtocol):
 
 **Implementation:**
 ```python
-# backend/agents/runtime/schema_registry_persistence.py (existing, not wired)
+# backend_retiring/agents/runtime/schema_registry_persistence.py (existing, not wired)
 class SchemaRegistryPersistence:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
@@ -250,7 +250,7 @@ class SchemaRegistryPersistence:
 
 **Wiring:**
 ```python
-# backend/agents/runtime/output_validation.py
+# backend_retiring/agents/runtime/output_validation.py
 class CanonicalOutputValidator:
     def __init__(
         self,
@@ -279,7 +279,7 @@ class CanonicalOutputValidator:
 
 **Implementation:**
 ```python
-# backend/observability/cost_tracker.py
+# backend_retiring/observability/cost_tracker.py
 class ModelPricingTable:
     """Per-model input/output token pricing (per 1M tokens, USD)."""
     PRICING: dict[str, tuple[float, float]] = {
@@ -311,17 +311,17 @@ class ModelPricingTable:
 
 | # | Severity | Task | File(s) | Effort | Verification |
 |---|---|---|---|---|---|
-| 2.1 | High | Implement `ToolCall` and `ToolResult` data models | `backend/agents/runtime/tool_call.py` | 1 day | Typed tool call/result contracts | ✅
-| 2.2 | High | Add tool schema generation from Python functions | `backend/agents/runtime/tool_schema.py` | 2 days | JSON Schema generated from function signatures | ✅
-| 2.3 | High | Implement native tool calling in LiteLLM runtime | `backend/agents/runtime/litellm_runtime.py` | 3 days | LLM returns structured tool calls, not regex | ✅
-| 2.4 | High | Implement tool call execution loop | `backend/agents/runtime/tool_executor.py` | 2 days | Tool calls dispatched, results fed back to LLM | ✅
-| 2.5 | Medium | Migrate ReAct agent to use native tool calling | `backend/agents/react/react_agent.py` | 2 days | Same tools work, no regex parsing | ✅
-| 2.6 | Medium | Add tool call audit logging | `backend/agents/runtime/tool_audit.py` | 1 day | Every tool call logged with input/output/timing | ✅
+| 2.1 | High | Implement `ToolCall` and `ToolResult` data models | `backend_retiring/agents/runtime/tool_call.py` | 1 day | Typed tool call/result contracts | ✅
+| 2.2 | High | Add tool schema generation from Python functions | `backend_retiring/agents/runtime/tool_schema.py` | 2 days | JSON Schema generated from function signatures | ✅
+| 2.3 | High | Implement native tool calling in LiteLLM runtime | `backend_retiring/agents/runtime/litellm_runtime.py` | 3 days | LLM returns structured tool calls, not regex | ✅
+| 2.4 | High | Implement tool call execution loop | `backend_retiring/agents/runtime/tool_executor.py` | 2 days | Tool calls dispatched, results fed back to LLM | ✅
+| 2.5 | Medium | Migrate ReAct agent to use native tool calling | `backend_retiring/agents/react/react_agent.py` | 2 days | Same tools work, no regex parsing | ✅
+| 2.6 | Medium | Add tool call audit logging | `backend_retiring/agents/runtime/tool_audit.py` | 1 day | Every tool call logged with input/output/timing | ✅
 
 ### 2.1: Tool Call and Tool Result Models
 
 ```python
-# backend/agents/runtime/tool_call.py
+# backend_retiring/agents/runtime/tool_call.py
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -348,7 +348,7 @@ class ToolResult:
 ### 2.2: Tool Schema Generation
 
 ```python
-# backend/agents/runtime/tool_schema.py
+# backend_retiring/agents/runtime/tool_schema.py
 import inspect
 import json
 from typing import Any, Callable
@@ -400,7 +400,7 @@ def generate_tool_schema(func: Callable) -> dict[str, Any]:
 ### 2.3: Native Tool Calling in LiteLLM
 
 ```python
-# backend/agents/runtime/litellm_runtime.py (extend existing)
+# backend_retiring/agents/runtime/litellm_runtime.py (extend existing)
 class LiteLLMRuntime(LLMRuntime):
     def run_with_tools(
         self,
@@ -442,7 +442,7 @@ class LiteLLMRuntime(LLMRuntime):
 ### 2.4: Tool Call Execution Loop
 
 ```python
-# backend/agents/runtime/tool_executor.py
+# backend_retiring/agents/runtime/tool_executor.py
 class ToolExecutor:
     """Dispatches tool calls and feeds results back to the LLM."""
 
@@ -534,7 +534,7 @@ class ToolExecutor:
 ### 2.6: Tool Call Audit Logging
 
 ```python
-# backend/agents/runtime/tool_audit.py
+# backend_retiring/agents/runtime/tool_audit.py
 @dataclass(frozen=True)
 class ToolCallAuditRecord:
     tool_call_id: str
@@ -564,13 +564,13 @@ class ToolCallAuditLogger:
 | # | Severity | Task | File(s) | Effort | Verification |
 |---|---|---|---|---|---|
 | 3.1 | High | Add vector DB dependency (ChromaDB) | `requirements.txt`, `pyproject.toml` | 0.5 day | ChromaDB importable | ✅
-| 3.2 | High | Implement embedding generator | `backend/retrieval/embeddings.py` | 2 days | Embeddings generated, cosine similarity works | ✅
-| 3.3 | High | Implement document ingestion with chunking | `backend/retrieval/ingestion.py` | 3 days | Documents chunked, embedded, stored | ✅
-| 3.4 | High | Implement retrieval service | `backend/retrieval/service.py` | 3 days | Top-K results returned for query | ✅
-| 3.5 | High | Implement retrieval reformulation loop | `backend/retrieval/reformulation.py` | 2 days | No-results → rephrase → retry | ✅
-| 3.6 | Medium | Add retrieval quality measurement | `backend/retrieval/evaluation.py` | 2 days | MRR, NDCG tracked per query | ✅
-| 3.7 | Medium | Wire retrieval into agent middleware | `backend/agents/runtime/middleware.py` | 1 day | `retrieved_content` auto-populated | ✅
-| 3.8 | Medium | Implement MCP retrieval tool | `backend/mcp/retrieval_mcp/tools.py` | 2 days | `search_knowledge(query)` tool available | ✅
+| 3.2 | High | Implement embedding generator | `backend_retiring/retrieval/embeddings.py` | 2 days | Embeddings generated, cosine similarity works | ✅
+| 3.3 | High | Implement document ingestion with chunking | `backend_retiring/retrieval/ingestion.py` | 3 days | Documents chunked, embedded, stored | ✅
+| 3.4 | High | Implement retrieval service | `backend_retiring/retrieval/service.py` | 3 days | Top-K results returned for query | ✅
+| 3.5 | High | Implement retrieval reformulation loop | `backend_retiring/retrieval/reformulation.py` | 2 days | No-results → rephrase → retry | ✅
+| 3.6 | Medium | Add retrieval quality measurement | `backend_retiring/retrieval/evaluation.py` | 2 days | MRR, NDCG tracked per query | ✅
+| 3.7 | Medium | Wire retrieval into agent middleware | `backend_retiring/agents/runtime/middleware.py` | 1 day | `retrieved_content` auto-populated | ✅
+| 3.8 | Medium | Implement MCP retrieval tool | `backend_retiring/mcp/retrieval_mcp/tools.py` | 2 days | `search_knowledge(query)` tool available | ✅
 
 ### 3.1: ChromaDB Integration
 
@@ -583,7 +583,7 @@ sentence-transformers>=2.2.0
 ### 3.2: Embedding Generator
 
 ```python
-# backend/retrieval/embeddings.py
+# backend_retiring/retrieval/embeddings.py
 from sentence_transformers import SentenceTransformer
 
 class EmbeddingService:
@@ -607,7 +607,7 @@ class EmbeddingService:
 ### 3.3: Document Ingestion
 
 ```python
-# backend/retrieval/ingestion.py
+# backend_retiring/retrieval/ingestion.py
 @dataclass(frozen=True)
 class DocumentChunk:
     doc_id: str
@@ -654,7 +654,7 @@ class DocumentIngester:
 ### 3.4: Retrieval Service
 
 ```python
-# backend/retrieval/service.py
+# backend_retiring/retrieval/service.py
 import chromadb
 
 class RetrievalService:
@@ -662,7 +662,7 @@ class RetrievalService:
         self,
         embeddings: EmbeddingService,
         collection_name: str = "haruquant_knowledge",
-        persist_dir: str = "backend/data/vector_store",
+        persist_dir: str = "data/vector_store",
     ) -> None:
         self._embeddings = embeddings
         self._client = chromadb.PersistentClient(path=persist_dir)
@@ -709,7 +709,7 @@ class RetrievalService:
 ### 3.5: Retrieval Reformulation Loop
 
 ```python
-# backend/retrieval/reformulation.py
+# backend_retiring/retrieval/reformulation.py
 class RetrievalReformulator:
     """If retrieval returns no or poor results, reformulate the query."""
 
@@ -760,7 +760,7 @@ class RetrievalReformulator:
 ### 3.6: Retrieval Quality Measurement
 
 ```python
-# backend/retrieval/evaluation.py
+# backend_retiring/retrieval/evaluation.py
 @dataclass(frozen=True)
 class RetrievalEvalResult:
     query: str
@@ -779,7 +779,7 @@ class RetrievalEvaluator:
 ### 3.7: Wire Retrieval into Middleware
 
 ```python
-# backend/agents/runtime/middleware.py (new middleware)
+# backend_retiring/agents/runtime/middleware.py (new middleware)
 class RetrievalAugmentationMiddleware(MiddlewareProtocol):
     """Auto-retrieve relevant content before agent execution."""
 
@@ -806,7 +806,7 @@ class RetrievalAugmentationMiddleware(MiddlewareProtocol):
 ### 3.8: MCP Retrieval Tool
 
 ```python
-# backend/mcp/retrieval_mcp/tools.py
+# backend_retiring/mcp/retrieval_mcp/tools.py
 class RetrievalTools:
     @tool(name="search_knowledge")
     def search(self, query: str, top_k: int = 5, category: str = None) -> str:
@@ -823,17 +823,17 @@ class RetrievalTools:
 
 | # | Severity | Task | File(s) | Effort | Verification |
 |---|---|---|---|---|---|
-| 4.1 | Medium | Define memory model (semantic, episodic, procedural) | `backend/agents/memory/model.py` | 2 days | Typed memory data models | ✅
-| 4.2 | Medium | Implement semantic memory (persistent vector store) | `backend/agents/memory/semantic.py` | 3 days | Facts stored and retrieved by relevance | ✅
-| 4.3 | Medium | Implement episodic memory (past decisions/outcomes) | `backend/agents/memory/episodic.py` | 2 days | Past decisions queryable by context | ✅
-| 4.4 | Medium | Implement procedural memory (learned patterns) | `backend/agents/memory/procedural.py` | 2 days | Tool usage patterns, preferences stored | ✅
-| 4.5 | Medium | Define memory write rules | `backend/agents/memory/rules.py` | 1 day | What to remember, when, how | ✅
-| 4.6 | Low | Implement cross-workflow memory sharing | `backend/agents/memory/shared.py` | 2 days | Knowledge shared across workflows | ✅
+| 4.1 | Medium | Define memory model (semantic, episodic, procedural) | `backend_retiring/agents/memory/model.py` | 2 days | Typed memory data models | ✅
+| 4.2 | Medium | Implement semantic memory (persistent vector store) | `backend_retiring/agents/memory/semantic.py` | 3 days | Facts stored and retrieved by relevance | ✅
+| 4.3 | Medium | Implement episodic memory (past decisions/outcomes) | `backend_retiring/agents/memory/episodic.py` | 2 days | Past decisions queryable by context | ✅
+| 4.4 | Medium | Implement procedural memory (learned patterns) | `backend_retiring/agents/memory/procedural.py` | 2 days | Tool usage patterns, preferences stored | ✅
+| 4.5 | Medium | Define memory write rules | `backend_retiring/agents/memory/rules.py` | 1 day | What to remember, when, how | ✅
+| 4.6 | Low | Implement cross-workflow memory sharing | `backend_retiring/agents/memory/shared.py` | 2 days | Knowledge shared across workflows | ✅
 
 ### 4.1: Memory Model
 
 ```python
-# backend/agents/memory/model.py
+# backend_retiring/agents/memory/model.py
 @dataclass(frozen=True)
 class SemanticMemory:
     """Facts, concepts, and relationships — retrieved by semantic similarity."""
@@ -874,14 +874,14 @@ class ProceduralMemory:
 ### 4.2: Semantic Memory
 
 ```python
-# backend/agents/memory/semantic.py
+# backend_retiring/agents/memory/semantic.py
 class SemanticMemoryStore:
     """Persistent semantic memory backed by vector DB."""
 
     def __init__(
         self,
         embeddings: EmbeddingService,
-        persist_dir: str = "backend/data/vector_store/semantic_memory",
+        persist_dir: str = "data/vector_store/semantic_memory",
     ) -> None:
         self._embeddings = embeddings
         self._client = chromadb.PersistentClient(path=persist_dir)
@@ -916,11 +916,11 @@ class SemanticMemoryStore:
 ### 4.3: Episodic Memory
 
 ```python
-# backend/agents/memory/episodic.py
+# backend_retiring/agents/memory/episodic.py
 class EpisodicMemoryStore:
     """Persistent episodic memory — past decisions and outcomes."""
 
-    def __init__(self, db_path: str = "backend/data/database/sqlite/episodic_memory.db") -> None:
+    def __init__(self, db_path: str = "data/database/sqlite/episodic_memory.db") -> None:
         self._db_path = db_path
         self._ensure_db()
 
@@ -949,7 +949,7 @@ class EpisodicMemoryStore:
 ### 4.5: Memory Write Rules
 
 ```python
-# backend/agents/memory/rules.py
+# backend_retiring/agents/memory/rules.py
 class MemoryWriteRules:
     """Defines what to remember, when, and how."""
 
@@ -1060,17 +1060,17 @@ class TrajectoryEvaluator:
 
 | # | Severity | Task | File(s) | Effort | Verification |
 |---|---|---|---|---|---|
-| 6.1 | Medium | Implement streaming LLM support | `backend/agents/runtime/litellm_runtime.py` | 1 week | Streaming responses with chunk handling | ✅
-| 6.2 | Medium | Unify sync/async agent protocols | `backend/agents/runtime/runner.py` | 1 week | Single protocol, both sync and async | ✅
-| 6.3 | Medium | Add MCP transport layer (stdio/SSE) | `backend/mcp/*/server.py` | 2 weeks | Full MCP protocol with tool discovery | ✅
-| 6.4 | Low | Add OpenTelemetry export | `backend/observability/otel_exporter.py` | 2 weeks | Traces exported to Jaeger/Zipkin | ✅
-| 6.5 | Low | Implement LLM-based context compression | `backend/orchestration/context_engineering/compression.py` | 1 week | Importance-aware summarization | ✅
-| 6.6 | Low | Add persistent session store | `backend/agents/runtime/session_manager.py` | 1 week | Sessions survive restart | ✅
+| 6.1 | Medium | Implement streaming LLM support | `backend_retiring/agents/runtime/litellm_runtime.py` | 1 week | Streaming responses with chunk handling | ✅
+| 6.2 | Medium | Unify sync/async agent protocols | `backend_retiring/agents/runtime/runner.py` | 1 week | Single protocol, both sync and async | ✅
+| 6.3 | Medium | Add MCP transport layer (stdio/SSE) | `backend_retiring/mcp/*/server.py` | 2 weeks | Full MCP protocol with tool discovery | ✅
+| 6.4 | Low | Add OpenTelemetry export | `backend_retiring/observability/otel_exporter.py` | 2 weeks | Traces exported to Jaeger/Zipkin | ✅
+| 6.5 | Low | Implement LLM-based context compression | `backend_retiring/orchestration/context_engineering/compression.py` | 1 week | Importance-aware summarization | ✅
+| 6.6 | Low | Add persistent session store | `backend_retiring/agents/runtime/session_manager.py` | 1 week | Sessions survive restart | ✅
 
 ### 6.1: Streaming LLM Support
 
 ```python
-# backend/agents/runtime/litellm_runtime.py (extend)
+# backend_retiring/agents/runtime/litellm_runtime.py (extend)
 class LiteLLMRuntime(LLMRuntime):
     def run_streaming(
         self,
@@ -1107,7 +1107,7 @@ class LiteLLMRuntime(LLMRuntime):
 ### 6.2: Unified Sync/Async Protocol
 
 ```python
-# backend/agents/runtime/runner.py (refactor)
+# backend_retiring/agents/runtime/runner.py (refactor)
 class AgentRuntime(Protocol):
     """Unified agent runtime protocol supporting both sync and async."""
 
@@ -1137,7 +1137,7 @@ class LiteLLMRuntime(AgentRuntime):
 ### 6.4: OpenTelemetry Export
 
 ```python
-# backend/observability/otel_exporter.py
+# backend_retiring/observability/otel_exporter.py
 from opentelemetry import trace, metrics
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 
@@ -1246,26 +1246,26 @@ All phases complete when:
 
 | Phase | File | Purpose |
 |---|---|---|
-| 1 | `backend/agents/runtime/tool_policy.py` | Pre-execution tool validation |
-| 1 | `backend/agents/runtime/schema_registry_persistence.py` | Schema persistence (wire existing) |
-| 2 | `backend/agents/runtime/tool_call.py` | ToolCall/ToolResult models |
-| 2 | `backend/agents/runtime/tool_schema.py` | JSON Schema generation from functions |
-| 2 | `backend/agents/runtime/tool_executor.py` | Tool call execution loop |
-| 2 | `backend/agents/runtime/tool_audit.py` | Tool call audit logging |
-| 3 | `backend/retrieval/__init__.py` | Retrieval package |
-| 3 | `backend/retrieval/embeddings.py` | Embedding service |
-| 3 | `backend/retrieval/ingestion.py` | Document ingestion |
-| 3 | `backend/retrieval/service.py` | Retrieval service |
-| 3 | `backend/retrieval/reformulation.py` | Query reformulation loop |
-| 3 | `backend/retrieval/evaluation.py` | Retrieval quality measurement |
-| 3 | `backend/retrieval/models.py` | RetrievalResult, TextChunk models |
-| 3 | `backend/mcp/retrieval_mcp/tools.py` | MCP retrieval tool |
-| 4 | `backend/agents/memory/__init__.py` | Memory package |
-| 4 | `backend/agents/memory/model.py` | Memory data models |
-| 4 | `backend/agents/memory/semantic.py` | Semantic memory store |
-| 4 | `backend/agents/memory/episodic.py` | Episodic memory store |
-| 4 | `backend/agents/memory/procedural.py` | Procedural memory store |
-| 4 | `backend/agents/memory/rules.py` | Memory write rules |
+| 1 | `backend_retiring/agents/runtime/tool_policy.py` | Pre-execution tool validation |
+| 1 | `backend_retiring/agents/runtime/schema_registry_persistence.py` | Schema persistence (wire existing) |
+| 2 | `backend_retiring/agents/runtime/tool_call.py` | ToolCall/ToolResult models |
+| 2 | `backend_retiring/agents/runtime/tool_schema.py` | JSON Schema generation from functions |
+| 2 | `backend_retiring/agents/runtime/tool_executor.py` | Tool call execution loop |
+| 2 | `backend_retiring/agents/runtime/tool_audit.py` | Tool call audit logging |
+| 3 | `backend_retiring/retrieval/__init__.py` | Retrieval package |
+| 3 | `backend_retiring/retrieval/embeddings.py` | Embedding service |
+| 3 | `backend_retiring/retrieval/ingestion.py` | Document ingestion |
+| 3 | `backend_retiring/retrieval/service.py` | Retrieval service |
+| 3 | `backend_retiring/retrieval/reformulation.py` | Query reformulation loop |
+| 3 | `backend_retiring/retrieval/evaluation.py` | Retrieval quality measurement |
+| 3 | `backend_retiring/retrieval/models.py` | RetrievalResult, TextChunk models |
+| 3 | `backend_retiring/mcp/retrieval_mcp/tools.py` | MCP retrieval tool |
+| 4 | `backend_retiring/agents/memory/__init__.py` | Memory package |
+| 4 | `backend_retiring/agents/memory/model.py` | Memory data models |
+| 4 | `backend_retiring/agents/memory/semantic.py` | Semantic memory store |
+| 4 | `backend_retiring/agents/memory/episodic.py` | Episodic memory store |
+| 4 | `backend_retiring/agents/memory/procedural.py` | Procedural memory store |
+| 4 | `backend_retiring/agents/memory/rules.py` | Memory write rules |
 | 5 | `tests/eval/golden_tasks/*` | 56+ golden eval cases |
 | 5 | `tests/eval/adversarial_tasks/*` | Adversarial test cases |
 | 5 | `tests/eval/regression_tasks/*` | Regression test cases |
@@ -1275,28 +1275,28 @@ All phases complete when:
 | 5 | `tests/eval/benchmarks/test_cost.py` | Cost benchmarks |
 | 5 | `tests/eval/trajectory_eval.py` | Trajectory-level evaluation |
 | 5 | `tests/eval/promotion_criteria.yaml` | Agent promotion gating |
-| 6 | `backend/agents/runtime/streaming.py` | Streaming LLM support |
-| 6 | `backend/observability/otel_exporter.py` | OpenTelemetry export |
-| 6 | `backend/mcp/*/transport.py` | MCP stdio/SSE transport |
+| 6 | `backend_retiring/agents/runtime/streaming.py` | Streaming LLM support |
+| 6 | `backend_retiring/observability/otel_exporter.py` | OpenTelemetry export |
+| 6 | `backend_retiring/mcp/*/transport.py` | MCP stdio/SSE transport |
 
 ### Modified Files (~15 files)
 
 | Phase | File | Change |
 |---|---|---|
-| 1 | `backend/mcp/mt5_mcp/server.py` | Wire LegacyMT5GatewayAdapter |
-| 1 | `backend/mcp/sql_mcp/tools.py` | Replace string matching with sqlparse AST |
-| 1 | `backend/agents/runtime/middleware.py` | Add ToolValidationMiddleware, output size limits |
-| 1 | `backend/agents/runtime/output_validation.py` | Wire schema persistence |
-| 1 | `backend/observability/cost_tracker.py` | Model-specific pricing table |
-| 2 | `backend/agents/runtime/litellm_runtime.py` | Add run_with_tools() for native tool calling |
-| 2 | `backend/agents/react/react_agent.py` | Replace regex with native tool calling |
-| 2 | `backend/agents/runtime/middleware.py` | Add tool validation before execution |
-| 3 | `backend/agents/runtime/middleware.py` | Add RetrievalAugmentationMiddleware |
-| 4 | `backend/agents/runtime/session_manager.py` | Add persistent session backend |
-| 6 | `backend/agents/runtime/runner.py` | Unify sync/async AgentRuntime protocol |
-| 6 | `backend/agents/runtime/litellm_runtime.py` | Add run_streaming() |
-| 6 | `backend/orchestration/context_engineering/compression.py` | LLM-based summarization |
-| 6 | `backend/mcp/*/server.py` | Add stdio/SSE transport |
+| 1 | `backend_retiring/mcp/mt5_mcp/server.py` | Wire LegacyMT5GatewayAdapter |
+| 1 | `backend_retiring/mcp/sql_mcp/tools.py` | Replace string matching with sqlparse AST |
+| 1 | `backend_retiring/agents/runtime/middleware.py` | Add ToolValidationMiddleware, output size limits |
+| 1 | `backend_retiring/agents/runtime/output_validation.py` | Wire schema persistence |
+| 1 | `backend_retiring/observability/cost_tracker.py` | Model-specific pricing table |
+| 2 | `backend_retiring/agents/runtime/litellm_runtime.py` | Add run_with_tools() for native tool calling |
+| 2 | `backend_retiring/agents/react/react_agent.py` | Replace regex with native tool calling |
+| 2 | `backend_retiring/agents/runtime/middleware.py` | Add tool validation before execution |
+| 3 | `backend_retiring/agents/runtime/middleware.py` | Add RetrievalAugmentationMiddleware |
+| 4 | `backend_retiring/agents/runtime/session_manager.py` | Add persistent session backend |
+| 6 | `backend_retiring/agents/runtime/runner.py` | Unify sync/async AgentRuntime protocol |
+| 6 | `backend_retiring/agents/runtime/litellm_runtime.py` | Add run_streaming() |
+| 6 | `backend_retiring/orchestration/context_engineering/compression.py` | LLM-based summarization |
+| 6 | `backend_retiring/mcp/*/server.py` | Add stdio/SSE transport |
 
 ---
 

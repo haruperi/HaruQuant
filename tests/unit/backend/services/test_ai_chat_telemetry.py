@@ -1,8 +1,8 @@
 from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock, patch, ANY
-from backend.agents.chat.ai_chat.ai_gateway import AIGatewayService, ChatStreamRequest, GenerationResult
-from backend.agents.chat.ai_chat.models import ConversationThreadRecord, ConversationMessageRecord
+from backend_retiring.agents.chat.ai_chat.ai_gateway import AIGatewayService, ChatStreamRequest, GenerationResult
+from backend_retiring.agents.chat.ai_chat.models import ConversationThreadRecord, ConversationMessageRecord
 
 @pytest.fixture
 def mock_services():
@@ -152,7 +152,7 @@ def test_ai_gateway_reports_runtime_generation_source(mock_services) -> None:
         "total_tokens": 20,
     }
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
         metadata, chunks, _msg_id = gateway.stream_response(
             ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
         )
@@ -180,7 +180,7 @@ def test_ai_gateway_polishes_runtime_reply_that_leaks_internal_labels(mock_servi
         "total_tokens": 20,
     }
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
         metadata, chunks, _msg_id = gateway.stream_response(
             ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
         )
@@ -211,7 +211,7 @@ def test_ai_gateway_polishes_runtime_reply_that_leaks_section_headers(mock_servi
         "total_tokens": 20,
     }
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", return_value=runtime):
         metadata, chunks, _msg_id = gateway.stream_response(
             ChatStreamRequest(user_id=1, thread_id="thread_1", prompt="hi")
         )

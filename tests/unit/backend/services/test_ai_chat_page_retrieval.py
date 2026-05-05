@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.agents.chat.ai_chat.page_retrieval import PageSemanticRetrievalService
+from backend_retiring.agents.chat.ai_chat.page_retrieval import PageSemanticRetrievalService
 
 
 def test_page_semantic_retrieval_prioritizes_metric_table_chunks() -> None:

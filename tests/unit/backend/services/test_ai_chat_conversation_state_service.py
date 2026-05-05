@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.chat.ai_chat import (
+from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.chat.ai_chat import (
     ConversationThreadRecord,
     ConversationService,
     ConversationStateService,
     PageContextAssembler,
 )
-from backend.contracts.page_context_packet.model import EntityRef
+from backend_retiring.contracts.page_context_packet.model import EntityRef
 
 
 def test_conversation_state_service_builds_resolved_references_from_thread_and_page(tmp_path) -> None:

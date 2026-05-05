@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents import CanonicalOutputValidator, ContractValidationError
+from backend_retiring.agents import CanonicalOutputValidator, ContractValidationError
 
 
 def test_canonical_output_validator_accepts_registered_contract_payload() -> None:

@@ -5,13 +5,13 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from haruquant.utils import FixedClock
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import (
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
     RiskAssessmentDecision,
     RiskAssessmentDecisionPayload,
 )
-from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
+from backend_retiring.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from haruquant.execution import ExecutionIntentAssemblyConfig, assemble_execution_intent
 
 

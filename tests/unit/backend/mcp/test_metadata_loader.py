@@ -1,4 +1,4 @@
-﻿"""Tests for MCP metadata loader."""
+"""Tests for MCP metadata loader."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.mcp.metadata_loader import MetadataConfig, MetadataLoader
+from backend_retiring.mcp.metadata_loader import MetadataConfig, MetadataLoader
 
 
 @pytest.fixture

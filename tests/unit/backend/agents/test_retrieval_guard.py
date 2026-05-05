@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents.runtime.retrieval_guard import (
+from backend_retiring.agents.runtime.retrieval_guard import (
     RetrievalSafetyReport,
     evaluate_retrieved_text,
     get_marker_categories,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.agents.runtime import evaluate_retrieved_text
+from backend_retiring.agents.runtime import evaluate_retrieved_text
 
 
 def test_retrieval_contamination_red_team_scenario_is_rejected() -> None:

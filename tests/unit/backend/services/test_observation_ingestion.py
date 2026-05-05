@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.contracts.common import Originator
-from backend.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
-from backend.data.database import apply_pending_migrations, default_migrations_dir
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
+from data.database import apply_pending_migrations, default_migrations_dir
 from haruquant.execution import ObservationIngestionService
 
 

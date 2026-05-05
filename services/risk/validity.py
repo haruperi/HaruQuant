@@ -7,7 +7,7 @@ from datetime import datetime
 
 from services.utils.logger import logger
 from services.utils import Clock, SystemClock
-from backend.contracts.trade_proposal.model import TradeProposal
+from backend_retiring.contracts.trade_proposal.model import TradeProposal
 
 
 @dataclass(frozen=True)

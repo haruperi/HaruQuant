@@ -4,7 +4,7 @@ import pandas as pd
 
 from haruquant.research import UnsupervisedResearchService
 from haruquant.optimization import EngineOptimizationResult
-from backend.mcp.optimization_mcp import (
+from backend_retiring.mcp.optimization_mcp import (
     OPTIMIZATION_TOOL_SPECS,
     OptimizationExecutionTools,
     OptimizationMCPServer,

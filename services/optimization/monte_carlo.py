@@ -1245,39 +1245,39 @@ def random_win_rate_simulation(
 
 
 def robustness_simulation(
-    backtest_id: str,
-    simulations: int,
-    simulation_type: str,
-    skip_probability: float,
-    deterioration_pct: float,
+    backtest_id: Optional[str] = None,
+    simulations: int = 1000,
+    simulation_type: str = "bootstrap",
+    skip_probability: float = 0.1,
+    deterioration_pct: float = 0.05,
+    trades: Any = None,
+    initial_balance: float = 10000.0,
 ) -> Any:
     """Run robustness simulation with skipped trades and deterioration."""
-    # 1. Fetch trades (Mocking specific retrieval, assumes standardized Trade object or list of dicts)
-    # In a real scenario, we'd call the database. For now we will try to reuse logic or helper.
-    # IMPORTANT: Since we don't have direct DB access here, we might need to pass trades or use the same helper as standard monte carlo.
-    # Let's assume we can fetch them using the same method as `monte_carlo_simulation`.
+    import pandas as pd
 
-    # Needs: `get_backtest_trades` from backtest service or repository.
-    # RE-VERIFY: `monte_carlo_simulation` signature?
-    # It takes `backtest_id`.
-
-    # TODO: Wire to backend backtest repository when available.
-    try:
-        from backend.data.database.repositories.backtest_repository import get_backtest_trades_df
-        df = get_backtest_trades_df(backtest_id)
-    except Exception:
-        # Fallback or empty if service not available/mock
-        return None
+    if trades is not None:
+        df = pd.DataFrame(trades)
+    else:
+        if not backtest_id:
+            raise ValueError("Either trades or backtest_id is required.")
+        try:
+            from data.database.repositories.backtest_repository import get_backtest_trades_df
+            df = get_backtest_trades_df(backtest_id)
+        except Exception:
+            return None
 
     if df.empty:
         raise ValueError("No trades found for backtest")
 
-    # Extract PnL series
-    # Assuming 'profit' column exists
-    original_profits = df["profit"].to_numpy()
+    pnl_column = next(
+        (column for column in ("profit_loss", "profit", "pnl") if column in df.columns),
+        None,
+    )
+    if pnl_column is None:
+        raise ValueError("Trades must include a profit_loss, profit, or pnl column.")
 
-    initial_balance = 10000.0  # Default or fetch from backtest settings? MQL5 article usually implies starting from 0 or specific bal.
-    # Let's verify if we can get initial balance. If not, assume 10000.
+    original_profits = df[pnl_column].astype(float).to_numpy()
 
     # Original Curve
     original_equity = np.cumsum(np.insert(original_profits, 0, 0)) + initial_balance
@@ -1365,6 +1365,9 @@ def robustness_simulation(
         "original_equity": original_equity.tolist(),
         "simulation_equities": sample_curves,
         "stats": stats,
+        "prob_profitable": float(np.mean(np.array(final_profits) > 0.0)),
+        "max_drawdown_95": float(np.percentile(max_drawdowns, 95)),
+        "mean_profit": float(np.mean(final_profits)),
     }
 
 

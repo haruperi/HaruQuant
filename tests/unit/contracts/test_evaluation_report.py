@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.contracts.evaluation_report.model import EvaluationReport, EvaluationReportPayload
+from backend_retiring.contracts.evaluation_report.model import EvaluationReport, EvaluationReportPayload
 
 
 EXAMPLES_ROOT = (
     Path(__file__).resolve().parents[3]
-    / "backend"
+    / "backend_retiring"
     / "contracts"
     / "evaluation_report"
     / "examples"

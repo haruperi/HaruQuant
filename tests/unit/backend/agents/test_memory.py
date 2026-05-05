@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.agents import WorkflowMemoryBindings
+from backend_retiring.agents import WorkflowMemoryBindings
 
 
 def test_workflow_memory_bindings_isolate_workflow_state() -> None:

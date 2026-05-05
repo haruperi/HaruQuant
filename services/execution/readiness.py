@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 
 from services.utils import Clock
 from services.utils.time_utils import evaluate_freshness
-from backend.contracts.risk_assessment_decision.model import RiskAssessmentDecision
-from backend.contracts.trade_proposal.model import TradeProposal
+from backend_retiring.contracts.risk_assessment_decision.model import RiskAssessmentDecision
+from backend_retiring.contracts.trade_proposal.model import TradeProposal
 from .metadata_cache import SymbolMetadataCacheEntry
 
 

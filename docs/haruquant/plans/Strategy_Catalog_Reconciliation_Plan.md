@@ -9,7 +9,7 @@ Review cadence: during active migration work
 
 **Purpose:** Reconcile the legacy user-created strategy workflow with the agentic service architecture. The legacy UI and SQLite-backed strategy catalog should continue to work, while strategy lifecycle, evidence, and promotion controls become first-class agentic governance concepts.
 
-**Decision:** User-created strategies remain artifacts under `backend/data/strategies/{username}/{strategy_slug}/v{version}/`. The package `services/strategy/` remains application/service code: base classes, adapters, storage, validation, built-in baselines, and catalog orchestration. Do not move user strategy source files into `services/strategy/`.
+**Decision:** User-created strategies remain artifacts under `data/strategies/{username}/{strategy_slug}/v{version}/`. The package `services/strategy/` remains application/service code: base classes, adapters, storage, validation, built-in baselines, and catalog orchestration. Do not move user strategy source files into `services/strategy/`.
 
 ---
 
@@ -21,15 +21,15 @@ Review cadence: during active migration work
   - `ui/src/components/strategies/`
   - `ui/src/lib/api/strategies.ts`
 - **HTTP API**
-  - `backend/api/routes/strategies.py`
-  - Mounted at `/api/strategies` in `backend/api/main.py`
+  - `backend_retiring/api/routes/strategies.py`
+  - Mounted at `/api/strategies` in `backend_retiring/api/main.py`
 - **Legacy operational database**
-  - `backend/data/database/haruquant.db`
+  - `data/database/haruquant.db`
   - Tables: `strategies`, `strategy_versions`, `strategy_shares`
-  - SQLite managers: `backend/data/database/sqlite/strategies.py`
+  - SQLite managers: `data/database/sqlite/strategies.py`
 - **Physical strategy artifacts**
   - Managed by `services/strategy/storage.py`
-  - Current path pattern: `backend/data/strategies/{username}/{strategy_name}/v{version}/strategy.py`
+  - Current path pattern: `data/strategies/{username}/{strategy_name}/v{version}/strategy.py`
   - Metadata file: `metadata.json`
 - **Agentic governance**
   - Tables: `gov_strategy_registry`, `gov_strategy_promotions`
@@ -44,14 +44,14 @@ Route all strategy create/read/update/delete/version operations through a servic
 ```text
 UI /strategies
   -> ui/src/lib/api/strategies.ts
-  -> backend/api/routes/strategies.py
+  -> backend_retiring/api/routes/strategies.py
   -> services/strategy/catalog.py
-      -> backend/data/database/sqlite/strategies.py
+      -> data/database/sqlite/strategies.py
       -> services/strategy/storage.py
       -> services/strategy/governance/registry.py
       -> services/strategy/governance/lifecycle.py
-  -> backend/data/database/haruquant.db
-  -> backend/data/strategies/{username}/{strategy_slug}/v{version}/strategy.py
+  -> data/database/haruquant.db
+  -> data/strategies/{username}/{strategy_slug}/v{version}/strategy.py
 ```
 
 The legacy tables stay as the operational strategy catalog because simulation, optimization, backtesting, live trading, and UI code already depend on integer `strategy_id` and `active_version_id`.
@@ -138,7 +138,7 @@ Responsibilities:
 
 Acceptance:
 
-- `backend/api/routes/strategies.py` no longer directly coordinates DB and filesystem writes.
+- `backend_retiring/api/routes/strategies.py` no longer directly coordinates DB and filesystem writes.
 - Existing API behavior stays compatible with `ui/src/lib/api/strategies.ts`.
 - Unit tests cover service methods without requiring the frontend.
 
@@ -151,13 +151,13 @@ Current `StrategyStorage` derives paths from username and strategy name. That wo
 Recommended new artifact path:
 
 ```text
-backend/data/strategies/{username}/strategy_{strategy_id}_{strategy_slug}/v{version}/strategy.py
+data/strategies/{username}/strategy_{strategy_id}_{strategy_slug}/v{version}/strategy.py
 ```
 
 Example:
 
 ```text
-backend/data/strategies/haruperi/strategy_42_ema_cross/v1.0.0/strategy.py
+data/strategies/haruperi/strategy_42_ema_cross/v1.0.0/strategy.py
 ```
 
 Keep backward-compatible loading:
@@ -177,7 +177,7 @@ Tasks:
 Acceptance:
 
 - Strategy rename does not break loading existing versions.
-- Existing folders under `backend/data/strategies/haruperi/...` remain readable.
+- Existing folders under `data/strategies/haruperi/...` remain readable.
 - Newly created strategies use stable `strategy_{id}_{slug}` folders.
 
 ---
@@ -187,7 +187,7 @@ Acceptance:
 Add migration:
 
 ```text
-backend/data/database/migrations/00xx_strategy_catalog_agentic_reconciliation.sql
+data/database/migrations/00xx_strategy_catalog_agentic_reconciliation.sql
 ```
 
 Migration content:
@@ -209,7 +209,7 @@ If the migration runner does not tolerate repeated `ALTER TABLE ADD COLUMN`, imp
 Backfill script:
 
 ```text
-backend/scripts/tools/migrate_legacy_strategies_to_agentic_registry.py
+scripts/tools/migrate_legacy_strategies_to_agentic_registry.py
 ```
 
 Backfill steps:
@@ -297,7 +297,7 @@ Acceptance:
 Refactor:
 
 ```text
-backend/api/routes/strategies.py
+backend_retiring/api/routes/strategies.py
 ```
 
 Keep public route paths stable:
@@ -447,14 +447,14 @@ Add unit tests:
 tests/unit/services/strategy/test_catalog_service.py
 tests/unit/services/strategy/test_strategy_storage_paths.py
 tests/unit/services/strategy/test_strategy_permissions.py
-tests/unit/backend/api/routes/test_strategies_routes.py
+tests/unit/backend_retiring/api/routes/test_strategies_routes.py
 ```
 
 Add integration tests:
 
 ```text
-tests/integration/backend/strategy/test_strategy_create_update_storage_governance.py
-tests/integration/backend/strategy/test_legacy_strategy_migration.py
+tests/integration/backend_retiring/strategy/test_strategy_create_update_storage_governance.py
+tests/integration/backend_retiring/strategy/test_legacy_strategy_migration.py
 ```
 
 Test cases:
@@ -476,7 +476,7 @@ Test cases:
 Acceptance:
 
 - Tests use temporary DB and temporary strategy artifact directory.
-- Tests do not write to the real `backend/data/database/haruquant.db`.
+- Tests do not write to the real `data/database/haruquant.db`.
 - Tests do not depend on `haruperi` existing in the developer machine.
 
 ---
@@ -519,7 +519,7 @@ Rollback plan:
 - [ ] Add stable artifact path helpers while preserving legacy path loading.
 - [ ] Add strategy catalog DB migration.
 - [ ] Add backfill/migration script with dry-run and apply modes.
-- [ ] Refactor `backend/api/routes/strategies.py` to call the catalog service.
+- [ ] Refactor `backend_retiring/api/routes/strategies.py` to call the catalog service.
 - [ ] Fix backend template lookup path.
 - [ ] Update UI fallback template imports.
 - [ ] Extend TypeScript strategy types with optional governance fields.
@@ -530,7 +530,7 @@ Rollback plan:
 - [ ] Add enforcement-mode runtime checks after migration validation.
 - [ ] Add operator lifecycle UI integration.
 - [ ] Add unit and integration tests.
-- [ ] Run migration dry-run against `backend/data/database/haruquant.db`.
+- [ ] Run migration dry-run against `data/database/haruquant.db`.
 - [ ] Review migration report.
 - [ ] Run migration apply mode.
 - [ ] Verify UI create, edit, save, version history, backtest, optimization, and live session flows.
@@ -544,7 +544,7 @@ The reconciliation is complete when:
 - A strategy created from `http://localhost:3000/strategies` writes:
   - an operational DB row in `strategies`
   - a version row in `strategy_versions`
-  - physical code under `backend/data/strategies/{username}/...`
+  - physical code under `data/strategies/{username}/...`
   - metadata under `metadata.json`
   - a governance row in `gov_strategy_registry`
 - A strategy edit from the UI creates a new version without losing older versions.

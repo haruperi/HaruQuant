@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.contracts import (
+from backend_retiring.contracts import (
     SchemaRegistryRecord,
     SchemaRegistryResolutionError,
     SchemaRegistryService,
@@ -29,8 +29,8 @@ def _record(
         deprecated_from=deprecated_from,
         compatibility_policy="major-version compatibility",
         payload_hash=f"sha256:{schema_version}",
-        json_schema_ref=f"backend/contracts/{contract_type.lower()}/schema.json",
-        pydantic_model_ref=f"backend.contracts.{contract_type.lower()}.model.{contract_type}",
+        json_schema_ref=f"backend_retiring/contracts/{contract_type.lower()}/schema.json",
+        pydantic_model_ref=f"backend_retiring.contracts.{contract_type.lower()}.model.{contract_type}",
         owning_domain_team="platform",
         changelog_summary=f"{schema_version} status {status}",
     )

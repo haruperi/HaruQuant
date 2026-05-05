@@ -1,4 +1,4 @@
-﻿# Indicator Module
+# Indicator Module
 
 A comprehensive library of technical indicators for financial market analysis, providing trend, momentum, volatility, and volume indicators with a clean, consistent API.
 
@@ -629,4 +629,4 @@ Copyright 2025, HaruQuant
 
 - `services/strategy/` - Strategy framework for backtesting
 - `apps/trading/` - Trading execution module
-- `backend/mcp/mt5_mcp/` - MT5 data integration
+- `backend_retiring/mcp/mt5_mcp/` - MT5 data integration

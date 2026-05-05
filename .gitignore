@@ -191,7 +191,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-backend/logs/
+backend_retiring/logs/
 *.log
 *.log.*
 log_*.txt
@@ -200,7 +200,7 @@ log_*.txt
 # Data Files (market data, exports, results)
 # ============================================================================
 # Market data directories
-/backend/data/
+/data/
 !app/data/
 datasets/
 market_data/
@@ -212,7 +212,7 @@ exports/
 /reports/**
 !/reports/**/
 !/reports/**/README.md
-backend/**/reports/**
+backend_retiring/**/reports/**
 output/
 
 # Temporary data
@@ -227,8 +227,24 @@ cache/
 *.arrow
 
 # Exclude example/seed data if needed (uncomment to allow)
-# !backend/data/examples/*.csv
-# !backend/data/seed/*.csv
+# !data/examples/*.csv
+# !data/seed/*.csv
+
+# Root data now contains the database package and strategy source artifacts.
+# Keep source/control files trackable while runtime-heavy stores remain ignored.
+!/data/
+!/data/**/
+!/data/**/*.py
+!/data/**/*.json
+!/data/**/*.md
+!/data/**/*.sql
+/data/cache/
+/data/data/
+/data/knowledge_db/
+/data/market_data/
+/data/saved/
+/data/simulations/
+/data/states/
 
 # ============================================================================
 # IDE & Editor Files
@@ -293,9 +309,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-backend/config/local.json
-backend/config/development.json
-backend/config/production.json
+backend_retiring/config/local.json
+backend_retiring/config/development.json
+backend_retiring/config/production.json
 *.local.json
 
 # User-specific settings
@@ -390,7 +406,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-backend/logs/
+backend_retiring/logs/
 *.log
 *.log.*
 log_*.txt
@@ -399,7 +415,7 @@ log_*.txt
 # Data Files (market data, exports, results)
 # ============================================================================
 # Market data directories
-backend/data/
+/data/
 datasets/
 market_data/
 historical_data/
@@ -424,8 +440,8 @@ cache/
 *.arrow
 
 # Exclude example/seed data if needed (uncomment to allow)
-# !backend/data/examples/*.csv
-# !backend/data/seed/*.csv
+# !data/examples/*.csv
+# !data/seed/*.csv
 
 # ============================================================================
 # IDE & Editor Files
@@ -491,9 +507,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-backend/config/local.json
-backend/config/development.json
-backend/config/production.json
+backend_retiring/config/local.json
+backend_retiring/config/development.json
+backend_retiring/config/production.json
 *.local.json
 
 # User-specific settings
@@ -587,7 +603,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-backend/logs/
+backend_retiring/logs/
 *.log
 *.log.*
 log_*.txt
@@ -596,7 +612,7 @@ log_*.txt
 # Data Files (market data, exports, results)
 # ============================================================================
 # Market data directories
-backend/data/
+/data/
 datasets/
 market_data/
 historical_data/
@@ -621,8 +637,8 @@ cache/
 *.arrow
 
 # Exclude example/seed data if needed (uncomment to allow)
-# !backend/data/examples/*.csv
-# !backend/data/seed/*.csv
+# !data/examples/*.csv
+# !data/seed/*.csv
 
 # ============================================================================
 # IDE & Editor Files
@@ -688,9 +704,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-backend/config/local.json
-backend/config/development.json
-backend/config/production.json
+backend_retiring/config/local.json
+backend_retiring/config/development.json
+backend_retiring/config/production.json
 *.local.json
 
 # User-specific settings
@@ -748,3 +764,18 @@ mt5_exports/
 .benchmarks/  
 artifacts/  
 .aider*
+# Root data now contains the database package and strategy source artifacts.
+# Keep source/control files trackable while runtime-heavy stores remain ignored.
+!/data/
+!/data/**/
+!/data/**/*.py
+!/data/**/*.json
+!/data/**/*.md
+!/data/**/*.sql
+/data/cache/
+/data/data/
+/data/knowledge_db/
+/data/market_data/
+/data/saved/
+/data/simulations/
+/data/states/

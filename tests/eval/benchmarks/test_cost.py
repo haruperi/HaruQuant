@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.observability.cost_tracker import CostTracker, MODEL_PRICING
+from backend_retiring.observability.cost_tracker import CostTracker, MODEL_PRICING
 
 
 def test_model_pricing_coverage() -> None:

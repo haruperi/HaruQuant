@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import sqlite3
 
 from services.utils import ErrorDescriptor, ValidationError, generate_id
-from backend.data.database import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
+from data.database import ApprovalRecord, ApprovalVoteRecord, GovernanceRepository
 
 from .models import ApprovalState
 

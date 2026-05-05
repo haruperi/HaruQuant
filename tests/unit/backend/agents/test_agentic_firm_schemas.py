@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from backend.agents.schemas import (
+from backend_retiring.agents.schemas import (
     AgentPlan,
     EvidenceRef,
     StrategySpec,
     TradeProposal,
 )
-from backend.agents.chat.ai_chat.models import ConversationPlan
+from backend_retiring.agents.chat.ai_chat.models import ConversationPlan
 
 
 def test_agent_plan_reuses_conversation_plan_with_governance_fields() -> None:

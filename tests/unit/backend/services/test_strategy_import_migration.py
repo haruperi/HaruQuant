@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.scripts.tools.migrate_strategy_imports_to_agentic_paths import (
+from scripts.tools.migrate_strategy_imports_to_agentic_paths import (
     has_legacy_apps_import,
     migrate_strategy_imports,
 )
@@ -19,12 +19,12 @@ from apps.trade import PositionTyp
     migrated = migrate_strategy_imports(code)
 
     assert "apps." not in migrated
-    assert "from services.strategy import BaseStrategy" in migrated
-    assert "from services.strategy.base import SignalDict" in migrated
-    assert "from services.indicator import sma, rsi" in migrated
-    assert "from services.utils.logger import logger" in migrated
-    assert "from services.strategy.compat_types import PositionType" in migrated
-    assert "from services.strategy.compat_types import PositionTyp" in migrated
+    assert "from haruquant.strategy import BaseStrategy" in migrated
+    assert "from haruquant.strategy import SignalDict" in migrated
+    assert "from haruquant.indicator import sma, rsi" in migrated
+    assert "from haruquant.utils import logger" in migrated
+    assert "from haruquant.strategy import PositionType" in migrated
+    assert "from haruquant.strategy import PositionTyp" in migrated
     assert has_legacy_apps_import(migrated) is False
 
 
@@ -39,6 +39,6 @@ class Demo(Strategy):
 
     migrated = migrate_strategy_imports(code)
 
-    assert "from services.strategy import BaseStrategy as Strategy" in migrated
+    assert "from haruquant.strategy import BaseStrategy as Strategy" in migrated
     assert has_legacy_apps_import(migrated) is False
 

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from backend.api.auth_utils import get_user_id_from_token
-from backend.api.main import app
-from backend.api.routes.ai_chat import get_ai_gateway, get_conversation_service, get_page_context_assembler, get_trade_action_governor
-from backend.data.database import AiChatRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.chat.ai_chat import AIGatewayService, ConversationService, PageContextAssembler
+from backend_retiring.api.auth_utils import get_user_id_from_token
+from backend_retiring.api.main import app
+from backend_retiring.api.routes.ai_chat import get_ai_gateway, get_conversation_service, get_page_context_assembler, get_trade_action_governor
+from data.database import AiChatRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.chat.ai_chat import AIGatewayService, ConversationService, PageContextAssembler
 from haruquant.execution import ApprovalVoteRequest, ApprovalVoteService
 from haruquant.execution import TradeActionGovernor
 

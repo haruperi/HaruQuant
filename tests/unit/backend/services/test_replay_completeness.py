@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.contracts.common import Originator
-from backend.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
-from backend.data.database import ResearchAuditRepository
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
+from data.database import ResearchAuditRepository
 from haruquant.strategy import ReplayCompletenessChecker
 
 

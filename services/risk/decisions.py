@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 from services.utils import generate_id
 from services.utils.logger import logger
-from backend.contracts.common import Originator
-from backend.contracts.risk_assessment_decision.model import (
+from backend_retiring.contracts.common import Originator
+from backend_retiring.contracts.risk_assessment_decision.model import (
     LimitConstraint,
     ProvenanceBundleRef,
     RiskAssessmentDecision,

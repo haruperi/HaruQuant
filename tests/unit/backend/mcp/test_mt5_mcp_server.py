@@ -1,4 +1,4 @@
-from backend.mcp.mt5_mcp import MT5MCPServer, create_legacy_mt5_mcp_server, create_mt5_mcp_server
+from backend_retiring.mcp.mt5_mcp import MT5MCPServer, create_legacy_mt5_mcp_server, create_mt5_mcp_server
 
 
 def test_mt5_mcp_server_starts_with_empty_tool_registry() -> None:

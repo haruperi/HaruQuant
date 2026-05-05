@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from backend.agents.runtime import evaluate_retrieved_text
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.agents.runtime import LLMRuntimeError
-from backend.agents.chat.ai_chat import (
+from backend_retiring.agents.runtime import evaluate_retrieved_text
+from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.agents.runtime import LLMRuntimeError
+from backend_retiring.agents.chat.ai_chat import (
     AIGatewayService,
     ChatStreamRequest,
     ConversationService,
@@ -45,7 +45,7 @@ def test_ai_chat_execution_boundary_leak_is_blocked_to_action_draft(tmp_path) ->
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled for deterministic test")):
+    with patch("backend_retiring.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled for deterministic test")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,

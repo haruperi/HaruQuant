@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.contracts.override_decision.model import OverrideDecision, OverrideDecisionPayload
+from backend_retiring.contracts.override_decision.model import OverrideDecision, OverrideDecisionPayload
 
 
 EXAMPLES_ROOT = (
     Path(__file__).resolve().parents[3]
-    / "backend"
+    / "backend_retiring"
     / "contracts"
     / "override_decision"
     / "examples"

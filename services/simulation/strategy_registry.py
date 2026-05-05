@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, Type
 
-from backend.data.strategies.close_breakout import CloseBreakoutStrategy
-from backend.data.strategies.trend_following import TrendFollowingStrategy
+from data.strategies.close_breakout import CloseBreakoutStrategy
+from data.strategies.trend_following import TrendFollowingStrategy
 from services.strategy.base import BaseStrategy
 
 

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "contract_type": "PageContextPacket",
+  "workflow_id": "chat_request",
+  "correlation_id": "corr_ctx_001",
+  "causation_id": "evt_ctx_001",
+  "timestamp_utc": "2026-04-19T12:00:00Z",
+  "originator": {
+    "type": "service",
+    "id": "context_service"
+  },
+  "environment": "paper",
+  "operating_mode": "MODE-001",
+  "payload": {
+    "route": "/mystery",
+    "page_type": "unknown_page",
+    "page_title": "Mystery",
+    "entity_refs": [],
+    "context_revision": "ctx_2026_04_19_001",
+    "generated_at": "2026-04-19T12:00:00Z",
+    "freshness": {
+      "observed_at": "2026-04-19T11:59:58Z",
+      "staleness_seconds": 2
+    },
+    "authority": {
+      "source": "backend_retiring/agents/chat/ai_chat/context_service.py",
+      "trust_level": "system_state"
+    },
+    "summary": {
+      "headline": "Context unavailable",
+      "bullets": []
+    },
+    "payload": {}
+  }
+}

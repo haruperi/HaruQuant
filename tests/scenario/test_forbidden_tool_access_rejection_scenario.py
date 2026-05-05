@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
+from backend_retiring.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
 
 
 def test_agent_attempt_to_call_forbidden_external_tool_is_rejected() -> None:

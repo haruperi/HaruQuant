@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.contracts.replay_bundle.model import ReplayBundle
+from backend_retiring.contracts.replay_bundle.model import ReplayBundle
 
 from .replay_runner import ReplayRunResult
 

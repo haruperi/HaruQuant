@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 
 import pytest
 
-from backend.agents.runtime.async_workflows import (
+from backend_retiring.agents.runtime.async_workflows import (
     AsyncParallelResult,
     AsyncParallelWorkflowRunner,
     AsyncParallelWorkflowTask,
@@ -128,7 +128,7 @@ def test_async_sequential_runner_passes_context() -> None:
         agent2 = ContextCapturingAsyncAgent()
         agent3 = ContextCapturingAsyncAgent()
 
-        from backend.agents.runtime.runner import ADKRunRequest
+        from backend_retiring.agents.runtime.runner import ADKRunRequest
 
         steps = (
             AsyncSequentialWorkflowStep(

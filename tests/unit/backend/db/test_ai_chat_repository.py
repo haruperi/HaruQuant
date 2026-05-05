@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
+from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 
 
 def test_ai_chat_repository_crud_round_trip(tmp_path) -> None:

@@ -14,7 +14,7 @@ The core simulator must remain fast and clean. It consumes prepared tick/array d
 
 ## Current Problems
 
-- `backend/scripts/examples/trading/trade_example.py` owns production responsibilities such as runtime reset and tick preparation.
+- `scripts/examples/trading/trade_example.py` owns production responsibilities such as runtime reset and tick preparation.
 - `example_12_complete_backtests()` declares UI-style config but does not pass most of it into the engine.
 - `build_symbol_ticks_for_backtest()` lives in an example script but should be simulation preparation logic.
 - `reset_sim_runtime_state()` lives in an example script but should be engine/runtime logic.
@@ -101,7 +101,7 @@ services/simulation/
     models.py
     route_support.py
     serializers.py
-    session_backend.py
+    session_backend_retiring.py
     session_coordinator.py
     session_manager.py
     session_runtime.py
@@ -548,7 +548,7 @@ Acceptance criteria:
 
 ### Phase 13: Rewrite Example 12
 
-Update `backend/scripts/examples/trading/trade_example.py`.
+Update `scripts/examples/trading/trade_example.py`.
 
 Tasks:
 

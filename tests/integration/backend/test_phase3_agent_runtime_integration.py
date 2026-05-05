@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.agents import (
+from backend_retiring.agents import (
     ADKRunRequest,
     ADKRunnerConfig,
     ADKRunnerService,
@@ -17,7 +17,7 @@ from backend.agents import (
     attach_prompt_provenance_to_run_result,
     build_run_trajectory_log,
 )
-from backend.data.database import ResearchAuditRepository, apply_pending_migrations
+from data.database import ResearchAuditRepository, apply_pending_migrations
 
 
 class _FakeOrchestratorRuntime:
@@ -57,7 +57,7 @@ class _FakeOrchestratorRuntime:
 
 def test_phase3_runtime_path_validates_and_persists_trajectory_log(tmp_path) -> None:
     repo_root = Path(__file__).resolve().parents[3]
-    migrations_dir = repo_root / "backend" / "data" / "database" / "migrations"
+    migrations_dir = repo_root / "data" / "database" / "migrations"
     database_path = tmp_path / "agentic.db"
 
     apply_pending_migrations(database_path, migrations_dir)

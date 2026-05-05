@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from services.utils.ids import generate_id
-from backend.data.database import IncidentRecord, WorkflowRepository
+from data.database import IncidentRecord, WorkflowRepository
 
 from services.utils.logger import logger
 

@@ -5,9 +5,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.routes import operator_strategies
-from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.data.database.sqlite.database_operations import DatabaseManager
+from backend_retiring.api.routes import operator_strategies
+from data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
+from data.database.sqlite.database_operations import DatabaseManager
 from haruquant.strategy import StrategyStorage
 from haruquant.strategy import StrategyCatalogCreateRequest, StrategyCatalogService
 

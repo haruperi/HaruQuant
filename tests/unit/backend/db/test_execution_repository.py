@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
+from data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 
 
 def test_execution_repository_supports_idempotency_and_attempt_persistence(tmp_path) -> None:

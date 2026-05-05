@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.mcp import MCPServiceAuthError, MCPServiceAuthorizer
+from backend_retiring.mcp import MCPServiceAuthError, MCPServiceAuthorizer
 
 
 def test_mcp_service_authorizer_accepts_allowlisted_service_with_valid_token() -> None:

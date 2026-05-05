@@ -41,7 +41,7 @@ cd haruquant
 pip install -r requirements.txt
 
 # Initialize database
-python backend/scripts/tools/initialize_database.py
+python scripts/tools/initialize_database.py
 ```
 
 ### Basic Single-Symbol Backtest
@@ -49,7 +49,7 @@ python backend/scripts/tools/initialize_database.py
 ```python
 from apps.simulation.simulator import TradeSimulator
 from apps.simulation.data import SymbolInfoSimulator, AccountInfoSimulator
-from backend.services.strategy.base import BaseStrategy
+from services.strategy.base import BaseStrategy
 import pandas as pd
 
 # Load data
@@ -256,7 +256,7 @@ See [Portfolio Backtesting Guide](docs/portfolio_backtesting.md) for complete do
 ### Creating a Strategy
 
 ```python
-from backend.services.strategy.base import BaseStrategy
+from services.strategy.base import BaseStrategy
 import pandas as pd
 
 class MyCustomStrategy(BaseStrategy):
@@ -344,7 +344,7 @@ print(f"Best Sharpe Ratio: {results['best_score']:.2f}")
 Connect to MetaTrader 5 for automated trading.
 
 ```python
-from backend.mcp.mt5_mcp.client import MT5Client
+from backend_retiring.mcp.mt5_mcp.client import MT5Client
 from apps.live.portfolio_manager import PortfolioManager
 
 # Connect to MT5
@@ -390,7 +390,7 @@ HaruQuant/
 â”‚   â”œâ”€â”€ live/               # Live trading
 â”‚   â”œâ”€â”€ sqlite/             # Database operations
 â”‚   â””â”€â”€ api/                # REST API
-â”œâ”€â”€ backend/data/
+â”œâ”€â”€ data/
 â”‚   â”œâ”€â”€ database/           # SQLite databases
 â”‚   â””â”€â”€ strategies/         # Strategy implementations
 â”œâ”€â”€ tests/

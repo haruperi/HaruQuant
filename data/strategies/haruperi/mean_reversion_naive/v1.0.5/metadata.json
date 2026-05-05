@@ -1,0 +1,27 @@
+{
+  "user_id": 1,
+  "strategy_id": 13,
+  "version": "1.0.5",
+  "parameters": {
+    "bb_period": 20,
+    "bb_std": 2.1,
+    "rsi_period": 12,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70
+  },
+  "saved_at": "2026-01-14T15:05:59.677818",
+  "name": "Mean Reversion Naive",
+  "description": "Bollinger Bands + RSI strategy for counter-trend trading.",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "type": "MetaTrader5 (hedged)",
+  "parameterTypes": {
+    "bb_std": "float"
+  },
+  "moneyManagement": {
+    "method": "Fixed lot size",
+    "positionSize": 0.1
+  },
+  "variables": {},
+  "changelog": "Updated via editor"
+}
