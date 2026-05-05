@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry
+from haruquant.execution import SymbolMetadataCache, SymbolMetadataCacheEntry
 
 
 UTC = timezone.utc

@@ -1,6 +1,6 @@
 """Firm-facing portfolio tool registry facade."""
 
-from services.risk.portfolio import *  # noqa: F403
+from haruquant.risk import *
 from backend.tools.read_only.portfolio import (
     OpenPositionsTool,
     PortfolioSummaryTool,

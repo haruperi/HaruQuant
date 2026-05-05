@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from services.execution import core
-from services.simulation.config import AccountConfig
-from services.simulation.engine import Engine
+from haruquant.execution import core
+from haruquant.simulation import AccountConfig
+from haruquant.simulation import Engine
 
 
 def _make_engine():

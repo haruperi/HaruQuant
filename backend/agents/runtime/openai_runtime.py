@@ -6,7 +6,7 @@ import os
 from typing import Any, Dict
 
 from backend.agents.runtime.llm_runtime import LLMRuntime, LLMRuntimeError
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 try:
     from openai import OpenAI

@@ -25,12 +25,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from services.risk.reports import (
-    build_replay_report,
-    build_risk_snapshot_report,
-    build_scenario_report,
-    render_risk_report_markdown,
-)
+    from haruquant.risk import build_replay_report, build_risk_snapshot_report, build_scenario_report, render_risk_report_markdown
 
 
 def print_example_header(title: str) -> None:

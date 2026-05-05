@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.utils.telemetry import InMemoryTelemetry
+from haruquant.utils import InMemoryTelemetry
 
 
 def test_emit_event_records_attributes():

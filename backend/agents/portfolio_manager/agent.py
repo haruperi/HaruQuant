@@ -1,7 +1,7 @@
 """Portfolio Manager facade over current portfolio advisory services."""
 
 from backend.agents.portfolio_agent import PORTFOLIO_AGENT_INSTRUCTION, PortfolioAgentWrapper
-from services.risk.portfolio import *  # noqa: F403
+from haruquant.risk import *
 
 PORTFOLIO_MANAGER_DEPARTMENT = "portfolio_manager"
 

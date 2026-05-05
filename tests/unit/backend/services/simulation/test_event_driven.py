@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-import services.simulation.engine as engine_module
-from services.simulation.engine import Engine
-from services.simulation.event_driven import run_event_driven_simulation
+from haruquant.simulation import engine as engine_module
+from haruquant.simulation import Engine
+from haruquant.simulation import run_event_driven_simulation
 
 
 class FastPathEngine:

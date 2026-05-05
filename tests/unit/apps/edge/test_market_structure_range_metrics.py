@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.research.market_structure import _compute_range_reversion_metrics
+from haruquant.research import _compute_range_reversion_metrics
 
 
 def _range_break_reentry_df() -> pd.DataFrame:

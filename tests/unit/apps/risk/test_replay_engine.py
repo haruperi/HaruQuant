@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from services.risk import (
+from haruquant.risk import (
     HypotheticalOrderAction,
     ReplayClock,
     ReplayEngine,

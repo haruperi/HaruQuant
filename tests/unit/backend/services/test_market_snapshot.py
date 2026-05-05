@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from services.utils.time_utils import FixedClock
-from services.risk import MarketSnapshot
+from haruquant.utils import FixedClock
+from haruquant.risk import MarketSnapshot
 
 
 UTC = timezone.utc

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from backend.data.database import ReplayBundleRecord
-from services.strategy.evidence.audit.export import build_audit_export_package
+from haruquant.strategy import build_audit_export_package
 
 
 def test_build_audit_export_package_labels_profile_and_export_mode() -> None:

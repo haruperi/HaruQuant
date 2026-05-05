@@ -42,25 +42,15 @@ import pandas as pd
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 
-from services.research.config import (  # noqa: E402
-    BootstrapConfig,
-    DataConfig,
-    EdgeLabConfig,
-    PermutationConfig,
-)
-from services.utils.datasets import DataSource, load_ohlc, normalize_columns  # noqa: E402
-from services.research.eds_mean_reversion import run_eds_mean_reversion  # noqa: E402
-from services.research.eds_null_models import run_eds_null_baseline  # noqa: E402
-from services.research.eds_session import run_eds_session  # noqa: E402
-from services.research.eds_trend_persistence import run_eds_trend_persistence  # noqa: E402
-from services.research.reporting import (  # noqa: E402
-    generate_multi_symbol_report,
-    print_result_summary,
-    save_json,
-    save_markdown,
-)
-from services.research.results_schema import EdgeResult  # noqa: E402
-from services.utils.logger import logger  # noqa: E402
+from haruquant.research import BootstrapConfig, DataConfig, EdgeLabConfig, PermutationConfig
+from haruquant.utils import DataSource, load_ohlc, normalize_columns
+from haruquant.research import run_eds_mean_reversion
+from haruquant.research import run_eds_null_baseline
+from haruquant.research import run_eds_session
+from haruquant.research import run_eds_trend_persistence
+from haruquant.research import generate_multi_symbol_report, print_result_summary, save_json, save_markdown
+from haruquant.research import EdgeResult
+from haruquant.utils import logger
 from backend.data.database.sqlite import SQLiteDatabase  # noqa: E402
 from backend.data.database.sqlite.edge_discovery import EdgeDiscoveryManager  # noqa: E402
 from backend.data.database.sqlite.users import UserManager  # noqa: E402

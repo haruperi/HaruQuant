@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
-from services.execution.monitoring.workflow_timeout import WorkflowTimeoutService
+from haruquant.execution import WorkflowTimeoutService
 
 
 def test_workflow_timeout_service_transitions_expired_workflow(tmp_path) -> None:

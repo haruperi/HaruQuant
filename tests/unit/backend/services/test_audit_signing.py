@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.strategy.evidence.audit.signing import sign_audit_evidence, verify_audit_signature
+from haruquant.strategy import sign_audit_evidence, verify_audit_signature
 
 
 def test_sign_and_verify_audit_evidence_signature() -> None:

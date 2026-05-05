@@ -6,7 +6,7 @@ from backend.mcp.risk_analytics_mcp import (
     RiskAnalyticsMCPServer,
     create_risk_analytics_mcp_server,
 )
-from services.risk import *  # noqa: F403
+from haruquant.risk import *
 
 TOOL_DOMAIN = "risk"
 

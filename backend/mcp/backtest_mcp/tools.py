@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 

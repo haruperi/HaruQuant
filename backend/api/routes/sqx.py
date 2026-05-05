@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict, List, Optional, cast
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -159,7 +159,7 @@ async def calculate_scores(
         df = pd.DataFrame(strategies)
 
         # 3. Run Scorecard
-        from services.research.scorecard import StrategyScorecard
+        from haruquant.research import StrategyScorecard
 
         scorer = StrategyScorecard()
         scored_df = scorer.process(df)
@@ -280,4 +280,3 @@ async def list_strategies(
     except Exception as e:
         logger.error(f"Listing SQX strategies failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-

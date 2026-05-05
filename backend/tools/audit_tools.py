@@ -1,6 +1,6 @@
 """Firm-facing audit tool registry facade."""
 
-from services.strategy.evidence.audit import *  # noqa: F403
+from haruquant.strategy import *
 
 TOOL_DOMAIN = "audit"
 CANONICAL_SOURCES = (

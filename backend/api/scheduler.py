@@ -3,7 +3,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 _scheduler = AsyncIOScheduler()

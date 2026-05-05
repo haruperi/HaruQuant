@@ -1,4 +1,4 @@
-from services.execution import core
+from haruquant.execution import core
 
 
 def test_order_send_close_uses_position_type_for_buy_profit_calculation():

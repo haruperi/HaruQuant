@@ -6,7 +6,7 @@ paused, resumed, and replayed after failures.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 import json
 import os
 import sqlite3

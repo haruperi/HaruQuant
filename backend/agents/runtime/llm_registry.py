@@ -12,7 +12,7 @@ import os
 from typing import Any, Dict, Optional, Type
 
 from backend.agents.runtime.llm_runtime import LLMRuntime
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 # Provider registry — populated at import time
 _PROVIDERS: Dict[str, Type[LLMRuntime]] = {}

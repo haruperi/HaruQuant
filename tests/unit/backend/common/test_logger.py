@@ -9,8 +9,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch, NonCallableMagicMock
 from datetime import datetime, timezone, timedelta
 
-import services.utils.logger as logger_mod
-from services.utils.logger import (
+from haruquant.utils import logger_module as logger_mod
+from haruquant.utils import (
     StructlogAdapter,
     CompatRecord,
     _SizeAndTimeRotatingFileSink,

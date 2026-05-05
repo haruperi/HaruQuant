@@ -1,3 +1,3 @@
 """Audit Department facade."""
 
-from services.strategy.evidence.audit import *  # noqa: F403
+from haruquant.strategy import *

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk import PositionExposure
-from services.risk.portfolio import enforce_portfolio_advisory_only, generate_resize_proposal
+from haruquant.risk import PositionExposure
+from haruquant.risk import enforce_portfolio_advisory_only, generate_resize_proposal
 
 
 def test_enforce_portfolio_advisory_only_allows_advisory_path() -> None:

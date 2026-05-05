@@ -3,6 +3,10 @@ import numpy as np
 from typing import Dict, Any, Optional, Union, List
 from haruquant.data import Data
 from services.execution.core import RunResult, EquityPoint
+from . import resolve_service_attr, service_modules
+
+
+_SERVICE_MODULES = service_modules("services.strategy")
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -67,6 +71,7 @@ from services.strategy.catalog import (
     StrategyCatalogService,
     StrategyCatalogUpdateRequest,
 )
+from services.strategy import BaseStrategy, SignalDict, SignalRouter, StrategyAdapter
 
 import inspect
 from services.strategy.baselines import (
@@ -832,3 +837,7 @@ class MeanReversionStrategy(Strategy):
 class CloseBreakoutStrategy(Strategy):
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(_CloseBreakoutStrategy, params)
+
+
+def __getattr__(name: str):
+    return resolve_service_attr(name, _SERVICE_MODULES)

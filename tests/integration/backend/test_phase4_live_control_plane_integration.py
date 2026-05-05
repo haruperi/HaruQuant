@@ -5,8 +5,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from services.utils import FixedClock
-from services.utils.settings import load_runtime_settings_from_mapping
+from haruquant.utils import FixedClock
+from haruquant.utils import load_runtime_settings_from_mapping
 from backend.api import build_operator_api_dependencies, create_app
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
@@ -22,13 +22,13 @@ from backend.data.database import (
     WorkflowRepository,
     apply_pending_migrations,
 )
-from services.strategy.evidence.audit import (
+from haruquant.strategy import (
     ReplayBundleAssembler,
     build_audit_export_package,
     sign_audit_evidence,
     verify_audit_signature,
 )
-from services.execution import (
+from haruquant.execution import (
     ExecutionAttemptPersistenceService,
     ExecutionReceiptService,
     ExecutionSendService,
@@ -39,8 +39,8 @@ from services.execution import (
     propagate_authority_state,
     run_pre_send_validation,
 )
-from services.execution.pre_send import PreSendValidationRequest
-from services.execution.monitoring import IncidentLifecycleService
+from haruquant.execution import PreSendValidationRequest
+from haruquant.execution import IncidentLifecycleService
 
 
 UTC = timezone.utc

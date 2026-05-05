@@ -8,7 +8,7 @@ import threading
 import time
 from typing import Dict, List
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 
 @dataclass

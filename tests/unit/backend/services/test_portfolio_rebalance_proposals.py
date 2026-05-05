@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk.portfolio import generate_rebalance_proposal
+from haruquant.risk import generate_rebalance_proposal
 
 
 def test_generate_rebalance_proposal_normalizes_target_allocations() -> None:

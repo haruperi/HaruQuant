@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.research import eds_mean_reversion as mr_module
-from services.research.config import BootstrapConfig, MeanReversionConfig, PermutationConfig
+from haruquant.research import eds_mean_reversion as mr_module
+from haruquant.research import BootstrapConfig, MeanReversionConfig, PermutationConfig
 
 
 def _sample_df() -> pd.DataFrame:

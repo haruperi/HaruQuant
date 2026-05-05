@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy.catalog import StrategyCatalogCreateRequest, StrategyCatalogService
+from haruquant.strategy import StrategyCatalogCreateRequest, StrategyCatalogService
 from backend.agents.chat.ai_chat.tool_executor import ToolExecutor
 
 

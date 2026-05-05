@@ -4,7 +4,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 
 from backend.api.auth_utils import verify_token
 from backend.api.models import UpdateUserSettingsRequest, UserSettingsResponse
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.strategy.governance import StrategyLifecycleState, StrategyLifecycleTransitionValidator
+from haruquant.strategy import StrategyLifecycleState, StrategyLifecycleTransitionValidator
 
 
 def test_strategy_lifecycle_transition_validator_accepts_valid_path() -> None:

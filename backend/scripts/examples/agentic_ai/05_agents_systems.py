@@ -34,13 +34,8 @@ from backend.agents.runtime import (
 )
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy import StrategyCatalogService, StrategyStorage
-from services.strategy.design import (
-    StrategyBlueprintMaterializationRequest,
-    StrategyBlueprintMaterializationService,
-    StrategyBlueprintRenderer,
-    StrategyBlueprintValidator,
-)
+from haruquant.strategy import StrategyCatalogService, StrategyStorage
+from haruquant.strategy import StrategyBlueprintMaterializationRequest, StrategyBlueprintMaterializationService, StrategyBlueprintRenderer, StrategyBlueprintValidator
 
 
 DEFAULT_USER_IDEA = "Buy when RSI is low and exit when it recovers."

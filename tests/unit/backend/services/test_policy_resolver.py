@@ -1,4 +1,4 @@
-from services.risk.policy import (
+from haruquant.risk import (
     PolicyBundle,
     PolicyResolutionQuery,
     PolicyResolver,

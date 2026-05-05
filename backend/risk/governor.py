@@ -1,8 +1,8 @@
 """RiskGovernor facade over existing deterministic risk services."""
 
-from services.risk import *  # noqa: F403
-from services.risk.core.governance_engine import GovernanceEngine
-from services.risk.limits import *  # noqa: F403
+from haruquant.risk import *
+from haruquant.risk import GovernanceEngine
+from haruquant.risk import *
 
 RISK_GOVERNOR_FACADE = "backend.risk.governor"
 

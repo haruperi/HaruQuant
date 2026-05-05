@@ -1,13 +1,13 @@
 """Authentication utility functions."""
 
 from datetime import datetime
-from services.utils.logger import logger
+from haruquant.utils import logger
 from typing import Optional
 
 from fastapi import Header, HTTPException, status
 
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.utils.security import verify_password
+from haruquant.utils import verify_password
 
 
 def generate_token(user_id: int, db_manager: DatabaseManager) -> str:

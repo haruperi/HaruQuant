@@ -6,8 +6,8 @@ from unittest.mock import patch
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.strategy_creator_agent import StrategyCreatorAgent
-from services.strategy import StrategyCatalogService, StrategyStorage
-from services.strategy.design import StrategyBlueprintMaterializationService
+from haruquant.strategy import StrategyCatalogService, StrategyStorage
+from haruquant.strategy import StrategyBlueprintMaterializationService
 
 
 COMPLETE_RSI_IDEA = (

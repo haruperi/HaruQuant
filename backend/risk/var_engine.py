@@ -1,5 +1,5 @@
 """VaR/CVaR risk facade."""
 
-from services.risk.metrics.var_cvar import *  # noqa: F403
+from haruquant.risk import *
 
 VAR_ENGINE_FACADE = "backend.risk.var_engine"

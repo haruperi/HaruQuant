@@ -17,7 +17,7 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from services.utils.logger import logger
+    from haruquant.utils import logger
 
 
 LOG_DIR = ROOT_DIR / "backend" / "logs"

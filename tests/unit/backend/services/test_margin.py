@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk import (
+from haruquant.risk import (
     calculate_drawdown_state,
     calculate_margin_utilization,
     calculate_volatility_adjusted_size,

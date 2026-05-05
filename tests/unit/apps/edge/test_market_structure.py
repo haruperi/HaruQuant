@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from services.research.market_structure import build_market_structure_profile
-from services.research.config import MarketStructureConfig
-from services.utils.datasets import prepare_ohlcvs_dataset
-from services.research.market_structure import _detect_swings
-from services.research.market_structure import _weighted_group_score
+from haruquant.research import build_market_structure_profile
+from haruquant.research import MarketStructureConfig
+from haruquant.utils import prepare_ohlcvs_dataset
+from haruquant.research import _detect_swings
+from haruquant.research import _weighted_group_score
 from backend.data.database.sqlite import SQLiteDatabase
 
 

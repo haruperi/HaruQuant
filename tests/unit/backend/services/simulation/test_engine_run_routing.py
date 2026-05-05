@@ -1,9 +1,9 @@
 import pandas as pd
 
-import services.simulation.runner as runner_module
-from services.simulation.config import SimulationConfig
-from services.simulation.data_preparation import PreparedSimulationData
-from services.simulation.engine import Engine
+from haruquant.simulation import runner as runner_module
+from haruquant.simulation import SimulationConfig
+from haruquant.simulation import PreparedSimulationData
+from haruquant.simulation import Engine
 
 
 def _config(engine_type="vectorized"):

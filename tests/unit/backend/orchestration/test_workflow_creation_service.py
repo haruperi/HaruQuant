@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.agents import ADKRunnerConfig, ADKRunnerService, AgentExecutionResult
-from services.utils import ValidationError
+from haruquant.utils import ValidationError
 from backend.contracts.common import Originator
 from backend.contracts.workflow_plan.model import (
     WorkflowPattern,

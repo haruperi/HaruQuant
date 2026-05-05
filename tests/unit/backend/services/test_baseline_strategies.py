@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.strategy.adapter import StrategyAdapter
-from services.strategy.baselines import (
+from haruquant.strategy import StrategyAdapter
+from haruquant.strategy import (
     EmaCrossBaselineStrategy,
     NaiveMomentumStrategy,
     RsiBaselineStrategy,

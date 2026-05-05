@@ -6,7 +6,7 @@ from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 from .tools import RISK_ANALYTICS_TOOL_SPECS
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 class RiskAnalyticsMCPServer:
     """Thin MCP server shell for the legacy risk analytics boundary."""

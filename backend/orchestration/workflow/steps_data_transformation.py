@@ -13,11 +13,7 @@ from typing import Any
 
 import pandas as pd
 
-from services.research.modeling import (
-    UnsupervisedResearchConfig,
-    UnsupervisedResearchService,
-    build_market_regime_feature_frame,
-)
+from haruquant.research import UnsupervisedResearchConfig, UnsupervisedResearchService, build_market_regime_feature_frame
 
 
 class WorkflowContext(dict):
@@ -74,7 +70,7 @@ def step_collect_market_data(
     lookback_days: int = 14,
 ) -> dict[str, Any]:
     """Collect OHLCV market data from MT5 (with Dukascopy fallback)."""
-    from services.data.service import load_mt5
+    from haruquant.data import load_mt5
 
     if start_date is None:
         end_date = end_date or datetime.now()
@@ -101,7 +97,7 @@ def step_clean_and_prepare_data(
     ctx: WorkflowContext,
 ) -> dict[str, Any]:
     """Normalize column names and validate data integrity."""
-    from services.utils.datasets import normalize_columns
+    from haruquant.utils import normalize_columns
 
     raw_df = ctx["raw_df"]
     normalized = normalize_columns(raw_df)
@@ -127,7 +123,7 @@ def step_create_features(
     bias_period: int = 200,
 ) -> dict[str, Any]:
     """Compute EMA features for trend-following strategy."""
-    from services.data.features.pipeline import FeaturePipeline, FeatureSpec
+    from haruquant.data import FeaturePipeline, FeatureSpec
 
     lower_df = ctx["lower_df"]
     pipeline = FeaturePipeline([
@@ -177,7 +173,7 @@ def step_generate_signals(
     use_shift1: bool = True,
 ) -> dict[str, Any]:
     """Run the EMA crossover strategy and generate entry/exit signals."""
-    from services.strategy.baselines import EmaCrossBaselineStrategy
+    from haruquant.strategy import EmaCrossBaselineStrategy
 
     featured = ctx["featured"]
     cfg = ctx["strategy_config"]
@@ -304,8 +300,8 @@ def step_backtest_strategy(
     use_unsupervised_signal_filter: bool = False,
 ) -> dict[str, Any]:
     """Run simulation backtest with the generated signals."""
-    from services.execution.core import SymbolInfo
-    from services.simulation.engine import Engine
+    from haruquant.execution import SymbolInfo
+    from haruquant.simulation import Engine
 
     if use_unsupervised_signal_filter and "adapted_signaled" in ctx:
         signaled = ctx["adapted_signaled"]
@@ -396,7 +392,7 @@ def step_evaluate_performance(
     initial_balance: float = 10000.0,
 ) -> dict[str, Any]:
     """Compute performance metrics from backtest results."""
-    from services.analytics.drawdowns import max_drawdown
+    from haruquant.analytics import max_drawdown
 
     bt_result = ctx["bt_result"]
     signaled = ctx["signaled"]
@@ -429,8 +425,8 @@ def step_evaluate_performance(
             "losses": 0,
         }
     else:
-        from services.analytics.ratios import sharpe_ratio
-        from services.analytics.drawdowns import max_drawdown
+        from haruquant.analytics import sharpe_ratio
+        from haruquant.analytics import max_drawdown
 
         trade_pnls = [float(getattr(t, "profit_loss", 0) or 0) for t in trades]
         trade_returns = pd.Series([p / initial_balance for p in trade_pnls])

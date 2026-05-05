@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from services.strategy.evidence.audit import ReplayBundleAssembler
+from haruquant.strategy import ReplayBundleAssembler
 
 
 def test_replay_bundle_assembler_builds_complete_bundle(tmp_path) -> None:

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import json
 from uuid import uuid4
 
-from services.utils.ids import generate_prefixed_id
+from haruquant.utils import generate_prefixed_id
 from backend.data.database.repositories.ai_chat_repository import AiChatRepository
 from backend.data.database.repositories.governance_repository import GovernanceRepository
 

@@ -6,7 +6,7 @@ import math
 
 from .models import RetrievalEvalResult
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 class RetrievalEvaluator:
     """Evaluates retrieval quality using standard IR metrics."""

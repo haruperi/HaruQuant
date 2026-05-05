@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import HTTPException
 
-from services.simulation.session_backend import SessionMetadata
-from services.simulation.session_coordinator import SessionCoordinator
-from services.simulation.session_manager import SimulatorSessionManager
+from haruquant.simulation import SessionMetadata
+from haruquant.simulation import SessionCoordinator
+from haruquant.simulation import SimulatorSessionManager
 
 
 @dataclass

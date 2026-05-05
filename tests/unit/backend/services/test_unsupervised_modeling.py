@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.research.modeling.unsupervised import (
+from haruquant.research import (
     attach_cluster_labels,
     cluster_feature_space,
     run_pca,

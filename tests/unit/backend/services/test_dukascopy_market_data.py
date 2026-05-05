@@ -4,8 +4,8 @@ from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
-from services.utils.time_utils import FixedClock
-from services.data import get_instrument, normalize_dukascopy_bars
+from haruquant.utils import FixedClock
+from haruquant.data import get_instrument, normalize_dukascopy_bars
 
 
 def test_get_instrument_resolves_currency_pair() -> None:

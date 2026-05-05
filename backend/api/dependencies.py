@@ -5,15 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from services.utils.logger import logger
-from services.utils.settings import RuntimeSettings, load_runtime_settings
+from haruquant.utils import logger
+from haruquant.utils import RuntimeSettings, load_runtime_settings
 from backend.contracts import SchemaRegistryService, load_initial_schema_registry_seeds
 from backend.data.database import (
     GovernanceRepository,
     apply_pending_migrations,
     default_migrations_dir,
 )
-from services.risk.policy import PolicyResolver
+from haruquant.risk import PolicyResolver
 
 
 @dataclass(frozen=True)

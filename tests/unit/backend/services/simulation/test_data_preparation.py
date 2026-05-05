@@ -4,15 +4,15 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-import services.simulation.data_preparation as data_preparation
-from services.simulation.config import SimulationConfig
-from services.simulation.data_preparation import (
+from haruquant.simulation import data_preparation as data_preparation
+from haruquant.simulation import SimulationConfig
+from haruquant.simulation import (
     SimulationDataPreparationError,
     SimulationDataPreparer,
 )
-from services.simulation.strategy_registry import register_strategy
-from services.strategy.base import BaseStrategy
-from services.data.transforms import TicksGenerator
+from haruquant.simulation import register_strategy
+from haruquant.strategy import BaseStrategy
+from haruquant.data import TicksGenerator
 
 
 class FixtureSignalStrategy(BaseStrategy):

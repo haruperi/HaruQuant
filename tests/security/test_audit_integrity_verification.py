@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.strategy.evidence.audit import generate_integrity_manifest, sign_audit_evidence, verify_audit_signature
+from haruquant.strategy import generate_integrity_manifest, sign_audit_evidence, verify_audit_signature
 
 
 def test_audit_integrity_verification_detects_manifest_or_signature_tampering() -> None:

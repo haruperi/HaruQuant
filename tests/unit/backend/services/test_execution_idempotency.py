@@ -9,7 +9,7 @@ from backend.contracts.risk_assessment_decision.model import (
     RiskAssessmentDecisionPayload,
 )
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from services.execution.idempotency import generate_execution_idempotency_key
+from haruquant.execution import generate_execution_idempotency_key
 
 
 def _proposal(*, units: int = 1000) -> TradeProposal:

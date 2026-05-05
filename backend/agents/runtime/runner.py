@@ -6,7 +6,7 @@ implementation delegates to the middleware pipeline in middleware.py.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from dataclasses import dataclass, field
 import hashlib
 from time import perf_counter

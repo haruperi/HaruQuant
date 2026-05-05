@@ -9,7 +9,7 @@ and delegate work.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 

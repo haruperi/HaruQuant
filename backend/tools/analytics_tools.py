@@ -1,6 +1,6 @@
 """Firm-facing analytics tool registry facade."""
 
-from services.analytics import *  # noqa: F403
+from haruquant.analytics import *
 
 TOOL_DOMAIN = "analytics"
 CANONICAL_SOURCES = (

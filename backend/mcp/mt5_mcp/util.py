@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, Tuple, List, Optional, Union
 from dataclasses import asdict, dataclass, field
 import pandas as pd
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.mcp.mt5_mcp.client import get_mt5_api
 from backend.data.database.sqlite.users import UserManager
 

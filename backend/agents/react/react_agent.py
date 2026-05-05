@@ -15,7 +15,7 @@ from backend.agents.runtime.runner import (
     AgentExecutionResult,
 )
 from backend.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 
 # ──────────────────────────────────────────────────────────────

@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 
-from services.utils import ErrorDescriptor, ValidationError, generate_id
-from services.utils.logger import logger
+from haruquant.utils import ErrorDescriptor, ValidationError, generate_id
+from haruquant.utils import logger
 from backend.data.database import WorkflowRecord, WorkflowRepository
 
 from .executor import WorkflowExecutionResult, WorkflowPlanExecutor

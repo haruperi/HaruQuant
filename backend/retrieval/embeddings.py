@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 class EmbeddingService:
     """Generates text embeddings using sentence-transformers."""

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -13,13 +13,13 @@ from backend.contracts.risk_assessment_decision.model import (
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from backend.data.database import ExecutionRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from services.risk.policy.compliance_rollout import require_live_execution_profile
-from services.strategy.governance import (
+from haruquant.risk import require_live_execution_profile
+from haruquant.strategy import (
     StrategyLifecycleState,
     update_operating_envelope_for_promotion,
 )
-from services.risk import evaluate_compliance_profile_compatibility, evaluate_operating_mode_compatibility
-from services.execution import (
+from haruquant.risk import evaluate_compliance_profile_compatibility, evaluate_operating_mode_compatibility
+from haruquant.execution import (
     ExecutionAttemptPersistenceService,
     ExecutionReceiptService,
     ExecutionSendService,
@@ -29,7 +29,7 @@ from services.execution import (
     generate_execution_idempotency_key,
     run_pre_send_validation,
 )
-from services.execution.pre_send import PreSendValidationRequest
+from haruquant.execution import PreSendValidationRequest
 
 
 UTC = timezone.utc

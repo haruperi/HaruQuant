@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from services.simulation import session_service
+from haruquant.simulation import session_service
 
 
 class DummyCoordinator:

@@ -3,11 +3,11 @@ from contextlib import redirect_stdout
 
 import pandas as pd
 
-from services.execution.core import EquityPoint, RunResult, TradeRecord
-from services.simulation.config import SimulationConfig
-from services.simulation.data_preparation import PreparedSimulationData
-from services.simulation.reporting import print_simulation_summary, simulation_summary_rows
-from services.simulation.results import SimulationRunResult
+from haruquant.execution import EquityPoint, RunResult, TradeRecord
+from haruquant.simulation import SimulationConfig
+from haruquant.simulation import PreparedSimulationData
+from haruquant.simulation import print_simulation_summary, simulation_summary_rows
+from haruquant.simulation import SimulationRunResult
 
 
 def _config():

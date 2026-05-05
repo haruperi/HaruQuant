@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from backend.orchestration.workflow import KillSwitchState
-from services.risk.safety import evaluate_new_entry_block
+from haruquant.risk import evaluate_new_entry_block
 
 
 def test_live_entry_blocked_when_kill_switch_triggered() -> None:

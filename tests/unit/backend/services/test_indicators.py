@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from services.indicator import (
+from haruquant.indicator import (
     accumulation_distribution,
     atr,
     bbands,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Protocol
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 class StreamChunkHandler(Protocol):
     """Protocol for handling streaming chunks."""

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from backend.data.database import EvidenceBundleRecord
-from services.strategy.governance import PromotionEvidenceValidator, StrategyLifecycleState
+from haruquant.strategy import PromotionEvidenceValidator, StrategyLifecycleState
 
 
 def test_promotion_evidence_validator_accepts_required_bundle_type() -> None:

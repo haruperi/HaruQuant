@@ -28,7 +28,7 @@ from backend.agents.chat.ai_chat.rate_limiter import ChatRateLimiter
 from backend.agents.chat.ai_chat.policy import AuthorityBand
 from backend.agents.chat.ai_chat.page_retrieval import PageSemanticRetrievalService, RetrievedPageChunk
 from backend.agents.chat.ai_chat.tool_attachment_runtime import ChatToolAttachmentRuntime
-from services.execution.cost import CostEnforcer
+from haruquant.execution import CostEnforcer
 from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult, ToolExecutor
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 # Add the project root to the python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.retrieval.embeddings import EmbeddingService
 from backend.retrieval.ingestion import DocumentIngester
 from backend.retrieval.service import RetrievalService

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from services.risk import PortfolioStateEngine, RiskLimits
+from haruquant.risk import PortfolioStateEngine, RiskLimits
 
 
 def _bars(

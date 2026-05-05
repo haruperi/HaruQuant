@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
-from services.risk.regimes import RegimeEngine, RegimeState, RiskRegimeDetector
+from haruquant.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from haruquant.risk import RegimeEngine, RegimeState, RiskRegimeDetector
 
 
 def _bars(periods: int = 120, start: str = "2024-01-01", scale: float = 1.0) -> pd.DataFrame:

@@ -20,9 +20,9 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from services.utils.logger import logger
-from services.strategy import BaseStrategy
-from services.strategy.base import SignalDict
+from haruquant.utils import logger
+from haruquant.strategy import BaseStrategy
+from haruquant.strategy import SignalDict
 
 
 class AssetsEurusdTimeframeH1EntryLogicStrategyStrategy(BaseStrategy):

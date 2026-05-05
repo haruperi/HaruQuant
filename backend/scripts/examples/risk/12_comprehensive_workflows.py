@@ -31,17 +31,10 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 from backend.mcp.mt5_mcp import MT5Client, get_mt5_api
-from services.risk import (
-    AllocationPlanner,
-    GovernanceEngine,
-    PortfolioRiskEngine,
-    PositionSizer,
-    RiskLimits,
-    RiskRegimeDetector,
-)
-from services.risk.limits import CorrelationPreference
+from haruquant.risk import AllocationPlanner, GovernanceEngine, PortfolioRiskEngine, PositionSizer, RiskLimits, RiskRegimeDetector
+from haruquant.risk import CorrelationPreference
 from backend.data.database.sqlite.users import UserManager
-from services.simulation.engine import Engine
+from haruquant.simulation import Engine
 
 mt5 = get_mt5_api()
 

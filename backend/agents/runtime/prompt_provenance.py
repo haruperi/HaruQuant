@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from .prompts import PromptRegistryRecord
 from .runner import ADKRunResult
 

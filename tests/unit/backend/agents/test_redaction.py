@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.utils.redaction import REDACTED
+from haruquant.utils import REDACTED
 from backend.agents import ContextRedactionMiddleware
 
 

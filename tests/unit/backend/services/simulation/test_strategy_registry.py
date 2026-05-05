@@ -2,14 +2,14 @@ import pytest
 
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 from backend.data.strategies.trend_following import TrendFollowingStrategy
-from services.simulation.strategy_registry import (
+from haruquant.simulation import (
     StrategyRegistryError,
     get_strategy_class,
     list_strategy_names,
     register_strategy,
     registered_strategies,
 )
-from services.strategy.base import BaseStrategy
+from haruquant.strategy import BaseStrategy
 
 
 class TemporaryTestStrategy(BaseStrategy):

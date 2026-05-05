@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.contracts.trade_proposal.model import TradeProposal
-from services.risk import (
+from haruquant.risk import (
     enforce_risk_decision_expiry,
     invalidate_for_material_proposal_change,
 )

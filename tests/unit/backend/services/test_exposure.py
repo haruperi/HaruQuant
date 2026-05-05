@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk import (
+from haruquant.risk import (
     PositionExposure,
     calculate_currency_concentration,
     calculate_exposure_summary,

@@ -1,4 +1,4 @@
-from services.risk.policy.compliance import (
+from haruquant.risk import (
     ApprovalPolicy,
     ComplianceProfile,
     RetentionPolicy,

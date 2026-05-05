@@ -2,6 +2,10 @@ from typing import Any, Dict, List, Optional, Union, Callable
 import pandas as pd
 import numpy as np
 from services.optimization import methods, scoring, monte_carlo
+from . import resolve_service_attr, service_modules
+
+
+_SERVICE_MODULES = service_modules("services.optimization")
 
 class Splitter:
     """ Powerful time-series splitting for backtesting and ML validation. """
@@ -420,3 +424,7 @@ class Optimizer:
             deterioration_pct=deterioration_pct,
             initial_balance=initial_balance
         )
+
+
+def __getattr__(name: str):
+    return resolve_service_attr(name, _SERVICE_MODULES)

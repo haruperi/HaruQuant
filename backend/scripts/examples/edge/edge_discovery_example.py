@@ -29,31 +29,8 @@ sys.path.insert(0, str(ROOT_DIR))
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from services.research import (  # noqa: E402 # Config; Data; Features; EDS Runners; Reporting
-    BootstrapConfig,
-    DataConfig,
-    EdgeLabConfig,
-    MeanReversionConfig,
-    PermutationConfig,
-    TrendPersistenceConfig,
-    atr,
-    bb_width,
-    generate_multi_symbol_report,
-    hurst_exponent,
-    load_ohlc,
-    print_result_summary,
-    rsi,
-    run_eds_mean_reversion,
-    run_eds_null_baseline,
-    run_eds_session,
-    run_eds_trend_persistence,
-    save_json,
-    save_markdown,
-    tag_sessions,
-    validate_data_quality,
-    zscore,
-)
-from services.utils.logger import logger  # noqa: E402
+from haruquant.research import BootstrapConfig, DataConfig, EdgeLabConfig, MeanReversionConfig, PermutationConfig, TrendPersistenceConfig, atr, bb_width, generate_multi_symbol_report, hurst_exponent, load_ohlc, print_result_summary, rsi, run_eds_mean_reversion, run_eds_null_baseline, run_eds_session, run_eds_trend_persistence, save_json, save_markdown, tag_sessions, validate_data_quality, zscore
+from haruquant.utils import logger
 
 
 def create_mt5_source():
@@ -444,7 +421,7 @@ def example_6_exploratory_analysis():
     bars = 5000
 
     # Load data
-    from services.utils.datasets import compute_session_stats
+    from haruquant.utils import compute_session_stats
 
     df = load_ohlc(source, symbol, timeframe, 0, bars, exclude_last_bar=True)
     df = tag_sessions(df)

@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from services.utils.logger import logger
-from services.utils import generate_id
+from haruquant.utils import logger
+from haruquant.utils import generate_id
 
 
 class SessionState(StrEnum):

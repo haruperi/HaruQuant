@@ -4,16 +4,16 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
-from services.risk import (
+from haruquant.risk import (
     PortfolioStateEngine,
     RecommendationEngine,
     RiskLimits,
     RiskScorecardEngine,
     RiskSnapshotEngine,
 )
-from services.risk.simulation import ReplayFrame, build_cockpit_state
-from services.risk.storage import RiskRepository, RiskScenarioStore, RiskSnapshotStore
-from services.risk.scenarios import ScenarioResult
+from haruquant.risk import ReplayFrame, build_cockpit_state
+from haruquant.risk import RiskRepository, RiskScenarioStore, RiskSnapshotStore
+from haruquant.risk import ScenarioResult
 from backend.data.database.sqlite import SQLiteDatabase
 
 

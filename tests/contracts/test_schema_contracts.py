@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from services.execution.approval.models import ApprovalPacket, ApprovalRequest, ApprovalState, RiskClass
-from services.execution.core import TradeRecord
+from haruquant.execution import ApprovalPacket, ApprovalRequest, ApprovalState, RiskClass
+from haruquant.execution import TradeRecord
 from backend.observability.trace_model import Trace
 from backend.observability.span_model import Span
 

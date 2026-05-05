@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 ALLOWED_OPERATOR_ROLES = {"operator", "approver", "admin"}
 PUBLIC_PATH_PREFIXES = (

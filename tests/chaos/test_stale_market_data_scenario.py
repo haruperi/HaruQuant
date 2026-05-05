@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.utils import FixedClock
-from services.execution import SymbolMetadataCacheEntry, validate_price_freshness
+from haruquant.utils import FixedClock
+from haruquant.execution import SymbolMetadataCacheEntry, validate_price_freshness
 
 
 def test_stale_market_data_chaos_scenario_fails_closed() -> None:

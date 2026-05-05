@@ -21,8 +21,8 @@ from backend.contracts.page_context_packet.model import (
     PageType,
 )
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.execution.performance.snapshot_cache import HotSnapshotCache, SnapshotCacheEntry
-from services.strategy.catalog import StrategyCatalogService
+from haruquant.execution import HotSnapshotCache, SnapshotCacheEntry
+from haruquant.strategy import StrategyCatalogService
 
 # Define TTLs for different page types
 PAGE_CONTEXT_TTL: dict[PageType, int] = {

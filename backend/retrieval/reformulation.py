@@ -5,7 +5,7 @@ from __future__ import annotations
 from .models import RetrievalResult
 from .service import RetrievalService
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 class RetrievalReformulator:
     """If retrieval returns no or poor results, reformulate the query."""

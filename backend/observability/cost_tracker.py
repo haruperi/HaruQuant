@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 # ─────────────────────────────────────────────────────────────────────
 # Model Pricing Table (per 1M tokens, USD)

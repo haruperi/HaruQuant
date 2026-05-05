@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.execution.authority import propagate_authority_state
+from haruquant.execution import propagate_authority_state
 
 
 def test_propagate_authority_state_maps_authoritative_badge() -> None:

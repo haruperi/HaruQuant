@@ -7,11 +7,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.api.middleware.security import SecretRedactionMiddleware
 from backend.api.router import intent_classifier
 from backend.agents.intent_router import intent_router_agent
-from services.strategy.legacy_compat import install_legacy_apps_modules
+from haruquant.strategy import install_legacy_apps_modules
 
 from .routes import (
     ai_chat,

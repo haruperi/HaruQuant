@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.strategy.evidence import EvidenceArtifact, build_evidence_bundle_manifest
+from haruquant.strategy import EvidenceArtifact, build_evidence_bundle_manifest
 
 
 def test_build_evidence_bundle_manifest_produces_stable_content_shape() -> None:

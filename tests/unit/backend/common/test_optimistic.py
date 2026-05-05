@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.utils.optimistic import (
+from haruquant.utils import (
     ConcurrencyState,
     StaleVersionError,
     apply_version_update,

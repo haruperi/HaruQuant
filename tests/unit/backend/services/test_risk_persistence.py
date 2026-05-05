@@ -6,14 +6,14 @@ from pathlib import Path
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import LimitConstraint
 from backend.data.database import apply_pending_migrations, default_migrations_dir
-from services.risk import (
+from haruquant.risk import (
     RiskDecisionEnvelopeContext,
     RiskDecisionPersistenceService,
     RiskDecisionProvenance,
     compose_risk_decision,
     pack_risk_decision_rationale_and_provenance,
 )
-from services.risk.restrictions import RestrictionEvaluation
+from haruquant.risk import RestrictionEvaluation
 
 
 UTC = timezone.utc

@@ -7,7 +7,7 @@ LLM calls that are not limited by Python's GIL.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Protocol, Tuple

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from services.analytics import metrics, drawdowns, risks, statistical_tests
+from haruquant.analytics import metrics, drawdowns, risks, statistical_tests
 
 def test_consecutive_wins_losses_optimized():
     # Test with standard list/array

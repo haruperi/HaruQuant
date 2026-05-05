@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.research.modeling import UnsupervisedResearchService
-from services.optimization.execution import EngineOptimizationResult
+from haruquant.research import UnsupervisedResearchService
+from haruquant.optimization import EngineOptimizationResult
 from backend.mcp.optimization_mcp import (
     OPTIMIZATION_TOOL_SPECS,
     OptimizationExecutionTools,

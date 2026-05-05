@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.policies.tool_policy import ToolPolicy
-from services.strategy.catalog import StrategyCatalogService
+from haruquant.strategy import StrategyCatalogService
 from backend.tools.read_only import (
     AlertHistoryTool,
     BacktestSummaryTool,

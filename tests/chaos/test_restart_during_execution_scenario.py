@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
-from services.execution.reconciliation import ReconciliationStartupLoader
+from haruquant.execution import ReconciliationStartupLoader
 
 
 def test_restart_during_execution_chaos_scenario_recovers_inflight_intent_on_startup(tmp_path) -> None:

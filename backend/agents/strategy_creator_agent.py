@@ -13,13 +13,8 @@ from backend.contracts.strategy_blueprint.model import StrategyBlueprint
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
 from backend.config.agent_model import get_model_for_tier
-from services.strategy.catalog import StrategyCatalogService
-from services.strategy.design import (
-    StrategyBlueprintMaterializationRequest,
-    StrategyBlueprintMaterializationService,
-    StrategyBlueprintRenderer,
-    StrategyBlueprintValidator,
-)
+from haruquant.strategy import StrategyCatalogService
+from haruquant.strategy import StrategyBlueprintMaterializationRequest, StrategyBlueprintMaterializationService, StrategyBlueprintRenderer, StrategyBlueprintValidator
 
 from .prompts.strategy_creator_template import STRATEGY_CREATOR_AGENT_INSTRUCTION
 
@@ -1126,8 +1121,8 @@ Rules:
 
 import pandas as pd
 
-from services.utils.logger import logger
-from services.indicator.validation import (
+from haruquant.utils import logger
+from haruquant.indicator import (
     require_columns,
     require_dataframe,
     require_positive_float,
@@ -1215,8 +1210,8 @@ definition. Review the formula before using in research.
 
 import pandas as pd
 
-from services.utils.logger import logger
-from services.indicator.validation import (
+from haruquant.utils import logger
+from haruquant.indicator import (
     require_columns,
     require_dataframe,
     require_positive_int,

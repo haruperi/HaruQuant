@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 
 # ======================================================================
@@ -48,12 +48,11 @@ def _run_single_backtest(
     initial_balance: float = 10000.0,
 ) -> Dict[str, Any]:
     """Run a single backtest and return metrics."""
-    from services.data.service import load_mt5
-    from services.utils.datasets import normalize_columns
-    from services.data.features.pipeline import FeaturePipeline, FeatureSpec
-    from services.strategy.baselines import EmaCrossBaselineStrategy
-    from services.execution.core import SymbolInfo
-    from services.simulation.engine import Engine
+    from haruquant.data import FeaturePipeline, FeatureSpec, load_mt5
+    from haruquant.execution import SymbolInfo
+    from haruquant.strategy import EmaCrossBaselineStrategy
+    from haruquant.utils import normalize_columns
+    from haruquant.simulation import Engine
 
     raw_df = load_mt5(
         symbol=symbol, timeframe=timeframe,

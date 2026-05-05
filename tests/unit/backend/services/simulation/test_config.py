@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from services.simulation.config import (
+from haruquant.simulation import (
     SimulationConfig,
     SimulationConfigError,
 )

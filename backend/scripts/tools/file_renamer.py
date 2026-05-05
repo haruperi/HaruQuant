@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 
 def rename_file(

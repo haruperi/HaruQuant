@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -10,7 +10,7 @@ from backend.contracts.risk_assessment_decision.model import (
     RiskAssessmentDecisionPayload,
 )
 from backend.contracts.trade_proposal.model import TradeProposal
-from services.execution import (
+from haruquant.execution import (
     aggregate_readiness_results,
     SymbolMetadataCacheEntry,
     validate_fill_mode_compatibility,

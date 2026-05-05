@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
 from backend.mcp.mt5_mcp import MT5ReadOnlyTools
 from backend.orchestration.workflow import KillSwitchState
-from services.execution import SymbolMetadataCacheEntry, aggregate_readiness_results, validate_market_open, validate_price_freshness, validate_terminal_connectivity
-from services.execution.reconciliation import BrokerTruthFetcher, ReconciliationStartupLoader, build_local_execution_truth, compare_execution_truth, evaluate_retry_guard
-from services.risk.safety import evaluate_new_entry_block
+from haruquant.execution import SymbolMetadataCacheEntry, aggregate_readiness_results, validate_market_open, validate_price_freshness, validate_terminal_connectivity
+from haruquant.execution import BrokerTruthFetcher, ReconciliationStartupLoader, build_local_execution_truth, compare_execution_truth, evaluate_retry_guard
+from haruquant.risk import evaluate_new_entry_block
 
 
 UTC = timezone.utc

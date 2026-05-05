@@ -14,46 +14,12 @@ from fastapi import (
 )
 
 from backend.api.websocket import optimization_progress_manager
-from services.utils.logger import logger
-from services.optimization.models import (
-    ConsecutiveLosingRequest,
-    ConsecutiveLosingResponse,
-    ConsecutiveLosingScenario,
-    MonteCarloRequest,
-    MonteCarloResponse,
-    MultiEntryRequest,
-    MultiEntryResponse,
-    OptimizationRequest,
-    OptimizationResponse,
-    OptimizationResultItem,
-    OptimizationRunDetails,
-    UnsupervisedAnalysisRequest,
-    UnsupervisedRunSummary,
-    ParametricMonteCarloRequest,
-    PositionSizingRequest,
-    ProfitTargetRequest,
-    ProfitTargetResponse,
-    ProfitTargetResult,
-    RandomWinRateRequest,
-    RandomWinRateResponse,
-    RobustnessRequest,
-    RobustnessResponse,
-    WalkForwardRequest,
-)
-from services.optimization.monte_carlo import (
-    ParametricSimulationResult,
-    consecutive_losing_simulation,
-    parametric_simulation,
-    position_sizing_simulation,
-    profit_target_simulation,
-    random_win_rate_simulation,
-)
-from services.data.service import load_dukascopy
-from services.data.quality import DataValidator
-from services.research.modeling import (
-    UnsupervisedResearchConfig,
-    UnsupervisedResearchService,
-)
+from haruquant.utils import logger
+from haruquant.optimization import ConsecutiveLosingRequest, ConsecutiveLosingResponse, ConsecutiveLosingScenario, MonteCarloRequest, MonteCarloResponse, MultiEntryRequest, MultiEntryResponse, OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationRunDetails, UnsupervisedAnalysisRequest, UnsupervisedRunSummary, ParametricMonteCarloRequest, PositionSizingRequest, ProfitTargetRequest, ProfitTargetResponse, ProfitTargetResult, RandomWinRateRequest, RandomWinRateResponse, RobustnessRequest, RobustnessResponse, WalkForwardRequest
+from haruquant.optimization import ParametricSimulationResult, consecutive_losing_simulation, parametric_simulation, position_sizing_simulation, profit_target_simulation, random_win_rate_simulation
+from haruquant.data import load_dukascopy
+from haruquant.data import DataValidator
+from haruquant.research import UnsupervisedResearchConfig, UnsupervisedResearchService
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -221,7 +187,7 @@ async def start_optimization(
 
         logger.info(f"Created optimization run {optimization_id}")
 
-        from services.optimization.core import run_optimization_task
+        from haruquant.optimization import run_optimization_task
 
         # Add background task
         background_tasks.add_task(
@@ -402,7 +368,7 @@ async def start_walk_forward(
             status="pending",
         )
 
-        from services.optimization.core import run_walk_forward_task
+        from haruquant.optimization import run_walk_forward_task
 
         # Add background task
         background_tasks.add_task(
@@ -519,7 +485,7 @@ async def start_monte_carlo(
             random_seed=request.random_seed,
         )
 
-        from services.optimization.core import run_monte_carlo_task
+        from haruquant.optimization import run_monte_carlo_task
 
         # Add background task
         background_tasks.add_task(
@@ -697,7 +663,7 @@ async def run_random_win_rate(request: RandomWinRateRequest):
 async def run_robustness(request: RobustnessRequest):
     """Run Robustness simulation."""
     try:
-        from services.optimization.monte_carlo import robustness_simulation
+        from haruquant.optimization import robustness_simulation
 
         result = robustness_simulation(
             backtest_id=request.backtest_id,
@@ -722,7 +688,7 @@ async def run_robustness(request: RobustnessRequest):
 async def run_multi_entry(request: MultiEntryRequest):
     """Run Multi-Entry simulation."""
     try:
-        from services.optimization.monte_carlo import multi_entry_simulation
+        from haruquant.optimization import multi_entry_simulation
 
         result = multi_entry_simulation(request)
         return result
@@ -743,4 +709,3 @@ async def optimization_progress_websocket(websocket: WebSocket, optimization_id:
             await websocket.receive_text()
     except WebSocketDisconnect:
         await optimization_progress_manager.disconnect(optimization_id, websocket)
-

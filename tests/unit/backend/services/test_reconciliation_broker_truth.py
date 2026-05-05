@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from backend.mcp.mt5_mcp import MT5ReadOnlyTools
-from services.execution.reconciliation import BrokerTruthFetcher
+from haruquant.execution import BrokerTruthFetcher
 
 
 class FakeBrokerReadGateway:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.utils import FixedClock
-from services.risk import enforce_risk_decision_expiry
+from haruquant.utils import FixedClock
+from haruquant.risk import enforce_risk_decision_expiry
 
 
 def test_stale_risk_decision_chaos_scenario_blocks_execution() -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.research.market_structure_strategy_fit import build_strategy_fit
+from haruquant.research import build_strategy_fit
 
 
 def test_strategy_fit_prefers_breakout_when_trend_signals_dominate():

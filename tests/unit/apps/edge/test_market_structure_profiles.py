@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.research.market_structure_profiles import resolve_market_structure_profile
+from haruquant.research import resolve_market_structure_profile
 
 
 def test_market_structure_profile_resolves_major_fx_intraday_swing():

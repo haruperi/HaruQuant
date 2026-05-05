@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.utils import FixedClock
-from services.execution.performance import HotSnapshotCache, SnapshotCacheEntry
+from haruquant.utils import FixedClock
+from haruquant.execution import HotSnapshotCache, SnapshotCacheEntry
 
 
 def test_hot_snapshot_cache_returns_only_fresh_entries() -> None:

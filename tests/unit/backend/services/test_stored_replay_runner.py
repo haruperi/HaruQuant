@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from services.strategy.evidence.audit import ReplayBundleAssembler
-from services.strategy.evidence.audit.replay_runner import StoredReplayRunner
+from haruquant.strategy import ReplayBundleAssembler
+from haruquant.strategy import StoredReplayRunner
 
 
 def test_stored_replay_runner_reconstructs_refs_from_persisted_bundle(tmp_path) -> None:

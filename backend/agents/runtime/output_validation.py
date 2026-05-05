@@ -8,7 +8,7 @@ propagating errors upstream.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 import json
 from dataclasses import dataclass
 from typing import Any, Optional, Protocol

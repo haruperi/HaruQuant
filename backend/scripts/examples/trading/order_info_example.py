@@ -10,8 +10,8 @@ from datetime import datetime
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from services.simulation.engine import Engine
-from services.execution.core import OrderInfo
+from haruquant.simulation import Engine
+from haruquant.execution import OrderInfo
 
 def _order_value(order, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(order, attr_name):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import quantiles
 from time import perf_counter
 
-from services.risk import (
+from haruquant.risk import (
     PositionExposure,
     compose_risk_decision,
     calculate_currency_concentration,

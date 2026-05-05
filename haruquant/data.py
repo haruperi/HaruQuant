@@ -11,10 +11,15 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 
+from . import resolve_service_attr, service_modules
+
 # Ensure backend is in sys.path if not already
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+
+
+_SERVICE_MODULES = service_modules("services.data")
 
 
 def _normalize_cache_value(value: Any) -> Any:
@@ -302,7 +307,7 @@ class MT5Data:
         **kwargs
     ) -> Data:
         """Download data from MT5."""
-        from backend.services.market_data.data_getters import load_mt5
+        from services.data.service import load_mt5
 
         symbols = [symbol] if isinstance(symbol, str) else symbol
 
@@ -394,7 +399,7 @@ class DukascopyData:
         **kwargs
     ) -> Data:
         """Download data from Dukascopy API."""
-        from backend.services.market_data.data_getters import load_dukascopy
+        from services.data.service import load_dukascopy
 
         def fetcher() -> pd.DataFrame:
             df = load_dukascopy(
@@ -426,7 +431,7 @@ class DukascopyData:
     def list_symbols(pattern: Optional[str] = None) -> List[str]:
         """List available symbols in Dukascopy."""
         try:
-            from backend.services.market_data.dukascopy_instruments import INSTRUMENT_MAP
+            from services.data.instruments import INSTRUMENT_MAP
             symbols = list(INSTRUMENT_MAP.keys())
             return _filter_symbols(symbols, pattern)
         except Exception:
@@ -982,3 +987,7 @@ class Labeler:
                     last_extrema_idx = series.index[i]
                     
         return labels
+
+
+def __getattr__(name: str):
+    return resolve_service_attr(name, _SERVICE_MODULES)

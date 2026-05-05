@@ -10,7 +10,7 @@ State machine:
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 import time
 from dataclasses import dataclass, field
 from enum import Enum

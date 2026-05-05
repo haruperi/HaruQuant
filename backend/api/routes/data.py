@@ -13,25 +13,12 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel
 
 from backend.api.auth_utils import get_user_id_from_token
-from services.utils.datasets import (
-    DataSource,
-    load_ohlc,
-    normalize_columns,
-    prepare_ohlcvs_dataset,
-)
-from services.research.data import (
-    CanonicalOHLCVSSchema,
-    CleaningConfig,
-    DataQualityReportModel,
-    DatasetIssue,
-    CleaningAction,
-    EnrichmentConfig,
-    PreparedDataset,
-)
-from services.utils.logger import logger
+from haruquant.utils import DataSource, load_ohlc, normalize_columns, prepare_ohlcvs_dataset
+from haruquant.research import CanonicalOHLCVSSchema, CleaningConfig, DataQualityReportModel, DatasetIssue, CleaningAction, EnrichmentConfig, PreparedDataset
+from haruquant.utils import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.data.service import load_dukascopy
+from haruquant.data import load_dukascopy
 
 router = APIRouter()
 db_manager = DatabaseManager()

@@ -6,7 +6,7 @@ import os
 
 import chromadb
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from .embeddings import EmbeddingService
 from .models import DocumentChunk, RetrievalResult
 

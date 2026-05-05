@@ -10,14 +10,14 @@ import pandas as pd
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from services.utils.logger import logger
-from services.simulation.config import AccountConfig
-from services.simulation.engine import Engine
-from services.simulation.reporting import print_simulation_summary
-from services.execution import core
-from services.execution.trade import Trade
-from services.risk import CorrelationPreference, RiskLimits
-from services.data.transforms import TicksGenerator
+from haruquant.utils import logger
+from haruquant.simulation import AccountConfig
+from haruquant.simulation import Engine
+from haruquant.simulation import print_simulation_summary
+from haruquant.execution import core
+from haruquant.execution import Trade
+from haruquant.risk import CorrelationPreference, RiskLimits
+from haruquant.data import TicksGenerator
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.data.strategies.trend_following import TrendFollowingStrategy
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy

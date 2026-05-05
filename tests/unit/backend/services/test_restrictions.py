@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.risk import evaluate_regime_restriction
-from services.risk import evaluate_session_restrictions
-from services.risk import evaluate_operating_mode_compatibility
-from services.risk import evaluate_compliance_profile_compatibility
-from services.risk import evaluate_spread_slippage_precheck
+from haruquant.risk import evaluate_regime_restriction
+from haruquant.risk import evaluate_session_restrictions
+from haruquant.risk import evaluate_operating_mode_compatibility
+from haruquant.risk import evaluate_compliance_profile_compatibility
+from haruquant.risk import evaluate_spread_slippage_precheck
 
 
 UTC = timezone.utc

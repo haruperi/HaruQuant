@@ -10,8 +10,8 @@ from typing import Optional, Tuple
 import pandas as pd
 import requests
 
-from services.utils.logger import logger
-from services.data.instruments import get_instrument
+from haruquant.utils import logger
+from haruquant.data import get_instrument
 
 TIME_UNIT_MONTH = "MONTH"
 TIME_UNIT_WEEK = "WEEK"

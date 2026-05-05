@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 import hashlib
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 class PromptStatus(StrEnum):
     DRAFT = "draft"

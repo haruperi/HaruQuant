@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk.portfolio import calculate_projected_margin_impact
+from haruquant.risk import calculate_projected_margin_impact
 
 
 def test_calculate_projected_margin_impact_updates_margin_utilization() -> None:

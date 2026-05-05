@@ -1,6 +1,6 @@
 """Cost Optimizer facade over existing cost governance."""
 
-from services.execution.cost import CostEnforcer, cost_enforcer
+from haruquant.execution import CostEnforcer, cost_enforcer
 
 COST_OPTIMIZER_DEPARTMENT = "cost_optimizer"
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.research.market_structure_calibration import (
+from haruquant.research import (
     build_calibration_grid,
     classify_with_candidate,
     evaluate_calibration_candidates,

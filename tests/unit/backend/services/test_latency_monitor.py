@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.execution.performance import LatencyBudgetMonitor, LatencySample
+from haruquant.execution import LatencyBudgetMonitor, LatencySample
 
 
 def test_latency_budget_monitor_emits_alerts_only_for_budget_breaches() -> None:

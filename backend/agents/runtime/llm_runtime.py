@@ -6,7 +6,7 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.agents.runtime.runner import (
     AgentExecutionContext,
     AgentExecutionResult,

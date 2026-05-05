@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
-from services.execution.attempts import ExecutionAttemptPersistenceService
+from haruquant.execution import ExecutionAttemptPersistenceService
 
 
 def test_execution_attempt_persistence_increments_attempt_numbers(tmp_path) -> None:

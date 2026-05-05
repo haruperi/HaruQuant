@@ -1,11 +1,7 @@
 """Strategy Codegen Department facade."""
 
-from services.strategy.design.blueprint_materializer import (
-    StrategyBlueprintMaterializationRequest,
-    StrategyBlueprintMaterializationResult,
-    StrategyBlueprintMaterializationService,
-)
-from services.strategy.design.blueprint_renderer import StrategyBlueprintRenderer
+from haruquant.strategy import StrategyBlueprintMaterializationRequest, StrategyBlueprintMaterializationResult, StrategyBlueprintMaterializationService
+from haruquant.strategy import StrategyBlueprintRenderer
 
 __all__ = [
     "StrategyBlueprintMaterializationRequest",

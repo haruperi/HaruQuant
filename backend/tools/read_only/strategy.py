@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy.catalog import StrategyCatalogService
+from haruquant.strategy import StrategyCatalogService
 
 
 class StrategyParametersTool:

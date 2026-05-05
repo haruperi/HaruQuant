@@ -7,21 +7,21 @@ import pytest
 
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy import StrategyStorage
-from services.strategy.catalog import (
+from haruquant.strategy import StrategyStorage
+from haruquant.strategy import (
     StrategyCatalogCreateRequest,
     StrategyCatalogService,
     StrategyCatalogUpdateRequest,
     governance_strategy_id,
 )
-from services.strategy.permissions import (
+from haruquant.strategy import (
     StrategyPermissionError,
     StrategyRuntimePermissionService,
 )
 
 
 STRATEGY_CODE = """
-from services.strategy import BaseStrategy
+from haruquant.strategy import BaseStrategy
 
 
 class StoredDemoStrategy(BaseStrategy):

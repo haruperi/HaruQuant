@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.strategy.governance import SuspensionTriggerRequest, evaluate_suspension_triggers
+from haruquant.strategy import SuspensionTriggerRequest, evaluate_suspension_triggers
 
 
 def test_evaluate_suspension_triggers_returns_triggered_when_thresholds_breach() -> None:

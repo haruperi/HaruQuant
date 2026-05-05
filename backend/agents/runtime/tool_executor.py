@@ -6,7 +6,7 @@ import json
 import time
 from typing import Any, Callable
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from .tool_call import ToolCall, ToolResult
 
 

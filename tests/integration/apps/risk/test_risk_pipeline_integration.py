@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from services.risk import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
-from services.risk.reports import build_risk_snapshot_report, build_scenario_report
-from services.risk.storage import RiskRepository, RiskSnapshotStore
+from haruquant.risk import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
+from haruquant.risk import build_risk_snapshot_report, build_scenario_report
+from haruquant.risk import RiskRepository, RiskSnapshotStore
 from backend.data.database.sqlite import SQLiteDatabase
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 

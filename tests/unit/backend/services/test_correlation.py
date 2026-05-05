@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk import CorrelationPair, calculate_correlation_concentration
+from haruquant.risk import CorrelationPair, calculate_correlation_concentration
 
 
 def test_calculate_correlation_concentration_reports_pair_and_portfolio_values():

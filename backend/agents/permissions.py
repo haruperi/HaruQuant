@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.tools.registry import ToolDefinition, ToolRegistry, get_default_tool_registry
 
 

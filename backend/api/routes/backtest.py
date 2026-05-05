@@ -15,23 +15,17 @@ from backend.api.auth_utils import get_user_id_from_token
 from backend.api.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy import storage
-from services.strategy.permissions import assert_strategy_allowed
-from services.simulation.engine import Engine
-from services.execution import core
-from services.data.service import load_dukascopy
-from services.data.transforms import TicksGenerator
-from services.data.quality import DataValidator
-from services.utils.logger import logger
-from services.analytics.overview import build_overview_payload
+from haruquant.strategy import storage
+from haruquant.strategy import assert_strategy_allowed
+from haruquant.simulation import Engine
+from haruquant.execution import core
+from haruquant.data import load_dukascopy
+from haruquant.data import TicksGenerator
+from haruquant.data import DataValidator
+from haruquant.utils import logger
+from haruquant.analytics import build_overview_payload
 
-from services.simulation.data_preparation import (
-    _generate_ticks_for_backtest,
-    _normalize_position_sizing_method,
-    _resolve_engine_type,
-    _resolve_modelling,
-    _resolve_tick_generator_config,
-)
+from haruquant.simulation import _generate_ticks_for_backtest, _normalize_position_sizing_method, _resolve_engine_type, _resolve_modelling, _resolve_tick_generator_config
 
 import haruquant as hqt
 
@@ -353,7 +347,7 @@ async def _run_backtest_task(
         )
         
         # Register strategy so Portfolio.run can find it by name
-        from services.simulation.strategy_registry import register_strategy
+        from haruquant.simulation import register_strategy
         strategy_name = f"db_strategy_{strategy_id}_{version_id}"
         register_strategy(strategy_name, strategy_class)
 
@@ -876,7 +870,7 @@ async def _run_portfolio_backtest_task(
         )
         
         # Register strategy so Portfolio.run can find it
-        from services.simulation.strategy_registry import register_strategy
+        from haruquant.simulation import register_strategy
         strategy_name = f"db_strategy_{strategy_id}_{version_id}"
         register_strategy(strategy_name, strategy_class)
 
@@ -1021,4 +1015,3 @@ async def run_portfolio_backtest(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start portfolio backtest: {str(exc)}",
         )
-

@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
 from backend.data.database import ExecutionRepository, WorkflowRepository, apply_pending_migrations, default_migrations_dir
-from services.strategy.proposals import (
+from haruquant.strategy import (
     ProposalTransformationConfig,
     evaluate_proposal_readiness,
     transform_hypothesis_to_proposal,

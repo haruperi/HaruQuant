@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.execution.cost import CostEnforcer, cost_enforcer
+from haruquant.execution import CostEnforcer, cost_enforcer
 
 
 def test_enforcer_initializes() -> None:

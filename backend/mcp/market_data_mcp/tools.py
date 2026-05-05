@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Protocol
 
 from backend.mcp.mt5_mcp.models import MCPToolSpec
-from services.data.dukascopy import normalize_dukascopy_bars
+from haruquant.data import normalize_dukascopy_bars
 
 from . import dukascopy
 

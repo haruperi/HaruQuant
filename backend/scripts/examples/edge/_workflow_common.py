@@ -9,9 +9,9 @@ ROOT_DIR = Path(__file__).resolve().parents[4]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from services.research import CleaningConfig, EnrichmentConfig, build_core_metric_profile, build_market_structure_profile, prepare_ohlcvs_dataset
-from services.research.scorecard import build_edge_lab_scorecard_report
-from services.research.seasonality import SeasonalityFilters, run_seasonality
+    from haruquant.research import CleaningConfig, EnrichmentConfig, build_core_metric_profile, build_market_structure_profile, prepare_ohlcvs_dataset
+from haruquant.research import build_edge_lab_scorecard_report
+from haruquant.research import SeasonalityFilters, run_seasonality
 from backend.mcp.mt5_mcp import MT5Utils
 from backend.data.database.sqlite import SQLiteDatabase
 

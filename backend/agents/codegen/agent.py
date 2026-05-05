@@ -1,11 +1,7 @@
 """Codegen facade over deterministic strategy blueprint rendering."""
 
-from services.strategy.design.blueprint_materializer import (
-    StrategyBlueprintMaterializationRequest,
-    StrategyBlueprintMaterializationResult,
-    StrategyBlueprintMaterializationService,
-)
-from services.strategy.design.blueprint_renderer import StrategyBlueprintRenderer
+from haruquant.strategy import StrategyBlueprintMaterializationRequest, StrategyBlueprintMaterializationResult, StrategyBlueprintMaterializationService
+from haruquant.strategy import StrategyBlueprintRenderer
 
 CODEGEN_DEPARTMENT = "codegen"
 

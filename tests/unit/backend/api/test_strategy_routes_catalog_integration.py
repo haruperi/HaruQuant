@@ -8,12 +8,12 @@ from fastapi.testclient import TestClient
 from backend.api.routes import strategies
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy import StrategyStorage
-from services.strategy.catalog import StrategyCatalogService
+from haruquant.strategy import StrategyStorage
+from haruquant.strategy import StrategyCatalogService
 
 
 STRATEGY_CODE = """
-from services.strategy import BaseStrategy
+from haruquant.strategy import BaseStrategy
 
 
 class ApiCreatedStrategy(BaseStrategy):

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from services.utils import ValidationError
+from haruquant.utils import ValidationError
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from services.execution.approval import (
+from haruquant.execution import (
     ApprovalCreateRequest,
     ApprovalCreationService,
     ApprovalVoteRequest,

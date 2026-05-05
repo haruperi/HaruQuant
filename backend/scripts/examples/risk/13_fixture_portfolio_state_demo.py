@@ -21,7 +21,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from services.risk import PortfolioStateEngine, RiskLimits
+    from haruquant.risk import PortfolioStateEngine, RiskLimits
 
 
 def bars(start: str = "2024-01-01", periods: int = 6) -> pd.DataFrame:

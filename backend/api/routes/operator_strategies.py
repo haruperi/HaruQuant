@@ -8,13 +8,10 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.data.database import GovernanceRepository
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.strategy.governance import (
-    StrategyLifecycleState,
-    StrategyLifecycleTransitionValidator,
-)
+from haruquant.strategy import StrategyLifecycleState, StrategyLifecycleTransitionValidator
 
 router = APIRouter()
 db_manager = DatabaseManager()

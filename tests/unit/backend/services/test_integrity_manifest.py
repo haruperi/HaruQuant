@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.strategy.evidence.audit.manifest import generate_integrity_manifest
+from haruquant.strategy import generate_integrity_manifest
 
 
 def test_generate_integrity_manifest_produces_stable_hash_manifest() -> None:

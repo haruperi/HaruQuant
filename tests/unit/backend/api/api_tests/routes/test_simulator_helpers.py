@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from services.simulation import route_support
+from haruquant.simulation import route_support
 
 
 class DummyActive:

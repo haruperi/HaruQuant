@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from services.utils import FixedClock
+from haruquant.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -12,7 +12,7 @@ from backend.contracts.risk_assessment_decision.model import (
     RiskAssessmentDecisionPayload,
 )
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from services.execution.assembler import ExecutionIntentAssemblyConfig, assemble_execution_intent
+from haruquant.execution import ExecutionIntentAssemblyConfig, assemble_execution_intent
 
 
 def _proposal() -> TradeProposal:

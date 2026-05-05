@@ -26,10 +26,10 @@ if repo_root not in sys.path:
 import pandas as pd
 
 from backend.mcp.mt5_mcp import MT5Client, get_mt5_api
-from services.risk import PositionSizer
-from services.indicator.volatility.atr import atr
+from haruquant.risk import PositionSizer
+from haruquant.indicator import atr
 from backend.data.database.sqlite.users import UserManager
-from services.simulation.engine import Engine
+from haruquant.simulation import Engine
 
 mt5 = get_mt5_api()
 

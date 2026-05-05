@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import sqlite3
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from .dependencies import OperatorApiDependencies
 
 

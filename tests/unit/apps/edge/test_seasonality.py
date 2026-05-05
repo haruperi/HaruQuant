@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from services.research.seasonality import run_seasonality
+from haruquant.research import run_seasonality
 
 
 def _sample_seasonality_df() -> pd.DataFrame:

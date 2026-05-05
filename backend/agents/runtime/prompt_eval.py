@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from .runner import ADKRunRequest, ADKRunnerService, AgentRuntime
 
 

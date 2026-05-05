@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import BaseModel, Field, ValidationError
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 
 class MetadataConfig(BaseModel):

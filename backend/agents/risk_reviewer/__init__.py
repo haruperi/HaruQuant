@@ -1,6 +1,6 @@
 """Risk Reviewer Department facade."""
 
 from backend.agents.risk_governor_agent import RiskGovernorAgentAdapter
-from services.risk import *  # noqa: F403
+from haruquant.risk import *
 
 __all__ = ["RiskGovernorAgentAdapter"]

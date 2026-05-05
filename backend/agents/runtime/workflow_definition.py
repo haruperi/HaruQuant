@@ -7,7 +7,7 @@ sequential, routing, parallel, evaluator-optimizer, orchestrator-workers.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional

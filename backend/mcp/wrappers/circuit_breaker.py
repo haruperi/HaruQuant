@@ -6,7 +6,7 @@ import time
 from enum import Enum
 from typing import Any, Callable, Optional, TypeVar
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 T = TypeVar("T")
 

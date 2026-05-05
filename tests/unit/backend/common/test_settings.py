@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from services.utils.settings import (
+from haruquant.utils import (
     DEFAULT_ENVIRONMENT,
     RuntimeSettings,
     SettingsError,

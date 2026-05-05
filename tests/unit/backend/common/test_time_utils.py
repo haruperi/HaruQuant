@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from services.utils.time_utils import (
+from haruquant.utils import (
     BOARD_BASELINE_TTL_POLICY,
     FixedClock,
     SystemClock,

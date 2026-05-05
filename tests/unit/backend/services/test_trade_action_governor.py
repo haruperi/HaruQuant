@@ -3,8 +3,8 @@ from __future__ import annotations
 from backend.data.database import AiChatRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.chat.ai_chat import ConversationService
-from services.execution.approval import ApprovalVoteRequest, ApprovalVoteService
-from services.execution.trade_action_governor import TradeActionGovernor
+from haruquant.execution import ApprovalVoteRequest, ApprovalVoteService
+from haruquant.execution import TradeActionGovernor
 
 
 def test_trade_action_governor_executes_approved_order_draft_in_paper_mode(tmp_path) -> None:

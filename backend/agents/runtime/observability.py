@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import hashlib
 from typing import Any
 
-from services.utils.logger import logger
-from services.utils.ids import generate_prefixed_id
+from haruquant.utils import logger
+from haruquant.utils import generate_prefixed_id
 from backend.contracts.serialization import canonical_json_dumps
 from backend.data.database import ResearchAuditRepository, TrajectoryLogRecord
 from .evaluator import hash_schema_name

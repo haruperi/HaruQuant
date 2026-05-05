@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from backend.orchestration.workflow.states import ProposalState
-from services.strategy.proposals import ProposalStateTransitionService
+from haruquant.strategy import ProposalStateTransitionService
 
 
 def test_proposal_state_transition_service_allows_valid_transition() -> None:

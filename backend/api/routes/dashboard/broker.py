@@ -15,7 +15,7 @@ from backend.api.models import (
     DashboardEquityPoint,
     DashboardSummaryResponse,
 )
-from services.utils.logger import logger
+from haruquant.utils import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
 

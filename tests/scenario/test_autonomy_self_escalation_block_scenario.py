@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from services.strategy.governance import (
+from haruquant.strategy import (
     StrategyLifecycleState,
     update_operating_envelope_for_promotion,
 )
-from services.risk import evaluate_operating_mode_compatibility
+from haruquant.risk import evaluate_operating_mode_compatibility
 
 
 def test_live_entry_blocked_when_workflow_attempts_unsupported_autonomy_escalation() -> None:

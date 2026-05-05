@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from services.strategy.evidence import EvidenceArtifact, EvidenceBundleStorageService, assemble_lifecycle_evidence_bundle
-from services.strategy.governance import StrategyLifecycleState
+from haruquant.strategy import EvidenceArtifact, EvidenceBundleStorageService, assemble_lifecycle_evidence_bundle
+from haruquant.strategy import StrategyLifecycleState
 
 
 def test_evidence_bundle_storage_service_hashes_and_persists_bundle(tmp_path) -> None:

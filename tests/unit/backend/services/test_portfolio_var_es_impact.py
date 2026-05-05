@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk.portfolio import calculate_projected_var_es_impact
+from haruquant.risk import calculate_projected_var_es_impact
 
 
 def test_calculate_projected_var_es_impact_scales_metrics_by_exposure_ratio() -> None:

@@ -16,12 +16,8 @@ from pydantic import BaseModel, Field
 from backend.api.auth_utils import verify_token
 from backend.api.routes.dashboard.broker import client as global_mt5_client
 from backend.api.routes.dashboard.broker import get_last_credentials
-from services.indicator.custom import (
-    CURRENCY_PAIRS,
-    MAJOR_CURRENCIES,
-    currency_strength_indicator,
-)
-from services.utils.logger import logger
+from haruquant.indicator import CURRENCY_PAIRS, MAJOR_CURRENCIES, currency_strength_indicator
+from haruquant.utils import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

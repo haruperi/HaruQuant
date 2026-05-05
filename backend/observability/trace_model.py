@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 @dataclass
 class Trace:

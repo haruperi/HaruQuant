@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.api.auth_utils import get_user_id_from_token
 from backend.data.database.repositories.ai_chat_repository import AiChatRepository
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.execution.trade_action_governor import TradeActionGovernor
+from haruquant.execution import TradeActionGovernor
 from backend.agents.chat.ai_chat import (
     ALLOWED_TIERS_BY_AUTHORITY_BAND,
     AIGatewayService,

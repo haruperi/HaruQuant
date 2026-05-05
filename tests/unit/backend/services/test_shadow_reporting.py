@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.execution.shadow import build_shadow_comparison_report
+from haruquant.execution import build_shadow_comparison_report
 
 
 def test_build_shadow_comparison_report_computes_deltas_and_slippage() -> None:

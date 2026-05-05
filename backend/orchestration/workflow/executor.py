@@ -26,8 +26,8 @@ from backend.agents.runtime import (
     WorkflowPatternRegistry,
     build_run_trajectory_log,
 )
-from services.utils.ids import generate_prefixed_id
-from services.utils.logger import logger
+from haruquant.utils import generate_prefixed_id
+from haruquant.utils import logger
 from backend.contracts.workflow_plan.model import (
     WorkflowPattern,
     WorkflowPhaseStep,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.risk import (
+from haruquant.risk import (
     GovernanceEngine,
     PortfolioRiskEngine,
     PortfolioStateEngine,

@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from services.data.features import (
+from haruquant.data import (
     FeaturePipeline,
     FeatureSpec,
     dump_masked_research_json,

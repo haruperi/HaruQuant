@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from services.strategy.evidence.audit import (
+from haruquant.strategy import (
     LegalHoldAwareReplayService,
     ReplayBundleAssembler,
     build_audit_export_package,

@@ -10,8 +10,8 @@ from datetime import datetime
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from services.simulation.engine import Engine
-from services.execution.core import PositionInfo
+from haruquant.simulation import Engine
+from haruquant.execution import PositionInfo
 
 def _pos_value(pos, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(pos, attr_name):

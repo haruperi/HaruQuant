@@ -1,5 +1,5 @@
-from services.utils import PolicyError
-from services.execution.approval import ApprovalState, ApprovalStateMachine
+from haruquant.utils import PolicyError
+from haruquant.execution import ApprovalState, ApprovalStateMachine
 
 
 def test_approval_state_machine_allows_expected_transitions() -> None:

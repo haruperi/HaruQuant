@@ -6,7 +6,7 @@ tool execution, preventing dangerous or malformed tool invocations.
 
 from __future__ import annotations
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 from dataclasses import dataclass, field
 from typing import Any
 

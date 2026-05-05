@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from services.utils.logger import logger
-from services.utils.redaction import REDACTED, is_sensitive_key, redact_mapping, redact_text
+from haruquant.utils import logger
+from haruquant.utils import REDACTED, is_sensitive_key, redact_mapping, redact_text
 
 
 _DEFAULT_PRIVILEGED_KEYS: tuple[str, ...] = (

@@ -1,6 +1,6 @@
 import numpy as np
 
-from services.analytics import metrics
+from haruquant.analytics import metrics
 
 
 def test_edge_stats_compute_trade_metrics():

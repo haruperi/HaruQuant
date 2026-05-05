@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from services.risk import PositionExposure
-from services.risk.portfolio import calculate_marginal_risk_contribution
+from haruquant.risk import PositionExposure
+from haruquant.risk import calculate_marginal_risk_contribution
 
 
 def test_calculate_marginal_risk_contribution_normalizes_position_shares() -> None:

@@ -1,6 +1,6 @@
 """Correlation risk facade."""
 
-from services.risk.correlation import *  # noqa: F403
-from services.risk.metrics.correlation_risk import *  # noqa: F403
+from haruquant.risk import *
+from haruquant.risk import *
 
 CORRELATION_FACADE = "backend.risk.correlation"

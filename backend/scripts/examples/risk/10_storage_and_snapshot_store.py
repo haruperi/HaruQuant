@@ -27,17 +27,19 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from services.risk import (
+from haruquant.risk import (
     PortfolioStateEngine,
     RecommendationEngine,
     RiskLimits,
     RiskScorecardEngine,
     RiskSnapshotEngine,
 )
-from services.risk.simulation import ReplayFrame, build_cockpit_state
-from services.risk.storage import RiskRepository, RiskSnapshotStore
+from haruquant.risk import ReplayFrame, build_cockpit_state
+from haruquant.risk import RiskRepository, RiskSnapshotStore
 from backend.data.database.sqlite import SQLiteDatabase
-from services.simulation.engine import Engine`nfrom services.execution.trade import Trade`nfrom services.execution import core
+from haruquant.simulation import Engine
+from haruquant.execution import Trade
+from haruquant.execution import core
 
 
 TIMEFRAME = "H1"

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from services.risk import (
+from haruquant.risk import (
     HypotheticalOrderAction,
     RecommendationEngine,
     RiskScorecardEngine,
     RiskSnapshotEngine,
     WhatIfEngine,
 )
-from services.risk.simulation import ReplayFrame
+from haruquant.risk import ReplayFrame
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 
 

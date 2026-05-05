@@ -7,7 +7,7 @@ import json
 from fastapi import APIRouter
 from starlette.responses import StreamingResponse
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 router = APIRouter(prefix="/api/operator/events", tags=["events"])
 

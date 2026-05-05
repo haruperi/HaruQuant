@@ -8,8 +8,8 @@ from backend.api.routes.ai_chat import get_ai_gateway, get_conversation_service,
 from backend.data.database import AiChatRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.chat.ai_chat import AIGatewayService, ConversationService, PageContextAssembler
-from services.execution.approval import ApprovalVoteRequest, ApprovalVoteService
-from services.execution.trade_action_governor import TradeActionGovernor
+from haruquant.execution import ApprovalVoteRequest, ApprovalVoteService
+from haruquant.execution import TradeActionGovernor
 
 
 def test_ai_chat_phase2_thread_and_message_flow(tmp_path) -> None:

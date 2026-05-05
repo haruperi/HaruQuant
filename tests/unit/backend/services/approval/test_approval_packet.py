@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.execution.approval import (
+from haruquant.execution import (
     ApprovalPacket,
     ApprovalPacketBuilder,
     ApprovalRequest,

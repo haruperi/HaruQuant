@@ -6,8 +6,8 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from services.utils import Clock
-from services.utils.time_utils import evaluate_freshness
+from haruquant.utils import Clock
+from haruquant.utils import evaluate_freshness
 from backend.mcp.mt5_mcp.client import MT5Client
 
 from .models import MCPToolSpec

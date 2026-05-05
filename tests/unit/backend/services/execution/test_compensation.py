@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.execution.compensation import (
+from haruquant.execution import (
     CompensationPlan,
     CompensationRegistry,
     OrderCompensationPlan,
@@ -116,7 +116,7 @@ class TestCompensationRegistry:
         assert "B" in classes
 
     def test_default_registry(self) -> None:
-        from services.execution.compensation.registry import default_registry
+        from haruquant.execution import default_registry
         # Default registry should have plans for C, D, E
         assert default_registry.has_plan("C") is True
         assert default_registry.has_plan("D") is True

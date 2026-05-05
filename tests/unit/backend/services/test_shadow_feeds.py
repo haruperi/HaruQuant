@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.risk import AccountSnapshot, MarketSnapshot, PortfolioSnapshot
-from services.execution.shadow import build_shadow_data_feed
+from haruquant.risk import AccountSnapshot, MarketSnapshot, PortfolioSnapshot
+from haruquant.execution import build_shadow_data_feed
 
 
 def test_build_shadow_data_feed_packages_live_shaped_snapshots() -> None:

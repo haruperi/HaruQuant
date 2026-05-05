@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from services.utils import StaleVersionError
+from haruquant.utils import StaleVersionError
 from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.data.database.repositories import WorkflowRepository
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 
 class Intent(str, Enum):

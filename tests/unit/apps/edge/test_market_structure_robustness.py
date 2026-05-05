@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from services.research.config import MarketStructureConfig
-from services.research.data.models import CanonicalOHLCVSSchema, DataQualityReportModel, PreparedDataset
-from services.research.market_structure_robustness import build_market_structure_robustness_report
+from haruquant.research import MarketStructureConfig
+from haruquant.research import CanonicalOHLCVSSchema, DataQualityReportModel, PreparedDataset
+from haruquant.research import build_market_structure_robustness_report
 
 
 def _prepared_df(rows: int = 200) -> PreparedDataset:

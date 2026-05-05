@@ -1,5 +1,5 @@
 """Statistical Validation facade over analytics statistical tests."""
 
-from services.analytics.statistical_tests import *  # noqa: F403
+from haruquant.analytics import *
 
 STATISTICAL_VALIDATION_DEPARTMENT = "statistical_validation"

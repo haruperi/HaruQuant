@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
-from services.execution.receipts import ExecutionReceiptService
+from haruquant.execution import ExecutionReceiptService
 
 
 def test_execution_receipt_service_normalizes_and_persists_receipt(tmp_path) -> None:

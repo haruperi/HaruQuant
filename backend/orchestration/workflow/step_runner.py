@@ -13,7 +13,7 @@ import time
 from typing import Any, Callable, Dict, Optional
 
 from backend.agents.runtime.workflow_definition import WorkflowRegistry
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 from .steps_data_transformation import STEP_IMPLEMENTATIONS, WorkflowContext
 

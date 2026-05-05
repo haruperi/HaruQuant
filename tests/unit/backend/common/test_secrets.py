@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from services.utils import SecretRef, SecretRotationPolicy, redact_secret_mapping, select_active_secret_version
+from haruquant.utils import SecretRef, SecretRotationPolicy, redact_secret_mapping, select_active_secret_version
 
 
 def test_redact_secret_mapping_masks_secret_like_keys() -> None:

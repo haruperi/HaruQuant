@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from backend.contracts.common import Originator
 from backend.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
 from backend.data.database import ResearchAuditRepository
-from services.strategy.evidence.audit.replay_completeness import ReplayCompletenessChecker
+from haruquant.strategy import ReplayCompletenessChecker
 
 
 def test_replay_completeness_checker_detects_missing_refs(tmp_path) -> None:

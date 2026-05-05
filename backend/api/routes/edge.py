@@ -15,58 +15,32 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.api.auth_utils import get_user_id_from_token
-from services.research.classifier import classify_symbol
-from services.research.config import (
-    BootstrapConfig,
-    DataConfig,
-    EdgeLabConfig,
-    MarketStructureConfig,
-    PermutationConfig,
-)
-from services.research.core_metrics import build_core_metric_profile
-from services.research.data import (
-    CanonicalOHLCVSSchema,
-    CleaningConfig,
-    CleaningAction,
-    DataQualityReportModel,
-    DatasetIssue,
-    EnrichmentConfig,
-    PreparedDataset,
-)
-from services.utils.datasets import (
-    DataSource,
-    load_ohlc,
-    normalize_columns,
-    prepare_ohlcvs_dataset,
-)
-from services.research.eds_mean_reversion import run_eds_mean_reversion
-from services.research.eds_null_models import run_eds_null_baseline
-from services.research.eds_session import run_eds_session
-from services.research.eds_trend_persistence import run_eds_trend_persistence
-from services.research.market_structure import build_market_structure_profile
-from services.research.market_structure_calibration import evaluate_calibration_candidates
-from services.research.market_structure_metric_calibration import evaluate_metric_calibration_candidates
-from services.research.market_structure_profile_calibration import evaluate_profile_calibration
-from services.research.market_structure_robustness import build_market_structure_robustness_report
-from services.research.market_structure_profiles import resolve_market_structure_profile
-from services.research.market_structure_stability import build_market_structure_stability_report
-from services.research.market_structure_validation import (
-    build_validation_summary,
-    confidence_bucket,
-    label_realized_market_behavior,
-)
-from services.research.results_schema import EdgeResult, EdgeStats
-from services.research.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
-from services.research.seasonality import SeasonalityFilters, run_seasonality
-from services.data.features import FeaturePipeline, FeatureSpec
-from services.research.modeling import (
-    UnsupervisedResearchConfig,
-    UnsupervisedResearchService,
-)
-from services.utils.logger import logger
+from haruquant.research import classify_symbol
+from haruquant.research import BootstrapConfig, DataConfig, EdgeLabConfig, MarketStructureConfig, PermutationConfig
+from haruquant.research import build_core_metric_profile
+from haruquant.research import CanonicalOHLCVSSchema, CleaningConfig, CleaningAction, DataQualityReportModel, DatasetIssue, EnrichmentConfig, PreparedDataset
+from haruquant.utils import DataSource, load_ohlc, normalize_columns, prepare_ohlcvs_dataset
+from haruquant.research import run_eds_mean_reversion
+from haruquant.research import run_eds_null_baseline
+from haruquant.research import run_eds_session
+from haruquant.research import run_eds_trend_persistence
+from haruquant.research import build_market_structure_profile
+from haruquant.research import evaluate_calibration_candidates
+from haruquant.research import evaluate_metric_calibration_candidates
+from haruquant.research import evaluate_profile_calibration
+from haruquant.research import build_market_structure_robustness_report
+from haruquant.research import resolve_market_structure_profile
+from haruquant.research import build_market_structure_stability_report
+from haruquant.research import build_validation_summary, confidence_bucket, label_realized_market_behavior
+from haruquant.research import EdgeResult, EdgeStats
+from haruquant.research import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
+from haruquant.research import SeasonalityFilters, run_seasonality
+from haruquant.data import FeaturePipeline, FeatureSpec
+from haruquant.research import UnsupervisedResearchConfig, UnsupervisedResearchService
+from haruquant.utils import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from services.data.service import load_dukascopy
+from haruquant.data import load_dukascopy
 
 router = APIRouter()
 db_manager = DatabaseManager()
@@ -2649,7 +2623,7 @@ async def get_scorecard_snapshot_report(snapshot_id: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Scorecard snapshot {snapshot_id} not found.",
         )
-    from services.research.profile_reporting import snapshot_report_json
+    from haruquant.research import snapshot_report_json
 
     return snapshot_report_json(snapshot)
 

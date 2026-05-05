@@ -5,7 +5,7 @@ from pathlib import Path
 from backend.contracts.common import Originator
 from backend.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
 from backend.data.database import apply_pending_migrations, default_migrations_dir
-from services.execution.monitoring import ObservationIngestionService
+from haruquant.execution import ObservationIngestionService
 
 
 def test_observation_ingestion_persists_observation_event(tmp_path) -> None:

@@ -29,8 +29,10 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from services.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
-from services.simulation.engine import Engine`nfrom services.execution.trade import Trade`nfrom services.execution import core
+from haruquant.risk import PortfolioStateEngine, RiskLimits, RiskSnapshotEngine
+from haruquant.simulation import Engine
+from haruquant.execution import Trade
+from haruquant.execution import core
 
 
 TIMEFRAME = "H1"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.risk.policy.compliance_rollout import seed_internal_non_regulated_profile
+from haruquant.risk import seed_internal_non_regulated_profile
 
 
 def test_seed_internal_non_regulated_profile_returns_active_internal_profile() -> None:

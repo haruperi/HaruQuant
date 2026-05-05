@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from services.risk.policy.compliance_rollout import seed_uae_enterprise_profile
+from haruquant.risk import seed_uae_enterprise_profile
 
 
 def test_seed_uae_enterprise_profile_returns_production_baseline() -> None:

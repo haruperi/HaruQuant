@@ -3,9 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from services.research.data.cleaning import CleaningConfig
-from services.research.data.enrichment import EnrichmentConfig
-from services.utils.datasets import prepare_ohlcvs_dataset
+from haruquant.research import CleaningConfig
+from haruquant.research import EnrichmentConfig
+from haruquant.utils import prepare_ohlcvs_dataset
 
 
 class DummySource:

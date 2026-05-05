@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from services.utils.logger import logger
+from haruquant.utils import logger
 
 # ─────────────────────────────────────────────────────────────────────
 # Injection pattern categories (25+ patterns across 6 threat categories)

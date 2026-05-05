@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.utils.ids import generate_id, generate_prefixed_id
+from haruquant.utils import generate_id, generate_prefixed_id
 
 
 def test_generate_prefixed_id_uses_prefix_format():
