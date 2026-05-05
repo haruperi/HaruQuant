@@ -340,58 +340,72 @@ Phase 3 complete.
 
 ### 4.1 Add agent task tables
 
-* [] Create `agent_tasks`.
-* [] Create `agent_task_events`.
-* [] Create `agent_tool_calls`.
-* [] Create `agent_observations`.
-* [] Create `agent_decisions`.
+* [x] Create `agent_tasks`.
+* [x] Create `agent_task_events`.
+* [x] Create `agent_tool_calls`.
+* [x] Create `agent_observations`.
+* [x] Create `agent_decisions`.
 
 ### 4.2 Add evidence tables
 
-* [] Create `evidence_refs`.
-* [ ] Create `research_reports`.
-* [ ] Create `strategy_specs`.
-* [ ] Create `strategy_reviews`.
-* [ ] Create `backtest_run_refs`.
-* [ ] Create `robustness_run_refs`.
-* [ ] Create `risk_review_refs`.
-* [ ] Create `paper_trade_refs`.
-* [ ] Create `live_trade_refs`.
+* [x] Create `evidence_refs`.
+* [x] Create `research_reports`.
+* [x] Create `strategy_specs`.
+* [x] Create `strategy_reviews`.
+* [x] Create `backtest_run_refs`.
+* [x] Create `robustness_run_refs`.
+* [x] Create `risk_review_refs`.
+* [x] Create `paper_trade_refs`.
+* [x] Create `live_trade_refs`.
 
 ### 4.3 Add lifecycle tables
 
-* [ ] Create `strategy_lifecycle`.
-* [ ] Create `strategy_versions`.
-* [ ] Create `strategy_status_history`.
-* [ ] Create `strategy_promotion_requests`.
-* [ ] Create `strategy_retirement_records`.
+* [x] Create `strategy_lifecycle`.
+* [x] Create `strategy_versions`.
+* [x] Create `strategy_status_history`.
+* [x] Create `strategy_promotion_requests`.
+* [x] Create `strategy_retirement_records`.
 
 ### 4.4 Add risk and execution tables
 
-* [ ] Create `risk_approvals`.
-* [ ] Create `risk_rejections`.
-* [ ] Create `trade_proposals`.
-* [ ] Create `execution_requests`.
-* [ ] Create `execution_results`.
-* [ ] Create `execution_audit`.
+* [x] Create `risk_approvals`.
+* [x] Create `risk_rejections`.
+* [x] Create `trade_proposals`.
+* [x] Create `execution_requests`.
+* [x] Create `execution_results`.
+* [x] Create `execution_audit`.
 
 ### 4.5 Add immutable audit log
 
-* [ ] Create append-only audit table.
-* [ ] Add actor name.
-* [ ] Add agent name.
-* [ ] Add tool name.
-* [ ] Add input hash.
-* [ ] Add output hash.
-* [ ] Add evidence refs.
-* [ ] Add timestamp.
-* [ ] Add request ID.
-* [ ] Add parent task ID.
-* [ ] Block delete operations from normal app logic.
+* [x] Create append-only audit table.
+* [x] Add actor name.
+* [x] Add agent name.
+* [x] Add tool name.
+* [x] Add input hash.
+* [x] Add output hash.
+* [x] Add evidence refs.
+* [x] Add timestamp.
+* [x] Add request ID.
+* [x] Add parent task ID.
+* [x] Block delete operations from normal app logic.
 
 ### Phase 4 implementation note
 
-Phase 4 was implemented through migration `0028_agentic_firm_phase4_persistence.sql` and `AgenticFirmRepository`. New tables were added for agent tasks, task events, tool calls, observations, decisions, evidence refs, reports, lifecycle records, and append-only audit logging. Where canonical tables already existed, Phase 4 names are compatibility views over existing sources of truth: `core_trade_proposals`, `risk_risk_decisions`, `core_execution_intents`, `core_execution_receipts`, and `core_execution_send_attempts`.
+Phase 4 is implemented through migration `0028_agentic_firm_phase4_persistence.sql` and `data.database.repositories.agentic_firm_repository.AgenticFirmRepository`.
+
+Completed implementation:
+
+* Added Phase 4 persistence tables for agent tasks, task events, tool calls, observations, decisions, evidence refs, research reports, strategy specs, strategy reviews, backtest refs, robustness refs, risk review refs, paper trade refs, live trade refs, strategy lifecycle records, strategy versions, strategy status history, promotion requests, retirement records, and append-only audit logging.
+* Added compatibility views for Phase 4 names where canonical trading tables already exist: `trade_proposals`, `risk_approvals`, `risk_rejections`, `execution_requests`, `execution_results`, and `execution_audit`.
+* Added audit-log immutability triggers that block normal `UPDATE` and `DELETE` operations.
+* Extended `AgenticFirmRepository` so application code can create and read Phase 4 task, evidence, tool-call, observation, decision, report, lifecycle, run-ref, trade-ref, and audit records.
+* Updated migration wording to the current HaruQuant package structure.
+
+Validation:
+
+```text
+4 passed in 9.96s
+```
 
 ## Done definition
 

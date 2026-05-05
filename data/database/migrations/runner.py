@@ -1,4 +1,4 @@
-"""Minimal SQLite-first migration runner for the agentic backend_retiring."""
+"""Minimal SQLite-first migration runner for HaruQuant."""
 
 from __future__ import annotations
 

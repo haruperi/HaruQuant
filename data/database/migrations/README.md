@@ -1,6 +1,6 @@
 # Migration Framework Baseline
 
-This directory contains the initial database migration framework for the agentic backend_retiring.
+This directory contains the initial database migration framework for HaruQuant.
 
 Current baseline:
 - SQLite-first migration runner
