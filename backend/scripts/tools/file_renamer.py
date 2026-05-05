@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 
 def rename_file(

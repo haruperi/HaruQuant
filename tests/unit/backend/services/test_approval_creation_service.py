@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.common import ValidationError
+from services.utils import ValidationError
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.services.approval import ApprovalCreateRequest, ApprovalCreationService
+from services.execution.approval import ApprovalCreateRequest, ApprovalCreationService
 
 
 def test_approval_creation_service_requires_positive_count_and_expiry(tmp_path) -> None:

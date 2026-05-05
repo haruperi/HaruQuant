@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services.shadow import build_shadow_comparison_report
+from services.execution.shadow import build_shadow_comparison_report
 
 
 def test_build_shadow_comparison_report_computes_deltas_and_slippage() -> None:

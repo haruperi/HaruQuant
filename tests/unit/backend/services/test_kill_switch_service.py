@@ -1,13 +1,5 @@
 from backend.orchestration.workflow import KillSwitchState
-from backend.services import (
-    KillSwitchBlockEvaluation,
-    KillSwitchService,
-    KillSwitchStateMachine,
-    KillSwitchTransitionError,
-    RecoveryApproval,
-    evaluate_new_entry_block,
-    require_hard_trigger_recovery_dual_auth,
-)
+from services.risk.safety import KillSwitchBlockEvaluation, KillSwitchService, KillSwitchStateMachine, KillSwitchTransitionError, RecoveryApproval, evaluate_new_entry_block, require_hard_trigger_recovery_dual_auth
 
 
 def test_kill_switch_state_machine_allows_governed_recovery_sequence() -> None:

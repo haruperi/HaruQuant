@@ -1,4 +1,4 @@
-from backend.services.policy.compliance import (
+from services.risk.policy.compliance import (
     ApprovalPolicy,
     ComplianceProfile,
     RetentionPolicy,

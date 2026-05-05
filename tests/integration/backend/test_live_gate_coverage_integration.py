@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from backend.common import FixedClock, ValidationError
+from services.utils import FixedClock, ValidationError
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -14,10 +14,10 @@ from backend.contracts.risk_assessment_decision.model import (
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from backend.mcp.mt5_mcp import MT5ToolAuthorizationError, MT5ToolAuthorizer
 from backend.orchestration.workflow import KillSwitchState
-from backend.services import require_live_execution_profile
-from backend.services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry, run_pre_send_validation
-from backend.services.execution.pre_send import PreSendValidationRequest
-from backend.services.safety import evaluate_new_entry_block
+from services.risk.policy.compliance_rollout import require_live_execution_profile
+from services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry, run_pre_send_validation
+from services.execution.pre_send import PreSendValidationRequest
+from services.risk.safety import evaluate_new_entry_block
 
 
 UTC = timezone.utc

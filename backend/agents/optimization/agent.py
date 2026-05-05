@@ -2,7 +2,7 @@
 
 OPTIMIZATION_DEPARTMENT = "optimization"
 CANONICAL_SOURCES = (
-    "backend.services.optimization",
+    "services.optimization",
     "backend.mcp.optimization_mcp",
 )
 

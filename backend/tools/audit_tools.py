@@ -1,10 +1,10 @@
 """Firm-facing audit tool registry facade."""
 
-from backend.services.audit import *  # noqa: F403
+from services.strategy.evidence.audit import *  # noqa: F403
 
 TOOL_DOMAIN = "audit"
 CANONICAL_SOURCES = (
-    "backend.services.audit",
-    "backend.services.evidence",
+    "services.strategy.evidence.audit",
+    "services.strategy.evidence",
     "backend.contracts.replay_bundle",
 )

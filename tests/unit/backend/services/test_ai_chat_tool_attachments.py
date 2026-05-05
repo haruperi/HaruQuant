@@ -7,11 +7,11 @@ from backend.agents.strategy_creator_agent import StrategyCreatorAgent, Strategy
 from backend.agents.runtime import LLMRuntimeError
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.ai_chat import AIGatewayService, ChatStreamRequest, ConversationService, PageContextAssembler
-from backend.services.ai_chat.artifact_service import ChatArtifactService
-from backend.services.ai_chat.page_action_planner import PageActionPlanner
-from backend.services.ai_chat.tool_attachment_registry import ChatToolAttachmentRegistry
-from backend.services.ai_chat.tool_attachment_runtime import ChatToolAttachmentRuntime
+from backend.agents.chat.ai_chat import AIGatewayService, ChatStreamRequest, ConversationService, PageContextAssembler
+from backend.agents.chat.ai_chat.artifact_service import ChatArtifactService
+from backend.agents.chat.ai_chat.page_action_planner import PageActionPlanner
+from backend.agents.chat.ai_chat.tool_attachment_registry import ChatToolAttachmentRegistry
+from backend.agents.chat.ai_chat.tool_attachment_runtime import ChatToolAttachmentRuntime
 
 
 def test_chat_tool_registry_exposes_strategy_creator() -> None:
@@ -348,7 +348,7 @@ def test_gateway_returns_attached_tool_metadata(tmp_path) -> None:
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
+    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -401,7 +401,7 @@ def test_gateway_grants_strategy_creator_only_with_full_permissions(tmp_path) ->
         strategy_creator_agent=creator,
     )
 
-    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
+    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
         gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -444,7 +444,7 @@ def test_gateway_strategy_creator_clarifies_incomplete_strategy_request(tmp_path
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
-    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
+    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -483,7 +483,7 @@ def test_gateway_strategy_creator_generates_after_confirmation(tmp_path) -> None
         "use a 50 pip stop loss and 100 pip take profit, and risk 1% position size per trade."
     )
 
-    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
+    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
         first_metadata, first_chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,
@@ -553,7 +553,7 @@ def test_gateway_page_operator_produces_action_plan_from_registered_actions(tmp_
         context_assembler=PageActionContextAssembler(db_manager=db),
     )
 
-    with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
+    with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled")):
         metadata, chunks, _message_id = gateway.stream_response(
             ChatStreamRequest(
                 user_id=1,

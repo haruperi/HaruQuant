@@ -15,16 +15,16 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.api.auth_utils import get_user_id_from_token
-from backend.services.research.classifier import classify_symbol
-from backend.services.research.config import (
+from services.research.classifier import classify_symbol
+from services.research.config import (
     BootstrapConfig,
     DataConfig,
     EdgeLabConfig,
     MarketStructureConfig,
     PermutationConfig,
 )
-from backend.services.research.core_metrics import build_core_metric_profile
-from backend.services.research.data import (
+from services.research.core_metrics import build_core_metric_profile
+from services.research.data import (
     CanonicalOHLCVSSchema,
     CleaningConfig,
     CleaningAction,
@@ -33,40 +33,40 @@ from backend.services.research.data import (
     EnrichmentConfig,
     PreparedDataset,
 )
-from backend.common.datasets import (
+from services.utils.datasets import (
     DataSource,
     load_ohlc,
     normalize_columns,
     prepare_ohlcvs_dataset,
 )
-from backend.services.research.eds_mean_reversion import run_eds_mean_reversion
-from backend.services.research.eds_null_models import run_eds_null_baseline
-from backend.services.research.eds_session import run_eds_session
-from backend.services.research.eds_trend_persistence import run_eds_trend_persistence
-from backend.services.research.market_structure import build_market_structure_profile
-from backend.services.research.market_structure_calibration import evaluate_calibration_candidates
-from backend.services.research.market_structure_metric_calibration import evaluate_metric_calibration_candidates
-from backend.services.research.market_structure_profile_calibration import evaluate_profile_calibration
-from backend.services.research.market_structure_robustness import build_market_structure_robustness_report
-from backend.services.research.market_structure_profiles import resolve_market_structure_profile
-from backend.services.research.market_structure_stability import build_market_structure_stability_report
-from backend.services.research.market_structure_validation import (
+from services.research.eds_mean_reversion import run_eds_mean_reversion
+from services.research.eds_null_models import run_eds_null_baseline
+from services.research.eds_session import run_eds_session
+from services.research.eds_trend_persistence import run_eds_trend_persistence
+from services.research.market_structure import build_market_structure_profile
+from services.research.market_structure_calibration import evaluate_calibration_candidates
+from services.research.market_structure_metric_calibration import evaluate_metric_calibration_candidates
+from services.research.market_structure_profile_calibration import evaluate_profile_calibration
+from services.research.market_structure_robustness import build_market_structure_robustness_report
+from services.research.market_structure_profiles import resolve_market_structure_profile
+from services.research.market_structure_stability import build_market_structure_stability_report
+from services.research.market_structure_validation import (
     build_validation_summary,
     confidence_bucket,
     label_realized_market_behavior,
 )
-from backend.services.research.results_schema import EdgeResult, EdgeStats
-from backend.services.research.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
-from backend.services.research.seasonality import SeasonalityFilters, run_seasonality
-from backend.services.features import FeaturePipeline, FeatureSpec
-from backend.services.modeling import (
+from services.research.results_schema import EdgeResult, EdgeStats
+from services.research.scorecard import SCORECARD_SPEC_VERSION, build_edge_lab_scorecard_report
+from services.research.seasonality import SeasonalityFilters, run_seasonality
+from services.data.features import FeaturePipeline, FeatureSpec
+from services.research.modeling import (
     UnsupervisedResearchConfig,
     UnsupervisedResearchService,
 )
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.market_data.data_getters import load_dukascopy
+from services.data.service import load_dukascopy
 
 router = APIRouter()
 db_manager = DatabaseManager()
@@ -2649,7 +2649,7 @@ async def get_scorecard_snapshot_report(snapshot_id: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Scorecard snapshot {snapshot_id} not found.",
         )
-    from backend.services.research.profile_reporting import snapshot_report_json
+    from services.research.profile_reporting import snapshot_report_json
 
     return snapshot_report_json(snapshot)
 

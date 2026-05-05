@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from backend.services.modeling.unsupervised import run_pca
-from backend.services.modeling.unsupervised_insights import (
+from services.research.modeling.unsupervised import run_pca
+from services.research.modeling.unsupervised_insights import (
     adapt_signals_by_cluster,
     analyze_cluster_outperformance,
     build_unsupervised_insight_report,

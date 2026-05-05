@@ -94,7 +94,7 @@ def combine_params(params_dict: Dict[str, Any], random_subset: Optional[int] = N
         
     return final_combos
 from .data import Data
-from backend.common.datasets import resample_ohlc as _resample_ohlc, OHLCVSchema
+from services.utils.datasets import resample_ohlc as _resample_ohlc, OHLCVSchema
 
 # Schema for HaruQuant Data objects which use lowercase column names
 HQT_SCHEMA = OHLCVSchema(
@@ -135,7 +135,7 @@ def resample(data: Union[Data, pd.DataFrame], rule: str) -> Data:
     else:
         rule = rule.lower()
     
-    # Use the centralized implementation from backend.common
+    # Use the centralized implementation from services.utils
     # We pass the HQT_SCHEMA to ensure it looks for 'open', 'high', etc.
     resampled_df = _resample_ohlc(df, rule, schema=HQT_SCHEMA)
     

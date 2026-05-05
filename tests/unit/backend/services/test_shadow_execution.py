@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 from backend.contracts.common import Originator
 from backend.contracts.execution_intent.model import ExecutionIntent, ExecutionIntentPayload
-from backend.services.execution import ExecutionSendService
-from backend.services.shadow import ShadowExecutionRequest, ShadowExecutionService
+from services.execution import ExecutionSendService
+from services.execution.shadow import ShadowExecutionRequest, ShadowExecutionService
 
 
 class FakeBrokerGateway:

@@ -21,7 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.strategy import (
+from services.strategy import (
     StrategyCatalogService,
     StrategyCatalogUpdateRequest,
     governance_strategy_id,
@@ -32,23 +32,23 @@ from backend.services.strategy import (
 REPLACEMENTS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"^from\s+apps\.strategy\.base\s+import\s+(.+)$", re.MULTILINE),
-        r"from backend.services.strategy.base import \1",
+        r"from services.strategy.base import \1",
     ),
     (
         re.compile(r"^from\s+apps\.indicator\s+import\s+(.+)$", re.MULTILINE),
-        r"from backend.services.indicators import \1",
+        r"from services.indicator import \1",
     ),
     (
         re.compile(r"^from\s+apps\.utils\.logger\s+import\s+logger\s*$", re.MULTILINE),
-        "from backend.common.logger import logger",
+        "from services.utils.logger import logger",
     ),
     (
         re.compile(r"^from\s+apps\.trading\s+import\s+(.+)$", re.MULTILINE),
-        r"from backend.services.strategy.compat_types import \1",
+        r"from services.strategy.compat_types import \1",
     ),
     (
         re.compile(r"^from\s+apps\.trade\s+import\s+(.+)$", re.MULTILINE),
-        r"from backend.services.strategy.compat_types import \1",
+        r"from services.strategy.compat_types import \1",
     ),
 )
 
@@ -57,25 +57,25 @@ def migrate_strategy_imports(code: str) -> str:
     migrated = code
     migrated = re.sub(
         r"^from\s+apps\.strategy\s+import\s+Strategy\s*$",
-        "from backend.services.strategy import BaseStrategy as Strategy",
+        "from services.strategy import BaseStrategy as Strategy",
         migrated,
         flags=re.MULTILINE,
     )
     migrated = re.sub(
         r"^from\s+apps\.strategy\s+import\s+BaseStrategy\s*$",
-        "from backend.services.strategy import BaseStrategy",
+        "from services.strategy import BaseStrategy",
         migrated,
         flags=re.MULTILINE,
     )
     migrated = re.sub(
         r"^from\s+apps\.strategy\s+import\s+BaseStrategy\s+as\s+(.+)$",
-        r"from backend.services.strategy import BaseStrategy as \1",
+        r"from services.strategy import BaseStrategy as \1",
         migrated,
         flags=re.MULTILINE,
     )
     migrated = re.sub(
         r"^from\s+apps\.strategy\s+import\s+Strategy\s+as\s+(.+)$",
-        r"from backend.services.strategy import BaseStrategy as \1",
+        r"from services.strategy import BaseStrategy as \1",
         migrated,
         flags=re.MULTILINE,
     )

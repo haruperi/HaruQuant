@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import generate_rebalance_proposal
+from services.risk.portfolio import generate_rebalance_proposal
 
 
 def test_generate_rebalance_proposal_normalizes_target_allocations() -> None:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.common import FixedClock
-from backend.services.monitoring.stale_state import detect_stale_state
+from services.utils import FixedClock
+from services.execution.monitoring.stale_state import detect_stale_state
 
 
 def test_detect_stale_state_raises_incident_grade_signal() -> None:

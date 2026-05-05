@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.common.errors import (
+from services.utils.errors import (
     BrokerError,
     ErrorContext,
     DomainError,

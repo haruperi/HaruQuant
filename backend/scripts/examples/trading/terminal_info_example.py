@@ -7,7 +7,7 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine
+from services.simulation.engine import Engine
 
 def _term_value(terminal, attr_name: str, method_name: str | None = None, default=None):
     if hasattr(terminal, attr_name):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import generate_derisk_proposal
+from services.risk.portfolio import generate_derisk_proposal
 
 
 def test_generate_derisk_proposal_builds_advisory_action() -> None:

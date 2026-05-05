@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from backend.services import (
+from services.strategy.governance import (
     StrategyLifecycleState,
-    evaluate_operating_mode_compatibility,
     update_operating_envelope_for_promotion,
 )
+from services.risk import evaluate_operating_mode_compatibility
 
 
 def test_live_entry_blocked_when_workflow_attempts_unsupported_autonomy_escalation() -> None:
@@ -22,4 +22,3 @@ def test_live_entry_blocked_when_workflow_attempts_unsupported_autonomy_escalati
     assert approved_envelope.autonomy_ceiling == "human_approved_live"
     assert compatibility.allowed is False
     assert compatibility.reason_codes == ("operating_mode_not_allowed",)
-

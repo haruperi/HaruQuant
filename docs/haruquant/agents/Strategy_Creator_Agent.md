@@ -25,11 +25,11 @@ catalog.
 
 - `backend/agents/strategy_creator_agent.py`
 - `backend/agents/prompts/strategy_creator_template.py`
-- `backend/services/strategy/design/blueprint_validator.py`
-- `backend/services/strategy/design/blueprint_renderer.py`
-- `backend/services/strategy/design/blueprint_materializer.py`
-- `backend/services/ai_chat/tool_attachment_registry.py`
-- `backend/services/ai_chat/ai_gateway.py`
+- `services/strategy/design/blueprint_validator.py`
+- `services/strategy/design/blueprint_renderer.py`
+- `services/strategy/design/blueprint_materializer.py`
+- `backend/agents/chat/ai_chat/tool_attachment_registry.py`
+- `backend/agents/chat/ai_chat/ai_gateway.py`
 
 ## Persisted Artifacts
 

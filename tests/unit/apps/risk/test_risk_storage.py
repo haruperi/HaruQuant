@@ -4,16 +4,16 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
-from backend.services.risk_engine import (
+from services.risk import (
     PortfolioStateEngine,
     RecommendationEngine,
     RiskLimits,
     RiskScorecardEngine,
     RiskSnapshotEngine,
 )
-from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
-from backend.services.risk_engine.storage import RiskRepository, RiskScenarioStore, RiskSnapshotStore
-from backend.services.risk_engine.scenarios import ScenarioResult
+from services.risk.simulation import ReplayFrame, build_cockpit_state
+from services.risk.storage import RiskRepository, RiskScenarioStore, RiskSnapshotStore
+from services.risk.scenarios import ScenarioResult
 from backend.data.database.sqlite import SQLiteDatabase
 
 

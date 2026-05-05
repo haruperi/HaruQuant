@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from backend.agents.permissions import AgentToolPermissionService
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 class ToolPolicyError(ValueError):
     """Raised when an agent requests a disallowed tool."""

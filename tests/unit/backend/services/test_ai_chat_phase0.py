@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services.ai_chat import (
+from backend.agents.chat.ai_chat import (
     ALLOWED_TIERS_BY_AUTHORITY_BAND,
     AuthorityBand,
     ConversationMessageRecord,

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from statistics import quantiles
 from time import perf_counter
 
-from backend.common import FixedClock
+from services.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -12,8 +12,8 @@ from backend.contracts.risk_assessment_decision.model import (
     RiskAssessmentDecisionPayload,
 )
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry, run_pre_send_validation
-from backend.services.execution.pre_send import PreSendValidationRequest
+from services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry, run_pre_send_validation
+from services.execution.pre_send import PreSendValidationRequest
 
 
 UTC = timezone.utc

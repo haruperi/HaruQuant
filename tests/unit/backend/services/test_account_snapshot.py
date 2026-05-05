@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from backend.common.time_utils import FixedClock
-from backend.services.risk import AccountSnapshot
+from services.utils.time_utils import FixedClock
+from services.risk import AccountSnapshot
 
 
 UTC = timezone.utc

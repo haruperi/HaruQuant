@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from .states import WorkflowState
 
 

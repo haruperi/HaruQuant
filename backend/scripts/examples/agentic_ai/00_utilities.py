@@ -121,7 +121,7 @@ def _load_market_data(
     end_date: Optional[datetime] = None,
     lookback_days: int = 14,
 ) -> Optional[pd.DataFrame]:
-    from backend.services.market_data.data_getters import load_mt5
+    from services.data.service import load_mt5
 
     if start_date is None:
         end_date = end_date or datetime.now()
@@ -157,7 +157,7 @@ def _redacted_env_status(key: str) -> str:
 
 def example_01_load_mt5() -> None:
     print_header("Example 01: Load Market Data - MT5")
-    from backend.services.market_data.data_getters import load_mt5, load_dukascopy
+    from services.data.service import load_mt5, load_dukascopy
 
     symbol = "XAUUSD"
     timeframe = "H1"
@@ -189,7 +189,7 @@ def example_01_load_mt5() -> None:
 
 def example_02_load_dukascopy() -> None:
     print_header("Example 02: Load Market Data - Dukascopy")
-    from backend.services.market_data.data_getters import load_dukascopy
+    from services.data.service import load_dukascopy
 
     try:
         frame = load_dukascopy(symbol="EURUSD", timeframe="H1", start_date="2025-06-01", end_date="2025-06-08")
@@ -202,7 +202,7 @@ def example_02_load_dukascopy() -> None:
 
 def example_03_load_parquet() -> None:
     print_header("Example 03: Load Market Data - Parquet")
-    from backend.services.market_data.data_getters import load_parquet
+    from services.data.service import load_parquet
 
     path = _ensure_sample_parquet()
     try:
@@ -217,7 +217,7 @@ def example_03_load_parquet() -> None:
 
 def example_04_load_csv() -> None:
     print_header("Example 04: Load Market Data - CSVDataSource")
-    from backend.services.market_data.data_getters import CSVDataSource
+    from services.data.service import CSVDataSource
 
     path = _ensure_sample_csv()
     try:
@@ -236,7 +236,7 @@ def example_04_load_csv() -> None:
 
 def example_05_data_preprocess() -> None:
     print_header("Example 05: HaruQuant Dataset Pipeline")
-    from backend.common.datasets import normalize_columns, prepare_ohlcvs_dataset
+    from services.utils.datasets import normalize_columns, prepare_ohlcvs_dataset
 
     raw_frame = _load_market_data(symbol="EURUSD", timeframe="H1")
     if raw_frame is None:

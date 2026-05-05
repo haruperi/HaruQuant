@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.ai_chat import (
+from backend.agents.chat.ai_chat import (
     ClarificationPolicy,
     ConversationOrchestrator,
     ConversationService,
     ConversationStateService,
     PageContextAssembler,
 )
-from backend.services.ai_chat.conversation_planner import ConversationPlanner, StructuredChatPlan
+from backend.agents.chat.ai_chat.conversation_planner import ConversationPlanner, StructuredChatPlan
 
 
 class PlannerMockRuntime:
@@ -539,17 +539,17 @@ def test_gateway_default_planner_uses_live_llm_assist_when_needed(tmp_path, monk
         calls["count"] += 1
         return PlannerMockRuntime(proposal)
 
-    monkeypatch.setattr("backend.services.ai_chat.conversation_planner.create_llm_runtime", fake_create_llm_runtime)
+    monkeypatch.setattr("backend.agents.chat.ai_chat.conversation_planner.create_llm_runtime", fake_create_llm_runtime)
 
     service = ConversationService(AiChatRepository(database_path))
     thread = service.create_thread(user_id=1, current_route="/strategies", current_page_type="generic")
-    gateway = __import__("backend.services.ai_chat", fromlist=["AIGatewayService"]).AIGatewayService(
+    gateway = __import__("backend.agents.chat.ai_chat", fromlist=["AIGatewayService"]).AIGatewayService(
         conversation_service=service,
         context_assembler=PageContextAssembler(db_manager=db),
     )
 
     metadata, chunks, _message_id = gateway.stream_response(
-        __import__("backend.services.ai_chat", fromlist=["ChatStreamRequest"]).ChatStreamRequest(
+        __import__("backend.agents.chat.ai_chat", fromlist=["ChatStreamRequest"]).ChatStreamRequest(
             user_id=1,
             thread_id=thread.thread_id,
             prompt="I want something mean-reverting but not too aggressive",

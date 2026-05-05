@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from backend.common.logger import logger
-from backend.services.modeling import UnsupervisedResearchService
-from backend.services.optimization.execution import EngineOptimizationResult
+from services.utils.logger import logger
+from services.research.modeling import UnsupervisedResearchService
+from services.optimization.execution import EngineOptimizationResult
 from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 
@@ -80,7 +80,7 @@ class OptimizationResearchTools:
         if config is None:
             result = self.service.analyze_frame(data)
         else:
-            from backend.services.modeling import UnsupervisedResearchConfig
+            from services.research.modeling import UnsupervisedResearchConfig
 
             clean_config = {key: value for key, value in config.items() if key != "enabled"}
             result = self.service.analyze_frame(

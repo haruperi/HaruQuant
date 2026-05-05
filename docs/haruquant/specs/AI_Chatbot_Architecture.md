@@ -132,7 +132,7 @@ copilot.
 - `backend/services/prompt_builder.py`
 - `backend/services/agent_router.py`
 - `backend/services/stream_manager.py`
-- `backend/services/tool_executor.py`
+- `backend/agents/chat/ai_chat/tool_executor.py`
 - `backend/policies/tool_policy.py`
 
 ## Observability Requirements

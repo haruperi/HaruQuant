@@ -1,13 +1,13 @@
 """Authentication utility functions."""
 
 from datetime import datetime
-from backend.common.logger import logger
+from services.utils.logger import logger
 from typing import Optional
 
 from fastapi import Header, HTTPException, status
 
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.common.security import verify_password
+from services.utils.security import verify_password
 
 
 def generate_token(user_id: int, db_manager: DatabaseManager) -> str:

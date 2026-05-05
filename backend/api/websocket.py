@@ -1,7 +1,7 @@
 """
 WebSocket Manager for Real-time Updates.
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 Manages WebSocket connections for:
 - Backtest logs streaming
 - Live trading updates (signals, positions, status, logs)

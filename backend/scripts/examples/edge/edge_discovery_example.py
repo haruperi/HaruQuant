@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT_DIR))
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from backend.services.research import (  # noqa: E402 # Config; Data; Features; EDS Runners; Reporting
+from services.research import (  # noqa: E402 # Config; Data; Features; EDS Runners; Reporting
     BootstrapConfig,
     DataConfig,
     EdgeLabConfig,
@@ -53,7 +53,7 @@ from backend.services.research import (  # noqa: E402 # Config; Data; Features; 
     validate_data_quality,
     zscore,
 )
-from backend.common.logger import logger  # noqa: E402
+from services.utils.logger import logger  # noqa: E402
 
 
 def create_mt5_source():
@@ -444,7 +444,7 @@ def example_6_exploratory_analysis():
     bars = 5000
 
     # Load data
-    from backend.common.datasets import compute_session_stats
+    from services.utils.datasets import compute_session_stats
 
     df = load_ohlc(source, symbol, timeframe, 0, bars, exclude_last_bar=True)
     df = tag_sessions(df)

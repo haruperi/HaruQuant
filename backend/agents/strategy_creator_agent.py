@@ -13,8 +13,8 @@ from backend.contracts.strategy_blueprint.model import StrategyBlueprint
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.runtime import LLMRuntimeError, create_llm_runtime
 from backend.config.agent_model import get_model_for_tier
-from backend.services.strategy.catalog import StrategyCatalogService
-from backend.services.strategy.design import (
+from services.strategy.catalog import StrategyCatalogService
+from services.strategy.design import (
     StrategyBlueprintMaterializationRequest,
     StrategyBlueprintMaterializationService,
     StrategyBlueprintRenderer,
@@ -126,7 +126,7 @@ Rules:
             renderer=self.renderer,
             validator=self.validator,
         )
-        self.indicator_base_dir = Path(indicator_base_dir or "backend/services/indicators")
+        self.indicator_base_dir = Path(indicator_base_dir or "services/indicator")
 
     def create_from_idea(
         self,
@@ -1099,7 +1099,7 @@ Rules:
         if not init_path.exists():
             init_path.write_text('"""Custom indicators module."""\n\n__all__ = []\n', encoding="utf-8")
         content = init_path.read_text(encoding="utf-8")
-        import_line = f"from backend.services.indicators.custom.{function_name} import {function_name}"
+        import_line = f"from services.indicator.custom.{function_name} import {function_name}"
         if import_line not in content:
             content = content.rstrip() + f"\n{import_line}\n"
         if "__all__" in content:
@@ -1126,8 +1126,8 @@ Rules:
 
 import pandas as pd
 
-from backend.common.logger import logger
-from backend.services.indicators.validation import (
+from services.utils.logger import logger
+from services.indicator.validation import (
     require_columns,
     require_dataframe,
     require_positive_float,
@@ -1215,8 +1215,8 @@ definition. Review the formula before using in research.
 
 import pandas as pd
 
-from backend.common.logger import logger
-from backend.services.indicators.validation import (
+from services.utils.logger import logger
+from services.indicator.validation import (
     require_columns,
     require_dataframe,
     require_positive_int,

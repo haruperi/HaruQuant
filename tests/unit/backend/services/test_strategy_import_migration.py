@@ -19,12 +19,12 @@ from apps.trade import PositionTyp
     migrated = migrate_strategy_imports(code)
 
     assert "apps." not in migrated
-    assert "from backend.services.strategy import BaseStrategy" in migrated
-    assert "from backend.services.strategy.base import SignalDict" in migrated
-    assert "from backend.services.indicators import sma, rsi" in migrated
-    assert "from backend.common.logger import logger" in migrated
-    assert "from backend.services.strategy.compat_types import PositionType" in migrated
-    assert "from backend.services.strategy.compat_types import PositionTyp" in migrated
+    assert "from services.strategy import BaseStrategy" in migrated
+    assert "from services.strategy.base import SignalDict" in migrated
+    assert "from services.indicator import sma, rsi" in migrated
+    assert "from services.utils.logger import logger" in migrated
+    assert "from services.strategy.compat_types import PositionType" in migrated
+    assert "from services.strategy.compat_types import PositionTyp" in migrated
     assert has_legacy_apps_import(migrated) is False
 
 
@@ -39,6 +39,6 @@ class Demo(Strategy):
 
     migrated = migrate_strategy_imports(code)
 
-    assert "from backend.services.strategy import BaseStrategy as Strategy" in migrated
+    assert "from services.strategy import BaseStrategy as Strategy" in migrated
     assert has_legacy_apps_import(migrated) is False
 

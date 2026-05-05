@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from backend.data.database import apply_pending_migrations, default_migrations_dir
-from backend.services.reconciliation import (
+from services.execution.reconciliation import (
     BrokerTruthSnapshot,
     LocalExecutionTruth,
     ReconciliationComparison,

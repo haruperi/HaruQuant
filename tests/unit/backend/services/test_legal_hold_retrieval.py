@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from backend.services.audit.legal_hold import LegalHoldAwareReplayService
+from services.strategy.evidence.audit.legal_hold import LegalHoldAwareReplayService
 
 
 def test_legal_hold_aware_replay_service_blocks_protected_exports(tmp_path) -> None:

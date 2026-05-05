@@ -29,11 +29,11 @@ The Lesson 2 path should produce:
 
 Already available:
 
-- `backend/services/modeling/unsupervised.py`
+- `services/research/modeling/unsupervised.py`
   - `run_pca`
   - `cluster_feature_space`
   - `attach_cluster_labels`
-- `backend/services/modeling/unsupervised_insights.py`
+- `services/research/modeling/unsupervised_insights.py`
   - `summarize_investment_data`
   - `identify_pca_risk_factors`
   - `analyze_cluster_outperformance`
@@ -56,7 +56,7 @@ The existing workflow example executes Lesson 1 data, feature, signal, backtest,
 
 Use the existing HaruQuant services as the implementation boundary:
 
-- Keep modeling math in `backend/services/modeling/`.
+- Keep modeling math in `services/research/modeling/`.
 - Keep workflow step orchestration in `backend/orchestration/workflow/`.
 - Keep tutorial/demo behavior in `backend/scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py`.
 - Keep tests under the existing unit and integration test layout.
@@ -188,7 +188,7 @@ Implementation:
   - `example_16_cluster_outperformance_and_signal_filter`
   - `example_17_registry_driven_unsupervised_workflow`
 - Reuse shared helper functions from the file.
-- Avoid duplicating PCA/K-Means logic; call `backend.services.modeling.unsupervised_insights`.
+- Avoid duplicating PCA/K-Means logic; call `services.research.modeling.unsupervised_insights`.
 
 Acceptance:
 

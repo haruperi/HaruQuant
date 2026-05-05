@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 import sqlparse
 from sqlparse.sql import Identifier, Parenthesis
 from sqlparse.tokens import Name

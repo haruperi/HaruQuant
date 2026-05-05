@@ -1,5 +1,5 @@
-from backend.common import PolicyError
-from backend.services.approval import ApprovalState, ApprovalStateMachine
+from services.utils import PolicyError
+from services.execution.approval import ApprovalState, ApprovalStateMachine
 
 
 def test_approval_state_machine_allows_expected_transitions() -> None:

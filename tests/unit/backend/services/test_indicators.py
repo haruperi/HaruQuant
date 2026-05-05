@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from backend.services.indicators import (
+from services.indicator import (
     accumulation_distribution,
     atr,
     bbands,

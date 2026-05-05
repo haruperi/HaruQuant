@@ -1,8 +1,8 @@
 import pandas as pd
 
-from backend.services.simulation.config import SimulationConfig
-from backend.services.simulation.data_preparation import PreparedSimulationData
-from backend.services.simulation.position_sizing import resolve_position_size
+from services.simulation.config import SimulationConfig
+from services.simulation.data_preparation import PreparedSimulationData
+from services.simulation.position_sizing import resolve_position_size
 
 
 def _prepared():

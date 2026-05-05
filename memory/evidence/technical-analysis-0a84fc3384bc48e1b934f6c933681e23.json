@@ -1,0 +1,41 @@
+{
+  "candidate_ideas": [
+    {
+      "idea": "mean_reversion",
+      "rationale": "Uses RSI and range context.",
+      "score": 0.45
+    },
+    {
+      "idea": "breakout",
+      "rationale": "Uses trend and volatility expansion context.",
+      "score": 0.4
+    },
+    {
+      "idea": "trend_following",
+      "rationale": "Uses directional context.",
+      "score": 0.35
+    }
+  ],
+  "confidence": 0.4,
+  "created_at": "2026-05-05T12:22:37.736156Z",
+  "evidence_refs": [],
+  "market_context": {
+    "bars": 0,
+    "resistance": null,
+    "rsi": null,
+    "support": null,
+    "trend": "unknown",
+    "volatility": "unknown"
+  },
+  "recommended_next_steps": [
+    "Review candidate scores",
+    "Promote only testable rules to Strategy Creator"
+  ],
+  "report_id": "technical-analysis-0a84fc3384bc48e1b934f6c933681e23",
+  "research_question": "Research EURUSD market structure. Operator hints from legacy chat tools: haruquant_docs=>research/research. Context: symbol=EURUSD.",
+  "risks": [
+    "indicator_context_incomplete"
+  ],
+  "source_agent": "technical_analyst",
+  "sources_used": []
+}

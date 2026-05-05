@@ -10,8 +10,8 @@ from typing import Optional, Tuple
 import pandas as pd
 import requests
 
-from backend.common.logger import logger
-from backend.services.market_data.dukascopy_instruments import get_instrument
+from services.utils.logger import logger
+from services.data.instruments import get_instrument
 
 TIME_UNIT_MONTH = "MONTH"
 TIME_UNIT_WEEK = "WEEK"

@@ -8,7 +8,7 @@ propagating errors upstream.
 
 from __future__ import annotations
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 import json
 from dataclasses import dataclass
 from typing import Any, Optional, Protocol

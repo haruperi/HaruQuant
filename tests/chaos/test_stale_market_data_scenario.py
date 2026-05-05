@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.common import FixedClock
-from backend.services.execution import SymbolMetadataCacheEntry, validate_price_freshness
+from services.utils import FixedClock
+from services.execution import SymbolMetadataCacheEntry, validate_price_freshness
 
 
 def test_stale_market_data_chaos_scenario_fails_closed() -> None:

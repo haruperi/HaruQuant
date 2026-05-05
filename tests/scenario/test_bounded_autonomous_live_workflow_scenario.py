@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.common import FixedClock
+from services.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -13,14 +13,13 @@ from backend.contracts.risk_assessment_decision.model import (
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from backend.data.database import ExecutionRepository, GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.services import (
+from services.risk.policy.compliance_rollout import require_live_execution_profile
+from services.strategy.governance import (
     StrategyLifecycleState,
-    evaluate_compliance_profile_compatibility,
-    evaluate_operating_mode_compatibility,
-    require_live_execution_profile,
     update_operating_envelope_for_promotion,
 )
-from backend.services.execution import (
+from services.risk import evaluate_compliance_profile_compatibility, evaluate_operating_mode_compatibility
+from services.execution import (
     ExecutionAttemptPersistenceService,
     ExecutionReceiptService,
     ExecutionSendService,
@@ -30,7 +29,7 @@ from backend.services.execution import (
     generate_execution_idempotency_key,
     run_pre_send_validation,
 )
-from backend.services.execution.pre_send import PreSendValidationRequest
+from services.execution.pre_send import PreSendValidationRequest
 
 
 UTC = timezone.utc

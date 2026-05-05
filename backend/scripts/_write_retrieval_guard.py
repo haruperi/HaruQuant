@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 # ─────────────────────────────────────────────────────────────────────
 # Injection pattern categories (25+ patterns across 6 threat categories)

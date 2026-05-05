@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from backend.services.risk_engine import PortfolioStateEngine, RiskLimits
+from services.risk import PortfolioStateEngine, RiskLimits
 
 
 def _bars(

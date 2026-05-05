@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from backend.services.risk_engine import (
+from services.risk import (
     HypotheticalOrderAction,
     RecommendationEngine,
     RiskScorecardEngine,
     RiskSnapshotEngine,
     WhatIfEngine,
 )
-from backend.services.risk_engine.simulation import ReplayFrame
+from services.risk.simulation import ReplayFrame
 from tests.fixtures.risk_portfolios import build_risk_portfolio_cases
 
 

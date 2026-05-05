@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from backend.api.router import Intent, IntentClassifier, RoutingMetadata
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.agents.route_decision import RouteDecisionService
 
 

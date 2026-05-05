@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.retrieval.embeddings import EmbeddingService
 from backend.retrieval.service import RetrievalService
 from backend.retrieval.evaluation import RetrievalEvaluator

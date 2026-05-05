@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from backend.services.modeling.unsupervised import (
+from services.research.modeling.unsupervised import (
     attach_cluster_labels,
     cluster_feature_space,
     run_pca,

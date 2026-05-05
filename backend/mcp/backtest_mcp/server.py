@@ -6,7 +6,7 @@ from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 from .tools import BACKTEST_TOOL_SPECS
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 class BacktestMCPServer:
     """Thin MCP server shell for the legacy simulation boundary."""

@@ -1,6 +1,6 @@
 """Market data MCP boundary package."""
 
-from backend.services.market_data.dukascopy_instruments import get_instrument
+from services.data.instruments import get_instrument
 
 from .dukascopy import (
     INTERVAL_DAY_1,

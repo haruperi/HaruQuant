@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.services.risk import evaluate_regime_restriction
-from backend.services.risk import evaluate_session_restrictions
-from backend.services.risk import evaluate_operating_mode_compatibility
-from backend.services.risk import evaluate_compliance_profile_compatibility
-from backend.services.risk import evaluate_spread_slippage_precheck
+from services.risk import evaluate_regime_restriction
+from services.risk import evaluate_session_restrictions
+from services.risk import evaluate_operating_mode_compatibility
+from services.risk import evaluate_compliance_profile_compatibility
+from services.risk import evaluate_spread_slippage_precheck
 
 
 UTC = timezone.utc

@@ -173,7 +173,7 @@ Implemented here:
 - schema registry models, seeds, and runtime validation
 - database baseline and repositories in [`backend/db`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\db)
 - workflow state machines in [`backend/orchestration/workflow`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\orchestration\workflow)
-- policy and approval baseline in [`backend/services/policy`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\policy) and [`backend/services/approval`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\approval)
+- policy and approval baseline in [`services/risk/policy`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\policy) and [`services/execution/approval`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\approval)
 - operator API shell in [`backend/api`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\api)
 
 Why it matters:
@@ -184,11 +184,11 @@ Why it matters:
 Phase 2 implemented the hard safety loop for live mutation.
 
 Implemented here:
-- risk assembly, calculators, decisions, validity, and persistence in [`backend/services/risk`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\risk)
-- kill-switch state and audit in [`backend/services/safety`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\safety)
-- execution readiness validation in [`backend/services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution)
+- risk assembly, calculators, decisions, validity, and persistence in [`services/risk`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\risk)
+- kill-switch state and audit in [`services/risk/safety`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\safety)
+- execution readiness validation in [`services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution)
 - MT5 MCP boundary in [`backend/mcp/mt5_mcp`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\mcp\mt5_mcp)
-- reconciliation in [`backend/services/reconciliation`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\reconciliation)
+- reconciliation in [`services/execution/reconciliation`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\reconciliation)
 
 Why it matters:
 - this is the part that actually blocks unsafe live trading behavior
@@ -209,10 +209,10 @@ Why it matters:
 Phase 4 connected the proposal-to-execution supervision path.
 
 Implemented here:
-- proposal transformation and readiness in [`backend/services/proposals`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\proposals)
-- execution assembly, send orchestration, attempt/receipt persistence, and authority-state propagation in [`backend/services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution)
-- observation and incident handling in [`backend/services/monitoring`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\monitoring)
-- replay, audit export, legal hold, and signing in [`backend/services/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
+- proposal transformation and readiness in [`services/strategy/proposals`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\proposals)
+- execution assembly, send orchestration, attempt/receipt persistence, and authority-state propagation in [`services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution)
+- observation and incident handling in [`services/execution/monitoring`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\monitoring)
+- replay, audit export, legal hold, and signing in [`services/strategy/evidence/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
 - operator approval/event API in [`backend/api`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\api)
 
 Why it matters:
@@ -223,9 +223,9 @@ Why it matters:
 Phase 5 added portfolio analytics and strategy lifecycle governance.
 
 Implemented here:
-- portfolio analytics in [`backend/services/portfolio`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\portfolio)
-- strategy lifecycle and promotion logic in [`backend/services/strategy_gov`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\strategy_gov)
-- evidence bundle automation in [`backend/services/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
+- portfolio analytics in [`services/risk/portfolio`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\portfolio)
+- strategy lifecycle and promotion logic in [`services/strategy/governance`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\strategy_gov)
+- evidence bundle automation in [`services/strategy/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
 
 Why it matters:
 - strategy promotion is now explicit, evidence-backed, and gated before broader live autonomy
@@ -236,9 +236,9 @@ Phase 6 wrapped legacy capabilities and added production hardening.
 
 Implemented here:
 - legacy MCP wrappers in [`backend/mcp`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\mcp)
-- shadow mode in [`backend/services/shadow`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\shadow)
-- replay validation in [`backend/services/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
-- performance helpers in [`backend/services/performance`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\performance)
+- shadow mode in [`services/execution/shadow`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\shadow)
+- replay validation in [`services/strategy/evidence/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
+- performance helpers in [`services/execution/performance`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\performance)
 
 Why it matters:
 - this is where the backend moved from “implemented” to “operationally defensible”
@@ -258,7 +258,7 @@ Typical flow:
 Primary areas:
 - [`backend/contracts`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\contracts)
 - [`backend/orchestration/workflow`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\orchestration\workflow)
-- [`backend/services/proposals`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\proposals)
+- [`services/strategy/proposals`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\proposals)
 - [`backend/db/repositories`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\db\repositories)
 
 ## 2. Risk Decision Path
@@ -273,7 +273,7 @@ Typical flow:
 5. enforce freshness and invalidate on material proposal drift
 
 Primary areas:
-- [`backend/services/risk`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\risk)
+- [`services/risk`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\risk)
 
 ## 3. Live Execution Path
 
@@ -288,9 +288,9 @@ Typical flow:
 6. reconcile against broker truth before any retry
 
 Primary areas:
-- [`backend/services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution)
+- [`services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution)
 - [`backend/mcp/mt5_mcp`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\mcp\mt5_mcp)
-- [`backend/services/reconciliation`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\reconciliation)
+- [`services/execution/reconciliation`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\reconciliation)
 
 ## 4. Safety And Recovery Path
 
@@ -303,7 +303,7 @@ Typical flow:
 4. audit the state transitions
 
 Primary areas:
-- [`backend/services/safety`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\safety)
+- [`services/risk/safety`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\safety)
 
 ## 5. Agent Runtime Path
 
@@ -332,8 +332,8 @@ Typical flow:
 4. block purge when legal hold applies
 
 Primary areas:
-- [`backend/services/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
-- [`backend/services/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
+- [`services/strategy/evidence/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
+- [`services/strategy/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
 
 ## 7. Strategy Promotion Path
 
@@ -350,8 +350,8 @@ Typical flow:
 8. evaluate suspension and retirement when needed
 
 Primary areas:
-- [`backend/services/strategy_gov`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\strategy_gov)
-- [`backend/services/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
+- [`services/strategy/governance`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\strategy_gov)
+- [`services/strategy/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
 
 ## Where To Use What
 
@@ -376,7 +376,7 @@ Do not use it for:
 - contract validation
 - HTTP concerns
 
-## Use `backend/services/risk` when
+## Use `services/risk` when
 
 - evaluating whether a trade can proceed
 - deriving deterministic constraints and approvals
@@ -385,7 +385,7 @@ Do not use it for:
 - direct broker sends
 - prompt-driven reasoning
 
-## Use `backend/services/execution` when
+## Use `services/execution` when
 
 - assembling intents
 - validating send readiness
@@ -414,14 +414,14 @@ Do not use it for:
 - deterministic live safety decisions
 - direct DB orchestration outside runtime needs
 
-## Use `backend/services/audit` and `backend/services/evidence` when
+## Use `services/strategy/evidence/audit` and `services/strategy/evidence` when
 
 - building replay bundles
 - managing legal hold logic
 - exporting or signing audit evidence
 - storing lifecycle evidence bundles
 
-## Use `backend/services/portfolio` and `backend/services/strategy_gov` when
+## Use `services/risk/portfolio` and `services/strategy/governance` when
 
 - generating portfolio-level advisory changes
 - governing strategy lifecycle, promotion, suspension, and retirement
@@ -561,15 +561,15 @@ If you are trying to understand:
 - workflow law
   - open [`backend/orchestration/workflow`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\orchestration\workflow)
 - live safety
-  - open [`backend/services/risk`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\risk), [`backend/services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution), and [`backend/services/safety`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\safety)
+  - open [`services/risk`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\risk), [`services/execution`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\execution), and [`services/risk/safety`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\safety)
 - agent runtime
   - open [`backend/agents/runtime`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\agents\runtime)
 - broker boundary
   - open [`backend/mcp/mt5_mcp`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\mcp\mt5_mcp)
 - replay and legal hold
-  - open [`backend/services/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
+  - open [`services/strategy/evidence/audit`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\audit)
 - promotion and evidence
-  - open [`backend/services/portfolio`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\portfolio), [`backend/services/strategy_gov`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\strategy_gov), and [`backend/services/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
+  - open [`services/risk/portfolio`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\portfolio), [`services/strategy/governance`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\strategy_gov), and [`services/strategy/evidence`](C:\Users\rharu\Documents\MyApplications\HaruQuant\backend\services\evidence)
 
 ## References
 

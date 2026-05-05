@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, TypeVar
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.mcp.wrappers.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
 from backend.mcp.wrappers.rate_limiter import RateLimiter
 from backend.mcp.wrappers.retry_policy import RetryPolicy

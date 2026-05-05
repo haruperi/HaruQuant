@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import quantiles
 from time import perf_counter
 
-from backend.services.risk import (
+from services.risk import (
     PositionExposure,
     compose_risk_decision,
     calculate_currency_concentration,

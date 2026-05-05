@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from backend.services.ai_chat import AgentConsultationService, ConversationPlan
-from backend.services.ai_chat.models import ConversationState
-from backend.services.tool_executor import ToolExecutionResult
+from backend.agents.chat.ai_chat import AgentConsultationService, ConversationPlan
+from backend.agents.chat.ai_chat.models import ConversationState
+from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult
 
 
 class _Payload:

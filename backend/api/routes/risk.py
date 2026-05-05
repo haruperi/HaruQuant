@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 
 from backend.api.auth_utils import get_user_id_from_token
-from backend.common.logger import logger
-from backend.services.risk_engine import (
+from services.utils.logger import logger
+from services.risk import (
     AllocationPlanner,
     CorrelationPreference,
     GovernanceEngine,
@@ -20,9 +20,9 @@ from backend.services.risk_engine import (
     RegimeState,
     RiskLimits,
 )
-from backend.services.risk_engine.models import AccountState, MarketState, PortfolioState, PositionState, SymbolState
-from backend.services.risk_engine.regimes import CrisisRegimeDetector, RegimeEngine
-from backend.services.simulation.engine import Engine
+from services.risk.models import AccountState, MarketState, PortfolioState, PositionState, SymbolState
+from services.risk.regimes import CrisisRegimeDetector, RegimeEngine
+from services.simulation.engine import Engine
 
 router = APIRouter()
 AUTH_HEADER = Header(None)

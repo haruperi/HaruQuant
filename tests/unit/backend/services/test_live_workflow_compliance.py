@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.common import ValidationError
-from backend.services.compliance_rollout import require_live_execution_profile
+from services.utils import ValidationError
+from services.risk.policy.compliance_rollout import require_live_execution_profile
 
 
 def test_require_live_execution_profile_rejects_missing_profile_for_live_modes() -> None:

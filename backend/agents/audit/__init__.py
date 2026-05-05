@@ -1,3 +1,3 @@
 """Audit Department facade."""
 
-from backend.services.audit import *  # noqa: F403
+from services.strategy.evidence.audit import *  # noqa: F403

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.ai_chat import (
+from backend.agents.chat.ai_chat import (
     ConversationThreadRecord,
     ConversationService,
     ConversationStateService,

@@ -5,12 +5,56 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 
-from backend.common import ValidationError, generate_id
-from backend.common.logger import logger
+from services.utils import ErrorDescriptor, ValidationError, generate_id
+from services.utils.logger import logger
 from backend.data.database import WorkflowRecord, WorkflowRepository
 
 from .executor import WorkflowExecutionResult, WorkflowPlanExecutor
 from .states import WorkflowState
+
+
+_WORKFLOW_OBJECTIVE_REQUIRED = ErrorDescriptor(
+    code=4050,
+    name="WORKFLOW_OBJECTIVE_REQUIRED",
+    message="Workflow creation requires a non-empty objective.",
+    domain="workflow",
+)
+_WORKFLOW_CONSTRAINTS_REQUIRED = ErrorDescriptor(
+    code=4051,
+    name="WORKFLOW_CONSTRAINTS_REQUIRED",
+    message="Workflow creation requires declared constraints.",
+    domain="workflow",
+)
+_WORKFLOW_PERMITTED_TOOLS_REQUIRED = ErrorDescriptor(
+    code=4052,
+    name="WORKFLOW_PERMITTED_TOOLS_REQUIRED",
+    message="Workflow creation requires at least one permitted tool.",
+    domain="workflow",
+)
+_WORKFLOW_REQUIRED_AGENTS_REQUIRED = ErrorDescriptor(
+    code=4053,
+    name="WORKFLOW_REQUIRED_AGENTS_REQUIRED",
+    message="Workflow creation requires at least one required agent.",
+    domain="workflow",
+)
+_WORKFLOW_STOP_CONDITIONS_REQUIRED = ErrorDescriptor(
+    code=4054,
+    name="WORKFLOW_STOP_CONDITIONS_REQUIRED",
+    message="Workflow creation requires at least one stop condition.",
+    domain="workflow",
+)
+_WORKFLOW_EVALUATION_CRITERIA_REQUIRED = ErrorDescriptor(
+    code=4055,
+    name="WORKFLOW_EVALUATION_CRITERIA_REQUIRED",
+    message="Workflow creation requires evaluation criteria.",
+    domain="workflow",
+)
+_WORKFLOW_PLAN_ID_MISMATCH = ErrorDescriptor(
+    code=4056,
+    name="WORKFLOW_PLAN_ID_MISMATCH",
+    message="Workflow plan must target the created workflow.",
+    domain="workflow",
+)
 
 
 @dataclass(frozen=True)
@@ -72,33 +116,27 @@ class WorkflowCreationService:
     def _validate_request(request: WorkflowCreateRequest) -> None:
         if not request.objective.strip():
             raise ValidationError(
-                "workflow_objective_required",
-                "Workflow creation requires a non-empty objective.",
+                _WORKFLOW_OBJECTIVE_REQUIRED,
             )
         if not request.constraints:
             raise ValidationError(
-                "workflow_constraints_required",
-                "Workflow creation requires declared constraints.",
+                _WORKFLOW_CONSTRAINTS_REQUIRED,
             )
         if not request.permitted_tools:
             raise ValidationError(
-                "workflow_permitted_tools_required",
-                "Workflow creation requires at least one permitted tool.",
+                _WORKFLOW_PERMITTED_TOOLS_REQUIRED,
             )
         if not request.required_agents:
             raise ValidationError(
-                "workflow_required_agents_required",
-                "Workflow creation requires at least one required agent.",
+                _WORKFLOW_REQUIRED_AGENTS_REQUIRED,
             )
         if not request.stop_conditions:
             raise ValidationError(
-                "workflow_stop_conditions_required",
-                "Workflow creation requires at least one stop condition.",
+                _WORKFLOW_STOP_CONDITIONS_REQUIRED,
             )
         if not request.evaluation_criteria:
             raise ValidationError(
-                "workflow_evaluation_criteria_required",
-                "Workflow creation requires evaluation criteria.",
+                _WORKFLOW_EVALUATION_CRITERIA_REQUIRED,
             )
 
 
@@ -123,11 +161,8 @@ class WorkflowRuntimeService:
         plan = plan_factory(workflow)
         if plan.workflow_id != workflow.workflow_id:
             raise ValidationError(
-                "workflow_plan_id_mismatch",
-                "Workflow plan must target the created workflow.",
-                details={
-                    "workflow_id": workflow.workflow_id,
-                    "plan_workflow_id": plan.workflow_id,
-                },
+                _WORKFLOW_PLAN_ID_MISMATCH,
+                "Workflow plan must target the created workflow: "
+                f"{plan.workflow_id} != {workflow.workflow_id}.",
             )
         return self.executor.execute(plan)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.data.database import WorkflowRepository
 
 from .states import WorkflowState

@@ -340,7 +340,7 @@ Ground the assistant in real HaruQuant state through safe read-only tools.
 #### Deliverables
 
 - `backend/tools/read_only/*.py`
-- `backend/services/tool_executor.py`
+- `backend/agents/chat/ai_chat/tool_executor.py`
 - `backend/policies/tool_policy.py`
 - provenance display in UI
 - tool integration tests
@@ -552,7 +552,7 @@ Introduce governed execution, starting strictly in paper or simulated mode.
 
 #### Deliverables
 
-- `backend/services/trade_action_governor.py`
+- `services/execution/trade_action_governor.py`
 - validated command schema
 - paper execution adapter
 - execution audit log

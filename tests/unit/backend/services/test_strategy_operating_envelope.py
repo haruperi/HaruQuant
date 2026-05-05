@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services import StrategyLifecycleState, update_operating_envelope_for_promotion
+from services.strategy.governance import StrategyLifecycleState, update_operating_envelope_for_promotion
 
 
 def test_update_operating_envelope_for_live_limited_requires_human_approval() -> None:

@@ -15,7 +15,7 @@ from backend.agents.runtime.runner import (
     AgentExecutionResult,
 )
 from backend.agents.runtime.tool_policy import ToolAllowlistMiddleware, ToolPolicyError
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 
 # ──────────────────────────────────────────────────────────────

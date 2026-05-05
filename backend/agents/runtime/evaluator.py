@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import hashlib
 from typing import Iterable
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 @dataclass(frozen=True)
 class EvaluatorRubricCriterion:

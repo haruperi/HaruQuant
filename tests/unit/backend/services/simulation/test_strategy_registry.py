@@ -2,14 +2,14 @@ import pytest
 
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy
 from backend.data.strategies.trend_following import TrendFollowingStrategy
-from backend.services.simulation.strategy_registry import (
+from services.simulation.strategy_registry import (
     StrategyRegistryError,
     get_strategy_class,
     list_strategy_names,
     register_strategy,
     registered_strategies,
 )
-from backend.services.strategy.base import BaseStrategy
+from services.strategy.base import BaseStrategy
 
 
 class TemporaryTestStrategy(BaseStrategy):

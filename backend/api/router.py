@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 
 class Intent(str, Enum):

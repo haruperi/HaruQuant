@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.tools.registry import ToolDefinition, ToolRegistry, get_default_tool_registry
 
 

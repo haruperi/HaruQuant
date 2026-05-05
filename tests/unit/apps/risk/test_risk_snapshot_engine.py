@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from backend.services.risk_engine import (
+from services.risk import (
     GovernanceEngine,
     PortfolioRiskEngine,
     PortfolioStateEngine,

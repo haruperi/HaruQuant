@@ -34,8 +34,8 @@ from backend.agents.runtime import (
 )
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.strategy import StrategyCatalogService, StrategyStorage
-from backend.services.strategy.design import (
+from services.strategy import StrategyCatalogService, StrategyStorage
+from services.strategy.design import (
     StrategyBlueprintMaterializationRequest,
     StrategyBlueprintMaterializationService,
     StrategyBlueprintRenderer,

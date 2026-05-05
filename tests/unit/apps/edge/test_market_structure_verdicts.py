@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services.research.market_structure import _final_verdict
+from services.research.market_structure import _final_verdict
 
 
 def test_final_verdict_returns_trend_biased_when_gap_and_confidence_clear_thresholds():

@@ -5,11 +5,7 @@ from pathlib import Path
 import pytest
 
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.services import (
-    StrategyLifecycleState,
-    StrategyRegistrationRequest,
-    StrategyRegistryService,
-)
+from services.strategy.governance import StrategyLifecycleState, StrategyRegistrationRequest, StrategyRegistryService
 
 
 def test_strategy_registry_service_persists_strategy_lifecycle_entry(tmp_path) -> None:

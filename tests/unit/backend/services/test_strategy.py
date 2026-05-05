@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from backend.services.strategy import (
+from services.strategy import (
     BaseStrategy,
     SignalRouter,
     StrategyAdapter,
@@ -55,7 +55,7 @@ def test_base_strategy_helpers_and_signal_adapter() -> None:
 def test_strategy_storage_roundtrip_loads_strategy_class(tmp_path: Path) -> None:
     storage = StrategyStorage(base_dir=str(tmp_path / "strategies"))
     code = """
-from backend.services.strategy import BaseStrategy
+from services.strategy import BaseStrategy
 
 
 class StoredDemoStrategy(BaseStrategy):
@@ -125,7 +125,7 @@ class LegacyImportStrategy(BaseStrategy):
 def test_strategy_storage_export_import_roundtrip(tmp_path: Path) -> None:
     storage = StrategyStorage(base_dir=str(tmp_path / "src"))
     code = """
-from backend.services.strategy import BaseStrategy
+from services.strategy import BaseStrategy
 
 
 class ExportedStrategy(BaseStrategy):

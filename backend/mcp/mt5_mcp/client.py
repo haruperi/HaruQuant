@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import MetaTrader5 as _mt5_module
 import pandas as pd
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 __all__ = ["MT5Api", "get_mt5_api", "MT5Client", "ConnectionState"]
 

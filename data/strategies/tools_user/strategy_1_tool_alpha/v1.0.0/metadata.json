@@ -1,0 +1,19 @@
+{
+  "user_id": 1,
+  "strategy_id": 1,
+  "version": "1.0.0",
+  "parameters": {
+    "fast": 20,
+    "slow": 50
+  },
+  "saved_at": "2026-05-05T16:42:41.511795",
+  "name": "Tool Alpha",
+  "description": null,
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null
+}

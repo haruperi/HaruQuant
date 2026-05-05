@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from backend.contracts.common import Originator
 from backend.contracts.trade_hypothesis.model import EvidenceItem, TradeHypothesis, TradeHypothesisPayload
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
-from backend.services.proposals import evaluate_proposal_readiness
+from services.strategy.proposals import evaluate_proposal_readiness
 
 
 def _proposal() -> TradeProposal:

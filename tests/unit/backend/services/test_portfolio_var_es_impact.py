@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import calculate_projected_var_es_impact
+from services.risk.portfolio import calculate_projected_var_es_impact
 
 
 def test_calculate_projected_var_es_impact_scales_metrics_by_exposure_ratio() -> None:

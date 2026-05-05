@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from backend.services.risk_engine.reports import (
+from services.risk.reports import (
     build_replay_report,
     build_risk_snapshot_report,
     build_scenario_report,
@@ -10,11 +10,11 @@ from backend.services.risk_engine.reports import (
     render_risk_report_markdown,
     render_scenario_report_markdown,
 )
-from backend.services.risk_engine.storage import RiskRepository, RiskSnapshotStore
+from services.risk.storage import RiskRepository, RiskSnapshotStore
 from backend.data.database.sqlite import SQLiteDatabase
 from tests.unit.apps.risk.test_risk_storage import _build_state
-from backend.services.risk_engine import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
-from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
+from services.risk import RecommendationEngine, RiskScorecardEngine, RiskSnapshotEngine
+from services.risk.simulation import ReplayFrame, build_cockpit_state
 
 
 def _stored_bundle(tmp_path: Path):

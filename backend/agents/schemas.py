@@ -22,7 +22,7 @@ from backend.contracts.risk_assessment_decision.model import (
 from backend.contracts.strategy_blueprint.model import StrategyBlueprint as CanonicalStrategyBlueprint
 from backend.contracts.trade_proposal.model import TradeProposal as CanonicalTradeProposal
 from backend.contracts.workflow_plan.model import StepFailurePolicy, WorkflowPlan as CanonicalWorkflowPlan
-from backend.services.ai_chat.models import ConversationPlan
+from backend.agents.chat.ai_chat.models import ConversationPlan
 
 
 class AgentTaskStatus(str, Enum):

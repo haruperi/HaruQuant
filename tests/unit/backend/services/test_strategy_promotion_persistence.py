@@ -3,13 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.services import (
-    PromotionPersistenceRequest,
-    StrategyLifecycleState,
-    StrategyPromotionPersistenceService,
-    StrategyRegistrationRequest,
-    StrategyRegistryService,
-)
+from services.strategy.governance import PromotionPersistenceRequest, StrategyLifecycleState, StrategyPromotionPersistenceService, StrategyRegistrationRequest, StrategyRegistryService
 
 
 def test_strategy_promotion_persistence_records_history_and_updates_state(tmp_path) -> None:

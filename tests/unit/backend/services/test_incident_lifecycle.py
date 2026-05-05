@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from backend.data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
-from backend.services.monitoring.incidents import IncidentLifecycleService
+from services.execution.monitoring.incidents import IncidentLifecycleService
 
 
 def test_incident_lifecycle_service_creates_and_transitions_incidents(tmp_path) -> None:

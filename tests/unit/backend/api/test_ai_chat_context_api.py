@@ -7,7 +7,7 @@ from backend.api.main import app
 from backend.api.routes.ai_chat import get_page_context_assembler
 from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.ai_chat import PageContextAssembler
+from backend.agents.chat.ai_chat import PageContextAssembler
 
 
 def test_ai_chat_context_endpoint_returns_route_aware_packet(tmp_path) -> None:

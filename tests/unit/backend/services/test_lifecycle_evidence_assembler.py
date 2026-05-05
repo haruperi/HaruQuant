@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from backend.services import (
-    EvidenceArtifact,
-    StrategyLifecycleState,
-    assemble_lifecycle_evidence_bundle,
-)
+from services.strategy.evidence import EvidenceArtifact, assemble_lifecycle_evidence_bundle
+from services.strategy.governance import StrategyLifecycleState
 
 
 def test_assemble_lifecycle_evidence_bundle_uses_target_state_bundle_type() -> None:

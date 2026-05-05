@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any, List, Dict
 import pytest
 
-from backend.services.ai_chat import AIGatewayService, ChatStreamRequest
-from backend.services.ai_chat.models import SpecialistAgentArtifact
+from backend.agents.chat.ai_chat import AIGatewayService, ChatStreamRequest
+from backend.agents.chat.ai_chat.models import SpecialistAgentArtifact
 
 @pytest.fixture
 def corpora_paths():

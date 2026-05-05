@@ -18,8 +18,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from backend.common.logger import logger  # noqa: E402
-from backend.services.indicators import rsi  # noqa: E402
+from services.utils.logger import logger  # noqa: E402
+from services.indicator import rsi  # noqa: E402
 from _mt5_data import fetch_live_bars, parse_common_args  # noqa: E402
 
 

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from backend.services.modeling import (
+from services.research.modeling import (
     UnsupervisedResearchConfig,
     UnsupervisedResearchService,
 )
-from backend.services.strategy.adapter import StrategyAdapter
-from backend.services.strategy.base import BaseStrategy
+from services.strategy.adapter import StrategyAdapter
+from services.strategy.base import BaseStrategy
 
 
 def _market_frame(rows: int = 96) -> pd.DataFrame:

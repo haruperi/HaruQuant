@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import (
-    StrategyLifecycleState,
-    StrategyLifecycleTransitionValidator,
-)
+from services.strategy.governance import StrategyLifecycleState, StrategyLifecycleTransitionValidator
 
 
 def test_strategy_lifecycle_transition_validator_accepts_valid_path() -> None:

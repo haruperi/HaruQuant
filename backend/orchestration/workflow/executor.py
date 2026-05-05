@@ -26,8 +26,8 @@ from backend.agents.runtime import (
     WorkflowPatternRegistry,
     build_run_trajectory_log,
 )
-from backend.common.ids import generate_prefixed_id
-from backend.common.logger import logger
+from services.utils.ids import generate_prefixed_id
+from services.utils.logger import logger
 from backend.contracts.workflow_plan.model import (
     WorkflowPattern,
     WorkflowPhaseStep,

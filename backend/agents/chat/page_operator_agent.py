@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from backend.services.ai_chat.models import SpecialistAgentArtifact
-from backend.services.ai_chat.page_action_planner import PageActionPlanner
-from backend.services.tool_executor import ToolExecutionResult
+from backend.agents.chat.ai_chat.models import SpecialistAgentArtifact
+from backend.agents.chat.ai_chat.page_action_planner import PageActionPlanner
+from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult
 
 from .agent_base import SpecialistAgentBase
 

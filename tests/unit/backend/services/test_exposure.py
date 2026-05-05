@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.risk import (
+from services.risk import (
     PositionExposure,
     calculate_currency_concentration,
     calculate_exposure_summary,

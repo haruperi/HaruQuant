@@ -20,10 +20,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.common.logger import logger  # noqa: E402
+from services.utils.logger import logger  # noqa: E402
 from backend.mcp.mt5_mcp import MT5Utils  # noqa: E402
-from backend.services.indicators import ema  # noqa: E402
-from backend.services.strategy import BaseStrategy, SignalDict, SignalRouter, StrategyAdapter  # noqa: E402
+from services.indicator import ema  # noqa: E402
+from services.strategy import BaseStrategy, SignalDict, SignalRouter, StrategyAdapter  # noqa: E402
 
 
 class LiveEmaCrossoverStrategy(BaseStrategy):

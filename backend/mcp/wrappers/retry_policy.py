@@ -6,7 +6,7 @@ import random
 import time
 from typing import Any, Callable, Optional, TypeVar
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 T = TypeVar("T")
 

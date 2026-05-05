@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services import StrategyLifecycleState, route_promotion_approval
+from services.strategy.governance import StrategyLifecycleState, route_promotion_approval
 
 
 def test_route_promotion_approval_returns_required_roles_for_live_targets() -> None:

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 from pydantic import BaseModel, Field, ValidationError
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 
 class MetadataConfig(BaseModel):

@@ -8,14 +8,14 @@ import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from backend.api.auth_utils import get_user_id_from_token
-from backend.services.execution.core import (
+from services.execution.core import (
     BacktestResult,
     CloseType,
     EquityPoint,
     ExitReason,
     TradeRecord,
 )
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

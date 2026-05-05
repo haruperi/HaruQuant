@@ -67,7 +67,7 @@ This document details the incident response procedures and rollback mechanisms f
 **Response Steps:**
 1. Review the `ConversationMessageRecord` database for anomalies in `prompt_tokens` or `total_tokens`.
 2. Check `ContextCompactor` settings to ensure payloads aren't exceeding expected lengths.
-3. If necessary, adjust `ChatRateLimiter` settings in `backend/services/ai_chat/rate_limiter.py` to clamp down on usage temporarily.
+3. If necessary, adjust `ChatRateLimiter` settings in `backend/agents/chat/ai_chat/rate_limiter.py` to clamp down on usage temporarily.
 
 ## Rollback Procedures
 

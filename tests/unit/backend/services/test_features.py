@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from backend.services.features import (
+from services.data.features import (
     FeaturePipeline,
     FeatureSpec,
     dump_masked_research_json,

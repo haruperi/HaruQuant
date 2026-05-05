@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine
-from backend.services.execution.core import DealInfo
+from services.simulation.engine import Engine
+from services.execution.core import DealInfo
 
 def _seed_tester_deals(now: datetime, engine_instance: Engine) -> None:
     d1 = DealInfo()

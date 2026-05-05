@@ -1,6 +1,6 @@
 import numpy as np
 
-from backend.services.analytics import metrics
+from services.analytics import metrics
 
 
 def test_edge_stats_compute_trade_metrics():

@@ -6,7 +6,7 @@ import math
 
 from .models import RetrievalEvalResult
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 class RetrievalEvaluator:
     """Evaluates retrieval quality using standard IR metrics."""

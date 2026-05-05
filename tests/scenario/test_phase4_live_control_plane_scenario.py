@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.common import FixedClock
+from services.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -13,8 +13,8 @@ from backend.contracts.risk_assessment_decision.model import (
 from backend.contracts.serialization import canonical_json_dumps
 from backend.contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from backend.data.database import ExecutionRepository, ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from backend.services.audit import ReplayBundleAssembler, build_audit_export_package
-from backend.services.execution import (
+from services.strategy.evidence.audit import ReplayBundleAssembler, build_audit_export_package
+from services.execution import (
     ExecutionAttemptPersistenceService,
     ExecutionReceiptService,
     ExecutionSendService,
@@ -24,7 +24,7 @@ from backend.services.execution import (
     generate_execution_idempotency_key,
     run_pre_send_validation,
 )
-from backend.services.execution.pre_send import PreSendValidationRequest
+from services.execution.pre_send import PreSendValidationRequest
 
 
 UTC = timezone.utc

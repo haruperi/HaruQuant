@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Dict, Optional, Union
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from .runner import ADKRunRequest, ADKRunResult, ADKRunnerService, AgentRuntime
 from .output_validation import CanonicalOutputValidator, ContractValidationError
 from .evaluator import (

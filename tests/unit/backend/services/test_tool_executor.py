@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.strategy.catalog import StrategyCatalogCreateRequest, StrategyCatalogService
-from backend.services.tool_executor import ToolExecutor
+from services.strategy.catalog import StrategyCatalogCreateRequest, StrategyCatalogService
+from backend.agents.chat.ai_chat.tool_executor import ToolExecutor
 
 
 def test_tool_executor_runs_allowlisted_strategy_tool(tmp_path) -> None:

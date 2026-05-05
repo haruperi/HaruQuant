@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from backend.services.approval.models import ApprovalPacket, ApprovalRequest, ApprovalState, RiskClass
-from backend.services.execution.core import TradeRecord
+from services.execution.approval.models import ApprovalPacket, ApprovalRequest, ApprovalState, RiskClass
+from services.execution.core import TradeRecord
 from backend.observability.trace_model import Trace
 from backend.observability.span_model import Span
 

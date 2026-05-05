@@ -11,8 +11,8 @@ from uuid import uuid4
 from backend.agents.base import AgentRunContext, AgentRunResult, BaseAgent
 from backend.agents.intent_router import IntentRouterAgent, IntentRouterError, intent_router_agent
 from backend.agents.permissions import AgentToolPermissionService
-from backend.services.ai_chat.conversation_planner import ConversationPlanner
-from backend.services.ai_chat.models import ConversationPlan
+from backend.agents.chat.ai_chat.conversation_planner import ConversationPlanner
+from backend.agents.chat.ai_chat.models import ConversationPlan
 
 PLANNER_AGENT_DEPARTMENT = "planner"
 

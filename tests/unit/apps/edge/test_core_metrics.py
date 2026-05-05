@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from backend.services.research.core_metrics import build_core_metric_profile, build_default_registry
-from backend.services.research.datasets import prepare_ohlcvs_dataset
+from services.research.core_metrics import build_core_metric_profile, build_default_registry
+from services.utils.datasets import prepare_ohlcvs_dataset
 from backend.data.database.sqlite import SQLiteDatabase
 
 

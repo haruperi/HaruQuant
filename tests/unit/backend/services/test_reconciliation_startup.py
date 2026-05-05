@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import ExecutionRepository, apply_pending_migrations, default_migrations_dir
-from backend.services.reconciliation import ReconciliationStartupLoader
+from services.execution.reconciliation import ReconciliationStartupLoader
 
 
 def _seed_execution_graph(repository: ExecutionRepository) -> None:

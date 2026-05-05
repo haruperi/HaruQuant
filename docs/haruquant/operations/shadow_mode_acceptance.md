@@ -6,9 +6,9 @@ This note records local technical acceptance of the Phase 6 shadow-mode path for
 
 ## Reviewed Surfaces
 
-- `backend/services/shadow/execution.py`
-- `backend/services/shadow/feeds.py`
-- `backend/services/shadow/reporting.py`
+- `services/execution/shadow/execution.py`
+- `services/execution/shadow/feeds.py`
+- `services/execution/shadow/reporting.py`
 - `tests/unit/backend/services/test_shadow_execution.py`
 - `tests/unit/backend/services/test_shadow_feeds.py`
 - `tests/unit/backend/services/test_shadow_reporting.py`

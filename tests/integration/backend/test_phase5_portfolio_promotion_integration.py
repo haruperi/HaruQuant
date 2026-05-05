@@ -3,22 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import GovernanceRepository, ResearchAuditRepository, apply_pending_migrations, default_migrations_dir
-from backend.services import (
-    EvidenceArtifact,
-    EvidenceBundleStorageService,
-    PromotionEvidenceValidator,
-    PromotionPersistenceRequest,
-    StrategyLifecycleState,
-    StrategyPromotionPersistenceService,
-    StrategyRegistrationRequest,
-    StrategyRegistryService,
-    StrategyRetirementService,
-    SuspensionTriggerRequest,
-    assemble_lifecycle_evidence_bundle,
-    evaluate_suspension_triggers,
-    route_promotion_approval,
-    update_operating_envelope_for_promotion,
-)
+from services.strategy.evidence import EvidenceArtifact, EvidenceBundleStorageService, assemble_lifecycle_evidence_bundle
+from services.strategy.governance import PromotionEvidenceValidator, PromotionPersistenceRequest, StrategyLifecycleState, StrategyPromotionPersistenceService, StrategyRegistrationRequest, StrategyRegistryService, StrategyRetirementService, SuspensionTriggerRequest, evaluate_suspension_triggers, route_promotion_approval, update_operating_envelope_for_promotion
 
 
 def test_phase5_strategy_promotion_path_is_evidence_backed_and_lifecycle_controlled(tmp_path) -> None:

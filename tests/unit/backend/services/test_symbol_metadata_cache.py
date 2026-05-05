@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from backend.services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry
+from services.execution import SymbolMetadataCache, SymbolMetadataCacheEntry
 
 
 UTC = timezone.utc

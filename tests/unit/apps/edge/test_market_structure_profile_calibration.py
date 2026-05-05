@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services.research.market_structure_profile_calibration import evaluate_profile_calibration
+from services.research.market_structure_profile_calibration import evaluate_profile_calibration
 
 
 def test_profile_calibration_groups_rows_by_profile_key():

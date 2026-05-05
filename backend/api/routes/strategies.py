@@ -9,15 +9,15 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.strategy import storage
-from backend.services.strategy.catalog import (
+from services.strategy import storage
+from services.strategy.catalog import (
     StrategyCatalogCreateRequest,
     StrategyCatalogService,
     StrategyCatalogUpdateRequest,
 )
-from backend.services.strategy.baselines import (
+from services.strategy.baselines import (
     EmaCrossBaselineStrategy,
     NaiveMomentumStrategy,
     RsiBaselineStrategy,

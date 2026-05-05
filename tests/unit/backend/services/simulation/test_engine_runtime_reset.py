@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from backend.services.execution import core
-from backend.services.simulation.config import AccountConfig
-from backend.services.simulation.engine import Engine
+from services.execution import core
+from services.simulation.config import AccountConfig
+from services.simulation.engine import Engine
 
 
 def _make_engine():

@@ -27,17 +27,17 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from backend.services.risk_engine import (
+from services.risk import (
     PortfolioStateEngine,
     RecommendationEngine,
     RiskLimits,
     RiskScorecardEngine,
     RiskSnapshotEngine,
 )
-from backend.services.risk_engine.simulation import ReplayFrame, build_cockpit_state
-from backend.services.risk_engine.storage import RiskRepository, RiskSnapshotStore
+from services.risk.simulation import ReplayFrame, build_cockpit_state
+from services.risk.storage import RiskRepository, RiskSnapshotStore
 from backend.data.database.sqlite import SQLiteDatabase
-from backend.services.simulation.engine import Engine`nfrom backend.services.execution.trade import Trade`nfrom backend.services.execution import core
+from services.simulation.engine import Engine`nfrom services.execution.trade import Trade`nfrom services.execution import core
 
 
 TIMEFRAME = "H1"

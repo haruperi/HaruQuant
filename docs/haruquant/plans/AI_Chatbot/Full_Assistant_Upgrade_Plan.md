@@ -222,9 +222,9 @@ Add a tool attachment bar in the chat composer:
 
 Add:
 
-- `backend/services/ai_chat/tool_attachment_registry.py`
-- `backend/services/ai_chat/tool_attachment_runtime.py`
-- `backend/services/ai_chat/artifact_service.py`
+- `backend/agents/chat/ai_chat/tool_attachment_registry.py`
+- `backend/agents/chat/ai_chat/tool_attachment_runtime.py`
+- `backend/agents/chat/ai_chat/artifact_service.py`
 - `backend/contracts/chat_tool_attachment/schema.json`
 - `backend/contracts/chat_artifact/schema.json`
 
@@ -422,7 +422,7 @@ Frontend:
 
 Backend:
 
-- `backend/services/ai_chat/page_action_planner.py`
+- `backend/agents/chat/ai_chat/page_action_planner.py`
 - `backend/contracts/page_action_plan/schema.json`
 - audit events for plan, approval, execution, failure
 

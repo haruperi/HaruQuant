@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import enforce_portfolio_advisory_only, generate_resize_proposal, PositionExposure
+from services.risk import PositionExposure
+from services.risk.portfolio import enforce_portfolio_advisory_only, generate_resize_proposal
 
 
 def test_enforce_portfolio_advisory_only_allows_advisory_path() -> None:

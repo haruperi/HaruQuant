@@ -8,7 +8,7 @@ Refactor the current backtest flow so the public interface is clean, config-driv
 result = engine_instance.run(config)
 ```
 
-The example layer should not reset simulator state, build ticks, instantiate strategies, merge symbols, or compute result internals. Those responsibilities should move into `backend/services/simulation`.
+The example layer should not reset simulator state, build ticks, instantiate strategies, merge symbols, or compute result internals. Those responsibilities should move into `services/simulation`.
 
 The core simulator must remain fast and clean. It consumes prepared tick/array data and outputs clean records. Data loading, strategy preparation, tick generation, reporting, persistence, and metrics must stay outside the hot simulation loop.
 
@@ -20,7 +20,7 @@ The core simulator must remain fast and clean. It consumes prepared tick/array d
 - `reset_sim_runtime_state()` lives in an example script but should be engine/runtime logic.
 - ~~`run_vectorized()` ignores `position_size` and hardcodes `0.01` lots.~~ Fixed in Phase 9 for fixed-lot sizing.
 - `commission`, `slippage_config`, `spread_config`, `strategy`, `data_source`, and `trading_timeframe` are partially unused or inconsistently wired.
-- `backend/services/simulation/engine.py` mixes facade, orchestration, vectorized simulation, event-driven simulation, MT5 parity helpers, runtime state, and reporting-adjacent reconstruction logic.
+- `services/simulation/engine.py` mixes facade, orchestration, vectorized simulation, event-driven simulation, MT5 parity helpers, runtime state, and reporting-adjacent reconstruction logic.
 - There is no stable config contract for a full simulation backtest.
 
 ## Target Interface
@@ -87,7 +87,7 @@ No example-level calls to:
 Expand the existing simulation package instead of introducing a new `backtesting` package:
 
 ```text
-backend/services/simulation/
+services/simulation/
     __init__.py
     engine.py
     config.py
@@ -324,7 +324,7 @@ Optional:
 
 ### Phase 1: Add Simulation Config
 
-Create `backend/services/simulation/config.py`.
+Create `services/simulation/config.py`.
 
 Tasks:
 
@@ -344,7 +344,7 @@ Acceptance criteria:
 
 ### Phase 2: Add Strategy Registry
 
-Create `backend/services/simulation/strategy_registry.py`.
+Create `services/simulation/strategy_registry.py`.
 
 Tasks:
 
@@ -360,7 +360,7 @@ Acceptance criteria:
 
 ### Phase 3: Move Data Preparation
 
-Create `backend/services/simulation/data_preparation.py`.
+Create `services/simulation/data_preparation.py`.
 
 Tasks:
 
@@ -383,7 +383,7 @@ Acceptance criteria:
 
 ### Phase 4: Move Runtime Reset Into Engine
 
-Update `backend/services/simulation/engine.py`.
+Update `services/simulation/engine.py`.
 
 Tasks:
 
@@ -399,7 +399,7 @@ Acceptance criteria:
 
 ### Phase 5: Add Simulation Runner
 
-Create `backend/services/simulation/runner.py`.
+Create `services/simulation/runner.py`.
 
 Tasks:
 
@@ -431,7 +431,7 @@ Acceptance criteria:
 
 ### Phase 7: Split Vectorized Simulator
 
-Create `backend/services/simulation/vectorized.py`.
+Create `services/simulation/vectorized.py`.
 
 Tasks:
 
@@ -447,7 +447,7 @@ Acceptance criteria:
 
 ### Phase 8: Split Event-Driven Simulator
 
-Create `backend/services/simulation/event_driven.py`.
+Create `services/simulation/event_driven.py`.
 
 Tasks:
 
@@ -491,7 +491,7 @@ Acceptance criteria:
 
 ### Phase 11: Standardize Results
 
-Create or expand `backend/services/simulation/results.py`.
+Create or expand `services/simulation/results.py`.
 
 Tasks:
 
@@ -532,7 +532,7 @@ Acceptance criteria:
 
 ### Phase 12: Move Reporting
 
-Create `backend/services/simulation/reporting.py`.
+Create `services/simulation/reporting.py`.
 
 Tasks:
 
@@ -607,22 +607,22 @@ Add config examples if needed:
 
 ## Migration Checklist
 
-- [x] Add `backend/services/simulation/config.py`.
-- [x] Add `backend/services/simulation/strategy_registry.py`.
-- [x] Add `backend/services/simulation/data_preparation.py`.
+- [x] Add `services/simulation/config.py`.
+- [x] Add `services/simulation/strategy_registry.py`.
+- [x] Add `services/simulation/data_preparation.py`.
 - [x] Add `Engine.reset_runtime(account_config)`.
-- [x] Add `backend/services/simulation/runner.py`.
+- [x] Add `services/simulation/runner.py`.
 - [x] Change `Engine.run(config)` to use `SimulationRunner`.
 - [x] Add `Engine.run_prepared(prepared, config)`.
-- [x] Add `backend/services/simulation/vectorized.py`.
+- [x] Add `services/simulation/vectorized.py`.
 - [x] Move vectorized Numba core out of `engine.py`.
-- [x] Add `backend/services/simulation/event_driven.py`.
+- [x] Add `services/simulation/event_driven.py`.
 - [x] Move event-driven loop out of `engine.py`.
 - [x] Wire money-management position sizing into simulator routing.
 - [x] Wire contract size into vectorized core from config.
 - [x] Wire fixed slippage and commission config.
-- [x] Add/expand `backend/services/simulation/results.py`.
-- [x] Add `backend/services/simulation/reporting.py`.
+- [x] Add/expand `services/simulation/results.py`.
+- [x] Add `services/simulation/reporting.py`.
 - [x] Rewrite `example_12_complete_backtests()`.
 - [x] Remove obsolete example-level simulation helpers from the Example 12 path.
 - [x] Add config/data-prep/simulator tests.

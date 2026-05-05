@@ -68,14 +68,14 @@ consolidated into this register.
 
 - [x] **C2.L1 - Introduction to AI Workflows in Trading**
   - **Status:** implemented
-  - **Target modules:** `backend/orchestration/workflow/definitions/`, `backend/services/strategy/baselines/`
+  - **Target modules:** `backend/orchestration/workflow/definitions/`, `services/strategy/baselines/`
   - **Workflow:** `classification_optimization.yaml`, `dynamic_strategy.yaml`, `momentum_trading.yaml`
   - **Tests:** `tests/unit/backend/services/test_baseline_strategies.py`, `tests/integration/backend/test_ai_trading_workflow_definitions.py`
   - **Artifacts:** RSI, EMA crossover, and naive momentum baseline modules; workflow skeletons
 
 - [x] **C2.L2 - Unsupervised Learning**
   - **Status:** implemented
-  - **Target modules:** `backend/services/modeling/unsupervised.py`, `backend/services/modeling/unsupervised_insights.py`
+  - **Target modules:** `services/research/modeling/unsupervised.py`, `services/research/modeling/unsupervised_insights.py`
   - **Workflow:** `data_transformation.yaml` step `run_unsupervised_research`
   - **Example:** `backend/scripts/examples/agentic_ai/04_ai_trading_strategy_workflows.py` examples 13-17
   - **Tests:** `tests/unit/backend/services/test_unsupervised_modeling.py`, `tests/unit/backend/services/test_unsupervised_insights.py`, `tests/integration/backend/test_data_transformation_workflow.py`
@@ -83,14 +83,14 @@ consolidated into this register.
 
 - [ ] **C2.L3 - Supervised Learning: Regression**
   - **Status:** not_started
-  - **Target modules:** `backend/services/modeling/datasets.py`, `backend/services/modeling/regression.py`, `backend/services/modeling/evaluation.py`
+  - **Target modules:** `services/research/modeling/datasets.py`, `services/research/modeling/regression.py`, `services/research/modeling/evaluation.py`
   - **Workflow:** `classification_optimization.yaml` or later regression workflow
   - **Tests:** regression target, training, and diagnostics tests
   - **Artifacts:** regression evaluation report
 
 - [ ] **C2.L4 - Supervised Learning: Classification**
   - **Status:** not_started
-  - **Target modules:** `backend/services/modeling/classification.py`, `backend/services/modeling/calibration.py`, `backend/services/modeling/evaluation.py`
+  - **Target modules:** `services/research/modeling/classification.py`, `services/research/modeling/calibration.py`, `services/research/modeling/evaluation.py`
   - **Workflow:** `classification_optimization.yaml`
   - **Tests:** classifier, calibration, threshold, and metrics tests
   - **Artifacts:** classification strategy card
@@ -104,28 +104,28 @@ consolidated into this register.
 
 - [ ] **C3.L1 - ML Pipeline Overview**
   - **Status:** not_started
-  - **Target modules:** `backend/services/modeling/datasets.py`, `backend/services/modeling/splits.py`
+  - **Target modules:** `services/research/modeling/datasets.py`, `services/research/modeling/splits.py`
   - **Workflow:** `data_transformation.yaml`
   - **Tests:** dataset metadata and split tests
   - **Artifacts:** pipeline stage manifest
 
 - [ ] **C3.L2 - Data Acquisition and Preprocessing**
   - **Status:** not_started
-  - **Target modules:** `backend/services/market_data/`, `backend/services/research/data/`
+  - **Target modules:** `backend/services/market_data/`, `services/research/data/`
   - **Workflow:** `data_transformation.yaml`
   - **Tests:** acquisition, validation, cleaning, and leakage tests
   - **Artifacts:** cleaned dataset and validation report
 
 - [ ] **C3.L3 - Feature Engineering for Trading Models**
   - **Status:** not_started
-  - **Target modules:** `backend/services/features/`, `backend/services/indicators/`, `backend/services/research/features.py`
+  - **Target modules:** `services/data/features/`, `services/indicator/`, `services/research/features.py`
   - **Workflow:** `data_transformation.yaml`
   - **Tests:** feature formula and timestamp-alignment tests
   - **Artifacts:** feature manifest
 
 - [ ] **C3.L4 - Exploratory Data Analysis**
   - **Status:** not_started
-  - **Target modules:** `backend/services/research/reporting.py`, `backend/services/reporting/ai_trading_report_builder.py`
+  - **Target modules:** `services/research/reporting.py`, `backend/services/reporting/ai_trading_report_builder.py`
   - **Workflow:** `data_transformation.yaml`
   - **Tests:** EDA report payload tests
   - **Artifacts:** EDA report
@@ -139,28 +139,28 @@ consolidated into this register.
 
 - [ ] **C4.L1 - Measuring Returns**
   - **Status:** not_started
-  - **Target modules:** `backend/services/analytics/returns.py`, `backend/services/analytics/benchmark.py`
+  - **Target modules:** `services/analytics/returns.py`, `services/analytics/benchmark.py`
   - **Workflow:** `dynamic_strategy.yaml`
   - **Tests:** return metric tests
   - **Artifacts:** return metrics report
 
 - [ ] **C4.L2 - Measuring Risks**
   - **Status:** not_started
-  - **Target modules:** `backend/services/analytics/risks.py`, `backend/services/risk/`
+  - **Target modules:** `services/analytics/risks.py`, `services/risk/`
   - **Workflow:** `dynamic_strategy.yaml`
   - **Tests:** risk formula and service comparison tests
   - **Artifacts:** risk report
 
 - [ ] **C4.L3 - Measuring Risk-Adjusted Returns**
   - **Status:** not_started
-  - **Target modules:** `backend/services/analytics/drawdowns.py`, `backend/services/analytics/ratios.py`
+  - **Target modules:** `services/analytics/drawdowns.py`, `services/analytics/ratios.py`
   - **Workflow:** `dynamic_strategy.yaml`
   - **Tests:** drawdown and ratio tests
   - **Artifacts:** risk-adjusted metrics report
 
 - [ ] **C4.L4 - Risk Parity Portfolio Backtesting**
   - **Status:** not_started
-  - **Target modules:** `backend/services/simulation/`, `backend/services/optimization/walk_forward.py`
+  - **Target modules:** `services/simulation/`, `services/optimization/walk_forward.py`
   - **Workflow:** `dynamic_strategy.yaml`
   - **Tests:** portfolio allocation and walk-forward tests
   - **Artifacts:** portfolio backtest report
@@ -209,35 +209,35 @@ consolidated into this register.
 
 - [ ] **C6.L1 - Model Optimization**
   - **Status:** not_started
-  - **Target modules:** `backend/services/optimization/scoring.py`, `backend/services/optimization/models.py`
+  - **Target modules:** `services/optimization/scoring.py`, `services/optimization/models.py`
   - **Workflow:** `classification_optimization.yaml`
   - **Tests:** optimization objective tests
   - **Artifacts:** optimization objective manifest
 
 - [ ] **C6.L2 - Regularization**
   - **Status:** not_started
-  - **Target modules:** `backend/services/modeling/regularization.py`, `backend/services/modeling/evaluation.py`
+  - **Target modules:** `services/research/modeling/regularization.py`, `services/research/modeling/evaluation.py`
   - **Workflow:** `classification_optimization.yaml`
   - **Tests:** regularization and overfit diagnostic tests
   - **Artifacts:** overfit diagnostics report
 
 - [ ] **C6.L3 - Hyperparameter Tuning**
   - **Status:** not_started
-  - **Target modules:** `backend/services/optimization/methods/`, `backend/services/optimization/execution.py`
+  - **Target modules:** `services/optimization/methods/`, `services/optimization/execution.py`
   - **Workflow:** `classification_optimization.yaml`
   - **Tests:** bounded search integration tests
   - **Artifacts:** tuning result manifest
 
 - [ ] **C6.L4 - Evaluating and Optimizing AI Strategies**
   - **Status:** not_started
-  - **Target modules:** `backend/services/optimization/robustness.py`, `backend/services/optimization/feature_selection.py`
+  - **Target modules:** `services/optimization/robustness.py`, `services/optimization/feature_selection.py`
   - **Workflow:** `classification_optimization.yaml`
   - **Tests:** robustness and ablation tests
   - **Artifacts:** robustness report
 
 - [ ] **C6.L5 - Deployment and Real-World Considerations**
   - **Status:** not_started
-  - **Target modules:** `backend/services/modeling/model_registry.py`, `backend/services/modeling/drift.py`, `backend/services/strategy_gov/`
+  - **Target modules:** `services/research/modeling/model_registry.py`, `services/research/modeling/drift.py`, `services/strategy/governance/`
   - **Workflow:** `classification_optimization.yaml`
   - **Tests:** model registry, drift, and promotion gate tests
   - **Artifacts:** model registry entry and shadow-readiness report
@@ -251,28 +251,28 @@ consolidated into this register.
 
 - [ ] **C7.L1 - Momentum Foundations**
   - **Status:** not_started
-  - **Target modules:** `backend/services/strategy/momentum/stats.py`
+  - **Target modules:** `services/strategy/momentum/stats.py`
   - **Workflow:** `momentum_trading.yaml`
   - **Tests:** momentum statistical tests
   - **Artifacts:** momentum significance report
 
 - [ ] **C7.L2 - Momentum Features**
   - **Status:** not_started
-  - **Target modules:** `backend/services/strategy/momentum/features.py`, `backend/services/strategy/momentum/gbm.py`
+  - **Target modules:** `services/strategy/momentum/features.py`, `services/strategy/momentum/gbm.py`
   - **Workflow:** `momentum_trading.yaml`
   - **Tests:** momentum feature and GBM tests
   - **Artifacts:** momentum feature manifest
 
 - [ ] **C7.L3 - Momentum Trading Model**
   - **Status:** not_started
-  - **Target modules:** `backend/services/strategy/momentum/model.py`, `backend/services/strategy/momentum/scenario_sim.py`
+  - **Target modules:** `services/strategy/momentum/model.py`, `services/strategy/momentum/scenario_sim.py`
   - **Workflow:** `momentum_trading.yaml`
   - **Tests:** ranking, rebalance, and scenario tests
   - **Artifacts:** momentum model manifest
 
 - [ ] **C7.L4 - Momentum Backtesting and Optimization**
   - **Status:** not_started
-  - **Target modules:** `backend/services/strategy/momentum/backtest.py`, `backend/services/strategy/momentum/risk.py`
+  - **Target modules:** `services/strategy/momentum/backtest.py`, `services/strategy/momentum/risk.py`
   - **Workflow:** `momentum_trading.yaml`
   - **Tests:** momentum backtest and risk overlay tests
   - **Artifacts:** momentum backtest and risk report
@@ -286,7 +286,7 @@ consolidated into this register.
 
 - [ ] **C8.L1 - Final Readiness Review**
   - **Status:** not_started
-  - **Target modules:** `backend/services/reporting/`, `backend/services/shadow/`, `backend/services/strategy_gov/`, operator/edge UI
+  - **Target modules:** `backend/services/reporting/`, `services/execution/shadow/`, `services/strategy/governance/`, operator/edge UI
   - **Workflow:** all project workflows
   - **Tests:** targeted unit, integration, acceptance, eval, failure, and performance tests
   - **Artifacts:** final checklist and readiness evidence

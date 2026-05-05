@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.contracts.workflow_plan.model import WorkflowPattern
 
 

@@ -102,7 +102,7 @@ class PolicyResolver:
             config = PolicyConfig(**data)
             self._policies[config.policy_name] = config
         except (ValidationError, yaml.YAMLError) as exc:
-            from backend.common.logger import logger
+            from services.utils.logger import logger
             logger.error(f"Failed to load policy {path}: {exc}")
 
     def _build_scope_index(self) -> None:

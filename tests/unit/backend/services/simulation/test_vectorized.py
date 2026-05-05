@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from backend.services.simulation.vectorized import (
+from services.simulation.vectorized import (
     prepare_vectorized_data,
     reconstruct_equity_curve,
     reconstruct_trades,
@@ -81,7 +81,7 @@ def test_reconstruct_trades_and_equity_curve_from_arrays():
 
 
 def test_run_vectorized_simulation_uses_configured_position_size(monkeypatch):
-    import backend.services.simulation.vectorized as vectorized
+    import services.simulation.vectorized as vectorized
 
     captured = {}
 
@@ -149,7 +149,7 @@ def test_run_vectorized_simulation_uses_configured_position_size(monkeypatch):
 
 
 def test_run_vectorized_simulation_uses_dynamic_slippage_bounds(monkeypatch):
-    import backend.services.simulation.vectorized as vectorized
+    import services.simulation.vectorized as vectorized
 
     captured = {}
 
@@ -211,7 +211,7 @@ def test_prepare_vectorized_data_bar_close_policy_uses_close_ticks_only():
 
 
 def test_run_vectorized_simulation_corrects_profit_with_engine(monkeypatch):
-    import backend.services.simulation.vectorized as vectorized
+    import services.simulation.vectorized as vectorized
 
     def fake_kernel(
         *args,

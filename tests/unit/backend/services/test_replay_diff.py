@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 from backend.contracts.common import Originator
 from backend.contracts.replay_bundle.model import IntegrityManifest, ReplayBundle, ReplayBundlePayload
-from backend.services.audit.replay_diff import compare_replay_to_original
-from backend.services.audit.replay_runner import ReplayRunResult
+from services.strategy.evidence.audit.replay_diff import compare_replay_to_original
+from services.strategy.evidence.audit.replay_runner import ReplayRunResult
 
 
 def test_compare_replay_to_original_reports_missing_refs_and_hash_mismatch() -> None:

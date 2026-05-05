@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services.audit.manifest import generate_integrity_manifest
+from services.strategy.evidence.audit.manifest import generate_integrity_manifest
 
 
 def test_generate_integrity_manifest_produces_stable_hash_manifest() -> None:

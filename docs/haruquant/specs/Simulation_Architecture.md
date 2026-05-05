@@ -46,7 +46,7 @@ These are the "engines" of the system. They are strictly focused on consuming ti
 ### Example Usage
 
 ```python
-from backend.services.simulation.engine import Engine
+from services.simulation.engine import Engine
 
 # Initialize engine
 engine = Engine(backend="sim")

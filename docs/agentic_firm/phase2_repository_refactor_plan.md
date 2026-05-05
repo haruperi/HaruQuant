@@ -31,22 +31,22 @@ The current backend already contains many pieces needed by the Agentic Firm:
 | Firm capability | Existing implementation area |
 | --- | --- |
 | Agent runtime, prompts, tool allowlists, workflow runners | `backend/agents/`, `backend/agents/runtime/`, `backend/agents/chat/` |
-| Conversation planner and chat orchestration | `backend/services/ai_chat/` |
+| Conversation planner and chat orchestration | `backend/agents/chat/ai_chat/` |
 | Deterministic workflows and transitions | `backend/orchestration/workflow/` |
 | Typed contracts and schema registry | `backend/contracts/` |
 | Read-only chat tools | `backend/tools/read_only/` |
-| Risk decisions, exposure, correlation, margin, restrictions | `backend/services/risk/` |
-| Larger risk engine and VaR/CVaR/correlation metrics | `backend/services/risk_engine/` |
-| Kill switch and safety blocking | `backend/services/safety/` |
-| Execution readiness, intents, sends, receipts | `backend/services/execution/` |
-| Live trading runtime and MT5 compatibility | `backend/services/live_trading/`, `backend/mcp/mt5_mcp/` |
-| Strategy lifecycle, promotion, retirement, evidence | `backend/services/strategy_gov/`, `backend/services/evidence/` |
-| Strategy framework and generated strategies | `backend/services/strategy/`, `backend/data/strategies/` |
-| Backtesting/simulation | `backend/services/simulation/`, `backend/api/routes/backtest.py` |
-| Optimization and robustness tooling | `backend/services/optimization/`, `backend/mcp/optimization_mcp/` |
-| Research and market structure tooling | `backend/services/research/`, `backend/api/routes/edge.py` |
-| Portfolio analytics and advisory proposals | `backend/services/portfolio/` |
-| Audit, replay, export, legal hold, signing | `backend/services/audit/` |
+| Risk decisions, exposure, correlation, margin, restrictions | `services/risk/` |
+| Larger risk engine and VaR/CVaR/correlation metrics | `services/risk/` |
+| Kill switch and safety blocking | `services/risk/safety/` |
+| Execution readiness, intents, sends, receipts | `services/execution/` |
+| Live trading runtime and MT5 compatibility | `services/execution/live/`, `backend/mcp/mt5_mcp/` |
+| Strategy lifecycle, promotion, retirement, evidence | `services/strategy/governance/`, `services/strategy/evidence/` |
+| Strategy framework and generated strategies | `services/strategy/`, `backend/data/strategies/` |
+| Backtesting/simulation | `services/simulation/`, `backend/api/routes/backtest.py` |
+| Optimization and robustness tooling | `services/optimization/`, `backend/mcp/optimization_mcp/` |
+| Research and market structure tooling | `services/research/`, `backend/api/routes/edge.py` |
+| Portfolio analytics and advisory proposals | `services/risk/portfolio/` |
+| Audit, replay, export, legal hold, signing | `services/strategy/evidence/audit/` |
 | Operator API | `backend/api/` |
 | Frontend | `ui/` |
 
@@ -77,11 +77,11 @@ The new top-level `memory/` and `reports/` trees also do not exist yet.
 
 The implementation plan names files such as `backend/risk/governor.py` and `backend/execution/order_router.py`. The live codebase already has richer deterministic service packages under:
 
-- `backend/services/risk/`
-- `backend/services/risk_engine/`
-- `backend/services/safety/`
-- `backend/services/execution/`
-- `backend/services/live_trading/`
+- `services/risk/`
+- `services/risk/`
+- `services/risk/safety/`
+- `services/execution/`
+- `services/execution/live/`
 - `backend/mcp/mt5_mcp/`
 
 For Phase 2, we should not duplicate that logic into a parallel `backend/risk` and `backend/execution` stack. Instead:
@@ -128,22 +128,22 @@ Do not move existing agent files immediately. Start with adapters:
 
 | New firm department | Initial adapter source |
 | --- | --- |
-| `ceo` | Wrap current `backend/services/ai_chat/conversation_orchestrator.py` and final response composition |
-| `planner` | Wrap `backend/services/ai_chat/conversation_planner.py`, `agent_router.py`, and `backend/agents/intent_router.py` |
-| `research` | Wrap `backend/agents/research_agent.py`, `regime_agent.py`, chat research agents, and `backend/services/research/` |
+| `ceo` | Wrap current `backend/agents/chat/ai_chat/conversation_orchestrator.py` and final response composition |
+| `planner` | Wrap `backend/agents/chat/ai_chat/conversation_planner.py`, `agent_router.py`, and `backend/agents/intent_router.py` |
+| `research` | Wrap `backend/agents/research_agent.py`, `regime_agent.py`, chat research agents, and `services/research/` |
 | `strategy_creator` | Wrap `backend/agents/strategy_creator_agent.py` and strategy design services |
 | `strategy_reviewer` | Wrap `backend/agents/chat/strategy_code_review_agent.py` first, then split non-code review later |
-| `codegen` | Wrap `backend/services/strategy/design/blueprint_renderer.py` and materializer |
-| `backtest` | Wrap `backend/services/simulation/` and `backend/mcp/backtest_mcp/` |
-| `optimization` | Wrap `backend/services/optimization/` and `backend/mcp/optimization_mcp/` |
-| `robustness` | Wrap Monte Carlo, walk-forward, and robustness paths in `backend/services/optimization/` |
-| `statistical_validation` | Wrap `backend/services/analytics/statistical_tests.py` and research validation modules |
-| `risk_reviewer` | Wrap risk agents plus `backend/services/risk/` and `backend/services/risk_engine/` read/review surfaces |
-| `portfolio_manager` | Wrap `backend/agents/portfolio_agent.py` and `backend/services/portfolio/` |
-| `execution` | Wrap `backend/agents/execution_agent.py`, `backend/services/execution/`, and paper/live execution services |
-| `performance_reporter` | Wrap analytics, reporting, and `backend/services/performance/` |
-| `audit` | Wrap `backend/services/audit/`, replay, legal hold, and signing |
-| `cost_optimizer` | Wrap `backend/services/cost/` |
+| `codegen` | Wrap `services/strategy/design/blueprint_renderer.py` and materializer |
+| `backtest` | Wrap `services/simulation/` and `backend/mcp/backtest_mcp/` |
+| `optimization` | Wrap `services/optimization/` and `backend/mcp/optimization_mcp/` |
+| `robustness` | Wrap Monte Carlo, walk-forward, and robustness paths in `services/optimization/` |
+| `statistical_validation` | Wrap `services/analytics/statistical_tests.py` and research validation modules |
+| `risk_reviewer` | Wrap risk agents plus `services/risk/` and `services/risk/` read/review surfaces |
+| `portfolio_manager` | Wrap `backend/agents/portfolio_agent.py` and `services/risk/portfolio/` |
+| `execution` | Wrap `backend/agents/execution_agent.py`, `services/execution/`, and paper/live execution services |
+| `performance_reporter` | Wrap analytics, reporting, and `services/execution/performance/` |
+| `audit` | Wrap `services/strategy/evidence/audit/`, replay, legal hold, and signing |
+| `cost_optimizer` | Wrap `services/execution/cost/` |
 
 ### Tool Departments
 
@@ -189,15 +189,15 @@ Initial mapping:
 
 | New path | Existing source |
 | --- | --- |
-| `backend/risk/governor.py` | `backend/services/risk/`, `backend/services/risk_engine/limits/`, `backend/services/risk_engine/core/governance_engine.py` |
-| `backend/risk/approvals.py` | `backend/services/approval/`, `backend/services/risk/decisions.py` |
-| `backend/risk/kill_switch.py` | `backend/services/safety/kill_switch.py` |
-| `backend/risk/correlation.py` | `backend/services/risk/correlation.py`, `backend/services/risk_engine/metrics/correlation_risk.py` |
-| `backend/risk/var_engine.py` | `backend/services/risk_engine/metrics/var_cvar.py` |
-| `backend/execution/paper_broker.py` | `backend/services/shadow/`, `backend/services/simulation/`, paper mode in live/session services |
-| `backend/execution/mt5_bridge.py` | `backend/mcp/mt5_mcp/`, `backend/services/live_trading/mt5_compat.py` |
+| `backend/risk/governor.py` | `services/risk/`, `services/risk/limits/`, `services/risk/core/governance_engine.py` |
+| `backend/risk/approvals.py` | `services/execution/approval/`, `services/risk/decisions.py` |
+| `backend/risk/kill_switch.py` | `services/risk/safety/kill_switch.py` |
+| `backend/risk/correlation.py` | `services/risk/correlation.py`, `services/risk/metrics/correlation_risk.py` |
+| `backend/risk/var_engine.py` | `services/risk/metrics/var_cvar.py` |
+| `backend/execution/paper_broker.py` | `services/execution/shadow/`, `services/simulation/`, paper mode in live/session services |
+| `backend/execution/mt5_bridge.py` | `backend/mcp/mt5_mcp/`, `services/execution/live/mt5_compat.py` |
 | `backend/execution/ctrader_bridge.py` | placeholder only until cTrader support exists |
-| `backend/execution/order_router.py` | `backend/services/execution/send_service.py`, `pre_send.py`, `assembler.py`, `authority.py` |
+| `backend/execution/order_router.py` | `services/execution/send_service.py`, `pre_send.py`, `assembler.py`, `authority.py` |
 
 ### Memory And Reports
 
@@ -256,7 +256,7 @@ Examples:
 
 ```python
 # backend/risk/kill_switch.py
-from backend.services.safety.kill_switch import *
+from services.risk.safety.kill_switch import *
 ```
 
 ```python
@@ -427,7 +427,7 @@ python -m pytest tests/unit/backend tests/integration/backend tests/contracts te
 ## Open Decisions
 
 1. Whether `backend/services/*` remains the permanent deterministic domain layer, with `backend/risk` and `backend/execution` as stable façades.
-2. Whether long-lived agent memory should be filesystem-first under `memory/`, database-first under `backend/data/database`, or dual-written through `backend/services/evidence`.
+2. Whether long-lived agent memory should be filesystem-first under `memory/`, database-first under `backend/data/database`, or dual-written through `services/strategy/evidence`.
 3. Whether generated reports should be plain Markdown initially, or typed report artifacts with database references from the start.
 4. Whether the CEO Agent should be a new top-level orchestrator or an adapter over the current AI chat orchestrator until Phase 6/7.
 

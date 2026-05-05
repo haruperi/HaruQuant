@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import LimitConstraint
-from backend.services.risk import (
+from services.risk import (
     RiskDecisionEnvelopeContext,
     RiskDecisionProvenance,
     compose_risk_decision,
     pack_risk_decision_rationale_and_provenance,
 )
-from backend.services.risk.restrictions import RestrictionEvaluation
+from services.risk.restrictions import RestrictionEvaluation
 
 
 UTC = timezone.utc

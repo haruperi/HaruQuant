@@ -504,7 +504,7 @@ Acceptance criteria:
 
 Use:
 
-- `backend/services/monitoring/workflow_timeout.py`
+- `services/execution/monitoring/workflow_timeout.py`
 
 Step timeout should be enforced during execution, not only through external monitoring.
 

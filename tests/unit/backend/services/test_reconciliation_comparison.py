@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from backend.data.database import ExecutionIntentRecord, ExecutionReceiptRecord
-from backend.services.reconciliation import (
+from services.execution.reconciliation import (
     BrokerTruthSnapshot,
     ReconciliationResultState,
     build_local_execution_truth,

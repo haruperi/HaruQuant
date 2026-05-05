@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.common import FixedClock
-from backend.services.performance import HotSnapshotCache, SnapshotCacheEntry
+from services.utils import FixedClock
+from services.execution.performance import HotSnapshotCache, SnapshotCacheEntry
 
 
 def test_hot_snapshot_cache_returns_only_fresh_entries() -> None:

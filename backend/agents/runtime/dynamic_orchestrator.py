@@ -9,7 +9,7 @@ and delegate work.
 
 from __future__ import annotations
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 

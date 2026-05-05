@@ -1,0 +1,1 @@
+class ContextAlpha: pass

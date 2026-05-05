@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services.risk import (
+from services.risk import (
     calculate_drawdown_state,
     calculate_margin_utilization,
     calculate_volatility_adjusted_size,

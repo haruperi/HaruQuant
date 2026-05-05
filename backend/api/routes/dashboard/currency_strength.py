@@ -16,12 +16,12 @@ from pydantic import BaseModel, Field
 from backend.api.auth_utils import verify_token
 from backend.api.routes.dashboard.broker import client as global_mt5_client
 from backend.api.routes.dashboard.broker import get_last_credentials
-from backend.services.indicators.custom import (
+from services.indicator.custom import (
     CURRENCY_PAIRS,
     MAJOR_CURRENCIES,
     currency_strength_indicator,
 )
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()

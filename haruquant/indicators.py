@@ -85,14 +85,14 @@ class Indicator:
         return final_df
 
 # Import local implementations
-from backend.services.indicators.trend.ema import ema as _ema
-from backend.services.indicators.trend.sma import sma as _sma
-from backend.services.indicators.trend.wma import wma as _wma
-from backend.services.indicators.momentum.rsi import rsi as _rsi
-from backend.services.indicators.volatility.atr import atr as _atr
-from backend.services.indicators.volatility.bbands import bbands as _bbands
-from backend.services.indicators.statistical.hurst import hurst as _hurst
-from backend.services.indicators.custom.smc import fvg as _fvg, ob as _ob, bos_choch as _bos_choch, previous_high_low as _phl
+from services.indicator.trend.ema import ema as _ema
+from services.indicator.trend.sma import sma as _sma
+from services.indicator.trend.wma import wma as _wma
+from services.indicator.momentum.rsi import rsi as _rsi
+from services.indicator.volatility.atr import atr as _atr
+from services.indicator.volatility.bbands import bbands as _bbands
+from services.indicator.statistical.hurst import hurst as _hurst
+from services.indicator.custom.smc import fvg as _fvg, ob as _ob, bos_choch as _bos_choch, previous_high_low as _phl
 
 # Expose indicators
 ema = Indicator("ema", _ema)

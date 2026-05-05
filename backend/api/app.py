@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from .approvals import router as approvals_router
 from .auth import OperatorAuthMiddleware, require_operator_role
 from .dependencies import OperatorApiDependencies, build_operator_api_dependencies

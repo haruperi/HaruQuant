@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.common import FixedClock
+from services.utils import FixedClock
 from backend.contracts.common import Originator
 from backend.contracts.risk_assessment_decision.model import (
     ProvenanceBundleRef,
@@ -10,7 +10,7 @@ from backend.contracts.risk_assessment_decision.model import (
     RiskAssessmentDecisionPayload,
 )
 from backend.contracts.trade_proposal.model import TradeProposal
-from backend.services import (
+from services.execution import (
     aggregate_readiness_results,
     SymbolMetadataCacheEntry,
     validate_fill_mode_compatibility,

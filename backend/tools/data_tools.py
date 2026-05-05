@@ -6,8 +6,8 @@ TOOL_DOMAIN = "data"
 CANONICAL_SOURCES = (
     "backend.tools.read_only.market",
     "backend.mcp.market_data_mcp",
-    "backend.services.market_data",
-    "backend.services.research.data",
+    "services.data",
+    "services.research.data",
 )
 
 __all__ = [

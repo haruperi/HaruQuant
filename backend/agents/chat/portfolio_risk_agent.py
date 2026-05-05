@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.services.ai_chat.models import SpecialistAgentArtifact
-from backend.services.tool_executor import ToolExecutionResult
+from backend.agents.chat.ai_chat.models import SpecialistAgentArtifact
+from backend.agents.chat.ai_chat.tool_executor import ToolExecutionResult
 
 from .agent_base import SpecialistAgentBase
 

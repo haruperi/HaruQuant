@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import PositionExposure, generate_hedge_proposal
+from services.risk import PositionExposure
+from services.risk.portfolio import generate_hedge_proposal
 
 
 def test_generate_hedge_proposal_builds_advisory_hedge_action() -> None:

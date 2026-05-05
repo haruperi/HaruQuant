@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Union, Callable
 import pandas as pd
 import numpy as np
-from backend.services.optimization import methods, scoring, monte_carlo
+from services.optimization import methods, scoring, monte_carlo
 
 class Splitter:
     """ Powerful time-series splitting for backtesting and ML validation. """

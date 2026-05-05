@@ -1,5 +1,5 @@
-from backend.common import ValidationError
-from backend.services.approval import OverrideRequestDraft, OverrideRequestService
+from services.utils import ValidationError
+from services.execution.approval import OverrideRequestDraft, OverrideRequestService
 
 
 def test_override_request_service_rejects_missing_reason_or_rationale() -> None:

@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.services import (
-    PositionExposure,
-    calculate_marginal_risk_contribution,
-)
+from services.risk import PositionExposure
+from services.risk.portfolio import calculate_marginal_risk_contribution
 
 
 def test_calculate_marginal_risk_contribution_normalizes_position_shares() -> None:

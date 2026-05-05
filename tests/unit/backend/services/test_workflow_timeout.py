@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from backend.common import FixedClock
+from services.utils import FixedClock
 from backend.data.database import WorkflowRepository, apply_pending_migrations, default_migrations_dir
-from backend.services.monitoring.workflow_timeout import WorkflowTimeoutService
+from services.execution.monitoring.workflow_timeout import WorkflowTimeoutService
 
 
 def test_workflow_timeout_service_transitions_expired_workflow(tmp_path) -> None:

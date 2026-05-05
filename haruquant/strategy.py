@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, Union, List
 from haruquant.data import Data
-from backend.services.execution.core import RunResult, EquityPoint
+from services.execution.core import RunResult, EquityPoint
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -62,14 +62,14 @@ DEFAULT_SIM_CONFIG = {
     },
 }
 
-from backend.services.strategy.catalog import (
+from services.strategy.catalog import (
     StrategyCatalogCreateRequest,
     StrategyCatalogService,
     StrategyCatalogUpdateRequest,
 )
 
 import inspect
-from backend.services.strategy.baselines import (
+from services.strategy.baselines import (
     EmaCrossBaselineStrategy,
     NaiveMomentumStrategy,
     RsiBaselineStrategy,
@@ -149,7 +149,7 @@ class Portfolio:
         
         # Extract initial balance from SimulationRunResult if available
         if initial_balance is None:
-            from backend.services.simulation.results import SimulationRunResult
+            from services.simulation.results import SimulationRunResult
             if isinstance(run_result, SimulationRunResult):
                 self.initial_balance = float(run_result.metrics.get("initial_balance", 0.0))
             else:
@@ -159,14 +159,14 @@ class Portfolio:
         
     @property
     def trades(self) -> List[Any]:
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         if isinstance(self._raw_result, SimulationRunResult):
             return self._raw_result.result.trades
         return self._raw_result.trades
         
     @property
     def equity_curve(self) -> List[Any]:
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         if isinstance(self._raw_result, SimulationRunResult):
             return self._raw_result.result.equity_curve
         return self._raw_result.equity_curve
@@ -177,7 +177,7 @@ class Portfolio:
         
     @property
     def final_value(self) -> float:
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         if isinstance(self._raw_result, SimulationRunResult):
             return float(self._raw_result.metrics.get("final_equity", self.initial_balance))
         return self.equity_curve[-1].equity if self.equity_curve else self.initial_balance
@@ -194,7 +194,7 @@ class Portfolio:
 
     def metadata(self) -> Dict[str, Any]:
         """Returns the simulation metadata as a formatted dictionary."""
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         from dataclasses import asdict
         from datetime import datetime
 
@@ -216,8 +216,8 @@ class Portfolio:
 
     def analytics(self) -> Dict[str, Any]:
         """Returns comprehensive simulation analytics as a formatted dictionary."""
-        from backend.services.simulation.results import SimulationRunResult
-        from backend.services.analytics.overview import get_analytics_overview
+        from services.simulation.results import SimulationRunResult
+        from services.analytics.overview import get_analytics_overview
         
         if not isinstance(self._raw_result, SimulationRunResult):
             return {}
@@ -235,7 +235,7 @@ class Portfolio:
 
     def metrics(self) -> Dict[str, Any]:
         """Returns the simulation metrics as a dictionary."""
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         if isinstance(self._raw_result, SimulationRunResult):
             return dict(self._raw_result.metrics)
         return {}
@@ -245,7 +245,7 @@ class Portfolio:
         Returns the prepared simulation data as a dictionary.
         DataFrames are kept as-is to ensure they 'show well' with Pandas truncation.
         """
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         from dataclasses import asdict
         from datetime import datetime
 
@@ -273,7 +273,7 @@ class Portfolio:
         Both are returned as Pandas DataFrames.
         """
         from dataclasses import asdict
-        from backend.services.simulation.results import SimulationRunResult
+        from services.simulation.results import SimulationRunResult
         
         if isinstance(self._raw_result, SimulationRunResult):
             res = self._raw_result.result
@@ -315,8 +315,8 @@ class Portfolio:
 
     def summary(self) -> str:
         """Returns a formatted summary table of All, Long, and Short results."""
-        from backend.services.simulation.results import SimulationRunResult
-        from backend.services.analytics.overview import format_summary_as_rows, calculate_analytics_for_subset
+        from services.simulation.results import SimulationRunResult
+        from services.analytics.overview import format_summary_as_rows, calculate_analytics_for_subset
         
         if not isinstance(self._raw_result, SimulationRunResult):
             # Fallback for simple RunResult (e.g. from_holding)
@@ -403,8 +403,8 @@ class Portfolio:
         
     def print_trades(self):
         """Prints a detailed summary of all trades filled in the portfolio."""
-        from backend.services.simulation.results import SimulationRunResult
-        from backend.services.simulation.reporting import print_trade_record_summary
+        from services.simulation.results import SimulationRunResult
+        from services.simulation.reporting import print_trade_record_summary
         
         if isinstance(self._raw_result, SimulationRunResult):
             # In the new structure, we can pass the metrics directly or handle locally
@@ -439,8 +439,8 @@ class Portfolio:
         Returns:
             A new Portfolio object containing only data from the specified range.
         """
-        from backend.services.simulation.results import SimulationRunResult, build_symbol_summary
-        from backend.services.execution.core import RunResult, EquityPoint
+        from services.simulation.results import SimulationRunResult, build_symbol_summary
+        from services.execution.core import RunResult, EquityPoint
         import copy
         
         # Parse dates
@@ -543,7 +543,7 @@ class Portfolio:
             config: Optional simulation configuration overrides.
             user_id: Optional user ID to resolve MT5 credentials.
         """
-        from backend.services.simulation.engine import Engine
+        from services.simulation.engine import Engine
         
         # Load defaults
         import copy
@@ -610,7 +610,7 @@ class Portfolio:
             seed: Random seed for reproducibility.
             chunked: Execution backend for multiple simulations ('threadpool', None).
         """
-        from backend.services.simulation.engine import Engine
+        from services.simulation.engine import Engine
         from concurrent.futures import ThreadPoolExecutor
 
         if len(price) == 0:
@@ -696,7 +696,7 @@ class Portfolio:
             init_cash: Initial cash.
             symbol: Symbol name.
         """
-        from backend.services.simulation.engine import Engine
+        from services.simulation.engine import Engine
         
         if len(price) == 0:
             raise ValueError("Price series is empty.")

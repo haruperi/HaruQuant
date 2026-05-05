@@ -7,7 +7,7 @@ sequential, routing, parallel, evaluator-optimizer, orchestrator-workers.
 
 from __future__ import annotations
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional

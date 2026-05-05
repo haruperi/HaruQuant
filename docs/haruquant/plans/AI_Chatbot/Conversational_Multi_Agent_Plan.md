@@ -86,9 +86,9 @@ Responsibilities:
 
 New service candidates:
 
-- `backend/services/ai_chat/conversation_orchestrator.py`
-- `backend/services/ai_chat/intent_state.py`
-- `backend/services/ai_chat/clarification_policy.py`
+- `backend/agents/chat/ai_chat/conversation_orchestrator.py`
+- `backend/agents/chat/ai_chat/intent_state.py`
+- `backend/agents/chat/ai_chat/clarification_policy.py`
 
 Acceptance criteria:
 
@@ -173,7 +173,7 @@ Memory classes:
 
 Suggested service:
 
-- `backend/services/ai_chat/conversation_state_service.py`
+- `backend/agents/chat/ai_chat/conversation_state_service.py`
 
 Example:
 
@@ -200,7 +200,7 @@ It should:
 
 Suggested service:
 
-- `backend/services/ai_chat/response_composer.py`
+- `backend/agents/chat/ai_chat/response_composer.py`
 
 Response modes:
 
@@ -230,8 +230,8 @@ Tasks:
 
 Deliverables:
 
-- `backend/services/ai_chat/conversation_orchestrator.py`
-- `backend/services/ai_chat/clarification_policy.py`
+- `backend/agents/chat/ai_chat/conversation_orchestrator.py`
+- `backend/agents/chat/ai_chat/clarification_policy.py`
 - tests for clarification vs direct answer routing
 
 ### Phase C2: Topic and Reference Memory
@@ -245,7 +245,7 @@ Tasks:
 
 Deliverables:
 
-- `backend/services/ai_chat/conversation_state_service.py`
+- `backend/agents/chat/ai_chat/conversation_state_service.py`
 - tests for reference resolution across turns
 
 ### Phase C3: Specialist Agent Mesh
@@ -263,7 +263,7 @@ Tasks:
 Deliverables:
 
 - `backend/agents/chat/*.py`
-- `backend/services/ai_chat/agent_consultation_service.py`
+- `backend/agents/chat/ai_chat/agent_consultation_service.py`
 - replayable intermediate artifacts
 
 ### Phase C4: Conversational UX Upgrade

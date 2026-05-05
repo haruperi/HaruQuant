@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from backend.orchestration.workflow.states import ProposalState
-from backend.services.proposals import ProposalStateTransitionService
+from services.strategy.proposals import ProposalStateTransitionService
 
 
 def test_proposal_state_transition_service_allows_valid_transition() -> None:

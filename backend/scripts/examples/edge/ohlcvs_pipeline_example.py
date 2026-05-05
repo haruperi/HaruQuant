@@ -16,7 +16,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from backend.services.research import CleaningConfig, EnrichmentConfig, prepare_ohlcvs_dataset  # noqa: E402
+from services.research import CleaningConfig, EnrichmentConfig, prepare_ohlcvs_dataset  # noqa: E402
 
 
 class DemoSource:

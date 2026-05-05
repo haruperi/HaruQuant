@@ -8,10 +8,10 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.data.database import GovernanceRepository
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.strategy_gov import (
+from services.strategy.governance import (
     StrategyLifecycleState,
     StrategyLifecycleTransitionValidator,
 )

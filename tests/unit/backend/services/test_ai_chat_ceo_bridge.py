@@ -4,15 +4,15 @@ import pytest
 
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.ai_chat import (
+from backend.agents.chat.ai_chat import (
     AIGatewayService,
     CEOChatOrchestrator,
     ChatStreamRequest,
     ConversationService,
     PageContextAssembler,
 )
-from backend.services.ai_chat.ceo_chat_orchestrator import CHAT_ATTACHMENT_TO_FIRM_HINT
-from backend.services.ai_chat.conversation_state_service import ConversationStateService
+from backend.agents.chat.ai_chat.ceo_chat_orchestrator import CHAT_ATTACHMENT_TO_FIRM_HINT
+from backend.agents.chat.ai_chat.conversation_state_service import ConversationStateService
 
 
 @pytest.fixture(autouse=True)

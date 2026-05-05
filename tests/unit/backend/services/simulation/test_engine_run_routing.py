@@ -1,9 +1,9 @@
 import pandas as pd
 
-import backend.services.simulation.runner as runner_module
-from backend.services.simulation.config import SimulationConfig
-from backend.services.simulation.data_preparation import PreparedSimulationData
-from backend.services.simulation.engine import Engine
+import services.simulation.runner as runner_module
+from services.simulation.config import SimulationConfig
+from services.simulation.data_preparation import PreparedSimulationData
+from services.simulation.engine import Engine
 
 
 def _config(engine_type="vectorized"):

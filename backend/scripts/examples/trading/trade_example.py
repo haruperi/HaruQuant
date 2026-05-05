@@ -10,14 +10,14 @@ import pandas as pd
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.common.logger import logger
-from backend.services.simulation.config import AccountConfig
-from backend.services.simulation.engine import Engine
-from backend.services.simulation.reporting import print_simulation_summary
-from backend.services.execution import core
-from backend.services.execution.trade import Trade
-from backend.services.risk_engine import CorrelationPreference, RiskLimits
-from backend.services.market_data.data_manipulator import TicksGenerator
+from services.utils.logger import logger
+from services.simulation.config import AccountConfig
+from services.simulation.engine import Engine
+from services.simulation.reporting import print_simulation_summary
+from services.execution import core
+from services.execution.trade import Trade
+from services.risk import CorrelationPreference, RiskLimits
+from services.data.transforms import TicksGenerator
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.data.strategies.trend_following import TrendFollowingStrategy
 from backend.data.strategies.close_breakout import CloseBreakoutStrategy

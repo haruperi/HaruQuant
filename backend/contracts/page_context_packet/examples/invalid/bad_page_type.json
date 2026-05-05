@@ -23,7 +23,7 @@
       "staleness_seconds": 2
     },
     "authority": {
-      "source": "backend/services/ai_chat/context_service.py",
+      "source": "backend/agents/chat/ai_chat/context_service.py",
       "trust_level": "system_state"
     },
     "summary": {

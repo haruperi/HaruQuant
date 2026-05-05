@@ -4,7 +4,7 @@ from pathlib import Path
 
 from backend.data.database import apply_pending_migrations, default_migrations_dir
 from backend.orchestration.workflow import KillSwitchState
-from backend.services import KillSwitchAuditService
+from services.risk.safety import KillSwitchAuditService
 
 
 def test_kill_switch_audit_service_persists_append_only_event(tmp_path) -> None:

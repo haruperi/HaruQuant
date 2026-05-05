@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.services.monitoring.tool_health import evaluate_tool_health
+from services.execution.monitoring.tool_health import evaluate_tool_health
 
 
 def test_evaluate_tool_health_detects_degraded_downstreams() -> None:

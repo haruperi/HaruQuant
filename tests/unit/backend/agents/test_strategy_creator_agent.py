@@ -6,8 +6,8 @@ from unittest.mock import patch
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.strategy_creator_agent import StrategyCreatorAgent
-from backend.services.strategy import StrategyCatalogService, StrategyStorage
-from backend.services.strategy.design import StrategyBlueprintMaterializationService
+from services.strategy import StrategyCatalogService, StrategyStorage
+from services.strategy.design import StrategyBlueprintMaterializationService
 
 
 COMPLETE_RSI_IDEA = (
@@ -329,6 +329,6 @@ def test_strategy_creator_creates_missing_indicator_with_permission(tmp_path: Pa
     assert result.indicator_artifacts[0]["materialized"] is True
     assert indicator_path.exists()
     assert "def supertrend" in indicator_path.read_text(encoding="utf-8")
-    assert "from backend.services.indicators.custom.supertrend import supertrend" in init_path.read_text(encoding="utf-8")
+    assert "from services.indicator.custom.supertrend import supertrend" in init_path.read_text(encoding="utf-8")
     assert result.artifact is not None
     assert result.artifact["indicator_dependencies"][0]["available"] is False

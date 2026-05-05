@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from backend.contracts.common import Originator
 from backend.contracts.observation_event.model import ObservationEvent, ObservationEventPayload
-from backend.services.monitoring.classification import classify_alert
+from services.execution.monitoring.classification import classify_alert
 
 
 def _observation(*, severity: str, observation_type: str, freshness_status: str = "fresh") -> ObservationEvent:

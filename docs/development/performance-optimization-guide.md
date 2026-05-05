@@ -31,7 +31,7 @@ The simulator now supports two highly optimized execution paths:
 
 ## 2. Analytics Service Upgrades
 
-The analytics engine (`backend/services/analytics/`) has been optimized to handle massive datasets from high-frequency or multi-asset backtests.
+The analytics engine (`services/analytics/`) has been optimized to handle massive datasets from high-frequency or multi-asset backtests.
 
 ### Optimized Metrics (`metrics.py` & `returns.py`)
 - **Concurrency Analysis**: `max_size_held` uses a JIT-compiled event processor to calculate peak portfolio exposure.

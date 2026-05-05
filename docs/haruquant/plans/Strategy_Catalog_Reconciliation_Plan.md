@@ -9,7 +9,7 @@ Review cadence: during active migration work
 
 **Purpose:** Reconcile the legacy user-created strategy workflow with the agentic service architecture. The legacy UI and SQLite-backed strategy catalog should continue to work, while strategy lifecycle, evidence, and promotion controls become first-class agentic governance concepts.
 
-**Decision:** User-created strategies remain artifacts under `backend/data/strategies/{username}/{strategy_slug}/v{version}/`. The package `backend/services/strategy/` remains application/service code: base classes, adapters, storage, validation, built-in baselines, and catalog orchestration. Do not move user strategy source files into `backend/services/strategy/`.
+**Decision:** User-created strategies remain artifacts under `backend/data/strategies/{username}/{strategy_slug}/v{version}/`. The package `services/strategy/` remains application/service code: base classes, adapters, storage, validation, built-in baselines, and catalog orchestration. Do not move user strategy source files into `services/strategy/`.
 
 ---
 
@@ -28,12 +28,12 @@ Review cadence: during active migration work
   - Tables: `strategies`, `strategy_versions`, `strategy_shares`
   - SQLite managers: `backend/data/database/sqlite/strategies.py`
 - **Physical strategy artifacts**
-  - Managed by `backend/services/strategy/storage.py`
+  - Managed by `services/strategy/storage.py`
   - Current path pattern: `backend/data/strategies/{username}/{strategy_name}/v{version}/strategy.py`
   - Metadata file: `metadata.json`
 - **Agentic governance**
   - Tables: `gov_strategy_registry`, `gov_strategy_promotions`
-  - Services: `backend/services/strategy_gov/`
+  - Services: `services/strategy/governance/`
 
 ---
 
@@ -45,11 +45,11 @@ Route all strategy create/read/update/delete/version operations through a servic
 UI /strategies
   -> ui/src/lib/api/strategies.ts
   -> backend/api/routes/strategies.py
-  -> backend/services/strategy/catalog.py
+  -> services/strategy/catalog.py
       -> backend/data/database/sqlite/strategies.py
-      -> backend/services/strategy/storage.py
-      -> backend/services/strategy_gov/registry.py
-      -> backend/services/strategy_gov/lifecycle.py
+      -> services/strategy/storage.py
+      -> services/strategy/governance/registry.py
+      -> services/strategy/governance/lifecycle.py
   -> backend/data/database/haruquant.db
   -> backend/data/strategies/{username}/{strategy_slug}/v{version}/strategy.py
 ```
@@ -100,7 +100,7 @@ Acceptance:
 Create:
 
 ```text
-backend/services/strategy/catalog.py
+services/strategy/catalog.py
 ```
 
 Core dataclasses or Pydantic models:
@@ -350,15 +350,15 @@ from apps.indicator import sma, ema, rsi
 Replace with agentic service imports:
 
 ```python
-from backend.services.strategy import BaseStrategy
-from backend.services.indicators import sma, ema, rsi
+from services.strategy import BaseStrategy
+from services.indicator import sma, ema, rsi
 ```
 
 Tasks:
 
-- Update `backend/services/strategy/templates/template_strategy.py`.
+- Update `services/strategy/templates/template_strategy.py`.
 - Update hardcoded fallback in `ui/src/components/strategies/create-strategy-dialog.tsx`.
-- Fix backend template route to read from `backend/services/strategy/templates/`.
+- Fix backend template route to read from `services/strategy/templates/`.
 - Add a validation endpoint or service method to compile/load a strategy before save.
 - Ensure generated templates subclass `BaseStrategy`.
 
@@ -422,7 +422,7 @@ Rules:
 Create service:
 
 ```text
-backend/services/strategy/permissions.py
+services/strategy/permissions.py
 ```
 
 Suggested API:
@@ -444,9 +444,9 @@ Acceptance:
 Add unit tests:
 
 ```text
-tests/unit/backend/services/strategy/test_catalog_service.py
-tests/unit/backend/services/strategy/test_strategy_storage_paths.py
-tests/unit/backend/services/strategy/test_strategy_permissions.py
+tests/unit/services/strategy/test_catalog_service.py
+tests/unit/services/strategy/test_strategy_storage_paths.py
+tests/unit/services/strategy/test_strategy_permissions.py
 tests/unit/backend/api/routes/test_strategies_routes.py
 ```
 
@@ -552,4 +552,4 @@ The reconciliation is complete when:
 - Governance lifecycle state is visible to the backend and eventually to the operator UI.
 - Live/paper execution can be blocked by lifecycle policy.
 - Existing legacy strategies remain loadable.
-- No user strategy source files are stored under `backend/services/strategy/`.
+- No user strategy source files are stored under `services/strategy/`.

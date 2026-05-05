@@ -14,8 +14,8 @@ from fastapi import (
 )
 
 from backend.api.websocket import optimization_progress_manager
-from backend.common.logger import logger
-from backend.services.optimization.models import (
+from services.utils.logger import logger
+from services.optimization.models import (
     ConsecutiveLosingRequest,
     ConsecutiveLosingResponse,
     ConsecutiveLosingScenario,
@@ -40,7 +40,7 @@ from backend.services.optimization.models import (
     RobustnessResponse,
     WalkForwardRequest,
 )
-from backend.services.optimization.monte_carlo import (
+from services.optimization.monte_carlo import (
     ParametricSimulationResult,
     consecutive_losing_simulation,
     parametric_simulation,
@@ -48,9 +48,9 @@ from backend.services.optimization.monte_carlo import (
     profit_target_simulation,
     random_win_rate_simulation,
 )
-from backend.services.market_data.data_getters import load_dukascopy
-from backend.services.market_data.data_validator import DataValidator
-from backend.services.modeling import (
+from services.data.service import load_dukascopy
+from services.data.quality import DataValidator
+from services.research.modeling import (
     UnsupervisedResearchConfig,
     UnsupervisedResearchService,
 )
@@ -221,7 +221,7 @@ async def start_optimization(
 
         logger.info(f"Created optimization run {optimization_id}")
 
-        from backend.services.optimization.core import run_optimization_task
+        from services.optimization.core import run_optimization_task
 
         # Add background task
         background_tasks.add_task(
@@ -402,7 +402,7 @@ async def start_walk_forward(
             status="pending",
         )
 
-        from backend.services.optimization.core import run_walk_forward_task
+        from services.optimization.core import run_walk_forward_task
 
         # Add background task
         background_tasks.add_task(
@@ -519,7 +519,7 @@ async def start_monte_carlo(
             random_seed=request.random_seed,
         )
 
-        from backend.services.optimization.core import run_monte_carlo_task
+        from services.optimization.core import run_monte_carlo_task
 
         # Add background task
         background_tasks.add_task(
@@ -697,7 +697,7 @@ async def run_random_win_rate(request: RandomWinRateRequest):
 async def run_robustness(request: RobustnessRequest):
     """Run Robustness simulation."""
     try:
-        from backend.services.optimization.monte_carlo import robustness_simulation
+        from services.optimization.monte_carlo import robustness_simulation
 
         result = robustness_simulation(
             backtest_id=request.backtest_id,
@@ -722,7 +722,7 @@ async def run_robustness(request: RobustnessRequest):
 async def run_multi_entry(request: MultiEntryRequest):
     """Run Multi-Entry simulation."""
     try:
-        from backend.services.optimization.monte_carlo import multi_entry_simulation
+        from services.optimization.monte_carlo import multi_entry_simulation
 
         result = multi_entry_simulation(request)
         return result

@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict, List, Optional, cast
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.data.database.sqlite.database_operations import DatabaseManager
 
 router = APIRouter()
@@ -159,7 +159,7 @@ async def calculate_scores(
         df = pd.DataFrame(strategies)
 
         # 3. Run Scorecard
-        from backend.services.research.scorecard import StrategyScorecard
+        from services.research.scorecard import StrategyScorecard
 
         scorer = StrategyScorecard()
         scored_df = scorer.process(df)

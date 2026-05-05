@@ -7,7 +7,7 @@ from unittest.mock import patch
 from backend.data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from backend.data.database.sqlite.database_operations import DatabaseManager
 from backend.agents.runtime import LLMRuntimeError
-from backend.services.ai_chat import (
+from backend.agents.chat.ai_chat import (
     AIGatewayService,
     ChatStreamRequest,
     ConversationService,
@@ -37,7 +37,7 @@ def test_ai_chat_answer_quality_corpus(tmp_path) -> None:
             current_route=case["route"],
             current_page_type=case["page_type"],
         )
-        with patch("backend.services.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled for deterministic corpus")):
+        with patch("backend.agents.chat.ai_chat.ai_gateway.create_llm_runtime", side_effect=LLMRuntimeError("disabled for deterministic corpus")):
             metadata, chunks, _message_id = gateway.stream_response(
                 ChatStreamRequest(
                     user_id=1,

@@ -1,6 +1,6 @@
 """Firm-facing execution facade.
 
-Business logic remains in `backend.services.execution`, `backend.services.live_trading`,
+Business logic remains in `services.execution`, `services.execution.live`,
 and governed MCP broker wrappers during the Phase 2 additive migration.
 
 The package initializer is intentionally import-light so importing a specific

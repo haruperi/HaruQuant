@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 from backend.mcp.mt5_mcp.models import MCPToolSpec
 
 

@@ -4,15 +4,15 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-import backend.services.simulation.data_preparation as data_preparation
-from backend.services.simulation.config import SimulationConfig
-from backend.services.simulation.data_preparation import (
+import services.simulation.data_preparation as data_preparation
+from services.simulation.config import SimulationConfig
+from services.simulation.data_preparation import (
     SimulationDataPreparationError,
     SimulationDataPreparer,
 )
-from backend.services.simulation.strategy_registry import register_strategy
-from backend.services.strategy.base import BaseStrategy
-from backend.services.market_data.data_manipulator import TicksGenerator
+from services.simulation.strategy_registry import register_strategy
+from services.strategy.base import BaseStrategy
+from services.data.transforms import TicksGenerator
 
 
 class FixtureSignalStrategy(BaseStrategy):

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from backend.services.strategy.adapter import StrategyAdapter
-from backend.services.strategy.baselines import (
+from services.strategy.adapter import StrategyAdapter
+from services.strategy.baselines import (
     EmaCrossBaselineStrategy,
     NaiveMomentumStrategy,
     RsiBaselineStrategy,

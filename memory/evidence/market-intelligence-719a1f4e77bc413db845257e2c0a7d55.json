@@ -1,0 +1,35 @@
+{
+  "candidate_ideas": [
+    {
+      "idea": "mean_reversion",
+      "rationale": "Ranging regime is more suitable for mean reversion.",
+      "score": 0.35
+    },
+    {
+      "idea": "trend_following",
+      "rationale": "Directional regime is more suitable for trend following.",
+      "score": 0.4
+    }
+  ],
+  "confidence": 0.35,
+  "created_at": "2026-05-05T12:22:37.582991Z",
+  "evidence_refs": [],
+  "market_context": {
+    "average_spread": null,
+    "bars": 0,
+    "sessions_observed": [],
+    "trend_regime": "unknown",
+    "volatility_regime": "unknown"
+  },
+  "recommended_next_steps": [
+    "Run technical analysis",
+    "Create strategy spec only from supported regimes"
+  ],
+  "report_id": "market-intelligence-719a1f4e77bc413db845257e2c0a7d55",
+  "research_question": "Research EURUSD market structure. Operator hints from legacy chat tools: haruquant_docs=>research/research. Context: symbol=EURUSD.",
+  "risks": [
+    "insufficient_market_data"
+  ],
+  "source_agent": "market_intelligence",
+  "sources_used": []
+}

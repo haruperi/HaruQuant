@@ -15,17 +15,17 @@ from backend.api.auth_utils import get_user_id_from_token
 from backend.api.websocket import backtest_log_manager
 from backend.mcp.mt5_mcp.client import MT5Client
 from backend.data.database.sqlite.database_operations import DatabaseManager
-from backend.services.strategy import storage
-from backend.services.strategy.permissions import assert_strategy_allowed
-from backend.services.simulation.engine import Engine
-from backend.services.execution import core
-from backend.services.market_data.data_getters import load_dukascopy
-from backend.services.market_data.data_manipulator import TicksGenerator
-from backend.services.market_data.data_validator import DataValidator
-from backend.common.logger import logger
-from backend.services.analytics.overview import build_overview_payload
+from services.strategy import storage
+from services.strategy.permissions import assert_strategy_allowed
+from services.simulation.engine import Engine
+from services.execution import core
+from services.data.service import load_dukascopy
+from services.data.transforms import TicksGenerator
+from services.data.quality import DataValidator
+from services.utils.logger import logger
+from services.analytics.overview import build_overview_payload
 
-from backend.services.simulation.data_preparation import (
+from services.simulation.data_preparation import (
     _generate_ticks_for_backtest,
     _normalize_position_sizing_method,
     _resolve_engine_type,
@@ -353,7 +353,7 @@ async def _run_backtest_task(
         )
         
         # Register strategy so Portfolio.run can find it by name
-        from backend.services.simulation.strategy_registry import register_strategy
+        from services.simulation.strategy_registry import register_strategy
         strategy_name = f"db_strategy_{strategy_id}_{version_id}"
         register_strategy(strategy_name, strategy_class)
 
@@ -876,7 +876,7 @@ async def _run_portfolio_backtest_task(
         )
         
         # Register strategy so Portfolio.run can find it
-        from backend.services.simulation.strategy_registry import register_strategy
+        from services.simulation.strategy_registry import register_strategy
         strategy_name = f"db_strategy_{strategy_id}_{version_id}"
         register_strategy(strategy_name, strategy_class)
 

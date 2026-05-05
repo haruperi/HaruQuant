@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.services.cost import CostEnforcer, cost_enforcer
+from services.execution.cost import CostEnforcer, cost_enforcer
 
 
 def test_enforcer_initializes() -> None:

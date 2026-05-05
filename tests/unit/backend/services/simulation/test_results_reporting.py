@@ -3,11 +3,11 @@ from contextlib import redirect_stdout
 
 import pandas as pd
 
-from backend.services.execution.core import EquityPoint, RunResult, TradeRecord
-from backend.services.simulation.config import SimulationConfig
-from backend.services.simulation.data_preparation import PreparedSimulationData
-from backend.services.simulation.reporting import print_simulation_summary, simulation_summary_rows
-from backend.services.simulation.results import SimulationRunResult
+from services.execution.core import EquityPoint, RunResult, TradeRecord
+from services.simulation.config import SimulationConfig
+from services.simulation.data_preparation import PreparedSimulationData
+from services.simulation.reporting import print_simulation_summary, simulation_summary_rows
+from services.simulation.results import SimulationRunResult
 
 
 def _config():

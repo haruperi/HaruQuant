@@ -3,12 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from backend.data.database import GovernanceRepository, apply_pending_migrations, default_migrations_dir
-from backend.services import (
-    StrategyLifecycleState,
-    StrategyRegistrationRequest,
-    StrategyRegistryService,
-    StrategyRetirementService,
-)
+from services.strategy.governance import StrategyLifecycleState, StrategyRegistrationRequest, StrategyRegistryService, StrategyRetirementService
 
 
 def test_strategy_retirement_service_updates_state_and_preserves_record(tmp_path) -> None:

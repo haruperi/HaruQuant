@@ -1,3 +1,3 @@
 """Statistical Validation Department facade."""
 
-from backend.services.analytics.statistical_tests import *  # noqa: F403
+from services.analytics.statistical_tests import *  # noqa: F403

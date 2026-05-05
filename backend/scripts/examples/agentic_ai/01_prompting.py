@@ -68,7 +68,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from backend.common.logger import logger
+from services.utils.logger import logger
 
 # ── Core prompt infrastructure ──────────────────────────────────────────
 from backend.agents.prompts import (

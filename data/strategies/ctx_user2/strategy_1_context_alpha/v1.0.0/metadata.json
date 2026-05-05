@@ -1,0 +1,16 @@
+{
+  "user_id": 1,
+  "strategy_id": 1,
+  "version": "1.0.0",
+  "parameters": {},
+  "saved_at": "2026-05-05T16:22:54.782883",
+  "name": "Context Alpha",
+  "description": "route-aware strategy",
+  "symbol": null,
+  "timeframe": null,
+  "type": null,
+  "parameterTypes": null,
+  "moneyManagement": null,
+  "variables": null,
+  "variableTypes": null
+}

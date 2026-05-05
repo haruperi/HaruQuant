@@ -14,7 +14,7 @@ from fastapi import (
 )
 
 from backend.api.auth_utils import get_user_id_from_token
-from backend.services.simulation.models import (
+from services.simulation.models import (
     AdvanceRequest,
     ManualTradeRequest,
     OrderModifyRequest,
@@ -26,24 +26,24 @@ from backend.services.simulation.models import (
     SimulationUpdateRequest,
     WhatIfRequest,
 )
-from backend.common.logger import logger
-from backend.services.simulation import SessionCoordinator, SimulatorSessionManager
-from backend.services.simulation.route_guards import get_owned_session_record, get_running_session
-from backend.services.simulation.session_backend import SQLiteSessionRuntimeStore
-from backend.services.simulation.route_support import (
+from services.utils.logger import logger
+from services.simulation import SessionCoordinator, SimulatorSessionManager
+from services.simulation.route_guards import get_owned_session_record, get_running_session
+from services.simulation.session_backend import SQLiteSessionRuntimeStore
+from services.simulation.route_support import (
     build_session_state_response,
     collect_positions_orders,
     refresh_session_risk_state,
 )
-from backend.services.simulation.session_service import (
+from services.simulation.session_service import (
     delete_session_runtime,
     load_strategy_class,
     resolve_strategy_version_id,
     resume_or_restore_session,
     stop_and_save_session_runtime,
 )
-from backend.services.simulation.session_runtime import SimulatorSession
-from backend.services.simulation.trade_service import (
+from services.simulation.session_runtime import SimulatorSession
+from services.simulation.trade_service import (
     close_position as close_position_runtime,
     delete_order as delete_order_runtime,
     evaluate_what_if as evaluate_what_if_runtime,

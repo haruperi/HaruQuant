@@ -1,4 +1,4 @@
-from backend.services.policy import (
+from services.risk.policy import (
     PolicyBundle,
     PolicyResolutionQuery,
     PolicyResolver,

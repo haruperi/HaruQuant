@@ -9,7 +9,7 @@ from backend.agents.schemas import (
     StrategySpec,
     TradeProposal,
 )
-from backend.services.ai_chat.models import ConversationPlan
+from backend.agents.chat.ai_chat.models import ConversationPlan
 
 
 def test_agent_plan_reuses_conversation_plan_with_governance_fields() -> None:

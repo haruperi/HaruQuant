@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from backend.services.simulation.config import (
+from services.simulation.config import (
     SimulationConfig,
     SimulationConfigError,
 )

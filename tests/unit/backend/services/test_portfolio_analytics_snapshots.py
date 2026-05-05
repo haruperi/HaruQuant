@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from backend.services import PortfolioSnapshotAssemblyInput, PositionExposure, assemble_portfolio_snapshot
+from services.risk import PositionExposure
+from services.risk.portfolio import PortfolioSnapshotAssemblyInput, assemble_portfolio_snapshot
 
 
 def test_assemble_portfolio_snapshot_builds_complete_snapshot() -> None:

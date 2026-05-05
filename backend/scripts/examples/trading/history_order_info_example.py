@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.services.simulation.engine import Engine
-from backend.services.execution.core import HistoryOrderInfo
+from services.simulation.engine import Engine
+from services.execution.core import HistoryOrderInfo
 
 
 def _hist_value(order, attr_name: str, method_name: str | None = None, default=None):

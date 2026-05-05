@@ -6,7 +6,7 @@ import pytest
 
 from backend.contracts.common import Originator
 from backend.contracts.trade_proposal.model import TradeProposal
-from backend.services.policy import (
+from services.risk.policy import (
     ApprovalPolicy,
     ComplianceProfile,
     PolicyBundle,
@@ -14,7 +14,7 @@ from backend.services.policy import (
     PolicyVersion,
     RetentionPolicy,
 )
-from backend.services.risk import (
+from services.risk import (
     AccountSnapshot,
     MarketSnapshot,
     PortfolioSnapshot,

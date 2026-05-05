@@ -25,15 +25,15 @@ This means the UI needs to show provenance, authority state, policy status, and 
 |---|---|---|
 | Command Center | Cross-system state, incidents, approvals, live events, broker safety posture | `backend/read_models/operator_dashboard.py`, `/api/operator`, `/api/operator/events/stream` |
 | Workflows | Workflow state machine, phase steps, assigned agents, trajectory logs, evaluation reports | `backend/orchestration/workflow`, `backend/agents/runtime`, workflow read models |
-| Agent Runs | Agent sessions, prompt versions, tool calls, schema validation, cost and latency | `backend/agents/runtime`, `backend/observability`, `backend/services/cost` |
-| Proposals | Trade hypotheses, proposal readiness, queue state, proposal drift, expiry | `backend/contracts/trade_hypothesis`, `backend/contracts/trade_proposal`, `backend/services/proposals` |
-| Risk Gate | Deterministic risk decisions, constraints, freshness, concentration, margin, drawdown, correlation | `backend/contracts/risk_assessment_*`, `backend/services/risk`, `backend/services/risk_engine` |
-| Execution Control | Execution intents, readiness, attempts, receipts, reconciliation, compensation | `backend/contracts/execution_*`, `backend/services/execution`, `backend/services/reconciliation` |
-| Approvals | Live execution, override, policy change, kill-switch recovery voting | `/api/operator/approvals`, `backend/services/approval` |
-| Incidents | Monitoring alerts, stale state, broker conflicts, kill switch state, containment | `backend/services/monitoring`, `backend/services/safety` |
-| Evidence | Evidence bundles, lifecycle proof, artifact freshness, manifests | `backend/services/evidence`, `backend/services/strategy_gov` |
-| Replay And Audit | Replay bundles, manifests, signatures, legal hold, export status | `backend/services/audit`, `backend/contracts/replay_bundle` |
-| Strategy Governance | Strategy registry, lifecycle, promotion, suspension, retirement, operating envelope | `backend/services/strategy_gov` |
+| Agent Runs | Agent sessions, prompt versions, tool calls, schema validation, cost and latency | `backend/agents/runtime`, `backend/observability`, `services/execution/cost` |
+| Proposals | Trade hypotheses, proposal readiness, queue state, proposal drift, expiry | `backend/contracts/trade_hypothesis`, `backend/contracts/trade_proposal`, `services/strategy/proposals` |
+| Risk Gate | Deterministic risk decisions, constraints, freshness, concentration, margin, drawdown, correlation | `backend/contracts/risk_assessment_*`, `services/risk`, `services/risk` |
+| Execution Control | Execution intents, readiness, attempts, receipts, reconciliation, compensation | `backend/contracts/execution_*`, `services/execution`, `services/execution/reconciliation` |
+| Approvals | Live execution, override, policy change, kill-switch recovery voting | `/api/operator/approvals`, `services/execution/approval` |
+| Incidents | Monitoring alerts, stale state, broker conflicts, kill switch state, containment | `services/execution/monitoring`, `services/risk/safety` |
+| Evidence | Evidence bundles, lifecycle proof, artifact freshness, manifests | `services/strategy/evidence`, `services/strategy/governance` |
+| Replay And Audit | Replay bundles, manifests, signatures, legal hold, export status | `services/strategy/evidence/audit`, `backend/contracts/replay_bundle` |
+| Strategy Governance | Strategy registry, lifecycle, promotion, suspension, retirement, operating envelope | `services/strategy/governance` |
 | Research Lab | Research-only agent workflows, edge discovery, market regime, scorecards | `backend/agents/research_agent.py`, `backend/api/routes/edge.py` |
 | Legacy Tools | Backtest, simulation, SQX import, optimization, performance reports | existing `/api/backtest`, `/api/simulator`, `/api/sqx`, `/api/optimization` |
 

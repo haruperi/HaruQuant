@@ -8,7 +8,7 @@ from typing import Optional
 import pandas as pd
 import pytest
 
-from backend.services.market_data.data_getters import CSVDataSource, clear_data_cache
+from services.data.service import CSVDataSource, clear_data_cache
 
 
 @pytest.fixture()
@@ -241,7 +241,7 @@ class TestCSVDataSourceIntegration:
 
     def test_prepare_ohlcvs_dataset(self, sample_csv: Path) -> None:
         """Wire CSVDataSource through the full research pipeline."""
-        from backend.services.research.datasets import (
+        from services.utils.datasets import (
             prepare_ohlcvs_dataset,
         )
 
