@@ -528,72 +528,87 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.1 Create agent registry
 
-* [ ] Create `agents/agent_registry.py`.
-* [ ] Register CEO Agent.
-* [ ] Register Planner Agent.
-* [ ] Register Research Agent.
-* [ ] Register Strategy Creator Agent.
-* [ ] Register Strategy Reviewer Agent.
-* [ ] Register Backtest Agent.
-* [ ] Register Risk Reviewer Agent.
-* [ ] Register Performance Reporter Agent.
-* [ ] Register Audit Agent.
+* [x] Create `agents/agent_registry.py`.
+* [x] Register CEO Agent.
+* [x] Register Planner Agent.
+* [x] Register Research Agent.
+* [x] Register Strategy Creator Agent.
+* [x] Register Strategy Reviewer Agent.
+* [x] Register Backtest Agent.
+* [x] Register Risk Reviewer Agent.
+* [x] Register Performance Reporter Agent.
+* [x] Register Audit Agent.
 
 ### 6.2 Create task manager
 
-* [ ] Create `agents/task_manager.py`.
-* [ ] Add `create_task`.
-* [ ] Add `assign_task`.
-* [ ] Add `start_task`.
-* [ ] Add `complete_task`.
-* [ ] Add `fail_task`.
-* [ ] Add `block_task`.
-* [ ] Add `create_child_task`.
-* [ ] Add `get_task_tree`.
-* [ ] Add task status transitions.
+* [x] Create `agents/task_manager.py`.
+* [x] Add `create_task`.
+* [x] Add `assign_task`.
+* [x] Add `start_task`.
+* [x] Add `complete_task`.
+* [x] Add `fail_task`.
+* [x] Add `block_task`.
+* [x] Add `create_child_task`.
+* [x] Add `get_task_tree`.
+* [x] Add task status transitions.
 
 ### 6.3 Create orchestration service
 
-* [ ] Create `agents/orchestrator.py`.
-* [ ] Accept user request.
-* [ ] Call Planner.
-* [ ] Create parent task.
-* [ ] Create child tasks.
-* [ ] Dispatch to agents.
-* [ ] Collect outputs.
-* [ ] Validate evidence.
-* [ ] Produce final response.
-* [ ] Write audit record.
+* [x] Create `agents/orchestrator.py`.
+* [x] Accept user request.
+* [x] Call Planner.
+* [x] Create parent task.
+* [x] Create child tasks.
+* [x] Dispatch to agents.
+* [x] Collect outputs.
+* [x] Validate evidence.
+* [x] Produce final response.
+* [x] Write audit record.
 
 ### 6.4 Create agent base class
 
-* [ ] Create `agents/base.py`.
-* [ ] Add `agent_name`.
-* [ ] Add `role`.
-* [ ] Add `allowed_tools`.
-* [ ] Add `run`.
-* [ ] Add `plan`.
-* [ ] Add `act`.
-* [ ] Add `observe`.
-* [ ] Add `evaluate`.
-* [ ] Add `finalize`.
-* [ ] Add standard error handling.
+* [x] Create `agents/base.py`.
+* [x] Add `agent_name`.
+* [x] Add `role`.
+* [x] Add `allowed_tools`.
+* [x] Add `run`.
+* [x] Add `plan`.
+* [x] Add `act`.
+* [x] Add `observe`.
+* [x] Add `evaluate`.
+* [x] Add `finalize`.
+* [x] Add standard error handling.
 
 ### 6.5 Add execution trace
 
-* [ ] Store planner result.
-* [ ] Store agent instructions.
-* [ ] Store tool calls.
-* [ ] Store observations.
-* [ ] Store final decisions.
-* [ ] Store evidence refs.
-* [ ] Store failure reasons.
+* [x] Store planner result.
+* [x] Store agent instructions.
+* [x] Store tool calls.
+* [x] Store observations.
+* [x] Store final decisions.
+* [x] Store evidence refs.
+* [x] Store failure reasons.
 
 ### Phase 6 implementation note
 
-Phase 6 was implemented on the canonical `agents/` path, not under `app/`. `AgentRegistry` registers the first firm departments and draws each agent's tool envelope from the Phase 5 permission layer. `AgentTaskManager` manages persisted or in-memory task trees with explicit status transitions. `AgentControlPlaneOrchestrator` creates a top-down workflow record, parent CEO task, planner task, delegated child tasks, standard agent run results, final response, and audit record. The base agent class provides a common `plan -> act -> observe -> evaluate -> finalize` envelope for Phase 7+ specialized agents.
+Phase 6 is implemented on the canonical `agents/` path.
 
-Usage example: `docs/agentic_firm/phase6_agent_control_plane_usage_example.md`.
+Completed implementation:
+
+* Added `agents/agent_registry.py` with the first firm departments: CEO, Planner, Research, Strategy Creator, Strategy Reviewer, Backtest, Risk Reviewer, Performance Reporter, and Audit.
+* `AgentRegistry` draws each department's allowed tool envelope from the Phase 5 registry/permission layer.
+* Added `agents/task_manager.py` with persisted or in-memory task creation, child-task creation, task-tree retrieval, and explicit status transitions.
+* Added `agents/base.py` with the standard `plan -> act -> observe -> evaluate -> finalize` runtime envelope and defensive error handling.
+* Added `agents/orchestrator.py` with `AgentControlPlaneOrchestrator`, which accepts a user request, creates a workflow, creates the CEO parent task, creates the planner task, creates delegated child tasks, dispatches deterministic department agents, collects outputs, records execution trace fields, produces a structured final response, and writes an audit record.
+* Added deterministic Phase 6 planner routing in `agents/planner_agent.py` for strategy, backtest, research, and risk-style requests.
+* Updated canonical agent exports in `agents/__init__.py`.
+* Updated Phase 6 tests away from retired backend imports and onto canonical `agents` modules.
+
+Validation:
+
+```text
+4 passed in 4.49s
+```
 
 ## Done definition
 

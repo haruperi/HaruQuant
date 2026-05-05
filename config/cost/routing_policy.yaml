@@ -1,0 +1,37 @@
+# Cost governance routing policy (Playbook §17)
+
+request_routing:
+  simple_classification:
+    default_model: fast_model
+    max_cost_per_request_usd: 0.01
+    escalation: never
+  structured_extraction:
+    default_model: reliable_json_model
+    max_cost_per_request_usd: 0.05
+    escalation: on_schema_failure
+  complex_planning:
+    default_model: premium_reasoning_model
+    max_cost_per_request_usd: 0.10
+    escalation: on_cost_threshold_exceeded
+  multi_agent_synthesis:
+    default_model: premium_reasoning_model
+    max_cost_per_request_usd: 0.25
+    escalation: on_cost_or_latency_exceeded
+
+global_limits:
+  max_cost_per_workflow_usd: 0.25
+  max_cost_per_session_usd: 1.00
+  early_exit_rules:
+    - convergence_threshold: 0.95
+    - max_steps: 10
+    - diminishing_returns: 0.01
+  caching_policy:
+    enabled: true
+    ttl_seconds: 300
+    cache_key_fields:
+      - intent
+      - normalized_input_hash
+  downgrade_behavior:
+    on_budget_exceeded: use_fallback_model
+    on_latency_exceeded: use_fast_model
+  fallback_model: lower_cost_model
