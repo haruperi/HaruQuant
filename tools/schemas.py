@@ -15,15 +15,22 @@ RiskLevel = Literal["read_only", "write", "critical"]
 class ToolDefinition:
     name: str
     description: str
-    category: str
-    risk_level: RiskLevel
-    input_schema: dict[str, Any]
-    output_schema: dict[str, Any]
-    allowed_agents: list[str]
+    category: str = "general"
+    risk_level: RiskLevel = "read_only"
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
+    allowed_agents: list[str] | None = None
+    permission_required: str | None = None
+    domain: str | None = None
+    execution_boundary: str | None = None
     requires_audit: bool = True
     requires_risk_governor: bool = False
     requires_human_approval: bool = False
     enabled: bool = True
+
+    @property
+    def audit_required(self) -> bool:
+        return self.requires_audit
 
 
 class ToolStubRequest(BaseModel):

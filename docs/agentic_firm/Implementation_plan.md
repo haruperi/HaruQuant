@@ -429,65 +429,82 @@ MCP’s tool model is useful here because each tool should have a name, schema, 
 
 ### 5.1 Create tool registry
 
-* [ ] Create `tools/registry.py`.
-* [ ] Define `ToolDefinition`.
-* [ ] Define `name`.
-* [ ] Define `description`.
-* [ ] Define `input_schema`.
-* [ ] Define `output_schema`.
-* [ ] Define `risk_level`.
-* [ ] Define `permission_required`.
-* [ ] Define `requires_human_approval`.
-* [ ] Define `requires_risk_governor`.
-* [ ] Define `audit_required`.
+* [x] Create `tools/registry.py`.
+* [x] Define `ToolDefinition`.
+* [x] Define `name`.
+* [x] Define `description`.
+* [x] Define `input_schema`.
+* [x] Define `output_schema`.
+* [x] Define `risk_level`.
+* [x] Define `permission_required`.
+* [x] Define `requires_human_approval`.
+* [x] Define `requires_risk_governor`.
+* [x] Define `audit_required`.
 
 ### 5.2 Register read-only tools first
 
-* [ ] `get_symbol_data`.
-* [ ] `get_latest_ohlcv`.
-* [ ] `get_strategy`.
-* [ ] `list_strategies`.
-* [ ] `get_backtest_result`.
-* [ ] `get_analytics_summary`.
-* [ ] `get_open_positions`.
-* [ ] `get_account_snapshot`.
-* [ ] `get_risk_snapshot`.
+* [x] `get_symbol_data`.
+* [x] `get_latest_ohlcv`.
+* [x] `get_strategy`.
+* [x] `list_strategies`.
+* [x] `get_backtest_result`.
+* [x] `get_analytics_summary`.
+* [x] `get_open_positions`.
+* [x] `get_account_snapshot`.
+* [x] `get_risk_snapshot`.
 
 ### 5.3 Register write tools second
 
-* [ ] `create_strategy_spec`.
-* [ ] `save_strategy_code`.
-* [ ] `run_backtest`.
-* [ ] `run_optimization`.
-* [ ] `run_robustness_test`.
-* [ ] `create_risk_review`.
-* [ ] `create_report`.
-* [ ] `start_paper_trading`.
+* [x] `create_strategy_spec`.
+* [x] `save_strategy_code`.
+* [x] `run_backtest`.
+* [x] `run_optimization`.
+* [x] `run_robustness_test`.
+* [x] `create_risk_review`.
+* [x] `create_report`.
+* [x] `start_paper_trading`.
 
 ### 5.4 Register critical tools last
 
-* [ ] `request_live_activation`.
-* [ ] `create_trade_proposal`.
-* [ ] `request_risk_approval`.
-* [ ] `place_paper_order`.
-* [ ] `place_live_order`.
-* [ ] `close_live_position`.
-* [ ] `pause_strategy`.
-* [ ] `disable_live_trading`.
-* [ ] `trigger_kill_switch`.
+* [x] `request_live_activation`.
+* [x] `create_trade_proposal`.
+* [x] `request_risk_approval`.
+* [x] `place_paper_order`.
+* [x] `place_live_order`.
+* [x] `close_live_position`.
+* [x] `pause_strategy`.
+* [x] `disable_live_trading`.
+* [x] `trigger_kill_switch`.
 
 ### 5.5 Enforce permission checks
 
-* [ ] Create `agents/permissions.py`.
-* [ ] Map agents to allowed tools.
-* [ ] Block tool calls not explicitly allowed.
-* [ ] Block critical tools without approval.
-* [ ] Block execution tools without RiskGovernor approval.
-* [ ] Log every blocked attempt.
+* [x] Create `agents/permissions.py`.
+* [x] Map agents to allowed tools.
+* [x] Block tool calls not explicitly allowed.
+* [x] Block critical tools without approval.
+* [x] Block execution tools without RiskGovernor approval.
+* [x] Log every blocked attempt.
 
 ### Phase 5 implementation note
 
-Phase 5 was implemented through `tools/registry.py` and `agents/permissions.py`. The existing runtime `ToolAllowlistMiddleware` keeps its original allowlist behavior and now also exposes registry-backed agent permission enforcement. The registry is metadata-only: actual execution remains inside existing service, MCP, risk, execution, and audit boundaries.
+Phase 5 was completed by improving the existing tool registry instead of replacing it.
+
+Completed implementation:
+
+* Kept the broad existing `tools/registry.py` registry and added the explicit Phase 5 checklist facade on top of it.
+* Added `ToolRegistry`, `DEFAULT_TOOL_REGISTRY`, and `ToolRegistryError` so the registry can be queried as a stable policy object.
+* Extended `ToolDefinition` with `permission_required`, `domain`, `execution_boundary`, and an `audit_required` compatibility property while preserving existing `requires_audit` behavior.
+* Registered the Phase 5 read-only, write, and critical tool names exactly as listed in the checklist.
+* Marked all critical Phase 5 tools as `risk_level="critical"` and requiring both human approval and RiskGovernor approval.
+* Added canonical `agents/permissions.py` with `AgentToolPermissionService`, blocked-attempt recording, agent-name aliases, and enforcement errors.
+* Added canonical `agents/runtime/tool_policy.py`; the runtime `ToolAllowlistMiddleware` still supports explicit allowlists and now delegates agent/tool checks to the Phase 5 permission service.
+* Updated tests away from retired backend imports and onto canonical `agents` and `tools` packages.
+
+Validation:
+
+```text
+11 passed in 0.80s
+```
 
 ## Done definition
 

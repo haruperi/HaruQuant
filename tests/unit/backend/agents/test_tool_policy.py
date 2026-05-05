@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend_retiring.agents import ToolAllowlistMiddleware, ToolPolicyError
+from agents import ToolAllowlistMiddleware, ToolPolicyError
 
 
 def test_tool_allowlist_middleware_allows_declared_tools() -> None:

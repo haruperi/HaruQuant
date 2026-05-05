@@ -33,6 +33,46 @@ from .schemas import (
 )
 
 
+class ToolRegistryError(ValueError):
+    """Raised when the tool registry is malformed or queried incorrectly."""
+
+
+class ToolRegistry:
+    """Small registry facade used by the Phase 5 permission layer."""
+
+    def __init__(self, tools: Iterable[ToolDefinition] | None = None) -> None:
+        self._tools: dict[str, ToolDefinition] = {}
+        for tool in tools or ():
+            self.register(tool)
+
+    def register(self, definition: ToolDefinition) -> None:
+        if definition.name in self._tools:
+            raise ToolRegistryError(f"Tool already registered: {definition.name}")
+        self._tools[definition.name] = definition
+
+    def require(self, name: str) -> ToolDefinition:
+        try:
+            return self._tools[name]
+        except KeyError as exc:
+            raise ToolRegistryError(f"Unknown tool: {name}") from exc
+
+    def list_tools(
+        self,
+        *,
+        risk_level: str | None = None,
+        category: str | None = None,
+        enabled: bool | None = None,
+    ) -> list[ToolDefinition]:
+        tools = list(self._tools.values())
+        if risk_level is not None:
+            tools = [tool for tool in tools if tool.risk_level == risk_level]
+        if category is not None:
+            tools = [tool for tool in tools if tool.category == category]
+        if enabled is not None:
+            tools = [tool for tool in tools if tool.enabled is enabled]
+        return tools
+
+
 POLICY_AGENTS = [
     "ceo_agent",
     "planner_agent",
@@ -434,6 +474,9 @@ def _definition(
         input_schema=_schema(request_model),
         output_schema=_schema(result_model),
         allowed_agents=allowed_agents,
+        permission_required=f"{category}:{name}",
+        domain=category,
+        execution_boundary="registered_tool",
         requires_audit=True,
         requires_risk_governor=requires_risk_governor,
         requires_human_approval=requires_human_approval,
@@ -470,6 +513,42 @@ def _definitions(
     }
 
 
+PHASE5_READ_ONLY_TOOLS = [
+    "get_symbol_data",
+    "get_latest_ohlcv",
+    "get_strategy",
+    "list_strategies",
+    "get_backtest_result",
+    "get_analytics_summary",
+    "get_open_positions",
+    "get_account_snapshot",
+    "get_risk_snapshot",
+]
+
+PHASE5_WRITE_TOOLS = [
+    "create_strategy_spec",
+    "save_strategy_code",
+    "run_backtest",
+    "run_optimization",
+    "run_robustness_test",
+    "create_risk_review",
+    "create_report",
+    "start_paper_trading",
+]
+
+PHASE5_CRITICAL_TOOLS = [
+    "request_live_activation",
+    "create_trade_proposal",
+    "request_risk_approval",
+    "place_paper_order",
+    "place_live_order",
+    "close_live_position",
+    "pause_strategy",
+    "disable_live_trading",
+    "trigger_kill_switch",
+]
+
+
 TOOL_REGISTRY: dict[str, ToolDefinition] = {}
 TOOL_REGISTRY.update(
     _definitions(
@@ -479,6 +558,82 @@ TOOL_REGISTRY.update(
         request_model=PolicyValidationRequest,
     )
 )
+
+TOOL_REGISTRY.update(
+    _definitions(
+        PHASE5_READ_ONLY_TOOLS,
+        category="phase5_read_only",
+        allowed_agents=[
+            "ceo",
+            "planner",
+            "research",
+            "strategy_creator",
+            "strategy_reviewer",
+            "backtest",
+            "risk_reviewer",
+            "portfolio_manager",
+            "performance_reporter",
+            "audit",
+        ],
+        request_model=ToolStubRequest,
+    )
+)
+TOOL_REGISTRY.update(
+    _definitions(
+        PHASE5_WRITE_TOOLS,
+        category="phase5_write",
+        allowed_agents=[
+            "ceo",
+            "planner",
+            "strategy_creator",
+            "strategy_reviewer",
+            "backtest",
+            "risk_reviewer",
+            "performance_reporter",
+            "audit",
+        ],
+        request_model=ToolStubRequest,
+    )
+)
+TOOL_REGISTRY.update(
+    _definitions(
+        PHASE5_CRITICAL_TOOLS,
+        category="phase5_critical",
+        allowed_agents=[
+            "ceo",
+            "risk_reviewer",
+            "portfolio_manager",
+            "execution",
+            "paper_execution",
+            "live_execution",
+            "risk_governor",
+            "audit",
+        ],
+        request_model=ToolStubRequest,
+        result_model=ToolStubResult,
+        critical=PHASE5_CRITICAL_TOOLS,
+        risk_governed=PHASE5_CRITICAL_TOOLS,
+    )
+)
+
+for _critical_tool_name in PHASE5_CRITICAL_TOOLS:
+    _tool = TOOL_REGISTRY[_critical_tool_name]
+    TOOL_REGISTRY[_critical_tool_name] = ToolDefinition(
+        name=_tool.name,
+        description=_tool.description,
+        category=_tool.category,
+        risk_level="critical",
+        input_schema=_tool.input_schema,
+        output_schema=_tool.output_schema,
+        allowed_agents=_tool.allowed_agents,
+        permission_required=_tool.permission_required,
+        domain=_tool.domain,
+        execution_boundary=_tool.execution_boundary,
+        requires_audit=_tool.requires_audit,
+        requires_risk_governor=True,
+        requires_human_approval=True,
+        enabled=_tool.enabled,
+    )
 TOOL_REGISTRY["validate_agent_permission"] = _definition(
     "validate_agent_permission",
     category="policy",
@@ -680,6 +835,84 @@ TOOL_REGISTRY.update(
     )
 )
 
+# Re-apply the Phase 5 checklist facade after the broad category registry so
+# duplicate names keep the governance posture required by the implementation
+# plan.
+TOOL_REGISTRY.update(
+    _definitions(
+        PHASE5_READ_ONLY_TOOLS,
+        category="phase5_read_only",
+        allowed_agents=[
+            "ceo",
+            "planner",
+            "research",
+            "strategy_creator",
+            "strategy_reviewer",
+            "backtest",
+            "risk_reviewer",
+            "portfolio_manager",
+            "performance_reporter",
+            "audit",
+        ],
+        request_model=ToolStubRequest,
+    )
+)
+TOOL_REGISTRY.update(
+    _definitions(
+        PHASE5_WRITE_TOOLS,
+        category="phase5_write",
+        allowed_agents=[
+            "ceo",
+            "planner",
+            "strategy_creator",
+            "strategy_reviewer",
+            "backtest",
+            "risk_reviewer",
+            "performance_reporter",
+            "audit",
+        ],
+        request_model=ToolStubRequest,
+    )
+)
+TOOL_REGISTRY.update(
+    _definitions(
+        PHASE5_CRITICAL_TOOLS,
+        category="phase5_critical",
+        allowed_agents=[
+            "ceo",
+            "risk_reviewer",
+            "portfolio_manager",
+            "execution",
+            "paper_execution",
+            "live_execution",
+            "risk_governor",
+            "audit",
+        ],
+        request_model=ToolStubRequest,
+        result_model=ToolStubResult,
+        critical=PHASE5_CRITICAL_TOOLS,
+        risk_governed=PHASE5_CRITICAL_TOOLS,
+    )
+)
+for _critical_tool_name in PHASE5_CRITICAL_TOOLS:
+    _tool = TOOL_REGISTRY[_critical_tool_name]
+    TOOL_REGISTRY[_critical_tool_name] = ToolDefinition(
+        name=_tool.name,
+        description=_tool.description,
+        category=_tool.category,
+        risk_level="critical",
+        input_schema=_tool.input_schema,
+        output_schema=_tool.output_schema,
+        allowed_agents=_tool.allowed_agents,
+        permission_required=_tool.permission_required,
+        domain=_tool.domain,
+        execution_boundary=_tool.execution_boundary,
+        requires_audit=_tool.requires_audit,
+        requires_risk_governor=True,
+        requires_human_approval=True,
+        enabled=_tool.enabled,
+    )
+
 
 def get_tool(name: str) -> ToolDefinition:
     try:
@@ -738,3 +971,24 @@ def make_stub_function(tool_name: str):
     _tool.__qualname__ = tool_name
     _tool.__doc__ = get_tool(tool_name).description
     return _tool
+
+
+DEFAULT_TOOL_REGISTRY = ToolRegistry(TOOL_REGISTRY.values())
+
+
+__all__ = [
+    "DEFAULT_TOOL_REGISTRY",
+    "PHASE5_CRITICAL_TOOLS",
+    "PHASE5_READ_ONLY_TOOLS",
+    "PHASE5_WRITE_TOOLS",
+    "TOOL_REGISTRY",
+    "ToolDefinition",
+    "ToolRegistry",
+    "ToolRegistryError",
+    "get_tool",
+    "list_tools",
+    "list_tools_for_agent",
+    "make_stub_function",
+    "stub_tool_call",
+    "tool_contracts",
+]
