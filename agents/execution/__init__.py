@@ -1,0 +1,31 @@
+"""Execution proposal agents.
+
+Live execution remains disabled unless deterministic gates pass.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from agents.base import AgentRunContext, AgentRunResult
+
+
+class ExecutionProposalAgent:
+    agent_name = "execution"
+
+    def run(self, *, context: AgentRunContext, task_input: dict[str, Any]) -> AgentRunResult:
+        proposal = {
+            "proposal_id": task_input.get("proposal_id", f"proposal-{context.task_id}"),
+            "strategy_id": task_input.get("strategy_id", "strategy-unknown"),
+            "symbol": task_input.get("symbol", "UNKNOWN"),
+            "side": task_input.get("side", "buy"),
+            "entry_type": task_input.get("entry_type", "market"),
+            "requested_size": task_input.get("requested_size", 0.01),
+            "requires_risk_approval": True,
+            "requires_board_approval": True,
+            "live_execution_enabled": False,
+        }
+        return AgentRunResult(agent_name=self.agent_name, status="completed", output=proposal)
+
+
+__all__ = ["ExecutionProposalAgent"]

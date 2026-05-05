@@ -8,7 +8,8 @@ from uuid import uuid4
 
 from agents.agent_registry import AgentRegistry
 from agents.base import AgentBase, AgentRunResult
-from agents.planner_agent import PlannerAgent
+from agents.ceo import CEOAgent
+from agents.planner import PlannerAgent
 from agents.schemas import AgentPlan
 from agents.task_manager import AgentTaskManager
 
@@ -43,10 +44,12 @@ class AgentControlPlaneOrchestrator:
         registry: AgentRegistry | None = None,
         task_manager: AgentTaskManager | None = None,
         planner: PlannerAgent | None = None,
+        ceo: CEOAgent | None = None,
     ) -> None:
         self.registry = registry or AgentRegistry()
         self.task_manager = task_manager or AgentTaskManager()
         self.planner = planner or PlannerAgent()
+        self.ceo = ceo or CEOAgent()
 
     def handle_user_request(
         self,
@@ -151,6 +154,12 @@ class AgentControlPlaneOrchestrator:
             "summary": "CEO Agent completed delegated firm workflow.",
             "request": user_request,
             "intent": planner_result.intent,
+            "ceo_memo": self.ceo.create_final_memo(
+                request=user_request,
+                planner_result=planner_result,
+                agent_outputs=agent_outputs,
+                evidence_refs=execution_trace["evidence_refs"],
+            ),
             "completed_agents": [
                 agent for agent, output in agent_outputs.items() if output.status == "completed"
             ],
@@ -163,7 +172,7 @@ class AgentControlPlaneOrchestrator:
             request_id=request_id,
             parent_task_id=parent.task_id,
             metadata={
-                "phase": "6",
+                "phase": "7",
                 "planner_intent": planner_result.intent,
                 "child_task_ids": child_task_ids,
                 "execution_trace": execution_trace,

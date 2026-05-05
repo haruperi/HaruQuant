@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from backend_retiring.agents.agent_registry import AgentRegistry
-from backend_retiring.agents.ceo.agent import CEOAgent, CEO_POLICY_REFERENCES, CEO_SYSTEM_INSTRUCTIONS
-from backend_retiring.agents.orchestrator import AgentControlPlaneOrchestrator
-from backend_retiring.agents.planner.agent import PlannerAgent
-from backend_retiring.agents.task_manager import AgentTaskManager
+from agents.agent_registry import AgentRegistry
+from agents.ceo import CEOAgent, CEO_POLICY_REFERENCES, CEO_SYSTEM_INSTRUCTIONS
+from agents.orchestrator import AgentControlPlaneOrchestrator
+from agents.planner import PlannerAgent
+from agents.task_manager import AgentTaskManager
 from data.database import apply_pending_migrations, default_migrations_dir
 from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 

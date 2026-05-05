@@ -1,0 +1,9 @@
+global_live_mode: false
+approved_broker_account: paper-only
+approval_expiration: null
+config_hash: deterministic-generated
+strategies: {}
+approved_symbols: []
+per_strategy_live_mode: {}
+per_strategy_allocation: {}
+edit_policy: approved_admin_path_only

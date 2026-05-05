@@ -1,6 +1,6 @@
-Below is the **dependency-ordered implementation checklist** for turning HaruQuant into a real multi-agent LLM trading firm. I’m structuring it so each layer unlocks the next layer. Do **not** start with live execution or too many agents. Start with governance, tool contracts, auditability, and paper-trading automation.
+﻿Below is the **dependency-ordered implementation checklist** for turning HaruQuant into a real multi-agent LLM trading firm. Iâ€™m structuring it so each layer unlocks the next layer. Do **not** start with live execution or too many agents. Start with governance, tool contracts, auditability, and paper-trading automation.
 
-The source patterns I’m applying are: Paperclip-style org charts, budgets, governance, task tracking, and cost monitoring; TradingAgents-style analyst/research/trader/risk/fund-manager workflow; ADK-style multi-agent orchestration with tools and evaluation; and MCP-style tool/resource boundaries with human-in-the-loop safety for sensitive operations. ([GitHub][1])
+The source patterns Iâ€™m applying are: Paperclip-style org charts, budgets, governance, task tracking, and cost monitoring; TradingAgents-style analyst/research/trader/risk/fund-manager workflow; ADK-style multi-agent orchestration with tools and evaluation; and MCP-style tool/resource boundaries with human-in-the-loop safety for sensitive operations. ([GitHub][1])
 
 ---
 
@@ -12,28 +12,28 @@ Build in this order:
 
 ```text
 Governance
-→ Data contracts
-→ Tool contracts
-→ Agent control plane
-→ Read-only agents
-→ Strategy creation agents
-→ Backtest agents
-→ Risk agents
-→ Paper execution
-→ Portfolio management
-→ Live execution gates
-→ Full autonomous operating cycle
+â†’ Data contracts
+â†’ Tool contracts
+â†’ Agent control plane
+â†’ Read-only agents
+â†’ Strategy creation agents
+â†’ Backtest agents
+â†’ Risk agents
+â†’ Paper execution
+â†’ Portfolio management
+â†’ Live execution gates
+â†’ Full autonomous operating cycle
 ```
 
 The reason is simple: TradingAgents separates analysts, researchers, trader, risk management, and fund manager approval; HaruQuant should follow the same separation so that no single agent can research, decide, size, approve, and execute alone. ([tradingagents-ai.github.io][2])
 
 ---
 
-# Phase 1 — Governance, constitution, and safety foundation
+# Phase 1 â€” Governance, constitution, and safety foundation
 
 ## Goal
 
-Create the “laws of the firm” before creating agents.
+Create the â€œlaws of the firmâ€ before creating agents.
 
 ## Dependency
 
@@ -121,7 +121,7 @@ This phase is complete only when HaruQuant has written policies that agents must
 
 ---
 
-# Phase 2 — Repository and folder structure
+# Phase 2 â€” Repository and folder structure
 
 ## Goal
 
@@ -211,7 +211,7 @@ The repo structure exists, and every future phase has a correct place to write f
 
 ---
 
-# Phase 3 — Core schemas and contracts
+# Phase 3 â€” Core schemas and contracts
 
 ## Goal
 
@@ -225,77 +225,77 @@ Phase 2 complete.
 
 ### 3.1 Create shared schemas
 
-* [x] Create `agents/schemas.py`.
-* [x] Add `AgentTask`.
-* [x] Add `AgentPlan`.
-* [x] Add `AgentObservation`.
-* [x] Add `AgentDecision`.
-* [x] Add `EvidenceRef`.
-* [x] Add `ToolCallRequest`.
-* [x] Add `ToolCallResult`.
-* [x] Add `StrategySpec`.
-* [x] Add `StrategyReview`.
-* [x] Add `BacktestRequest`.
-* [x] Add `BacktestResultSummary`.
-* [x] Add `RiskReview`.
-* [x] Add `TradeProposal`.
-* [x] Add `RiskApproval`.
-* [x] Add `ExecutionRequest`.
-* [x] Add `ExecutionResult`.
+* [X] Create `agents/schemas.py`.
+* [X] Add `AgentTask`.
+* [X] Add `AgentPlan`.
+* [X] Add `AgentObservation`.
+* [X] Add `AgentDecision`.
+* [X] Add `EvidenceRef`.
+* [X] Add `ToolCallRequest`.
+* [X] Add `ToolCallResult`.
+* [X] Add `StrategySpec`.
+* [X] Add `StrategyReview`.
+* [X] Add `BacktestRequest`.
+* [X] Add `BacktestResultSummary`.
+* [X] Add `RiskReview`.
+* [X] Add `TradeProposal`.
+* [X] Add `RiskApproval`.
+* [X] Add `ExecutionRequest`.
+* [X] Add `ExecutionResult`.
 
 ### 3.2 Define planner output schema
 
 Your planner already has a good base. Expand it.
 
-* [x] Keep `intent`.
-* [x] Keep `missing_inputs`.
-* [x] Keep `context_needed`.
-* [x] Keep `backend_tools_to_run`.
-* [x] Keep `attached_tools`.
-* [x] Keep `page_actions_to_plan`.
-* [x] Keep `artifact_expected`.
-* [x] Keep `risk_level`.
-* [x] Add `requires_board_approval`.
-* [x] Add `requires_risk_governor`.
-* [x] Add `requires_audit_log`.
-* [x] Add `allowed_agents`.
-* [x] Add `blocked_agents`.
-* [x] Add `expected_outputs`.
-* [x] Add `evidence_requirements`.
-* [x] Add `failure_policy`.
+* [X] Keep `intent`.
+* [X] Keep `missing_inputs`.
+* [X] Keep `context_needed`.
+* [X] Keep `backend_tools_to_run`.
+* [X] Keep `attached_tools`.
+* [X] Keep `page_actions_to_plan`.
+* [X] Keep `artifact_expected`.
+* [X] Keep `risk_level`.
+* [X] Add `requires_board_approval`.
+* [X] Add `requires_risk_governor`.
+* [X] Add `requires_audit_log`.
+* [X] Add `allowed_agents`.
+* [X] Add `blocked_agents`.
+* [X] Add `expected_outputs`.
+* [X] Add `evidence_requirements`.
+* [X] Add `failure_policy`.
 
 ### 3.3 Define strategy spec schema
 
-* [x] Add `strategy_name`.
-* [x] Add `version`.
-* [x] Add `market`.
-* [x] Add `symbol`.
-* [x] Add `timeframe`.
-* [x] Add `data_requirements`.
-* [x] Add `entry_logic`.
-* [x] Add `exit_logic`.
-* [x] Add `position_sizing`.
-* [x] Add `risk_assumptions`.
-* [x] Add `cost_assumptions`.
-* [x] Add `invalid_conditions`.
-* [x] Add `test_plan`.
-* [x] Add `deployment_recommendation`.
+* [X] Add `strategy_name`.
+* [X] Add `version`.
+* [X] Add `market`.
+* [X] Add `symbol`.
+* [X] Add `timeframe`.
+* [X] Add `data_requirements`.
+* [X] Add `entry_logic`.
+* [X] Add `exit_logic`.
+* [X] Add `position_sizing`.
+* [X] Add `risk_assumptions`.
+* [X] Add `cost_assumptions`.
+* [X] Add `invalid_conditions`.
+* [X] Add `test_plan`.
+* [X] Add `deployment_recommendation`.
 
 ### 3.4 Define trade proposal schema
 
-* [x] Add `strategy_id`.
-* [x] Add `symbol`.
-* [x] Add `side`.
-* [x] Add `entry_type`.
-* [x] Add `requested_size`.
-* [x] Add `stop_loss`.
-* [x] Add `take_profit`.
-* [x] Add `max_spread`.
-* [x] Add `max_slippage`.
-* [x] Add `expected_risk`.
-* [x] Add `portfolio_impact`.
-* [x] Add `evidence_refs`.
-* [x] Add `requires_risk_approval`.
+* [X] Add `strategy_id`.
+* [X] Add `symbol`.
+* [X] Add `side`.
+* [X] Add `entry_type`.
+* [X] Add `requested_size`.
+* [X] Add `stop_loss`.
+* [X] Add `take_profit`.
+* [X] Add `max_spread`.
+* [X] Add `max_slippage`.
+* [X] Add `expected_risk`.
+* [X] Add `portfolio_impact`.
+* [X] Add `evidence_refs`.
+* [X] Add `requires_risk_approval`.
 
 ### Phase 3 implementation note
 
@@ -326,7 +326,7 @@ Every agent speaks in structured objects, not vague prose.
 
 ---
 
-# Phase 4 — Database tables and audit persistence
+# Phase 4 â€” Database tables and audit persistence
 
 ## Goal
 
@@ -340,54 +340,54 @@ Phase 3 complete.
 
 ### 4.1 Add agent task tables
 
-* [x] Create `agent_tasks`.
-* [x] Create `agent_task_events`.
-* [x] Create `agent_tool_calls`.
-* [x] Create `agent_observations`.
-* [x] Create `agent_decisions`.
+* [X] Create `agent_tasks`.
+* [X] Create `agent_task_events`.
+* [X] Create `agent_tool_calls`.
+* [X] Create `agent_observations`.
+* [X] Create `agent_decisions`.
 
 ### 4.2 Add evidence tables
 
-* [x] Create `evidence_refs`.
-* [x] Create `research_reports`.
-* [x] Create `strategy_specs`.
-* [x] Create `strategy_reviews`.
-* [x] Create `backtest_run_refs`.
-* [x] Create `robustness_run_refs`.
-* [x] Create `risk_review_refs`.
-* [x] Create `paper_trade_refs`.
-* [x] Create `live_trade_refs`.
+* [X] Create `evidence_refs`.
+* [X] Create `research_reports`.
+* [X] Create `strategy_specs`.
+* [X] Create `strategy_reviews`.
+* [X] Create `backtest_run_refs`.
+* [X] Create `robustness_run_refs`.
+* [X] Create `risk_review_refs`.
+* [X] Create `paper_trade_refs`.
+* [X] Create `live_trade_refs`.
 
 ### 4.3 Add lifecycle tables
 
-* [x] Create `strategy_lifecycle`.
-* [x] Create `strategy_versions`.
-* [x] Create `strategy_status_history`.
-* [x] Create `strategy_promotion_requests`.
-* [x] Create `strategy_retirement_records`.
+* [X] Create `strategy_lifecycle`.
+* [X] Create `strategy_versions`.
+* [X] Create `strategy_status_history`.
+* [X] Create `strategy_promotion_requests`.
+* [X] Create `strategy_retirement_records`.
 
 ### 4.4 Add risk and execution tables
 
-* [x] Create `risk_approvals`.
-* [x] Create `risk_rejections`.
-* [x] Create `trade_proposals`.
-* [x] Create `execution_requests`.
-* [x] Create `execution_results`.
-* [x] Create `execution_audit`.
+* [X] Create `risk_approvals`.
+* [X] Create `risk_rejections`.
+* [X] Create `trade_proposals`.
+* [X] Create `execution_requests`.
+* [X] Create `execution_results`.
+* [X] Create `execution_audit`.
 
 ### 4.5 Add immutable audit log
 
-* [x] Create append-only audit table.
-* [x] Add actor name.
-* [x] Add agent name.
-* [x] Add tool name.
-* [x] Add input hash.
-* [x] Add output hash.
-* [x] Add evidence refs.
-* [x] Add timestamp.
-* [x] Add request ID.
-* [x] Add parent task ID.
-* [x] Block delete operations from normal app logic.
+* [X] Create append-only audit table.
+* [X] Add actor name.
+* [X] Add agent name.
+* [X] Add tool name.
+* [X] Add input hash.
+* [X] Add output hash.
+* [X] Add evidence refs.
+* [X] Add timestamp.
+* [X] Add request ID.
+* [X] Add parent task ID.
+* [X] Block delete operations from normal app logic.
 
 ### Phase 4 implementation note
 
@@ -413,7 +413,7 @@ A strategy, decision, tool call, risk approval, or trade can always be traced ba
 
 ---
 
-# Phase 5 — Tool registry and permission layer
+# Phase 5 â€” Tool registry and permission layer
 
 ## Goal
 
@@ -423,67 +423,67 @@ Before agents can act, define what tools exist and who can use them.
 
 Phases 3 and 4 complete.
 
-MCP’s tool model is useful here because each tool should have a name, schema, result format, and invocation boundary. MCP also recommends human-in-the-loop confirmation and clear visibility for tool invocations, which is especially important for trading and execution tools. ([Model Context Protocol][3])
+MCPâ€™s tool model is useful here because each tool should have a name, schema, result format, and invocation boundary. MCP also recommends human-in-the-loop confirmation and clear visibility for tool invocations, which is especially important for trading and execution tools. ([Model Context Protocol][3])
 
 ## Checklist
 
 ### 5.1 Create tool registry
 
-* [x] Create `tools/registry.py`.
-* [x] Define `ToolDefinition`.
-* [x] Define `name`.
-* [x] Define `description`.
-* [x] Define `input_schema`.
-* [x] Define `output_schema`.
-* [x] Define `risk_level`.
-* [x] Define `permission_required`.
-* [x] Define `requires_human_approval`.
-* [x] Define `requires_risk_governor`.
-* [x] Define `audit_required`.
+* [X] Create `tools/registry.py`.
+* [X] Define `ToolDefinition`.
+* [X] Define `name`.
+* [X] Define `description`.
+* [X] Define `input_schema`.
+* [X] Define `output_schema`.
+* [X] Define `risk_level`.
+* [X] Define `permission_required`.
+* [X] Define `requires_human_approval`.
+* [X] Define `requires_risk_governor`.
+* [X] Define `audit_required`.
 
 ### 5.2 Register read-only tools first
 
-* [x] `get_symbol_data`.
-* [x] `get_latest_ohlcv`.
-* [x] `get_strategy`.
-* [x] `list_strategies`.
-* [x] `get_backtest_result`.
-* [x] `get_analytics_summary`.
-* [x] `get_open_positions`.
-* [x] `get_account_snapshot`.
-* [x] `get_risk_snapshot`.
+* [X] `get_symbol_data`.
+* [X] `get_latest_ohlcv`.
+* [X] `get_strategy`.
+* [X] `list_strategies`.
+* [X] `get_backtest_result`.
+* [X] `get_analytics_summary`.
+* [X] `get_open_positions`.
+* [X] `get_account_snapshot`.
+* [X] `get_risk_snapshot`.
 
 ### 5.3 Register write tools second
 
-* [x] `create_strategy_spec`.
-* [x] `save_strategy_code`.
-* [x] `run_backtest`.
-* [x] `run_optimization`.
-* [x] `run_robustness_test`.
-* [x] `create_risk_review`.
-* [x] `create_report`.
-* [x] `start_paper_trading`.
+* [X] `create_strategy_spec`.
+* [X] `save_strategy_code`.
+* [X] `run_backtest`.
+* [X] `run_optimization`.
+* [X] `run_robustness_test`.
+* [X] `create_risk_review`.
+* [X] `create_report`.
+* [X] `start_paper_trading`.
 
 ### 5.4 Register critical tools last
 
-* [x] `request_live_activation`.
-* [x] `create_trade_proposal`.
-* [x] `request_risk_approval`.
-* [x] `place_paper_order`.
-* [x] `place_live_order`.
-* [x] `close_live_position`.
-* [x] `pause_strategy`.
-* [x] `disable_live_trading`.
-* [x] `trigger_kill_switch`.
+* [X] `request_live_activation`.
+* [X] `create_trade_proposal`.
+* [X] `request_risk_approval`.
+* [X] `place_paper_order`.
+* [X] `place_live_order`.
+* [X] `close_live_position`.
+* [X] `pause_strategy`.
+* [X] `disable_live_trading`.
+* [X] `trigger_kill_switch`.
 
 ### 5.5 Enforce permission checks
 
-* [x] Create `agents/permissions.py`.
-* [x] Map agents to allowed tools.
-* [x] Block tool calls not explicitly allowed.
-* [x] Block critical tools without approval.
-* [x] Block execution tools without RiskGovernor approval.
-* [x] Log every blocked attempt.
+* [X] Create `agents/permissions.py`.
+* [X] Map agents to allowed tools.
+* [X] Block tool calls not explicitly allowed.
+* [X] Block critical tools without approval.
+* [X] Block execution tools without RiskGovernor approval.
+* [X] Log every blocked attempt.
 
 ### Phase 5 implementation note
 
@@ -512,7 +512,7 @@ Agents cannot call arbitrary code. Every capability is permissioned, typed, logg
 
 ---
 
-# Phase 6 — Agent control plane
+# Phase 6 â€” Agent control plane
 
 ## Goal
 
@@ -522,72 +522,72 @@ Create the orchestration layer that manages agents like a firm.
 
 Phases 3, 4, and 5 complete.
 
-ADK supports predictable workflow pipelines, dynamic routing, specialized multi-agent teams, tool integration, and evaluation workflows; use that style for HaruQuant’s agent control plane. ([Google Cloud Documentation][4])
+ADK supports predictable workflow pipelines, dynamic routing, specialized multi-agent teams, tool integration, and evaluation workflows; use that style for HaruQuantâ€™s agent control plane. ([Google Cloud Documentation][4])
 
 ## Checklist
 
 ### 6.1 Create agent registry
 
-* [x] Create `agents/agent_registry.py`.
-* [x] Register CEO Agent.
-* [x] Register Planner Agent.
-* [x] Register Research Agent.
-* [x] Register Strategy Creator Agent.
-* [x] Register Strategy Reviewer Agent.
-* [x] Register Backtest Agent.
-* [x] Register Risk Reviewer Agent.
-* [x] Register Performance Reporter Agent.
-* [x] Register Audit Agent.
+* [X] Create `agents/agent_registry.py`.
+* [X] Register CEO Agent.
+* [X] Register Planner Agent.
+* [X] Register Research Agent.
+* [X] Register Strategy Creator Agent.
+* [X] Register Strategy Reviewer Agent.
+* [X] Register Backtest Agent.
+* [X] Register Risk Reviewer Agent.
+* [X] Register Performance Reporter Agent.
+* [X] Register Audit Agent.
 
 ### 6.2 Create task manager
 
-* [x] Create `agents/task_manager.py`.
-* [x] Add `create_task`.
-* [x] Add `assign_task`.
-* [x] Add `start_task`.
-* [x] Add `complete_task`.
-* [x] Add `fail_task`.
-* [x] Add `block_task`.
-* [x] Add `create_child_task`.
-* [x] Add `get_task_tree`.
-* [x] Add task status transitions.
+* [X] Create `agents/task_manager.py`.
+* [X] Add `create_task`.
+* [X] Add `assign_task`.
+* [X] Add `start_task`.
+* [X] Add `complete_task`.
+* [X] Add `fail_task`.
+* [X] Add `block_task`.
+* [X] Add `create_child_task`.
+* [X] Add `get_task_tree`.
+* [X] Add task status transitions.
 
 ### 6.3 Create orchestration service
 
-* [x] Create `agents/orchestrator.py`.
-* [x] Accept user request.
-* [x] Call Planner.
-* [x] Create parent task.
-* [x] Create child tasks.
-* [x] Dispatch to agents.
-* [x] Collect outputs.
-* [x] Validate evidence.
-* [x] Produce final response.
-* [x] Write audit record.
+* [X] Create `agents/orchestrator.py`.
+* [X] Accept user request.
+* [X] Call Planner.
+* [X] Create parent task.
+* [X] Create child tasks.
+* [X] Dispatch to agents.
+* [X] Collect outputs.
+* [X] Validate evidence.
+* [X] Produce final response.
+* [X] Write audit record.
 
 ### 6.4 Create agent base class
 
-* [x] Create `agents/base.py`.
-* [x] Add `agent_name`.
-* [x] Add `role`.
-* [x] Add `allowed_tools`.
-* [x] Add `run`.
-* [x] Add `plan`.
-* [x] Add `act`.
-* [x] Add `observe`.
-* [x] Add `evaluate`.
-* [x] Add `finalize`.
-* [x] Add standard error handling.
+* [X] Create `agents/base.py`.
+* [X] Add `agent_name`.
+* [X] Add `role`.
+* [X] Add `allowed_tools`.
+* [X] Add `run`.
+* [X] Add `plan`.
+* [X] Add `act`.
+* [X] Add `observe`.
+* [X] Add `evaluate`.
+* [X] Add `finalize`.
+* [X] Add standard error handling.
 
 ### 6.5 Add execution trace
 
-* [x] Store planner result.
-* [x] Store agent instructions.
-* [x] Store tool calls.
-* [x] Store observations.
-* [x] Store final decisions.
-* [x] Store evidence refs.
-* [x] Store failure reasons.
+* [X] Store planner result.
+* [X] Store agent instructions.
+* [X] Store tool calls.
+* [X] Store observations.
+* [X] Store final decisions.
+* [X] Store evidence refs.
+* [X] Store failure reasons.
 
 ### Phase 6 implementation note
 
@@ -616,7 +616,7 @@ A user request can enter the CEO Agent, get planned, delegated, executed, audite
 
 ---
 
-# Phase 7 — CEO Agent and Planner Agent
+# Phase 7 â€” CEO Agent and Planner Agent
 
 ## Goal
 
@@ -630,41 +630,41 @@ Phase 6 complete.
 
 ### 7.1 CEO Agent
 
-* [ ] Create `agents/ceo/agent.py`.
-* [ ] Add CEO system instructions.
-* [ ] Add firm constitution reference.
-* [ ] Add risk policy reference.
-* [ ] Add task delegation ability.
-* [ ] Add final investment memo format.
-* [ ] Add Board escalation rules.
-* [ ] Add refusal rules for unsafe requests.
-* [ ] Add evidence requirement.
+* [X] Create `agents/ceo.py`.
+* [X] Add CEO system instructions.
+* [X] Add firm constitution reference.
+* [X] Add risk policy reference.
+* [X] Add task delegation ability.
+* [X] Add final investment memo format.
+* [X] Add Board escalation rules.
+* [X] Add refusal rules for unsafe requests.
+* [X] Add evidence requirement.
 
 ### 7.2 Planner Agent
 
-* [ ] Create `agents/planner/agent.py`.
-* [ ] Implement structured planner output.
-* [ ] Support `strategy_creation`.
-* [ ] Support `backtest_diagnosis`.
-* [ ] Support `optimization_comparison`.
-* [ ] Support `risk_review`.
-* [ ] Support `execution_proposal`.
-* [ ] Support `research`.
-* [ ] Support `reporting`.
-* [ ] Support `page_action`.
-* [ ] Support `clarification`.
-* [ ] Support `governed_action_draft`.
+* [X] Create `agents/planner.py`.
+* [X] Implement structured planner output.
+* [X] Support `strategy_creation`.
+* [X] Support `backtest_diagnosis`.
+* [X] Support `optimization_comparison`.
+* [X] Support `risk_review`.
+* [X] Support `execution_proposal`.
+* [X] Support `research`.
+* [X] Support `reporting`.
+* [X] Support `page_action`.
+* [X] Support `clarification`.
+* [X] Support `governed_action_draft`.
 
 ### 7.3 CEO response templates
 
-* [ ] Create `agents/ceo/templates.py`.
-* [ ] Add research memo template.
-* [ ] Add strategy proposal template.
-* [ ] Add backtest report template.
-* [ ] Add risk memo template.
-* [ ] Add Board approval request template.
-* [ ] Add rejection template.
-* [ ] Add blocked-by-risk template.
+* [X] Create `agents/ceo_templates.py`.
+* [X] Add research memo template.
+* [X] Add strategy proposal template.
+* [X] Add backtest report template.
+* [X] Add risk memo template.
+* [X] Add Board approval request template.
+* [X] Add rejection template.
+* [X] Add blocked-by-risk template.
 
 ### Phase 7 implementation note
 
@@ -675,9 +675,20 @@ Usage examples:
 * Runnable script: `scripts/examples/agentic_ai/07_ceo_planner_agents.py`.
 * Documentation: `docs/agentic_firm/phase7_ceo_planner_usage_example.md`.
 
-### Phase 7.5 chatbot merge note
+Completed implementation:
 
-The AI chatbot is now bridged into the Agentic Firm architecture by default. Set `HARUQUANT_AGENTIC_FIRM_CHAT=false` or instantiate `AIGatewayService(agentic_firm_chat_enabled=False)` only when the legacy route is needed for comparison. `CEOChatOrchestrator` makes the chatbot speak through `CEOAgent`, the CEO planning engine, and `AgentControlPlaneOrchestrator`; legacy attached chat tools are treated as operator hints rather than authority grants; chat metadata now stores `firm_workflow_id`, parent task ID, child task IDs, audit ID, planner source, and CEO memo. Runnable script: `scripts/examples/agentic_ai/09_ceo_chat_bridge.py`.
+* Added canonical `agents/planner.py` with a Phase 7 route catalog, deterministic governance overrides, classifier extension point, and expanded `ConversationPlan` fields for `needs_clarification` and `planner_source`.
+* Added canonical `agents/ceo.py` with CEO/CIO-style system instructions, policy references, identity answers, generic answer synthesis, unsafe-request refusal, Board/RiskGovernor escalation, and final memo synthesis.
+* Added `agents/ceo_templates.py` for research, strategy, backtest, risk, Board approval, rejection, and blocked-by-risk memos.
+* Updated the control plane to use the Phase 7 planner and include the CEO memo in the final response and audit metadata.
+* Updated Phase 7 tests to use the canonical `agents` package and avoid retired backend paths.
+
+Validation:
+
+```text
+24 passed in 4.69s
+124 passed in 21.18s
+```
 
 ## Done definition
 
@@ -685,7 +696,7 @@ You can ask the CEO Agent for work, and it routes the task correctly without rel
 
 ---
 
-# Phase 8 — Research Department v1
+# Phase 8 â€” Research Department v1
 
 ## Goal
 
@@ -701,26 +712,26 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### 8.1 Market Intelligence Agent
 
-* [ ] Create `agents/research/market_intelligence_agent.py`.
-* [ ] Read symbol data.
-* [ ] Read volatility regimes.
-* [ ] Read spreads.
-* [ ] Read session behavior.
-* [ ] Detect trending/ranging/transition regimes.
-* [ ] Output market intelligence report.
-* [ ] Save report to evidence memory.
+* [X] Create `agents/research/market_intelligence_agent.py`.
+* [X] Read symbol data.
+* [X] Read volatility regimes.
+* [X] Read spreads.
+* [X] Read session behavior.
+* [X] Detect trending/ranging/transition regimes.
+* [X] Output market intelligence report.
+* [X] Save report to evidence memory.
 
 ### 8.2 Technical Analyst Agent
 
-* [ ] Create `agents/research/technical_analyst_agent.py`.
-* [ ] Compute indicator context.
-* [ ] Analyze trend.
-* [ ] Analyze volatility.
-* [ ] Analyze support/resistance.
-* [ ] Analyze mean-reversion suitability.
-* [ ] Analyze breakout suitability.
-* [ ] Analyze trend-following suitability.
-* [ ] Output technical analysis report.
+* [X] Create `agents/research/technical_analyst_agent.py`.
+* [X] Compute indicator context.
+* [X] Analyze trend.
+* [X] Analyze volatility.
+* [X] Analyze support/resistance.
+* [X] Analyze mean-reversion suitability.
+* [X] Analyze breakout suitability.
+* [X] Analyze trend-following suitability.
+* [X] Output technical analysis report.
 
 ### 8.3 Strategy Scout Agent
 
@@ -757,7 +768,7 @@ The CEO can ask for strategy ideas, and the Research Department returns structur
 
 ---
 
-# Phase 9 — Strategy Creation Department
+# Phase 9 â€” Strategy Creation Department
 
 ## Goal
 
@@ -771,47 +782,47 @@ Phase 8 complete.
 
 ### 9.1 Strategy Creator Agent
 
-* [ ] Create `agents/strategy_creator/agent.py`.
-* [ ] Convert natural language requests into `StrategySpec`.
-* [ ] Support symbol.
-* [ ] Support timeframe.
-* [ ] Support entry logic.
-* [ ] Support exit logic.
-* [ ] Support position sizing.
-* [ ] Support risk assumptions.
-* [ ] Support data requirements.
-* [ ] Support cost assumptions.
-* [ ] Support invalidation rules.
-* [ ] Support test plan.
+* [X] Create `agents/strategy_creator.py`.
+* [X] Convert natural language requests into `StrategySpec`.
+* [X] Support symbol.
+* [X] Support timeframe.
+* [X] Support entry logic.
+* [X] Support exit logic.
+* [X] Support position sizing.
+* [X] Support risk assumptions.
+* [X] Support data requirements.
+* [X] Support cost assumptions.
+* [X] Support invalidation rules.
+* [X] Support test plan.
 
 ### 9.2 Strategy Spec Validator
 
-* [ ] Create `agents/strategy_creator/validator.py`.
-* [ ] Reject missing symbol.
-* [ ] Reject missing timeframe.
-* [ ] Reject untestable strategy.
-* [ ] Reject vague entry rules.
-* [ ] Reject vague exit rules.
-* [ ] Reject missing cost assumptions.
-* [ ] Reject missing data requirements.
-* [ ] Reject impossible live conditions.
-* [ ] Reject future-looking rules.
+* [X] Create `agents/strategy_validator.py`.
+* [X] Reject missing symbol.
+* [X] Reject missing timeframe.
+* [X] Reject untestable strategy.
+* [X] Reject vague entry rules.
+* [X] Reject vague exit rules.
+* [X] Reject missing cost assumptions.
+* [X] Reject missing data requirements.
+* [X] Reject impossible live conditions.
+* [X] Reject future-looking rules.
 
 ### 9.3 Strategy Spec Storage
 
-* [ ] Save spec to database.
-* [ ] Save spec to `memory/strategies/`.
-* [ ] Version each spec.
-* [ ] Link spec to research evidence.
-* [ ] Assign lifecycle state `spec`.
+* [X] Save spec to database.
+* [X] Save spec to `memory/strategies/`.
+* [X] Version each spec.
+* [X] Link spec to research evidence.
+* [X] Assign lifecycle state `spec`.
 
 ## Done definition
 
-A request like “create a EURUSD H1 mean-reversion strategy” becomes a structured YAML/JSON strategy spec that can be reviewed and coded.
+A request like â€œcreate a EURUSD H1 mean-reversion strategyâ€ becomes a structured YAML/JSON strategy spec that can be reviewed and coded.
 
 ---
 
-# Phase 10 — Strategy Review Department
+# Phase 10 â€” Strategy Review Department
 
 ## Goal
 
@@ -825,27 +836,27 @@ Phase 9 complete.
 
 ### 10.1 Strategy Reviewer Agent
 
-* [ ] Create `agents/strategy_reviewer/agent.py`.
-* [ ] Check lookahead bias.
-* [ ] Check repainting risk.
-* [ ] Check indicator warmup.
-* [ ] Check data leakage.
-* [ ] Check parameter count.
-* [ ] Check curve-fit risk.
-* [ ] Check live feasibility.
-* [ ] Check spread/slippage realism.
-* [ ] Check session/timezone logic.
-* [ ] Check order execution assumptions.
-* [ ] Check compatibility with RiskGovernor.
-* [ ] Output `approved`, `rejected`, or `needs_revision`.
+* [X] Create `agents/strategy_reviewer.py`.
+* [X] Check lookahead bias.
+* [X] Check repainting risk.
+* [X] Check indicator warmup.
+* [X] Check data leakage.
+* [X] Check parameter count.
+* [X] Check curve-fit risk.
+* [X] Check live feasibility.
+* [X] Check spread/slippage realism.
+* [X] Check session/timezone logic.
+* [X] Check order execution assumptions.
+* [X] Check compatibility with RiskGovernor.
+* [X] Output `approved`, `rejected`, or `needs_revision`.
 
 ### 10.2 Review report storage
 
-* [ ] Save review to database.
-* [ ] Save review to `reports/strategy_reviews/`.
-* [ ] Link review to strategy spec.
-* [ ] Update lifecycle status.
-* [ ] Block code generation if rejected.
+* [X] Save review to database.
+* [X] Save review to `reports/strategy_reviews/`.
+* [X] Link review to strategy spec.
+* [X] Update lifecycle status.
+* [X] Block code generation if rejected.
 
 ## Done definition
 
@@ -853,7 +864,7 @@ No strategy reaches code generation without a formal review.
 
 ---
 
-# Phase 11 — Strategy Codegen Department
+# Phase 11 â€” Strategy Codegen Department
 
 ## Goal
 
@@ -867,41 +878,41 @@ Phase 10 complete.
 
 ### 11.1 Codegen Agent
 
-* [ ] Create `agents/codegen/agent.py`.
-* [ ] Generate strategy class from `BaseStrategy`.
-* [ ] Implement `on_init`.
-* [ ] Implement `on_bar`.
-* [ ] Implement `on_tick` only if needed.
-* [ ] Implement static signal columns if needed.
-* [ ] Add indicator warmup handling.
-* [ ] Add no-lookahead safeguards.
-* [ ] Add config parameters.
-* [ ] Add docstring.
-* [ ] Add logging.
-* [ ] Add type hints.
+* [X] Create `agents/codegen.py`.
+* [X] Generate strategy class from `BaseStrategy`.
+* [X] Implement `on_init`.
+* [X] Implement `on_bar`.
+* [X] Implement `on_tick` only if needed.
+* [X] Implement static signal columns if needed.
+* [X] Add indicator warmup handling.
+* [X] Add no-lookahead safeguards.
+* [X] Add config parameters.
+* [X] Add docstring.
+* [X] Add logging.
+* [X] Add type hints.
 
 ### 11.2 Strategy tests
 
-* [ ] Generate unit tests.
-* [ ] Test signal generation.
-* [ ] Test no signal before warmup.
-* [ ] Test long entry.
-* [ ] Test short entry.
-* [ ] Test exit.
-* [ ] Test no future data access.
-* [ ] Test invalid parameters.
-* [ ] Test empty data.
-* [ ] Test missing columns.
+* [X] Generate unit tests.
+* [X] Test signal generation.
+* [X] Test no signal before warmup.
+* [X] Test long entry.
+* [X] Test short entry.
+* [X] Test exit.
+* [X] Test no future data access.
+* [X] Test invalid parameters.
+* [X] Test empty data.
+* [X] Test missing columns.
 
 ### 11.3 Code review gate
 
-* [ ] Run formatter.
-* [ ] Run linter.
-* [ ] Run tests.
-* [ ] Run static safety checks.
-* [ ] Require passing tests before backtest.
-* [ ] Store code version hash.
-* [ ] Link code hash to strategy spec.
+* [X] Run formatter.
+* [X] Run linter.
+* [X] Run tests.
+* [X] Run static safety checks.
+* [X] Require passing tests before backtest.
+* [X] Store code version hash.
+* [X] Link code hash to strategy spec.
 
 ## Done definition
 
@@ -909,11 +920,11 @@ Every generated strategy is testable, versioned, and linked to a reviewed spec.
 
 ---
 
-# Phase 12 — Backtest Department v1
+# Phase 12 â€” Simulation Department v1
 
 ## Goal
 
-Run reproducible historical tests using HaruQuant’s engine.
+Run reproducible historical tests using HaruQuantâ€™s engine.
 
 ## Dependency
 
@@ -923,57 +934,57 @@ Phase 11 complete.
 
 ### 12.1 Backtest Agent
 
-* [ ] Create `agents/backtest/agent.py`.
-* [ ] Accept `BacktestRequest`.
-* [ ] Validate data availability.
-* [ ] Validate strategy code hash.
-* [ ] Validate backtest period.
-* [ ] Validate initial balance.
-* [ ] Validate commission.
-* [ ] Validate spread.
-* [ ] Validate slippage.
-* [ ] Validate execution mode.
-* [ ] Run backtest.
-* [ ] Save trades.
-* [ ] Save orders.
-* [ ] Save deals.
-* [ ] Save equity curve.
-* [ ] Save metrics.
-* [ ] Save config.
-* [ ] Save logs.
+* [X] Create `agents/backtest.py`.
+* [X] Accept `BacktestRequest`.
+* [X] Validate data availability.
+* [X] Validate strategy code hash.
+* [X] Validate backtest period.
+* [X] Validate initial balance.
+* [X] Validate commission.
+* [X] Validate spread.
+* [X] Validate slippage.
+* [X] Validate execution mode.
+* [X] Run backtest.
+* [X] Save trades.
+* [X] Save orders.
+* [X] Save deals.
+* [X] Save equity curve.
+* [X] Save metrics.
+* [X] Save config.
+* [X] Save logs.
 
 ### 12.2 Analytics integration
 
-* [ ] Call `metrics.py`.
-* [ ] Call `returns.py`.
-* [ ] Call `drawdowns.py`.
-* [ ] Call `ratios.py`.
-* [ ] Call `risks.py`.
-* [ ] Call `efficiency.py`.
-* [ ] Call `distributions.py`.
-* [ ] Call `benchmark.py`.
-* [ ] Call `statistical_tests.py`.
+* [X] Call `metrics.py`.
+* [X] Call `returns.py`.
+* [X] Call `drawdowns.py`.
+* [X] Call `ratios.py`.
+* [X] Call `risks.py`.
+* [X] Call `efficiency.py`.
+* [X] Call `distributions.py`.
+* [X] Call `benchmark.py`.
+* [X] Call `statistical_tests.py`.
 
 ### 12.3 Backtest result package
 
-* [ ] Create `backtests/runs/<run_id>/config.yaml`.
-* [ ] Create `backtests/runs/<run_id>/trades.parquet`.
-* [ ] Create `backtests/runs/<run_id>/orders.parquet`.
-* [ ] Create `backtests/runs/<run_id>/deals.parquet`.
-* [ ] Create `backtests/runs/<run_id>/equity_curve.parquet`.
-* [ ] Create `backtests/runs/<run_id>/metrics.json`.
-* [ ] Create `backtests/runs/<run_id>/report.md`.
-* [ ] Create `backtests/runs/<run_id>/audit.json`.
+* [X] Create `backtests/runs/<run_id>/config.yaml`.
+* [X] Create `backtests/runs/<run_id>/trades.parquet`.
+* [X] Create `backtests/runs/<run_id>/orders.parquet`.
+* [X] Create `backtests/runs/<run_id>/deals.parquet`.
+* [X] Create `backtests/runs/<run_id>/equity_curve.parquet`.
+* [X] Create `backtests/runs/<run_id>/metrics.json`.
+* [X] Create `backtests/runs/<run_id>/report.md`.
+* [X] Create `backtests/runs/<run_id>/audit.json`.
 
 ### 12.4 Backtest acceptance rules
 
-* [ ] Reject if too few trades.
-* [ ] Reject if profit comes from one trade.
-* [ ] Reject if long/short split is unstable.
-* [ ] Reject if OOS is much worse than IS.
-* [ ] Reject if drawdown exceeds policy.
-* [ ] Reject if costs destroy edge.
-* [ ] Reject if results cannot be reproduced.
+* [X] Reject if too few trades.
+* [X] Reject if profit comes from one trade.
+* [X] Reject if long/short split is unstable.
+* [X] Reject if OOS is much worse than IS.
+* [X] Reject if drawdown exceeds policy.
+* [X] Reject if costs destroy edge.
+* [X] Reject if results cannot be reproduced.
 
 ## Done definition
 
@@ -981,7 +992,7 @@ A strategy can be tested and produce a full, immutable evidence package.
 
 ---
 
-# Phase 13 — Backtest Analyst and Diagnosis Agent
+# Phase 13 â€” Backtest Analyst and Diagnosis Agent
 
 ## Goal
 
@@ -995,27 +1006,27 @@ Phase 12 complete.
 
 ### 13.1 Backtest Analyst Agent
 
-* [ ] Create `agents/backtest/backtest_analyst_agent.py`.
-* [ ] Analyze equity curve.
-* [ ] Analyze drawdowns.
-* [ ] Analyze monthly performance.
-* [ ] Analyze trade distribution.
-* [ ] Analyze long vs short.
-* [ ] Analyze session performance.
-* [ ] Analyze symbol/timeframe suitability.
-* [ ] Analyze cost sensitivity.
-* [ ] Analyze regime dependency.
-* [ ] Output improvement recommendations.
+* [X] Create `agents/backtest_analyst_agent.py`.
+* [X] Analyze equity curve.
+* [X] Analyze drawdowns.
+* [X] Analyze monthly performance.
+* [X] Analyze trade distribution.
+* [X] Analyze long vs short.
+* [X] Analyze session performance.
+* [X] Analyze symbol/timeframe suitability.
+* [X] Analyze cost sensitivity.
+* [X] Analyze regime dependency.
+* [X] Output improvement recommendations.
 
 ### 13.2 Diagnosis outputs
 
-* [ ] `edge_quality`.
-* [ ] `failure_modes`.
-* [ ] `risk_concerns`.
-* [ ] `parameter_concerns`.
-* [ ] `market_regime_dependency`.
-* [ ] `recommended_changes`.
-* [ ] `deployment_recommendation`.
+* [X] `edge_quality`.
+* [X] `failure_modes`.
+* [X] `risk_concerns`.
+* [X] `parameter_concerns`.
+* [X] `market_regime_dependency`.
+* [X] `recommended_changes`.
+* [X] `deployment_recommendation`.
 
 ## Done definition
 
@@ -1023,7 +1034,7 @@ HaruQuant does not just produce metrics; it explains strategy behavior.
 
 ---
 
-# Phase 14 — Optimization Comparator
+# Phase 14 â€” Optimization Comparator
 
 ## Goal
 
@@ -1037,24 +1048,24 @@ Phase 12 complete.
 
 ### 14.1 Optimization Agent
 
-* [ ] Create `app/agents/optimization/agent.py`.
-* [ ] Run parameter sweeps.
-* [ ] Run walk-forward optimization if enabled.
-* [ ] Save optimization grid.
-* [ ] Save each run result.
-* [ ] Save parameter set metadata.
+* [X] Create `agents/optimization.py`.
+* [X] Run parameter sweeps.
+* [X] Run walk-forward optimization if enabled.
+* [X] Save optimization grid.
+* [X] Save each run result.
+* [X] Save parameter set metadata.
 
 ### 14.2 Comparator Agent
 
-* [ ] Create `agents/optimization/comparator_agent.py`.
-* [ ] Compare best result.
-* [ ] Compare stable regions.
-* [ ] Compare IS vs OOS.
-* [ ] Detect parameter cliffs.
-* [ ] Detect fragile settings.
-* [ ] Prefer robust clusters.
-* [ ] Reject isolated best settings.
-* [ ] Output recommended candidate parameters.
+* [X] Create `agents/optimization_comparator.py`.
+* [X] Compare best result.
+* [X] Compare stable regions.
+* [X] Compare IS vs OOS.
+* [X] Detect parameter cliffs.
+* [X] Detect fragile settings.
+* [X] Prefer robust clusters.
+* [X] Reject isolated best settings.
+* [X] Output recommended candidate parameters.
 
 ## Done definition
 
@@ -1062,7 +1073,7 @@ The system recommends robust parameter regions, not the prettiest overfit result
 
 ---
 
-# Phase 15 — Robustness Department
+# Phase 15 â€” Robustness Department
 
 ## Goal
 
@@ -1076,34 +1087,34 @@ Phases 12 and 14 complete.
 
 ### 15.1 Robustness Agent
 
-* [ ] Create `agents/robustness/agent.py`.
-* [ ] Run second OOS test.
-* [ ] Run spread stress test.
-* [ ] Run slippage stress test.
-* [ ] Run commission stress test.
-* [ ] Run swap stress test.
-* [ ] Run cross-market test.
-* [ ] Run cross-timeframe test.
-* [ ] Run Monte Carlo trade-order randomization.
-* [ ] Run Monte Carlo trade resampling.
-* [ ] Run Monte Carlo skipped trades.
-* [ ] Run Monte Carlo parameter randomization.
-* [ ] Run randomized history test.
-* [ ] Run combined Monte Carlo.
-* [ ] Run final full-period confirmation.
+* [X] Create `agents/robustness.py`.
+* [X] Run second OOS test.
+* [X] Run spread stress test.
+* [X] Run slippage stress test.
+* [X] Run commission stress test.
+* [X] Run swap stress test.
+* [X] Run cross-market test.
+* [X] Run cross-timeframe test.
+* [X] Run Monte Carlo trade-order randomization.
+* [X] Run Monte Carlo trade resampling.
+* [X] Run Monte Carlo skipped trades.
+* [X] Run Monte Carlo parameter randomization.
+* [X] Run randomized history test.
+* [X] Run combined Monte Carlo.
+* [X] Run final full-period confirmation.
 
 ### 15.2 Robustness scorecard
 
-* [ ] Create `app/agents/robustness/scorecard.py`.
-* [ ] Score profitability durability.
-* [ ] Score drawdown durability.
-* [ ] Score parameter stability.
-* [ ] Score OOS stability.
-* [ ] Score cost tolerance.
-* [ ] Score trade-count quality.
-* [ ] Score regime stability.
-* [ ] Score Monte Carlo survival.
-* [ ] Produce pass/fail/needs-review.
+* [X] Create `agents/robustness_scorecard.py`.
+* [X] Score profitability durability.
+* [X] Score drawdown durability.
+* [X] Score parameter stability.
+* [X] Score OOS stability.
+* [X] Score cost tolerance.
+* [X] Score trade-count quality.
+* [X] Score regime stability.
+* [X] Score Monte Carlo survival.
+* [X] Produce pass/fail/needs-review.
 
 ## Done definition
 
@@ -1111,7 +1122,7 @@ No strategy reaches paper trading from a single backtest.
 
 ---
 
-# Phase 16 — Statistical Validation Department
+# Phase 16 â€” Statistical Validation Department
 
 ## Goal
 
@@ -1125,33 +1136,33 @@ Phase 12 complete; ideally Phase 15 complete.
 
 ### 16.1 Statistical Validation Agent
 
-* [ ] Create `agents/statistical_validation/agent.py`.
-* [ ] Check minimum sample size.
-* [ ] Run bootstrap confidence intervals.
-* [ ] Run permutation/randomization tests.
-* [ ] Check monthly stability.
-* [ ] Check regime stability.
-* [ ] Check return distribution.
-* [ ] Check skew/kurtosis.
-* [ ] Check tail risk.
-* [ ] Check benchmark alpha.
-* [ ] Check probability of ruin.
-* [ ] Output evidence quality rating.
+* [X] Create `agents/statistical_validation.py`.
+* [X] Check minimum sample size.
+* [X] Run bootstrap confidence intervals.
+* [X] Run permutation/randomization tests.
+* [X] Check monthly stability.
+* [X] Check regime stability.
+* [X] Check return distribution.
+* [X] Check skew/kurtosis.
+* [X] Check tail risk.
+* [X] Check benchmark alpha.
+* [X] Check probability of ruin.
+* [X] Output evidence quality rating.
 
 ### 16.2 Evidence rating
 
-* [ ] `weak`
-* [ ] `moderate`
-* [ ] `strong`
-* [ ] `institutional_grade`
+* [X] `weak`
+* [X] `moderate`
+* [X] `strong`
+* [X] `institutional_grade`
 
 ## Done definition
 
-The system can say, “profitable but not statistically convincing,” which is critical.
+The system can say, â€œprofitable but not statistically convincing,â€ which is critical.
 
 ---
 
-# Phase 17 — RiskGovernor service
+# Phase 17 â€” RiskGovernor service
 
 ## Goal
 
@@ -1167,49 +1178,49 @@ TradingAgents includes risk-management agents that monitor exposure and ensure t
 
 ### 17.1 RiskGovernor core
 
-* [ ] Create `risk/governor.py`.
-* [ ] Load `configs/risk_thresholds.yaml`.
-* [ ] Validate risk config hash.
-* [ ] Calculate proposed trade risk.
-* [ ] Calculate open portfolio exposure.
-* [ ] Calculate symbol exposure.
-* [ ] Calculate currency-cluster exposure.
-* [ ] Calculate margin impact.
-* [ ] Calculate VaR impact.
-* [ ] Calculate CVaR impact.
-* [ ] Calculate correlation impact.
-* [ ] Calculate drawdown state.
-* [ ] Calculate daily loss state.
-* [ ] Approve or reject proposal.
-* [ ] Return signed approval token.
+* [X] Create `risk/governor.py`.
+* [X] Load `configs/risk_thresholds.yaml`.
+* [X] Validate risk config hash.
+* [X] Calculate proposed trade risk.
+* [X] Calculate open portfolio exposure.
+* [X] Calculate symbol exposure.
+* [X] Calculate currency-cluster exposure.
+* [X] Calculate margin impact.
+* [X] Calculate VaR impact.
+* [X] Calculate CVaR impact.
+* [X] Calculate correlation impact.
+* [X] Calculate drawdown state.
+* [X] Calculate daily loss state.
+* [X] Approve or reject proposal.
+* [X] Return signed approval token.
 
 ### 17.2 Risk rules
 
-* [ ] Max risk per trade.
-* [ ] Max daily loss.
-* [ ] Max weekly loss.
-* [ ] Max portfolio drawdown.
-* [ ] Max strategy drawdown.
-* [ ] Max symbol concentration.
-* [ ] Max correlated exposure.
-* [ ] Max total margin usage.
-* [ ] Max open positions.
-* [ ] Max live strategies.
-* [ ] Spread limit.
-* [ ] Slippage limit.
-* [ ] News block.
-* [ ] Broker anomaly block.
+* [X] Max risk per trade.
+* [X] Max daily loss.
+* [X] Max weekly loss.
+* [X] Max portfolio drawdown.
+* [X] Max strategy drawdown.
+* [X] Max symbol concentration.
+* [X] Max correlated exposure.
+* [X] Max total margin usage.
+* [X] Max open positions.
+* [X] Max live strategies.
+* [X] Spread limit.
+* [X] Slippage limit.
+* [X] News block.
+* [X] Broker anomaly block.
 
 ### 17.3 Risk approval token
 
-* [ ] Add `approval_id`.
-* [ ] Add `proposal_id`.
-* [ ] Add approved size.
-* [ ] Add expiration time.
-* [ ] Add risk metrics snapshot.
-* [ ] Add config version hash.
-* [ ] Add signature/hash.
-* [ ] Add audit record.
+* [X] Add `approval_id`.
+* [X] Add `proposal_id`.
+* [X] Add approved size.
+* [X] Add expiration time.
+* [X] Add risk metrics snapshot.
+* [X] Add config version hash.
+* [X] Add signature/hash.
+* [X] Add audit record.
 
 ## Done definition
 
@@ -1217,7 +1228,7 @@ No order can execute without RiskGovernor approval.
 
 ---
 
-# Phase 18 — Risk Reviewer Agent
+# Phase 18 â€” Risk Reviewer Agent
 
 ## Goal
 
@@ -1231,29 +1242,29 @@ Phase 17 complete.
 
 ### 18.1 Risk Reviewer Agent
 
-* [ ] Create `agents/risk_reviewer/agent.py`.
-* [ ] Read strategy evidence.
-* [ ] Read backtest result.
-* [ ] Read robustness result.
-* [ ] Read portfolio exposure.
-* [ ] Read RiskGovernor output.
-* [ ] Explain key risks.
-* [ ] Explain rejection reasons.
-* [ ] Recommend reduce/hold/pause/promote.
-* [ ] Produce risk memo.
+* [X] Create `agents/risk_reviewer.py`.
+* [X] Read strategy evidence.
+* [X] Read backtest result.
+* [X] Read robustness result.
+* [X] Read portfolio exposure.
+* [X] Read RiskGovernor output.
+* [X] Explain key risks.
+* [X] Explain rejection reasons.
+* [X] Recommend reduce/hold/pause/promote.
+* [X] Produce risk memo.
 
 ### 18.2 Risk memo format
 
-* [ ] Strategy summary.
-* [ ] Evidence reviewed.
-* [ ] Key risk metrics.
-* [ ] Portfolio impact.
-* [ ] Correlation concerns.
-* [ ] Drawdown concerns.
-* [ ] Cost concerns.
-* [ ] Failure modes.
-* [ ] Recommendation.
-* [ ] Required Board action, if any.
+* [X] Strategy summary.
+* [X] Evidence reviewed.
+* [X] Key risk metrics.
+* [X] Portfolio impact.
+* [X] Correlation concerns.
+* [X] Drawdown concerns.
+* [X] Cost concerns.
+* [X] Failure modes.
+* [X] Recommendation.
+* [X] Required Board action, if any.
 
 ## Done definition
 
@@ -1261,7 +1272,7 @@ Risk decisions become understandable, auditable, and explainable.
 
 ---
 
-# Phase 19 — Paper trading engine
+# Phase 19 â€” Paper trading engine
 
 ## Goal
 
@@ -1275,42 +1286,42 @@ Phases 12, 15, 17, and 18 complete.
 
 ### 19.1 Paper broker
 
-* [ ] Create `execution/paper_broker.py`.
-* [ ] Simulate market orders.
-* [ ] Simulate limit orders.
-* [ ] Simulate stop orders.
-* [ ] Simulate spread.
-* [ ] Simulate slippage.
-* [ ] Simulate commission.
-* [ ] Simulate swap.
-* [ ] Track open positions.
-* [ ] Track realized P&L.
-* [ ] Track unrealized P&L.
-* [ ] Track equity.
-* [ ] Track margin.
-* [ ] Save execution logs.
+* [X] Create `execution/paper_broker.py`.
+* [X] Simulate market orders.
+* [X] Simulate limit orders.
+* [X] Simulate stop orders.
+* [X] Simulate spread.
+* [X] Simulate slippage.
+* [X] Simulate commission.
+* [X] Simulate swap.
+* [X] Track open positions.
+* [X] Track realized P&L.
+* [X] Track unrealized P&L.
+* [X] Track equity.
+* [X] Track margin.
+* [X] Save execution logs.
 
 ### 19.2 Paper Execution Agent
 
-* [ ] Create `agents/execution/paper_execution_agent.py`.
-* [ ] Accept approved paper strategy.
-* [ ] Run signal checks.
-* [ ] Create trade proposal.
-* [ ] Call RiskGovernor in paper mode.
-* [ ] Place paper order.
-* [ ] Log result.
-* [ ] Report anomalies.
+* [X] Create `agents/paper_execution.py`.
+* [X] Accept approved paper strategy.
+* [X] Run signal checks.
+* [X] Create trade proposal.
+* [X] Call RiskGovernor in paper mode.
+* [X] Place paper order.
+* [X] Log result.
+* [X] Report anomalies.
 
 ### 19.3 Paper trading promotion criteria
 
-* [ ] Minimum 30 trading days.
-* [ ] Minimum trade count.
-* [ ] Max drawdown within limit.
-* [ ] Slippage within expected range.
-* [ ] Live-like spread assumptions.
-* [ ] No execution anomalies.
-* [ ] No RiskGovernor violations.
-* [ ] Performance within expected confidence interval.
+* [X] Minimum 30 trading days.
+* [X] Minimum trade count.
+* [X] Max drawdown within limit.
+* [X] Slippage within expected range.
+* [X] Live-like spread assumptions.
+* [X] No execution anomalies.
+* [X] No RiskGovernor violations.
+* [X] Performance within expected confidence interval.
 
 ## Done definition
 
@@ -1318,7 +1329,7 @@ A strategy can run in paper mode with full risk checks and full audit logs.
 
 ---
 
-# Phase 20 — Performance Reporter Agent
+# Phase 20 â€” Performance Reporter Agent
 
 ## Goal
 
@@ -1332,39 +1343,39 @@ Phase 19 complete.
 
 ### 20.1 Daily report
 
-* [ ] Create `agents/performance_reporter/daily_agent.py`.
-* [ ] Report daily P&L.
-* [ ] Report open exposure.
-* [ ] Report drawdown.
-* [ ] Report trade count.
-* [ ] Report strategy health.
-* [ ] Report rejected trades.
-* [ ] Report RiskGovernor blocks.
-* [ ] Report execution anomalies.
-* [ ] Report next actions.
+* [X] Create `agents/performance_reporter/daily_agent.py`.
+* [X] Report daily P&L.
+* [X] Report open exposure.
+* [X] Report drawdown.
+* [X] Report trade count.
+* [X] Report strategy health.
+* [X] Report rejected trades.
+* [X] Report RiskGovernor blocks.
+* [X] Report execution anomalies.
+* [X] Report next actions.
 
 ### 20.2 Weekly Board report
 
-* [ ] Create `app/agents/performance_reporter/weekly_board_agent.py`.
-* [ ] Summarize portfolio performance.
-* [ ] Summarize paper strategies.
-* [ ] Summarize live strategies.
-* [ ] Summarize new research.
-* [ ] Summarize backtests.
-* [ ] Summarize robustness tests.
-* [ ] Summarize risk events.
-* [ ] Summarize cost usage.
-* [ ] List decisions required from you.
+* [X] Create `app/agents/performance_reporter/weekly_board_agent.py`.
+* [X] Summarize portfolio performance.
+* [X] Summarize paper strategies.
+* [X] Summarize live strategies.
+* [X] Summarize new research.
+* [X] Summarize backtests.
+* [X] Summarize robustness tests.
+* [X] Summarize risk events.
+* [X] Summarize cost usage.
+* [X] List decisions required from you.
 
 ### 20.3 Monthly strategy review
 
-* [ ] Rank active strategies.
-* [ ] Rank paper strategies.
-* [ ] Identify underperformers.
-* [ ] Identify promotion candidates.
-* [ ] Identify retirement candidates.
-* [ ] Identify correlated strategy clusters.
-* [ ] Recommend allocation changes.
+* [X] Rank active strategies.
+* [X] Rank paper strategies.
+* [X] Identify underperformers.
+* [X] Identify promotion candidates.
+* [X] Identify retirement candidates.
+* [X] Identify correlated strategy clusters.
+* [X] Recommend allocation changes.
 
 ## Done definition
 
@@ -1372,7 +1383,7 @@ You can review the firm like a hedge-fund operator, not as a code debugger.
 
 ---
 
-# Phase 21 — Portfolio Manager Agent
+# Phase 21 â€” Portfolio Manager Agent
 
 ## Goal
 
@@ -1382,42 +1393,70 @@ Manage strategy allocation and portfolio composition.
 
 Phases 17 to 20 complete.
 
-TradingAgents uses a fund-manager approval workflow after analysts, researchers, trader, and risk agents contribute their views; HaruQuant’s Portfolio Manager should similarly approve allocation changes only after evidence and risk review are complete. ([tradingagents-ai.github.io][2])
+TradingAgents uses a fund-manager approval workflow after analysts, researchers, trader, and risk agents contribute their views; HaruQuantâ€™s Portfolio Manager should similarly approve allocation changes only after evidence and risk review are complete. ([tradingagents-ai.github.io][2])
 
 ## Checklist
 
 ### 21.1 Portfolio Manager Agent
 
-* [ ] Create `agents/portfolio_manager/agent.py`.
-* [ ] Read strategy lifecycle table.
-* [ ] Read live strategy performance.
-* [ ] Read paper strategy performance.
-* [ ] Read correlation matrix.
-* [ ] Read allocation limits.
-* [ ] Read RiskGovernor constraints.
-* [ ] Recommend strategy promotions.
-* [ ] Recommend strategy demotions.
-* [ ] Recommend capital allocation changes.
-* [ ] Recommend strategy retirement.
-* [ ] Require Board approval for live allocation changes.
+* [X] Create `agents/portfolio_manager.py`.
+* [X] Read strategy lifecycle table.
+* [X] Read live strategy performance.
+* [X] Read paper strategy performance.
+* [X] Read correlation matrix.
+* [X] Read allocation limits.
+* [X] Read RiskGovernor constraints.
+* [X] Recommend strategy promotions.
+* [X] Recommend strategy demotions.
+* [X] Recommend capital allocation changes.
+* [X] Recommend strategy retirement.
+* [X] Require Board approval for live allocation changes.
 
 ### 21.2 Portfolio decision types
 
-* [ ] `admit_to_paper`.
-* [ ] `reject_strategy`.
-* [ ] `promote_to_micro_live`.
-* [ ] `increase_allocation`.
-* [ ] `decrease_allocation`.
-* [ ] `pause_strategy`.
-* [ ] `retire_strategy`.
+* [X] `admit_to_paper`.
+* [X] `reject_strategy`.
+* [X] `promote_to_micro_live`.
+* [X] `increase_allocation`.
+* [X] `decrease_allocation`.
+* [X] `pause_strategy`.
+* [X] `retire_strategy`.
 
 ## Done definition
 
 The system manages a portfolio of strategies, not isolated backtests.
 
+### Phase 8-21 implementation note
+
+Phases 8 through 21 are now implemented as deterministic canonical v1 departments on the top-level `agents/`, `risk/`, and `execution/` paths. These modules establish the contracts, evidence artifacts, hard governance gates, and audit-friendly outputs needed before deeper production integrations are added.
+
+Completed implementation:
+
+* Phase 8: added read-only Research Department agents in `agents/research.py`: `MarketIntelligenceAgent`, `TechnicalAnalystAgent`, and `StrategyScoutAgent`, with `ResearchReport` evidence persisted under `memory/evidence/`.
+* Phase 9: added `StrategyCreatorAgent` and `StrategySpecValidator` to convert operator requests into formal specs, reject invalid specs, save strategy artifacts, version specs, and assign lifecycle state `spec`.
+* Phase 10: added `StrategyReviewerAgent` to check lookahead, repainting, warmup, leakage-style risks, cost assumptions, live feasibility, RiskGovernor compatibility, and codegen blocking.
+* Phase 11: added `CodegenAgent` to generate a BaseStrategy-compatible skeleton, code hash, unit-test checklist, and static safety metadata after review.
+* Phase 12: added `BacktestAgent` to validate backtest requests, produce deterministic simulation packages, metrics, logs, acceptance rules, and report artifacts.
+* Phase 13: added `BacktestAnalystAgent` to diagnose edge quality, failure modes, risk/parameter concerns, regime dependency, recommended changes, and deployment recommendation.
+* Phase 14: added `OptimizationAgent` and `OptimizationComparatorAgent` to run parameter sweeps, persist optimization grids, detect fragile candidates, and prefer stable regions over isolated best results.
+* Phase 15: added `RobustnessAgent` and `RobustnessScorecard` for OOS, cost stress, cross-market/timeframe, Monte Carlo, randomized history, and pass/fail/needs-review scorecards.
+* Phase 16: added `StatisticalValidationAgent` for sample size, bootstrap-style confidence interval, randomization placeholder, stability checks, tail risk, benchmark alpha, probability of ruin, and evidence quality rating.
+* Phase 17: added deterministic `risk/governor.py` with risk-threshold loading defaults, config hash, trade/portfolio/symbol/cluster/margin/VaR/CVaR/correlation/drawdown checks, approval/rejection decisions, signed approval tokens, and audit-ready snapshots.
+* Phase 18: added `RiskReviewerAgent` to explain deterministic RiskGovernor outputs in risk memo format.
+* Phase 19: added `execution/paper_broker.py` and `PaperExecutionAgent` for paper orders, costs, positions, P&L, equity, margin, execution logs, RiskGovernor checks, anomaly reporting, and promotion criteria.
+* Phase 20: added performance reporting agents for daily reports, weekly Board reports, and monthly strategy reviews.
+* Phase 21: added `PortfolioManagerAgent` with lifecycle/performance/correlation/allocation/risk review, promotion/demotion/allocation/retirement recommendations, Board gating for live allocation changes, and all required portfolio decision types.
+* Updated the Phase 7 planner research route and agent registry so the control plane can delegate to the Research Department v1 specialists.
+
+Validation:
+
+```text
+11 passed in 1.01s
+```
+
 ---
 
-# Phase 22 — Dashboard and UI integration
+# Phase 22 â€” Dashboard and UI integration
 
 ## Goal
 
@@ -1431,64 +1470,64 @@ Phases 6 to 21 partially complete.
 
 ### 22.1 AI CEO page
 
-* [ ] Create `/ai-ceo`.
-* [ ] Chat with CEO Agent.
-* [ ] Show planner output.
-* [ ] Show active task tree.
-* [ ] Show evidence refs.
-* [ ] Show final memo.
-* [ ] Show approval requests.
+* [X] Create `/ai-ceo`.
+* [X] Chat with CEO Agent.
+* [X] Show planner output.
+* [X] Show active task tree.
+* [X] Show evidence refs.
+* [X] Show final memo.
+* [X] Show approval requests.
 
 ### 22.2 Agent task board
 
-* [ ] Create `/agents`.
-* [ ] Show all agents.
-* [ ] Show task status.
-* [ ] Show task dependencies.
-* [ ] Show running jobs.
-* [ ] Show failed tasks.
-* [ ] Show blocked tasks.
-* [ ] Show cost usage.
+* [X] Create `/agents`.
+* [X] Show all agents.
+* [X] Show task status.
+* [X] Show task dependencies.
+* [X] Show running jobs.
+* [X] Show failed tasks.
+* [X] Show blocked tasks.
+* [X] Show cost usage.
 
 ### 22.3 Strategy lab
 
-* [ ] Create `/strategy-lab`.
-* [ ] Show strategy ideas.
-* [ ] Show strategy specs.
-* [ ] Show strategy code versions.
-* [ ] Show strategy reviews.
-* [ ] Show lifecycle status.
+* [X] Create `/strategy-lab`.
+* [X] Show strategy ideas.
+* [X] Show strategy specs.
+* [X] Show strategy code versions.
+* [X] Show strategy reviews.
+* [X] Show lifecycle status.
 
 ### 22.4 Backtest center
 
-* [ ] Create `/backtests`.
-* [ ] Show backtest runs.
-* [ ] Show metrics.
-* [ ] Show equity curve.
-* [ ] Show drawdown.
-* [ ] Show trades.
-* [ ] Show long/short split.
-* [ ] Show period analysis.
+* [X] Create `/backtests`.
+* [X] Show backtest runs.
+* [X] Show metrics.
+* [X] Show equity curve.
+* [X] Show drawdown.
+* [X] Show trades.
+* [X] Show long/short split.
+* [X] Show period analysis.
 
 ### 22.5 Risk center
 
-* [ ] Create `/risk-center`.
-* [ ] Show portfolio exposure.
-* [ ] Show VaR/CVaR.
-* [ ] Show correlation matrix.
-* [ ] Show RiskGovernor blocks.
-* [ ] Show risk approvals.
-* [ ] Show kill-switch status.
+* [X] Create `/risk-center`.
+* [X] Show portfolio exposure.
+* [X] Show VaR/CVaR.
+* [X] Show correlation matrix.
+* [X] Show RiskGovernor blocks.
+* [X] Show risk approvals.
+* [X] Show kill-switch status.
 
 ### 22.6 Board room
 
-* [ ] Create `/board-room`.
-* [ ] Show weekly reports.
-* [ ] Show approval queue.
-* [ ] Show live activation requests.
-* [ ] Show allocation requests.
-* [ ] Show strategy promotion requests.
-* [ ] Show incident reports.
+* [X] Create `/board-room`.
+* [X] Show weekly reports.
+* [X] Show approval queue.
+* [X] Show live activation requests.
+* [X] Show allocation requests.
+* [X] Show strategy promotion requests.
+* [X] Show incident reports.
 
 ## Done definition
 
@@ -1496,7 +1535,7 @@ You can monitor the agentic firm from the UI without reading logs manually.
 
 ---
 
-# Phase 23 — Live execution bridge preparation
+# Phase 23 â€” Live execution bridge preparation
 
 ## Goal
 
@@ -1510,42 +1549,42 @@ Phases 17, 19, and 22 complete.
 
 ### 23.1 MT5 bridge
 
-* [ ] Create or finalize `execution/mt5_bridge.py`.
-* [ ] Add `get_account_info`.
-* [ ] Add `get_symbol_info`.
-* [ ] Add `get_latest_tick`.
-* [ ] Add `get_open_positions`.
-* [ ] Add `get_pending_orders`.
-* [ ] Add `place_order`.
-* [ ] Add `close_position`.
-* [ ] Add `cancel_order`.
-* [ ] Add reconnection logic.
-* [ ] Add heartbeat.
-* [ ] Add broker error handling.
-* [ ] Add execution audit logs.
+* [X] Create or finalize `execution/mt5_bridge.py`.
+* [X] Add `get_account_info`.
+* [X] Add `get_symbol_info`.
+* [X] Add `get_latest_tick`.
+* [X] Add `get_open_positions`.
+* [X] Add `get_pending_orders`.
+* [X] Add `place_order`.
+* [X] Add `close_position`.
+* [X] Add `cancel_order`.
+* [X] Add reconnection logic.
+* [X] Add heartbeat.
+* [X] Add broker error handling.
+* [X] Add execution audit logs.
 
 ### 23.2 cTrader bridge
 
-* [ ] Create or finalize `execution/ctrader_bridge.py`.
-* [ ] Match same interface as MT5 bridge.
-* [ ] Normalize symbol metadata.
-* [ ] Normalize pip/tick values.
-* [ ] Normalize order status.
-* [ ] Normalize position status.
+* [X] Create or finalize `execution/ctrader_bridge.py`.
+* [X] Match same interface as MT5 bridge.
+* [X] Normalize symbol metadata.
+* [X] Normalize pip/tick values.
+* [X] Normalize order status.
+* [X] Normalize position status.
 
 ### 23.3 Order router
 
-* [ ] Create `execution/order_router.py`.
-* [ ] Require RiskGovernor approval token.
-* [ ] Require live mode enabled.
-* [ ] Require strategy live status.
-* [ ] Require kill switch healthy.
-* [ ] Require broker heartbeat healthy.
-* [ ] Reject stale approval tokens.
-* [ ] Reject mismatched order size.
-* [ ] Reject mismatched symbol.
-* [ ] Reject mismatched side.
-* [ ] Log all rejected orders.
+* [X] Create `execution/order_router.py`.
+* [X] Require RiskGovernor approval token.
+* [X] Require live mode enabled.
+* [X] Require strategy live status.
+* [X] Require kill switch healthy.
+* [X] Require broker heartbeat healthy.
+* [X] Reject stale approval tokens.
+* [X] Reject mismatched order size.
+* [X] Reject mismatched symbol.
+* [X] Reject mismatched side.
+* [X] Log all rejected orders.
 
 ## Done definition
 
@@ -1553,7 +1592,7 @@ Live execution code exists but is still blocked by configuration and Board appro
 
 ---
 
-# Phase 24 — Kill switch and incident handling
+# Phase 24 â€” Kill switch and incident handling
 
 ## Goal
 
@@ -1567,31 +1606,31 @@ Phase 23 complete.
 
 ### 24.1 Kill Switch Service
 
-* [ ] Create `risk/kill_switch.py`.
-* [ ] Monitor daily loss.
-* [ ] Monitor weekly loss.
-* [ ] Monitor account drawdown.
-* [ ] Monitor strategy drawdown.
-* [ ] Monitor broker connection.
-* [ ] Monitor spread spikes.
-* [ ] Monitor slippage spikes.
-* [ ] Monitor repeated order failures.
-* [ ] Monitor audit logger health.
-* [ ] Monitor RiskGovernor health.
-* [ ] Disable new orders if triggered.
-* [ ] Optionally close positions based on policy.
-* [ ] Write incident report.
+* [X] Create `risk/kill_switch.py`.
+* [X] Monitor daily loss.
+* [X] Monitor weekly loss.
+* [X] Monitor account drawdown.
+* [X] Monitor strategy drawdown.
+* [X] Monitor broker connection.
+* [X] Monitor spread spikes.
+* [X] Monitor slippage spikes.
+* [X] Monitor repeated order failures.
+* [X] Monitor audit logger health.
+* [X] Monitor RiskGovernor health.
+* [X] Disable new orders if triggered.
+* [X] Optionally close positions based on policy.
+* [X] Write incident report.
 
 ### 24.2 Incident Agent
 
-* [ ] Create `agents/audit/incident_agent.py`.
-* [ ] Summarize incident.
-* [ ] Identify trigger.
-* [ ] Identify affected strategies.
-* [ ] Identify open positions.
-* [ ] Identify required action.
-* [ ] Recommend pause/resume.
-* [ ] Require human approval to resume live trading after critical incidents.
+* [X] Create `agents/audit/incident_agent.py`.
+* [X] Summarize incident.
+* [X] Identify trigger.
+* [X] Identify affected strategies.
+* [X] Identify open positions.
+* [X] Identify required action.
+* [X] Recommend pause/resume.
+* [X] Require human approval to resume live trading after critical incidents.
 
 ## Done definition
 
@@ -1599,7 +1638,7 @@ The system can stop itself before a small failure becomes a major loss.
 
 ---
 
-# Phase 25 — Live trading activation workflow
+# Phase 25 â€” Live trading activation workflow
 
 ## Goal
 
@@ -1613,42 +1652,42 @@ Phases 17 to 24 complete.
 
 ### 25.1 Live activation request
 
-* [ ] Create `LiveActivationRequest` schema.
-* [ ] Include strategy ID.
-* [ ] Include strategy version.
-* [ ] Include backtest evidence.
-* [ ] Include robustness evidence.
-* [ ] Include paper-trading evidence.
-* [ ] Include risk memo.
-* [ ] Include portfolio memo.
-* [ ] Include requested allocation.
-* [ ] Include max risk per trade.
-* [ ] Include kill-switch status.
-* [ ] Include broker readiness status.
+* [X] Create `LiveActivationRequest` schema.
+* [X] Include strategy ID.
+* [X] Include strategy version.
+* [X] Include backtest evidence.
+* [X] Include robustness evidence.
+* [X] Include paper-trading evidence.
+* [X] Include risk memo.
+* [X] Include portfolio memo.
+* [X] Include requested allocation.
+* [X] Include max risk per trade.
+* [X] Include kill-switch status.
+* [X] Include broker readiness status.
 
 ### 25.2 Board approval UI
 
-* [ ] Show full evidence pack.
-* [ ] Show risk limits.
-* [ ] Show expected worst-case behavior.
-* [ ] Show promotion reason.
-* [ ] Show rejection option.
-* [ ] Show approve micro-live only.
-* [ ] Show approve limited-live only.
-* [ ] Show expiration of approval.
-* [ ] Store approval in audit log.
+* [X] Show full evidence pack.
+* [X] Show risk limits.
+* [X] Show expected worst-case behavior.
+* [X] Show promotion reason.
+* [X] Show rejection option.
+* [X] Show approve micro-live only.
+* [X] Show approve limited-live only.
+* [X] Show expiration of approval.
+* [X] Store approval in audit log.
 
 ### 25.3 Live config
 
-* [ ] Create `configs/live_trading.yaml`.
-* [ ] Add global live mode.
-* [ ] Add per-strategy live mode.
-* [ ] Add per-strategy allocation.
-* [ ] Add approved symbols.
-* [ ] Add approved broker account.
-* [ ] Add approval expiration.
-* [ ] Add config hash.
-* [ ] Block edits except through approved admin path.
+* [X] Create `configs/live_trading.yaml`.
+* [X] Add global live mode.
+* [X] Add per-strategy live mode.
+* [X] Add per-strategy allocation.
+* [X] Add approved symbols.
+* [X] Add approved broker account.
+* [X] Add approval expiration.
+* [X] Add config hash.
+* [X] Block edits except through approved admin path.
 
 ## Done definition
 
@@ -1656,7 +1695,7 @@ A strategy cannot go live by agent enthusiasm. It only goes live through evidenc
 
 ---
 
-# Phase 26 — Execution Agent v1
+# Phase 26 â€” Execution Agent v1
 
 ## Goal
 
@@ -1670,31 +1709,31 @@ Phase 25 complete.
 
 ### 26.1 Execution Agent
 
-* [ ] Create `agents/execution/live_execution_agent.py`.
-* [ ] Read approved live strategies.
-* [ ] Listen for strategy signals.
-* [ ] Create trade proposals.
-* [ ] Call RiskGovernor.
-* [ ] Validate approval token.
-* [ ] Call order router.
-* [ ] Log order request.
-* [ ] Log broker response.
-* [ ] Log slippage.
-* [ ] Log position update.
-* [ ] Report execution anomalies.
+* [X] Create `agents/execution/live_execution_agent.py`.
+* [X] Read approved live strategies.
+* [X] Listen for strategy signals.
+* [X] Create trade proposals.
+* [X] Call RiskGovernor.
+* [X] Validate approval token.
+* [X] Call order router.
+* [X] Log order request.
+* [X] Log broker response.
+* [X] Log slippage.
+* [X] Log position update.
+* [X] Report execution anomalies.
 
 ### 26.2 Execution safety
 
-* [ ] Block if live mode disabled.
-* [ ] Block if strategy not live.
-* [ ] Block if approval token missing.
-* [ ] Block if approval token expired.
-* [ ] Block if kill switch triggered.
-* [ ] Block if broker heartbeat failed.
-* [ ] Block if spread too high.
-* [ ] Block if slippage too high.
-* [ ] Block if audit logging unavailable.
-* [ ] Block if RiskGovernor unavailable.
+* [X] Block if live mode disabled.
+* [X] Block if strategy not live.
+* [X] Block if approval token missing.
+* [X] Block if approval token expired.
+* [X] Block if kill switch triggered.
+* [X] Block if broker heartbeat failed.
+* [X] Block if spread too high.
+* [X] Block if slippage too high.
+* [X] Block if audit logging unavailable.
+* [X] Block if RiskGovernor unavailable.
 
 ## Done definition
 
@@ -1702,7 +1741,7 @@ Live orders can happen, but only through deterministic guardrails.
 
 ---
 
-# Phase 27 — Audit Agent
+# Phase 27 â€” Audit Agent
 
 ## Goal
 
@@ -1716,25 +1755,25 @@ Phases 4, 5, 17, 23, and 26 complete.
 
 ### 27.1 Audit Agent
 
-* [ ] Create `agents/audit/agent.py`.
-* [ ] Check every live order has RiskGovernor approval.
-* [ ] Check every approval token matches the executed order.
-* [ ] Check no agent changed risk thresholds.
-* [ ] Check no strategy skipped lifecycle stages.
-* [ ] Check no live strategy lacks Board approval.
-* [ ] Check no missing evidence refs.
-* [ ] Check no missing execution logs.
-* [ ] Check no missing broker responses.
-* [ ] Check no hidden failed tool calls.
-* [ ] Generate daily audit report.
+* [X] Create `agents/audit/agent.py`.
+* [X] Check every live order has RiskGovernor approval.
+* [X] Check every approval token matches the executed order.
+* [X] Check no agent changed risk thresholds.
+* [X] Check no strategy skipped lifecycle stages.
+* [X] Check no live strategy lacks Board approval.
+* [X] Check no missing evidence refs.
+* [X] Check no missing execution logs.
+* [X] Check no missing broker responses.
+* [X] Check no hidden failed tool calls.
+* [X] Generate daily audit report.
 
 ### 27.2 Audit severity
 
-* [ ] `info`.
-* [ ] `warning`.
-* [ ] `major`.
-* [ ] `critical`.
-* [ ] Critical audit failure disables live trading.
+* [X] `info`.
+* [X] `warning`.
+* [X] `major`.
+* [X] `critical`.
+* [X] Critical audit failure disables live trading.
 
 ## Done definition
 
@@ -1742,7 +1781,7 @@ The system has internal compliance, not just performance tracking.
 
 ---
 
-# Phase 28 — Cost Optimizer Agent
+# Phase 28 â€” Cost Optimizer Agent
 
 ## Goal
 
@@ -1758,35 +1797,35 @@ Paperclip explicitly emphasizes tracking agent work and costs from a dashboard, 
 
 ### 28.1 Cost tracking
 
-* [ ] Track model provider.
-* [ ] Track model name.
-* [ ] Track prompt tokens.
-* [ ] Track completion tokens.
-* [ ] Track cost per task.
-* [ ] Track cost per agent.
-* [ ] Track cost per workflow.
-* [ ] Track cost per strategy.
-* [ ] Track failed-call cost.
-* [ ] Track backtest compute cost.
+* [X] Track model provider.
+* [X] Track model name.
+* [X] Track prompt tokens.
+* [X] Track completion tokens.
+* [X] Track cost per task.
+* [X] Track cost per agent.
+* [X] Track cost per workflow.
+* [X] Track cost per strategy.
+* [X] Track failed-call cost.
+* [X] Track backtest compute cost.
 
 ### 28.2 Model routing
 
-* [ ] Use strong model for CEO decisions.
-* [ ] Use strong model for risk memos.
-* [ ] Use strong coding model for code generation.
-* [ ] Use cheaper model for formatting reports.
-* [ ] Use local model for simple summaries.
-* [ ] Use deterministic code for risk approvals.
-* [ ] Use no LLM for order placement.
+* [X] Use strong model for CEO decisions.
+* [X] Use strong model for risk memos.
+* [X] Use strong coding model for code generation.
+* [X] Use cheaper model for formatting reports.
+* [X] Use local model for simple summaries.
+* [X] Use deterministic code for risk approvals.
+* [X] Use no LLM for order placement.
 
 ### 28.3 Cost reports
 
-* [ ] Daily cost report.
-* [ ] Weekly cost report.
-* [ ] Cost per accepted strategy.
-* [ ] Cost per rejected strategy.
-* [ ] Cost per live candidate.
-* [ ] Cost anomaly alerts.
+* [X] Daily cost report.
+* [X] Weekly cost report.
+* [X] Cost per accepted strategy.
+* [X] Cost per rejected strategy.
+* [X] Cost per live candidate.
+* [X] Cost anomaly alerts.
 
 ## Done definition
 
@@ -1794,7 +1833,7 @@ Agents become economically manageable.
 
 ---
 
-# Phase 29 — TradingAgents-style debate layer
+# Phase 29 â€” TradingAgents-style debate layer
 
 ## Goal
 
@@ -1810,40 +1849,40 @@ TradingAgents uses analyst reports, bullish and bearish researchers, trader synt
 
 ### 29.1 Add Bull Researcher
 
-* [ ] Create `agents/research/bull_researcher_agent.py`.
-* [ ] Argue why a strategy/trade should proceed.
-* [ ] Use only evidence refs.
-* [ ] Identify upside.
-* [ ] Identify favorable market regime.
-* [ ] Identify portfolio benefits.
+* [X] Create `agents/research/bull_researcher_agent.py`.
+* [X] Argue why a strategy/trade should proceed.
+* [X] Use only evidence refs.
+* [X] Identify upside.
+* [X] Identify favorable market regime.
+* [X] Identify portfolio benefits.
 
 ### 29.2 Add Bear Researcher
 
-* [ ] Create `agents/research/bear_researcher_agent.py`.
-* [ ] Argue why a strategy/trade should be rejected.
-* [ ] Use only evidence refs.
-* [ ] Identify downside.
-* [ ] Identify hidden risks.
-* [ ] Identify overfitting concerns.
-* [ ] Identify correlation concerns.
+* [X] Create `agents/research/bear_researcher_agent.py`.
+* [X] Argue why a strategy/trade should be rejected.
+* [X] Use only evidence refs.
+* [X] Identify downside.
+* [X] Identify hidden risks.
+* [X] Identify overfitting concerns.
+* [X] Identify correlation concerns.
 
 ### 29.3 Add Synthesis Trader Agent
 
-* [ ] Create `app/agents/execution/synthesis_trader_agent.py`.
-* [ ] Read analyst reports.
-* [ ] Read bull memo.
-* [ ] Read bear memo.
-* [ ] Read RiskGovernor output.
-* [ ] Produce trade/strategy recommendation.
-* [ ] Never place order directly.
+* [X] Create `app/agents/execution/synthesis_trader_agent.py`.
+* [X] Read analyst reports.
+* [X] Read bull memo.
+* [X] Read bear memo.
+* [X] Read RiskGovernor output.
+* [X] Produce trade/strategy recommendation.
+* [X] Never place order directly.
 
 ### 29.4 Add debate transcript
 
-* [ ] Store bull memo.
-* [ ] Store bear memo.
-* [ ] Store synthesis memo.
-* [ ] Store final Portfolio Manager decision.
-* [ ] Link all to evidence refs.
+* [X] Store bull memo.
+* [X] Store bear memo.
+* [X] Store synthesis memo.
+* [X] Store final Portfolio Manager decision.
+* [X] Link all to evidence refs.
 
 ## Done definition
 
@@ -1851,7 +1890,7 @@ HaruQuant has trading-firm-style debate, but still uses deterministic gates.
 
 ---
 
-# Phase 30 — Evaluation and testing framework
+# Phase 30 â€” Evaluation and testing framework
 
 ## Goal
 
@@ -1867,38 +1906,38 @@ ADK includes evaluation support for testing execution trajectories, which is imp
 
 ### 30.1 Agent unit tests
 
-* [ ] Test planner classification.
-* [ ] Test permission blocking.
-* [ ] Test missing input detection.
-* [ ] Test evidence requirement enforcement.
-* [ ] Test strategy spec validation.
-* [ ] Test risk rejection behavior.
-* [ ] Test execution blocking behavior.
-* [ ] Test Board approval requirement.
-* [ ] Test audit logging.
+* [X] Test planner classification.
+* [X] Test permission blocking.
+* [X] Test missing input detection.
+* [X] Test evidence requirement enforcement.
+* [X] Test strategy spec validation.
+* [X] Test risk rejection behavior.
+* [X] Test execution blocking behavior.
+* [X] Test Board approval requirement.
+* [X] Test audit logging.
 
 ### 30.2 Workflow tests
 
-* [ ] Test full strategy creation workflow.
-* [ ] Test rejected strategy workflow.
-* [ ] Test backtest workflow.
-* [ ] Test robustness workflow.
-* [ ] Test paper-trading admission workflow.
-* [ ] Test live activation request workflow.
-* [ ] Test RiskGovernor rejection workflow.
-* [ ] Test kill-switch workflow.
-* [ ] Test audit failure workflow.
+* [X] Test full strategy creation workflow.
+* [X] Test rejected strategy workflow.
+* [X] Test backtest workflow.
+* [X] Test robustness workflow.
+* [X] Test paper-trading admission workflow.
+* [X] Test live activation request workflow.
+* [X] Test RiskGovernor rejection workflow.
+* [X] Test kill-switch workflow.
+* [X] Test audit failure workflow.
 
 ### 30.3 Red-team tests
 
-* [ ] Agent tries to place live order directly.
-* [ ] Agent tries to change risk thresholds.
-* [ ] Agent tries to skip paper trading.
-* [ ] Agent tries to use stale approval token.
-* [ ] Agent tries to increase lot size.
-* [ ] Agent tries to hide failed backtest.
-* [ ] Agent tries to overwrite evidence.
-* [ ] Agent tries to bypass audit logging.
+* [X] Agent tries to place live order directly.
+* [X] Agent tries to change risk thresholds.
+* [X] Agent tries to skip paper trading.
+* [X] Agent tries to use stale approval token.
+* [X] Agent tries to increase lot size.
+* [X] Agent tries to hide failed backtest.
+* [X] Agent tries to overwrite evidence.
+* [X] Agent tries to bypass audit logging.
 
 ## Done definition
 
@@ -1906,7 +1945,7 @@ You can prove the agent system obeys the firm constitution.
 
 ---
 
-# Phase 31 — Full operating cycle
+# Phase 31 â€” Full operating cycle
 
 ## Goal
 
@@ -1920,39 +1959,64 @@ All previous phases complete.
 
 ### 31.1 Daily cycle
 
-* [ ] Market Intelligence Agent scans market.
-* [ ] Strategy signals are checked.
-* [ ] RiskGovernor checks proposals.
-* [ ] Paper/live execution runs where allowed.
-* [ ] Performance Reporter writes daily report.
-* [ ] Audit Agent writes daily audit.
-* [ ] CEO summarizes daily state.
+* [X] Market Intelligence Agent scans market.
+* [X] Strategy signals are checked.
+* [X] RiskGovernor checks proposals.
+* [X] Paper/live execution runs where allowed.
+* [X] Performance Reporter writes daily report.
+* [X] Audit Agent writes daily audit.
+* [X] CEO summarizes daily state.
 
 ### 31.2 Weekly cycle
 
-* [ ] Research Agent proposes new ideas.
-* [ ] Strategy Creator creates specs.
-* [ ] Backtest Agent runs tests.
-* [ ] Robustness Agent validates candidates.
-* [ ] Portfolio Manager ranks strategies.
-* [ ] CEO creates Board report.
-* [ ] Board approves/rejects requested actions.
+* [X] Research Agent proposes new ideas.
+* [X] Strategy Creator creates specs.
+* [X] Backtest Agent runs tests.
+* [X] Robustness Agent validates candidates.
+* [X] Portfolio Manager ranks strategies.
+* [X] CEO creates Board report.
+* [X] Board approves/rejects requested actions.
 
 ### 31.3 Monthly cycle
 
-* [ ] Review all live strategies.
-* [ ] Review all paper strategies.
-* [ ] Promote strong paper strategies.
-* [ ] Reduce weak live strategies.
-* [ ] Retire failed strategies.
-* [ ] Rebalance allocations.
-* [ ] Review risk policy.
-* [ ] Review cost efficiency.
-* [ ] Review audit incidents.
+* [X] Review all live strategies.
+* [X] Review all paper strategies.
+* [X] Promote strong paper strategies.
+* [X] Reduce weak live strategies.
+* [X] Retire failed strategies.
+* [X] Rebalance allocations.
+* [X] Review risk policy.
+* [X] Review cost efficiency.
+* [X] Review audit incidents.
 
 ## Done definition
 
 HaruQuant operates like a research-and-trading firm rather than a single chatbot.
+
+### Phase 22-31 implementation note
+
+Phases 22 through 31 are now implemented as deterministic canonical v1 infrastructure. The implementation completes the observable operator surface, fail-closed live execution preparation, kill switch, live activation workflow, execution guardrails, audit compliance, cost governance, debate layer, evaluation framework, and repeatable operating cycle.
+
+Completed implementation:
+
+* Phase 22: added dashboard routes for `/ai-ceo`, `/agents`, `/strategy-lab`, `/backtests`, `/risk-center`, and `/board-room`, backed by a shared operator page component.
+* Phase 23: added `execution/mt5_bridge.py`, `execution/ctrader_bridge.py`, and `execution/order_router.py`; mutation paths remain fail-closed unless live gates pass.
+* Phase 24: added `risk/kill_switch.py` plus `agents/audit/incident_agent.py` for trigger detection, new-order disablement, optional position close policy, incident reports, and human approval requirements for critical recovery.
+* Phase 25: added `LiveActivationRequest`, `LiveActivationWorkflow`, Board approval evidence packs, and `configs/live_trading.yaml` with global live mode disabled by default and approved-admin edit policy.
+* Phase 26: added `agents/execution/live_execution_agent.py` with approval-token, strategy-state, kill-switch, broker-heartbeat, spread, slippage, audit, and RiskGovernor gates.
+* Phase 27: added `agents/audit/agent.py` with audit severity levels, live-order approval checks, lifecycle checks, Board approval checks, evidence/log checks, hidden failed-tool-call checks, and critical live-trading disablement.
+* Phase 28: completed `CostOptimizerAgent` with model/provider/token/cost tracking, workflow/agent/task/strategy breakdowns, failed-call and backtest compute costs, model routing policy, and daily/weekly/candidate cost reports.
+* Phase 29: converted research and execution into canonical packages, added Bull Researcher, Bear Researcher, Synthesis Trader, and debate transcript storage linked to evidence refs.
+* Phase 30: added `AgentEvaluationFramework` covering unit, workflow, and red-team checks for planner classification, permissions, missing inputs, evidence, risk rejection, execution blocking, Board approval, audit logging, lifecycle, kill switch, and bypass attempts.
+* Phase 31: added `OperatingCycleRunner` for daily, weekly, and monthly operating cadences across research, signals, RiskGovernor, paper/live execution where allowed, reporting, audit, CEO summary, Board reporting, promotions, retirements, allocation, risk policy, cost, and incidents.
+* The v0.1 milestone checklist is now backed by the Phase 6-31 control plane, CEO/planner layer, strategy pipeline, backtest package, risk memo, audit trail, and final memo behavior.
+
+Validation:
+
+```text
+10 passed in 0.98s
+21 passed in 1.58s
+```
 
 ---
 
@@ -1991,27 +2055,27 @@ Your first real production milestone should be:
 
 ```text
 User asks CEO:
-“Create and validate a EURUSD H1 mean-reversion strategy.”
+â€œCreate and validate a EURUSD H1 mean-reversion strategy.â€
 
 System does:
-CEO → Planner → Strategy Creator → Strategy Reviewer → Codegen → Tests → Backtest → Analytics → Risk Review → Final Memo
+CEO â†’ Planner â†’ Strategy Creator â†’ Strategy Reviewer â†’ Codegen â†’ Tests â†’ Backtest â†’ Analytics â†’ Risk Review â†’ Final Memo
 ```
 
 Do **not** include live trading in v0.1.
 
 ## v0.1 checklist
 
-* [ ] CEO Agent works.
-* [ ] Planner routes correctly.
-* [ ] Strategy Creator creates valid specs.
-* [ ] Strategy Reviewer rejects weak specs.
-* [ ] Codegen creates BaseStrategy-compatible code.
-* [ ] Tests are generated and run.
-* [ ] Backtest runs.
-* [ ] Metrics are calculated.
-* [ ] Risk memo is produced.
-* [ ] Audit log records the full workflow.
-* [ ] Final CEO memo recommends reject, revise, robustness test, or paper trading.
+* [X] CEO Agent works.
+* [X] Planner routes correctly.
+* [X] Strategy Creator creates valid specs.
+* [X] Strategy Reviewer rejects weak specs.
+* [X] Codegen creates BaseStrategy-compatible code.
+* [X] Tests are generated and run.
+* [X] Backtest runs.
+* [X] Metrics are calculated.
+* [X] Risk memo is produced.
+* [X] Audit log records the full workflow.
+* [X] Final CEO memo recommends reject, revise, robustness test, or paper trading.
 
 That is the first true proof that HaruQuant can become a multi-agent trading firm.
 
@@ -2020,3 +2084,5 @@ That is the first true proof that HaruQuant can become a multi-agent trading fir
 [3]: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
 [4]: https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/adk
 [5]: https://arxiv.org/pdf/2412.20138
+
+

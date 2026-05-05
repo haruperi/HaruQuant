@@ -7,6 +7,15 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class AgentRunContext:
+    workflow_id: str
+    task_id: str
+    user_request: str
+    actor_id: str = "operator"
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class AgentRunResult:
     agent_name: str
     status: str

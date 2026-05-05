@@ -208,11 +208,29 @@ class ExecutionResult(FirmModel):
 
 class ResearchReport(FirmModel):
     report_id: str
-    agent_name: str
+    source_agent: str
+    agent_name: str | None = None
     topic: str
     summary: str
+    research_question: str | None = None
+    sources_used: list[str] = Field(default_factory=list)
+    market_context: dict[str, Any] = Field(default_factory=dict)
+    candidate_ideas: list[dict[str, Any]] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    recommended_next_steps: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
     findings: list[str] = Field(default_factory=list)
     evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class AgentArtifact(FirmModel):
+    artifact_id: str
+    artifact_type: str
+    source_agent: str
+    summary: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -241,6 +259,8 @@ class ConversationPlan(FirmModel):
     expected_outputs: list[str] = Field(default_factory=list)
     evidence_requirements: list[str] = Field(default_factory=list)
     failure_policy: dict[str, Any] = Field(default_factory=dict)
+    needs_clarification: bool = False
+    planner_source: str = "phase6_planner"
 
     @field_validator("user_goal", "rationale", "intent")
     @classmethod
@@ -255,6 +275,7 @@ AgentPlan = ConversationPlan
 
 __all__ = [
     "AgentDecision",
+    "AgentArtifact",
     "AgentObservation",
     "AgentPlan",
     "AgentTask",

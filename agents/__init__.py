@@ -1,8 +1,10 @@
 """Canonical agent package."""
 
 from .agent_registry import AgentDescriptor, AgentRegistry
-from .base import AgentBase, AgentRunResult
+from .base import AgentBase, AgentRunContext, AgentRunResult
+from .ceo import CEOAgent
 from .orchestrator import AgentControlPlaneOrchestrator, AgentControlPlaneResult
+from .planner import PlannerAgent
 from .permissions import (
     AgentToolPermissionDecision,
     AgentToolPermissionError,
@@ -23,13 +25,16 @@ __all__ = [
     "AgentDescriptor",
     "AgentRegistry",
     "AgentRunResult",
+    "AgentRunContext",
     "AgentTaskManager",
     "AgentTaskTransitionError",
     "AgentTaskTree",
     "AgentToolPermissionDecision",
     "AgentToolPermissionError",
     "AgentToolPermissionService",
+    "CEOAgent",
     "ManagedAgentTask",
+    "PlannerAgent",
     "ToolAllowlistDecision",
     "ToolAllowlistMiddleware",
     "ToolPolicyError",
