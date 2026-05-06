@@ -54,3 +54,35 @@ def test_ai_chat_repository_crud_round_trip(tmp_path) -> None:
     assert listed_facts[0].fact_value == "SPY"
     assert latest_summary is not None
     assert latest_summary.summary_text.startswith("User is reviewing")
+
+
+def test_ai_chat_repository_lifecycle_round_trip(tmp_path) -> None:
+    database_path = tmp_path / "agentic.db"
+    apply_pending_migrations(database_path, default_migrations_dir())
+    repository = AiChatRepository(database_path)
+
+    thread = repository.create_thread(thread_id="thread_lifecycle", user_id="42", title="Lifecycle")
+    archived = repository.archive_thread(thread_id=thread.thread_id, user_id="42")
+
+    assert archived.status == "archived"
+    assert archived.archived_at is not None
+    assert repository.list_threads(user_id="42") == []
+    assert repository.list_threads(user_id="42", include_archived=True)[0].thread_id == thread.thread_id
+
+    repository.update_thread_retention(
+        thread_id=thread.thread_id,
+        user_id="42",
+        retention_class="ephemeral",
+        retention_expires_at="2000-01-01 00:00:00",
+        purge_after="2000-01-02 00:00:00",
+        reason="test",
+    )
+    repository.soft_delete_thread(thread_id=thread.thread_id, user_id="42")
+    assert repository.purge_thread(thread_id=thread.thread_id, user_id="42")
+
+    purged = repository.get_thread(thread.thread_id, user_id="42", include_deleted=True)
+    assert purged is not None
+    assert purged.status == "purged"
+
+    events = repository.list_lifecycle_events(thread_id=thread.thread_id, user_id="42")
+    assert {event.action for event in events} >= {"thread_archived", "thread_deleted", "thread_purged"}

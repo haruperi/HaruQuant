@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, ExternalLink, FileCode2, Loader2, Scale, Sparkles, TrendingUp, TriangleAlert, User2 } from "lucide-react"
+import { AlertTriangle, Check, Copy, ExternalLink, FileCode2, Loader2, Pin, Scale, Sparkles, StickyNote, TrendingUp, TriangleAlert, User2 } from "lucide-react"
 
 import { ActionPlanPreview } from "@/components/ai-chat/ActionPlanPreview"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -25,6 +25,8 @@ interface MessageListProps {
 }
 
 type ActionPlanStatus = "pending" | "approved" | "rejected"
+
+const MESSAGE_WINDOW_SIZE = 80
 
 function formatTimestamp(value: string): string {
   const date = new Date(value)
@@ -96,13 +98,55 @@ function getResponseStyleConfig(responseStyle?: string) {
   }
 }
 
+function renderInlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={`${part}_${index}`} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      )
+    }
+    return <React.Fragment key={`${part}_${index}`}>{part}</React.Fragment>
+  })
+}
+
 function renderMessageContent(content: string) {
   return content.split("\n").map((line, index) => {
     const trimmed = line.trim()
     if (!trimmed) {
       return <div key={`empty_${index}`} className="h-2" />
     }
-    const isSectionHeader = /^[A-Z][A-Za-z ]+:$/.test(trimmed)
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/)
+    if (headingMatch) {
+      const title = headingMatch[2].replace(/\*\*/g, "").trim()
+      const level = headingMatch[1].length
+      const HeadingTag = level <= 2 ? "h2" : "h3"
+      return (
+        <HeadingTag
+          key={`${trimmed}_${index}`}
+          className={cn(
+            "break-words font-semibold text-foreground",
+            level <= 2 ? "mt-3 text-base" : "mt-3 text-sm",
+          )}
+        >
+          {title}
+        </HeadingTag>
+      )
+    }
+
+    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/)
+    if (bulletMatch) {
+      return (
+        <div key={`${trimmed}_${index}`} className="flex gap-2 break-words">
+          <span className="mt-1 text-muted-foreground">•</span>
+          <p className="min-w-0 flex-1">{renderInlineMarkdown(bulletMatch[1])}</p>
+        </div>
+      )
+    }
+
+    const isSectionHeader = /^[A-Z][A-Za-z &]+:?$/.test(trimmed) && trimmed.length < 80
     return (
       <p
         key={`${trimmed}_${index}`}
@@ -111,7 +155,7 @@ function renderMessageContent(content: string) {
           isSectionHeader && "mt-2 font-semibold text-foreground",
         )}
       >
-        {trimmed}
+        {renderInlineMarkdown(trimmed)}
       </p>
     )
   })
@@ -127,6 +171,41 @@ function renderListItems(items: string[]) {
       ))}
     </ul>
   )
+}
+
+function promptCompositionItems(audit?: Record<string, unknown>): string[] {
+  const composition = audit?.prompt_composition
+  if (!composition || typeof composition !== "object") {
+    return []
+  }
+  const payload = composition as {
+    token_estimate?: unknown
+    message_count?: unknown
+    truncated?: unknown
+    layers?: unknown
+  }
+  const items: string[] = []
+  if (typeof payload.token_estimate === "number") {
+    items.push(`prompt estimate: ${payload.token_estimate} tokens`)
+  }
+  if (typeof payload.message_count === "number") {
+    items.push(`prompt messages: ${payload.message_count}`)
+  }
+  if (typeof payload.truncated === "boolean") {
+    items.push(`context compacted: ${payload.truncated}`)
+  }
+  if (Array.isArray(payload.layers)) {
+    payload.layers
+      .filter((layer): layer is Record<string, unknown> => !!layer && typeof layer === "object")
+      .forEach((layer) => {
+        const name = typeof layer.name === "string" ? layer.name : "layer"
+        const included = typeof layer.included === "boolean" ? layer.included : true
+        const tokens = typeof layer.token_estimate === "number" ? layer.token_estimate : 0
+        const authority = typeof layer.authority === "string" ? layer.authority : "unknown"
+        items.push(`${name}: ${included ? "included" : "skipped"}, ${tokens} tokens, ${authority}`)
+      })
+  }
+  return items
 }
 
 export function MessageList({
@@ -145,7 +224,56 @@ export function MessageList({
 }: MessageListProps) {
   const endRef = React.useRef<HTMLDivElement | null>(null)
   const [actionPlanStatuses, setActionPlanStatuses] = React.useState<Record<string, ActionPlanStatus>>({})
+  const [messageWindowStart, setMessageWindowStart] = React.useState(0)
+  const [copiedMessageId, setCopiedMessageId] = React.useState<string | null>(null)
+  const [pinnedMessageIds, setPinnedMessageIds] = React.useState<Set<string>>(() => new Set())
+  const [savedNoteIds, setSavedNoteIds] = React.useState<Set<string>>(() => new Set())
   const showInitialSkeleton = isInitializing && messages.length === 0
+  const hasWindowedHistory = messages.length > MESSAGE_WINDOW_SIZE
+  const visibleMessages = React.useMemo(
+    () => messages.slice(messageWindowStart),
+    [messageWindowStart, messages],
+  )
+
+  React.useEffect(() => {
+    setMessageWindowStart(Math.max(0, messages.length - MESSAGE_WINDOW_SIZE))
+  }, [messages.length])
+
+  const handleLoadOlder = React.useCallback(() => {
+    setMessageWindowStart((current) => Math.max(0, current - MESSAGE_WINDOW_SIZE))
+  }, [])
+
+  const handleCopyMessage = React.useCallback(async (message: ChatMessage) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(message.content)
+    }
+    setCopiedMessageId(message.id)
+    window.setTimeout(() => setCopiedMessageId(null), 1400)
+  }, [])
+
+  const togglePinned = React.useCallback((messageId: string) => {
+    setPinnedMessageIds((current) => {
+      const next = new Set(current)
+      if (next.has(messageId)) {
+        next.delete(messageId)
+      } else {
+        next.add(messageId)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleSavedNote = React.useCallback((messageId: string) => {
+    setSavedNoteIds((current) => {
+      const next = new Set(current)
+      if (next.has(messageId)) {
+        next.delete(messageId)
+      } else {
+        next.add(messageId)
+      }
+      return next
+    })
+  }, [])
 
   const executePlan = React.useCallback(async (key: string, actionId: string, params: Record<string, unknown>) => {
     setActionPlanStatuses((current) => ({ ...current, [key]: "approved" }))
@@ -220,12 +348,30 @@ export function MessageList({
           </div>
         ) : (
           <div aria-live="polite" className="space-y-3">
-            {messages.map((message) => {
+            {hasWindowedHistory ? (
+              <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <span>
+                  Showing {visibleMessages.length} of {messages.length} messages
+                </span>
+                {messageWindowStart > 0 ? (
+                  <button
+                    type="button"
+                    className="rounded-sm border bg-background px-2 py-1 text-foreground hover:bg-muted"
+                    onClick={handleLoadOlder}
+                  >
+                    Load older
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {visibleMessages.map((message) => {
               const styleConfig = getResponseStyleConfig(message.responseStyle)
               const StyleIcon = styleConfig.icon
               const generationMeta = formatGenerationMeta(message)
               const isClarification = message.role === "assistant" && message.responseStyle === "clarification"
               const toolItems = message.toolCalls ?? []
+              const isPinned = pinnedMessageIds.has(message.id)
+              const isSavedNote = savedNoteIds.has(message.id)
               const sourceItems = (message.specialistArtifacts ?? [])
                 .flatMap((artifact) => artifact.sources ?? [])
                 .filter((value, index, values) => values.indexOf(value) === index)
@@ -283,6 +429,36 @@ export function MessageList({
                           Responding
                         </>
                       ) : null}
+                      {isPinned ? <span className="rounded-sm border px-1.5 py-0.5 text-[10px]">Pinned</span> : null}
+                      {isSavedNote ? <span className="rounded-sm border px-1.5 py-0.5 text-[10px]">Saved note</span> : null}
+                      <span className="ml-auto inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="rounded-sm p-1 hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label="Copy message"
+                          onClick={() => void handleCopyMessage(message)}
+                        >
+                          {copiedMessageId === message.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        </button>
+                        <button
+                          type="button"
+                          className={cn("rounded-sm p-1 hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring", isPinned && "text-primary")}
+                          aria-label={isPinned ? "Unpin message" : "Pin message"}
+                          aria-pressed={isPinned}
+                          onClick={() => togglePinned(message.id)}
+                        >
+                          <Pin className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          className={cn("rounded-sm p-1 hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring", isSavedNote && "text-primary")}
+                          aria-label={isSavedNote ? "Unsave note" : "Save as note"}
+                          aria-pressed={isSavedNote}
+                          onClick={() => toggleSavedNote(message.id)}
+                        >
+                          <StickyNote className="h-3 w-3" />
+                        </button>
+                      </span>
                     </div>
                     {isClarification ? (
                       <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -428,6 +604,7 @@ export function MessageList({
                               message.telemetry?.total_tokens != null ? `tokens: ${message.telemetry.total_tokens}` : null,
                               message.costPolicy?.budget_downgraded ? "cost policy downgraded model for budget" : null,
                               message.costPolicy?.within_workflow_budget === false ? "workflow budget exceeded" : null,
+                              ...(promptCompositionItems(message.audit)),
                             ].filter((value): value is string => Boolean(value)),
                           )}
                         </div>

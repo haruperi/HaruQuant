@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional
 
 import pandas as pd
 
 from services.risk import PositionSizer
 from services.simulation.config import PositionSizeConfig, SimulationConfig
-from services.simulation.data_preparation import PreparedSimulationData
+
+if TYPE_CHECKING:
+    from services.simulation.data_preparation import PreparedSimulationData
 
 
 class SimulationPositionSizingError(RuntimeError):
@@ -40,7 +42,7 @@ class SimulationSymbolInfo:
 
 def resolve_position_size(
     config: SimulationConfig,
-    prepared: PreparedSimulationData,
+    prepared: "PreparedSimulationData",
 ) -> float:
     """Resolve configured money management into one primitive lot size."""
     position_config = config.execution.position_size
@@ -99,7 +101,7 @@ def _position_sizer_config(
 
 def _position_sizing_input(
     config: SimulationConfig,
-    prepared: PreparedSimulationData,
+    prepared: "PreparedSimulationData",
 ) -> dict[str, Any]:
     ticks = prepared.ticks
     if ticks is None or ticks.empty:

@@ -17,7 +17,19 @@ Strategies work across all engines (vectorized, event-driven, live) without modi
 """
 
 from .adapter import SignalRouter, StrategyAdapter
-from .base import BaseStrategy, SignalDict, SignalIntent, StrategyEvent
+from .base import (
+    BaseStrategy,
+    OrderSnapshot,
+    PositionSnapshot,
+    SignalDict,
+    SignalIntent,
+    StatefulStrategyMixin,
+    StrategyContext,
+    StrategyEvent,
+    StrategyRuntimeState,
+    TradeAction,
+    TradeSnapshot,
+)
 from .compat_types import PositionTyp, PositionType
 from .repro import (
     attach_stability_metadata,
@@ -38,8 +50,15 @@ __all__ = [
     "PositionTyp",
     "PositionType",
     "StrategyAdapter",
+    "StrategyContext",
     "StrategyEvent",
+    "StrategyRuntimeState",
     "StrategyStorage",
+    "StatefulStrategyMixin",
+    "OrderSnapshot",
+    "PositionSnapshot",
+    "TradeAction",
+    "TradeSnapshot",
     "StrategyCatalogCreateRequest",
     "StrategyCatalogService",
     "StrategyCatalogUpdateRequest",

@@ -3,23 +3,28 @@
 import * as React from "react"
 
 import {
+  archiveAiChatThread,
   createAiChatThread,
   deleteAiChatThread,
   exportAiChatThread,
   executeAiChatPaperActionDraft,
   getAiChatThread,
+  getAiChatThreadRetention,
   listAiChatActionDrafts,
   listAiChatThreads,
   listAiChatSignalProposals,
   listAiChatTools,
+  purgeAiChatThread,
   queueAiChatSignalProposalForReview,
   regenerateAiChatResponse,
   renameAiChatThread,
   requestAiChatActionDraftApproval,
+  restoreAiChatThread,
   saveAiChatSignalProposalToWatchlist,
   searchAiChatThreads,
   streamAiChatResponse,
   updateAiChatThreadContext,
+  updateAiChatThreadRetention,
 } from "@/lib/api/ai-chat"
 import type {
   AiChatActionDraft,
@@ -70,6 +75,7 @@ export interface ChatMessage {
   specialistArtifacts?: AiChatSpecialistArtifact[]
   telemetry?: AiChatTelemetryMetadata
   costPolicy?: AiChatCostPolicyMetadata
+  audit?: Record<string, unknown>
   status?: "ready" | "pending"
 }
 
@@ -78,6 +84,8 @@ export interface ChatThreadListItem {
   title: string
   updatedAt: string
   pageType?: string | null
+  status: AiChatThreadSummary["status"]
+  retentionClass: AiChatThreadSummary["retention_class"]
 }
 
 interface ChatWidgetStoreValue {
@@ -95,6 +103,7 @@ interface ChatWidgetStoreValue {
   autoApprovePageActions: boolean
   threads: ChatThreadListItem[]
   threadSearch: string
+  showArchivedThreads: boolean
   threadId: string | null
   threadTitle: string
   activeResponseStatus: string | null
@@ -104,12 +113,19 @@ interface ChatWidgetStoreValue {
   toggle: () => void
   setDraft: (value: string) => void
   setThreadSearch: (value: string) => void
+  toggleArchivedThreads: () => void
   toggleTool: (toolId: string) => void
   createNewThread: () => Promise<void>
   selectThread: (value: string) => Promise<void>
   renameThread: (value: string, targetThreadId?: string) => Promise<void>
+  archiveThread: (targetThreadId?: string) => Promise<void>
+  restoreThread: (targetThreadId?: string) => Promise<void>
   deleteThread: (targetThreadId?: string) => Promise<void>
+  purgeThread: (targetThreadId?: string) => Promise<void>
   exportThread: (targetThreadId?: string) => Promise<void>
+  showRetentionDetails: (targetThreadId?: string) => Promise<void>
+  markThreadEphemeral: (targetThreadId?: string) => Promise<void>
+  markThreadLegalHold: (targetThreadId?: string) => Promise<void>
   saveSignalProposalToWatchlist: (proposalId: string) => Promise<void>
   queueSignalProposalForReview: (proposalId: string) => Promise<void>
   requestActionDraftApproval: (draftId: string) => Promise<void>
@@ -176,6 +192,7 @@ function mapApiMessage(
     strategyCreator: responseMetadata?.strategy_creator,
     telemetry: responseMetadata?.telemetry,
     costPolicy: responseMetadata?.cost_policy,
+    audit: responseMetadata?.audit,
     status: "ready",
   }
 }
@@ -186,6 +203,8 @@ function mapThreadSummary(thread: AiChatThreadSummary): ChatThreadListItem {
     title: thread.title,
     updatedAt: thread.last_message_at ?? thread.updated_at,
     pageType: thread.current_page_type,
+    status: thread.status,
+    retentionClass: thread.retention_class,
   }
 }
 
@@ -271,6 +290,10 @@ function extractResponseMetadata(payload: Record<string, unknown>): AiChatRespon
       payload.strategy_creator && typeof payload.strategy_creator === "object"
         ? payload.strategy_creator as AiChatStrategyCreatorMetadata
         : undefined,
+    audit:
+      payload.audit && typeof payload.audit === "object"
+        ? payload.audit as Record<string, unknown>
+        : undefined,
   }
 }
 
@@ -292,6 +315,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
   const [isStreaming, setIsStreaming] = React.useState(false)
   const [isManagingThreads, setIsManagingThreads] = React.useState(false)
   const [threadSearch, setThreadSearchState] = React.useState("")
+  const [showArchivedThreads, setShowArchivedThreads] = React.useState(false)
   const [threadId, setThreadId] = React.useState<string | null>(null)
   const [threadTitle, setThreadTitle] = React.useState(DEFAULT_THREAD_TITLE)
   const [activeResponseStatus, setActiveResponseStatus] = React.useState<string | null>(null)
@@ -428,16 +452,16 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     })
   }, [refreshActionDrafts, refreshSignalProposals])
 
-  const refreshThreadList = React.useCallback(async (query?: string) => {
+  const refreshThreadList = React.useCallback(async (query?: string, includeArchived = showArchivedThreads) => {
     if (!isAuthenticated) {
       setThreads([])
       return
     }
     const listed = query && query.trim().length > 0
-      ? await searchAiChatThreads(authenticatedFetch, query.trim())
-      : await listAiChatThreads(authenticatedFetch)
+      ? await searchAiChatThreads(authenticatedFetch, query.trim(), { includeArchived })
+      : await listAiChatThreads(authenticatedFetch, { includeArchived })
     setThreads(listed.map(mapThreadSummary))
-  }, [authenticatedFetch, isAuthenticated])
+  }, [authenticatedFetch, isAuthenticated, showArchivedThreads])
 
   const ensureThread = React.useCallback(async () => {
     if (!isAuthenticated) {
@@ -465,7 +489,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       }
     }
 
-    const listed = await listAiChatThreads(authenticatedFetch)
+    const listed = await listAiChatThreads(authenticatedFetch, { includeArchived: showArchivedThreads })
     setThreads(listed.map(mapThreadSummary))
     const selected = listed[0]
 
@@ -494,6 +518,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     pageContext?.route,
     refreshThreadList,
     refreshThreadMessageAttachments,
+    showArchivedThreads,
     syncThread,
     threadId,
   ])
@@ -785,6 +810,48 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, refreshThreadList, syncThread, threadId, threadSearch])
 
+  const archiveThread = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated || isStreaming) {
+      return
+    }
+    setIsManagingThreads(true)
+    setError(null)
+    try {
+      const archived = await archiveAiChatThread(authenticatedFetch, selectedThreadId)
+      if (selectedThreadId === threadId) {
+        syncThread(archived)
+        setActiveResponseStatus("Conversation archived. It is hidden from the active list.")
+      }
+      await refreshThreadList(threadSearch)
+    } catch (threadError) {
+      console.error("Failed to archive AI chat thread:", threadError)
+      setError("Unable to archive the conversation.")
+    } finally {
+      setIsManagingThreads(false)
+    }
+  }, [authenticatedFetch, isAuthenticated, isStreaming, refreshThreadList, syncThread, threadId, threadSearch])
+
+  const restoreThread = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated || isStreaming) {
+      return
+    }
+    setIsManagingThreads(true)
+    setError(null)
+    try {
+      const restored = await restoreAiChatThread(authenticatedFetch, selectedThreadId)
+      syncThread(restored)
+      await refreshThreadList(threadSearch)
+      setActiveResponseStatus("Conversation restored to active chats.")
+    } catch (threadError) {
+      console.error("Failed to restore AI chat thread:", threadError)
+      setError("Unable to restore the conversation.")
+    } finally {
+      setIsManagingThreads(false)
+    }
+  }, [authenticatedFetch, isAuthenticated, isStreaming, refreshThreadList, syncThread, threadId, threadSearch])
+
   const deleteThread = React.useCallback(async (targetThreadId?: string) => {
     const selectedThreadId = targetThreadId ?? threadId
     if (!selectedThreadId || !isAuthenticated || isStreaming) {
@@ -806,8 +873,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       await refreshThreadList(threadSearch)
       if (deletedActiveThread) {
         const listed = threadSearch.trim().length > 0
-          ? await searchAiChatThreads(authenticatedFetch, threadSearch.trim())
-          : await listAiChatThreads(authenticatedFetch)
+          ? await searchAiChatThreads(authenticatedFetch, threadSearch.trim(), { includeArchived: showArchivedThreads })
+          : await listAiChatThreads(authenticatedFetch, { includeArchived: showArchivedThreads })
         const fallback = listed[0]
         if (fallback) {
           const selected = await getAiChatThread(authenticatedFetch, fallback.thread_id)
@@ -832,7 +899,36 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     syncThread,
     threadId,
     threadSearch,
+    showArchivedThreads,
   ])
+
+  const purgeThread = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated || isStreaming) {
+      return
+    }
+    setIsManagingThreads(true)
+    setError(null)
+    try {
+      const purged = await purgeAiChatThread(authenticatedFetch, selectedThreadId)
+      await refreshThreadList(threadSearch)
+      if (purged) {
+        setActiveResponseStatus("Conversation purged. User-facing content was removed or redacted.")
+        if (selectedThreadId === threadId) {
+          setThreadId(null)
+          setThreadTitle(DEFAULT_THREAD_TITLE)
+          setMessages([])
+        }
+      } else {
+        setActiveResponseStatus("Purge blocked by retention policy, likely regulated or legal hold.")
+      }
+    } catch (threadError) {
+      console.error("Failed to purge AI chat thread:", threadError)
+      setError("Unable to purge the conversation.")
+    } finally {
+      setIsManagingThreads(false)
+    }
+  }, [authenticatedFetch, isAuthenticated, isStreaming, refreshThreadList, threadId, threadSearch])
 
   const saveSignalProposalToWatchlist = React.useCallback(async (proposalId: string) => {
     if (!threadId || !isAuthenticated) {
@@ -943,6 +1039,85 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
   }, [authenticatedFetch, isAuthenticated, threadId])
 
+  const showRetentionDetails = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated) {
+      return
+    }
+    setError(null)
+    try {
+      const detail = await getAiChatThreadRetention(authenticatedFetch, selectedThreadId)
+      const retention = detail.thread.retention_class.replace("_", " ")
+      const status = detail.thread.status
+      const expires = detail.thread.retention_expires_at
+        ? ` Expires: ${new Date(detail.thread.retention_expires_at).toLocaleDateString()}.`
+        : ""
+      const hold = detail.thread.legal_hold_reason ? ` Legal hold: ${detail.thread.legal_hold_reason}.` : ""
+      setActiveResponseStatus(`Retention: ${retention}. Status: ${status}.${expires}${hold}`)
+    } catch (threadError) {
+      console.error("Failed to load AI chat retention details:", threadError)
+      setError("Unable to load retention details.")
+    }
+  }, [authenticatedFetch, isAuthenticated, threadId])
+
+  const markThreadEphemeral = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated || isStreaming) {
+      return
+    }
+    setIsManagingThreads(true)
+    setError(null)
+    try {
+      const updated = await updateAiChatThreadRetention(authenticatedFetch, selectedThreadId, {
+        retention_class: "ephemeral",
+        reason: "User marked conversation as ephemeral from chat UI.",
+      })
+      if (selectedThreadId === threadId) {
+        syncThread(updated)
+      }
+      await refreshThreadList(threadSearch)
+      setActiveResponseStatus("Conversation set to ephemeral retention.")
+    } catch (threadError) {
+      console.error("Failed to update AI chat retention:", threadError)
+      setError("Unable to update retention policy.")
+    } finally {
+      setIsManagingThreads(false)
+    }
+  }, [authenticatedFetch, isAuthenticated, isStreaming, refreshThreadList, syncThread, threadId, threadSearch])
+
+  const markThreadLegalHold = React.useCallback(async (targetThreadId?: string) => {
+    const selectedThreadId = targetThreadId ?? threadId
+    if (!selectedThreadId || !isAuthenticated || isStreaming) {
+      return
+    }
+    setIsManagingThreads(true)
+    setError(null)
+    try {
+      const updated = await updateAiChatThreadRetention(authenticatedFetch, selectedThreadId, {
+        retention_class: "legal_hold",
+        reason: "User applied legal hold from chat UI.",
+      })
+      if (selectedThreadId === threadId) {
+        syncThread(updated)
+      }
+      await refreshThreadList(threadSearch)
+      setActiveResponseStatus("Legal hold applied. Purge is blocked until hold release.")
+    } catch (threadError) {
+      console.error("Failed to apply AI chat legal hold:", threadError)
+      setError("Unable to apply legal hold.")
+    } finally {
+      setIsManagingThreads(false)
+    }
+  }, [authenticatedFetch, isAuthenticated, isStreaming, refreshThreadList, syncThread, threadId, threadSearch])
+
+  const toggleArchivedThreads = React.useCallback(() => {
+    setShowArchivedThreads((current) => {
+      const next = !current
+      void refreshThreadList(threadSearch, next)
+      return next
+    })
+  }, [refreshThreadList, threadSearch])
+
   const submitDraft = React.useCallback(async () => {
     const trimmed = draft.trim()
     if (!trimmed || !isOnline || !isAuthenticated || isStreaming) {
@@ -1008,6 +1183,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                       strategyCreator: metadata?.strategy_creator,
                       telemetry: metadata?.telemetry,
                       costPolicy: metadata?.cost_policy,
+                      audit: metadata?.audit,
                     }
                   : message,
               ),
@@ -1123,6 +1299,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
                       strategyCreator: metadata?.strategy_creator,
                       telemetry: metadata?.telemetry,
                       costPolicy: metadata?.cost_policy,
+                      audit: metadata?.audit,
                     }
                   : message,
               ),
@@ -1206,6 +1383,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       autoApprovePageActions,
       threads,
       threadSearch,
+      showArchivedThreads,
       threadId,
       threadTitle,
       activeResponseStatus,
@@ -1215,12 +1393,19 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       toggle,
       setDraft,
       setThreadSearch,
+      toggleArchivedThreads,
       toggleTool,
       createNewThread,
       selectThread,
       renameThread,
+      archiveThread,
+      restoreThread,
       deleteThread,
+      purgeThread,
       exportThread,
+      showRetentionDetails,
+      markThreadEphemeral,
+      markThreadLegalHold,
       saveSignalProposalToWatchlist,
       queueSignalProposalForReview,
       requestActionDraftApproval,
@@ -1233,6 +1418,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }),
     [
       activeResponseStatus,
+      archiveThread,
       autoApprovePageActions,
       availableTools,
       cancelStream,
@@ -1244,6 +1430,8 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       executePageAction,
       enablePageActionAutoApproval,
       exportThread,
+      markThreadLegalHold,
+      markThreadEphemeral,
       isHydrated,
       isInitializing,
       isManagingThreads,
@@ -1256,11 +1444,15 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       queueSignalProposalForReview,
       regenerateLastResponse,
       renameThread,
+      restoreThread,
+      purgeThread,
       executePaperActionDraft,
       requestActionDraftApproval,
       saveSignalProposalToWatchlist,
       setDraft,
       setThreadSearch,
+      showArchivedThreads,
+      showRetentionDetails,
       selectedToolIds,
       selectThread,
       submitDraft,
@@ -1269,6 +1461,7 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
       threadTitle,
       threads,
       toggle,
+      toggleArchivedThreads,
       toggleTool,
     ],
   )

@@ -13,10 +13,12 @@ from pydantic import BaseModel, Field
 
 from data.database.migrations.runner import apply_pending_migrations
 from data.database.repositories.ai_chat_repository import AiChatRepository
+from services.ai_gateway import AIGateway
 from services.chat.ceo_gateway import CEOChatGateway, list_ceo_chat_tools
 from services.context.builders import build_page_context
 from services.conversation.service import ConversationService
-from services.schemas.chat import ChatMessage, ChatThread, ChatThreadDetail, ChatTurnRequest
+from services.schemas.chat import ChatMessage, ChatRetentionPolicyDetail, ChatThread, ChatThreadDetail, ChatTurnRequest
+from tools.read_only import list_read_only_tool_definitions
 
 
 router = APIRouter()
@@ -31,6 +33,15 @@ class ThreadCreatePayload(BaseModel):
 
 class ThreadRenamePayload(BaseModel):
     title: str
+
+
+class ThreadRetentionPayload(BaseModel):
+    retention_class: str
+    reason: str = "Retention policy updated by user."
+
+
+class LifecycleRunPayload(BaseModel):
+    dry_run: bool = False
 
 
 class MessageCreatePayload(BaseModel):
@@ -76,13 +87,18 @@ def get_ceo_chat_gateway() -> CEOChatGateway:
     return CEOChatGateway(get_conversation_service())
 
 
+def get_ai_gateway() -> AIGateway:
+    return AIGateway(get_conversation_service())
+
+
 @router.get("/threads", response_model=list[ChatThread])
 def list_threads(
     q: str | None = Query(default=None),
+    include_archived: bool = Query(default=False),
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
 ) -> list[ChatThread]:
-    return conversations.list_threads(user_id=user_id, query=q)
+    return conversations.list_threads(user_id=user_id, query=q, include_archived=include_archived)
 
 
 @router.post("/threads", response_model=ChatThreadDetail)
@@ -150,6 +166,89 @@ def delete_thread(
     return {"deleted": conversations.delete_thread(thread_id=thread_id, user_id=user_id)}
 
 
+@router.post("/threads/{thread_id}/archive", response_model=ChatThreadDetail)
+def archive_thread(
+    thread_id: str,
+    user_id: str = Depends(get_user_id),
+    conversations: ConversationService = Depends(get_conversation_service),
+) -> ChatThreadDetail:
+    try:
+        return conversations.archive_thread(thread_id=thread_id, user_id=user_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/threads/{thread_id}/restore", response_model=ChatThreadDetail)
+def restore_thread(
+    thread_id: str,
+    user_id: str = Depends(get_user_id),
+    conversations: ConversationService = Depends(get_conversation_service),
+) -> ChatThreadDetail:
+    try:
+        return conversations.restore_thread(thread_id=thread_id, user_id=user_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/threads/{thread_id}/purge")
+def purge_thread(
+    thread_id: str,
+    user_id: str = Depends(get_user_id),
+    conversations: ConversationService = Depends(get_conversation_service),
+) -> dict[str, bool]:
+    return {
+        "purged": conversations.repository.purge_thread(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=user_id,
+            reason="User requested purge review from AI Chat.",
+        )
+    }
+
+
+@router.get("/threads/{thread_id}/retention", response_model=ChatRetentionPolicyDetail)
+def get_thread_retention(
+    thread_id: str,
+    user_id: str = Depends(get_user_id),
+    conversations: ConversationService = Depends(get_conversation_service),
+) -> ChatRetentionPolicyDetail:
+    try:
+        return conversations.retention_detail(thread_id=thread_id, user_id=user_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.patch("/threads/{thread_id}/retention", response_model=ChatThreadDetail)
+def update_thread_retention(
+    thread_id: str,
+    payload: ThreadRetentionPayload,
+    user_id: str = Depends(get_user_id),
+    conversations: ConversationService = Depends(get_conversation_service),
+) -> ChatThreadDetail:
+    try:
+        return conversations.set_thread_retention_class(
+            thread_id=thread_id,
+            user_id=user_id,
+            retention_class=payload.retention_class,
+            reason=payload.reason,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/retention/lifecycle-run")
+def run_retention_lifecycle(
+    payload: LifecycleRunPayload,
+    conversations: ConversationService = Depends(get_conversation_service),
+) -> dict[str, Any]:
+    if payload.dry_run:
+        return {"dry_run": True, "decisions": []}
+    decisions = conversations.retention.run_lifecycle()
+    return {"dry_run": False, "decisions": [decision.__dict__ for decision in decisions]}
+
+
 @router.get("/threads/{thread_id}/export")
 def export_thread(
     thread_id: str,
@@ -184,7 +283,20 @@ def create_message(
 
 @router.get("/tools")
 def list_tools() -> list[dict[str, Any]]:
-    return [tool.model_dump() for tool in list_ceo_chat_tools()]
+    return [
+        {
+            **tool.model_dump(),
+            "capability_type": "haruquant_read_only",
+            "authority_band": "read_only",
+            "side_effect_policy": "none",
+            "required_context": [],
+            "allowed_backend_tools": [tool.tool_id],
+            "allowed_specialist_agents": ["read_only_tool_executor"],
+            "artifact_type": "state_snapshot",
+            "required_user_ack": False,
+        }
+        for tool in list_read_only_tool_definitions()
+    ]
 
 
 @router.post("/context/resolve")
@@ -267,6 +379,11 @@ def save_signal_proposal_to_watchlist(
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
 ) -> dict[str, Any]:
+    conversations.retention.mark_regulated(
+        thread_id=thread_id,
+        user_id=user_id,
+        reason="Signal proposal saved to watchlist; conversation classified as regulated.",
+    )
     row = conversations.repository.update_signal_proposal_state(
         proposal_id=proposal_id,
         user_id=user_id,
@@ -283,6 +400,11 @@ def queue_signal_proposal_for_review(
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
 ) -> dict[str, Any]:
+    conversations.retention.mark_regulated(
+        thread_id=thread_id,
+        user_id=user_id,
+        reason="Signal proposal queued for review; conversation classified as regulated.",
+    )
     row = conversations.repository.update_signal_proposal_state(
         proposal_id=proposal_id,
         user_id=user_id,
@@ -309,6 +431,11 @@ def request_action_draft_approval(
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
 ) -> dict[str, Any]:
+    conversations.retention.mark_regulated(
+        thread_id=thread_id,
+        user_id=user_id,
+        reason="Action draft approval requested; conversation classified as regulated.",
+    )
     row = conversations.repository.update_action_draft(
         draft_id=draft_id,
         user_id=user_id,
@@ -345,7 +472,7 @@ def stream_response(
     thread_id: str,
     payload: ChatTurnRequest,
     user_id: str = Depends(get_user_id),
-    gateway: CEOChatGateway = Depends(get_ceo_chat_gateway),
+    gateway: AIGateway = Depends(get_ai_gateway),
 ) -> StreamingResponse:
     def events():
         try:
@@ -363,7 +490,7 @@ def regenerate_response(
     payload: ChatTurnRequest,
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
-    gateway: CEOChatGateway = Depends(get_ceo_chat_gateway),
+    gateway: AIGateway = Depends(get_ai_gateway),
 ) -> StreamingResponse:
     detail = conversations.get_thread(thread_id=thread_id, user_id=user_id)
     last_user = next((message for message in reversed(detail.messages) if message.role == "user"), None)

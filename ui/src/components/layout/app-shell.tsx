@@ -85,10 +85,16 @@ function GlobalChatWidget() {
   const {
     close,
     createNewThread,
+    archiveThread,
+    restoreThread,
     deleteThread,
+    purgeThread,
     draft,
     error,
     exportThread,
+    showRetentionDetails,
+    markThreadEphemeral,
+    markThreadLegalHold,
     activeResponseStatus,
     availableTools,
     isHydrated,
@@ -112,6 +118,8 @@ function GlobalChatWidget() {
     saveSignalProposalToWatchlist,
     setDraft,
     setThreadSearch,
+    showArchivedThreads,
+    toggleArchivedThreads,
     selectedToolIds,
     selectThread,
     submitDraft,
@@ -136,6 +144,7 @@ function GlobalChatWidget() {
         threadTitle={threadTitle}
         threadId={threadId}
         threadSearch={threadSearch}
+        showArchivedThreads={showArchivedThreads}
         activeResponseStatus={activeResponseStatus}
         error={error}
         draft={draft}
@@ -147,9 +156,15 @@ function GlobalChatWidget() {
         onCancel={cancelStream}
         onClose={close}
         onCreateThread={createNewThread}
+        onArchiveThread={archiveThread}
+        onRestoreThread={restoreThread}
         onDeleteThread={deleteThread}
+        onPurgeThread={purgeThread}
         onDraftChange={setDraft}
         onExportThread={exportThread}
+        onShowRetentionDetails={showRetentionDetails}
+        onMarkThreadEphemeral={markThreadEphemeral}
+        onMarkThreadLegalHold={markThreadLegalHold}
         onQueueSignalProposalForReview={queueSignalProposalForReview}
         onRequestActionDraftApproval={requestActionDraftApproval}
         onExecutePaperActionDraft={executePaperActionDraft}
@@ -160,6 +175,7 @@ function GlobalChatWidget() {
         onSaveSignalProposalToWatchlist={saveSignalProposalToWatchlist}
         onSelectThread={selectThread}
         onThreadSearchChange={setThreadSearch}
+        onToggleArchivedThreads={toggleArchivedThreads}
         onToggleTool={toggleTool}
         onSubmit={submitDraft}
       />

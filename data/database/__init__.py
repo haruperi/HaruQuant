@@ -8,6 +8,7 @@ from data.database.migrations.runner import (
 )
 from data.database.repositories.ai_chat_repository import (
     AiChatMemorySummaryRow,
+    AiChatLifecycleAuditEventRow,
     AiChatMessageRow,
     AiChatPinnedFactRow,
     AiChatRepository,
@@ -63,6 +64,7 @@ __all__ = [
     "default_migrations_dir",
     # Repositories
     "AiChatMemorySummaryRow",
+    "AiChatLifecycleAuditEventRow",
     "AiChatMessageRow",
     "AiChatPinnedFactRow",
     "AiChatRepository",

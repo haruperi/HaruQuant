@@ -6,13 +6,19 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Mapping, Optional, Sequence
 
-
 SUPPORTED_ENGINE_TYPES = {"vectorized", "event_driven"}
 SUPPORTED_DATA_SOURCES = {"metatrader", "dukascopy", "local"}
 SUPPORTED_TICK_MODELS = {"timeframe_ticks", "m1_ticks", "real_ticks", "synthetic_ticks"}
 SUPPORTED_SPREAD_MODELS = {"native_spread", "fixed_spread", "variable_spread"}
 SUPPORTED_SLIPPAGE_MODELS = {"none", "fixed", "dynamic"}
-SUPPORTED_POSITION_SIZE_TYPES = {"fixed_lot", "fixed_percent", "milestone", "kelly_criterion", "volatility_adjusted_atr", "fixed_fractional"}
+SUPPORTED_POSITION_SIZE_TYPES = {
+    "fixed_lot",
+    "fixed_percent",
+    "milestone",
+    "kelly_criterion",
+    "volatility_adjusted_atr",
+    "fixed_fractional",
+}
 SUPPORTED_BENCHMARK_POLICIES = {"equal_weight", "first_symbol", "custom_symbol"}
 SUPPORTED_EQUITY_SNAPSHOT_POLICIES = {"bar_close", "position_update", "every_tick"}
 
@@ -114,6 +120,53 @@ class StrategyConfig:
         if not isinstance(params, Mapping):
             raise SimulationConfigError("strategy.params must be an object")
         return cls(name=name, params=dict(params))
+
+
+@dataclass(frozen=True)
+class StatefulRiskControlsConfig:
+    enabled: bool = True
+    max_open_positions_per_strategy: Optional[int] = None
+    max_layers_per_setup: Optional[int] = None
+    max_martingale_step: Optional[int] = None
+    max_total_lots: Optional[float] = None
+    max_symbol_exposure: Optional[float] = None
+    max_strategy_drawdown: Optional[float] = None
+    allow_multiple_action_batches_per_event: bool = False
+
+    @classmethod
+    def from_dict(
+        cls, raw: Optional[Mapping[str, Any]]
+    ) -> "StatefulRiskControlsConfig":
+        if raw is None:
+            raw = {}
+        if not isinstance(raw, Mapping):
+            raise SimulationConfigError("risk_controls must be an object")
+        return cls(
+            enabled=bool(raw.get("enabled", True)),
+            max_open_positions_per_strategy=_optional_int_or_none(
+                raw, "max_open_positions_per_strategy"
+            ),
+            max_layers_per_setup=_optional_int_or_none(raw, "max_layers_per_setup"),
+            max_martingale_step=_optional_int_or_none(raw, "max_martingale_step"),
+            max_total_lots=_optional_float_or_none(raw, "max_total_lots"),
+            max_symbol_exposure=_optional_float_or_none(raw, "max_symbol_exposure"),
+            max_strategy_drawdown=_optional_float_or_none(raw, "max_strategy_drawdown"),
+            allow_multiple_action_batches_per_event=bool(
+                raw.get("allow_multiple_action_batches_per_event", False)
+            ),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "max_open_positions_per_strategy": self.max_open_positions_per_strategy,
+            "max_layers_per_setup": self.max_layers_per_setup,
+            "max_martingale_step": self.max_martingale_step,
+            "max_total_lots": self.max_total_lots,
+            "max_symbol_exposure": self.max_symbol_exposure,
+            "max_strategy_drawdown": self.max_strategy_drawdown,
+            "allow_multiple_action_batches_per_event": self.allow_multiple_action_batches_per_event,
+        }
 
 
 @dataclass(frozen=True)
@@ -308,6 +361,9 @@ class SimulationConfig:
     strategy: StrategyConfig
     execution: ExecutionConfig
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
+    risk_controls: StatefulRiskControlsConfig = field(
+        default_factory=StatefulRiskControlsConfig
+    )
     preloaded_data: Optional[pd.DataFrame] = None
 
     @classmethod
@@ -324,6 +380,7 @@ class SimulationConfig:
         strategy = StrategyConfig.from_dict(_required_mapping(raw, "strategy"))
         execution = ExecutionConfig.from_dict(_required_mapping(raw, "execution"))
         reporting = ReportingConfig.from_dict(raw.get("reporting"))
+        risk_controls = StatefulRiskControlsConfig.from_dict(raw.get("risk_controls"))
         return cls(
             engine_type=engine_type,
             account=account,
@@ -331,6 +388,7 @@ class SimulationConfig:
             strategy=strategy,
             execution=execution,
             reporting=reporting,
+            risk_controls=risk_controls,
             preloaded_data=raw.get("preloaded_data"),
         )
 
@@ -380,6 +438,15 @@ def _optional_float_or_none(raw: Mapping[str, Any], key: str) -> Optional[float]
         return float(raw[key])
     except (TypeError, ValueError) as exc:
         raise SimulationConfigError(f"{key} must be numeric") from exc
+
+
+def _optional_int_or_none(raw: Mapping[str, Any], key: str) -> Optional[int]:
+    if key not in raw or raw[key] is None:
+        return None
+    try:
+        return int(raw[key])
+    except (TypeError, ValueError) as exc:
+        raise SimulationConfigError(f"{key} must be an integer") from exc
 
 
 def _required_datetime(raw: Mapping[str, Any], dotted_key: str) -> datetime:

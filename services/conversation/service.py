@@ -8,15 +8,19 @@ from uuid import uuid4
 
 from data.database.repositories.ai_chat_repository import (
     AiChatActionDraftRow,
+    AiChatLifecycleAuditEventRow,
     AiChatMessageRow,
     AiChatRepository,
     AiChatThreadRow,
 )
 from services.conversation.memory import ConversationMemoryService
+from services.conversation.retention import ConversationRetentionService, redact_sensitive_text
 from services.conversation.title import generate_thread_title
 from services.schemas.chat import (
+    ChatLifecycleAuditEvent,
     ChatMemorySummary,
     ChatMessage,
+    ChatRetentionPolicyDetail,
     ChatResponseMetadata,
     ChatThread,
     ChatThreadDetail,
@@ -46,6 +50,13 @@ def _thread_from_row(row: AiChatThreadRow) -> ChatThread:
         created_at=row.created_at,
         updated_at=row.updated_at,
         last_message_at=row.last_message_at,
+        archived_at=row.archived_at,
+        deleted_at=row.deleted_at,
+        purged_at=row.purged_at,
+        retention_expires_at=row.retention_expires_at,
+        purge_after=row.purge_after,
+        legal_hold_until=row.legal_hold_until,
+        legal_hold_reason=row.legal_hold_reason,
     )
 
 
@@ -67,6 +78,10 @@ def _message_from_row(row: AiChatMessageRow) -> ChatMessage:
         created_at=row.created_at,
         metadata=_metadata_from_json(row.metadata_json),
     )
+
+
+def _audit_event_from_row(row: AiChatLifecycleAuditEventRow) -> ChatLifecycleAuditEvent:
+    return ChatLifecycleAuditEvent(**row.__dict__)
 
 
 @dataclass(frozen=True)
@@ -129,6 +144,7 @@ class ConversationService:
     def __init__(self, repository: AiChatRepository) -> None:
         self.repository = repository
         self.memory = ConversationMemoryService(repository)
+        self.retention = ConversationRetentionService(repository)
 
     def create_thread(
         self,
@@ -142,15 +158,26 @@ class ConversationService:
         row = self.repository.create_thread(
             thread_id=f"thread-{uuid4()}",
             user_id=user_id,
-            title=title or "CEO conversation",
+            title=title or "AI conversation",
             current_route=current_route,
             current_page_type=current_page_type,
             active_context_revision=active_context_revision,
         )
+        self.retention.initialize_thread_policy(thread_id=row.thread_id, user_id=user_id)
         return self.get_thread(thread_id=row.thread_id, user_id=user_id)
 
-    def list_threads(self, *, user_id: str, query: str | None = None, limit: int = 50) -> list[ChatThread]:
-        threads = [_thread_from_row(row) for row in self.repository.list_threads(user_id=user_id, limit=limit)]
+    def list_threads(
+        self,
+        *,
+        user_id: str,
+        query: str | None = None,
+        include_archived: bool = False,
+        limit: int = 50,
+    ) -> list[ChatThread]:
+        threads = [
+            _thread_from_row(row)
+            for row in self.repository.list_threads(user_id=user_id, include_archived=include_archived, limit=limit)
+        ]
         if query:
             lowered = query.lower()
             threads = [thread for thread in threads if lowered in thread.title.lower()]
@@ -182,11 +209,56 @@ class ConversationService:
         )
 
     def rename_thread(self, *, thread_id: str, user_id: str, title: str) -> ChatThreadDetail:
-        self.repository.update_thread_title(thread_id=thread_id, user_id=user_id, title=title.strip() or "CEO conversation")
+        self.repository.update_thread_title(thread_id=thread_id, user_id=user_id, title=title.strip() or "AI conversation")
         return self.get_thread(thread_id=thread_id, user_id=user_id)
 
     def delete_thread(self, *, thread_id: str, user_id: str) -> bool:
         return self.repository.soft_delete_thread(thread_id=thread_id, user_id=user_id)
+
+    def archive_thread(self, *, thread_id: str, user_id: str) -> ChatThreadDetail:
+        self.repository.archive_thread(thread_id=thread_id, user_id=user_id, reason="User archived conversation.")
+        return self.get_thread(thread_id=thread_id, user_id=user_id)
+
+    def restore_thread(self, *, thread_id: str, user_id: str) -> ChatThreadDetail:
+        self.repository.restore_thread(thread_id=thread_id, user_id=user_id, reason="User restored conversation.")
+        return self.get_thread(thread_id=thread_id, user_id=user_id)
+
+    def retention_detail(self, *, thread_id: str, user_id: str) -> ChatRetentionPolicyDetail:
+        row = self.repository.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if row is None:
+            raise LookupError(f"thread not found: {thread_id}")
+        return ChatRetentionPolicyDetail(
+            thread=_thread_from_row(row),
+            audit_events=[
+                _audit_event_from_row(event)
+                for event in self.repository.list_lifecycle_events(thread_id=thread_id, user_id=user_id)
+            ],
+        )
+
+    def set_thread_retention_class(
+        self,
+        *,
+        thread_id: str,
+        user_id: str,
+        retention_class: str,
+        reason: str,
+    ) -> ChatThreadDetail:
+        if retention_class == "ephemeral":
+            self.retention.set_ephemeral(thread_id=thread_id, user_id=user_id, reason=reason)
+        elif retention_class == "regulated":
+            self.retention.mark_regulated(thread_id=thread_id, user_id=user_id, reason=reason)
+        elif retention_class == "legal_hold":
+            self.retention.apply_legal_hold(
+                thread_id=thread_id,
+                user_id=user_id,
+                actor_id=user_id,
+                reason=reason,
+            )
+        elif retention_class == "standard":
+            self.retention.initialize_thread_policy(thread_id=thread_id, user_id=user_id, retention_class="standard")
+        else:
+            raise ValueError(f"unsupported retention class: {retention_class}")
+        return self.get_thread(thread_id=thread_id, user_id=user_id)
 
     def update_context(
         self,
@@ -197,6 +269,7 @@ class ConversationService:
         current_page_type: str | None,
         active_context_revision: str | None,
     ) -> ChatThreadDetail:
+        before = self.repository.get_thread(thread_id, user_id=user_id, include_deleted=True)
         self.repository.update_thread_context(
             thread_id=thread_id,
             user_id=user_id,
@@ -204,6 +277,26 @@ class ConversationService:
             current_page_type=current_page_type,
             active_context_revision=active_context_revision,
         )
+        if before and before.active_context_revision != active_context_revision:
+            self.repository.record_lifecycle_event(
+                thread_id=thread_id,
+                user_id=user_id,
+                actor_id=user_id,
+                action="context_revision_changed",
+                from_status=before.status,
+                to_status=before.status,
+                from_retention_class=before.retention_class,
+                to_retention_class=before.retention_class,
+                reason=f"Page context updated to {active_context_revision or 'none'}.",
+                metadata_json=json.dumps(
+                    {
+                        "previous_context_revision": before.active_context_revision,
+                        "context_revision": active_context_revision,
+                        "route": current_route,
+                        "page_type": current_page_type,
+                    }
+                ),
+            )
         return self.get_thread(thread_id=thread_id, user_id=user_id)
 
     def add_message(
@@ -223,7 +316,7 @@ class ConversationService:
     ) -> ChatMessage:
         if role == "user":
             thread = self.repository.get_thread(thread_id, user_id=user_id)
-            if thread and thread.title == "CEO conversation":
+            if thread and thread.title in {"CEO conversation", "AI conversation"}:
                 self.repository.update_thread_title(
                     thread_id=thread_id,
                     user_id=user_id,
@@ -238,7 +331,7 @@ class ConversationService:
             thread_id=thread_id,
             user_id=user_id,
             role=role,
-            content=content,
+            content=redact_sensitive_text(content),
             request_id=request_id,
             tool_calls_json=json.dumps(tool_calls or []),
             signal_proposal_id=signal_proposal_id,
@@ -247,6 +340,12 @@ class ConversationService:
             latency_ms=latency_ms,
             metadata_json=metadata_json,
         )
+        if signal_proposal_id or action_draft_id:
+            self.retention.mark_regulated(
+                thread_id=thread_id,
+                user_id=user_id,
+                reason="Regulated chat artifact linked to message.",
+            )
         messages = [
             _message_from_row(message)
             for message in self.repository.list_messages(thread_id=thread_id, user_id=user_id, limit=500)
@@ -257,7 +356,21 @@ class ConversationService:
     def export_thread(self, *, thread_id: str, user_id: str, format: str = "markdown") -> str:
         detail = self.get_thread(thread_id=thread_id, user_id=user_id)
         if format == "json":
+            self.repository.record_lifecycle_event(
+                thread_id=thread_id,
+                user_id=user_id,
+                actor_id=user_id,
+                action="thread_exported",
+                reason="Conversation exported as JSON.",
+            )
             return detail.model_dump_json(indent=2)
+        self.repository.record_lifecycle_event(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=user_id,
+            action="thread_exported",
+            reason="Conversation exported as Markdown.",
+        )
         lines = [f"# {detail.title}", ""]
         for message in detail.messages:
             lines.extend([f"## {message.role.title()}", message.content, ""])
@@ -288,6 +401,11 @@ class ConversationService:
             risk_precheck_status=risk_precheck_status,
             risk_precheck_notes=risk_precheck_notes,
             requires_human_approval=True,
+        )
+        self.retention.mark_regulated(
+            thread_id=thread_id,
+            user_id=user_id,
+            reason="Action draft created; conversation classified as regulated.",
         )
         return _action_draft_from_row(row)
 

@@ -67,11 +67,15 @@ class CEOChatGateway:
 
         planner_result = self.planner.create_plan(user_request=request.prompt, request_id=request_id)
         agent_outputs = self._build_agent_outputs(plan=planner_result, page_context=page_context)
-        memo = self.ceo.create_final_memo(
-            request=request.prompt,
-            planner_result=planner_result,
-            agent_outputs=agent_outputs,
-            evidence_refs=self._evidence_refs(planner_result, page_context),
+        memo = (
+            self._page_identity_memo(request=request.prompt, page_context=page_context)
+            if _is_page_identity_question(request.prompt)
+            else self.ceo.create_final_memo(
+                request=request.prompt,
+                planner_result=planner_result,
+                agent_outputs=agent_outputs,
+                evidence_refs=self._evidence_refs(planner_result, page_context),
+            )
         )
         response_text = format_ceo_memo(memo=memo, plan=planner_result, page_context=page_context)
         latency_ms = int((time.perf_counter() - started) * 1000)
@@ -116,6 +120,26 @@ class CEOChatGateway:
         return {
             "planner": plan.model_dump(),
             "page_context": page_context.model_dump(),
+        }
+
+    def _page_identity_memo(self, *, request: str, page_context: PageContext) -> dict[str, object]:
+        title = str((page_context.summary or {}).get("headline") or page_context.page_title or "Current page")
+        route = page_context.route or "/"
+        page_type = page_context.page_type or "generic"
+        bullets = [
+            str(value)
+            for value in list((page_context.summary or {}).get("bullets") or [])[:3]
+        ]
+        details = f"You are on {title} ({page_type}) at route {route}."
+        if bullets:
+            details += f" Visible context: {'; '.join(bullets)}."
+        return {
+            "memo_type": "page_identity",
+            "request": request,
+            "answer": details,
+            "source": "page_context",
+            "context_revision": page_context.context_revision,
+            "context_schema_version": page_context.context_schema_version,
         }
 
     def _evidence_refs(self, plan: AgentPlan, page_context: PageContext) -> list[str]:
@@ -175,6 +199,11 @@ class CEOChatGateway:
             page_context=page_context.model_dump(),
             audit={
                 "event": "ceo_chat_turn",
+                "context_revision_event": "context_revision_changed",
+                "context_schema_version": page_context.context_schema_version,
+                "context_revision": page_context.context_revision,
+                "context_route": page_context.route,
+                "context_page_type": page_context.page_type,
                 "live_execution_enabled": False,
                 "risk_governor_bypass_allowed": False,
             },
@@ -223,11 +252,20 @@ def format_ceo_memo(*, memo: dict[str, object], plan: AgentPlan, page_context: P
     decision = str(memo.get("decision", "planned"))
     summary = str(memo.get("summary", "CEO Agent prepared a governed firm workflow."))
     route = page_context.route or "current page"
+    page_headline = str((page_context.summary or {}).get("headline") or page_context.page_title or route)
+    page_bullets = [
+        str(value)
+        for value in list((page_context.summary or {}).get("bullets") or [])[:3]
+    ]
     agents = ", ".join(agent for agent in plan.allowed_agents if agent != "ceo") or "CEO"
+    page_line = f"Page context: {page_context.page_type} - {page_headline}."
+    if page_bullets:
+        page_line += f" Relevant signals: {'; '.join(page_bullets)}."
     return (
         f"{summary}\n\n"
         f"Decision: {decision}.\n"
         f"Route: {plan.intent} on {route}.\n"
+        f"{page_line}\n"
         f"Delegation path: {agents}.\n"
         "Execution boundary: no live or paper side effect was executed from chat."
     )
@@ -235,6 +273,8 @@ def format_ceo_memo(*, memo: dict[str, object], plan: AgentPlan, page_context: P
 
 def _response_mode(*, plan: AgentPlan, memo: dict[str, object]) -> str:
     memo_type = str(memo.get("memo_type", ""))
+    if memo_type == "page_identity":
+        return "page_aware_summary"
     if memo_type in {"rejection", "blocked_by_risk"}:
         return "blocked_by_policy"
     if plan.requires_board_approval:
@@ -253,5 +293,19 @@ def _chunk_text(text: str, *, size: int = 48) -> Iterator[str]:
         yield text[index : index + size]
 
 
-__all__ = ["CEOChatGateway", "format_ceo_memo", "list_ceo_chat_tools"]
+def _is_page_identity_question(prompt: str) -> bool:
+    lowered = " ".join(prompt.lower().strip().split())
+    page_terms = (
+        "what page am i on",
+        "which page am i on",
+        "where am i",
+        "what screen am i on",
+        "which screen am i on",
+        "what route am i on",
+        "current page",
+        "current screen",
+    )
+    return any(term in lowered for term in page_terms)
 
+
+__all__ = ["CEOChatGateway", "format_ceo_memo", "list_ceo_chat_tools"]

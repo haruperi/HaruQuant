@@ -17,8 +17,8 @@ class ChatModel(BaseModel):
 
 
 ChatRole = Literal["system", "user", "assistant", "tool"]
-ChatThreadStatus = Literal["active", "archived", "deleted"]
-ChatRetentionClass = Literal["standard", "ephemeral", "legal_hold"]
+ChatThreadStatus = Literal["active", "archived", "deleted", "purged"]
+ChatRetentionClass = Literal["standard", "ephemeral", "regulated", "legal_hold"]
 ChatPageType = Literal[
     "dashboard",
     "strategy_detail",
@@ -39,6 +39,7 @@ class ChatEntityRef(ChatModel):
 
 
 class PageContext(ChatModel):
+    context_schema_version: str = "page_context.v1"
     route: str = "/"
     page_type: ChatPageType = "generic"
     page_title: str | None = None
@@ -63,6 +64,33 @@ class ChatThread(ChatModel):
     active_context_revision: str | None = None
     current_route: str | None = None
     current_page_type: ChatPageType | None = None
+    archived_at: str | None = None
+    deleted_at: str | None = None
+    purged_at: str | None = None
+    retention_expires_at: str | None = None
+    purge_after: str | None = None
+    legal_hold_until: str | None = None
+    legal_hold_reason: str | None = None
+
+
+class ChatLifecycleAuditEvent(ChatModel):
+    event_id: str
+    thread_id: str
+    user_id: str
+    actor_id: str
+    action: str
+    from_status: str | None = None
+    to_status: str | None = None
+    from_retention_class: str | None = None
+    to_retention_class: str | None = None
+    reason: str
+    metadata_json: str = "{}"
+    created_at: str
+
+
+class ChatRetentionPolicyDetail(ChatModel):
+    thread: ChatThread
+    audit_events: list[ChatLifecycleAuditEvent] = Field(default_factory=list)
 
 
 class ChatResponseMetadata(ChatModel):
@@ -88,6 +116,43 @@ class ChatResponseMetadata(ChatModel):
     planner: dict[str, Any] = Field(default_factory=dict)
     page_context: dict[str, Any] = Field(default_factory=dict)
     audit: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatRouteDecision(ChatModel):
+    intent: str
+    task_class: str
+    response_mode: str
+    response_style: str
+    domain_focus: str
+    route_mode: str
+    requires_tools: bool = False
+    model_policy_key: str = "plain_answer"
+    structured_schema: str | None = None
+
+
+class ChatPromptLayerLog(ChatModel):
+    name: str
+    authority: str
+    included: bool
+    char_count: int = 0
+    token_estimate: int = 0
+    summary: str | None = None
+
+
+class ChatPromptCompositionLog(ChatModel):
+    schema_version: str = "prompt_composition.v1"
+    request_id: str
+    route: ChatRouteDecision
+    layers: list[ChatPromptLayerLog] = Field(default_factory=list)
+    message_count: int = 0
+    token_estimate: int = 0
+    truncated: bool = False
+
+
+class ChatStructuredResponseSchema(ChatModel):
+    schema_name: str
+    response_mode: str
+    json_schema: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatMessage(ChatModel):
@@ -157,4 +222,3 @@ class ChatTurnResult(ChatModel):
     user_message: ChatMessage | None = None
     assistant_message: ChatMessage
     metadata: ChatResponseMetadata
-

@@ -105,6 +105,44 @@ def test_action_draft_lifecycle_requires_approval_before_paper_execution(tmp_pat
     assert draft.requires_human_approval == 1
     assert draft.side_effect_status == "not_executed"
 
+    retained = conversations.get_thread(thread_id=thread.thread_id, user_id="operator")
+    assert retained.retention_class == "regulated"
+
+
+def test_ai_chat_retention_redacts_secrets_and_audits_export(tmp_path):
+    _gateway_instance, conversations = _gateway(tmp_path)
+    thread = conversations.create_thread(user_id="operator")
+
+    conversations.add_message(
+        thread_id=thread.thread_id,
+        user_id="operator",
+        role="user",
+        content="api_key=sk-secretsecret123456 and email me at test@example.com",
+    )
+
+    reloaded = conversations.get_thread(thread_id=thread.thread_id, user_id="operator")
+    assert "[redacted]" in reloaded.messages[0].content
+    assert "[redacted-email]" in reloaded.messages[0].content
+
+    conversations.export_thread(thread_id=thread.thread_id, user_id="operator")
+    retention = conversations.retention_detail(thread_id=thread.thread_id, user_id="operator")
+    assert any(event.action == "thread_exported" for event in retention.audit_events)
+
+
+def test_ai_chat_legal_hold_blocks_purge(tmp_path):
+    _gateway_instance, conversations = _gateway(tmp_path)
+    thread = conversations.create_thread(user_id="operator")
+
+    conversations.set_thread_retention_class(
+        thread_id=thread.thread_id,
+        user_id="operator",
+        retention_class="legal_hold",
+        reason="investigation",
+    )
+    conversations.delete_thread(thread_id=thread.thread_id, user_id="operator")
+
+    assert conversations.repository.purge_thread(thread_id=thread.thread_id, user_id="operator") is False
+
 
 def test_api_ai_chat_route_streams_ceo_response(tmp_path, monkeypatch):
     monkeypatch.setenv("HARUQUANT_DB_PATH", str(tmp_path / "api-chat.db"))

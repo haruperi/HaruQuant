@@ -30,6 +30,7 @@ interface ChatPanelProps {
   threadTitle: string
   threadId: string | null
   threadSearch: string
+  showArchivedThreads: boolean
   activeResponseStatus: string | null
   error: string | null
   draft: string
@@ -41,14 +42,22 @@ interface ChatPanelProps {
     title: string
     updatedAt: string
     pageType?: string | null
+    status: "active" | "archived" | "deleted" | "purged"
+    retentionClass: "standard" | "ephemeral" | "regulated" | "legal_hold"
   }[]
   messages: ChatMessage[]
   onCancel: () => void
+  onArchiveThread: (threadId?: string) => void
+  onRestoreThread: (threadId?: string) => void
   onClose: () => void
   onCreateThread: () => void
   onDeleteThread: (threadId?: string) => void
+  onPurgeThread: (threadId?: string) => void
   onDraftChange: (value: string) => void
   onExportThread: (threadId?: string) => void
+  onShowRetentionDetails: (threadId?: string) => void
+  onMarkThreadEphemeral: (threadId?: string) => void
+  onMarkThreadLegalHold: (threadId?: string) => void
   onQueueSignalProposalForReview: (proposalId: string) => void
   onRequestActionDraftApproval: (draftId: string) => void
   onExecutePaperActionDraft: (draftId: string) => void
@@ -59,6 +68,7 @@ interface ChatPanelProps {
   onSaveSignalProposalToWatchlist: (proposalId: string) => void
   onSelectThread: (value: string) => void
   onThreadSearchChange: (value: string) => void
+  onToggleArchivedThreads: () => void
   onToggleTool: (toolId: string) => void
   onSubmit: () => void
 }
@@ -127,6 +137,19 @@ function formatRuntimeMeta(message: ChatMessage | undefined): string | null {
   return parts.length > 0 ? parts.join(" | ") : null
 }
 
+function retentionBadgeLabel(retentionClass: string): string | null {
+  if (retentionClass === "legal_hold") {
+    return "legal hold"
+  }
+  if (retentionClass === "regulated") {
+    return "regulated"
+  }
+  if (retentionClass === "ephemeral") {
+    return "30 days"
+  }
+  return null
+}
+
 export function ChatPanel({
   isOpen,
   isHydrated,
@@ -138,6 +161,7 @@ export function ChatPanel({
   threadTitle,
   threadId,
   threadSearch,
+  showArchivedThreads,
   activeResponseStatus,
   error,
   draft,
@@ -147,11 +171,17 @@ export function ChatPanel({
   threads,
   messages,
   onCancel,
+  onArchiveThread,
+  onRestoreThread,
   onClose,
   onCreateThread,
   onDeleteThread,
+  onPurgeThread,
   onDraftChange,
   onExportThread,
+  onShowRetentionDetails,
+  onMarkThreadEphemeral,
+  onMarkThreadLegalHold,
   onQueueSignalProposalForReview,
   onRequestActionDraftApproval,
   onExecutePaperActionDraft,
@@ -162,10 +192,12 @@ export function ChatPanel({
   onSaveSignalProposalToWatchlist,
   onSelectThread,
   onThreadSearchChange,
+  onToggleArchivedThreads,
   onToggleTool,
   onSubmit,
 }: ChatPanelProps) {
   const panelRef = React.useRef<HTMLDivElement | null>(null)
+  const searchInputRef = React.useRef<HTMLInputElement | null>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const [showDebug, setShowDebug] = React.useState(false)
   const [panelScale, setPanelScale] = React.useState(1)
@@ -241,9 +273,40 @@ export function ChatPanel({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target
+      const isTextEntry =
+        target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable)
+
       if (event.key === "Escape") {
         event.preventDefault()
         onClose()
+        return
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault()
+        onCreateThread()
+        return
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "e") {
+        event.preventDefault()
+        onExportThread(threadId ?? undefined)
+        return
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "r") {
+        event.preventDefault()
+        onRegenerate()
+        return
+      }
+
+      if (event.key === "/" && !isTextEntry) {
+        event.preventDefault()
+        searchInputRef.current?.focus()
         return
       }
 
@@ -271,7 +334,7 @@ export function ChatPanel({
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, onCreateThread, onExportThread, onRegenerate, threadId])
 
   const handleRename = React.useCallback((targetThreadId: string, currentTitle: string) => {
     const nextTitle = window.prompt("Rename conversation", currentTitle)
@@ -288,6 +351,7 @@ export function ChatPanel({
     () => formatRuntimeMeta(latestAssistantMessage),
     [latestAssistantMessage],
   )
+  const isRetentionStatus = activeResponseStatus?.startsWith("Retention:")
 
   return (
     <aside
@@ -336,10 +400,12 @@ export function ChatPanel({
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  ref={searchInputRef}
                   value={threadSearch}
                   onChange={(event) => onThreadSearchChange(event.target.value)}
                   placeholder="Search chats..."
                   aria-label="Search chats"
+                  aria-keyshortcuts="/"
                   className="rounded-md pl-9"
                 />
               </div>
@@ -350,10 +416,21 @@ export function ChatPanel({
                   size="sm"
                   onClick={onCreateThread}
                   disabled={isManagingThreads || isStreaming}
+                  aria-keyshortcuts="Control+N Meta+N"
                   className="w-full justify-start gap-2 border-transparent bg-transparent shadow-none hover:border-border hover:bg-background focus-visible:border-ring"
                 >
                   <NotebookPen className="h-4 w-4" />
                   New chat
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleArchivedThreads}
+                  disabled={isManagingThreads || isStreaming}
+                  className="mt-1 w-full justify-start text-xs"
+                >
+                  {showArchivedThreads ? "Hide archived" : "Show archived"}
                 </Button>
               </div>
             </div>
@@ -373,8 +450,25 @@ export function ChatPanel({
                       className="block min-w-0 overflow-hidden rounded-l-md px-3 py-2 text-left text-sm"
                     >
                       <div className="min-w-0 truncate font-medium">{thread.title}</div>
-                      <div className="mt-1 min-w-0 truncate text-[11px] text-muted-foreground">
-                        {thread.pageType ?? "generic"} | {formatUpdatedAt(thread.updatedAt)}
+                      <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                        {thread.status === "archived" ? (
+                          <span className="shrink-0 rounded-sm border px-1 py-0.5">archived</span>
+                        ) : null}
+                        {retentionBadgeLabel(thread.retentionClass) ? (
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-sm border px-1 py-0.5",
+                              thread.retentionClass === "legal_hold" && "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                              thread.retentionClass === "regulated" && "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+                              thread.retentionClass === "ephemeral" && "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                            )}
+                          >
+                            {retentionBadgeLabel(thread.retentionClass)}
+                          </span>
+                        ) : null}
+                        <span className="min-w-0 truncate">
+                          {thread.pageType ?? "generic"} | {formatUpdatedAt(thread.updatedAt)}
+                        </span>
                       </div>
                     </button>
                     <DropdownMenu>
@@ -401,6 +495,27 @@ export function ChatPanel({
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onExportThread(thread.threadId)}>
                           Export
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onShowRetentionDetails(thread.threadId)}>
+                          Retention
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onMarkThreadEphemeral(thread.threadId)}>
+                          Keep 30 days
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onMarkThreadLegalHold(thread.threadId)}>
+                          Legal hold
+                        </DropdownMenuItem>
+                        {thread.status === "archived" ? (
+                          <DropdownMenuItem onClick={() => onRestoreThread(thread.threadId)}>
+                            Restore
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => onArchiveThread(thread.threadId)}>
+                            Archive
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => onPurgeThread(thread.threadId)}>
+                          Purge
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => onDeleteThread(thread.threadId)}
@@ -431,11 +546,16 @@ export function ChatPanel({
                 >
                   {showDebug ? "Hide debug" : "Show debug"}
                 </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={onRegenerate} disabled={!threadId || isStreaming || messages.length === 0}>
+                <Button type="button" variant="ghost" size="sm" onClick={onRegenerate} disabled={!threadId || isStreaming || messages.length === 0} aria-keyshortcuts="Control+R Meta+R">
                   Regenerate
                 </Button>
               </div>
             </div>
+            {isRetentionStatus ? (
+              <div className="border-b bg-muted/40 px-4 py-2 text-xs text-foreground">
+                {activeResponseStatus}
+              </div>
+            ) : null}
             <div className="min-h-0 flex-1">
               <MessageList
                 messages={messages}

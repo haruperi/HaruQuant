@@ -1,6 +1,7 @@
 """
 Simulator engine execution and state management.
 """
+
 import time
 from typing import Any, Mapping
 
@@ -28,6 +29,14 @@ from services.simulation.position_sizing import (
 from services.simulation.vectorized import run_vectorized_simulation
 
 from services.simulation.config import AccountConfig, SimulationConfig
+from services.strategy.stateful import (
+    OrderSnapshot,
+    PositionSnapshot,
+    StrategyContext,
+    StrategyRuntimeState,
+    TradeAction,
+    TradeSnapshot,
+)
 
 
 class _SimulationRiskSymbolInfo:
@@ -41,7 +50,9 @@ class _SimulationRiskSymbolInfo:
         return getattr(self.raw_symbol, name, default)
 
     def get_contract_size(self):
-        return float(getattr(self.raw_symbol, "trade_contract_size", 100000.0) or 100000.0)
+        return float(
+            getattr(self.raw_symbol, "trade_contract_size", 100000.0) or 100000.0
+        )
 
     def get_lots_min(self):
         return float(getattr(self.raw_symbol, "volume_min", 0.01) or 0.01)
@@ -81,7 +92,9 @@ class _SimulationRiskAdapter:
             return None
         return self.engine._strict_order_calc_margin(0, symbol, abs(float(lots)), price)
 
-    def get_bars(self, symbol: str, timeframe: str, count: int = 100, start_pos: int = 0):
+    def get_bars(
+        self, symbol: str, timeframe: str, count: int = 100, start_pos: int = 0
+    ):
         symbol_frames = self.historical_data.get(str(symbol), {})
         df = symbol_frames.get(str(timeframe))
         if df is None or df.empty:
@@ -105,7 +118,7 @@ class Engine:
     def __init__(self, backend="sim"):
         """
         Initialise trading engine.
-        
+
         Args:
             backend (str): Backend to use. Options: "sim", "mt5".
         """
@@ -157,6 +170,13 @@ class Engine:
         self._portfolio_state_engine = PortfolioStateEngine()
         self._risk_equity_history = []
         self.equity_snapshot_policy = "bar_close"
+        self.strategy_runtime_states = {}
+        self.stateful_risk_controls = {}
+        self.stateful_guardrail_state = {
+            "seen_batches": set(),
+            "equity_peaks": {},
+            "violations": [],
+        }
 
         logger.info(f"successfully initialised trading engine {self.backend}")
 
@@ -200,9 +220,32 @@ class Engine:
     def run_prepared(self, prepared, config: SimulationConfig) -> int:
         """Execute already-prepared simulation data through the selected engine."""
         self.equity_snapshot_policy = str(
-            getattr(config.reporting, "equity_snapshot_policy", "bar_close") or "bar_close"
+            getattr(config.reporting, "equity_snapshot_policy", "bar_close")
+            or "bar_close"
         )
+        self._configure_stateful_risk_controls(config)
         self._configure_simulation_position_sizing(prepared, config)
+        runtime_strategy = self._build_runtime_strategy(config)
+        if getattr(runtime_strategy, "requires_portfolio_state", False):
+            if config.engine_type == "vectorized":
+                logger.warning(
+                    f"Stateful strategy {config.strategy.name!r} requires portfolio "
+                    "state; using the event-driven simulation engine instead of "
+                    "vectorized mode."
+                )
+            return int(
+                self.run_event_driven(
+                    prepared.ticks,
+                    position_size=None,
+                    commission_per_lot=config.account.commission,
+                    slippage_model=config.execution.slippage_model,
+                    slippage_points=config.execution.slippage_points,
+                    slippage_min=config.execution.slippage_min,
+                    slippage_max=config.execution.slippage_max,
+                    strategy=runtime_strategy,
+                )
+                or 0
+            )
         if config.engine_type == "vectorized":
             if self.equity_snapshot_policy not in {"bar_close", "position_update"}:
                 logger.warning(
@@ -257,7 +300,9 @@ class Engine:
             )
         raise ValueError(f"unsupported simulation engine_type: {config.engine_type}")
 
-    def _configure_simulation_position_sizing(self, prepared, config: SimulationConfig) -> None:
+    def _configure_simulation_position_sizing(
+        self, prepared, config: SimulationConfig
+    ) -> None:
         position_config = config.execution.position_size
         self.default_signal_volume = float(position_config.lot_size)
         historical_data = {
@@ -271,7 +316,41 @@ class Engine:
             historical_data=historical_data,
         )
 
-    def _strict_order_calc_profit(self, order_type, symbol, volume, price_open, price_close):
+    def _build_runtime_strategy(self, config: SimulationConfig):
+        """Instantiate a strategy for optional stateful event-driven callbacks."""
+        from services.simulation.strategy_registry import (
+            StrategyRegistryError,
+            get_strategy_class,
+        )
+
+        try:
+            strategy_cls = get_strategy_class(config.strategy.name)
+        except (ImportError, StrategyRegistryError):
+            return None
+        if not getattr(strategy_cls, "requires_portfolio_state", False):
+            return None
+        params = dict(config.strategy.params)
+        if "symbol" not in params and config.data.symbols:
+            params["symbol"] = config.data.symbols[0]
+        strategy = strategy_cls(params=params)
+        strategy.on_init()
+        return strategy
+
+    def _configure_stateful_risk_controls(self, config: SimulationConfig) -> None:
+        controls = (
+            config.risk_controls.to_dict() if hasattr(config, "risk_controls") else {}
+        )
+        strategy_controls = {}
+        try:
+            strategy_controls = dict(config.strategy.params.get("risk_controls") or {})
+        except Exception:
+            strategy_controls = {}
+        controls.update(strategy_controls)
+        self.stateful_risk_controls = controls
+
+    def _strict_order_calc_profit(
+        self, order_type, symbol, volume, price_open, price_close
+    ):
         if self.client is None or not hasattr(self.client, "order_calc_profit"):
             raise RuntimeError("MT5 order_calc_profit access is unavailable.")
         value = self.client.order_calc_profit(
@@ -301,9 +380,13 @@ class Engine:
             return margin_value
 
         baseline_leverage = float(getattr(self.mt5_account, "leverage", 0.0) or 0.0)
-        requested_leverage = float(self.account_info().get("leverage", baseline_leverage) or baseline_leverage)
+        requested_leverage = float(
+            self.account_info().get("leverage", baseline_leverage) or baseline_leverage
+        )
         if baseline_leverage > 0.0 and requested_leverage > 0.0:
-            margin_value = float(margin_value * (baseline_leverage / requested_leverage))
+            margin_value = float(
+                margin_value * (baseline_leverage / requested_leverage)
+            )
         return margin_value
 
     @staticmethod
@@ -332,7 +415,9 @@ class Engine:
         self.state.trading_deals = []
         self.state.trading_orders = []
 
-        positions = self.api.positions_get() if hasattr(self.api, "positions_get") else ()
+        positions = (
+            self.api.positions_get() if hasattr(self.api, "positions_get") else ()
+        )
         orders = self.api.orders_get() if hasattr(self.api, "orders_get") else ()
 
         symbol_names = set()
@@ -365,7 +450,9 @@ class Engine:
 
             order_type = int(row.get("type", 0) or 0)
             volume = float(row.get("volume", 0.0) or 0.0)
-            price_open = float(row.get("price_open", row.get("price_current", 0.0)) or 0.0)
+            price_open = float(
+                row.get("price_open", row.get("price_current", 0.0)) or 0.0
+            )
 
             sym = symbol_map.get(symbol, {})
             bid = float(sym.get("bid", 0.0) or 0.0)
@@ -400,7 +487,9 @@ class Engine:
                 time=int(row.get("time", now) or now),
                 time_msc=int(row.get("time_msc", now * 1000) or now * 1000),
                 time_update=int(row.get("time_update", now) or now),
-                time_update_msc=int(row.get("time_update_msc", now * 1000) or now * 1000),
+                time_update_msc=int(
+                    row.get("time_update_msc", now * 1000) or now * 1000
+                ),
                 type=order_type,
                 entry=0,  # open position in simulator convention
                 magic=int(row.get("magic", 0) or 0),
@@ -445,17 +534,27 @@ class Engine:
                 position_id=int(row.get("position_id", 0) or 0),
                 position_by_id=int(row.get("position_by_id", 0) or 0),
                 volume_initial=float(
-                    row.get("volume_initial", row.get("volume_current", row.get("volume", 0.0)))
+                    row.get(
+                        "volume_initial",
+                        row.get("volume_current", row.get("volume", 0.0)),
+                    )
                     or 0.0
                 ),
                 volume_current=float(
-                    row.get("volume_current", row.get("volume_initial", row.get("volume", 0.0)))
+                    row.get(
+                        "volume_current",
+                        row.get("volume_initial", row.get("volume", 0.0)),
+                    )
                     or 0.0
                 ),
-                price_open=float(row.get("price_open", row.get("price_current", 0.0)) or 0.0),
+                price_open=float(
+                    row.get("price_open", row.get("price_current", 0.0)) or 0.0
+                ),
                 sl=float(row.get("sl", 0.0) or 0.0),
                 tp=float(row.get("tp", 0.0) or 0.0),
-                price_current=float(row.get("price_current", row.get("price_open", 0.0)) or 0.0),
+                price_current=float(
+                    row.get("price_current", row.get("price_open", 0.0)) or 0.0
+                ),
                 price_stoplimit=float(row.get("price_stoplimit", 0.0) or 0.0),
                 symbol=str(row.get("symbol", "") or ""),
                 comment=str(row.get("comment", "") or ""),
@@ -505,7 +604,7 @@ class Engine:
         return list(self.state.completed_equity_curve)
 
     def get_run_result(self, processed_ticks: int = 0):
-        _ = processed_ticks # no longer stored in RunResult
+        _ = processed_ticks  # no longer stored in RunResult
         return RunResult(
             trades=self.get_completed_trades(),
             equity_curve=self.get_equity_curve(),
@@ -544,7 +643,7 @@ class Engine:
         if leverage == 0:
             leverage = int(getattr(self.mt5_account, "leverage", 0.0) or 400)
             logger.info(f"Inheriting MT5 account leverage: {leverage}")
-        
+
         account["leverage"] = leverage
         account["currency"] = preserved_currency
 
@@ -556,6 +655,12 @@ class Engine:
         self.state.current_tick_datetime = None
         self.state.execution_settings = core.DotDict()
         self.equity_snapshot_policy = "bar_close"
+        self.strategy_runtime_states = {}
+        self.stateful_guardrail_state = {
+            "seen_batches": set(),
+            "equity_peaks": {},
+            "violations": [],
+        }
         self.clear_completed_trades()
         self._risk_equity_history = []
         self._schedule_state_dirty = True
@@ -579,25 +684,29 @@ class Engine:
 
     def positions_total(self):
         return core.positions_total(self.state)
-        
+
     def orders_get(self, symbol=None, group=None, ticket=None):
         return core.orders_get(self.state, symbol=symbol, group=group, ticket=ticket)
 
     def orders_total(self):
         return core.orders_total(self.state)
-        
+
     def history_orders_get(self, date_from=None, date_to=None, group=None, ticket=None):
-        return core.history_orders_get(self.state, date_from=date_from, date_to=date_to, group=group, ticket=ticket)
-        
+        return core.history_orders_get(
+            self.state, date_from=date_from, date_to=date_to, group=group, ticket=ticket
+        )
+
     def history_orders_total(self, date_from, date_to):
-        return core.history_orders_total(self.state, date_from=date_from, date_to=date_to)
-        
+        return core.history_orders_total(
+            self.state, date_from=date_from, date_to=date_to
+        )
+
     def symbols_get(self, group=None):
         return core.symbols_get(self.state, group=group)
-        
+
     def symbols_total(self):
         return core.symbols_total(self.state)
-        
+
     def symbol_info(self, name: str):
         return core.symbol_info(self.state, name)
 
@@ -700,9 +809,9 @@ class Engine:
         #  1=BUY_STOP, -1=SELL_STOP, 2=BUY_LIMIT, -2=SELL_LIMIT
         code = self._safe_int(pending_signal, 0)
         mapping = {
-            1: 4,   # ORDER_TYPE_BUY_STOP
+            1: 4,  # ORDER_TYPE_BUY_STOP
             -1: 5,  # ORDER_TYPE_SELL_STOP
-            2: 2,   # ORDER_TYPE_BUY_LIMIT
+            2: 2,  # ORDER_TYPE_BUY_LIMIT
             -2: 3,  # ORDER_TYPE_SELL_LIMIT
         }
         return mapping.get(code)
@@ -728,7 +837,9 @@ class Engine:
                 continue
             yield order
 
-    def _exec_exit_signal(self, symbol_name, exit_signal, bid, ask, verbose: bool = False):
+    def _exec_exit_signal(
+        self, symbol_name, exit_signal, bid, ask, verbose: bool = False
+    ):
         side = self._safe_int(exit_signal, 0)
         if side not in (1, -1):
             return False
@@ -835,7 +946,9 @@ class Engine:
         result = self.order_send(request, verbose=verbose)
         return self._safe_int(getattr(result, "retcode", 0), 0) in (10008, 10009)
 
-    def _exec_cancel_pending_signal(self, symbol_name, cancel_pending_signal, verbose: bool = False):
+    def _exec_cancel_pending_signal(
+        self, symbol_name, cancel_pending_signal, verbose: bool = False
+    ):
         code = self._safe_int(cancel_pending_signal, 0)
         if code == 0:
             return False
@@ -874,9 +987,13 @@ class Engine:
         # Exit/cancel first, then entry/new pending.
         if self._exec_exit_signal(symbol_name, exit_signal, bid, ask, verbose=verbose):
             state_changed = True
-        if self._exec_cancel_pending_signal(symbol_name, cancel_pending_signal, verbose=verbose):
+        if self._exec_cancel_pending_signal(
+            symbol_name, cancel_pending_signal, verbose=verbose
+        ):
             state_changed = True
-        if self._exec_cancel_pending_signal(symbol_name, cancel_pending_signal_2, verbose=verbose):
+        if self._exec_cancel_pending_signal(
+            symbol_name, cancel_pending_signal_2, verbose=verbose
+        ):
             state_changed = True
         if self._exec_entry_signal(
             symbol_name,
@@ -914,6 +1031,759 @@ class Engine:
         ):
             state_changed = True
         return state_changed
+
+    def _snapshot_account(self):
+        """Return a plain account snapshot for stateful strategy contexts."""
+        return dict(self._to_dict(self.account_info()))
+
+    def _snapshot_positions(self):
+        """Return normalized open-position snapshots for stateful strategies."""
+        snapshots = []
+        for position in list(self.state.trading_deals):
+            if str(getattr(position, "entry", 0)) != "0":
+                continue
+            order_type = self._safe_int(getattr(position, "type", -1), -1)
+            if order_type not in (0, 1):
+                continue
+            snapshots.append(
+                PositionSnapshot(
+                    ticket=getattr(
+                        position, "ticket", getattr(position, "position_id", 0)
+                    ),
+                    symbol=str(getattr(position, "symbol", "") or ""),
+                    side="BUY" if order_type == 0 else "SELL",
+                    volume=float(getattr(position, "volume", 0.0) or 0.0),
+                    open_price=float(
+                        getattr(position, "price_open", getattr(position, "price", 0.0))
+                        or 0.0
+                    ),
+                    current_price=float(
+                        getattr(
+                            position, "price_current", getattr(position, "price", 0.0)
+                        )
+                        or 0.0
+                    ),
+                    stop_loss=self._none_if_zero(getattr(position, "sl", 0.0)),
+                    take_profit=self._none_if_zero(getattr(position, "tp", 0.0)),
+                    profit_loss=float(getattr(position, "profit", 0.0) or 0.0),
+                    opened_at=getattr(position, "time", None),
+                    strategy_id=str(getattr(position, "magic", "") or "") or None,
+                    setup_id=str(getattr(position, "external_id", "") or "") or None,
+                    metadata=self._to_dict(position),
+                )
+            )
+        return snapshots
+
+    def _snapshot_orders(self):
+        """Return normalized pending-order snapshots for stateful strategies."""
+        snapshots = []
+        for order in list(self.state.trading_orders):
+            order_type = self._safe_int(getattr(order, "type", -1), -1)
+            if order_type not in (2, 3, 4, 5):
+                continue
+            snapshots.append(
+                OrderSnapshot(
+                    ticket=getattr(order, "ticket", 0),
+                    symbol=str(getattr(order, "symbol", "") or ""),
+                    side="BUY" if order_type in (2, 4) else "SELL",
+                    order_type="LIMIT" if order_type in (2, 3) else "STOP",
+                    volume=float(
+                        getattr(
+                            order,
+                            "volume_current",
+                            getattr(order, "volume_initial", 0.0),
+                        )
+                        or 0.0
+                    ),
+                    price=float(
+                        getattr(
+                            order, "price_open", getattr(order, "price_current", 0.0)
+                        )
+                        or 0.0
+                    ),
+                    stop_loss=self._none_if_zero(getattr(order, "sl", 0.0)),
+                    take_profit=self._none_if_zero(getattr(order, "tp", 0.0)),
+                    status=str(getattr(order, "state", "") or "") or None,
+                    created_at=getattr(order, "time_setup", None),
+                    expires_at=getattr(order, "time_expiration", None),
+                    strategy_id=str(getattr(order, "magic", "") or "") or None,
+                    setup_id=str(getattr(order, "external_id", "") or "") or None,
+                    metadata=self._to_dict(order),
+                )
+            )
+        return snapshots
+
+    def _snapshot_closed_trades(self):
+        snapshots = []
+        for trade in list(getattr(self.state, "completed_trade_records", []) or []):
+            side = str(getattr(trade, "type", "") or "").strip().lower()
+            snapshots.append(
+                TradeSnapshot(
+                    trade_id=getattr(trade, "trade_id", getattr(trade, "ticket", 0)),
+                    symbol=str(getattr(trade, "symbol", "") or ""),
+                    side="SELL" if side == "sell" else "BUY",
+                    volume=float(getattr(trade, "size", 0.0) or 0.0),
+                    open_price=float(getattr(trade, "open_price", 0.0) or 0.0),
+                    close_price=self._none_if_zero(getattr(trade, "close_price", 0.0)),
+                    profit_loss=float(getattr(trade, "profit_loss", 0.0) or 0.0),
+                    opened_at=getattr(trade, "open_time", None),
+                    closed_at=getattr(trade, "close_time", None),
+                    exit_reason=str(getattr(trade, "exit_reason", "") or "") or None,
+                    strategy_id=getattr(trade, "strategy_name", None),
+                    setup_id=getattr(trade, "setup_id", None),
+                    metadata=self._to_dict(trade),
+                )
+            )
+        return snapshots
+
+    def _build_strategy_context(
+        self, *, strategy, symbol_name, data, tick_index, bid, ask
+    ):
+        """Build a portfolio-aware context for a stateful strategy event."""
+        strategy_id = str(
+            getattr(strategy, "strategy_id", None)
+            or getattr(getattr(strategy, "__class__", None), "__name__", "strategy")
+        )
+        runtime_states = getattr(self, "strategy_runtime_states", None)
+        if runtime_states is None:
+            self.strategy_runtime_states = {}
+            runtime_states = self.strategy_runtime_states
+        runtime_state = runtime_states.setdefault(
+            strategy_id,
+            StrategyRuntimeState(strategy_id=strategy_id),
+        )
+        row = data.iloc[tick_index] if hasattr(data, "iloc") else None
+        tick_payload = {}
+        if row is not None and hasattr(row, "to_dict"):
+            tick_payload.update(row.to_dict())
+        tick_payload.setdefault("bid", float(bid))
+        tick_payload.setdefault("ask", float(ask))
+        tick_payload.setdefault("symbol", symbol_name)
+        return StrategyContext(
+            strategy_id=strategy_id,
+            symbol=str(symbol_name or getattr(strategy, "symbol", "") or ""),
+            timestamp=getattr(self.state, "current_tick_datetime", None),
+            event_type="TICK",
+            current_bar=row,
+            current_tick=tick_payload,
+            market_data=data,
+            account=self._snapshot_account(),
+            positions=self._snapshot_positions(),
+            orders=self._snapshot_orders(),
+            closed_trades=self._snapshot_closed_trades(),
+            runtime_state=runtime_state,
+            metadata={
+                "source": "simulation.event_driven",
+                "tick_index": int(tick_index),
+            },
+        )
+
+    def _apply_trade_actions(
+        self,
+        actions,
+        *,
+        bid=0.0,
+        ask=0.0,
+        strategy_id=None,
+        event_key=None,
+        verbose: bool = False,
+    ):
+        """Apply stateful strategy actions through simulator order_send."""
+        state_changed = False
+        actions = self._guard_stateful_trade_actions(
+            actions or [], strategy_id=strategy_id, event_key=event_key
+        )
+        for action in actions:
+            if self._apply_trade_action(action, bid=bid, ask=ask, verbose=verbose):
+                state_changed = True
+        return state_changed
+
+    def _guard_stateful_trade_actions(
+        self, actions, *, strategy_id=None, event_key=None
+    ):
+        controls = dict(getattr(self, "stateful_risk_controls", {}) or {})
+        if controls.get("enabled", True) is False:
+            return list(actions or [])
+
+        normalized = []
+        for action in actions or []:
+            if isinstance(action, dict):
+                action = TradeAction(**action)
+            if not isinstance(action, TradeAction):
+                raise TypeError(
+                    "stateful strategy actions must be TradeAction instances"
+                )
+            if strategy_id and not action.strategy_id:
+                action.strategy_id = str(strategy_id)
+            normalized.append(action)
+
+        if not normalized:
+            return []
+
+        guard_state = getattr(self, "stateful_guardrail_state", None)
+        if guard_state is None:
+            guard_state = {
+                "seen_batches": set(),
+                "equity_peaks": {},
+                "violations": [],
+            }
+            self.stateful_guardrail_state = guard_state
+
+        batch_key = (
+            str(strategy_id or normalized[0].strategy_id or "strategy"),
+            (
+                event_key
+                if event_key is not None
+                else getattr(self.state, "current_tick_datetime", None)
+            ),
+        )
+        seen_batches = guard_state.setdefault("seen_batches", set())
+        if batch_key in seen_batches and not controls.get(
+            "allow_multiple_action_batches_per_event", False
+        ):
+            self._record_stateful_guardrail_violation(
+                "one_action_batch_per_event",
+                f"blocked repeated stateful action batch for event {batch_key!r}",
+            )
+            return []
+        seen_batches.add(batch_key)
+
+        accepted = []
+        for action in normalized:
+            violation = self._stateful_action_guardrail_violation(
+                action,
+                accepted,
+                controls=controls,
+                strategy_id=str(strategy_id or action.strategy_id or ""),
+            )
+            if violation:
+                self._record_stateful_guardrail_violation(*violation)
+                continue
+            accepted.append(action)
+        return accepted
+
+    def _stateful_action_guardrail_violation(
+        self,
+        action: TradeAction,
+        accepted: list[TradeAction],
+        *,
+        controls,
+        strategy_id: str,
+    ):
+        action_type = str(action.action_type or "").upper()
+        if action_type not in {"OPEN", "INCREASE", "PLACE_PENDING"}:
+            return None
+
+        if self._strategy_drawdown_exceeded(strategy_id, controls):
+            return (
+                "max_strategy_drawdown",
+                f"blocked {action_type} because strategy drawdown limit is reached",
+            )
+
+        max_step = controls.get("max_martingale_step")
+        if max_step is not None and self._action_martingale_step(action) > int(
+            max_step
+        ):
+            return (
+                "max_martingale_step",
+                f"blocked martingale step above {int(max_step)}",
+            )
+
+        max_positions = controls.get("max_open_positions_per_strategy")
+        if max_positions is not None:
+            projected = self._strategy_open_position_count(
+                strategy_id
+            ) + self._accepted_open_count(accepted, strategy_id)
+            if projected + 1 > int(max_positions):
+                return (
+                    "max_open_positions_per_strategy",
+                    f"blocked opening position above limit {int(max_positions)}",
+                )
+
+        max_layers = controls.get("max_layers_per_setup")
+        if max_layers is not None and (action.group_id or action.setup_id):
+            projected = self._setup_layer_count(
+                action.group_id or action.setup_id
+            ) + self._accepted_setup_open_count(
+                accepted, action.group_id or action.setup_id
+            )
+            if projected + 1 > int(max_layers):
+                return (
+                    "max_layers_per_setup",
+                    f"blocked setup layer above limit {int(max_layers)}",
+                )
+
+        volume = self._action_projected_volume(action)
+        max_total_lots = controls.get("max_total_lots")
+        if max_total_lots is not None:
+            projected = self._open_lots() + self._accepted_open_lots(accepted) + volume
+            if projected > float(max_total_lots):
+                return (
+                    "max_total_lots",
+                    f"blocked projected total lots {projected:.4f} above limit {float(max_total_lots):.4f}",
+                )
+
+        max_symbol_exposure = controls.get("max_symbol_exposure")
+        if max_symbol_exposure is not None:
+            projected = (
+                self._symbol_open_lots(action.symbol)
+                + self._accepted_symbol_open_lots(accepted, action.symbol)
+                + volume
+            )
+            if projected > float(max_symbol_exposure):
+                return (
+                    "max_symbol_exposure",
+                    f"blocked projected {action.symbol} lots {projected:.4f} above limit {float(max_symbol_exposure):.4f}",
+                )
+        return None
+
+    def _strategy_drawdown_exceeded(self, strategy_id: str, controls) -> bool:
+        limit = controls.get("max_strategy_drawdown")
+        if limit is None:
+            return False
+        account = self.account_info() or {}
+        equity = float(account.get("equity", account.get("balance", 0.0)) or 0.0)
+        key = str(strategy_id or "strategy")
+        peaks = self.stateful_guardrail_state.setdefault("equity_peaks", {})
+        peak = max(float(peaks.get(key, equity) or equity), equity)
+        peaks[key] = peak
+        drawdown = peak - equity
+        return drawdown > float(limit)
+
+    def _action_martingale_step(self, action: TradeAction) -> int:
+        metadata = action.metadata or {}
+        for key in ("martingale_step", "step", "steps"):
+            if key in metadata:
+                return int(metadata[key])
+        if "martingale" in {str(tag).lower() for tag in action.tags}:
+            return 1
+        return 0
+
+    def _strategy_open_position_count(self, strategy_id: str) -> int:
+        return sum(
+            1
+            for position in list(getattr(self.state, "trading_deals", []) or [])
+            if str(getattr(position, "entry", 0)) == "0"
+            and self._row_matches_strategy(position, strategy_id)
+        )
+
+    def _setup_layer_count(self, setup_id: str) -> int:
+        return sum(
+            1
+            for position in list(getattr(self.state, "trading_deals", []) or [])
+            if str(getattr(position, "entry", 0)) == "0"
+            and self._row_matches_group(position, setup_id)
+        )
+
+    @staticmethod
+    def _accepted_open_count(actions: list[TradeAction], strategy_id: str) -> int:
+        return sum(
+            1
+            for action in actions
+            if str(action.action_type).upper() in {"OPEN", "INCREASE", "PLACE_PENDING"}
+            and (not strategy_id or str(action.strategy_id or "") == strategy_id)
+        )
+
+    @staticmethod
+    def _accepted_setup_open_count(actions: list[TradeAction], setup_id: str) -> int:
+        return sum(
+            1
+            for action in actions
+            if str(action.action_type).upper() in {"OPEN", "INCREASE", "PLACE_PENDING"}
+            and setup_id in {action.group_id, action.setup_id}
+        )
+
+    def _open_lots(self) -> float:
+        return float(
+            sum(
+                float(getattr(position, "volume", 0.0) or 0.0)
+                for position in list(getattr(self.state, "trading_deals", []) or [])
+                if str(getattr(position, "entry", 0)) == "0"
+            )
+        )
+
+    def _symbol_open_lots(self, symbol: str) -> float:
+        return float(
+            sum(
+                float(getattr(position, "volume", 0.0) or 0.0)
+                for position in list(getattr(self.state, "trading_deals", []) or [])
+                if str(getattr(position, "entry", 0)) == "0"
+                and str(getattr(position, "symbol", "") or "") == str(symbol)
+            )
+        )
+
+    @staticmethod
+    def _accepted_open_lots(actions: list[TradeAction]) -> float:
+        return float(
+            sum(
+                float(action.volume or 0.0)
+                for action in actions
+                if str(action.action_type).upper()
+                in {"OPEN", "INCREASE", "PLACE_PENDING"}
+            )
+        )
+
+    @staticmethod
+    def _accepted_symbol_open_lots(actions: list[TradeAction], symbol: str) -> float:
+        return float(
+            sum(
+                float(action.volume or 0.0)
+                for action in actions
+                if str(action.action_type).upper()
+                in {"OPEN", "INCREASE", "PLACE_PENDING"}
+                and str(action.symbol) == str(symbol)
+            )
+        )
+
+    @staticmethod
+    def _action_projected_volume(action: TradeAction) -> float:
+        return max(float(action.volume or 0.0), 0.0)
+
+    def _record_stateful_guardrail_violation(self, code: str, message: str) -> None:
+        state = getattr(self, "stateful_guardrail_state", None)
+        if state is None:
+            self.stateful_guardrail_state = {
+                "seen_batches": set(),
+                "equity_peaks": {},
+                "violations": [],
+            }
+            state = self.stateful_guardrail_state
+        state.setdefault("violations", []).append({"code": code, "message": message})
+        logger.warning(f"Stateful strategy risk control: {message}")
+
+    def _apply_trade_action(self, action, *, bid=0.0, ask=0.0, verbose: bool = False):
+        """Translate a TradeAction into simulator order requests."""
+        if isinstance(action, dict):
+            action = TradeAction(**action)
+        if not isinstance(action, TradeAction):
+            raise TypeError("stateful strategy actions must be TradeAction instances")
+
+        action_type = str(action.action_type or "").strip().upper()
+        if action_type == "HOLD":
+            return False
+        if not action.symbol:
+            raise ValueError("TradeAction.symbol is required")
+
+        if action_type in {"OPEN", "INCREASE"}:
+            return self._apply_open_action(action, bid=bid, ask=ask, verbose=verbose)
+        if action_type == "PLACE_PENDING":
+            return self._apply_pending_action(action, bid=bid, ask=ask, verbose=verbose)
+        if action_type in {"CLOSE", "REDUCE", "CLOSE_GROUP"}:
+            return self._apply_close_action(action, bid=bid, ask=ask, verbose=verbose)
+        if action_type in {"MODIFY_SL", "MODIFY_TP", "MOVE_TO_BREAKEVEN", "TRAIL_STOP"}:
+            return self._apply_modify_action(action, bid=bid, ask=ask, verbose=verbose)
+        if action_type == "CANCEL_ORDER":
+            return self._apply_cancel_order_action(action, verbose=verbose)
+        raise ValueError(f"unsupported TradeAction.action_type: {action.action_type!r}")
+
+    def _apply_open_action(
+        self, action: TradeAction, *, bid, ask, verbose: bool = False
+    ):
+        side_code = self._side_to_order_type(action.side)
+        market_price = float(ask) if side_code == 0 else float(bid)
+        price = float(action.price) if action.price is not None else market_price
+        result = self.order_send(
+            {
+                "action": 1,
+                "symbol": action.symbol,
+                "type": side_code,
+                "volume": self._resolve_action_volume(action, price),
+                "price": price,
+                "sl": float(action.stop_loss or 0.0),
+                "tp": float(action.take_profit or 0.0),
+                "comment": action.reason or "Stateful strategy entry",
+            },
+            verbose=verbose,
+        )
+        return self._result_ok(result)
+
+    def _apply_pending_action(
+        self, action: TradeAction, *, bid, ask, verbose: bool = False
+    ):
+        order_type = self._pending_order_type_from_action(action)
+        price = float(action.price or 0.0)
+        if price <= 0.0:
+            price = float(ask) if order_type in (2, 4) else float(bid)
+        result = self.order_send(
+            {
+                "action": 5,
+                "symbol": action.symbol,
+                "type": order_type,
+                "volume": self._resolve_action_volume(action, price),
+                "price": price,
+                "sl": float(action.stop_loss or 0.0),
+                "tp": float(action.take_profit or 0.0),
+                "comment": action.reason or "Stateful strategy pending",
+            },
+            verbose=verbose,
+        )
+        return self._result_ok(result)
+
+    def _apply_close_action(
+        self, action: TradeAction, *, bid, ask, verbose: bool = False
+    ):
+        changed = False
+        for position in self._iter_action_positions(action):
+            pos_type = self._safe_int(getattr(position, "type", -1), -1)
+            if pos_type not in (0, 1):
+                continue
+            close_type = 1 if pos_type == 0 else 0
+            current_volume = float(getattr(position, "volume", 0.0) or 0.0)
+            requested_volume = current_volume
+            if (
+                str(action.action_type).upper() == "REDUCE"
+                and action.volume is not None
+            ):
+                requested_volume = min(float(action.volume), current_volume)
+            if requested_volume <= 0.0:
+                continue
+            result = self.order_send(
+                {
+                    "action": 1,
+                    "symbol": str(
+                        getattr(position, "symbol", action.symbol) or action.symbol
+                    ),
+                    "type": close_type,
+                    "position": self._position_ticket_value(position),
+                    "volume": requested_volume,
+                    "price": float(bid) if close_type == 1 else float(ask),
+                    "comment": action.reason or "Stateful strategy close",
+                },
+                verbose=verbose,
+            )
+            if self._result_ok(result):
+                changed = True
+        return changed
+
+    def _apply_modify_action(
+        self, action: TradeAction, *, bid, ask, verbose: bool = False
+    ):
+        changed = False
+        for position in self._iter_action_positions(action):
+            sl, tp = self._resolve_position_sltp(action, position, bid=bid, ask=ask)
+            result = self.order_send(
+                {
+                    "action": 6,
+                    "symbol": str(
+                        getattr(position, "symbol", action.symbol) or action.symbol
+                    ),
+                    "position": self._position_ticket_value(position),
+                    "sl": float(sl or 0.0),
+                    "tp": float(tp or 0.0),
+                },
+                verbose=verbose,
+            )
+            if self._result_ok(result):
+                changed = True
+        for order in self._iter_action_orders(action):
+            update = {
+                "action": 7,
+                "order": self._safe_int(getattr(order, "ticket", 0), 0),
+            }
+            if action.price is not None:
+                update["price"] = float(action.price)
+            if action.stop_loss is not None:
+                update["sl"] = float(action.stop_loss)
+            if action.take_profit is not None:
+                update["tp"] = float(action.take_profit)
+            if len(update) <= 2:
+                continue
+            result = self.order_send(update, verbose=verbose)
+            if self._result_ok(result):
+                changed = True
+        return changed
+
+    def _apply_cancel_order_action(self, action: TradeAction, *, verbose: bool = False):
+        changed = False
+        for order in self._iter_action_orders(action):
+            result = self.order_send(
+                {"action": 8, "order": self._safe_int(getattr(order, "ticket", 0), 0)},
+                verbose=verbose,
+            )
+            if self._result_ok(result):
+                changed = True
+        return changed
+
+    def _iter_action_positions(self, action: TradeAction):
+        for position in list(self.state.trading_deals):
+            if str(getattr(position, "entry", 0)) != "0":
+                continue
+            if str(getattr(position, "symbol", "") or "") != str(action.symbol):
+                continue
+            if action.ticket is not None and str(
+                self._position_ticket_value(position)
+            ) != str(action.ticket):
+                continue
+            if (
+                action.side is not None
+                and self._position_side(position) != str(action.side).upper()
+            ):
+                continue
+            if action.group_id and not self._row_matches_group(
+                position, action.group_id
+            ):
+                continue
+            if action.setup_id and not self._row_matches_group(
+                position, action.setup_id
+            ):
+                continue
+            yield position
+
+    def _iter_action_orders(self, action: TradeAction):
+        for order in list(self.state.trading_orders):
+            if str(getattr(order, "symbol", "") or "") != str(action.symbol):
+                continue
+            if action.ticket is not None and str(getattr(order, "ticket", "")) != str(
+                action.ticket
+            ):
+                continue
+            if (
+                action.side is not None
+                and self._order_side(order) != str(action.side).upper()
+            ):
+                continue
+            if action.group_id and not self._row_matches_group(order, action.group_id):
+                continue
+            if action.setup_id and not self._row_matches_group(order, action.setup_id):
+                continue
+            yield order
+
+    def _resolve_action_volume(self, action: TradeAction, price: float) -> float:
+        if action.volume is not None and float(action.volume) > 0.0:
+            return float(action.volume)
+        return self._resolve_signal_volume(
+            action.symbol,
+            "buy" if str(action.side).upper() == "BUY" else "sell",
+            float(price),
+            stop_loss=action.stop_loss,
+            fallback_volume=None,
+        )
+
+    def _resolve_position_sltp(self, action: TradeAction, position, *, bid, ask):
+        current_sl = float(getattr(position, "sl", 0.0) or 0.0)
+        current_tp = float(getattr(position, "tp", 0.0) or 0.0)
+        action_type = str(action.action_type).upper()
+        if action_type == "MODIFY_SL":
+            return action.stop_loss, current_tp
+        if action_type == "MODIFY_TP":
+            return current_sl, action.take_profit
+        if action_type == "MOVE_TO_BREAKEVEN":
+            return (
+                float(
+                    getattr(position, "price_open", getattr(position, "price", 0.0))
+                    or 0.0
+                ),
+                current_tp,
+            )
+        if action_type == "TRAIL_STOP":
+            trailing_distance = (
+                action.metadata.get("trailing_distance") if action.metadata else None
+            )
+            if trailing_distance is not None:
+                distance = abs(float(trailing_distance))
+                if self._position_side(position) == "BUY":
+                    return max(current_sl, float(bid) - distance), current_tp
+                candidate = float(ask) + distance
+                return (
+                    candidate if current_sl <= 0.0 else min(current_sl, candidate)
+                ), current_tp
+            return action.stop_loss, current_tp
+        return current_sl, current_tp
+
+    @staticmethod
+    def _none_if_zero(value):
+        try:
+            numeric = float(value or 0.0)
+        except Exception:
+            return None
+        return None if numeric <= 0.0 else numeric
+
+    @staticmethod
+    def _result_ok(result):
+        try:
+            return int(getattr(result, "retcode", 0) or 0) in (10008, 10009)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _side_to_order_type(side):
+        normalized = str(side or "").strip().upper()
+        if normalized == "BUY":
+            return 0
+        if normalized == "SELL":
+            return 1
+        raise ValueError("TradeAction.side must be BUY or SELL")
+
+    @staticmethod
+    def _pending_order_type_from_action(action: TradeAction):
+        side = str(action.side or "").strip().upper()
+        order_type = str(action.order_type or "").strip().upper()
+        if order_type == "STOP_LIMIT":
+            raise ValueError(
+                "STOP_LIMIT pending actions are not supported by the simulator yet"
+            )
+        mapping = {
+            ("BUY", "LIMIT"): 2,
+            ("SELL", "LIMIT"): 3,
+            ("BUY", "STOP"): 4,
+            ("SELL", "STOP"): 5,
+        }
+        try:
+            return mapping[(side, order_type)]
+        except KeyError as exc:
+            raise ValueError(
+                "PLACE_PENDING requires side BUY/SELL and order_type LIMIT/STOP"
+            ) from exc
+
+    def _position_ticket_value(self, position):
+        return self._safe_int(
+            getattr(
+                position,
+                "ticket",
+                getattr(position, "position_id", getattr(position, "identifier", 0)),
+            ),
+            0,
+        )
+
+    def _position_side(self, position):
+        return (
+            "BUY" if self._safe_int(getattr(position, "type", -1), -1) == 0 else "SELL"
+        )
+
+    def _order_side(self, order):
+        return (
+            "BUY"
+            if self._safe_int(getattr(order, "type", -1), -1) in (2, 4)
+            else "SELL"
+        )
+
+    @staticmethod
+    def _row_matches_group(row, value):
+        target = str(value)
+        candidates = (
+            getattr(row, "external_id", None),
+            getattr(row, "comment", None),
+            getattr(row, "setup_id", None),
+            getattr(row, "group_id", None),
+        )
+        return any(str(candidate or "") == target for candidate in candidates)
+
+    @staticmethod
+    def _row_matches_strategy(row, strategy_id):
+        if not strategy_id:
+            return True
+        target = str(strategy_id)
+        candidates = (
+            getattr(row, "strategy_id", None),
+            getattr(row, "strategy_name", None),
+            getattr(row, "magic", None),
+            getattr(row, "comment", None),
+        )
+        matched = any(str(candidate or "") == target for candidate in candidates)
+        has_strategy_marker = any(
+            candidate not in (None, "") for candidate in candidates
+        )
+        return matched or not has_strategy_marker
 
     @staticmethod
     def _normalize_schedule_every(value):
@@ -982,7 +1852,10 @@ class Engine:
         }
 
     def _position_sizing_enabled(self):
-        return bool(self.position_sizing.get("enabled")) and self.position_sizing.get("position_sizer") is not None
+        return (
+            bool(self.position_sizing.get("enabled"))
+            and self.position_sizing.get("position_sizer") is not None
+        )
 
     def _resolve_signal_volume(
         self,
@@ -992,7 +1865,9 @@ class Engine:
         stop_loss=None,
         fallback_volume=None,
     ) -> float:
-        lot_size = float(self.default_signal_volume if fallback_volume is None else fallback_volume)
+        lot_size = float(
+            self.default_signal_volume if fallback_volume is None else fallback_volume
+        )
         if not self._position_sizing_enabled():
             return lot_size
 
@@ -1001,11 +1876,22 @@ class Engine:
         if position_sizer is None:
             return lot_size
 
-        symbol_info = adapter.get_symbol_info(symbol_name) if adapter is not None else None
+        symbol_info = (
+            adapter.get_symbol_info(symbol_name) if adapter is not None else None
+        )
         sized = position_sizer.calculate_size(
-            account_balance=float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0),
+            account_balance=float(
+                self.account_info().get(
+                    "equity", self.account_info().get("balance", 0.0)
+                )
+                or 0.0
+            ),
             entry_price=float(entry_price),
-            stop_loss=None if stop_loss is None or float(stop_loss) <= 0.0 else float(stop_loss),
+            stop_loss=(
+                None
+                if stop_loss is None or float(stop_loss) <= 0.0
+                else float(stop_loss)
+            ),
             symbol_info=symbol_info,
             context={},
             symbol=symbol_name,
@@ -1050,9 +1936,17 @@ class Engine:
             self._risk_adapter = None
             return
 
-        limits_obj = risk_limits if isinstance(risk_limits, RiskLimits) else RiskLimits(**(risk_limits or {}))
+        limits_obj = (
+            risk_limits
+            if isinstance(risk_limits, RiskLimits)
+            else RiskLimits(**(risk_limits or {}))
+        )
         regime_cfg = regime_config or {}
-        corr_pref = correlation_preference if isinstance(correlation_preference, CorrelationPreference) else CorrelationPreference(**(correlation_preference or {}))
+        corr_pref = (
+            correlation_preference
+            if isinstance(correlation_preference, CorrelationPreference)
+            else CorrelationPreference(**(correlation_preference or {}))
+        )
 
         self._risk_adapter = _SimulationRiskAdapter(self, historical_data or {})
         governance_engine = GovernanceEngine(
@@ -1070,7 +1964,11 @@ class Engine:
             mt5_client=self._risk_adapter,
         )
         regime_detector = RiskRegimeDetector(**regime_cfg)
-        allocator = AllocationPlanner(governance_engine, corr_pref) if enable_allocation else None
+        allocator = (
+            AllocationPlanner(governance_engine, corr_pref)
+            if enable_allocation
+            else None
+        )
 
         self.risk_management = {
             "enabled": True,
@@ -1087,7 +1985,9 @@ class Engine:
         }
 
     def _risk_enabled(self):
-        return bool(self.risk_management.get("enabled")) and self._risk_adapter is not None
+        return (
+            bool(self.risk_management.get("enabled")) and self._risk_adapter is not None
+        )
 
     def _aggregate_net_positions(self):
         positions = {}
@@ -1102,7 +2002,9 @@ class Engine:
                 continue
             order_type = int(getattr(position, "type", -1) or -1)
             signed_volume = volume if order_type == 0 else -volume
-            positions[symbol_name] = float(positions.get(symbol_name, 0.0) + signed_volume)
+            positions[symbol_name] = float(
+                positions.get(symbol_name, 0.0) + signed_volume
+            )
             if abs(positions[symbol_name]) < 1e-12:
                 positions.pop(symbol_name, None)
         return positions
@@ -1110,23 +2012,42 @@ class Engine:
     def _build_risk_equity_series(self):
         curve = self.get_equity_curve()
         if curve:
-            timestamps = [pd.Timestamp(point.timestamp) for point in curve if getattr(point, "timestamp", None) is not None]
-            values = [float(point.equity) for point in curve if getattr(point, "timestamp", None) is not None]
+            timestamps = [
+                pd.Timestamp(point.timestamp)
+                for point in curve
+                if getattr(point, "timestamp", None) is not None
+            ]
+            values = [
+                float(point.equity)
+                for point in curve
+                if getattr(point, "timestamp", None) is not None
+            ]
             if timestamps and values and len(timestamps) == len(values):
                 return pd.Series(values, index=pd.DatetimeIndex(timestamps))
         if self._risk_equity_history:
-            return pd.Series([item[1] for item in self._risk_equity_history], index=pd.DatetimeIndex([item[0] for item in self._risk_equity_history]))
+            return pd.Series(
+                [item[1] for item in self._risk_equity_history],
+                index=pd.DatetimeIndex([item[0] for item in self._risk_equity_history]),
+            )
         current_dt = getattr(self.state, "current_tick_datetime", None)
-        current_equity = float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0)
+        current_equity = float(
+            self.account_info().get("equity", self.account_info().get("balance", 0.0))
+            or 0.0
+        )
         if current_dt is None:
             return None
-        return pd.Series([current_equity], index=pd.DatetimeIndex([pd.Timestamp(current_dt)]))
+        return pd.Series(
+            [current_equity], index=pd.DatetimeIndex([pd.Timestamp(current_dt)])
+        )
 
     def _record_risk_equity_point(self):
         current_dt = getattr(self.state, "current_tick_datetime", None)
         if current_dt is None:
             return
-        current_equity = float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0)
+        current_equity = float(
+            self.account_info().get("equity", self.account_info().get("balance", 0.0))
+            or 0.0
+        )
         timestamp = pd.Timestamp(current_dt)
         if self._risk_equity_history and self._risk_equity_history[-1][0] == timestamp:
             self._risk_equity_history[-1] = (timestamp, current_equity)
@@ -1204,7 +2125,9 @@ class Engine:
         timeframe = str(risk_engine.timeframe or "D1")
         count = max(int(risk_engine.end_pos - risk_engine.start_pos), 1)
         start_pos = int(risk_engine.start_pos)
-        clean_symbols = sorted({str(symbol).strip().upper() for symbol in symbols if str(symbol).strip()})
+        clean_symbols = sorted(
+            {str(symbol).strip().upper() for symbol in symbols if str(symbol).strip()}
+        )
 
         symbol_specs = {}
         market_data = {}
@@ -1236,8 +2159,9 @@ class Engine:
             },
         )
 
-
-    def _risk_log_report(self, candidate, base_lots, target_lots, regime, report, verbose: bool = False):
+    def _risk_log_report(
+        self, candidate, base_lots, target_lots, regime, report, verbose: bool = False
+    ):
         if not verbose:
             return
         regime_name = "NORMAL" if regime is None else str(regime.name)
@@ -1249,7 +2173,9 @@ class Engine:
             f"new_es={float(report.new_es):.2f} delta_es={float(report.delta_es):.2f}"
         )
 
-    def _execute_risk_batch(self, candidates, fallback_volume: float, verbose: bool = False):
+    def _execute_risk_batch(
+        self, candidates, fallback_volume: float, verbose: bool = False
+    ):
         if not candidates or not self._risk_enabled():
             return False
 
@@ -1267,15 +2193,28 @@ class Engine:
         prepared = []
         for candidate in candidates:
             symbol_name = candidate.get("symbol_name")
-            raw_symbol_info = self._risk_adapter.get_symbol_info(symbol_name) if self._risk_adapter is not None else None
+            raw_symbol_info = (
+                self._risk_adapter.get_symbol_info(symbol_name)
+                if self._risk_adapter is not None
+                else None
+            )
             stop_loss = candidate.get("sl", 0.0) or None
             entry_price = float(candidate.get("signal_price") or 0.0)
             if entry_price <= 0.0:
-                entry_price = float(candidate.get("ask") if self._candidate_signal_type(candidate) == "buy" else candidate.get("bid"))
+                entry_price = float(
+                    candidate.get("ask")
+                    if self._candidate_signal_type(candidate) == "buy"
+                    else candidate.get("bid")
+                )
             base_lots = float(candidate.get("requested_volume") or fallback_volume)
             if position_sizer is not None:
                 sized = position_sizer.calculate_size(
-                    account_balance=float(self.account_info().get("equity", self.account_info().get("balance", 0.0)) or 0.0),
+                    account_balance=float(
+                        self.account_info().get(
+                            "equity", self.account_info().get("balance", 0.0)
+                        )
+                        or 0.0
+                    ),
                     entry_price=entry_price,
                     stop_loss=stop_loss,
                     symbol_info=raw_symbol_info,
@@ -1289,8 +2228,18 @@ class Engine:
             prepared.append(candidate)
 
         regime = None
-        if self.risk_management.get("enable_regime_detection") and regime_detector is not None and governance_engine is not None:
-            symbols = sorted({str(candidate.get("symbol_name")) for candidate in prepared if candidate.get("symbol_name")})
+        if (
+            self.risk_management.get("enable_regime_detection")
+            and regime_detector is not None
+            and governance_engine is not None
+        ):
+            symbols = sorted(
+                {
+                    str(candidate.get("symbol_name"))
+                    for candidate in prepared
+                    if candidate.get("symbol_name")
+                }
+            )
             if symbols:
                 risk_engine = governance_engine.risk_engine
                 returns_df = risk_engine.build_returns_df(
@@ -1298,10 +2247,23 @@ class Engine:
                     symbols,
                 )
                 equity_curve = self._build_risk_equity_series()
-                regime = regime_detector.detect(returns_df, equity_curve) if not returns_df.empty else None
+                regime = (
+                    regime_detector.detect(returns_df, equity_curve)
+                    if not returns_df.empty
+                    else None
+                )
 
-        target_map = {f"{idx}:{candidate['symbol_name']}:{candidate['action']}": candidate["base_lots"] for idx, candidate in enumerate(prepared)}
-        if self.risk_management.get("enable_allocation") and allocator is not None and len(prepared) > 1:
+        target_map = {
+            f"{idx}:{candidate['symbol_name']}:{candidate['action']}": candidate[
+                "base_lots"
+            ]
+            for idx, candidate in enumerate(prepared)
+        }
+        if (
+            self.risk_management.get("enable_allocation")
+            and allocator is not None
+            and len(prepared) > 1
+        ):
             alloc_symbols = []
             alloc_base_lots = {}
             alloc_budgets = {}
@@ -1309,7 +2271,12 @@ class Engine:
                 key = f"{idx}:{candidate['symbol_name']}:{candidate['action']}"
                 alloc_symbols.append(key)
                 alloc_base_lots[key] = float(candidate["base_lots"])
-                alloc_budgets[key] = float(self.risk_management.get("risk_budgets", {}).get(candidate["symbol_name"], 0.0) or 0.0)
+                alloc_budgets[key] = float(
+                    self.risk_management.get("risk_budgets", {}).get(
+                        candidate["symbol_name"], 0.0
+                    )
+                    or 0.0
+                )
             target_map = allocator.compute_target_lots(
                 symbols=alloc_symbols,
                 base_lots=alloc_base_lots,
@@ -1335,11 +2302,20 @@ class Engine:
                 candidate_lots=signed_lots,
                 regime=regime,
             )
-            self._risk_log_report(candidate, candidate["base_lots"], target_lots, regime, report, verbose=verbose)
+            self._risk_log_report(
+                candidate,
+                candidate["base_lots"],
+                target_lots,
+                regime,
+                report,
+                verbose=verbose,
+            )
             if report.decision != "ACCEPT":
                 continue
             if self._execute_candidate(candidate, target_lots, verbose=verbose):
-                current_positions[candidate["symbol_name"]] = float(current_positions.get(candidate["symbol_name"], 0.0) + signed_lots)
+                current_positions[candidate["symbol_name"]] = float(
+                    current_positions.get(candidate["symbol_name"], 0.0) + signed_lots
+                )
                 if abs(current_positions[candidate["symbol_name"]]) < 1e-12:
                     current_positions.pop(candidate["symbol_name"], None)
                 state_changed = True
@@ -1444,6 +2420,7 @@ class Engine:
         show_progress: bool = False,
         progress_desc: str = "Tester Progress",
         frame_observer=None,
+        strategy=None,
     ):
         """Run prepared tick data through the event-driven backend."""
         return run_event_driven_simulation(
@@ -1459,6 +2436,7 @@ class Engine:
             show_progress=show_progress,
             progress_desc=progress_desc,
             frame_observer=frame_observer,
+            strategy=strategy,
         )
 
     def monitor_positions(self, verbose: bool = False):
@@ -1514,7 +2492,6 @@ class Engine:
         return None
 
     def order_check(self, request):
-        # order_check is not strictly required by simulator logic yet, 
+        # order_check is not strictly required by simulator logic yet,
         # but returning empty dict prevents missing method errors from Trade
         return {}
-

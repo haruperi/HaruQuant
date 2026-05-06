@@ -106,6 +106,7 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={isStreaming ? "Assistant is responding..." : "Ask about the current page, strategy, or workflow..."}
           aria-label="Chat input"
+          aria-keyshortcuts="Enter Shift+Enter"
           disabled={disabled || isStreaming}
           className="min-h-20 resize-none rounded-md"
         />

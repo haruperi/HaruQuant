@@ -1,4 +1,4 @@
-"""Ephemeral page-context service for CEO chat turns."""
+"""Ephemeral page-context assembly for AI Chat turns."""
 
 from __future__ import annotations
 
@@ -19,4 +19,8 @@ class PageContextService:
             dom_snapshot=request.context_dom,
             page_intelligence=request.context_page_intelligence,
         )
+
+
+class ContextAssembler(PageContextService):
+    """Canonical context assembler alias used by route and chat services."""
 

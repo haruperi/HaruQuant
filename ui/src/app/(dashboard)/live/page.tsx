@@ -19,10 +19,12 @@ import { LiveLogViewer } from "@/components/live/live-log-viewer"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRegisterPageContext } from "@/hooks/usePageContext"
 import { useRegisterPageActions } from "@/hooks/useRegisterPageActions"
+import type { SessionStatusInfo } from "@/types/live"
 
 export default function LivePage() {
   const [sessionId, setSessionId] = useState<number | undefined>(undefined)
   const [sessionStatus, setSessionStatus] = useState<string>("stopped")
+  const [liveStatus, setLiveStatus] = useState<SessionStatusInfo | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // Chart state
@@ -69,8 +71,59 @@ export default function LivePage() {
       timeframe: selectedTimeframe,
       activeTab: "live",
       entityRefs: sessionId ? [{ type: "live_session", id: String(sessionId), label: `Session ${sessionId}` }] : [],
+      pageIntelligence: {
+        visibleMetrics: [
+          liveStatus?.account_login != null
+            ? {
+                id: "live.account_login",
+                label: "Account Login",
+                value: liveStatus.account_login,
+                source: "live_status",
+              }
+            : null,
+          liveStatus?.account_server
+            ? {
+                id: "live.account_server",
+                label: "Account Server",
+                value: liveStatus.account_server,
+                source: "live_status",
+              }
+            : null,
+          liveStatus?.account_name
+            ? {
+                id: "live.account_name",
+                label: "Account Name",
+                value: liveStatus.account_name,
+                source: "live_status",
+              }
+            : null,
+          liveStatus?.current_equity != null
+            ? {
+                id: "live.current_equity",
+                label: "Current Equity",
+                value: liveStatus.current_equity,
+                unit: "USD",
+                source: "live_status",
+              }
+            : null,
+          liveStatus?.current_balance != null
+            ? {
+                id: "live.current_balance",
+                label: "Current Balance",
+                value: liveStatus.current_balance,
+                unit: "USD",
+                source: "live_status",
+              }
+            : null,
+        ].filter((metric): metric is NonNullable<typeof metric> => metric !== null),
+        freshness: {
+          observedAt: new Date().toISOString(),
+          stalenessSeconds: 0,
+          source: "live_status",
+        },
+      },
     }),
-    [selectedSymbol, selectedTimeframe, sessionId],
+    [liveStatus, selectedSymbol, selectedTimeframe, sessionId],
   ))
 
   return (
@@ -87,7 +140,7 @@ export default function LivePage() {
         {/* Status Section - Spans top row */}
         <div className="col-span-12 lg:col-span-4">
            {sessionId ? (
-            <LiveStatusCardEnhanced sessionId={sessionId} />
+            <LiveStatusCardEnhanced sessionId={sessionId} onStatusUpdate={setLiveStatus} />
           ) : (
             <Card className="h-full flex flex-col justify-center items-center text-center p-6 border-dashed">
               <Activity className="h-10 w-10 text-muted-foreground mb-4 opacity-50" />

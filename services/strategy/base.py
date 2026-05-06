@@ -10,6 +10,16 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, TypedDict
 
 import pandas as pd
 
+from services.strategy.stateful import (
+    OrderSnapshot,
+    PositionSnapshot,
+    StatefulStrategyMixin,
+    StrategyContext,
+    StrategyRuntimeState,
+    TradeAction,
+    TradeSnapshot,
+)
+
 # Avoid circular imports
 if TYPE_CHECKING:
     from services.execution.trade import Trade
@@ -225,7 +235,14 @@ class BaseStrategy(ABC):
         pending_2 = row.get("pending_signal_2", 0) or 0
         cancel_2 = row.get("cancel_pending_signal_2", 0) or 0
 
-        if entry == 0 and exit_sig == 0 and pending == 0 and cancel == 0 and pending_2 == 0 and cancel_2 == 0:
+        if (
+            entry == 0
+            and exit_sig == 0
+            and pending == 0
+            and cancel == 0
+            and pending_2 == 0
+            and cancel_2 == 0
+        ):
             return None
 
         # Build basic signal dict - strategy implementations can override to add specific reasons/SL/TP

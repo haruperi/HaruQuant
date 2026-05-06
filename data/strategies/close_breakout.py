@@ -6,8 +6,8 @@ Places stop orders at the previous bar high/low and refreshes them every bar.
 
 from typing import Any, Dict, Optional
 import pandas as pd
-from haruquant.utils import logger
-from haruquant.strategy import BaseStrategy, SignalDict
+from services.strategy.base import BaseStrategy, SignalDict
+from services.utils.logger import logger
 
 
 class CloseBreakoutStrategy(BaseStrategy):

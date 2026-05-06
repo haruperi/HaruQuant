@@ -7,7 +7,19 @@ import types
 
 from services.utils.logger import logger
 from services.indicator import atr, bbands, ema, rsi, sma, wma
-from services.strategy.base import BaseStrategy, SignalDict, SignalIntent, StrategyEvent
+from services.strategy.base import (
+    BaseStrategy,
+    OrderSnapshot,
+    PositionSnapshot,
+    SignalDict,
+    SignalIntent,
+    StatefulStrategyMixin,
+    StrategyContext,
+    StrategyEvent,
+    StrategyRuntimeState,
+    TradeAction,
+    TradeSnapshot,
+)
 from services.strategy.compat_types import PositionTyp, PositionType
 
 
@@ -27,12 +39,26 @@ def install_legacy_apps_modules() -> None:
     strategy_module.SignalDict = SignalDict
     strategy_module.SignalIntent = SignalIntent
     strategy_module.StrategyEvent = StrategyEvent
+    strategy_module.StrategyContext = StrategyContext
+    strategy_module.StrategyRuntimeState = StrategyRuntimeState
+    strategy_module.PositionSnapshot = PositionSnapshot
+    strategy_module.OrderSnapshot = OrderSnapshot
+    strategy_module.TradeSnapshot = TradeSnapshot
+    strategy_module.TradeAction = TradeAction
+    strategy_module.StatefulStrategyMixin = StatefulStrategyMixin
     strategy_module.__all__ = [
         "BaseStrategy",
         "Strategy",
         "SignalDict",
         "SignalIntent",
         "StrategyEvent",
+        "StrategyContext",
+        "StrategyRuntimeState",
+        "PositionSnapshot",
+        "OrderSnapshot",
+        "TradeSnapshot",
+        "TradeAction",
+        "StatefulStrategyMixin",
     ]
 
     strategy_base_module = types.ModuleType("apps.strategy.base")
@@ -41,6 +67,13 @@ def install_legacy_apps_modules() -> None:
     strategy_base_module.SignalDict = SignalDict
     strategy_base_module.SignalIntent = SignalIntent
     strategy_base_module.StrategyEvent = StrategyEvent
+    strategy_base_module.StrategyContext = StrategyContext
+    strategy_base_module.StrategyRuntimeState = StrategyRuntimeState
+    strategy_base_module.PositionSnapshot = PositionSnapshot
+    strategy_base_module.OrderSnapshot = OrderSnapshot
+    strategy_base_module.TradeSnapshot = TradeSnapshot
+    strategy_base_module.TradeAction = TradeAction
+    strategy_base_module.StatefulStrategyMixin = StatefulStrategyMixin
     strategy_base_module.__all__ = strategy_module.__all__
 
     indicator_module = types.ModuleType("apps.indicator")

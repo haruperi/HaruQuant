@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+from uuid import uuid4
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,13 @@ class AiChatThreadRow:
     created_at: str
     updated_at: str
     last_message_at: str | None
+    archived_at: str | None = None
+    deleted_at: str | None = None
+    purged_at: str | None = None
+    retention_expires_at: str | None = None
+    purge_after: str | None = None
+    legal_hold_until: str | None = None
+    legal_hold_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -109,6 +117,22 @@ class AiChatActionDraftRow:
     updated_at: str
 
 
+@dataclass(frozen=True)
+class AiChatLifecycleAuditEventRow:
+    event_id: str
+    thread_id: str
+    user_id: str
+    actor_id: str
+    action: str
+    from_status: str | None
+    to_status: str | None
+    from_retention_class: str | None
+    to_retention_class: str | None
+    reason: str
+    metadata_json: str
+    created_at: str
+
+
 class AiChatRepository:
     """Persistence wrapper for AI chat conversation state."""
 
@@ -161,6 +185,15 @@ class AiChatRepository:
         record = self.get_thread(thread_id, user_id=user_id)
         if record is None:
             raise LookupError(f"thread not found after create: {thread_id}")
+        self.record_lifecycle_event(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=user_id,
+            action="thread_created",
+            to_status=record.status,
+            to_retention_class=record.retention_class,
+            reason="Conversation thread created.",
+        )
         return record
 
     def get_thread(
@@ -176,7 +209,7 @@ class AiChatRepository:
             query += " AND user_id = ?"
             params.append(user_id)
         if not include_deleted:
-            query += " AND status != 'deleted'"
+            query += " AND status NOT IN ('deleted', 'purged')"
         with self._connect() as connection:
             row = connection.execute(query, tuple(params)).fetchone()
         return None if row is None else AiChatThreadRow(**dict(row))
@@ -186,12 +219,15 @@ class AiChatRepository:
         *,
         user_id: str,
         include_deleted: bool = False,
+        include_archived: bool = False,
         limit: int = 50,
     ) -> list[AiChatThreadRow]:
         query = "SELECT * FROM ai_chat_threads WHERE user_id = ?"
         params: list[object] = [user_id]
         if not include_deleted:
-            query += " AND status != 'deleted'"
+            query += " AND status NOT IN ('deleted', 'purged')"
+        if not include_archived:
+            query += " AND status != 'archived'"
         query += " ORDER BY COALESCE(last_message_at, updated_at) DESC, created_at DESC LIMIT ?"
         params.append(limit)
         with self._connect() as connection:
@@ -250,16 +286,286 @@ class AiChatRepository:
         return record
 
     def soft_delete_thread(self, *, thread_id: str, user_id: str) -> bool:
+        current = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if current is None or current.status in {"deleted", "purged"}:
+            return False
         with self._connect() as connection:
             cursor = connection.execute(
                 """
                 UPDATE ai_chat_threads
-                SET status = 'deleted', updated_at = CURRENT_TIMESTAMP
+                SET status = 'deleted',
+                    deleted_at = CURRENT_TIMESTAMP,
+                    purge_after = CASE
+                        WHEN retention_class IN ('regulated', 'legal_hold') THEN purge_after
+                        ELSE COALESCE(purge_after, datetime('now', '+30 days'))
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE thread_id = ? AND user_id = ? AND status != 'deleted'
                 """,
                 (thread_id, user_id),
             )
-            return cursor.rowcount == 1
+            deleted = cursor.rowcount == 1
+        if deleted:
+            updated = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+            self.record_lifecycle_event(
+                thread_id=thread_id,
+                user_id=user_id,
+                actor_id=user_id,
+                action="thread_deleted",
+                from_status=current.status,
+                to_status=updated.status if updated else "deleted",
+                from_retention_class=current.retention_class,
+                to_retention_class=updated.retention_class if updated else current.retention_class,
+                reason="User requested conversation deletion.",
+            )
+        return deleted
+
+    def archive_thread(self, *, thread_id: str, user_id: str, actor_id: str | None = None, reason: str = "") -> AiChatThreadRow:
+        current = self.get_thread(thread_id, user_id=user_id)
+        if current is None:
+            raise LookupError(f"thread not found: {thread_id}")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE ai_chat_threads
+                SET status = 'archived',
+                    archived_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE thread_id = ? AND user_id = ? AND status = 'active'
+                """,
+                (thread_id, user_id),
+            )
+            if cursor.rowcount != 1:
+                raise LookupError(f"thread cannot be archived: {thread_id}")
+        updated = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if updated is None:
+            raise LookupError(f"thread not found after archive: {thread_id}")
+        self.record_lifecycle_event(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=actor_id or user_id,
+            action="thread_archived",
+            from_status=current.status,
+            to_status=updated.status,
+            from_retention_class=current.retention_class,
+            to_retention_class=updated.retention_class,
+            reason=reason or "Conversation archived.",
+        )
+        return updated
+
+    def restore_thread(self, *, thread_id: str, user_id: str, actor_id: str | None = None, reason: str = "") -> AiChatThreadRow:
+        current = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if current is None or current.status not in {"archived", "deleted"}:
+            raise LookupError(f"thread cannot be restored: {thread_id}")
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE ai_chat_threads
+                SET status = 'active',
+                    deleted_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE thread_id = ? AND user_id = ? AND status IN ('archived', 'deleted')
+                """,
+                (thread_id, user_id),
+            )
+        updated = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if updated is None:
+            raise LookupError(f"thread not found after restore: {thread_id}")
+        self.record_lifecycle_event(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=actor_id or user_id,
+            action="thread_restored",
+            from_status=current.status,
+            to_status=updated.status,
+            from_retention_class=current.retention_class,
+            to_retention_class=updated.retention_class,
+            reason=reason or "Conversation restored.",
+        )
+        return updated
+
+    def update_thread_retention(
+        self,
+        *,
+        thread_id: str,
+        user_id: str,
+        retention_class: str,
+        retention_expires_at: str | None = None,
+        purge_after: str | None = None,
+        legal_hold_until: str | None = None,
+        legal_hold_reason: str | None = None,
+        actor_id: str | None = None,
+        reason: str = "",
+    ) -> AiChatThreadRow:
+        current = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if current is None:
+            raise LookupError(f"thread not found: {thread_id}")
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE ai_chat_threads
+                SET retention_class = ?,
+                    retention_expires_at = ?,
+                    purge_after = ?,
+                    legal_hold_until = ?,
+                    legal_hold_reason = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE thread_id = ? AND user_id = ? AND status != 'purged'
+                """,
+                (
+                    retention_class,
+                    retention_expires_at,
+                    purge_after,
+                    legal_hold_until,
+                    legal_hold_reason,
+                    thread_id,
+                    user_id,
+                ),
+            )
+        updated = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if updated is None:
+            raise LookupError(f"thread not found after retention update: {thread_id}")
+        self.record_lifecycle_event(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=actor_id or user_id,
+            action="retention_class_changed",
+            from_status=current.status,
+            to_status=updated.status,
+            from_retention_class=current.retention_class,
+            to_retention_class=updated.retention_class,
+            reason=reason or "Retention class updated.",
+        )
+        return updated
+
+    def purge_thread(self, *, thread_id: str, user_id: str, actor_id: str | None = None, reason: str = "") -> bool:
+        current = self.get_thread(thread_id, user_id=user_id, include_deleted=True)
+        if current is None or current.retention_class in {"regulated", "legal_hold"} or current.status == "purged":
+            return False
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE ai_chat_messages
+                SET content = '[purged]',
+                    tool_calls_json = '[]',
+                    metadata_json = '{}'
+                WHERE thread_id = ?
+                """,
+                (thread_id,),
+            )
+            connection.execute("DELETE FROM ai_chat_memory_summaries WHERE thread_id = ?", (thread_id,))
+            connection.execute("DELETE FROM ai_chat_pinned_facts WHERE thread_id = ?", (thread_id,))
+            connection.execute(
+                """
+                UPDATE ai_chat_threads
+                SET status = 'purged',
+                    title = '[purged]',
+                    active_context_revision = NULL,
+                    current_route = NULL,
+                    current_page_type = NULL,
+                    purged_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE thread_id = ? AND user_id = ? AND retention_class NOT IN ('regulated', 'legal_hold')
+                """,
+                (thread_id, user_id),
+            )
+        self.record_lifecycle_event(
+            thread_id=thread_id,
+            user_id=user_id,
+            actor_id=actor_id or user_id,
+            action="thread_purged",
+            from_status=current.status,
+            to_status="purged",
+            from_retention_class=current.retention_class,
+            to_retention_class=current.retention_class,
+            reason=reason or f"Conversation purged; message rows redacted: {cursor.rowcount}.",
+        )
+        return True
+
+    def list_threads_due_for_lifecycle(self, *, now: str, limit: int = 200) -> list[AiChatThreadRow]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM ai_chat_threads
+                WHERE status != 'purged'
+                  AND retention_class != 'legal_hold'
+                  AND (
+                    (retention_expires_at IS NOT NULL AND retention_expires_at <= ?)
+                    OR (purge_after IS NOT NULL AND purge_after <= ?)
+                  )
+                ORDER BY COALESCE(purge_after, retention_expires_at) ASC
+                LIMIT ?
+                """,
+                (now, now, limit),
+            ).fetchall()
+        return [AiChatThreadRow(**dict(row)) for row in rows]
+
+    def record_lifecycle_event(
+        self,
+        *,
+        thread_id: str,
+        user_id: str,
+        actor_id: str,
+        action: str,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        from_retention_class: str | None = None,
+        to_retention_class: str | None = None,
+        reason: str = "",
+        metadata_json: str = "{}",
+    ) -> AiChatLifecycleAuditEventRow:
+        event_id = f"chat-audit-{uuid4()}"
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO ai_chat_lifecycle_audit_events (
+                    event_id,
+                    thread_id,
+                    user_id,
+                    actor_id,
+                    action,
+                    from_status,
+                    to_status,
+                    from_retention_class,
+                    to_retention_class,
+                    reason,
+                    metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    thread_id,
+                    user_id,
+                    actor_id,
+                    action,
+                    from_status,
+                    to_status,
+                    from_retention_class,
+                    to_retention_class,
+                    reason,
+                    metadata_json,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM ai_chat_lifecycle_audit_events WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+        return AiChatLifecycleAuditEventRow(**dict(row))
+
+    def list_lifecycle_events(self, *, thread_id: str, user_id: str, limit: int = 100) -> list[AiChatLifecycleAuditEventRow]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM ai_chat_lifecycle_audit_events
+                WHERE thread_id = ? AND user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (thread_id, user_id, limit),
+            ).fetchall()
+        return [AiChatLifecycleAuditEventRow(**dict(row)) for row in rows]
 
     def add_message(
         self,

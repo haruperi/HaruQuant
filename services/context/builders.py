@@ -1,23 +1,9 @@
-"""Builders for compact CEO chat page context."""
+"""Builders for compact AI chat page context."""
 
 from __future__ import annotations
 
-from uuid import uuid4
-
-from services.context.freshness import freshness_payload
-from services.schemas.chat import ChatEntityRef, PageContext
-
-PAGE_TYPES = {
-    "dashboard",
-    "strategy_detail",
-    "backtest_detail",
-    "optimization_detail",
-    "portfolio_risk",
-    "live_trading",
-    "data_workspace",
-    "operator_workflow",
-    "generic",
-}
+from services.context_builders import get_context_builder
+from services.schemas.chat import PageContext
 
 
 def build_page_context(
@@ -30,34 +16,15 @@ def build_page_context(
     dom_snapshot: dict[str, object] | None = None,
     page_intelligence: dict[str, object] | None = None,
 ) -> PageContext:
-    entities: list[ChatEntityRef] = []
-    if session_id is not None:
-        entities.append(ChatEntityRef(type="session", id=str(session_id), label=f"Session {session_id}"))
-    if symbol:
-        entities.append(ChatEntityRef(type="symbol", id=symbol, label=symbol))
-    if timeframe:
-        entities.append(ChatEntityRef(type="timeframe", id=timeframe, label=timeframe))
-
-    page_type = "generic"
-    identity = {}
-    if page_intelligence:
-        identity = dict(page_intelligence.get("pageIdentity") or {})
-        page_type = str(identity.get("pageType") or page_type)
-
-    return PageContext(
-        route=route or str(identity.get("route") or "/"),
-        page_type=page_type if page_type in PAGE_TYPES else "generic",  # type: ignore[arg-type]
-        page_title=page_title or str(identity.get("title") or "") or None,
-        entity_refs=entities,
-        context_revision=f"ctx-{uuid4()}",
-        freshness=freshness_payload(),
-        authority={"source": "ui", "trust_level": "system_state"},
-        summary={
-            "headline": page_title or str(identity.get("title") or "Current HaruQuant page"),
-            "bullets": [value for value in [symbol, timeframe, f"session {session_id}" if session_id else None] if value],
-        },
-        payload={
-            "dom": dom_snapshot or {},
-            "page_intelligence": page_intelligence or {},
-        },
+    identity = dict((page_intelligence or {}).get("pageIdentity") or {})
+    page_type_hint = str(identity.get("pageType") or "") or None
+    builder, _page_type = get_context_builder(route, page_type_hint)
+    return builder(
+        route=route,
+        page_title=page_title,
+        session_id=session_id,
+        symbol=symbol,
+        timeframe=timeframe,
+        dom_snapshot=dom_snapshot,
+        page_intelligence=page_intelligence,
     )
