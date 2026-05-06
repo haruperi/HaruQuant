@@ -211,7 +211,7 @@ export function ChatPanel({
   return (
     <aside
       aria-hidden={!isOpen}
-      aria-label="HaruQuant CEO chat panel"
+      aria-label="HaruQuant AI chat panel"
       role="dialog"
       ref={panelRef}
       className={cn(
