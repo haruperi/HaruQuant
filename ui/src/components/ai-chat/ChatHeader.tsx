@@ -24,7 +24,7 @@ export function ChatHeader({ isOnline, isRestoring, threadTitle, activeResponseS
     <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h2 className="truncate text-sm font-semibold">HaruQuant CEO</h2>
+          <h2 className="truncate text-sm font-semibold">HaruQuant AI</h2>
           <CEOStatusBadge
             isOnline={isOnline}
             isRestoring={isRestoring}
