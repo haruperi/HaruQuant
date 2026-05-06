@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter, Header, HTTPException, status
 
-from backend_retiring.api.auth_utils import verify_token
-from backend_retiring.api.models import UpdateUserSettingsRequest, UserSettingsResponse
+from api.auth_utils import verify_token
+from api.models import UpdateUserSettingsRequest, UserSettingsResponse
 from haruquant.utils import logger
 from data.database.sqlite.database_operations import DatabaseManager
 
@@ -145,4 +145,5 @@ async def update_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while updating settings",
         )
+
 

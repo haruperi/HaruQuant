@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from backend_retiring.api.websocket import optimization_progress_manager
+from api.websocket import optimization_progress_manager
 from haruquant.utils import logger
 from haruquant.optimization import ConsecutiveLosingRequest, ConsecutiveLosingResponse, ConsecutiveLosingScenario, MonteCarloRequest, MonteCarloResponse, MultiEntryRequest, MultiEntryResponse, OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationRunDetails, UnsupervisedAnalysisRequest, UnsupervisedRunSummary, ParametricMonteCarloRequest, PositionSizingRequest, ProfitTargetRequest, ProfitTargetResponse, ProfitTargetResult, RandomWinRateRequest, RandomWinRateResponse, RobustnessRequest, RobustnessResponse, WalkForwardRequest
 from haruquant.optimization import ParametricSimulationResult, consecutive_losing_simulation, parametric_simulation, position_sizing_simulation, profit_target_simulation, random_win_rate_simulation
@@ -709,3 +709,4 @@ async def optimization_progress_websocket(websocket: WebSocket, optimization_id:
             await websocket.receive_text()
     except WebSocketDisconnect:
         await optimization_progress_manager.disconnect(optimization_id, websocket)
+

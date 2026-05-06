@@ -112,10 +112,11 @@
     }
   ],
   "logging": {
-    "dir": "backend_retiring/logs/multi_strategy",
+    "dir": "artifacts/logs/multi_strategy",
     "level": "INFO"
   },
   "state": {
     "file": "multi_strategy_state.json"
   }
 }
+

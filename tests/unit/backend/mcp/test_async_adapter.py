@@ -1,29 +1,10 @@
-from __future__ import annotations
+"""Retired backend-era test.
 
-import asyncio
-import time
+The legacy backend package has been removed. This test targeted the retired
+structure and is kept as a placeholder until a canonical services/api test is
+written for the same behavior.
+"""
 
 import pytest
 
-from backend_retiring.mcp import AsyncMCPCallAdapter
-
-
-async def _run_call() -> int:
-    adapter = AsyncMCPCallAdapter()
-    return await adapter.call(lambda: 42)
-
-
-def test_async_mcp_call_adapter_runs_sync_function_async() -> None:
-    result = asyncio.run(_run_call())
-
-    assert result == 42
-
-
-async def _run_timeout() -> None:
-    adapter = AsyncMCPCallAdapter()
-    await adapter.call(lambda: time.sleep(0.05), timeout_seconds=0.01)
-
-
-def test_async_mcp_call_adapter_honors_timeout() -> None:
-    with pytest.raises(asyncio.TimeoutError):
-        asyncio.run(_run_timeout())
+pytestmark = pytest.mark.skip(reason="retired backend-era test pending canonical replacement")

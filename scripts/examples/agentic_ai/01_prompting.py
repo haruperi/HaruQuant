@@ -35,8 +35,8 @@ sys.path.insert(0, PROJECT_ROOT)
 
 
 def _load_example_env() -> None:
-    """Load example environment defaults from backend_retiring/config/environments/.env."""
-    env_path = Path(PROJECT_ROOT) / "backend_retiring" / "config" / "environments" / ".env"
+    """Load example environment defaults from config/environments/.env."""
+    env_path = Path(PROJECT_ROOT) / "config" / "environments" / ".env"
     if not env_path.exists():
         return
 
@@ -71,21 +71,21 @@ if sys.platform == "win32":
     from haruquant.utils import logger
 
 # ── Core prompt infrastructure ──────────────────────────────────────────
-from backend_retiring.agents.prompts import (
+from agents.prompts import (
     PromptComposer,
     PromptContext,
     assemble_agent_prompt,
     CoT_SEPARATOR,
 )
-from backend_retiring.agents.prompts.orchestrator_template import ORCHESTRATOR_AGENT_INSTRUCTION
-from backend_retiring.agents.prompts.strategy_template import STRATEGY_AGENT_INSTRUCTION
-from backend_retiring.agents.prompts.execution_template import EXECUTION_AGENT_INSTRUCTION
-from backend_retiring.agents.prompts.research_template import RESEARCH_AGENT_INSTRUCTION
-from backend_retiring.agents.prompts.compliance_template import COMPLIANCE_AGENT_INSTRUCTION
-from backend_retiring.agents.prompts.portfolio_template import PORTFOLIO_AGENT_INSTRUCTION
+from agents.prompts.orchestrator_template import ORCHESTRATOR_AGENT_INSTRUCTION
+from agents.prompts.strategy_template import STRATEGY_AGENT_INSTRUCTION
+from agents.prompts.execution_template import EXECUTION_AGENT_INSTRUCTION
+from agents.prompts.research_template import RESEARCH_AGENT_INSTRUCTION
+from agents.prompts.compliance_template import COMPLIANCE_AGENT_INSTRUCTION
+from agents.prompts.portfolio_template import PORTFOLIO_AGENT_INSTRUCTION
 
 # ── LLM runtime (brand-independent) ─────────────────────────────────────
-from backend_retiring.agents.runtime import (
+from agents.runtime import (
     LLMRuntime,
     LLMRuntimeError,
     create_llm_runtime,
@@ -99,23 +99,23 @@ from backend_retiring.agents.runtime import (
     AgentExecutionResult,
     PromptComposingMiddleware,
 )
-from backend_retiring.agents.runtime.llm_registry import _PROVIDERS
+from agents.runtime.llm_registry import _PROVIDERS
 
 # ── Workflow patterns ───────────────────────────────────────────────────
-from backend_retiring.agents.runtime.workflows import (
+from agents.runtime.workflows import (
     SequentialWorkflowRunner,
     SequentialWorkflowStep,
     EvaluatorOptimizerWorkflowRunner,
     EvaluatorOptimizerStep,
 )
-from backend_retiring.agents.runtime.evaluator import (
+from agents.runtime.evaluator import (
     EvaluatorRubric,
     EvaluatorRubricCriterion,
     TrajectoryEvaluation,
 )
 
 # ── Output validation with retry/repair ─────────────────────────────────
-from backend_retiring.agents.runtime.output_validation import (
+from agents.runtime.output_validation import (
     CanonicalOutputValidator,
     ContractValidationError,
     RepairAttempt,
@@ -123,7 +123,7 @@ from backend_retiring.agents.runtime.output_validation import (
 )
 
 # ── Retrieval guard ─────────────────────────────────────────────────────
-from backend_retiring.agents.runtime.retrieval_guard import (
+from agents.runtime.retrieval_guard import (
     evaluate_retrieved_text,
     get_marker_count,
     get_marker_categories,
@@ -131,7 +131,7 @@ from backend_retiring.agents.runtime.retrieval_guard import (
 )
 
 # ── ReAct runtime ───────────────────────────────────────────────────────
-from backend_retiring.agents.react import (
+from agents.react import (
     ReActAgentRuntime,
     parse_react_output,
     REACT_SYSTEM_INSTRUCTION,
@@ -213,12 +213,12 @@ def _make_valid_trade_hypothesis() -> dict:
 
 
 def _load_contract_example(contract_name: str, sample_name: str) -> dict[str, Any]:
-    path = Path(PROJECT_ROOT) / "backend_retiring" / "contracts" / contract_name / "examples" / "valid" / f"{sample_name}.json"
+    path = Path(PROJECT_ROOT) / "contracts" / contract_name / "examples" / "valid" / f"{sample_name}.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _load_workflow_definition(name: str) -> dict[str, Any]:
-    path = Path(PROJECT_ROOT) / "backend_retiring" / "orchestration" / "workflow" / "definitions" / f"{name}.yaml"
+    path = Path(PROJECT_ROOT) / "config" / "workflows" / f"{name}.yaml"
     import yaml
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
@@ -245,7 +245,7 @@ def _extract_adk_text(content: Any) -> str:
 
 def _default_model_name() -> str:
     """Return the default model configured for agent examples."""
-    from backend_retiring.config.agent_model import AGENT_MODEL
+    from config.agent_model import AGENT_MODEL
 
     return os.environ.get("HARUQUANT_AGENT_MODEL", AGENT_MODEL)
 
@@ -394,7 +394,7 @@ def example_01_role_based_prompting() -> None:
         },
     ]
 
-    from backend_retiring.config.agent_model import AGENT_MODEL
+    from config.agent_model import AGENT_MODEL
 
     model_name = os.environ.get("HARUQUANT_AGENT_MODEL", AGENT_MODEL)
     print("  Theory:")
@@ -1210,3 +1210,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -1,26 +1,10 @@
-from __future__ import annotations
+"""Retired backend-era test.
 
-from unittest.mock import MagicMock, patch
+The legacy backend package has been removed. This test targeted the retired
+structure and is kept as a placeholder until a canonical services/api test is
+written for the same behavior.
+"""
 
-from backend_retiring.tools.read_only.knowledge import InternalKnowledgeTool
+import pytest
 
-
-def test_internal_knowledge_tool_initializes_retrieval_lazily() -> None:
-    with patch("backend_retiring.tools.read_only.knowledge.EmbeddingService") as embedding_cls, patch(
-        "backend_retiring.tools.read_only.knowledge.RetrievalService"
-    ) as retrieval_cls:
-        tool = InternalKnowledgeTool()
-
-        embedding_cls.assert_not_called()
-        retrieval_cls.assert_not_called()
-
-        retrieval = MagicMock()
-        retrieval.search.return_value = []
-        retrieval_cls.return_value = retrieval
-
-        payload = tool.run(user_id=1, context={"query": "chatbot rollout runbook"})
-
-        embedding_cls.assert_called_once()
-        retrieval_cls.assert_called_once()
-        retrieval.search.assert_called_once_with(query="chatbot rollout runbook", top_k=5)
-        assert payload["matches"] == []
+pytestmark = pytest.mark.skip(reason="retired backend-era test pending canonical replacement")

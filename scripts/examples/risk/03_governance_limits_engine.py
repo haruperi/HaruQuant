@@ -241,7 +241,7 @@ class ExampleContext:
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
                 "source": "phase3_governance_example",
-                "backend_retiring": "sim",
+                "backend": "sim",
                 "peak_equity": peak_equity,
                 "example_generated_at": datetime.now(UTC).isoformat(),
             },
@@ -439,3 +439,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

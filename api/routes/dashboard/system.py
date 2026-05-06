@@ -4,7 +4,7 @@ import sqlite3
 
 from fastapi import APIRouter
 
-from backend_retiring.api.models import ResourceUsageResponse, SystemStatusResponse
+from api.models import ResourceUsageResponse, SystemStatusResponse
 from haruquant.utils import logger
 from data.database.sqlite.database_operations import DatabaseManager
 
@@ -68,4 +68,5 @@ async def get_resource_usage():
         return ResourceUsageResponse(
             cpu_percent=0.0, memory_percent=0.0, memory_used_gb=0.0, memory_total_gb=0.0
         )
+
 

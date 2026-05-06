@@ -8,11 +8,7 @@ from typing import Any
 
 from services.utils.ids import generate_id, generate_prefixed_id
 from contracts.common import Originator
-from contracts.risk_assessment_decision.model import (
-    ProvenanceBundleRef,
-    RiskAssessmentDecision,
-    RiskAssessmentDecisionPayload,
-)
+from contracts.risk_assessment_decision.model import RiskAssessmentDecision, RiskAssessmentDecisionPayload
 from contracts.serialization import canonical_json_dumps
 from contracts.trade_proposal.model import TradeProposal, TradeProposalPayload
 from data.database import (
@@ -23,7 +19,7 @@ from data.database import (
     RiskRepository,
     WorkflowRepository,
 )
-from backend_retiring.agents.chat.ai_chat import ActionDraftRecord, ConversationService
+from services.conversation.service import ActionDraftRecord, ConversationService
 from services.execution import (
     ExecutionAttemptPersistenceService,
     ExecutionReceiptService,
@@ -37,7 +33,7 @@ from services.execution import (
 )
 from services.execution.pre_send import PreSendValidationRequest
 from services.risk.safety.kill_switch import evaluate_new_entry_block
-from backend_retiring.orchestration.workflow.states import KillSwitchState
+from services.governance.workflow import KillSwitchState
 
 
 UTC = timezone.utc
@@ -344,6 +340,7 @@ class TradeActionGovernor:
             expiry_at=(now + timedelta(minutes=15)).isoformat().replace("+00:00", "Z"),
         )
         return TradeProposal(
+            contract_type="TradeProposal",
             workflow_id=workflow_id,
             correlation_id=generate_id("correlation"),
             causation_id=generate_id("causation"),
@@ -351,7 +348,6 @@ class TradeActionGovernor:
             originator=Originator(type="agent", id="ai_chat_supervisor"),
             environment="paper",
             operating_mode="MODE-002",
-            compliance_profile_id="cmp_ai_chat_paper",
             payload=TradeProposalPayload(
                 proposal_id=proposal_id,
                 source_hypothesis_id=hypothesis_id,
@@ -360,7 +356,6 @@ class TradeActionGovernor:
                 candidate_price_logic=price_logic,
                 proposed_size=draft.payload.get("size") or {"units": 1000},
                 operating_envelope={"max_slippage_bps": 5, "execution_mode": "paper"},
-                session_restrictions={"session": "paper_anytime"},
                 expiry_at=now + timedelta(minutes=15),
                 transformation_version="ai_chat_phase10",
                 readiness_state="ready_for_risk",
@@ -407,6 +402,7 @@ class TradeActionGovernor:
             freshness_status="fresh",
         )
         return RiskAssessmentDecision(
+            contract_type="RiskAssessmentDecision",
             workflow_id=workflow_id,
             correlation_id=proposal.correlation_id,
             causation_id=generate_id("causation"),
@@ -414,7 +410,6 @@ class TradeActionGovernor:
             originator=Originator(type="service", id="risk_governor"),
             environment="paper",
             operating_mode="MODE-002",
-            compliance_profile_id="cmp_ai_chat_paper",
             payload=RiskAssessmentDecisionPayload(
                 risk_decision_id=risk_decision_id,
                 proposal_id=proposal.payload.proposal_id,
@@ -425,12 +420,12 @@ class TradeActionGovernor:
                 freshness_expiry=now + timedelta(minutes=10),
                 policy_version="paper_policy_v1",
                 formula_version="formula_v1",
-                provenance_bundle_ref=ProvenanceBundleRef(
-                    bundle_id=generate_id("evidence_bundle"),
-                    account_snapshot_ref="acct_paper_ai_chat",
-                    market_snapshot_ref=f"mkt_{proposal.payload.symbol.lower()}",
-                ),
-                approval_token=draft.approval_id,
+                provenance_bundle_ref={
+                    "bundle_id": generate_id("evidence_bundle"),
+                    "account_snapshot_ref": "acct_paper_ai_chat",
+                    "market_snapshot_ref": f"mkt_{proposal.payload.symbol.lower()}",
+                    "approval_token": draft.approval_id,
+                },
             ),
         )
 

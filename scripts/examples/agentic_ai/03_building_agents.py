@@ -27,23 +27,23 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-CONTRACTS_ROOT = Path(PROJECT_ROOT) / "backend_retiring" / "contracts"
-WORKFLOWS_ROOT = Path(PROJECT_ROOT) / "backend_retiring" / "orchestration" / "workflow" / "definitions"
+CONTRACTS_ROOT = Path(PROJECT_ROOT) / "contracts"
+WORKFLOWS_ROOT = Path(PROJECT_ROOT) / "config" / "workflows"
 SCRATCH_ROOT = Path(PROJECT_ROOT) / ".tmp_agentic_examples"
 SCRATCH_ROOT.mkdir(parents=True, exist_ok=True)
 
-from backend_retiring.agents.react import ReActAgentRuntime
-from backend_retiring.agents.runtime import (
+from agents.react import ReActAgentRuntime
+from agents.runtime import (
     ADKRunRequest,
     AgentExecutionContext,
     ToolCall,
     ToolExecutor,
 )
-from backend_retiring.agents.runtime.llm_runtime import LLMRuntime
-from backend_retiring.agents.runtime.session_manager import SessionManager
-from backend_retiring.agents.runtime.tool_validation import ToolValidationError, ToolValidator, register_mcp_schemas
-from backend_retiring.mcp.mt5_mcp.tools import MT5ReadOnlyTools
-from backend_retiring.mcp.sql_mcp.tools import SQLMCPAccessError, SQLReadOnlyTools
+from agents.runtime.llm_runtime import LLMRuntime
+from agents.runtime.session_manager import SessionManager
+from agents.runtime.tool_validation import ToolValidationError, ToolValidator, register_mcp_schemas
+from services.data.mt5.tools import MT5ReadOnlyTools
+from services.data.sql_tools import SQLMCPAccessError, SQLReadOnlyTools
 from observability.cost_tracker import CostTracker
 
 
@@ -495,3 +495,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

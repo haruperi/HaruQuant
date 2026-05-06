@@ -1,5 +1,5 @@
 """
-Event-driven simulation backend_retiring.
+Event-driven simulation backend.
 
 Optimized with a high-performance 'Turbo' fast-path that executes standard
 signal-based simulations inside a fully compiled Numba kernel, bypassing
@@ -234,7 +234,7 @@ def run_event_driven_simulation(
     progress_desc: str = "Tester Progress",
     frame_observer=None,
 ) -> int:
-    """Run prepared tick data through the event-driven backend_retiring."""
+    """Run prepared tick data through the event-driven backend."""
     if data is None:
         return 0
     if position_size is not None and float(position_size) <= 0.0:
@@ -675,3 +675,4 @@ def _tick_phase_matches(value, *phases: str) -> bool:
     if not parts:
         return False
     return any(str(phase).strip().lower() in parts for phase in phases)
+

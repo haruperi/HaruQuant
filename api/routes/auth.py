@@ -4,8 +4,8 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Header, HTTPException, status
 
-from backend_retiring.api.auth_utils import authenticate_user, generate_token
-from backend_retiring.api.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
+from api.auth_utils import authenticate_user, generate_token
+from api.models import AuthResponse, LoginRequest, RegisterRequest, UserResponse
 from haruquant.utils import logger
 from data.database.sqlite.database_operations import DatabaseManager, UserAlreadyExistsError
 
@@ -184,10 +184,11 @@ async def logout(authorization: Annotated[Optional[str], Header()] = None):
     token = authorization.replace("Bearer ", "")
 
     # Invalidate token in DB
-    from backend_retiring.api.auth_utils import invalidate_token
+    from api.auth_utils import invalidate_token
 
     invalidate_token(token, db_manager)
 
     logger.info("Logout request received and session invalidated")
     return {"message": "Logged out successfully"}
+
 

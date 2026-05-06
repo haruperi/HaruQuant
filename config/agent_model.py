@@ -19,7 +19,7 @@ from typing import Any, Dict
 
 
 def _load_project_env_defaults() -> None:
-    """Load backend_retiring/config/environments/.env into process defaults once."""
+    """Load config/environments/.env into process defaults once."""
     env_path = Path(__file__).resolve().parent / "environments" / ".env"
     if not env_path.exists():
         return

@@ -544,7 +544,7 @@ export function MonteCarloSimulation() {
                                                         formatter={(val: number) => [`${val.toFixed(2)}%`, "Equity Return"]}
                                                     />
                                                     <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2} />
-                                                    {/* Render lines individually. Limited to 50 in backend_retiring. */}
+                                                    {/* Render lines individually. Limited to 50 in backend. */}
                                                     {paraResult.equity_curves.map((_, idx) => (
                                                         <Line
                                                             key={idx}
@@ -1583,3 +1583,4 @@ function ProfitTargetHeatmap({ data }: { data: ProfitTargetResult[] }) {
         </div>
     )
 }
+

@@ -352,7 +352,7 @@ pair_strength = calculate_pair_strength(
 ### Example 1: Basic Usage with Short-Term Preset
 
 ```python
-from backend_retiring.mcp.mt5_mcp.client import MT5Client
+from services.data.mt5 import MT5Client
 from services.indicator.custom import currency_strength_indicator, CURRENCY_PAIRS
 import pandas as pd
 
@@ -669,7 +669,7 @@ for pair in result["strong_pairs"][:3]:  # Top 3 only
 **Solutions:**
 1. Restart API server (code changes require restart):
    ```bash
-   python -m uvicorn backend_retiring.api.main_app.main:app --reload --host 0.0.0.0 --port 8000
+   python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 2. Hard refresh browser:
@@ -687,7 +687,7 @@ for pair in result["strong_pairs"][:3]:  # Top 3 only
 **Solutions:**
 1. Check MT5 terminal connection:
    ```python
-   from backend_retiring.mcp.mt5_mcp.client import MT5Client
+   from services.data.mt5 import MT5Client
    with MT5Client() as client:
        print(f"Connected: {client.is_connected()}")
    ```
@@ -915,7 +915,7 @@ INFO: 127.0.0.1:51204 - "GET /api/dashboard/currency-strength" 503 Service Unava
 **Test 1: Connection Drop Recovery**
 ```bash
 # 1. Start API with MT5 connected
-python -m uvicorn backend_retiring.api.main_app.main:app --reload
+python -m uvicorn api.main:app --reload
 
 # 2. Load dashboard successfully
 curl http://localhost:8000/api/dashboard/currency-strength?tf1=M1&tf2=M5&tf3=H1
@@ -1070,3 +1070,4 @@ Copyright 2025. Part of the HaruQuant trading framework.
 ✅ **Flexible API** supporting any timeframe combination
 
 **Ready for production trading!** 🚀
+

@@ -40,14 +40,14 @@ export const operatorControlLoop = [
     stage: "Intent",
     owner: "intent_router_agent",
     contract: "WorkflowIntent",
-    backend: "backend_retiring/contracts/workflow_intent",
+    backend: "contracts/workflow_intent",
     status: "Schema gated",
   },
   {
     stage: "Plan",
     owner: "orchestrator_agent",
     contract: "WorkflowPlan",
-    backend: "backend_retiring/orchestration/workflow",
+    backend: "services/governance/workflow",
     status: "FSM tracked",
   },
   {
@@ -161,17 +161,17 @@ export const operatorApiBacklog = [
   {
     route: "GET /api/operator/dashboard",
     purpose: "Counts, health, authority posture, and pending operator work.",
-    source: "backend_retiring/read_models/operator_dashboard.py",
+    source: "observability/operator_dashboard.py",
   },
   {
     route: "GET /api/operator/workflows/{workflow_id}",
     purpose: "Workflow detail with steps, trajectory logs, and evaluations.",
-    source: "backend_retiring/read_models/operator_dashboard.py",
+    source: "observability/operator_dashboard.py",
   },
   {
     route: "GET /api/operator/agents/runs",
     purpose: "Agent execution history, prompt provenance, validation, cost, and latency.",
-    source: "backend_retiring/agents/runtime + backend_retiring/observability",
+    source: "agents/runtime + observability",
   },
   {
     route: "GET /api/operator/execution-receipts",
@@ -299,3 +299,4 @@ export const operatorEvidenceBundles = [
     ],
   },
 ] as const
+

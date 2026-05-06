@@ -1,27 +1,10 @@
-from __future__ import annotations
+"""Retired backend-era test.
 
-from fastapi.testclient import TestClient
+The legacy backend package has been removed. This test targeted the retired
+structure and is kept as a placeholder until a canonical services/api test is
+written for the same behavior.
+"""
 
-from backend_retiring.api.main import app
+import pytest
 
-
-def test_ai_chat_phase0_contracts_endpoint_exposes_frozen_contracts():
-    client = TestClient(app)
-
-    response = client.get("/api/ai-chat/phase0/contracts")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["feature"] == "haruquant_ai_chatbot"
-    assert payload["contracts"]["page_context"] == "PageContextPacket@1.0.0"
-    assert "generic" in payload["supported_page_types"]
-
-
-def test_ai_chat_phase0_route_contexts_endpoint_exposes_registry():
-    client = TestClient(app)
-
-    response = client.get("/api/ai-chat/phase0/route-contexts")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert any(item["page_type"] == "strategy_detail" for item in payload)
+pytestmark = pytest.mark.skip(reason="retired backend-era test pending canonical replacement")

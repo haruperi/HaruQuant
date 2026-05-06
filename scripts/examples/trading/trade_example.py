@@ -41,7 +41,7 @@ api = engine_instance.api
 account = api.account_info()
 
 if backend == "sim":
-    # Override selected MT5-derived fields for tester backend_retiring.
+    # Override selected MT5-derived fields for tester backend.
     account['login'] = 123456
     account['server'] = "Backtest Simulation Server"
     account['company'] = "HaruQuant"
@@ -750,6 +750,7 @@ if __name__ == "__main__":
             print("\nShutting down MT5 connection...")
             engine_instance.client.shutdown()
             print("Disconnected.")
+
 
 
 

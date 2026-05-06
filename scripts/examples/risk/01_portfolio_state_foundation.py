@@ -194,7 +194,7 @@ class ExampleContext:
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
                 "source": "simulator_plus_real_market_data",
-                "backend_retiring": "sim",
+                "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
             },
         )
@@ -270,3 +270,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

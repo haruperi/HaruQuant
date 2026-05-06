@@ -25,7 +25,7 @@ if repo_root not in sys.path:
 
 import pandas as pd
 
-from backend_retiring.mcp.mt5_mcp import MT5Client, get_mt5_api
+from services.data.mt5 import MT5Client, get_mt5_api
 from haruquant.risk import PositionSizer
 from haruquant.indicator import atr
 from data.database.sqlite.users import UserManager
@@ -265,4 +265,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

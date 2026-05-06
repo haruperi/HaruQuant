@@ -21,7 +21,7 @@ PROJECT_ROOT = os.path.abspath(
 sys.path.insert(0, PROJECT_ROOT)
 
 # Load .env file
-_env_path = os.path.join(PROJECT_ROOT, "backend_retiring", "config", "environments", ".env")
+_env_path = os.path.join(PROJECT_ROOT, "config", "environments", ".env")
 if os.path.exists(_env_path):
     with open(_env_path, "r") as f:
         for line in f:
@@ -34,9 +34,9 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from backend_retiring.config.agent_model import AGENT_MODEL, MODEL_TIER, GENERATION_CONFIG
-from backend_retiring.agents.runtime.llm_registry import get_provider
-from backend_retiring.agents.runtime import create_llm_runtime, ADKRunRequest, ADKRunnerConfig, ADKRunnerService
+from config.agent_model import AGENT_MODEL, MODEL_TIER, GENERATION_CONFIG
+from agents.runtime.llm_registry import get_provider
+from agents.runtime import create_llm_runtime, ADKRunRequest, ADKRunnerConfig, ADKRunnerService
 
 
 def main() -> None:
@@ -124,3 +124,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

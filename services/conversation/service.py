@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from uuid import uuid4
 
 from data.database.repositories.ai_chat_repository import (
@@ -65,6 +66,60 @@ def _message_from_row(row: AiChatMessageRow) -> ChatMessage:
         context_revision=row.context_revision,
         created_at=row.created_at,
         metadata=_metadata_from_json(row.metadata_json),
+    )
+
+
+@dataclass(frozen=True)
+class ActionDraftRecord:
+    draft_id: str
+    thread_id: str
+    user_id: str
+    request_id: str | None
+    draft_type: str
+    title: str
+    description: str
+    payload: dict[str, object]
+    risk_precheck_status: str
+    risk_precheck_notes: str
+    approval_id: str | None
+    status: str
+    requires_human_approval: bool
+    side_effect_status: str
+    governed_workflow_id: str | None
+    execution_intent_id: str | None
+    execution_receipt_id: str | None
+    created_at: str
+    updated_at: str
+
+    def model_dump(self, mode: str | None = None) -> dict[str, object]:
+        return self.__dict__.copy()
+
+
+def _action_draft_from_row(row: AiChatActionDraftRow) -> ActionDraftRecord:
+    try:
+        payload = json.loads(row.payload_json or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+    return ActionDraftRecord(
+        draft_id=row.draft_id,
+        thread_id=row.thread_id,
+        user_id=row.user_id,
+        request_id=row.request_id,
+        draft_type=row.draft_type,
+        title=row.title,
+        description=row.description,
+        payload=payload if isinstance(payload, dict) else {},
+        risk_precheck_status=row.risk_precheck_status,
+        risk_precheck_notes=row.risk_precheck_notes,
+        approval_id=row.approval_id,
+        status=row.status,
+        requires_human_approval=bool(row.requires_human_approval),
+        side_effect_status=row.side_effect_status,
+        governed_workflow_id=row.governed_workflow_id,
+        execution_intent_id=row.execution_intent_id,
+        execution_receipt_id=row.execution_receipt_id,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )
 
 
@@ -220,8 +275,8 @@ class ConversationService:
         payload: dict[str, object],
         risk_precheck_status: str = "not_required",
         risk_precheck_notes: str = "Draft only. No side effect has been executed.",
-    ) -> AiChatActionDraftRow:
-        return self.repository.create_action_draft(
+    ) -> ActionDraftRecord:
+        row = self.repository.create_action_draft(
             draft_id=f"draft-{uuid4()}",
             thread_id=thread_id,
             user_id=user_id,
@@ -234,4 +289,26 @@ class ConversationService:
             risk_precheck_notes=risk_precheck_notes,
             requires_human_approval=True,
         )
+        return _action_draft_from_row(row)
 
+    def get_action_draft(self, *, user_id: str | int, draft_id: str) -> ActionDraftRecord:
+        row = self.repository.get_action_draft(draft_id=draft_id, user_id=str(user_id))
+        if row is None:
+            raise LookupError(f"action draft not found: {draft_id}")
+        return _action_draft_from_row(row)
+
+    def list_action_drafts(
+        self,
+        *,
+        user_id: str | int,
+        thread_id: str | None = None,
+        status: str | None = None,
+    ) -> list[ActionDraftRecord]:
+        return [
+            _action_draft_from_row(row)
+            for row in self.repository.list_action_drafts(
+                user_id=str(user_id),
+                thread_id=thread_id,
+                status=status,
+            )
+        ]

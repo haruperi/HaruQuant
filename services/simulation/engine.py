@@ -172,7 +172,7 @@ class Engine:
         slippage_min=None,
         slippage_max=None,
     ):
-        """Run prepared tick data through the vectorized backend_retiring."""
+        """Run prepared tick data through the vectorized backend."""
         return run_vectorized_simulation(
             self,
             data,
@@ -1445,7 +1445,7 @@ class Engine:
         progress_desc: str = "Tester Progress",
         frame_observer=None,
     ):
-        """Run prepared tick data through the event-driven backend_retiring."""
+        """Run prepared tick data through the event-driven backend."""
         return run_event_driven_simulation(
             self,
             data,
@@ -1517,3 +1517,4 @@ class Engine:
         # order_check is not strictly required by simulator logic yet, 
         # but returning empty dict prevents missing method errors from Trade
         return {}
+

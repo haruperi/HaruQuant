@@ -18,9 +18,9 @@ if sys.platform == "win32":
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 EXAMPLE_ROOT = Path(__file__).resolve().parent
-CONTRACTS_ROOT = Path(PROJECT_ROOT) / "backend_retiring" / "contracts"
-WORKFLOW_DEFINITIONS_ROOT = Path(PROJECT_ROOT) / "backend_retiring" / "orchestration" / "workflow" / "definitions"
-EXAMPLE_DATA_DIR = Path(PROJECT_ROOT) / "backend_retiring" / "data" / "market_data"
+CONTRACTS_ROOT = Path(PROJECT_ROOT) / "contracts"
+WORKFLOW_DEFINITIONS_ROOT = Path(PROJECT_ROOT) / "config" / "workflows"
+EXAMPLE_DATA_DIR = Path(PROJECT_ROOT) / "data" / "market_data"
 EXAMPLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -137,7 +137,7 @@ def _load_market_data(
 
 
 def _redacted_env_status(key: str) -> str:
-    env_path = Path(PROJECT_ROOT) / "backend_retiring" / "config" / "environments" / ".env"
+    env_path = Path(PROJECT_ROOT) / "config" / "environments" / ".env"
     value = os.environ.get(key)
     if value is None and env_path.exists():
         for raw_line in env_path.read_text(encoding="utf-8").splitlines():
@@ -317,3 +317,4 @@ if __name__ == "__main__":
     example_06_env_healthcheck()
     example_07_contract_samples()
     example_08_workflow_definitions()
+

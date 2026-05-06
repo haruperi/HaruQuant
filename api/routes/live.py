@@ -34,18 +34,25 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field
 
-from backend_retiring.api.auth_utils import get_user_id_from_token
-from backend_retiring.api.routes.dashboard.broker import client as global_mt5_client
-from backend_retiring.api.websocket import live_trading_manager
+from api.auth_utils import get_user_id_from_token
+from api.routes.dashboard.broker import client as global_mt5_client
+from api.websocket import live_trading_manager
 from haruquant.execution import LiveTradingSession
 from haruquant.utils import logger
-from backend_retiring.mcp.mt5_mcp import get_mt5_api
+from services.data.mt5 import get_mt5_api
 from haruquant.data import MT5Client
-from backend_retiring.mcp.mt5_mcp.util import MT5Utils
 from data.database.sqlite.database_operations import DatabaseManager
 from haruquant.strategy import StrategyPermissionError, assert_strategy_allowed
 
 mt5 = get_mt5_api()
+
+
+class MT5Utils:
+    @staticmethod
+    def add_pips_to_price(price: float, pips: float, symbol_info, direction: int = 1) -> float:
+        digits = int(getattr(symbol_info, "digits", 5) or 5)
+        pip_size = 0.01 if digits in {2, 3} else 0.0001
+        return round(float(price) + (float(direction) * float(pips) * pip_size), digits)
 
 
 def _fetch_ohlc_data(
@@ -3117,5 +3124,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: int):
         logger.error(f"WebSocket error for session {session_id}: {e}")
 
         await live_trading_manager.disconnect(session_id, websocket)
+
 
 

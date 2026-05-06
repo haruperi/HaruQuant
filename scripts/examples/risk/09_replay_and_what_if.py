@@ -166,7 +166,7 @@ class ExampleContext:
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
                 "source": "phase9_replay_example",
-                "backend_retiring": "sim",
+                "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
             },
             frame_mode="bar",
@@ -297,3 +297,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 import numpy as np
 import pandas as pd
 
-from backend_retiring.api.auth_utils import get_user_id_from_token
+from api.auth_utils import get_user_id_from_token
 from haruquant.utils import logger
 from haruquant.risk import AllocationPlanner, CorrelationPreference, GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine, PositionSizer, RegimeState, RiskLimits
 from haruquant.risk import AccountState, MarketState, PortfolioState, PositionState, SymbolState
@@ -827,3 +827,4 @@ def _to_governance_payload(report) -> GovernanceReportPayload:
         warnings=[_to_governance_event_payload(event) for event in (report.warnings or [])],
         breaches=[_to_governance_event_payload(event) for event in (report.breaches or [])],
     )
+

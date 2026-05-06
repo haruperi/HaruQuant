@@ -26,7 +26,7 @@ def check_database_health(dependencies: OperatorApiDependencies) -> dict[str, ob
     if not database_url.startswith("sqlite:///"):
         return {
             "status": "unknown",
-            "backend_retiring": database_url.split(":", 1)[0],
+            "backend": database_url.split(":", 1)[0],
             "detail": "Database health probe is only implemented for sqlite skeleton environments.",
         }
 
@@ -37,7 +37,7 @@ def check_database_health(dependencies: OperatorApiDependencies) -> dict[str, ob
 
     return {
         "status": "healthy",
-        "backend_retiring": "sqlite",
+        "backend": "sqlite",
         "database_path": str(database_path),
     }
 
@@ -48,13 +48,13 @@ def check_redis_health(dependencies: OperatorApiDependencies) -> dict[str, objec
     if dependencies.settings.event_backend != "redis":
         return {
             "status": "disabled",
-            "backend_retiring": dependencies.settings.event_backend,
-            "detail": "Redis is not the configured event backend_retiring.",
+            "backend": dependencies.settings.event_backend,
+            "detail": "Redis is not the configured event backend.",
         }
 
     return {
         "status": "unknown",
-        "backend_retiring": "redis",
+        "backend": "redis",
         "detail": "Redis probe is not wired yet.",
     }
 
@@ -62,7 +62,7 @@ def check_redis_health(dependencies: OperatorApiDependencies) -> dict[str, objec
 def check_schema_registry_health(dependencies: OperatorApiDependencies) -> dict[str, object]:
     """Validate that the schema registry has active seeded contracts."""
 
-    contract_types = tuple(dependencies.schema_registry._by_contract_type.keys())
+    contract_types = tuple(record.contract_type for record in dependencies.schema_registry._records)
     status = "healthy" if contract_types else "unhealthy"
     return {
         "status": status,

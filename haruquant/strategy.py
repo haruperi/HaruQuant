@@ -22,7 +22,7 @@ def _deep_merge(base, overrides):
     return base
 
 DEFAULT_SIM_CONFIG = {
-    "backend_retiring": "sim",
+    "backend": "sim",
     "engine_type": "vectorized",
     "account": {
         "initial_balance": 10000.0,
@@ -563,7 +563,7 @@ class Portfolio:
             _deep_merge(full_config, config)
             
         # Determine backend
-        backend = full_config.get("backend_retiring", "sim")
+        backend = full_config.get("backend", "sim")
             
         engine = Engine(backend=backend)
         if backend == "sim":

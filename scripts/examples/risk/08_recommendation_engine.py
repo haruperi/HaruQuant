@@ -174,7 +174,7 @@ class ExampleContext:
             symbol_to_cluster={symbol: cluster for symbol, cluster in SYMBOL_TO_CLUSTER.items() if symbol in active_symbols},
             metadata={
                 "source": "phase8_recommendation_engine_example",
-                "backend_retiring": "sim",
+                "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
                 "equity_curve": synthetic_equity_curve(),
             },
@@ -352,3 +352,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

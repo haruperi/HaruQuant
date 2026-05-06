@@ -7,7 +7,7 @@ from typing import Annotated, Any, List, Optional, Tuple
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from backend_retiring.api.auth_utils import get_user_id_from_token
+from api.auth_utils import get_user_id_from_token
 from haruquant.execution import BacktestResult, CloseType, EquityPoint, ExitReason, TradeRecord
 from haruquant.utils import logger
 from data.database.sqlite.database_operations import DatabaseManager
@@ -305,4 +305,5 @@ async def import_sqx_trades(
     except Exception as e:
         logger.error(f"SQX Import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 

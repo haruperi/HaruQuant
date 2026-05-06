@@ -24,7 +24,7 @@ def main():
         account = api.account_info()
 
         if backend == "sim":
-            # Override selected MT5-derived fields for tester backend_retiring.
+            # Override selected MT5-derived fields for tester backend.
             account['login'] = 123456
             account['server'] = "Backtest Simulation Server"
             account['company'] = "HaruQuant"
@@ -103,3 +103,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

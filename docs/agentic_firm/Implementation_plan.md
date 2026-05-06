@@ -313,6 +313,8 @@ Completed implementation:
 * Updated package discovery so `agents`, `contracts`, and `observability` are installable packages.
 * Removed the temporary retired-backend compatibility package and moved log defaults away from retired backend paths so that folder is not recreated.
 * Removed retired backend references from documentation.
+* Migrated remaining package-style and filesystem references from the deleted `backend` tree to canonical roots such as `api`, `agents`, `contracts`, `config`, `data`, and `services`; the FastAPI entrypoint now verifies through `api.main:app`.
+* Added `services.data.sql_tools` as the canonical read-only SQLite helper for agentic examples that previously depended on the deleted backend MCP SQL module.
 
 Validation:
 

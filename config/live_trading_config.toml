@@ -34,8 +34,9 @@ smtp_password = "qmotWcgh3$"
 recipients = ["rufaroh59@gmail.com"]
 
 [logging]
-dir = "backend_retiring/logs/live_trading"
+dir = "artifacts/logs/live_trading"
 level = "INFO"
 
 [state]
 file = "live_trading_state.json"
+

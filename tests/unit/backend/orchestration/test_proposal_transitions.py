@@ -1,4 +1,4 @@
-from backend_retiring.orchestration.workflow import (
+from services.governance.workflow import (
     ProposalState,
     is_allowed_proposal_transition,
 )
@@ -17,3 +17,4 @@ def test_proposal_transition_map_rejects_invalid_or_terminal_paths() -> None:
     assert not is_allowed_proposal_transition(ProposalState.READY_FOR_RISK, ProposalState.SENT)
     assert not is_allowed_proposal_transition(ProposalState.REJECTED, ProposalState.APPROVED)
     assert not is_allowed_proposal_transition(ProposalState.CLOSED, ProposalState.EXECUTION_PENDING)
+

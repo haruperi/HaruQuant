@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from backend_retiring.orchestration.workflow.proposal_transitions import is_allowed_proposal_transition
-from backend_retiring.orchestration.workflow.states import ProposalState
+from services.governance.workflow import ProposalState, is_allowed_proposal_transition
 
 
 @dataclass(frozen=True)

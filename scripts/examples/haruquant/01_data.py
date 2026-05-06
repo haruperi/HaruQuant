@@ -93,7 +93,7 @@ def example_07_csv():
         # Construct path to the sample file
         # It's in data/market_data/eurusd_sample.csv
         # project_root is HaruQuant/
-        csv_path = os.path.join(project_root, 'backend_retiring', 'data', 'market_data', 'eurusd_sample.csv')
+        csv_path = os.path.join(project_root, 'data', 'market_data', 'eurusd_sample.csv')
         print(f"Loading CSV from: {csv_path}")
         csv_data = hqt.CSVData.load(csv_path)
         print("CSV EURUSD Sample:")
@@ -107,7 +107,7 @@ def example_08_parquet():
     print("="*50)
     try:
         # Construct path to the sample file
-        parquet_path = os.path.join(project_root, 'backend_retiring', 'data', 'market_data', 'eurusd_sample.parquet')
+        parquet_path = os.path.join(project_root, 'data', 'market_data', 'eurusd_sample.parquet')
         print(f"Loading Parquet from: {parquet_path}")
         parquet_data = hqt.ParquetData.load(parquet_path)
         print("Parquet EURUSD Sample:")
@@ -329,3 +329,4 @@ if __name__ == "__main__":
     example_15_resampling()
     example_16_merging_timeframes()
     example_17_concatenating_instruments()
+

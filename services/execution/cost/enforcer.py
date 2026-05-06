@@ -12,7 +12,7 @@ import yaml
 from pathlib import Path
 
 from services.utils.logger import logger
-from backend_retiring.config.agent_model import COST_LIMITS, get_model_for_tier
+from config.agent_model import COST_LIMITS, get_model_for_tier
 from observability.cost_tracker import CostTracker
 
 # Load routing policy

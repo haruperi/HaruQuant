@@ -220,7 +220,6 @@ async def get_strategy_template(template_name: str) -> Dict[str, str]:
         project_root = os.path.abspath(os.path.join(current_dir, "../../.."))
         template_file = os.path.join(
             project_root,
-            "backend_retiring",
             "services",
             "strategy",
             "templates",
@@ -603,4 +602,3 @@ async def import_strategy(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to import strategy: {str(e)}",
         )
-

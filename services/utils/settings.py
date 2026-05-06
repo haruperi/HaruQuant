@@ -1,4 +1,4 @@
-"""Shared environment-scoped settings loader for migration-era services."""
+"""Shared environment-scoped settings loader for HaruQuant services."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 SUPPORTED_ENVIRONMENTS = {"dev", "test", "paper", "staging", "prod"}
 DEFAULT_ENVIRONMENT = "dev"
-DEFAULT_ENV_DIR = Path("backend_retiring/config/environments")
+DEFAULT_ENV_DIR = Path("config/environments")
 
 
 class SettingsError(ValueError):

@@ -140,5 +140,6 @@ lines.append('def get_marker_categories() -> dict[str, int]:')
 lines.append('    """Return counts of markers by severity for reporting."""')
 lines.append('    return {sev: len(markers) for sev, markers in _ALL_MARKERS_BY_SEVERITY.items()}')
 
-pathlib.Path('backend_retiring/agents/runtime/retrieval_guard.py').write_text(LF.join(lines) + LF, encoding='utf-8')
+pathlib.Path('agents/runtime/retrieval_guard.py').write_text(LF.join(lines) + LF, encoding='utf-8')
 print(f"Wrote {len(lines)} lines to retrieval_guard.py")
+

@@ -12,11 +12,11 @@ if str(ROOT_DIR) not in sys.path:
     from haruquant.research import CleaningConfig, EnrichmentConfig, build_core_metric_profile, build_market_structure_profile, prepare_ohlcvs_dataset
 from haruquant.research import build_edge_lab_scorecard_report
 from haruquant.research import SeasonalityFilters, run_seasonality
-from backend_retiring.mcp.mt5_mcp import MT5Utils
+from services.data.mt5 import MT5Utils
 from data.database.sqlite import SQLiteDatabase
 
 
-DEFAULT_OUTPUT_DIR = ROOT_DIR / "backend_retiring" / "data" / "edge_lab_outputs" / "examples"
+DEFAULT_OUTPUT_DIR = ROOT_DIR / "data" / "edge_lab_outputs" / "examples"
 
 
 def _json_safe(value: Any) -> Any:
@@ -200,3 +200,4 @@ def save_json(path: Path, payload: Dict[str, Any]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(_json_safe(payload), indent=2), encoding="utf-8")
     return path
+

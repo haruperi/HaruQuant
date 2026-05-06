@@ -23,8 +23,8 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-CONTRACTS_ROOT = Path(PROJECT_ROOT) / "backend_retiring" / "contracts"
-WORKFLOWS_ROOT = Path(PROJECT_ROOT) / "backend_retiring" / "orchestration" / "workflow" / "definitions"
+CONTRACTS_ROOT = Path(PROJECT_ROOT) / "contracts"
+WORKFLOWS_ROOT = Path(PROJECT_ROOT) / "config" / "workflows"
 
 
 def print_example_header(title: str) -> None:
@@ -269,3 +269,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

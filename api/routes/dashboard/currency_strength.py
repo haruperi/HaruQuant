@@ -13,9 +13,9 @@ import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend_retiring.api.auth_utils import verify_token
-from backend_retiring.api.routes.dashboard.broker import client as global_mt5_client
-from backend_retiring.api.routes.dashboard.broker import get_last_credentials
+from api.auth_utils import verify_token
+from api.routes.dashboard.broker import client as global_mt5_client
+from api.routes.dashboard.broker import get_last_credentials
 from haruquant.indicator import CURRENCY_PAIRS, MAJOR_CURRENCIES, currency_strength_indicator
 from haruquant.utils import logger
 from data.database.sqlite.database_operations import DatabaseManager
@@ -541,4 +541,5 @@ async def get_currency_strength(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to calculate currency strength: {str(e)}",
         )
+
 

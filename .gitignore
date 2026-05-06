@@ -191,7 +191,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-backend_retiring/logs/
+artifacts/logs/
 *.log
 *.log.*
 log_*.txt
@@ -212,7 +212,6 @@ exports/
 /reports/**
 !/reports/**/
 !/reports/**/README.md
-backend_retiring/**/reports/**
 output/
 
 # Temporary data
@@ -309,9 +308,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-backend_retiring/config/local.json
-backend_retiring/config/development.json
-backend_retiring/config/production.json
+config/local.json
+config/development.json
+config/production.json
 *.local.json
 
 # User-specific settings
@@ -406,7 +405,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-backend_retiring/logs/
+artifacts/logs/
 *.log
 *.log.*
 log_*.txt
@@ -507,9 +506,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-backend_retiring/config/local.json
-backend_retiring/config/development.json
-backend_retiring/config/production.json
+config/local.json
+config/development.json
+config/production.json
 *.local.json
 
 # User-specific settings
@@ -603,7 +602,7 @@ next-env.d.ts
 # ============================================================================
 # Logs
 # ============================================================================
-backend_retiring/logs/
+artifacts/logs/
 *.log
 *.log.*
 log_*.txt
@@ -704,9 +703,9 @@ $RECYCLE.BIN/
 # Application Specific
 # ============================================================================
 # Configuration overrides (use .example versions in repo)
-backend_retiring/config/local.json
-backend_retiring/config/development.json
-backend_retiring/config/production.json
+config/local.json
+config/development.json
+config/production.json
 *.local.json
 
 # User-specific settings
@@ -779,3 +778,4 @@ artifacts/
 /data/saved/
 /data/simulations/
 /data/states/
+

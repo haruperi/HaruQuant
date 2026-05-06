@@ -1,7 +1,7 @@
 """Validate that the retrieval guard module exists.
 
-The canonical implementation lives in backend_retiring/agents/runtime/retrieval_guard.py.
-This script is kept only for older developer workflows that invoked the writer
+The canonical implementation lives in agents/runtime/retrieval_guard.py. This
+script is kept only for older developer workflows that invoked the writer
 directly.
 """
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RETRIEVAL_GUARD = ROOT / "backend_retiring" / "agents" / "runtime" / "retrieval_guard.py"
+RETRIEVAL_GUARD = ROOT / "agents" / "runtime" / "retrieval_guard.py"
 
 
 def main() -> None:
@@ -22,3 +22,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -78,7 +78,7 @@ def _resolve_strategy_file(file_path: str | None) -> Path | None:
     marker = "data/strategies/"
     if marker in normalized:
         suffix = normalized.split(marker, 1)[1]
-        candidate = Path("backend_retiring") / "data" / "strategies" / Path(suffix)
+        candidate = Path("data") / "strategies" / Path(suffix)
         if candidate.exists():
             return candidate
 
@@ -216,3 +216,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

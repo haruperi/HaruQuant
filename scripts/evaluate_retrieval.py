@@ -7,9 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from haruquant.utils import logger
-from backend_retiring.retrieval.embeddings import EmbeddingService
-from backend_retiring.retrieval.service import RetrievalService
-from backend_retiring.retrieval.evaluation import RetrievalEvaluator
+from services.retrieval.embeddings import EmbeddingService
+from services.retrieval.service import RetrievalService
+from services.retrieval.evaluation import RetrievalEvaluator
 
 def evaluate_retrieval(db_dir: str):
     embeddings = EmbeddingService()
@@ -70,3 +70,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     evaluate_retrieval(args.db_dir)
+

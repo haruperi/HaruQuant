@@ -1,6 +1,6 @@
 """Backend configuration — centralized settings."""
 
-from backend_retiring.config.agent_model import (
+from config.agent_model import (
     AGENT_MODEL,
     COST_LIMITS,
     GENERATION_CONFIG,

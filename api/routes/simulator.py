@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from backend_retiring.api.auth_utils import get_user_id_from_token
+from api.auth_utils import get_user_id_from_token
 from haruquant.simulation import AdvanceRequest, ManualTradeRequest, OrderModifyRequest, PendingOrderRequest, PositionModifyRequest, SeekRequest, SeekTradeRequest, SimulationStartRequest, SimulationUpdateRequest, WhatIfRequest
 from haruquant.utils import logger
 from haruquant.simulation import SessionCoordinator, SimulatorSessionManager
@@ -562,3 +562,4 @@ async def stop_and_save_session(
         session_id=session_id,
         user_id=user_id,
     )
+

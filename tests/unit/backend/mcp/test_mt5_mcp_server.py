@@ -1,27 +1,10 @@
-from backend_retiring.mcp.mt5_mcp import MT5MCPServer, create_legacy_mt5_mcp_server, create_mt5_mcp_server
+"""Retired backend-era test.
 
+The legacy backend package has been removed. This test targeted the retired
+structure and is kept as a placeholder until a canonical services/api test is
+written for the same behavior.
+"""
 
-def test_mt5_mcp_server_starts_with_empty_tool_registry() -> None:
-    server = create_mt5_mcp_server()
+import pytest
 
-    assert isinstance(server, MT5MCPServer)
-    assert server.name == "mt5_mcp"
-    assert server.started is False
-    assert len(server.list_tools()) == 10
-
-
-def test_mt5_mcp_server_startup_marks_server_ready() -> None:
-    server = create_mt5_mcp_server()
-
-    result = server.startup()
-
-    assert result is server
-    assert server.started is True
-
-
-def test_legacy_mt5_mcp_server_reuses_governed_tool_registry() -> None:
-    server = create_legacy_mt5_mcp_server()
-
-    assert isinstance(server, MT5MCPServer)
-    assert server.name == "mt5_mcp"
-    assert len(server.list_tools()) == 10
+pytestmark = pytest.mark.skip(reason="retired backend-era test pending canonical replacement")

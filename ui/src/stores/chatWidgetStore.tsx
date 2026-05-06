@@ -138,6 +138,10 @@ const AI_CHAT_RESPONSE_STYLES: ReadonlySet<AiChatResponseStyle> = new Set([
   "clarification",
 ])
 
+function isMissingThreadError(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes("thread not found")
+}
+
 function mapApiMessage(
   message: AiChatMessage,
   metadataByRequestId: Record<string, AiChatResponseMetadata>,
@@ -441,11 +445,24 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
     }
 
     if (threadId) {
-      const existing = await getAiChatThread(authenticatedFetch, threadId)
-      syncThread(existing)
-      await refreshThreadMessageAttachments(threadId)
-      syncThread(existing)
-      return existing
+      try {
+        const existing = await getAiChatThread(authenticatedFetch, threadId)
+        syncThread(existing)
+        await refreshThreadMessageAttachments(threadId)
+        syncThread(existing)
+        return existing
+      } catch (threadError) {
+        if (!isMissingThreadError(threadError)) {
+          throw threadError
+        }
+        setThreadId(null)
+        setThreadTitle(DEFAULT_THREAD_TITLE)
+        setMessages([])
+        lastSyncedContextRef.current = null
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(STORAGE_KEYS.activeThreadId)
+        }
+      }
     }
 
     const listed = await listAiChatThreads(authenticatedFetch)
@@ -559,6 +576,17 @@ export function ChatWidgetStoreProvider({ children }: { children: React.ReactNod
           lastSyncedContextRef.current = nextSignature
         }
       } catch (contextError) {
+        if (isMissingThreadError(contextError)) {
+          setThreadId(null)
+          setThreadTitle(DEFAULT_THREAD_TITLE)
+          setMessages([])
+          lastSyncedContextRef.current = null
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem(STORAGE_KEYS.activeThreadId)
+          }
+          hasRestoredRef.current = false
+          return
+        }
         console.error("Failed to sync AI chat thread context:", contextError)
       }
     }, 300)

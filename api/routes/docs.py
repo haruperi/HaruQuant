@@ -10,7 +10,7 @@ from pydantic import BaseModel
 router = APIRouter()
 
 # Define the repository documentation root. Keep this independent of package depth
-# while the legacy UI API is migrated into backend_retiring/api.
+# while the legacy UI API is migrated into the canonical api package.
 DOCS_ROOT = Path("docs").resolve()
 CONTENT_PATH_QUERY = Query(..., description="Relative path to the file")
 

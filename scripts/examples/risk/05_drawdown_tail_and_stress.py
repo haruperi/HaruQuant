@@ -152,7 +152,7 @@ class ExampleContext:
             symbol_to_cluster=SYMBOL_TO_CLUSTER,
             metadata={
                 "source": "phase5_drawdown_tail_stress_example",
-                "backend_retiring": "sim",
+                "backend": "sim",
                 "example_generated_at": datetime.now(UTC).isoformat(),
                 "equity_curve": synthetic_equity_curve(),
             },
@@ -280,3 +280,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

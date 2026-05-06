@@ -457,7 +457,7 @@ if __name__ == "__main__":
     # Get the project root directory.
     current_file = Path(__file__)
     project_root = current_file.resolve().parents[2]
-    data_dir = project_root / "backend_retiring" / "data" / "raw" / "M1"
+    data_dir = project_root / "data" / "raw" / "M1"
 
     logger.info(f"Starting file rename process in: {data_dir}")
 
@@ -487,3 +487,4 @@ if __name__ == "__main__":
                 logger.info(f"  {old_name} -> {new_name}")
         else:
             logger.info("No files matched the pattern.")
+

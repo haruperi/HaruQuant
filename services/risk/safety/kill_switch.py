@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from backend_retiring.orchestration.workflow import (
+from services.governance.workflow import (
     KillSwitchState,
     is_allowed_kill_switch_transition,
 )

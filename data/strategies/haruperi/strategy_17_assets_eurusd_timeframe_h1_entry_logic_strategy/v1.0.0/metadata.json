@@ -69,7 +69,7 @@
     "portfolio_method": "str",
     "rebalance_frequency": "str"
   },
-  "blueprintArtifactPath": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\backend_retiring\\data\\strategies\\haruperi\\strategy_17_assets_eurusd_timeframe_h1_entry_logic_strategy\\v1.0.0\\strategy_blueprint.json",
+  "blueprintArtifactPath": "C:\\Users\\rharu\\Documents\\MyApplications\\HaruQuant\\data\\strategies\\haruperi\\strategy_17_assets_eurusd_timeframe_h1_entry_logic_strategy\\v1.0.0\\strategy_blueprint.json",
   "blueprintSummary": {
     "strategy_name": "Assets Eurusd Timeframe H1 Entry Logic Strategy",
     "strategy_type": "allocation",

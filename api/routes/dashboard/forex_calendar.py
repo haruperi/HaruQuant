@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 
-from backend_retiring.api.services.forex_calendar import fetch_forex_factory_calendar
+from api.services.forex_calendar import fetch_forex_factory_calendar
 
 router = APIRouter()
 
@@ -31,3 +31,4 @@ async def get_forex_calendar(
             status_code=502,
             detail=f"Failed to retrieve Forex Factory calendar data: {exc}",
         ) from exc
+

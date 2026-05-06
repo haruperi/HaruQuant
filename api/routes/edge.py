@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend_retiring.api.auth_utils import get_user_id_from_token
+from api.auth_utils import get_user_id_from_token
 from haruquant.research import classify_symbol
 from haruquant.research import BootstrapConfig, DataConfig, EdgeLabConfig, MarketStructureConfig, PermutationConfig
 from haruquant.research import build_core_metric_profile
@@ -2656,3 +2656,4 @@ async def export_scorecard_snapshot_comparison_markdown(
             detail="One or both scorecard snapshots were not found.",
         )
     return result
+

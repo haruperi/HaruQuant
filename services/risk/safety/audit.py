@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from data.database import GovernanceRepository, KillSwitchEventRecord
-from backend_retiring.orchestration.workflow import KillSwitchState
+from services.governance.workflow import KillSwitchState
 
 
 class KillSwitchAuditService:

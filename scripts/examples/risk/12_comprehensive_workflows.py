@@ -30,7 +30,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from backend_retiring.mcp.mt5_mcp import MT5Client, get_mt5_api
+from services.data.mt5 import MT5Client, get_mt5_api
 from haruquant.risk import AllocationPlanner, GovernanceEngine, PortfolioRiskEngine, PositionSizer, RiskLimits, RiskRegimeDetector
 from haruquant.risk import CorrelationPreference
 from data.database.sqlite.users import UserManager
@@ -669,3 +669,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

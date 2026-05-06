@@ -23,8 +23,8 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from backend_retiring.agents.strategy_creator_agent import StrategyCreatorAgent
-from backend_retiring.agents.runtime import (
+from agents.strategy_creator_agent import StrategyCreatorAgent
+from agents.runtime import (
     ADKRunRequest,
     ADKRunResult,
     ADKRunnerConfig,
@@ -155,7 +155,7 @@ def _agent() -> StrategyCreatorAgent:
 
 
 def _workflow_definition() -> dict[str, Any]:
-    path = Path(PROJECT_ROOT) / "backend_retiring" / "orchestration" / "workflow" / "definitions" / "hypothesis_design.yaml"
+    path = Path(PROJECT_ROOT) / "config" / "workflows" / "hypothesis_design.yaml"
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
@@ -315,3 +315,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

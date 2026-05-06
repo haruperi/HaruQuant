@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from data.database.migrations.runner import apply_pending_migrations
 from data.database.repositories.ai_chat_repository import AiChatRepository
 from services.chat.ceo_gateway import CEOChatGateway, list_ceo_chat_tools
+from services.context.builders import build_page_context
 from services.conversation.service import ConversationService
 from services.schemas.chat import ChatMessage, ChatThread, ChatThreadDetail, ChatTurnRequest
 
@@ -48,6 +49,13 @@ class ApprovalPayload(BaseModel):
 
 class PaperExecutePayload(BaseModel):
     terminal_connected: bool = False
+
+
+class ContextResolvePayload(BaseModel):
+    route: str | None = None
+    page_title: str | None = None
+    page_state: dict[str, Any] = Field(default_factory=dict)
+    dom: dict[str, Any] = Field(default_factory=dict)
 
 
 def default_database_path() -> Path:
@@ -121,13 +129,16 @@ def update_thread_context(
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
 ) -> ChatThreadDetail:
-    return conversations.update_context(
-        thread_id=thread_id,
-        user_id=user_id,
-        current_route=payload.current_route,
-        current_page_type=payload.current_page_type,
-        active_context_revision=payload.active_context_revision,
-    )
+    try:
+        return conversations.update_context(
+            thread_id=thread_id,
+            user_id=user_id,
+            current_route=payload.current_route,
+            current_page_type=payload.current_page_type,
+            active_context_revision=payload.active_context_revision,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.delete("/threads/{thread_id}")
@@ -174,6 +185,21 @@ def create_message(
 @router.get("/tools")
 def list_tools() -> list[dict[str, Any]]:
     return [tool.model_dump() for tool in list_ceo_chat_tools()]
+
+
+@router.post("/context/resolve")
+def resolve_context(payload: ContextResolvePayload) -> dict[str, Any]:
+    page_state = payload.page_state or {}
+    page_context = build_page_context(
+        route=payload.route,
+        page_title=payload.page_title,
+        session_id=page_state.get("session_id") if isinstance(page_state.get("session_id"), int) else None,
+        symbol=page_state.get("symbol") if isinstance(page_state.get("symbol"), str) else None,
+        timeframe=page_state.get("timeframe") if isinstance(page_state.get("timeframe"), str) else None,
+        dom_snapshot=payload.dom,
+        page_intelligence=page_state.get("page_intelligence") if isinstance(page_state.get("page_intelligence"), dict) else None,
+    )
+    return {"payload": page_context.model_dump()}
 
 
 def _signal_row(row: Any) -> dict[str, Any]:
@@ -343,4 +369,3 @@ def regenerate_response(
     last_user = next((message for message in reversed(detail.messages) if message.role == "user"), None)
     regenerated = payload.model_copy(update={"prompt": last_user.content if last_user else payload.prompt})
     return stream_response(thread_id=thread_id, payload=regenerated, user_id=user_id, gateway=gateway)
-

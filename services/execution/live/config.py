@@ -843,7 +843,7 @@ def _authorize_privileged_actor(
     authorization_token: str, actor: Optional[str] = None
 ) -> tuple[int, str]:
     try:
-        from backend_retiring.api.auth_utils import verify_token
+        from api.auth_utils import verify_token
         from data.database.sqlite.database_operations import DatabaseManager
     except Exception as exc:  # pragma: no cover - import environment specific
         raise ConfigError(f"Authorization subsystem unavailable: {exc}") from exc

@@ -9,9 +9,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from haruquant.utils import logger
-from backend_retiring.retrieval.embeddings import EmbeddingService
-from backend_retiring.retrieval.ingestion import DocumentIngester
-from backend_retiring.retrieval.service import RetrievalService
+from services.retrieval.embeddings import EmbeddingService
+from services.retrieval.ingestion import DocumentIngester
+from services.retrieval.service import RetrievalService
 
 def ingest_all(docs_dir: str, persist_dir: str) -> None:
     path = Path(docs_dir)
@@ -78,3 +78,4 @@ if __name__ == "__main__":
     os.makedirs(args.db_dir, exist_ok=True)
     
     ingest_all(args.docs_dir, args.db_dir)
+

@@ -1,5 +1,5 @@
 """
-Vectorized simulation backend_retiring.
+Vectorized simulation backend.
 
 Optimized for state-of-the-art performance using a Kernel-Resident Architecture.
 All core simulation logic runs inside JIT-compiled Numba kernels with zero-object
@@ -429,7 +429,7 @@ def run_vectorized_simulation(
 
 
 def prepare_vectorized_data(data, snapshot_policy: str = "position_update") -> dict:
-    """Prepare contiguous numpy arrays for the vectorized backend_retiring."""
+    """Prepare contiguous numpy arrays for the vectorized backend."""
     col_name_map = {str(col).lower(): col for col in data.columns}
 
     bid_arr = data[col_name_map["bid"]].to_numpy(dtype="float64", copy=False)
@@ -652,3 +652,4 @@ def _bar_phase_mask(values, phases: tuple[str, ...]) -> np.ndarray:
         }
         mask[idx] = bool(parts & target)
     return mask
+

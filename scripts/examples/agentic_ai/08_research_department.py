@@ -20,11 +20,11 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from backend_retiring.agents.base import AgentRunContext
-from backend_retiring.agents.planner.agent import PlannerAgent
-from backend_retiring.agents.research.market_intelligence_agent import MarketIntelligenceAgent
-from backend_retiring.agents.research.strategy_scout_agent import StrategyScoutAgent
-from backend_retiring.agents.research.technical_analyst_agent import TechnicalAnalystAgent
+from agents.base import AgentRunContext
+from agents.planner.agent import PlannerAgent
+from agents.research.market_intelligence_agent import MarketIntelligenceAgent
+from agents.research.strategy_scout_agent import StrategyScoutAgent
+from agents.research.technical_analyst_agent import TechnicalAnalystAgent
 
 
 def print_header(title: str) -> None:
@@ -125,3 +125,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

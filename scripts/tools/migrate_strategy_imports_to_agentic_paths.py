@@ -281,7 +281,7 @@ def main() -> None:
     parser.add_argument(
         "--db-path",
         type=Path,
-        default=PROJECT_ROOT / "backend_retiring" / "data" / "database" / "haruquant.db",
+        default=PROJECT_ROOT / "data" / "database" / "haruquant.db",
     )
     parser.add_argument("--strategy-id", action="append", help="Strategy ID or comma-separated IDs")
     parser.add_argument("--apply", action="store_true", help="Write new versions and switch active versions")
@@ -297,3 +297,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -21,7 +21,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from backend_retiring.agents.chat.ai_chat import AIGatewayService, ChatStreamRequest, ConversationService, PageContextAssembler
+from services.chat.ceo_gateway import AIGatewayService, ChatStreamRequest, ConversationService, PageContextAssembler
 from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from data.database.sqlite.database_operations import DatabaseManager
 
@@ -115,3 +115,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

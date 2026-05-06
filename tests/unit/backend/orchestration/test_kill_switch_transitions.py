@@ -1,4 +1,4 @@
-from backend_retiring.orchestration.workflow import (
+from services.governance.workflow import (
     KillSwitchState,
     is_allowed_kill_switch_transition,
 )
@@ -16,3 +16,4 @@ def test_kill_switch_transition_map_rejects_unauthorized_recovery_paths() -> Non
     assert not is_allowed_kill_switch_transition(KillSwitchState.SOFT_TRIGGERED, KillSwitchState.ARMED)
     assert not is_allowed_kill_switch_transition(KillSwitchState.HARD_TRIGGERED, KillSwitchState.ARMED)
     assert not is_allowed_kill_switch_transition(KillSwitchState.ARMED, KillSwitchState.RECOVERY_APPROVED)
+

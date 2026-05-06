@@ -1,5 +1,13 @@
-from backend_retiring.orchestration.workflow import KillSwitchState
-from haruquant.risk import KillSwitchBlockEvaluation, KillSwitchService, KillSwitchStateMachine, KillSwitchTransitionError, RecoveryApproval, evaluate_new_entry_block, require_hard_trigger_recovery_dual_auth
+from services.governance.workflow import KillSwitchState
+from services.risk.safety.kill_switch import (
+    KillSwitchBlockEvaluation,
+    KillSwitchService,
+    KillSwitchStateMachine,
+    KillSwitchTransitionError,
+    RecoveryApproval,
+    evaluate_new_entry_block,
+    require_hard_trigger_recovery_dual_auth,
+)
 
 
 def test_kill_switch_state_machine_allows_governed_recovery_sequence() -> None:
@@ -63,3 +71,4 @@ def test_hard_trigger_recovery_requires_dual_authorization() -> None:
             RecoveryApproval(approver_role="compliance", approver_id="co_001"),
         )
     )
+

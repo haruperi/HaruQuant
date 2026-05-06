@@ -133,7 +133,7 @@ def example_1_basic_edge_discovery():
     print_result_summary(result)
 
     # Save report
-    outdir = ROOT_DIR / "backend_retiring" / "data" / "edge_lab_outputs" / "example_1"
+    outdir = ROOT_DIR / "data" / "edge_lab_outputs" / "example_1"
     outdir.mkdir(parents=True, exist_ok=True)
     save_markdown(result, outdir / "EURUSD_M15_meanreversion.md", include_trades=True)
     save_json(result, outdir / "EURUSD_M15_meanreversion.json")
@@ -185,7 +185,7 @@ def example_2_multi_symbol_screening():
             logger.error(f"Failed to analyze {symbol}: {e}")
 
     # Generate combined report
-    outdir = ROOT_DIR / "backend_retiring" / "data" / "edge_lab_outputs" / "example_2_screening"
+    outdir = ROOT_DIR / "data" / "edge_lab_outputs" / "example_2_screening"
     generate_multi_symbol_report(results, outdir)
 
     # Print summary
@@ -250,7 +250,7 @@ def example_3_session_analysis():
             )
 
     # Save
-    outdir = ROOT_DIR / "backend_retiring" / "data" / "edge_lab_outputs" / "example_3_session"
+    outdir = ROOT_DIR / "data" / "edge_lab_outputs" / "example_3_session"
     outdir.mkdir(parents=True, exist_ok=True)
     save_markdown(result, outdir / f"{symbol}_{timeframe}_session.md")
     save_json(result, outdir / f"{symbol}_{timeframe}_session.json")
@@ -321,7 +321,7 @@ def example_4_custom_parameters():
     print_result_summary(tp_result)
 
     # Save
-    outdir = ROOT_DIR / "backend_retiring" / "data" / "edge_lab_outputs" / "example_4_custom"
+    outdir = ROOT_DIR / "data" / "edge_lab_outputs" / "example_4_custom"
     outdir.mkdir(parents=True, exist_ok=True)
     save_markdown(mr_result, outdir / f"{symbol}_{timeframe}_mr_custom.md")
     save_markdown(tp_result, outdir / f"{symbol}_{timeframe}_tp_custom.md")
@@ -397,7 +397,7 @@ def example_5_null_baseline_comparison():
         print("\n  RESULT: Strategy below null mean - no edge detected")
 
     # Save
-    outdir = ROOT_DIR / "backend_retiring" / "data" / "edge_lab_outputs" / "example_5_null"
+    outdir = ROOT_DIR / "data" / "edge_lab_outputs" / "example_5_null"
     outdir.mkdir(parents=True, exist_ok=True)
     save_markdown(null_result, outdir / f"{symbol}_{timeframe}_null_baseline.md")
     save_markdown(mr_result, outdir / f"{symbol}_{timeframe}_mr_vs_null.md")
@@ -533,4 +533,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

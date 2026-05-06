@@ -35,7 +35,7 @@ Primary interface: Global chat widget talking to the `CEOAgent`
 
 Implementation update:
 
-- Implemented the canonical CEO chat transport without reintroducing `backend_retiring`.
+- Implemented the canonical CEO chat transport without reintroducing `backend`.
 - Reused the existing global `ui/src/components/ai-chat/` widget and `ui/src/stores/chatWidgetStore.tsx` instead of creating a parallel chat UI.
 - Added canonical backend services in `services/conversation/`, `services/context/`, `services/chat/`, and `services/schemas/chat.py`.
 - Integrated the CEO chat endpoints into the existing FastAPI package at `api/routes/ai_chat.py` for the `/api/ai-chat/*` surface already expected by the UI.
@@ -1553,4 +1553,5 @@ RiskGovernor protects the account.
 Audit records everything.
 Human Board approves high-impact actions.
 ```
+
 

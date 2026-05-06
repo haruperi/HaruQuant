@@ -173,10 +173,11 @@
     }
   ],
   "logging": {
-    "dir": "backend_retiring/logs/risk_enabled",
+    "dir": "artifacts/logs/risk_enabled",
     "level": "INFO"
   },
   "state": {
     "file": "risk_enabled_state.json"
   }
 }
+
