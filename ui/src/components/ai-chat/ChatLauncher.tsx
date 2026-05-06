@@ -14,7 +14,7 @@ export function ChatLauncher({ onOpen, hidden = false }: ChatLauncherProps) {
   return (
     <Button
       type="button"
-      aria-label="Open HaruQuant AI chat"
+      aria-label="Open HaruQuant CEO chat"
       onClick={onOpen}
       size="lg"
       className={cn(
@@ -23,7 +23,7 @@ export function ChatLauncher({ onOpen, hidden = false }: ChatLauncherProps) {
       )}
     >
       <MessageSquareText className="h-4 w-4" />
-      <span className="text-sm">AI Chat</span>
+      <span className="text-sm">CEO Chat</span>
     </Button>
   )
 }

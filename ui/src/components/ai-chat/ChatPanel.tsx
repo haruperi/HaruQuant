@@ -211,7 +211,7 @@ export function ChatPanel({
   return (
     <aside
       aria-hidden={!isOpen}
-      aria-label="HaruQuant AI chat panel"
+      aria-label="HaruQuant CEO chat panel"
       role="dialog"
       ref={panelRef}
       className={cn(
@@ -225,6 +225,7 @@ export function ChatPanel({
         isOnline={isOnline}
         isRestoring={isRestoring}
         threadTitle={threadTitle}
+        activeResponseStatus={activeResponseStatus}
         runtimeMeta={runtimeMeta}
         onClose={onClose}
       />
