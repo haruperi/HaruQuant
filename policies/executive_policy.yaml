@@ -1,0 +1,11 @@
+version: executive_policy_v1
+ceo_agent:
+  user_facing: true
+  can_call_internal_planner: true
+  can_delegate_to_departments: true
+  can_execute_trade: false
+  can_approve_risk: false
+planner_agent:
+  internal_only: true
+  can_answer_user_directly: false
+  can_execute_workflow: false

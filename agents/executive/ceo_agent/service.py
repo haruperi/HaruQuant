@@ -16,6 +16,12 @@ from agents.executive.ceo_agent.prompts import (
     risk_memo_template,
     strategy_proposal_template,
 )
+from agents.executive.ceo_agent.deterministic_policy import make_executive_decision
+from agents.executive.ceo_agent.shared.audit import build_executive_audit
+from agents.executive.ceo_agent.shared.escalation_rules import build_board_escalation_packet, board_escalation_reasons
+from agents.executive.ceo_agent.shared.executive_contracts import CEOResponse
+from agents.executive.ceo_agent.shared.memo_builder import synthesize_evidence_summary
+from agents.executive.ceo_agent.shared.response_templates import governed_action_draft_template, portfolio_memo_template
 from agents._shared.schemas import AgentPlan
 
 
@@ -58,7 +64,11 @@ class CEOAgent:
             return strategy_proposal_template(request=request, evidence_refs=evidence_refs)
         if planner_result.intent == "backtest_diagnosis":
             return backtest_report_template(request=request, evidence_refs=evidence_refs)
-        if planner_result.intent in {"risk_review", "governed_action_draft", "execution_proposal"}:
+        if planner_result.intent == "portfolio":
+            return portfolio_memo_template(request=request, evidence_refs=evidence_refs)
+        if planner_result.intent == "governed_action_draft":
+            return governed_action_draft_template(request=request, evidence_refs=evidence_refs)
+        if planner_result.intent in {"risk_review", "execution_proposal"}:
             return risk_memo_template(request=request, evidence_refs=evidence_refs)
         if planner_result.intent in {"research", "optimization_comparison", "reporting", "page_action", "clarification"}:
             return research_memo_template(
@@ -74,6 +84,65 @@ class CEOAgent:
             "summary": "CEO Agent completed delegated firm workflow with deterministic governance boundaries intact.",
             "evidence_refs": evidence_refs,
         }
+
+    def create_executive_response(
+        self,
+        *,
+        request_id: str,
+        request: str,
+        planner_result: AgentPlan,
+        agent_outputs: dict[str, Any] | None = None,
+        evidence_refs: list[str] | None = None,
+        tools_used: list[str] | None = None,
+    ) -> CEOResponse:
+        agent_outputs = agent_outputs or {}
+        evidence_refs = evidence_refs or self._collect_evidence_refs(agent_outputs)
+        decision = make_executive_decision(
+            request=request,
+            planner_result=planner_result,
+            evidence_refs=evidence_refs,
+            tools_used=tools_used or [],
+            specialist_responses=agent_outputs,
+        )
+        memo = self.create_final_memo(
+            request=request,
+            planner_result=planner_result,
+            agent_outputs=agent_outputs,
+            evidence_refs=evidence_refs,
+        )
+        escalation_reasons = board_escalation_reasons(request, risk_level=planner_result.risk_level)
+        board_escalation = (
+            build_board_escalation_packet(request=request, reasons=escalation_reasons or decision.reasons, evidence_refs=evidence_refs)
+            if decision.requires_board_approval
+            else None
+        )
+        evidence_summary = synthesize_evidence_summary(specialist_responses=agent_outputs, evidence_refs=evidence_refs)
+        planner_dump = planner_result.model_dump() if hasattr(planner_result, "model_dump") else dict(planner_result)
+        audit = build_executive_audit(
+            request_id=request_id,
+            planner_output=planner_dump,
+            departments_called=_departments_from_agents(planner_result.allowed_agents),
+            agents_called=planner_result.allowed_agents,
+            evidence_refs=evidence_refs,
+            missing_evidence=decision.missing_evidence,
+            decision=decision.decision,
+            allowed_actions=decision.allowed_actions,
+            blocked_actions=decision.blocked_actions,
+        )
+        return CEOResponse(
+            request_id=request_id,
+            status=decision.status,
+            planner_output=planner_dump,
+            specialist_responses=agent_outputs,
+            evidence_summary=evidence_summary,
+            final_memo=memo,
+            decision=decision,
+            allowed_actions=decision.allowed_actions,
+            blocked_actions=decision.blocked_actions,
+            required_next_steps=_next_steps_for_decision(decision),
+            board_escalation=board_escalation,
+            audit=audit,
+        )
 
     def identity_memo(self) -> dict[str, Any]:
         return {
@@ -215,6 +284,36 @@ class CEOAgent:
             if refs:
                 evidence_refs.extend(str(ref) for ref in refs)
         return evidence_refs
+
+
+def _departments_from_agents(agent_names: list[str]) -> list[str]:
+    departments: list[str] = []
+    for name in agent_names:
+        if "research" in name:
+            departments.append("research")
+        elif "strategy" in name:
+            departments.append("strategy_creation")
+        elif "simulation" in name or "backtest" in name:
+            departments.append("simulation")
+        elif "risk" in name:
+            departments.append("risk")
+        elif "portfolio" in name or "execution" in name or "allocation" in name:
+            departments.append("portfolio")
+        elif "audit" in name:
+            departments.append("audit")
+        elif "ceo" in name:
+            departments.append("executive")
+    return list(dict.fromkeys(departments))
+
+
+def _next_steps_for_decision(decision) -> list[str]:
+    if decision.status == "needs_more_context":
+        return ["provide_missing_evidence_or_inputs"]
+    if decision.requires_board_approval:
+        return ["prepare_board_approval_request", "wait_for_human_approval"]
+    if decision.status == "rejected":
+        return ["choose_a_governed_safe_workflow"]
+    return ["continue_with_governed_department_workflow"]
 
 
 __all__ = ["CEOAgent", "CEO_POLICY_REFERENCES", "CEO_SYSTEM_INSTRUCTIONS"]

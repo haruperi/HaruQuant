@@ -2,11 +2,25 @@
 
 ## Goal
 
-Create the executive control layer for HaruQuant: one main user-facing interface through the **CEO Agent**, supported by a deterministic **Planner Agent**, governance policies, Board escalation, evidence-based decisioning, and safe delegation to specialist departments.
+Create one clear executive control layer for HaruQuant: the **CEO Agent** is the only user-facing executive interface, and the **Planner Agent** is an internal planning component used only by the CEO Agent.
 
-The Executive Department is responsible for coordinating the full agentic trading firm. It does not directly execute trades, approve risk, mutate live configuration, or bypass department-level deterministic policies. It receives user requests, plans the workflow, delegates to specialist agents, synthesizes evidence, applies governance rules, and returns a clear final memo to the user.
+The Executive Department is different from the other departments. Research, Strategy Creation, Simulation, Risk, and Portfolio agents can be built as independent specialist services. The Planner Agent should not be exposed as an independent runnable department agent. It exists inside the CEO workflow and is called only by the CEO Agent to convert user requests into structured plans.
 
-All Executive Department agents must follow the HaruQuant agent template:
+The CEO Agent is the bridge between the user and all HaruQuant departments:
+
+```text
+User
+-> services/ceo_gateway.py
+-> CEO Agent
+-> Internal Planner Agent
+-> Specialist Departments
+-> CEO Agent synthesis
+-> User-facing memo
+```
+
+The CEO Agent does not directly execute trades, approve risk, mutate live configuration, or bypass department-level deterministic policies. It coordinates workflows, gathers evidence, enforces governance rules, escalates decisions when needed, and returns a clear final memo.
+
+All Executive Department components must follow the HaruQuant Agent Template principle:
 
 ```text
 Validate Input
@@ -18,7 +32,7 @@ Validate Input
 -> Evaluation Test
 ```
 
-The LLM may reason, summarize, classify, rank, or draft, but final workflow decisions must be controlled by deterministic code.
+The LLM may reason, summarize, classify, rank, explain, or draft. Final workflow decisions must be controlled by deterministic code.
 
 ---
 
@@ -26,36 +40,123 @@ The LLM may reason, summarize, classify, rank, or draft, but final workflow deci
 
 ### 1.1 Primary Responsibilities
 
-* [ ] Provide one main user-facing interface through the CEO Agent.
-* [ ] Interpret user requests into structured firm tasks.
-* [ ] Route work through the Planner Agent.
-* [ ] Delegate to specialist departments.
-* [ ] Require evidence for conclusions.
-* [ ] Enforce Board escalation rules.
-* [ ] Enforce refusal and safety rules.
-* [ ] Enforce risk-policy references.
-* [ ] Preserve auditability across all workflows.
-* [ ] Produce final user-facing memos.
-* [ ] Keep specialist agents isolated from direct chat access.
-* [ ] Ensure chat requests enter through `services/ceo_gateway.py`.
-* [ ] Ensure Planner decides which specialist evidence is required.
-* [ ] Ensure CEO Agent owns final user-facing synthesis.
+* [x] Provide one main user-facing interface through the CEO Agent.
+* [x] Receive all user-facing AI trading requests through `services/ceo_gateway.py`.
+* [x] Convert user requests into structured executive tasks.
+* [x] Use the internal Planner Agent to create workflow plans.
+* [x] Delegate work to specialist departments only through approved service interfaces.
+* [x] Synthesize outputs from Research, Strategy Creation, Simulation, Risk, Portfolio, Execution, Audit, and Reporting departments.
+* [x] Require evidence for all substantive conclusions.
+* [x] Enforce firm constitution references.
+* [x] Enforce risk policy references.
+* [x] Enforce Board escalation rules.
+* [x] Enforce refusal rules for unsafe or unsupported requests.
+* [x] Enforce governed-action workflows.
+* [x] Preserve auditability across all workflows.
+* [x] Produce final user-facing memos.
+* [x] Track missing inputs and clarification needs.
+* [x] Track workflow state.
+* [x] Track handoffs between departments.
+* [x] Ensure specialist agents are not directly exposed to the chat UI.
+* [x] Ensure Planner Agent is not directly exposed to the chat UI.
+* [x] Ensure CEO Agent owns the final user-facing synthesis.
 
 ### 1.2 Non-Goals
 
-* [ ] Do not execute trades.
-* [ ] Do not approve risk.
-* [ ] Do not bypass RiskGovernor.
-* [ ] Do not directly mutate broker, account, or execution state.
-* [ ] Do not let users casually trigger live trading actions.
-* [ ] Do not expose specialist agents directly to the chat UI.
-* [ ] Do not turn raw LLM output into final workflow decisions.
-* [ ] Do not invent evidence, backtests, metrics, or approvals.
-* [ ] Do not silently ignore missing evidence.
+* [x] Do not execute trades.
+* [x] Do not approve risk.
+* [x] Do not bypass RiskGovernor.
+* [x] Do not directly mutate broker, account, portfolio, or execution state.
+* [x] Do not allow casual chat requests to trigger live trading actions.
+* [x] Do not expose specialist agents directly to the chat UI.
+* [x] Do not expose Planner Agent as an independent public service.
+* [x] Do not allow raw LLM output to become the final workflow decision.
+* [x] Do not invent evidence, backtests, metrics, approvals, or broker state.
+* [x] Do not silently ignore missing evidence.
+* [x] Do not override department-specific deterministic policies.
+* [x] Do not approve live allocation changes without Board approval when required.
+* [x] Do not approve execution without RiskGovernor approval.
 
 ---
 
-## 2. Standard Executive Department Folder Structure
+## 2. Executive Department Architecture
+
+The Executive Department contains only two agents:
+
+```text
+1. CEO Agent
+2. Planner Agent
+```
+
+The Planner Agent is internal to the CEO Agent. It can have its own folder, contracts, policy, evaluator, and tests, but it cannot be registered as a public department tool and cannot be called directly by the user, chat gateway, or other departments.
+
+### 2.1 Runtime Flow
+
+```text
+User Request
+-> CEOChatGateway
+-> CEO Agent validates request
+-> CEO Agent calls internal Planner Agent
+-> Planner returns structured plan
+-> CEO deterministic policy validates plan
+-> CEO delegates to specialist departments
+-> Specialist departments return AgentResponse envelopes
+-> CEO verifies evidence and permissions
+-> CEO synthesizes final memo
+-> CEO audit/evaluator runs
+-> User receives final response
+```
+
+### 2.2 Mermaid Architecture
+
+```mermaid
+flowchart TD
+    U[User] --> G[services/ceo_gateway.py]
+    G --> CEO[CEO Agent]
+    CEO --> P[Internal Planner Agent]
+    P --> CEO
+
+    CEO --> R[Research Department]
+    CEO --> S[Strategy Creation Department]
+    CEO --> B[Simulation Department]
+    CEO --> K[Risk Department]
+    CEO --> PF[Portfolio Department]
+    CEO --> E[Execution / Bridge Services]
+    CEO --> A[Audit / Reporting Services]
+
+    R --> CEO
+    S --> CEO
+    B --> CEO
+    K --> CEO
+    PF --> CEO
+    E --> CEO
+    A --> CEO
+
+    CEO --> M[Final User-Facing Memo]
+```
+
+### 2.3 Planner Isolation Rule
+
+```text
+Planner Agent is not an independent agent from the user's perspective.
+Planner Agent is an internal planning engine owned by CEO Agent.
+Only CEO Agent may call Planner Agent.
+Only CEO Agent may expose Planner results to the user.
+Only CEO Agent may use Planner results to delegate department work.
+```
+
+### 2.4 Specialist Delegation Rule
+
+```text
+CEO Agent delegates work to department services.
+CEO Agent does not call raw LLM agents directly.
+CEO Agent does not call broker/execution bridges directly except through governed execution services.
+CEO Agent does not bypass deterministic policies inside any department.
+```
+
+---
+
+## 3. Standard Executive Department Folder Structure
 
 ```text
 agents/
@@ -77,80 +178,44 @@ agents/
         test_deterministic_policy.py
         test_service.py
         test_agent_smoke.py
+        test_ceo_planner_integration.py
+        test_evidence_requirements.py
+        test_board_escalation.py
+        test_refusal_rules.py
+        test_specialist_delegation.py
 
-    planner_agent/
-      __init__.py
-      agent.py
-      contracts.py
-      prompts.py
-      deterministic_policy.py
-      tools.py
-      service.py
-      evaluator.py
-      README.md
-      tests/
-        test_contracts.py
-        test_deterministic_policy.py
-        test_service.py
-        test_agent_smoke.py
+      internal/
+        planner_agent/
+          __init__.py
+          agent.py
+          contracts.py
+          prompts.py
+          deterministic_policy.py
+          tools.py
+          service.py
+          evaluator.py
+          README.md
+          tests/
+            test_contracts.py
+            test_deterministic_policy.py
+            test_service.py
+            test_agent_smoke.py
+            test_planner_routes.py
+            test_missing_inputs.py
+            test_governed_action_draft.py
 
-    board_governance_agent/
-      __init__.py
-      agent.py
-      contracts.py
-      prompts.py
-      deterministic_policy.py
-      tools.py
-      service.py
-      evaluator.py
-      README.md
-      tests/
-        test_contracts.py
-        test_deterministic_policy.py
-        test_service.py
-        test_agent_smoke.py
-
-    evidence_synthesis_agent/
-      __init__.py
-      agent.py
-      contracts.py
-      prompts.py
-      deterministic_policy.py
-      tools.py
-      service.py
-      evaluator.py
-      README.md
-      tests/
-        test_contracts.py
-        test_deterministic_policy.py
-        test_service.py
-        test_agent_smoke.py
-
-    governance_auditor_agent/
-      __init__.py
-      agent.py
-      contracts.py
-      prompts.py
-      deterministic_policy.py
-      tools.py
-      service.py
-      evaluator.py
-      README.md
-      tests/
-        test_contracts.py
-        test_deterministic_policy.py
-        test_service.py
-        test_agent_smoke.py
-
-    shared/
-      executive_contracts.py
-      routing.py
-      response_templates.py
-      escalation_rules.py
-      workflow_states.py
-      evidence_requirements.py
-      permission_profiles.py
-      audit.py
+      shared/
+        executive_contracts.py
+        planner_contracts.py
+        routing.py
+        response_templates.py
+        escalation_rules.py
+        refusal_rules.py
+        workflow_states.py
+        evidence_requirements.py
+        permission_profiles.py
+        audit.py
+        memo_builder.py
 
 services/
   ceo_gateway.py
@@ -163,1039 +228,1099 @@ policies/
   tool_policy.py
 ```
 
+### 3.1 Important Folder Rule
+
+Do **not** create these as separate Executive Department agents:
+
+```text
+board_governance_agent/
+evidence_synthesis_agent/
+governance_auditor_agent/
+```
+
+Their responsibilities are merged into the CEO Agent and Planner Agent:
+
+| Former Responsibility | New Owner |
+|---|---|
+| Board escalation and approval checks | CEO Agent deterministic policy |
+| Evidence synthesis | CEO Agent synthesis and memo builder |
+| Governance audit checks | CEO Agent audit/evaluator and deterministic policy |
+| Workflow routing | Internal Planner Agent |
+| Missing input detection | Internal Planner Agent, validated by CEO Agent |
+| Refusal decisions | CEO Agent deterministic policy |
+| Final user-facing memo | CEO Agent |
+
 ---
 
-## 3. Executive Department Agents and Services
-
-Recommended build order:
+## 4. Recommended Build Order
 
 ```text
 1. Shared executive contracts
-2. Planner Agent
-3. CEO Agent
-4. Evidence Synthesis Agent
-5. Board Governance Agent
-6. Governance Auditor Agent
-7. CEO Gateway integration
-8. End-to-end workflow tests
+2. Planner contracts and internal planner schemas
+3. Internal Planner Agent
+4. CEO Agent service
+5. CEO deterministic policy
+6. CEO response templates
+7. Board escalation rules inside CEO policy
+8. Refusal rules inside CEO policy
+9. Evidence synthesis inside CEO service/memo builder
+10. Governance audit checks inside CEO evaluator
+11. CEO Gateway integration
+12. End-to-end workflow tests
 ```
 
 ---
 
-# 4. CEO Agent
-
-## 4.1 Purpose
-
-The **CEO Agent** is the main user-facing executive interface for HaruQuant. It receives the final structured plan and specialist outputs, synthesizes the evidence, applies executive governance, and returns the final memo to the user.
-
-The CEO Agent is not a trading execution agent. It is a reasoning and synthesis layer sitting above specialist departments.
-
-## 4.2 Required Files
-
-* [ ] Create `agents/executive/ceo_agent/__init__.py`.
-* [ ] Create `agents/executive/ceo_agent/agent.py`.
-* [ ] Create `agents/executive/ceo_agent/contracts.py`.
-* [ ] Create `agents/executive/ceo_agent/prompts.py`.
-* [ ] Create `agents/executive/ceo_agent/deterministic_policy.py`.
-* [ ] Create `agents/executive/ceo_agent/tools.py`.
-* [ ] Create `agents/executive/ceo_agent/service.py`.
-* [ ] Create `agents/executive/ceo_agent/evaluator.py`.
-* [ ] Create `agents/executive/ceo_agent/README.md`.
-* [ ] Create `agents/executive/ceo_agent/tests/test_contracts.py`.
-* [ ] Create `agents/executive/ceo_agent/tests/test_deterministic_policy.py`.
-* [ ] Create `agents/executive/ceo_agent/tests/test_service.py`.
-* [ ] Create `agents/executive/ceo_agent/tests/test_agent_smoke.py`.
-
-## 4.3 Responsibilities
-
-* [ ] Receive structured request from `services/ceo_gateway.py`.
-* [ ] Read Planner Agent output.
-* [ ] Read specialist agent outputs.
-* [ ] Read evidence references.
-* [ ] Read firm constitution reference.
-* [ ] Read risk policy reference.
-* [ ] Read workflow state.
-* [ ] Read Board escalation requirements.
-* [ ] Validate that the requested task is allowed.
-* [ ] Validate that required specialist evidence exists.
-* [ ] Validate that high-risk actions are not being executed directly.
-* [ ] Synthesize final executive memo.
-* [ ] Explain what was done.
-* [ ] Explain what was blocked.
-* [ ] Explain what evidence was used.
-* [ ] Explain what remains uncertain.
-* [ ] Explain required next actions.
-* [ ] Escalate to Board when required.
-* [ ] Refuse unsafe or unsupported requests.
-* [ ] Save final memo metadata to audit trail.
-
-## 4.4 Inputs
-
-| Field | Type | Required | Description |
-|---|---|---:|---|
-| `request_id` | str | Yes | Unique request identifier |
-| `user_id` | str | Yes | User identifier |
-| `task` | str | Yes | User request |
-| `planner_output` | PlannerOutput | Yes | Structured workflow plan |
-| `specialist_outputs` | list[AgentResponse] | No | Outputs from delegated agents |
-| `context` | AgentContext | Yes | Session, portfolio, market, strategy, and risk context |
-| `constraints` | dict | No | User, workflow, risk, or system constraints |
-
-## 4.5 Tools
-
-The CEO Agent should use read-only tools only.
-
-* [ ] `read_firm_constitution`.
-* [ ] `read_risk_policy_summary`.
-* [ ] `read_board_escalation_policy`.
-* [ ] `read_specialist_outputs`.
-* [ ] `read_evidence_refs`.
-* [ ] `read_workflow_state`.
-* [ ] `read_strategy_lifecycle_state`.
-* [ ] `read_portfolio_summary`.
-* [ ] `read_audit_summary`.
-
-## 4.6 Forbidden Tools
-
-* [ ] No broker execution tools.
-* [ ] No order router tools.
-* [ ] No direct MT5/cTrader tools.
-* [ ] No write access to risk thresholds.
-* [ ] No direct modification of strategy lifecycle state.
-* [ ] No direct database mutation unless explicitly allowed by a governed workflow.
-
-## 4.7 LLM Responsibilities
-
-The optional LLM may:
-
-* [ ] Summarize specialist evidence.
-* [ ] Explain reasoning in plain language.
-* [ ] Draft investment/research/risk/reporting memos.
-* [ ] Identify contradictions between specialist outputs.
-* [ ] Highlight missing evidence.
-* [ ] Propose next steps.
-* [ ] Format responses for the user.
-
-The optional LLM must not:
-
-* [ ] Approve trades.
-* [ ] Execute trades.
-* [ ] Override RiskGovernor.
-* [ ] Invent missing specialist results.
-* [ ] Claim Board approval exists unless provided as evidence.
-* [ ] Convert a rejected proposal into an approved one.
-
-## 4.8 Deterministic Policy Rules
-
-* [ ] If Planner output is missing, return `needs_more_context`.
-* [ ] If task type is unsupported, return `rejected` or `clarification_required`.
-* [ ] If specialist evidence is required but missing, block final recommendation.
-* [ ] If RiskGovernor rejected an action, CEO response must preserve the rejection.
-* [ ] If Board approval is required but absent, CEO response must request Board approval.
-* [ ] If user asks for live execution without governed workflow approval, block the request.
-* [ ] If user asks to bypass risk, refuse.
-* [ ] If evidence references are missing, mark confidence as low.
-* [ ] If specialist outputs conflict, require reconciliation or human review.
-* [ ] If task is informational, allow response with cited evidence.
-* [ ] If task is a governed action draft, return draft only and require approval.
-* [ ] Final response type must match Planner task type.
-
-## 4.9 Allowed Actions
-
-* [ ] `synthesize_final_memo`.
-* [ ] `summarize_specialist_outputs`.
-* [ ] `request_clarification`.
-* [ ] `draft_board_approval_request`.
-* [ ] `explain_risk_rejection`.
-* [ ] `explain_missing_evidence`.
-* [ ] `recommend_next_workflow_step`.
-* [ ] `prepare_governed_action_draft`.
-
-## 4.10 Blocked Actions
-
-* [ ] `execute_trade`.
-* [ ] `approve_risk`.
-* [ ] `override_risk_governor`.
-* [ ] `modify_risk_thresholds`.
-* [ ] `promote_strategy_without_board_approval`.
-* [ ] `enable_live_mode`.
-* [ ] `disable_kill_switch`.
-* [ ] `directly_call_execution_bridge`.
-
-## 4.11 Output Artifacts
-
-* [ ] `executive_memo`.
-* [ ] `decision_summary`.
-* [ ] `evidence_summary`.
-* [ ] `missing_evidence`.
-* [ ] `blocked_actions`.
-* [ ] `board_escalation_request`.
-* [ ] `recommended_next_steps`.
-* [ ] `audit_metadata`.
-
-## 4.12 Tests Required
-
-* [ ] Normal research memo case.
-* [ ] Strategy creation memo case.
-* [ ] Backtest diagnosis memo case.
-* [ ] Risk rejection case.
-* [ ] Missing evidence case.
-* [ ] Board approval required case.
-* [ ] Unsafe live execution request case.
-* [ ] LLM tries to override deterministic block.
-* [ ] Specialist output conflict case.
-* [ ] Audit metadata completeness case.
-
----
-
-# 5. Planner Agent
+# 5. CEO Agent
 
 ## 5.1 Purpose
 
-The **Planner Agent** converts user requests into structured workflow plans. It determines intent, required context, required specialist agents, missing inputs, permission level, risk level, artifact expectations, and whether Board approval or governed action handling is required.
+The **CEO Agent** is the single user-facing executive interface for HaruQuant. It receives user requests, uses the internal Planner Agent to decide what evidence or department work is required, delegates approved tasks, synthesizes department outputs, applies executive governance, and returns the final memo.
 
-The Planner Agent must be deterministic at the final routing layer. The LLM may propose a plan, but `deterministic_policy.py` validates and finalizes the plan.
+The CEO Agent is the only component that should communicate directly with the user in normal chat workflows.
 
 ## 5.2 Required Files
 
-* [ ] Create `agents/executive/planner_agent/__init__.py`.
-* [ ] Create `agents/executive/planner_agent/agent.py`.
-* [ ] Create `agents/executive/planner_agent/contracts.py`.
-* [ ] Create `agents/executive/planner_agent/prompts.py`.
-* [ ] Create `agents/executive/planner_agent/deterministic_policy.py`.
-* [ ] Create `agents/executive/planner_agent/tools.py`.
-* [ ] Create `agents/executive/planner_agent/service.py`.
-* [ ] Create `agents/executive/planner_agent/evaluator.py`.
-* [ ] Create `agents/executive/planner_agent/README.md`.
-* [ ] Create `agents/executive/planner_agent/tests/test_contracts.py`.
-* [ ] Create `agents/executive/planner_agent/tests/test_deterministic_policy.py`.
-* [ ] Create `agents/executive/planner_agent/tests/test_service.py`.
-* [ ] Create `agents/executive/planner_agent/tests/test_agent_smoke.py`.
+* [x] Create `agents/executive/ceo_agent/__init__.py`.
+* [x] Create `agents/executive/ceo_agent/agent.py`.
+* [x] Create `agents/executive/ceo_agent/contracts.py`.
+* [x] Create `agents/executive/ceo_agent/prompts.py`.
+* [x] Create `agents/executive/ceo_agent/deterministic_policy.py`.
+* [x] Create `agents/executive/ceo_agent/tools.py`.
+* [x] Create `agents/executive/ceo_agent/service.py`.
+* [x] Create `agents/executive/ceo_agent/evaluator.py`.
+* [x] Create `agents/executive/ceo_agent/README.md`.
+* [x] Create `agents/executive/ceo_agent/tests/test_contracts.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_deterministic_policy.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_service.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_agent_smoke.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_ceo_planner_integration.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_evidence_requirements.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_board_escalation.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_refusal_rules.py`.
+* [x] Create `agents/executive/ceo_agent/tests/test_specialist_delegation.py`.
 
-## 5.3 Responsibilities
+## 5.3 Inputs
 
-* [ ] Parse user request.
-* [ ] Detect primary intent.
-* [ ] Detect secondary intents.
-* [ ] Detect missing inputs.
-* [ ] Detect required context.
-* [ ] Detect required evidence.
-* [ ] Detect required specialist departments.
-* [ ] Detect required specialist agents.
-* [ ] Detect required backend tools.
-* [ ] Detect required attached tools.
-* [ ] Detect whether the task expects an artifact.
-* [ ] Detect whether the task requires page action.
-* [ ] Detect whether the task requires governed action handling.
-* [ ] Detect whether the task requires Board approval.
-* [ ] Detect whether the task is unsafe or forbidden.
-* [ ] Classify risk level.
-* [ ] Produce structured planner output.
-* [ ] Block direct execution requests.
-* [ ] Route final user-facing synthesis back to CEO Agent.
+* [x] User prompt.
+* [x] User identity.
+* [x] Session context.
+* [x] Page context, if available.
+* [x] Attached artifacts, if available.
+* [x] Current workflow state.
+* [x] Portfolio state summary, if required.
+* [x] Market state summary, if required.
+* [x] Strategy lifecycle state, if required.
+* [x] Risk state summary, if required.
+* [x] Previous evidence references, if part of an ongoing workflow.
+* [x] User permissions.
+* [x] Live-mode status.
+* [x] Board approval status.
 
-## 5.4 Supported Intent Types
+## 5.4 Tools
 
-* [ ] `research`.
-* [ ] `strategy_creation`.
-* [ ] `strategy_codegen`.
-* [ ] `strategy_review`.
-* [ ] `backtest`.
-* [ ] `backtest_diagnosis`.
-* [ ] `optimization_comparison`.
-* [ ] `robustness_review`.
-* [ ] `statistical_validation`.
-* [ ] `risk_review`.
-* [ ] `portfolio_review`.
-* [ ] `allocation_review`.
-* [ ] `paper_trading_review`.
-* [ ] `execution_proposal`.
-* [ ] `execution_readiness`.
-* [ ] `incident_review`.
-* [ ] `reporting`.
-* [ ] `audit_review`.
-* [ ] `cost_review`.
-* [ ] `page_action`.
-* [ ] `clarification`.
-* [ ] `governed_action_draft`.
-* [ ] `general_question`.
-* [ ] `unsupported`.
+CEO tools must be workflow-level read/delegation tools, not raw execution tools.
 
-## 5.5 Planner Output Fields
+* [x] `call_internal_planner`.
+* [x] `read_firm_constitution`.
+* [x] `read_executive_policy`.
+* [x] `read_board_escalation_policy`.
+* [x] `read_refusal_policy`.
+* [x] `read_risk_policy_reference`.
+* [x] `delegate_to_research_department`.
+* [x] `delegate_to_strategy_creation_department`.
+* [x] `delegate_to_simulation_department`.
+* [x] `delegate_to_risk_department`.
+* [x] `delegate_to_portfolio_department`.
+* [x] `delegate_to_reporting_or_audit_service`.
+* [x] `request_governed_action_draft`.
+* [x] `read_evidence_memory`.
+* [x] `save_executive_memo`.
+* [x] `write_executive_audit_record`.
 
-* [ ] `plan_id`.
-* [ ] `request_id`.
-* [ ] `user_intent`.
-* [ ] `secondary_intents`.
-* [ ] `missing_inputs`.
-* [ ] `context_needed`.
-* [ ] `evidence_needed`.
-* [ ] `departments_to_run`.
-* [ ] `agents_to_run`.
-* [ ] `backend_tools_to_run`.
-* [ ] `attached_tools`.
-* [ ] `page_actions_to_plan`.
-* [ ] `artifact_expected`.
-* [ ] `artifact_type`.
-* [ ] `risk_level`.
-* [ ] `permission_profile`.
-* [ ] `governed_action_required`.
-* [ ] `board_approval_required`.
-* [ ] `human_confirmation_required`.
-* [ ] `blocked_actions`.
-* [ ] `allowed_actions`.
-* [ ] `execution_order`.
-* [ ] `fallback_plan`.
-* [ ] `planner_confidence`.
-* [ ] `reasons`.
+Forbidden CEO tools:
 
-## 5.6 Intent Routing Rules
+* [x] No direct `place_order`.
+* [x] No direct `close_position`.
+* [x] No direct `cancel_order`.
+* [x] No direct broker mutation.
+* [x] No direct risk-threshold mutation.
+* [x] No direct live-mode mutation.
+* [x] No direct Board-approval mutation.
 
-### Research
+## 5.5 Evidence Required
 
-* [ ] Route to Research Department when the user asks for market context, strategy ideas, news, macro, sentiment, seasonality, or technical analysis.
-* [ ] Required agents may include Market Intelligence, Technical Analyst, Strategy Scout, News/Sentiment, Macro, Cross-Asset, Seasonality, Strategy Hypothesis, and Research Validation.
+The CEO Agent must require evidence before making substantive conclusions.
 
-### Strategy Creation
+* [x] User request evidence.
+* [x] Planner output.
+* [x] Specialist department outputs.
+* [x] Evidence references from specialist responses.
+* [x] RiskGovernor output for any trade, allocation, or live decision.
+* [x] Backtest evidence for strategy performance claims.
+* [x] Robustness evidence for deployment/promotion claims.
+* [x] Statistical validation evidence for edge-quality claims.
+* [x] Portfolio evidence for allocation claims.
+* [x] Execution evidence for live or paper execution claims.
+* [x] Audit evidence for compliance claims.
+* [x] Cost evidence for cost-optimization claims.
 
-* [ ] Route to Strategy Creation Department when the user asks to create, formalize, code, review, or revise a strategy.
-* [ ] Required agents may include Strategy Creator, Strategy Codegen, Strategy Reviewer, Spec Validator, Spec Storage, and Strategy Evidence Curator.
+## 5.6 LLM Responsibilities
 
-### Simulation
+The CEO Agent LLM may:
 
-* [ ] Route to Simulation Department when the user asks to backtest, analyze results, optimize parameters, run robustness tests, or validate statistics.
-* [ ] Required agents may include Backtest, Backtest Analyst, Optimization, Optimization Comparator, Robustness, Statistical Validation, and Simulation Evidence Curator.
+* [x] Interpret the user's plain-language request.
+* [x] Summarize department outputs.
+* [x] Explain trade-offs.
+* [x] Draft final memos.
+* [x] Explain risk warnings.
+* [x] Explain why a request is blocked.
+* [x] Explain required next steps.
+* [x] Convert technical outputs into user-friendly language.
+* [x] Compare evidence across departments.
+* [x] Identify contradictions for deterministic policy review.
 
-### Risk
+The CEO Agent LLM must not:
 
-* [ ] Route to Risk Department when the user asks about risk review, risk approval, portfolio exposure, drawdown, VaR/CVaR, margin, or correlation risk.
-* [ ] Required services may include RiskGovernor, Risk Reviewer, Portfolio Risk Monitor, Drawdown Control, VaR/CVaR, Correlation/Concentration, and Margin/Broker Risk.
-
-### Portfolio
-
-* [ ] Route to Portfolio Department when the user asks about strategy lifecycle, allocation, paper trading, live readiness, execution health, incident review, performance reporting, audit, or cost.
-* [ ] Required agents/services may include Portfolio Manager, Allocation Optimizer, Strategy Lifecycle, Paper Execution, Live Execution, Execution Readiness, Kill Switch, Incident, Performance Reporter, Audit, and Cost Optimizer.
+* [x] Approve trades.
+* [x] Approve risk.
+* [x] Execute orders.
+* [x] Override RiskGovernor.
+* [x] Override Kill Switch.
+* [x] Invent missing evidence.
+* [x] Mark a workflow complete when required evidence is missing.
+* [x] Convert its own recommendation into a final deterministic decision.
 
 ## 5.7 Deterministic Policy Rules
 
-* [ ] If the request includes live execution, mark `governed_action_required = true`.
-* [ ] If the request includes live execution, require RiskGovernor and Order Router evidence.
-* [ ] If the request asks to bypass risk, reject.
-* [ ] If the request asks to modify risk thresholds, require Board approval.
-* [ ] If the request asks to promote a strategy to live, require Portfolio, Risk, Simulation, and Board evidence.
-* [ ] If the request is missing symbol/timeframe for strategy creation, request clarification unless defaults are explicitly allowed.
-* [ ] If the request asks to generate strategy code, require a validated StrategySpec.
-* [ ] If the request asks to backtest code, require strategy code hash, data window, cost assumptions, and execution mode.
-* [ ] If the request asks for risk review, require evidence from strategy, simulation, portfolio, and risk services.
-* [ ] If the request asks for reporting, gather relevant existing evidence instead of running unrelated agents.
-* [ ] If the request asks for unsafe action, route to refusal template.
-* [ ] If intent confidence is low, return clarification plan.
+Final CEO workflow decisions must be made in `deterministic_policy.py`.
 
-## 5.8 Allowed Actions
+* [x] If Planner output is invalid, return `needs_more_context` or `error`.
+* [x] If Planner proposes a forbidden action, block the action.
+* [x] If required evidence is missing, return `needs_more_context`.
+* [x] If a live execution request lacks RiskGovernor approval, block it.
+* [x] If a live execution request lacks Board approval where required, block it.
+* [x] If Kill Switch is active, block live execution and allocation increases.
+* [x] If request asks CEO to place trades directly, refuse or route to governed execution proposal workflow.
+* [x] If request asks to bypass risk controls, refuse.
+* [x] If request asks to alter risk thresholds without governance, block and escalate.
+* [x] If request asks for a research/strategy/backtest/reporting task, route to appropriate department.
+* [x] If request is ambiguous but safe, ask for clarification.
+* [x] If request is broad but actionable, create a phased plan.
+* [x] If evidence contradicts the requested action, explain contradiction and block or escalate.
+* [x] If Board escalation is required, produce a Board approval request memo.
+* [x] If all evidence is sufficient and the action is informational, produce final memo.
+* [x] If all evidence is sufficient and the action is governed, produce a governed action draft, not execution.
 
-* [ ] `create_structured_plan`.
-* [ ] `request_clarification`.
-* [ ] `select_specialist_agents`.
-* [ ] `select_backend_tools`.
-* [ ] `prepare_governed_action_draft`.
-* [ ] `mark_board_approval_required`.
-* [ ] `block_unsafe_request`.
+## 5.8 Board Governance Responsibilities Merged Into CEO
 
-## 5.9 Blocked Actions
+The CEO Agent owns Board escalation checks.
 
-* [ ] `execute_trade`.
-* [ ] `approve_risk`.
-* [ ] `modify_strategy_lifecycle_state`.
-* [ ] `modify_risk_thresholds`.
-* [ ] `call_broker_bridge_directly`.
-* [ ] `override_specialist_rejection`.
+* [x] Detect live allocation changes.
+* [x] Detect promotion from paper to micro-live.
+* [x] Detect increase in live capital allocation.
+* [x] Detect strategy retirement with open risk implications.
+* [x] Detect risk-threshold changes.
+* [x] Detect live-mode enablement.
+* [x] Detect broker connection activation.
+* [x] Detect order-routing activation.
+* [x] Detect Kill Switch override or reset.
+* [x] Detect critical audit incident resolution.
+* [x] Detect production deployment requests.
+* [x] Require Board approval when policy demands it.
+* [x] Produce Board approval request memo.
+* [x] Block action until approval exists.
+* [x] Save Board escalation audit record.
 
-## 5.10 Tests Required
+## 5.9 Evidence Synthesis Responsibilities Merged Into CEO
 
-* [ ] Strategy creation routing.
-* [ ] Backtest diagnosis routing.
-* [ ] Optimization comparison routing.
-* [ ] Risk review routing.
-* [ ] Research routing.
-* [ ] Reporting routing.
-* [ ] Page action routing.
-* [ ] Governed action routing.
-* [ ] Clarification routing.
-* [ ] Unsafe request rejection.
-* [ ] Missing input detection.
-* [ ] Board approval detection.
-* [ ] LLM routing proposal cannot bypass deterministic policy.
+The CEO Agent owns evidence synthesis.
+
+* [x] Read all specialist `AgentResponse` envelopes.
+* [x] Validate `request_id` consistency.
+* [x] Validate `agent_name`.
+* [x] Validate status.
+* [x] Validate evidence exists when required.
+* [x] Validate audit exists.
+* [x] Validate policy version exists.
+* [x] Validate prompt version exists where LLM was used.
+* [x] Validate tools used.
+* [x] Validate permission profile.
+* [x] Validate confidence level.
+* [x] Validate risk level.
+* [x] Identify supporting evidence.
+* [x] Identify contradicting evidence.
+* [x] Identify missing evidence.
+* [x] Identify stale evidence.
+* [x] Identify weak evidence.
+* [x] Merge evidence into final executive memo.
+* [x] Preserve evidence references in audit metadata.
+
+## 5.10 Governance Audit Responsibilities Merged Into CEO
+
+The CEO Agent owns executive governance audit checks.
+
+* [x] Check Planner was called for non-trivial tasks.
+* [x] Check specialist departments were called only through approved services.
+* [x] Check no forbidden tools were used.
+* [x] Check all governed actions have required approvals.
+* [x] Check all live actions have RiskGovernor approval where applicable.
+* [x] Check all Board-required actions are escalated.
+* [x] Check all final memos include evidence summary when evidence was used.
+* [x] Check refusal decisions include reasons.
+* [x] Check missing-context decisions include required missing fields.
+* [x] Check audit metadata is complete.
+* [x] Check no raw LLM text became the final deterministic decision.
+* [x] Check no hidden failed tool calls were ignored.
+
+## 5.11 Allowed Actions
+
+* [x] `answer_general_question`.
+* [x] `summarize_evidence`.
+* [x] `delegate_research`.
+* [x] `delegate_strategy_creation`.
+* [x] `delegate_strategy_codegen`.
+* [x] `delegate_strategy_review`.
+* [x] `delegate_backtest`.
+* [x] `delegate_backtest_diagnosis`.
+* [x] `delegate_optimization_comparison`.
+* [x] `delegate_robustness_review`.
+* [x] `delegate_statistical_validation`.
+* [x] `delegate_risk_review`.
+* [x] `delegate_portfolio_review`.
+* [x] `delegate_paper_execution_review`.
+* [x] `delegate_reporting`.
+* [x] `create_governed_action_draft`.
+* [x] `create_board_approval_request`.
+* [x] `request_clarification`.
+* [x] `refuse_unsafe_request`.
+
+## 5.12 Blocked Actions
+
+* [x] `place_trade`.
+* [x] `close_position_directly`.
+* [x] `cancel_order_directly`.
+* [x] `approve_risk`.
+* [x] `override_risk_governor`.
+* [x] `override_kill_switch`.
+* [x] `enable_live_trading_directly`.
+* [x] `increase_live_allocation_without_board_approval`.
+* [x] `modify_risk_thresholds_without_governance`.
+* [x] `delete_audit_logs`.
+* [x] `hide_evidence`.
+* [x] `call_planner_publicly`.
+
+## 5.13 Output Artifacts
+
+* [x] Executive memo.
+* [x] Research memo.
+* [x] Strategy proposal memo.
+* [x] Backtest summary memo.
+* [x] Optimization comparison memo.
+* [x] Robustness memo.
+* [x] Risk memo.
+* [x] Portfolio allocation memo.
+* [x] Paper promotion memo.
+* [x] Board approval request memo.
+* [x] Rejection memo.
+* [x] Blocked-by-risk memo.
+* [x] Clarification request.
+* [x] Governed action draft.
+* [x] Audit record.
+
+## 5.14 Tests Required
+
+* [x] Normal informational request.
+* [x] Strategy creation request.
+* [x] Research request.
+* [x] Backtest diagnosis request.
+* [x] Optimization comparison request.
+* [x] Risk review request.
+* [x] Portfolio allocation request.
+* [x] Execution proposal request.
+* [x] Board escalation request.
+* [x] Missing evidence case.
+* [x] Missing input case.
+* [x] Unsafe request case.
+* [x] Bypass-risk request case.
+* [x] Planner invalid-output case.
+* [x] Specialist failure case.
+* [x] Contradictory evidence case.
+* [x] LLM override attempt.
+* [x] Audit metadata completeness.
 
 ---
 
-# 6. Board Governance Agent
+# 6. Internal Planner Agent
 
 ## 6.1 Purpose
 
-The **Board Governance Agent** determines whether a proposed workflow or decision requires explicit human/Board approval before execution, promotion, deployment, or configuration change.
+The **Planner Agent** is an internal component of the CEO Agent. Its job is to convert the user's request and current context into a structured execution plan that the CEO Agent can validate and execute.
 
-This agent may use optional LLM reasoning to explain governance requirements, but the final approval requirement must come from deterministic policy.
+The Planner Agent does not communicate with the user directly. It does not synthesize the final answer. It does not execute workflows by itself. It proposes a plan; the CEO deterministic policy validates the plan and decides what to do.
 
 ## 6.2 Required Files
 
-* [ ] Create `agents/executive/board_governance_agent/__init__.py`.
-* [ ] Create `agents/executive/board_governance_agent/agent.py`.
-* [ ] Create `agents/executive/board_governance_agent/contracts.py`.
-* [ ] Create `agents/executive/board_governance_agent/prompts.py`.
-* [ ] Create `agents/executive/board_governance_agent/deterministic_policy.py`.
-* [ ] Create `agents/executive/board_governance_agent/tools.py`.
-* [ ] Create `agents/executive/board_governance_agent/service.py`.
-* [ ] Create `agents/executive/board_governance_agent/evaluator.py`.
-* [ ] Create `agents/executive/board_governance_agent/README.md`.
-* [ ] Create `agents/executive/board_governance_agent/tests/`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/__init__.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/agent.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/contracts.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/prompts.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/deterministic_policy.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tools.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/service.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/evaluator.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/README.md`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_contracts.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_deterministic_policy.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_service.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_agent_smoke.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_planner_routes.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_missing_inputs.py`.
+* [x] Create `agents/executive/ceo_agent/internal/planner_agent/tests/test_governed_action_draft.py`.
 
-## 6.3 Responsibilities
+## 6.3 Planner Visibility Rule
 
-* [ ] Read Board escalation policy.
-* [ ] Read firm constitution.
-* [ ] Read risk policy.
-* [ ] Read proposed workflow plan.
-* [ ] Read specialist outputs.
-* [ ] Read RiskGovernor output when relevant.
-* [ ] Detect whether Board approval is required.
-* [ ] Detect whether human confirmation is required.
-* [ ] Detect whether request must be refused.
-* [ ] Draft Board approval request.
-* [ ] Track approval status.
-* [ ] Track approval expiration.
-* [ ] Track approval scope.
-* [ ] Track approval conditions.
+* [x] Planner Agent must not be registered as a public chat tool.
+* [x] Planner Agent must not be called by `services/ceo_gateway.py` directly.
+* [x] Planner Agent must not be called by specialist departments.
+* [x] Planner Agent must not produce final user-facing messages.
+* [x] Planner Agent must return only structured planner output.
+* [x] CEO Agent must validate Planner output before executing it.
 
-## 6.4 Board Approval Required For
+## 6.4 Inputs
 
-* [ ] Enabling live trading.
-* [ ] Promoting a strategy to live.
-* [ ] Increasing live allocation above current approved limit.
-* [ ] Changing risk thresholds.
-* [ ] Disabling or weakening RiskGovernor rules.
-* [ ] Disabling or weakening kill switch rules.
-* [ ] Resuming live trading after a critical incident.
-* [ ] Changing execution bridge permissions.
-* [ ] Adding a new broker/exchange integration.
-* [ ] Approving capital allocation changes.
-* [ ] Retiring a live strategy if it affects portfolio exposure materially.
-* [ ] Deploying a strategy with weak or incomplete evidence.
+* [x] Normalized user request from CEO Agent.
+* [x] Session context from CEO Agent.
+* [x] Page context, if any.
+* [x] Attached tools or artifacts, if any.
+* [x] Current workflow state.
+* [x] Available department capabilities.
+* [x] User permission profile.
+* [x] Live-mode status.
+* [x] Board approval state.
+* [x] Risk policy summary.
+* [x] Evidence requirements.
 
-## 6.5 Deterministic Policy Rules
+## 6.5 Structured Planner Output Fields
 
-* [ ] If action touches live capital, Board approval is required unless already approved within scope.
-* [ ] If action modifies risk policy, Board approval is required.
-* [ ] If action modifies execution permissions, Board approval is required.
-* [ ] If action follows critical incident, Board approval is required before resume.
-* [ ] If approval is expired, require new approval.
-* [ ] If approval scope does not match requested action, require new approval.
-* [ ] If evidence package is incomplete, block Board approval request as incomplete.
-* [ ] If action is forbidden by firm constitution, reject instead of escalating.
+* [x] `plan_id`.
+* [x] `request_id`.
+* [x] `intent`.
+* [x] `workflow_type`.
+* [x] `task_summary`.
+* [x] `missing_inputs`.
+* [x] `context_needed`.
+* [x] `evidence_required`.
+* [x] `departments_to_call`.
+* [x] `agents_to_call`.
+* [x] `backend_tools_to_run`.
+* [x] `attached_tools`.
+* [x] `page_actions_to_plan`.
+* [x] `artifact_expected`.
+* [x] `risk_level`.
+* [x] `requires_risk_governor`.
+* [x] `requires_board_approval`.
+* [x] `requires_human_confirmation`.
+* [x] `governed_action_type`.
+* [x] `allowed_actions`.
+* [x] `blocked_actions`.
+* [x] `execution_order`.
+* [x] `fallback_plan`.
+* [x] `final_response_template`.
+* [x] `audit_tags`.
+* [x] `confidence`.
 
-## 6.6 Output Artifacts
+## 6.6 Supported Workflow Types
 
-* [ ] `board_escalation_decision`.
-* [ ] `board_approval_request`.
-* [ ] `approval_scope`.
-* [ ] `approval_conditions`.
-* [ ] `approval_expiration`.
-* [ ] `missing_evidence`.
-* [ ] `rejection_reason`.
+* [x] `research`.
+* [x] `strategy_creation`.
+* [x] `strategy_codegen`.
+* [x] `strategy_review`.
+* [x] `backtest`.
+* [x] `backtest_diagnosis`.
+* [x] `optimization_comparison`.
+* [x] `robustness_review`.
+* [x] `statistical_validation`.
+* [x] `risk_review`.
+* [x] `portfolio_review`.
+* [x] `allocation_review`.
+* [x] `paper_trading_review`.
+* [x] `execution_proposal`.
+* [x] `reporting`.
+* [x] `audit_review`.
+* [x] `cost_review`.
+* [x] `page_action`.
+* [x] `clarification`.
+* [x] `governed_action_draft`.
+* [x] `unsafe_or_forbidden`.
 
-## 6.7 Tests Required
+## 6.7 Planner Tools
 
-* [ ] Live promotion requires Board approval.
-* [ ] Risk threshold change requires Board approval.
-* [ ] Expired approval is rejected.
-* [ ] Mismatched approval scope is rejected.
-* [ ] Forbidden action is rejected.
-* [ ] Incomplete evidence blocks approval request.
+Planner tools should be metadata and capability tools only.
 
----
+* [x] `get_available_departments`.
+* [x] `get_available_agent_capabilities`.
+* [x] `get_workflow_requirements`.
+* [x] `get_evidence_requirements`.
+* [x] `get_board_escalation_rules`.
+* [x] `get_refusal_rules`.
+* [x] `get_permission_profile`.
+* [x] `get_current_workflow_state`.
 
-# 7. Evidence Synthesis Agent
+Forbidden Planner tools:
 
-## 7.1 Purpose
+* [x] No broker tools.
+* [x] No execution tools.
+* [x] No database mutation tools.
+* [x] No risk-threshold mutation tools.
+* [x] No direct department execution tools unless invoked through CEO service wrapper.
 
-The **Evidence Synthesis Agent** merges outputs from specialist agents into a structured evidence package for the CEO Agent. It prevents the CEO Agent from relying on scattered, inconsistent, missing, or low-quality evidence.
+## 6.8 LLM Responsibilities
 
-## 7.2 Required Files
+The Planner Agent LLM may:
 
-* [ ] Create `agents/executive/evidence_synthesis_agent/__init__.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/agent.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/contracts.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/prompts.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/deterministic_policy.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/tools.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/service.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/evaluator.py`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/README.md`.
-* [ ] Create `agents/executive/evidence_synthesis_agent/tests/`.
+* [x] Classify intent.
+* [x] Identify missing inputs.
+* [x] Identify context needed.
+* [x] Select department workflow type.
+* [x] Select evidence requirements.
+* [x] Propose execution order.
+* [x] Propose response template.
+* [x] Identify likely risk level.
+* [x] Identify likely Board escalation requirement.
 
-## 7.3 Responsibilities
+The Planner Agent LLM must not:
 
-* [ ] Read all specialist outputs.
-* [ ] Normalize evidence into common structure.
-* [ ] Deduplicate evidence references.
-* [ ] Identify missing evidence.
-* [ ] Identify contradictory evidence.
-* [ ] Identify stale evidence.
-* [ ] Identify low-confidence evidence.
-* [ ] Separate facts from recommendations.
-* [ ] Separate deterministic decisions from LLM suggestions.
-* [ ] Build final evidence package for CEO Agent.
-* [ ] Preserve source links and artifact references.
-* [ ] Preserve audit metadata.
+* [x] Execute the plan.
+* [x] Call specialist departments directly.
+* [x] Produce the final user answer.
+* [x] Approve risk.
+* [x] Execute trades.
+* [x] Override CEO deterministic policy.
+* [x] Invent capabilities that do not exist.
+* [x] Route to forbidden tools.
 
-## 7.4 Evidence Package Fields
+## 6.9 Deterministic Policy Rules
 
-* [ ] `evidence_package_id`.
-* [ ] `request_id`.
-* [ ] `workflow_id`.
-* [ ] `specialist_outputs`.
-* [ ] `evidence_refs`.
-* [ ] `facts`.
-* [ ] `recommendations`.
-* [ ] `deterministic_decisions`.
-* [ ] `llm_observations`.
-* [ ] `missing_evidence`.
-* [ ] `contradictions`.
-* [ ] `stale_evidence`.
-* [ ] `confidence_summary`.
-* [ ] `risk_summary`.
-* [ ] `audit_refs`.
+* [x] Validate planner output schema.
+* [x] Reject unknown workflow types.
+* [x] Reject unknown departments.
+* [x] Reject unknown agents.
+* [x] Reject forbidden backend tools.
+* [x] Reject direct execution tools.
+* [x] Reject live execution routing without governed-action flow.
+* [x] Mark missing inputs when required fields are absent.
+* [x] Mark `requires_risk_governor` for trade, execution, allocation, or portfolio-risk workflows.
+* [x] Mark `requires_board_approval` for live allocation changes, live-mode activation, risk-threshold changes, and critical incident recovery.
+* [x] Mark `requires_human_confirmation` when policy demands confirmation.
+* [x] Normalize broad requests into phased plans.
+* [x] Route vague but safe requests to clarification.
+* [x] Route unsafe requests to CEO refusal workflow.
+* [x] Ensure final response template matches workflow type.
+* [x] Ensure all planned actions are allowed by the user's permission profile.
 
-## 7.5 Deterministic Policy Rules
+## 6.10 Allowed Actions
 
-* [ ] If required evidence is missing, mark package incomplete.
-* [ ] If evidence references are missing, mark package low confidence.
-* [ ] If deterministic decisions conflict, escalate to CEO and Board if critical.
-* [ ] If LLM recommendation conflicts with deterministic decision, preserve deterministic decision.
-* [ ] If evidence is stale beyond policy, require refresh.
-* [ ] If evidence package contains unsafe action proposal, mark as governed action.
+* [x] `classify_intent`.
+* [x] `identify_missing_inputs`.
+* [x] `identify_context_needed`.
+* [x] `select_workflow_type`.
+* [x] `select_departments_to_call`.
+* [x] `select_response_template`.
+* [x] `draft_execution_plan`.
+* [x] `flag_governance_requirements`.
+* [x] `flag_board_escalation`.
+* [x] `flag_risk_governor_requirement`.
 
-## 7.6 Tests Required
+## 6.11 Blocked Actions
 
-* [ ] Complete evidence package case.
-* [ ] Missing evidence case.
-* [ ] Contradictory specialist output case.
-* [ ] Stale evidence case.
-* [ ] LLM suggestion conflicts with deterministic policy case.
-* [ ] Audit references retained case.
+* [x] `execute_workflow`.
+* [x] `call_specialist_directly`.
+* [x] `call_broker`.
+* [x] `approve_risk`.
+* [x] `approve_allocation`.
+* [x] `produce_final_user_answer`.
+* [x] `mutate_state`.
+* [x] `skip_ceo_validation`.
 
----
+## 6.12 Tests Required
 
-# 8. Governance Auditor Agent
-
-## 8.1 Purpose
-
-The **Governance Auditor Agent** verifies that executive workflows obey the firm constitution, planner routing rules, Board escalation policy, tool permission policy, and evidence requirements.
-
-## 8.2 Required Files
-
-* [ ] Create `agents/executive/governance_auditor_agent/__init__.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/agent.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/contracts.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/prompts.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/deterministic_policy.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/tools.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/service.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/evaluator.py`.
-* [ ] Create `agents/executive/governance_auditor_agent/README.md`.
-* [ ] Create `agents/executive/governance_auditor_agent/tests/`.
-
-## 8.3 Responsibilities
-
-* [ ] Check every executive workflow has a Planner output.
-* [ ] Check every CEO final memo references evidence.
-* [ ] Check governed actions are not executed directly.
-* [ ] Check Board approval is requested where required.
-* [ ] Check unsafe requests are refused.
-* [ ] Check planner-selected agents match task type.
-* [ ] Check specialist outputs are not bypassed.
-* [ ] Check RiskGovernor decisions are preserved.
-* [ ] Check audit metadata exists.
-* [ ] Check permission profile is valid.
-* [ ] Check no hidden mutation happened during read-only workflows.
-* [ ] Generate governance audit report.
-
-## 8.4 Audit Severity
-
-* [ ] `info`.
-* [ ] `warning`.
-* [ ] `major`.
-* [ ] `critical`.
-
-## 8.5 Critical Failures
-
-* [ ] CEO response claims approval without approval evidence.
-* [ ] Planner routes live execution without governed action.
-* [ ] Board approval required but skipped.
-* [ ] RiskGovernor rejection is overridden.
-* [ ] Execution bridge called directly from Executive Department.
-* [ ] Missing audit trail for governed workflow.
-* [ ] Hidden tool call modifies risk/execution configuration.
-
-## 8.6 Deterministic Policy Rules
-
-* [ ] If critical failure is detected, mark workflow invalid.
-* [ ] If live-related critical failure is detected, recommend live trading lockout.
-* [ ] If missing evidence is detected, mark memo incomplete.
-* [ ] If Board approval is skipped, block workflow.
-* [ ] If RiskGovernor rejection is overridden, block workflow and create critical audit finding.
-
-## 8.7 Tests Required
-
-* [ ] Valid executive workflow case.
-* [ ] Missing Planner output case.
-* [ ] Missing evidence case.
-* [ ] Board approval skipped case.
-* [ ] RiskGovernor override attempt case.
-* [ ] Direct execution bridge call case.
-* [ ] Missing audit metadata case.
+* [x] Research routing.
+* [x] Strategy creation routing.
+* [x] Strategy codegen routing.
+* [x] Strategy review routing.
+* [x] Backtest routing.
+* [x] Backtest diagnosis routing.
+* [x] Optimization comparison routing.
+* [x] Risk review routing.
+* [x] Portfolio review routing.
+* [x] Execution proposal routing.
+* [x] Reporting routing.
+* [x] Audit review routing.
+* [x] Page action routing.
+* [x] Clarification routing.
+* [x] Governed action draft routing.
+* [x] Missing symbol case.
+* [x] Missing timeframe case.
+* [x] Missing strategy ID case.
+* [x] Forbidden execution tool case.
+* [x] Unknown department case.
+* [x] Unknown workflow case.
+* [x] LLM override attempt.
 
 ---
 
-# 9. Shared Executive Contracts
+## 7. Shared Executive Contracts
 
-## 9.1 Planner Output Contract
+## 7.1 CEO Request Contract
 
-* [ ] Create `PlannerOutput` Pydantic model.
-* [ ] Add `plan_id`.
-* [ ] Add `request_id`.
-* [ ] Add `user_intent`.
-* [ ] Add `secondary_intents`.
-* [ ] Add `missing_inputs`.
-* [ ] Add `context_needed`.
-* [ ] Add `evidence_needed`.
-* [ ] Add `departments_to_run`.
-* [ ] Add `agents_to_run`.
-* [ ] Add `backend_tools_to_run`.
-* [ ] Add `attached_tools`.
-* [ ] Add `page_actions_to_plan`.
-* [ ] Add `artifact_expected`.
-* [ ] Add `artifact_type`.
-* [ ] Add `risk_level`.
-* [ ] Add `permission_profile`.
-* [ ] Add `governed_action_required`.
-* [ ] Add `board_approval_required`.
-* [ ] Add `human_confirmation_required`.
-* [ ] Add `allowed_actions`.
-* [ ] Add `blocked_actions`.
-* [ ] Add `execution_order`.
-* [ ] Add `fallback_plan`.
-* [ ] Add `confidence`.
-* [ ] Add `reasons`.
+* [x] `request_id`.
+* [x] `user_id`.
+* [x] `session_id`.
+* [x] `user_message`.
+* [x] `normalized_task`.
+* [x] `attachments`.
+* [x] `page_context`.
+* [x] `workflow_context`.
+* [x] `permission_profile`.
+* [x] `constraints`.
+* [x] `created_at`.
 
-## 9.2 Executive Memo Contract
+## 7.2 CEO Response Contract
 
-* [ ] Create `ExecutiveMemo` Pydantic model.
-* [ ] Add `memo_id`.
-* [ ] Add `request_id`.
-* [ ] Add `memo_type`.
-* [ ] Add `summary`.
-* [ ] Add `decision`.
-* [ ] Add `evidence_reviewed`.
-* [ ] Add `key_findings`.
-* [ ] Add `risks`.
-* [ ] Add `blocked_actions`.
-* [ ] Add `recommended_next_steps`.
-* [ ] Add `board_action_required`.
-* [ ] Add `confidence`.
-* [ ] Add `limitations`.
-* [ ] Add `audit_refs`.
+* [x] `request_id`.
+* [x] `agent_name`.
+* [x] `status`.
+* [x] `planner_output`.
+* [x] `specialist_responses`.
+* [x] `evidence_summary`.
+* [x] `final_memo`.
+* [x] `decision`.
+* [x] `allowed_actions`.
+* [x] `blocked_actions`.
+* [x] `required_next_steps`.
+* [x] `board_escalation`.
+* [x] `audit`.
 
-## 9.3 Board Approval Request Contract
+## 7.3 Planner Output Contract
 
-* [ ] Create `BoardApprovalRequest` Pydantic model.
-* [ ] Add `approval_request_id`.
-* [ ] Add `request_id`.
-* [ ] Add `workflow_id`.
-* [ ] Add `decision_type`.
-* [ ] Add `action_requested`.
-* [ ] Add `evidence_package_id`.
-* [ ] Add `risk_summary`.
-* [ ] Add `expected_impact`.
-* [ ] Add `approval_scope`.
-* [ ] Add `approval_conditions`.
-* [ ] Add `expiration_time`.
-* [ ] Add `required_human`.
-* [ ] Add `status`.
+* [x] `plan_id`.
+* [x] `request_id`.
+* [x] `intent`.
+* [x] `workflow_type`.
+* [x] `task_summary`.
+* [x] `missing_inputs`.
+* [x] `context_needed`.
+* [x] `evidence_required`.
+* [x] `departments_to_call`.
+* [x] `agents_to_call`.
+* [x] `backend_tools_to_run`.
+* [x] `risk_level`.
+* [x] `requires_risk_governor`.
+* [x] `requires_board_approval`.
+* [x] `requires_human_confirmation`.
+* [x] `execution_order`.
+* [x] `final_response_template`.
+* [x] `confidence`.
 
-## 9.4 Evidence Package Contract
+## 7.4 Executive Decision Contract
 
-* [ ] Create `ExecutiveEvidencePackage` Pydantic model.
-* [ ] Add `evidence_package_id`.
-* [ ] Add `request_id`.
-* [ ] Add `workflow_id`.
-* [ ] Add `specialist_outputs`.
-* [ ] Add `evidence_refs`.
-* [ ] Add `deterministic_decisions`.
-* [ ] Add `llm_observations`.
-* [ ] Add `facts`.
-* [ ] Add `recommendations`.
-* [ ] Add `missing_evidence`.
-* [ ] Add `contradictions`.
-* [ ] Add `stale_evidence`.
-* [ ] Add `confidence_summary`.
-* [ ] Add `audit_refs`.
+* [x] `status`.
+* [x] `decision_type`.
+* [x] `decision`.
+* [x] `confidence`.
+* [x] `risk_level`.
+* [x] `allowed_actions`.
+* [x] `blocked_actions`.
+* [x] `reasons`.
+* [x] `required_evidence`.
+* [x] `missing_evidence`.
+* [x] `requires_board_approval`.
+* [x] `requires_risk_governor`.
+* [x] `requires_human_confirmation`.
 
 ---
 
-# 10. CEO Response Templates
+## 8. CEO Response Templates
 
-## 10.1 Research Memo Template
+## 8.1 Research Memo Template
 
-* [ ] Add `research_question`.
-* [ ] Add `market_context`.
-* [ ] Add `evidence_reviewed`.
-* [ ] Add `key_findings`.
-* [ ] Add `candidate_ideas`.
-* [ ] Add `risks`.
-* [ ] Add `confidence`.
-* [ ] Add `recommended_next_steps`.
-* [ ] Add `blocked_actions`.
+* [x] Research question.
+* [x] Sources/evidence reviewed.
+* [x] Market context.
+* [x] Technical context.
+* [x] Macro/news context, if available.
+* [x] Candidate ideas.
+* [x] Risks and limitations.
+* [x] Recommended next steps.
+* [x] Confidence.
+* [x] Evidence references.
 
-## 10.2 Strategy Proposal Template
+## 8.2 Strategy Proposal Template
 
-* [ ] Add `strategy_name`.
-* [ ] Add `strategy_type`.
-* [ ] Add `symbol`.
-* [ ] Add `timeframe`.
-* [ ] Add `market_assumption`.
-* [ ] Add `entry_logic_summary`.
-* [ ] Add `exit_logic_summary`.
-* [ ] Add `position_management_summary`.
-* [ ] Add `risk_assumptions`.
-* [ ] Add `test_plan`.
-* [ ] Add `implementation_status`.
-* [ ] Add `review_status`.
-* [ ] Add `next_steps`.
+* [x] Strategy name.
+* [x] Strategy family.
+* [x] Symbol/timeframe.
+* [x] Market hypothesis.
+* [x] Entry concept.
+* [x] Exit concept.
+* [x] Risk assumptions.
+* [x] Data requirements.
+* [x] Cost assumptions.
+* [x] Invalidation rules.
+* [x] Test plan.
+* [x] Required next step.
 
-## 10.3 Backtest Report Template
+## 8.3 Strategy Codegen Review Template
 
-* [ ] Add `strategy_id`.
-* [ ] Add `backtest_run_id`.
-* [ ] Add `data_window`.
-* [ ] Add `cost_assumptions`.
-* [ ] Add `execution_mode`.
-* [ ] Add `summary_metrics`.
-* [ ] Add `equity_curve_summary`.
-* [ ] Add `drawdown_summary`.
-* [ ] Add `trade_distribution_summary`.
-* [ ] Add `long_short_summary`.
-* [ ] Add `diagnosis`.
-* [ ] Add `acceptance_status`.
-* [ ] Add `recommended_next_steps`.
+* [x] Strategy spec reviewed.
+* [x] Generated files.
+* [x] Template compliance.
+* [x] `on_bar()` compliance.
+* [x] `get_signal()` compliance.
+* [x] `on_event()` compliance, if stateful.
+* [x] Lookahead-bias review.
+* [x] Required tests.
+* [x] Reviewer decision.
 
-## 10.4 Risk Memo Template
+## 8.4 Backtest Report Template
 
-* [ ] Add `strategy_summary`.
-* [ ] Add `evidence_reviewed`.
-* [ ] Add `RiskGovernor_result`.
-* [ ] Add `key_risk_metrics`.
-* [ ] Add `portfolio_impact`.
-* [ ] Add `correlation_concerns`.
-* [ ] Add `drawdown_concerns`.
-* [ ] Add `cost_concerns`.
-* [ ] Add `failure_modes`.
-* [ ] Add `recommendation`.
-* [ ] Add `required_board_action`.
+* [x] Strategy tested.
+* [x] Backtest period.
+* [x] Data source.
+* [x] Execution assumptions.
+* [x] Cost assumptions.
+* [x] Key metrics.
+* [x] Drawdown summary.
+* [x] Trade distribution.
+* [x] Long/short split.
+* [x] IS/OOS summary.
+* [x] Acceptance decision.
+* [x] Evidence package path.
 
-## 10.5 Portfolio Review Template
+## 8.5 Optimization Comparison Template
 
-* [ ] Add `portfolio_summary`.
-* [ ] Add `active_strategies`.
-* [ ] Add `paper_strategies`.
-* [ ] Add `promotion_candidates`.
-* [ ] Add `demotion_candidates`.
-* [ ] Add `retirement_candidates`.
-* [ ] Add `allocation_recommendations`.
-* [ ] Add `RiskGovernor_constraints`.
-* [ ] Add `Board_actions_required`.
+* [x] Strategy.
+* [x] Parameter grid.
+* [x] Best result.
+* [x] Stable regions.
+* [x] IS/OOS behavior.
+* [x] Parameter cliffs.
+* [x] Fragile settings.
+* [x] Recommended robust region.
+* [x] Rejected overfit settings.
 
-## 10.6 Board Approval Request Template
+## 8.6 Risk Memo Template
 
-* [ ] Add `action_requested`.
-* [ ] Add `why_action_is_needed`.
-* [ ] Add `evidence_package`.
-* [ ] Add `risk_summary`.
-* [ ] Add `expected_benefit`.
-* [ ] Add `worst_case_risk`.
-* [ ] Add `approval_scope`.
-* [ ] Add `approval_conditions`.
-* [ ] Add `expiration`.
-* [ ] Add `human_decision_required`.
+* [x] Strategy summary.
+* [x] Evidence reviewed.
+* [x] RiskGovernor result.
+* [x] Key risk metrics.
+* [x] Portfolio impact.
+* [x] Correlation concerns.
+* [x] Drawdown concerns.
+* [x] Cost concerns.
+* [x] Failure modes.
+* [x] Recommendation.
+* [x] Required Board action, if any.
 
-## 10.7 Rejection Template
+## 8.7 Portfolio Memo Template
 
-* [ ] Add `request_summary`.
-* [ ] Add `rejection_reason`.
-* [ ] Add `policy_or_evidence_basis`.
-* [ ] Add `safe_alternative`.
-* [ ] Add `next_possible_action`.
+* [x] Portfolio state.
+* [x] Strategy lifecycle state.
+* [x] Live strategy performance.
+* [x] Paper strategy performance.
+* [x] Correlation clusters.
+* [x] Allocation constraints.
+* [x] RiskGovernor constraints.
+* [x] Recommended promotions/demotions.
+* [x] Recommended allocation changes.
+* [x] Board approval requirement.
 
-## 10.8 Blocked-by-Risk Template
+## 8.8 Board Approval Request Template
 
-* [ ] Add `proposal_summary`.
-* [ ] Add `RiskGovernor_decision`.
-* [ ] Add `blocked_actions`.
-* [ ] Add `risk_metrics_snapshot`.
-* [ ] Add `specific_reasons`.
-* [ ] Add `possible_safe_modifications`.
-* [ ] Add `required_next_review`.
+* [x] Decision required.
+* [x] Proposed action.
+* [x] Evidence reviewed.
+* [x] RiskGovernor status.
+* [x] Expected benefit.
+* [x] Key risks.
+* [x] Worst-case impact.
+* [x] Rollback plan.
+* [x] Expiration of approval.
+* [x] Required approval fields.
+
+## 8.9 Rejection Template
+
+* [x] Request summary.
+* [x] Rejection reason.
+* [x] Policy or evidence basis.
+* [x] Missing requirements, if any.
+* [x] Safer alternative.
+* [x] Required next step.
+
+## 8.10 Blocked-by-Risk Template
+
+* [x] Requested action.
+* [x] RiskGovernor result.
+* [x] Block reason.
+* [x] Risk metrics snapshot.
+* [x] Required remediation.
+* [x] Whether Board escalation is allowed.
+* [x] Whether retry is allowed.
+
+## 8.11 Clarification Template
+
+* [x] What can be done.
+* [x] What is missing.
+* [x] Why it matters.
+* [x] Required fields.
+* [x] Safe default option, if applicable.
 
 ---
 
-# 11. Executive Permission Model
+## 9. Executive Routing Rules
 
-## 11.1 CEO Agent Permissions
+## 9.1 Research Requests
+
+* [x] Route market-condition questions to Research Department.
+* [x] Route strategy-idea discovery to Research Department.
+* [x] Route news/macro/sentiment questions to Research Department.
+* [x] Route seasonality/intermarket questions to Research Department.
+* [x] CEO synthesizes research memo.
+
+## 9.2 Strategy Creation Requests
+
+* [x] Route strategy specification requests to Strategy Creator Agent.
+* [x] Route code generation requests to Strategy Codegen Agent.
+* [x] Route code review requests to Strategy Reviewer Agent.
+* [x] Require research evidence when strategy idea is research-derived.
+* [x] CEO synthesizes strategy proposal or review memo.
+
+## 9.3 Simulation Requests
+
+* [x] Route backtest runs to Backtest Agent.
+* [x] Route backtest explanations to Backtest Analyst Agent.
+* [x] Route optimization comparisons to Optimization Comparator Agent.
+* [x] Route robustness reviews to Robustness Agent.
+* [x] Route statistical validation to Statistical Validation Agent.
+* [x] CEO synthesizes simulation memo.
+
+## 9.4 Risk Requests
+
+* [x] Route deterministic risk approval checks to RiskGovernor service.
+* [x] Route risk explanation requests to Risk Reviewer Agent.
+* [x] Route VaR/CVaR questions to Risk Department services.
+* [x] Route correlation/concentration concerns to Risk Department services.
+* [x] CEO synthesizes risk memo.
+
+## 9.5 Portfolio Requests
+
+* [x] Route allocation reviews to Portfolio Manager Agent.
+* [x] Route lifecycle reviews to Strategy Lifecycle Agent.
+* [x] Route paper promotion questions to Portfolio Department.
+* [x] Route execution-readiness questions to Portfolio/Execution services.
+* [x] CEO synthesizes portfolio memo.
+
+## 9.6 Execution Requests
+
+* [x] Route live execution requests only to governed action draft workflow.
+* [x] Require RiskGovernor approval.
+* [x] Require live-mode status.
+* [x] Require strategy live status.
+* [x] Require Kill Switch healthy status.
+* [x] Require Board approval when policy demands it.
+* [x] CEO never executes directly.
+
+## 9.7 Reporting and Audit Requests
+
+* [x] Route daily/weekly/monthly report requests to Performance Reporter.
+* [x] Route audit questions to Audit Agent or audit service.
+* [x] Route cost questions to Cost Optimizer Agent.
+* [x] CEO synthesizes reporting memo.
+
+---
+
+## 10. Board Escalation Rules
+
+CEO Agent must escalate when the request involves:
+
+* [x] Enabling live trading.
+* [x] Connecting a live broker for trading.
+* [x] Promoting paper strategy to micro-live.
+* [x] Increasing live capital allocation.
+* [x] Decreasing allocation if it affects open risk or operational policy.
+* [x] Retiring a live strategy.
+* [x] Changing risk thresholds.
+* [x] Overriding Kill Switch.
+* [x] Resuming after critical incident.
+* [x] Changing execution bridge behavior.
+* [x] Changing order router rules.
+* [x] Deploying generated strategy code to production.
+* [x] Approving a new strategy for live operation.
+* [x] Any request classified as critical risk.
+
+Board escalation output must include:
+
+* [x] Action requested.
+* [x] Evidence reviewed.
+* [x] RiskGovernor status.
+* [x] Expected benefit.
+* [x] Worst-case impact.
+* [x] Rollback plan.
+* [x] Approval expiration.
+* [x] Required human approval fields.
+
+---
+
+## 11. Refusal and Safety Rules
+
+CEO Agent must refuse or block requests that:
+
+* [x] Ask to bypass RiskGovernor.
+* [x] Ask to bypass Kill Switch.
+* [x] Ask to hide risk, losses, audit records, or broker errors.
+* [x] Ask to execute without approval token.
+* [x] Ask to increase risk beyond policy without governance.
+* [x] Ask to delete or tamper with audit logs.
+* [x] Ask to fabricate backtest, evidence, or performance results.
+* [x] Ask to deploy unreviewed strategy code live.
+* [x] Ask to use unapproved tools for external research, execution, or broker access.
+* [x] Ask to ignore missing evidence.
+* [x] Ask the Planner Agent to act directly.
+
+Refusal output must include:
+
+* [x] What was requested.
+* [x] Why it cannot be done.
+* [x] Which policy or safety rule applies.
+* [x] Safer alternative.
+* [x] Next valid workflow step, if any.
+
+---
+
+## 12. Permission Model
+
+## 12.1 CEO Agent Permissions
 
 ```python
 CEO_AGENT_PERMISSIONS = {
-    "can_read_specialist_outputs": True,
-    "can_read_firm_constitution": True,
-    "can_read_risk_policy": True,
-    "can_read_board_policy": True,
-    "can_synthesize_final_memo": True,
-    "can_draft_board_request": True,
-    "can_execute_trade": False,
-    "can_approve_risk": False,
-    "can_modify_risk_thresholds": False,
-    "can_modify_live_mode": False,
-    "can_call_broker_bridge": False,
-}
-```
-
-## 11.2 Planner Agent Permissions
-
-```python
-PLANNER_AGENT_PERMISSIONS = {
-    "can_classify_intent": True,
-    "can_select_specialist_agents": True,
-    "can_select_read_only_tools": True,
-    "can_mark_governed_action_required": True,
-    "can_mark_board_approval_required": True,
-    "can_execute_trade": False,
-    "can_approve_risk": False,
-    "can_call_broker_bridge": False,
-    "can_modify_database": False,
-}
-```
-
-## 11.3 Board Governance Agent Permissions
-
-```python
-BOARD_GOVERNANCE_AGENT_PERMISSIONS = {
-    "can_read_board_policy": True,
-    "can_evaluate_approval_requirement": True,
-    "can_draft_approval_request": True,
-    "can_record_approval_status": True,
+    "can_read_user_request": True,
+    "can_call_internal_planner": True,
+    "can_delegate_to_departments": True,
+    "can_read_evidence": True,
+    "can_write_executive_memo": True,
+    "can_write_audit_record": True,
+    "can_create_governed_action_draft": True,
+    "can_request_board_approval": True,
     "can_execute_trade": False,
     "can_approve_risk": False,
     "can_override_risk_governor": False,
+    "can_override_kill_switch": False,
+    "can_modify_risk_thresholds": False,
+    "can_enable_live_trading": False,
+}
+```
+
+## 12.2 Internal Planner Permissions
+
+```python
+PLANNER_AGENT_PERMISSIONS = {
+    "can_read_normalized_user_request": True,
+    "can_read_capability_registry": True,
+    "can_read_evidence_requirements": True,
+    "can_read_policy_summaries": True,
+    "can_propose_workflow_plan": True,
+    "can_classify_intent": True,
+    "can_identify_missing_inputs": True,
+    "can_call_specialist_departments": False,
+    "can_answer_user_directly": False,
+    "can_execute_trade": False,
+    "can_approve_risk": False,
+    "can_mutate_state": False,
 }
 ```
 
 ---
 
-# 12. Executive Audit Requirements
+## 13. Audit Requirements
 
-Every Executive Department response must include:
+Every CEO workflow must log:
 
-* [ ] `request_id`.
-* [ ] `workflow_id`.
-* [ ] `agent_name`.
-* [ ] `planner_output_id`.
-* [ ] `evidence_package_id`.
-* [ ] `specialist_agents_called`.
-* [ ] `tools_called`.
-* [ ] `permission_profile`.
-* [ ] `risk_level`.
-* [ ] `governed_action_required`.
-* [ ] `board_approval_required`.
-* [ ] `board_approval_id` if available.
-* [ ] `blocked_actions`.
-* [ ] `allowed_actions`.
-* [ ] `prompt_version`.
-* [ ] `policy_version`.
-* [ ] `model_provider`.
-* [ ] `model_name`.
-* [ ] `fallback_used`.
-* [ ] `context_revision`.
-* [ ] `evidence_refs`.
-* [ ] `created_at`.
+* [x] `request_id`.
+* [x] `session_id`.
+* [x] `user_id`.
+* [x] `start_time`.
+* [x] `end_time`.
+* [x] `ceo_agent_version`.
+* [x] `planner_agent_version`.
+* [x] `planner_called`.
+* [x] `planner_plan_id`.
+* [x] `workflow_type`.
+* [x] `departments_called`.
+* [x] `agents_called`.
+* [x] `tools_called`.
+* [x] `evidence_refs`.
+* [x] `missing_evidence`.
+* [x] `llm_used`.
+* [x] `model_provider`.
+* [x] `model_name`.
+* [x] `fallback_used`.
+* [x] `permission_profile`.
+* [x] `policy_version`.
+* [x] `prompt_version`.
+* [x] `board_escalation_required`.
+* [x] `risk_governor_required`.
+* [x] `human_confirmation_required`.
+* [x] `allowed_actions`.
+* [x] `blocked_actions`.
+* [x] `final_decision`.
+* [x] `error_if_any`.
 
----
-
-# 13. Executive Workflow States
-
-* [ ] `received`.
-* [ ] `planning`.
-* [ ] `clarification_required`.
-* [ ] `delegating`.
-* [ ] `waiting_for_specialist_outputs`.
-* [ ] `evidence_synthesis`.
-* [ ] `governance_review`.
-* [ ] `board_approval_required`.
-* [ ] `blocked_by_policy`.
-* [ ] `blocked_by_risk`.
-* [ ] `memo_drafting`.
-* [ ] `completed`.
-* [ ] `failed`.
+Planner audit must be nested inside CEO audit and must not be treated as a separate public workflow audit.
 
 ---
 
-# 14. Executive Department Handoff Contracts
+## 14. Evaluator Requirements
 
-## 14.1 Research Handoff
+## 14.1 CEO Evaluator
 
-* [ ] Send research questions to Research Department.
-* [ ] Receive research report package.
-* [ ] Receive validated hypotheses.
-* [ ] Receive evidence references.
-* [ ] CEO synthesizes research memo.
+* [x] Check CEO response envelope is valid.
+* [x] Check Planner output exists for non-trivial requests.
+* [x] Check Planner output passed schema validation.
+* [x] Check specialist responses are valid `AgentResponse` envelopes.
+* [x] Check evidence exists when required.
+* [x] Check no forbidden tools were used.
+* [x] Check live/execution requests were blocked or governed.
+* [x] Check RiskGovernor requirement is enforced.
+* [x] Check Board escalation requirement is enforced.
+* [x] Check final memo matches response template.
+* [x] Check audit metadata exists.
+* [x] Check LLM did not override deterministic decision.
 
-## 14.2 Strategy Creation Handoff
+## 14.2 Planner Evaluator
 
-* [ ] Send strategy request or approved hypothesis.
-* [ ] Receive StrategySpec.
-* [ ] Receive generated code package if requested.
-* [ ] Receive reviewer report.
-* [ ] CEO synthesizes strategy proposal memo.
-
-## 14.3 Simulation Handoff
-
-* [ ] Send strategy code hash, spec, period, costs, and execution mode.
-* [ ] Receive immutable backtest package.
-* [ ] Receive diagnosis.
-* [ ] Receive optimization/robustness/statistical validation outputs.
-* [ ] CEO synthesizes simulation memo.
-
-## 14.4 Risk Handoff
-
-* [ ] Send strategy evidence and portfolio context.
-* [ ] Receive RiskGovernor output.
-* [ ] Receive risk reviewer memo.
-* [ ] CEO preserves deterministic risk decision.
-* [ ] CEO explains risk decision to user.
-
-## 14.5 Portfolio Handoff
-
-* [ ] Send strategy lifecycle review request.
-* [ ] Receive allocation recommendations.
-* [ ] Receive paper/live performance evidence.
-* [ ] Receive Board approval requirement.
-* [ ] CEO synthesizes portfolio decision memo.
-
-## 14.6 Execution Handoff
-
-* [ ] Executive Department may only draft execution proposals.
-* [ ] Execution requires governed workflow.
-* [ ] Execution requires RiskGovernor approval token.
-* [ ] Execution requires live mode enabled.
-* [ ] Execution requires Order Router validation.
-* [ ] Execution requires audit logging available.
-* [ ] CEO may report status but must not directly execute.
+* [x] Check planner output schema is valid.
+* [x] Check workflow type is allowed.
+* [x] Check departments are known.
+* [x] Check agents are known.
+* [x] Check required evidence is specified.
+* [x] Check missing inputs are correctly identified.
+* [x] Check forbidden tools are absent.
+* [x] Check governed-action flags are correctly set.
+* [x] Check Board escalation flags are correctly set.
+* [x] Check RiskGovernor flags are correctly set.
+* [x] Check confidence is present.
 
 ---
 
-# 15. Refusal and Safety Rules
+## 15. Handoff Contracts
 
-The Executive Department must refuse or block:
+## 15.1 CEO to Research Department
 
-* [ ] Requests to bypass RiskGovernor.
-* [ ] Requests to bypass Board approval.
-* [ ] Requests to execute live trades without approved workflow.
-* [ ] Requests to disable kill switch without Board approval.
-* [ ] Requests to hide failed trades, failed backtests, or audit logs.
-* [ ] Requests to fabricate evidence or performance.
-* [ ] Requests to ignore costs, slippage, spread, or drawdown.
-* [ ] Requests to promote a strategy without validation.
-* [ ] Requests to modify risk limits without governed approval.
-* [ ] Requests to use unapproved external tools for trading-critical decisions.
+* [x] `research_question`.
+* [x] `symbols`.
+* [x] `timeframes`.
+* [x] `market_context_needed`.
+* [x] `strategy_family_interest`.
+* [x] `evidence_required`.
+* [x] `constraints`.
+
+## 15.2 CEO to Strategy Creation Department
+
+* [x] `strategy_request`.
+* [x] `research_evidence_refs`.
+* [x] `strategy_family`.
+* [x] `symbol`.
+* [x] `timeframe`.
+* [x] `entry_concept`.
+* [x] `exit_concept`.
+* [x] `risk_assumptions`.
+* [x] `test_plan_required`.
+
+## 15.3 CEO to Simulation Department
+
+* [x] `strategy_id`.
+* [x] `strategy_code_hash`.
+* [x] `config`.
+* [x] `data_window`.
+* [x] `cost_assumptions`.
+* [x] `execution_mode`.
+* [x] `acceptance_rules`.
+
+## 15.4 CEO to Risk Department
+
+* [x] `proposal_id`.
+* [x] `strategy_id`.
+* [x] `portfolio_state_ref`.
+* [x] `risk_policy_ref`.
+* [x] `action_type`.
+* [x] `proposed_size_or_allocation`.
+* [x] `evidence_refs`.
+
+## 15.5 CEO to Portfolio Department
+
+* [x] `portfolio_decision_type`.
+* [x] `strategy_id`.
+* [x] `lifecycle_state`.
+* [x] `performance_evidence_refs`.
+* [x] `risk_evidence_refs`.
+* [x] `allocation_constraints`.
+* [x] `board_approval_status`.
+
+## 15.6 CEO to Execution Services
+
+Execution handoff must be rare and governed.
+
+* [x] `governed_action_id`.
+* [x] `proposal_id`.
+* [x] `strategy_id`.
+* [x] `symbol`.
+* [x] `side`.
+* [x] `size`.
+* [x] `order_type`.
+* [x] `risk_approval_token`.
+* [x] `live_mode_status`.
+* [x] `kill_switch_status`.
+* [x] `board_approval_ref`, if required.
 
 ---
 
-# 16. Evaluation Requirements
-
-## 16.1 CEO Agent Evaluation
-
-* [ ] Response contains valid `AgentResponse` envelope.
-* [ ] Response includes final memo artifact.
-* [ ] Response includes evidence references.
-* [ ] Response preserves specialist deterministic decisions.
-* [ ] Response preserves RiskGovernor rejection.
-* [ ] Response marks Board approval when required.
-* [ ] Response does not execute or approve trades.
-* [ ] Response handles missing evidence safely.
-* [ ] Response includes audit metadata.
-
-## 16.2 Planner Agent Evaluation
-
-* [ ] Planner output validates against schema.
-* [ ] Planner detects correct intent.
-* [ ] Planner detects missing inputs.
-* [ ] Planner detects governed actions.
-* [ ] Planner detects Board approval requirement.
-* [ ] Planner rejects unsafe requests.
-* [ ] Planner selects correct specialist agents.
-* [ ] Planner avoids direct broker/execution calls.
-* [ ] Planner includes audit metadata.
-
-## 16.3 Board Governance Evaluation
-
-* [ ] Board approval requirement is detected correctly.
-* [ ] Approval scope is enforced.
-* [ ] Expired approvals are rejected.
-* [ ] Forbidden actions are rejected instead of escalated.
-* [ ] Missing evidence blocks approval request.
-
-## 16.4 Governance Auditor Evaluation
-
-* [ ] Valid workflow passes.
-* [ ] Missing Planner output fails.
-* [ ] Missing evidence fails.
-* [ ] Risk override attempt fails.
-* [ ] Direct execution attempt fails.
-* [ ] Missing audit trail fails.
-
----
-
-# 17. Definition of Done
+## 16. Done Definition
 
 The Executive Department is complete only when:
 
-* [ ] CEO Agent exists as a standard HaruQuant agent service.
-* [ ] Planner Agent exists as a standard HaruQuant agent service.
-* [ ] Board Governance Agent exists as a standard HaruQuant agent service.
-* [ ] Evidence Synthesis Agent exists as a standard HaruQuant agent service.
-* [ ] Governance Auditor Agent exists as a standard HaruQuant agent service.
-* [ ] Every agent has `agent.py`, `contracts.py`, `prompts.py`, `deterministic_policy.py`, `tools.py`, `service.py`, `evaluator.py`, `README.md`, and tests.
-* [ ] Chat requests enter through `services/ceo_gateway.py`.
-* [ ] Planner produces structured planner output.
-* [ ] Specialist agents are never called directly by the chat UI.
-* [ ] CEO Agent produces final user-facing memos.
-* [ ] CEO Agent preserves deterministic specialist decisions.
-* [ ] RiskGovernor decisions cannot be overridden.
-* [ ] Board approval is required for governed actions.
-* [ ] Evidence references are required for conclusions.
-* [ ] Unsafe requests are refused.
-* [ ] Audit metadata is produced for every executive workflow.
-* [ ] Tests cover normal, missing-evidence, governed-action, Board-approval, unsafe-request, and risk-rejection cases.
+```text
+1. It contains only CEO Agent and internal Planner Agent.
+2. Planner Agent is physically and architecturally internal to CEO Agent.
+3. Planner Agent cannot be called directly by users, chat gateway, or departments.
+4. CEO Agent is the only bridge between user and departments.
+5. CEO Agent validates Planner output before action.
+6. CEO Agent delegates only through approved department services.
+7. CEO Agent synthesizes all final user-facing memos.
+8. Board governance is handled inside CEO deterministic policy.
+9. Evidence synthesis is handled inside CEO service/memo builder.
+10. Governance audit is handled inside CEO evaluator/audit logic.
+11. No Executive component can execute trades.
+12. No Executive component can approve risk.
+13. No Executive component can bypass RiskGovernor or Kill Switch.
+14. All outputs use structured contracts.
+15. All final decisions pass through deterministic policy.
+16. Audit metadata is complete.
+17. Tests cover routing, governance, evidence, refusal, and Planner isolation.
+18. CEOChatGateway integrates only with CEO Agent.
+```
 
 ---
 
-# 18. Final Architecture Rule
+## 17. Final Architecture Rule
 
 ```text
-The CEO Agent is the user-facing executive synthesizer.
-The Planner Agent is the deterministic workflow router.
-Specialist agents produce evidence.
-RiskGovernor controls risk approval.
-Board Governance controls human approval.
-Execution services execute only approved orders.
-CEOChatGateway is the only chat entrypoint.
+The CEO Agent is the executive interface.
+The Planner Agent is the CEO Agent's internal planning engine.
+The user never talks to Planner directly.
+Specialist departments never call Planner directly.
+All department orchestration flows through CEO Agent.
 ```
 
-The Executive Department must make HaruQuant feel like one coherent trading firm instead of a collection of unrelated agents.
+This keeps the Executive Department simple, avoids agent proliferation, and prevents confusion between user-facing authority, internal planning, department delegation, and final governance.

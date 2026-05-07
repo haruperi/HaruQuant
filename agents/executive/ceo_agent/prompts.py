@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from agents.executive.ceo_agent.shared.response_templates import (
+    clarification_template,
+    governed_action_draft_template,
+    portfolio_memo_template,
+)
+
 
 CEO_POLICY_REFERENCES = (
     "docs/agentic_firm/constitution.md",
@@ -118,6 +124,9 @@ __all__ = [
     "CEO_PROMPT_MARKDOWN",
     "CEO_POLICY_REFERENCES",
     "CEO_SYSTEM_INSTRUCTIONS",
+    "clarification_template",
+    "governed_action_draft_template",
+    "portfolio_memo_template",
     "rejection_template",
     "research_memo_template",
     "risk_memo_template",
