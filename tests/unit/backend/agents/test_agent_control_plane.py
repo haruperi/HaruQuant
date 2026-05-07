@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from agents.agent_registry import AgentRegistry
-from agents.orchestrator import AgentControlPlaneOrchestrator
-from agents.task_manager import AgentTaskManager, AgentTaskTransitionError
+from agents.control_plane.agent_registry import AgentRegistry
+from agents.control_plane.orchestrator import AgentControlPlaneOrchestrator
+from agents.control_plane.task_manager import AgentTaskManager, AgentTaskTransitionError
 from data.database import apply_pending_migrations, default_migrations_dir
 from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 

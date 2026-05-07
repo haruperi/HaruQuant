@@ -86,9 +86,9 @@ Responsibilities:
 
 New service candidates:
 
-- `agents/chat/ai_chat/conversation_orchestrator.py`
-- `agents/chat/ai_chat/intent_state.py`
-- `agents/chat/ai_chat/clarification_policy.py`
+- `services/ceo_gateway.py`
+- `agents/executive/planner_agent/service.py`
+- `agents/executive/planner_agent/service.py`
 
 Acceptance criteria:
 
@@ -149,10 +149,10 @@ Pattern:
 
 New modules:
 
-- `agents/chat/portfolio_risk_agent.py`
-- `agents/chat/backtest_explainer_agent.py`
-- `agents/chat/optimization_comparison_agent.py`
-- `agents/chat/final_responder_agent.py`
+- `agents/risk_portfolio/risk_reviewer_agent/service.py`
+- `agents/validation_backtesting/backtest_agent/evaluator.py`
+- `agents/validation_backtesting/optimization_comparator_agent/service.py`
+- `agents/executive/ceo_agent/service.py`
 
 Acceptance criteria:
 
@@ -173,7 +173,7 @@ Memory classes:
 
 Suggested service:
 
-- `agents/chat/ai_chat/conversation_state_service.py`
+- `services/conversation/service.py`
 
 Example:
 
@@ -200,7 +200,7 @@ It should:
 
 Suggested service:
 
-- `agents/chat/ai_chat/response_composer.py`
+- `agents/executive/ceo_agent/service.py`
 
 Response modes:
 
@@ -230,8 +230,8 @@ Tasks:
 
 Deliverables:
 
-- `agents/chat/ai_chat/conversation_orchestrator.py`
-- `agents/chat/ai_chat/clarification_policy.py`
+- `services/ceo_gateway.py`
+- `agents/executive/planner_agent/service.py`
 - tests for clarification vs direct answer routing
 
 ### Phase C2: Topic and Reference Memory
@@ -245,7 +245,7 @@ Tasks:
 
 Deliverables:
 
-- `agents/chat/ai_chat/conversation_state_service.py`
+- `services/conversation/service.py`
 - tests for reference resolution across turns
 
 ### Phase C3: Specialist Agent Mesh
@@ -262,8 +262,8 @@ Tasks:
 
 Deliverables:
 
-- `agents/chat/*.py`
-- `agents/chat/ai_chat/agent_consultation_service.py`
+- `agents/executive/ and agents/<department>/<agent_name>/ service modules`
+- `services/ceo_gateway.py`
 - replayable intermediate artifacts
 
 ### Phase C4: Conversational UX Upgrade

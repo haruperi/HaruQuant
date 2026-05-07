@@ -1,6 +1,6 @@
-﻿Below is the **dependency-ordered implementation checklist** for turning HaruQuant into a real multi-agent LLM trading firm. Iâ€™m structuring it so each layer unlocks the next layer. Do **not** start with live execution or too many agents. Start with governance, tool contracts, auditability, and paper-trading automation.
+Below is the **dependency-ordered implementation checklist** for turning HaruQuant into a real multi-agent LLM trading firm. I’m structuring it so each layer unlocks the next layer. Do **not** start with live execution or too many agents. Start with governance, tool contracts, auditability, and paper-trading automation.
 
-The source patterns Iâ€™m applying are: Paperclip-style org charts, budgets, governance, task tracking, and cost monitoring; TradingAgents-style analyst/research/trader/risk/fund-manager workflow; ADK-style multi-agent orchestration with tools and evaluation; and MCP-style tool/resource boundaries with human-in-the-loop safety for sensitive operations. ([GitHub][1])
+The source patterns I’m applying are: Paperclip-style org charts, budgets, governance, task tracking, and cost monitoring; TradingAgents-style analyst/research/trader/risk/fund-manager workflow; ADK-style multi-agent orchestration with tools and evaluation; and MCP-style tool/resource boundaries with human-in-the-loop safety for sensitive operations. ([GitHub][1])
 
 ---
 
@@ -12,28 +12,28 @@ Build in this order:
 
 ```text
 Governance
-â†’ Data contracts
-â†’ Tool contracts
-â†’ Agent control plane
-â†’ Read-only agents
-â†’ Strategy creation agents
-â†’ Backtest agents
-â†’ Risk agents
-â†’ Paper execution
-â†’ Portfolio management
-â†’ Live execution gates
-â†’ Full autonomous operating cycle
+→ Data contracts
+→ Tool contracts
+→ Agent control plane
+→ Read-only agents
+→ Strategy creation agents
+→ Backtest agents
+→ Risk agents
+→ Paper execution
+→ Portfolio management
+→ Live execution gates
+→ Full autonomous operating cycle
 ```
 
 The reason is simple: TradingAgents separates analysts, researchers, trader, risk management, and fund manager approval; HaruQuant should follow the same separation so that no single agent can research, decide, size, approve, and execute alone. ([tradingagents-ai.github.io][2])
 
 ---
 
-# Phase 1 â€” Governance, constitution, and safety foundation
+# Phase 1 — Governance, constitution, and safety foundation
 
 ## Goal
 
-Create the â€œlaws of the firmâ€ before creating agents.
+Create the “laws of the firm” before creating agents.
 
 ## Dependency
 
@@ -121,7 +121,7 @@ This phase is complete only when HaruQuant has written policies that agents must
 
 ---
 
-# Phase 2 â€” Repository and folder structure
+# Phase 2 — Repository and folder structure
 
 ## Goal
 
@@ -136,8 +136,8 @@ Phase 1 complete.
 ### 2.1 Create backend agent folders
 
 * [X] Create `agents/`.
-* [X] Create `agents/ceo.py`.
-* [X] Create `agents/planner.py`.
+* [X] Create `agents/executive/ceo_agent/service.py`.
+* [X] Create `agents/executive/planner_agent/service.py`.
 * [X] Create `agents/research.py`.
 * [X] Create `agents/strategy_creator.py`.
 * [X] Create `agents/strategy_reviewer.py`.
@@ -211,7 +211,7 @@ The repo structure exists, and every future phase has a correct place to write f
 
 ---
 
-# Phase 3 â€” Core schemas and contracts
+# Phase 3 — Core schemas and contracts
 
 ## Goal
 
@@ -225,7 +225,7 @@ Phase 2 complete.
 
 ### 3.1 Create shared schemas
 
-* [X] Create `agents/schemas.py`.
+* [X] Create `agents/_shared/schemas.py`.
 * [X] Add `AgentTask`.
 * [X] Add `AgentPlan`.
 * [X] Add `AgentObservation`.
@@ -303,7 +303,7 @@ Phase 3 is implemented on the canonical package paths, with no dependency on the
 
 Completed implementation:
 
-* Added `agents/schemas.py` as the shared agent exchange contract module.
+* Added `agents/_shared/schemas.py` as the shared agent exchange contract module.
 * Added firm-facing Pydantic models for tasks, plans, observations, decisions, evidence refs, tool calls, strategy specs, strategy reviews, backtest requests/results, risk reviews, trade proposals, risk approvals, execution requests/results, and research reports.
 * `AgentPlan` aliases `ConversationPlan`, which now carries planner governance fields: Board approval, RiskGovernor requirement, audit requirement, allowed/blocked agents, expected outputs, evidence requirements, and failure policy.
 * Added the canonical top-level `contracts/` package for typed workflow and trading contracts, including `WorkflowIntent`, `WorkflowPlan`, `TradeHypothesis`, `TradeProposal`, `RiskAssessmentRequest`, `RiskAssessmentDecision`, `ExecutionIntent`, `ExecutionReceipt`, `ObservationEvent`, `EvaluationReport`, `IncidentAlert`, `OverrideRequest`, `OverrideDecision`, `ReplayBundle`, `ChatLifecycleEvent`, and `PageContextPacket`.
@@ -328,7 +328,7 @@ Every agent speaks in structured objects, not vague prose.
 
 ---
 
-# Phase 4 â€” Database tables and audit persistence
+# Phase 4 — Database tables and audit persistence
 
 ## Goal
 
@@ -415,7 +415,7 @@ A strategy, decision, tool call, risk approval, or trade can always be traced ba
 
 ---
 
-# Phase 5 â€” Tool registry and permission layer
+# Phase 5 — Tool registry and permission layer
 
 ## Goal
 
@@ -425,7 +425,7 @@ Before agents can act, define what tools exist and who can use them.
 
 Phases 3 and 4 complete.
 
-MCPâ€™s tool model is useful here because each tool should have a name, schema, result format, and invocation boundary. MCP also recommends human-in-the-loop confirmation and clear visibility for tool invocations, which is especially important for trading and execution tools. ([Model Context Protocol][3])
+MCP’s tool model is useful here because each tool should have a name, schema, result format, and invocation boundary. MCP also recommends human-in-the-loop confirmation and clear visibility for tool invocations, which is especially important for trading and execution tools. ([Model Context Protocol][3])
 
 ## Checklist
 
@@ -480,7 +480,7 @@ MCPâ€™s tool model is useful here because each tool should have a name, sch
 
 ### 5.5 Enforce permission checks
 
-* [X] Create `agents/permissions.py`.
+* [X] Create `agents/_shared/permissions.py`.
 * [X] Map agents to allowed tools.
 * [X] Block tool calls not explicitly allowed.
 * [X] Block critical tools without approval.
@@ -498,7 +498,7 @@ Completed implementation:
 * Extended `ToolDefinition` with `permission_required`, `domain`, `execution_boundary`, and an `audit_required` compatibility property while preserving existing `requires_audit` behavior.
 * Registered the Phase 5 read-only, write, and critical tool names exactly as listed in the checklist.
 * Marked all critical Phase 5 tools as `risk_level="critical"` and requiring both human approval and RiskGovernor approval.
-* Added canonical `agents/permissions.py` with `AgentToolPermissionService`, blocked-attempt recording, agent-name aliases, and enforcement errors.
+* Added canonical `agents/_shared/permissions.py` with `AgentToolPermissionService`, blocked-attempt recording, agent-name aliases, and enforcement errors.
 * Added canonical `agents/runtime/tool_policy.py`; the runtime `ToolAllowlistMiddleware` still supports explicit allowlists and now delegates agent/tool checks to the Phase 5 permission service.
 * Updated tests away from retired backend imports and onto canonical `agents` and `tools` packages.
 
@@ -514,7 +514,7 @@ Agents cannot call arbitrary code. Every capability is permissioned, typed, logg
 
 ---
 
-# Phase 6 â€” Agent control plane
+# Phase 6 — Agent control plane
 
 ## Goal
 
@@ -524,13 +524,13 @@ Create the orchestration layer that manages agents like a firm.
 
 Phases 3, 4, and 5 complete.
 
-ADK supports predictable workflow pipelines, dynamic routing, specialized multi-agent teams, tool integration, and evaluation workflows; use that style for HaruQuantâ€™s agent control plane. ([Google Cloud Documentation][4])
+ADK supports predictable workflow pipelines, dynamic routing, specialized multi-agent teams, tool integration, and evaluation workflows; use that style for HaruQuant’s agent control plane. ([Google Cloud Documentation][4])
 
 ## Checklist
 
 ### 6.1 Create agent registry
 
-* [X] Create `agents/agent_registry.py`.
+* [X] Create `agents/control_plane/agent_registry.py`.
 * [X] Register CEO Agent.
 * [X] Register Planner Agent.
 * [X] Register Research Agent.
@@ -543,7 +543,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.2 Create task manager
 
-* [X] Create `agents/task_manager.py`.
+* [X] Create `agents/control_plane/task_manager.py`.
 * [X] Add `create_task`.
 * [X] Add `assign_task`.
 * [X] Add `start_task`.
@@ -556,7 +556,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.3 Create orchestration service
 
-* [X] Create `agents/orchestrator.py`.
+* [X] Create `agents/control_plane/orchestrator.py`.
 * [X] Accept user request.
 * [X] Call Planner.
 * [X] Create parent task.
@@ -569,7 +569,7 @@ ADK supports predictable workflow pipelines, dynamic routing, specialized multi-
 
 ### 6.4 Create agent base class
 
-* [X] Create `agents/base.py`.
+* [X] Create `agents/_shared/base_agent.py` and `agents/_shared/base_contracts.py`.
 * [X] Add `agent_name`.
 * [X] Add `role`.
 * [X] Add `allowed_tools`.
@@ -597,12 +597,12 @@ Phase 6 is implemented on the canonical `agents/` path.
 
 Completed implementation:
 
-* Added `agents/agent_registry.py` with the first firm departments: CEO, Planner, Research, Strategy Creator, Strategy Reviewer, Backtest, Risk Reviewer, Performance Reporter, and Audit.
+* Added `agents/control_plane/agent_registry.py` with the first firm departments: CEO, Planner, Research, Strategy Creator, Strategy Reviewer, Backtest, Risk Reviewer, Performance Reporter, and Audit.
 * `AgentRegistry` draws each department's allowed tool envelope from the Phase 5 registry/permission layer.
-* Added `agents/task_manager.py` with persisted or in-memory task creation, child-task creation, task-tree retrieval, and explicit status transitions.
-* Added `agents/base.py` with the standard `plan -> act -> observe -> evaluate -> finalize` runtime envelope and defensive error handling.
-* Added `agents/orchestrator.py` with `AgentControlPlaneOrchestrator`, which accepts a user request, creates a workflow, creates the CEO parent task, creates the planner task, creates delegated child tasks, dispatches deterministic department agents, collects outputs, records execution trace fields, produces a structured final response, and writes an audit record.
-* Added deterministic Phase 6 planner routing in `agents/planner_agent.py` for strategy, backtest, research, and risk-style requests.
+* Added `agents/control_plane/task_manager.py` with persisted or in-memory task creation, child-task creation, task-tree retrieval, and explicit status transitions.
+* Added `agents/_shared/base_agent.py` and `agents/_shared/base_contracts.py` with the standard `plan -> act -> observe -> evaluate -> finalize` runtime envelope and defensive error handling.
+* Added `agents/control_plane/orchestrator.py` with `AgentControlPlaneOrchestrator`, which accepts a user request, creates a workflow, creates the CEO parent task, creates the planner task, creates delegated child tasks, dispatches deterministic department agents, collects outputs, records execution trace fields, produces a structured final response, and writes an audit record.
+* Added deterministic Phase 6 planner routing in `agents/executive/planner_agent/service.py` for strategy, backtest, research, and risk-style requests.
 * Updated canonical agent exports in `agents/__init__.py`.
 * Updated Phase 6 tests away from retired backend imports and onto canonical `agents` modules.
 
@@ -632,7 +632,7 @@ Phase 6 complete.
 
 ### 7.1 CEO Agent
 
-* [X] Create `agents/ceo.py`.
+* [X] Create `agents/executive/ceo_agent/service.py`.
 * [X] Add CEO system instructions.
 * [X] Add firm constitution reference.
 * [X] Add risk policy reference.
@@ -644,7 +644,7 @@ Phase 6 complete.
 
 ### 7.2 Planner Agent
 
-* [X] Create `agents/planner.py`.
+* [X] Create `agents/executive/planner_agent/service.py`.
 * [X] Implement structured planner output.
 * [X] Support `strategy_creation`.
 * [X] Support `backtest_diagnosis`.
@@ -659,7 +659,7 @@ Phase 6 complete.
 
 ### 7.3 CEO response templates
 
-* [X] Create `agents/ceo_templates.py`.
+* [X] Create `agents/executive/ceo_agent/prompts.py`.
 * [X] Add research memo template.
 * [X] Add strategy proposal template.
 * [X] Add backtest report template.
@@ -679,9 +679,9 @@ Usage examples:
 
 Completed implementation:
 
-* Added canonical `agents/planner.py` with a Phase 7 route catalog, deterministic governance overrides, classifier extension point, and expanded `ConversationPlan` fields for `needs_clarification` and `planner_source`.
-* Added canonical `agents/ceo.py` with CEO/CIO-style system instructions, policy references, identity answers, generic answer synthesis, unsafe-request refusal, Board/RiskGovernor escalation, and final memo synthesis.
-* Added `agents/ceo_templates.py` for research, strategy, backtest, risk, Board approval, rejection, and blocked-by-risk memos.
+* Added canonical `agents/executive/planner_agent/service.py` with a Phase 7 route catalog, deterministic governance overrides, classifier extension point, and expanded `ConversationPlan` fields for `needs_clarification` and `planner_source`.
+* Added canonical `agents/executive/ceo_agent/service.py` with CEO/CIO-style system instructions, policy references, identity answers, generic answer synthesis, unsafe-request refusal, Board/RiskGovernor escalation, and final memo synthesis.
+* Added `agents/executive/ceo_agent/prompts.py` for research, strategy, backtest, risk, Board approval, rejection, and blocked-by-risk memos.
 * Updated the control plane to use the Phase 7 planner and include the CEO memo in the final response and audit metadata.
 * Updated Phase 7 tests to use the canonical `agents` package and avoid retired backend paths.
 
@@ -762,7 +762,7 @@ TradingAgents uses specialized analysts such as fundamental, sentiment, news, an
 
 ### Phase 8 implementation note
 
-Phase 8 was implemented on the canonical `agents/research/` path with read-only deterministic agents: `MarketIntelligenceAgent`, `TechnicalAnalystAgent`, and `StrategyScoutAgent`. The shared `ResearchReport` schema was added to `agents/schemas.py`, and reports are saved as evidence JSON under `memory/evidence/`. The Phase 7 Planner research route now delegates to these Research Department v1 agents. Runnable script: `scripts/examples/agentic_ai/08_research_department.py`.
+Phase 8 was implemented on the canonical `agents/research/` path with read-only deterministic agents: `MarketIntelligenceAgent`, `TechnicalAnalystAgent`, and `StrategyScoutAgent`. The shared `ResearchReport` schema was added to `agents/_shared/schemas.py`, and reports are saved as evidence JSON under `memory/evidence/`. The Phase 7 Planner research route now delegates to these Research Department v1 agents. Runnable script: `scripts/examples/agentic_ai/08_research_department.py`.
 
 ## Done definition
 
@@ -770,7 +770,7 @@ The CEO can ask for strategy ideas, and the Research Department returns structur
 
 ---
 
-# Phase 9 â€” Strategy Creation Department
+# Phase 9 — Strategy Creation Department
 
 ## Goal
 
@@ -820,11 +820,11 @@ Phase 8 complete.
 
 ## Done definition
 
-A request like â€œcreate a EURUSD H1 mean-reversion strategyâ€ becomes a structured YAML/JSON strategy spec that can be reviewed and coded.
+A request like “create a EURUSD H1 mean-reversion strategy” becomes a structured YAML/JSON strategy spec that can be reviewed and coded.
 
 ---
 
-# Phase 10 â€” Strategy Review Department
+# Phase 10 — Strategy Review Department
 
 ## Goal
 
@@ -866,7 +866,7 @@ No strategy reaches code generation without a formal review.
 
 ---
 
-# Phase 11 â€” Strategy Codegen Department
+# Phase 11 — Strategy Codegen Department
 
 ## Goal
 
@@ -922,11 +922,11 @@ Every generated strategy is testable, versioned, and linked to a reviewed spec.
 
 ---
 
-# Phase 12 â€” Simulation Department v1
+# Phase 12 — Simulation Department v1
 
 ## Goal
 
-Run reproducible historical tests using HaruQuantâ€™s engine.
+Run reproducible historical tests using HaruQuant’s engine.
 
 ## Dependency
 
@@ -994,7 +994,7 @@ A strategy can be tested and produce a full, immutable evidence package.
 
 ---
 
-# Phase 13 â€” Backtest Analyst and Diagnosis Agent
+# Phase 13 — Backtest Analyst and Diagnosis Agent
 
 ## Goal
 
@@ -1036,7 +1036,7 @@ HaruQuant does not just produce metrics; it explains strategy behavior.
 
 ---
 
-# Phase 14 â€” Optimization Comparator
+# Phase 14 — Optimization Comparator
 
 ## Goal
 
@@ -1075,7 +1075,7 @@ The system recommends robust parameter regions, not the prettiest overfit result
 
 ---
 
-# Phase 15 â€” Robustness Department
+# Phase 15 — Robustness Department
 
 ## Goal
 
@@ -1124,7 +1124,7 @@ No strategy reaches paper trading from a single backtest.
 
 ---
 
-# Phase 16 â€” Statistical Validation Department
+# Phase 16 — Statistical Validation Department
 
 ## Goal
 
@@ -1160,11 +1160,11 @@ Phase 12 complete; ideally Phase 15 complete.
 
 ## Done definition
 
-The system can say, â€œprofitable but not statistically convincing,â€ which is critical.
+The system can say, “profitable but not statistically convincing,” which is critical.
 
 ---
 
-# Phase 17 â€” RiskGovernor service
+# Phase 17 — RiskGovernor service
 
 ## Goal
 
@@ -1230,7 +1230,7 @@ No order can execute without RiskGovernor approval.
 
 ---
 
-# Phase 18 â€” Risk Reviewer Agent
+# Phase 18 — Risk Reviewer Agent
 
 ## Goal
 
@@ -1274,7 +1274,7 @@ Risk decisions become understandable, auditable, and explainable.
 
 ---
 
-# Phase 19 â€” Paper trading engine
+# Phase 19 — Paper trading engine
 
 ## Goal
 
@@ -1305,7 +1305,7 @@ Phases 12, 15, 17, and 18 complete.
 
 ### 19.2 Paper Execution Agent
 
-* [X] Create `agents/paper_execution.py`.
+* [X] Create `agents/execution/paper_execution_agent/service.py`.
 * [X] Accept approved paper strategy.
 * [X] Run signal checks.
 * [X] Create trade proposal.
@@ -1331,7 +1331,7 @@ A strategy can run in paper mode with full risk checks and full audit logs.
 
 ---
 
-# Phase 20 â€” Performance Reporter Agent
+# Phase 20 — Performance Reporter Agent
 
 ## Goal
 
@@ -1385,7 +1385,7 @@ You can review the firm like a hedge-fund operator, not as a code debugger.
 
 ---
 
-# Phase 21 â€” Portfolio Manager Agent
+# Phase 21 — Portfolio Manager Agent
 
 ## Goal
 
@@ -1395,7 +1395,7 @@ Manage strategy allocation and portfolio composition.
 
 Phases 17 to 20 complete.
 
-TradingAgents uses a fund-manager approval workflow after analysts, researchers, trader, and risk agents contribute their views; HaruQuantâ€™s Portfolio Manager should similarly approve allocation changes only after evidence and risk review are complete. ([tradingagents-ai.github.io][2])
+TradingAgents uses a fund-manager approval workflow after analysts, researchers, trader, and risk agents contribute their views; HaruQuant’s Portfolio Manager should similarly approve allocation changes only after evidence and risk review are complete. ([tradingagents-ai.github.io][2])
 
 ## Checklist
 
@@ -1458,7 +1458,7 @@ Validation:
 
 ---
 
-# Phase 22 â€” Dashboard and UI integration
+# Phase 22 — Dashboard and UI integration
 
 ## Goal
 
@@ -1537,7 +1537,7 @@ You can monitor the agentic firm from the UI without reading logs manually.
 
 ---
 
-# Phase 23 â€” Live execution bridge preparation
+# Phase 23 — Live execution bridge preparation
 
 ## Goal
 
@@ -1594,7 +1594,7 @@ Live execution code exists but is still blocked by configuration and Board appro
 
 ---
 
-# Phase 24 â€” Kill switch and incident handling
+# Phase 24 — Kill switch and incident handling
 
 ## Goal
 
@@ -1640,7 +1640,7 @@ The system can stop itself before a small failure becomes a major loss.
 
 ---
 
-# Phase 25 â€” Live trading activation workflow
+# Phase 25 — Live trading activation workflow
 
 ## Goal
 
@@ -1697,7 +1697,7 @@ A strategy cannot go live by agent enthusiasm. It only goes live through evidenc
 
 ---
 
-# Phase 26 â€” Execution Agent v1
+# Phase 26 — Execution Agent v1
 
 ## Goal
 
@@ -1743,7 +1743,7 @@ Live orders can happen, but only through deterministic guardrails.
 
 ---
 
-# Phase 27 â€” Audit Agent
+# Phase 27 — Audit Agent
 
 ## Goal
 
@@ -1783,7 +1783,7 @@ The system has internal compliance, not just performance tracking.
 
 ---
 
-# Phase 28 â€” Cost Optimizer Agent
+# Phase 28 — Cost Optimizer Agent
 
 ## Goal
 
@@ -1835,7 +1835,7 @@ Agents become economically manageable.
 
 ---
 
-# Phase 29 â€” TradingAgents-style debate layer
+# Phase 29 — TradingAgents-style debate layer
 
 ## Goal
 
@@ -1892,7 +1892,7 @@ HaruQuant has trading-firm-style debate, but still uses deterministic gates.
 
 ---
 
-# Phase 30 â€” Evaluation and testing framework
+# Phase 30 — Evaluation and testing framework
 
 ## Goal
 
@@ -1947,7 +1947,7 @@ You can prove the agent system obeys the firm constitution.
 
 ---
 
-# Phase 31 â€” Full operating cycle
+# Phase 31 — Full operating cycle
 
 ## Goal
 
@@ -2057,10 +2057,10 @@ Your first real production milestone should be:
 
 ```text
 User asks CEO:
-â€œCreate and validate a EURUSD H1 mean-reversion strategy.â€
+“Create and validate a EURUSD H1 mean-reversion strategy.”
 
 System does:
-CEO â†’ Planner â†’ Strategy Creator â†’ Strategy Reviewer â†’ Codegen â†’ Tests â†’ Backtest â†’ Analytics â†’ Risk Review â†’ Final Memo
+CEO → Planner → Strategy Creator → Strategy Reviewer → Codegen → Tests → Backtest → Analytics → Risk Review → Final Memo
 ```
 
 Do **not** include live trading in v0.1.

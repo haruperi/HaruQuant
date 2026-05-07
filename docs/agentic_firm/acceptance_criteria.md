@@ -204,7 +204,7 @@ Verify that agents communicate through structured, validated objects instead of 
 ## Test Suite 3.1: Schema Coverage
 
 ### Test 3.1.1: Agent Task Schema Exists
-**Action:** Inspect `agents/schemas.py`.
+**Action:** Inspect `agents/_shared/schemas.py`.
 
 **Prompt:**
 ```text

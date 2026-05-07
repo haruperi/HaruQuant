@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from agents.base import AgentRunContext, AgentRunResult
+from agents._shared import AgentRunContext, AgentRunResult
 
 
 class SynthesisTraderAgent:

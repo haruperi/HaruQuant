@@ -23,12 +23,12 @@ catalog.
 
 ## Source Files
 
-- `agents/strategy_creator_agent.py`
-- `agents/prompts/strategy_creator_template.py`
+- `agents/strategy_development/strategy_creator_agent/service.py`
+- `agents/strategy_development/strategy_creator_agent/prompts.py`
 - `services/strategy/design/blueprint_validator.py`
 - `services/strategy/design/blueprint_renderer.py`
 - `services/strategy/design/blueprint_materializer.py`
-- `agents/chat/ai_chat/tool_attachment_registry.py`
+- `tools/read_only/ and policies/tool_policy.py`
 - `services/ceo_gateway.py`
 
 ## Persisted Artifacts

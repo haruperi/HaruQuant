@@ -295,7 +295,7 @@ orchestration.
 
 - `api/ai_chat.py`
 - `services/ceo_gateway.py`
-- `agents/planner.py`
+- `agents/executive/planner_agent/service.py`
 - `services/prompt_builder.py`
 - `services/stream_manager.py`
 - request and response schemas
@@ -340,7 +340,7 @@ Ground the assistant in real HaruQuant state through safe read-only tools.
 #### Deliverables
 
 - `tools/read_only/*.py`
-- `agents/chat/ai_chat/tool_executor.py`
+- `agents/runtime/tool_executor.py`
 - `policies/tool_policy.py`
 - provenance display in UI
 - tool integration tests

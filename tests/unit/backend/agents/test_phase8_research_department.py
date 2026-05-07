@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from agents.agent_registry import AgentRegistry
-from agents.base import AgentRunContext
-from agents.planner import PlannerAgent
+from agents.control_plane.agent_registry import AgentRegistry
+from agents._shared import AgentRunContext
+from agents.executive.planner_agent.service import PlannerAgent
 from agents.research import MarketIntelligenceAgent, StrategyScoutAgent, TechnicalAnalystAgent
-from agents.schemas import ResearchReport
+from agents._shared.schemas import ResearchReport
 
 
 def _sample_ohlcv() -> list[dict[str, float]]:

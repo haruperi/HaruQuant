@@ -1,21 +1,21 @@
 """Canonical agent package."""
 
-from .agent_registry import AgentDescriptor, AgentRegistry
-from .base import AgentBase, AgentRunContext, AgentRunResult
-from .ceo import CEOAgent
-from .orchestrator import AgentControlPlaneOrchestrator, AgentControlPlaneResult
-from .planner import PlannerAgent
-from .permissions import (
+from ._shared import AgentBase, AgentRunContext, AgentRunResult
+from ._shared.permissions import (
     AgentToolPermissionDecision,
     AgentToolPermissionError,
     AgentToolPermissionService,
 )
-from .task_manager import (
+from .control_plane.agent_registry import AgentDescriptor, AgentRegistry
+from .control_plane.orchestrator import AgentControlPlaneOrchestrator, AgentControlPlaneResult
+from .control_plane.task_manager import (
     AgentTaskManager,
     AgentTaskTransitionError,
     AgentTaskTree,
     ManagedAgentTask,
 )
+from .executive.ceo_agent import CEOAgent
+from .executive.planner_agent import PlannerAgent
 from .runtime import ToolAllowlistDecision, ToolAllowlistMiddleware, ToolPolicyError
 
 __all__ = [

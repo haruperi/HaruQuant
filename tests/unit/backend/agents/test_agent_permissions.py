@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from agents.permissions import (
+from agents._shared.permissions import (
     AgentToolPermissionError,
     AgentToolPermissionService,
 )

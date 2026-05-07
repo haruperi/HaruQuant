@@ -86,7 +86,7 @@ Build Specialist Agent Alone
 -> Let CEO Agent synthesize the final user-facing memo
 ```
 
-`services/ceo_gateway.py`, `agents/planner.py`, and `agents/ceo.py` already exist as the chat entrypoint and executive orchestration layer.
+`services/ceo_gateway.py`, `agents/executive/planner_agent/service.py`, and `agents/executive/ceo_agent/service.py` already exist as the chat entrypoint and executive orchestration layer.
 
 Build every specialist agent as a reliable standalone service first. Only after its contracts, tests, audit metadata, deterministic policy, and permission checks pass should it be registered with Planner and surfaced through CEOChatGateway.
 
@@ -110,8 +110,29 @@ agents/
     deterministic.py
     evaluation.py
 
-  ceo.py
-  planner.py
+  executive/
+    ceo_agent/
+      __init__.py
+      agent.py
+      contracts.py
+      prompts.py
+      deterministic_policy.py
+      tools.py
+      service.py
+      evaluator.py
+      README.md
+      tests/
+    planner_agent/
+      __init__.py
+      agent.py
+      contracts.py
+      prompts.py
+      deterministic_policy.py
+      tools.py
+      service.py
+      evaluator.py
+      README.md
+      tests/
   runtime/
     tool_executor.py
 
@@ -1450,8 +1471,8 @@ Build the system in this order:
 ```text
 Already built:
 1. CEO chat runtime: services/ceo_gateway.py
-2. Planner Agent: agents/planner.py
-3. CEO Agent: agents/ceo.py
+2. Planner Agent: agents/executive/planner_agent/service.py
+3. CEO Agent: agents/executive/ceo_agent/service.py
 4. Read-only chat tool executor: agents/runtime/tool_executor.py
 
 Build next:

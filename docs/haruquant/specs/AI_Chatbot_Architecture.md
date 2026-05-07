@@ -131,8 +131,8 @@ copilot.
 - `services/conversation_service.py`
 - `services/context_service.py`
 - `services/prompt_builder.py`
-- `agents/planner.py`
-- `agents/ceo.py`
+- `agents/executive/planner_agent/service.py`
+- `agents/executive/ceo_agent/service.py`
 - `services/stream_manager.py`
 - `agents/runtime/tool_executor.py`
 - `policies/tool_policy.py`

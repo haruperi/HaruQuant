@@ -21,10 +21,10 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from agents.ceo.agent import CEOAgent
-from agents.orchestrator import AgentControlPlaneOrchestrator
-from agents.planner.agent import PlannerAgent
-from agents.task_manager import AgentTaskManager
+from agents.executive.ceo_agent.service import CEOAgent
+from agents.control_plane.orchestrator import AgentControlPlaneOrchestrator
+from agents.executive.planner_agent.service import PlannerAgent
+from agents.control_plane.task_manager import AgentTaskManager
 from data.database import apply_pending_migrations, default_migrations_dir
 from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 

@@ -20,11 +20,9 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from agents.base import AgentRunContext
-from agents.planner.agent import PlannerAgent
-from agents.research.market_intelligence_agent import MarketIntelligenceAgent
-from agents.research.strategy_scout_agent import StrategyScoutAgent
-from agents.research.technical_analyst_agent import TechnicalAnalystAgent
+from agents._shared import AgentRunContext
+from agents.executive.planner_agent.service import PlannerAgent
+from agents.research import MarketIntelligenceAgent, StrategyScoutAgent, TechnicalAnalystAgent
 
 
 def print_header(title: str) -> None:

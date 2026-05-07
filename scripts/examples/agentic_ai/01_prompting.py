@@ -71,18 +71,18 @@ if sys.platform == "win32":
     from haruquant.utils import logger
 
 # ── Core prompt infrastructure ──────────────────────────────────────────
-from agents.prompts import (
+from agents._shared.prompts import (
     PromptComposer,
     PromptContext,
     assemble_agent_prompt,
     CoT_SEPARATOR,
 )
-from agents.prompts.orchestrator_template import ORCHESTRATOR_AGENT_INSTRUCTION
-from agents.prompts.strategy_template import STRATEGY_AGENT_INSTRUCTION
-from agents.prompts.execution_template import EXECUTION_AGENT_INSTRUCTION
-from agents.prompts.research_template import RESEARCH_AGENT_INSTRUCTION
-from agents.prompts.compliance_template import COMPLIANCE_AGENT_INSTRUCTION
-from agents.prompts.portfolio_template import PORTFOLIO_AGENT_INSTRUCTION
+from agents.control_plane.prompts import ORCHESTRATOR_AGENT_INSTRUCTION
+from agents.strategy_development.strategy_creator_agent.prompts import STRATEGY_AGENT_INSTRUCTION
+from agents.execution.paper_execution_agent.prompts import EXECUTION_AGENT_INSTRUCTION
+from agents.research.market_intelligence_agent.prompts import RESEARCH_AGENT_INSTRUCTION
+from agents.operations_audit.audit_compliance_agent.prompts import COMPLIANCE_AGENT_INSTRUCTION
+from agents.risk_portfolio.portfolio_manager_agent.prompts import PORTFOLIO_AGENT_INSTRUCTION
 
 # ── LLM runtime (brand-independent) ─────────────────────────────────────
 from agents.runtime import (

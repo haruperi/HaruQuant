@@ -22,9 +22,9 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from agents.agent_registry import AgentRegistry
-from agents.orchestrator import AgentControlPlaneOrchestrator
-from agents.task_manager import AgentTaskManager, TaskTreeNode
+from agents.control_plane.agent_registry import AgentRegistry
+from agents.control_plane.orchestrator import AgentControlPlaneOrchestrator
+from agents.control_plane.task_manager import AgentTaskManager, TaskTreeNode
 from data.database import apply_pending_migrations, default_migrations_dir
 from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 

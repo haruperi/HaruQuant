@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from agents.backtest import BacktestAgent
-from agents.backtest_analyst_agent import BacktestAnalystAgent
-from agents.base import AgentRunContext
-from agents.codegen import CodegenAgent
-from agents.optimization import OptimizationAgent, OptimizationComparatorAgent
-from agents.paper_execution import PaperExecutionAgent
-from agents.performance_reporter import DailyPerformanceReporterAgent, MonthlyStrategyReviewAgent, WeeklyBoardReporterAgent
-from agents.portfolio_manager import PortfolioManagerAgent
-from agents.risk_reviewer import RiskReviewerAgent
-from agents.robustness import RobustnessAgent, RobustnessScorecard
-from agents.schemas import BacktestRequest, StrategySpec
-from agents.statistical_validation import StatisticalValidationAgent
-from agents.strategy_creator import StrategyCreatorAgent
-from agents.strategy_reviewer import StrategyReviewerAgent
-from agents.strategy_validator import StrategySpecValidator
+from agents.validation_backtesting.backtest_agent.service import BacktestAgent
+from agents.validation_backtesting.backtest_agent.evaluator import BacktestAnalystAgent
+from agents._shared import AgentRunContext
+from agents.strategy_development.strategy_codegen_agent.service import CodegenAgent
+from agents.validation_backtesting.optimization_comparator_agent.service import OptimizationAgent, OptimizationComparatorAgent
+from agents.execution.paper_execution_agent.service import PaperExecutionAgent
+from agents.operations_audit.performance_reporter_agent.service import DailyPerformanceReporterAgent, MonthlyStrategyReviewAgent, WeeklyBoardReporterAgent
+from agents.risk_portfolio.portfolio_manager_agent.service import PortfolioManagerAgent
+from agents.risk_portfolio.risk_reviewer_agent.service import RiskReviewerAgent
+from agents.validation_backtesting.robustness_monte_carlo_agent.service import RobustnessAgent, RobustnessScorecard
+from agents._shared.schemas import BacktestRequest, StrategySpec
+from agents.validation_backtesting.statistical_validation_agent.service import StatisticalValidationAgent
+from agents.strategy_development.strategy_creator_agent.service import StrategyCreatorAgent
+from agents.strategy_development.strategy_reviewer_agent.service import StrategyReviewerAgent
+from agents.strategy_development.strategy_reviewer_agent.tools import StrategySpecValidator
 from execution.paper_broker import PaperBroker
 from risk.governor import RiskGovernor
 

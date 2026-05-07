@@ -23,7 +23,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from agents.strategy_creator_agent import StrategyCreatorAgent
+from agents.strategy_development.strategy_creator_agent.service import StrategyCreatorAgent
 from agents.runtime import (
     ADKRunRequest,
     ADKRunResult,

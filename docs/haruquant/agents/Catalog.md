@@ -45,27 +45,18 @@ This catalog now reflects the implemented agent layer exactly as exposed by
 
 ## Prompt Modules
 
-Prompt-backed agents resolve their instruction strings from
-[agents/prompts](C:\Users\rharu\Documents\MyApplications\HaruQuant\canonical HaruQuant packages\agents\prompts):
+Prompt-backed agents resolve their instruction strings from the `prompts.py`
+file inside each canonical agent folder. Shared prompt composition primitives
+live in `agents/_shared/prompts.py`.
 
-- `compliance_template.py`
-- `correlation_template.py`
-- `drawdown_template.py`
-- `execution_template.py`
-- `exposure_template.py`
-- `strategy_creator_template.py`
-- `monitoring_template.py`
-- `orchestrator_template.py`
-- `portfolio_template.py`
-- `refine_template.py`
-- `regime_template.py`
-- `research_template.py`
-- `slippage_template.py`
-- `strategy_template.py`
-- `volatility_template.py`
+Examples:
 
-The deterministic risk governor metadata lives in
-[risk_governor_template.py](C:\Users\rharu\Documents\MyApplications\HaruQuant\canonical HaruQuant packages\agents\prompts\risk_governor_template.py).
+- `agents/executive/ceo_agent/prompts.py`
+- `agents/executive/planner_agent/prompts.py`
+- `agents/control_plane/prompts.py`
+- `agents/strategy_development/strategy_creator_agent/prompts.py`
+- `agents/risk_portfolio/portfolio_manager_agent/prompts.py`
+- `agents/operations_audit/audit_compliance_agent/prompts.py`
 
 ## Model Configuration
 

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from agents.agent_registry import AgentRegistry
-from agents.ceo import CEOAgent, CEO_POLICY_REFERENCES, CEO_SYSTEM_INSTRUCTIONS
-from agents.orchestrator import AgentControlPlaneOrchestrator
-from agents.planner import PlannerAgent
-from agents.task_manager import AgentTaskManager
+from agents.control_plane.agent_registry import AgentRegistry
+from agents.executive.ceo_agent import CEOAgent, CEO_POLICY_REFERENCES, CEO_SYSTEM_INSTRUCTIONS
+from agents.control_plane.orchestrator import AgentControlPlaneOrchestrator
+from agents.executive.planner_agent.service import PlannerAgent
+from agents.control_plane.task_manager import AgentTaskManager
 from data.database import apply_pending_migrations, default_migrations_dir
 from data.database.repositories.agentic_firm_repository import AgenticFirmRepository
 

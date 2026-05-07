@@ -1,6 +1,6 @@
 # Agent Plan Schema
 
-CEO chat uses the canonical `agents.schemas.AgentPlan` model.
+CEO chat uses the canonical `agents._shared.schemas.AgentPlan` model.
 
 Important fields:
 
@@ -18,5 +18,5 @@ Important fields:
 - `evidence_requirements`
 - `failure_policy`
 
-The planner must choose from the bounded route catalog in `agents/planner.py`.
+The planner must choose from the bounded route catalog in `agents/executive/planner_agent/service.py`.
 

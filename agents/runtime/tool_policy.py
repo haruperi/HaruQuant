@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from agents.permissions import AgentToolPermissionDecision, AgentToolPermissionService
+from agents._shared.permissions import AgentToolPermissionDecision, AgentToolPermissionService
 
 
 class ToolPolicyError(PermissionError):

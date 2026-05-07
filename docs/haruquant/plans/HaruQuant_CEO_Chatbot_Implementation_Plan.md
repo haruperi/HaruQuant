@@ -37,12 +37,12 @@ Implementation update:
 
 - Implemented the canonical CEO chat transport without reintroducing `backend`.
 - Reused the existing global `ui/src/components/ai-chat/` widget and `ui/src/stores/chatWidgetStore.tsx` instead of creating a parallel chat UI.
-- Added canonical backend services in `services/conversation/`, `services/context/`, `services/chat/`, and `services/schemas/chat.py`.
+- Added canonical backend services in `services/conversation/`, `services/context/`, `services/ceo_gateway.py, services/conversation/, and services/context/`, and `services/schemas/chat.py`.
 - Integrated the CEO chat endpoints into the existing FastAPI package at `api/routes/ai_chat.py` for the `/api/ai-chat/*` surface already expected by the UI.
 - Routed every chat turn through `PlannerAgent` and `CEOAgent` with deterministic responses for now; real LLM provider wiring remains intentionally deferred.
 - Exposed only read-only CEO tools to chat from the canonical `tools.registry`.
 - Preserved the safety rule that free-form chat cannot execute live trades or bypass RiskGovernor, audit, or Human Board approval.
-- Added CEO prompt stubs in `agents/prompts/ceo.md` and `agents/prompts/planner.md`.
+- Added CEO prompt stubs in `agents/executive/ceo_agent/prompts.py` and `agents/executive/planner_agent/prompts.py`.
 - Added focused regression coverage in `tests/unit/backend/services/test_ceo_chatbot_canonical.py`.
 - Added CEO-specific status UI via `CEOStatusBadge.tsx` and relabeled the global widget as `CEO Chat`.
 
@@ -144,7 +144,7 @@ The CEO Agent is not allowed to bypass tools, services, governance, RiskGovernor
 - Tool wrappers call HaruQuant services.
 - Services contain business logic.
 - The simulation/backtest engine lives inside `services/simulation/`.
-- Prompts live inside `agents/prompts/`.
+- Prompts live inside each canonical agent folder's `prompts.py`; shared prompt composition lives in `agents/_shared/prompts.py`.
 - The global chat widget is always mounted in the UI shell.
 - Page context is additive and ephemeral.
 - Conversation memory is durable.
@@ -347,8 +347,8 @@ haruquant/
 
   agents/
     base.py
-    ceo.py
-    planner.py
+    executive/ceo_agent/service.py
+    executive/planner_agent/service.py
     research.py
     strategy_creator.py
     strategy_reviewer.py
@@ -480,8 +480,8 @@ The chatbot is no longer the primary intelligence. The `CEOAgent` is the primary
    - `api/routes/ai_chat.py`,
    - `services/conversation/`,
    - `services/context/`,
-   - `agents/ceo.py`,
-   - `agents/planner.py`,
+   - `agents/executive/ceo_agent/service.py`,
+   - `agents/executive/planner_agent/service.py`,
    - `tools/`,
    - `services/`.
 2. Freeze the `ChatThread` schema.
@@ -780,13 +780,13 @@ Replace placeholder chat responses with streamed CEO Agent responses and structu
 
 ```text
 api/routes/ai_chat.py
-agents/ceo.py
-agents/planner.py
+agents/executive/ceo_agent/service.py
+agents/executive/planner_agent/service.py
 agents/orchestration/orchestrator.py
 agents/orchestration/task_manager.py
 agents/orchestration/state.py
-agents/prompts/ceo.md
-agents/prompts/planner.md
+agents/executive/ceo_agent/prompts.py
+agents/executive/planner_agent/prompts.py
 services/schemas/agent.py
 services/schemas/chat.py
 ```
@@ -961,7 +961,8 @@ agents/simulation_analyst.py
 agents/risk_reviewer.py
 agents/reporter.py
 agents/audit.py
-agents/prompts/*.md
+agents/*/*/prompts.py
+agents/_shared/prompts.py
 services/schemas/agent.py
 ```
 
@@ -1497,10 +1498,10 @@ ui/components/ai-chat/
 ui/providers/CEOChatProvider.tsx
 services/conversation/service.py
 services/schemas/chat.py
-agents/ceo.py
-agents/planner.py
-agents/prompts/ceo.md
-agents/prompts/planner.md
+agents/executive/ceo_agent/service.py
+agents/executive/planner_agent/service.py
+agents/executive/ceo_agent/prompts.py
+agents/executive/planner_agent/prompts.py
 agents/orchestration/orchestrator.py
 tools/registry.py
 tools/permissions.py

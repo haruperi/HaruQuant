@@ -1,0 +1,43 @@
+{
+  "agent_name": "market_intelligence",
+  "candidate_ideas": [
+    {
+      "idea": "mean_reversion",
+      "score": 0.65
+    }
+  ],
+  "confidence": 0.7,
+  "created_at": "2026-05-07T10:35:42.473348Z",
+  "evidence_refs": [],
+  "findings": [
+    "Detected ranging market structure over 40 bars."
+  ],
+  "market_context": {
+    "average_range": 0.0009999999999998899,
+    "average_spread": 1.0,
+    "bars": 40,
+    "regime": "ranging",
+    "sessions": [
+      "London",
+      "New York"
+    ]
+  },
+  "recommended_next_steps": [
+    "Ask Technical Analyst to verify indicator context.",
+    "Keep execution disabled."
+  ],
+  "report_id": "research-market-task-market",
+  "research_question": "Research EURUSD H1 mean reversion context.",
+  "risks": [
+    "Regime classification is deterministic and requires broker-grade data before deployment."
+  ],
+  "source_agent": "market_intelligence",
+  "sources_used": [
+    "symbol_data",
+    "latest_ohlcv",
+    "spread_snapshot",
+    "session_context"
+  ],
+  "summary": "Market context is ranging with average spread 1.00.",
+  "topic": "market_intelligence"
+}

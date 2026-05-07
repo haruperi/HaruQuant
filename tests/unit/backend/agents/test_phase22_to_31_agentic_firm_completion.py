@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from agents.activation import LiveActivationRequest, LiveActivationWorkflow
+from agents.risk_portfolio.portfolio_manager_agent.activation import LiveActivationRequest, LiveActivationWorkflow
 from agents.audit import AuditAgent, IncidentAgent
-from agents.base import AgentRunContext
-from agents.cost_optimizer import CostOptimizerAgent
-from agents.debate import DebateTranscript
-from agents.evaluation import AgentEvaluationFramework
+from agents._shared import AgentRunContext
+from agents.operations_audit.cost_optimizer_agent.service import CostOptimizerAgent
+from agents.operations_audit.audit_compliance_agent.debate import DebateTranscript
+from agents.control_plane.evaluation import AgentEvaluationFramework
 from agents.execution.live_execution_agent import LiveExecutionAgent
 from agents.execution.synthesis_trader_agent import SynthesisTraderAgent
-from agents.operating_cycle import OperatingCycleRunner
+from agents.control_plane.operating_cycle import OperatingCycleRunner
 from agents.research.bear_researcher_agent import BearResearcherAgent
 from agents.research.bull_researcher_agent import BullResearcherAgent
 from execution.ctrader_bridge import CTraderBridge

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from agents.base import AgentRunContext, AgentRunResult
+from agents._shared import AgentRunContext, AgentRunResult
 from execution.order_router import OrderRouter
 from risk.governor import RiskGovernor
 

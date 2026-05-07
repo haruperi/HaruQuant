@@ -1,0 +1,47 @@
+{
+  "agent_name": "technical_analyst",
+  "candidate_ideas": [
+    {
+      "idea": "mean_reversion",
+      "score": 0.5
+    },
+    {
+      "idea": "breakout",
+      "score": 0.55
+    },
+    {
+      "idea": "trend_following",
+      "score": 0.72
+    }
+  ],
+  "confidence": 0.68,
+  "created_at": "2026-05-07T10:35:42.480827Z",
+  "evidence_refs": [],
+  "findings": [
+    "Momentum=-0.000750",
+    "Volatility=0.000149"
+  ],
+  "market_context": {
+    "long_ma": 1.1029499999999999,
+    "momentum": -0.0007500000000000284,
+    "resistance": 1.1038999999999997,
+    "short_ma": 1.1021999999999998,
+    "support": 1.1019999999999999,
+    "volatility": 0.00014871794871793235
+  },
+  "recommended_next_steps": [
+    "Convert the highest-scoring idea into a formal StrategySpec."
+  ],
+  "report_id": "research-technical-task-technical",
+  "research_question": "Research EURUSD H1 mean reversion context.",
+  "risks": [
+    "Support/resistance and indicator context are descriptive, not a trade signal."
+  ],
+  "source_agent": "technical_analyst",
+  "sources_used": [
+    "latest_ohlcv",
+    "analytics_summary"
+  ],
+  "summary": "Technical context scored mean reversion, breakout, and trend-following suitability.",
+  "topic": "technical_analysis"
+}

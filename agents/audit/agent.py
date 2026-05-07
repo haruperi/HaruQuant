@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from agents._persistence import utc_stamp, write_json_artifact
-from agents.base import AgentRunContext, AgentRunResult
+from agents._shared.persistence import utc_stamp, write_json_artifact
+from agents._shared import AgentRunContext, AgentRunResult
 
 AuditSeverity = Literal["info", "warning", "major", "critical"]
 

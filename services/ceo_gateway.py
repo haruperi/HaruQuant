@@ -9,10 +9,10 @@ from uuid import uuid4
 
 import httpx
 
-from agents.ceo import CEOAgent
-from agents.planner import PlannerAgent
+from agents.executive.ceo_agent.service import CEOAgent
+from agents.executive.planner_agent.service import PlannerAgent
 from agents.runtime.tool_executor import AIChatReadOnlyToolExecutor, ChatToolCall, tool_results_as_prompt
-from agents.schemas import AgentPlan
+from agents._shared.schemas import AgentPlan
 from config.agent_model import AGENT_MODEL
 from services.context.service import ContextAssembler
 from services.conversation.service import ConversationService

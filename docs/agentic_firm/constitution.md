@@ -1238,9 +1238,9 @@ configs/live_trading.yaml
 configs/agent_permissions.yaml
 risk/governor.py
 risk/kill_switch.py
-agents/orchestrator.py
-agents/planner/agent.py
-agents/ceo/agent.py
+agents/control_plane/orchestrator.py
+agents/executive/planner_agent/service.py
+agents/executive/ceo_agent/service.py
 tools/registry.py
 audit/audit_logger.py
 ```
