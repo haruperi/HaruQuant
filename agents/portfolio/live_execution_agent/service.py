@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from agents._shared import AgentRunContext, AgentRunResult
-from execution.order_router import OrderRouter
+from services.portfolio.order_router import OrderRouter
 from services.risk.governor import RiskGovernor
 
 

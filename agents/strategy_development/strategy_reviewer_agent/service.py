@@ -19,3 +19,8 @@ CONFIG = StrategyAgentConfig(
 class StrategyReviewerAgentService(GenericStrategyCreationAgentService):
     def __init__(self) -> None:
         super().__init__(CONFIG)
+
+
+StrategyReviewerAgent = StrategyReviewerAgentService
+
+__all__ = ["CONFIG", "StrategyReviewerAgent", "StrategyReviewerAgentService"]

@@ -167,13 +167,67 @@ ROUTE_CATALOG: dict[str, RouteDefinition] = {
     ),
     "execution_proposal": RouteDefinition(
         intent="execution_proposal",
-        allowed_agents=["risk_reviewer", "portfolio_manager", "execution", "audit", "ceo"],
-        expected_outputs=["TradeProposal", "RiskReview", "BoardApprovalRequest"],
+        allowed_agents=[
+            "portfolio_orchestrator",
+            "portfolio_manager",
+            "allocation_optimizer",
+            "strategy_lifecycle",
+            "paper_execution",
+            "live_execution",
+            "execution_readiness",
+            "risk_governor",
+            "risk_reviewer",
+            "audit_agent",
+            "audit",
+            "ceo",
+        ],
+        expected_outputs=["ExecutionProposal", "RiskGovernorDecision", "BoardApprovalRequest", "OrderRouteResult"],
         risk_level="critical",
         requires_board_approval=True,
         requires_risk_governor=True,
         evidence_requirements=["trade_proposal", "risk_governor_decision", "board_approval", "audit_trace"],
         blocked_agents=["live_execution"],
+    ),
+    "portfolio": RouteDefinition(
+        intent="portfolio",
+        allowed_agents=[
+            "portfolio_orchestrator",
+            "portfolio_manager",
+            "allocation_optimizer",
+            "strategy_lifecycle",
+            "paper_execution",
+            "live_execution",
+            "execution_readiness",
+            "performance_reporter",
+            "cost_optimizer",
+            "audit_agent",
+            "audit",
+            "ceo",
+        ],
+        expected_outputs=[
+            "PortfolioDecision",
+            "LifecycleTransitionResult",
+            "AllocationDecision",
+            "ExecutionHealthSnapshot",
+            "PerformanceReport",
+            "CostReport",
+            "AuditFinding",
+        ],
+        risk_level="high",
+        requires_board_approval=True,
+        requires_risk_governor=True,
+        evidence_requirements=[
+            "strategy_lifecycle_state",
+            "risk_governor_constraints",
+            "risk_memo",
+            "simulation_evidence_package",
+            "paper_trading_report",
+            "live_performance_report",
+            "execution_health_status",
+            "audit_trace",
+            "cost_budget_status",
+        ],
+        blocked_agents=["direct_broker_bridge"],
     ),
     "research": RouteDefinition(
         intent="research",
@@ -336,6 +390,17 @@ class PlannerAgent:
         return self._deterministic_fallback(lowered)
 
     def _deterministic_safety_route(self, lowered: str) -> str | None:
+        portfolio_terms = (
+            "portfolio review",
+            "portfolio allocation",
+            "allocation change",
+            "strategy lifecycle",
+            "paper trading",
+            "performance report",
+            "cost report",
+        )
+        if any(term in lowered for term in portfolio_terms):
+            return "portfolio"
         live_terms = ("live trade", "live order", "place a trade", "place live", "buy ", "sell ")
         execution_terms = ("trade proposal", "order", "execute", "execution")
         if any(term in lowered for term in live_terms) or any(term in lowered for term in execution_terms):
@@ -359,6 +424,8 @@ class PlannerAgent:
             return "optimization_comparison"
         if "risk" in lowered or "exposure" in lowered:
             return "risk_review"
+        if "portfolio" in lowered or "allocation" in lowered or "lifecycle" in lowered:
+            return "portfolio"
         if "report" in lowered or "board report" in lowered:
             return "reporting"
         if "research" in lowered or "market structure" in lowered:

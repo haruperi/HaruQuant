@@ -9,6 +9,13 @@ from __future__ import annotations
 from typing import Any
 
 from agents._shared import AgentRunContext, AgentRunResult
+from agents.portfolio.allocation_optimizer_agent import AllocationOptimizerAgent
+from agents.portfolio.cost_optimizer_agent import CostOptimizerAgent
+from agents.portfolio.execution_readiness_agent import ExecutionReadinessAgent
+from agents.portfolio.live_execution_agent import LiveExecutionAgent
+from agents.portfolio.performance_reporter_agent import PerformanceReporterAgent
+from agents.portfolio.portfolio_orchestrator_agent import PortfolioOrchestratorAgent
+from agents.portfolio.strategy_lifecycle_agent import StrategyLifecycleAgent
 
 
 class PortfolioProposalAgent:
@@ -31,4 +38,14 @@ class PortfolioProposalAgent:
 
 ExecutionProposalAgent = PortfolioProposalAgent
 
-__all__ = ["ExecutionProposalAgent", "PortfolioProposalAgent"]
+__all__ = [
+    "AllocationOptimizerAgent",
+    "CostOptimizerAgent",
+    "ExecutionProposalAgent",
+    "ExecutionReadinessAgent",
+    "LiveExecutionAgent",
+    "PerformanceReporterAgent",
+    "PortfolioOrchestratorAgent",
+    "PortfolioProposalAgent",
+    "StrategyLifecycleAgent",
+]

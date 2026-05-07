@@ -1,0 +1,4 @@
+from agents.portfolio.shared.portfolio_agent import GenericPortfolioAgent, PortfolioAgentConfig
+CONFIG = PortfolioAgentConfig(agent_name="portfolio_orchestrator", display_name="Portfolio Orchestrator Agent", allowed_actions=['coordinate_portfolio_review', 'request_lifecycle_review', 'request_allocation_review', 'request_execution_readiness_check', 'request_report_generation', 'request_audit_check', 'escalate_to_board_workflow'], blocked_actions=['execute_trade', 'approve_risk', 'change_live_allocation_directly', 'resume_live_trading_after_critical_incident', 'modify_risk_thresholds'], required_evidence=['risk_governor_constraints', 'audit_health_status'], permission_profile="portfolio_read_only_v1")
+def make_policy_decision(task_input: dict, evidence_state: dict) -> dict:
+    return GenericPortfolioAgent(CONFIG).deterministic_policy(task_input, evidence_state)
