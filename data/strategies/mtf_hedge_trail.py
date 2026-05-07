@@ -20,6 +20,11 @@ from data.strategies.stateful_common import ensure_no_signal_columns, is_bar_clo
 class StructureHedgeTrailStrategy(StatefulStrategyMixin, BaseStrategy):
     """Port of a two-timeframe higher-low/lower-high EA with basket TP trailing."""
 
+    strategy_name = "StructureHedgeTrailStrategy"
+    strategy_type = "stateful"
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(params)
         self.higher_timeframe = str(self.params.get("higher_timeframe", "H1")).upper()
@@ -35,6 +40,36 @@ class StructureHedgeTrailStrategy(StatefulStrategyMixin, BaseStrategy):
         self.min_lot = float(self.params.get("min_lot", 0.01))
         self.max_lot = float(self.params.get("max_lot", 100.0))
         self.pip_value = float(self.params.get("pip_value", 0.0001))
+        self.strategy_risk_controls = self.params.get("risk_controls", {})
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if not self.higher_timeframe:
+            raise ValueError("higher_timeframe must be provided.")
+        if not self.lower_timeframe:
+            raise ValueError("lower_timeframe must be provided.")
+        if self.ht_min_distance_pips <= 0:
+            raise ValueError("ht_min_distance_pips must be positive.")
+        if self.lt_min_distance_pips <= 0:
+            raise ValueError("lt_min_distance_pips must be positive.")
+        if self.take_profit_pips <= 0:
+            raise ValueError("take_profit_pips must be positive.")
+        if self.stop_loss_pips <= 0:
+            raise ValueError("stop_loss_pips must be positive.")
+        if self.when_to_trail_pips <= 0:
+            raise ValueError("when_to_trail_pips must be positive.")
+        if self.balance_increase <= 0:
+            raise ValueError("balance_increase must be positive.")
+        if self.volume_increase <= 0:
+            raise ValueError("volume_increase must be positive.")
+        if self.initial_lot <= 0:
+            raise ValueError("initial_lot must be positive.")
+        if self.min_lot <= 0:
+            raise ValueError("min_lot must be positive.")
+        if self.max_lot < self.min_lot:
+            raise ValueError("max_lot must be greater than or equal to min_lot.")
+        if self.pip_value <= 0:
+            raise ValueError("pip_value must be positive.")
 
     def on_init(self) -> None:
         self.state.setdefault("bought", False)

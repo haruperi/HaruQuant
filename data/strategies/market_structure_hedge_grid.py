@@ -21,6 +21,11 @@ from data.strategies.stateful_common import ensure_no_signal_columns
 class MarketStructureHedgeGridStrategy(StatefulStrategyMixin, BaseStrategy):
     """Port of a ZigZag market-structure EA with hedge and grid management."""
 
+    strategy_name = "MarketStructureHedgeGridStrategy"
+    strategy_type = "stateful"
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
+
     event_phases = {"open"}
 
     F_BUY = "FirstBuy"
@@ -55,6 +60,36 @@ class MarketStructureHedgeGridStrategy(StatefulStrategyMixin, BaseStrategy):
         self.zigzag_lookback = int(self.params.get("zigzag_lookback", 500))
         self._bars_cache_key: tuple[int, int] | None = None
         self._bars_cache: pd.DataFrame | None = None
+        self.strategy_risk_controls = self.params.get("risk_controls", {})
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if self.depth <= 0:
+            raise ValueError("zigzag_depth must be positive.")
+        if self.deviation <= 0:
+            raise ValueError("zigzag_deviation must be positive.")
+        if self.backstep <= 0:
+            raise ValueError("zigzag_backstep must be positive.")
+        if self.balance_increase <= 0:
+            raise ValueError("balance_increase must be positive.")
+        if self.volume_increase <= 0:
+            raise ValueError("volume_increase must be positive.")
+        if self.hedge_displacement_pips <= 0:
+            raise ValueError("hedge_displacement_pips must be positive.")
+        if self.profit_factor <= 0:
+            raise ValueError("profit_factor must be positive.")
+        if self.initial_lot <= 0:
+            raise ValueError("initial_lot must be positive.")
+        if self.min_lot <= 0:
+            raise ValueError("min_lot must be positive.")
+        if self.max_lot < self.min_lot:
+            raise ValueError("max_lot must be greater than or equal to min_lot.")
+        if self.lot_step <= 0:
+            raise ValueError("lot_step must be positive.")
+        if self.pip_value <= 0:
+            raise ValueError("pip_value must be positive.")
+        if self.zigzag_lookback <= 0:
+            raise ValueError("zigzag_lookback must be positive.")
 
     def on_init(self) -> None:
         self.state.setdefault("buy_lot_used", self.initial_lot)

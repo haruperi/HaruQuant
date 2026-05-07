@@ -1,210 +1,122 @@
-"""
-Mean Reversion Strategy
+"""Bollinger Bands and RSI mean-reversion strategy."""
 
-Bollinger Bands + RSI strategy for counter-trend trading.
+from __future__ import annotations
 
-Entry Signals:
-- LONG: Price touches lower BB AND RSI < oversold threshold
-- SHORT: Price touches upper BB AND RSI > overbought threshold
+from typing import Any, Dict, Optional
 
-Exit Signals:
-- Price returns to middle BB
-- Opposite entry condition triggers
-"""
-
-from typing import Optional, Dict, Any
 import pandas as pd
+
 from haruquant.indicator import bbands, rsi
-from haruquant.utils import logger
-from haruquant.strategy import BaseStrategy, SignalDict
+from services.strategy.base import BaseStrategy, SignalDict
+from services.utils.logger import logger
+
+from data.strategies.stateful_common import ensure_signal_columns
 
 
 class MeanReversionStrategy(BaseStrategy):
-    """
-    Mean Reversion Strategy using Bollinger Bands and RSI
+    """Counter-trend strategy using Bollinger extremes confirmed by RSI."""
 
-    Counter-trend strategy that buys oversold conditions and sells overbought conditions.
-    Uses Bollinger Bands to identify price extremes and RSI to confirm momentum exhaustion.
-
-    This strategy:
-    - Identifies overbought/oversold conditions
-    - Enters when price is at extremes
-    - Exits when price returns to mean
-    - Uses confluence of BB and RSI for stronger signals
-
-    Parameters (via params dict):
-        bb_period: Bollinger Bands period (default: 20)
-        bb_std: Bollinger Bands standard deviation (default: 2.0)
-        rsi_period: RSI period (default: 14)
-        rsi_oversold: RSI oversold threshold (default: 30)
-        rsi_overbought: RSI overbought threshold (default: 70)
-    """
+    strategy_name = "MeanReversionStrategy"
+    strategy_type = "simple"
+    signal_schema_version = "1.0"
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
-        """
-        Initialize mean reversion strategy.
-
-        Args:
-            params: Strategy parameters dict with keys:
-                - symbol: Trading symbol (e.g., "EURUSD")
-                - bb_period: Bollinger Bands period (default: 20)
-                - bb_std: BB standard deviation (default: 2.0)
-                - rsi_period: RSI period (default: 14)
-                - rsi_oversold: Oversold threshold (default: 30)
-                - rsi_overbought: Overbought threshold (default: 70)
-        
-        Example:
-            strategy = MeanReversionStrategy(   {
-                'symbol': 'EURUSD',
-                'bb_period': 20,
-                'bb_std': 2.0,
-                'rsi_period': 14,
-                'rsi_oversold': 30,
-                'rsi_overbought': 70
-            })
-        """
         super().__init__(params)
+        self.symbol = str(self.params.get("symbol", "UNKNOWN"))
+        self.bb_period = int(self.params.get("bb_period", 20))
+        self.bb_std = float(self.params.get("bb_std", 2.0))
+        self.rsi_period = int(self.params.get("rsi_period", 14))
+        self.rsi_oversold = float(self.params.get("rsi_oversold", 30.0))
+        self.rsi_overbought = float(self.params.get("rsi_overbought", 70.0))
+        self._validate_params()
 
-        # Extract parameters with defaults
-        self.symbol = self.params.get('symbol', 'EURUSD')
-        self.bb_period = self.params.get('bb_period', 20)
-        self.bb_std = self.params.get('bb_std', 2.0)
-        self.rsi_period = self.params.get('rsi_period', 12)
-        self.rsi_oversold = self.params.get('rsi_oversold', 30)
-        self.rsi_overbought = self.params.get('rsi_overbought', 70)
-
-        # Validate parameters
+    def _validate_params(self) -> None:
         if self.bb_period <= 0:
-            raise ValueError(f"bb_period must be positive, got {self.bb_period}")
-
+            raise ValueError("bb_period must be positive.")
         if self.bb_std <= 0:
-            raise ValueError(f"bb_std must be positive, got {self.bb_std}")
-
-        if not (0 < self.rsi_oversold < self.rsi_overbought < 100):
+            raise ValueError("bb_std must be positive.")
+        if self.rsi_period <= 0:
+            raise ValueError("rsi_period must be positive.")
+        if not 0 < self.rsi_oversold < self.rsi_overbought < 100:
             raise ValueError(
-                f"RSI thresholds must satisfy: 0 < oversold < overbought < 100, "
-                f"got oversold={self.rsi_oversold}, overbought={self.rsi_overbought}"
+                "RSI thresholds must satisfy 0 < oversold < overbought < 100."
             )
 
     def on_init(self) -> None:
-        """Initialize strategy."""
-        logger.info(f"MeanReversion initialized for {self.params['symbol']}")
         logger.info(
-            f"Parameters: BB({self.bb_period},{self.bb_std}), "
-            f"RSI({self.rsi_period}), "
-            f"Oversold<{self.rsi_oversold}, Overbought>{self.rsi_overbought}"
+            "%s initialized for %s bb=%s/%s rsi=%s",
+            self.strategy_name,
+            self.symbol,
+            self.bb_period,
+            self.bb_std,
+            self.rsi_period,
         )
 
     def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate indicators and detect mean reversion conditions.
-
-        Adds:
-        - bb_upper/middle/lower: Bollinger Bands (shifted)
-        - rsi: RSI (shifted)
-        - signal: 'buy', 'sell'
-        - price: entry price (open)
-        
-        Note: Indicators are shifted by 1 to use previous bar values for signal generation
-        at the open of the current bar.
-        """
-        # Calculate indicators
-        data = bbands(data, self.bb_period, self.bb_std)
-        data = rsi(data, self.rsi_period)
-
-        # Get column names
-        bb_upper_col = f'bb_upper_{self.bb_period}_{int(self.bb_std)}'
-        bb_middle_col = f'bb_middle_{self.bb_period}_{int(self.bb_std)}'
-        bb_lower_col = f'bb_lower_{self.bb_period}_{int(self.bb_std)}'
-        rsi_col = f'rsi_{self.rsi_period}'
-        
-        # Shift indicators and price to use previous bar values
-        # We use previous close to compare against previous bands
-        data[bb_upper_col] = data[bb_upper_col].shift(1)
-        data[bb_middle_col] = data[bb_middle_col].shift(1)
-        data[bb_lower_col] = data[bb_lower_col].shift(1)
-        data[rsi_col] = data[rsi_col].shift(1)
-        data['prev_close'] = data['close'].shift(1)
-
-        # Initialize signal columns
-        data['entry_signal'] = 0
-        data['exit_signal'] = 0
-        data['pending_signal'] = 0
-        data['cancel_pending_signal'] = 0
-        data['price'] = float('nan')
-
-        # Define Conditions (using shifted values)
-        # LONG: Previous Close <= Previous Lower BB AND Previous RSI < Oversold
-        condition_buy = (data['prev_close'] <= data[bb_lower_col]) & (data[rsi_col] < self.rsi_oversold)
-        
-        # SHORT: Previous Close >= Previous Upper BB AND Previous RSI > Overbought
-        condition_sell = (data['prev_close'] >= data[bb_upper_col]) & (data[rsi_col] > self.rsi_overbought)
-
-        # Populate signals
-        # Populate signals
-        data.loc[condition_buy, 'entry_signal'] = 1
-        data.loc[condition_buy, 'price'] = data.loc[condition_buy, 'open']
-        
-        data.loc[condition_sell, 'entry_signal'] = -1
-        data.loc[condition_sell, 'price'] = data.loc[condition_sell, 'open']
-
+        data = data.copy()
+        data = self._calculate_indicators(data)
+        data = self._shift_features(data)
+        data = ensure_signal_columns(data)
+        data = self._generate_simple_signals(data)
         return data
 
+    def _calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        data = bbands(
+            data,
+            period=self.bb_period,
+            std_dev=self.bb_std,
+            price_col="close",
+        )
+        data = rsi(data, self.rsi_period)
+        return data
+
+    def _shift_features(self, data: pd.DataFrame) -> pd.DataFrame:
+        upper, middle, lower = self._band_columns()
+        rsi_col = f"rsi_{self.rsi_period}"
+        for column in (upper, middle, lower, rsi_col):
+            data[f"{column}_signal"] = data[column].shift(1)
+        data["prev_close_signal"] = data["close"].shift(1)
+        return data
+
+    def _generate_simple_signals(self, data: pd.DataFrame) -> pd.DataFrame:
+        upper, middle, lower = self._band_columns(signal=True)
+        rsi_col = f"rsi_{self.rsi_period}_signal"
+
+        buy = (data["prev_close_signal"] <= data[lower]) & (
+            data[rsi_col] < self.rsi_oversold
+        )
+        sell = (data["prev_close_signal"] >= data[upper]) & (
+            data[rsi_col] > self.rsi_overbought
+        )
+        band_width = data[upper] - data[lower]
+
+        data.loc[buy, "entry_signal"] = 1
+        data.loc[buy, "price"] = data.loc[buy, "open"]
+        data.loc[buy, "stop_loss"] = data.loc[buy, "open"] - (band_width.loc[buy] * 0.5)
+        data.loc[buy, "take_profit"] = data.loc[buy, middle]
+        data.loc[buy, "signal_reason"] = "Oversold Bollinger/RSI mean reversion"
+        data.loc[buy, "setup_id"] = "bb_rsi_buy"
+        data.loc[buy, "group_id"] = "bb_rsi_buy"
+
+        data.loc[sell, "entry_signal"] = -1
+        data.loc[sell, "price"] = data.loc[sell, "open"]
+        data.loc[sell, "stop_loss"] = data.loc[sell, "open"] + (
+            band_width.loc[sell] * 0.5
+        )
+        data.loc[sell, "take_profit"] = data.loc[sell, middle]
+        data.loc[sell, "signal_reason"] = "Overbought Bollinger/RSI mean reversion"
+        data.loc[sell, "setup_id"] = "bb_rsi_sell"
+        data.loc[sell, "group_id"] = "bb_rsi_sell"
+        return data
+
+    def _band_columns(self, *, signal: bool = False) -> tuple[str, str, str]:
+        std_label = int(self.bb_std)
+        suffix = "_signal" if signal else ""
+        return (
+            f"bb_upper_{self.bb_period}_{std_label}{suffix}",
+            f"bb_middle_{self.bb_period}_{std_label}{suffix}",
+            f"bb_lower_{self.bb_period}_{std_label}{suffix}",
+        )
+
     def get_signal(self, data: pd.DataFrame, index: int) -> Optional[SignalDict]:
-        """
-        Get signal details for a specific bar.
-        """
-        row = data.iloc[index]
-        entry = row['entry_signal']
-        # Exit logic for mean reversion is implicit (TP/SL) or could be added here
-        
-        if entry == 0:
-            return None
-
-        # Get bar data
-        bar = data.iloc[index]
-        entry_price = bar['price']
-        
-        bb_upper = bar[f'bb_upper_{self.bb_period}_{int(self.bb_std)}']
-        bb_middle = bar[f'bb_middle_{self.bb_period}_{int(self.bb_std)}']
-        bb_lower = bar[f'bb_lower_{self.bb_period}_{int(self.bb_std)}']
-        rsi_value = bar[f'rsi_{self.rsi_period}']
-
-        # Variables init
-        reason = None
-        entry_signal = 0
-        sl = None
-        tp = None
-
-        if entry == 1:
-            # SL: Below lower BB by band width (volatility based)
-            band_width = bb_upper - bb_lower
-            sl = entry_price - (band_width * 0.5) 
-            tp = bb_middle # Target Mean
-            
-            reason = f"Oversold: PrevClose <= BB_Lower & RSI({rsi_value:.1f}) < {self.rsi_oversold}"
-            entry_signal = 1
-            
-        elif entry == -1:
-            # SL: Above upper BB by band width
-            band_width = bb_upper - bb_lower
-            sl = entry_price + (band_width * 0.5)
-            tp = bb_middle # Target Mean
-            
-            reason = f"Overbought: PrevClose >= BB_Upper & RSI({rsi_value:.1f}) > {self.rsi_overbought}"
-            entry_signal = -1
-        else:
-            return None
-
-        signal: SignalDict = {
-            'entry_signal': entry_signal,
-            'exit_signal': 0,
-            'pending_signal': 0,
-            'cancel_pending_signal': 0,
-            'time': bar.name,
-            'reason': reason,
-            'price': entry_price,
-            'stop_loss': sl,
-            'take_profit': tp
-        }
-        return signal
+        return super().get_signal(data, index)

@@ -281,8 +281,12 @@ class BaseStrategy(ABC):
             "reason": reason,
             "stop_loss": float(stop_loss) if stop_loss is not None else None,
             "take_profit": float(take_profit) if take_profit is not None else None,
-            "setup_id": str(setup_id) if setup_id is not None and setup_id != "" else None,
-            "group_id": str(group_id) if group_id is not None and group_id != "" else None,
+            "setup_id": (
+                str(setup_id) if setup_id is not None and setup_id != "" else None
+            ),
+            "group_id": (
+                str(group_id) if group_id is not None and group_id != "" else None
+            ),
         }
 
     # =====================================================================

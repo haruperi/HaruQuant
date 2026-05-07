@@ -25,6 +25,11 @@ from data.strategies.stateful_common import (
 class RsiAveragingPyramidStrategy(StatefulStrategyMixin, BaseStrategy):
     """Faithful port of an RSI basket EA that averages losers and pyramids winners."""
 
+    strategy_name = "RsiAveragingPyramidStrategy"
+    strategy_type = "stateful"
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(params)
         self.rsi_period = int(self.params.get("rsi_period", 14))
@@ -44,6 +49,34 @@ class RsiAveragingPyramidStrategy(StatefulStrategyMixin, BaseStrategy):
         self.lot_divisor = float(self.params.get("lot_divisor", 2.0))
         self.sl_displacement_pips = float(self.params.get("sl_displacement_pips", 5.0))
         self.pip_value = float(self.params.get("pip_value", 0.0001))
+        self.strategy_risk_controls = self.params.get("risk_controls", {})
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if self.rsi_period <= 0:
+            raise ValueError("rsi_period must be positive.")
+        if not 0 < self.os_level < self.ob_level < 100:
+            raise ValueError("RSI levels must satisfy 0 < os_level < ob_level < 100.")
+        if self.balance_increase <= 0:
+            raise ValueError("balance_increase must be positive.")
+        if self.volume_increase <= 0:
+            raise ValueError("volume_increase must be positive.")
+        if self.initial_lot <= 0:
+            raise ValueError("initial_lot must be positive.")
+        if self.min_lot <= 0:
+            raise ValueError("min_lot must be positive.")
+        if self.max_lot < self.min_lot:
+            raise ValueError("max_lot must be greater than or equal to min_lot.")
+        if self.cost_averaging_distance_pips <= 0:
+            raise ValueError("cost_averaging_distance_pips must be positive.")
+        if self.pyramiding_distance_pips <= 0:
+            raise ValueError("pyramiding_distance_pips must be positive.")
+        if self.lot_divisor <= 1:
+            raise ValueError("lot_divisor must be greater than 1.")
+        if self.sl_displacement_pips <= 0:
+            raise ValueError("sl_displacement_pips must be positive.")
+        if self.pip_value <= 0:
+            raise ValueError("pip_value must be positive.")
 
     def on_init(self) -> None:
         self.state.setdefault("buy", self._empty_side_state())

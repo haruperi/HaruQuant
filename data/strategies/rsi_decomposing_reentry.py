@@ -23,6 +23,11 @@ from data.strategies.stateful_common import (
 class RsiDecomposingReentryStrategy(StatefulStrategyMixin, BaseStrategy):
     """Faithful port of an RSI EA that decomposes old entries and re-enters."""
 
+    strategy_name = "RsiDecomposingReentryStrategy"
+    strategy_type = "stateful"
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(params)
         self.rsi_period = int(self.params.get("rsi_period", 14))
@@ -41,6 +46,36 @@ class RsiDecomposingReentryStrategy(StatefulStrategyMixin, BaseStrategy):
         self.pip_value = float(self.params.get("pip_value", 0.0001))
         self._rsi_cache_key: tuple[int, int] | None = None
         self._rsi_cache: pd.Series | None = None
+        self.strategy_risk_controls = self.params.get("risk_controls", {})
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if self.rsi_period <= 0:
+            raise ValueError("rsi_period must be positive.")
+        if not 0 < self.os_level < self.ob_level < 100:
+            raise ValueError("RSI levels must satisfy 0 < os_level < ob_level < 100.")
+        if self.balance_increase <= 0:
+            raise ValueError("balance_increase must be positive.")
+        if self.volume_increase <= 0:
+            raise ValueError("volume_increase must be positive.")
+        if self.volume_decrease <= 0:
+            raise ValueError("volume_decrease must be positive.")
+        if self.when_to_trail_pips <= 0:
+            raise ValueError("when_to_trail_pips must be positive.")
+        if self.trail_by_pips <= 0:
+            raise ValueError("trail_by_pips must be positive.")
+        if self.trade_distance_pips <= 0:
+            raise ValueError("trade_distance_pips must be positive.")
+        if self.initial_lot <= 0:
+            raise ValueError("initial_lot must be positive.")
+        if self.min_lot <= 0:
+            raise ValueError("min_lot must be positive.")
+        if self.max_lot < self.min_lot:
+            raise ValueError("max_lot must be greater than or equal to min_lot.")
+        if self.lot_step <= 0:
+            raise ValueError("lot_step must be positive.")
+        if self.pip_value <= 0:
+            raise ValueError("pip_value must be positive.")
 
     def on_init(self) -> None:
         self.state.setdefault("previous_rsi", None)

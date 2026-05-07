@@ -27,6 +27,11 @@ from data.strategies.stateful_common import (
 class RsiMartingaleStrategy(StatefulStrategyMixin, BaseStrategy):
     """Both BUY and SELL martingale baskets run concurrently and independently."""
 
+    strategy_name = "RsiMartingaleStrategy"
+    strategy_type = "stateful"
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(params)
         self.rsi_period = int(self.params.get("rsi_period", 14))
@@ -39,6 +44,28 @@ class RsiMartingaleStrategy(StatefulStrategyMixin, BaseStrategy):
         self.pip_value = float(self.params.get("pip_value", 0.0001))
         self.max_lot = float(self.params.get("max_lot", 50.0))
         self.max_steps = int(self.params.get("max_steps", 999999))
+        self.strategy_risk_controls = self.params.get("risk_controls", {})
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if self.rsi_period <= 0:
+            raise ValueError("rsi_period must be positive.")
+        if not 0 < self.rsi_oversold < self.rsi_overbought < 100:
+            raise ValueError(
+                "RSI thresholds must satisfy 0 < oversold < overbought < 100."
+            )
+        if self.initial_lot <= 0:
+            raise ValueError("initial_lot must be positive.")
+        if self.multiplier <= 1:
+            raise ValueError("multiplier must be greater than 1.")
+        if self.min_step_pips <= 0:
+            raise ValueError("min_step_pips must be positive.")
+        if self.pip_value <= 0:
+            raise ValueError("pip_value must be positive.")
+        if self.max_lot <= 0:
+            raise ValueError("max_lot must be positive.")
+        if self.max_steps <= 0:
+            raise ValueError("max_steps must be positive.")
 
     def on_init(self) -> None:
         self.state.setdefault("buy", {"last_price": 0.0, "total_vol": 0.0, "steps": 0})

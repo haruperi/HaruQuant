@@ -2,16 +2,69 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
 import pandas as pd
 
 from services.strategy.stateful import PositionSnapshot, StrategyContext
 
+SIGNAL_COLUMN_DEFAULTS: dict[str, Any] = {
+    "entry_signal": 0,
+    "exit_signal": 0,
+    "pending_signal": 0,
+    "cancel_pending_signal": 0,
+    "pending_signal_2": 0,
+    "cancel_pending_signal_2": 0,
+    "price": float("nan"),
+    "price_2": float("nan"),
+    "stop_loss": float("nan"),
+    "take_profit": float("nan"),
+    "signal_reason": "",
+    "setup_id": "",
+    "group_id": "",
+}
+
+ACTIVATOR_COLUMN_DEFAULTS: dict[str, bool] = {
+    "buy_setup_active": False,
+    "sell_setup_active": False,
+    "buy_add_active": False,
+    "sell_add_active": False,
+    "buy_exit_active": False,
+    "sell_exit_active": False,
+    "buy_pyramid_active": False,
+    "sell_pyramid_active": False,
+    "buy_martingale_active": False,
+    "sell_martingale_active": False,
+    "buy_decompose_active": False,
+    "sell_decompose_active": False,
+    "buy_trail_active": False,
+    "sell_trail_active": False,
+}
+
+
+def ensure_signal_columns(
+    data: pd.DataFrame,
+    *,
+    include_activators: bool = False,
+    include_compat_columns: bool = True,
+) -> pd.DataFrame:
+    """Return bars with the HaruQuant v1.0 strategy signal schema."""
+    out = data.copy()
+    defaults: dict[str, Any] = dict(SIGNAL_COLUMN_DEFAULTS)
+    if include_activators:
+        defaults.update(ACTIVATOR_COLUMN_DEFAULTS)
+    if include_compat_columns:
+        defaults.update({"sl": 0.0, "tp": 0.0})
+
+    for column, default in defaults.items():
+        if column not in out.columns:
+            out[column] = default
+    return out
+
 
 def ensure_no_signal_columns(data: pd.DataFrame) -> pd.DataFrame:
     """Return bars with neutral signal columns for tick generation."""
-    out = data.copy()
+    out = ensure_signal_columns(data, include_activators=True)
     for column in (
         "entry_signal",
         "exit_signal",
@@ -21,8 +74,12 @@ def ensure_no_signal_columns(data: pd.DataFrame) -> pd.DataFrame:
         "cancel_pending_signal_2",
     ):
         out[column] = 0
-    out["price"] = 0.0
-    out["price_2"] = 0.0
+    for column in ("price", "price_2", "stop_loss", "take_profit"):
+        out[column] = float("nan")
+    for column in ("signal_reason", "setup_id", "group_id"):
+        out[column] = ""
+    for column in ACTIVATOR_COLUMN_DEFAULTS:
+        out[column] = False
     out["sl"] = 0.0
     out["tp"] = 0.0
     return out

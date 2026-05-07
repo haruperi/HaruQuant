@@ -27,6 +27,11 @@ from data.strategies.stateful_common import (
 class PyramidingStrategy(StatefulStrategyMixin, BaseStrategy):
     """Adds to winning trend positions and moves basket stops to lock profit."""
 
+    strategy_name = "PyramidingStrategy"
+    strategy_type = "stateful"
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
+
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(params)
         self.fast_ma_period = int(self.params.get("fast_ma_period", 10))
@@ -37,6 +42,28 @@ class PyramidingStrategy(StatefulStrategyMixin, BaseStrategy):
         self.trailing_sl_pips = float(self.params.get("trailing_sl_pips", 10.0))
         self.pip_value = float(self.params.get("pip_value", 0.0001))
         self.max_positions_per_side = int(self.params.get("max_positions_per_side", 6))
+        self.strategy_risk_controls = self.params.get("risk_controls", {})
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if self.fast_ma_period <= 0:
+            raise ValueError("fast_ma_period must be positive.")
+        if self.slow_ma_period <= 0:
+            raise ValueError("slow_ma_period must be positive.")
+        if self.fast_ma_period >= self.slow_ma_period:
+            raise ValueError("fast_ma_period must be less than slow_ma_period.")
+        if self.initial_lot <= 0:
+            raise ValueError("initial_lot must be positive.")
+        if self.lot_divisor <= 1:
+            raise ValueError("lot_divisor must be greater than 1.")
+        if self.min_step_pips <= 0:
+            raise ValueError("min_step_pips must be positive.")
+        if self.trailing_sl_pips <= 0:
+            raise ValueError("trailing_sl_pips must be positive.")
+        if self.pip_value <= 0:
+            raise ValueError("pip_value must be positive.")
+        if self.max_positions_per_side <= 0:
+            raise ValueError("max_positions_per_side must be positive.")
 
     def on_init(self) -> None:
         self.state.setdefault("buy", {"last_price": 0.0, "total_positions": 0})

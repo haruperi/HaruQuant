@@ -1,131 +1,101 @@
-"""
-Breakout Strategy.
+"""Single-leg previous-bar breakout strategy."""
 
-Implements a simple breakout strategy using pending orders.
-Entry Signals:
-- Long: Buy at previous bar's high (stop order)
-- Short: Sell at previous bar's low (stop order)
-
-Exit Strategy:
-- Always in the market - exits only when opposite signal occurs (Stop and Reverse)
-- Pending signals expire after 1 bar
-"""
+from __future__ import annotations
 
 from typing import Any, Dict, Optional
+
 import pandas as pd
-from haruquant.utils import logger
-from haruquant.strategy import BaseStrategy, SignalDict
+
+from services.strategy.base import BaseStrategy, SignalDict
+from services.utils.logger import logger
+
+from data.strategies.stateful_common import ensure_signal_columns
+
 
 class PositionType:
     BUY = 0
     SELL = 1
 
+
 class BreakoutStrategy(BaseStrategy):
-    """
-    Breakout Strategy with Pending Orders.
-    """
+    """Places one pending breakout order and refreshes it each bar."""
+
+    strategy_name = "BreakoutStrategy"
+    strategy_type = "simple"
+    signal_schema_version = "1.0"
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
         super().__init__(params)
+        self.symbol = str(self.params.get("symbol", "UNKNOWN"))
+        self._validate_params()
+
+    def _validate_params(self) -> None:
+        if not self.symbol:
+            raise ValueError("symbol must be provided.")
 
     def on_init(self) -> None:
-        logger.info(f"BreakoutStrategy initialized for {self.params.get('symbol', 'Unknown')}")
+        logger.info("%s initialized for %s", self.strategy_name, self.symbol)
 
     def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Calculate previous bar high/low for breakout levels.
-        """
-        # Calculate shifted values for previous bar reference
+        data = data.copy()
         data["prev_high"] = data["high"].shift(1)
         data["prev_low"] = data["low"].shift(1)
         data["prev_close"] = data["close"].shift(1)
         data["prev_open"] = data["open"].shift(1)
-        
-        # Initialize signal columns with 1 to ensure engine calls get_signal
-        # The actual signal logic is in get_signal
-        data["entry_signal"] = 0
-        data["exit_signal"] = 0
-        
-        # Flag all bars as potentially having signals so get_signal is called
-        # We start from index 1 because index 0 has NaN prev_high
-        data["pending_signal"] = 1
-        data["cancel_pending_signal"] = 1
-        
-        # Reset first row to 0 as we can't calculate signal there
-        data.iloc[0, data.columns.get_loc("pending_signal")] = 0
-        data.iloc[0, data.columns.get_loc("cancel_pending_signal")] = 0
+        data = ensure_signal_columns(data)
 
-        data["price"] = float("nan")
-        
+        valid_setup = data["prev_high"].notna() & data["prev_low"].notna()
+        bullish_bias = data["prev_close"] > data["prev_open"]
+        buy = valid_setup & bullish_bias
+        sell = valid_setup & ~bullish_bias
+
+        data.loc[valid_setup, "cancel_pending_signal"] = 1
+        data.loc[buy, "pending_signal"] = 1
+        data.loc[buy, "price"] = data.loc[buy, "prev_high"]
+        data.loc[buy, "signal_reason"] = "Previous bar bullish breakout pending"
+        data.loc[buy, "setup_id"] = "breakout_buy"
+        data.loc[buy, "group_id"] = "breakout_buy"
+
+        data.loc[sell, "pending_signal"] = -1
+        data.loc[sell, "price"] = data.loc[sell, "prev_low"]
+        data.loc[sell, "signal_reason"] = "Previous bar bearish breakout pending"
+        data.loc[sell, "setup_id"] = "breakout_sell"
+        data.loc[sell, "group_id"] = "breakout_sell"
         return data
 
     def get_signal(self, data: pd.DataFrame, index: int) -> Optional[SignalDict]:
-        """
-        Generate pending order signals based on breakout logic.
-        """
-        # Ensure enough data
         if index < 1:
             return None
-            
+
         row = data.iloc[index]
-        prev_high = row.get("prev_high")
-        prev_low = row.get("prev_low")
-        
-        if pd.isna(prev_high) or pd.isna(prev_low):
+        if pd.isna(row.get("prev_high")) or pd.isna(row.get("prev_low")):
             return None
 
-        # Logic:
-        # 1. Always cancel previous pending orders (Expire after 1 bar)
-        # 2. Determine direction:
-        #    - If Long: Place Sell Stop @ Prev Low (Reverse)
-        #    - If Short: Place Buy Stop @ Prev High (Reverse)
-        #    - If Flat: Bias based on momentum (Prev Close > Prev Open -> Buy Stop, else Sell Stop)
-        
-        pending_signal = 0
-        price = 0.0
-        
-        # Determine current position direction
-        # Note: self.position is available in EventDrivenEngine, but likely None in Vectorized
-        is_long = False
-        is_short = False
-        
+        signal = super().get_signal(data, index)
+        if signal is None:
+            return None
+
         if self.position and hasattr(self.position, "positions"):
-             # Check if we have any open position for this symbol
-             # Simplified: assuming one position per symbol for this strategy
-             for pos in self.position.positions.values():
-                 if pos.symbol == self.symbol:
-                     if pos.type == PositionType.BUY:
-                         is_long = True
-                     elif pos.type == PositionType.SELL:
-                         is_short = True
-                     break
-        
-        if is_long:
-            # We are Long, place Sell Stop to reverse
-            pending_signal = -1 # Sell Stop
-            price = prev_low
-        elif is_short:
-            # We are Short, place Buy Stop to reverse
-            pending_signal = 1 # Buy Stop
-            price = prev_high
-        else:
-            # Flat (or Vectorized mode without state)
-            # Use Momentum Bias: If green bar, look for upside breakout. Red bar, downside.
-            if row["prev_close"] > row["prev_open"]:
-                pending_signal = 1 # Buy Stop
-                price = prev_high
-            else:
-                pending_signal = -1 # Sell Stop
-                price = prev_low
-                
-        return {
-            "entry_signal": 0,
-            "exit_signal": 0,
-            "pending_signal": int(pending_signal),
-            "cancel_pending_signal": 1, # Always cancel previous
-            "price": float(price),
-            "time": row.name,
-            "reason": "Breakout Pending",
-            "stop_loss": None,
-            "take_profit": None
-        }
+            is_long = False
+            is_short = False
+            for position in self.position.positions.values():
+                if position.symbol != self.symbol:
+                    continue
+                is_long = position.type == PositionType.BUY
+                is_short = position.type == PositionType.SELL
+                break
+
+            if is_long:
+                signal["pending_signal"] = -1
+                signal["price"] = float(row["prev_low"])
+                signal["reason"] = "Reverse long with previous bar sell stop"
+                signal["setup_id"] = "breakout_reverse_sell"
+                signal["group_id"] = "breakout_reverse_sell"
+            elif is_short:
+                signal["pending_signal"] = 1
+                signal["price"] = float(row["prev_high"])
+                signal["reason"] = "Reverse short with previous bar buy stop"
+                signal["setup_id"] = "breakout_reverse_buy"
+                signal["group_id"] = "breakout_reverse_buy"
+
+        return signal

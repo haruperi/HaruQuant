@@ -61,12 +61,8 @@ class TemplateStrategy(BaseStrategy):
         return data
 
     def _calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
-        data[f"sma_{self.fast_period}"] = data["close"].rolling(
-            self.fast_period
-        ).mean()
-        data[f"sma_{self.slow_period}"] = data["close"].rolling(
-            self.slow_period
-        ).mean()
+        data[f"sma_{self.fast_period}"] = data["close"].rolling(self.fast_period).mean()
+        data[f"sma_{self.slow_period}"] = data["close"].rolling(self.slow_period).mean()
         return data
 
     def _shift_features(self, data: pd.DataFrame) -> pd.DataFrame:
