@@ -1,4 +1,4 @@
-"""Advisory-only portfolio proposal generators."""
+﻿"""Advisory-only portfolio proposal generators."""
 
 from __future__ import annotations
 

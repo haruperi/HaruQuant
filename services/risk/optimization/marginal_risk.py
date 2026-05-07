@@ -1,4 +1,4 @@
-"""Marginal risk evaluation helpers for hypothetical actions."""
+﻿"""Marginal risk evaluation helpers for hypothetical actions."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from services.risk.core.portfolio_risk_engine import PortfolioRiskEngine
 from services.risk.core.risk_scorecard_engine import RiskScorecardEngine
 from services.risk.core.risk_snapshot_engine import RiskSnapshotEngine
 from services.risk.metrics import RiskSnapshot
-from services.risk.models import PortfolioState, PositionState
+from services.risk.domain import PortfolioState, PositionState
 from services.risk.scoring import RiskScorecard
 
 from .models import RecommendationAction, RecommendationResult, RecommendationScore

@@ -1,4 +1,4 @@
-"""Stress fragility / resilience score."""
+﻿"""Stress fragility / resilience score."""
 
 from __future__ import annotations
 

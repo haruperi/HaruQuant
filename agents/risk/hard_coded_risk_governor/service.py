@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from agents._shared import AgentRunContext, AgentRunResult
-from services.risk.governor import RiskGovernor
+from services.risk.governance.governor import RiskGovernor
 
 
 class HardCodedRiskGovernorAgent:

@@ -15,7 +15,7 @@ os.environ.setdefault("HARUQUANT_LIGHT_AGENT_IMPORTS", "1")
 from agents._shared import AgentRunContext
 from agents.executive.planner_agent.service import PlannerAgent
 from agents.risk import PortfolioRiskMonitorAgent, RiskApprovalAuditorAgent, RiskLimitAuditorAgent, RiskOrchestratorAgent, RiskReviewerAgent
-from services.risk.governor import RiskGovernor
+from services.risk.governance.governor import RiskGovernor
 
 
 def main() -> None:

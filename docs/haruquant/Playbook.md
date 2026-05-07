@@ -1442,7 +1442,7 @@ agentic-system/
 │   │   └── servers/
 │   ├── approvals/
 │   ├── policy/
-│   ├── observability/
+│   ├── cost/
 │   └── evaluation/
 │       └── evaluator.py
 ├── tests/

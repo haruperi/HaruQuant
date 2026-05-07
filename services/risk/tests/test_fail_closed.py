@@ -1,4 +1,4 @@
-﻿from services.risk.governor import RiskGovernor
+﻿from services.risk.governance.governor import RiskGovernor
 
 
 def test_invalid_config_hash_fail_closed():

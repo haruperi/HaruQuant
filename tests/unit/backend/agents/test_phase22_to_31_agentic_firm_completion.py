@@ -13,9 +13,9 @@ from agents.portfolio.synthesis_trader_agent import SynthesisTraderAgent
 from agents.control_plane.operating_cycle import OperatingCycleRunner
 from agents.research.bear_researcher_agent import BearResearcherAgent
 from agents.research.bull_researcher_agent import BullResearcherAgent
-from execution.ctrader_bridge import CTraderBridge
-from execution.mt5_bridge import MT5Bridge
-from execution.order_router import OrderRouter
+from services.execution.bridges.ctrader_bridge import CTraderBridge
+from services.execution.bridges.mt5_bridge import MT5Bridge
+from services.execution.order_router import OrderRouter
 from services.risk.safety.kill_switch import KillSwitchService
 
 

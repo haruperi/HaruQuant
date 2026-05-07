@@ -1,4 +1,4 @@
-"""Overall risk quality score."""
+﻿"""Overall risk quality score."""
 
 from __future__ import annotations
 

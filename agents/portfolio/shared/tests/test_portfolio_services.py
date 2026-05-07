@@ -1,5 +1,7 @@
 from agents.portfolio.shared.contracts import AllocationProposal, LifecycleTransitionRequest, StrategyLifecycleState
-from services.portfolio import AllocationService, LifecycleService, OrderRouter, PaperBroker, PortfolioKillSwitch, ReportingService
+from services.execution.brokers.paper_broker import PaperBroker
+from services.execution.order_router import OrderRouter
+from services.portfolio import AllocationService, LifecycleService, PortfolioKillSwitch, ReportingService
 
 
 def test_all_contracts_and_services_smoke():

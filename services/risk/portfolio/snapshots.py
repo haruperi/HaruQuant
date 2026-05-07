@@ -1,4 +1,4 @@
-"""Portfolio snapshot assembly helpers for portfolio analytics."""
+﻿"""Portfolio snapshot assembly helpers for portfolio analytics."""
 
 from __future__ import annotations
 

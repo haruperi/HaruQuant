@@ -1,33 +1,38 @@
 """Portfolio analytics services."""
 
-from .contributions import MarginalRiskContribution, calculate_marginal_risk_contribution
-from .enforcement import enforce_portfolio_advisory_only
-from .impacts import (
-    ProjectedVarEsImpact,
-    calculate_projected_margin_impact,
-    calculate_projected_var_es_impact,
-)
-from .proposals import (
-    AdvisoryPortfolioProposal,
-    generate_derisk_proposal,
-    generate_hedge_proposal,
-    generate_rebalance_proposal,
-    generate_resize_proposal,
-)
-from .snapshots import PortfolioSnapshotAssemblyInput, assemble_portfolio_snapshot
+from __future__ import annotations
 
-__all__ = [
-    "AdvisoryPortfolioProposal",
-    "MarginalRiskContribution",
-    "PortfolioSnapshotAssemblyInput",
-    "ProjectedVarEsImpact",
-    "calculate_projected_margin_impact",
-    "calculate_marginal_risk_contribution",
-    "calculate_projected_var_es_impact",
-    "enforce_portfolio_advisory_only",
-    "generate_derisk_proposal",
-    "generate_hedge_proposal",
-    "generate_rebalance_proposal",
-    "generate_resize_proposal",
-    "assemble_portfolio_snapshot",
-]
+_EXPORT_MODULES = {
+    "AdvisoryPortfolioProposal": "proposals",
+    "MarginalRiskContribution": "contributions",
+    "PortfolioSnapshotAssemblyInput": "snapshots",
+    "PortfolioStateBuilder": "state_builder",
+    "PortfolioStateEngine": "state_builder",
+    "ProjectedVarEsImpact": "impacts",
+    "RiskSnapshotBuilder": "snapshot_builder",
+    "RiskSnapshotEngine": "snapshot_builder",
+    "assemble_portfolio_snapshot": "snapshots",
+    "calculate_marginal_risk_contribution": "contributions",
+    "calculate_projected_margin_impact": "impacts",
+    "calculate_projected_var_es_impact": "impacts",
+    "enforce_portfolio_advisory_only": "enforcement",
+    "generate_derisk_proposal": "proposals",
+    "generate_hedge_proposal": "proposals",
+    "generate_rebalance_proposal": "proposals",
+    "generate_resize_proposal": "proposals",
+}
+
+__all__ = list(_EXPORT_MODULES)
+
+
+def __getattr__(name: str):
+    module_name = _EXPORT_MODULES.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    from importlib import import_module
+
+    module = import_module(f"{__name__}.{module_name}")
+    value = getattr(module, name)
+    globals()[name] = value
+    return value

@@ -1,4 +1,4 @@
-"""Governance compliance score."""
+﻿"""Governance compliance score."""
 
 from __future__ import annotations
 

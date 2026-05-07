@@ -44,7 +44,7 @@ from agents.runtime.session_manager import SessionManager
 from agents.runtime.tool_validation import ToolValidationError, ToolValidator, register_mcp_schemas
 from services.data.mt5.tools import MT5ReadOnlyTools
 from services.data.sql_tools import SQLMCPAccessError, SQLReadOnlyTools
-from observability.cost_tracker import CostTracker
+from services.execution.cost.enforcer import CostTracker
 
 
 def print_example_header(title: str) -> None:

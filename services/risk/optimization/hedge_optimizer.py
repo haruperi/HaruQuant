@@ -1,11 +1,11 @@
-"""Simple hedge candidate evaluation helpers."""
+﻿"""Simple hedge candidate evaluation helpers."""
 
 from __future__ import annotations
 
 from typing import Iterable, List
 
 from services.risk.metrics import RiskSnapshot
-from services.risk.models import PortfolioState
+from services.risk.domain import PortfolioState
 from services.risk.scoring import RiskScorecard
 
 from .marginal_risk import MarginalRiskEvaluator

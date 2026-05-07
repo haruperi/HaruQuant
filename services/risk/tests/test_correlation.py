@@ -1,5 +1,5 @@
-﻿from services.risk.correlation import correlation_failures, correlation_impact
-from services.risk.thresholds import load_risk_thresholds
+﻿from services.risk.calculations.correlation import correlation_failures, correlation_impact
+from services.risk.config.thresholds import load_risk_thresholds
 
 
 def test_cluster_breach():

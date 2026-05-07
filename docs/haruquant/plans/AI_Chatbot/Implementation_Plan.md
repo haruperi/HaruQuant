@@ -341,7 +341,7 @@ Ground the assistant in real HaruQuant state through safe read-only tools.
 
 - `tools/read_only/*.py`
 - `agents/runtime/tool_executor.py`
-- `policies/tool_policy.py`
+- `agents/runtime/tool_policy.py`
 - provenance display in UI
 - tool integration tests
 

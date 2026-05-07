@@ -1,11 +1,11 @@
-"""Small bounded allocation recommendation helpers."""
+﻿"""Small bounded allocation recommendation helpers."""
 
 from __future__ import annotations
 
 from typing import Iterable, List, Optional
 
 from services.risk.metrics import RiskSnapshot
-from services.risk.models import PortfolioState
+from services.risk.domain import PortfolioState
 from services.risk.scoring import RiskScorecard
 
 from .capital_efficiency import CapitalEfficiencyRanker

@@ -1,9 +1,0 @@
-version: refusal_policy_v1
-refuse_or_block:
-  - bypass_risk_governor
-  - bypass_kill_switch
-  - hide_audit_or_losses
-  - execute_without_approval
-  - fabricate_evidence
-  - deploy_unreviewed_live
-  - planner_public_action

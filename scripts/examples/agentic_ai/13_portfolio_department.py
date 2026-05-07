@@ -17,7 +17,8 @@ from agents.portfolio.performance_reporter_agent import PerformanceReporterAgent
 from agents.portfolio.portfolio_orchestrator_agent import PortfolioOrchestratorAgent
 from agents.portfolio.strategy_lifecycle_agent import StrategyLifecycleAgent
 from agents.portfolio.shared.contracts import AllocationProposal, LifecycleTransitionRequest, StrategyLifecycleState
-from services.portfolio import AllocationService, LifecycleService, PaperBroker, PortfolioKillSwitch, ReportingService
+from services.execution.brokers.paper_broker import PaperBroker
+from services.portfolio import AllocationService, LifecycleService, PortfolioKillSwitch, ReportingService
 
 
 def main() -> None:

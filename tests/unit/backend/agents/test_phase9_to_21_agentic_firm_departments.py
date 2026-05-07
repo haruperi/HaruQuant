@@ -15,8 +15,8 @@ from agents.validation_backtesting.statistical_validation_agent.service import S
 from agents.strategy_development.strategy_creator_agent.service import StrategyCreatorAgent
 from agents.strategy_development.strategy_reviewer_agent.service import StrategyReviewerAgent
 from agents.strategy_development.strategy_reviewer_agent.tools import StrategySpecValidator
-from execution.paper_broker import PaperBroker
-from services.risk.governor import RiskGovernor
+from services.execution.brokers.paper_broker import PaperBroker
+from services.risk.governance.governor import RiskGovernor
 
 
 def _context() -> AgentRunContext:

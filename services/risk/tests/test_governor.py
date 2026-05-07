@@ -1,4 +1,4 @@
-﻿from services.risk.governor import RiskGovernor
+﻿from services.risk.governance.governor import RiskGovernor
 
 
 def test_normal_approval_case():

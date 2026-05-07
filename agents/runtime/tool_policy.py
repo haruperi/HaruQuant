@@ -12,11 +12,52 @@ class ToolPolicyError(PermissionError):
     """Raised when runtime tool policy blocks a request."""
 
 
+READ_ONLY_TOOL_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "portfolio_summary",
+        "open_positions",
+        "backtest_summary",
+        "strategy_parameters",
+        "optimization_results",
+        "risk_snapshot",
+        "alert_history",
+        "symbol_stats",
+    }
+)
+
+
+class ToolPolicyViolation(PermissionError):
+    """Raised when AI Chat requests a disallowed tool."""
+
+
 @dataclass(frozen=True)
 class ToolAllowlistDecision:
     allowed: bool
     allowed_tools: tuple[str, ...]
     blocked_tools: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ToolPolicyDecision:
+    allowed: bool
+    tool_name: str
+    reason: str
+
+
+class ReadOnlyToolPolicy:
+    """Enforces that AI Chat can only execute explicit read-only tools."""
+
+    def __init__(self, allowlist: frozenset[str] = READ_ONLY_TOOL_ALLOWLIST) -> None:
+        self.allowlist = allowlist
+
+    def enforce(self, tool_name: str) -> ToolPolicyDecision:
+        if tool_name not in self.allowlist:
+            raise ToolPolicyViolation(f"Tool '{tool_name}' is not in the AI Chat read-only allowlist.")
+        return ToolPolicyDecision(
+            allowed=True,
+            tool_name=tool_name,
+            reason="read_only_allowlist",
+        )
 
 
 class ToolAllowlistMiddleware:
@@ -64,3 +105,14 @@ class ToolAllowlistMiddleware:
             )
         except Exception as exc:
             raise ToolPolicyError(str(exc)) from exc
+
+
+__all__ = [
+    "READ_ONLY_TOOL_ALLOWLIST",
+    "ReadOnlyToolPolicy",
+    "ToolAllowlistDecision",
+    "ToolAllowlistMiddleware",
+    "ToolPolicyDecision",
+    "ToolPolicyError",
+    "ToolPolicyViolation",
+]

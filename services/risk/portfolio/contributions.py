@@ -1,4 +1,4 @@
-"""Marginal portfolio contribution helpers."""
+﻿"""Marginal portfolio contribution helpers."""
 
 from __future__ import annotations
 

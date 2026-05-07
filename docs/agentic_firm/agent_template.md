@@ -228,7 +228,7 @@ services/
 tools/
   read_only/
 
-policies/
+agents/runtime/
   tool_policy.py
 ```
 
@@ -556,7 +556,7 @@ Tool rules:
 - Do not let research, strategy, validation, or reporting agents place trades.
 - Tool output should be normalized into `EvidenceItem`.
 - Tool calls should be logged.
-- Any tool exposed to AI Chat by default must be read-only and pass through `tools/read_only/`, `policies/tool_policy.py`, and `agents/runtime/tool_executor.py`.
+- Any tool exposed to AI Chat by default must be read-only and pass through `tools/read_only/`, `agents/runtime/tool_policy.py`, and `agents/runtime/tool_executor.py`.
 - Write-safe, write-controlled, or critical tools require explicit workflow approval and must not be exposed as casual chat tools.
 - Specialist agents may expose read-only summaries to CEOChatGateway, but mutation tools require a governed workflow, permission check, and audit record.
 

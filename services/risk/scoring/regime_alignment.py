@@ -1,4 +1,4 @@
-"""Regime alignment score."""
+﻿"""Regime alignment score."""
 
 from __future__ import annotations
 

@@ -135,7 +135,7 @@ copilot.
 - `agents/executive/ceo_agent/service.py`
 - `services/stream_manager.py`
 - `agents/runtime/tool_executor.py`
-- `policies/tool_policy.py`
+- `agents/runtime/tool_policy.py`
 
 ## Observability Requirements
 

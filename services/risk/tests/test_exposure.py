@@ -1,5 +1,5 @@
-﻿from services.risk.exposure import exposure_snapshot, proposed_exposure_impact, concentration_failures
-from services.risk.thresholds import load_risk_thresholds
+﻿from services.risk.calculations.exposure import exposure_snapshot, proposed_exposure_impact, concentration_failures
+from services.risk.config.thresholds import load_risk_thresholds
 
 
 def test_symbol_exposure_breach():

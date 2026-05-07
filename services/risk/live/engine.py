@@ -1,8 +1,8 @@
-"""Risk-Integrated Multi-Strategy Live Trading Engine.
+﻿"""Risk-Integrated Multi-Strategy Live Trading Engine.
 
 Extends MultiStrategyEngine with full risk management cycle:
-Market Data → Signals → Position Sizing → Regime Detection →
-Allocation Planning → Risk Gating → Execution
+Market Data â†’ Signals â†’ Position Sizing â†’ Regime Detection â†’
+Allocation Planning â†’ Risk Gating â†’ Execution
 """
 
 import time
@@ -17,7 +17,7 @@ from services.utils.logger import logger
 from services.risk.core import GovernanceEngine, PortfolioRiskEngine, PortfolioStateEngine
 from services.risk.limits import CorrelationPreference, RiskLimits
 from services.risk.optimization import AllocationPlanner
-from services.risk.position_sizing import PositionSizer
+from services.risk.calculations.position_sizing import PositionSizer
 from services.risk.regimes import RegimeState, RiskRegimeDetector
 
 
@@ -511,7 +511,7 @@ class RiskIntegratedEngine(MultiStrategyEngine):
 
                     logger.info(
                         f"[{signal['_instance'].name}] Volume adjusted: "
-                        f"{old_volume:.3f} → {normalized_volume:.3f} lots"
+                        f"{old_volume:.3f} â†’ {normalized_volume:.3f} lots"
                     )
 
             return allocated_signals

@@ -1,7 +1,7 @@
 ﻿import pytest
-from services.risk.approval_tokens import USED_APPROVAL_SIGNATURES, validate_approval_token
-from services.risk.exceptions import RiskTokenError
-from services.risk.governor import RiskGovernor
+from services.risk.governance.approval_tokens import USED_APPROVAL_SIGNATURES, validate_approval_token
+from services.risk.domain.exceptions import RiskTokenError
+from services.risk.governance.governor import RiskGovernor
 
 
 def test_token_validation_and_replay():

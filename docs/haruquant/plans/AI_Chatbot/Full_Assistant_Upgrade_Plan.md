@@ -222,7 +222,7 @@ Add a tool attachment bar in the chat composer:
 
 Add:
 
-- `tools/read_only/ and policies/tool_policy.py`
+- `tools/read_only/ and agents/runtime/tool_policy.py`
 - `agents/runtime/tool_executor.py`
 - `services/conversation/service.py`
 - `contracts/chat_tool_attachment/schema.json`
@@ -642,4 +642,3 @@ Definition of done:
 - Strategy scripts must be validated before saving or testing.
 - Current system/page state outranks chat memory.
 - Missing critical data must trigger clarification or explicit uncertainty.
-

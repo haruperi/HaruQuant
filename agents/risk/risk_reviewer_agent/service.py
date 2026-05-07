@@ -6,8 +6,8 @@ from typing import Any
 
 from agents._shared.persistence import utc_stamp, write_json_artifact
 from agents._shared import AgentRunContext, AgentRunResult
-from services.risk.contracts import RiskMemo
-from services.risk.governor import RiskGovernorDecision
+from services.risk.domain.contracts import RiskMemo
+from services.risk.governance.governor import RiskGovernorDecision
 
 
 class RiskReviewerAgent:

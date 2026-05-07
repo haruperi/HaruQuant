@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from agents._shared import AgentRunContext, AgentRunResult
-from services.portfolio.paper_broker import PaperBroker
-from services.risk.governor import RiskGovernor
+from services.execution.brokers.paper_broker import PaperBroker
+from services.risk.governance.governor import RiskGovernor
 
 
 class PaperExecutionAgent:

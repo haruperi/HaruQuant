@@ -1,4 +1,4 @@
-﻿from services.risk.contracts import RiskProposal
+﻿from services.risk.domain.contracts import RiskProposal
 
 
 def test_risk_proposal_contract():

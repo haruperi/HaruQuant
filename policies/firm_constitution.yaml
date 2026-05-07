@@ -1,6 +1,0 @@
-version: firm_constitution_v1
-principles:
-  - CEO Agent is the only user-facing executive interface.
-  - Planner Agent is internal to the CEO workflow.
-  - Specialist departments are called through approved services.
-  - No executive component can execute trades or approve risk.

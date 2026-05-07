@@ -9,7 +9,7 @@ import time
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from policies.tool_policy import ReadOnlyToolPolicy, ToolPolicyViolation
+from agents.runtime.tool_policy import ReadOnlyToolPolicy, ToolPolicyViolation
 from tools.read_only import READ_ONLY_TOOLS
 from tools.read_only.contracts import ReadOnlyToolRequest, ReadOnlyToolResult
 

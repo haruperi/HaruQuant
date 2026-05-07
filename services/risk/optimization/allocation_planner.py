@@ -1,4 +1,4 @@
-"""Soft RC-budget allocation planner built on shared portfolio math."""
+﻿"""Soft RC-budget allocation planner built on shared portfolio math."""
 
 from __future__ import annotations
 

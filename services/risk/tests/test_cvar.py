@@ -1,5 +1,5 @@
 ﻿import pytest
-from services.risk.cvar import historical_cvar, incremental_cvar
+from services.risk.calculations.cvar import historical_cvar, incremental_cvar
 
 
 def test_cvar_calculation():

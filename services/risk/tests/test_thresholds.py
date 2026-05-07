@@ -1,4 +1,4 @@
-﻿from services.risk.thresholds import load_risk_thresholds, validate_config_hash, validate_threshold_schema
+﻿from services.risk.config.thresholds import load_risk_thresholds, validate_config_hash, validate_threshold_schema
 
 
 def test_thresholds_load_and_validate():

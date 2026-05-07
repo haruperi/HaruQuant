@@ -1,4 +1,4 @@
-"""Projected portfolio impact helpers."""
+﻿"""Projected portfolio impact helpers."""
 
 from __future__ import annotations
 

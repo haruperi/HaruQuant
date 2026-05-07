@@ -1,4 +1,4 @@
-"""Shared normalization helpers for explainable risk scores."""
+﻿"""Shared normalization helpers for explainable risk scores."""
 
 from __future__ import annotations
 

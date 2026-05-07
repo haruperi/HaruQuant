@@ -1,4 +1,4 @@
-"""Advisory-only enforcement for portfolio proposals."""
+﻿"""Advisory-only enforcement for portfolio proposals."""
 
 from __future__ import annotations
 

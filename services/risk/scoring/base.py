@@ -1,4 +1,4 @@
-"""Base contracts for normalized risk scorecards."""
+﻿"""Base contracts for normalized risk scorecards."""
 
 from __future__ import annotations
 

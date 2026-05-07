@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from observability.cost_tracker import CostTracker, MODEL_PRICING
+from services.execution.cost.enforcer import CostTracker, MODEL_PRICING
 
 
 def test_model_pricing_coverage() -> None:

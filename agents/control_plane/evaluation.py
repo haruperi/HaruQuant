@@ -9,7 +9,7 @@ from agents.executive.planner_agent.service import PlannerAgent
 from agents.strategy_development.strategy_creator_agent.service import StrategyCreatorAgent
 from agents.strategy_development.strategy_reviewer_agent.service import StrategyReviewerAgent
 from agents.strategy_development.strategy_reviewer_agent.tools import StrategySpecValidator
-from services.risk.governor import RiskGovernor
+from services.risk.governance.governor import RiskGovernor
 from services.risk.safety.kill_switch import KillSwitchService
 
 

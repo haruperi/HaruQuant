@@ -1,5 +1,5 @@
-﻿from services.risk.margin import margin_failures, margin_impact
-from services.risk.thresholds import load_risk_thresholds
+﻿from services.risk.calculations.margin import margin_failures, margin_impact
+from services.risk.config.thresholds import load_risk_thresholds
 
 
 def test_low_free_margin_rejection():

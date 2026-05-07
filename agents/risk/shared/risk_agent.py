@@ -7,12 +7,12 @@ from typing import Any, Callable
 
 from agents._shared import AgentRunContext, AgentRunResult
 from agents._shared.persistence import utc_stamp, write_json_artifact
-from services.risk.approval_tokens import validate_approval_token
-from services.risk.broker_risk import broker_risk_state
-from services.risk.drawdown import drawdown_state
-from services.risk.exposure import exposure_snapshot
-from services.risk.governor import RiskGovernor
-from services.risk.thresholds import config_version_hash, load_risk_thresholds, validate_config_hash
+from services.risk.governance.approval_tokens import validate_approval_token
+from services.risk.live.broker_risk import broker_risk_state
+from services.risk.calculations.drawdown import drawdown_state
+from services.risk.calculations.exposure import exposure_snapshot
+from services.risk.governance.governor import RiskGovernor
+from services.risk.config.thresholds import config_version_hash, load_risk_thresholds, validate_config_hash
 
 from .contracts import AGENT_CAPABILITIES, BLOCKED_ACTIONS
 

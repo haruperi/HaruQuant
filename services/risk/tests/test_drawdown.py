@@ -1,5 +1,5 @@
-﻿from services.risk.drawdown import drawdown_state
-from services.risk.thresholds import load_risk_thresholds
+﻿from services.risk.calculations.drawdown import drawdown_state
+from services.risk.config.thresholds import load_risk_thresholds
 
 
 def test_drawdown_breach():

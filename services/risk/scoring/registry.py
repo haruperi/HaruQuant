@@ -1,4 +1,4 @@
-"""Registry for risk score families."""
+﻿"""Registry for risk score families."""
 
 from __future__ import annotations
 

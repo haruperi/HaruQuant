@@ -4,7 +4,7 @@ import os
 import sqlite3
 
 from agents.runtime.tool_executor import AIChatReadOnlyToolExecutor, ChatToolCall
-from policies.tool_policy import ReadOnlyToolPolicy, ToolPolicyViolation
+from agents.runtime.tool_policy import ReadOnlyToolPolicy, ToolPolicyViolation
 from tools.read_only.contracts import ReadOnlyToolRequest
 from tools.read_only.state import portfolio_summary, strategy_parameters
 

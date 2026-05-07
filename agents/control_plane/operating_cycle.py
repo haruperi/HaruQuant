@@ -12,7 +12,7 @@ from agents.portfolio.portfolio_manager_agent.service import PortfolioManagerAge
 from agents.research import MarketIntelligenceAgent, StrategyScoutAgent
 from agents.validation_backtesting.robustness_monte_carlo_agent.service import RobustnessAgent
 from agents.strategy_development.strategy_creator_agent.service import StrategyCreatorAgent
-from services.risk.governor import RiskGovernor
+from services.risk.governance.governor import RiskGovernor
 
 
 class OperatingCycleRunner:

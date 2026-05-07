@@ -1,4 +1,4 @@
-"""Concentration score."""
+﻿"""Concentration score."""
 
 from __future__ import annotations
 

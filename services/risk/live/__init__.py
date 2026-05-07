@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 _EXPORT_MODULES = {
+    "broker_risk_state": "broker_risk",
     "PortfolioManager": "portfolio_manager",
     "RiskIntegratedEngine": "engine",
     "SafetyChecker": "safety_checks",

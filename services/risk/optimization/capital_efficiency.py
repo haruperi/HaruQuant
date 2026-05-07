@@ -1,11 +1,11 @@
-"""Capital-efficiency ranking helpers for the recommendation layer."""
+﻿"""Capital-efficiency ranking helpers for the recommendation layer."""
 
 from __future__ import annotations
 
 from typing import Dict, List
 
 from services.risk.metrics import RiskSnapshot
-from services.risk.models import PortfolioState
+from services.risk.domain import PortfolioState
 from services.risk.scoring import RiskScorecard
 
 from .marginal_risk import MarginalRiskEvaluator, lookup_metric_value

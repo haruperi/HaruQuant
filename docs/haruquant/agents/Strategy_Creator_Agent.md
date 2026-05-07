@@ -28,7 +28,7 @@ catalog.
 - `services/strategy/design/blueprint_validator.py`
 - `services/strategy/design/blueprint_renderer.py`
 - `services/strategy/design/blueprint_materializer.py`
-- `tools/read_only/ and policies/tool_policy.py`
+- `tools/read_only/ and agents/runtime/tool_policy.py`
 - `services/ceo_gateway.py`
 
 ## Persisted Artifacts

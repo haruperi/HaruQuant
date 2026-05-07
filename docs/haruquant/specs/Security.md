@@ -20,7 +20,7 @@ Review cadence: quarterly or when security controls change
 ## Secret Management
 - Secrets stored in environment variables or system keyring
 - Never logged or stored in code/config files
-- Redaction via `observability/redaction.py`
+- Redaction is handled at the owning service boundary; cost tracking lives in `services/execution/cost/enforcer.py`
 
 ## Least Privilege Model
 - Read-only MCP servers cannot execute mutating tools

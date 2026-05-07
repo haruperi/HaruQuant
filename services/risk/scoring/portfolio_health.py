@@ -1,4 +1,4 @@
-"""Portfolio health score."""
+﻿"""Portfolio health score."""
 
 from __future__ import annotations
 

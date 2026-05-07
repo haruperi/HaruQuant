@@ -1,5 +1,5 @@
 ﻿import pytest
-from services.risk.var import historical_var, incremental_var
+from services.risk.calculations.var import historical_var, incremental_var
 
 
 def test_historical_var():

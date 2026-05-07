@@ -1,4 +1,4 @@
-"""Diversification score."""
+﻿"""Diversification score."""
 
 from __future__ import annotations
 

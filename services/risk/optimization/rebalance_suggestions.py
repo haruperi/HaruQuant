@@ -1,11 +1,11 @@
-"""Rebalance recommendation helpers built on the shared RC rebalance math."""
+﻿"""Rebalance recommendation helpers built on the shared RC rebalance math."""
 
 from __future__ import annotations
 
 from typing import Dict, List, Optional
 
 from services.risk.metrics import RiskSnapshot
-from services.risk.models import PortfolioState
+from services.risk.domain import PortfolioState
 from services.risk.scoring import RiskScorecard
 
 from .marginal_risk import MarginalRiskEvaluator, build_state_risk_engine
