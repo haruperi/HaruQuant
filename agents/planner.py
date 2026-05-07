@@ -155,6 +155,38 @@ class PlannerAgent:
         route = ROUTE_CATALOG[intent]
         return self._build_plan(user_request=user_request, request_id=request_id, route=route)
 
+    def plan_read_only_tools(self, *, user_request: str, plan: AgentPlan, attached_tools: list[str] | None = None) -> list[str]:
+        lowered = " ".join(user_request.lower().split())
+        tool_names: list[str] = []
+        allowed_attached = {
+            "portfolio_summary",
+            "open_positions",
+            "backtest_summary",
+            "strategy_parameters",
+            "optimization_results",
+            "risk_snapshot",
+            "alert_history",
+            "symbol_stats",
+        }
+        tool_names.extend(tool for tool in attached_tools or [] if tool in allowed_attached)
+        if any(term in lowered for term in ("portfolio", "balance", "equity", "account")):
+            tool_names.append("portfolio_summary")
+        if any(term in lowered for term in ("position", "positions", "open trades")):
+            tool_names.append("open_positions")
+        if "backtest" in lowered:
+            tool_names.append("backtest_summary")
+        if "optimization" in lowered or "optimisation" in lowered:
+            tool_names.append("optimization_results")
+        if any(term in lowered for term in ("strategy parameter", "parameters", "strategy settings")) or plan.intent == "strategy_creation":
+            tool_names.append("strategy_parameters")
+        if any(term in lowered for term in ("risk", "drawdown", "exposure", "var")) or plan.intent == "risk_review":
+            tool_names.append("risk_snapshot")
+        if any(term in lowered for term in ("alert", "incident", "kill switch", "history")):
+            tool_names.append("alert_history")
+        if any(term in lowered for term in ("symbol", "spread", "tick", "price", "stats")):
+            tool_names.append("symbol_stats")
+        return list(dict.fromkeys(tool_names))
+
     def _classify(self, user_request: str) -> str:
         lowered = user_request.lower().strip()
 

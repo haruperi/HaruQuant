@@ -13,8 +13,7 @@ from pydantic import BaseModel, Field
 
 from data.database.migrations.runner import apply_pending_migrations
 from data.database.repositories.ai_chat_repository import AiChatRepository
-from services.ai_gateway import AIGateway
-from services.chat.ceo_gateway import CEOChatGateway, list_ceo_chat_tools
+from services.ceo_gateway import CEOChatGateway
 from services.context.builders import build_page_context
 from services.conversation.service import ConversationService
 from services.schemas.chat import ChatMessage, ChatRetentionPolicyDetail, ChatThread, ChatThreadDetail, ChatTurnRequest
@@ -85,10 +84,6 @@ def get_conversation_service() -> ConversationService:
 
 def get_ceo_chat_gateway() -> CEOChatGateway:
     return CEOChatGateway(get_conversation_service())
-
-
-def get_ai_gateway() -> AIGateway:
-    return AIGateway(get_conversation_service())
 
 
 @router.get("/threads", response_model=list[ChatThread])
@@ -472,7 +467,7 @@ def stream_response(
     thread_id: str,
     payload: ChatTurnRequest,
     user_id: str = Depends(get_user_id),
-    gateway: AIGateway = Depends(get_ai_gateway),
+    gateway: CEOChatGateway = Depends(get_ceo_chat_gateway),
 ) -> StreamingResponse:
     def events():
         try:
@@ -490,7 +485,7 @@ def regenerate_response(
     payload: ChatTurnRequest,
     user_id: str = Depends(get_user_id),
     conversations: ConversationService = Depends(get_conversation_service),
-    gateway: AIGateway = Depends(get_ai_gateway),
+    gateway: CEOChatGateway = Depends(get_ceo_chat_gateway),
 ) -> StreamingResponse:
     detail = conversations.get_thread(thread_id=thread_id, user_id=user_id)
     last_user = next((message for message in reversed(detail.messages) if message.role == "user"), None)

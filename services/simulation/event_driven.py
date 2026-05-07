@@ -598,24 +598,32 @@ def run_event_driven_simulation(
                     if engine._has_pending_orders():
                         engine.monitor_pending_orders(verbose=False)
 
-                    context = engine._build_strategy_context(
-                        strategy=stateful_strategy,
-                        symbol_name=symbol_name,
-                        data=data,
-                        tick_index=batch_idx,
-                        bid=bid,
-                        ask=ask,
-                    )
-                    actions = stateful_strategy.on_event(context) or []
-                    if engine._apply_trade_actions(
-                        actions,
-                        bid=bid,
-                        ask=ask,
-                        strategy_id=context.strategy_id,
-                        event_key=context.metadata.get("tick_index"),
-                        verbose=bool(monitor_verbose),
-                    ):
-                        engine._schedule_state_dirty = True
+                    event_phases = getattr(stateful_strategy, "event_phases", None)
+                    should_call_strategy = True
+                    if event_phases:
+                        should_call_strategy = _tick_phase_matches(
+                            bar_tick_phase, *event_phases
+                        )
+
+                    if should_call_strategy:
+                        context = engine._build_strategy_context(
+                            strategy=stateful_strategy,
+                            symbol_name=symbol_name,
+                            data=data,
+                            tick_index=batch_idx,
+                            bid=bid,
+                            ask=ask,
+                        )
+                        actions = stateful_strategy.on_event(context) or []
+                        if engine._apply_trade_actions(
+                            actions,
+                            bid=bid,
+                            ask=ask,
+                            strategy_id=context.strategy_id,
+                            event_key=context.metadata.get("tick_index"),
+                            verbose=bool(monitor_verbose),
+                        ):
+                            engine._schedule_state_dirty = True
                 elif risk_enabled:
                     if engine._exec_exit_signal(
                         symbol_name,

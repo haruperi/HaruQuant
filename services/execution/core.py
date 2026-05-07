@@ -1,6 +1,7 @@
 """
 Core simulator components.
 """
+
 import time
 import uuid
 import re
@@ -13,37 +14,51 @@ from services.utils.logger import logger
 
 class DotDict(dict):
     """Dictionary that supports dot notation access to attributes."""
+
     def __getattr__(self, item):
         if item in self:
             return self[item]
         raise AttributeError(f"No such attribute: {item}")
-        
+
     def __setattr__(self, key, value):
         self[key] = value
 
+
 class TerminalInfo(DotDict):
     """Container for Terminal information."""
+
     pass
+
 
 class DealInfo(DotDict):
     """Container for Deal information."""
+
     pass
-    
+
+
 class PositionInfo(DotDict):
     """Container for Position information."""
+
     pass
-    
+
+
 class OrderInfo(DotDict):
     """Container for active Order information."""
+
     pass
-    
+
+
 class HistoryOrderInfo(DotDict):
     """Container for History Order information."""
+
     pass
-    
+
+
 class SymbolInfo(DotDict):
     """Container for Symbol information."""
+
     pass
+
 
 @dataclass
 class TradeRecord:
@@ -141,30 +156,33 @@ class TradeTracker:
 
 class CloseType:
     """Canonical close type enums for trade records."""
-    SL = type('SL', (), {'value': 'SL'})()
-    TP = type('TP', (), {'value': 'TP'})()
-    TIME_EXIT = type('TIME_EXIT', (), {'value': 'TIME_EXIT'})()
-    SIGNAL_EXIT = type('SIGNAL_EXIT', (), {'value': 'SIGNAL_EXIT'})()
-    BREAKEVEN = type('BREAKEVEN', (), {'value': 'BREAKEVEN'})()
-    TRAILING_STOP = type('TRAILING_STOP', (), {'value': 'TRAILING_STOP'})()
-    MANUAL = type('MANUAL', (), {'value': 'MANUAL'})()
-    UNKNOWN = type('UNKNOWN', (), {'value': 'UNKNOWN'})()
+
+    SL = type("SL", (), {"value": "SL"})()
+    TP = type("TP", (), {"value": "TP"})()
+    TIME_EXIT = type("TIME_EXIT", (), {"value": "TIME_EXIT"})()
+    SIGNAL_EXIT = type("SIGNAL_EXIT", (), {"value": "SIGNAL_EXIT"})()
+    BREAKEVEN = type("BREAKEVEN", (), {"value": "BREAKEVEN"})()
+    TRAILING_STOP = type("TRAILING_STOP", (), {"value": "TRAILING_STOP"})()
+    MANUAL = type("MANUAL", (), {"value": "MANUAL"})()
+    UNKNOWN = type("UNKNOWN", (), {"value": "UNKNOWN"})()
 
 
 class ExitReason:
     """Exit reason enum for trade records."""
-    STOP_LOSS = type('STOP_LOSS', (), {'value': 'STOP_LOSS'})()
-    TAKE_PROFIT = type('TAKE_PROFIT', (), {'value': 'TAKE_PROFIT'})()
-    SIGNAL = type('SIGNAL', (), {'value': 'SIGNAL'})()
-    TIME = type('TIME', (), {'value': 'TIME'})()
-    MANUAL = type('MANUAL', (), {'value': 'MANUAL'})()
-    ERROR = type('ERROR', (), {'value': 'ERROR'})()
-    UNKNOWN = type('UNKNOWN', (), {'value': 'UNKNOWN'})()
+
+    STOP_LOSS = type("STOP_LOSS", (), {"value": "STOP_LOSS"})()
+    TAKE_PROFIT = type("TAKE_PROFIT", (), {"value": "TAKE_PROFIT"})()
+    SIGNAL = type("SIGNAL", (), {"value": "SIGNAL"})()
+    TIME = type("TIME", (), {"value": "TIME"})()
+    MANUAL = type("MANUAL", (), {"value": "MANUAL"})()
+    ERROR = type("ERROR", (), {"value": "ERROR"})()
+    UNKNOWN = type("UNKNOWN", (), {"value": "UNKNOWN"})()
 
 
 @dataclass
 class BacktestResult:
     """Backtest result container (legacy compatibility)."""
+
     trades: list = None
     equity_curve: list = None
     params: dict = None
@@ -215,11 +233,13 @@ def _serialize_payload(payload: Any):
         return [_serialize_payload(item) for item in payload]
     return payload
 
+
 class SimulatorState:
     """Holds the current state for the backtest simulator."""
+
     def __init__(self, account_info=None):
         if account_info is not None:
-            if hasattr(account_info, '_asdict'):
+            if hasattr(account_info, "_asdict"):
                 self.trading_account = DotDict(account_info._asdict())
             elif isinstance(account_info, dict):
                 self.trading_account = DotDict(account_info)
@@ -227,9 +247,9 @@ class SimulatorState:
                 self.trading_account = DotDict(vars(account_info))
         else:
             self.trading_account = DotDict()
-            
+
         self.terminal_info = TerminalInfo()
-            
+
         self.trading_symbols = []
         self.trading_deals = []
         self.trading_history_deals = []
@@ -246,24 +266,29 @@ class SimulatorState:
         self.execution_settings = DotDict()
 
 
-def history_deals_get(state: SimulatorState, date_from=None, date_to=None, group=None, ticket=None):
+def history_deals_get(
+    state: SimulatorState, date_from=None, date_to=None, group=None, ticket=None
+):
     """Retrieve historical deals from state."""
     deals = state.trading_history_deals
     if ticket is not None:
-        deals = [d for d in deals if getattr(d, 'ticket', None) == ticket]
+        deals = [d for d in deals if getattr(d, "ticket", None) == ticket]
         return tuple(deals)
-        
+
     if date_from is not None and date_to is not None:
         # Convert datetime to timestamp if necessary
-        t_from = int(date_from.timestamp()) if hasattr(date_from, 'timestamp') else date_from
-        t_to = int(date_to.timestamp()) if hasattr(date_to, 'timestamp') else date_to
-        deals = [d for d in deals if t_from <= getattr(d, 'time', 0) <= t_to]
-        
+        t_from = (
+            int(date_from.timestamp()) if hasattr(date_from, "timestamp") else date_from
+        )
+        t_to = int(date_to.timestamp()) if hasattr(date_to, "timestamp") else date_to
+        deals = [d for d in deals if t_from <= getattr(d, "time", 0) <= t_to]
+
     if group is not None:
-        suffix = group.replace('*', '')
-        deals = [d for d in deals if suffix in getattr(d, 'symbol', '')]
-        
+        suffix = group.replace("*", "")
+        deals = [d for d in deals if suffix in getattr(d, "symbol", "")]
+
     return tuple(deals)
+
 
 def history_deals_total(state: SimulatorState, date_from, date_to):
     return len(history_deals_get(state, date_from, date_to))
@@ -272,13 +297,19 @@ def history_deals_total(state: SimulatorState, date_from, date_to):
 def positions_get(state: SimulatorState, symbol=None, group=None, ticket=None):
     positions = state.trading_deals
     if ticket is not None:
-        positions = [p for p in positions if getattr(p, 'ticket', None) == ticket or getattr(p, 'identifier', None) == ticket]
+        positions = [
+            p
+            for p in positions
+            if getattr(p, "ticket", None) == ticket
+            or getattr(p, "identifier", None) == ticket
+        ]
     elif symbol is not None:
-        positions = [p for p in positions if getattr(p, 'symbol', '') == symbol]
+        positions = [p for p in positions if getattr(p, "symbol", "") == symbol]
     elif group is not None:
-        suffix = group.replace('*', '')
-        positions = [p for p in positions if suffix in getattr(p, 'symbol', '')]
+        suffix = group.replace("*", "")
+        positions = [p for p in positions if suffix in getattr(p, "symbol", "")]
     return tuple(positions)
+
 
 def positions_total(state: SimulatorState):
     return len(state.trading_deals)
@@ -287,34 +318,40 @@ def positions_total(state: SimulatorState):
 def orders_get(state: SimulatorState, symbol=None, group=None, ticket=None):
     orders = state.trading_orders
     if ticket is not None:
-        orders = [o for o in orders if getattr(o, 'ticket', None) == ticket]
+        orders = [o for o in orders if getattr(o, "ticket", None) == ticket]
     elif symbol is not None:
-        orders = [o for o in orders if getattr(o, 'symbol', '') == symbol]
+        orders = [o for o in orders if getattr(o, "symbol", "") == symbol]
     elif group is not None:
-        suffix = group.replace('*', '')
-        orders = [o for o in orders if suffix in getattr(o, 'symbol', '')]
+        suffix = group.replace("*", "")
+        orders = [o for o in orders if suffix in getattr(o, "symbol", "")]
     return tuple(orders)
+
 
 def orders_total(state: SimulatorState):
     return len(state.trading_orders)
 
 
-def history_orders_get(state: SimulatorState, date_from=None, date_to=None, group=None, ticket=None):
+def history_orders_get(
+    state: SimulatorState, date_from=None, date_to=None, group=None, ticket=None
+):
     orders = state.trading_history_orders
     if ticket is not None:
-        orders = [o for o in orders if getattr(o, 'ticket', None) == ticket]
+        orders = [o for o in orders if getattr(o, "ticket", None) == ticket]
         return tuple(orders)
-        
+
     if date_from is not None and date_to is not None:
-        t_from = int(date_from.timestamp()) if hasattr(date_from, 'timestamp') else date_from
-        t_to = int(date_to.timestamp()) if hasattr(date_to, 'timestamp') else date_to
-        orders = [o for o in orders if t_from <= getattr(o, 'time_setup', 0) <= t_to]
-        
+        t_from = (
+            int(date_from.timestamp()) if hasattr(date_from, "timestamp") else date_from
+        )
+        t_to = int(date_to.timestamp()) if hasattr(date_to, "timestamp") else date_to
+        orders = [o for o in orders if t_from <= getattr(o, "time_setup", 0) <= t_to]
+
     if group is not None:
-        suffix = group.replace('*', '')
-        orders = [o for o in orders if suffix in getattr(o, 'symbol', '')]
-        
+        suffix = group.replace("*", "")
+        orders = [o for o in orders if suffix in getattr(o, "symbol", "")]
+
     return tuple(orders)
+
 
 def history_orders_total(state: SimulatorState, date_from, date_to):
     return len(history_orders_get(state, date_from, date_to))
@@ -323,15 +360,17 @@ def history_orders_total(state: SimulatorState, date_from, date_to):
 def symbols_get(state: SimulatorState, group=None):
     syms = state.trading_symbols
     if group is not None:
-        suffix = group.replace('*', '')
-        syms = [s for s in syms if suffix in getattr(s, 'name', '')]
+        suffix = group.replace("*", "")
+        syms = [s for s in syms if suffix in getattr(s, "name", "")]
     return tuple(syms)
+
 
 def symbols_total(state: SimulatorState):
     return len(state.trading_symbols)
 
+
 def symbol_info(state: SimulatorState, name: str):
-    syms = [s for s in state.trading_symbols if getattr(s, 'name', '') == name]
+    syms = [s for s in state.trading_symbols if getattr(s, "name", "") == name]
     return syms[0] if syms else None
 
 
@@ -354,7 +393,6 @@ def _format_volume_for_symbol(sym_info, volume_value) -> str:
     volume_min = getattr(sym_info, "volume_min", 0.0)
     precision = _volume_precision(volume_min)
     return f"{float(volume_value):.{precision}f}"
-
 
 
 def _state_now_epoch(state: SimulatorState) -> int:
@@ -387,7 +425,12 @@ def _state_now_datetime(state: SimulatorState) -> datetime:
 
 def _position_ticket(position) -> int:
     return int(
-        getattr(position, "ticket", getattr(position, "position_id", getattr(position, "identifier", 0))) or 0
+        getattr(
+            position,
+            "ticket",
+            getattr(position, "position_id", getattr(position, "identifier", 0)),
+        )
+        or 0
     )
 
 
@@ -436,7 +479,9 @@ def _resolve_slippage_points(state: SimulatorState, symbol_name: str) -> float:
         return max(0.0, float(settings.get("slippage_points", 0.0) or 0.0))
 
     min_points = max(0.0, float(settings.get("slippage_min", 0.0) or 0.0))
-    max_points = max(min_points, float(settings.get("slippage_max", min_points) or min_points))
+    max_points = max(
+        min_points, float(settings.get("slippage_max", min_points) or min_points)
+    )
     if max_points <= min_points:
         return min_points
 
@@ -461,10 +506,16 @@ def _apply_market_slippage(
         return float(market_price), 0.0, 0.0
 
     price_delta = float(slippage_points * point)
-    exec_price = float(market_price + price_delta) if int(order_type) == 0 else float(market_price - price_delta)
+    exec_price = (
+        float(market_price + price_delta)
+        if int(order_type) == 0
+        else float(market_price - price_delta)
+    )
     requested = float(requested_price if requested_price > 0.0 else market_price)
     fill_price_deviation = float(exec_price - requested)
-    contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+    contract_size = float(
+        getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
+    )
     slippage_usd = float(abs(fill_price_deviation) * float(volume) * contract_size)
     return exec_price, fill_price_deviation, slippage_usd
 
@@ -476,7 +527,6 @@ def _trade_side_name(order_type: int) -> str:
 def _request_value(req_get, name: str, default=None):
     value = req_get(name, default)
     return default if value is None else value
-
 
 
 def _build_trade_record(
@@ -493,7 +543,11 @@ def _build_trade_record(
     margin_required: float,
     profit_calculator=None,
 ) -> TradeRecord:
-    req_get = request.get if isinstance(request, dict) else lambda k, d=None: getattr(request, k, d)
+    req_get = (
+        request.get
+        if isinstance(request, dict)
+        else lambda k, d=None: getattr(request, k, d)
+    )
     now_dt = _state_now_datetime(state)
     balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
     equity = float(getattr(state.trading_account, "equity", balance) or balance)
@@ -539,13 +593,25 @@ def _build_trade_record(
 
     if sl > 0.0 and pip_size > 0.0:
         if int(order_type) == 0:
-            record.initial_risk_pips = float(max((record.open_price - float(sl)) / pip_size, 0.0))
+            record.initial_risk_pips = float(
+                max((record.open_price - float(sl)) / pip_size, 0.0)
+            )
         else:
-            record.initial_risk_pips = float(max((float(sl) - record.open_price) / pip_size, 0.0))
+            record.initial_risk_pips = float(
+                max((float(sl) - record.open_price) / pip_size, 0.0)
+            )
         if profit_calculator is not None:
-            calc_value = profit_calculator(int(order_type), symbol_name, float(volume), float(exec_price), float(sl))
+            calc_value = profit_calculator(
+                int(order_type),
+                symbol_name,
+                float(volume),
+                float(exec_price),
+                float(sl),
+            )
             if calc_value is None:
-                raise RuntimeError("order_calc_profit returned None while strict profit calculation is required.")
+                raise RuntimeError(
+                    "order_calc_profit returned None while strict profit calculation is required."
+                )
             record.initial_risk_usd = float(abs(calc_value))
 
     return record
@@ -579,10 +645,14 @@ def _open_trade_tracking(
         margin_required=margin_required,
         profit_calculator=profit_calculator,
     )
-    state.open_trade_trackers_by_ticket[int(position_ticket)] = TradeTracker(original_volume=float(volume))
+    state.open_trade_trackers_by_ticket[int(position_ticket)] = TradeTracker(
+        original_volume=float(volume)
+    )
 
 
-def _update_trade_tracking(state: SimulatorState, position, current_price: float, profit_usd: float) -> None:
+def _update_trade_tracking(
+    state: SimulatorState, position, current_price: float, profit_usd: float
+) -> None:
     ticket = _position_ticket(position)
     tracker = state.open_trade_trackers_by_ticket.get(ticket)
     record = state.open_trade_records_by_ticket.get(ticket)
@@ -645,24 +715,39 @@ def _finalize_trade_tracking(
     completed.close_time = _state_now_datetime(state)
     completed.close_price = float(close_price)
     completed.requested_exit_price = float(requested_exit_price)
-    completed.time_in_trade = max(0.0, float((completed.close_time - _coerce_datetime(completed.open_time)).total_seconds()))
+    completed.time_in_trade = max(
+        0.0,
+        float(
+            (
+                completed.close_time - _coerce_datetime(completed.open_time)
+            ).total_seconds()
+        ),
+    )
     completed.bars_in_trade = int(tracker.bars_in_trade)
     completed.commission = float(getattr(position, "commission", 0.0) or 0.0)
     completed.swap = float(getattr(position, "swap", 0.0) or 0.0)
-    completed.profit_loss = float(realized_profit) + completed.commission + completed.swap
+    completed.profit_loss = (
+        float(realized_profit) + completed.commission + completed.swap
+    )
     completed.mae_usd = abs(min(float(tracker.mae_usd), 0.0))
     completed.mfe_usd = max(float(tracker.mfe_usd), 0.0)
     completed.mae_pips = abs(min(float(tracker.mae_pips), 0.0))
     completed.mfe_pips = max(float(tracker.mfe_pips), 0.0)
     completed.drawdown = float(completed.mae_usd)
-    completed.close_type, completed.exit_reason = _resolve_close_labels(close_reason, partial)
+    completed.close_type, completed.exit_reason = _resolve_close_labels(
+        close_reason, partial
+    )
 
     pip_size = _pip_size(state, completed.symbol)
     if pip_size > 0.0:
         if completed.type == "buy":
-            completed.profit_loss_pips = float((completed.close_price - completed.open_price) / pip_size)
+            completed.profit_loss_pips = float(
+                (completed.close_price - completed.open_price) / pip_size
+            )
         else:
-            completed.profit_loss_pips = float((completed.open_price - completed.close_price) / pip_size)
+            completed.profit_loss_pips = float(
+                (completed.open_price - completed.close_price) / pip_size
+            )
 
     if completed.initial_risk_usd > 0.0:
         completed.r_multiple = float(completed.profit_loss / completed.initial_risk_usd)
@@ -671,8 +756,12 @@ def _finalize_trade_tracking(
         remaining_volume = float(current_volume - close_volume)
         base_record.size = remaining_volume
         base_record.partial_close_count = int(base_record.partial_close_count) + 1
-        volume_ratio = remaining_volume / current_volume if current_volume > 0.0 else 0.0
-        base_record.initial_risk_usd = float(base_record.initial_risk_usd) * volume_ratio
+        volume_ratio = (
+            remaining_volume / current_volume if current_volume > 0.0 else 0.0
+        )
+        base_record.initial_risk_usd = (
+            float(base_record.initial_risk_usd) * volume_ratio
+        )
         completed.partial_close_count = 1
     else:
         state.open_trade_records_by_ticket.pop(ticket, None)
@@ -734,7 +823,9 @@ def monitor_positions(
 
         profit = 0.0
         if profit_calculator is not None:
-            calc_value = profit_calculator(order_type, symbol_name, volume, entry_price, exit_price)
+            calc_value = profit_calculator(
+                order_type, symbol_name, volume, entry_price, exit_price
+            )
             if calc_value is None:
                 raise RuntimeError(
                     "order_calc_profit returned None while strict profit calculation is required."
@@ -749,7 +840,9 @@ def monitor_positions(
                 contract_size = float(
                     getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
                 )
-                delta = (exit_price - entry_price) if is_buy else (entry_price - exit_price)
+                delta = (
+                    (exit_price - entry_price) if is_buy else (entry_price - exit_price)
+                )
                 profit = delta * volume * contract_size
             except Exception:
                 profit = 0.0
@@ -766,7 +859,7 @@ def monitor_positions(
                 "[monitor_positions]",
                 component="execution.core",
                 side=side_name,
-                ticket=int(getattr(position, 'ticket', 0) or 0),
+                ticket=int(getattr(position, "ticket", 0) or 0),
                 symbol=symbol_name,
                 entry=float(entry_price),
                 current=float(exit_price),
@@ -799,7 +892,7 @@ def monitor_positions(
             logger.debug(
                 "[monitor_positions] Close condition met (dry-run)",
                 component="execution.core",
-                ticket=int(getattr(position, 'ticket', 0) or 0),
+                ticket=int(getattr(position, "ticket", 0) or 0),
                 reason=close_reason,
             )
 
@@ -809,7 +902,9 @@ def monitor_positions(
 
         vol = float(getattr(position, "volume", 0.0) or 0.0)
         close_comm = _commission_for_volume(state, vol)
-        position.commission = float(getattr(position, "commission", 0.0) or 0.0) + close_comm
+        position.commission = (
+            float(getattr(position, "commission", 0.0) or 0.0) + close_comm
+        )
 
         _finalize_trade_tracking(
             state,
@@ -1011,7 +1106,6 @@ def monitor_pending_orders(
             )
 
 
-
 def _record_equity_point(state: SimulatorState, balance: float, equity: float) -> None:
     peak = getattr(state, "equity_peak", None)
     if peak is None:
@@ -1024,15 +1118,38 @@ def _record_equity_point(state: SimulatorState, balance: float, equity: float) -
         balance=float(balance),
         equity=float(equity),
         drawdown=float(max(peak - float(equity), 0.0)),
-        exposure=float(sum(float(getattr(p, "volume", 0.0) or 0.0) for p in state.trading_deals if str(getattr(p, "entry", 0)) == "0")),
+        exposure=float(
+            sum(
+                float(getattr(p, "volume", 0.0) or 0.0)
+                for p in state.trading_deals
+                if str(getattr(p, "entry", 0)) == "0"
+            )
+        ),
     )
     state.completed_equity_curve.append(point)
 
 
 _FX_MARGIN_CURRENCIES = {
-    "USD", "EUR", "GBP", "JPY", "AUD", "NZD", "CAD", "CHF",
-    "SGD", "HKD", "NOK", "SEK", "DKK", "PLN", "CZK", "HUF",
-    "TRY", "ZAR", "MXN", "CNH",
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "AUD",
+    "NZD",
+    "CAD",
+    "CHF",
+    "SGD",
+    "HKD",
+    "NOK",
+    "SEK",
+    "DKK",
+    "PLN",
+    "CZK",
+    "HUF",
+    "TRY",
+    "ZAR",
+    "MXN",
+    "CNH",
 }
 
 
@@ -1052,7 +1169,9 @@ def _is_margin_tier_symbol(symbol_name: str) -> bool:
 def _position_notional(state: SimulatorState, position) -> float:
     symbol_name = str(getattr(position, "symbol", "") or "")
     sym_info = symbol_info(state, symbol_name)
-    contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+    contract_size = float(
+        getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
+    )
     market_price = float(
         getattr(
             position,
@@ -1061,7 +1180,11 @@ def _position_notional(state: SimulatorState, position) -> float:
         )
         or 0.0
     )
-    return float(abs(float(getattr(position, "volume", 0.0) or 0.0)) * contract_size * market_price)
+    return float(
+        abs(float(getattr(position, "volume", 0.0) or 0.0))
+        * contract_size
+        * market_price
+    )
 
 
 def _apply_margin_tier_policy(state: SimulatorState) -> None:
@@ -1085,7 +1208,10 @@ def _apply_margin_tier_policy(state: SimulatorState) -> None:
         grouped_positions.setdefault(symbol_name, []).append(position)
 
     for symbol_name, positions in grouped_positions.items():
-        notionals = {int(getattr(pos, "ticket", 0) or 0): _position_notional(state, pos) for pos in positions}
+        notionals = {
+            int(getattr(pos, "ticket", 0) or 0): _position_notional(state, pos)
+            for pos in positions
+        }
         total_notional = float(sum(notionals.values()) or 0.0)
         if total_notional <= 0.0:
             for position in positions:
@@ -1116,62 +1242,66 @@ def _apply_swaps(state: SimulatorState, verbose: bool = False) -> None:
 
     # Rollover occurred - count how many midnight rollovers we crossed
     num_days = (now_dt.date() - state.last_rollover_datetime.date()).days
-    
+
     for d in range(num_days):
-        rollover_dt = state.last_rollover_datetime + timedelta(days=d+1)
+        rollover_dt = state.last_rollover_datetime + timedelta(days=d + 1)
         day_of_week = rollover_dt.weekday()  # Python: 0=Mon, 2=Wed
-        
+
         for position in state.trading_deals:
             # Only process open positions (entry=0)
             if str(getattr(position, "entry", 0)) != "0":
                 continue
-            
+
             symbol_name = str(getattr(position, "symbol", "") or "")
             sym_info = symbol_info(state, symbol_name)
             if sym_info is None:
                 continue
-            
+
             swap_long = float(getattr(sym_info, "swap_long", 0.0) or 0.0)
             swap_short = float(getattr(sym_info, "swap_short", 0.0) or 0.0)
             swap_mode = int(getattr(sym_info, "swap_mode", 0) or 0)
-            
+
             # Swaps disabled
             if swap_mode == 0:
                 continue
-                
-            rollover3days = int(getattr(sym_info, "swap_rollover3days", 3) or 3) # MQL5: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+
+            rollover3days = int(
+                getattr(sym_info, "swap_rollover3days", 3) or 3
+            )  # MQL5: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
             # Triple swap is applied when holding over the night of 'rollover3days'.
             # For example, if rollover3days is 3 (Wednesday), it's applied when crossing from Wednesday to Thursday.
             # In our simulation, when we cross to Thursday, rollover_dt.weekday() will be 3 (Thursday).
-            # So py_rollover3days should be (mql_day + 1) % 7? 
+            # So py_rollover3days should be (mql_day + 1) % 7?
             # Wait: MQL 3 (Wed) -> crosses to Thu -> Python 3 (Thu). Correct.
             # MQL 0 (Sun) -> crosses to Mon -> Python 0 (Mon). Correct.
             # MQL 6 (Sat) -> crosses to Sun -> Python 6 (Sun). Correct.
             # So the Python weekday we are looking for is exactly the MQL day index.
             py_rollover3days = rollover3days
-            
+
             multiplier = 3.0 if day_of_week == py_rollover3days else 1.0
-            
+
             order_type = int(getattr(position, "type", 0) or 0)
             swap_value = swap_long if order_type == 0 else swap_short
             volume = float(getattr(position, "volume", 0.0) or 0.0)
-            
+
             daily_swap = 0.0
-            if swap_mode == 1: # Points
+            if swap_mode == 1:  # Points
                 point = float(getattr(sym_info, "point", 0.00001) or 0.00001)
-                contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+                contract_size = float(
+                    getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
+                )
                 # Swap in points formula: Volume * SwapValue * Point * ContractSize
                 daily_swap = volume * swap_value * point * contract_size
-            elif swap_mode == 2: # Currency
+            elif swap_mode == 2:  # Currency
                 # Swap in currency: multiplier * volume * swap_value (assuming swap_value is per lot)
                 daily_swap = volume * swap_value
-            elif swap_mode == 3: # Interest
+            elif swap_mode == 3:  # Interest
                 # TODO: Implement interest-based swap calculation if needed
                 pass
-            
+
             total_applied = daily_swap * multiplier
             position.swap = float(getattr(position, "swap", 0.0) or 0.0) + total_applied
-            
+
             # Update balance immediately for applied swap (MT5 behavior)
             balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
             state.trading_account.balance = balance + total_applied
@@ -1234,7 +1364,11 @@ def order_send(
     """
     Process a TradeRequest and update the SimulatorState.
     """
-    req_get = request.get if isinstance(request, dict) else lambda k, d=None: getattr(request, k, d)
+    req_get = (
+        request.get
+        if isinstance(request, dict)
+        else lambda k, d=None: getattr(request, k, d)
+    )
 
     result = DotDict(
         request=request,
@@ -1258,7 +1392,13 @@ def order_send(
     is_modify = action == 7
     is_remove = action == 8
 
-    if not is_market_deal and not is_pending and not is_sltp and not is_modify and not is_remove:
+    if (
+        not is_market_deal
+        and not is_pending
+        and not is_sltp
+        and not is_modify
+        and not is_remove
+    ):
         result.retcode = 10013
         result.comment = "Unsupported trade action in tester order_send()"
         return result
@@ -1272,13 +1412,16 @@ def order_send(
         positions = state.trading_deals
         if position_ticket > 0:
             positions = [
-                p for p in positions
+                p
+                for p in positions
                 if getattr(p, "ticket", None) == position_ticket
                 or getattr(p, "position_id", None) == position_ticket
                 or getattr(p, "identifier", None) == position_ticket
             ]
         if symbol_name:
-            positions = [p for p in positions if getattr(p, "symbol", "") == symbol_name]
+            positions = [
+                p for p in positions if getattr(p, "symbol", "") == symbol_name
+            ]
 
         if not positions:
             result.retcode = 10013
@@ -1301,7 +1444,9 @@ def order_send(
         result.retcode = 10009
         result.deal = int(getattr(first, "ticket", 0))
         result.order = int(getattr(first, "order", 0))
-        result.price = float(getattr(first, "price_current", getattr(first, "price", 0.0)))
+        result.price = float(
+            getattr(first, "price_current", getattr(first, "price", 0.0))
+        )
         result.comment = "Request executed"
         if verbose:
             print(
@@ -1317,7 +1462,14 @@ def order_send(
             result.comment = "Order ticket is required"
             return result
 
-        pending_order = next((o for o in state.trading_orders if int(getattr(o, "ticket", 0)) == order_ticket), None)
+        pending_order = next(
+            (
+                o
+                for o in state.trading_orders
+                if int(getattr(o, "ticket", 0)) == order_ticket
+            ),
+            None,
+        )
         if pending_order is None:
             result.retcode = 10013
             result.comment = "Order not found"
@@ -1363,13 +1515,24 @@ def order_send(
             result.comment = "Order ticket is required"
             return result
 
-        pending_order = next((o for o in state.trading_orders if int(getattr(o, "ticket", 0)) == order_ticket), None)
+        pending_order = next(
+            (
+                o
+                for o in state.trading_orders
+                if int(getattr(o, "ticket", 0)) == order_ticket
+            ),
+            None,
+        )
         if pending_order is None:
             result.retcode = 10013
             result.comment = "Order not found"
             return result
 
-        state.trading_orders = [o for o in state.trading_orders if int(getattr(o, "ticket", 0)) != order_ticket]
+        state.trading_orders = [
+            o
+            for o in state.trading_orders
+            if int(getattr(o, "ticket", 0)) != order_ticket
+        ]
         result.retcode = 10009
         result.order = order_ticket
         result.comment = "Request executed"
@@ -1407,12 +1570,16 @@ def order_send(
     def next_ticket_from_lists(*item_lists) -> int:
         return max((next_ticket(item_list) for item_list in item_lists), default=0) + 1
 
-    contract_size = float(getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0)
+    contract_size = float(
+        getattr(sym_info, "trade_contract_size", 100000.0) or 100000.0
+    )
 
     if is_pending:
         if order_type not in (2, 3, 4, 5):
             result.retcode = 10013
-            result.comment = "Only BUY_LIMIT/SELL_LIMIT/BUY_STOP/SELL_STOP are supported"
+            result.comment = (
+                "Only BUY_LIMIT/SELL_LIMIT/BUY_STOP/SELL_STOP are supported"
+            )
             return result
 
         pending_price = float(req_get("price", 0.0) or 0.0)
@@ -1424,7 +1591,9 @@ def order_send(
             return result
 
         now = _state_now_epoch(state)
-        order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
+        order_ticket = next_ticket_from_lists(
+            state.trading_orders, state.trading_history_orders
+        )
 
         order_row = OrderInfo(
             action="order_open",
@@ -1451,7 +1620,10 @@ def order_send(
             price_stoplimit=req_get("stoplimit", 0.0),
             symbol=symbol_name,
             comment=req_get("comment", ""),
-            external_id="",
+            external_id=req_get("external_id", ""),
+            setup_id=req_get("setup_id", ""),
+            group_id=req_get("group_id", ""),
+            strategy_id=req_get("strategy_id", ""),
             margin_required=0.0,
         )
         state.trading_orders.append(order_row)
@@ -1471,7 +1643,8 @@ def order_send(
     close_position_ticket = int(req_get("position", 0) or 0)
     if close_position_ticket > 0:
         open_positions = [
-            p for p in state.trading_deals
+            p
+            for p in state.trading_deals
             if int(getattr(p, "ticket", 0)) == close_position_ticket
             or int(getattr(p, "position_id", 0)) == close_position_ticket
             or int(getattr(p, "identifier", 0)) == close_position_ticket
@@ -1510,8 +1683,12 @@ def order_send(
         )
 
         now = _state_now_epoch(state)
-        order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
-        deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
+        order_ticket = next_ticket_from_lists(
+            state.trading_orders, state.trading_history_orders
+        )
+        deal_ticket = next_ticket_from_lists(
+            state.trading_deals, state.trading_history_deals
+        )
         close_commission = _commission_for_volume(state, close_volume)
 
         history_order = HistoryOrderInfo(
@@ -1527,7 +1704,9 @@ def order_send(
             state=4,
             magic=req_get("magic", 0),
             reason=0,
-            position_id=int(getattr(position, "position_id", getattr(position, "ticket", 0))),
+            position_id=int(
+                getattr(position, "position_id", getattr(position, "ticket", 0))
+            ),
             position_by_id=req_get("position_by", 0),
             volume_initial=close_volume,
             volume_current=0.0,
@@ -1543,21 +1722,34 @@ def order_send(
         )
         state.trading_history_orders.append(history_order)
 
-        entry_price = float(getattr(position, "price_open", getattr(position, "price", exec_price)) or exec_price)
+        entry_price = float(
+            getattr(position, "price_open", getattr(position, "price", exec_price))
+            or exec_price
+        )
         raw_position_type = getattr(position, "type", order_type)
         if raw_position_type is None:
             raw_position_type = order_type
         position_type = int(raw_position_type)
         if profit_calculator is not None:
-            calc_value = profit_calculator(position_type, symbol_name, close_volume, entry_price, exec_price)
+            calc_value = profit_calculator(
+                position_type, symbol_name, close_volume, entry_price, exec_price
+            )
             if calc_value is None:
-                raise RuntimeError("order_calc_profit returned None while strict profit calculation is required.")
+                raise RuntimeError(
+                    "order_calc_profit returned None while strict profit calculation is required."
+                )
             realized_profit = float(calc_value)
         elif strict_calc_access:
-            raise RuntimeError("order_calc_profit access is required but no profit_calculator was provided.")
+            raise RuntimeError(
+                "order_calc_profit access is required but no profit_calculator was provided."
+            )
         else:
             is_position_buy = position_type == 0
-            delta = (exec_price - entry_price) if is_position_buy else (entry_price - exec_price)
+            delta = (
+                (exec_price - entry_price)
+                if is_position_buy
+                else (entry_price - exec_price)
+            )
             realized_profit = float(delta * close_volume * contract_size)
 
         close_deal = DealInfo(
@@ -1571,7 +1763,9 @@ def order_send(
             entry=1,
             magic=req_get("magic", 0),
             reason=0,
-            position_id=int(getattr(position, "position_id", getattr(position, "ticket", 0))),
+            position_id=int(
+                getattr(position, "position_id", getattr(position, "ticket", 0))
+            ),
             volume=close_volume,
             price=exec_price,
             price_open=entry_price,
@@ -1595,13 +1789,21 @@ def order_send(
             close_volume,
             exec_price,
             realized_profit,
-            float(requested_exit_price if requested_exit_price > 0.0 else market_exit_price),
+            float(
+                requested_exit_price
+                if requested_exit_price > 0.0
+                else market_exit_price
+            ),
             str(req_get("comment", "") or "manual_exit"),
         )
 
-        position.commission = float(getattr(position, "commission", 0.0) or 0.0) + float(close_commission)
+        position.commission = float(
+            getattr(position, "commission", 0.0) or 0.0
+        ) + float(close_commission)
         balance = float(getattr(state.trading_account, "balance", 0.0) or 0.0)
-        state.trading_account.balance = balance + realized_profit + float(close_commission)
+        state.trading_account.balance = (
+            balance + realized_profit + float(close_commission)
+        )
 
         remaining = current_volume - close_volume
         if remaining <= 0.0:
@@ -1653,24 +1855,36 @@ def order_send(
     )
 
     now = _state_now_epoch(state)
-    order_ticket = next_ticket_from_lists(state.trading_orders, state.trading_history_orders)
-    deal_ticket = next_ticket_from_lists(state.trading_deals, state.trading_history_deals)
+    order_ticket = next_ticket_from_lists(
+        state.trading_orders, state.trading_history_orders
+    )
+    deal_ticket = next_ticket_from_lists(
+        state.trading_deals, state.trading_history_deals
+    )
     position_ticket = deal_ticket
     open_commission = _commission_for_volume(state, float(result.volume))
 
     if margin_calculator is not None:
-        calc_value = margin_calculator(order_type, symbol_name, float(result.volume), float(exec_price))
+        calc_value = margin_calculator(
+            order_type, symbol_name, float(result.volume), float(exec_price)
+        )
         if calc_value is None:
-            raise RuntimeError("order_calc_margin returned None while strict margin calculation is required.")
+            raise RuntimeError(
+                "order_calc_margin returned None while strict margin calculation is required."
+            )
         margin_required = float(calc_value)
     elif strict_calc_access:
-        raise RuntimeError("order_calc_margin access is required but no margin_calculator was provided.")
+        raise RuntimeError(
+            "order_calc_margin access is required but no margin_calculator was provided."
+        )
     else:
         account_leverage = float(getattr(state.trading_account, "leverage", 0.0) or 0.0)
         if account_leverage <= 0.0:
             account_leverage = 100.0
         notional = float(result.volume) * contract_size * float(exec_price)
-        margin_required = float(notional / account_leverage) if account_leverage > 0.0 else 0.0
+        margin_required = (
+            float(notional / account_leverage) if account_leverage > 0.0 else 0.0
+        )
 
     order_row = HistoryOrderInfo(
         ticket=order_ticket,
@@ -1726,7 +1940,10 @@ def order_send(
         fee=0.0,
         symbol=symbol_name,
         comment=req_get("comment", ""),
-        external_id="",
+        external_id=req_get("external_id", ""),
+        setup_id=req_get("setup_id", ""),
+        group_id=req_get("group_id", ""),
+        strategy_id=req_get("strategy_id", ""),
     )
     state.trading_deals.append(deal_row)
 

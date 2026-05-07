@@ -23,4 +23,5 @@ Rules:
 - The planner route catalog bounds delegation.
 - Chat cannot execute live trades.
 - Paper execution requires an approved draft and remains separate from free-form chat.
-- LLM provider wiring is deferred; current responses are deterministic.
+- LLM provider wiring is active through `HARUQUANT_AGENT_MODEL`; Gemini, OpenAI-compatible, and Ollama models are supported.
+- `CEOChatGateway` is the production runtime boundary for streaming, persistence, fallback, and metadata. `PlannerAgent` and `CEOAgent` own reasoning, routing, and executive synthesis.

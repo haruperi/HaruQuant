@@ -413,10 +413,50 @@ def test_engine_apply_trade_action_translates_open_to_order_send():
                 "sl": 0.99,
                 "tp": 1.02,
                 "comment": "unit_test",
+                "external_id": "",
+                "setup_id": "",
+                "group_id": "",
+                "strategy_id": "",
             },
             False,
         )
     ]
+
+
+def test_engine_open_action_preserves_stateful_group_metadata():
+    engine = Engine.__new__(Engine)
+    engine.default_signal_volume = 0.1
+    engine.position_sizing = {"enabled": False, "position_sizer": None}
+    engine.state = core.SimulatorState(
+        account_info={"balance": 10000.0, "equity": 10000.0}
+    )
+    requests = []
+
+    def fake_order_send(request, verbose=False):
+        requests.append(request)
+        return SimpleNamespace(retcode=10009)
+
+    engine.order_send = fake_order_send
+
+    changed = engine._apply_trade_action(
+        TradeAction(
+            action_type="OPEN",
+            symbol="EURUSD",
+            side="SELL",
+            volume=0.2,
+            setup_id="setup-1",
+            group_id="group-1",
+            strategy_id="strategy-1",
+        ),
+        bid=1.1000,
+        ask=1.1002,
+    )
+
+    assert changed is True
+    assert requests[0]["external_id"] == "group-1"
+    assert requests[0]["setup_id"] == "setup-1"
+    assert requests[0]["group_id"] == "group-1"
+    assert requests[0]["strategy_id"] == "strategy-1"
 
 
 def _guarded_engine(*, controls=None, balance=10000.0, equity=10000.0):

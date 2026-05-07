@@ -5,8 +5,11 @@ from data.strategies.rsi_averaging_pyramid import RsiAveragingPyramidStrategy
 from data.strategies.rsi_decomposing_reentry import RsiDecomposingReentryStrategy
 from data.strategies.rsi_martingale import RsiMartingaleStrategy
 from data.strategies.mtf_hedge_trail import StructureHedgeTrailStrategy
+from data.strategies.market_structure_hedge_grid import (
+    MarketStructureHedgeGridStrategy,
+)
 from data.strategies.trade_decomposition import TradeDecompositionStrategy
-from services.strategy.stateful import PositionSnapshot, StrategyContext
+from services.strategy.stateful import OrderSnapshot, PositionSnapshot, StrategyContext
 
 
 def _context(prices, *, positions=None, account=None):
@@ -156,6 +159,26 @@ def _sell_position(
         profit_loss=profit_loss,
         opened_at=f"2025-01-01T00:0{ticket}:00",
         setup_id=setup_id,
+        metadata=metadata or {},
+    )
+
+
+def _pending_order(
+    *,
+    ticket=10,
+    side="BUY",
+    order_type="LIMIT",
+    volume=0.1,
+    price=1.1000,
+    metadata=None,
+):
+    return OrderSnapshot(
+        ticket=ticket,
+        symbol="EURUSD",
+        side=side,
+        order_type=order_type,
+        volume=volume,
+        price=price,
         metadata=metadata or {},
     )
 
@@ -895,4 +918,163 @@ def test_rsi_decomposing_reentry_is_registered():
     assert (
         get_strategy_class("RsiDecomposingReentryStrategy")
         is RsiDecomposingReentryStrategy
+    )
+
+
+def _market_structure_strategy_with_zz(zz):
+    strategy = MarketStructureHedgeGridStrategy(
+        params={
+            "symbol": "EURUSD",
+            "zigzag_depth": 3,
+            "zigzag_deviation": 1,
+            "balance_increase": 3000,
+            "volume_increase": 0.04,
+            "hedge_displacement_pips": 2,
+            "profit_factor": 2.0,
+        }
+    )
+    strategy.on_init()
+    strategy._zz_values = lambda bars: zz
+    return strategy
+
+
+def _market_structure_context(*, positions=None, account=None, orders=None):
+    context = _ohlc_context(_structure_buy_bars(), positions=positions, account=account)
+    context.current_tick = {
+        **context.current_tick,
+        "is_bar_close": "open",
+        "source_bar_time": pd.Timestamp(context.current_tick["source_bar_time"])
+        + pd.Timedelta(minutes=5),
+    }
+    context.orders = orders or []
+    return context
+
+
+def test_market_structure_hedge_grid_opens_first_buy_and_hedge_stop():
+    strategy = _market_structure_strategy_with_zz(
+        {
+            "high0": 1.1070,
+            "low0": 1.1030,
+            "high1": 1.1055,
+            "low1": 1.0990,
+            "high2": 1.1040,
+            "low2": 1.1000,
+            "high3": 1.1060,
+            "low3": 1.0980,
+        }
+    )
+
+    actions = strategy.on_event(_market_structure_context(account={"balance": 3000.0}))
+
+    assert [action.action_type for action in actions] == ["OPEN", "PLACE_PENDING"]
+    assert actions[0].side == "BUY"
+    assert actions[0].volume == 0.04
+    assert actions[0].reason == "FirstBuy"
+    assert actions[0].take_profit == 1.113
+    assert actions[1].side == "SELL"
+    assert actions[1].order_type == "STOP"
+    assert actions[1].price == 1.1028
+    assert actions[1].take_profit == 1.096
+    assert actions[1].reason == "HedgeSell"
+    assert strategy.state["next_buy_price"] == 1.096
+    assert strategy.state["next_sell_price"] == 1.113
+
+
+def test_market_structure_hedge_grid_opens_first_sell_and_hedge_stop():
+    strategy = _market_structure_strategy_with_zz(
+        {
+            "high0": 1.1000,
+            "low0": 1.0980,
+            "high1": 1.1060,
+            "low1": 1.1005,
+            "high2": 1.1040,
+            "low2": 1.1020,
+            "high3": 1.1050,
+            "low3": 1.0990,
+        }
+    )
+
+    context = _ohlc_context(_structure_sell_bars())
+    context.current_tick = {
+        **context.current_tick,
+        "is_bar_close": "open",
+        "source_bar_time": pd.Timestamp(context.current_tick["source_bar_time"])
+        + pd.Timedelta(minutes=5),
+    }
+    actions = strategy.on_event(context)
+
+    assert [action.action_type for action in actions] == ["OPEN", "PLACE_PENDING"]
+    assert actions[0].side == "SELL"
+    assert actions[0].reason == "FirstSell"
+    assert actions[0].take_profit == 1.0996
+    assert actions[1].side == "BUY"
+    assert actions[1].order_type == "STOP"
+    assert actions[1].price == 1.1002
+    assert actions[1].take_profit == 1.1006
+
+
+def test_market_structure_hedge_grid_places_cost_average_limits_when_hedged():
+    strategy = MarketStructureHedgeGridStrategy(params={"symbol": "EURUSD"})
+    strategy.on_init()
+    strategy.state["buy_lot_used"] = 0.04
+    strategy.state["sell_lot_used"] = 0.04
+    strategy.state["next_buy_price"] = 1.0960
+    strategy.state["next_sell_price"] = 1.1130
+    strategy.state["buy_hedge_distance"] = 0.0068
+    positions = [
+        _buy_position(metadata={"comment": "FirstBuy"}),
+        _sell_position(ticket=2, metadata={"comment": "HedgeSell"}),
+    ]
+
+    actions = strategy.on_event(_market_structure_context(positions=positions))
+
+    assert [action.action_type for action in actions] == [
+        "PLACE_PENDING",
+        "PLACE_PENDING",
+    ]
+    assert actions[0].side == "BUY"
+    assert actions[0].order_type == "LIMIT"
+    assert actions[0].price == 1.096
+    assert actions[0].reason == "CABuy"
+    assert actions[1].side == "SELL"
+    assert actions[1].order_type == "LIMIT"
+    assert actions[1].price == 1.113
+    assert actions[1].reason == "CASell"
+    assert strategy.state["next_buy_price"] == 1.0892
+    assert strategy.state["next_sell_price"] == 1.1198
+
+
+def test_market_structure_hedge_grid_trails_tp_cancels_opposite_ca_and_grids_buy():
+    strategy = MarketStructureHedgeGridStrategy(params={"symbol": "EURUSD"})
+    strategy.on_init()
+    strategy.state["buy_lot_used"] = 0.04
+    strategy.state["next_buy_price"] = 1.1070
+    strategy.state["buy_hedge_distance"] = 0.0030
+    positions = [
+        _buy_position(ticket=1, open_price=1.1000, current_price=1.1060),
+        _buy_position(ticket=2, open_price=1.1040, current_price=1.1060),
+    ]
+    orders = [_pending_order(ticket=20, side="SELL", metadata={"comment": "CASell"})]
+
+    context = _market_structure_context(positions=positions, orders=orders)
+    actions = strategy.on_event(context)
+
+    tp_actions = [action for action in actions if action.action_type == "MODIFY_TP"]
+    assert {action.take_profit for action in tp_actions} == {1.102}
+    assert any(
+        action.action_type == "CANCEL_ORDER" and action.ticket == 20
+        for action in actions
+    )
+    assert any(
+        action.action_type == "OPEN" and action.reason == "GridBuy"
+        for action in actions
+    )
+
+
+def test_market_structure_hedge_grid_is_registered():
+    from services.simulation.strategy_registry import get_strategy_class
+
+    assert (
+        get_strategy_class("MarketStructureHedgeGridStrategy")
+        is MarketStructureHedgeGridStrategy
     )

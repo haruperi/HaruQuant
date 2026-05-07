@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+import pytest
+
 from data.database.migrations.runner import apply_pending_migrations
 from data.database.repositories.ai_chat_repository import AiChatRepository
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from api.routes.ai_chat import router as ai_chat_router
-from services.chat.ceo_gateway import CEOChatGateway, list_ceo_chat_tools
+from services.ceo_gateway import CEOChatGateway, list_ceo_chat_tools
 from services.context.service import PageContextService
 from services.conversation.service import ConversationService
 from services.schemas.chat import ChatTurnRequest
+
+
+@pytest.fixture(autouse=True)
+def disable_live_ceo_chat_model(monkeypatch):
+    monkeypatch.setenv("HARUQUANT_CEO_CHAT_ENABLED", "false")
 
 
 def _gateway(tmp_path):
@@ -37,13 +44,13 @@ def test_ceo_chat_turn_routes_through_planner_and_persists_messages(tmp_path):
     assert result.metadata.active_topic == "strategy_creation"
     assert result.metadata.response_mode == "strategy_spec_draft"
     assert result.metadata.provider_name is None
-    assert result.metadata.model == "deterministic"
+    assert result.metadata.generation_source == "fallback"
     assert result.metadata.audit["live_execution_enabled"] is False
 
     reloaded = conversations.get_thread(thread_id=thread.thread_id, user_id="operator")
     assert len(reloaded.messages) == 2
     assert reloaded.current_route == "/strategies"
-    assert reloaded.current_page_type == "generic"
+    assert reloaded.current_page_type == "strategy_detail"
 
 
 def test_ceo_chat_blocks_live_execution_from_free_form_chat(tmp_path):

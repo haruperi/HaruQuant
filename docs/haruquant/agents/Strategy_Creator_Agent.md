@@ -29,7 +29,7 @@ catalog.
 - `services/strategy/design/blueprint_renderer.py`
 - `services/strategy/design/blueprint_materializer.py`
 - `agents/chat/ai_chat/tool_attachment_registry.py`
-- `agents/chat/ai_chat/ai_gateway.py`
+- `services/ceo_gateway.py`
 
 ## Persisted Artifacts
 

@@ -160,6 +160,45 @@ class CEOAgent:
             "evidence_refs": evidence_refs,
         }
 
+    def page_identity_memo(self, *, request: str, page_context: Any) -> dict[str, Any]:
+        title = str((page_context.summary or {}).get("headline") or page_context.page_title or "Current page")
+        route = page_context.route or "/"
+        bullets = [str(value) for value in list((page_context.summary or {}).get("bullets") or [])[:3]]
+        details = f"You are on {title} ({page_context.page_type}) at route {route}."
+        if bullets:
+            details += f" Visible context: {'; '.join(bullets)}."
+        return {
+            "memo_type": "page_identity",
+            "request": request,
+            "answer": details,
+            "source": "page_context",
+            "context_revision": page_context.context_revision,
+            "context_schema_version": page_context.context_schema_version,
+        }
+
+    def response_mode_for_memo(self, *, plan: AgentPlan, memo: dict[str, Any] | None = None) -> str:
+        memo_type = str((memo or {}).get("memo_type", ""))
+        if memo_type == "page_identity":
+            return "page_aware_summary"
+        if memo_type in {"rejection", "blocked_by_risk"}:
+            return "blocked_by_policy"
+        if plan.requires_board_approval:
+            return "approval_request"
+        if plan.intent == "strategy_creation":
+            return "strategy_spec_draft"
+        if plan.intent == "risk_review":
+            return "risk_memo"
+        if plan.intent in {"research", "optimization_comparison", "reporting"}:
+            return "research_memo"
+        return plan.response_mode or "direct_ceo_answer"
+
+    def format_memo(self, *, memo: dict[str, Any], plan: AgentPlan | None = None, page_context: Any = None) -> str:
+        if "answer" in memo:
+            return str(memo["answer"])
+        if "reason" in memo:
+            return str(memo["reason"])
+        return str(memo.get("summary") or "CEO Agent prepared a governed firm workflow.")
+
     def refusal_memo(self, *, request: str) -> dict[str, Any]:
         return rejection_template(
             request=request,

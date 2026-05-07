@@ -30,6 +30,8 @@ def _run_stateful_strategy_backtest(
     start=datetime(2025, 1, 2),
     end=datetime(2025, 3, 31, 23),
     warmup_start=datetime(2024, 12, 1),
+    execution_overrides=None,
+    risk_controls=None,
 ):
     overrides = {
         "engine_type": "event_driven",
@@ -61,6 +63,7 @@ def _run_stateful_strategy_backtest(
                 "type": "fixed_lot",
                 "lot_size": 0.1,
             },
+            **(execution_overrides or {}),
         },
         "risk_controls": {
             "enabled": True,
@@ -71,6 +74,7 @@ def _run_stateful_strategy_backtest(
             "max_symbol_exposure": 3.0,
             "max_strategy_drawdown": 1000.0,
             "allow_multiple_action_batches_per_event": False,
+            **(risk_controls or {}),
         },
     }
 
@@ -421,31 +425,67 @@ def example_11_rsi_decomposing_reentry_strategy():
     _run_stateful_strategy_backtest(
         "RsiDecomposingReentryStrategy",
         {
-            "rsi_period": 3,
-            "os_level": 45,
-            "ob_level": 55,
+            "rsi_period": 14,
+            "os_level": 30,
+            "ob_level": 70,
             "balance_increase": 3000.0,
-            "volume_increase": 0.01,
-            "volume_decrease": 0.005,
-            "when_to_trail_pips": 2,
-            "trail_by_pips": 1,
-            "trade_distance_pips": 3,
-            "initial_lot": 0.01,
+            "volume_increase": 0.06,
+            "volume_decrease": 0.02,
+            "when_to_trail_pips": 20,
+            "trail_by_pips": 10,
+            "trade_distance_pips": 20,
+            "initial_lot": 0.06,
             "min_lot": 0.01,
-            "max_lot": 0.5,
+            "max_lot": 100.0,
             "lot_step": 0.01,
             "risk_controls": {
-                "max_layers_per_setup": 20,
-                "max_open_positions_per_strategy": 40,
-                "max_total_lots": 10.0,
-                "max_symbol_exposure": 8.0,
-                "max_strategy_drawdown": 1500.0,
+                "enabled": False,
+            },
+        },
+        timeframe="H1",
+        start=datetime(2025, 1, 1),
+        end=datetime(2025, 12, 31, 23),
+        warmup_start=datetime(2024, 12, 1),
+        execution_overrides={
+            "spread_model": "native_spread",
+            "spread_points": None,
+        },
+        risk_controls={"enabled": False},
+    )
+
+
+def example_12_market_structure_hedge_grid_strategy():
+    print("\n\n" + "=" * 50)
+    print("      EXAMPLE 12: MARKET STRUCTURE HEDGE GRID      ")
+    print("=" * 50)
+
+    _run_stateful_strategy_backtest(
+        "MarketStructureHedgeGridStrategy",
+        {
+            "zigzag_depth": 12,
+            "zigzag_deviation": 5,
+            "zigzag_backstep": 3,
+            "balance_increase": 3000.0,
+            "volume_increase": 0.04,
+            "hedge_displacement_pips": 2,
+            "profit_factor": 2.0,
+            "initial_lot": 0.04,
+            "min_lot": 0.01,
+            "max_lot": 100.0,
+            "lot_step": 0.01,
+            "risk_controls": {
+                "enabled": False,
             },
         },
         timeframe="M5",
-        start=datetime(2025, 1, 2),
-        end=datetime(2025, 1, 31, 23),
-        warmup_start=datetime(2024, 12, 15),
+        start=datetime(2025, 1, 1),
+        end=datetime(2025, 12, 31, 23),
+        warmup_start=datetime(2024, 12, 1),
+        execution_overrides={
+            "spread_model": "native_spread",
+            "spread_points": None,
+        },
+        risk_controls={"enabled": False},
     )
 
 
@@ -461,3 +501,4 @@ if __name__ == "__main__":
     example_09_rsi_averaging_pyramid_strategy()
     example_10_structure_hedge_trail_strategy()
     example_11_rsi_decomposing_reentry_strategy()
+    example_12_market_structure_hedge_grid_strategy()

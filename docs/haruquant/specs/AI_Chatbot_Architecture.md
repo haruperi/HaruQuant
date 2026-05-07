@@ -48,8 +48,9 @@ copilot.
 - `MemorySummaryService`
 - `PinnedFactsService`
 - `ContextAssembler`
-- `AIGateway`
-- `AgentRouter`
+- `CEOChatGateway`
+- `PlannerAgent`
+- `CEOAgent`
 - `PromptBuilder`
 - `ToolExecutor`
 - `StreamManager`
@@ -126,13 +127,14 @@ copilot.
 ## Suggested Initial Backend Surface
 
 - `api/ai_chat.py`
-- `services/ai_gateway.py`
+- `services/ceo_gateway.py`
 - `services/conversation_service.py`
 - `services/context_service.py`
 - `services/prompt_builder.py`
-- `services/agent_router.py`
+- `agents/planner.py`
+- `agents/ceo.py`
 - `services/stream_manager.py`
-- `agents/chat/ai_chat/tool_executor.py`
+- `agents/runtime/tool_executor.py`
 - `policies/tool_policy.py`
 
 ## Observability Requirements

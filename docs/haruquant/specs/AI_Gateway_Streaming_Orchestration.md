@@ -1,8 +1,8 @@
-# AI Gateway and Streaming Orchestration
+# CEO Chat Gateway and Streaming Orchestration
 
 ## Runtime Contract
 
-AI Chat uses the existing Server-Sent Events endpoint:
+AI Chat talks to `CEOChatGateway` through the existing Server-Sent Events endpoint:
 
 - `POST /api/ai-chat/threads/{thread_id}/responses/stream`
 - `POST /api/ai-chat/threads/{thread_id}/responses/regenerate`
@@ -19,22 +19,22 @@ cancels before completion, no partial assistant message is written.
 
 ## Gateway Configuration
 
-The gateway uses the same model configuration as the rest of the agent system.
+`CEOChatGateway` uses the same model configuration as the rest of the agent system.
 `config.agent_model` loads `config/environments/.env`, then resolves
 `HARUQUANT_AGENT_MODEL`.
 
-- `HARUQUANT_AI_GATEWAY_ENABLED`: set `false` to force safe fallback responses.
+- `HARUQUANT_CEO_CHAT_ENABLED`: set `false` to force safe fallback responses.
 - `HARUQUANT_AGENT_MODEL`: default chatbot model.
 - `GOOGLE_API_KEY`: used when the selected model is Gemini/Google.
 - `OPENAI_API_KEY`: used when the selected model is OpenAI/GPT.
 - `OLLAMA_BASE_URL`: optional local Ollama URL, defaults to `http://127.0.0.1:11434`.
-- `HARUQUANT_AI_GATEWAY_MODEL`: optional chatbot-specific model override.
+- `HARUQUANT_CEO_CHAT_MODEL`: optional chatbot-specific model override.
 - `HARUQUANT_AI_MODEL_FAST`: optional page identity/plain-answer override.
 - `HARUQUANT_AI_MODEL_ANALYSIS`: optional backtest/optimization override.
 - `HARUQUANT_AI_MODEL_STRONG`: optional risk/strategy/tool-assisted override.
-- `HARUQUANT_AI_GATEWAY_BASE_URL`: optional OpenAI-compatible base URL.
+- `HARUQUANT_CEO_CHAT_BASE_URL`: optional OpenAI-compatible base URL.
 
-When model configuration is absent or streaming fails at startup, the gateway
+When model configuration is absent or streaming fails at startup, the CEO gateway
 falls back to a page-aware degraded response and marks metadata as
 `generation_source=fallback`.
 
@@ -46,12 +46,14 @@ Supported model prefixes:
 
 ## Prompt Layers
 
-`services/prompt_builder.py` composes prompts in ordered layers:
+`services/prompt_builder.py` composes prompts in ordered layers under the CEO/planner contract:
 
 - system governance and answer contract
+- CEO/planner route and memo state
 - conversation memory summary
 - pinned facts
 - current page context
+- read-only HaruQuant tool evidence
 - attached tool disclosures
 - recent messages
 - current user prompt
@@ -61,14 +63,9 @@ The prompt-composition log is stored in
 
 ## Routing
 
-`services/agent_router.py` classifies turns into:
+`PlannerAgent` classifies turns and selects read-only HaruQuant tool evidence.
+`CEOAgent` owns the final executive voice and governance boundary. The gateway
+owns streaming, persistence, retry, fallback, and metadata only.
 
-- `page_identity`
-- `tool_assisted_answer`
-- `risk_review`
-- `strategy_work`
-- `analysis_workflow`
-- `general_answer`
-
-Regeneration uses the same read-only route policy and does not execute tool side
-effects.
+Regeneration uses the same CEO/planner route policy and does not execute tool
+side effects beyond safe read-only evidence gathering.

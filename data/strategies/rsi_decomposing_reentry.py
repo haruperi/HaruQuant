@@ -16,8 +16,6 @@ from services.strategy.stateful import (
 
 from data.strategies.stateful_common import (
     ensure_no_signal_columns,
-    historical_mid_prices,
-    is_bar_close,
     positions_for_side,
 )
 
@@ -41,6 +39,8 @@ class RsiDecomposingReentryStrategy(StatefulStrategyMixin, BaseStrategy):
         self.max_lot = float(self.params.get("max_lot", 100.0))
         self.lot_step = float(self.params.get("lot_step", 0.01))
         self.pip_value = float(self.params.get("pip_value", 0.0001))
+        self._rsi_cache_key: tuple[int, int] | None = None
+        self._rsi_cache: pd.Series | None = None
 
     def on_init(self) -> None:
         self.state.setdefault("previous_rsi", None)
@@ -55,10 +55,10 @@ class RsiDecomposingReentryStrategy(StatefulStrategyMixin, BaseStrategy):
         return ensure_no_signal_columns(data)
 
     def on_event(self, context: StrategyContext) -> list[TradeAction]:
-        if not is_bar_close(context):
+        if not self._is_new_bar_event(context):
             return []
 
-        rsi_values = self._rsi_values(historical_mid_prices(context))
+        rsi_values = self._rsi_values_for_context(context)
         if len(rsi_values) < 2:
             return []
 
@@ -353,19 +353,130 @@ class RsiDecomposingReentryStrategy(StatefulStrategyMixin, BaseStrategy):
     def _setup_id(symbol: str, side: str) -> str:
         return f"{symbol}:{side.lower()}:rsi_decomposing_reentry"
 
+    @staticmethod
+    def _is_new_bar_event(context: StrategyContext) -> bool:
+        tick = context.current_tick or {}
+        phase = str(tick.get("is_bar_close", "") or "").lower()
+        phases = {part.strip() for part in phase.split("|") if part.strip()}
+        if "open" in phases:
+            return True
+
+        # Unit tests and hand-built contexts usually provide only closed bars.
+        # Real timeframe tick data has source_bar_time, so it will use open only.
+        return "source_bar_time" not in tick and "close" in phases
+
+    @staticmethod
+    def _bar_close_prices(context: StrategyContext) -> pd.Series:
+        data = context.market_data
+        if data is None or data.empty:
+            return pd.Series(dtype="float64")
+
+        tick_index = int(
+            getattr(context, "tick_index", context.metadata.get("tick_index", 0))
+        )
+        window = data.iloc[: tick_index + 1]
+        if "is_bar_close" in window.columns:
+            phases = window["is_bar_close"].astype(str).str.lower()
+            close_mask = phases.apply(
+                lambda value: "close"
+                in {part.strip() for part in value.split("|") if part.strip()}
+            )
+            window = window.loc[close_mask]
+        if window.empty:
+            return pd.Series(dtype="float64")
+
+        price_col = "close" if "close" in window.columns else "bid"
+        prices = pd.to_numeric(window[price_col], errors="coerce")
+        if "source_bar_time" in window.columns:
+            close_frame = pd.DataFrame(
+                {
+                    "time": pd.to_datetime(window["source_bar_time"], errors="coerce"),
+                    "price": prices,
+                }
+            ).dropna()
+            if close_frame.empty:
+                return pd.Series(dtype="float64")
+            return close_frame.groupby("time")["price"].last().dropna()
+
+        prices.index = window.index
+        return prices.dropna()
+
+    def _rsi_values_for_context(self, context: StrategyContext) -> pd.Series:
+        tick = context.current_tick or {}
+        if "source_bar_time" not in tick:
+            return self._rsi_values(self._bar_close_prices(context))
+
+        data = context.market_data
+        if data is None or data.empty:
+            return pd.Series(dtype="float64")
+
+        cache_key = (id(data), len(data))
+        if self._rsi_cache_key != cache_key or self._rsi_cache is None:
+            self._rsi_cache_key = cache_key
+            self._rsi_cache = self._rsi_values(self._all_bar_close_prices(data))
+
+        current_bar_time = pd.to_datetime(tick.get("source_bar_time"), errors="coerce")
+        if pd.isna(current_bar_time):
+            return self._rsi_cache
+        return self._rsi_cache.loc[self._rsi_cache.index < current_bar_time]
+
+    @staticmethod
+    def _all_bar_close_prices(data: pd.DataFrame) -> pd.Series:
+        if data is None or data.empty:
+            return pd.Series(dtype="float64")
+        window = data
+        if "is_bar_close" in window.columns:
+            phases = window["is_bar_close"].astype(str).str.lower()
+            close_mask = phases.apply(
+                lambda value: "close"
+                in {part.strip() for part in value.split("|") if part.strip()}
+            )
+            window = window.loc[close_mask]
+        if window.empty:
+            return pd.Series(dtype="float64")
+
+        price_col = "close" if "close" in window.columns else "bid"
+        prices = pd.to_numeric(window[price_col], errors="coerce")
+        if "source_bar_time" in window.columns:
+            close_frame = pd.DataFrame(
+                {
+                    "time": pd.to_datetime(window["source_bar_time"], errors="coerce"),
+                    "price": prices,
+                }
+            ).dropna()
+            if close_frame.empty:
+                return pd.Series(dtype="float64")
+            return close_frame.groupby("time")["price"].last().dropna()
+
+        prices.index = window.index
+        return prices.dropna()
+
     def _rsi_values(self, prices: pd.Series) -> pd.Series:
         if len(prices) < self.rsi_period + 2:
             return pd.Series(dtype="float64")
+        prices = pd.to_numeric(prices, errors="coerce").dropna()
         delta = prices.diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
-        avg_gain = gain.ewm(
-            alpha=1 / self.rsi_period, adjust=False, min_periods=self.rsi_period
-        ).mean()
-        avg_loss = loss.ewm(
-            alpha=1 / self.rsi_period, adjust=False, min_periods=self.rsi_period
-        ).mean()
-        rs = avg_gain / avg_loss.replace(0, pd.NA)
-        rsi = 100 - (100 / (1 + rs))
-        rsi = rsi.mask(avg_loss == 0, 100.0)
+        gains = delta.clip(lower=0.0)
+        losses = -delta.clip(upper=0.0)
+
+        rsi = pd.Series(index=prices.index, dtype="float64")
+        avg_gain = float(gains.iloc[1 : self.rsi_period + 1].mean())
+        avg_loss = float(losses.iloc[1 : self.rsi_period + 1].mean())
+
+        def calc_rsi(gain_value: float, loss_value: float) -> float:
+            if loss_value == 0.0:
+                return 100.0 if gain_value > 0.0 else 50.0
+            rs = gain_value / loss_value
+            return 100.0 - (100.0 / (1.0 + rs))
+
+        rsi.iloc[self.rsi_period] = calc_rsi(avg_gain, avg_loss)
+        for index in range(self.rsi_period + 1, len(prices)):
+            avg_gain = (
+                (avg_gain * (self.rsi_period - 1)) + float(gains.iloc[index])
+            ) / self.rsi_period
+            avg_loss = (
+                (avg_loss * (self.rsi_period - 1)) + float(losses.iloc[index])
+            ) / self.rsi_period
+            rsi.iloc[index] = calc_rsi(avg_gain, avg_loss)
+
         return rsi.dropna()

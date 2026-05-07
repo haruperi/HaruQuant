@@ -75,6 +75,9 @@ def _ensure_builtin_strategies_registered() -> None:
 
 
 def _builtin_strategy_classes() -> Iterable[StrategyClass]:
+    from data.strategies.market_structure_hedge_grid import (
+        MarketStructureHedgeGridStrategy,
+    )
     from data.strategies.pyramiding import PyramidingStrategy
     from data.strategies.rsi_averaging_pyramid import RsiAveragingPyramidStrategy
     from data.strategies.rsi_decomposing_reentry import RsiDecomposingReentryStrategy
@@ -93,4 +96,5 @@ def _builtin_strategy_classes() -> Iterable[StrategyClass]:
         RsiAveragingPyramidStrategy,
         StructureHedgeTrailStrategy,
         RsiDecomposingReentryStrategy,
+        MarketStructureHedgeGridStrategy,
     )

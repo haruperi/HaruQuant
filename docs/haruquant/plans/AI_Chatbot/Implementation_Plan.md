@@ -294,8 +294,8 @@ orchestration.
 #### Deliverables
 
 - `api/ai_chat.py`
-- `services/ai_gateway.py`
-- `services/agent_router.py`
+- `services/ceo_gateway.py`
+- `agents/planner.py`
 - `services/prompt_builder.py`
 - `services/stream_manager.py`
 - request and response schemas

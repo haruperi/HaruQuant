@@ -56,10 +56,10 @@ class OpenAICompatibleStreamClient:
         provider_name: str | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
-        self.base_url = (base_url or os.getenv("HARUQUANT_AI_GATEWAY_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
+        self.base_url = (base_url or os.getenv("HARUQUANT_CEO_CHAT_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
         self.api_key = api_key
-        self.provider_name = provider_name or os.getenv("HARUQUANT_AI_GATEWAY_PROVIDER") or "model-config"
-        self.timeout_seconds = timeout_seconds or float(os.getenv("HARUQUANT_AI_GATEWAY_TIMEOUT_SECONDS", "60"))
+        self.provider_name = provider_name or os.getenv("HARUQUANT_CEO_CHAT_PROVIDER") or "model-config"
+        self.timeout_seconds = timeout_seconds or float(os.getenv("HARUQUANT_CEO_CHAT_TIMEOUT_SECONDS", "60"))
 
     @property
     def is_configured(self) -> bool:
@@ -70,7 +70,7 @@ class OpenAICompatibleStreamClient:
         if provider == "google":
             return bool(self.api_key or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
         if provider == "openai":
-            return bool(self.api_key or os.getenv("OPENAI_API_KEY") or os.getenv("HARUQUANT_AI_GATEWAY_API_KEY"))
+            return bool(self.api_key or os.getenv("OPENAI_API_KEY") or os.getenv("HARUQUANT_CEO_CHAT_API_KEY"))
         if provider == "ollama":
             return True
         return False
@@ -132,7 +132,7 @@ class OpenAICompatibleStreamClient:
         temperature: float,
         max_tokens: int | None,
     ) -> Iterator[str]:
-        api_key = self.api_key or os.getenv("HARUQUANT_AI_GATEWAY_API_KEY") or os.getenv("OPENAI_API_KEY")
+        api_key = self.api_key or os.getenv("HARUQUANT_CEO_CHAT_API_KEY") or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ModelConfigurationError("OPENAI_API_KEY is not configured for the selected model.")
 

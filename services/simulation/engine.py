@@ -1492,6 +1492,10 @@ class Engine:
                 "sl": float(action.stop_loss or 0.0),
                 "tp": float(action.take_profit or 0.0),
                 "comment": action.reason or "Stateful strategy entry",
+                "external_id": action.group_id or action.setup_id or "",
+                "setup_id": action.setup_id or "",
+                "group_id": action.group_id or "",
+                "strategy_id": action.strategy_id or "",
             },
             verbose=verbose,
         )
@@ -1514,6 +1518,10 @@ class Engine:
                 "sl": float(action.stop_loss or 0.0),
                 "tp": float(action.take_profit or 0.0),
                 "comment": action.reason or "Stateful strategy pending",
+                "external_id": action.group_id or action.setup_id or "",
+                "setup_id": action.setup_id or "",
+                "group_id": action.group_id or "",
+                "strategy_id": action.strategy_id or "",
             },
             verbose=verbose,
         )

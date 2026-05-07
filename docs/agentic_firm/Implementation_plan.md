@@ -618,7 +618,7 @@ A user request can enter the CEO Agent, get planned, delegated, executed, audite
 
 ---
 
-# Phase 7 â€” CEO Agent and Planner Agent
+# Phase 7 CEO Agent and Planner Agent
 
 ## Goal
 
@@ -698,7 +698,7 @@ You can ask the CEO Agent for work, and it routes the task correctly without rel
 
 ---
 
-# Phase 8 â€” Research Department v1
+# Phase 8 Research Department v1
 
 ## Goal
 
@@ -2086,5 +2086,3 @@ That is the first true proof that HaruQuant can become a multi-agent trading fir
 [3]: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
 [4]: https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/adk
 [5]: https://arxiv.org/pdf/2412.20138
-
-

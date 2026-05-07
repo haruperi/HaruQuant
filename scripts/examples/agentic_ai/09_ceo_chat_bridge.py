@@ -21,9 +21,12 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from services.chat.ceo_gateway import AIGatewayService, ChatStreamRequest, ConversationService, PageContextAssembler
 from data.database import AiChatRepository, apply_pending_migrations, default_migrations_dir
 from data.database.sqlite.database_operations import DatabaseManager
+from services.ceo_gateway import CEOChatGateway
+from services.context.service import ContextAssembler
+from services.conversation.service import ConversationService
+from services.schemas.chat import ChatTurnRequest
 
 
 def print_header(title: str) -> None:
@@ -62,49 +65,52 @@ def main() -> None:
             password="password",
         )
 
+    user_id = "1"
     conversation_service = ConversationService(AiChatRepository(database_path))
     thread = conversation_service.create_thread(
-        user_id=1,
+        user_id=user_id,
         current_route="/dashboard",
         current_page_type="dashboard",
     )
-    gateway = AIGatewayService(
+    gateway = CEOChatGateway(
         conversation_service=conversation_service,
-        context_assembler=PageContextAssembler(db_manager=db),
-        agentic_firm_chat_enabled=True,
+        context_assembler=ContextAssembler(),
     )
 
     print_header("01: Chat Request")
-    request = ChatStreamRequest(
-        user_id=1,
-        thread_id=thread.thread_id,
+    request = ChatTurnRequest(
         prompt="Create and backtest a EURUSD H1 mean reversion strategy.",
-        attached_tools=["strategy_creator"],
+        attached_tools=["strategy_parameters", "backtest_summary"],
+        context_route="/dashboard",
+        context_page_title="Dashboard",
         context_symbol="EURUSD",
         context_timeframe="H1",
     )
     print_kv("Prompt", request.prompt)
     print_kv("Attached tools", request.attached_tools)
 
-    metadata, chunks, message_id = gateway.stream_response(request)
-    content = "".join(chunks)
+    events = list(gateway.stream_turn(thread_id=thread.thread_id, user_id=user_id, request=request))
+    content = "".join(str(data.get("delta", "")) for event, data in events if event == "token")
+    done_payload = next(data for event, data in reversed(events) if event == "done")
+    metadata = done_payload["metadata"]
+    message_id = done_payload["message_id"]
 
     print_header("02: CEO Response")
     print(content)
 
     print_header("03: Firm Metadata Stored on Chat Message")
     print_kv("Message ID", message_id)
-    print_kv("Agentic firm chat", metadata["agentic_firm_chat"])
-    print_kv("Planner source", metadata["planner"]["source"])
+    print_kv("Answer mode", metadata["answer_mode"])
+    print_kv("Planner source", metadata["planner"]["planner_source"])
     print_kv("Planner intent", metadata["planner"]["intent"])
-    print_kv("Operator hints", metadata["operator_hints"])
-    print_kv("Firm workflow", metadata["firm_workflow"])
+    print_kv("Tools used", metadata["tools_used"])
+    print_kv("Specialists used", metadata["specialist_agents_used"])
     print_kv("CEO memo", metadata["ceo_memo"])
 
-    refreshed = conversation_service.get_thread(user_id=1, thread_id=thread.thread_id)
+    refreshed = conversation_service.get_thread(user_id=user_id, thread_id=thread.thread_id)
     print_header("04: Chat Thread")
     print_kv("Messages", [{"role": msg.role, "id": msg.message_id} for msg in refreshed.messages])
-    print_kv("Assistant metadata firm workflow", refreshed.messages[-1].metadata["firm_workflow"])
+    print_kv("Assistant metadata answer mode", refreshed.messages[-1].metadata["answer_mode"])
 
     print()
     print("#" * 78)
