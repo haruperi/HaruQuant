@@ -1,0 +1,550 @@
+"""Machine-readable Research Department capability registry."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+COMMON_INPUTS = (
+    "research_question",
+    "symbol",
+    "symbols",
+    "asset_class",
+    "timeframe",
+    "timeframes",
+    "data_window",
+    "research_objective",
+    "constraints",
+    "context_revision",
+    "evidence_refs",
+)
+
+COMMON_TESTS = (
+    "normal_case",
+    "missing_required_context",
+    "low_quality_evidence",
+    "high_risk_case",
+    "llm_override_attempt",
+    "audit_metadata_completeness",
+)
+
+
+@dataclass(frozen=True)
+class ResearchAgentCapabilities:
+    inputs: tuple[str, ...] = COMMON_INPUTS
+    evidence_required: tuple[str, ...] = ()
+    llm_responsibilities: tuple[str, ...] = ()
+    deterministic_rules: tuple[str, ...] = ()
+    output_artifacts: tuple[str, ...] = ()
+    functional_capabilities: tuple[str, ...] = ()
+    tests_required: tuple[str, ...] = COMMON_TESTS
+    route_targets: tuple[str, ...] = ()
+    traceable_claims: bool = True
+    standardized_scoring: bool = True
+    validation_before_handoff: bool = True
+    rejected_idea_memory: bool = True
+    approved_handoff_contract: bool = True
+    stale_report_refresh: bool = True
+
+
+AGENT_CAPABILITIES: dict[str, ResearchAgentCapabilities] = {
+    "research_orchestrator_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "research_request",
+            "available_market_context",
+            "available_technical_context",
+            "available_historical_evidence",
+            "available_strategy_memory",
+            "available_source_metadata",
+        ),
+        llm_responsibilities=(
+            "propose_research_plan",
+            "summarize_specialist_findings",
+            "identify_contradictions",
+            "draft_final_research_package_summary",
+            "suggest_follow_up_research_questions",
+        ),
+        deterministic_rules=(
+            "validate_required_fields_before_routing",
+            "missing_symbol_returns_needs_more_context",
+            "missing_timeframe_uses_configured_default_when_allowed",
+            "unavailable_required_data_blocks_handoff",
+            "specialist_conflicts_mark_needs_more_evidence",
+            "rejected_validation_blocks_strategy_handoff",
+            "approved_validation_allows_strategy_handoff",
+            "llm_cannot_override_validation_status",
+        ),
+        output_artifacts=(
+            "research_execution_plan",
+            "agent_routing_plan",
+            "merged_research_package",
+            "conflict_resolution_notes",
+            "final_research_report",
+            "research_to_strategy_handoff",
+        ),
+        functional_capabilities=(
+            "receive_research_request",
+            "validate_request_schema",
+            "parse_research_question",
+            "identify_targets",
+            "identify_required_data_and_memory",
+            "determine_required_agents",
+            "route_specialist_tasks",
+            "run_dependency_order",
+            "run_independent_agents_in_parallel_where_safe",
+            "collect_and_validate_responses",
+            "detect_missing_duplicate_conflicting_unsupported_reports",
+            "merge_valid_findings",
+            "save_final_report_to_evidence_memory",
+            "route_approved_hypotheses",
+            "route_risk_data_execution_and_portfolio_concerns",
+            "maintain_full_audit_trail",
+        ),
+        tests_required=(
+            "normal_research_request",
+            "missing_symbol_request",
+            "missing_timeframe_request",
+            "conflicting_specialist_reports",
+            "rejected_validation_blocks_handoff",
+            "approved_validation_allows_handoff",
+            "llm_override_attempt",
+            "audit_metadata_completeness",
+        ),
+        route_targets=(
+            "strategy_development",
+            "risk_portfolio",
+            "data_department",
+            "execution_department",
+            "portfolio_management",
+        ),
+    ),
+    "market_intelligence_agent": ResearchAgentCapabilities(
+        inputs=(
+            "symbol",
+            "timeframes",
+            "data_window",
+            "include_tick_data",
+            "include_spread_analysis",
+            "include_session_context",
+            "include_volatility_context",
+        ),
+        evidence_required=(
+            "ohlcv_history",
+            "tick_history_where_available",
+            "spread_history",
+            "volatility_history",
+            "session_calendar",
+            "symbol_metadata",
+            "prior_market_regime_labels",
+        ),
+        llm_responsibilities=(
+            "summarize_market_behavior",
+            "explain_regime_observations",
+            "highlight_unusual_conditions",
+            "draft_market_intelligence_narrative",
+            "suggest_strategy_families",
+        ),
+        deterministic_rules=(
+            "missing_ohlcv_returns_needs_more_context",
+            "low_data_quality_marks_low_confidence",
+            "high_spread_blocks_trade_execution",
+            "extreme_volatility_blocks_position_scaling_and_execution",
+            "insufficient_sample_blocks_strategy_family_recommendation",
+            "low_regime_confidence_marks_unknown",
+            "llm_cannot_override_thresholds_or_regime_labels",
+        ),
+        output_artifacts=(
+            "market_intelligence_report",
+            "symbol_regime_profile",
+            "symbol_behavior_profile",
+            "volatility_regime_snapshot",
+            "spread_risk_summary",
+            "session_behavior_summary",
+            "strategy_family_suitability_scores",
+        ),
+        functional_capabilities=(
+            "read_symbol_data",
+            "read_multi_timeframe_ohlcv",
+            "read_tick_data_where_available",
+            "read_volatility_spread_session_volume_liquidity_data",
+            "read_historical_regime_labels",
+            "detect_trending_ranging_transition_regimes",
+            "detect_volatility_compression_expansion_spikes_clustering",
+            "detect_abnormal_spread_and_news_session_widening",
+            "detect_liquidity_session_rollover_swap_gap_microstructure_behavior",
+            "classify_symbol_personality",
+            "score_tradability_data_liquidity_volatility_and_strategy_suitability",
+            "recommend_preferred_and_avoided_sessions",
+            "save_market_reports_and_condition_labels",
+        ),
+    ),
+    "technical_analyst_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "ohlcv_history",
+            "indicator_snapshot",
+            "price_structure",
+            "support_resistance",
+            "volatility_context",
+        ),
+        llm_responsibilities=(
+            "summarize_price_structure",
+            "explain_indicator_context",
+            "highlight_technical_risks",
+            "draft_technical_analysis_narrative",
+        ),
+        deterministic_rules=(
+            "missing_ohlcv_returns_needs_more_context",
+            "invalid_indicator_inputs_are_rejected",
+            "low_signal_confidence_blocks_handoff",
+            "llm_cannot_override_indicator_or_structure_rules",
+        ),
+        output_artifacts=(
+            "technical_analysis_report",
+            "trend_structure_summary",
+            "support_resistance_map",
+            "momentum_snapshot",
+            "technical_risk_summary",
+        ),
+        functional_capabilities=(
+            "read_price_data",
+            "calculate_indicators",
+            "detect_trend_momentum_support_resistance_and_patterns",
+            "score_technical_quality",
+            "save_technical_analysis_report",
+        ),
+    ),
+    "strategy_scout_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "market_reports",
+            "technical_reports",
+            "strategy_memory",
+            "rejected_idea_memory",
+            "source_metadata",
+        ),
+        llm_responsibilities=(
+            "propose_candidate_ideas",
+            "explain_edge_rationale",
+            "suggest_backtest_plans",
+            "draft_strategy_idea_summaries",
+        ),
+        deterministic_rules=(
+            "missing_evidence_blocks_idea_approval",
+            "duplicate_rejected_ideas_require_new_evidence",
+            "low_research_score_blocks_handoff",
+            "llm_cannot_override_score_thresholds",
+        ),
+        output_artifacts=(
+            "strategy_scout_report",
+            "candidate_strategy_ideas",
+            "rejected_ideas",
+            "strategy_scorecard",
+            "recommended_backtest_plan",
+        ),
+        functional_capabilities=(
+            "retrieve_past_research",
+            "discover_rank_and_reject_candidate_ideas",
+            "score_strategy_ideas",
+            "save_approved_and_rejected_ideas",
+        ),
+    ),
+    "news_sentiment_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "approved_news_feed",
+            "sentiment_snapshot",
+            "economic_calendar",
+            "source_metadata",
+        ),
+        llm_responsibilities=(
+            "summarize_news_context",
+            "explain_sentiment_drivers",
+            "highlight_event_risk",
+            "draft_sentiment_narrative",
+        ),
+        deterministic_rules=(
+            "unapproved_sources_are_rejected_or_untrusted",
+            "high_news_risk_blocks_trade_execution",
+            "stale_news_marks_requires_refresh",
+            "llm_cannot_override_source_or_event_risk_policy",
+        ),
+        output_artifacts=(
+            "news_sentiment_report",
+            "sentiment_snapshot",
+            "event_risk_summary",
+            "source_reliability_report",
+        ),
+        functional_capabilities=(
+            "read_approved_news_and_sentiment",
+            "classify_sentiment",
+            "flag_news_and_calendar_risk",
+            "save_sentiment_snapshots",
+        ),
+    ),
+    "macro_fundamental_context_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "macro_calendar",
+            "fundamental_snapshot",
+            "rate_policy_context",
+            "source_metadata",
+        ),
+        llm_responsibilities=(
+            "summarize_macro_context",
+            "explain_fundamental_drivers",
+            "draft_macro_narrative",
+        ),
+        deterministic_rules=(
+            "missing_macro_sources_mark_needs_more_context",
+            "major_event_risk_marks_high_risk",
+            "llm_cannot_override_macro_source_policy",
+        ),
+        output_artifacts=(
+            "macro_fundamental_report",
+            "macro_context_snapshot",
+            "fundamental_driver_summary",
+            "macro_event_risk_summary",
+        ),
+        functional_capabilities=(
+            "read_macro_calendar",
+            "classify_macro_regime",
+            "flag_macro_event_risk",
+            "save_macro_context_snapshots",
+        ),
+    ),
+    "cross_asset_intermarket_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "cross_asset_data",
+            "correlation_history",
+            "divergence_context",
+            "source_metadata",
+        ),
+        llm_responsibilities=(
+            "summarize_intermarket_context",
+            "explain_correlation_shifts",
+            "draft_cross_asset_narrative",
+        ),
+        deterministic_rules=(
+            "missing_cross_asset_data_marks_needs_more_context",
+            "unstable_correlation_marks_low_confidence",
+            "llm_cannot_override_correlation_thresholds",
+        ),
+        output_artifacts=(
+            "cross_asset_intermarket_report",
+            "correlation_snapshot",
+            "divergence_report",
+            "intermarket_risk_summary",
+        ),
+        functional_capabilities=(
+            "read_related_market_data",
+            "calculate_correlations",
+            "detect_intermarket_divergence",
+            "save_cross_asset_correlation_snapshots",
+        ),
+    ),
+    "seasonality_calendar_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "session_calendar",
+            "holiday_calendar",
+            "seasonality_profile",
+            "source_metadata",
+        ),
+        llm_responsibilities=(
+            "summarize_calendar_context",
+            "explain_seasonal_patterns",
+            "draft_seasonality_narrative",
+        ),
+        deterministic_rules=(
+            "missing_calendar_data_marks_needs_more_context",
+            "weak_seasonality_marks_low_confidence",
+            "llm_cannot_override_calendar_thresholds",
+        ),
+        output_artifacts=(
+            "seasonality_calendar_report",
+            "seasonality_snapshot",
+            "calendar_risk_summary",
+            "session_pattern_summary",
+        ),
+        functional_capabilities=(
+            "read_session_and_holiday_calendars",
+            "calculate_seasonality_profile",
+            "flag_calendar_risk",
+            "save_seasonality_snapshots",
+        ),
+    ),
+    "strategy_hypothesis_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "candidate_strategy_idea",
+            "supporting_research_reports",
+            "scorecard",
+            "source_metadata",
+        ),
+        llm_responsibilities=(
+            "draft_testable_hypotheses",
+            "suggest_acceptance_criteria",
+            "suggest_rejection_criteria",
+            "draft_handoff_summary",
+        ),
+        deterministic_rules=(
+            "missing_candidate_idea_blocks_hypothesis",
+            "missing_acceptance_criteria_blocks_handoff",
+            "llm_cannot_create_final_validation_status",
+        ),
+        output_artifacts=(
+            "strategy_hypothesis_report",
+            "strategy_hypothesis",
+            "acceptance_criteria",
+            "rejection_criteria",
+            "research_to_strategy_handoff_draft",
+        ),
+        functional_capabilities=(
+            "retrieve_candidate_ideas",
+            "create_testable_hypothesis",
+            "define_acceptance_and_rejection_criteria",
+            "save_strategy_hypothesis",
+        ),
+    ),
+    "research_validation_agent": ResearchAgentCapabilities(
+        evidence_required=(
+            "research_reports",
+            "evidence_refs",
+            "source_quality",
+            "data_sample",
+            "bias_checks",
+        ),
+        llm_responsibilities=(
+            "summarize_research_strengths_and_weaknesses",
+            "explain_potential_biases",
+            "draft_validation_notes",
+        ),
+        deterministic_rules=(
+            "missing_evidence_refs_needs_more_evidence_or_rejected",
+            "low_source_quality_blocks_approval",
+            "insufficient_sample_blocks_approval",
+            "high_lookahead_bias_rejects",
+            "duplicate_rejected_idea_without_new_evidence_rejects",
+            "low_risk_compatibility_rejects",
+            "all_thresholds_pass_may_approve",
+            "warnings_with_thresholds_pass_may_approve_with_caution",
+            "llm_cannot_override_validation_thresholds",
+        ),
+        output_artifacts=(
+            "research_validation_report",
+            "validation_status",
+            "validation_scorecard",
+            "bias_warnings",
+            "missing_evidence_report",
+            "approval_or_rejection_reasons",
+        ),
+        functional_capabilities=(
+            "review_all_research_reports",
+            "check_evidence_source_recency_sample_significance_regime_and_bias",
+            "check_execution_cost_swap_spread_slippage_realism",
+            "check_conclusion_contradictions_missing_evidence_and_weak_assumptions",
+            "check_rejected_duplicate_risk_portfolio_data_and_tool_conflicts",
+            "assign_validation_status",
+            "save_validation_result",
+            "block_weak_hypotheses_from_handoff",
+        ),
+        tests_required=(
+            "approved_validation_case",
+            "approved_with_caution_case",
+            "missing_evidence_case",
+            "low_source_quality_case",
+            "lookahead_bias_rejection_case",
+            "duplicate_rejected_idea_case",
+            "llm_override_attempt",
+            "audit_metadata_completeness",
+        ),
+    ),
+    "evidence_curator_agent": ResearchAgentCapabilities(
+        inputs=(
+            "report_artifact",
+            "evidence_refs",
+            "source_metadata",
+            "artifact_type",
+            "retention_policy",
+            "expiry_rules",
+        ),
+        evidence_required=(
+            "report_artifact",
+            "source_metadata",
+            "evidence_references",
+            "existing_evidence_memory_matches",
+            "retention_and_expiry_policy",
+        ),
+        llm_responsibilities=(
+            "summarize_evidence_for_searchability",
+            "suggest_tags",
+            "draft_human_readable_evidence_summaries",
+            "identify_duplicate_candidates",
+        ),
+        deterministic_rules=(
+            "missing_evidence_source_rejects_save",
+            "existing_evidence_id_updates_only_by_versioning",
+            "unapproved_source_marks_untrusted_or_rejects",
+            "expired_evidence_marks_stale",
+            "superseded_reports_link_versions",
+            "llm_cannot_create_ids_override_source_policy_delete_or_bypass_retention",
+        ),
+        output_artifacts=(
+            "evidence_memory_index",
+            "saved_evidence_refs",
+            "deduplication_report",
+            "stale_evidence_report",
+            "lineage_map",
+        ),
+        functional_capabilities=(
+            "save_research_reports_evidence_source_metadata_hypotheses_and_ideas",
+            "save_market_sentiment_macro_cross_asset_seasonality_and_validation_snapshots",
+            "deduplicate_evidence",
+            "link_evidence_reports_strategy_ideas_backtests_and_validation_outcomes",
+            "track_lineage_versions_source_reliability_and_stale_evidence",
+            "expire_outdated_research_and_mark_superseded_reports",
+            "retrieve_relevant_past_research_hypotheses_and_failures",
+            "output_evidence_memory_index",
+            "maintain_audit_trail",
+        ),
+        tests_required=(
+            "normal_evidence_save_case",
+            "duplicate_evidence_case",
+            "missing_source_metadata_case",
+            "unapproved_source_case",
+            "expired_evidence_case",
+            "llm_override_attempt",
+            "audit_metadata_completeness",
+        ),
+    ),
+}
+
+
+RESEARCH_WORKFLOW_STEPS = (
+    "start_with_research_request",
+    "orchestrator_validates_request",
+    "orchestrator_creates_research_plan",
+    "market_intelligence_analyzes_market_conditions",
+    "technical_analyst_analyzes_technical_context",
+    "strategy_scout_discovers_strategy_ideas",
+    "news_sentiment_analyzes_news_and_sentiment_risk",
+    "macro_fundamental_analyzes_broader_drivers",
+    "cross_asset_analyzes_related_markets_and_exposures",
+    "seasonality_calendar_analyzes_time_based_behavior",
+    "strategy_hypothesis_converts_findings",
+    "research_validation_reviews_evidence",
+    "evidence_curator_saves_reports_evidence_and_decisions",
+    "approved_hypotheses_sent_to_strategy_development",
+    "rejected_hypotheses_saved_to_rejected_memory",
+    "incomplete_hypotheses_sent_back_for_more_research",
+    "ceo_agent_synthesizes_final_chat_memo",
+)
+
+
+def capabilities_for(agent_name: str) -> ResearchAgentCapabilities:
+    return AGENT_CAPABILITIES.get(agent_name, ResearchAgentCapabilities())
+
+
+__all__ = [
+    "AGENT_CAPABILITIES",
+    "COMMON_INPUTS",
+    "COMMON_TESTS",
+    "RESEARCH_WORKFLOW_STEPS",
+    "ResearchAgentCapabilities",
+    "capabilities_for",
+]

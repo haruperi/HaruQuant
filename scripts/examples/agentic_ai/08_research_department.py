@@ -12,9 +12,10 @@ import sys
 from typing import Any
 
 PROJECT_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
 sys.path.insert(0, PROJECT_ROOT)
+os.environ.setdefault("HARUQUANT_LIGHT_AGENT_IMPORTS", "1")
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")

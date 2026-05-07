@@ -1,3 +1,5 @@
-from agents.research import TechnicalAnalystAgent
+"""Technical Analyst Agent package."""
 
-__all__ = ["TechnicalAnalystAgent"]
+from .service import TechnicalAnalystAgentService
+
+__all__ = ["TechnicalAnalystAgentService"]

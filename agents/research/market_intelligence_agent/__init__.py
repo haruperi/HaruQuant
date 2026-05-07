@@ -1,3 +1,5 @@
-from agents.research import MarketIntelligenceAgent
+"""Market Intelligence Agent package."""
 
-__all__ = ["MarketIntelligenceAgent"]
+from .service import MarketIntelligenceAgentService
+
+__all__ = ["MarketIntelligenceAgentService"]
