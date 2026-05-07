@@ -1,4 +1,5 @@
-from .service import StrategyReviewerAgent
-from .tools import StrategySpecValidator
+"""Strategy Reviewer Agent package."""
 
-__all__ = ["StrategyReviewerAgent", "StrategySpecValidator"]
+from .service import StrategyReviewerAgentService
+
+__all__ = ["StrategyReviewerAgentService"]

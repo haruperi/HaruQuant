@@ -1,3 +1,5 @@
-from .service import StrategyCreatorAgent
+"""Strategy Creator Agent package."""
 
-__all__ = ["StrategyCreatorAgent"]
+from .service import StrategyCreatorAgent, StrategyCreatorAgentService
+
+__all__ = ["StrategyCreatorAgent", "StrategyCreatorAgentService"]
