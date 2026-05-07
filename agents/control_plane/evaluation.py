@@ -1,4 +1,4 @@
-"""Agent evaluation and red-team framework."""
+﻿"""Agent evaluation and red-team framework."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from agents.executive.planner_agent.service import PlannerAgent
 from agents.strategy_development.strategy_creator_agent.service import StrategyCreatorAgent
 from agents.strategy_development.strategy_reviewer_agent.service import StrategyReviewerAgent
 from agents.strategy_development.strategy_reviewer_agent.tools import StrategySpecValidator
-from risk.governor import RiskGovernor
-from risk.kill_switch import KillSwitchService
+from services.risk.governor import RiskGovernor
+from services.risk.safety.kill_switch import KillSwitchService
 
 
 class AgentEvaluationFramework:
@@ -79,3 +79,5 @@ class AgentEvaluationFramework:
 
 
 __all__ = ["AgentEvaluationFramework"]
+
+

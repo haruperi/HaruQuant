@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from services.utils.logger import logger
 
+from .calculators import notional_exposure
+
 @dataclass(frozen=True)
 class PositionExposure:
     """Normalized position input used by exposure and concentration calculators."""
@@ -135,12 +137,58 @@ def calculate_strategy_family_concentration(
     )
 
 
+def exposure_snapshot(positions: list[dict[str, object]], *, equity: float = 100000.0) -> dict[str, object]:
+    """Build a lightweight exposure map from raw position dictionaries."""
+
+    by_symbol: dict[str, float] = {}
+    by_strategy: dict[str, float] = {}
+    gross = 0.0
+    net = 0.0
+    for position in positions:
+        symbol = str(position.get("symbol", "UNKNOWN"))
+        strategy = str(position.get("strategy_id", "strategy-unknown"))
+        signed = float(position.get("notional", float(position.get("volume", 0.0)) * float(position.get("price", 1.0)) * 100000.0))
+        if position.get("side") == "sell":
+            signed *= -1
+        by_symbol[symbol] = by_symbol.get(symbol, 0.0) + signed
+        by_strategy[strategy] = by_strategy.get(strategy, 0.0) + signed
+        gross += abs(signed)
+        net += signed
+    denominator = max(float(equity), 1.0)
+    return {
+        "symbol_exposure": {key: abs(value) / denominator for key, value in by_symbol.items()},
+        "strategy_exposure": {key: abs(value) / denominator for key, value in by_strategy.items()},
+        "gross_exposure": gross / denominator,
+        "net_exposure": net / denominator,
+    }
+
+
+def proposed_exposure_impact(proposal: dict[str, object], portfolio_snapshot: dict[str, object]) -> dict[str, float]:
+    """Calculate symbol exposure after a proposed trade."""
+
+    equity = float(portfolio_snapshot.get("equity", 100000.0))
+    current_symbol = float(portfolio_snapshot.get("symbol_exposure", 0.0))
+    proposed = notional_exposure(proposal) / max(equity, 1.0)
+    return {"current_symbol_exposure": current_symbol, "proposed_exposure": proposed, "post_symbol_exposure": current_symbol + proposed}
+
+
+def concentration_failures(impact: dict[str, float], thresholds: dict[str, object]) -> list[str]:
+    """Return deterministic concentration rule failures."""
+
+    if impact["post_symbol_exposure"] > float(thresholds["max_symbol_exposure_pct"]):
+        return ["max_symbol_concentration"]
+    return []
+
+
 __all__ = [
     "ConcentrationResult",
     "ExposureSummary",
     "PositionExposure",
+    "concentration_failures",
     "calculate_exposure_summary",
     "calculate_currency_concentration",
     "calculate_strategy_family_concentration",
     "calculate_symbol_concentration",
+    "exposure_snapshot",
+    "proposed_exposure_impact",
 ]

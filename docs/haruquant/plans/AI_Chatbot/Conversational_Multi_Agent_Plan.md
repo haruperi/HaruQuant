@@ -1,4 +1,4 @@
-# AI Chatbot Conversational Multi-Agent Upgrade Plan
+﻿# AI Chatbot Conversational Multi-Agent Upgrade Plan
 
 Status: proposed implementation plan  
 Scope: upgrade the current HaruQuant chatbot from a routed single-response copilot into a conversational multi-agent assistant with ChatGPT/Gemini-style interaction quality  
@@ -50,7 +50,7 @@ Today it is still weak at:
 
 The upgraded chatbot should behave like a conversational HaruQuant copilot:
 
-- it understands the user’s goal, not just the literal latest prompt
+- it understands the userâ€™s goal, not just the literal latest prompt
 - it can ask a short clarification question when context is insufficient
 - it can silently decide whether to answer directly, inspect tools, retrieve docs, or consult specialist agents
 - it can continue a topic across turns without feeling stateless
@@ -74,7 +74,7 @@ Add a dedicated conversational controller before final generation.
 
 Responsibilities:
 
-- infer the user’s real intent from the current message plus recent turns
+- infer the userâ€™s real intent from the current message plus recent turns
 - determine whether the assistant should:
   - answer directly
   - ask a clarification question
@@ -149,7 +149,7 @@ Pattern:
 
 New modules:
 
-- `agents/risk_portfolio/risk_reviewer_agent/service.py`
+- `agents/risk/risk_reviewer_agent/service.py`
 - `agents/validation_backtesting/backtest_agent/evaluator.py`
 - `agents/validation_backtesting/optimization_comparator_agent/service.py`
 - `agents/executive/ceo_agent/service.py`
@@ -177,15 +177,15 @@ Suggested service:
 
 Example:
 
-User: “Compare this run to the previous one.”  
+User: â€œCompare this run to the previous one.â€  
 Assistant should understand:
 
-- what “this run” refers to from page context
-- what “previous one” refers to from recent thread state or prior page entity context
+- what â€œthis runâ€ refers to from page context
+- what â€œprevious oneâ€ refers to from recent thread state or prior page entity context
 
 Acceptance criteria:
 
-- pronouns and references such as “this”, “that”, “previous run”, “the same strategy”, and “why again?” are handled coherently
+- pronouns and references such as â€œthisâ€, â€œthatâ€, â€œprevious runâ€, â€œthe same strategyâ€, and â€œwhy again?â€ are handled coherently
 
 ### Layer E: Response Composer for Natural Chat
 
@@ -240,7 +240,7 @@ Tasks:
 
 1. add short-horizon conversation state store
 2. track active entities and unresolved references
-3. add slot resolution for “this strategy”, “previous run”, “that drawdown”
+3. add slot resolution for â€œthis strategyâ€, â€œprevious runâ€, â€œthat drawdownâ€
 4. update prompt builder to include topic state compactly
 
 Deliverables:
@@ -271,7 +271,7 @@ Deliverables:
 Tasks:
 
 1. show when assistant asked a clarification question
-2. add expandable “sources used” and “tools used” disclosures
+2. add expandable â€œsources usedâ€ and â€œtools usedâ€ disclosures
 3. add optional debug drawer for model/provider/generation source
 4. tune typing, interruption, and response streaming for a smoother feel
 
@@ -381,3 +381,4 @@ Reason:
 - it fixes the biggest user-visible gap first
 - it improves normal chat quality immediately
 - it creates the right orchestration surface before adding more agents
+

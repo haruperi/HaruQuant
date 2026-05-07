@@ -1,0 +1,15 @@
+clusters:
+  - cluster_id: usd_major
+    cluster_name: USD Majors
+    symbols: [EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD]
+    currencies: [USD]
+    max_cluster_exposure_pct: 0.35
+    correlation_threshold: 0.75
+    notes: USD-linked FX exposure cluster.
+  - cluster_id: safe_haven
+    cluster_name: Safe Haven
+    symbols: [USDJPY, USDCHF, XAUUSD]
+    currencies: [JPY, CHF, XAU]
+    max_cluster_exposure_pct: 0.25
+    correlation_threshold: 0.70
+    notes: Flight-to-quality sensitivity cluster.

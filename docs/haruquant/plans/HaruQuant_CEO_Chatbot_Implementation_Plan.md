@@ -1,4 +1,4 @@
-# HaruQuant CEO Chatbot Implementation Plan
+﻿# HaruQuant CEO Chatbot Implementation Plan
 
 Status: canonical feature implementation plan  
 Scope: phased delivery plan for converting the HaruQuant global AI chatbot into the front door of the HaruQuant Agentic Trading Firm  
@@ -24,7 +24,7 @@ haruquant/
   api/
   ui/
   db/
-  configs/
+  config/
   reports/
   tests/
 ```
@@ -52,7 +52,7 @@ Implementation update:
 
 This document updates the old HaruQuant AI Chatbot Implementation Plan into the new Agentic Trading Firm architecture.
 
-The original chatbot plan introduced a global, context-aware AI assistant for HaruQuant. The updated plan keeps the same useful foundations — global widget, persistent conversations, page context, streaming, tool grounding, UX maturity, retrieval, observability, and rollout — but changes the core role of the chatbot:
+The original chatbot plan introduced a global, context-aware AI assistant for HaruQuant. The updated plan keeps the same useful foundations â€” global widget, persistent conversations, page context, streaming, tool grounding, UX maturity, retrieval, observability, and rollout â€” but changes the core role of the chatbot:
 
 > The chat is no longer just a generic trading copilot. The chat is the user-facing interface to the HaruQuant CEO Agent.
 
@@ -413,7 +413,7 @@ haruquant/
     repositories.py
     migrations/
 
-  configs/
+  config/
     constitution.md
     risk_policy.md
     agent_permissions.md
@@ -531,11 +531,11 @@ The chatbot is no longer the primary intelligence. The `CEOAgent` is the primary
 - `docs/haruquant/specs/CEO_Chat_Event_Schema.md`
 - `docs/haruquant/specs/Agent_Plan_Schema.md`
 - `docs/haruquant/specs/Tool_Call_Schema.md`
-- `configs/agent_registry.yaml`
-- `configs/tool_registry.yaml`
-- `configs/agent_permissions.md`
-- updated `configs/risk_policy.md`
-- updated `configs/strategy_lifecycle.md`
+- `config/agent_registry.yaml`
+- `config/tool_registry.yaml`
+- `config/agent_permissions.md`
+- updated `config/risk_policy.md`
+- updated `config/strategy_lifecycle.md`
 
 ## Suggested owners
 
@@ -849,7 +849,7 @@ tools/simulation.py
 tools/analytics.py
 tools/risk.py
 tools/audit.py
-configs/tool_registry.yaml
+config/tool_registry.yaml
 ```
 
 ## Suggested owners
@@ -1047,7 +1047,7 @@ reports/simulations/
 
 ## Acceptance criteria
 
-- User can ask: “CEO, create and validate a EURUSD H1 mean-reversion strategy.”
+- User can ask: â€œCEO, create and validate a EURUSD H1 mean-reversion strategy.â€
 - CEO creates a plan and delegates to specialists.
 - Strategy spec is generated and validated.
 - Strategy review catches untestable or unsafe logic.
@@ -1088,8 +1088,8 @@ services/strategy/validators.py
 tools/risk.py
 agents/risk_reviewer.py
 agents/audit.py
-configs/risk_policy.md
-configs/strategy_lifecycle.md
+config/risk_policy.md
+config/strategy_lifecycle.md
 ```
 
 ## Suggested owners
@@ -1241,7 +1241,7 @@ services/execution/paper.py
 services/execution/service.py
 services/risk/kill_switch.py
 tools/execution.py
-agents/execution.py
+agents/portfolio.py
 reports/daily/
 reports/audit/
 ```
@@ -1554,5 +1554,8 @@ RiskGovernor protects the account.
 Audit records everything.
 Human Board approves high-impact actions.
 ```
+
+
+
 
 

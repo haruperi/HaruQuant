@@ -42,6 +42,8 @@ class SignalDict(TypedDict, total=False):
         stop_loss: Preventative stop loss
         take_profit: Profit target
         reason: Text description of the signal
+        setup_id: Setup identifier for multi-leg strategies
+        group_id: Basket/group identifier for related orders/trades
         time: Timestamp of the signal
     """
 
@@ -56,6 +58,8 @@ class SignalDict(TypedDict, total=False):
     stop_loss: Optional[float]
     take_profit: Optional[float]
     reason: Optional[str]
+    setup_id: Optional[str]
+    group_id: Optional[str]
     time: Any
 
 
@@ -227,13 +231,12 @@ class BaseStrategy(ABC):
         """
         row = data.iloc[index]
 
-        # Check if any signal exists
-        entry = row.get("entry_signal", 0) or 0
-        exit_sig = row.get("exit_signal", 0) or 0
-        pending = row.get("pending_signal", 0) or 0
-        cancel = row.get("cancel_pending_signal", 0) or 0
-        pending_2 = row.get("pending_signal_2", 0) or 0
-        cancel_2 = row.get("cancel_pending_signal_2", 0) or 0
+        entry = int(row.get("entry_signal", 0) or 0)
+        exit_sig = int(row.get("exit_signal", 0) or 0)
+        pending = int(row.get("pending_signal", 0) or 0)
+        cancel = int(row.get("cancel_pending_signal", 0) or 0)
+        pending_2 = int(row.get("pending_signal_2", 0) or 0)
+        cancel_2 = int(row.get("cancel_pending_signal_2", 0) or 0)
 
         if (
             entry == 0
@@ -245,24 +248,41 @@ class BaseStrategy(ABC):
         ):
             return None
 
-        # Build basic signal dict - strategy implementations can override to add specific reasons/SL/TP
+        price = row.get("price")
+        if pd.isna(price):
+            price = row.get("close")
+
+        price_2 = row.get("price_2")
+        if pd.isna(price_2):
+            price_2 = None
+
+        stop_loss = row.get("stop_loss", row.get("sl"))
+        if pd.isna(stop_loss) or stop_loss == 0:
+            stop_loss = None
+
+        take_profit = row.get("take_profit", row.get("tp"))
+        if pd.isna(take_profit) or take_profit == 0:
+            take_profit = None
+
+        reason = str(row.get("signal_reason", "") or "Signal detected")
+        setup_id = row.get("setup_id")
+        group_id = row.get("group_id")
+
         return {
-            "entry_signal": int(entry),
-            "exit_signal": int(exit_sig),
-            "pending_signal": int(pending),
-            "cancel_pending_signal": int(cancel),
-            "pending_signal_2": int(pending_2),
-            "cancel_pending_signal_2": int(cancel_2),
-            "price": (
-                float(row.get("price", 0.0)) if pd.notna(row.get("price")) else None
-            ),
-            "price_2": (
-                float(row.get("price_2", 0.0)) if pd.notna(row.get("price_2")) else None
-            ),
+            "entry_signal": entry,
+            "exit_signal": exit_sig,
+            "pending_signal": pending,
+            "cancel_pending_signal": cancel,
+            "pending_signal_2": pending_2,
+            "cancel_pending_signal_2": cancel_2,
+            "price": float(price) if price is not None and pd.notna(price) else None,
+            "price_2": float(price_2) if price_2 is not None else None,
             "time": data.index[index],
-            "reason": "Signal detected",
-            "stop_loss": None,
-            "take_profit": None,
+            "reason": reason,
+            "stop_loss": float(stop_loss) if stop_loss is not None else None,
+            "take_profit": float(take_profit) if take_profit is not None else None,
+            "setup_id": str(setup_id) if setup_id is not None and setup_id != "" else None,
+            "group_id": str(group_id) if group_id is not None and group_id != "" else None,
         }
 
     # =====================================================================

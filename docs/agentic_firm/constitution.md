@@ -1,4 +1,4 @@
-# HaruQuant Agentic Trading Firm Constitution
+﻿# HaruQuant Agentic Trading Firm Constitution
 
 **Document:** `constitution.md`  
 **System:** HaruQuant Multi-Agent LLM Financial Trading Firm  
@@ -125,7 +125,7 @@ A new market may be added only after:
 
 This Constitution is adapted from four governance foundations:
 
-1. **AI risk management lifecycle:** HaruQuant adopts a Govern → Map → Measure → Manage structure inspired by the NIST AI Risk Management Framework.
+1. **AI risk management lifecycle:** HaruQuant adopts a Govern â†’ Map â†’ Measure â†’ Manage structure inspired by the NIST AI Risk Management Framework.
 2. **Financial AI model governance:** HaruQuant requires model inventory, validation, explainability, ongoing monitoring, and supervisory controls for AI-based applications.
 3. **Automated trading safeguards:** HaruQuant requires pre-trade controls, position limits, post-trade analysis, testing, and kill-switch behavior.
 4. **Multi-agent trading firm structure:** HaruQuant separates analysts, researchers, risk reviewers, traders, and portfolio managers so no single agent controls the full decision chain.
@@ -225,7 +225,7 @@ Agents may recommend changes, but recommendations do not become active until app
 
 ## 9. Core Operating Laws
 
-### Law 1 — Evidence Before Action
+### Law 1 â€” Evidence Before Action
 
 No strategy, trade, allocation, or live deployment may proceed without evidence references.
 
@@ -245,19 +245,19 @@ Required evidence may include:
 - RiskGovernor approval.
 - Execution audit record.
 
-### Law 2 — Paper Trading Before Live Trading
+### Law 2 â€” Paper Trading Before Live Trading
 
 Every strategy must pass through paper trading before any live deployment.
 
 No strategy may move directly from backtest to live trading.
 
-### Law 3 — Deterministic Risk Enforcement
+### Law 3 â€” Deterministic Risk Enforcement
 
 All trade proposals must pass through the RiskGovernor.
 
 LLM risk opinions are advisory only. The RiskGovernor approval or rejection is binding.
 
-### Law 4 — Live Trading Requires Human Approval
+### Law 4 â€” Live Trading Requires Human Approval
 
 No live trading may occur unless:
 
@@ -269,7 +269,7 @@ No live trading may occur unless:
 6. The Kill Switch is healthy.
 7. The audit logger is healthy.
 
-### Law 5 — Immutable Auditability
+### Law 5 â€” Immutable Auditability
 
 Every meaningful action must be logged.
 
@@ -295,7 +295,7 @@ This includes:
 - Board approvals.
 - Configuration changes.
 
-### Law 6 — No Single-Agent Control
+### Law 6 â€” No Single-Agent Control
 
 No single LLM agent may control the full lifecycle from research to execution.
 
@@ -310,11 +310,11 @@ The minimum separation is:
 - Live authorization by Board.
 - Execution by Order Router / Broker Bridge.
 
-### Law 7 — Reproducibility
+### Law 7 â€” Reproducibility
 
 Every backtest, optimization, robustness test, paper trade, and live trade must be reproducible or explainable from stored configuration and evidence.
 
-### Law 8 — Fail Closed
+### Law 8 â€” Fail Closed
 
 If a required component fails, HaruQuant must block the action.
 
@@ -332,11 +332,11 @@ Required fail-closed conditions include:
 - Missing cost assumptions.
 - Missing or corrupted data.
 
-### Law 9 — Capital Preservation Over Opportunity
+### Law 9 â€” Capital Preservation Over Opportunity
 
 HaruQuant must prefer missing a profitable trade over taking an uncontrolled trade.
 
-### Law 10 — Human-Governed Autonomy
+### Law 10 â€” Human-Governed Autonomy
 
 HaruQuant may become increasingly autonomous in research, testing, reporting, and paper trading. It may not become autonomous in changing risk policy or activating live capital.
 
@@ -742,7 +742,7 @@ A strategy must be retired if evidence consistently shows that its edge is gone,
 
 ## 12. Strategy Promotion Requirements
 
-### 12.1 Idea → Formal Spec
+### 12.1 Idea â†’ Formal Spec
 
 Required:
 
@@ -754,7 +754,7 @@ Required:
 - Risk assumptions.
 - Testability assessment.
 
-### 12.2 Formal Spec → Code
+### 12.2 Formal Spec â†’ Code
 
 Required:
 
@@ -764,7 +764,7 @@ Required:
 - Clear position sizing logic.
 - Clear cost assumptions.
 
-### 12.3 Code → Backtest
+### 12.3 Code â†’ Backtest
 
 Required:
 
@@ -774,7 +774,7 @@ Required:
 - Valid data source.
 - Valid backtest config.
 
-### 12.4 Backtest → Robustness
+### 12.4 Backtest â†’ Robustness
 
 Required:
 
@@ -784,7 +784,7 @@ Required:
 - Reproducible results.
 - Cost-aware results.
 
-### 12.5 Robustness → Paper Trading
+### 12.5 Robustness â†’ Paper Trading
 
 Required:
 
@@ -796,7 +796,7 @@ Required:
 - Risk Reviewer memo.
 - Portfolio Manager approval for paper.
 
-### 12.6 Paper Trading → Micro Live
+### 12.6 Paper Trading â†’ Micro Live
 
 Required:
 
@@ -808,7 +808,7 @@ Required:
 - Portfolio Manager recommendation.
 - Human Board approval.
 
-### 12.7 Micro Live → Limited Live
+### 12.7 Micro Live â†’ Limited Live
 
 Required:
 
@@ -819,7 +819,7 @@ Required:
 - Portfolio Manager recommendation.
 - Human Board approval.
 
-### 12.8 Limited Live → Normal Live
+### 12.8 Limited Live â†’ Normal Live
 
 Required:
 
@@ -1187,18 +1187,18 @@ No agent may change this default by itself.
 The first production milestone must support this workflow:
 
 ```text
-User → CEO Agent
-CEO Agent → Planner Agent
-Planner Agent → Strategy Creator Agent
-Strategy Creator Agent → Strategy Reviewer Agent
-Strategy Reviewer Agent → Codegen Agent
-Codegen Agent → Test Runner
-Test Runner → Backtest Agent
-Backtest Agent → Analytics Tools
-Analytics Tools → Risk Reviewer Agent
-Risk Reviewer Agent → CEO Agent
-CEO Agent → Final Memo
-Audit Agent → Workflow Audit
+User â†’ CEO Agent
+CEO Agent â†’ Planner Agent
+Planner Agent â†’ Strategy Creator Agent
+Strategy Creator Agent â†’ Strategy Reviewer Agent
+Strategy Reviewer Agent â†’ Codegen Agent
+Codegen Agent â†’ Test Runner
+Test Runner â†’ Backtest Agent
+Backtest Agent â†’ Analytics Tools
+Analytics Tools â†’ Risk Reviewer Agent
+Risk Reviewer Agent â†’ CEO Agent
+CEO Agent â†’ Final Memo
+Audit Agent â†’ Workflow Audit
 ```
 
 v0.1 must not include live trading.
@@ -1233,10 +1233,10 @@ docs/agentic_firm/constitution.md
 docs/agentic_firm/risk_policy.md
 docs/agentic_firm/agent_permissions.md
 docs/agentic_firm/strategy_lifecycle.md
-configs/risk_thresholds.yaml
-configs/live_trading.yaml
-configs/agent_permissions.yaml
-risk/governor.py
+config/risk_thresholds.yaml
+config/live_trading.yaml
+config/agent_permissions.yaml
+services/risk/governor.py
 risk/kill_switch.py
 agents/control_plane/orchestrator.py
 agents/executive/planner_agent/service.py
@@ -1286,9 +1286,12 @@ This Constitution is binding on all HaruQuant agents, tools, services, workflows
 
 This Constitution was influenced by public governance and system-design references including:
 
-1. NIST AI Risk Management Framework — voluntary AI risk management guidance organized around governance and risk management practices.
-2. FINRA AI guidance — model risk management, explainability, data governance, privacy, cybersecurity, and supervisory control considerations for AI in securities contexts.
-3. FIA automated trading risk-controls paper — pre-trade controls, post-trade analysis, testing, and responsible risk-management practices for automated trading systems.
-4. TradingAgents — multi-agent financial trading structure separating analysts, researchers, trader, risk management, and portfolio manager approval.
+1. NIST AI Risk Management Framework â€” voluntary AI risk management guidance organized around governance and risk management practices.
+2. FINRA AI guidance â€” model risk management, explainability, data governance, privacy, cybersecurity, and supervisory control considerations for AI in securities contexts.
+3. FIA automated trading risk-controls paper â€” pre-trade controls, post-trade analysis, testing, and responsible risk-management practices for automated trading systems.
+4. TradingAgents â€” multi-agent financial trading structure separating analysts, researchers, trader, risk management, and portfolio manager approval.
 
 These references are not incorporated as legal advice. HaruQuant must separately comply with all applicable laws, broker rules, platform rules, and jurisdiction-specific requirements before any live deployment.
+
+
+

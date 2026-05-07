@@ -1,4 +1,4 @@
-# Agent Catalog
+﻿# Agent Catalog
 
 Status: canonical agent catalog
 Scope: implemented agents, contracts, and operational ownership
@@ -17,7 +17,7 @@ This catalog now reflects the implemented agent layer exactly as exposed by
 | `compliance_agent` | `ComplianceAgentWrapper` | `agents/compliance_agent.py` | LLM wrapper | `COMPLIANCE_AGENT_INSTRUCTION` | `EvaluationReport` |
 | `correlation_agent` | `CorrelationAgentWrapper` | `agents/correlation_agent.py` | LLM wrapper | `CORRELATION_AGENT_INSTRUCTION` | `ObservationEvent` |
 | `drawdown_agent` | `DrawdownAgentWrapper` | `agents/drawdown_agent.py` | LLM wrapper | `DRAWDOWN_AGENT_INSTRUCTION` | `ObservationEvent` |
-| `execution_agent` | `ExecutionAgentWrapper` | `agents/execution_agent.py` | LLM wrapper | `EXECUTION_AGENT_INSTRUCTION` | `ExecutionIntent` |
+| `execution_agent` | `ExecutionAgentWrapper` | `agents/portfolio_agent.py` | LLM wrapper | `EXECUTION_AGENT_INSTRUCTION` | `ExecutionIntent` |
 | `exposure_agent` | `ExposureAgentWrapper` | `agents/exposure_agent.py` | LLM wrapper | `EXPOSURE_AGENT_INSTRUCTION` | `ObservationEvent` |
 | `strategy_creator_agent` | `StrategyCreatorAgent` | `agents/strategy_creator_agent.py` | deterministic service agent | `STRATEGY_CREATOR_AGENT_INSTRUCTION` | `StrategyBlueprint` plus optional registered strategy artifact |
 | `intent_router_agent` | `IntentRouterAgent`, `intent_router_agent` | `agents/intent_router.py` | Router/service | classifier + `RouteDecisionService` | dispatches handler output, no canonical output validator |
@@ -55,7 +55,7 @@ Examples:
 - `agents/executive/planner_agent/prompts.py`
 - `agents/control_plane/prompts.py`
 - `agents/strategy_development/strategy_creator_agent/prompts.py`
-- `agents/risk_portfolio/portfolio_manager_agent/prompts.py`
+- `agents/portfolio/portfolio_manager_agent/prompts.py`
 - `agents/operations_audit/audit_compliance_agent/prompts.py`
 
 ## Model Configuration
@@ -72,3 +72,5 @@ Shared agent model settings are defined in
 - [Tool_Catalog.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\tools\Tool_Catalog.md)
 - [agents/Strategy_Creator_Agent.md](C:\Users\rharu\Documents\MyApplications\HaruQuant\docs\haruquant\agents\Strategy_Creator_Agent.md)
 - [agents/runtime](C:\Users\rharu\Documents\MyApplications\HaruQuant\canonical HaruQuant packages\agents\runtime)
+
+

@@ -183,7 +183,7 @@ agents/
       README.md
       tests/
 
-  risk_portfolio/
+  risk/
     risk_reviewer_agent/
       __init__.py
       agent.py
@@ -196,7 +196,7 @@ agents/
       README.md
       tests/
 
-  execution/
+  portfolio/
     execution_planner_agent/
       __init__.py
       agent.py
@@ -1601,11 +1601,11 @@ Portfolio Manager can propose adjustments but cannot bypass RiskGovernor.
 
 ---
 
-### Execution Department
+### Portfolio Department
 
 Agents/services:
 
-- Execution Planner
+- Portfolio / Execution Planner
 - Kill Switch Service
 - MT5/cTrader Execution Bridge
 - Broker / Exchange

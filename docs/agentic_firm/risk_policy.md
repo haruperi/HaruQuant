@@ -1,8 +1,8 @@
-# HaruQuant Agentic AI Trading Firm — Standard Prop Firm Risk Policy
+﻿# HaruQuant Agentic AI Trading Firm â€” Standard Prop Firm Risk Policy
 
 **Document:** `risk_policy.md`  
 **Target path:** `docs/agentic_firm/risk_policy.md`  
-**Version:** 1.2.0 — Standard Prop Firm Compliance Edition  
+**Version:** 1.2.0 â€” Standard Prop Firm Compliance Edition  
 **Status:** Draft for Board Review  
 **Owner:** Human Board / Haruperi  
 **Applies to:** HaruQuant multi-agent research, backtesting, paper trading, prop-firm challenge simulation, funded-account simulation, and future live/prop-firm trading workflows  
@@ -108,13 +108,13 @@ Risk authority follows this order:
 
 ```text
 Human Board
-→ Constitution
-→ Risk Policy
-→ Standard Prop Firm Compliance Profile
-→ RiskGovernor
-→ Kill Switch
-→ Execution Bridge
-→ Agents
+â†’ Constitution
+â†’ Risk Policy
+â†’ Standard Prop Firm Compliance Profile
+â†’ RiskGovernor
+â†’ Kill Switch
+â†’ Execution Bridge
+â†’ Agents
 ```
 
 Rules:
@@ -176,25 +176,25 @@ The standard profile uses a static total-loss floor.
 Formula:
 
 ```text
-minimum_allowed_equity = initial_balance × (1 - max_total_loss_pct)
+minimum_allowed_equity = initial_balance Ã— (1 - max_total_loss_pct)
 ```
 
 For a 100,000 account:
 
 ```text
-minimum_allowed_equity = 100,000 × (1 - 0.10) = 90,000
+minimum_allowed_equity = 100,000 Ã— (1 - 0.10) = 90,000
 ```
 
 HaruQuant internal hard stop:
 
 ```text
-internal_minimum_equity = initial_balance × (1 - 0.085)
+internal_minimum_equity = initial_balance Ã— (1 - 0.085)
 ```
 
 For a 100,000 account:
 
 ```text
-internal_minimum_equity = 100,000 × 0.915 = 91,500
+internal_minimum_equity = 100,000 Ã— 0.915 = 91,500
 ```
 
 ---
@@ -245,7 +245,7 @@ position_size = risk_amount / stop_loss_value_per_unit
 Where:
 
 ```text
-risk_amount = min(initial_balance, current_equity) × risk_pct
+risk_amount = min(initial_balance, current_equity) Ã— risk_pct
 ```
 
 If no valid stop loss exists, the RiskGovernor must either:
@@ -294,7 +294,7 @@ external_daily_breach_pct: 5.0
 ### 6.4 Daily loss calculation
 
 ```text
-daily_loss_pct = (daily_reference_equity - current_equity) / initial_balance × 100
+daily_loss_pct = (daily_reference_equity - current_equity) / initial_balance Ã— 100
 ```
 
 The RiskGovernor must evaluate daily loss before every order, after every fill, on every equity update, and on every broker heartbeat.
@@ -325,7 +325,7 @@ weekly_hard_stop_pct: 6.0
 ### 7.3 Weekly loss formula
 
 ```text
-weekly_loss_pct = (week_start_equity - current_equity) / initial_balance × 100
+weekly_loss_pct = (week_start_equity - current_equity) / initial_balance Ã— 100
 ```
 
 ---
@@ -394,7 +394,7 @@ portfolio_hard_stop_pct: 8.0
 ### 9.3 Portfolio drawdown formula
 
 ```text
-portfolio_drawdown_pct = (portfolio_equity_high_watermark - current_equity) / portfolio_equity_high_watermark × 100
+portfolio_drawdown_pct = (portfolio_equity_high_watermark - current_equity) / portfolio_equity_high_watermark Ã— 100
 ```
 
 ---
@@ -672,7 +672,7 @@ These values must be adjusted to match the actual broker symbol settings, digits
 Reject a trade if:
 
 1. Current spread exceeds symbol limit.
-2. Current spread exceeds 2× recent median spread.
+2. Current spread exceeds 2Ã— recent median spread.
 3. Spread data is missing.
 4. Spread spike occurs near news.
 5. Spread makes expected reward/risk invalid.
@@ -1039,7 +1039,7 @@ The best positive trading day must not contribute more than 50% of total positiv
 ### 24.2 Best Day Rule formula
 
 ```text
-best_day_score = best_positive_day_profit / total_positive_days_profit × 100
+best_day_score = best_positive_day_profit / total_positive_days_profit Ã— 100
 ```
 
 Where:
@@ -1053,7 +1053,7 @@ Where:
 If the best day earns 6,000 and total positive-day profit is 10,000:
 
 ```text
-best_day_score = 6,000 / 10,000 × 100 = 60%
+best_day_score = 6,000 / 10,000 Ã— 100 = 60%
 ```
 
 This fails the 50% Best Day Rule.
@@ -1061,7 +1061,7 @@ This fails the 50% Best Day Rule.
 If the best day earns 4,000 and total positive-day profit is 10,000:
 
 ```text
-best_day_score = 4,000 / 10,000 × 100 = 40%
+best_day_score = 4,000 / 10,000 Ã— 100 = 40%
 ```
 
 This passes but enters HaruQuant warning state.
@@ -1317,7 +1317,7 @@ The Audit Agent must:
 
 ## 29. Default Configuration File
 
-HaruQuant must implement this policy in `configs/risk_thresholds.yaml`.
+HaruQuant must implement this policy in `config/risk_thresholds.yaml`.
 
 ```yaml
 risk_profile:
@@ -1562,3 +1562,4 @@ The system may research, test, and recommend freely within approved boundaries, 
 The final operating law is:
 
 > **Protect the account first, pass the challenge second, grow the firm third.**
+

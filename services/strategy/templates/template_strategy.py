@@ -1,186 +1,144 @@
-﻿"""
-Template Strategy.
+"""Standard HaruQuant strategy template.
 
-A clean starting point for creating new strategies.
- Implement your main logic in on_bar() and signal parsing in get_signal().
-
-Entry Signals:
-- Define your entry conditions in on_bar()
-- Return signal details in get_signal()
+Follow docs/haruquant/strategy_creation_template.md when creating a real strategy.
 """
+
+from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
 import pandas as pd
 
+from services.strategy.base import BaseStrategy, SignalDict
 from services.utils.logger import logger
-from services.strategy import BaseStrategy
-from services.strategy.base import SignalDict
-
-# Import indicators as needed
-# from services.indicator import atr, ema, rsi, sma
 
 
 class TemplateStrategy(BaseStrategy):
-    """
-    [Strategy Name].
+    """Replace this class with a concrete simple, stateful, or hybrid strategy."""
 
-    [Brief Description of Strategy Logic]
-
-    Entry Signals:
-    - Long: [Condition]
-    - Short: [Condition]
-
-    Parameters (via params dict):
-        symbol: Trading symbol (e.g., "EURUSD")
-        timeframe: Timeframe (e.g., "H1", "D1")
-
-        Add your custom parameters here:
-        - param1: Description (default: value)
-        - param2: Description (default: value)
-    """
+    strategy_name = "TemplateStrategy"
+    strategy_type = "simple"  # simple | stateful | hybrid
+    signal_schema_version = "1.0"
+    action_schema_version = "1.0"
 
     def __init__(self, params: Optional[Dict[str, Any]] = None):
-        """
-        Initialize strategy parameters.
-
-        Args:
-            params: Strategy parameters dict with keys:
-                - symbol: Trading symbol (required)
-                - timeframe: Timeframe (required)
-                - Add your custom parameters here
-
-        Example:
-            strategy = EmptyStrategy({
-                'symbol': 'EURUSD',
-                'timeframe': 'H1',
-                'param1': value1,
-                'param2': value2
-            })
-        """
         super().__init__(params)
+        self._load_params()
+        self._validate_params()
 
-        # Extract your custom parameters with defaults
-        # self.param1 = self.params.get('param1', default_value)
-        # self.param2 = self.params.get('param2', default_value)
+    def _load_params(self) -> None:
+        self.symbol = str(self.params.get("symbol", "UNKNOWN"))
+        self.fast_period = int(self.params.get("fast_period", 20))
+        self.slow_period = int(self.params.get("slow_period", 50))
 
-        # Validate parameters if needed
-        # if self.param1 <= 0:
-        #     raise ValueError(f"param1 must be positive, got {self.param1}")
+    def _validate_params(self) -> None:
+        if not self.symbol:
+            raise ValueError("symbol must be provided.")
+        if self.fast_period <= 0:
+            raise ValueError("fast_period must be positive.")
+        if self.slow_period <= 0:
+            raise ValueError("slow_period must be positive.")
+        if self.fast_period >= self.slow_period:
+            raise ValueError("fast_period must be less than slow_period.")
 
     def on_init(self) -> None:
-        """
-        Initialize strategy (called once at start).
-
-        Use this to:
-        - Log strategy parameters
-        - Set up any initial state
-        - Validate configuration
-        """
-        logger.info(f"TemplateStrategy initialized for {self.params['symbol']}")
-        # Log your parameters here
-        # logger.info(f"Parameters: param1={self.param1}, param2={self.param2}")
+        logger.info(
+            "%s initialized for %s fast=%s slow=%s",
+            self.strategy_name,
+            self.symbol,
+            self.fast_period,
+            self.slow_period,
+        )
 
     def on_bar(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process each bar and generate trading signals.
+        """Calculate features, simple signal columns, and event activators."""
+        data = data.copy()
+        data = self._calculate_indicators(data)
+        data = self._shift_features(data)
+        data = self._ensure_signal_columns(data)
+        data = self._generate_simple_signals(data)
+        data = self._generate_event_activators(data)
+        return data
 
-        This method is called for every bar both in backtest and live trading.
+    def _calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[f"sma_{self.fast_period}"] = data["close"].rolling(
+            self.fast_period
+        ).mean()
+        data[f"sma_{self.slow_period}"] = data["close"].rolling(
+            self.slow_period
+        ).mean()
+        return data
 
-        Args:
-            data: DataFrame with OHLCV data (columns: open, high, low, close, volume)
+    def _shift_features(self, data: pd.DataFrame) -> pd.DataFrame:
+        fast = f"sma_{self.fast_period}"
+        slow = f"sma_{self.slow_period}"
+        data[f"{fast}_signal"] = data[fast].shift(1)
+        data[f"{slow}_signal"] = data[slow].shift(1)
+        data[f"prev_{fast}_signal"] = data[f"{fast}_signal"].shift(1)
+        data[f"prev_{slow}_signal"] = data[f"{slow}_signal"].shift(1)
+        return data
 
-        Returns:
-            DataFrame with added indicator columns and 'signal' and 'price' columns
+    def _ensure_signal_columns(self, data: pd.DataFrame) -> pd.DataFrame:
+        defaults: dict[str, Any] = {
+            "entry_signal": 0,
+            "exit_signal": 0,
+            "pending_signal": 0,
+            "cancel_pending_signal": 0,
+            "pending_signal_2": 0,
+            "cancel_pending_signal_2": 0,
+            "price": float("nan"),
+            "price_2": float("nan"),
+            "stop_loss": float("nan"),
+            "take_profit": float("nan"),
+            "signal_reason": "",
+            "setup_id": "",
+            "group_id": "",
+            "buy_setup_active": False,
+            "sell_setup_active": False,
+            "buy_add_active": False,
+            "sell_add_active": False,
+            "buy_exit_active": False,
+            "sell_exit_active": False,
+            "buy_pyramid_active": False,
+            "sell_pyramid_active": False,
+            "buy_martingale_active": False,
+            "sell_martingale_active": False,
+            "buy_decompose_active": False,
+            "sell_decompose_active": False,
+            "buy_trail_active": False,
+            "sell_trail_active": False,
+        }
+        for column, default in defaults.items():
+            if column not in data.columns:
+                data[column] = default
+        return data
 
-        Responsibilities:
-        1. Calculate indicators
-        2. Generate 'signal' column (calculate on open based on previous bar data)
-        3. Generate 'price' column (usually the opening price of the bar is market price)
+    def _generate_simple_signals(self, data: pd.DataFrame) -> pd.DataFrame:
+        fast = f"sma_{self.fast_period}_signal"
+        slow = f"sma_{self.slow_period}_signal"
+        prev_fast = f"prev_sma_{self.fast_period}_signal"
+        prev_slow = f"prev_sma_{self.slow_period}_signal"
 
-        Signal values (Integer columns):
-         - entry_signal: 1 (Buy), -1 (Sell), 0 (None)
-         - exit_signal: 1 (Exit Buy), -1 (Exit Sell), 0 (None)
-         - pending_signal: 1 (Buy Stop), -1 (Sell Stop), 2 (Buy Limit), -2 (Sell Limit)
-         - cancel_pending_signal: 1 (Cancel Entry), 2 (Cancel Exit) - implementation defined
-         - price: Price level for entry/pending
+        buy = (data[fast] > data[slow]) & (data[prev_fast] <= data[prev_slow])
+        sell = (data[fast] < data[slow]) & (data[prev_fast] >= data[prev_slow])
 
-        """
-        # TODO: 1. Calculate your indicators here
-        # data = sma(data, period=self.param_name)
-        # sma_col = f'sma_{self.param_name}'  # Get column names
+        data.loc[buy, "entry_signal"] = 1
+        data.loc[buy, "price"] = data.loc[buy, "open"]
+        data.loc[buy, "signal_reason"] = "Bullish moving average crossover"
+        data.loc[buy, "setup_id"] = "template_buy"
+        data.loc[buy, "group_id"] = "template_buy"
 
-        # TODO: 2. ALWAYS shift indicators to use previous bar values (matches live trading)
-        # data[sma_col] = data[sma_col].shift(1)
+        data.loc[sell, "entry_signal"] = -1
+        data.loc[sell, "price"] = data.loc[sell, "open"]
+        data.loc[sell, "signal_reason"] = "Bearish moving average crossover"
+        data.loc[sell, "setup_id"] = "template_sell"
+        data.loc[sell, "group_id"] = "template_sell"
+        return data
 
-        # 3. Initialize signal columns
-        data["entry_signal"] = 0
-        data["exit_signal"] = 0
-        data["pending_signal"] = 0
-        data["cancel_pending_signal"] = 0
-        data["price"] = float("nan")
-
-        # TODO: 4. Generate Entry Signals
-        # condition_1_buy = data[f"sma_{self.param_name}"] > data[f"sma_{self.param_name}"]
-        # condition_1_sell = data[f"sma_{self.param_name}"] < data[f"sma_{self.param_name}"]
-
-        # TODO: 5. Generate Exit Signals
-        # condition_1_close_buy = data[f"sma_{self.param_name}"] < data[f"sma_{self.param_name}"]
-        # condition_1_close_sell = data[f"sma_{self.param_name}"] > data[f"sma_{self.param_name}"]
-
-        # TODO: 6. Set Entry signals
-        # data.loc[condition_1_buy, "entry_signal"] = 1
-        # data.loc[condition_1_buy, 'price'] = data.loc[condition_1_buy, 'open']
-
-        # data.loc[condition_1_sell, "entry_signal"] = -1
-        # data.loc[condition_1_sell, 'price'] = data.loc[condition_1_sell, 'open']
-
-        # TODO: 6. Set Exit signals
-        # data.loc[condition_1_close_buy, "exit_signal"] = 1  # Exit Buy
-        # data.loc[condition_1_close_buy, 'price'] = data.loc[condition_1_close_buy, 'open']
-
-        # data.loc[condition_1_close_sell, "exit_signal"] = -1 # Exit Sell
-        # data.loc[condition_1_close_sell, 'price'] = data.loc[condition_1_close_sell, 'open']
-
+    def _generate_event_activators(self, data: pd.DataFrame) -> pd.DataFrame:
+        data["buy_setup_active"] = data["entry_signal"] == 1
+        data["sell_setup_active"] = data["entry_signal"] == -1
         return data
 
     def get_signal(self, data: pd.DataFrame, index: int) -> Optional[SignalDict]:
-        """Parse the signal at a specific index into a standardized SignalDict."""
-        bar = data.iloc[index]
-
-        entry = int(bar.get("entry_signal", 0))
-        exit_sig = int(bar.get("exit_signal", 0))
-        pending = int(bar.get("pending_signal", 0))
-        cancel = int(bar.get("cancel_pending_signal", 0))
-
-        if entry == 0 and exit_sig == 0 and pending == 0 and cancel == 0:
-            return None
-
-        # Get price (fallback to close if None/NaN for safety, though strategies usually set it)
-        price = bar.get("price")
-        if pd.isna(price):
-            price = bar["close"]
-
-        # Initialize result variables
-        reason = "Signal detected"
-        stop_loss = None
-        take_profit = None
-
-        # Example custom logic:
-        if entry == 1:
-            reason = "Template buy signal"
-            # stop_loss = price * 0.99
-        elif entry == -1:
-            reason = "Template sell signal"
-
-        return {
-            "entry_signal": entry,
-            "exit_signal": exit_sig,
-            "pending_signal": pending,
-            "cancel_pending_signal": cancel,
-            "price": float(price),
-            "time": bar.name,
-            "reason": reason,
-            "stop_loss": stop_loss,
-            "take_profit": take_profit,
-        }
+        return super().get_signal(data, index)

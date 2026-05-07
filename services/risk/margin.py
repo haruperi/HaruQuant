@@ -111,6 +111,41 @@ def calculate_drawdown_state(
     )
 
 
+def margin_impact(proposal: dict[str, object], account_state: dict[str, object]) -> dict[str, float]:
+    """Calculate post-trade margin state from raw dictionaries."""
+
+    equity = float(account_state.get("equity", 100000.0))
+    used_margin = float(account_state.get("used_margin", account_state.get("margin_used", 0.0)))
+    free_margin = float(account_state.get("free_margin", equity - used_margin))
+    margin_level = float(account_state.get("margin_level", 999.0))
+    required_margin = float(proposal.get("required_margin", float(proposal.get("margin_impact", 0.0)) * equity))
+    post_used = used_margin + required_margin
+    post_free = free_margin - required_margin
+    post_margin_usage = post_used / max(equity, 1.0)
+    post_margin_level = (equity / post_used * 100.0) if post_used else margin_level
+    return {
+        "required_margin": required_margin,
+        "post_used_margin": post_used,
+        "post_free_margin": post_free,
+        "post_free_margin_pct": post_free / max(equity, 1.0),
+        "post_margin_usage_pct": post_margin_usage,
+        "post_margin_level_pct": post_margin_level,
+    }
+
+
+def margin_failures(impact: dict[str, float], thresholds: dict[str, object]) -> list[str]:
+    """Return deterministic margin rule failures."""
+
+    failures: list[str] = []
+    if impact["post_margin_usage_pct"] > float(thresholds["max_total_margin_usage_pct"]):
+        failures.append("max_total_margin_usage")
+    if impact["post_free_margin_pct"] < float(thresholds["min_free_margin_pct"]):
+        failures.append("min_free_margin")
+    if impact["post_margin_level_pct"] < float(thresholds["min_margin_level_pct"]):
+        failures.append("min_margin_level")
+    return failures
+
+
 __all__ = [
     "DrawdownState",
     "MarginUtilization",
@@ -118,4 +153,6 @@ __all__ = [
     "calculate_drawdown_state",
     "calculate_margin_utilization",
     "calculate_volatility_adjusted_size",
+    "margin_failures",
+    "margin_impact",
 ]

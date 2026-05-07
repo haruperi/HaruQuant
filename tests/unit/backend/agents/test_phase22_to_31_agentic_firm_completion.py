@@ -1,22 +1,22 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
-from agents.risk_portfolio.portfolio_manager_agent.activation import LiveActivationRequest, LiveActivationWorkflow
+from agents.portfolio.portfolio_manager_agent.activation import LiveActivationRequest, LiveActivationWorkflow
 from agents.audit import AuditAgent, IncidentAgent
 from agents._shared import AgentRunContext
 from agents.operations_audit.cost_optimizer_agent.service import CostOptimizerAgent
 from agents.operations_audit.audit_compliance_agent.debate import DebateTranscript
 from agents.control_plane.evaluation import AgentEvaluationFramework
-from agents.execution.live_execution_agent import LiveExecutionAgent
-from agents.execution.synthesis_trader_agent import SynthesisTraderAgent
+from agents.portfolio.live_execution_agent import LiveExecutionAgent
+from agents.portfolio.synthesis_trader_agent import SynthesisTraderAgent
 from agents.control_plane.operating_cycle import OperatingCycleRunner
 from agents.research.bear_researcher_agent import BearResearcherAgent
 from agents.research.bull_researcher_agent import BullResearcherAgent
 from execution.ctrader_bridge import CTraderBridge
 from execution.mt5_bridge import MT5Bridge
 from execution.order_router import OrderRouter
-from risk.kill_switch import KillSwitchService
+from services.risk.safety.kill_switch import KillSwitchService
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -74,7 +74,7 @@ def test_phase25_activation_workflow_and_config() -> None:
 
     assert decision.status == "pending_board"
     assert "approve_micro_live" in decision.evidence_pack["approval_options"]
-    assert (ROOT / "configs" / "live_trading.yaml").exists()
+    assert (ROOT / "config" / "live_trading.yaml").exists()
 
 
 def test_phase26_live_execution_blocks_without_gates() -> None:
@@ -152,3 +152,7 @@ def test_phase31_operating_cycle_runs_all_cadences() -> None:
     assert cycle["daily"]["strategy_signals_checked"] is True
     assert cycle["weekly"]["board_decisions"] == "pending_human_board"
     assert cycle["monthly"]["review_risk_policy"] is True
+
+
+
+

@@ -1,4 +1,4 @@
-# HaruQuant Agentic Trading Firm Governance Pack
+﻿# HaruQuant Agentic Trading Firm Governance Pack
 
 ## Overview
 
@@ -51,14 +51,14 @@ HaruQuant follows a layered control model:
 
 ```text
 Human Board
-→ Firm Constitution
-→ Risk Policy
-→ Agent Permissions
-→ Strategy Lifecycle
-→ Tool Registry
-→ RiskGovernor
-→ Audit System
-→ Execution Bridge
+â†’ Firm Constitution
+â†’ Risk Policy
+â†’ Agent Permissions
+â†’ Strategy Lifecycle
+â†’ Tool Registry
+â†’ RiskGovernor
+â†’ Audit System
+â†’ Execution Bridge
 ```
 
 The system is intentionally designed so that no LLM agent can independently control capital.
@@ -162,17 +162,17 @@ The lifecycle policy controls how a strategy moves from idea to deployment.
 
 ```text
 idea
-→ spec
-→ code_review
-→ backtest
-→ robustness
-→ paper_trading
-→ micro_live
-→ limited_live
-→ normal_live
-→ paused
-→ retired
-→ rejected
+â†’ spec
+â†’ code_review
+â†’ backtest
+â†’ robustness
+â†’ paper_trading
+â†’ micro_live
+â†’ limited_live
+â†’ normal_live
+â†’ paused
+â†’ retired
+â†’ rejected
 ```
 
 ### Core Promotion Rule
@@ -183,14 +183,14 @@ A strategy must collect evidence before promotion:
 
 | Promotion                   | Required Evidence                                   |
 | --------------------------- | --------------------------------------------------- |
-| Idea → Spec                | Research brief and feasibility score                |
-| Spec → Code Review         | Complete strategy spec                              |
-| Code Review → Backtest     | Bias, feasibility, and implementation review        |
-| Backtest → Robustness      | Reproducible backtest package                       |
-| Robustness → Paper Trading | Robustness score, risk memo, lifecycle approval     |
-| Paper Trading → Micro Live | Paper-trading record, risk approval, Board approval |
-| Micro Live → Limited Live  | Stable micro-live record and allocation review      |
-| Limited Live → Normal Live | Stable live performance and Board approval          |
+| Idea â†’ Spec                | Research brief and feasibility score                |
+| Spec â†’ Code Review         | Complete strategy spec                              |
+| Code Review â†’ Backtest     | Bias, feasibility, and implementation review        |
+| Backtest â†’ Robustness      | Reproducible backtest package                       |
+| Robustness â†’ Paper Trading | Robustness score, risk memo, lifecycle approval     |
+| Paper Trading â†’ Micro Live | Paper-trading record, risk approval, Board approval |
+| Micro Live â†’ Limited Live  | Stable micro-live record and allocation review      |
+| Limited Live â†’ Normal Live | Stable live performance and Board approval          |
 
 ---
 
@@ -275,7 +275,7 @@ Every HaruQuant agent must obey these rules:
 
 ## Prop-Firm Compliance Rules
 
-HaruQuant’s prop-firm risk posture is based on conservative internal enforcement.
+HaruQuantâ€™s prop-firm risk posture is based on conservative internal enforcement.
 
 ### Mandatory Limits
 
@@ -299,7 +299,7 @@ standard_prop_firm_compliance:
 
 The profit target is not a reason to increase risk.
 
-If HaruQuant is close to a loss limit, consistency breach, or forbidden-practice boundary, the correct action is to reduce or stop trading, not to “recover” aggressively.
+If HaruQuant is close to a loss limit, consistency breach, or forbidden-practice boundary, the correct action is to reduce or stop trading, not to â€œrecoverâ€ aggressively.
 
 ---
 
@@ -368,7 +368,7 @@ tools/registry.py
 agents/_shared/permissions.py
 agents/control_plane/task_manager.py
 agents/control_plane/orchestrator.py
-risk/governor.py
+services/risk/governor.py
 risk/kill_switch.py
 tools/audit_tools.py
 ```
@@ -417,3 +417,4 @@ This governance pack is aligned with the following design principles:
 ```text
 If a strategy or agent cannot be explained, audited, risk-checked, and safely disabled, it is not allowed to operate.
 ```
+

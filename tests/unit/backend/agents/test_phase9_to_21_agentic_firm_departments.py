@@ -1,14 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from agents.validation_backtesting.backtest_agent.service import BacktestAgent
 from agents.validation_backtesting.backtest_agent.evaluator import BacktestAnalystAgent
 from agents._shared import AgentRunContext
 from agents.strategy_development.strategy_codegen_agent.service import CodegenAgent
 from agents.validation_backtesting.optimization_comparator_agent.service import OptimizationAgent, OptimizationComparatorAgent
-from agents.execution.paper_execution_agent.service import PaperExecutionAgent
+from agents.portfolio.paper_execution_agent.service import PaperExecutionAgent
 from agents.operations_audit.performance_reporter_agent.service import DailyPerformanceReporterAgent, MonthlyStrategyReviewAgent, WeeklyBoardReporterAgent
-from agents.risk_portfolio.portfolio_manager_agent.service import PortfolioManagerAgent
-from agents.risk_portfolio.risk_reviewer_agent.service import RiskReviewerAgent
+from agents.portfolio.portfolio_manager_agent.service import PortfolioManagerAgent
+from agents.risk.risk_reviewer_agent.service import RiskReviewerAgent
 from agents.validation_backtesting.robustness_monte_carlo_agent.service import RobustnessAgent, RobustnessScorecard
 from agents._shared.schemas import BacktestRequest, StrategySpec
 from agents.validation_backtesting.statistical_validation_agent.service import StatisticalValidationAgent
@@ -16,7 +16,7 @@ from agents.strategy_development.strategy_creator_agent.service import StrategyC
 from agents.strategy_development.strategy_reviewer_agent.service import StrategyReviewerAgent
 from agents.strategy_development.strategy_reviewer_agent.tools import StrategySpecValidator
 from execution.paper_broker import PaperBroker
-from risk.governor import RiskGovernor
+from services.risk.governor import RiskGovernor
 
 
 def _context() -> AgentRunContext:
@@ -139,3 +139,5 @@ def test_phase20_and_21_reporting_and_portfolio_manager() -> None:
     assert monthly["promotion_candidates"]
     assert portfolio["recommendations"][0]["decision_type"] == "promote_to_micro_live"
     assert portfolio["board_required"] is True
+
+

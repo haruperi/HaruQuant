@@ -1,4 +1,4 @@
-# HaruQuant Agent Permissions Policy
+﻿# HaruQuant Agent Permissions Policy
 
 **Document path:** `docs/agentic_firm/agent_permissions.md`  
 **Document owner:** Human Board / Haruperi  
@@ -11,10 +11,10 @@
 - `docs/agentic_firm/constitution.md`
 - `docs/agentic_firm/risk_policy.md`
 - `docs/agentic_firm/strategy_lifecycle.md`
-- `configs/agent_permissions.yaml`
-- `configs/tool_registry.yaml`
-- `configs/live_trading.yaml`
-- `configs/risk_thresholds.yaml`
+- `config/agent_permissions.yaml`
+- `config/tool_registry.yaml`
+- `config/live_trading.yaml`
+- `config/risk_thresholds.yaml`
 
 ---
 
@@ -58,7 +58,7 @@ Agents are not final authorities over:
 
 ### 2.2 Tools Are Deny-by-Default
 
-All tools are denied unless explicitly granted to an agent in this policy and in `configs/agent_permissions.yaml`.
+All tools are denied unless explicitly granted to an agent in this policy and in `config/agent_permissions.yaml`.
 
 ### 2.3 Critical Actions Require Independent Control
 
@@ -1475,13 +1475,13 @@ The following combinations are forbidden even if each individual tool appears al
 An agent may not perform this chain:
 
 ```text
-research idea → trade proposal → live order
+research idea â†’ trade proposal â†’ live order
 ```
 
 Required chain:
 
 ```text
-research idea → strategy spec → review → code → tests → backtest → robustness → paper trading → Board approval → live strategy → RiskGovernor-approved orders
+research idea â†’ strategy spec â†’ review â†’ code â†’ tests â†’ backtest â†’ robustness â†’ paper trading â†’ Board approval â†’ live strategy â†’ RiskGovernor-approved orders
 ```
 
 ### 13.2 Self-Approval
@@ -1742,7 +1742,7 @@ If evidence needs correction, a new correction record must be appended.
 
 ## 20. Policy-as-Code Configuration
 
-The following YAML should be implemented in `configs/agent_permissions.yaml`.
+The following YAML should be implemented in `config/agent_permissions.yaml`.
 
 ```yaml
 policy_version: "1.0.0"
@@ -2078,7 +2078,7 @@ agents:
 
 ## 21. Tool Registry Template
 
-The following template must be used in `configs/tool_registry.yaml`.
+The following template must be used in `config/tool_registry.yaml`.
 
 ```yaml
 tools:
@@ -2230,3 +2230,5 @@ This policy is informed by the following governance and control principles:
 6. HaruQuant Constitution.
 7. HaruQuant Risk Policy.
 8. HaruQuant Strategy Lifecycle Policy.
+
+

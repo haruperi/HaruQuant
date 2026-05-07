@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from agents._shared.persistence import utc_stamp, write_json_artifact
 from services.governance.workflow import (
     KillSwitchState,
     is_allowed_kill_switch_transition,
@@ -95,6 +96,34 @@ class KillSwitchService:
             target_state=self.ACTION_TARGETS[action],
             authorization=authorization,
         )
+
+    def evaluate(self, snapshot: dict[str, object]) -> dict[str, object]:
+        """Evaluate a raw risk snapshot and trigger fail-closed order blocking."""
+
+        checks = {
+            "daily_loss": float(snapshot.get("daily_loss", 0.0)) > float(snapshot.get("max_daily_loss", 0.03)),
+            "weekly_loss": float(snapshot.get("weekly_loss", 0.0)) > float(snapshot.get("max_weekly_loss", 0.06)),
+            "account_drawdown": float(snapshot.get("account_drawdown", 0.0)) > float(snapshot.get("max_account_drawdown", 0.12)),
+            "strategy_drawdown": float(snapshot.get("strategy_drawdown", 0.0)) > float(snapshot.get("max_strategy_drawdown", 0.08)),
+            "broker_connection": snapshot.get("broker_connection", "healthy") != "healthy",
+            "spread_spike": float(snapshot.get("spread", 0.0)) > float(snapshot.get("max_spread", 2.0)),
+            "slippage_spike": float(snapshot.get("slippage", 0.0)) > float(snapshot.get("max_slippage", 1.0)),
+            "repeated_order_failures": int(snapshot.get("repeated_order_failures", 0)) > 2,
+            "audit_logger_health": snapshot.get("audit_logger_health", "healthy") != "healthy",
+            "risk_governor_health": snapshot.get("risk_governor_health", "healthy") != "healthy",
+        }
+        triggers = [name for name, failed in checks.items() if failed]
+        status = "triggered" if triggers else "healthy"
+        incident: dict[str, object] = {
+            "status": status,
+            "triggers": triggers,
+            "disable_new_orders": bool(triggers),
+            "close_positions_allowed_by_policy": bool(triggers and snapshot.get("close_positions_on_trigger", False)),
+            "incident_report": None,
+        }
+        if triggers:
+            incident["incident_report"] = write_json_artifact("reports/risk", f"kill-switch-{utc_stamp()}.json", incident)
+        return incident
 
 
 def evaluate_new_entry_block(current_state: KillSwitchState) -> KillSwitchBlockEvaluation:

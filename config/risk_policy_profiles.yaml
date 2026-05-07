@@ -1,0 +1,14 @@
+research_only:
+  approvals_enabled: false
+backtest_only:
+  approvals_enabled: false
+paper_trading:
+  approvals_enabled: true
+small_live:
+  approvals_enabled: true
+standard_live:
+  approvals_enabled: true
+restricted_mode:
+  approvals_enabled: false
+emergency_mode:
+  approvals_enabled: false
