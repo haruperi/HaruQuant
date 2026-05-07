@@ -1,0 +1,9 @@
+﻿from agents.simulation.simulation_evidence_curator_agent.agent import build_agent
+from agents.simulation.simulation_evidence_curator_agent.tools import TOOLS
+
+
+def test_agent_smoke():
+    agent = build_agent()
+    assert agent.name == "simulation_evidence_curator_agent"
+    assert "execute_trade" not in TOOLS
+

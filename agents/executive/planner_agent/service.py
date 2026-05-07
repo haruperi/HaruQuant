@@ -59,19 +59,78 @@ ROUTE_CATALOG: dict[str, RouteDefinition] = {
     ),
     "backtest_diagnosis": RouteDefinition(
         intent="backtest_diagnosis",
-        allowed_agents=["backtest", "strategy_reviewer", "risk_reviewer", "audit", "ceo"],
-        expected_outputs=["BacktestResultSummary", "StrategyReview", "RiskReview"],
+        allowed_agents=[
+            "simulation_orchestrator_agent",
+            "backtest_agent",
+            "backtest_analyst_agent",
+            "simulation_evidence_curator_agent",
+            "strategy_reviewer_agent",
+            "risk_reviewer_agent",
+            "audit",
+            "ceo",
+        ],
+        expected_outputs=["BacktestResultPackage", "BacktestDiagnosisReport", "SimulationEvidenceIndex", "RiskReview"],
         risk_level="medium",
         requires_risk_governor=True,
         evidence_requirements=["backtest_run_ref", "diagnostics", "audit_trace"],
     ),
     "optimization_comparison": RouteDefinition(
         intent="optimization_comparison",
-        allowed_agents=["backtest", "optimization", "statistical_validation", "risk_reviewer", "audit", "ceo"],
-        expected_outputs=["OptimizationComparison", "StatisticalValidation", "RiskReview"],
+        allowed_agents=[
+            "simulation_orchestrator_agent",
+            "backtest_agent",
+            "optimization_agent",
+            "optimization_comparator_agent",
+            "robustness_agent",
+            "statistical_validation_agent",
+            "simulation_evidence_curator_agent",
+            "risk_reviewer_agent",
+            "audit",
+            "ceo",
+        ],
+        expected_outputs=["OptimizationPackage", "OptimizationComparison", "RobustnessReport", "StatisticalValidationReport", "RiskReview"],
         risk_level="medium",
         requires_risk_governor=True,
         evidence_requirements=["candidate_runs", "robustness_metrics", "risk_review", "audit_trace"],
+    ),
+    "simulation": RouteDefinition(
+        intent="simulation",
+        allowed_agents=[
+            "simulation_orchestrator_agent",
+            "backtest_agent",
+            "backtest_analyst_agent",
+            "optimization_agent",
+            "optimization_comparator_agent",
+            "robustness_agent",
+            "statistical_validation_agent",
+            "simulation_evidence_curator_agent",
+            "risk_reviewer_agent",
+            "audit",
+            "ceo",
+        ],
+        expected_outputs=[
+            "SimulationPlan",
+            "BacktestResultPackage",
+            "BacktestDiagnosisReport",
+            "OptimizationPackage",
+            "OptimizationComparison",
+            "RobustnessReport",
+            "StatisticalValidationReport",
+            "SimulationEvidenceIndex",
+            "SimulationDecisionArtifact",
+            "SimulationToRiskHandoff",
+        ],
+        risk_level="medium",
+        requires_risk_governor=True,
+        evidence_requirements=[
+            "validated_strategy_spec",
+            "strategy_code_hash",
+            "strategy_review_report",
+            "market_data_manifest",
+            "cost_model",
+            "simulation_artifacts",
+            "audit_trace",
+        ],
     ),
     "risk_review": RouteDefinition(
         intent="risk_review",
@@ -267,6 +326,8 @@ class PlannerAgent:
             return "ceo_identity"
         if "approval" in lowered or "approve" in lowered:
             return "governed_action_draft"
+        if "simulation" in lowered or "simulate" in lowered or "historical test" in lowered:
+            return "simulation"
         if "diagnose" in lowered or "failed" in lowered:
             return "backtest_diagnosis"
         if "optimization" in lowered or "candidate" in lowered or "robust" in lowered:
