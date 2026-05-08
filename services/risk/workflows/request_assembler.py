@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from services.utils import generate_prefixed_id
-from services.utils.logger import logger
 from contracts.common import Originator
 from contracts.risk_assessment_request.model import (
-    ActivePolicyBundle,
     KillSwitchState,
     RequestedFreshnessClasses,
     RiskAssessmentRequest,
@@ -65,16 +64,14 @@ def assemble_risk_assessment_request(
         raise ValueError("policy bundle metadata must include formula_version")
 
     return RiskAssessmentRequest(
+        contract_type="RiskAssessmentRequest",
+        timestamp_utc=datetime.now(timezone.utc),
         workflow_id=context.workflow_id,
         correlation_id=context.correlation_id,
         causation_id=context.causation_id,
         originator=context.originator,
         environment=context.environment,
         operating_mode=context.operating_mode,
-        tenant_id=context.tenant_id,
-        account_scope_id=context.account_scope_id,
-        strategy_scope_id=context.strategy_scope_id,
-        compliance_profile_id=context.compliance_profile.compliance_profile_id,
         payload=RiskAssessmentRequestPayload(
             risk_request_id=risk_request_id or generate_prefixed_id("risk_req"),
             proposal_id=proposal.payload.proposal_id,
@@ -87,13 +84,7 @@ def assemble_risk_assessment_request(
                 portfolio_snapshot=portfolio_snapshot.freshness_class,
                 market_snapshot=market_snapshot.freshness_class,
             ),
-            strategy_lifecycle_state=context.strategy_lifecycle_state,
-            active_policy_bundle=ActivePolicyBundle(
-                policy_version=context.policy_bundle.bundle_version,
-                formula_version=formula_version,
-            ),
-            compliance_profile_id=context.compliance_profile.compliance_profile_id,
-            current_kill_switch_state=context.current_kill_switch_state,
+            policy_version=context.policy_bundle.bundle_version,
         ),
     )
 

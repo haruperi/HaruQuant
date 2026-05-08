@@ -1,3 +1,3 @@
-from contracts import ReplayBundle, ReplayBundlePayload
+from contracts import IntegrityManifest, ReplayBundle, ReplayBundlePayload
 
-__all__ = ['ReplayBundle', 'ReplayBundlePayload']
+__all__ = ['IntegrityManifest', 'ReplayBundle', 'ReplayBundlePayload']

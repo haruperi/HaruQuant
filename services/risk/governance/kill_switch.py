@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 
-from agents._shared.persistence import utc_stamp, write_json_artifact
 from services.governance.workflow import (
     KillSwitchState,
     is_allowed_kill_switch_transition,
@@ -14,6 +16,18 @@ from services.governance.workflow import (
 
 KillSwitchAction = Literal["soft_trigger", "hard_trigger", "request_recovery", "approve_recovery", "rearm"]
 RecoveryAuthorization = Literal["operator", "risk_manager", "compliance"]
+
+
+def _utc_stamp() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _write_json_artifact(directory: str | Path, name: str, payload: dict[str, object]) -> str:
+    target_dir = Path(directory)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / name
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return str(path)
 
 
 class KillSwitchTransitionError(ValueError):
@@ -122,7 +136,7 @@ class KillSwitchService:
             "incident_report": None,
         }
         if triggers:
-            incident["incident_report"] = write_json_artifact("reports/risk", f"kill-switch-{utc_stamp()}.json", incident)
+            incident["incident_report"] = _write_json_artifact("reports/risk", f"kill-switch-{_utc_stamp()}.json", incident)
         return incident
 
 
