@@ -86,20 +86,20 @@ Deterministic policy = final decision
 
 ### 3.1 Required testing levels
 
-- [ ] Contract tests.
-- [ ] Unit tests.
-- [ ] Deterministic policy tests.
-- [ ] Tool permission tests.
-- [ ] Service interface tests.
-- [ ] Evaluator tests.
-- [ ] Agent smoke tests.
+- [x] Contract tests.
+- [x] Unit tests.
+- [x] Deterministic policy tests.
+- [x] Tool permission tests.
+- [x] Service interface tests.
+- [x] Evaluator tests.
+- [x] Agent smoke tests.
 - [ ] Workflow tests.
 - [ ] Trajectory tests.
 - [ ] Red-team tests.
 - [ ] UI integration tests.
 - [ ] User acceptance tests.
 - [ ] Regression tests.
-- [ ] Audit tests.
+- [x] Audit tests.
 - [ ] Cost tests.
 - [ ] Live-trading safety tests.
 - [ ] Operating-cycle tests.
@@ -128,6 +128,13 @@ tests/
   test_approval_requirements.py
   test_no_live_execution_bypass.py
 ```
+
+Audit status as of 2026-05-08:
+
+- [x] All 62 agent folders include the minimum standard test files listed above.
+- [x] Agent-folder unit suites passed: `472 passed`.
+- [ ] Trading-critical extra test files still need a separate per-service gap audit.
+- [ ] Full top-level `tests/unit` suite is not passing yet; it stops on existing import/collection errors.
 
 ---
 
@@ -377,6 +384,8 @@ A user-facing test passes only if:
 
 #### CEO Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test CEO accepts user request.
 - [ ] Test CEO calls internal Planner.
 - [ ] Test CEO does not expose Planner as an independent user-callable agent.
@@ -394,6 +403,8 @@ A user-facing test passes only if:
 - [ ] Test CEO final memo uses evidence, not invented claims.
 
 #### Internal Planner Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test planner classification.
 - [ ] Test planner missing input detection.
@@ -413,6 +424,8 @@ A user-facing test passes only if:
 
 #### Market Intelligence Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test symbol data validation.
 - [ ] Test volatility regime detection.
 - [ ] Test spread regime detection.
@@ -427,6 +440,8 @@ A user-facing test passes only if:
 
 #### Technical Analyst Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test indicator context computation.
 - [ ] Test trend analysis.
 - [ ] Test volatility analysis.
@@ -440,6 +455,8 @@ A user-facing test passes only if:
 - [ ] Test no execution permission.
 
 #### Strategy Scout Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test internal strategy memory search.
 - [ ] Test past backtest search.
@@ -456,6 +473,8 @@ A user-facing test passes only if:
 
 #### News and Sentiment Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test approved news source restriction.
 - [ ] Test unapproved source rejection.
 - [ ] Test event impact classification.
@@ -469,6 +488,8 @@ A user-facing test passes only if:
 
 #### Macro/Fundamental Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test macro data source validation.
 - [ ] Test currency fundamental bias.
 - [ ] Test interest-rate differential analysis.
@@ -480,6 +501,8 @@ A user-facing test passes only if:
 - [ ] Test evidence quality scoring.
 
 #### Cross-Asset Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test correlation computation.
 - [ ] Test beta computation.
@@ -493,6 +516,8 @@ A user-facing test passes only if:
 
 #### Seasonality and Calendar Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test hour-of-day analysis.
 - [ ] Test day-of-week analysis.
 - [ ] Test month-of-year analysis.
@@ -505,6 +530,8 @@ A user-facing test passes only if:
 
 #### Strategy Hypothesis Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test conversion of research findings into hypothesis.
 - [ ] Test hypothesis contains symbol/timeframe/regime.
 - [ ] Test hypothesis contains entry/exit/risk concepts.
@@ -516,6 +543,8 @@ A user-facing test passes only if:
 
 #### Research Validation Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test evidence quality review.
 - [ ] Test sample size warning.
 - [ ] Test overfitting risk detection.
@@ -526,6 +555,8 @@ A user-facing test passes only if:
 - [ ] Test weak idea blocking.
 
 #### Evidence Curator Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test evidence save.
 - [ ] Test evidence deduplication.
@@ -541,6 +572,8 @@ A user-facing test passes only if:
 ### 7.3 Strategy Creation Department
 
 #### Strategy Creator Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test natural language to StrategySpec conversion.
 - [ ] Test research hypothesis to StrategySpec conversion.
@@ -560,6 +593,8 @@ A user-facing test passes only if:
 - [ ] Test lifecycle state `spec_draft`.
 
 #### Strategy Codegen Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test code generation from validated StrategySpec.
 - [ ] Test simple strategy generation.
@@ -583,6 +618,8 @@ A user-facing test passes only if:
 
 #### Strategy Reviewer Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test strategy spec/code consistency.
 - [ ] Test no-lookahead review.
 - [ ] Test parameter validation review.
@@ -601,6 +638,8 @@ A user-facing test passes only if:
 ### 7.4 Simulation Department
 
 #### Backtest Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test data availability validation.
 - [ ] Test strategy code hash validation.
@@ -622,6 +661,8 @@ A user-facing test passes only if:
 
 #### Backtest Analyst Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test equity curve analysis.
 - [ ] Test drawdown analysis.
 - [ ] Test monthly performance analysis.
@@ -636,6 +677,8 @@ A user-facing test passes only if:
 
 #### Optimization Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test parameter sweep setup.
 - [ ] Test parameter bounds validation.
 - [ ] Test invalid parameter rejection.
@@ -647,6 +690,8 @@ A user-facing test passes only if:
 
 #### Optimization Comparator Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test best result comparison.
 - [ ] Test stable region detection.
 - [ ] Test IS/OOS comparison.
@@ -657,6 +702,8 @@ A user-facing test passes only if:
 - [ ] Test recommended parameter output.
 
 #### Robustness Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test second OOS test.
 - [ ] Test spread stress test.
@@ -675,6 +722,8 @@ A user-facing test passes only if:
 - [ ] Test robustness scorecard.
 
 #### Statistical Validation Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test minimum sample size check.
 - [ ] Test bootstrap confidence intervals.
@@ -697,6 +746,8 @@ A user-facing test passes only if:
 ### 7.5 Risk Department
 
 #### RiskGovernor Deterministic Service
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test config loading.
 - [ ] Test risk config hash validation.
@@ -729,6 +780,8 @@ A user-facing test passes only if:
 
 #### Risk Reviewer Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test strategy evidence reading.
 - [ ] Test backtest result reading.
 - [ ] Test robustness result reading.
@@ -742,6 +795,8 @@ A user-facing test passes only if:
 
 #### Portfolio Risk Monitor Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test current portfolio exposure.
 - [ ] Test strategy exposure.
 - [ ] Test symbol exposure.
@@ -752,6 +807,8 @@ A user-facing test passes only if:
 - [ ] Test escalation to RiskGovernor.
 
 #### Risk Limit Auditor Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test risk policy drift detection.
 - [ ] Test threshold hash mismatch detection.
@@ -764,6 +821,8 @@ A user-facing test passes only if:
 ### 7.6 Portfolio Department
 
 #### Portfolio Manager Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test strategy lifecycle table reading.
 - [ ] Test live performance reading.
@@ -780,6 +839,8 @@ A user-facing test passes only if:
 
 #### Allocation Optimizer Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test allocation proposal generation.
 - [ ] Test risk-adjusted allocation scoring.
 - [ ] Test correlation-aware allocation.
@@ -788,6 +849,8 @@ A user-facing test passes only if:
 - [ ] Test RiskGovernor compatibility.
 
 #### Strategy Lifecycle Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test lifecycle transition validation.
 - [ ] Test invalid transition rejection.
@@ -798,6 +861,8 @@ A user-facing test passes only if:
 - [ ] Test lifecycle audit.
 
 #### Paper Broker Service
+
+- [ ] Not covered by the completed agent-folder audit; needs separate service/agent mapping.
 
 - [ ] Test market order simulation.
 - [ ] Test limit order simulation.
@@ -812,6 +877,8 @@ A user-facing test passes only if:
 
 #### Paper Execution Agent
 
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
+
 - [ ] Test approved paper strategy accepted.
 - [ ] Test unapproved strategy rejected.
 - [ ] Test signal check.
@@ -821,6 +888,8 @@ A user-facing test passes only if:
 - [ ] Test anomalies reported.
 
 #### Live Execution Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test live mode disabled block.
 - [ ] Test strategy not live block.
@@ -836,6 +905,8 @@ A user-facing test passes only if:
 
 #### Order Router Service
 
+- [ ] Not covered by the completed agent-folder audit; needs separate service/agent mapping.
+
 - [ ] Test approval token required.
 - [ ] Test live mode required.
 - [ ] Test strategy live status required.
@@ -848,6 +919,8 @@ A user-facing test passes only if:
 - [ ] Test rejected orders logged.
 
 #### Kill Switch Service
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test daily loss trigger.
 - [ ] Test weekly loss trigger.
@@ -865,6 +938,8 @@ A user-facing test passes only if:
 
 #### Incident Agent
 
+- [ ] Not covered by the completed agent-folder audit; needs separate service/agent mapping.
+
 - [ ] Test incident summary.
 - [ ] Test trigger identification.
 - [ ] Test affected strategies.
@@ -874,6 +949,8 @@ A user-facing test passes only if:
 - [ ] Test human approval required after critical incident.
 
 #### Performance Reporter Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test daily P&L report.
 - [ ] Test weekly Board report.
@@ -885,6 +962,8 @@ A user-facing test passes only if:
 - [ ] Test promotion/retirement candidates.
 
 #### Audit Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test live order has RiskGovernor approval.
 - [ ] Test approval token matches executed order.
@@ -899,6 +978,8 @@ A user-facing test passes only if:
 - [ ] Test critical audit failure disables live trading.
 
 #### Cost Optimizer Agent
+
+- [x] Minimum agent-folder unit audit exists and passed (`contracts`, `deterministic_policy`, `service`, `agent_smoke`, `permissions`, `audit`, `evaluator`).
 
 - [ ] Test model provider tracking.
 - [ ] Test model name tracking.
